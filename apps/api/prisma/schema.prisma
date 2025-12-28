@@ -1,0 +1,598 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== 사용자 및 인증 ====================
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("staff") // admin, manager, staff
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+// ==================== 회사정보 ====================
+
+model Branch {
+  id             String        @id @default(cuid())
+  branchCode     String        @unique
+  branchName     String
+  isHeadquarters Boolean       @default(false)
+  address        String?
+  phone          String?
+  isActive       Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  clientGroups ClientGroup[]
+
+  @@map("branches")
+}
+
+model ClientGroup {
+  id               String   @id @default(cuid())
+  groupCode        String   @unique
+  groupName        String
+  branchId         String
+  branch           Branch   @relation(fields: [branchId], references: [id])
+
+  // 품목별 할인율 (100 = 정가)
+  generalDiscount  Int      @default(100)
+  premiumDiscount  Int      @default(100)
+  importedDiscount Int      @default(100)
+
+  description      String?  @db.Text
+  isActive         Boolean  @default(true)
+  sortOrder        Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  clients              Client[]
+  halfProductPrices    GroupHalfProductPrice[]
+  productPrices        GroupProductPrice[]
+
+  @@index([branchId])
+  @@map("client_groups")
+}
+
+model Client {
+  id              String       @id @default(cuid())
+  clientCode      String       @unique
+  clientName      String
+  businessNumber  String?
+  representative  String?
+
+  phone           String?
+  mobile          String?
+  email           String?
+
+  postalCode      String?
+  address         String?
+  addressDetail   String?
+
+  groupId         String?
+  group           ClientGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+
+  creditGrade     String       @default("B") // A, B, C, D
+  paymentTerms    Int          @default(30)
+  status          String       @default("active") // active, inactive, suspended
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  orders     Order[]
+  myProducts MyProduct[]
+
+  @@index([groupId])
+  @@index([clientCode])
+  @@map("clients")
+}
+
+// ==================== 카테고리 ====================
+
+model Category {
+  id        String     @id @default(cuid())
+  name      String
+  level     String     // large, medium, small
+  parentId  String?
+  parent    Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryHierarchy")
+  sortOrder Int        @default(0)
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  products     Product[]
+  halfProducts HalfProduct[]
+
+  @@index([parentId])
+  @@map("categories")
+}
+
+// ==================== 상품관리 ====================
+
+model Product {
+  id           String   @id @default(cuid())
+  productCode  String   @unique
+  productName  String
+  categoryId   String
+  category     Category @relation(fields: [categoryId], references: [id])
+
+  isActive     Boolean  @default(true)
+  isNew        Boolean  @default(false)
+  isBest       Boolean  @default(false)
+  memberType   String   @default("all") // all, member_only, specific_groups
+
+  basePrice    Decimal  @db.Decimal(12, 2)
+  thumbnailUrl String?
+  detailImages String[] @default([])
+  description  String?  @db.Text
+
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  specifications ProductSpecification[]
+  bindings       ProductBinding[]
+  papers         ProductPaper[]
+  covers         ProductCover[]
+  foils          ProductFoil[]
+  finishings     ProductFinishing[]
+  customOptions  CustomOption[]
+  halfProducts   ProductHalfProduct[]
+  groupPrices    GroupProductPrice[]
+
+  @@index([categoryId])
+  @@map("products")
+}
+
+model ProductSpecification {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name      String  // 규격명
+  widthMm   Float
+  heightMm  Float
+  price     Decimal @db.Decimal(10, 2) @default(0)
+  isDefault Boolean @default(false)
+  sortOrder Int     @default(0)
+
+  @@index([productId])
+  @@map("product_specifications")
+}
+
+model ProductBinding {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name      String  // 제본방법명
+  price     Decimal @db.Decimal(10, 2) @default(0)
+  isDefault Boolean @default(false)
+  sortOrder Int     @default(0)
+
+  @@index([productId])
+  @@map("product_bindings")
+}
+
+model ProductPaper {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name      String  // 용지명
+  type      String  // normal, premium, imported
+  price     Decimal @db.Decimal(10, 2) @default(0)
+  isDefault Boolean @default(false)
+  sortOrder Int     @default(0)
+
+  @@index([productId])
+  @@map("product_papers")
+}
+
+model ProductCover {
+  id           String  @id @default(cuid())
+  productId    String
+  product      Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name         String  // 커버명
+  materialCode String?
+  price        Decimal @db.Decimal(10, 2) @default(0)
+  imageUrl     String?
+  isDefault    Boolean @default(false)
+  sortOrder    Int     @default(0)
+
+  @@index([productId])
+  @@map("product_covers")
+}
+
+model ProductFoil {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name      String  // 박명
+  color     String? // 박색상
+  price     Decimal @db.Decimal(10, 2) @default(0)
+  isDefault Boolean @default(false)
+  sortOrder Int     @default(0)
+
+  @@index([productId])
+  @@map("product_foils")
+}
+
+model ProductFinishing {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name      String  // 후가공명
+  price     Decimal @db.Decimal(10, 2) @default(0)
+  isDefault Boolean @default(false)
+  sortOrder Int     @default(0)
+
+  @@index([productId])
+  @@map("product_finishings")
+}
+
+model CustomOption {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name      String  // 옵션명
+  type      String  // select, checkbox, input
+  values    Json?   // 선택지 목록
+  price     Decimal @db.Decimal(10, 2) @default(0)
+  isRequired Boolean @default(false)
+  sortOrder Int     @default(0)
+
+  @@index([productId])
+  @@map("custom_options")
+}
+
+model ProductHalfProduct {
+  id            String      @id @default(cuid())
+  productId     String
+  product       Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  halfProductId String
+  halfProduct   HalfProduct @relation(fields: [halfProductId], references: [id], onDelete: Cascade)
+  isRequired    Boolean     @default(false)
+  sortOrder     Int         @default(0)
+
+  @@unique([productId, halfProductId])
+  @@map("product_half_products")
+}
+
+// ==================== 반제품 ====================
+
+model HalfProduct {
+  id                String   @id @default(cuid())
+  code              String   @unique
+  name              String
+
+  categoryLargeId   String
+  categoryLarge     Category @relation(fields: [categoryLargeId], references: [id])
+
+  basePrice         Decimal  @db.Decimal(12, 2)
+  isPriceAdditive   Boolean  @default(true)
+  memberType        String   @default("all")
+  requiredFileCount Int      @default(0)
+
+  thumbnailUrl      String?
+  detailImages      String[] @default([])
+
+  status            String   @default("active")
+  sortOrder         Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  specifications HalfProductSpecification[]
+  priceTiers     HalfProductPriceTier[]
+  options        HalfProductOption[]
+  productLinks   ProductHalfProduct[]
+  groupPrices    GroupHalfProductPrice[]
+
+  @@index([categoryLargeId])
+  @@map("half_products")
+}
+
+model HalfProductSpecification {
+  id            String      @id @default(cuid())
+  halfProductId String
+  halfProduct   HalfProduct @relation(fields: [halfProductId], references: [id], onDelete: Cascade)
+  name          String
+  widthMm       Float
+  heightMm      Float
+  price         Decimal     @db.Decimal(10, 2) @default(0)
+  isDefault     Boolean     @default(false)
+  sortOrder     Int         @default(0)
+
+  @@index([halfProductId])
+  @@map("half_product_specifications")
+}
+
+model HalfProductPriceTier {
+  id            String      @id @default(cuid())
+  halfProductId String
+  halfProduct   HalfProduct @relation(fields: [halfProductId], references: [id], onDelete: Cascade)
+  minQuantity   Int
+  maxQuantity   Int?
+  discountRate  Float       // 할인율 (1.0 = 정가)
+  sortOrder     Int         @default(0)
+
+  @@index([halfProductId])
+  @@map("half_product_price_tiers")
+}
+
+model HalfProductOption {
+  id            String      @id @default(cuid())
+  halfProductId String
+  halfProduct   HalfProduct @relation(fields: [halfProductId], references: [id], onDelete: Cascade)
+  name          String
+  type          String      // select, checkbox
+  values        Json        // [{name, price, isDefault}]
+  quantityType  String      @default("auto") // auto, manual
+  sortOrder     Int         @default(0)
+
+  @@index([halfProductId])
+  @@map("half_product_options")
+}
+
+// ==================== 가격관리 ====================
+
+model GroupHalfProductPrice {
+  id            String      @id @default(cuid())
+  groupId       String
+  group         ClientGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  halfProductId String
+  halfProduct   HalfProduct @relation(fields: [halfProductId], references: [id], onDelete: Cascade)
+  price         Decimal     @db.Decimal(12, 2)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([groupId, halfProductId])
+  @@map("group_half_product_prices")
+}
+
+model GroupProductPrice {
+  id        String      @id @default(cuid())
+  groupId   String
+  group     ClientGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  price     Decimal     @db.Decimal(12, 2)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@unique([groupId, productId])
+  @@map("group_product_prices")
+}
+
+// ==================== My상품 ====================
+
+model MyProduct {
+  id               String    @id @default(cuid())
+  clientId         String
+  client           Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  productType      String    // product, half_product
+  productId        String
+
+  customName       String?
+  customThumbnail  String?
+
+  registrationType String    // customer, admin
+  registeredBy     String
+
+  defaultOptions   Json?
+
+  sortOrder        Int       @default(0)
+  isActive         Boolean   @default(true)
+  usageCount       Int       @default(0)
+  lastUsedAt       DateTime?
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([clientId, productType, productId])
+  @@index([clientId])
+  @@map("my_products")
+}
+
+// ==================== 주문관리 ====================
+
+model Order {
+  id                    String    @id @default(cuid())
+  orderNumber           String    @unique
+  barcode               String    @unique
+
+  clientId              String
+  client                Client    @relation(fields: [clientId], references: [id])
+
+  productPrice          Decimal   @db.Decimal(12, 2)
+  shippingFee           Decimal   @db.Decimal(10, 2) @default(0)
+  tax                   Decimal   @db.Decimal(10, 2) @default(0)
+  adjustmentAmount      Decimal   @db.Decimal(10, 2) @default(0)
+  totalAmount           Decimal   @db.Decimal(12, 2)
+  finalAmount           Decimal   @db.Decimal(12, 2)
+
+  paymentMethod         String    @default("postpaid") // prepaid, postpaid, card, transfer
+  paymentStatus         String    @default("pending") // pending, paid, partial, refunded
+
+  status                String    @default("pending_receipt")
+  currentProcess        String    @default("receipt_pending")
+
+  isUrgent              Boolean   @default(false)
+  requestedDeliveryDate DateTime?
+
+  customerMemo          String?   @db.Text
+  productMemo           String?   @db.Text
+  adminMemo             String?   @db.Text
+
+  orderedAt             DateTime  @default(now())
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  shipping       OrderShipping?
+  items          OrderItem[]
+  processHistory ProcessHistory[]
+
+  @@index([clientId])
+  @@index([status])
+  @@index([orderedAt])
+  @@map("orders")
+}
+
+model OrderShipping {
+  id            String  @id @default(cuid())
+  orderId       String  @unique
+  order         Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  recipientName String
+  phone         String
+  postalCode    String
+  address       String
+  addressDetail String?
+
+  courierCode   String?
+  trackingNumber String?
+  shippedAt     DateTime?
+  deliveredAt   DateTime?
+
+  @@map("order_shippings")
+}
+
+model OrderItem {
+  id               String  @id @default(cuid())
+  orderId          String
+  order            Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productionNumber String
+  productId        String
+  productName      String
+
+  size             String
+  pages            Int
+  printMethod      String
+  paper            String
+  bindingType      String
+  coverMaterial    String?
+  foilName         String?
+  foilColor        String?
+  finishingOptions String[] @default([])
+
+  quantity         Int
+  unitPrice        Decimal  @db.Decimal(10, 2)
+  totalPrice       Decimal  @db.Decimal(12, 2)
+
+  files OrderFile[]
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+model OrderFile {
+  id               String    @id @default(cuid())
+  orderItemId      String
+  orderItem        OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  fileName         String
+  fileUrl          String
+  thumbnailUrl     String?
+
+  pageRange        String
+  pageStart        Int
+  pageEnd          Int
+
+  width            Int
+  height           Int
+  widthInch        Float
+  heightInch       Float
+  dpi              Int
+  fileSize         Int
+
+  inspectionStatus String    @default("pending") // pending, passed, failed
+  inspectionNote   String?
+
+  sortOrder        Int       @default(0)
+  uploadedAt       DateTime  @default(now())
+
+  @@index([orderItemId])
+  @@map("order_files")
+}
+
+model ProcessHistory {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  fromStatus  String?
+  toStatus    String
+  processType String
+
+  note        String?
+  processedBy String
+  processedAt DateTime @default(now())
+
+  @@index([orderId])
+  @@map("process_histories")
+}
+
+// ==================== 접수 마감 관리 ====================
+
+model ReceptionSchedule {
+  id          String    @id @default(cuid())
+  date        DateTime  @db.Date
+  year        Int
+  month       Int
+  day         Int
+  dayOfWeek   Int
+
+  status      String    @default("open") // open, closed, early_close, holiday, limited
+  openTime    String?
+  closeTime   String?
+
+  reason      String?
+  reasonType  String?   // regular_holiday, public_holiday, special, other
+
+  isHoliday   Boolean   @default(false)
+  holidayName String?
+
+  modifiedBy  String?
+  modifiedAt  DateTime?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([year, month, day])
+  @@index([year, month])
+  @@index([status])
+  @@map("reception_schedules")
+}
+
+model RegularHolidaySetting {
+  id            String   @id @default(cuid())
+  type          String   // weekly, monthly, yearly
+  weeklyDays    Int[]    @default([]) // [0, 6] = 일요일, 토요일
+  monthlyDays   Int[]    @default([])
+  yearlyDates   String[] @default([]) // ['01-01', '12-25']
+
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  name          String
+  isActive      Boolean  @default(true)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("regular_holiday_settings")
+}

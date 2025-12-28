@@ -1,0 +1,313 @@
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { PrismaService } from '@/common/prisma/prisma.service';
+import { Prisma } from '@prisma/client';
+import { CreateProductDto, UpdateProductDto } from '../dto';
+
+@Injectable()
+export class ProductService {
+  constructor(private prisma: PrismaService) {}
+
+  async findAll(params: {
+    skip?: number;
+    take?: number;
+    search?: string;
+    categoryId?: string;
+    isActive?: boolean;
+    isNew?: boolean;
+    isBest?: boolean;
+  }) {
+    const { skip = 0, take = 20, search, categoryId, isActive, isNew, isBest } = params;
+
+    const where: Prisma.ProductWhereInput = {
+      ...(search && {
+        OR: [
+          { productName: { contains: search } },
+          { productCode: { contains: search } },
+        ],
+      }),
+      ...(categoryId && { categoryId }),
+      ...(isActive !== undefined && { isActive }),
+      ...(isNew !== undefined && { isNew }),
+      ...(isBest !== undefined && { isBest }),
+    };
+
+    const [data, total] = await Promise.all([
+      this.prisma.product.findMany({
+        where,
+        skip,
+        take,
+        include: {
+          category: {
+            select: {
+              id: true,
+              name: true,
+              level: true,
+            },
+          },
+          _count: {
+            select: {
+              specifications: true,
+              bindings: true,
+              papers: true,
+            },
+          },
+        },
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
+      }),
+      this.prisma.product.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page: Math.floor(skip / take) + 1,
+        limit: take,
+        totalPages: Math.ceil(total / take),
+      },
+    };
+  }
+
+  async findOne(id: string) {
+    const product = await this.prisma.product.findUnique({
+      where: { id },
+      include: {
+        category: true,
+        specifications: { orderBy: { sortOrder: 'asc' } },
+        bindings: { orderBy: { sortOrder: 'asc' } },
+        papers: { orderBy: { sortOrder: 'asc' } },
+        covers: { orderBy: { sortOrder: 'asc' } },
+        foils: { orderBy: { sortOrder: 'asc' } },
+        finishings: { orderBy: { sortOrder: 'asc' } },
+        customOptions: { orderBy: { sortOrder: 'asc' } },
+        halfProducts: {
+          include: {
+            halfProduct: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                basePrice: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!product) {
+      throw new NotFoundException('상품을 찾을 수 없습니다');
+    }
+
+    return product;
+  }
+
+  async create(dto: CreateProductDto) {
+    const { specifications, bindings, papers, covers, foils, finishings, ...productData } = dto;
+
+    // Check for duplicate productCode
+    const existing = await this.prisma.product.findUnique({
+      where: { productCode: dto.productCode },
+    });
+
+    if (existing) {
+      throw new ConflictException('이미 존재하는 상품 코드입니다');
+    }
+
+    // Verify category exists
+    const category = await this.prisma.category.findUnique({
+      where: { id: dto.categoryId },
+    });
+
+    if (!category) {
+      throw new NotFoundException('카테고리를 찾을 수 없습니다');
+    }
+
+    return this.prisma.product.create({
+      data: {
+        ...productData,
+        basePrice: dto.basePrice,
+        specifications: specifications?.length
+          ? { create: specifications }
+          : undefined,
+        bindings: bindings?.length
+          ? { create: bindings }
+          : undefined,
+        papers: papers?.length
+          ? { create: papers }
+          : undefined,
+        covers: covers?.length
+          ? { create: covers }
+          : undefined,
+        foils: foils?.length
+          ? { create: foils }
+          : undefined,
+        finishings: finishings?.length
+          ? { create: finishings }
+          : undefined,
+      },
+      include: {
+        category: true,
+        specifications: true,
+        bindings: true,
+        papers: true,
+        covers: true,
+        foils: true,
+        finishings: true,
+      },
+    });
+  }
+
+  async update(id: string, dto: UpdateProductDto) {
+    await this.findOne(id);
+
+    const { specifications, bindings, papers, covers, foils, finishings, ...productData } = dto;
+
+    // 기존 옵션들 삭제 후 재생성
+    const deleteAndCreate = async () => {
+      if (specifications) {
+        await this.prisma.productSpecification.deleteMany({ where: { productId: id } });
+      }
+      if (bindings) {
+        await this.prisma.productBinding.deleteMany({ where: { productId: id } });
+      }
+      if (papers) {
+        await this.prisma.productPaper.deleteMany({ where: { productId: id } });
+      }
+      if (covers) {
+        await this.prisma.productCover.deleteMany({ where: { productId: id } });
+      }
+      if (foils) {
+        await this.prisma.productFoil.deleteMany({ where: { productId: id } });
+      }
+      if (finishings) {
+        await this.prisma.productFinishing.deleteMany({ where: { productId: id } });
+      }
+
+      return this.prisma.product.update({
+        where: { id },
+        data: {
+          ...productData,
+          specifications: specifications?.length
+            ? { create: specifications }
+            : undefined,
+          bindings: bindings?.length
+            ? { create: bindings }
+            : undefined,
+          papers: papers?.length
+            ? { create: papers }
+            : undefined,
+          covers: covers?.length
+            ? { create: covers }
+            : undefined,
+          foils: foils?.length
+            ? { create: foils }
+            : undefined,
+          finishings: finishings?.length
+            ? { create: finishings }
+            : undefined,
+        },
+        include: {
+          category: true,
+          specifications: true,
+          bindings: true,
+          papers: true,
+          covers: true,
+          foils: true,
+          finishings: true,
+        },
+      });
+    };
+
+    return this.prisma.$transaction(async () => {
+      return deleteAndCreate();
+    });
+  }
+
+  async delete(id: string) {
+    await this.findOne(id);
+
+    return this.prisma.product.delete({
+      where: { id },
+    });
+  }
+
+  // ==================== 옵션 개별 관리 ====================
+
+  async addSpecification(productId: string, data: Prisma.ProductSpecificationCreateWithoutProductInput) {
+    await this.findOne(productId);
+    return this.prisma.productSpecification.create({
+      data: { ...data, productId },
+    });
+  }
+
+  async updateSpecification(specId: string, data: Prisma.ProductSpecificationUpdateInput) {
+    return this.prisma.productSpecification.update({
+      where: { id: specId },
+      data,
+    });
+  }
+
+  async deleteSpecification(specId: string) {
+    return this.prisma.productSpecification.delete({
+      where: { id: specId },
+    });
+  }
+
+  async addBinding(productId: string, data: Prisma.ProductBindingCreateWithoutProductInput) {
+    await this.findOne(productId);
+    return this.prisma.productBinding.create({
+      data: { ...data, productId },
+    });
+  }
+
+  async addPaper(productId: string, data: Prisma.ProductPaperCreateWithoutProductInput) {
+    await this.findOne(productId);
+    return this.prisma.productPaper.create({
+      data: { ...data, productId },
+    });
+  }
+
+  async addCover(productId: string, data: Prisma.ProductCoverCreateWithoutProductInput) {
+    await this.findOne(productId);
+    return this.prisma.productCover.create({
+      data: { ...data, productId },
+    });
+  }
+
+  async addFoil(productId: string, data: Prisma.ProductFoilCreateWithoutProductInput) {
+    await this.findOne(productId);
+    return this.prisma.productFoil.create({
+      data: { ...data, productId },
+    });
+  }
+
+  async addFinishing(productId: string, data: Prisma.ProductFinishingCreateWithoutProductInput) {
+    await this.findOne(productId);
+    return this.prisma.productFinishing.create({
+      data: { ...data, productId },
+    });
+  }
+
+  // ==================== 반제품 연결 관리 ====================
+
+  async linkHalfProduct(productId: string, halfProductId: string, isRequired: boolean = false) {
+    await this.findOne(productId);
+
+    return this.prisma.productHalfProduct.upsert({
+      where: {
+        productId_halfProductId: { productId, halfProductId },
+      },
+      create: { productId, halfProductId, isRequired },
+      update: { isRequired },
+    });
+  }
+
+  async unlinkHalfProduct(productId: string, halfProductId: string) {
+    return this.prisma.productHalfProduct.delete({
+      where: {
+        productId_halfProductId: { productId, halfProductId },
+      },
+    });
+  }
+}

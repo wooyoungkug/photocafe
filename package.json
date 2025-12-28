@@ -1,0 +1,31 @@
+{
+  "name": "printing-erp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "인쇄업 ERP 시스템 - 포토북/앨범 인쇄 통합 관리",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev:api & npm run dev:web",
+    "dev:api": "npm -w apps/api run start:dev",
+    "dev:web": "npm -w apps/web run dev",
+    "build": "npm run build:api && npm run build:web",
+    "build:api": "npm -w apps/api run build",
+    "build:web": "npm -w apps/web run build",
+    "db:generate": "npm -w apps/api run db:generate",
+    "db:push": "npm -w apps/api run db:push",
+    "db:migrate": "npm -w apps/api run db:migrate",
+    "db:studio": "npm -w apps/api run db:studio",
+    "lint": "npm run lint --workspaces",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.2.0",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
