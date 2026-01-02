@@ -9,9 +9,13 @@ async function bootstrap() {
   // Global prefix
   app.setGlobalPrefix('api/v1');
 
-  // CORS
+  // CORS - Allow both 3000 and 3002
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: [
+      'http://localhost:3000',
+      'http://localhost:3002',
+      process.env.FRONTEND_URL,
+    ].filter(Boolean) as string[],
     credentials: true,
   });
 
@@ -57,7 +61,24 @@ async function bootstrap() {
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
+  SwaggerModule.setup('api/docs', app, document, {
+    swaggerOptions: {
+      persistAuthorization: true,
+      docExpansion: 'list',
+      filter: true,
+      showRequestDuration: true,
+      syntaxHighlight: {
+        activate: true,
+        theme: 'monokai',
+      },
+    },
+    customSiteTitle: '인쇄업 ERP API 문서',
+    customCss: `
+      .swagger-ui .topbar { display: none }
+      .swagger-ui .info { margin: 20px 0 }
+      .swagger-ui .info .title { font-size: 28px }
+    `,
+  });
 
   const port = process.env.API_PORT || 3001;
   await app.listen(port);
