@@ -3,34 +3,50 @@
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useLogin } from '@/hooks/use-auth';
+import { api } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 
-export default function ShopLoginPage() {
+export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get('redirect') || '/';
   const registered = searchParams.get('registered');
+
+  const { setAuth } = useAuthStore();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const login = useLogin();
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    login.mutate(
-      { email, password },
-      {
-        onSuccess: () => {
-          router.push(redirect);
-        },
-      }
-    );
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      const response = await api.post('/auth/login', { email, password });
+
+      setAuth({
+        user: response.user,
+        accessToken: response.accessToken,
+        refreshToken: response.refreshToken,
+      });
+
+      // 이전 페이지로 돌아가거나 메인으로
+      const redirectTo = searchParams.get('redirect') || '/';
+      router.push(redirectTo);
+    } catch (err: any) {
+      setError(err.message || '로그인에 실패했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -44,21 +60,22 @@ export default function ShopLoginPage() {
           </Link>
           <CardTitle className="text-2xl">로그인</CardTitle>
           <CardDescription>
-            PhotoCafe에 로그인하세요
+            PhotoCafe에 오신 것을 환영합니다
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             {registered && (
-              <div className="p-3 text-sm text-green-600 bg-green-50 rounded-md">
-                회원가입이 완료되었습니다. 로그인해주세요.
+              <div className="flex items-center gap-2 p-3 text-sm text-green-600 bg-green-50 rounded-md">
+                <CheckCircle2 className="h-4 w-4" />
+                <span>회원가입이 완료되었습니다. 로그인해주세요.</span>
               </div>
             )}
 
-            {login.error && (
+            {error && (
               <div className="flex items-center gap-2 p-3 text-sm text-destructive bg-destructive/10 rounded-md">
                 <AlertCircle className="h-4 w-4" />
-                <span>{login.error.message}</span>
+                <span>{error}</span>
               </div>
             )}
 
@@ -71,26 +88,45 @@ export default function ShopLoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                disabled={login.isPending}
+                autoComplete="email"
+                disabled={isLoading}
               />
             </div>
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">비밀번호</Label>
-                <Link href="/forgot-password" className="text-sm text-primary hover:underline">
+                <Link
+                  href="/forgot-password"
+                  className="text-sm text-muted-foreground hover:text-primary"
+                >
                   비밀번호 찾기
                 </Link>
               </div>
               <Input
                 id="password"
                 type="password"
-                placeholder="••••••••"
+                placeholder="********"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                disabled={login.isPending}
+                autoComplete="current-password"
+                disabled={isLoading}
               />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="remember"
+                checked={rememberMe}
+                onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+              />
+              <label
+                htmlFor="remember"
+                className="text-sm text-muted-foreground cursor-pointer"
+              >
+                로그인 상태 유지
+              </label>
             </div>
           </CardContent>
 
@@ -99,9 +135,9 @@ export default function ShopLoginPage() {
               type="submit"
               className="w-full"
               size="lg"
-              disabled={login.isPending}
+              disabled={isLoading}
             >
-              {login.isPending ? (
+              {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   로그인 중...
@@ -112,7 +148,7 @@ export default function ShopLoginPage() {
             </Button>
 
             <p className="text-sm text-muted-foreground text-center">
-              계정이 없으신가요?{' '}
+              아직 회원이 아니신가요?{' '}
               <Link href="/register" className="text-primary hover:underline font-medium">
                 회원가입
               </Link>

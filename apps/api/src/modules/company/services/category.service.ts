@@ -182,6 +182,16 @@ export class CategoryService {
     // 코드 자동 생성 (제공되지 않은 경우)
     const code = data.code || await this.generateCode(data.parentId);
 
+    // sortOrder 자동 할당 (같은 부모의 마지막 순서 + 1)
+    let sortOrder = data.sortOrder;
+    if (sortOrder === undefined || sortOrder === null) {
+      const lastSibling = await this.prisma.category.findFirst({
+        where: { parentId: data.parentId ?? null },
+        orderBy: { sortOrder: 'desc' },
+      });
+      sortOrder = (lastSibling?.sortOrder ?? -1) + 1;
+    }
+
     return this.prisma.category.create({
       data: {
         code,
@@ -189,7 +199,7 @@ export class CategoryService {
         level: data.level,
         depth,
         parentId: data.parentId,
-        sortOrder: data.sortOrder ?? 0,
+        sortOrder,
         isActive: data.isActive ?? true,
         isVisible: data.isVisible ?? true,
         isTopMenu: data.isTopMenu ?? false,
@@ -295,30 +305,47 @@ export class CategoryService {
   async moveUp(id: string) {
     const category = await this.findOne(id);
 
-    // 같은 부모의 형제들 중 현재보다 작은 sortOrder를 가진 것 찾기
-    const prevSibling = await this.prisma.category.findFirst({
-      where: {
-        parentId: category.parentId,
-        sortOrder: { lt: category.sortOrder },
-      },
-      orderBy: { sortOrder: 'desc' },
+    // 같은 부모의 모든 형제들 가져오기 (정렬 순서대로)
+    const siblings = await this.prisma.category.findMany({
+      where: { parentId: category.parentId },
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
     });
 
-    if (!prevSibling) {
+    const currentIndex = siblings.findIndex((s) => s.id === id);
+    if (currentIndex <= 0) {
       return category; // 이미 최상위
     }
 
-    // 순서 교환
-    await this.prisma.$transaction([
-      this.prisma.category.update({
-        where: { id: prevSibling.id },
-        data: { sortOrder: category.sortOrder },
-      }),
-      this.prisma.category.update({
-        where: { id: category.id },
-        data: { sortOrder: prevSibling.sortOrder },
-      }),
-    ]);
+    const prevSibling = siblings[currentIndex - 1];
+
+    // 순서 교환 (현재 sortOrder가 같을 수 있으므로 명시적으로 설정)
+    const prevSortOrder = prevSibling.sortOrder;
+    const currentSortOrder = category.sortOrder;
+
+    // sortOrder가 같은 경우 강제로 다른 값 할당
+    if (prevSortOrder === currentSortOrder) {
+      await this.prisma.$transaction([
+        this.prisma.category.update({
+          where: { id: prevSibling.id },
+          data: { sortOrder: currentIndex },
+        }),
+        this.prisma.category.update({
+          where: { id: category.id },
+          data: { sortOrder: currentIndex - 1 },
+        }),
+      ]);
+    } else {
+      await this.prisma.$transaction([
+        this.prisma.category.update({
+          where: { id: prevSibling.id },
+          data: { sortOrder: currentSortOrder },
+        }),
+        this.prisma.category.update({
+          where: { id: category.id },
+          data: { sortOrder: prevSortOrder },
+        }),
+      ]);
+    }
 
     return this.findOne(id);
   }
@@ -326,30 +353,47 @@ export class CategoryService {
   async moveDown(id: string) {
     const category = await this.findOne(id);
 
-    // 같은 부모의 형제들 중 현재보다 큰 sortOrder를 가진 것 찾기
-    const nextSibling = await this.prisma.category.findFirst({
-      where: {
-        parentId: category.parentId,
-        sortOrder: { gt: category.sortOrder },
-      },
-      orderBy: { sortOrder: 'asc' },
+    // 같은 부모의 모든 형제들 가져오기 (정렬 순서대로)
+    const siblings = await this.prisma.category.findMany({
+      where: { parentId: category.parentId },
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
     });
 
-    if (!nextSibling) {
+    const currentIndex = siblings.findIndex((s) => s.id === id);
+    if (currentIndex < 0 || currentIndex >= siblings.length - 1) {
       return category; // 이미 최하위
     }
 
-    // 순서 교환
-    await this.prisma.$transaction([
-      this.prisma.category.update({
-        where: { id: nextSibling.id },
-        data: { sortOrder: category.sortOrder },
-      }),
-      this.prisma.category.update({
-        where: { id: category.id },
-        data: { sortOrder: nextSibling.sortOrder },
-      }),
-    ]);
+    const nextSibling = siblings[currentIndex + 1];
+
+    // 순서 교환 (현재 sortOrder가 같을 수 있으므로 명시적으로 설정)
+    const nextSortOrder = nextSibling.sortOrder;
+    const currentSortOrder = category.sortOrder;
+
+    // sortOrder가 같은 경우 강제로 다른 값 할당
+    if (nextSortOrder === currentSortOrder) {
+      await this.prisma.$transaction([
+        this.prisma.category.update({
+          where: { id: nextSibling.id },
+          data: { sortOrder: currentIndex },
+        }),
+        this.prisma.category.update({
+          where: { id: category.id },
+          data: { sortOrder: currentIndex + 1 },
+        }),
+      ]);
+    } else {
+      await this.prisma.$transaction([
+        this.prisma.category.update({
+          where: { id: nextSibling.id },
+          data: { sortOrder: currentSortOrder },
+        }),
+        this.prisma.category.update({
+          where: { id: category.id },
+          data: { sortOrder: nextSortOrder },
+        }),
+      ]);
+    }
 
     return this.findOne(id);
   }

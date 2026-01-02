@@ -53,7 +53,16 @@
       "Skill(pricing)",
       "Bash(timeout /t 5 /nobreak)",
       "Bash(taskkill:*)",
-      "Bash(timeout /t 10 /nobreak)"
+      "Bash(timeout /t 10 /nobreak)",
+      "Bash(tasklist:*)",
+      "Bash(python -m json.tool:*)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbWp3Y2hxOTAwMDFwbHltaHdlMTY1bWJiIiwiZW1haWwiOiJhZG1pbkBwaG90b2NhZmUuY29tIiwicm9sZSI6InN0YWZmIiwiaWF0IjoxNzY3MzMxMTQ5LCJleHAiOjE3NjczMzQ3NDl9.ZnoAN5_bg8xyOF_3QTBNpGwIjIYvkK3mBD-N3zAjuso\")",
+      "Bash(timeout /t 3 /nobreak)",
+      "Bash(ping:*)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbWp3Y2hxOTAwMDFwbHltaHdlMTY1bWJiIiwiZW1haWwiOiJhZG1pbkBwaG90b2NhZmUuY29tIiwicm9sZSI6InN0YWZmIiwiaWF0IjoxNzY3MzMxNTQwLCJleHAiOjE3NjczMzUxNDB9.PIInizFri6bE8WDNHPZ-shH2tPQSP64T9jmV1NgqifY\")",
+      "Bash(rd /s /q \"C:\\\\dev\\\\photocafe\\\\apps\\\\web\\\\.next\")",
+      "Bash(timeout /t 8 /nobreak)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbWp3Y2hxOTAwMDFwbHltaHdlMTY1bWJiIiwiZW1haWwiOiJhZG1pbkBwaG90b2NhZmUuY29tIiwicm9sZSI6InN0YWZmIiwiaWF0IjoxNzY3MzMyNzA2LCJleHAiOjE3NjczMzYzMDZ9.P6eSCbGHuaTRq__epn4KIi_wjab8gH68Opz-CPSOKns\")"
     ]
   }
 }
