@@ -105,21 +105,55 @@ model Client {
 // ==================== 카테고리 ====================
 
 model Category {
-  id        String     @id @default(cuid())
-  name      String
-  level     String     // large, medium, small
-  parentId  String?
-  parent    Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
-  children  Category[] @relation("CategoryHierarchy")
-  sortOrder Int        @default(0)
-  isActive  Boolean    @default(true)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id              String     @id @default(cuid())
+  code            String?    @unique    // 8자리 코드: 65000000
+  name            String
+  level           String     // large, medium, small
+  depth           Int        @default(1) // 1: 대분류, 2: 중분류, 3: 소분류
 
-  products     Product[]
-  halfProducts HalfProduct[]
+  // 계층 구조
+  parentId        String?
+  parent          Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children        Category[] @relation("CategoryHierarchy")
+
+  // 노출 설정
+  isVisible       Boolean    @default(true)  // 노출/숨김
+  isTopMenu       Boolean    @default(false) // 상단메뉴 노출
+  loginVisibility String     @default("always") // always, logged_in, logged_out
+
+  // 카테고리 타입
+  categoryType    String     @default("HTML") // HTML, POD, EDITOR, HALF, production
+
+  // 생산 설정
+  productionForm  String?    // 생산폼 옵션 (digital_print, output_only, album_only, frame_only, goods_only)
+  isOutsourced    Boolean    @default(false) // 외주생산 여부
+
+  // 가격 적용 단위 (production 카테고리용)
+  pricingUnit     String?    // paper_based: 용지별출력단가, size_based: 규격별출력단가(page/장), per_item: 권당단가
+
+  // 설명
+  description     String?    // 카테고리 설명
+
+  // 이동경로 (링크)
+  linkUrl         String?    // 커스텀 링크 URL
+
+  // 콘텐츠
+  htmlContent     String?    @db.Text // HTML 내용
+
+  // 정렬 및 상태
+  sortOrder       Int        @default(0)
+  isActive        Boolean    @default(true)
+
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  // Relations
+  products        Product[]
+  halfProducts    HalfProduct[]
 
   @@index([parentId])
+  @@index([categoryType])
+  @@index([isTopMenu])
   @@map("categories")
 }
 

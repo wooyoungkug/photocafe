@@ -105,7 +105,7 @@ export class ClientQueryDto {
   status?: string;
 }
 
-export class UpdateClientGroupDto {
+export class ChangeClientGroupDto {
   @ApiPropertyOptional({ description: '그룹 ID (null이면 그룹 해제)' })
   @IsOptional()
   @IsString()

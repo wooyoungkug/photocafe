@@ -1,24 +1,29 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
+import {
+  CreateCategoryDto,
+  UpdateCategoryDto,
+  CategoryQueryDto,
+  MoveCategoryDto,
+  VisibilityDto,
+} from '../dto/category.dto';
 
 @Injectable()
 export class CategoryService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(params: {
-    level?: string;
-    parentId?: string;
-    isActive?: boolean;
-    search?: string;
-  }) {
-    const { level, parentId, isActive, search } = params;
+  async findAll(params: CategoryQueryDto) {
+    const { level, parentId, isActive, isVisible, isTopMenu, categoryType, search } = params;
 
     const where: Prisma.CategoryWhereInput = {
       ...(level && { level }),
       ...(parentId && { parentId }),
       ...(parentId === null && { parentId: null }),
       ...(isActive !== undefined && { isActive }),
+      ...(isVisible !== undefined && { isVisible }),
+      ...(isTopMenu !== undefined && { isTopMenu }),
+      ...(categoryType && { categoryType }),
       ...(search && {
         name: { contains: search, mode: 'insensitive' as Prisma.QueryMode },
       }),
@@ -32,6 +37,7 @@ export class CategoryService {
             id: true,
             name: true,
             level: true,
+            code: true,
           },
         },
         children: {
@@ -39,7 +45,9 @@ export class CategoryService {
             id: true,
             name: true,
             level: true,
+            code: true,
             isActive: true,
+            isVisible: true,
             sortOrder: true,
           },
           orderBy: { sortOrder: 'asc' },
@@ -51,7 +59,7 @@ export class CategoryService {
           },
         },
       },
-      orderBy: [{ level: 'asc' }, { sortOrder: 'asc' }, { name: 'asc' }],
+      orderBy: [{ depth: 'asc' }, { sortOrder: 'asc' }, { name: 'asc' }],
     });
 
     return categories;
@@ -59,23 +67,58 @@ export class CategoryService {
 
   async findTree() {
     const largeCategories = await this.prisma.category.findMany({
-      where: { level: 'large', isActive: true },
+      where: { level: 'large' },
       include: {
         children: {
-          where: { isActive: true },
           include: {
             children: {
-              where: { isActive: true },
+              include: {
+                _count: { select: { products: true, halfProducts: true } },
+              },
               orderBy: { sortOrder: 'asc' },
             },
+            _count: { select: { products: true, halfProducts: true } },
           },
           orderBy: { sortOrder: 'asc' },
         },
+        _count: { select: { products: true, halfProducts: true } },
       },
       orderBy: { sortOrder: 'asc' },
     });
 
     return largeCategories;
+  }
+
+  async findTopMenuCategories() {
+    return this.prisma.category.findMany({
+      where: {
+        isActive: true,
+        isVisible: true,
+        isTopMenu: true,
+      },
+      include: {
+        children: {
+          where: { isActive: true, isVisible: true },
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
+      orderBy: { sortOrder: 'asc' },
+    });
+  }
+
+  async findVisibleCategories(isLoggedIn: boolean) {
+    const visibilityConditions = isLoggedIn
+      ? ['always', 'logged_in']
+      : ['always', 'logged_out'];
+
+    return this.prisma.category.findMany({
+      where: {
+        isActive: true,
+        isVisible: true,
+        loginVisibility: { in: visibilityConditions },
+      },
+      orderBy: [{ depth: 'asc' }, { sortOrder: 'asc' }],
+    });
   }
 
   async findOne(id: string) {
@@ -85,6 +128,9 @@ export class CategoryService {
         parent: true,
         children: {
           orderBy: { sortOrder: 'asc' },
+          include: {
+            _count: { select: { products: true, halfProducts: true } },
+          },
         },
         _count: {
           select: {
@@ -102,13 +148,8 @@ export class CategoryService {
     return category;
   }
 
-  async create(data: {
-    name: string;
-    level: string;
-    parentId?: string;
-    sortOrder?: number;
-    isActive?: boolean;
-  }) {
+  async create(data: CreateCategoryDto) {
+    // 레벨 검증
     if (data.level !== 'large' && !data.parentId) {
       throw new BadRequestException('중분류/소분류는 상위 카테고리가 필요합니다');
     }
@@ -117,6 +158,7 @@ export class CategoryService {
       throw new BadRequestException('대분류는 상위 카테고리를 가질 수 없습니다');
     }
 
+    let depth = 1;
     if (data.parentId) {
       const parent = await this.prisma.category.findUnique({
         where: { id: data.parentId },
@@ -133,15 +175,32 @@ export class CategoryService {
       if (data.level === 'small' && parent.level !== 'medium') {
         throw new BadRequestException('소분류의 상위는 중분류여야 합니다');
       }
+
+      depth = parent.depth + 1;
     }
+
+    // 코드 자동 생성 (제공되지 않은 경우)
+    const code = data.code || await this.generateCode(data.parentId);
 
     return this.prisma.category.create({
       data: {
+        code,
         name: data.name,
         level: data.level,
+        depth,
         parentId: data.parentId,
         sortOrder: data.sortOrder ?? 0,
         isActive: data.isActive ?? true,
+        isVisible: data.isVisible ?? true,
+        isTopMenu: data.isTopMenu ?? false,
+        loginVisibility: data.loginVisibility ?? 'always',
+        categoryType: data.categoryType ?? 'HTML',
+        productionForm: data.productionForm,
+        isOutsourced: data.isOutsourced ?? false,
+        pricingUnit: data.pricingUnit,
+        description: data.description,
+        linkUrl: data.linkUrl,
+        htmlContent: data.htmlContent,
       },
       include: {
         parent: true,
@@ -149,20 +208,28 @@ export class CategoryService {
     });
   }
 
-  async update(id: string, data: {
-    name?: string;
-    sortOrder?: number;
-    isActive?: boolean;
-  }) {
+  async update(id: string, data: UpdateCategoryDto) {
+    await this.findOne(id);
+
+    // 레벨/parentId 변경은 허용하지 않음 (이동은 별도 메서드)
+    const { level, parentId, ...updateData } = data;
+
+    return this.prisma.category.update({
+      where: { id },
+      data: updateData,
+      include: {
+        parent: true,
+        children: true,
+      },
+    });
+  }
+
+  async updateVisibility(id: string, data: VisibilityDto) {
     await this.findOne(id);
 
     return this.prisma.category.update({
       where: { id },
       data,
-      include: {
-        parent: true,
-        children: true,
-      },
     });
   }
 
@@ -182,6 +249,115 @@ export class CategoryService {
     });
   }
 
+  async move(id: string, dto: MoveCategoryDto) {
+    const category = await this.findOne(id);
+
+    let newDepth = category.depth;
+    let newLevel = category.level;
+
+    if (dto.newParentId !== undefined) {
+      if (dto.newParentId === null) {
+        // 최상위로 이동
+        newDepth = 1;
+        newLevel = 'large';
+      } else {
+        const newParent = await this.prisma.category.findUnique({
+          where: { id: dto.newParentId },
+        });
+
+        if (!newParent) {
+          throw new NotFoundException('새 부모 카테고리를 찾을 수 없습니다');
+        }
+
+        newDepth = newParent.depth + 1;
+        newLevel = newParent.level === 'large' ? 'medium' : 'small';
+
+        if (newDepth > 3) {
+          throw new BadRequestException('3단계 이상의 계층은 지원하지 않습니다');
+        }
+      }
+    }
+
+    return this.prisma.category.update({
+      where: { id },
+      data: {
+        parentId: dto.newParentId,
+        depth: newDepth,
+        level: newLevel,
+        sortOrder: dto.newSortOrder ?? category.sortOrder,
+      },
+      include: {
+        parent: true,
+      },
+    });
+  }
+
+  async moveUp(id: string) {
+    const category = await this.findOne(id);
+
+    // 같은 부모의 형제들 중 현재보다 작은 sortOrder를 가진 것 찾기
+    const prevSibling = await this.prisma.category.findFirst({
+      where: {
+        parentId: category.parentId,
+        sortOrder: { lt: category.sortOrder },
+      },
+      orderBy: { sortOrder: 'desc' },
+    });
+
+    if (!prevSibling) {
+      return category; // 이미 최상위
+    }
+
+    // 순서 교환
+    await this.prisma.$transaction([
+      this.prisma.category.update({
+        where: { id: prevSibling.id },
+        data: { sortOrder: category.sortOrder },
+      }),
+      this.prisma.category.update({
+        where: { id: category.id },
+        data: { sortOrder: prevSibling.sortOrder },
+      }),
+    ]);
+
+    return this.findOne(id);
+  }
+
+  async moveDown(id: string) {
+    const category = await this.findOne(id);
+
+    // 같은 부모의 형제들 중 현재보다 큰 sortOrder를 가진 것 찾기
+    const nextSibling = await this.prisma.category.findFirst({
+      where: {
+        parentId: category.parentId,
+        sortOrder: { gt: category.sortOrder },
+      },
+      orderBy: { sortOrder: 'asc' },
+    });
+
+    if (!nextSibling) {
+      return category; // 이미 최하위
+    }
+
+    // 순서 교환
+    await this.prisma.$transaction([
+      this.prisma.category.update({
+        where: { id: nextSibling.id },
+        data: { sortOrder: category.sortOrder },
+      }),
+      this.prisma.category.update({
+        where: { id: category.id },
+        data: { sortOrder: nextSibling.sortOrder },
+      }),
+    ]);
+
+    return this.findOne(id);
+  }
+
+  async moveToTop(id: string) {
+    return this.move(id, { newParentId: null });
+  }
+
   async reorder(items: { id: string; sortOrder: number }[]) {
     const updates = items.map((item) =>
       this.prisma.category.update({
@@ -193,5 +369,50 @@ export class CategoryService {
     await this.prisma.$transaction(updates);
 
     return { success: true };
+  }
+
+  // 8자리 코드 자동 생성
+  async generateCode(parentId?: string): Promise<string> {
+    if (!parentId) {
+      // 대분류 코드 생성
+      const lastCategory = await this.prisma.category.findFirst({
+        where: { depth: 1, code: { not: null } },
+        orderBy: { code: 'desc' },
+      });
+
+      const lastCode = lastCategory?.code
+        ? parseInt(lastCategory.code.substring(0, 2))
+        : 0;
+      return `${String(lastCode + 1).padStart(2, '0')}000000`;
+    }
+
+    // 하위 카테고리 코드 생성
+    const parent = await this.prisma.category.findUnique({
+      where: { id: parentId },
+    });
+
+    if (!parent) {
+      throw new NotFoundException('부모 카테고리를 찾을 수 없습니다');
+    }
+
+    const parentCode = parent.code || '00000000';
+    const prefix = parentCode.substring(0, parent.depth * 2);
+
+    const lastChild = await this.prisma.category.findFirst({
+      where: { parentId, code: { not: null } },
+      orderBy: { code: 'desc' },
+    });
+
+    let lastChildCode = 0;
+    if (lastChild?.code) {
+      lastChildCode = parseInt(
+        lastChild.code.substring(parent.depth * 2, (parent.depth + 1) * 2)
+      );
+    }
+
+    const newCodePart = String(lastChildCode + 1).padStart(2, '0');
+    const remainingZeros = '0'.repeat(8 - (parent.depth + 1) * 2);
+
+    return `${prefix}${newCodePart}${remainingZeros}`;
   }
 }

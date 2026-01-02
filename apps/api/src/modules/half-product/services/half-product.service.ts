@@ -124,7 +124,7 @@ export class HalfProductService {
           ? { create: priceTiers }
           : undefined,
         options: options?.length
-          ? { create: options.map(opt => ({ ...opt, values: opt.values })) }
+          ? { create: options.map(opt => ({ ...opt, values: opt.values as any })) }
           : undefined,
       },
       include: {
@@ -164,7 +164,7 @@ export class HalfProductService {
             ? { create: priceTiers }
             : undefined,
           options: options?.length
-            ? { create: options.map(opt => ({ ...opt, values: opt.values })) }
+            ? { create: options.map(opt => ({ ...opt, values: opt.values as any })) }
             : undefined,
         },
         include: {

@@ -41,7 +41,19 @@
       "Skill(ui-patterns:*)",
       "Bash(git init:*)",
       "Bash(git config --global --add safe.directory '%\\(prefix\\)///RaiDrive-WOO/FTP/web/printing-erp')",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Skill(category-management)",
+      "mcp__ide__getDiagnostics",
+      "Bash(curl:*)",
+      "Bash(timeout /t 15 /nobreak)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill /F /PID 30624)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbWp3Y2hxOTAwMDFwbHltaHdlMTY1bWJiIiwiZW1haWwiOiJhZG1pbkBwaG90b2NhZmUuY29tIiwicm9sZSI6InN0YWZmIiwiaWF0IjoxNzY3MzI3MjMyLCJleHAiOjE3NjczMzA4MzJ9._ZobVHBcUT-tIbGeJKkIUmFh4i2usOk5fxWqv2LGC5M\")",
+      "Skill(pricing)",
+      "Bash(timeout /t 5 /nobreak)",
+      "Bash(taskkill:*)",
+      "Bash(timeout /t 10 /nobreak)"
     ]
   }
 }

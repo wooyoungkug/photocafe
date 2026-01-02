@@ -18,6 +18,22 @@ export class ProductService {
   }) {
     const { skip = 0, take = 20, search, categoryId, isActive, isNew, isBest } = params;
 
+    // 카테고리 ID가 있으면 해당 카테고리와 하위 카테고리 ID 모두 조회
+    let categoryIds: string[] = [];
+    if (categoryId) {
+      const childCategories = await this.prisma.category.findMany({
+        where: {
+          OR: [
+            { id: categoryId },
+            { parentId: categoryId },
+            { parent: { parentId: categoryId } }, // 손자 카테고리까지
+          ],
+        },
+        select: { id: true },
+      });
+      categoryIds = childCategories.map(c => c.id);
+    }
+
     const where: Prisma.ProductWhereInput = {
       ...(search && {
         OR: [
@@ -25,7 +41,7 @@ export class ProductService {
           { productCode: { contains: search } },
         ],
       }),
-      ...(categoryId && { categoryId }),
+      ...(categoryIds.length > 0 && { categoryId: { in: categoryIds } }),
       ...(isActive !== undefined && { isActive }),
       ...(isNew !== undefined && { isNew }),
       ...(isBest !== undefined && { isBest }),

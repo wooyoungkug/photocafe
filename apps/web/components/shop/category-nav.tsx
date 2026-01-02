@@ -1,0 +1,154 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { ChevronDown, ChevronRight } from 'lucide-react';
+import { useState } from 'react';
+import { useCategoryTree } from '@/hooks/use-categories';
+import { cn } from '@/lib/utils';
+import type { Category } from '@/lib/types/category';
+
+export function CategoryNav() {
+  const pathname = usePathname();
+  const { data: categories, isLoading } = useCategoryTree();
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+
+  if (isLoading) {
+    return (
+      <nav className="bg-white border-b">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center h-12 gap-8">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="h-4 w-20 bg-gray-200 animate-pulse rounded" />
+            ))}
+          </div>
+        </div>
+      </nav>
+    );
+  }
+
+  const topCategories = categories?.filter(c => c.isTopMenu && c.isVisible) || [];
+
+  return (
+    <nav className="bg-white border-b relative z-40">
+      <div className="container mx-auto px-4">
+        {/* Desktop Navigation */}
+        <ul className="hidden md:flex items-center h-12 gap-1">
+          <li>
+            <Link
+              href="/"
+              className={cn(
+                "px-4 py-2 rounded-md font-medium transition-colors",
+                pathname === "/" ? "bg-primary text-white" : "hover:bg-gray-100"
+              )}
+            >
+              전체상품
+            </Link>
+          </li>
+          {topCategories.map((category) => (
+            <li
+              key={category.id}
+              className="relative"
+              onMouseEnter={() => setActiveCategory(category.id)}
+              onMouseLeave={() => setActiveCategory(null)}
+            >
+              <Link
+                href={`/category/${category.id}`}
+                className={cn(
+                  "flex items-center gap-1 px-4 py-2 rounded-md font-medium transition-colors",
+                  pathname === `/category/${category.id}` || activeCategory === category.id
+                    ? "bg-primary text-white"
+                    : "hover:bg-gray-100"
+                )}
+              >
+                {category.name}
+                {category.children && category.children.length > 0 && (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+              </Link>
+
+              {/* Dropdown Menu */}
+              {category.children && category.children.length > 0 && activeCategory === category.id && (
+                <div className="absolute top-full left-0 w-64 bg-white border shadow-lg rounded-lg py-2 mt-1">
+                  {category.children
+                    .filter(c => c.isVisible)
+                    .map((child) => (
+                      <CategoryMenuItem key={child.id} category={child} level={1} />
+                    ))}
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+
+        {/* Mobile Navigation - Horizontal Scroll */}
+        <div className="md:hidden overflow-x-auto scrollbar-hide">
+          <ul className="flex items-center h-12 gap-2 min-w-max px-2">
+            <li>
+              <Link
+                href="/"
+                className={cn(
+                  "px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap",
+                  pathname === "/" ? "bg-primary text-white" : "bg-gray-100 hover:bg-gray-200"
+                )}
+              >
+                전체
+              </Link>
+            </li>
+            {topCategories.map((category) => (
+              <li key={category.id}>
+                <Link
+                  href={`/category/${category.id}`}
+                  className={cn(
+                    "px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap",
+                    pathname === `/category/${category.id}`
+                      ? "bg-primary text-white"
+                      : "bg-gray-100 hover:bg-gray-200"
+                  )}
+                >
+                  {category.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </nav>
+  );
+}
+
+function CategoryMenuItem({ category, level }: { category: Category; level: number }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const hasChildren = category.children && category.children.length > 0;
+
+  return (
+    <div className="relative">
+      <Link
+        href={`/category/${category.id}`}
+        className={cn(
+          "flex items-center justify-between px-4 py-2 hover:bg-gray-50 transition-colors",
+          level > 1 && "pl-8"
+        )}
+        onMouseEnter={() => hasChildren && setIsOpen(true)}
+        onMouseLeave={() => hasChildren && setIsOpen(false)}
+      >
+        <span>{category.name}</span>
+        {hasChildren && <ChevronRight className="h-4 w-4" />}
+      </Link>
+
+      {hasChildren && isOpen && (
+        <div
+          className="absolute left-full top-0 w-56 bg-white border shadow-lg rounded-lg py-2 ml-1"
+          onMouseEnter={() => setIsOpen(true)}
+          onMouseLeave={() => setIsOpen(false)}
+        >
+          {category.children!
+            .filter(c => c.isVisible)
+            .map((child) => (
+              <CategoryMenuItem key={child.id} category={child} level={level + 1} />
+            ))}
+        </div>
+      )}
+    </div>
+  );
+}

@@ -25,12 +25,11 @@ import {
 } from '../dto';
 
 @ApiTags('상품')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
 @Controller('products')
 export class ProductController {
   constructor(private productService: ProductService) {}
 
+  // 공개 API (인증 불필요)
   @Get()
   @ApiOperation({ summary: '상품 목록 조회' })
   async findAll(@Query() query: ProductQueryDto) {
@@ -46,19 +45,26 @@ export class ProductController {
     return this.productService.findOne(id);
   }
 
+  // 관리자 전용 API (인증 필요)
   @Post()
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '상품 생성' })
   async create(@Body() dto: CreateProductDto) {
     return this.productService.create(dto);
   }
 
   @Put(':id')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '상품 수정' })
   async update(@Param('id') id: string, @Body() dto: UpdateProductDto) {
     return this.productService.update(id, dto);
   }
 
   @Delete(':id')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '상품 삭제' })
   async delete(@Param('id') id: string) {
     return this.productService.delete(id);
@@ -67,6 +73,8 @@ export class ProductController {
   // ==================== 옵션 개별 관리 ====================
 
   @Post(':id/specifications')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '규격 옵션 추가' })
   async addSpecification(
     @Param('id') id: string,
@@ -76,6 +84,8 @@ export class ProductController {
   }
 
   @Put('specifications/:specId')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '규격 옵션 수정' })
   async updateSpecification(
     @Param('specId') specId: string,
@@ -85,12 +95,16 @@ export class ProductController {
   }
 
   @Delete('specifications/:specId')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '규격 옵션 삭제' })
   async deleteSpecification(@Param('specId') specId: string) {
     return this.productService.deleteSpecification(specId);
   }
 
   @Post(':id/bindings')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '제본 옵션 추가' })
   async addBinding(
     @Param('id') id: string,
@@ -100,6 +114,8 @@ export class ProductController {
   }
 
   @Post(':id/papers')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '용지 옵션 추가' })
   async addPaper(
     @Param('id') id: string,
@@ -109,6 +125,8 @@ export class ProductController {
   }
 
   @Post(':id/covers')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '커버 옵션 추가' })
   async addCover(
     @Param('id') id: string,
@@ -118,6 +136,8 @@ export class ProductController {
   }
 
   @Post(':id/foils')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '박 옵션 추가' })
   async addFoil(
     @Param('id') id: string,
@@ -127,6 +147,8 @@ export class ProductController {
   }
 
   @Post(':id/finishings')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '후가공 옵션 추가' })
   async addFinishing(
     @Param('id') id: string,
@@ -138,6 +160,8 @@ export class ProductController {
   // ==================== 반제품 연결 ====================
 
   @Post(':id/half-products/:halfProductId')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '반제품 연결' })
   async linkHalfProduct(
     @Param('id') id: string,
@@ -148,6 +172,8 @@ export class ProductController {
   }
 
   @Delete(':id/half-products/:halfProductId')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '반제품 연결 해제' })
   async unlinkHalfProduct(
     @Param('id') id: string,
