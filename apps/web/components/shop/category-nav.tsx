@@ -4,13 +4,13 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
-import { useCategoryTree } from '@/hooks/use-categories';
+import { useTopMenuCategories } from '@/hooks/use-categories';
 import { cn } from '@/lib/utils';
 import type { Category } from '@/lib/types/category';
 
 export function CategoryNav() {
   const pathname = usePathname();
-  const { data: categories, isLoading } = useCategoryTree();
+  const { data: topCategories = [], isLoading } = useTopMenuCategories();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   if (isLoading) {
@@ -27,7 +27,8 @@ export function CategoryNav() {
     );
   }
 
-  const topCategories = categories?.filter(c => c.isTopMenu && c.isVisible) || [];
+  // sortOrder 기준 정렬 (API에서 이미 정렬되어 있지만 명시적으로 재정렬)
+  const sortedCategories = [...topCategories].sort((a, b) => a.sortOrder - b.sortOrder);
 
   return (
     <nav className="bg-white border-b relative z-40">
@@ -45,7 +46,7 @@ export function CategoryNav() {
               전체상품
             </Link>
           </li>
-          {topCategories.map((category) => (
+          {sortedCategories.map((category) => (
             <li
               key={category.id}
               className="relative"
@@ -70,8 +71,9 @@ export function CategoryNav() {
               {/* Dropdown Menu */}
               {category.children && category.children.length > 0 && activeCategory === category.id && (
                 <div className="absolute top-full left-0 w-64 bg-white border shadow-lg rounded-lg py-2 mt-1">
-                  {category.children
+                  {[...category.children]
                     .filter(c => c.isVisible)
+                    .sort((a, b) => a.sortOrder - b.sortOrder)
                     .map((child) => (
                       <CategoryMenuItem key={child.id} category={child} level={1} />
                     ))}
@@ -95,7 +97,7 @@ export function CategoryNav() {
                 전체
               </Link>
             </li>
-            {topCategories.map((category) => (
+            {sortedCategories.map((category) => (
               <li key={category.id}>
                 <Link
                   href={`/category/${category.id}`}
@@ -142,8 +144,9 @@ function CategoryMenuItem({ category, level }: { category: Category; level: numb
           onMouseEnter={() => setIsOpen(true)}
           onMouseLeave={() => setIsOpen(false)}
         >
-          {category.children!
+          {[...category.children!]
             .filter(c => c.isVisible)
+            .sort((a, b) => a.sortOrder - b.sortOrder)
             .map((child) => (
               <CategoryMenuItem key={child.id} category={child} level={level + 1} />
             ))}
