@@ -11,7 +11,7 @@ async function bootstrap() {
 
   // CORS
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3002',
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
     credentials: true,
   });
 
@@ -26,6 +26,20 @@ async function bootstrap() {
       },
     }),
   );
+
+  // Root redirect to Swagger docs
+  const expressApp = app.getHttpAdapter().getInstance();
+  expressApp.get('/', (req: any, res: any) => {
+    res.redirect('/api/docs');
+  });
+  expressApp.get('/health', (req: any, res: any) => {
+    res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      service: '인쇄업 ERP API',
+      version: '1.0.0',
+    });
+  });
 
   // Swagger
   const config = new DocumentBuilder()
@@ -45,7 +59,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
-  const port = process.env.API_PORT || 3000;
+  const port = process.env.API_PORT || 3001;
   await app.listen(port);
 
   console.log(`🚀 API Server running on http://localhost:${port}`);
