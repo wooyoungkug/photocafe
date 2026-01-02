@@ -1,8 +1,8 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import type { Product, ProductListResponse, ProductQueryParams } from '@/lib/types';
+import type { Product, ProductListResponse, ProductQueryParams, CreateProductDto, UpdateProductDto } from '@/lib/types';
 
 const PRODUCTS_KEY = 'products';
 
@@ -51,5 +51,39 @@ export function useBestProducts(limit: number = 10) {
       limit,
       isActive: true,
     }),
+  });
+}
+
+export function useCreateProduct() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: CreateProductDto) => api.post<Product>('/products', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [PRODUCTS_KEY] });
+    },
+  });
+}
+
+export function useUpdateProduct() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateProductDto }) =>
+      api.put<Product>(`/products/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [PRODUCTS_KEY] });
+    },
+  });
+}
+
+export function useDeleteProduct() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/products/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [PRODUCTS_KEY] });
+    },
   });
 }

@@ -476,7 +476,7 @@ export default function ClientsPage() {
                   <SelectItem value="none">그룹 없음</SelectItem>
                   {groupsData?.data?.map((group) => (
                     <SelectItem key={group.id} value={group.id}>
-                      {group.groupName} ({group.discountRate}% 할인)
+                      {group.groupName} (일반 {group.generalDiscount}%)
                     </SelectItem>
                   ))}
                 </SelectContent>

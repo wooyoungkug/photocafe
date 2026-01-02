@@ -9,8 +9,10 @@ import { OrderModule } from './modules/order/order.module';
 import { StatisticsModule } from './modules/statistics/statistics.module';
 // import { NotionModule } from './modules/notion/notion.module';  // TODO: npm install @notionhq/client
 import { PrismaModule } from './common/prisma/prisma.module';
+import { AppController } from './app.controller';
 
 @Module({
+  controllers: [AppController],
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,

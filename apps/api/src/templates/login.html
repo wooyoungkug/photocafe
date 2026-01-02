@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>인쇄업 ERP - 관리자 로그인</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .login-container {
+      background: white;
+      padding: 40px;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      width: 100%;
+      max-width: 400px;
+    }
+    .logo { text-align: center; margin-bottom: 30px; }
+    .logo-icon {
+      width: 60px; height: 60px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 12px;
+      display: inline-flex; align-items: center; justify-content: center;
+      color: white; font-size: 28px; font-weight: bold; margin-bottom: 10px;
+    }
+    .logo h1 { font-size: 24px; color: #333; }
+    .logo p { color: #666; font-size: 14px; margin-top: 5px; }
+    .form-group { margin-bottom: 20px; }
+    label { display: block; margin-bottom: 8px; font-weight: 500; color: #333; }
+    input {
+      width: 100%; padding: 12px 16px;
+      border: 2px solid #e1e1e1; border-radius: 8px;
+      font-size: 16px; transition: border-color 0.2s;
+    }
+    input:focus { outline: none; border-color: #667eea; }
+    button {
+      width: 100%; padding: 14px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white; border: none; border-radius: 8px;
+      font-size: 16px; font-weight: 600; cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    button:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4); }
+    button:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+    .error { background: #fee; color: #c00; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; display: none; }
+    .links { margin-top: 24px; text-align: center; font-size: 14px; }
+    .links a { color: #667eea; text-decoration: none; margin: 0 10px; }
+    .links a:hover { text-decoration: underline; }
+    .user-info { display: none; text-align: center; padding: 20px; }
+    .user-info h2 { color: #333; margin-bottom: 10px; }
+    .user-info p { color: #666; margin-bottom: 20px; }
+    .btn-secondary { background: #f5f5f5; color: #333; margin-top: 10px; }
+    .btn-secondary:hover { background: #e5e5e5; box-shadow: none; transform: none; }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="logo">
+      <div class="logo-icon">P</div>
+      <h1>인쇄업 ERP</h1>
+      <p>관리자 로그인</p>
+    </div>
+    <div id="loginForm">
+      <div class="error" id="errorMsg"></div>
+      <form onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label for="email">이메일</label>
+          <input type="email" id="email" placeholder="admin@example.com" required>
+        </div>
+        <div class="form-group">
+          <label for="password">비밀번호</label>
+          <input type="password" id="password" placeholder="비밀번호 입력" required>
+        </div>
+        <button type="submit" id="submitBtn">로그인</button>
+      </form>
+      <div class="links">
+        <a href="/api/docs">API 문서</a>
+        <a href="/health">서버 상태</a>
+      </div>
+    </div>
+    <div class="user-info" id="userInfo">
+      <h2 id="userName"></h2>
+      <p id="userEmail"></p>
+      <p><strong>역할:</strong> <span id="userRole"></span></p>
+      <button onclick="goToDashboard()">대시보드로 이동</button>
+      <button class="btn-secondary" onclick="handleLogout()">로그아웃</button>
+      <div class="links" style="margin-top: 20px;"><a href="/api/docs">API 문서</a></div>
+    </div>
+  </div>
+  <script>
+    window.onload = function() {
+      const token = localStorage.getItem('accessToken');
+      const user = localStorage.getItem('user');
+      if (token && user) showUserInfo(JSON.parse(user));
+    };
+    async function handleLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const errorMsg = document.getElementById('errorMsg');
+      const submitBtn = document.getElementById('submitBtn');
+      errorMsg.style.display = 'none';
+      submitBtn.disabled = true;
+      submitBtn.textContent = '로그인 중...';
+      try {
+        const res = await fetch('/api/v1/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || '로그인에 실패했습니다.');
+        localStorage.setItem('accessToken', data.accessToken);
+        localStorage.setItem('refreshToken', data.refreshToken);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        showUserInfo(data.user);
+      } catch (err) {
+        errorMsg.textContent = err.message;
+        errorMsg.style.display = 'block';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '로그인';
+      }
+    }
+    function showUserInfo(user) {
+      document.getElementById('loginForm').style.display = 'none';
+      document.getElementById('userInfo').style.display = 'block';
+      document.getElementById('userName').textContent = user.name + '님 환영합니다!';
+      document.getElementById('userEmail').textContent = user.email;
+      document.getElementById('userRole').textContent = user.role === 'admin' ? '관리자' : '스태프';
+    }
+    function goToDashboard() { window.location.href = 'http://localhost:3002'; }
+    function handleLogout() {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      document.getElementById('loginForm').style.display = 'block';
+      document.getElementById('userInfo').style.display = 'none';
+    }
+  </script>
+</body>
+</html>

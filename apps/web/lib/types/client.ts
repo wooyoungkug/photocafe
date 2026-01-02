@@ -3,10 +3,17 @@ export interface ClientGroup {
   id: string;
   groupCode: string;
   groupName: string;
-  discountRate: number;
+  branchId: string;
+  branch?: {
+    id: string;
+    branchName: string;
+  };
+  generalDiscount: number;
+  premiumDiscount: number;
+  importedDiscount: number;
   description?: string;
   isActive: boolean;
-  branchId?: string;
+  sortOrder: number;
   createdAt: string;
   updatedAt: string;
   _count?: {

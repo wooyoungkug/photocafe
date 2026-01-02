@@ -128,3 +128,20 @@ export interface ProductListResponse {
     totalPages: number;
   };
 }
+
+export interface CreateProductDto {
+  productCode: string;
+  productName: string;
+  categoryId: string;
+  basePrice: number;
+  isActive?: boolean;
+  isNew?: boolean;
+  isBest?: boolean;
+  memberType?: 'all' | 'member_only' | 'specific_groups';
+  thumbnailUrl?: string;
+  detailImages?: string[];
+  description?: string;
+  sortOrder?: number;
+}
+
+export type UpdateProductDto = Partial<CreateProductDto>;
