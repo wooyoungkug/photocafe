@@ -28,9 +28,10 @@ export type VendorType = typeof VENDOR_TYPES[number];
 // ==================== 생산그룹 DTO ====================
 
 export class CreateProductionGroupDto {
-  @ApiProperty({ description: '그룹 코드 (예: 0101, 010106)' })
+  @ApiPropertyOptional({ description: '그룹 코드 (비워두면 자동 생성)' })
+  @IsOptional()
   @IsString()
-  code: string;
+  code?: string;
 
   @ApiProperty({ description: '그룹명' })
   @IsString()

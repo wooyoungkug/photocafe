@@ -79,7 +79,14 @@
       "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbWszcmUxaXUwMDAwMmFkbTdia2RzN3hlIiwiZW1haWwiOiJhZG1pbkBwcmludGluZy1lcnAuY29tIiwicm9sZSI6InN0YWZmIiwiaWF0IjoxNzY3ODQ2NjE0LCJleHAiOjE3Njc4NTAyMTR9.hwIjzIkKuvQ7CbcypA6XborYKWGNJhB2wQkhZWAwXOA\":*)",
       "Bash(git commit:*)",
       "Bash(git push)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(ss:*)",
+      "Bash(cmd //c \"netstat -an | findstr 3001\")",
+      "Bash(cmd //c \"netstat -an | findstr 3002\")",
+      "Bash(cmd //c \"tasklist | findstr /I node\")",
+      "Bash(cmd //c \"netstat -ano | findstr :3002\")",
+      "Bash(powershell:*)",
+      "Bash(cmd /c \"taskkill /F /PID 9828\")"
     ]
   }
 }

@@ -11,27 +11,25 @@ interface AuthGuardProps {
 
 export function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
-  const { isAuthenticated, isLoading, setLoading } = useAuthStore();
-  const [isChecking, setIsChecking] = useState(true);
+  const [isReady, setIsReady] = useState(false);
+  const [hasToken, setHasToken] = useState(false);
 
   useEffect(() => {
-    // 클라이언트에서 hydration 후 체크
-    const checkAuth = () => {
-      const token = localStorage.getItem('accessToken');
-      if (!token) {
-        router.replace('/login');
-      } else {
-        setLoading(false);
-        setIsChecking(false);
-      }
-    };
+    // Zustand persist 수동 하이드레이션
+    useAuthStore.persist.rehydrate();
 
-    // hydration 완료 후 체크
-    checkAuth();
-  }, [router, setLoading]);
+    // 클라이언트에서 토큰 체크
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      router.replace('/login');
+    } else {
+      setHasToken(true);
+      setIsReady(true);
+    }
+  }, [router]);
 
-  // 로딩 중이거나 체크 중일 때
-  if (isChecking || isLoading) {
+  // 하이드레이션 및 체크 중일 때
+  if (!isReady) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -39,8 +37,8 @@ export function AuthGuard({ children }: AuthGuardProps) {
     );
   }
 
-  // 인증되지 않은 경우 (리다이렉트 중)
-  if (!isAuthenticated && typeof window !== 'undefined' && !localStorage.getItem('accessToken')) {
+  // 토큰이 없으면 리다이렉트 중
+  if (!hasToken) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

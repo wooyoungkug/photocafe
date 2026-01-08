@@ -120,15 +120,50 @@ export class ProductionGroupService {
     return group;
   }
 
-  async createGroup(data: CreateProductionGroupDto) {
-    // 코드 중복 확인
-    const existing = await this.prisma.productionGroup.findUnique({
-      where: { code: data.code },
-    });
-    if (existing) {
-      throw new BadRequestException(`이미 사용 중인 코드입니다: ${data.code}`);
-    }
+  // 다음 코드 자동 생성
+  private async generateNextCode(parentId?: string): Promise<string> {
+    if (parentId) {
+      // 소분류: 부모코드 + 2자리 순번 (예: 01 -> 0101, 0102, ...)
+      const parent = await this.prisma.productionGroup.findUnique({
+        where: { id: parentId },
+      });
+      if (!parent) {
+        throw new NotFoundException(`상위 그룹을 찾을 수 없습니다: ${parentId}`);
+      }
 
+      const siblings = await this.prisma.productionGroup.findMany({
+        where: { parentId },
+        orderBy: { code: 'desc' },
+        take: 1,
+      });
+
+      if (siblings.length === 0) {
+        return `${parent.code}01`;
+      }
+
+      const lastCode = siblings[0].code;
+      const suffix = lastCode.substring(parent.code.length);
+      const nextNum = parseInt(suffix, 10) + 1;
+      return `${parent.code}${nextNum.toString().padStart(2, '0')}`;
+    } else {
+      // 대분류: 2자리 순번 (예: 01, 02, 03, ...)
+      const roots = await this.prisma.productionGroup.findMany({
+        where: { parentId: null },
+        orderBy: { code: 'desc' },
+        take: 1,
+      });
+
+      if (roots.length === 0) {
+        return '01';
+      }
+
+      const lastCode = roots[0].code;
+      const nextNum = parseInt(lastCode.substring(0, 2), 10) + 1;
+      return nextNum.toString().padStart(2, '0');
+    }
+  }
+
+  async createGroup(data: CreateProductionGroupDto) {
     // depth 계산
     let depth = 1;
     if (data.parentId) {
@@ -139,6 +174,20 @@ export class ProductionGroupService {
         throw new NotFoundException(`상위 그룹을 찾을 수 없습니다: ${data.parentId}`);
       }
       depth = parent.depth + 1;
+    }
+
+    // 코드 자동 생성 (입력된 코드가 없거나 빈 문자열인 경우)
+    let code = data.code?.trim();
+    if (!code) {
+      code = await this.generateNextCode(data.parentId);
+    } else {
+      // 입력된 코드가 있으면 중복 확인
+      const existing = await this.prisma.productionGroup.findUnique({
+        where: { code },
+      });
+      if (existing) {
+        throw new BadRequestException(`이미 사용 중인 코드입니다: ${code}`);
+      }
     }
 
     // sortOrder 자동 할당
@@ -153,7 +202,7 @@ export class ProductionGroupService {
 
     return this.prisma.productionGroup.create({
       data: {
-        code: data.code,
+        code,
         name: data.name,
         depth,
         parentId: data.parentId,

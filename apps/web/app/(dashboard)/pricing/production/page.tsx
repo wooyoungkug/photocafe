@@ -12,8 +12,6 @@ import {
   ArrowDown,
   Edit,
   Trash2,
-  Clock,
-  DollarSign,
   Ruler,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -100,33 +98,34 @@ function TreeNode({
   const hasSettings = group.settings && group.settings.length > 0;
   const isSelected = selectedGroupId === group.id;
   const isParent = group.depth === 1;
+  const settingsCount = group.settings?.length || 0;
 
   return (
     <div>
       <div
         className={cn(
-          "flex items-center gap-2 py-2 px-2 rounded-lg cursor-pointer transition-colors",
+          "flex items-center gap-2 py-2.5 px-3 rounded-lg cursor-pointer transition-all",
           isSelected
-            ? "bg-primary/10 border border-primary/30"
-            : "hover:bg-muted/50",
-          isParent && "font-semibold"
+            ? "bg-indigo-50 border border-indigo-200 shadow-sm"
+            : "hover:bg-gray-50 border border-transparent",
+          isParent ? "font-medium" : "font-normal"
         )}
-        style={{ paddingLeft: `${level * 20 + 8}px` }}
+        style={{ marginLeft: `${level * 16}px` }}
         onClick={() => onSelectGroup(group)}
       >
         {/* 확장 버튼 */}
         {hasChildren ? (
           <button
-            className="p-0.5 rounded hover:bg-muted"
+            className="p-0.5 rounded hover:bg-gray-200 transition-colors"
             onClick={(e) => {
               e.stopPropagation();
               toggleExpand(group.id);
             }}
           >
             {isExpanded ? (
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              <ChevronDown className="h-4 w-4 text-gray-500" />
             ) : (
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              <ChevronRight className="h-4 w-4 text-gray-400" />
             )}
           </button>
         ) : (
@@ -137,51 +136,50 @@ function TreeNode({
         {isExpanded ? (
           <FolderOpen
             className={cn(
-              "h-4 w-4",
-              isParent ? "text-blue-500" : "text-purple-500"
+              "h-4 w-4 shrink-0",
+              isParent ? "text-indigo-500" : "text-violet-500"
             )}
           />
         ) : (
           <Folder
             className={cn(
-              "h-4 w-4",
-              isParent ? "text-blue-500" : "text-purple-500"
+              "h-4 w-4 shrink-0",
+              isParent ? "text-indigo-400" : "text-violet-400"
             )}
           />
         )}
 
-        {/* 코드 */}
-        <span className="text-xs text-muted-foreground font-mono w-16">
-          {group.code}
+        {/* 이름 */}
+        <span className={cn(
+          "flex-1 truncate",
+          isSelected ? "text-indigo-900" : "text-gray-700"
+        )}>
+          {group.name}
         </span>
 
-        {/* 이름 */}
-        <span className="flex-1 truncate">{group.name}</span>
+        {/* 설정 카운트 (소분류만) */}
+        {!isParent && settingsCount > 0 && (
+          <span className="text-xs text-gray-400 tabular-nums">
+            {settingsCount}
+          </span>
+        )}
 
-        {/* 뱃지 */}
-        <Badge
-          variant="outline"
+        {/* 대분류/소분류 뱃지 */}
+        <span
           className={cn(
-            "text-xs",
+            "text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0",
             isParent
-              ? "bg-blue-50 text-blue-600 border-blue-200"
-              : "bg-purple-50 text-purple-600 border-purple-200"
+              ? "bg-indigo-100 text-indigo-600"
+              : "bg-violet-100 text-violet-600"
           )}
         >
           {isParent ? "대분류" : "소분류"}
-        </Badge>
-
-        {/* 설정 카운트 */}
-        {hasSettings && (
-          <Badge variant="secondary" className="text-xs">
-            {group.settings?.length}
-          </Badge>
-        )}
+        </span>
       </div>
 
       {/* 하위 그룹 */}
       {isExpanded && hasChildren && (
-        <div>
+        <div className="mt-0.5">
           {group.children?.map((child) => (
             <TreeNode
               key={child.id}
@@ -212,115 +210,127 @@ function SettingCard({
   onMove: (id: string, direction: "up" | "down") => void;
 }) {
   return (
-    <Card className="mb-2">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
-              <Settings2 className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">
-                {setting.codeName || setting.group?.name || "설정"}
-              </span>
-              <Badge variant="outline" className="text-xs">
-                {VENDOR_TYPE_LABELS[setting.vendorType] || setting.vendorType}
-              </Badge>
-              {setting.settingName && (
-                <Badge variant="secondary" className="text-xs">
-                  {setting.settingName}
-                </Badge>
+    <div className="group border rounded-lg p-4 mb-3 bg-white hover:shadow-sm transition-shadow">
+      <div className="flex items-start gap-4">
+        {/* 메인 콘텐츠 */}
+        <div className="flex-1 min-w-0">
+          {/* 헤더 */}
+          <div className="flex items-center gap-2 mb-3">
+            <Settings2 className="h-4 w-4 text-indigo-500 shrink-0" />
+            <span className="font-semibold text-gray-900">
+              {setting.codeName || setting.group?.name || "설정"}
+            </span>
+            <Badge
+              variant="outline"
+              className={cn(
+                "text-xs shrink-0",
+                setting.vendorType === "in_house"
+                  ? "bg-blue-50 text-blue-700 border-blue-200"
+                  : "bg-orange-50 text-orange-700 border-orange-200"
               )}
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div>
-                <span className="text-muted-foreground">적용단위:</span>
-                <p className="font-medium text-xs mt-0.5">
-                  {PRICING_TYPE_LABELS[setting.pricingType] || setting.pricingType}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-1">
-                <DollarSign className="h-3 w-3 text-muted-foreground" />
-                <span className="text-muted-foreground">잡세팅비:</span>
-                <span className="font-mono">{formatCurrency(Number(setting.settingFee))}</span>
-              </div>
-
-              <div className="flex items-center gap-1">
-                <DollarSign className="h-3 w-3 text-muted-foreground" />
-                <span className="text-muted-foreground">기본단가:</span>
-                <span className="font-mono">{formatCurrency(Number(setting.basePrice))}</span>
-              </div>
-
-              <div className="flex items-center gap-1">
-                <Clock className="h-3 w-3 text-muted-foreground" />
-                <span className="text-muted-foreground">작업시간:</span>
-                <span className="font-mono">{Number(setting.workDays)}일</span>
-              </div>
-            </div>
-
-            {/* 규격 목록 */}
-            {setting.specifications && setting.specifications.length > 0 && (
-              <div className="mt-3 pt-3 border-t">
-                <div className="flex items-center gap-1 mb-2">
-                  <Ruler className="h-3 w-3 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">
-                    규격 ({setting.specifications.length}개)
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {setting.specifications.slice(0, 10).map((spec) => (
-                    <Badge key={spec.id} variant="outline" className="text-xs font-mono">
-                      {spec.specification?.name}
-                    </Badge>
-                  ))}
-                  {setting.specifications.length > 10 && (
-                    <Badge variant="secondary" className="text-xs">
-                      +{setting.specifications.length - 10}개
-                    </Badge>
-                  )}
-                </div>
-              </div>
+            >
+              {VENDOR_TYPE_LABELS[setting.vendorType] || setting.vendorType}
+            </Badge>
+            {setting.settingName && (
+              <Badge variant="secondary" className="text-xs shrink-0">
+                {setting.settingName}
+              </Badge>
             )}
           </div>
 
-          {/* 액션 버튼 */}
-          <div className="flex flex-col gap-1 ml-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => onMove(setting.id, "up")}
-            >
-              <ArrowUp className="h-3 w-3" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => onMove(setting.id, "down")}
-            >
-              <ArrowDown className="h-3 w-3" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => onEdit(setting)}
-            >
-              <Edit className="h-3 w-3" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-destructive hover:text-destructive"
-              onClick={() => onDelete(setting)}
-            >
-              <Trash2 className="h-3 w-3" />
-            </Button>
+          {/* 정보 그리드 */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-2 text-sm mb-3">
+            <div>
+              <span className="text-gray-500 text-xs block">적용단위</span>
+              <span className="text-gray-900 text-xs font-medium">
+                {PRICING_TYPE_LABELS[setting.pricingType] || setting.pricingType}
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-500 text-xs block">잡세팅비</span>
+              <span className="text-gray-900 font-mono font-medium">
+                {formatCurrency(Number(setting.settingFee))}
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-500 text-xs block">기본단가</span>
+              <span className="text-gray-900 font-mono font-medium">
+                {formatCurrency(Number(setting.basePrice))}
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-500 text-xs block">작업시간</span>
+              <span className="text-gray-900 font-mono font-medium">
+                {Number(setting.workDays)}일
+              </span>
+            </div>
           </div>
+
+          {/* 규격 목록 */}
+          {setting.specifications && setting.specifications.length > 0 && (
+            <div className="pt-3 border-t border-gray-100">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Ruler className="h-3.5 w-3.5 text-gray-400" />
+                <span className="text-xs text-gray-500 font-medium">
+                  적용 규격 ({setting.specifications.length}개)
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {setting.specifications.slice(0, 8).map((spec) => (
+                  <span
+                    key={spec.id}
+                    className="inline-flex px-2 py-0.5 text-xs font-mono bg-gray-100 text-gray-700 rounded"
+                  >
+                    {spec.specification?.name}
+                  </span>
+                ))}
+                {setting.specifications.length > 8 && (
+                  <span className="inline-flex px-2 py-0.5 text-xs bg-gray-200 text-gray-600 rounded">
+                    +{setting.specifications.length - 8}개
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
-      </CardContent>
-    </Card>
+
+        {/* 액션 버튼 */}
+        <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-gray-400 hover:text-gray-600"
+            onClick={() => onMove(setting.id, "up")}
+          >
+            <ArrowUp className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-gray-400 hover:text-gray-600"
+            onClick={() => onMove(setting.id, "down")}
+          >
+            <ArrowDown className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-gray-400 hover:text-indigo-600"
+            onClick={() => onEdit(setting)}
+          >
+            <Edit className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-gray-400 hover:text-red-600"
+            onClick={() => onDelete(setting)}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -467,8 +477,11 @@ export default function ProductionSettingPage() {
       });
     } else {
       setEditingSetting(null);
+      // 코드명 자동 생성: 그룹코드_순번
+      const nextNumber = (selectedGroup?.settings?.length || 0) + 1;
+      const autoCodeName = `${selectedGroup?.code || 'SET'}_${String(nextNumber).padStart(3, '0')}`;
       setSettingForm({
-        codeName: "",
+        codeName: autoCodeName,
         vendorType: "in_house",
         pricingType: "finishing_page",
         settingName: "",
@@ -578,21 +591,35 @@ export default function ProductionSettingPage() {
         }
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6">
         {/* 좌측: 그룹 트리 */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between py-3 px-4">
-            <CardTitle className="text-sm">세부그룹 (생산제품)</CardTitle>
-            <div className="flex gap-1">
-              <Button variant="outline" size="sm" onClick={expandAll}>
-                펼치기
-              </Button>
-              <Button variant="outline" size="sm" onClick={collapseAll}>
-                접기
-              </Button>
+        <Card className="flex flex-col">
+          <CardHeader className="border-b bg-gray-50/50 py-3 px-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-semibold text-gray-700">
+                세부그룹 (생산제품)
+              </CardTitle>
+              <div className="flex gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-gray-500 hover:text-gray-700"
+                  onClick={expandAll}
+                >
+                  펼치기
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-gray-500 hover:text-gray-700"
+                  onClick={collapseAll}
+                >
+                  접기
+                </Button>
+              </div>
             </div>
           </CardHeader>
-          <CardContent className="p-2 max-h-[calc(100vh-280px)] overflow-y-auto">
+          <CardContent className="p-2 flex-1 overflow-y-auto" style={{ maxHeight: "calc(100vh - 280px)" }}>
             {isLoadingGroups ? (
               <div className="space-y-2 p-4">
                 {[1, 2, 3].map((i) => (
@@ -629,58 +656,74 @@ export default function ProductionSettingPage() {
         </Card>
 
         {/* 우측: 선택된 그룹의 설정 */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between py-3 px-4">
-            <div>
-              <CardTitle className="text-sm">
+        <Card className="flex flex-col">
+          <CardHeader className="border-b bg-gray-50/50 py-4 px-5">
+            <div className="flex items-center justify-between">
+              <div>
                 {selectedGroup ? (
                   <>
-                    {selectedGroup.name}
-                    <span className="text-muted-foreground font-normal ml-2">
-                      ({selectedGroup.code})
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <CardTitle className="text-base font-semibold">
+                        {selectedGroup.name}
+                      </CardTitle>
+                      <span className="text-sm text-gray-500 font-mono">
+                        ({selectedGroup.code})
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {selectedGroup.depth === 1 ? "대분류" : "소분류"} · {selectedSettings.length}개 설정
+                    </p>
                   </>
                 ) : (
-                  "생산설정"
+                  <CardTitle className="text-base font-semibold text-gray-400">
+                    그룹을 선택하세요
+                  </CardTitle>
                 )}
-              </CardTitle>
+              </div>
+
               {selectedGroup && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  {selectedGroup.depth === 1 ? "대분류" : "소분류"} ·{" "}
-                  {selectedSettings.length}개 설정
-                </p>
-              )}
-            </div>
-            <div className="flex gap-2">
-              {selectedGroup && (
-                <>
-                  {selectedGroup.depth === 1 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleOpenGroupDialog(selectedGroup.id)}
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      소분류 추가
-                    </Button>
-                  )}
+                <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
                     size="sm"
+                    className="h-8 text-gray-600"
                     onClick={() => handleOpenGroupDialog(selectedGroup.parentId, selectedGroup)}
                   >
-                    <Edit className="h-4 w-4 mr-1" />
+                    <Edit className="h-3.5 w-3.5 mr-1.5" />
                     그룹 수정
                   </Button>
                   <Button
+                    variant="outline"
                     size="sm"
-                    onClick={() => handleOpenSettingDialog()}
-                    disabled={selectedGroup.depth === 1}
+                    className="h-8 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                    onClick={() => {
+                      setDeletingItem({ type: "group", item: selectedGroup });
+                      setIsDeleteDialogOpen(true);
+                    }}
                   >
-                    <Plus className="h-4 w-4 mr-1" />
-                    설정 추가
+                    <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                    그룹 삭제
                   </Button>
-                </>
+                  {selectedGroup.depth === 1 ? (
+                    <Button
+                      size="sm"
+                      className="h-8 bg-indigo-600 hover:bg-indigo-700"
+                      onClick={() => handleOpenGroupDialog(selectedGroup.id)}
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1.5" />
+                      소분류 추가
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      className="h-8 bg-indigo-600 hover:bg-indigo-700"
+                      onClick={() => handleOpenSettingDialog()}
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1.5" />
+                      설정 추가
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
           </CardHeader>
@@ -747,17 +790,6 @@ export default function ProductionSettingPage() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="groupCode">코드</Label>
-              <Input
-                id="groupCode"
-                placeholder={parentGroupId ? "예: 010106" : "예: 0101"}
-                value={groupForm.code}
-                onChange={(e) =>
-                  setGroupForm((prev) => ({ ...prev, code: e.target.value }))
-                }
-              />
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="groupName">그룹명</Label>
               <Input
                 id="groupName"
@@ -766,6 +798,7 @@ export default function ProductionSettingPage() {
                 onChange={(e) =>
                   setGroupForm((prev) => ({ ...prev, name: e.target.value }))
                 }
+                autoFocus
               />
             </div>
           </div>
@@ -775,7 +808,7 @@ export default function ProductionSettingPage() {
             </Button>
             <Button
               onClick={handleSaveGroup}
-              disabled={!groupForm.code || !groupForm.name}
+              disabled={!groupForm.name}
             >
               {editingGroup ? "수정" : "추가"}
             </Button>
@@ -802,17 +835,7 @@ export default function ProductionSettingPage() {
                 <Input value={selectedGroup?.name || ""} disabled />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="codeName">코드명</Label>
-                <Input
-                  id="codeName"
-                  placeholder="코드명 입력"
-                  value={settingForm.codeName}
-                  onChange={(e) =>
-                    setSettingForm((prev) => ({ ...prev, codeName: e.target.value }))
-                  }
-                />
-              </div>
+              {/* 코드명은 자동 생성되므로 UI에서 숨김 */}
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
