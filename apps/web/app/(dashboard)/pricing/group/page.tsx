@@ -203,9 +203,9 @@ export default function GroupPricingPage() {
                 {groupsData?.data?.map((group) => (
                   <SelectItem key={group.id} value={group.id}>
                     {group.groupName}
-                    {group.discountRate > 0 && (
+                    {group.generalDiscount > 0 && (
                       <span className="text-muted-foreground ml-2">
-                        (기본 {100 - group.discountRate}% 할인)
+                        (기본 {group.generalDiscount}% 할인)
                       </span>
                     )}
                   </SelectItem>
@@ -224,8 +224,8 @@ export default function GroupPricingPage() {
                 <div>
                   <span className="text-muted-foreground">기본 할인율:</span>
                   <span className="ml-2 font-medium">
-                    {selectedGroup.discountRate > 0
-                      ? `${100 - selectedGroup.discountRate}%`
+                    {selectedGroup.generalDiscount > 0
+                      ? `${selectedGroup.generalDiscount}%`
                       : '없음'}
                   </span>
                 </div>

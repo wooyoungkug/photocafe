@@ -7,6 +7,7 @@ import { HalfProductModule } from './modules/half-product/half-product.module';
 import { PricingModule } from './modules/pricing/pricing.module';
 import { OrderModule } from './modules/order/order.module';
 import { StatisticsModule } from './modules/statistics/statistics.module';
+import { UploadModule } from './modules/upload/upload.module';
 // import { NotionModule } from './modules/notion/notion.module';  // TODO: npm install @notionhq/client
 import { PrismaModule } from './common/prisma/prisma.module';
 import { AppController } from './app.controller';
@@ -26,7 +27,8 @@ import { AppController } from './app.controller';
     PricingModule,
     OrderModule,
     StatisticsModule,
+    UploadModule,
     // NotionModule,  // TODO: npm install @notionhq/client
   ],
 })
-export class AppModule {}
+export class AppModule { }

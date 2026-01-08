@@ -1,6 +1,6 @@
-import { IsOptional, IsDate, IsString, IsIn } from 'class-validator';
+import { IsOptional, IsDate, IsString, IsIn, IsInt } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 
 export class StatisticsQueryDto {
   @ApiPropertyOptional({ description: '시작일' })
@@ -38,4 +38,29 @@ export class ProductStatisticsQueryDto extends StatisticsQueryDto {
   @IsOptional()
   @IsString()
   categoryId?: string;
+}
+
+export class SalesCategoryStatisticsQueryDto {
+  @ApiPropertyOptional({ description: '시작일' })
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  startDate?: Date;
+
+  @ApiPropertyOptional({ description: '종료일' })
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  endDate?: Date;
+
+  @ApiPropertyOptional({ description: '매출품목분류 ID' })
+  @IsOptional()
+  @IsString()
+  salesCategoryId?: string;
+
+  @ApiPropertyOptional({ description: '계층 깊이 (1: 대분류, 2: 소분류)' })
+  @IsOptional()
+  @Transform(({ value }) => parseInt(value))
+  @IsInt()
+  depth?: number;
 }

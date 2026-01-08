@@ -1,8 +1,9 @@
 export type CategoryLevel = 'large' | 'medium' | 'small';
 export type CategoryType = 'HTML' | 'POD' | 'EDITOR' | 'HALF';
 export type LoginVisibility = 'always' | 'logged_in' | 'logged_out';
-export type ProductionFormType = 'digital_print' | 'output_only' | 'album_only' | 'frame_only' | 'goods_only';
+export type ProductionFormType = 'digital_print' | 'compressed_album' | 'photobook' | 'frame' | 'business_card' | 'booklet' | 'poster' | 'menu';
 export type PricingUnit = 'paper_based' | 'size_based' | 'per_item';
+export type SalesCategory = 'album' | 'print' | 'frame' | 'goods' | 'canvas' | 'calendar' | 'etc';
 
 export interface Category {
   id: string;
@@ -23,6 +24,13 @@ export interface Category {
   description: string | null;
   linkUrl: string | null;
   htmlContent: string | null;
+  salesCategoryId: string | null;
+  salesCategoryRef?: {
+    id: string;
+    code: string;
+    name: string;
+  } | null;
+  iconUrl: string | null;
   createdAt: string;
   updatedAt: string;
   parent?: {
@@ -55,6 +63,8 @@ export interface CreateCategoryInput {
   description?: string;
   linkUrl?: string;
   htmlContent?: string;
+  salesCategoryId?: string;
+  iconUrl?: string;
 }
 
 export interface UpdateCategoryInput {
@@ -72,6 +82,8 @@ export interface UpdateCategoryInput {
   description?: string | null;
   linkUrl?: string | null;
   htmlContent?: string | null;
+  salesCategoryId?: string | null;
+  iconUrl?: string | null;
 }
 
 export interface MoveCategoryInput {
@@ -115,15 +127,28 @@ export const LOGIN_VISIBILITY_LABELS: Record<LoginVisibility, string> = {
 };
 
 export const PRODUCTION_FORM_LABELS: Record<ProductionFormType, string> = {
-  digital_print: '디지털인쇄',
-  output_only: '출력전용',
-  album_only: '앨범전용',
-  frame_only: '액자전용',
-  goods_only: '굿즈전용',
+  digital_print: '디지털출력',
+  compressed_album: '압축앨범',
+  photobook: '화보',
+  frame: '액자',
+  business_card: '명함',
+  booklet: '책자',
+  poster: '포스터',
+  menu: '메뉴판',
 };
 
 export const PRICING_UNIT_LABELS: Record<PricingUnit, string> = {
   paper_based: '용지별출력단가',
   size_based: '규격별출력단가',
   per_item: '권당단가',
+};
+
+export const SALES_CATEGORY_LABELS: Record<SalesCategory, string> = {
+  album: '앨범',
+  print: '출력물',
+  frame: '액자',
+  goods: '굿즈',
+  canvas: '캔버스',
+  calendar: '달력',
+  etc: '기타',
 };

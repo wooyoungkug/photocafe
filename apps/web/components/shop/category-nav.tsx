@@ -62,6 +62,15 @@ export function CategoryNav() {
                     : "hover:bg-gray-100"
                 )}
               >
+                {category.iconUrl && (
+                  <img
+                    src={category.iconUrl.startsWith('/api')
+                      ? `http://localhost:3001${category.iconUrl}`
+                      : category.iconUrl}
+                    alt=""
+                    className="h-5 w-5 object-contain"
+                  />
+                )}
                 {category.name}
                 {category.children && category.children.length > 0 && (
                   <ChevronDown className="h-4 w-4" />
@@ -108,6 +117,15 @@ export function CategoryNav() {
                       : "bg-gray-100 hover:bg-gray-200"
                   )}
                 >
+                  {category.iconUrl && (
+                    <img
+                      src={category.iconUrl.startsWith('/api')
+                        ? `http://localhost:3001${category.iconUrl}`
+                        : category.iconUrl}
+                      alt=""
+                      className="h-4 w-4 object-contain"
+                    />
+                  )}
                   {category.name}
                 </Link>
               </li>
@@ -134,7 +152,18 @@ function CategoryMenuItem({ category, level }: { category: Category; level: numb
         onMouseEnter={() => hasChildren && setIsOpen(true)}
         onMouseLeave={() => hasChildren && setIsOpen(false)}
       >
-        <span>{category.name}</span>
+        <span className="flex items-center gap-2">
+          {category.iconUrl && (
+            <img
+              src={category.iconUrl.startsWith('/api')
+                ? `http://localhost:3001${category.iconUrl}`
+                : category.iconUrl}
+              alt=""
+              className="h-4 w-4 object-contain"
+            />
+          )}
+          {category.name}
+        </span>
         {hasChildren && <ChevronRight className="h-4 w-4" />}
       </Link>
 

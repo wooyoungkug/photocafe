@@ -71,7 +71,11 @@
       "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbWp3am9paTgwMDAwNzR0bjlicGFxenBuIiwiZW1haWwiOiJhZG1pbkBwcmludGluZy1lcnAuY29tIiwicm9sZSI6ImFkbWluIiwiaWF0IjoxNzY3MzQwMDc4LCJleHAiOjE3NjczNDM2Nzh9.OC4OjrVdNPWYd8y5GKd4I4-az1hPr4nXjZJKi0PYgIc\")",
       "Bash(cmd /c \"taskkill /F /PID 35184 2>nul & echo Done\")",
       "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbWp3am9paTgwMDAwNzR0bjlicGFxenBuIiwiZW1haWwiOiJhZG1pbkBwcmludGluZy1lcnAuY29tIiwicm9sZSI6ImFkbWluIiwiaWF0IjoxNzY3MzQwNDYyLCJleHAiOjE3NjczNDQwNjJ9.i_H0ZmLlxUeIRUHyaBoL4jlwTdzV4wIc6gz_6mCqkZU\")",
-      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: CORS origin 설정 수정 및 API 서버 설정 개선\n\n- CORS origin을 localhost:3002에서 localhost:3000으로 수정\n- API 기본 포트를 3000에서 3001로 변경\n- 루트 경로에서 Swagger 문서로 리다이렉트 추가\n- /health 엔드포인트 추가\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: CORS origin 설정 수정 및 API 서버 설정 개선\n\n- CORS origin을 localhost:3002에서 localhost:3000으로 수정\n- API 기본 포트를 3000에서 3001로 변경\n- 루트 경로에서 Swagger 문서로 리다이렉트 추가\n- /health 엔드포인트 추가\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(cmd /c \"taskkill /F /PID 27128\")",
+      "Bash(cmd /c \"taskkill /F /IM node.exe\")",
+      "Bash(cmd /c \"taskkill /F /PID 27128 /T\")",
+      "Bash(wmic process:*)"
     ]
   }
 }

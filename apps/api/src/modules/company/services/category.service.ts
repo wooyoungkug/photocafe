@@ -11,7 +11,7 @@ import {
 
 @Injectable()
 export class CategoryService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async findAll(params: CategoryQueryDto) {
     const { level, parentId, isActive, isVisible, isTopMenu, categoryType, search } = params;
@@ -211,6 +211,8 @@ export class CategoryService {
         description: data.description,
         linkUrl: data.linkUrl,
         htmlContent: data.htmlContent,
+        salesCategoryId: data.salesCategoryId,
+        iconUrl: data.iconUrl,
       },
       include: {
         parent: true,

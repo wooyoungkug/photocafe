@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
-import { StatisticsQueryDto, ClientStatisticsQueryDto, ProductStatisticsQueryDto } from '../dto';
+import { StatisticsQueryDto, ClientStatisticsQueryDto, ProductStatisticsQueryDto, SalesCategoryStatisticsQueryDto } from '../dto';
 
 @Injectable()
 export class StatisticsService {
@@ -330,6 +330,268 @@ export class StatisticsService {
         quantity: stats.reduce((sum, d) => sum + (d._sum.quantity || 0), 0),
         revenue: stats.reduce((sum, d) => sum + Number(d._sum.totalPrice || 0), 0),
       },
+    };
+  }
+
+  // ==================== 매출품목분류별 통계 ====================
+  async getSalesCategoryStatistics(query: SalesCategoryStatisticsQueryDto) {
+    const { startDate, endDate, salesCategoryId, depth } = query;
+
+    // 먼저 OrderItem에서 productId로 Product를 찾고, Product의 categoryId로 Category를 찾아서
+    // Category의 salesCategoryId로 집계
+
+    const whereOrder: Prisma.OrderWhereInput = {
+      status: { not: 'cancelled' },
+      ...(startDate || endDate
+        ? {
+            orderedAt: {
+              ...(startDate && { gte: startDate }),
+              ...(endDate && { lte: endDate }),
+            },
+          }
+        : {}),
+    };
+
+    // 주문 항목과 상품, 카테고리 정보를 함께 조회
+    const orderItems = await this.prisma.orderItem.findMany({
+      where: {
+        order: whereOrder,
+      },
+      select: {
+        quantity: true,
+        totalPrice: true,
+        productId: true,
+        order: {
+          select: {
+            orderedAt: true,
+          },
+        },
+      },
+    });
+
+    // Product ID로 Category 정보 조회
+    const productIds = [...new Set(orderItems.map(item => item.productId))];
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: {
+        id: true,
+        categoryId: true,
+        category: {
+          select: {
+            id: true,
+            salesCategoryId: true,
+          },
+        },
+      },
+    });
+
+    const productCategoryMap = new Map(
+      products.map(p => [p.id, p.category?.salesCategoryId])
+    );
+
+    // 매출품목분류별로 집계
+    const categoryStats = new Map<string, { orderCount: number; quantity: number; revenue: number }>();
+
+    for (const item of orderItems) {
+      const salesCatId = productCategoryMap.get(item.productId);
+      if (!salesCatId) continue;
+
+      // salesCategoryId 필터
+      if (salesCategoryId && salesCatId !== salesCategoryId) continue;
+
+      const current = categoryStats.get(salesCatId) || { orderCount: 0, quantity: 0, revenue: 0 };
+      current.orderCount += 1;
+      current.quantity += item.quantity;
+      current.revenue += Number(item.totalPrice);
+      categoryStats.set(salesCatId, current);
+    }
+
+    // SalesCategory 정보 조회
+    const salesCategoryIds = [...categoryStats.keys()];
+    const salesCategories = await this.prisma.salesCategory.findMany({
+      where: {
+        id: { in: salesCategoryIds },
+        ...(depth !== undefined && { depth }),
+      },
+      include: {
+        parent: {
+          select: { id: true, code: true, name: true },
+        },
+      },
+    });
+
+    const salesCategoryMap = new Map(salesCategories.map(sc => [sc.id, sc]));
+
+    // 결과 정리
+    const data = [...categoryStats.entries()]
+      .map(([id, stats]) => {
+        const category = salesCategoryMap.get(id);
+        if (!category) return null;
+        return {
+          salesCategoryId: id,
+          salesCategoryCode: category.code,
+          salesCategoryName: category.name,
+          depth: category.depth,
+          parentName: category.parent?.name || null,
+          ...stats,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b!.revenue - a!.revenue);
+
+    // 대분류별 소계도 계산
+    const parentStats = new Map<string, { orderCount: number; quantity: number; revenue: number }>();
+    for (const item of data) {
+      if (!item) continue;
+      const parentId = salesCategoryMap.get(item.salesCategoryId)?.parentId;
+      if (parentId) {
+        const current = parentStats.get(parentId) || { orderCount: 0, quantity: 0, revenue: 0 };
+        current.orderCount += item.orderCount;
+        current.quantity += item.quantity;
+        current.revenue += item.revenue;
+        parentStats.set(parentId, current);
+      }
+    }
+
+    return {
+      data,
+      totals: {
+        categoryCount: data.length,
+        orderCount: data.reduce((sum, d) => sum + (d?.orderCount || 0), 0),
+        quantity: data.reduce((sum, d) => sum + (d?.quantity || 0), 0),
+        revenue: data.reduce((sum, d) => sum + (d?.revenue || 0), 0),
+      },
+      period: { startDate, endDate },
+    };
+  }
+
+  // ==================== 매출품목분류별 통계 (트리 구조) ====================
+  async getSalesCategoryTreeStatistics(query: SalesCategoryStatisticsQueryDto) {
+    const { startDate, endDate } = query;
+
+    // 모든 매출품목분류 조회
+    const allSalesCategories = await this.prisma.salesCategory.findMany({
+      where: { isActive: true },
+      orderBy: [{ depth: 'asc' }, { sortOrder: 'asc' }],
+    });
+
+    // 주문 데이터 집계
+    const whereOrder: Prisma.OrderWhereInput = {
+      status: { not: 'cancelled' },
+      ...(startDate || endDate
+        ? {
+            orderedAt: {
+              ...(startDate && { gte: startDate }),
+              ...(endDate && { lte: endDate }),
+            },
+          }
+        : {}),
+    };
+
+    const orderItems = await this.prisma.orderItem.findMany({
+      where: { order: whereOrder },
+      select: {
+        quantity: true,
+        totalPrice: true,
+        productId: true,
+      },
+    });
+
+    // Product -> Category -> SalesCategory 매핑
+    const productIds = [...new Set(orderItems.map(item => item.productId))];
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: {
+        id: true,
+        category: {
+          select: { salesCategoryId: true },
+        },
+      },
+    });
+
+    const productSalesCatMap = new Map(
+      products.map(p => [p.id, p.category?.salesCategoryId])
+    );
+
+    // 소분류별 집계
+    const stats = new Map<string, { orderCount: number; quantity: number; revenue: number }>();
+    for (const item of orderItems) {
+      const salesCatId = productSalesCatMap.get(item.productId);
+      if (!salesCatId) continue;
+
+      const current = stats.get(salesCatId) || { orderCount: 0, quantity: 0, revenue: 0 };
+      current.orderCount += 1;
+      current.quantity += item.quantity;
+      current.revenue += Number(item.totalPrice);
+      stats.set(salesCatId, current);
+    }
+
+    // 대분류별 소계 계산 (소분류 합산)
+    const parentStats = new Map<string, { orderCount: number; quantity: number; revenue: number }>();
+    for (const sc of allSalesCategories) {
+      if (sc.depth === 2 && sc.parentId) {
+        const childStats = stats.get(sc.id);
+        if (childStats) {
+          const current = parentStats.get(sc.parentId) || { orderCount: 0, quantity: 0, revenue: 0 };
+          current.orderCount += childStats.orderCount;
+          current.quantity += childStats.quantity;
+          current.revenue += childStats.revenue;
+          parentStats.set(sc.parentId, current);
+        }
+      }
+    }
+
+    // 대분류에 직접 연결된 것도 합산
+    for (const sc of allSalesCategories) {
+      if (sc.depth === 1) {
+        const directStats = stats.get(sc.id);
+        if (directStats) {
+          const current = parentStats.get(sc.id) || { orderCount: 0, quantity: 0, revenue: 0 };
+          current.orderCount += directStats.orderCount;
+          current.quantity += directStats.quantity;
+          current.revenue += directStats.revenue;
+          parentStats.set(sc.id, current);
+        }
+      }
+    }
+
+    // 트리 구조로 변환
+    const tree = allSalesCategories
+      .filter(sc => sc.depth === 1)
+      .map(parent => {
+        const children = allSalesCategories
+          .filter(sc => sc.parentId === parent.id)
+          .map(child => ({
+            id: child.id,
+            code: child.code,
+            name: child.name,
+            depth: child.depth,
+            ...((stats.get(child.id)) || { orderCount: 0, quantity: 0, revenue: 0 }),
+          }))
+          .sort((a, b) => b.revenue - a.revenue);
+
+        return {
+          id: parent.id,
+          code: parent.code,
+          name: parent.name,
+          depth: parent.depth,
+          ...((parentStats.get(parent.id)) || { orderCount: 0, quantity: 0, revenue: 0 }),
+          children,
+        };
+      })
+      .sort((a, b) => b.revenue - a.revenue);
+
+    const totalRevenue = tree.reduce((sum, t) => sum + t.revenue, 0);
+
+    return {
+      data: tree,
+      totals: {
+        categoryCount: allSalesCategories.length,
+        orderCount: tree.reduce((sum, t) => sum + t.orderCount, 0),
+        quantity: tree.reduce((sum, t) => sum + t.quantity, 0),
+        revenue: totalRevenue,
+      },
+      period: { startDate, endDate },
     };
   }
 

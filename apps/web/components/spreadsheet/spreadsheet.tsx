@@ -10,7 +10,7 @@ import React, {
 import { cn } from "@/lib/utils";
 
 export interface CellData {
-  value: string;
+  value?: string;
   formula?: string;
 }
 
@@ -180,7 +180,7 @@ const getCellValue = (
     return evaluateFormula(cell.formula, data, visited);
   }
 
-  return cell.value;
+  return cell.value ?? "";
 };
 
 export function Spreadsheet({

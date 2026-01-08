@@ -2,6 +2,8 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -31,10 +33,15 @@ async function bootstrap() {
     }),
   );
 
-  // Root redirect to Swagger docs
+  // Root - Admin Login Page
   const expressApp = app.getHttpAdapter().getInstance();
   expressApp.get('/', (req: any, res: any) => {
-    res.redirect('/api/docs');
+    try {
+      const loginHtml = readFileSync(join(__dirname, 'templates', 'login.html'), 'utf8');
+      res.type('text/html').send(loginHtml);
+    } catch {
+      res.redirect('/api/docs');
+    }
   });
   expressApp.get('/health', (req: any, res: any) => {
     res.json({

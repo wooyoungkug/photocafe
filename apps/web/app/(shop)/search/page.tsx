@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Search, ShoppingCart } from 'lucide-react';
@@ -11,7 +12,37 @@ import { Badge } from '@/components/ui/badge';
 import { useCartStore } from '@/stores/cart-store';
 import type { Product } from '@/lib/types';
 
-export default function SearchPage() {
+function SearchResultSkeleton() {
+  return (
+    <div className="min-h-screen">
+      <div className="bg-white border-b">
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex items-center gap-3">
+            <Search className="h-6 w-6 text-gray-400" />
+            <Skeleton className="h-8 w-48" />
+          </div>
+          <Skeleton className="h-5 w-32 mt-2" />
+        </div>
+      </div>
+      <div className="container mx-auto px-4 py-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          {[...Array(10)].map((_, i) => (
+            <Card key={i} className="overflow-hidden">
+              <Skeleton className="aspect-square w-full" />
+              <CardContent className="p-3">
+                <Skeleton className="h-3 w-16 mb-1" />
+                <Skeleton className="h-4 w-full mb-2" />
+                <Skeleton className="h-5 w-20" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SearchContent() {
   const searchParams = useSearchParams();
   const query = searchParams.get('q') || '';
 
@@ -31,7 +62,7 @@ export default function SearchPage() {
           <div className="flex items-center gap-3">
             <Search className="h-6 w-6 text-gray-400" />
             <h1 className="text-2xl font-bold">
-              "{query}" 검색 결과
+              &quot;{query}&quot; 검색 결과
             </h1>
           </div>
           <p className="text-gray-500 mt-2">
@@ -74,6 +105,14 @@ export default function SearchPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={<SearchResultSkeleton />}>
+      <SearchContent />
+    </Suspense>
   );
 }
 

@@ -88,3 +88,51 @@ export function useProductStatistics(params?: {
     queryFn: () => api.get('/statistics/products', params),
   });
 }
+
+// 매출품목분류별 통계 타입
+export interface SalesCategoryStatItem {
+  id: string;
+  code: string;
+  name: string;
+  depth: number;
+  orderCount: number;
+  quantity: number;
+  revenue: number;
+  children?: SalesCategoryStatItem[];
+}
+
+export interface SalesCategoryStatistics {
+  data: SalesCategoryStatItem[];
+  totals: {
+    categoryCount: number;
+    orderCount: number;
+    quantity: number;
+    revenue: number;
+  };
+  period: {
+    startDate?: string;
+    endDate?: string;
+  };
+}
+
+export function useSalesCategoryStatistics(params?: {
+  startDate?: string;
+  endDate?: string;
+  salesCategoryId?: string;
+  depth?: number;
+}) {
+  return useQuery({
+    queryKey: [STATISTICS_KEY, 'sales-categories', params],
+    queryFn: () => api.get<SalesCategoryStatistics>('/statistics/sales-categories', params as Record<string, string | number | boolean | undefined>),
+  });
+}
+
+export function useSalesCategoryTreeStatistics(params?: {
+  startDate?: string;
+  endDate?: string;
+}) {
+  return useQuery({
+    queryKey: [STATISTICS_KEY, 'sales-categories', 'tree', params],
+    queryFn: () => api.get<SalesCategoryStatistics>('/statistics/sales-categories/tree', params as Record<string, string | number | boolean | undefined>),
+  });
+}

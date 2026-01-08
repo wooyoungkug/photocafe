@@ -15,6 +15,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   AlertCircle,
+  Sparkles,
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -34,6 +35,9 @@ export default function DashboardPage() {
       description: "신규 주문",
       trend: formatGrowthRate(summary?.thisMonth?.growthRate ?? 0),
       trendUp: (summary?.thisMonth?.growthRate ?? 0) >= 0,
+      gradient: "from-blue-500 to-blue-600",
+      iconBg: "bg-blue-500/10",
+      iconColor: "text-blue-500",
     },
     {
       title: "생산중",
@@ -42,6 +46,9 @@ export default function DashboardPage() {
       description: "진행 중인 작업",
       trend: null,
       trendUp: false,
+      gradient: "from-amber-500 to-orange-500",
+      iconBg: "bg-amber-500/10",
+      iconColor: "text-amber-500",
     },
     {
       title: "접수대기",
@@ -50,6 +57,9 @@ export default function DashboardPage() {
       description: "처리 대기",
       trend: null,
       trendUp: false,
+      gradient: "from-emerald-500 to-teal-500",
+      iconBg: "bg-emerald-500/10",
+      iconColor: "text-emerald-500",
     },
     {
       title: "이번달 매출",
@@ -58,6 +68,9 @@ export default function DashboardPage() {
       description: "누적 매출액",
       trend: formatGrowthRate(summary?.thisMonth?.growthRate ?? 0),
       trendUp: (summary?.thisMonth?.growthRate ?? 0) >= 0,
+      gradient: "from-indigo-500 to-purple-600",
+      iconBg: "bg-indigo-500/10",
+      iconColor: "text-indigo-500",
     },
   ];
 
@@ -66,19 +79,19 @@ export default function DashboardPage() {
       title: "총 거래처",
       value: `${summary?.clients?.total ?? 0}개`,
       icon: Users,
-      color: "text-blue-500",
+      gradient: "from-blue-500 to-cyan-500",
     },
     {
       title: "활성 거래처",
       value: `${summary?.clients?.active ?? 0}개`,
       icon: Package,
-      color: "text-green-500",
+      gradient: "from-emerald-500 to-green-500",
     },
     {
       title: "오늘 매출",
       value: `₩${(summary?.today?.revenue ?? 0).toLocaleString()}`,
       icon: Calendar,
-      color: "text-orange-500",
+      gradient: "from-orange-500 to-amber-500",
     },
   ];
 
@@ -93,7 +106,7 @@ export default function DashboardPage() {
         />
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
-            <Card key={i}>
+            <Card key={i} className="overflow-hidden">
               <CardHeader className="pb-2">
                 <Skeleton className="h-4 w-20" />
               </CardHeader>
@@ -117,8 +130,8 @@ export default function DashboardPage() {
           description="인쇄업 ERP 시스템 현황을 한눈에 확인하세요."
           breadcrumbs={[{ label: "홈", href: "/" }, { label: "대시보드" }]}
         />
-        <Card>
-          <CardContent className="flex items-center gap-3 py-8 text-destructive">
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="flex items-center gap-3 py-8 text-red-600">
             <AlertCircle className="h-5 w-5" />
             <span>통계 데이터를 불러오는데 실패했습니다.</span>
           </CardContent>
@@ -138,22 +151,23 @@ export default function DashboardPage() {
       {/* 주요 통계 카드 */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {statCards.map((stat) => (
-          <Card key={stat.title}>
+          <Card key={stat.title} className="group overflow-hidden border-0 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-sm font-medium text-slate-600">
                 {stat.title}
               </CardTitle>
-              <stat.icon className="h-4 w-4 text-muted-foreground" />
+              <div className={`p-2 rounded-xl ${stat.iconBg}`}>
+                <stat.icon className={`h-4 w-4 ${stat.iconColor}`} />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <div className="flex items-center text-xs text-muted-foreground mt-1">
+              <div className="text-2xl font-bold text-slate-800">{stat.value}</div>
+              <div className="flex items-center text-xs text-slate-500 mt-1">
                 <span>{stat.description}</span>
                 {stat.trend && (
                   <span
-                    className={`ml-2 flex items-center ${
-                      stat.trendUp ? "text-green-500" : "text-red-500"
-                    }`}
+                    className={`ml-2 flex items-center font-medium ${stat.trendUp ? "text-emerald-500" : "text-red-500"
+                      }`}
                   >
                     {stat.trendUp ? (
                       <ArrowUpRight className="h-3 w-3" />
@@ -164,6 +178,8 @@ export default function DashboardPage() {
                   </span>
                 )}
               </div>
+              {/* 하단 그라데이션 바 */}
+              <div className={`absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r ${stat.gradient} opacity-0 group-hover:opacity-100 transition-opacity`}></div>
             </CardContent>
           </Card>
         ))}
@@ -172,16 +188,16 @@ export default function DashboardPage() {
       {/* 보조 통계 */}
       <div className="grid gap-4 md:grid-cols-3">
         {subStatCards.map((stat) => (
-          <Card key={stat.title}>
+          <Card key={stat.title} className="overflow-hidden border-0 shadow-md hover:shadow-lg transition-all duration-300">
             <CardContent className="flex items-center gap-4 p-6">
-              <div className={`rounded-full bg-muted p-3 ${stat.color}`}>
-                <stat.icon className="h-5 w-5" />
+              <div className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${stat.gradient} text-white shadow-lg`}>
+                <stat.icon className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-sm font-medium text-muted-foreground">
+                <p className="text-sm font-medium text-slate-500">
                   {stat.title}
                 </p>
-                <p className="text-xl font-bold">{stat.value}</p>
+                <p className="text-2xl font-bold text-slate-800">{stat.value}</p>
               </div>
             </CardContent>
           </Card>
@@ -190,24 +206,32 @@ export default function DashboardPage() {
 
       {/* 최근 활동 */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>최근 주문</CardTitle>
+        <Card className="border-0 shadow-md overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-slate-50 to-white border-b">
+            <CardTitle className="flex items-center gap-2 text-slate-800">
+              <Sparkles className="h-4 w-4 text-indigo-500" />
+              최근 주문
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-center text-muted-foreground py-8">
-              최근 주문 내역이 없습니다.
+            <div className="text-center text-slate-400 py-12">
+              <ShoppingCart className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+              <p>최근 주문 내역이 없습니다.</p>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>생산 현황</CardTitle>
+        <Card className="border-0 shadow-md overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-slate-50 to-white border-b">
+            <CardTitle className="flex items-center gap-2 text-slate-800">
+              <Factory className="h-4 w-4 text-amber-500" />
+              생산 현황
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-center text-muted-foreground py-8">
-              진행 중인 생산이 없습니다.
+            <div className="text-center text-slate-400 py-12">
+              <Factory className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+              <p>진행 중인 생산이 없습니다.</p>
             </div>
           </CardContent>
         </Card>
@@ -215,3 +239,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

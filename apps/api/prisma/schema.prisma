@@ -102,6 +102,49 @@ model Client {
   @@map("clients")
 }
 
+// ==================== 매출품목 분류 ====================
+
+model SalesCategoryOption {
+  id          String   @id @default(cuid())
+  code        String   @unique  // 고유 코드 (예: album, print, etc.)
+  name        String             // 표시 이름 (예: 앨범, 출력물, etc.)
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive])
+  @@map("sales_category_options")
+}
+
+// 매출품목분류 (2단계 계층)
+model SalesCategory {
+  id          String   @id @default(cuid())
+  code        String   @unique     // 고유 코드
+  name        String               // 분류명
+  depth       Int      @default(1) // 1: 대분류, 2: 소분류
+
+  // 계층 구조
+  parentId    String?
+  parent      SalesCategory?  @relation("SalesCategoryTree", fields: [parentId], references: [id])
+  children    SalesCategory[] @relation("SalesCategoryTree")
+
+  // 정렬 및 상태
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  description String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  categories  Category[]
+
+  @@index([parentId])
+  @@index([isActive])
+  @@map("sales_categories")
+}
+
 // ==================== 카테고리 ====================
 
 model Category {
@@ -143,6 +186,13 @@ model Category {
   // 정렬 및 상태
   sortOrder       Int        @default(0)
   isActive        Boolean    @default(true)
+
+  // 매출 통계용 분류 연결
+  salesCategoryId String?
+  salesCategoryRef SalesCategory? @relation(fields: [salesCategoryId], references: [id])
+
+  // 카테고리 아이콘
+  iconUrl         String?    // 카테고리 앞에 표시되는 작은 이미지 URL
 
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt

@@ -16,7 +16,7 @@ const CATEGORIES_KEY = 'categories';
 export function useCategories(params?: CategoryQueryParams) {
   return useQuery({
     queryKey: [CATEGORIES_KEY, params],
-    queryFn: () => api.get<Category[]>('/categories', params),
+    queryFn: () => api.get<Category[]>('/categories', params as Record<string, string | number | boolean | undefined>),
   });
 }
 

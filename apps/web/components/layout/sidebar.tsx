@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import {
   Building2,
   Package,
@@ -10,6 +11,9 @@ import {
   BarChart3,
   Settings,
   ChevronDown,
+  ChevronRight,
+  LayoutDashboard,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -17,7 +21,7 @@ const navigation = [
   {
     name: "대시보드",
     href: "/dashboard",
-    icon: BarChart3,
+    icon: LayoutDashboard,
   },
   {
     name: "회사정보",
@@ -26,9 +30,10 @@ const navigation = [
       { name: "환경설정", href: "/company/settings" },
       { name: "직원관리", href: "/company/employees" },
       { name: "부서관리", href: "/company/departments" },
-      { name: "거래처관리", href: "/company/clients" },
-      { name: "거래처그룹", href: "/company/client-groups" },
+      { name: "회원관리", href: "/company/members" },
+      { name: "회원그룹", href: "/company/member-groups" },
       { name: "카테고리", href: "/company/categories" },
+      { name: "매출품목분류", href: "/company/sales-categories" },
     ],
   },
   {
@@ -65,69 +70,117 @@ const navigation = [
     icon: BarChart3,
     children: [
       { name: "매출통계", href: "/statistics/sales" },
-      { name: "거래처별", href: "/statistics/clients" },
+      { name: "품목분류별", href: "/statistics/sales-categories" },
+      { name: "회원별", href: "/statistics/members" },
       { name: "제본방법별", href: "/statistics/binding" },
     ],
   },
   {
     name: "설정",
-    href: "/settings",
     icon: Settings,
+    children: [
+      { name: "환경설정", href: "/settings" },
+      { name: "모델 관리", href: "/settings/models" },
+    ],
   },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [openMenus, setOpenMenus] = useState<string[]>(["회사정보", "상품관리", "가격관리", "주문관리", "통계"]);
+
+  const toggleMenu = (name: string) => {
+    setOpenMenus((prev) =>
+      prev.includes(name) ? prev.filter((m) => m !== name) : [...prev, name]
+    );
+  };
+
+  const isMenuOpen = (name: string) => openMenus.includes(name);
 
   return (
-    <div className="flex h-full w-64 flex-col border-r bg-white">
-      <div className="flex h-16 items-center border-b px-6">
-        <span className="text-xl font-bold text-primary">인쇄업 ERP</span>
+    <div className="flex h-full w-64 flex-col bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-xl">
+      {/* 로고 영역 */}
+      <div className="flex h-16 items-center gap-2 border-b border-slate-700/50 px-6">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg">
+          <Sparkles className="h-4 w-4 text-white" />
+        </div>
+        <span className="text-xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
+          인쇄업 ERP
+        </span>
       </div>
-      <nav className="flex-1 overflow-y-auto py-4">
-        {navigation.map((item) => (
-          <div key={item.name}>
-            {item.href ? (
-              <Link
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-3 px-6 py-2 text-sm font-medium",
-                  pathname === item.href
-                    ? "bg-primary/10 text-primary"
-                    : "text-gray-600 hover:bg-gray-100"
-                )}
-              >
-                <item.icon className="h-5 w-5" />
-                {item.name}
-              </Link>
-            ) : (
-              <div className="px-6 py-2">
-                <div className="flex items-center gap-3 text-sm font-medium text-gray-900">
-                  <item.icon className="h-5 w-5" />
+
+      {/* 네비게이션 */}
+      <nav className="flex-1 overflow-y-auto py-4 px-3">
+        <div className="space-y-1">
+          {navigation.map((item) => (
+            <div key={item.name}>
+              {item.href ? (
+                <Link
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
+                    pathname === item.href
+                      ? "bg-gradient-to-r from-indigo-500/20 to-purple-500/20 text-white border-l-2 border-indigo-400"
+                      : "text-slate-400 hover:bg-slate-700/50 hover:text-white"
+                  )}
+                >
+                  <item.icon className={cn(
+                    "h-5 w-5 transition-colors",
+                    pathname === item.href ? "text-indigo-400" : "text-slate-500"
+                  )} />
                   {item.name}
-                  <ChevronDown className="ml-auto h-4 w-4" />
+                </Link>
+              ) : (
+                <div>
+                  <button
+                    onClick={() => toggleMenu(item.name)}
+                    className="flex w-full items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-700/50 hover:text-white rounded-lg transition-all duration-200"
+                  >
+                    <item.icon className="h-5 w-5 text-slate-500" />
+                    {item.name}
+                    {isMenuOpen(item.name) ? (
+                      <ChevronDown className="ml-auto h-4 w-4 text-slate-500 transition-transform" />
+                    ) : (
+                      <ChevronRight className="ml-auto h-4 w-4 text-slate-500 transition-transform" />
+                    )}
+                  </button>
+                  <div
+                    className={cn(
+                      "overflow-hidden transition-all duration-300",
+                      isMenuOpen(item.name) ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+                    )}
+                  >
+                    <div className="mt-1 ml-4 space-y-1 border-l border-slate-700 pl-4">
+                      {item.children?.map((child) => (
+                        <Link
+                          key={child.href}
+                          href={child.href}
+                          className={cn(
+                            "block py-2 px-3 text-sm rounded-md transition-all duration-200",
+                            pathname === child.href
+                              ? "text-indigo-400 font-medium bg-indigo-500/10"
+                              : "text-slate-500 hover:text-slate-200 hover:bg-slate-700/30"
+                          )}
+                        >
+                          {child.name}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-                <div className="mt-1 space-y-1 pl-8">
-                  {item.children?.map((child) => (
-                    <Link
-                      key={child.href}
-                      href={child.href}
-                      className={cn(
-                        "block py-1.5 text-sm",
-                        pathname === child.href
-                          ? "text-primary font-medium"
-                          : "text-gray-600 hover:text-gray-900"
-                      )}
-                    >
-                      {child.name}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
+              )}
+            </div>
+          ))}
+        </div>
       </nav>
+
+      {/* 하단 정보 */}
+      <div className="border-t border-slate-700/50 p-4">
+        <div className="text-xs text-slate-500 text-center">
+          © 2026 인쇄업 ERP v2.0
+        </div>
+      </div>
     </div>
   );
 }
+

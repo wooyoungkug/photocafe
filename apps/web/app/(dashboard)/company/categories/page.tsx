@@ -54,6 +54,7 @@ import {
   useMoveCategoryDown,
   useMoveCategoryToTop,
 } from "@/hooks/use-categories";
+import { useSalesCategoryTree } from "@/hooks/use-sales-categories";
 import { useToast } from "@/hooks/use-toast";
 import type {
   Category,
@@ -65,6 +66,7 @@ import type {
   CreateCategoryInput,
   UpdateCategoryInput,
 } from "@/lib/types";
+import { useAuthStore } from "@/stores/auth-store";
 import { CATEGORY_LEVEL_LABELS, PRICING_UNIT_LABELS } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -94,11 +96,14 @@ const loginVisibilityOptions: { value: LoginVisibility; label: string }[] = [
 ];
 
 const productionFormOptions: { value: ProductionFormType; label: string }[] = [
-  { value: "digital_print", label: "디지털인쇄" },
-  { value: "output_only", label: "출력전용" },
-  { value: "album_only", label: "앨범전용" },
-  { value: "frame_only", label: "액자전용" },
-  { value: "goods_only", label: "굿즈전용" },
+  { value: "digital_print", label: "디지털출력" },
+  { value: "compressed_album", label: "압축앨범" },
+  { value: "photobook", label: "화보" },
+  { value: "frame", label: "액자" },
+  { value: "business_card", label: "명함" },
+  { value: "booklet", label: "책자" },
+  { value: "poster", label: "포스터" },
+  { value: "menu", label: "메뉴판" },
 ];
 
 const pricingUnitOptions: { value: PricingUnit; label: string }[] = [
@@ -123,6 +128,8 @@ interface FormData {
   description: string;
   linkUrl: string;
   htmlContent: string;
+  salesCategoryId: string;
+  iconUrl: string;
 }
 
 const defaultFormData: FormData = {
@@ -141,10 +148,13 @@ const defaultFormData: FormData = {
   description: "",
   linkUrl: "",
   htmlContent: "",
+  salesCategoryId: "",
+  iconUrl: "",
 };
 
 export default function CategoriesPage() {
   const { toast } = useToast();
+  const { accessToken } = useAuthStore();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -158,6 +168,7 @@ export default function CategoriesPage() {
   } | null>(null);
 
   const { data: categories, isLoading, error } = useCategories();
+  const { data: salesCategories } = useSalesCategoryTree();
   const createMutation = useCreateCategory();
   const updateMutation = useUpdateCategory();
   const deleteMutation = useDeleteCategory();
@@ -214,6 +225,8 @@ export default function CategoriesPage() {
       description: category.description ?? "",
       linkUrl: category.linkUrl ?? "",
       htmlContent: category.htmlContent ?? "",
+      salesCategoryId: category.salesCategoryId ?? "",
+      iconUrl: category.iconUrl ?? "",
     });
   };
 
@@ -258,6 +271,8 @@ export default function CategoriesPage() {
       description: category.description ?? "",
       linkUrl: category.linkUrl ?? "",
       htmlContent: category.htmlContent ?? "",
+      salesCategoryId: category.salesCategoryId ?? "",
+      iconUrl: category.iconUrl ?? "",
     });
     setDialogOpen(true);
   };
@@ -272,6 +287,7 @@ export default function CategoriesPage() {
 
     const productionFormValue = formData.productionForm === "none" ? undefined : formData.productionForm;
     const pricingUnitValue = formData.pricingUnit === "none" ? undefined : formData.pricingUnit;
+    const salesCategoryIdValue = formData.salesCategoryId || undefined;
 
     try {
       if (editingCategory) {
@@ -289,6 +305,8 @@ export default function CategoriesPage() {
           description: formData.description || null,
           linkUrl: formData.linkUrl || null,
           htmlContent: formData.htmlContent || null,
+          salesCategoryId: salesCategoryIdValue ?? null,
+          iconUrl: formData.iconUrl || null,
         };
         await updateMutation.mutateAsync({
           id: editingCategory.id,
@@ -316,6 +334,8 @@ export default function CategoriesPage() {
           description: formData.description || undefined,
           linkUrl: formData.linkUrl || undefined,
           htmlContent: formData.htmlContent || undefined,
+          salesCategoryId: salesCategoryIdValue,
+          iconUrl: formData.iconUrl || undefined,
         };
         await createMutation.mutateAsync(data);
         toast({
@@ -340,6 +360,7 @@ export default function CategoriesPage() {
 
     const productionFormValue = formData.productionForm === "none" ? null : formData.productionForm;
     const pricingUnitValue = formData.pricingUnit === "none" ? null : formData.pricingUnit;
+    const salesCategoryIdValue = formData.salesCategoryId || null;
 
     try {
       const data: UpdateCategoryInput = {
@@ -356,6 +377,8 @@ export default function CategoriesPage() {
         description: formData.description || null,
         linkUrl: formData.linkUrl || null,
         htmlContent: formData.htmlContent || null,
+        salesCategoryId: salesCategoryIdValue,
+        iconUrl: formData.iconUrl || null,
       };
       await updateMutation.mutateAsync({
         id: selectedCategory.id,
@@ -491,8 +514,16 @@ export default function CategoriesPage() {
             {category.code || "-"}
           </span>
 
-          {/* 폴더 아이콘 */}
-          {isExpanded ? (
+          {/* 카테고리 아이콘 또는 폴더 아이콘 */}
+          {category.iconUrl ? (
+            <img
+              src={category.iconUrl.startsWith('/api')
+                ? `http://localhost:3001${category.iconUrl}`
+                : category.iconUrl}
+              alt=""
+              className="h-5 w-5 object-contain rounded"
+            />
+          ) : isExpanded ? (
             <FolderOpen className={cn("h-5 w-5", LEVEL_ICONS[category.level])} />
           ) : (
             <Folder className={cn("h-5 w-5", LEVEL_ICONS[category.level])} />
@@ -935,6 +966,149 @@ export default function CategoriesPage() {
                     placeholder="HTML 내용을 입력하세요..."
                     className="min-h-[200px] font-mono text-sm"
                   />
+                </div>
+
+                {/* 매출품목 분류 */}
+                <div className="space-y-2">
+                  <Label>매출품목 분류</Label>
+                  <Select
+                    value={formData.salesCategoryId || "none"}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, salesCategoryId: value === "none" ? "" : value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="매출통계 분류 선택" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">선택안함</SelectItem>
+                      {salesCategories?.map((parentCat) => (
+                        <div key={parentCat.id}>
+                          <SelectItem value={parentCat.id} className="font-medium">
+                            {parentCat.name}
+                          </SelectItem>
+                          {parentCat.children?.map((childCat) => (
+                            <SelectItem key={childCat.id} value={childCat.id} className="pl-6">
+                              └ {childCat.name}
+                            </SelectItem>
+                          ))}
+                        </div>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    매출 통계 집계 시 사용되는 품목 분류입니다.
+                  </p>
+                </div>
+
+                {/* 카테고리 아이콘 */}
+                <div className="space-y-2">
+                  <Label>카테고리 아이콘</Label>
+                  <div className="flex gap-3 items-center">
+                    {formData.iconUrl && (
+                      <img
+                        src={formData.iconUrl.startsWith('/api')
+                          ? `http://localhost:3001${formData.iconUrl}`
+                          : formData.iconUrl}
+                        alt="카테고리 아이콘"
+                        className="w-12 h-12 object-contain rounded border bg-gray-50"
+                      />
+                    )}
+                    <div className="flex-1 space-y-2">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="block w-full text-sm text-slate-500
+                          file:mr-4 file:py-2 file:px-4
+                          file:rounded-md file:border-0
+                          file:text-sm file:font-semibold
+                          file:bg-indigo-50 file:text-indigo-700
+                          hover:file:bg-indigo-100
+                          cursor-pointer"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+
+                          // 토큰 확인 - 여러 소스에서 토큰 검색
+                          let token = accessToken;
+                          if (!token) {
+                            token = localStorage.getItem('accessToken');
+                          }
+                          if (!token) {
+                            // zustand persist storage에서도 확인
+                            try {
+                              const authStorage = localStorage.getItem('auth-storage');
+                              if (authStorage) {
+                                const parsed = JSON.parse(authStorage);
+                                token = parsed?.state?.accessToken;
+                              }
+                            } catch (e) {
+                              console.error('Failed to parse auth storage:', e);
+                            }
+                          }
+                          if (!token) {
+                            toast({
+                              variant: "destructive",
+                              title: "인증 필요",
+                              description: "로그인이 필요합니다. 다시 로그인해주세요.",
+                            });
+                            return;
+                          }
+
+                          const formDataUpload = new FormData();
+                          formDataUpload.append('file', file);
+
+                          try {
+                            const response = await fetch('http://localhost:3001/api/v1/upload/category-icon', {
+                              method: 'POST',
+                              headers: {
+                                'Authorization': `Bearer ${token}`,
+                              },
+                              body: formDataUpload,
+                            });
+
+                            if (response.status === 401) {
+                              toast({
+                                variant: "destructive",
+                                title: "인증 만료",
+                                description: "로그인이 만료되었습니다. 다시 로그인해주세요.",
+                              });
+                              return;
+                            }
+
+                            if (!response.ok) throw new Error('업로드 실패');
+
+                            const result = await response.json();
+                            setFormData({ ...formData, iconUrl: result.url });
+                            toast({
+                              variant: "success",
+                              title: "아이콘 업로드 완료",
+                              description: "아이콘이 업로드되었습니다.",
+                            });
+                          } catch (error) {
+                            toast({
+                              variant: "destructive",
+                              title: "업로드 실패",
+                              description: "아이콘 업로드에 실패했습니다.",
+                            });
+                          }
+                        }}
+                      />
+                      {formData.iconUrl && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setFormData({ ...formData, iconUrl: "" })}
+                        >
+                          아이콘 삭제
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    카테고리 앞에 표시될 작은 이미지입니다. (권장 크기: 48x48px, 최대 5MB)
+                  </p>
                 </div>
 
                 {/* 버튼 */}

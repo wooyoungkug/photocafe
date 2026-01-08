@@ -136,7 +136,7 @@
       document.getElementById('userEmail').textContent = user.email;
       document.getElementById('userRole').textContent = user.role === 'admin' ? '관리자' : '스태프';
     }
-    function goToDashboard() { window.location.href = 'http://localhost:3002'; }
+    function goToDashboard() { window.location.href = 'http://localhost:3000'; }
     function handleLogout() {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
