@@ -75,7 +75,11 @@
       "Bash(cmd /c \"taskkill /F /PID 27128\")",
       "Bash(cmd /c \"taskkill /F /IM node.exe\")",
       "Bash(cmd /c \"taskkill /F /PID 27128 /T\")",
-      "Bash(wmic process:*)"
+      "Bash(wmic process:*)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbWszcmUxaXUwMDAwMmFkbTdia2RzN3hlIiwiZW1haWwiOiJhZG1pbkBwcmludGluZy1lcnAuY29tIiwicm9sZSI6InN0YWZmIiwiaWF0IjoxNzY3ODQ2NjE0LCJleHAiOjE3Njc4NTAyMTR9.hwIjzIkKuvQ7CbcypA6XborYKWGNJhB2wQkhZWAwXOA\":*)",
+      "Bash(git commit:*)",
+      "Bash(git push)",
+      "Bash(timeout:*)"
     ]
   }
 }

@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useProduct, useUpdateProduct, useDeleteProduct } from '@/hooks/use-products';
-import { useAuthStore } from '@/stores/auth-store';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -19,37 +18,35 @@ import {
   AlertDialogDescription,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/dialog';
+  AlertDialogFooter,
+} from '@/components/ui/alert-dialog';
 
 export default function ProductDetailPage() {
   const router = useRouter();
   const params = useParams();
   const productId = params.id as string;
-  const { company } = useAuthStore();
   
   const { data: product, isLoading } = useProduct(productId);
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
 
   const [formData, setFormData] = useState({
-    name: '',
+    productName: '',
+    productCode: '',
     description: '',
-    price: '',
-    cost: '',
-    sku: '',
+    basePrice: '',
   });
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [activeTab, setActiveTab] = useState<'info' | 'specifications'>('info');
 
   // Update form data when product loads
-  if (product && formData.name !== product.name) {
+  if (product && formData.productName !== product.productName) {
     setFormData({
-      name: product.name || '',
+      productName: product.productName || '',
+      productCode: product.productCode || '',
       description: product.description || '',
-      price: product.price?.toString() || '',
-      cost: product.cost?.toString() || '',
-      sku: product.sku || '',
+      basePrice: product.basePrice?.toString() || '',
     });
   }
 
@@ -63,13 +60,12 @@ export default function ProductDetailPage() {
   const handleSave = async () => {
     try {
       await updateProduct.mutateAsync({
-        productId,
+        id: productId,
         data: {
-          name: formData.name,
+          productName: formData.productName,
+          productCode: formData.productCode,
           description: formData.description,
-          price: parseFloat(formData.price) || 0,
-          cost: parseFloat(formData.cost) || 0,
-          sku: formData.sku,
+          basePrice: parseFloat(formData.basePrice) || 0,
         },
       });
     } catch (error) {
@@ -167,24 +163,24 @@ export default function ProductDetailPage() {
             <h3 className="text-lg font-semibold">기본 정보</h3>
 
             <div className="space-y-2">
-              <Label htmlFor="name">제품명</Label>
+              <Label htmlFor="productName">제품명</Label>
               <Input
-                id="name"
-                name="name"
-                value={formData.name}
+                id="productName"
+                name="productName"
+                value={formData.productName}
                 onChange={handleChange}
                 placeholder="제품명을 입력하세요"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="sku">SKU</Label>
+              <Label htmlFor="productCode">제품코드</Label>
               <Input
-                id="sku"
-                name="sku"
-                value={formData.sku}
+                id="productCode"
+                name="productCode"
+                value={formData.productCode}
                 onChange={handleChange}
-                placeholder="SKU를 입력하세요"
+                placeholder="제품코드를 입력하세요"
               />
             </div>
 
@@ -205,44 +201,16 @@ export default function ProductDetailPage() {
             <h3 className="text-lg font-semibold">가격 정보</h3>
 
             <div className="space-y-2">
-              <Label htmlFor="price">판매가 (₩)</Label>
+              <Label htmlFor="basePrice">기본 단가 (₩)</Label>
               <Input
-                id="price"
-                name="price"
+                id="basePrice"
+                name="basePrice"
                 type="number"
-                value={formData.price}
+                value={formData.basePrice}
                 onChange={handleChange}
-                placeholder="판매가를 입력하세요"
+                placeholder="기본 단가를 입력하세요"
               />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="cost">원가 (₩)</Label>
-              <Input
-                id="cost"
-                name="cost"
-                type="number"
-                value={formData.cost}
-                onChange={handleChange}
-                placeholder="원가를 입력하세요"
-              />
-            </div>
-
-            {formData.price && formData.cost && (
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="text-sm">
-                  <span className="text-gray-600">마진율: </span>
-                  <span className="font-semibold text-gray-900">
-                    {(
-                      ((parseFloat(formData.price) - parseFloat(formData.cost)) /
-                        parseFloat(formData.price)) *
-                      100
-                    ).toFixed(1)}
-                    %
-                  </span>
-                </div>
-              </div>
-            )}
           </Card>
         </div>
       )}
@@ -259,7 +227,7 @@ export default function ProductDetailPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>제품 삭제</AlertDialogTitle>
             <AlertDialogDescription>
-              "{product.name}" 제품을 정말 삭제하시겠습니까? 이 작업은 되돌릴 수
+              "{product.productName}" 제품을 정말 삭제하시겠습니까? 이 작업은 되돌릴 수
               없습니다.
             </AlertDialogDescription>
           </AlertDialogHeader>

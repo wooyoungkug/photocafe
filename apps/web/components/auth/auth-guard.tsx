@@ -40,7 +40,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   }
 
   // 인증되지 않은 경우 (리다이렉트 중)
-  if (!isAuthenticated && !localStorage.getItem('accessToken')) {
+  if (!isAuthenticated && typeof window !== 'undefined' && !localStorage.getItem('accessToken')) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

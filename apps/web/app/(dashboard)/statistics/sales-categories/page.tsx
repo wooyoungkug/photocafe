@@ -29,8 +29,8 @@ import {
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/layout/page-header";
 import {
-  useSalesCategoryTreeStatistics,
-  type SalesCategoryStatItem,
+  useCategoryTreeStatistics,
+  type CategoryStatItem,
 } from "@/hooks/use-statistics";
 import { cn } from "@/lib/utils";
 
@@ -52,6 +52,34 @@ function calcPercentage(value: number, total: number): string {
   if (total === 0) return "0.0";
   return ((value / total) * 100).toFixed(1);
 }
+
+// 레벨별 스타일 정의
+const levelStyles = {
+  large: {
+    row: "bg-blue-50/50 font-semibold border-t-2 border-blue-100",
+    badge: "bg-blue-100 text-blue-700 border-blue-300",
+    icon: "text-blue-500",
+    bar: "bg-blue-500",
+    label: "대분류",
+    subtotal: "bg-blue-50/30 text-blue-700",
+  },
+  medium: {
+    row: "bg-purple-50/30",
+    badge: "bg-purple-100 text-purple-700 border-purple-300",
+    icon: "text-purple-500",
+    bar: "bg-purple-500",
+    label: "중분류",
+    subtotal: "bg-purple-50/30 text-purple-700",
+  },
+  small: {
+    row: "hover:bg-muted/20",
+    badge: "bg-green-50 text-green-600 border-green-200",
+    icon: "text-green-500",
+    bar: "bg-green-500",
+    label: "소분류",
+    subtotal: "",
+  },
+};
 
 // 통계 카드 컴포넌트
 function StatCard({
@@ -102,39 +130,53 @@ function StatCard({
   );
 }
 
-// 트리 테이블 행 컴포넌트
+// 트리 테이블 행 컴포넌트 (3단계 지원)
 function TreeTableRow({
   item,
   totalRevenue,
   expandedIds,
   toggleExpand,
-  level = 0,
+  indent = 0,
 }: {
-  item: SalesCategoryStatItem;
+  item: CategoryStatItem;
   totalRevenue: number;
   expandedIds: Set<string>;
   toggleExpand: (id: string) => void;
-  level?: number;
+  indent?: number;
 }) {
   const isExpanded = expandedIds.has(item.id);
   const hasChildren = item.children && item.children.length > 0;
-  const isParent = item.depth === 1;
   const percentage = calcPercentage(item.revenue, totalRevenue);
+  const style = levelStyles[item.level];
+
+  // 하위 항목 합계 계산
+  const childrenTotal = useMemo(() => {
+    if (!hasChildren || !item.children) return null;
+    return item.children.reduce(
+      (acc, child) => ({
+        orderCount: acc.orderCount + child.orderCount,
+        quantity: acc.quantity + child.quantity,
+        revenue: acc.revenue + child.revenue,
+      }),
+      { orderCount: 0, quantity: 0, revenue: 0 }
+    );
+  }, [hasChildren, item.children]);
 
   return (
     <>
+      {/* 항목 행 */}
       <TableRow
         className={cn(
           "cursor-pointer transition-colors",
-          isParent ? "bg-muted/30 font-medium" : "hover:bg-muted/20",
-          level > 0 && "text-sm"
+          style.row,
+          item.level !== "large" && "text-sm"
         )}
         onClick={() => hasChildren && toggleExpand(item.id)}
       >
-        <TableCell className="w-[300px]">
+        <TableCell className="w-[350px]">
           <div
             className="flex items-center gap-2"
-            style={{ paddingLeft: `${level * 24}px` }}
+            style={{ paddingLeft: `${indent * 24}px` }}
           >
             {hasChildren ? (
               <button className="p-1 rounded hover:bg-muted">
@@ -148,32 +190,22 @@ function TreeTableRow({
               <span className="w-6" />
             )}
             {isExpanded ? (
-              <FolderOpen
-                className={cn(
-                  "h-4 w-4",
-                  isParent ? "text-blue-500" : "text-purple-500"
-                )}
-              />
+              <FolderOpen className={cn("h-4 w-4", style.icon)} />
             ) : (
-              <Folder
-                className={cn(
-                  "h-4 w-4",
-                  isParent ? "text-blue-500" : "text-purple-500"
-                )}
-              />
+              <Folder className={cn("h-4 w-4", style.icon)} />
             )}
             <span>{item.name}</span>
             <Badge
               variant="outline"
-              className={cn(
-                "text-xs ml-1",
-                isParent
-                  ? "bg-blue-50 text-blue-600 border-blue-200"
-                  : "bg-purple-50 text-purple-600 border-purple-200"
-              )}
+              className={cn("text-xs ml-1", style.badge)}
             >
-              {isParent ? "대분류" : "소분류"}
+              {style.label}
             </Badge>
+            {hasChildren && (
+              <span className="text-xs text-muted-foreground ml-1">
+                ({item.children?.length}개)
+              </span>
+            )}
           </div>
         </TableCell>
         <TableCell className="text-right font-mono">
@@ -189,19 +221,25 @@ function TreeTableRow({
           <div className="flex items-center justify-end gap-2">
             <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
               <div
-                className={cn(
-                  "h-full rounded-full",
-                  isParent ? "bg-blue-500" : "bg-purple-500"
-                )}
+                className={cn("h-full rounded-full", style.bar)}
                 style={{ width: `${Math.min(parseFloat(percentage), 100)}%` }}
               />
             </div>
-            <span className="text-sm text-muted-foreground w-12 text-right">
+            <span
+              className={cn(
+                "text-sm w-12 text-right",
+                item.level === "large"
+                  ? "font-medium text-blue-600"
+                  : "text-muted-foreground"
+              )}
+            >
               {percentage}%
             </span>
           </div>
         </TableCell>
       </TableRow>
+
+      {/* 하위 항목 행들 */}
       {isExpanded &&
         hasChildren &&
         item.children?.map((child) => (
@@ -211,14 +249,39 @@ function TreeTableRow({
             totalRevenue={totalRevenue}
             expandedIds={expandedIds}
             toggleExpand={toggleExpand}
-            level={level + 1}
+            indent={indent + 1}
           />
         ))}
+
+      {/* 소계 행 (펼쳐졌을 때만) */}
+      {isExpanded && hasChildren && childrenTotal && style.subtotal && (
+        <TableRow className={cn("text-sm border-b", style.subtotal)}>
+          <TableCell style={{ paddingLeft: `${(indent + 1) * 24 + 8}px` }}>
+            <span className="font-medium">
+              └ {item.name} {item.level === "large" ? "중분류" : "소분류"} 소계
+            </span>
+          </TableCell>
+          <TableCell className="text-right font-mono">
+            {formatNumber(childrenTotal.orderCount)}
+          </TableCell>
+          <TableCell className="text-right font-mono">
+            {formatNumber(childrenTotal.quantity)}
+          </TableCell>
+          <TableCell className="text-right font-mono font-medium">
+            {formatCurrency(childrenTotal.revenue)}
+          </TableCell>
+          <TableCell className="text-right">
+            <span className="text-sm">
+              {calcPercentage(childrenTotal.revenue, totalRevenue)}%
+            </span>
+          </TableCell>
+        </TableRow>
+      )}
     </>
   );
 }
 
-export default function SalesCategoryStatisticsPage() {
+export default function CategoryStatisticsPage() {
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -230,7 +293,7 @@ export default function SalesCategoryStatisticsPage() {
     return Object.keys(params).length > 0 ? params : undefined;
   }, [startDate, endDate]);
 
-  const { data, isLoading, error } = useSalesCategoryTreeStatistics(queryParams);
+  const { data, isLoading, error } = useCategoryTreeStatistics(queryParams);
 
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) => {
@@ -244,9 +307,21 @@ export default function SalesCategoryStatisticsPage() {
     });
   };
 
+  // 모든 ID 수집 (재귀)
+  const collectAllIds = (items: CategoryStatItem[]): string[] => {
+    const ids: string[] = [];
+    for (const item of items) {
+      ids.push(item.id);
+      if (item.children) {
+        ids.push(...collectAllIds(item.children));
+      }
+    }
+    return ids;
+  };
+
   const expandAll = () => {
     if (data?.data) {
-      const allIds = data.data.map((item) => item.id);
+      const allIds = collectAllIds(data.data);
       setExpandedIds(new Set(allIds));
     }
   };
@@ -293,8 +368,8 @@ export default function SalesCategoryStatisticsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="품목분류별 통계"
-        description="매출품목분류별 주문 및 매출 통계를 확인합니다."
+        title="카테고리별 통계"
+        description="카테고리별 주문 및 매출 통계를 확인합니다. (대분류 > 중분류 > 소분류)"
         breadcrumbs={[
           { label: "홈", href: "/" },
           { label: "통계", href: "/statistics" },
@@ -377,10 +452,10 @@ export default function SalesCategoryStatisticsPage() {
       ) : data ? (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <StatCard
-            title="총 분류 수"
+            title="총 카테고리 수"
             value={formatNumber(data.totals.categoryCount)}
             icon={Folder}
-            description="대분류 + 소분류"
+            description="대/중/소분류 전체"
           />
           <StatCard
             title="총 주문 건수"
@@ -403,7 +478,7 @@ export default function SalesCategoryStatisticsPage() {
       {/* 상세 테이블 */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between py-4">
-          <CardTitle className="text-base">품목분류별 상세</CardTitle>
+          <CardTitle className="text-base">카테고리별 상세</CardTitle>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={expandAll}>
               모두 펼치기
@@ -440,7 +515,7 @@ export default function SalesCategoryStatisticsPage() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="w-[300px]">품목분류</TableHead>
+                  <TableHead className="w-[350px]">카테고리</TableHead>
                   <TableHead className="text-right w-[120px]">주문 건수</TableHead>
                   <TableHead className="text-right w-[120px]">수량</TableHead>
                   <TableHead className="text-right w-[150px]">매출</TableHead>

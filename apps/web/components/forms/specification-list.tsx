@@ -19,7 +19,8 @@ import {
   AlertDialogDescription,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/dialog';
+  AlertDialogFooter,
+} from '@/components/ui/alert-dialog';
 import { useProductSpecifications, useDeleteSpecification, ProductSpecification } from '@/hooks/use-specifications';
 import { SpecificationFormDialog } from './specification-form-dialog';
 

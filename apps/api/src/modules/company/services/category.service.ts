@@ -211,7 +211,6 @@ export class CategoryService {
         description: data.description,
         linkUrl: data.linkUrl,
         htmlContent: data.htmlContent,
-        salesCategoryId: data.salesCategoryId,
         iconUrl: data.iconUrl,
       },
       include: {

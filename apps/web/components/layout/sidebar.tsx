@@ -32,7 +32,6 @@ const navigation = [
       { name: "공통코드 관리", href: "/basic-info/codes" },
       { name: "규격정보", href: "/basic-info/units" },
       { name: "카테고리", href: "/company/categories" },
-      { name: "매출품목분류", href: "/company/sales-categories" },
     ],
   },
   {

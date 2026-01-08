@@ -509,11 +509,6 @@ export default function CategoriesPage() {
             )}
           </button>
 
-          {/* 카테고리 코드 */}
-          <span className="text-xs text-muted-foreground font-mono w-20">
-            {category.code || "-"}
-          </span>
-
           {/* 카테고리 아이콘 또는 폴더 아이콘 */}
           {category.iconUrl ? (
             <img
@@ -668,12 +663,11 @@ export default function CategoriesPage() {
         }
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[500px_1fr] gap-6">
         {/* 좌측: 카테고리 트리 */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between py-3 px-4">
-            <div className="grid grid-cols-4 gap-2 text-xs font-medium text-muted-foreground w-full">
-              <span>분류코드</span>
+            <div className="grid grid-cols-3 gap-2 text-xs font-medium text-muted-foreground w-full">
               <span className="col-span-2">분류명</span>
               <span className="text-right">반제품/제품</span>
             </div>

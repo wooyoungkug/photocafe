@@ -25,6 +25,141 @@ model User {
   @@map("users")
 }
 
+// ==================== 직원관리 ====================
+
+// 부서
+model Department {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  staff Staff[]
+
+  @@map("departments")
+}
+
+// 직원
+model Staff {
+  id            String   @id @default(cuid())
+  staffId       String   @unique  // 직원 ID (로그인용)
+  password      String            // 비밀번호 (해시)
+  name          String            // 실명
+
+  // 소속 정보
+  branchId      String?           // 소속 지점
+  branch        Branch?  @relation(fields: [branchId], references: [id])
+  departmentId  String?           // 부서
+  department    Department? @relation(fields: [departmentId], references: [id])
+  position      String?           // 직책
+
+  // 연락처 정보
+  phone         String?           // 전화번호
+  mobile        String?           // 휴대폰
+  email         String?           // 이메일
+
+  // 주소 정보
+  postalCode    String?
+  address       String?
+  addressDetail String?
+
+  // 정산 등급 (0등급은 정산이 되지 않는 등급)
+  settlementGrade Int      @default(1)  // 1~15등급
+
+  // 접근 IP 제한
+  allowedIps    String[] @default([])  // 허용된 IP 목록
+
+  // View 권한 설정
+  canEditInManagerView  Boolean  @default(false)  // 체크시 관리자 화면에서 수정가능
+
+  // 접근 권한 설정
+  canLoginAsManager     Boolean  @default(false)  // 체크시 관리자 로그인 허용
+
+  // 단계변경 권한
+  canChangeDepositStage     Boolean  @default(false)  // 입금대기 주문건에 대해 단계변경 가능
+  canChangeReceptionStage   Boolean  @default(false)  // 접수대기 주문건에 대해 단계변경 가능
+  canChangeCancelStage      Boolean  @default(false)  // 주문취소 주문건에 대해 단계변경 가능
+
+  // 버튼 노출 권한
+  canEditMemberInfo     Boolean  @default(false)  // 회원수정 버튼 노출
+  canViewSettlement     Boolean  @default(false)  // 정산마감 버튼 노출
+  canChangeOrderAmount  Boolean  @default(false)  // 주문금액변경 버튼 노출
+
+  // 담당 회원 조회 범위
+  memberViewScope       String   @default("own")   // own: 본인담당만, all: 전체
+
+  // 매출 조회 범위
+  salesViewScope        String   @default("own")   // own: 본인거래처만, all: 전체
+
+  // 메뉴/카테고리별 접근 권한 (JSON)
+  menuPermissions       Json?    // 메뉴별 접근 권한
+  categoryPermissions   Json?    // 카테고리별 접근 권한
+
+  // 공정별 권한 (JSON 형태로 저장)
+  // { processCode: { view: true, edit: false, delete: false }, ... }
+  processPermissions    Json?
+
+  // 상태
+  isActive      Boolean  @default(true)
+  lastLoginAt   DateTime?
+  lastLoginIp   String?
+
+  // 메모
+  adminMemo     String?  @db.Text  // 최고 관리자 메모
+
+  // 입사일
+  joinDate      DateTime @default(now())
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // 담당 회원 (거래처)
+  assignedClients StaffClient[]
+
+  @@index([branchId])
+  @@index([departmentId])
+  @@index([isActive])
+  @@map("staff")
+}
+
+// 직원-회원(거래처) 담당 매핑
+model StaffClient {
+  id        String   @id @default(cuid())
+  staffId   String
+  staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  isPrimary Boolean  @default(false)  // 주담당자 여부
+  createdAt DateTime @default(now())
+
+  @@unique([staffId, clientId])
+  @@index([staffId])
+  @@index([clientId])
+  @@map("staff_clients")
+}
+
+// 메뉴 권한 템플릿 (편의를 위한 권한 그룹)
+model PermissionTemplate {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+
+  // 권한 설정 (JSON)
+  permissions Json     // { menus: [], categories: [], processes: [] }
+
+  isDefault   Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("permission_templates")
+}
+
 // ==================== 회사정보 ====================
 
 model Branch {
@@ -39,6 +174,7 @@ model Branch {
   updatedAt      DateTime      @updatedAt
 
   clientGroups ClientGroup[]
+  staff        Staff[]
 
   @@map("branches")
 }
@@ -94,8 +230,9 @@ model Client {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
-  orders     Order[]
-  myProducts MyProduct[]
+  orders       Order[]
+  myProducts   MyProduct[]
+  assignedStaff StaffClient[]
 
   @@index([groupId])
   @@index([clientCode])
@@ -133,8 +270,9 @@ model Specification {
   updatedAt   DateTime @updatedAt
   
   // Relations
-  prices      SpecificationPrice[]
-  
+  prices              SpecificationPrice[]
+  productionSettings  ProductionSettingSpecification[]
+
   @@index([isActive])
   @@index([forOutput])
   @@index([forAlbum])
@@ -196,9 +334,6 @@ model SalesCategory {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // Relations
-  categories  Category[]
-
   @@index([parentId])
   @@index([isActive])
   @@map("sales_categories")
@@ -245,10 +380,6 @@ model Category {
   // 정렬 및 상태
   sortOrder       Int        @default(0)
   isActive        Boolean    @default(true)
-
-  // 매출 통계용 분류 연결
-  salesCategoryId String?
-  salesCategoryRef SalesCategory? @relation(fields: [salesCategoryId], references: [id])
 
   // 카테고리 아이콘
   iconUrl         String?    // 카테고리 앞에 표시되는 작은 이미지 URL
@@ -738,4 +869,126 @@ model RegularHolidaySetting {
   updatedAt     DateTime @updatedAt
 
   @@map("regular_holiday_settings")
+}
+
+// ==================== 카테고리별 생산설정 (표준단가) ====================
+
+// 생산설정 그룹 (2단계: 대분류 > 소분류)
+model ProductionGroup {
+  id          String   @id @default(cuid())
+  code        String   @unique     // 고유 코드 (예: 0101, 010106)
+  name        String               // 그룹명 (예: 출력전용, 포토북)
+  depth       Int      @default(1) // 1: 대분류, 2: 소분류
+
+  // 계층 구조
+  parentId    String?
+  parent      ProductionGroup?  @relation("ProductionGroupTree", fields: [parentId], references: [id])
+  children    ProductionGroup[] @relation("ProductionGroupTree")
+
+  // 정렬 및 상태
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  settings    ProductionSetting[]
+
+  @@index([parentId])
+  @@index([isActive])
+  @@map("production_groups")
+}
+
+// 카테고리별 생산설정 (소분류에만 연결)
+model ProductionSetting {
+  id              String          @id @default(cuid())
+  groupId         String
+  group           ProductionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  // 코드명 (선택적)
+  codeName        String?
+
+  // 업체명 (본사, 외주 등)
+  vendorType      String          @default("in_house") // in_house: 본사, outsourced: 외주
+
+  // 가격 적용 단위
+  // paper_output: [1.출력전용] 용지별 출력단가
+  // binding_page: [2.제본전용] 기본단가+page단가
+  // finishing_qty: [3.후가공] 규격별(수량)
+  // finishing_page: [3.후가공] 규격별(페이지당)
+  // per_sheet: 장당가격 (규격입력안함)
+  pricingType     String          @default("finishing_page")
+
+  // 세팅명 (박Color 등 추가 설정명)
+  settingName     String?
+
+  // S코드 (추가 코드)
+  sCode           String?
+
+  // 잡세팅비 / 기본단가
+  settingFee      Decimal         @db.Decimal(12, 2) @default(0)  // 잡세팅비
+  basePrice       Decimal         @db.Decimal(12, 2) @default(0)  // 기본단가
+
+  // 작업시간 (일 단위, 소수점 1자리까지)
+  workDays        Decimal         @db.Decimal(5, 1)  @default(0)
+
+  // 가중치 구분 정보 (텍스트로 저장, 예: "1\n2\n3")
+  weightInfo      String?         @db.Text
+
+  // 정렬 및 상태
+  sortOrder       Int             @default(0)
+  isActive        Boolean         @default(true)
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relations
+  specifications  ProductionSettingSpecification[]
+  prices          ProductionSettingPrice[]
+
+  @@index([groupId])
+  @@index([pricingType])
+  @@map("production_settings")
+}
+
+// 생산설정-규격 연결 (선택된 규격들)
+model ProductionSettingSpecification {
+  id                  String            @id @default(cuid())
+  productionSettingId String
+  productionSetting   ProductionSetting @relation(fields: [productionSettingId], references: [id], onDelete: Cascade)
+  specificationId     String
+  specification       Specification     @relation(fields: [specificationId], references: [id], onDelete: Cascade)
+
+  // 규격별 가격 (선택적 - 설정 안하면 기본가 사용)
+  price               Decimal?          @db.Decimal(12, 2)
+
+  sortOrder           Int               @default(0)
+
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@unique([productionSettingId, specificationId])
+  @@map("production_setting_specifications")
+}
+
+// 생산설정 가격표 (수량별/페이지별 가격)
+model ProductionSettingPrice {
+  id                  String            @id @default(cuid())
+  productionSettingId String
+  productionSetting   ProductionSetting @relation(fields: [productionSettingId], references: [id], onDelete: Cascade)
+
+  // 가격 조건
+  specificationId     String?           // 규격별 가격인 경우
+  minQuantity         Int?              // 최소 수량 (수량별 가격인 경우)
+  maxQuantity         Int?              // 최대 수량
+
+  // 가격
+  price               Decimal           @db.Decimal(12, 2) @default(0)
+
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@index([productionSettingId])
+  @@map("production_setting_prices")
 }

@@ -89,20 +89,20 @@ export function useProductStatistics(params?: {
   });
 }
 
-// 매출품목분류별 통계 타입
-export interface SalesCategoryStatItem {
+// 카테고리별 통계 타입 (3단계: 대분류 > 중분류 > 소분류)
+export interface CategoryStatItem {
   id: string;
   code: string;
   name: string;
-  depth: number;
+  level: 'large' | 'medium' | 'small';
   orderCount: number;
   quantity: number;
   revenue: number;
-  children?: SalesCategoryStatItem[];
+  children?: CategoryStatItem[];
 }
 
-export interface SalesCategoryStatistics {
-  data: SalesCategoryStatItem[];
+export interface CategoryStatistics {
+  data: CategoryStatItem[];
   totals: {
     categoryCount: number;
     orderCount: number;
@@ -115,24 +115,24 @@ export interface SalesCategoryStatistics {
   };
 }
 
-export function useSalesCategoryStatistics(params?: {
+export function useCategoryStatistics(params?: {
   startDate?: string;
   endDate?: string;
-  salesCategoryId?: string;
-  depth?: number;
+  categoryId?: string;
+  level?: 'large' | 'medium' | 'small';
 }) {
   return useQuery({
-    queryKey: [STATISTICS_KEY, 'sales-categories', params],
-    queryFn: () => api.get<SalesCategoryStatistics>('/statistics/sales-categories', params as Record<string, string | number | boolean | undefined>),
+    queryKey: [STATISTICS_KEY, 'categories', params],
+    queryFn: () => api.get<CategoryStatistics>('/statistics/categories', params as Record<string, string | number | boolean | undefined>),
   });
 }
 
-export function useSalesCategoryTreeStatistics(params?: {
+export function useCategoryTreeStatistics(params?: {
   startDate?: string;
   endDate?: string;
 }) {
   return useQuery({
-    queryKey: [STATISTICS_KEY, 'sales-categories', 'tree', params],
-    queryFn: () => api.get<SalesCategoryStatistics>('/statistics/sales-categories/tree', params as Record<string, string | number | boolean | undefined>),
+    queryKey: [STATISTICS_KEY, 'categories', 'tree', params],
+    queryFn: () => api.get<CategoryStatistics>('/statistics/categories/tree', params as Record<string, string | number | boolean | undefined>),
   });
 }

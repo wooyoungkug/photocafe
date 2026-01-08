@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
-import { StatisticsQueryDto, ClientStatisticsQueryDto, ProductStatisticsQueryDto, SalesCategoryStatisticsQueryDto } from '../dto';
+import { StatisticsQueryDto, ClientStatisticsQueryDto, ProductStatisticsQueryDto, CategoryStatisticsQueryDto } from '../dto';
 
 @Injectable()
 export class StatisticsService {
@@ -333,12 +333,9 @@ export class StatisticsService {
     };
   }
 
-  // ==================== 매출품목분류별 통계 ====================
-  async getSalesCategoryStatistics(query: SalesCategoryStatisticsQueryDto) {
-    const { startDate, endDate, salesCategoryId, depth } = query;
-
-    // 먼저 OrderItem에서 productId로 Product를 찾고, Product의 categoryId로 Category를 찾아서
-    // Category의 salesCategoryId로 집계
+  // ==================== 카테고리별 통계 ====================
+  async getCategoryStatistics(query: CategoryStatisticsQueryDto) {
+    const { startDate, endDate, categoryId, level } = query;
 
     const whereOrder: Prisma.OrderWhereInput = {
       status: { not: 'cancelled' },
@@ -352,7 +349,7 @@ export class StatisticsService {
         : {}),
     };
 
-    // 주문 항목과 상품, 카테고리 정보를 함께 조회
+    // 주문 항목 조회
     const orderItems = await this.prisma.orderItem.findMany({
       where: {
         order: whereOrder,
@@ -361,11 +358,6 @@ export class StatisticsService {
         quantity: true,
         totalPrice: true,
         productId: true,
-        order: {
-          select: {
-            orderedAt: true,
-          },
-        },
       },
     });
 
@@ -376,42 +368,36 @@ export class StatisticsService {
       select: {
         id: true,
         categoryId: true,
-        category: {
-          select: {
-            id: true,
-            salesCategoryId: true,
-          },
-        },
       },
     });
 
     const productCategoryMap = new Map(
-      products.map(p => [p.id, p.category?.salesCategoryId])
+      products.map(p => [p.id, p.categoryId])
     );
 
-    // 매출품목분류별로 집계
+    // 카테고리별로 집계
     const categoryStats = new Map<string, { orderCount: number; quantity: number; revenue: number }>();
 
     for (const item of orderItems) {
-      const salesCatId = productCategoryMap.get(item.productId);
-      if (!salesCatId) continue;
+      const catId = productCategoryMap.get(item.productId);
+      if (!catId) continue;
 
-      // salesCategoryId 필터
-      if (salesCategoryId && salesCatId !== salesCategoryId) continue;
+      // categoryId 필터
+      if (categoryId && catId !== categoryId) continue;
 
-      const current = categoryStats.get(salesCatId) || { orderCount: 0, quantity: 0, revenue: 0 };
+      const current = categoryStats.get(catId) || { orderCount: 0, quantity: 0, revenue: 0 };
       current.orderCount += 1;
       current.quantity += item.quantity;
       current.revenue += Number(item.totalPrice);
-      categoryStats.set(salesCatId, current);
+      categoryStats.set(catId, current);
     }
 
-    // SalesCategory 정보 조회
-    const salesCategoryIds = [...categoryStats.keys()];
-    const salesCategories = await this.prisma.salesCategory.findMany({
+    // Category 정보 조회
+    const categoryIds = [...categoryStats.keys()];
+    const categories = await this.prisma.category.findMany({
       where: {
-        id: { in: salesCategoryIds },
-        ...(depth !== undefined && { depth }),
+        id: { in: categoryIds },
+        ...(level && { level }),
       },
       include: {
         parent: {
@@ -420,38 +406,24 @@ export class StatisticsService {
       },
     });
 
-    const salesCategoryMap = new Map(salesCategories.map(sc => [sc.id, sc]));
+    const categoryMap = new Map(categories.map(c => [c.id, c]));
 
     // 결과 정리
     const data = [...categoryStats.entries()]
       .map(([id, stats]) => {
-        const category = salesCategoryMap.get(id);
+        const category = categoryMap.get(id);
         if (!category) return null;
         return {
-          salesCategoryId: id,
-          salesCategoryCode: category.code,
-          salesCategoryName: category.name,
-          depth: category.depth,
+          categoryId: id,
+          categoryCode: category.code,
+          categoryName: category.name,
+          level: category.level,
           parentName: category.parent?.name || null,
           ...stats,
         };
       })
       .filter(Boolean)
       .sort((a, b) => b!.revenue - a!.revenue);
-
-    // 대분류별 소계도 계산
-    const parentStats = new Map<string, { orderCount: number; quantity: number; revenue: number }>();
-    for (const item of data) {
-      if (!item) continue;
-      const parentId = salesCategoryMap.get(item.salesCategoryId)?.parentId;
-      if (parentId) {
-        const current = parentStats.get(parentId) || { orderCount: 0, quantity: 0, revenue: 0 };
-        current.orderCount += item.orderCount;
-        current.quantity += item.quantity;
-        current.revenue += item.revenue;
-        parentStats.set(parentId, current);
-      }
-    }
 
     return {
       data,
@@ -465,14 +437,14 @@ export class StatisticsService {
     };
   }
 
-  // ==================== 매출품목분류별 통계 (트리 구조) ====================
-  async getSalesCategoryTreeStatistics(query: SalesCategoryStatisticsQueryDto) {
+  // ==================== 카테고리별 통계 (트리 구조) ====================
+  async getCategoryTreeStatistics(query: CategoryStatisticsQueryDto) {
     const { startDate, endDate } = query;
 
-    // 모든 매출품목분류 조회
-    const allSalesCategories = await this.prisma.salesCategory.findMany({
+    // 모든 카테고리 조회
+    const allCategories = await this.prisma.category.findMany({
       where: { isActive: true },
-      orderBy: [{ depth: 'asc' }, { sortOrder: 'asc' }],
+      orderBy: [{ sortOrder: 'asc' }],
     });
 
     // 주문 데이터 집계
@@ -497,86 +469,127 @@ export class StatisticsService {
       },
     });
 
-    // Product -> Category -> SalesCategory 매핑
+    // Product -> Category 매핑
     const productIds = [...new Set(orderItems.map(item => item.productId))];
     const products = await this.prisma.product.findMany({
       where: { id: { in: productIds } },
       select: {
         id: true,
-        category: {
-          select: { salesCategoryId: true },
-        },
+        categoryId: true,
       },
     });
 
-    const productSalesCatMap = new Map(
-      products.map(p => [p.id, p.category?.salesCategoryId])
+    const productCategoryMap = new Map(
+      products.map(p => [p.id, p.categoryId])
     );
 
-    // 소분류별 집계
+    // 카테고리별 집계 (소분류 기준)
     const stats = new Map<string, { orderCount: number; quantity: number; revenue: number }>();
     for (const item of orderItems) {
-      const salesCatId = productSalesCatMap.get(item.productId);
-      if (!salesCatId) continue;
+      const catId = productCategoryMap.get(item.productId);
+      if (!catId) continue;
 
-      const current = stats.get(salesCatId) || { orderCount: 0, quantity: 0, revenue: 0 };
+      const current = stats.get(catId) || { orderCount: 0, quantity: 0, revenue: 0 };
       current.orderCount += 1;
       current.quantity += item.quantity;
       current.revenue += Number(item.totalPrice);
-      stats.set(salesCatId, current);
+      stats.set(catId, current);
     }
 
-    // 대분류별 소계 계산 (소분류 합산)
-    const parentStats = new Map<string, { orderCount: number; quantity: number; revenue: number }>();
-    for (const sc of allSalesCategories) {
-      if (sc.depth === 2 && sc.parentId) {
-        const childStats = stats.get(sc.id);
+    // 중분류 합계 계산 (소분류 합산)
+    const mediumStats = new Map<string, { orderCount: number; quantity: number; revenue: number }>();
+    for (const cat of allCategories) {
+      if (cat.level === 'small' && cat.parentId) {
+        const childStats = stats.get(cat.id);
         if (childStats) {
-          const current = parentStats.get(sc.parentId) || { orderCount: 0, quantity: 0, revenue: 0 };
+          const current = mediumStats.get(cat.parentId) || { orderCount: 0, quantity: 0, revenue: 0 };
           current.orderCount += childStats.orderCount;
           current.quantity += childStats.quantity;
           current.revenue += childStats.revenue;
-          parentStats.set(sc.parentId, current);
+          mediumStats.set(cat.parentId, current);
         }
       }
     }
 
-    // 대분류에 직접 연결된 것도 합산
-    for (const sc of allSalesCategories) {
-      if (sc.depth === 1) {
-        const directStats = stats.get(sc.id);
+    // 중분류 직접 매출도 합산
+    for (const cat of allCategories) {
+      if (cat.level === 'medium') {
+        const directStats = stats.get(cat.id);
         if (directStats) {
-          const current = parentStats.get(sc.id) || { orderCount: 0, quantity: 0, revenue: 0 };
+          const current = mediumStats.get(cat.id) || { orderCount: 0, quantity: 0, revenue: 0 };
           current.orderCount += directStats.orderCount;
           current.quantity += directStats.quantity;
           current.revenue += directStats.revenue;
-          parentStats.set(sc.id, current);
+          mediumStats.set(cat.id, current);
+        }
+      }
+    }
+
+    // 대분류 합계 계산 (중분류 합산)
+    const largeStats = new Map<string, { orderCount: number; quantity: number; revenue: number }>();
+    for (const cat of allCategories) {
+      if (cat.level === 'medium' && cat.parentId) {
+        const midStats = mediumStats.get(cat.id);
+        if (midStats) {
+          const current = largeStats.get(cat.parentId) || { orderCount: 0, quantity: 0, revenue: 0 };
+          current.orderCount += midStats.orderCount;
+          current.quantity += midStats.quantity;
+          current.revenue += midStats.revenue;
+          largeStats.set(cat.parentId, current);
+        }
+      }
+    }
+
+    // 대분류 직접 매출도 합산
+    for (const cat of allCategories) {
+      if (cat.level === 'large') {
+        const directStats = stats.get(cat.id);
+        if (directStats) {
+          const current = largeStats.get(cat.id) || { orderCount: 0, quantity: 0, revenue: 0 };
+          current.orderCount += directStats.orderCount;
+          current.quantity += directStats.quantity;
+          current.revenue += directStats.revenue;
+          largeStats.set(cat.id, current);
         }
       }
     }
 
     // 트리 구조로 변환
-    const tree = allSalesCategories
-      .filter(sc => sc.depth === 1)
-      .map(parent => {
-        const children = allSalesCategories
-          .filter(sc => sc.parentId === parent.id)
-          .map(child => ({
-            id: child.id,
-            code: child.code,
-            name: child.name,
-            depth: child.depth,
-            ...((stats.get(child.id)) || { orderCount: 0, quantity: 0, revenue: 0 }),
-          }))
+    const tree = allCategories
+      .filter(cat => cat.level === 'large')
+      .map(large => {
+        const mediumChildren = allCategories
+          .filter(cat => cat.parentId === large.id && cat.level === 'medium')
+          .map(medium => {
+            const smallChildren = allCategories
+              .filter(cat => cat.parentId === medium.id && cat.level === 'small')
+              .map(small => ({
+                id: small.id,
+                code: small.code,
+                name: small.name,
+                level: small.level,
+                ...((stats.get(small.id)) || { orderCount: 0, quantity: 0, revenue: 0 }),
+              }))
+              .sort((a, b) => b.revenue - a.revenue);
+
+            return {
+              id: medium.id,
+              code: medium.code,
+              name: medium.name,
+              level: medium.level,
+              ...((mediumStats.get(medium.id)) || { orderCount: 0, quantity: 0, revenue: 0 }),
+              children: smallChildren,
+            };
+          })
           .sort((a, b) => b.revenue - a.revenue);
 
         return {
-          id: parent.id,
-          code: parent.code,
-          name: parent.name,
-          depth: parent.depth,
-          ...((parentStats.get(parent.id)) || { orderCount: 0, quantity: 0, revenue: 0 }),
-          children,
+          id: large.id,
+          code: large.code,
+          name: large.name,
+          level: large.level,
+          ...((largeStats.get(large.id)) || { orderCount: 0, quantity: 0, revenue: 0 }),
+          children: mediumChildren,
         };
       })
       .sort((a, b) => b.revenue - a.revenue);
@@ -586,7 +599,7 @@ export class StatisticsService {
     return {
       data: tree,
       totals: {
-        categoryCount: allSalesCategories.length,
+        categoryCount: allCategories.length,
         orderCount: tree.reduce((sum, t) => sum + t.orderCount, 0),
         quantity: tree.reduce((sum, t) => sum + t.quantity, 0),
         revenue: totalRevenue,

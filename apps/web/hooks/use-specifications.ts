@@ -3,13 +3,30 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
+// 전역 규격 (생산설정용)
+export interface Specification {
+  id: string;
+  code: string;
+  name: string;
+  usage: 'output' | 'album' | 'frame' | 'booklet';
+  widthInch: number;
+  heightInch: number;
+  widthMm: number;
+  heightMm: number;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// 제품별 규격
 export interface ProductSpecification {
   id: string;
   productId: string;
   name: string;
   width: number;
   height: number;
-  unit: string;
+  unit: 'mm' | 'inch';
   createdAt: string;
   updatedAt: string;
 }
@@ -30,7 +47,19 @@ export interface UpdateSpecificationDto {
 
 const SPECIFICATIONS_KEY = 'specifications';
 
-// ==================== 규격 조회 ====================
+// ==================== 전역 규격 조회 ====================
+
+export function useSpecifications(params?: {
+  usage?: 'output' | 'album' | 'frame' | 'booklet';
+  isActive?: boolean;
+}) {
+  return useQuery({
+    queryKey: [SPECIFICATIONS_KEY, 'global', params],
+    queryFn: () => api.get<Specification[]>('/specifications', params),
+  });
+}
+
+// ==================== 제품별 규격 조회 ====================
 
 export function useProductSpecifications(productId: string) {
   return useQuery({

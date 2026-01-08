@@ -40,7 +40,7 @@ export class ProductStatisticsQueryDto extends StatisticsQueryDto {
   categoryId?: string;
 }
 
-export class SalesCategoryStatisticsQueryDto {
+export class CategoryStatisticsQueryDto {
   @ApiPropertyOptional({ description: '시작일' })
   @IsOptional()
   @Type(() => Date)
@@ -53,14 +53,13 @@ export class SalesCategoryStatisticsQueryDto {
   @IsDate()
   endDate?: Date;
 
-  @ApiPropertyOptional({ description: '매출품목분류 ID' })
+  @ApiPropertyOptional({ description: '카테고리 ID' })
   @IsOptional()
   @IsString()
-  salesCategoryId?: string;
+  categoryId?: string;
 
-  @ApiPropertyOptional({ description: '계층 깊이 (1: 대분류, 2: 소분류)' })
+  @ApiPropertyOptional({ description: '카테고리 레벨', enum: ['large', 'medium', 'small'] })
   @IsOptional()
-  @Transform(({ value }) => parseInt(value))
-  @IsInt()
-  depth?: number;
+  @IsString()
+  level?: 'large' | 'medium' | 'small';
 }

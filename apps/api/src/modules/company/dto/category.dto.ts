@@ -27,10 +27,6 @@ export type ProductionFormType = typeof PRODUCTION_FORM_OPTIONS[number];
 export const PRICING_UNIT_OPTIONS = ['paper_based', 'size_based', 'per_item'] as const;
 export type PricingUnit = typeof PRICING_UNIT_OPTIONS[number];
 
-// 매출 통계용 분류
-export const SALES_CATEGORY_OPTIONS = ['album', 'print', 'frame', 'goods', 'canvas', 'calendar', 'etc'] as const;
-export type SalesCategory = typeof SALES_CATEGORY_OPTIONS[number];
-
 export class CreateCategoryDto {
   @ApiPropertyOptional({ description: '카테고리 코드 (8자리)', example: '65000000' })
   @IsOptional()
@@ -125,11 +121,6 @@ export class CreateCategoryDto {
   @IsOptional()
   @IsString()
   htmlContent?: string;
-
-  @ApiPropertyOptional({ description: '매출품목분류 ID' })
-  @IsOptional()
-  @IsString()
-  salesCategoryId?: string;
 
   @ApiPropertyOptional({ description: '카테고리 아이콘 URL' })
   @IsOptional()

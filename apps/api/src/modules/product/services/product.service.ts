@@ -7,6 +7,26 @@ import { CreateProductDto, UpdateProductDto } from '../dto';
 export class ProductService {
   constructor(private prisma: PrismaService) {}
 
+  // Decimal을 number로 변환하는 헬퍼 함수
+  private convertDecimalToNumber<T>(obj: T): T {
+    if (obj === null || obj === undefined) return obj;
+    // Prisma Decimal은 toString 메서드를 가진 객체로 반환됨
+    if (typeof obj === 'object' && obj !== null && 'toNumber' in obj && typeof (obj as { toNumber: () => number }).toNumber === 'function') {
+      return (obj as { toNumber: () => number }).toNumber() as T;
+    }
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.convertDecimalToNumber(item)) as T;
+    }
+    if (typeof obj === 'object' && obj !== null && !(obj instanceof Date)) {
+      const result: Record<string, unknown> = {};
+      for (const key of Object.keys(obj)) {
+        result[key] = this.convertDecimalToNumber((obj as Record<string, unknown>)[key]);
+      }
+      return result as T;
+    }
+    return obj;
+  }
+
   async findAll(params: {
     skip?: number;
     take?: number;
@@ -74,7 +94,7 @@ export class ProductService {
     ]);
 
     return {
-      data,
+      data: this.convertDecimalToNumber(data),
       meta: {
         total,
         page: Math.floor(skip / take) + 1,
@@ -115,7 +135,7 @@ export class ProductService {
       throw new NotFoundException('상품을 찾을 수 없습니다');
     }
 
-    return product;
+    return this.convertDecimalToNumber(product);
   }
 
   async create(dto: CreateProductDto) {

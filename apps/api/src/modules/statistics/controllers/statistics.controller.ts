@@ -6,7 +6,7 @@ import {
   StatisticsQueryDto,
   ClientStatisticsQueryDto,
   ProductStatisticsQueryDto,
-  SalesCategoryStatisticsQueryDto,
+  CategoryStatisticsQueryDto,
 } from '../dto';
 
 @ApiTags('통계')
@@ -53,15 +53,15 @@ export class StatisticsController {
     return this.statisticsService.getMonthlyTrend(months || 12);
   }
 
-  @Get('sales-categories')
-  @ApiOperation({ summary: '매출품목분류별 통계' })
-  async getSalesCategoryStatistics(@Query() query: SalesCategoryStatisticsQueryDto) {
-    return this.statisticsService.getSalesCategoryStatistics(query);
+  @Get('categories')
+  @ApiOperation({ summary: '카테고리별 통계' })
+  async getCategoryStatistics(@Query() query: CategoryStatisticsQueryDto) {
+    return this.statisticsService.getCategoryStatistics(query);
   }
 
-  @Get('sales-categories/tree')
-  @ApiOperation({ summary: '매출품목분류별 통계 (트리 구조)' })
-  async getSalesCategoryTreeStatistics(@Query() query: SalesCategoryStatisticsQueryDto) {
-    return this.statisticsService.getSalesCategoryTreeStatistics(query);
+  @Get('categories/tree')
+  @ApiOperation({ summary: '카테고리별 통계 (트리 구조)' })
+  async getCategoryTreeStatistics(@Query() query: CategoryStatisticsQueryDto) {
+    return this.statisticsService.getCategoryTreeStatistics(query);
   }
 }
