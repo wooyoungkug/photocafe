@@ -26,7 +26,7 @@ export interface SalesCategory {
 }
 
 export interface CreateSalesCategoryInput {
-  code: string;
+  code?: string;
   name: string;
   parentId?: string;
   sortOrder?: number;

@@ -1,0 +1,63 @@
+import { IsString, IsNumber, IsBoolean, IsOptional, Min } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+export class CreateSpecificationDto {
+    @ApiProperty({ description: '규격명', example: '7x4.7' })
+    @IsString()
+    name: string;
+
+    @ApiProperty({ description: '가로 (인치)', example: 7 })
+    @IsNumber()
+    @Min(0)
+    widthInch: number;
+
+    @ApiProperty({ description: '세로 (인치)', example: 4.7 })
+    @IsNumber()
+    @Min(0)
+    heightInch: number;
+
+    @ApiProperty({ description: '가로 (mm)', example: 177.8 })
+    @IsNumber()
+    @Min(0)
+    widthMm: number;
+
+    @ApiProperty({ description: '세로 (mm)', example: 119.38 })
+    @IsNumber()
+    @Min(0)
+    heightMm: number;
+
+    @ApiPropertyOptional({ description: '출력전용', default: false })
+    @IsOptional()
+    @IsBoolean()
+    forOutput?: boolean;
+
+    @ApiPropertyOptional({ description: '앨범전용', default: false })
+    @IsOptional()
+    @IsBoolean()
+    forAlbum?: boolean;
+
+    @ApiPropertyOptional({ description: '액자전용', default: false })
+    @IsOptional()
+    @IsBoolean()
+    forFrame?: boolean;
+
+    @ApiPropertyOptional({ description: '인쇄책자전용', default: false })
+    @IsOptional()
+    @IsBoolean()
+    forBooklet?: boolean;
+
+    @ApiPropertyOptional({ description: '평방미터 (㎡)' })
+    @IsOptional()
+    @IsNumber()
+    squareMeters?: number;
+
+    @ApiPropertyOptional({ description: '설명' })
+    @IsOptional()
+    @IsString()
+    description?: string;
+
+    @ApiPropertyOptional({ description: '정렬순서', default: 0 })
+    @IsOptional()
+    @IsNumber()
+    sortOrder?: number;
+}

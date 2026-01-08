@@ -89,14 +89,26 @@ export class SalesCategoryService {
     return category;
   }
 
-  async create(data: CreateSalesCategoryDto) {
-    // 코드 중복 확인
-    const existing = await this.prisma.salesCategory.findUnique({
-      where: { code: data.code },
-    });
+  private generateCode(): string {
+    const timestamp = Date.now().toString(36);
+    const random = Math.random().toString(36).substring(2, 6);
+    return `SC_${timestamp}${random}`.toUpperCase();
+  }
 
-    if (existing) {
-      throw new ConflictException('이미 사용 중인 코드입니다');
+  async create(data: CreateSalesCategoryDto) {
+    // 코드 자동 생성 (입력값이 없으면)
+    let code = data.code;
+    if (!code) {
+      code = this.generateCode();
+    } else {
+      // 코드 중복 확인
+      const existing = await this.prisma.salesCategory.findUnique({
+        where: { code },
+      });
+
+      if (existing) {
+        throw new ConflictException('이미 사용 중인 코드입니다');
+      }
     }
 
     let depth = 1;
@@ -128,7 +140,7 @@ export class SalesCategoryService {
 
     return this.prisma.salesCategory.create({
       data: {
-        code: data.code,
+        code,
         name: data.name,
         depth,
         parentId: data.parentId,

@@ -38,7 +38,13 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     throw new Error(error.message || `HTTP error ${response.status}`);
   }
 
-  return response.json();
+  // 204 No Content 또는 빈 응답 처리
+  if (response.status === 204 || response.headers.get('content-length') === '0') {
+    return undefined as T;
+  }
+
+  const text = await response.text();
+  return text ? JSON.parse(text) : undefined as T;
 }
 
 export const api = {

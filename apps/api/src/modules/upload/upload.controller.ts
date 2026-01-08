@@ -1,12 +1,11 @@
-import { Controller, Post, UseInterceptors, UploadedFile, BadRequestException, UseGuards, Get, Param, Res } from '@nestjs/common';
+import { Controller, Post, UseInterceptors, UploadedFile, BadRequestException, Get, Param, Res } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiConsumes, ApiBody, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiConsumes, ApiBody, ApiOperation } from '@nestjs/swagger';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { existsSync, mkdirSync } from 'fs';
 import { Response } from 'express';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 const UPLOAD_DIR = join(process.cwd(), 'uploads');
 
@@ -25,8 +24,6 @@ if (!existsSync(categoryIconsDir)) {
 export class UploadController {
 
     @Post('category-icon')
-    @UseGuards(JwtAuthGuard)
-    @ApiBearerAuth()
     @ApiOperation({ summary: '카테고리 아이콘 업로드' })
     @ApiConsumes('multipart/form-data')
     @ApiBody({

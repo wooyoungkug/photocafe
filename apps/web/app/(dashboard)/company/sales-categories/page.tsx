@@ -166,7 +166,6 @@ export default function SalesCategoriesPage() {
     try {
       if (editingCategory) {
         const data: UpdateSalesCategoryInput = {
-          code: formData.code,
           name: formData.name,
           sortOrder: formData.sortOrder,
           isActive: formData.isActive,
@@ -183,7 +182,6 @@ export default function SalesCategoriesPage() {
         });
       } else {
         const data: CreateSalesCategoryInput = {
-          code: formData.code,
           name: formData.name,
           parentId: formData.parentId || undefined,
           sortOrder: formData.sortOrder,
@@ -213,7 +211,6 @@ export default function SalesCategoriesPage() {
 
     try {
       const data: UpdateSalesCategoryInput = {
-        code: formData.code,
         name: formData.name,
         sortOrder: formData.sortOrder,
         isActive: formData.isActive,
@@ -322,11 +319,6 @@ export default function SalesCategoriesPage() {
               <ChevronRight className="h-4 w-4 text-gray-500" />
             )}
           </button>
-
-          {/* 분류 코드 */}
-          <span className="text-xs text-muted-foreground font-mono w-24">
-            {category.code}
-          </span>
 
           {/* 폴더 아이콘 */}
           {isExpanded ? (
@@ -464,8 +456,7 @@ export default function SalesCategoriesPage() {
         {/* 좌측: 분류 트리 */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between py-3 px-4">
-            <div className="grid grid-cols-4 gap-2 text-xs font-medium text-muted-foreground w-full">
-              <span>코드</span>
+            <div className="grid grid-cols-3 gap-2 text-xs font-medium text-muted-foreground w-full">
               <span className="col-span-2">분류명</span>
               <span className="text-right">하위</span>
             </div>
@@ -524,21 +515,6 @@ export default function SalesCategoriesPage() {
                     />
                   </div>
                 )}
-
-                {/* 분류 코드 */}
-                <div className="space-y-2">
-                  <Label>분류 코드 *</Label>
-                  <Input
-                    value={formData.code}
-                    onChange={(e) =>
-                      setFormData({ ...formData, code: e.target.value })
-                    }
-                    placeholder="예: album, print, frame"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    영문 소문자, 숫자, 언더스코어(_)만 사용할 수 있습니다.
-                  </p>
-                </div>
 
                 {/* 분류명 */}
                 <div className="space-y-2">
@@ -639,23 +615,6 @@ export default function SalesCategoriesPage() {
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-5 pt-4">
-            <div className="space-y-2">
-              <Label htmlFor="code">분류 코드 *</Label>
-              <Input
-                id="code"
-                value={formData.code}
-                onChange={(e) =>
-                  setFormData({ ...formData, code: e.target.value })
-                }
-                placeholder="예: album, print, frame"
-                required
-                autoFocus
-              />
-              <p className="text-xs text-muted-foreground">
-                영문 소문자, 숫자, 언더스코어(_)만 사용할 수 있습니다.
-              </p>
-            </div>
-
             <div className="space-y-2">
               <Label htmlFor="name">분류명 *</Label>
               <Input

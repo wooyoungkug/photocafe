@@ -14,6 +14,7 @@ import {
   ChevronRight,
   LayoutDashboard,
   Sparkles,
+  Database,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +25,17 @@ const navigation = [
     icon: LayoutDashboard,
   },
   {
+    name: "기초정보",
+    icon: Database,
+    children: [
+      { name: "기초정보 설정", href: "/basic-info/settings" },
+      { name: "공통코드 관리", href: "/basic-info/codes" },
+      { name: "규격정보", href: "/basic-info/units" },
+      { name: "카테고리", href: "/company/categories" },
+      { name: "매출품목분류", href: "/company/sales-categories" },
+    ],
+  },
+  {
     name: "회사정보",
     icon: Building2,
     children: [
@@ -32,8 +44,6 @@ const navigation = [
       { name: "부서관리", href: "/company/departments" },
       { name: "회원관리", href: "/company/members" },
       { name: "회원그룹", href: "/company/member-groups" },
-      { name: "카테고리", href: "/company/categories" },
-      { name: "매출품목분류", href: "/company/sales-categories" },
     ],
   },
   {
@@ -87,7 +97,7 @@ const navigation = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [openMenus, setOpenMenus] = useState<string[]>(["회사정보", "상품관리", "가격관리", "주문관리", "통계"]);
+  const [openMenus, setOpenMenus] = useState<string[]>(["기초정보", "회사정보", "상품관리", "가격관리", "주문관리", "통계"]);
 
   const toggleMenu = (name: string) => {
     setOpenMenus((prev) =>

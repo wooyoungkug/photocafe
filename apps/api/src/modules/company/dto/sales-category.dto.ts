@@ -3,11 +3,11 @@ import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 
 export class CreateSalesCategoryDto {
-  @ApiProperty({ description: '분류 코드', example: 'album' })
+  @ApiPropertyOptional({ description: '분류 코드 (미입력 시 자동 생성)', example: 'album' })
+  @IsOptional()
   @IsString()
-  @MinLength(1)
   @MaxLength(50)
-  code: string;
+  code?: string;
 
   @ApiProperty({ description: '분류명', example: '앨범' })
   @IsString()

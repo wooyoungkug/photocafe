@@ -102,6 +102,65 @@ model Client {
   @@map("clients")
 }
 
+// ==================== 규격정보 ====================
+
+model Specification {
+  id          String   @id @default(cuid())
+  code        String   @unique     // 고유 코드 (자동 생성)
+  name        String               // 규격명 (예: "7x4.7", "22.5x30.5")
+  
+  // 크기 정보
+  widthInch   Decimal  @db.Decimal(10, 4)  // 가로 (인치)
+  heightInch  Decimal  @db.Decimal(10, 4)  // 세로 (인치)
+  widthMm     Decimal  @db.Decimal(10, 2)  // 가로 (mm)
+  heightMm    Decimal  @db.Decimal(10, 2)  // 세로 (mm)
+  
+  // 용도 체크박스 (중첩 사용 가능)
+  forOutput   Boolean  @default(false)  // 출력전용
+  forAlbum    Boolean  @default(false)  // 앨범전용
+  forFrame    Boolean  @default(false)  // 액자전용
+  forBooklet  Boolean  @default(false)  // 인쇄책자전용
+  
+  // 추가 정보
+  squareMeters  Decimal?  @db.Decimal(10, 2)  // 평방미터 (㎡)
+  description   String?   // 설명
+  
+  // 정렬 및 상태
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  prices      SpecificationPrice[]
+  
+  @@index([isActive])
+  @@index([forOutput])
+  @@index([forAlbum])
+  @@index([forFrame])
+  @@index([forBooklet])
+  @@map("specifications")
+}
+
+model SpecificationPrice {
+  id              String        @id @default(cuid())
+  specificationId String
+  specification   Specification @relation(fields: [specificationId], references: [id], onDelete: Cascade)
+  
+  // 가격 타입 (예: 기본가, 그룹별 가격 등)
+  priceType       String        @default("base")  // base, group
+  groupId         String?       // 그룹 가격인 경우
+  
+  price           Decimal       @db.Decimal(12, 2)
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  @@unique([specificationId, priceType, groupId])
+  @@map("specification_prices")
+}
+
 // ==================== 매출품목 분류 ====================
 
 model SalesCategoryOption {

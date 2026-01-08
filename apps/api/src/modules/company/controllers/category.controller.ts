@@ -8,9 +8,8 @@ import {
   Body,
   Param,
   Query,
-  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiQuery, ApiBody } from '@nestjs/swagger';
 import { CategoryService } from '../services/category.service';
 import {
   CreateCategoryDto,
@@ -21,7 +20,6 @@ import {
   CATEGORY_TYPES,
   LOGIN_VISIBILITY_OPTIONS,
 } from '../dto/category.dto';
-import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 
 @ApiTags('categories')
 @Controller('categories')
@@ -67,74 +65,55 @@ export class CategoryController {
     return this.categoryService.findOne(id);
   }
 
-  // 관리자 전용 API (인증 필요)
   @Post()
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '카테고리 생성' })
   async create(@Body() data: CreateCategoryDto) {
     return this.categoryService.create(data);
   }
 
   @Put(':id')
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '카테고리 수정' })
   async update(@Param('id') id: string, @Body() data: UpdateCategoryDto) {
     return this.categoryService.update(id, data);
   }
 
   @Delete(':id')
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '카테고리 삭제' })
   async delete(@Param('id') id: string) {
     return this.categoryService.delete(id);
   }
 
   @Patch(':id/visibility')
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '카테고리 노출 설정 변경' })
   async updateVisibility(@Param('id') id: string, @Body() data: VisibilityDto) {
     return this.categoryService.updateVisibility(id, data);
   }
 
   @Patch(':id/move')
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '카테고리 이동 (부모 변경/순서 변경)' })
   async move(@Param('id') id: string, @Body() data: MoveCategoryDto) {
     return this.categoryService.move(id, data);
   }
 
   @Post(':id/move-up')
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '카테고리 위로 이동' })
   async moveUp(@Param('id') id: string) {
     return this.categoryService.moveUp(id);
   }
 
   @Post(':id/move-down')
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '카테고리 아래로 이동' })
   async moveDown(@Param('id') id: string) {
     return this.categoryService.moveDown(id);
   }
 
   @Post(':id/move-to-top')
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '카테고리 최상위로 이동' })
   async moveToTop(@Param('id') id: string) {
     return this.categoryService.moveToTop(id);
   }
 
   @Post('reorder')
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '카테고리 순서 일괄 변경' })
   @ApiBody({
     schema: {
