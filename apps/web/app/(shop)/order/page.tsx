@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { ArrowLeft, CreditCard, Wallet, Building2, Smartphone, Upload, X } from 'lucide-react';
 import { useCartStore } from '@/stores/cart-store';
 import { useAuthStore } from '@/stores/auth-store';
+import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -99,8 +100,35 @@ export default function OrderPage() {
     setIsSubmitting(true);
 
     try {
-      // TODO: API call to create order
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // 거래처 목록에서 첫 번째 거래처 가져오기 (테스트용)
+      const clientsResponse = await api.get<{ data: { id: string }[] }>('/clients', { limit: 1 });
+      const clientId = clientsResponse.data[0]?.id;
+
+      if (!clientId) {
+        throw new Error('등록된 거래처가 없습니다.');
+      }
+
+      // 주문 생성 API 호출
+      const orderData = {
+        clientId,
+        paymentMethod,
+        isUrgent: false,
+        customerMemo: memo || undefined,
+        items: items.map(item => ({
+          productId: item.productId || 'default-product',
+          productName: item.name,
+          size: item.options.find(o => o.name === '규격')?.value || 'A4',
+          pages: parseInt(item.options.find(o => o.name === '페이지')?.value || '20'),
+          printMethod: item.options.find(o => o.name === '인쇄방식')?.value || '디지털인쇄',
+          paper: item.options.find(o => o.name === '용지')?.value || '스노우화이트',
+          bindingType: item.options.find(o => o.name === '제본')?.value || '무선제본',
+          quantity: item.quantity,
+          unitPrice: item.basePrice,
+        })),
+        shipping: shippingInfo,
+      };
+
+      await api.post('/orders', orderData);
 
       toast({
         title: '주문이 완료되었습니다',
@@ -110,9 +138,10 @@ export default function OrderPage() {
       clearCart();
       router.push('/order/complete');
     } catch (error) {
+      console.error('Order error:', error);
       toast({
         title: '주문 실패',
-        description: '주문 처리 중 오류가 발생했습니다. 다시 시도해주세요.',
+        description: error instanceof Error ? error.message : '주문 처리 중 오류가 발생했습니다.',
         variant: 'destructive',
       });
     } finally {

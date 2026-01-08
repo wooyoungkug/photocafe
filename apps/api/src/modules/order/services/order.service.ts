@@ -138,85 +138,87 @@ export class OrderService {
 
   // ==================== 주문 생성 ====================
   async create(dto: CreateOrderDto, userId: string) {
-    const { items, shipping, ...orderData } = dto;
+    try {
+      const { items, shipping, ...orderData } = dto;
 
-    // 거래처 확인
-    const client = await this.prisma.client.findUnique({
-      where: { id: dto.clientId },
-    });
+      // 거래처 확인
+      const client = await this.prisma.client.findUnique({
+        where: { id: dto.clientId },
+      });
 
-    if (!client) {
-      throw new NotFoundException('거래처를 찾을 수 없습니다');
-    }
+      if (!client) {
+        throw new NotFoundException('거래처를 찾을 수 없습니다');
+      }
 
-    const orderNumber = await this.generateOrderNumber();
-    const barcode = await this.generateBarcode();
+      const orderNumber = await this.generateOrderNumber();
+      const barcode = await this.generateBarcode();
 
-    // 가격 계산
-    let productPrice = 0;
-    const orderItems = items.map((item, index) => {
-      const totalPrice = item.unitPrice * item.quantity;
-      productPrice += totalPrice;
+      // 가격 계산
+      let productPrice = 0;
+      const orderItems = items.map((item, index) => {
+        const totalPrice = item.unitPrice * item.quantity;
+        productPrice += totalPrice;
 
-      return {
-        productionNumber: this.generateProductionNumber(orderNumber, index),
-        productId: item.productId,
-        productName: item.productName,
-        size: item.size,
-        pages: item.pages,
-        printMethod: item.printMethod,
-        paper: item.paper,
-        bindingType: item.bindingType,
-        coverMaterial: item.coverMaterial,
-        foilName: item.foilName,
-        foilColor: item.foilColor,
-        finishingOptions: item.finishingOptions || [],
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        totalPrice,
-        files: item.files?.length
-          ? { create: item.files }
-          : undefined,
-      };
-    });
+        return {
+          productionNumber: this.generateProductionNumber(orderNumber, index),
+          productId: item.productId,
+          productName: item.productName,
+          size: item.size,
+          pages: item.pages,
+          printMethod: item.printMethod,
+          paper: item.paper,
+          bindingType: item.bindingType,
+          coverMaterial: item.coverMaterial,
+          foilName: item.foilName,
+          foilColor: item.foilColor,
+          finishingOptions: item.finishingOptions || [],
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          totalPrice,
+        };
+      });
 
-    const tax = Math.round(productPrice * 0.1); // 부가세 10%
-    const totalAmount = productPrice + tax;
+      const tax = Math.round(productPrice * 0.1); // 부가세 10%
+      const totalAmount = productPrice + tax;
 
-    return this.prisma.order.create({
-      data: {
-        orderNumber,
-        barcode,
-        clientId: dto.clientId,
-        productPrice,
-        tax,
-        totalAmount,
-        finalAmount: totalAmount,
-        paymentMethod: dto.paymentMethod || 'postpaid',
-        isUrgent: dto.isUrgent || false,
-        requestedDeliveryDate: dto.requestedDeliveryDate,
-        customerMemo: dto.customerMemo,
-        productMemo: dto.productMemo,
-        status: ORDER_STATUS.PENDING_RECEIPT,
-        currentProcess: 'receipt_pending',
-        items: { create: orderItems },
-        shipping: { create: shipping },
-        processHistory: {
-          create: {
-            toStatus: ORDER_STATUS.PENDING_RECEIPT,
-            processType: 'order_created',
-            processedBy: userId,
+      return this.prisma.order.create({
+        data: {
+          orderNumber,
+          barcode,
+          clientId: dto.clientId,
+          productPrice,
+          tax,
+          totalAmount,
+          finalAmount: totalAmount,
+          paymentMethod: dto.paymentMethod || 'postpaid',
+          isUrgent: dto.isUrgent || false,
+          requestedDeliveryDate: dto.requestedDeliveryDate,
+          customerMemo: dto.customerMemo,
+          productMemo: dto.productMemo,
+          status: ORDER_STATUS.PENDING_RECEIPT,
+          currentProcess: 'receipt_pending',
+          items: { create: orderItems },
+          shipping: { create: shipping },
+          processHistory: {
+            create: {
+              toStatus: ORDER_STATUS.PENDING_RECEIPT,
+              processType: 'order_created',
+              processedBy: userId,
+            },
           },
         },
-      },
-      include: {
-        client: true,
-        shipping: true,
-        items: {
-          include: { files: true },
+        include: {
+          client: true,
+          shipping: true,
+          items: {
+            include: { files: true },
+          },
         },
-      },
-    });
+      });
+    } catch (error) {
+      console.error('Order creation error:', error);
+      throw error;
+    }
   }
 
   // ==================== 주문 수정 ====================
