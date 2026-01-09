@@ -1150,6 +1150,10 @@ model ProductionSetting {
   // 가중치 구분 정보 (텍스트로 저장, 예: "1\n2\n3")
   weightInfo      String?         @db.Text
 
+  // 용지별 출력단가 설정
+  printMethod     String?         // indigo, inkjet
+  paperIds        String[]        @default([]) // 선택된 용지 ID 목록
+
   // 정렬 및 상태
   sortOrder       Int             @default(0)
   isActive        Boolean         @default(true)

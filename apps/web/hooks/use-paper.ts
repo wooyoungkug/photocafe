@@ -184,7 +184,7 @@ export function usePapers(params: PaperQueryParams = {}) {
       if (params.limit) searchParams.append('limit', String(params.limit));
       if (params.search) searchParams.append('search', params.search);
       if (params.paperType) searchParams.append('paperType', params.paperType);
-      if (params.printMethod) searchParams.append('printMethod', params.printMethod);
+      if (params.printMethod) searchParams.append('printMethods', params.printMethod);
       if (params.manufacturerId) searchParams.append('manufacturerId', params.manufacturerId);
       if (params.isActive !== undefined) searchParams.append('isActive', String(params.isActive));
 

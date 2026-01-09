@@ -1,5 +1,5 @@
-"use client";
 
+import { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/layout/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,10 +21,21 @@ import {
 export default function DashboardPage() {
   const { data: summary, isLoading, error } = useDashboardSummary();
 
+  // 디버깅을 위한 로그
+  useEffect(() => {
+    if (error) {
+      console.error("Dashboard loaded with error:", error);
+    }
+    if (summary) {
+      console.log("Dashboard summary loaded:", summary);
+    }
+  }, [summary, error]);
+
   // 성장률 포맷팅
   const formatGrowthRate = (rate: number) => {
-    const sign = rate >= 0 ? "+" : "";
-    return `${sign}${rate.toFixed(1)}%`;
+    const safeRate = Number(rate) || 0;
+    const sign = safeRate >= 0 ? "+" : "";
+    return `${sign}${safeRate.toFixed(1)}%`;
   };
 
   const statCards = [
@@ -131,9 +142,17 @@ export default function DashboardPage() {
           breadcrumbs={[{ label: "홈", href: "/" }, { label: "대시보드" }]}
         />
         <Card className="border-red-200 bg-red-50">
-          <CardContent className="flex items-center gap-3 py-8 text-red-600">
-            <AlertCircle className="h-5 w-5" />
-            <span>통계 데이터를 불러오는데 실패했습니다.</span>
+          <CardContent className="flex flex-col items-center gap-3 py-8 text-red-600">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5" />
+              <span className="font-medium">통계 데이터를 불러오는데 실패했습니다.</span>
+            </div>
+            <p className="text-sm text-red-500">
+              {(error as Error)?.message || "알 수 없는 오류가 발생했습니다."}
+            </p>
+            <div className="text-xs text-gray-500 mt-2">
+              백엔드 서버가 실행 중인지 확인해주세요 (Port 3001)
+            </div>
           </CardContent>
         </Card>
       </div>

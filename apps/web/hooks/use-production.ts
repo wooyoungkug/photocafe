@@ -44,6 +44,9 @@ export interface ProductionSetting {
   basePrice: number;
   workDays: number;
   weightInfo: string | null;
+  // 용지별 출력단가 설정
+  printMethod?: string;
+  paperIds?: string[];
   sortOrder: number;
   isActive: boolean;
   createdAt: string;
@@ -216,6 +219,8 @@ export function useCreateProductionSetting() {
       basePrice?: number;
       workDays?: number;
       weightInfo?: string;
+      printMethod?: string;
+      paperIds?: string[];
       specificationIds?: string[];
       sortOrder?: number;
       isActive?: boolean;
@@ -241,6 +246,8 @@ export function useUpdateProductionSetting() {
       basePrice?: number;
       workDays?: number;
       weightInfo?: string;
+      printMethod?: string;
+      paperIds?: string[];
       specificationIds?: string[];
       sortOrder?: number;
       isActive?: boolean;

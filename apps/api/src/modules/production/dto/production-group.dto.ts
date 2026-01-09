@@ -140,6 +140,17 @@ export class CreateProductionSettingDto {
   @IsString({ each: true })
   specificationIds?: string[];
 
+  @ApiPropertyOptional({ description: '인쇄 방식 (indigo, inkjet)', default: 'indigo' })
+  @IsOptional()
+  @IsString()
+  printMethod?: string;
+
+  @ApiPropertyOptional({ description: '선택된 용지 ID 배열' })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  paperIds?: string[];
+
   @ApiPropertyOptional({ description: '정렬 순서', default: 0 })
   @IsOptional()
   @IsInt()
