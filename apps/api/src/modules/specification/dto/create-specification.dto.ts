@@ -1,5 +1,7 @@
-import { IsString, IsNumber, IsBoolean, IsOptional, Min } from 'class-validator';
+import { IsString, IsNumber, IsBoolean, IsOptional, Min, IsEnum } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+export type Orientation = 'landscape' | 'portrait' | 'square';
 
 export class CreateSpecificationDto {
     @ApiProperty({ description: '규격명', example: '7x4.7' })
@@ -26,10 +28,20 @@ export class CreateSpecificationDto {
     @Min(0)
     heightMm: number;
 
-    @ApiPropertyOptional({ description: '출력전용', default: false })
+    @ApiPropertyOptional({ description: '방향 (landscape: 가로형, portrait: 세로형, square: 정방형)', enum: ['landscape', 'portrait', 'square'], default: 'landscape' })
+    @IsOptional()
+    @IsEnum(['landscape', 'portrait', 'square'])
+    orientation?: Orientation;
+
+    @ApiPropertyOptional({ description: '인디고출력전용', default: false })
     @IsOptional()
     @IsBoolean()
-    forOutput?: boolean;
+    forIndigo?: boolean;
+
+    @ApiPropertyOptional({ description: '잉크젯출력전용', default: false })
+    @IsOptional()
+    @IsBoolean()
+    forInkjet?: boolean;
 
     @ApiPropertyOptional({ description: '앨범전용', default: false })
     @IsOptional()
@@ -60,4 +72,9 @@ export class CreateSpecificationDto {
     @IsOptional()
     @IsNumber()
     sortOrder?: number;
+
+    @ApiPropertyOptional({ description: '쌍 자동 생성 여부', default: true })
+    @IsOptional()
+    @IsBoolean()
+    createPair?: boolean;
 }

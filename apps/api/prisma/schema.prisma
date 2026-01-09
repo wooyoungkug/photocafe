@@ -25,6 +25,21 @@ model User {
   @@map("users")
 }
 
+// 시스템 설정 (무료배송 금액 등)
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique  // 설정 키 (예: free_shipping_threshold)
+  value     String            // 설정 값
+  category  String            // 카테고리 (shipping, payment, etc.)
+  label     String?           // 표시 라벨
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@map("system_settings")
+}
+
+
 // ==================== 직원관리 ====================
 
 // 부서
@@ -215,6 +230,7 @@ model Client {
   phone           String?
   mobile          String?
   email           String?
+  password        String?      // 일반 가입 시 비밀번호 (해시)
 
   postalCode      String?
   address         String?
@@ -222,6 +238,30 @@ model Client {
 
   groupId         String?
   group           ClientGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+
+  // 회원 타입: individual(개인), business(사업자)
+  memberType      String       @default("individual")
+  
+  // OAuth 정보
+  oauthProvider   String?      // google, naver, kakao
+  oauthId         String?      // OAuth 고유 ID
+  
+  // 가격 적용: standard(표준단가-개인), group(그룹단가-사업자)
+  priceType       String       @default("standard")
+
+  // 결제 방식: order(주문시결제), credit(신용거래)
+  paymentType     String       @default("order")
+  
+  // 신용거래 설정 (관리자만 수정 가능)
+  creditEnabled      Boolean   @default(false)  // 신용거래 허용 여부
+  creditPeriodDays   Int?                       // 신용거래 기간 (일)
+  creditPaymentDay   Int?                       // 결제일 (매월 N일)
+  creditBlocked      Boolean   @default(false)  // 미입금으로 인한 주문 차단
+  creditBlockedAt    DateTime?                  // 차단 시점
+  lastPaymentDate    DateTime?                  // 마지막 결제일
+  
+  // 배송 설정 (관리자만 수정 가능): conditional(조건부), free(무료), prepaid(선불), cod(착불)
+  shippingType       String    @default("conditional")
 
   creditGrade     String       @default("B") // A, B, C, D
   paymentTerms    Int          @default(30)
@@ -234,10 +274,14 @@ model Client {
   myProducts   MyProduct[]
   assignedStaff StaffClient[]
 
+  @@unique([oauthProvider, oauthId])
   @@index([groupId])
   @@index([clientCode])
+  @@index([memberType])
+  @@index([oauthProvider])
   @@map("clients")
 }
+
 
 // ==================== 규격정보 ====================
 
@@ -245,39 +289,47 @@ model Specification {
   id          String   @id @default(cuid())
   code        String   @unique     // 고유 코드 (자동 생성)
   name        String               // 규격명 (예: "7x4.7", "22.5x30.5")
-  
+
   // 크기 정보
   widthInch   Decimal  @db.Decimal(10, 4)  // 가로 (인치)
   heightInch  Decimal  @db.Decimal(10, 4)  // 세로 (인치)
   widthMm     Decimal  @db.Decimal(10, 2)  // 가로 (mm)
   heightMm    Decimal  @db.Decimal(10, 2)  // 세로 (mm)
-  
+
+  // 방향 (가로형/세로형/정방형)
+  orientation String   @default("landscape")  // landscape: 가로형, portrait: 세로형, square: 정방형
+  pairId      String?  // 쌍이 되는 규격의 ID (가로형 <-> 세로형)
+
   // 용도 체크박스 (중첩 사용 가능)
-  forOutput   Boolean  @default(false)  // 출력전용
+  forIndigo   Boolean  @default(false)  // 인디고출력전용
+  forInkjet   Boolean  @default(false)  // 잉크젯출력전용
   forAlbum    Boolean  @default(false)  // 앨범전용
   forFrame    Boolean  @default(false)  // 액자전용
   forBooklet  Boolean  @default(false)  // 인쇄책자전용
-  
+
   // 추가 정보
   squareMeters  Decimal?  @db.Decimal(10, 2)  // 평방미터 (㎡)
   description   String?   // 설명
-  
+
   // 정렬 및 상태
   sortOrder   Int      @default(0)
   isActive    Boolean  @default(true)
-  
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   // Relations
   prices              SpecificationPrice[]
   productionSettings  ProductionSettingSpecification[]
 
   @@index([isActive])
-  @@index([forOutput])
+  @@index([forIndigo])
+  @@index([forInkjet])
   @@index([forAlbum])
   @@index([forFrame])
   @@index([forBooklet])
+  @@index([orientation])
+  @@index([pairId])
   @@map("specifications")
 }
 
@@ -383,6 +435,9 @@ model Category {
 
   // 카테고리 아이콘
   iconUrl         String?    // 카테고리 앞에 표시되는 작은 이미지 URL
+  
+  // 매출품목 분류 ID
+  salesCategoryId String?    // SalesCategory 참조 ID
 
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
@@ -869,6 +924,165 @@ model RegularHolidaySetting {
   updatedAt     DateTime @updatedAt
 
   @@map("regular_holiday_settings")
+}
+
+// ==================== 용지 관리 ====================
+
+// 용지대리점 (Paper Supplier/Dealer)
+model PaperSupplier {
+  id          String   @id @default(cuid())
+  code        String   @unique     // 고유 코드
+  name        String               // 대리점명
+  phone       String?              // 전화번호
+  mobile      String?              // 휴대폰
+  email       String?              // 이메일
+  fax         String?              // 팩스
+  postalCode  String?              // 우편번호
+  address     String?              // 주소
+  addressDetail String?            // 상세주소
+  representative String?           // 담당자명
+  website     String?              // 웹사이트
+  description String?  @db.Text    // 설명
+  memo        String?  @db.Text    // 관리자 메모
+
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  papers      Paper[]
+
+  @@index([isActive])
+  @@map("paper_suppliers")
+}
+
+// 제지사 (Paper Manufacturer)
+model PaperManufacturer {
+  id          String   @id @default(cuid())
+  code        String   @unique     // 고유 코드
+  name        String               // 제지사명 (예: 신호제지, 한솔제지, 미래엔페이퍼)
+  country     String?              // 국가
+  website     String?              // 웹사이트
+  contactInfo String?              // 연락처 정보
+  description String?  @db.Text    // 설명
+
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  papers      Paper[]
+
+  @@index([isActive])
+  @@map("paper_manufacturers")
+}
+
+// 용지 (Paper)
+model Paper {
+  id              String            @id @default(cuid())
+  code            String            @unique     // 고유 코드
+  name            String                        // 용지명
+
+  // 제지사 연결
+  manufacturerId  String?
+  manufacturer    PaperManufacturer? @relation(fields: [manufacturerId], references: [id], onDelete: SetNull)
+
+  // 용지대리점 연결
+  supplierId      String?
+  supplier        PaperSupplier?    @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+
+  // 용지 구분
+  paperType       String            @default("sheet")  // roll: 롤지, sheet: 낱장지
+
+  // 용지 규격 (낱장지인 경우)
+  sheetSize       String?           // 국전지(788x1091), 46전지(788x545) 등
+  sheetWidthMm    Decimal?          @db.Decimal(10, 2)  // 낱장 가로 (mm)
+  sheetHeightMm   Decimal?          @db.Decimal(10, 2)  // 낱장 세로 (mm)
+  customSheetName String?           // 별사이즈 규격명 (custom 선택시)
+
+  // 롤 용지 규격 (롤지인 경우)
+  rollWidth       String?           // 17", 24", 32", 36", 44", 48" 등
+  rollWidthInch   Decimal?          @db.Decimal(10, 2)  // 롤 폭 (인치)
+  rollLength      String?           // 30m, 40m, 50m 등
+  rollLengthM     Decimal?          @db.Decimal(10, 2)  // 롤 길이 (미터)
+
+  // 용지 평량
+  grammage        Int?              // 평량 (g/m²) - 예: 210, 250
+  grammageDisplay String?           // 표시용 (예: "210g/m²")
+
+  // 표면 질감 (Finish)
+  finish          String?           @default("matte")  // glossy: 광택, matte: 무광, lustre: 반광, canvas: 캔버스, satin: 새틴
+  finishDisplay   String?           // 표시용 (예: "Glossy(광택)")
+
+  // 출력 방식 연결 (멀티 선택 가능)
+  printMethods    String[]          @default([])  // indigo: 인디고출력, inkjet: 잉크젯출력, offset: 오프셋
+
+  // 색상 정보
+  colorType       String?           // white: 백색, ivory: 아이보리, cream: 크림, etc.
+
+  // 두께 정보
+  thickness       Decimal?          @db.Decimal(10, 3)  // 두께 (mm)
+
+  // 가격 정보
+  basePrice       Decimal           @db.Decimal(12, 2) @default(0)  // 기본 단가
+  unitType        String            @default("sheet")  // sheet: 장당, roll: 롤당, sqm: 제곱미터당
+
+  // 할인 정보
+  discountRate    Decimal           @db.Decimal(5, 2) @default(0)   // 할인율 (%)
+  discountPrice   Decimal?          @db.Decimal(12, 2)              // 할인가
+
+  // 재고 관련
+  stockQuantity   Int               @default(0)        // 재고 수량
+  minStockLevel   Int               @default(0)        // 최소 재고 수준
+
+  // 추가 정보
+  description     String?           @db.Text           // 설명
+  memo            String?           @db.Text           // 관리자 메모
+
+  // 정렬 및 상태
+  sortOrder       Int               @default(0)
+  isActive        Boolean           @default(true)
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  // Relations
+  prices          PaperPrice[]
+
+  @@index([manufacturerId])
+  @@index([supplierId])
+  @@index([paperType])
+  @@index([isActive])
+  @@map("papers")
+}
+
+// 용지 가격 (그룹별/수량별 가격)
+model PaperPrice {
+  id          String   @id @default(cuid())
+  paperId     String
+  paper       Paper    @relation(fields: [paperId], references: [id], onDelete: Cascade)
+
+  // 가격 타입
+  priceType   String   @default("base")  // base: 기본가, group: 그룹가, quantity: 수량별
+  groupId     String?                    // 그룹 가격인 경우
+
+  // 수량 조건
+  minQuantity Int?                       // 최소 수량
+  maxQuantity Int?                       // 최대 수량
+
+  // 가격
+  price       Decimal  @db.Decimal(12, 2)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([paperId])
+  @@index([priceType])
+  @@map("paper_prices")
 }
 
 // ==================== 카테고리별 생산설정 (표준단가) ====================

@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEmail, IsIn, IsInt, Min, Max } from 'class-validator';
+import { IsString, IsOptional, IsEmail, IsIn, IsInt, Min, Max, IsBoolean } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 
 export class CreateClientDto {
@@ -35,6 +35,11 @@ export class CreateClientDto {
   @IsEmail()
   email?: string;
 
+  @ApiPropertyOptional({ description: '비밀번호 (일반가입 시)' })
+  @IsOptional()
+  @IsString()
+  password?: string;
+
   @ApiPropertyOptional({ description: '우편번호' })
   @IsOptional()
   @IsString()
@@ -55,6 +60,61 @@ export class CreateClientDto {
   @IsString()
   groupId?: string;
 
+  // 회원 타입
+  @ApiPropertyOptional({ description: '회원 타입', enum: ['individual', 'business'], default: 'individual' })
+  @IsOptional()
+  @IsIn(['individual', 'business'])
+  memberType?: string;
+
+  // OAuth 정보
+  @ApiPropertyOptional({ description: 'OAuth 제공자', enum: ['google', 'naver', 'kakao'] })
+  @IsOptional()
+  @IsIn(['google', 'naver', 'kakao'])
+  oauthProvider?: string;
+
+  @ApiPropertyOptional({ description: 'OAuth 고유 ID' })
+  @IsOptional()
+  @IsString()
+  oauthId?: string;
+
+  // 가격 적용
+  @ApiPropertyOptional({ description: '가격 적용 타입', enum: ['standard', 'group'], default: 'standard' })
+  @IsOptional()
+  @IsIn(['standard', 'group'])
+  priceType?: string;
+
+  // 결제 방식
+  @ApiPropertyOptional({ description: '결제 방식', enum: ['order', 'credit'], default: 'order' })
+  @IsOptional()
+  @IsIn(['order', 'credit'])
+  paymentType?: string;
+
+  // 신용거래 설정 (관리자 전용)
+  @ApiPropertyOptional({ description: '신용거래 허용 여부' })
+  @IsOptional()
+  @IsBoolean()
+  creditEnabled?: boolean;
+
+  @ApiPropertyOptional({ description: '신용거래 기간 (일)' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  creditPeriodDays?: number;
+
+  @ApiPropertyOptional({ description: '결제일 (매월 N일)' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(31)
+  creditPaymentDay?: number;
+
+  // 배송 설정 (관리자 전용)
+  @ApiPropertyOptional({ description: '배송 타입', enum: ['conditional', 'free', 'prepaid', 'cod'], default: 'conditional' })
+  @IsOptional()
+  @IsIn(['conditional', 'free', 'prepaid', 'cod'])
+  shippingType?: string;
+
   @ApiPropertyOptional({ description: '신용등급', enum: ['A', 'B', 'C', 'D'] })
   @IsOptional()
   @IsIn(['A', 'B', 'C', 'D'])
@@ -73,7 +133,7 @@ export class CreateClientDto {
   status?: string;
 }
 
-export class UpdateClientDto extends PartialType(CreateClientDto) {}
+export class UpdateClientDto extends PartialType(CreateClientDto) { }
 
 export class ClientQueryDto {
   @ApiPropertyOptional({ description: '페이지 번호', default: 1 })
@@ -103,6 +163,11 @@ export class ClientQueryDto {
   @IsOptional()
   @IsIn(['active', 'inactive', 'suspended'])
   status?: string;
+
+  @ApiPropertyOptional({ description: '회원 타입 필터', enum: ['individual', 'business'] })
+  @IsOptional()
+  @IsIn(['individual', 'business'])
+  memberType?: string;
 }
 
 export class ChangeClientGroupDto {

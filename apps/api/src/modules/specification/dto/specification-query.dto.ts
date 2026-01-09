@@ -2,10 +2,15 @@ import { IsOptional, IsBoolean, IsString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class SpecificationQueryDto {
-    @ApiPropertyOptional({ description: '출력전용 필터' })
+    @ApiPropertyOptional({ description: '인디고출력전용 필터' })
     @IsOptional()
     @IsBoolean()
-    forOutput?: boolean;
+    forIndigo?: boolean;
+
+    @ApiPropertyOptional({ description: '잉크젯출력전용 필터' })
+    @IsOptional()
+    @IsBoolean()
+    forInkjet?: boolean;
 
     @ApiPropertyOptional({ description: '앨범전용 필터' })
     @IsOptional()

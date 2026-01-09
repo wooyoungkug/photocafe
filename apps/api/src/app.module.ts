@@ -11,6 +11,8 @@ import { UploadModule } from './modules/upload/upload.module';
 import { SpecificationModule } from './modules/specification/specification.module';
 import { ProductionModule } from './modules/production/production.module';
 import { StaffModule } from './modules/staff/staff.module';
+import { PaperModule } from './modules/paper/paper.module';
+import { SystemSettingsModule } from './modules/system-settings/system-settings.module';
 // import { NotionModule } from './modules/notion/notion.module';  // TODO: npm install @notionhq/client
 import { PrismaModule } from './common/prisma/prisma.module';
 import { AppController } from './app.controller';
@@ -34,6 +36,8 @@ import { AppController } from './app.controller';
     SpecificationModule,
     ProductionModule,
     StaffModule,
+    PaperModule,
+    SystemSettingsModule,
     // NotionModule,  // TODO: npm install @notionhq/client
   ],
 })

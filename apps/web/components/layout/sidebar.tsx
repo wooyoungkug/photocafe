@@ -32,6 +32,7 @@ const navigation = [
       { name: "공통코드 관리", href: "/basic-info/codes" },
       { name: "규격정보", href: "/basic-info/units" },
       { name: "카테고리", href: "/company/categories" },
+      { name: "용지관리", href: "/master/papers" },
     ],
   },
   {
@@ -40,11 +41,11 @@ const navigation = [
     children: [
       { name: "환경설정", href: "/company/settings" },
       { name: "직원관리", href: "/company/employees" },
-      { name: "부서관리", href: "/company/departments" },
       { name: "회원관리", href: "/company/members" },
       { name: "회원그룹", href: "/company/member-groups" },
     ],
   },
+
   {
     name: "상품관리",
     icon: Package,

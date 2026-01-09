@@ -46,6 +46,7 @@ import {
 } from '@/hooks/use-staff';
 import { Staff, CreateStaffRequest, MENU_PERMISSIONS, CATEGORY_PERMISSIONS } from '@/lib/types/staff';
 import { AddressSearch } from '@/components/address-search';
+import { DepartmentSelect } from '@/components/department-select';
 import {
   Plus,
   Search,
@@ -638,23 +639,10 @@ export default function EmployeesPage() {
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="departmentId">부서</Label>
-                  <Select
-                    value={formData.departmentId || 'none'}
-                    onValueChange={(v) => setFormData({ ...formData, departmentId: v === 'none' ? '' : v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="부서 선택" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">부서 없음</SelectItem>
-                      {departments?.map((dept) => (
-                        <SelectItem key={dept.id} value={dept.id}>
-                          {dept.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <DepartmentSelect
+                    value={formData.departmentId || ''}
+                    onChange={(v) => setFormData({ ...formData, departmentId: v })}
+                  />
                 </div>
               </div>
 

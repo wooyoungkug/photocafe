@@ -9,6 +9,7 @@ import {
     Check,
     X,
     Ruler,
+    ArrowUpDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,7 +43,8 @@ import { Specification, CreateSpecificationRequest } from "@/lib/types/specifica
 export default function SpecificationsPage() {
     const { toast } = useToast();
     const [searchTerm, setSearchTerm] = useState("");
-    const [filterOutput, setFilterOutput] = useState(false);
+    const [filterIndigo, setFilterIndigo] = useState(false);
+    const [filterInkjet, setFilterInkjet] = useState(false);
     const [filterAlbum, setFilterAlbum] = useState(false);
     const [filterFrame, setFilterFrame] = useState(false);
     const [filterBooklet, setFilterBooklet] = useState(false);
@@ -59,7 +61,8 @@ export default function SpecificationsPage() {
         heightInch: 0,
         widthMm: 0,
         heightMm: 0,
-        forOutput: false,
+        forIndigo: false,
+        forInkjet: false,
         forAlbum: false,
         forFrame: false,
         forBooklet: false,
@@ -69,13 +72,25 @@ export default function SpecificationsPage() {
     });
 
     // Queries and mutations
-    const { data: specifications, isLoading } = useBasicSpecifications({
+    const { data: rawSpecifications, isLoading } = useBasicSpecifications({
         search: searchTerm || undefined,
-        forOutput: filterOutput || undefined,
+        forIndigo: filterIndigo || undefined,
+        forInkjet: filterInkjet || undefined,
         forAlbum: filterAlbum || undefined,
         forFrame: filterFrame || undefined,
         forBooklet: filterBooklet || undefined,
     });
+
+    // 쌍(pair)이 인접하도록 정렬: widthMm + heightMm (둘레 기반)으로 그룹화, 가로형 먼저
+    const specifications = rawSpecifications
+        ? [...rawSpecifications].sort((a, b) => {
+            const sumA = Number(a.widthMm) + Number(a.heightMm);
+            const sumB = Number(b.widthMm) + Number(b.heightMm);
+            if (sumA !== sumB) return sumA - sumB; // 둘레 오름차순
+            return Number(b.widthMm) - Number(a.widthMm); // 가로형 먼저 (widthMm 내림차순)
+        })
+        : [];
+
     const createMutation = useCreateBasicSpecification();
     const updateMutation = useUpdateBasicSpecification();
     const deleteMutation = useDeleteBasicSpecification();
@@ -86,6 +101,26 @@ export default function SpecificationsPage() {
     // 평방미터 계산 (mm -> m²)
     const calculateSquareMeters = (widthMm: number, heightMm: number) =>
         Math.round((widthMm * heightMm) / 1000000 * 100) / 100;
+
+    // 인디고 n-up 계산 (310x450mm 용지에 몇 장 들어가는지)
+    const INDIGO_WIDTH = 310;
+    const INDIGO_HEIGHT = 450;
+
+    const calculateIndigoNup = (widthMm: number, heightMm: number): number => {
+        if (widthMm <= 0 || heightMm <= 0) return 0;
+
+        // 정방향 배치
+        const cols1 = Math.floor(INDIGO_WIDTH / widthMm);
+        const rows1 = Math.floor(INDIGO_HEIGHT / heightMm);
+        const count1 = cols1 * rows1;
+
+        // 90도 회전 배치
+        const cols2 = Math.floor(INDIGO_WIDTH / heightMm);
+        const rows2 = Math.floor(INDIGO_HEIGHT / widthMm);
+        const count2 = cols2 * rows2;
+
+        return Math.max(count1, count2);
+    };
 
     const handleInchChange = (field: "widthInch" | "heightInch", value: number) => {
         const mmField = field === "widthInch" ? "widthMm" : "heightMm";
@@ -119,7 +154,8 @@ export default function SpecificationsPage() {
             heightInch: 0,
             widthMm: 0,
             heightMm: 0,
-            forOutput: false,
+            forIndigo: false,
+            forInkjet: false,
             forAlbum: false,
             forFrame: false,
             forBooklet: false,
@@ -143,7 +179,8 @@ export default function SpecificationsPage() {
             heightInch: Number(spec.heightInch),
             widthMm: Number(spec.widthMm),
             heightMm: Number(spec.heightMm),
-            forOutput: spec.forOutput,
+            forIndigo: spec.forIndigo,
+            forInkjet: spec.forInkjet,
             forAlbum: spec.forAlbum,
             forFrame: spec.forFrame,
             forBooklet: spec.forBooklet,
@@ -155,7 +192,7 @@ export default function SpecificationsPage() {
     };
 
     const handleSubmit = async () => {
-        if (!formData.name.trim()) {
+        if (!formData.name?.trim()) {
             toast({
                 title: "오류",
                 description: "규격명을 입력해주세요",
@@ -166,7 +203,7 @@ export default function SpecificationsPage() {
 
         // 중복 체크 - 규격명
         const duplicateByName = specifications?.find(
-            (s) => s.name === formData.name.trim() && s.id !== editingSpec?.id
+            (s) => s.name === formData.name?.trim() && s.id !== editingSpec?.id
         );
         if (duplicateByName) {
             toast({
@@ -281,10 +318,17 @@ export default function SpecificationsPage() {
                 <div className="flex items-center gap-4">
                     <label className="flex items-center gap-2 text-sm">
                         <Checkbox
-                            checked={filterOutput}
-                            onCheckedChange={(checked) => setFilterOutput(checked === true)}
+                            checked={filterIndigo}
+                            onCheckedChange={(checked) => setFilterIndigo(checked === true)}
                         />
-                        출력전용
+                        인디고출력
+                    </label>
+                    <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                            checked={filterInkjet}
+                            onCheckedChange={(checked) => setFilterInkjet(checked === true)}
+                        />
+                        잉크젯출력
                     </label>
                     <label className="flex items-center gap-2 text-sm">
                         <Checkbox
@@ -321,7 +365,8 @@ export default function SpecificationsPage() {
                             <TableHead className="text-center">가로×세로(mm)</TableHead>
                             <TableHead className="text-center">가로×세로(inch)</TableHead>
                             <TableHead className="text-center w-[80px]">평방m</TableHead>
-                            <TableHead className="text-center w-[70px]">출력전용</TableHead>
+                            <TableHead className="text-center w-[70px]">인디고</TableHead>
+                            <TableHead className="text-center w-[70px]">잉크젯</TableHead>
                             <TableHead className="text-center w-[70px]">앨범전용</TableHead>
                             <TableHead className="text-center w-[70px]">액자전용</TableHead>
                             <TableHead className="text-center w-[70px]">인쇄책자</TableHead>
@@ -331,13 +376,13 @@ export default function SpecificationsPage() {
                     <TableBody>
                         {isLoading ? (
                             <TableRow>
-                                <TableCell colSpan={11} className="text-center py-8">
+                                <TableCell colSpan={12} className="text-center py-8">
                                     로딩 중...
                                 </TableCell>
                             </TableRow>
                         ) : specifications?.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={11} className="text-center py-8 text-gray-500">
+                                <TableCell colSpan={12} className="text-center py-8 text-gray-500">
                                     등록된 규격이 없습니다
                                 </TableCell>
                             </TableRow>
@@ -352,7 +397,24 @@ export default function SpecificationsPage() {
                                         {new Date(spec.createdAt).toLocaleDateString('ko-KR')}
                                     </TableCell>
                                     <TableCell className="text-center">
-                                        {Number(spec.widthMm).toFixed(1)} × {Number(spec.heightMm).toFixed(1)}
+                                        <span className="flex items-center justify-center gap-1">
+                                            {Number(spec.widthMm).toFixed(1)} × {Number(spec.heightMm).toFixed(1)}
+                                            {Number(spec.heightMm) > Number(spec.widthMm) && (
+                                                <span className="ml-1 text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded">
+                                                    세로형
+                                                </span>
+                                            )}
+                                            {Number(spec.widthMm) > Number(spec.heightMm) && (
+                                                <span className="ml-1 text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300 rounded">
+                                                    가로형
+                                                </span>
+                                            )}
+                                            {Number(spec.widthMm) === Number(spec.heightMm) && (
+                                                <span className="ml-1 text-xs px-1.5 py-0.5 bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 rounded">
+                                                    정방형
+                                                </span>
+                                            )}
+                                        </span>
                                     </TableCell>
                                     <TableCell className="text-center">
                                         {parseFloat(Number(spec.widthInch).toFixed(2))} × {parseFloat(Number(spec.heightInch).toFixed(2))}
@@ -361,7 +423,19 @@ export default function SpecificationsPage() {
                                         {spec.squareMeters ? Number(spec.squareMeters).toFixed(2) : "-"}
                                     </TableCell>
                                     <TableCell className="text-center">
-                                        {spec.forOutput ? (
+                                        {spec.forIndigo ? (
+                                            <div className="flex flex-col items-center">
+                                                <Check className="h-4 w-4 text-green-500" />
+                                                <span className="text-[10px] text-gray-500 mt-0.5">
+                                                    {calculateIndigoNup(Number(spec.widthMm), Number(spec.heightMm))}up
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            <X className="h-4 w-4 text-gray-300 mx-auto" />
+                                        )}
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                        {spec.forInkjet ? (
                                             <Check className="h-4 w-4 text-green-500 mx-auto" />
                                         ) : (
                                             <X className="h-4 w-4 text-gray-300 mx-auto" />
@@ -498,6 +572,12 @@ export default function SpecificationsPage() {
                                     placeholder="세로"
                                 />
                                 <span className="text-gray-500">mm</span>
+                                {formData.heightMm > formData.widthMm && (
+                                    <span className="ml-2 text-xs px-2 py-1 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded flex items-center gap-1">
+                                        <ArrowUpDown className="h-3 w-3" />
+                                        세로형
+                                    </span>
+                                )}
                             </div>
                         </div>
 
@@ -528,17 +608,26 @@ export default function SpecificationsPage() {
                         </div>
 
                         {/* 용도 체크박스 */}
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label className="text-right">용도</Label>
-                            <div className="col-span-3 flex flex-wrap gap-6">
+                        <div className="grid grid-cols-4 items-start gap-4">
+                            <Label className="text-right pt-2">용도</Label>
+                            <div className="col-span-3 grid grid-cols-2 gap-x-8 gap-y-3">
                                 <label className="flex items-center gap-2">
                                     <Checkbox
-                                        checked={formData.forOutput}
+                                        checked={formData.forIndigo}
                                         onCheckedChange={(checked) =>
-                                            setFormData({ ...formData, forOutput: checked === true })
+                                            setFormData({ ...formData, forIndigo: checked === true })
                                         }
                                     />
-                                    출력전용
+                                    <span className="text-sm">인디고출력</span>
+                                </label>
+                                <label className="flex items-center gap-2">
+                                    <Checkbox
+                                        checked={formData.forInkjet}
+                                        onCheckedChange={(checked) =>
+                                            setFormData({ ...formData, forInkjet: checked === true })
+                                        }
+                                    />
+                                    <span className="text-sm">잉크젯출력</span>
                                 </label>
                                 <label className="flex items-center gap-2">
                                     <Checkbox
@@ -547,7 +636,7 @@ export default function SpecificationsPage() {
                                             setFormData({ ...formData, forAlbum: checked === true })
                                         }
                                     />
-                                    앨범전용
+                                    <span className="text-sm">앨범전용</span>
                                 </label>
                                 <label className="flex items-center gap-2">
                                     <Checkbox
@@ -556,7 +645,7 @@ export default function SpecificationsPage() {
                                             setFormData({ ...formData, forFrame: checked === true })
                                         }
                                     />
-                                    액자전용
+                                    <span className="text-sm">액자전용</span>
                                 </label>
                                 <label className="flex items-center gap-2">
                                     <Checkbox
@@ -565,7 +654,7 @@ export default function SpecificationsPage() {
                                             setFormData({ ...formData, forBooklet: checked === true })
                                         }
                                     />
-                                    인쇄책자전용
+                                    <span className="text-sm">인쇄책자전용</span>
                                 </label>
                             </div>
                         </div>

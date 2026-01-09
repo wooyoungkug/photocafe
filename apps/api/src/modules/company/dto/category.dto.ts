@@ -126,6 +126,11 @@ export class CreateCategoryDto {
   @IsOptional()
   @IsString()
   iconUrl?: string;
+
+  @ApiPropertyOptional({ description: '매출품목 분류 ID' })
+  @IsOptional()
+  @IsString()
+  salesCategoryId?: string;
 }
 
 export class UpdateCategoryDto extends PartialType(CreateCategoryDto) { }

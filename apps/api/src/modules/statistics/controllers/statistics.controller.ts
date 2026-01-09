@@ -1,6 +1,5 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
-import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
+import { Controller, Get, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { StatisticsService } from '../services/statistics.service';
 import {
   StatisticsQueryDto,
@@ -10,8 +9,6 @@ import {
 } from '../dto';
 
 @ApiTags('통계')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
 @Controller('statistics')
 export class StatisticsController {
   constructor(private statisticsService: StatisticsService) {}

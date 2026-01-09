@@ -29,7 +29,7 @@ export class SpecificationController {
     @Get('usage/:usage')
     @ApiOperation({ summary: '용도별 규격 목록 조회' })
     @ApiResponse({ status: 200, description: '용도별 규격 목록 반환' })
-    async findByUsage(@Param('usage') usage: 'output' | 'album' | 'frame' | 'booklet') {
+    async findByUsage(@Param('usage') usage: 'indigo' | 'inkjet' | 'album' | 'frame' | 'booklet') {
         return this.specificationService.findByUsage(usage);
     }
 

@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class ClientService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async findAll(params: {
     skip?: number;
@@ -12,8 +13,9 @@ export class ClientService {
     search?: string;
     groupId?: string;
     status?: string;
+    memberType?: string;
   }) {
-    const { skip = 0, take = 20, search, groupId, status } = params;
+    const { skip = 0, take = 20, search, groupId, status, memberType } = params;
 
     const where: Prisma.ClientWhereInput = {
       ...(search && {
@@ -25,6 +27,7 @@ export class ClientService {
       }),
       ...(groupId && { groupId }),
       ...(status && { status }),
+      ...(memberType && { memberType }),
     };
 
     const [data, total] = await Promise.all([

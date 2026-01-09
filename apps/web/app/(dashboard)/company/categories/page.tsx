@@ -727,27 +727,7 @@ export default function CategoriesPage() {
           <CardContent>
             {selectedCategory ? (
               <div className="space-y-6">
-                {/* 부모/선택 카테고리 표시 */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>부모카테고리</Label>
-                    <Input
-                      value={selectedCategory.parent?.code || "(00000000)"}
-                      disabled
-                      className="bg-gray-50"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>선택카테고리</Label>
-                    <Input
-                      value={selectedCategory.code || "(00000000)"}
-                      disabled
-                      className="bg-gray-50"
-                    />
-                  </div>
-                </div>
-
-                {/* 카테고리명 + 생산폼옵션 */}
+                {/* 상단메뉴/숨김 */}
                 <div className="flex gap-4 items-end">
                   <div className="flex-1 space-y-2">
                     <Label>카테고리명</Label>
@@ -962,7 +942,7 @@ export default function CategoriesPage() {
                   />
                 </div>
 
-                {/* 매출품목 분류 */}
+                {/* 매출품목 분류 - 숨김 처리
                 <div className="space-y-2">
                   <Label>매출품목 분류</Label>
                   <Select
@@ -994,6 +974,7 @@ export default function CategoriesPage() {
                     매출 통계 집계 시 사용되는 품목 분류입니다.
                   </p>
                 </div>
+                */}
 
                 {/* 카테고리 아이콘 */}
                 <div className="space-y-2">

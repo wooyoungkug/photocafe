@@ -1,3 +1,5 @@
+export type Orientation = 'landscape' | 'portrait' | 'square';
+
 export interface Specification {
     id: string;
     code: string;
@@ -6,7 +8,10 @@ export interface Specification {
     heightInch: number;
     widthMm: number;
     heightMm: number;
-    forOutput: boolean;
+    orientation: Orientation;
+    pairId?: string;
+    forIndigo: boolean;   // 인디고출력전용
+    forInkjet: boolean;   // 잉크젯출력전용
     forAlbum: boolean;
     forFrame: boolean;
     forBooklet: boolean;
@@ -30,18 +35,21 @@ export interface SpecificationPrice {
 }
 
 export interface CreateSpecificationRequest {
-    name: string;
+    name?: string;
     widthInch: number;
     heightInch: number;
     widthMm: number;
     heightMm: number;
-    forOutput?: boolean;
+    orientation?: Orientation;
+    forIndigo?: boolean;   // 인디고출력전용
+    forInkjet?: boolean;   // 잉크젯출력전용
     forAlbum?: boolean;
     forFrame?: boolean;
     forBooklet?: boolean;
     squareMeters?: number;
     description?: string;
     sortOrder?: number;
+    createPair?: boolean;  // 쌍 자동 생성 여부 (기본값: true)
 }
 
 export interface UpdateSpecificationRequest extends Partial<CreateSpecificationRequest> {
@@ -49,7 +57,8 @@ export interface UpdateSpecificationRequest extends Partial<CreateSpecificationR
 }
 
 export interface SpecificationQuery {
-    forOutput?: boolean;
+    forIndigo?: boolean;
+    forInkjet?: boolean;
     forAlbum?: boolean;
     forFrame?: boolean;
     forBooklet?: boolean;
