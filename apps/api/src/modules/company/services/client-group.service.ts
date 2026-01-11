@@ -81,7 +81,7 @@ export class ClientGroupService {
     return group;
   }
 
-  async create(data: Prisma.ClientGroupCreateInput) {
+  async create(data: Prisma.ClientGroupCreateInput & { branchId?: string }) {
     // Check for duplicate groupCode
     const existing = await this.prisma.clientGroup.findUnique({
       where: { groupCode: data.groupCode },
@@ -91,8 +91,54 @@ export class ClientGroupService {
       throw new ConflictException('이미 존재하는 그룹 코드입니다');
     }
 
+    // branchId가 없으면 본사(headquarters) 또는 첫 번째 브랜치 사용
+    let branchId = (data as any).branchId;
+    if (!branchId) {
+      const defaultBranch = await this.prisma.branch.findFirst({
+        where: { isHeadquarters: true },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      if (!defaultBranch) {
+        const firstBranch = await this.prisma.branch.findFirst({
+          orderBy: { createdAt: 'asc' },
+        });
+        branchId = firstBranch?.id;
+      } else {
+        branchId = defaultBranch.id;
+      }
+    }
+
+    // 브랜치가 없으면 기본 브랜치 자동 생성
+    if (!branchId) {
+      const newBranch = await this.prisma.branch.create({
+        data: {
+          branchCode: 'HQ',
+          branchName: '본사',
+          isHeadquarters: true,
+          isActive: true,
+        },
+      });
+      branchId = newBranch.id;
+    }
+
+    // branch 연결 데이터 구성
+    const createData: Prisma.ClientGroupCreateInput = {
+      groupCode: data.groupCode,
+      groupName: data.groupName,
+      generalDiscount: data.generalDiscount,
+      premiumDiscount: data.premiumDiscount,
+      importedDiscount: data.importedDiscount,
+      description: data.description,
+      isActive: data.isActive,
+      sortOrder: data.sortOrder,
+      branch: {
+        connect: { id: branchId },
+      },
+    };
+
     return this.prisma.clientGroup.create({
-      data,
+      data: createData,
       include: { branch: true },
     });
   }

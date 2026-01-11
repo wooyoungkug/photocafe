@@ -2,10 +2,11 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1
 
 interface RequestOptions extends RequestInit {
   params?: Record<string, string | number | boolean | undefined>;
+  timeout?: number;
 }
 
 async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
-  const { params, ...fetchOptions } = options;
+  const { params, timeout = 5000, ...fetchOptions } = options;
 
   let url = `${API_URL}${endpoint}`;
 
@@ -24,16 +25,39 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
 
   const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
 
-  const response = await fetch(url, {
-    ...fetchOptions,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...fetchOptions.headers,
-    },
-  });
+  // 타임아웃 처리를 위한 AbortController
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...fetchOptions,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` }),
+        ...fetchOptions.headers,
+      },
+    });
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('요청 시간이 초과되었습니다. 서버 연결을 확인해주세요.');
+    }
+    // 네트워크 에러
+    throw new Error('서버에 연결할 수 없습니다. 네트워크 상태를 확인해주세요.');
+  }
+  clearTimeout(timeoutId);
 
   if (!response.ok) {
+    // 401 Unauthorized - 토큰 만료/무효 시 로그인으로 리다이렉트
+    if (response.status === 401 && typeof window !== 'undefined') {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      window.location.href = '/login';
+      throw new Error('Unauthorized');
+    }
     const error = await response.json().catch(() => ({ message: 'Network error' }));
     throw new Error(error.message || `HTTP error ${response.status}`);
   }

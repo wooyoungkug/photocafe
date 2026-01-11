@@ -10,6 +10,39 @@ export type PrintMethod = 'indigo' | 'inkjet' | 'offset' | 'both';
 // 단가 단위
 export type UnitType = 'sheet' | 'roll' | 'ream' | 'sqm';
 
+// 그룹 컬러
+export type GroupColor = 'green' | 'blue' | 'yellow' | 'red' | 'purple' | 'orange' | 'gray';
+
+// 용지 그룹
+export interface PaperGroup {
+  id: string;
+  code: string;
+  name: string;
+  color: GroupColor;
+  basePrice: number;
+  unitType: UnitType;
+  description?: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  _count?: {
+    papers: number;
+  };
+}
+
+// 용지 그룹 생성 DTO
+export interface CreatePaperGroupDto {
+  code?: string;
+  name: string;
+  color: GroupColor;
+  basePrice?: number;
+  unitType?: UnitType;
+  description?: string;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
 // 용지대리점
 export interface PaperSupplier {
   id: string;
@@ -58,6 +91,15 @@ export interface Paper {
   id: string;
   code: string;
   name: string;
+  paperGroupId?: string;
+  paperGroup?: {
+    id: string;
+    name: string;
+    code: string;
+    color: GroupColor;
+    basePrice: number;
+    unitType: UnitType;
+  };
   manufacturerId?: string;
   manufacturer?: {
     id: string;
@@ -72,7 +114,7 @@ export interface Paper {
   };
   paperType: PaperType;
 
-  // 낱장지 규격
+  // 시트지 규격
   sheetSize?: string;
   sheetWidthMm?: number;
   sheetHeightMm?: number;
@@ -96,6 +138,7 @@ export interface Paper {
 
   // 색상
   colorType?: string;
+  colorGroup?: string; // 용지 그룹핑용 (green, blue, yellow, red 등)
 
   // 두께
   thickness?: number;
@@ -124,6 +167,7 @@ export interface Paper {
 export interface CreatePaperDto {
   code?: string; // 자동 생성
   name: string;
+  paperGroupId?: string;
   manufacturerId?: string;
   supplierId?: string;
   paperType: PaperType;
@@ -141,6 +185,7 @@ export interface CreatePaperDto {
   finishDisplay?: string;
   printMethods?: PrintMethod[];
   colorType?: string;
+  colorGroup?: string; // 용지 컬러그룹
   thickness?: number;
   basePrice?: number;
   unitType?: UnitType;
@@ -187,7 +232,7 @@ export interface CreatePaperSupplierDto {
 
 // 옵션들
 export const PAPER_TYPE_OPTIONS = [
-  { value: 'sheet', label: '낱장지' },
+  { value: 'sheet', label: '시트지' },
   { value: 'roll', label: '롤지' },
 ];
 
@@ -242,4 +287,24 @@ export const UNIT_TYPE_OPTIONS = [
   { value: 'roll', label: '롤당 (per roll)' },
   { value: 'ream', label: '연당 (per ream)' },
   { value: 'sqm', label: '㎡당 (per sqm)' },
+];
+
+// 용지 컬러 그룹 옵션 (구버전 호환용)
+export const COLOR_GROUP_OPTIONS = [
+  { value: 'green', label: '🟢 광택지', color: 'bg-green-100 border-green-300 text-green-700' },
+  { value: 'blue', label: '🔵 무광지', color: 'bg-blue-100 border-blue-300 text-blue-700' },
+  { value: 'yellow', label: '🟡 특수지', color: 'bg-yellow-100 border-yellow-300 text-yellow-700' },
+  { value: 'red', label: '🔴 프리미엄', color: 'bg-red-100 border-red-300 text-red-700' },
+  { value: 'purple', label: '🟣 캔버스', color: 'bg-purple-100 border-purple-300 text-purple-700' },
+];
+
+// 그룹 컬러 옵션 (새 그룹 생성용)
+export const GROUP_COLOR_OPTIONS: { value: GroupColor; label: string; color: string }[] = [
+  { value: 'green', label: '녹색', color: 'bg-green-100 border-green-300 text-green-700' },
+  { value: 'blue', label: '파랑', color: 'bg-blue-100 border-blue-300 text-blue-700' },
+  { value: 'yellow', label: '노랑', color: 'bg-yellow-100 border-yellow-300 text-yellow-700' },
+  { value: 'red', label: '빨강', color: 'bg-red-100 border-red-300 text-red-700' },
+  { value: 'purple', label: '보라', color: 'bg-purple-100 border-purple-300 text-purple-700' },
+  { value: 'orange', label: '주황', color: 'bg-orange-100 border-orange-300 text-orange-700' },
+  { value: 'gray', label: '회색', color: 'bg-gray-100 border-gray-300 text-gray-700' },
 ];

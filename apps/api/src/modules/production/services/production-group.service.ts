@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import {
   CreateProductionGroupDto,
@@ -61,6 +62,13 @@ export class ProductionGroupService {
           where: { isActive: true },
           orderBy: { sortOrder: 'asc' },
           include: {
+            specifications: {
+              include: { specification: true },
+              orderBy: { sortOrder: 'asc' },
+            },
+            prices: {
+              orderBy: [{ specificationId: 'asc' }, { minQuantity: 'asc' }],
+            },
             _count: {
               select: { specifications: true, prices: true },
             },
@@ -389,7 +397,16 @@ export class ProductionGroupService {
       sortOrder = (lastSetting?.sortOrder ?? -1) + 1;
     }
 
-    const { specificationIds, ...settingData } = data;
+    // Prisma 스키마에 없는 필드 제외 (priceGroups, paperPriceGroupMap은 Json 필드로 저장)
+    const {
+      specificationIds,
+      indigoUpPrices,
+      inkjetSpecPrices,
+      indigoSpecPrices,
+      priceGroups,
+      paperPriceGroupMap,
+      ...settingData
+    } = data;
 
     // 생산설정 생성
     const setting = await this.prisma.productionSetting.create({
@@ -400,8 +417,78 @@ export class ProductionGroupService {
         basePrice: data.basePrice ?? 0,
         workDays: data.workDays ?? 0,
         isActive: data.isActive ?? true,
+        // 단가 그룹 설정 (Json 필드) - DTO를 순수 JSON으로 변환
+        priceGroups: priceGroups ? JSON.parse(JSON.stringify(priceGroups)) : Prisma.JsonNull,
+        paperPriceGroupMap: paperPriceGroupMap ? JSON.parse(JSON.stringify(paperPriceGroupMap)) : Prisma.JsonNull,
       },
     });
+
+    // 인디고 Up별 가격 저장 (4도칼라/6도칼라 구분)
+    if (indigoUpPrices && indigoUpPrices.length > 0) {
+      await this.prisma.productionSettingPrice.createMany({
+        data: indigoUpPrices.map((upPrice: any) => ({
+          productionSettingId: setting.id,
+          minQuantity: upPrice.up, // up 값을 식별용으로 저장
+          weight: upPrice.weight,
+          // 4도칼라 가격
+          fourColorSinglePrice: upPrice.fourColorSinglePrice,
+          fourColorDoublePrice: upPrice.fourColorDoublePrice,
+          // 6도칼라 가격
+          sixColorSinglePrice: upPrice.sixColorSinglePrice,
+          sixColorDoublePrice: upPrice.sixColorDoublePrice,
+          // 기본 가격 (프론트엔드 호환용)
+          price: upPrice.singleSidedPrice || upPrice.fourColorSinglePrice || 0,
+          singleSidedPrice: upPrice.singleSidedPrice || upPrice.fourColorSinglePrice,
+          doubleSidedPrice: upPrice.doubleSidedPrice || upPrice.fourColorDoublePrice,
+        })),
+      });
+    }
+
+    // 잉크젯 규격별 가격 저장 (가중치 포함)
+    if (inkjetSpecPrices && inkjetSpecPrices.length > 0) {
+      await this.prisma.productionSettingPrice.createMany({
+        data: inkjetSpecPrices.map((specPrice) => ({
+          productionSettingId: setting.id,
+          specificationId: specPrice.specificationId,
+          price: specPrice.singleSidedPrice,
+          weight: specPrice.weight ?? 1, // 기본 가중치 1
+        })),
+      });
+
+      // 기준규격 ID와 sq inch당 가격 계산 후 저장
+      if (data.baseSpecificationId) {
+        const baseSpecPrice = inkjetSpecPrices.find(p => p.isBaseSpec || p.specificationId === data.baseSpecificationId);
+        const baseSpec = await this.prisma.specification.findUnique({
+          where: { id: data.baseSpecificationId },
+        });
+        if (baseSpec && baseSpecPrice) {
+          const widthInch = Number(baseSpec.widthInch) || 0;
+          const heightInch = Number(baseSpec.heightInch) || 0;
+          const areaSqInch = widthInch * heightInch;
+          if (areaSqInch > 0) {
+            const basePricePerSqInch = baseSpecPrice.singleSidedPrice / areaSqInch;
+            await this.prisma.productionSetting.update({
+              where: { id: setting.id },
+              data: {
+                baseSpecificationId: data.baseSpecificationId,
+                basePricePerSqInch,
+              },
+            });
+          }
+        }
+      }
+    }
+
+    // 인디고 규격별 단가 저장 (indigo_spec용)
+    if (indigoSpecPrices && indigoSpecPrices.length > 0) {
+      await this.prisma.productionSettingPrice.createMany({
+        data: indigoSpecPrices.map((specPrice) => ({
+          productionSettingId: setting.id,
+          specificationId: specPrice.specificationId,
+          price: specPrice.price,
+        })),
+      });
+    }
 
     // 규격 연결
     if (specificationIds && specificationIds.length > 0) {
@@ -420,13 +507,95 @@ export class ProductionGroupService {
   async updateSetting(id: string, data: UpdateProductionSettingDto) {
     await this.findSettingById(id);
 
-    const { specificationIds, groupId, ...updateData } = data;
+    // Prisma 스키마에 없는 필드 제외 (priceGroups, paperPriceGroupMap은 Json 필드로 저장)
+    const { specificationIds, groupId, indigoUpPrices, inkjetSpecPrices, indigoSpecPrices, priceGroups, paperPriceGroupMap, ...updateData } = data;
 
-    // 설정 업데이트
+    // 설정 업데이트 (단가 그룹 포함)
     await this.prisma.productionSetting.update({
       where: { id },
-      data: updateData,
+      data: {
+        ...updateData,
+        // 단가 그룹 설정 (undefined가 아닌 경우만 업데이트) - DTO를 순수 JSON으로 변환
+        ...(priceGroups !== undefined && {
+          priceGroups: priceGroups ? JSON.parse(JSON.stringify(priceGroups)) : Prisma.JsonNull
+        }),
+        ...(paperPriceGroupMap !== undefined && {
+          paperPriceGroupMap: paperPriceGroupMap ? JSON.parse(JSON.stringify(paperPriceGroupMap)) : Prisma.JsonNull
+        }),
+      },
     });
+
+    // 인디고/잉크젯 가격 업데이트 (기존 삭제 후 새로 생성)
+    if (indigoUpPrices !== undefined || inkjetSpecPrices !== undefined || indigoSpecPrices !== undefined) {
+      await this.prisma.productionSettingPrice.deleteMany({
+        where: { productionSettingId: id },
+      });
+
+      if (indigoUpPrices && indigoUpPrices.length > 0) {
+        await this.prisma.productionSettingPrice.createMany({
+          data: indigoUpPrices.map((upPrice: any) => ({
+            productionSettingId: id,
+            minQuantity: upPrice.up,
+            weight: upPrice.weight,
+            // 4도칼라 가격
+            fourColorSinglePrice: upPrice.fourColorSinglePrice,
+            fourColorDoublePrice: upPrice.fourColorDoublePrice,
+            // 6도칼라 가격
+            sixColorSinglePrice: upPrice.sixColorSinglePrice,
+            sixColorDoublePrice: upPrice.sixColorDoublePrice,
+            // 기본 가격 (프론트엔드 호환용)
+            price: upPrice.singleSidedPrice || upPrice.fourColorSinglePrice || 0,
+            singleSidedPrice: upPrice.singleSidedPrice || upPrice.fourColorSinglePrice,
+            doubleSidedPrice: upPrice.doubleSidedPrice || upPrice.fourColorDoublePrice,
+          })),
+        });
+      }
+
+      if (inkjetSpecPrices && inkjetSpecPrices.length > 0) {
+        await this.prisma.productionSettingPrice.createMany({
+          data: inkjetSpecPrices.map((specPrice) => ({
+            productionSettingId: id,
+            specificationId: specPrice.specificationId,
+            price: specPrice.singleSidedPrice,
+            weight: specPrice.weight ?? 1, // 기본 가중치 1
+          })),
+        });
+
+        // 기준규격 ID와 sq inch당 가격 계산 후 저장
+        if (data.baseSpecificationId) {
+          const baseSpecPrice = inkjetSpecPrices.find(p => p.isBaseSpec || p.specificationId === data.baseSpecificationId);
+          const baseSpec = await this.prisma.specification.findUnique({
+            where: { id: data.baseSpecificationId },
+          });
+          if (baseSpec && baseSpecPrice) {
+            const widthInch = Number(baseSpec.widthInch) || 0;
+            const heightInch = Number(baseSpec.heightInch) || 0;
+            const areaSqInch = widthInch * heightInch;
+            if (areaSqInch > 0) {
+              const basePricePerSqInch = baseSpecPrice.singleSidedPrice / areaSqInch;
+              await this.prisma.productionSetting.update({
+                where: { id },
+                data: {
+                  baseSpecificationId: data.baseSpecificationId,
+                  basePricePerSqInch,
+                },
+              });
+            }
+          }
+        }
+      }
+
+      // 인디고 규격별 단가 저장 (indigo_spec용)
+      if (indigoSpecPrices && indigoSpecPrices.length > 0) {
+        await this.prisma.productionSettingPrice.createMany({
+          data: indigoSpecPrices.map((specPrice) => ({
+            productionSettingId: id,
+            specificationId: specPrice.specificationId,
+            price: specPrice.price,
+          })),
+        });
+      }
+    }
 
     // 규격 연결 업데이트
     if (specificationIds !== undefined) {

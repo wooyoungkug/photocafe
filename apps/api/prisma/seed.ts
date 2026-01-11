@@ -5,15 +5,15 @@ const prisma = new PrismaClient();
 
 async function seedUsers() {
   const existingAdmin = await prisma.user.findUnique({
-    where: { email: 'admin@printing-erp.com' },
+    where: { email: 'wooceo@gmail.com' },
   });
 
   if (!existingAdmin) {
-    const hashedPassword = await bcrypt.hash('admin1234', 10);
+    const hashedPassword = await bcrypt.hash('color060', 10);
 
     const admin = await prisma.user.create({
       data: {
-        email: 'admin@printing-erp.com',
+        email: 'wooceo@gmail.com',
         password: hashedPassword,
         name: '관리자',
         role: 'admin',

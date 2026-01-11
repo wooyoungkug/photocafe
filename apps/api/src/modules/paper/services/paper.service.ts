@@ -174,6 +174,7 @@ export class PaperService {
       data: dto,
       include: {
         manufacturer: true,
+        supplier: true,
       },
     });
 

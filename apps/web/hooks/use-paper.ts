@@ -6,10 +6,79 @@ import type {
   Paper,
   PaperManufacturer,
   PaperSupplier,
+  PaperGroup,
   CreatePaperDto,
   CreatePaperManufacturerDto,
   CreatePaperSupplierDto,
+  CreatePaperGroupDto,
 } from '@/lib/types/paper';
+
+// ==================== 용지 그룹 ====================
+
+export function usePaperGroups(isActive?: boolean) {
+  return useQuery({
+    queryKey: ['paper-groups', { isActive }],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (isActive !== undefined) params.append('isActive', String(isActive));
+      const data = await api.get<PaperGroup[]>(`/paper-groups?${params}`);
+      return data ?? [];
+    },
+    staleTime: 0,
+  });
+}
+
+export function usePaperGroup(id: string) {
+  return useQuery({
+    queryKey: ['paper-groups', id],
+    queryFn: async () => {
+      const data = await api.get<PaperGroup>(`/paper-groups/${id}`);
+      return data;
+    },
+    enabled: !!id,
+  });
+}
+
+export function useCreatePaperGroup() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (dto: CreatePaperGroupDto) => {
+      const data = await api.post<PaperGroup>('/paper-groups', dto);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['paper-groups'] });
+    },
+  });
+}
+
+export function useUpdatePaperGroup() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, ...dto }: Partial<CreatePaperGroupDto> & { id: string }) => {
+      const data = await api.put<PaperGroup>(`/paper-groups/${id}`, dto);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['paper-groups'] });
+    },
+  });
+}
+
+export function useDeletePaperGroup() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/paper-groups/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['paper-groups'] });
+    },
+  });
+}
 
 // ==================== 용지대리점 ====================
 

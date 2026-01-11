@@ -31,9 +31,23 @@ export class SpecificationService {
         }
     }
 
-    // 규격명 생성: "가로x세로" (전달받은 값 그대로 사용)
+    // 규격명 생성: "가로x세로" 형식 (실제 widthInch x heightInch)
     private generateSpecName(widthInch: number, heightInch: number): string {
+        // 6x4 인치는 항상 "6x4"로 표기
+        if ((widthInch === 6 && heightInch === 4) || (widthInch === 4 && heightInch === 6)) {
+            return '6x4';
+        }
         return `${widthInch}x${heightInch}`;
+    }
+
+    // Nup 계산 (면적 기준)
+    private calculateNup(widthInch: number, heightInch: number): string {
+        const sqInch = widthInch * heightInch;
+        if (sqInch >= 200) return '1++up';
+        if (sqInch >= 100) return '1+up';
+        if (sqInch >= 50) return '1up';
+        if (sqInch >= 25) return '2up';
+        return '4up';
     }
 
     async findAll(query: SpecificationQueryDto) {
@@ -64,14 +78,12 @@ export class SpecificationService {
             };
         }
 
-        // squareMeters가 반올림되어 정렬이 정확하지 않을 수 있으므로
-        // widthMm * heightMm 실제 값으로 정렬 후, widthMm 내림차순 (가로형 먼저)
+        // sortOrder 기준으로 정렬 (사용자 정의 순서)
         return this.prisma.specification.findMany({
             where,
             orderBy: [
-                { squareMeters: 'asc' },  // 대략적 면적순
-                { widthMm: 'desc' },       // 같은 면적 내 가로형 먼저
-                { heightMm: 'asc' },       // 추가 정렬 기준
+                { sortOrder: 'asc' },
+                { squareMeters: 'asc' },
             ],
             include: {
                 prices: true,
@@ -122,6 +134,11 @@ export class SpecificationService {
         // 평방미터 자동 계산: mm를 m로 변환 후 곱하기
         const squareMeters = dto.squareMeters ?? (widthMm * heightMm) / 1000000;
 
+        // Nup 계산 (앨범 전용)
+        const forAlbum = dto.forAlbum ?? false;
+        const nupSqInch = forAlbum ? widthInch * heightInch : null;
+        const nup = forAlbum ? (dto.nup || this.calculateNup(widthInch, heightInch)) : null;
+
         // 3. 메인 규격 생성
         const mainSpec = await this.prisma.specification.create({
             data: {
@@ -134,12 +151,14 @@ export class SpecificationService {
                 orientation,
                 forIndigo: dto.forIndigo ?? false,
                 forInkjet: dto.forInkjet ?? false,
-                forAlbum: dto.forAlbum ?? false,
+                forAlbum,
                 forFrame: dto.forFrame ?? false,
                 forBooklet: dto.forBooklet ?? false,
                 squareMeters: squareMeters,
                 description: dto.description,
                 sortOrder: dto.sortOrder ?? 0,
+                nup,
+                nupSqInch,
             },
         });
 
@@ -162,12 +181,14 @@ export class SpecificationService {
                     pairId: mainSpec.id,    // 메인 규격 참조
                     forIndigo: dto.forIndigo ?? false,
                     forInkjet: dto.forInkjet ?? false,
-                    forAlbum: dto.forAlbum ?? false,
+                    forAlbum,
                     forFrame: dto.forFrame ?? false,
                     forBooklet: dto.forBooklet ?? false,
                     squareMeters: squareMeters, // 면적은 동일
                     description: dto.description,
                     sortOrder: (dto.sortOrder ?? 0) + 1,
+                    nup,        // 면적이 같으므로 nup도 동일
+                    nupSqInch,  // 면적이 같으므로 nupSqInch도 동일
                 },
             });
 
@@ -189,12 +210,30 @@ export class SpecificationService {
     }
 
     async update(id: string, dto: UpdateSpecificationDto) {
-        await this.findOne(id); // Check if exists
+        const existing = await this.findOne(id); // Check if exists
 
         // 평방미터 자동 계산 (크기가 변경된 경우)
         let squareMeters = dto.squareMeters;
         if (dto.widthMm !== undefined && dto.heightMm !== undefined && squareMeters === undefined) {
             squareMeters = (dto.widthMm * dto.heightMm) / 1000000;
+        }
+
+        // Nup 계산 (앨범 전용)
+        const forAlbum = dto.forAlbum ?? existing.forAlbum;
+        const widthInch = dto.widthInch ?? Number(existing.widthInch);
+        const heightInch = dto.heightInch ?? Number(existing.heightInch);
+
+        let nup = dto.nup;
+        let nupSqInch = dto.nupSqInch;
+
+        // forAlbum이 변경되거나 크기가 변경된 경우 Nup 재계산
+        if (forAlbum) {
+            nupSqInch = nupSqInch ?? widthInch * heightInch;
+            nup = nup || this.calculateNup(widthInch, heightInch);
+        } else {
+            // 앨범이 아니면 undefined로 설정
+            nup = undefined;
+            nupSqInch = undefined;
         }
 
         return this.prisma.specification.update({
@@ -214,25 +253,65 @@ export class SpecificationService {
                 description: dto.description,
                 sortOrder: dto.sortOrder,
                 isActive: dto.isActive,
+                nup,
+                nupSqInch,
             },
         });
     }
 
     async delete(id: string) {
-        await this.findOne(id); // Check if exists
+        const spec = await this.findOne(id); // Check if exists
 
-        return this.prisma.specification.delete({
+        // 쌍이 있으면 함께 삭제
+        if (spec.pairId) {
+            await this.prisma.specification.deleteMany({
+                where: {
+                    OR: [
+                        { id: id },
+                        { id: spec.pairId },
+                    ],
+                },
+            });
+            return { deleted: 2, message: '규격과 쌍이 함께 삭제되었습니다.' };
+        }
+
+        await this.prisma.specification.delete({
             where: { id },
         });
+        return { deleted: 1 };
     }
 
     async updateSortOrder(items: { id: string; sortOrder: number }[]) {
-        const updates = items.map((item) =>
-            this.prisma.specification.update({
-                where: { id: item.id },
-                data: { sortOrder: item.sortOrder },
-            }),
-        );
+        // 쌍도 함께 업데이트하기 위해 pairId 조회
+        const specs = await this.prisma.specification.findMany({
+            where: { id: { in: items.map(i => i.id) } },
+            select: { id: true, pairId: true },
+        });
+
+        const updates: any[] = [];
+        const processedPairs = new Set<string>();
+
+        for (const item of items) {
+            const spec = specs.find(s => s.id === item.id);
+
+            updates.push(
+                this.prisma.specification.update({
+                    where: { id: item.id },
+                    data: { sortOrder: item.sortOrder },
+                })
+            );
+
+            // 쌍이 있고 아직 처리하지 않았으면 쌍도 함께 업데이트
+            if (spec?.pairId && !processedPairs.has(spec.pairId)) {
+                processedPairs.add(spec.pairId);
+                updates.push(
+                    this.prisma.specification.update({
+                        where: { id: spec.pairId },
+                        data: { sortOrder: item.sortOrder + 1 }, // 쌍은 바로 다음 순서
+                    })
+                );
+            }
+        }
 
         await this.prisma.$transaction(updates);
         return { success: true };

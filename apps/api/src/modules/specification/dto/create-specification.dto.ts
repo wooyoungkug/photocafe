@@ -63,6 +63,16 @@ export class CreateSpecificationDto {
     @IsNumber()
     squareMeters?: number;
 
+    @ApiPropertyOptional({ description: 'Nup 설정 (앨범 전용)', enum: ['1++up', '1+up', '1up', '2up', '4up'] })
+    @IsOptional()
+    @IsString()
+    nup?: string;
+
+    @ApiPropertyOptional({ description: 'Nup 면적 (sq inch)' })
+    @IsOptional()
+    @IsNumber()
+    nupSqInch?: number;
+
     @ApiPropertyOptional({ description: '설명' })
     @IsOptional()
     @IsString()

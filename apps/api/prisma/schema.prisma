@@ -311,6 +311,10 @@ model Specification {
   squareMeters  Decimal?  @db.Decimal(10, 2)  // 평방미터 (㎡)
   description   String?   // 설명
 
+  // Nup 설정 (앨범 전용)
+  nup           String?   // "1++up" | "1+up" | "1up" | "2up" | "4up" (앨범 체크시 자동계산)
+  nupSqInch     Decimal?  @db.Decimal(10, 2)  // 계산된 면적 (sq inch = widthInch * heightInch)
+
   // 정렬 및 상태
   sortOrder   Int      @default(0)
   isActive    Boolean  @default(true)
@@ -928,6 +932,33 @@ model RegularHolidaySetting {
 
 // ==================== 용지 관리 ====================
 
+// 용지 그룹 (Paper Group) - 컬러로 구분되는 용지 그룹, 그룹단가 설정
+model PaperGroup {
+  id          String   @id @default(cuid())
+  code        String   @unique     // 고유 코드
+  name        String               // 그룹명 (예: 광택지, 무광지, 특수지)
+  color       String               // 그룹 구분 색상 (green, blue, yellow, red, purple 등)
+
+  // 그룹 기본 단가 (연당)
+  basePrice   Decimal  @db.Decimal(12, 2) @default(0)  // 그룹 기본 단가
+  unitType    String   @default("ream")                // sheet, roll, ream, sqm
+
+  description String?  @db.Text    // 설명
+
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  papers      Paper[]
+
+  @@index([isActive])
+  @@index([color])
+  @@map("paper_groups")
+}
+
 // 용지대리점 (Paper Supplier/Dealer)
 model PaperSupplier {
   id          String   @id @default(cuid())
@@ -987,6 +1018,10 @@ model Paper {
   code            String            @unique     // 고유 코드
   name            String                        // 용지명
 
+  // 용지 그룹 연결
+  paperGroupId    String?
+  paperGroup      PaperGroup?       @relation(fields: [paperGroupId], references: [id], onDelete: SetNull)
+
   // 제지사 연결
   manufacturerId  String?
   manufacturer    PaperManufacturer? @relation(fields: [manufacturerId], references: [id], onDelete: SetNull)
@@ -996,9 +1031,9 @@ model Paper {
   supplier        PaperSupplier?    @relation(fields: [supplierId], references: [id], onDelete: SetNull)
 
   // 용지 구분
-  paperType       String            @default("sheet")  // roll: 롤지, sheet: 낱장지
+  paperType       String            @default("sheet")  // roll: 롤지, sheet: 시트지
 
-  // 용지 규격 (낱장지인 경우)
+  // 용지 규격 (시트지인 경우)
   sheetSize       String?           // 국전지(788x1091), 46전지(788x545) 등
   sheetWidthMm    Decimal?          @db.Decimal(10, 2)  // 낱장 가로 (mm)
   sheetHeightMm   Decimal?          @db.Decimal(10, 2)  // 낱장 세로 (mm)
@@ -1023,6 +1058,7 @@ model Paper {
 
   // 색상 정보
   colorType       String?           // white: 백색, ivory: 아이보리, cream: 크림, etc.
+  colorGroup      String?           // 용지 그룹핑용 (예: "green", "blue", "yellow", "red")
 
   // 두께 정보
   thickness       Decimal?          @db.Decimal(10, 3)  // 두께 (mm)
@@ -1053,6 +1089,7 @@ model Paper {
   // Relations
   prices          PaperPrice[]
 
+  @@index([paperGroupId])
   @@index([manufacturerId])
   @@index([supplierId])
   @@index([paperType])
@@ -1127,7 +1164,7 @@ model ProductionSetting {
   vendorType      String          @default("in_house") // in_house: 본사, outsourced: 외주
 
   // 가격 적용 단위
-  // paper_output: [1.출력전용] 용지별 출력단가
+  // paper_output_spec: [1.출력전용] 용지별출력단가/규격별 (인쇄방식+규격)
   // binding_page: [2.제본전용] 기본단가+page단가
   // finishing_qty: [3.후가공] 규격별(수량)
   // finishing_page: [3.후가공] 규격별(페이지당)
@@ -1153,6 +1190,20 @@ model ProductionSetting {
   // 용지별 출력단가 설정
   printMethod     String?         // indigo, inkjet
   paperIds        String[]        @default([]) // 선택된 용지 ID 목록
+
+  // 양면/단면 가격
+  singleSidedPrice  Decimal?      @db.Decimal(12, 2) // 단면 단가
+  doubleSidedPrice  Decimal?      @db.Decimal(12, 2) // 양면 단가
+
+  // 잉크젯 기준규격 설정 (sq inch 가격 계산용)
+  baseSpecificationId String?     // 기준규격 ID
+  basePricePerSqInch  Decimal?    @db.Decimal(12, 6) // sq inch당 기준가격 (자동 계산됨)
+
+  // 용지 단가 그룹 설정 (인디고용)
+  // priceGroups: [{ id, color, upPrices: [{ up, weight, fourColorSinglePrice, ... }] }]
+  priceGroups         Json?       // 단가 그룹 배열 (최대 5개)
+  // paperPriceGroupMap: { paperId: priceGroupId | null }
+  paperPriceGroupMap  Json?       // 용지별 그룹 할당 맵
 
   // 정렬 및 상태
   sortOrder       Int             @default(0)
@@ -1190,7 +1241,7 @@ model ProductionSettingSpecification {
   @@map("production_setting_specifications")
 }
 
-// 생산설정 가격표 (수량별/페이지별 가격)
+// 생산설정 가격표 (수량별/페이지별/Up별 가격)
 model ProductionSettingPrice {
   id                  String            @id @default(cuid())
   productionSettingId String
@@ -1198,11 +1249,24 @@ model ProductionSettingPrice {
 
   // 가격 조건
   specificationId     String?           // 규격별 가격인 경우
-  minQuantity         Int?              // 최소 수량 (수량별 가격인 경우)
+  minQuantity         Int?              // 최소 수량 (수량별 가격인 경우) / Up값 (인디고)
   maxQuantity         Int?              // 최대 수량
 
-  // 가격
-  price               Decimal           @db.Decimal(12, 2) @default(0)
+  // 가중치 (Up별 가격 계산용)
+  weight              Decimal?          @db.Decimal(5, 2)
+
+  // 가격 (단면/양면) - 기존 호환용
+  price               Decimal           @db.Decimal(12, 2) @default(0)  // 기존 호환용 (단면)
+  singleSidedPrice    Decimal?          @db.Decimal(12, 2) // 단면 단가 (기존 호환용)
+  doubleSidedPrice    Decimal?          @db.Decimal(12, 2) // 양면 단가 (기존 호환용)
+
+  // 인디고 4도칼라 가격
+  fourColorSinglePrice   Decimal?       @db.Decimal(12, 2) // 4도칼라 단면 단가
+  fourColorDoublePrice   Decimal?       @db.Decimal(12, 2) // 4도칼라 양면 단가
+
+  // 인디고 6도칼라 가격
+  sixColorSinglePrice    Decimal?       @db.Decimal(12, 2) // 6도칼라 단면 단가
+  sixColorDoublePrice    Decimal?       @db.Decimal(12, 2) // 6도칼라 양면 단가
 
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt

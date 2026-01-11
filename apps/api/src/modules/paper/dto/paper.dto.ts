@@ -40,6 +40,11 @@ export class CreatePaperDto {
   @IsString()
   name: string;
 
+  @ApiPropertyOptional({ description: '용지 그룹 ID' })
+  @IsOptional()
+  @IsString()
+  paperGroupId?: string;
+
   @ApiPropertyOptional({ description: '제지사 ID' })
   @IsOptional()
   @IsString()
@@ -54,7 +59,7 @@ export class CreatePaperDto {
   @IsEnum(PAPER_TYPE_OPTIONS)
   paperType: PaperType;
 
-  // 낱장지 규격
+  // 시트지 규격
   @ApiPropertyOptional({ description: '낱장 규격', enum: SHEET_SIZE_OPTIONS })
   @IsOptional()
   @IsString()
@@ -134,6 +139,11 @@ export class CreatePaperDto {
   @IsOptional()
   @IsString()
   colorType?: string;
+
+  @ApiPropertyOptional({ description: '용지 컬러그룹 (그룹핑용)', example: 'green', enum: ['green', 'blue', 'yellow', 'red', 'purple'] })
+  @IsOptional()
+  @IsString()
+  colorGroup?: string;
 
   // 두께
   @ApiPropertyOptional({ description: '두께 (mm)' })

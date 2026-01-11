@@ -58,6 +58,7 @@ import {
   usePapers,
   usePaperManufacturers,
   usePaperSuppliers,
+  usePaperGroups,
   useCreatePaper,
   useUpdatePaper,
   useDeletePaper,
@@ -67,17 +68,23 @@ import {
   useCreatePaperSupplier,
   useUpdatePaperSupplier,
   useDeletePaperSupplier,
+  useCreatePaperGroup,
+  useUpdatePaperGroup,
+  useDeletePaperGroup,
 } from '@/hooks/use-paper';
 
 import type {
   Paper,
   PaperManufacturer,
   PaperSupplier,
+  PaperGroup,
   CreatePaperDto,
   CreatePaperManufacturerDto,
   CreatePaperSupplierDto,
+  CreatePaperGroupDto,
   PaperType,
   Finish,
+  GroupColor,
 } from '@/lib/types/paper';
 
 import {
@@ -88,6 +95,8 @@ import {
   FINISH_OPTIONS,
   PRINT_METHOD_OPTIONS,
   UNIT_TYPE_OPTIONS,
+  COLOR_GROUP_OPTIONS,
+  GROUP_COLOR_OPTIONS,
 } from '@/lib/types/paper';
 
 // 빈 문자열이나 NaN을 undefined로 변환하는 헬퍼
@@ -101,10 +110,25 @@ const requiredNumber = (defaultVal: number) => z.preprocess(
   z.number().min(0)
 );
 
+// 그룹 폼 스키마
+const groupSchema = z.object({
+  code: z.string().optional(),
+  name: z.string().min(1, '그룹명을 입력하세요'),
+  color: z.enum(['green', 'blue', 'yellow', 'red', 'purple', 'orange', 'gray']),
+  basePrice: requiredNumber(0),
+  unitType: z.string().default('ream'),
+  description: z.string().optional(),
+  sortOrder: requiredNumber(0),
+  isActive: z.boolean().default(true),
+});
+
+type GroupFormData = z.infer<typeof groupSchema>;
+
 // 용지 폼 스키마
 const paperSchema = z.object({
   code: z.string().optional(), // 자동 생성
   name: z.string().min(1, '용지명을 입력하세요'),
+  paperGroupId: z.string().optional(),
   manufacturerId: z.string().optional(),
   supplierId: z.string().optional(),
   paperType: z.enum(['roll', 'sheet']),
@@ -120,6 +144,7 @@ const paperSchema = z.object({
   finish: z.string().optional(),
   printMethods: z.array(z.string()).default([]),
   colorType: z.string().optional(),
+  colorGroup: z.string().optional(),
   thickness: optionalNumber,
   basePrice: requiredNumber(0),
   unitType: z.string().default('sheet'),
@@ -190,6 +215,11 @@ export default function PapersPage() {
   const [editingSupplier, setEditingSupplier] = useState<PaperSupplier | null>(null);
   const [deleteSupplierId, setDeleteSupplierId] = useState<string | null>(null);
 
+  // 용지 그룹 다이얼로그
+  const [groupDialogOpen, setGroupDialogOpen] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<PaperGroup | null>(null);
+  const [deleteGroupId, setDeleteGroupId] = useState<string | null>(null);
+
   // 데이터 조회
   const { data: papersData, isLoading: papersLoading } = usePapers({
     search: searchTerm || undefined,
@@ -198,6 +228,7 @@ export default function PapersPage() {
   });
   const { data: manufacturers, isLoading: manufacturersLoading } = usePaperManufacturers();
   const { data: suppliers, isLoading: suppliersLoading } = usePaperSuppliers();
+  const { data: paperGroups, isLoading: groupsLoading } = usePaperGroups();
 
   // 뮤테이션
   const createPaper = useCreatePaper();
@@ -209,6 +240,9 @@ export default function PapersPage() {
   const createSupplier = useCreatePaperSupplier();
   const updateSupplier = useUpdatePaperSupplier();
   const deleteSupplier = useDeletePaperSupplier();
+  const createGroup = useCreatePaperGroup();
+  const updateGroup = useUpdatePaperGroup();
+  const deleteGroup = useDeletePaperGroup();
 
   // 용지 폼
   const paperForm = useForm<PaperFormData>({
@@ -243,7 +277,20 @@ export default function PapersPage() {
     },
   });
 
+  // 그룹 폼
+  const groupForm = useForm<GroupFormData>({
+    resolver: zodResolver(groupSchema),
+    defaultValues: {
+      color: 'green',
+      basePrice: 0,
+      unitType: 'ream',
+      sortOrder: 0,
+      isActive: true,
+    },
+  });
+
   const watchPaperType = paperForm.watch('paperType');
+  const watchPaperGroupId = paperForm.watch('paperGroupId');
 
   // 용지 다이얼로그 열기
   const openPaperDialog = (paper?: Paper) => {
@@ -266,6 +313,7 @@ export default function PapersPage() {
         finish: paper.finish || undefined,
         printMethods: paper.printMethods || [],
         colorType: paper.colorType || undefined,
+        colorGroup: paper.colorGroup || undefined,
         thickness: paper.thickness || undefined,
         basePrice: paper.basePrice || 0,
         unitType: paper.unitType || 'sheet',
@@ -530,6 +578,7 @@ export default function PapersPage() {
               <TableHeader>
                 <TableRow className="bg-slate-50">
                   <TableHead className="font-semibold">용지명</TableHead>
+                  <TableHead>그룹</TableHead>
                   <TableHead>평량</TableHead>
                   <TableHead>제지사</TableHead>
                   <TableHead>구분</TableHead>
@@ -544,7 +593,7 @@ export default function PapersPage() {
               <TableBody>
                 {papersLoading ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-12">
+                    <TableCell colSpan={11} className="text-center py-12">
                       <div className="flex items-center justify-center gap-2 text-muted-foreground">
                         <div className="animate-spin h-4 w-4 border-2 border-indigo-500 border-t-transparent rounded-full" />
                         로딩 중...
@@ -553,7 +602,7 @@ export default function PapersPage() {
                   </TableRow>
                 ) : !papersData?.data?.length ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-12">
+                    <TableCell colSpan={11} className="text-center py-12">
                       <div className="text-muted-foreground">
                         <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
                         등록된 용지가 없습니다
@@ -561,16 +610,27 @@ export default function PapersPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  papersData.data.map((paper: Paper) => (
+                  papersData.data.map((paper: Paper) => {
+                    const colorGroup = COLOR_GROUP_OPTIONS.find(opt => opt.value === paper.colorGroup);
+                    return (
                     <TableRow key={paper.id} className="hover:bg-slate-50">
                       <TableCell className="font-medium">{paper.name}</TableCell>
+                      <TableCell>
+                        {colorGroup ? (
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${colorGroup.color}`}>
+                            {colorGroup.label.replace(/🟢|🔵|🟡|🔴|🟣/g, '').trim()}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-slate-600">
                         {paper.grammage ? `${paper.grammage}g` : '-'}
                       </TableCell>
                       <TableCell className="text-slate-600">{paper.manufacturer?.name || '-'}</TableCell>
                       <TableCell>
                         <Badge variant={paper.paperType === 'roll' ? 'default' : 'secondary'} className="text-xs">
-                          {paper.paperType === 'roll' ? '롤지' : '낱장지'}
+                          {paper.paperType === 'roll' ? '롤지' : '시트지'}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-slate-600">
@@ -627,7 +687,7 @@ export default function PapersPage() {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))
+                  );})
                 )}
               </TableBody>
             </Table>
@@ -945,7 +1005,7 @@ export default function PapersPage() {
               </div>
             </div>
 
-            {/* 낱장지 규격 */}
+            {/* 시트지 규격 */}
             {watchPaperType === 'sheet' && (
               <>
                 <div className="grid grid-cols-3 gap-4">
@@ -1109,6 +1169,39 @@ export default function PapersPage() {
                     );
                   })}
                 </div>
+              </div>
+            </div>
+
+            {/* 용지 컬러 그룹 */}
+            <div className="space-y-2">
+              <Label>용지 컬러그룹 (단가설정 시 그룹핑용)</Label>
+              <div className="flex flex-wrap gap-2">
+                {COLOR_GROUP_OPTIONS.map((opt) => {
+                  const isSelected = paperForm.watch('colorGroup') === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => paperForm.setValue('colorGroup', isSelected ? undefined : opt.value)}
+                      className={`px-3 py-2 rounded-lg border-2 transition-all ${
+                        isSelected
+                          ? opt.color
+                          : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                      }`}
+                    >
+                      <span className="text-sm font-medium">{opt.label}</span>
+                    </button>
+                  );
+                })}
+                {paperForm.watch('colorGroup') && (
+                  <button
+                    type="button"
+                    onClick={() => paperForm.setValue('colorGroup', undefined)}
+                    className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700"
+                  >
+                    선택해제
+                  </button>
+                )}
               </div>
             </div>
 

@@ -37,7 +37,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useClientGroups } from '@/hooks/use-clients';
+import { useClientGroups, useCreateClientGroup } from '@/hooks/use-clients';
 import {
   useGroupProductPrices,
   useGroupHalfProductPrices,
@@ -57,7 +57,9 @@ import {
   Users,
   Package,
   Layers,
+  UserPlus,
 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 export default function GroupPricingPage() {
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
@@ -70,6 +72,11 @@ export default function GroupPricingPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ groupId: string; productId: string; productName: string } | null>(null);
   const [deleteHalfConfirm, setDeleteHalfConfirm] = useState<{ groupId: string; halfProductId: string; name: string } | null>(null);
 
+  // 그룹 추가 다이얼로그 상태
+  const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupDiscount, setNewGroupDiscount] = useState('0');
+
   const { data: groupsData, isLoading: groupsLoading } = useClientGroups({ limit: 100 });
   const { data: groupPrices, isLoading: pricesLoading } = useGroupProductPrices(selectedGroupId);
   const { data: groupHalfPrices, isLoading: halfPricesLoading } = useGroupHalfProductPrices(selectedGroupId);
@@ -80,6 +87,8 @@ export default function GroupPricingPage() {
   const deleteGroupPrice = useDeleteGroupProductPrice();
   const setGroupHalfPrice = useSetGroupHalfProductPrice();
   const deleteGroupHalfPrice = useDeleteGroupHalfProductPrice();
+  const createClientGroup = useCreateClientGroup();
+  const { toast } = useToast();
 
   const selectedGroup = groupsData?.data?.find(g => g.id === selectedGroupId);
 
@@ -93,51 +102,149 @@ export default function GroupPricingPage() {
   const handleAddPrice = async () => {
     if (!selectedGroupId || !selectedProductId || !price) return;
 
-    await setGroupPrice.mutateAsync({
-      groupId: selectedGroupId,
-      productId: selectedProductId,
-      price: parseFloat(price),
-    });
+    try {
+      await setGroupPrice.mutateAsync({
+        groupId: selectedGroupId,
+        productId: selectedProductId,
+        price: parseFloat(price),
+      });
 
-    setIsDialogOpen(false);
-    setSelectedProductId('');
-    setPrice('');
+      toast({
+        title: '저장 완료',
+        description: '그룹단가가 저장되었습니다.',
+      });
+
+      setIsDialogOpen(false);
+      setSelectedProductId('');
+      setPrice('');
+    } catch (error) {
+      console.error('그룹단가 저장 실패:', error);
+      toast({
+        title: '저장 실패',
+        description: error instanceof Error ? error.message : '그룹단가 저장에 실패했습니다.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleDelete = async () => {
     if (!deleteConfirm) return;
 
-    await deleteGroupPrice.mutateAsync({
-      groupId: deleteConfirm.groupId,
-      productId: deleteConfirm.productId,
-    });
+    try {
+      await deleteGroupPrice.mutateAsync({
+        groupId: deleteConfirm.groupId,
+        productId: deleteConfirm.productId,
+      });
 
-    setDeleteConfirm(null);
+      toast({
+        title: '삭제 완료',
+        description: '그룹단가가 삭제되었습니다.',
+      });
+
+      setDeleteConfirm(null);
+    } catch (error) {
+      console.error('그룹단가 삭제 실패:', error);
+      toast({
+        title: '삭제 실패',
+        description: error instanceof Error ? error.message : '그룹단가 삭제에 실패했습니다.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleAddHalfPrice = async () => {
     if (!selectedGroupId || !selectedHalfProductId || !price) return;
 
-    await setGroupHalfPrice.mutateAsync({
-      groupId: selectedGroupId,
-      halfProductId: selectedHalfProductId,
-      price: parseFloat(price),
-    });
+    try {
+      await setGroupHalfPrice.mutateAsync({
+        groupId: selectedGroupId,
+        halfProductId: selectedHalfProductId,
+        price: parseFloat(price),
+      });
 
-    setIsDialogOpen(false);
-    setSelectedHalfProductId('');
-    setPrice('');
+      toast({
+        title: '저장 완료',
+        description: '반제품 그룹단가가 저장되었습니다.',
+      });
+
+      setIsDialogOpen(false);
+      setSelectedHalfProductId('');
+      setPrice('');
+    } catch (error) {
+      console.error('반제품 그룹단가 저장 실패:', error);
+      toast({
+        title: '저장 실패',
+        description: error instanceof Error ? error.message : '반제품 그룹단가 저장에 실패했습니다.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleDeleteHalf = async () => {
     if (!deleteHalfConfirm) return;
 
-    await deleteGroupHalfPrice.mutateAsync({
-      groupId: deleteHalfConfirm.groupId,
-      halfProductId: deleteHalfConfirm.halfProductId,
-    });
+    try {
+      await deleteGroupHalfPrice.mutateAsync({
+        groupId: deleteHalfConfirm.groupId,
+        halfProductId: deleteHalfConfirm.halfProductId,
+      });
 
-    setDeleteHalfConfirm(null);
+      toast({
+        title: '삭제 완료',
+        description: '반제품 그룹단가가 삭제되었습니다.',
+      });
+
+      setDeleteHalfConfirm(null);
+    } catch (error) {
+      console.error('반제품 그룹단가 삭제 실패:', error);
+      toast({
+        title: '삭제 실패',
+        description: error instanceof Error ? error.message : '반제품 그룹단가 삭제에 실패했습니다.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // 그룹코드 자동 생성 (타임스탬프 기반)
+  const generateGroupCode = () => {
+    const timestamp = Date.now().toString(36).toUpperCase();
+    return `GRP${timestamp}`;
+  };
+
+  // 그룹 추가 핸들러
+  const handleAddGroup = async () => {
+    if (!newGroupName) return;
+
+    try {
+      const autoGroupCode = generateGroupCode();
+      const newGroup = await createClientGroup.mutateAsync({
+        groupName: newGroupName,
+        groupCode: autoGroupCode,
+        discountRate: parseFloat(newGroupDiscount) || 0,
+        isActive: true,
+      });
+
+      toast({
+        title: '그룹 생성 완료',
+        description: `'${newGroupName}' 그룹이 생성되었습니다.`,
+      });
+
+      setIsGroupDialogOpen(false);
+      setNewGroupName('');
+      setNewGroupDiscount('0');
+
+      // 새로 생성된 그룹을 자동 선택
+      if (newGroup?.id) {
+        setSelectedGroupId(newGroup.id);
+      }
+    } catch (error) {
+      console.error('그룹 생성 실패:', error);
+      toast({
+        title: '그룹 생성 실패',
+        description: error instanceof Error ? error.message : '그룹 생성에 실패했습니다.',
+        variant: 'destructive',
+      });
+    }
   };
 
   // 이미 가격이 설정된 상품 ID 목록
@@ -186,10 +293,20 @@ export default function GroupPricingPage() {
       {/* 그룹 선택 */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            거래처 그룹 선택
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              거래처 그룹 선택
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsGroupDialogOpen(true)}
+            >
+              <UserPlus className="h-4 w-4 mr-2" />
+              그룹 추가
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {groupsLoading ? (
@@ -627,6 +744,61 @@ export default function GroupPricingPage() {
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               )}
               삭제
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 그룹 추가 다이얼로그 */}
+      <Dialog open={isGroupDialogOpen} onOpenChange={setIsGroupDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>거래처 그룹 추가</DialogTitle>
+            <DialogDescription>
+              새로운 거래처 그룹을 생성합니다. 생성 후 그룹별 단가를 설정할 수 있습니다.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="groupName">그룹명 *</Label>
+              <Input
+                id="groupName"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                placeholder="예: VIP, 골드, 일반"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="groupDiscount">기본 할인율 (%)</Label>
+              <Input
+                id="groupDiscount"
+                type="number"
+                value={newGroupDiscount}
+                onChange={(e) => setNewGroupDiscount(e.target.value)}
+                placeholder="0"
+                min="0"
+                max="100"
+              />
+              <p className="text-xs text-muted-foreground">
+                그룹단가가 설정되지 않은 경우 표준단가에서 이 비율만큼 할인됩니다.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsGroupDialogOpen(false)}>
+              취소
+            </Button>
+            <Button
+              onClick={handleAddGroup}
+              disabled={!newGroupName || createClientGroup.isPending}
+            >
+              {createClientGroup.isPending && (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              )}
+              추가
             </Button>
           </DialogFooter>
         </DialogContent>

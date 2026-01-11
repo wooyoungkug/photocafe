@@ -42,8 +42,9 @@ export function useDashboardSummary() {
     queryKey: [STATISTICS_KEY, 'dashboard'],
     queryFn: () => api.get<DashboardSummary>('/statistics/dashboard'),
     refetchInterval: 60000, // 1분마다 갱신
-    retry: false, // 인증 실패시 재시도 안함
+    retry: false, // 네트워크 에러 시 재시도 안함 (빠른 실패)
     staleTime: 30000, // 30초간 캐시 유지
+    gcTime: 5 * 60 * 1000, // 5분간 캐시 유지
   });
 }
 

@@ -336,3 +336,99 @@ deleteSpec({ productId, specId });
 - [ ] 후가공 옵션 정의
 - [ ] 규격별 가격 설정
 - [ ] 규격-옵션 조합 검증
+
+---
+
+## 📐 Nup 자동 설정 기능 (앨범 전용)
+
+### 개요
+앨범 주문 시 규격별 Nup(인쇄 배치 수)를 자동으로 설정합니다.
+Nup은 **면적(sq inch = 가로 × 세로)**을 기준으로 구간을 나누어 자동 결정됩니다.
+
+### Nup 종류
+| Nup | 설명 | 용도 |
+|-----|------|------|
+| `1++up` | 초대형 | 가장 큰 앨범 (예: 24x36") |
+| `1+up` | 대형 | 큰 앨범 (예: 12x18") |
+| `1up` | 표준 | 일반 앨범 (예: 8x10") |
+| `2up` | 소형 | 작은 앨범 (예: 5x7") |
+| `4up` | 초소형 | 가장 작은 앨범 (예: 4x6") |
+
+### Nup 결정 기준 (sq inch 면적 기준)
+```typescript
+// 시스템 설정에서 관리 (조정 가능)
+const NUP_RANGES = {
+  '1++up': { minSqInch: 200, maxSqInch: Infinity },  // 200+ sq inch
+  '1+up':  { minSqInch: 100, maxSqInch: 200 },       // 100-200 sq inch
+  '1up':   { minSqInch: 50,  maxSqInch: 100 },       // 50-100 sq inch
+  '2up':   { minSqInch: 25,  maxSqInch: 50 },        // 25-50 sq inch
+  '4up':   { minSqInch: 0,   maxSqInch: 25 },        // 0-25 sq inch
+};
+```
+
+### 자동 등록 로직
+```typescript
+function calculateNup(widthInch: number, heightInch: number): string {
+  const sqInch = widthInch * heightInch;
+
+  if (sqInch >= 200) return '1++up';
+  if (sqInch >= 100) return '1+up';
+  if (sqInch >= 50) return '1up';
+  if (sqInch >= 25) return '2up';
+  return '4up';
+}
+```
+
+### 활성화 조건
+- **"앨범" 체크박스가 선택**된 경우에만 Nup이 자동 계산되어 저장됨
+- 앨범이 아닌 경우 Nup은 null
+
+### DB 필드
+```prisma
+model Specification {
+  // ... 기존 필드들 ...
+
+  // Nup 설정 (앨범 전용)
+  nup         String?   // "1++up" | "1+up" | "1up" | "2up" | "4up" (null if not album)
+  nupSqInch   Decimal?  @db.Decimal(10, 2)  // 계산된 면적 (sq inch)
+}
+```
+
+### 프론트엔드 구현
+```typescript
+// 규격 등록/수정 시 앨범 체크 onChange
+const handleAlbumCheck = (checked: boolean) => {
+  setForm(prev => {
+    const newForm = { ...prev, forAlbum: checked };
+
+    if (checked && prev.widthInch > 0 && prev.heightInch > 0) {
+      // 앨범이 체크되면 Nup 자동 계산
+      const sqInch = prev.widthInch * prev.heightInch;
+      newForm.nup = calculateNup(prev.widthInch, prev.heightInch);
+      newForm.nupSqInch = sqInch;
+    } else {
+      // 앨범 체크 해제시 Nup 제거
+      newForm.nup = null;
+      newForm.nupSqInch = null;
+    }
+
+    return newForm;
+  });
+};
+```
+
+### 주문 시 활용
+앨범 주문 화면에서 규격의 Nup 정보를 표시하여 고객에게 안내:
+```
+선택한 규격: 8x10" (1up)
+※ 1up: 표준 크기 앨범입니다.
+```
+
+### 시스템 설정 키
+| 키 | 설명 | 기본값 |
+|-----|------|--------|
+| `nup_1ppup_min_sqinch` | 1++up 최소 면적 | 200 |
+| `nup_1pup_min_sqinch` | 1+up 최소 면적 | 100 |
+| `nup_1up_min_sqinch` | 1up 최소 면적 | 50 |
+| `nup_2up_min_sqinch` | 2up 최소 면적 | 25 |
+| `nup_4up_min_sqinch` | 4up 최소 면적 | 0 |

@@ -79,7 +79,7 @@ export function CategoryNav() {
 
               {/* Dropdown Menu */}
               {category.children && category.children.length > 0 && activeCategory === category.id && (
-                <div className="absolute top-full left-0 w-64 bg-white border shadow-lg rounded-lg py-2 mt-1">
+                <div className="absolute top-full left-0 w-64 bg-white border shadow-lg rounded-lg py-2 pt-3 before:content-[''] before:absolute before:top-[-8px] before:left-0 before:w-full before:h-[10px] before:bg-transparent">
                   {[...category.children]
                     .filter(c => c.isVisible)
                     .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -146,7 +146,8 @@ function CategoryMenuItem({ category, level }: { category: Category; level: numb
       <Link
         href={`/category/${category.id}`}
         className={cn(
-          "flex items-center justify-between px-4 py-2 hover:bg-gray-50 transition-colors",
+          "flex items-center justify-between px-4 py-2 transition-colors rounded-md mx-1",
+          "hover:bg-primary hover:text-white",
           level > 1 && "pl-8"
         )}
         onMouseEnter={() => hasChildren && setIsOpen(true)}
@@ -169,7 +170,7 @@ function CategoryMenuItem({ category, level }: { category: Category; level: numb
 
       {hasChildren && isOpen && (
         <div
-          className="absolute left-full top-0 w-56 bg-white border shadow-lg rounded-lg py-2 ml-1"
+          className="absolute left-full top-0 w-56 bg-white border shadow-lg rounded-lg py-2 pl-2 before:content-[''] before:absolute before:top-0 before:left-[-8px] before:w-[10px] before:h-full before:bg-transparent"
           onMouseEnter={() => setIsOpen(true)}
           onMouseLeave={() => setIsOpen(false)}
         >

@@ -57,7 +57,6 @@ export class SpecificationController {
     }
 
     @Delete(':id')
-    @HttpCode(HttpStatus.NO_CONTENT)
     @ApiOperation({ summary: '규격 삭제' })
     @ApiResponse({ status: 204, description: '규격 삭제 완료' })
     @ApiResponse({ status: 404, description: '규격을 찾을 수 없음' })

@@ -1,8 +1,9 @@
+"use client";
 
-import { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/layout/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { useDashboardSummary } from "@/hooks/use-statistics";
 import {
   ShoppingCart,
@@ -16,20 +17,11 @@ import {
   ArrowDownRight,
   AlertCircle,
   Sparkles,
+  RefreshCw,
 } from "lucide-react";
 
 export default function DashboardPage() {
-  const { data: summary, isLoading, error } = useDashboardSummary();
-
-  // 디버깅을 위한 로그
-  useEffect(() => {
-    if (error) {
-      console.error("Dashboard loaded with error:", error);
-    }
-    if (summary) {
-      console.log("Dashboard summary loaded:", summary);
-    }
-  }, [summary, error]);
+  const { data: summary, isPending, isError, error, refetch, isFetching } = useDashboardSummary();
 
   // 성장률 포맷팅
   const formatGrowthRate = (rate: number) => {
@@ -107,7 +99,7 @@ export default function DashboardPage() {
   ];
 
   // 로딩 상태
-  if (isLoading) {
+  if (isPending) {
     return (
       <div className="space-y-6">
         <PageHeader
@@ -133,7 +125,7 @@ export default function DashboardPage() {
   }
 
   // 에러 상태
-  if (error) {
+  if (isError) {
     return (
       <div className="space-y-6">
         <PageHeader
@@ -142,17 +134,27 @@ export default function DashboardPage() {
           breadcrumbs={[{ label: "홈", href: "/" }, { label: "대시보드" }]}
         />
         <Card className="border-red-200 bg-red-50">
-          <CardContent className="flex flex-col items-center gap-3 py-8 text-red-600">
+          <CardContent className="flex flex-col items-center gap-4 py-8 text-red-600">
             <div className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5" />
               <span className="font-medium">통계 데이터를 불러오는데 실패했습니다.</span>
             </div>
             <p className="text-sm text-red-500">
-              {(error as Error)?.message || "알 수 없는 오류가 발생했습니다."}
+              {error?.message || "알 수 없는 오류가 발생했습니다."}
             </p>
-            <div className="text-xs text-gray-500 mt-2">
+            <div className="text-xs text-gray-500">
               백엔드 서버가 실행 중인지 확인해주세요 (Port 3001)
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="mt-2"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? 'animate-spin' : ''}`} />
+              {isFetching ? '다시 시도 중...' : '다시 시도'}
+            </Button>
           </CardContent>
         </Card>
       </div>

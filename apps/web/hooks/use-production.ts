@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
 // 가격 계산 방식 타입
-export type PricingType = 'paper_output' | 'binding_page' | 'finishing_qty' | 'finishing_page' | 'per_sheet';
+export type PricingType = 'paper_output_spec' | 'indigo_spec' | 'binding_page' | 'finishing_qty' | 'finishing_page' | 'per_sheet';
 
 export interface PricingTypeOption {
   value: PricingType;
@@ -31,6 +31,28 @@ export interface ProductionGroup {
   };
 }
 
+// 인디고 Up별 가격 타입
+export interface IndigoUpPrice {
+  up: number;
+  weight: number;
+  singleSidedPrice: number;
+  doubleSidedPrice: number;
+}
+
+// 잉크젯 규격별 가격 타입
+export interface InkjetSpecPrice {
+  specificationId: string;
+  singleSidedPrice: number;
+  weight?: number; // 규격별 가중치 (기본값: 1.0)
+  isBaseSpec?: boolean; // 기준규격 여부
+}
+
+// 인디고 규격별 단일 가격 타입 (indigo_spec용)
+export interface IndigoSpecPrice {
+  specificationId: string;
+  price: number;
+}
+
 // 생산설정 타입
 export interface ProductionSetting {
   id: string;
@@ -47,6 +69,14 @@ export interface ProductionSetting {
   // 용지별 출력단가 설정
   printMethod?: string;
   paperIds?: string[];
+  singleSidedPrice?: number;
+  doubleSidedPrice?: number;
+  // 인디고 Up별 가격 (paper_output_spec 인디고용)
+  indigoUpPrices?: IndigoUpPrice[];
+  // 잉크젯 규격별 가격 (paper_output_spec 잉크젯용)
+  inkjetSpecPrices?: InkjetSpecPrice[];
+  // 인디고 규격별 단가 (indigo_spec용)
+  indigoSpecPrices?: IndigoSpecPrice[];
   sortOrder: number;
   isActive: boolean;
   createdAt: string;
@@ -221,6 +251,11 @@ export function useCreateProductionSetting() {
       weightInfo?: string;
       printMethod?: string;
       paperIds?: string[];
+      singleSidedPrice?: number;
+      doubleSidedPrice?: number;
+      indigoUpPrices?: IndigoUpPrice[];
+      inkjetSpecPrices?: InkjetSpecPrice[];
+      baseSpecificationId?: string; // 잉크젯 기준규격 ID
       specificationIds?: string[];
       sortOrder?: number;
       isActive?: boolean;
@@ -248,6 +283,11 @@ export function useUpdateProductionSetting() {
       weightInfo?: string;
       printMethod?: string;
       paperIds?: string[];
+      singleSidedPrice?: number;
+      doubleSidedPrice?: number;
+      indigoUpPrices?: IndigoUpPrice[];
+      inkjetSpecPrices?: InkjetSpecPrice[];
+      baseSpecificationId?: string; // 잉크젯 기준규격 ID
       specificationIds?: string[];
       sortOrder?: number;
       isActive?: boolean;

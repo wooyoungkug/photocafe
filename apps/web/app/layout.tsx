@@ -29,7 +29,7 @@ export default function RootLayout({
       <head>
         <meta charSet="utf-8" />
       </head>
-      <body className={`${inter.variable} ${notoSansKR.variable} font-sans`}>
+      <body className={`${inter.variable} ${notoSansKR.variable} font-sans`} suppressHydrationWarning>
         <Providers>{children}</Providers>
       </body>
     </html>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Plus,
   ChevronDown,
@@ -53,19 +53,27 @@ import {
   type ProductionSetting,
   type PricingType,
 } from "@/hooks/use-production";
-import { useSpecifications } from "@/hooks/use-specifications";
+import { useSpecifications, type Specification } from "@/hooks/use-specifications";
 import { usePapersByPrintMethod } from "@/hooks/use-paper";
+import { Paper } from "@/lib/types/paper";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { useSystemSettings, settingsToMap, getNumericValue } from "@/hooks/use-system-settings";
 
 // 가격 계산 방식 한글 라벨
 const PRICING_TYPE_LABELS: Record<PricingType, string> = {
-  paper_output: "[1.출력전용] 용지별 출력단가",
+  paper_output_spec: "[1.출력전용] 용지별출력단가/규격별/면",
+  indigo_spec: "[1.출력전용] 인디고규격별 단가",
   binding_page: "[2.제본전용] 기본단가+page단가",
   finishing_qty: "[3.후가공] 규격별(수량)",
   finishing_page: "[3.후가공] 규격별(페이지당)",
   per_sheet: "장당가격 (규격입력안함)",
 };
+
+// 인디고 원가 계산 상수
+// 인디고 규격: 315x467mm (국전지 4절 기준)
+// 국전지 1연 = 500매, 4절이므로 500 * 4 = 2000장
+const INDIGO_SHEETS_PER_REAM = 2000;
 
 // 업체 타입 라벨
 const VENDOR_TYPE_LABELS: Record<string, string> = {
@@ -73,9 +81,236 @@ const VENDOR_TYPE_LABELS: Record<string, string> = {
   outsourced: "외주",
 };
 
+// 인쇄방식(용도) 라벨
+const PRINT_METHOD_LABELS: Record<string, string> = {
+  indigo: "인디고",
+  inkjet: "잉크젯",
+  album: "앨범",
+  frame: "액자",
+  booklet: "책자",
+};
+
+// 단가 그룹 컬러 순서 (자동 배정용)
+const PRICE_GROUP_COLORS = ['green', 'blue', 'yellow', 'red', 'purple'] as const;
+type PriceGroupColor = typeof PRICE_GROUP_COLORS[number];
+
+// 단가 그룹 컬러 스타일
+const PRICE_GROUP_STYLES: Record<PriceGroupColor | 'none', { bg: string; border: string; text: string; label: string; dot: string }> = {
+  green: { bg: 'bg-green-50', border: 'border-green-300', text: 'text-green-700', label: '그룹1', dot: '🟢' },
+  blue: { bg: 'bg-blue-50', border: 'border-blue-300', text: 'text-blue-700', label: '그룹2', dot: '🔵' },
+  yellow: { bg: 'bg-yellow-50', border: 'border-yellow-300', text: 'text-yellow-700', label: '그룹3', dot: '🟡' },
+  red: { bg: 'bg-red-50', border: 'border-red-300', text: 'text-red-700', label: '그룹4', dot: '🔴' },
+  purple: { bg: 'bg-purple-50', border: 'border-purple-300', text: 'text-purple-700', label: '그룹5', dot: '🟣' },
+  none: { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-400', label: '미지정', dot: '⚪' },
+};
+
+// 용지 컬러 그룹 스타일 (기존 호환용)
+const COLOR_GROUP_STYLES: Record<string, { bg: string; border: string; text: string; label: string }> = {
+  green: { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-700', label: '🟢 광택지' },
+  blue: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', label: '🔵 무광지' },
+  yellow: { bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-700', label: '🟡 특수지' },
+  red: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-700', label: '🔴 프리미엄' },
+  purple: { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-700', label: '🟣 캔버스' },
+  default: { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-700', label: '⚪ 기타' },
+};
+
+// 다음 사용 가능한 그룹 컬러 가져오기
+const getNextAvailableColor = (usedColors: PriceGroupColor[]): PriceGroupColor | null => {
+  for (const color of PRICE_GROUP_COLORS) {
+    if (!usedColors.includes(color)) return color;
+  }
+  return null;
+};
+
+// 고유 ID 생성
+const generateGroupId = () => `pg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
 // 숫자 포맷
-function formatCurrency(num: number): string {
-  return new Intl.NumberFormat("ko-KR").format(num) + "원";
+const formatCurrency = (num: number) => {
+  return new Intl.NumberFormat("ko-KR").format(num);
+};
+
+// 인디고 원가 계산 헬퍼 함수
+// 인디고 규격: 315x467mm (국전지 4절 기준)
+// 국전지 basePrice / 2000장 = 장당 원가
+// 단면: 장당원가 / up
+// 양면: 장당원가 / 2 / up (양면이므로 2로 나눔)
+const calculateIndigoCost = (papers: Paper[], up: number, isDoubleSided: boolean = false) => {
+  if (!papers.length) return null;
+
+  // 선택된 용지들의 국전가격 (basePrice는 국전지 1연 가격)
+  const costs = papers.map(p => {
+    const reamPrice = p.basePrice || 0;
+    // 장당 원가 = 국전가격 / 2000
+    const perSheetCost = reamPrice / INDIGO_SHEETS_PER_REAM;
+    // Up당 원가 계산
+    if (isDoubleSided) {
+      // 양면: 장당원가 / 2 / up (한 장에 양면 인쇄하므로 2로 나눔)
+      return perSheetCost / 2 / up;
+    } else {
+      // 단면: 장당원가 / up
+      return perSheetCost / up;
+    }
+  });
+
+  const validCosts = costs.filter(c => c > 0);
+  if (!validCosts.length) return null;
+
+  const minCost = Math.round(Math.min(...validCosts));
+  const maxCost = Math.round(Math.max(...validCosts));
+
+  if (minCost === maxCost) return formatCurrency(minCost);
+  return `${formatCurrency(minCost)}~${formatCurrency(maxCost)}`;
+};
+
+const calculateInkjetCost = (papers: Paper[], spec: Specification) => {
+  if (!papers.length || !spec) return null;
+
+  const widthInch = Number(spec.widthInch) || 0;
+  const heightInch = Number(spec.heightInch) || 0;
+  // 규격 면적 (sq inch)
+  const specAreaSqInch = widthInch * heightInch;
+
+  // 각 용지별 규격 원가 계산
+  const costs = papers.map(p => {
+    let costPerSqInch = 0;
+
+    // 롤지인 경우 (보통 sqm당 가격이나 롤당 가격)
+    if (p.unitType === 'sqm') {
+      // 1 sqm = 1550 sq inch (약)
+      // 1 m = 39.37 inch, 1 sqm = 1550.0031 sq inch
+      const costPerSqm = p.basePrice || 0;
+      costPerSqInch = costPerSqm / 1550;
+    } else if (p.unitType === 'roll') {
+      // 롤 전체 가격 / 롤 전체 면적
+      const rollW = Number(p.rollWidthInch) || 0;
+      // rollLengthM -> inch 변환
+      const rollL = (Number(p.rollLengthM) || 0) * 39.37;
+      const totalArea = rollW * rollL;
+      if (totalArea > 0) {
+        costPerSqInch = (p.basePrice || 0) / totalArea;
+      }
+    } else {
+      // 시트지 등 기타 단위는 일단 0 처리하거나 기본 로직 적용
+      // 가정: 잉크젯은 주로 sqm단위 아니면 롤단위
+      return 0;
+    }
+
+    return specAreaSqInch * costPerSqInch;
+  });
+
+  const validCosts = costs.filter(c => c > 0);
+  if (!validCosts.length) return null;
+
+  const minCost = Math.round(Math.min(...validCosts));
+  const maxCost = Math.round(Math.max(...validCosts));
+
+  if (minCost === maxCost) return formatCurrency(minCost);
+  return `${formatCurrency(minCost)}~${formatCurrency(maxCost)}`;
+};
+
+// 인디고 잉크 원가 계산
+// 공식: 1컬러가격 × 컬러수(4도/6도) / nup
+const calculateIndigoInkCost = (ink1ColorPrice: number, colorCount: 4 | 6, up: number, isDoubleSided: boolean = false) => {
+  if (!ink1ColorPrice || !up) return 0;
+  // 단면: 잉크 원가 / up
+  // 양면: 잉크 원가 × 2 / up (양면이므로 2배)
+  const baseCost = ink1ColorPrice * colorCount;
+  if (isDoubleSided) {
+    return Math.round((baseCost * 2) / up);
+  }
+  return Math.round(baseCost / up);
+};
+
+// 인디고 총 원가 계산 (용지 + 잉크)
+const calculateIndigoTotalCost = (
+  papers: Paper[],
+  up: number,
+  isDoubleSided: boolean,
+  ink1ColorPrice: number,
+  colorCount: 4 | 6
+) => {
+  if (!papers.length) return null;
+
+  const costs = papers.map(p => {
+    const reamPrice = p.basePrice || 0;
+    // 장당 원가 = 연당가격 / 2000
+    const perSheetCost = reamPrice / INDIGO_SHEETS_PER_REAM;
+    // 용지 원가
+    let paperCost: number;
+    if (isDoubleSided) {
+      paperCost = perSheetCost / 2 / up;
+    } else {
+      paperCost = perSheetCost / up;
+    }
+    // 잉크 원가
+    const inkCost = calculateIndigoInkCost(ink1ColorPrice, colorCount, up, isDoubleSided);
+    return paperCost + inkCost;
+  });
+
+  const validCosts = costs.filter(c => c > 0);
+  if (!validCosts.length) return null;
+
+  const minCost = Math.round(Math.min(...validCosts));
+  const maxCost = Math.round(Math.max(...validCosts));
+
+  return { min: minCost, max: maxCost };
+};
+
+// 잉크젯 총 원가 계산 (용지 + 잉크)
+// 잉크 원가 = 용지 원가 × 1.5
+const calculateInkjetTotalCost = (papers: Paper[], spec: Specification) => {
+  if (!papers.length || !spec) return null;
+
+  const widthInch = Number(spec.widthInch) || 0;
+  const heightInch = Number(spec.heightInch) || 0;
+  const specAreaSqInch = widthInch * heightInch;
+
+  const costs = papers.map(p => {
+    let costPerSqInch = 0;
+
+    if (p.unitType === 'sqm') {
+      const costPerSqm = p.basePrice || 0;
+      costPerSqInch = costPerSqm / 1550;
+    } else if (p.unitType === 'roll') {
+      const rollW = Number(p.rollWidthInch) || 0;
+      const rollL = (Number(p.rollLengthM) || 0) * 39.37;
+      const totalArea = rollW * rollL;
+      if (totalArea > 0) {
+        costPerSqInch = (p.basePrice || 0) / totalArea;
+      }
+    } else {
+      return { paper: 0, ink: 0, total: 0 };
+    }
+
+    const paperCost = specAreaSqInch * costPerSqInch;
+    const inkCost = paperCost * 1.5; // 잉크 원가 = 용지 원가 × 1.5
+    return { paper: paperCost, ink: inkCost, total: paperCost + inkCost };
+  });
+
+  const validCosts = costs.filter(c => c.total > 0);
+  if (!validCosts.length) return null;
+
+  const paperMin = Math.round(Math.min(...validCosts.map(c => c.paper)));
+  const paperMax = Math.round(Math.max(...validCosts.map(c => c.paper)));
+  const inkMin = Math.round(Math.min(...validCosts.map(c => c.ink)));
+  const inkMax = Math.round(Math.max(...validCosts.map(c => c.ink)));
+  const totalMin = Math.round(Math.min(...validCosts.map(c => c.total)));
+  const totalMax = Math.round(Math.max(...validCosts.map(c => c.total)));
+
+  return { paperMin, paperMax, inkMin, inkMax, totalMin, totalMax };
+};
+
+// 트리에서 그룹을 재귀적으로 찾는 헬퍼 함수
+function findGroupInTree(groups: ProductionGroup[], id: string): ProductionGroup | null {
+  for (const group of groups) {
+    if (group.id === id) return group;
+    if (group.children && group.children.length > 0) {
+      const found = findGroupInTree(group.children, id);
+      if (found) return found;
+    }
+  }
+  return null;
 }
 
 // 트리 노드 컴포넌트
@@ -199,7 +434,7 @@ function TreeNode({
 }
 
 // 설정 카드 컴포넌트
-function SettingCard({
+const SettingCard = ({
   setting,
   onEdit,
   onDelete,
@@ -209,125 +444,264 @@ function SettingCard({
   onEdit: (setting: ProductionSetting) => void;
   onDelete: (setting: ProductionSetting) => void;
   onMove: (id: string, direction: "up" | "down") => void;
-}) {
+}) => {
+  // prices 배열에서 가격 정보 추출
+  const prices = (setting as any).prices || [];
+  const printMethod = (setting as any).printMethod;
+
+  // 인디고 Up별 가격 (minQuantity로 구분) - 4도/6도 칼라 구분
+  const indigoUpPrices = [1, 2, 4, 8].map(up => {
+    const priceRecord = prices.find((p: any) => p.minQuantity === up);
+    return {
+      up,
+      fourColorSinglePrice: priceRecord?.fourColorSinglePrice ? Number(priceRecord.fourColorSinglePrice) : 0,
+      fourColorDoublePrice: priceRecord?.fourColorDoublePrice ? Number(priceRecord.fourColorDoublePrice) : 0,
+      sixColorSinglePrice: priceRecord?.sixColorSinglePrice ? Number(priceRecord.sixColorSinglePrice) : 0,
+      sixColorDoublePrice: priceRecord?.sixColorDoublePrice ? Number(priceRecord.sixColorDoublePrice) : 0,
+    };
+  });
+
+  // 잉크젯 규격별 가격 (specificationId로 구분)
+  const inkjetSpecPrices = prices
+    .filter((p: any) => p.specificationId)
+    .map((p: any) => ({
+      specificationId: p.specificationId,
+      price: Number(p.price) || 0,
+    }));
+
+  // 인디고 규격별 단가 (indigo_spec용)
+  const indigoSpecPrices = setting.pricingType === "indigo_spec"
+    ? prices
+        .filter((p: any) => p.specificationId)
+        .map((p: any) => ({
+          specificationId: p.specificationId,
+          price: Number(p.price) || 0,
+        }))
+    : [];
+
+  // 가격 표시 여부 확인
+  const hasIndigoPrices = setting.pricingType === "paper_output_spec" && printMethod === "indigo" && indigoUpPrices.some(p => p.fourColorSinglePrice > 0 || p.sixColorSinglePrice > 0);
+  const hasInkjetPrices = setting.pricingType === "paper_output_spec" && printMethod === "inkjet" && inkjetSpecPrices.length > 0;
+  const hasIndigoSpecPrices = setting.pricingType === "indigo_spec" && indigoSpecPrices.length > 0;
+
   return (
     <div className="group border rounded-lg p-4 mb-3 bg-white hover:shadow-sm transition-shadow">
-      <div className="flex items-start gap-4">
-        {/* 메인 콘텐츠 */}
+      <div className="flex gap-4 items-start justify-between">
+        {/* 좌측: 메인 콘텐츠 */}
         <div className="flex-1 min-w-0">
-          {/* 헤더 */}
-          <div className="flex items-center gap-2 mb-3">
-            <Settings2 className="h-4 w-4 text-indigo-500 shrink-0" />
-            <span className="font-semibold text-gray-900">
-              {setting.codeName || setting.group?.name || "설정"}
+          <div className="flex items-center gap-3 mb-2">
+            {/* 세팅명 (가장 강조) */}
+            <span className="text-base font-bold text-gray-900">
+              {setting.settingName || setting.codeName || "설정"}
             </span>
-            <Badge
-              variant="outline"
-              className={cn(
-                "text-xs shrink-0",
-                setting.vendorType === "in_house"
-                  ? "bg-blue-50 text-blue-700 border-blue-200"
-                  : "bg-orange-50 text-orange-700 border-orange-200"
-              )}
-            >
-              {VENDOR_TYPE_LABELS[setting.vendorType] || setting.vendorType}
+
+            {/* 적용단위 (서브 정보) */}
+            <Badge variant="outline" className="text-xs font-normal text-gray-600 bg-gray-50">
+              {PRICING_TYPE_LABELS[setting.pricingType] || setting.pricingType}
             </Badge>
-            {setting.settingName && (
-              <Badge variant="secondary" className="text-xs shrink-0">
-                {setting.settingName}
+
+            {/* 인쇄방식 */}
+            {printMethod && (
+              <Badge variant="secondary" className="text-xs">
+                {PRINT_METHOD_LABELS[printMethod] || printMethod}
               </Badge>
             )}
-          </div>
 
-          {/* 정보 그리드 */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-2 text-sm mb-3">
-            <div>
-              <span className="text-gray-500 text-xs block">적용단위</span>
-              <span className="text-gray-900 text-xs font-medium">
-                {PRICING_TYPE_LABELS[setting.pricingType] || setting.pricingType}
-              </span>
-            </div>
-            <div>
-              <span className="text-gray-500 text-xs block">잡세팅비</span>
-              <span className="text-gray-900 font-mono font-medium">
-                {formatCurrency(Number(setting.settingFee))}
-              </span>
-            </div>
-            <div>
-              <span className="text-gray-500 text-xs block">기본단가</span>
-              <span className="text-gray-900 font-mono font-medium">
-                {formatCurrency(Number(setting.basePrice))}
-              </span>
-            </div>
-            <div>
-              <span className="text-gray-500 text-xs block">작업시간</span>
-              <span className="text-gray-900 font-mono font-medium">
-                {Number(setting.workDays)}일
-              </span>
+            {/* 작업시간 */}
+            <div className="flex items-center text-xs text-gray-500">
+              <span className="mr-1">작업시간:</span>
+              <span className="font-mono font-medium text-gray-900">{Number(setting.workDays)}일</span>
             </div>
           </div>
 
-          {/* 규격 목록 */}
-          {setting.specifications && setting.specifications.length > 0 && (
-            <div className="pt-3 border-t border-gray-100">
-              <div className="flex items-center gap-1.5 mb-2">
-                <Ruler className="h-3.5 w-3.5 text-gray-400" />
-                <span className="text-xs text-gray-500 font-medium">
-                  적용 규격 ({setting.specifications.length}개)
+          {/* 인디고 Up별 가격 테이블 (4도칼라/6도칼라 구분) */}
+          {hasIndigoPrices && (
+            <div className="mt-3 overflow-x-auto">
+              <table className="min-w-full text-xs text-right whitespace-nowrap">
+                <thead>
+                  <tr className="text-gray-500 border-b border-gray-100">
+                    <th className="px-2 py-1.5 text-left font-medium w-24">구분</th>
+                    {indigoUpPrices.map((p) => (
+                      <th key={p.up} className="px-2 py-1.5 font-medium">{p.up}up</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {/* 4도칼라 */}
+                  <tr className="group/row hover:bg-gray-50">
+                    <td className="px-2 py-1.5 text-left">
+                      <span className="font-semibold text-blue-600 mr-1.5">4도</span>
+                      <span className="text-gray-600">단면</span>
+                    </td>
+                    {indigoUpPrices.map((p) => (
+                      <td key={p.up} className="px-2 py-1.5 font-mono text-gray-900">
+                        {p.fourColorSinglePrice > 0 ? p.fourColorSinglePrice.toLocaleString() : "-"}
+                      </td>
+                    ))}
+                  </tr>
+                  <tr className="group/row hover:bg-gray-50">
+                    <td className="px-2 py-1.5 text-left">
+                      <span className="font-semibold text-blue-600 mr-1.5">4도</span>
+                      <span className="text-gray-600">양면</span>
+                    </td>
+                    {indigoUpPrices.map((p) => (
+                      <td key={p.up} className="px-2 py-1.5 font-mono text-gray-900">
+                        {p.fourColorDoublePrice > 0 ? p.fourColorDoublePrice.toLocaleString() : "-"}
+                      </td>
+                    ))}
+                  </tr>
+                  {/* 6도칼라 */}
+                  <tr className="group/row hover:bg-gray-50">
+                    <td className="px-2 py-1.5 text-left">
+                      <span className="font-semibold text-purple-600 mr-1.5">6도</span>
+                      <span className="text-gray-600">단면</span>
+                    </td>
+                    {indigoUpPrices.map((p) => (
+                      <td key={p.up} className="px-2 py-1.5 font-mono text-gray-900">
+                        {p.sixColorSinglePrice > 0 ? p.sixColorSinglePrice.toLocaleString() : "-"}
+                      </td>
+                    ))}
+                  </tr>
+                  <tr className="group/row hover:bg-gray-50">
+                    <td className="px-2 py-1.5 text-left">
+                      <span className="font-semibold text-purple-600 mr-1.5">6도</span>
+                      <span className="text-gray-600">양면</span>
+                    </td>
+                    {indigoUpPrices.map((p) => (
+                      <td key={p.up} className="px-2 py-1.5 font-mono text-gray-900">
+                        {p.sixColorDoublePrice > 0 ? p.sixColorDoublePrice.toLocaleString() : "-"}
+                      </td>
+                    ))}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* 잉크젯 규격별 가격 */}
+          {hasInkjetPrices && setting.specifications && (
+            <div className="mt-2 overflow-x-auto">
+              <table className="text-xs border-collapse">
+                <thead>
+                  <tr className="text-gray-500">
+                    <th className="px-2 py-1 text-left font-medium">규격</th>
+                    {setting.specifications.slice(0, 8).map(spec => (
+                      <th key={spec.id} className="px-2 py-1 text-center font-medium font-mono">
+                        {spec.specification?.name}
+                      </th>
+                    ))}
+                    {setting.specifications.length > 8 && (
+                      <th className="px-2 py-1 text-center text-gray-400">+{setting.specifications.length - 8}</th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="px-2 py-1 text-gray-500">단가</td>
+                    {setting.specifications.slice(0, 8).map(spec => {
+                      const priceData = inkjetSpecPrices.find((p: any) => p.specificationId === spec.specificationId);
+                      return (
+                        <td key={spec.id} className="px-2 py-1 text-center font-mono text-gray-900">
+                          {priceData?.price > 0 ? priceData.price.toLocaleString() : "-"}
+                        </td>
+                      );
+                    })}
+                    {setting.specifications.length > 8 && <td className="px-2 py-1"></td>}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* 인디고 규격별 단가 (indigo_spec) */}
+          {hasIndigoSpecPrices && setting.specifications && (
+            <div className="mt-2 overflow-x-auto">
+              <table className="text-xs border-collapse">
+                <thead>
+                  <tr className="text-gray-500">
+                    <th className="px-2 py-1 text-left font-medium">규격</th>
+                    {setting.specifications.slice(0, 8).map(spec => (
+                      <th key={spec.id} className="px-2 py-1 text-center font-medium font-mono">
+                        {spec.specification?.name}
+                      </th>
+                    ))}
+                    {setting.specifications.length > 8 && (
+                      <th className="px-2 py-1 text-center text-gray-400">+{setting.specifications.length - 8}</th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="px-2 py-1 text-gray-500">단가</td>
+                    {setting.specifications.slice(0, 8).map(spec => {
+                      const priceData = indigoSpecPrices.find((p: any) => p.specificationId === spec.specificationId);
+                      return (
+                        <td key={spec.id} className="px-2 py-1 text-center font-mono text-gray-900">
+                          {priceData?.price > 0 ? priceData.price.toLocaleString() : "-"}
+                        </td>
+                      );
+                    })}
+                    {setting.specifications.length > 8 && <td className="px-2 py-1"></td>}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* 규격 목록 (가격 정보가 없는 경우에만 표시) */}
+          {!hasIndigoPrices && !hasInkjetPrices && !hasIndigoSpecPrices && setting.specifications && setting.specifications.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {setting.specifications.slice(0, 8).map((spec) => (
+                <span
+                  key={spec.id}
+                  className="inline-flex px-2 py-0.5 text-xs font-mono bg-gray-100 text-gray-700 rounded"
+                >
+                  {spec.specification?.name}
                 </span>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {setting.specifications.slice(0, 8).map((spec) => (
-                  <span
-                    key={spec.id}
-                    className="inline-flex px-2 py-0.5 text-xs font-mono bg-gray-100 text-gray-700 rounded"
-                  >
-                    {spec.specification?.name}
-                  </span>
-                ))}
-                {setting.specifications.length > 8 && (
-                  <span className="inline-flex px-2 py-0.5 text-xs bg-gray-200 text-gray-600 rounded">
-                    +{setting.specifications.length - 8}개
-                  </span>
-                )}
-              </div>
+              ))}
+              {setting.specifications.length > 8 && (
+                <span className="inline-flex px-2 py-0.5 text-xs bg-gray-200 text-gray-600 rounded">
+                  +{setting.specifications.length - 8}개
+                </span>
+              )}
             </div>
           )}
         </div>
 
-        {/* 액션 버튼 */}
-        <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        {/* 우측: 액션 버튼 */}
+        <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 text-gray-400 hover:text-gray-600"
+            className="h-8 w-8 text-gray-400 hover:text-gray-600"
             onClick={() => onMove(setting.id, "up")}
           >
-            <ArrowUp className="h-3.5 w-3.5" />
+            <ArrowUp className="h-4 w-4" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 text-gray-400 hover:text-gray-600"
+            className="h-8 w-8 text-gray-400 hover:text-gray-600"
             onClick={() => onMove(setting.id, "down")}
           >
-            <ArrowDown className="h-3.5 w-3.5" />
+            <ArrowDown className="h-4 w-4" />
           </Button>
+          <div className="w-px h-4 bg-gray-200 mx-1" />
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 text-gray-400 hover:text-indigo-600"
+            className="h-8 w-8 text-gray-400 hover:text-indigo-600"
             onClick={() => onEdit(setting)}
           >
-            <Edit className="h-3.5 w-3.5" />
+            <Edit className="h-4 w-4" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 text-gray-400 hover:text-red-600"
+            className="h-8 w-8 text-gray-400 hover:text-red-600"
             onClick={() => onDelete(setting)}
           >
-            <Trash2 className="h-3.5 w-3.5" />
+            <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       </div>
@@ -336,8 +710,14 @@ function SettingCard({
 }
 
 export default function ProductionSettingPage() {
+  const [isMounted, setIsMounted] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [selectedGroup, setSelectedGroup] = useState<ProductionGroup | null>(null);
+
+  // 클라이언트 마운트 체크 (hydration 오류 방지)
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // 다이얼로그 상태
   const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
@@ -348,11 +728,29 @@ export default function ProductionSettingPage() {
   const [deletingItem, setDeletingItem] = useState<{ type: "group" | "setting"; item: any } | null>(null);
   const [parentGroupId, setParentGroupId] = useState<string | null>(null);
 
+  // 단가 조정 다이얼로그 상태
+  const [isPriceAdjustDialogOpen, setIsPriceAdjustDialogOpen] = useState(false);
+  const [priceAdjustTarget, setPriceAdjustTarget] = useState<"single" | "double">("single"); // 단면/양면
+  const [priceAdjustRanges, setPriceAdjustRanges] = useState([
+    { maxPrice: 10000, adjustment: 10 },
+  ]);
+
   // 폼 상태
   const [groupForm, setGroupForm] = useState({
     code: "",
     name: "",
   });
+  // 인디고 Up 단위 (1, 2, 4, 8up만 사용)
+  const INDIGO_UP_UNITS = [1, 2, 4, 8] as const;
+
+  // 인디고 기본 가중치 (기본값 1, 가중치로 단가 조정 가능)
+  const DEFAULT_INDIGO_WEIGHTS: Record<number, number> = {
+    1: 1.0,    // 1up 기준
+    2: 1.0,    // 2up (기본값 1)
+    4: 1.0,    // 4up (기본값 1)
+    8: 1.0,    // 8up (기본값 1)
+  };
+
   const [settingForm, setSettingForm] = useState({
     codeName: "",
     vendorType: "in_house" as string,
@@ -366,13 +764,67 @@ export default function ProductionSettingPage() {
     specificationIds: [] as string[],
     specUsageType: "all" as "indigo" | "inkjet" | "album" | "frame" | "booklet" | "all",
     // 용지별출력단가 전용 필드
-    printMethod: "indigo" as "indigo" | "inkjet",
+    printMethod: "indigo" as "indigo" | "inkjet" | "album" | "frame" | "booklet",
     paperIds: [] as string[],
+    singleSidedPrice: 0,
+    doubleSidedPrice: 0,
+    // 인디고 Up별 가격 (paper_output_spec용) - 1,2,4,8up, 4도칼라/6도칼라 구분
+    indigoUpPrices: INDIGO_UP_UNITS.map((up) => ({
+      up,
+      weight: DEFAULT_INDIGO_WEIGHTS[up],
+      // 4도칼라
+      fourColorSinglePrice: 0,
+      fourColorDoublePrice: 0,
+      // 6도칼라
+      sixColorSinglePrice: 0,
+      sixColorDoublePrice: 0,
+    })),
+    // 잉크젯 기본 설정 (paper_output_spec용)
+    inkjetBaseSpecId: "", // 기준규격 ID (사용안함, 호환용)
+    inkjetBasePrice: 0, // sq inch당 기준가격
+    inkjetWeightPerSqm: 0, // 사용안함 (호환용)
+    // 잉크젯 규격별 가격 (자동 계산됨)
+    inkjetSpecPrices: [] as { specificationId: string; singleSidedPrice: number; weight: number }[],
+    // 인디고 규격별 단가 (indigo_spec용)
+    indigoSpecPrices: [] as { specificationId: string; price: number }[],
+    // 용지 단가 그룹 (사용자 정의 그룹, 최대 5개)
+    priceGroups: [] as Array<{
+      id: string;
+      color: 'green' | 'blue' | 'yellow' | 'red' | 'purple';
+      // 인디고용: Up별 가격 (1up 기준가 입력 시 가중치로 자동 계산)
+      upPrices: Array<{
+        up: number;
+        weight: number;
+        fourColorSinglePrice: number;
+        fourColorDoublePrice: number;
+        sixColorSinglePrice: number;
+        sixColorDoublePrice: number;
+      }>;
+      // 잉크젯용: 규격별 가격
+      specPrices?: Array<{
+        specificationId: string;
+        singleSidedPrice: number;
+        weight: number;
+      }>;
+      // 잉크젯 기준규격 ID (그룹별)
+      inkjetBaseSpecId?: string;
+      // sq inch당 기준가격
+      inkjetBasePrice?: number;
+    }>,
+    // 용지별 단가그룹 할당 (paperId -> priceGroupId, null이면 미지정)
+    paperPriceGroupMap: {} as Record<string, string | null>,
   });
+
+  // 시스템 설정 (인디고 잉크 원가용)
+  const { data: systemSettings } = useSystemSettings("printing");
+  const settingsMap = useMemo(() => systemSettings ? settingsToMap(systemSettings) : {}, [systemSettings]);
+  const indigoInk1ColorCost = useMemo(() => getNumericValue(settingsMap, "printing_indigo_1color_cost", 0), [settingsMap]);
 
   // 용지별출력단가용 용지 목록
   const { data: papersForPricing } = usePapersByPrintMethod(
-    settingForm.pricingType === "paper_output" ? settingForm.printMethod : ""
+    settingForm.pricingType === "paper_output_spec"
+      ? settingForm.printMethod
+      : ""
   );
 
   // API 호출
@@ -390,11 +842,269 @@ export default function ProductionSettingPage() {
   const deleteSettingMutation = useDeleteProductionSetting();
   const moveSettingMutation = useMoveProductionSetting();
 
+  // groupTree가 변경될 때 selectedGroup을 동기화 (삭제 후 최신 데이터 반영)
+  useEffect(() => {
+    if (selectedGroup && groupTree) {
+      const updatedGroup = findGroupInTree(groupTree, selectedGroup.id);
+      if (updatedGroup) {
+        // 설정 목록이 변경된 경우에만 업데이트
+        if (JSON.stringify(updatedGroup.settings) !== JSON.stringify(selectedGroup.settings)) {
+          setSelectedGroup(updatedGroup);
+        }
+      } else {
+        // 그룹이 삭제된 경우
+        setSelectedGroup(null);
+      }
+    }
+  }, [groupTree]);
+
   // 선택된 그룹의 설정 목록
   const selectedSettings = useMemo(() => {
     if (!selectedGroup) return [];
     return selectedGroup.settings || [];
   }, [selectedGroup]);
+
+  // 범위의 시작 가격 계산 (첫 번째는 0, 나머지는 이전 maxPrice + 1)
+  const getRangeMinPrice = (index: number): number => {
+    if (index === 0) return 0;
+    return priceAdjustRanges[index - 1].maxPrice + 1;
+  };
+
+  // 단가 조정 적용 함수
+  const applyPriceAdjustment = () => {
+    // 현재 ranges 스냅샷 저장
+    const currentRanges = [...priceAdjustRanges];
+
+    console.log("=== 단가 조정 시작 ===");
+    console.log("현재 ranges:", currentRanges);
+    console.log("조정 대상:", priceAdjustTarget);
+
+    // 범위 시작 가격 계산 함수
+    const getMinPrice = (index: number): number => {
+      if (index === 0) return 0;
+      return Number(currentRanges[index - 1].maxPrice) + 1;
+    };
+
+    // 가격에 해당하는 범위 찾기
+    const findRange = (price: number) => {
+      for (let i = 0; i < currentRanges.length; i++) {
+        const range = currentRanges[i];
+        const minPrice = getMinPrice(i);
+        const maxPrice = Number(range.maxPrice);
+        if (price >= minPrice && price <= maxPrice) {
+          return range;
+        }
+      }
+      return currentRanges[currentRanges.length - 1]; // 마지막 범위 반환
+    };
+
+    // 단위로 반올림하는 함수
+    const roundToUnit = (price: number, unit: number): number => {
+      if (unit <= 0) return price;
+      return Math.round(price / unit) * unit;
+    };
+
+    setSettingForm((prev) => {
+      let adjustedCount = 0;
+
+      console.log("indigoUpPrices 개수:", prev.indigoUpPrices.length);
+      console.log("inkjetSpecPrices 개수:", prev.inkjetSpecPrices.length);
+
+      const adjustPrice = (price: number) => {
+        const numPrice = Number(price);
+        if (!numPrice || numPrice <= 0) return 0; // 0원 이하는 0원으로
+
+        const range = findRange(numPrice);
+        // 범위가 없으면 그대로 반환
+        if (!range) return numPrice;
+
+        // 반올림 단위로 반올림
+        const roundingUnit = Number(range.adjustment) || 10;
+        const finalPrice = roundToUnit(numPrice, roundingUnit);
+
+        if (finalPrice !== numPrice) {
+          console.log(`가격 조정: ${numPrice} → ${finalPrice} (${roundingUnit}원 단위)`);
+        }
+
+        return Math.max(0, finalPrice);
+      };
+
+      // 인디고 Up별 가격 조정 (단면/양면 모두)
+      const newIndigoUpPrices = prev.indigoUpPrices.map((upPrice, idx) => {
+        const newUpPrice = { ...upPrice };
+        let hasChange = false;
+
+        // 4도칼라 단면 조정
+        const original4Single = Number(upPrice.fourColorSinglePrice) || 0;
+        const adjusted4Single = adjustPrice(original4Single);
+        console.log(`[인디고 ${idx}] 4도 단면: ${original4Single} → ${adjusted4Single}`);
+        if (adjusted4Single !== original4Single) {
+          newUpPrice.fourColorSinglePrice = adjusted4Single;
+          hasChange = true;
+        }
+
+        // 4도칼라 양면 조정
+        const original4Double = Number(upPrice.fourColorDoublePrice) || 0;
+        const adjusted4Double = adjustPrice(original4Double);
+        console.log(`[인디고 ${idx}] 4도 양면: ${original4Double} → ${adjusted4Double}`);
+        if (adjusted4Double !== original4Double) {
+          newUpPrice.fourColorDoublePrice = adjusted4Double;
+          hasChange = true;
+        }
+
+        // 6도칼라 단면 조정
+        const original6Single = Number(upPrice.sixColorSinglePrice) || 0;
+        const adjusted6Single = adjustPrice(original6Single);
+        console.log(`[인디고 ${idx}] 6도 단면: ${original6Single} → ${adjusted6Single}`);
+        if (adjusted6Single !== original6Single) {
+          newUpPrice.sixColorSinglePrice = adjusted6Single;
+          hasChange = true;
+        }
+
+        // 6도칼라 양면 조정
+        const original6Double = Number(upPrice.sixColorDoublePrice) || 0;
+        const adjusted6Double = adjustPrice(original6Double);
+        console.log(`[인디고 ${idx}] 6도 양면: ${original6Double} → ${adjusted6Double}`);
+        if (adjusted6Double !== original6Double) {
+          newUpPrice.sixColorDoublePrice = adjusted6Double;
+          hasChange = true;
+        }
+
+        if (hasChange) adjustedCount++;
+        return newUpPrice;
+      });
+
+      // 잉크젯 규격별 가격 조정
+      const newInkjetSpecPrices = prev.inkjetSpecPrices.map((specPrice) => {
+        const price = specPrice.singleSidedPrice;
+        const newPrice = adjustPrice(price);
+
+        if (newPrice !== price) adjustedCount++;
+
+        return { ...specPrice, singleSidedPrice: newPrice };
+      });
+
+      // 인디고 단가 그룹(priceGroups) 가격 조정
+      const newPriceGroups = prev.priceGroups.map((group) => {
+        // 인디고 Up별 가격 조정
+        const newUpPrices = (group.upPrices || []).map((upPrice) => {
+          const newUpPrice = { ...upPrice };
+
+          // 4도 단면 조정
+          const orig4S = Number(upPrice.fourColorSinglePrice) || 0;
+          const adj4S = adjustPrice(orig4S);
+          if (adj4S !== orig4S) {
+            newUpPrice.fourColorSinglePrice = adj4S;
+            adjustedCount++;
+          }
+
+          // 4도 양면 조정
+          const orig4D = Number(upPrice.fourColorDoublePrice) || 0;
+          const adj4D = adjustPrice(orig4D);
+          if (adj4D !== orig4D) {
+            newUpPrice.fourColorDoublePrice = adj4D;
+            adjustedCount++;
+          }
+
+          // 6도 단면 조정
+          const orig6S = Number(upPrice.sixColorSinglePrice) || 0;
+          const adj6S = adjustPrice(orig6S);
+          if (adj6S !== orig6S) {
+            newUpPrice.sixColorSinglePrice = adj6S;
+            adjustedCount++;
+          }
+
+          // 6도 양면 조정
+          const orig6D = Number(upPrice.sixColorDoublePrice) || 0;
+          const adj6D = adjustPrice(orig6D);
+          if (adj6D !== orig6D) {
+            newUpPrice.sixColorDoublePrice = adj6D;
+            adjustedCount++;
+          }
+
+          return newUpPrice;
+        });
+
+        // 잉크젯 규격별 가격 조정 (specPrices)
+        const newSpecPrices = (group.specPrices || []).map((specPrice) => {
+          const origPrice = Number(specPrice.singleSidedPrice) || 0;
+          const adjPrice = adjustPrice(origPrice);
+          if (adjPrice !== origPrice) {
+            adjustedCount++;
+            return { ...specPrice, singleSidedPrice: adjPrice };
+          }
+          return specPrice;
+        });
+
+        return { ...group, upPrices: newUpPrices, specPrices: newSpecPrices };
+      });
+
+      // toast를 setState 외부에서 호출하기 위해 setTimeout 사용
+      setTimeout(() => {
+        if (adjustedCount > 0) {
+          toast({ title: `단가가 조정되었습니다. (${adjustedCount}건)` });
+        } else {
+          toast({ title: "조정된 단가가 없습니다." });
+        }
+      }, 0);
+
+      return {
+        ...prev,
+        indigoUpPrices: newIndigoUpPrices,
+        inkjetSpecPrices: newInkjetSpecPrices,
+        priceGroups: newPriceGroups,
+      };
+    });
+
+    setIsPriceAdjustDialogOpen(false);
+  };
+
+  // 단가 조정 초기화
+  const resetPriceAdjustment = () => {
+    setPriceAdjustRanges([
+      { maxPrice: 10000, adjustment: 10 },
+    ]);
+  };
+
+  // 구간 추가
+  const addPriceAdjustRange = () => {
+    const lastRange = priceAdjustRanges[priceAdjustRanges.length - 1];
+    const newMaxPrice = lastRange.maxPrice + 10000;
+    // 이전 구간의 반올림 단위를 10배로 증가 (10 -> 100 -> 1000)
+    const newAdjustment = Math.min((lastRange.adjustment || 10) * 10, 1000);
+    setPriceAdjustRanges([
+      ...priceAdjustRanges,
+      { maxPrice: newMaxPrice, adjustment: newAdjustment }
+    ]);
+  };
+
+  // 구간 삭제
+  const removePriceAdjustRange = (index: number) => {
+    if (priceAdjustRanges.length <= 1) return; // 최소 1개는 유지
+    setPriceAdjustRanges(priceAdjustRanges.filter((_, i) => i !== index));
+  };
+
+  // 인디고 Up별 가격 재계산 (1up 기준가 / nup × 가중치) - 4도/6도 모두 계산
+  const recalculateIndigoPrices = () => {
+    setSettingForm((prev) => {
+      const basePrice = prev.indigoUpPrices[0]; // 1up 기준가
+      const newPrices = prev.indigoUpPrices.map((upPrice) => {
+        // 계산식: (1up 기준가 / nup) × 가중치
+        const nup = upPrice.up;
+        return {
+          ...upPrice,
+          // 4도칼라
+          fourColorSinglePrice: Math.round((basePrice.fourColorSinglePrice / nup) * upPrice.weight),
+          fourColorDoublePrice: Math.round((basePrice.fourColorDoublePrice / nup) * upPrice.weight),
+          // 6도칼라
+          sixColorSinglePrice: Math.round((basePrice.sixColorSinglePrice / nup) * upPrice.weight),
+          sixColorDoublePrice: Math.round((basePrice.sixColorDoublePrice / nup) * upPrice.weight),
+        };
+      });
+      return { ...prev, indigoUpPrices: newPrices };
+    });
+    toast({ title: "가격이 재계산되었습니다." });
+  };
 
   // 핸들러 함수들
   const toggleExpand = (id: string) => {
@@ -473,6 +1183,43 @@ export default function ProductionSettingPage() {
 
     if (setting) {
       setEditingSetting(setting);
+
+      // prices 배열에서 인디고 Up별 가격 변환 (4도칼라/6도칼라 구분)
+      const prices = (setting as any).prices || [];
+      console.log("Loading prices from DB:", JSON.stringify(prices, null, 2));
+      const indigoUpPricesFromDB = INDIGO_UP_UNITS.map((up) => {
+        const priceRecord = prices.find((p: any) => p.minQuantity === up);
+        return {
+          up,
+          weight: priceRecord?.weight ? Number(priceRecord.weight) : DEFAULT_INDIGO_WEIGHTS[up],
+          // 4도칼라 가격
+          fourColorSinglePrice: priceRecord?.fourColorSinglePrice ? Number(priceRecord.fourColorSinglePrice) : 0,
+          fourColorDoublePrice: priceRecord?.fourColorDoublePrice ? Number(priceRecord.fourColorDoublePrice) : 0,
+          // 6도칼라 가격
+          sixColorSinglePrice: priceRecord?.sixColorSinglePrice ? Number(priceRecord.sixColorSinglePrice) : 0,
+          sixColorDoublePrice: priceRecord?.sixColorDoublePrice ? Number(priceRecord.sixColorDoublePrice) : 0,
+        };
+      });
+
+      // prices 배열에서 잉크젯 규격별 가격 변환
+      const inkjetSpecPricesFromDB = prices
+        .filter((p: any) => p.specificationId)
+        .map((p: any) => ({
+          specificationId: p.specificationId,
+          singleSidedPrice: Number(p.singleSidedPrice) || Number(p.price) || 0,
+          weight: p.weight ? Number(p.weight) : 1,
+        }));
+
+      // prices 배열에서 인디고 규격별 단가 변환 (indigo_spec용)
+      const indigoSpecPricesFromDB = setting.pricingType === "indigo_spec"
+        ? prices
+            .filter((p: any) => p.specificationId)
+            .map((p: any) => ({
+              specificationId: p.specificationId,
+              price: Number(p.price) || 0,
+            }))
+        : [];
+
       setSettingForm({
         codeName: setting.codeName || "",
         vendorType: setting.vendorType,
@@ -487,6 +1234,16 @@ export default function ProductionSettingPage() {
         specUsageType: (setting as any).specUsageType || "all",
         printMethod: (setting as any).printMethod || "indigo",
         paperIds: (setting as any).paperIds || [],
+        singleSidedPrice: Number(setting.singleSidedPrice) || 0,
+        doubleSidedPrice: Number(setting.doubleSidedPrice) || 0,
+        indigoUpPrices: indigoUpPricesFromDB,
+        inkjetBaseSpecId: (setting as any).baseSpecificationId || (setting as any).inkjetBaseSpecId || "",
+        inkjetBasePrice: Number((setting as any).basePricePerSqInch) || (setting as any).inkjetBasePrice || 0,
+        inkjetWeightPerSqm: (setting as any).inkjetWeightPerSqm || 0,
+        inkjetSpecPrices: inkjetSpecPricesFromDB.length > 0 ? inkjetSpecPricesFromDB : [],
+        indigoSpecPrices: indigoSpecPricesFromDB,
+        priceGroups: (setting as any).priceGroups || [],
+        paperPriceGroupMap: (setting as any).paperPriceGroupMap || {},
       });
     } else {
       setEditingSetting(null);
@@ -507,6 +1264,23 @@ export default function ProductionSettingPage() {
         specUsageType: "all",
         printMethod: "indigo",
         paperIds: [],
+        singleSidedPrice: 0,
+        doubleSidedPrice: 0,
+        indigoUpPrices: INDIGO_UP_UNITS.map((up) => ({
+          up,
+          weight: DEFAULT_INDIGO_WEIGHTS[up],
+          fourColorSinglePrice: 0,
+          fourColorDoublePrice: 0,
+          sixColorSinglePrice: 0,
+          sixColorDoublePrice: 0,
+        })),
+        inkjetBaseSpecId: "",
+        inkjetBasePrice: 0,
+        inkjetWeightPerSqm: 0,
+        inkjetSpecPrices: [],
+        indigoSpecPrices: [],
+        priceGroups: [],
+        paperPriceGroupMap: {},
       });
     }
     setIsSettingDialogOpen(true);
@@ -514,16 +1288,67 @@ export default function ProductionSettingPage() {
 
   const handleSaveSetting = async () => {
     try {
+      // 백엔드 DTO에서 허용하지 않는 필드 제외
+      const { specUsageType, ...formData } = settingForm;
+
+      // pricingType에 따라 필요한 필드만 포함
+      const apiData: any = {
+        codeName: formData.codeName,
+        vendorType: formData.vendorType,
+        pricingType: formData.pricingType,
+        settingName: formData.settingName,
+        sCode: formData.sCode,
+        settingFee: formData.settingFee,
+        basePrice: formData.basePrice,
+        workDays: formData.workDays,
+        weightInfo: formData.weightInfo,
+      };
+
+      // paper_output_spec: 인쇄방식에 따라 다른 데이터 구조
+      if (formData.pricingType === "paper_output_spec") {
+        apiData.printMethod = formData.printMethod;
+        apiData.paperIds = formData.paperIds; // 인디고, 잉크젯 모두 용지선택 필요
+        // 그룹 단가 저장
+        apiData.priceGroups = formData.priceGroups;
+        apiData.paperPriceGroupMap = formData.paperPriceGroupMap;
+
+        if (formData.printMethod === "indigo") {
+          // 인디고: 용지 + Up별 양면/단면 가격 (규격선택 불필요)
+          apiData.indigoUpPrices = formData.indigoUpPrices;
+        } else {
+          // 잉크젯: 용지 + 규격 + 규격별 단면 가격 + 기준규격 ID
+          apiData.specificationIds = formData.specificationIds;
+          apiData.baseSpecificationId = formData.inkjetBaseSpecId;
+          // isBaseSpec 플래그 추가
+          apiData.inkjetSpecPrices = formData.inkjetSpecPrices.map((sp) => ({
+            ...sp,
+            isBaseSpec: sp.specificationId === formData.inkjetBaseSpecId,
+          }));
+        }
+      }
+      // indigo_spec: 인디고 규격별 단가
+      else if (formData.pricingType === "indigo_spec") {
+        apiData.specificationIds = formData.specificationIds;
+        apiData.indigoSpecPrices = formData.indigoSpecPrices;
+      }
+      // 나머지: 규격 선택
+      else if (formData.pricingType !== "per_sheet") {
+        apiData.specificationIds = formData.specificationIds;
+      }
+
+      // 디버깅: API로 전송되는 데이터 확인
+      console.log("Saving setting with data:", JSON.stringify(apiData, null, 2));
+
       if (editingSetting) {
         await updateSettingMutation.mutateAsync({
           id: editingSetting.id,
-          ...settingForm,
+          ...apiData,
         });
         toast({ title: "설정이 수정되었습니다." });
       } else {
         await createSettingMutation.mutateAsync({
           groupId: selectedGroup!.id,
-          ...settingForm,
+          ...apiData,
         });
         toast({ title: "설정이 생성되었습니다." });
       }
@@ -577,9 +1402,15 @@ export default function ProductionSettingPage() {
   const getFilteredSpecifications = () => {
     if (!specifications) return [];
     if (settingForm.pricingType === "per_sheet") return [];
-    if (settingForm.pricingType === "paper_output") {
-      // 용지별출력단가는 인디고출력 규격만
-      return specifications.filter((spec) => spec.forIndigo);
+    if (settingForm.pricingType === "paper_output_spec") {
+      // 용지별출력단가/규격별은 인쇄방식에 따라 필터링
+      const method = settingForm.printMethod;
+      if (method === "indigo") return specifications.filter((spec) => spec.forIndigo);
+      if (method === "inkjet") return specifications.filter((spec) => spec.forInkjet);
+      if (method === "album") return specifications.filter((spec) => spec.forAlbum);
+      if (method === "frame") return specifications.filter((spec) => spec.forFrame);
+      if (method === "booklet") return specifications.filter((spec) => spec.forBooklet);
+      return specifications;
     }
     // 나머지는 선택된 용도에 따라 필터링
     const usageType = settingForm.specUsageType;
@@ -609,15 +1440,54 @@ export default function ProductionSettingPage() {
     }));
   };
 
+  // 마운트 전 로딩 상태 표시 (hydration 오류 방지)
+  if (!isMounted) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="표준단가 설정"
+          description="제품별 표준단가, 가격 계산 방식, 규격, 작업시간을 설정합니다."
+          breadcrumbs={[
+            { label: "홈", href: "/" },
+            { label: "가격관리", href: "/pricing" },
+            { label: "표준단가" },
+          ]}
+        />
+        <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6">
+          <Card className="flex flex-col">
+            <CardHeader className="border-b bg-gray-50/50 py-3 px-4">
+              <Skeleton className="h-5 w-32" />
+            </CardHeader>
+            <CardContent className="p-4">
+              <div className="space-y-2">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-10 w-full" />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="flex flex-col">
+            <CardHeader className="border-b bg-gray-50/50 py-4 px-5">
+              <Skeleton className="h-6 w-40" />
+            </CardHeader>
+            <CardContent className="p-4">
+              <Skeleton className="h-32 w-full" />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title="생산옵션 설정"
-        description="세부그룹(생산제품)별 가격 계산 방식, 규격, 작업시간을 설정합니다."
+        title="표준단가 설정"
+        description="제품별 표준단가, 가격 계산 방식, 규격, 작업시간을 설정합니다."
         breadcrumbs={[
           { label: "홈", href: "/" },
           { label: "가격관리", href: "/pricing" },
-          { label: "생산옵션" },
+          { label: "표준단가" },
         ]}
         actions={
           <Button onClick={() => handleOpenGroupDialog(null)} className="gap-2">
@@ -633,7 +1503,7 @@ export default function ProductionSettingPage() {
           <CardHeader className="border-b bg-gray-50/50 py-3 px-4">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-semibold text-gray-700">
-                세부그룹 (생산제품)
+                제품 분류
               </CardTitle>
               <div className="flex gap-1">
                 <Button
@@ -854,354 +1724,1166 @@ export default function ProductionSettingPage() {
 
       {/* 설정 다이얼로그 */}
       <Dialog open={isSettingDialogOpen} onOpenChange={setIsSettingDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {editingSetting ? "생산설정 수정" : "생산설정 추가"}
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col p-6">
+          <DialogHeader className="mb-2">
+            <DialogTitle className="text-xl">
+              {editingSetting ? "단가 설정 수정" : "단가 설정 추가"}
             </DialogTitle>
             <DialogDescription>
               {selectedGroup?.name} - 설정값 수정
             </DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-6 py-4">
-            {/* 좌측 설정 */}
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>그룹명</Label>
-                <Input value={selectedGroup?.name || ""} disabled />
-              </div>
 
-              {/* 코드명은 자동 생성되므로 UI에서 숨김 */}
+          <div className="flex-1 overflow-y-auto pr-2">
+            <div className="flex flex-col gap-6">
+              {/* 기본 정보 */}
+              <div className="space-y-6">
+                <div className="bg-gray-50/50 p-4 rounded-xl border space-y-4">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                    <Settings2 className="w-4 h-4" /> 기본 정보
+                  </h3>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>잡세팅비</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      value={settingForm.settingFee}
-                      onChange={(e) =>
-                        setSettingForm((prev) => ({
-                          ...prev,
-                          settingFee: Number(e.target.value),
-                        }))
-                      }
-                    />
-                    <span className="text-muted-foreground">원</span>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>기본단가</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      value={settingForm.basePrice}
-                      onChange={(e) =>
-                        setSettingForm((prev) => ({
-                          ...prev,
-                          basePrice: Number(e.target.value),
-                        }))
-                      }
-                    />
-                    <span className="text-muted-foreground">원</span>
-                  </div>
-                </div>
-              </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs font-medium text-gray-500">그룹명</Label>
+                      <Input value={selectedGroup?.name || ""} disabled className="bg-white" />
+                    </div>
 
-              <div className="space-y-2">
-                <Label>작업시간</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    step="0.1"
-                    value={settingForm.workDays}
-                    onChange={(e) =>
-                      setSettingForm((prev) => ({
-                        ...prev,
-                        workDays: Number(e.target.value),
-                      }))
-                    }
-                    className="w-24"
-                  />
-                  <span className="text-muted-foreground text-sm">일 (※ 소수점 1자리까지 표현)</span>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>적용단위</Label>
-                <Select
-                  value={settingForm.pricingType}
-                  onValueChange={(value) =>
-                    setSettingForm((prev) => ({
-                      ...prev,
-                      pricingType: value as PricingType,
-                    }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {pricingTypes?.map((type) => (
-                      <SelectItem key={type.value} value={type.value}>
-                        {type.label}
-                      </SelectItem>
-                    )) || Object.entries(PRICING_TYPE_LABELS).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>세팅명</Label>
-                  <Input
-                    placeholder="예: 박Color"
-                    value={settingForm.settingName}
-                    onChange={(e) =>
-                      setSettingForm((prev) => ({
-                        ...prev,
-                        settingName: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>업체</Label>
-                  <Select
-                    value={settingForm.vendorType}
-                    onValueChange={(value) =>
-                      setSettingForm((prev) => ({ ...prev, vendorType: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="in_house">본사</SelectItem>
-                      <SelectItem value="outsourced">외주</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>가중치 구분</Label>
-                <Textarea
-                  placeholder="가중치 구분을 엔터로 구분하여 입력"
-                  value={settingForm.weightInfo}
-                  onChange={(e) =>
-                    setSettingForm((prev) => ({
-                      ...prev,
-                      weightInfo: e.target.value,
-                    }))
-                  }
-                  rows={3}
-                />
-                <p className="text-xs text-muted-foreground">
-                  ※ 가중치구분은 엔터로 하세요
-                </p>
-              </div>
-            </div>
-
-            {/* 우측: 규격 또는 용지 선택 */}
-            <div className="space-y-4">
-              {settingForm.pricingType === "paper_output" ? (
-                <>
-                  {/* 용지별출력단가: 인쇄방식 선택 및 용지 목록 */}
-                  <div className="flex items-center justify-between">
-                    <Label>용지 선택</Label>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          if (papersForPricing) {
+                    <div className="space-y-2">
+                      <Label className="text-xs font-medium text-gray-500">작업시간</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          step="0.1"
+                          value={settingForm.workDays}
+                          onChange={(e) =>
                             setSettingForm((prev) => ({
                               ...prev,
-                              paperIds: papersForPricing.map((p) => p.id),
-                            }));
+                              workDays: Number(e.target.value),
+                            }))
                           }
-                        }}
-                      >
-                        전체선택
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSettingForm((prev) => ({ ...prev, paperIds: [] }))}
-                      >
-                        전체해제
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>인쇄방식</Label>
-                    <Select
-                      value={settingForm.printMethod}
-                      onValueChange={(value) =>
-                        setSettingForm((prev) => ({
-                          ...prev,
-                          printMethod: value as "indigo" | "inkjet",
-                          paperIds: [], // 인쇄방식 변경 시 선택 초기화
-                        }))
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="인쇄방식 선택" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="indigo">인디고출력</SelectItem>
-                        <SelectItem value="inkjet">잉크젯출력</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="border rounded-lg p-4 max-h-[350px] overflow-y-auto">
-                    {!papersForPricing || papersForPricing.length === 0 ? (
-                      <p className="text-center text-muted-foreground py-4">
-                        해당 인쇄방식의 용지가 없습니다.
-                      </p>
-                    ) : (
-                      <div className="grid grid-cols-2 gap-2">
-                        {papersForPricing.map((paper) => (
-                          <div key={paper.id} className="flex items-center gap-2">
-                            <Checkbox
-                              id={`paper-${paper.id}`}
-                              checked={settingForm.paperIds.includes(paper.id)}
-                              onCheckedChange={() => {
-                                setSettingForm((prev) => ({
-                                  ...prev,
-                                  paperIds: prev.paperIds.includes(paper.id)
-                                    ? prev.paperIds.filter((id) => id !== paper.id)
-                                    : [...prev.paperIds, paper.id],
-                                }));
-                              }}
-                            />
-                            <Label
-                              htmlFor={`paper-${paper.id}`}
-                              className="text-sm cursor-pointer"
-                            >
-                              {paper.name}
-                              {paper.grammage && <span className="text-xs text-gray-400 ml-1">({paper.grammage}g)</span>}
-                            </Label>
-                          </div>
-                        ))}
+                          className="bg-white"
+                        />
+                        <span className="text-muted-foreground text-xs whitespace-nowrap">일</span>
                       </div>
-                    )}
-                  </div>
-
-                  <p className="text-sm text-muted-foreground">
-                    선택된 용지: {settingForm.paperIds.length}개
-                  </p>
-                </>
-              ) : (
-                <>
-                  {/* 나머지: 규격 선택 */}
-                  <div className="flex items-center justify-between">
-                    <Label>규격선택</Label>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleSelectAllSpecifications}
-                      >
-                        전체선택
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleDeselectAllSpecifications}
-                      >
-                        전체해제
-                      </Button>
                     </div>
-                  </div>
 
-                  {settingForm.pricingType === "per_sheet" ? (
-                    <div className="text-xs text-muted-foreground bg-gray-50 rounded p-2">
-                      ※ 장당가격은 규격 선택이 필요없습니다.
-                    </div>
-                  ) : (
                     <div className="space-y-2">
-                      <Label>규격 용도 선택</Label>
+                      <Label className="text-xs font-medium text-gray-500">적용단위</Label>
                       <Select
-                        value={settingForm.specUsageType}
+                        value={settingForm.pricingType}
                         onValueChange={(value) =>
                           setSettingForm((prev) => ({
                             ...prev,
-                            specUsageType: value as typeof prev.specUsageType,
-                            specificationIds: [],
+                            pricingType: value as PricingType,
                           }))
                         }
                       >
-                        <SelectTrigger>
-                          <SelectValue placeholder="규격 용도 선택" />
+                        <SelectTrigger className="bg-white">
+                          <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">전체 규격</SelectItem>
-                          <SelectItem value="indigo">인디고출력</SelectItem>
-                          <SelectItem value="inkjet">잉크젯출력</SelectItem>
-                          <SelectItem value="album">앨범전용</SelectItem>
-                          <SelectItem value="frame">액자전용</SelectItem>
-                          <SelectItem value="booklet">인쇄책자전용</SelectItem>
+                          {pricingTypes?.map((type) => (
+                            <SelectItem key={type.value} value={type.value}>
+                              {type.label}
+                            </SelectItem>
+                          )) || Object.entries(PRICING_TYPE_LABELS).map(([value, label]) => (
+                            <SelectItem key={value} value={value}>
+                              {label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
-                  )}
-
-                  <div className="border rounded-lg p-4 max-h-[350px] overflow-y-auto">
-                    {settingForm.pricingType === "per_sheet" ? (
-                      <p className="text-center text-muted-foreground py-4">
-                        장당가격은 규격 선택이 필요없습니다.
-                      </p>
-                    ) : (
-                      <>
-                        <div className="grid grid-cols-3 gap-2">
-                          {getFilteredSpecifications().map((spec) => (
-                            <div key={spec.id} className="flex items-center gap-2">
-                              <Checkbox
-                                id={`spec-${spec.id}`}
-                                checked={settingForm.specificationIds.includes(spec.id)}
-                                onCheckedChange={() => handleToggleSpecification(spec.id)}
-                              />
-                              <Label
-                                htmlFor={`spec-${spec.id}`}
-                                className="text-sm font-mono cursor-pointer"
-                              >
-                                {spec.name}
-                              </Label>
-                            </div>
-                          ))}
-                        </div>
-                        {getFilteredSpecifications().length === 0 && (
-                          <p className="text-center text-muted-foreground py-4">
-                            해당 용도의 규격이 없습니다.
-                          </p>
-                        )}
-                      </>
-                    )}
                   </div>
 
-                  <p className="text-sm text-muted-foreground">
-                    선택된 규격: {settingForm.specificationIds.length}개
-                  </p>
-                </>
-              )}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs font-medium text-gray-500">세팅명</Label>
+                      <Input
+                        placeholder="예: 박Color"
+                        value={settingForm.settingName}
+                        onChange={(e) =>
+                          setSettingForm((prev) => ({
+                            ...prev,
+                            settingName: e.target.value,
+                          }))
+                        }
+                        className="bg-white"
+                      />
+                    </div>
+
+                    {settingForm.pricingType === "paper_output_spec" && (
+                      <div className="space-y-2">
+                        <Label className="text-xs font-medium text-gray-500">인쇄방식</Label>
+                        <Select
+                          value={settingForm.printMethod}
+                          onValueChange={(value) =>
+                            setSettingForm((prev) => {
+                              const newMethod = value as "indigo" | "inkjet";
+                              // 인쇄방식 변경 시 초기화 로직
+                              return {
+                                ...prev,
+                                printMethod: newMethod,
+                                specificationIds: [],
+                                paperIds: [],
+                                indigoUpPrices: INDIGO_UP_UNITS.map((up) => ({
+                                  up,
+                                  weight: DEFAULT_INDIGO_WEIGHTS[up],
+                                  fourColorSinglePrice: 0,
+                                  fourColorDoublePrice: 0,
+                                  sixColorSinglePrice: 0,
+                                  sixColorDoublePrice: 0,
+                                })),
+                                inkjetBasePrice: 0,
+                                inkjetWeightPerSqm: 0,
+                                inkjetSpecPrices: [],
+                              };
+                            })
+                          }
+                        >
+                          <SelectTrigger className="bg-white">
+                            <SelectValue placeholder="인쇄방식 선택" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(PRINT_METHOD_LABELS).map(([value, label]) => (
+                              <SelectItem key={value} value={value}>
+                                {label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* 상세 설정 */}
+              <div className="space-y-6">
+                {settingForm.pricingType === "paper_output_spec" ? (
+                  <>
+                    {/* 용지별출력단가/규격별: 인쇄방식에 따라 다른 UI */}
+
+
+                    {/* 인디고출력: 단가그룹 설정 + 용지별 그룹 할당 */}
+                    {settingForm.printMethod === "indigo" ? (
+                      <>
+                        {/* 단가 그룹 관리 */}
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-sm font-semibold">단가 그룹 설정</Label>
+                            <div className="flex gap-2">
+                              <Button
+                                type="button"
+                                size="sm"
+                                className="bg-violet-600 hover:bg-violet-700 text-white shadow-sm border-0"
+                                onClick={() => setIsPriceAdjustDialogOpen(true)}
+                                disabled={settingForm.priceGroups.length === 0}
+                              >
+                                단위 맞춤
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={settingForm.priceGroups.length >= 5}
+                                onClick={() => {
+                                  const usedColors = settingForm.priceGroups.map(g => g.color);
+                                  const nextColor = getNextAvailableColor(usedColors);
+                                  if (!nextColor) return;
+
+                                  setSettingForm((prev) => ({
+                                    ...prev,
+                                    priceGroups: [
+                                      ...prev.priceGroups,
+                                      {
+                                        id: generateGroupId(),
+                                        color: nextColor,
+                                        upPrices: INDIGO_UP_UNITS.map((up) => ({
+                                          up,
+                                          weight: DEFAULT_INDIGO_WEIGHTS[up],
+                                          fourColorSinglePrice: 0,
+                                          fourColorDoublePrice: 0,
+                                          sixColorSinglePrice: 0,
+                                          sixColorDoublePrice: 0,
+                                        })),
+                                      },
+                                    ],
+                                  }));
+                                }}
+                              >
+                                <Plus className="h-4 w-4 mr-1" />
+                                그룹 추가
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* 그룹별 단가 입력 */}
+                          {settingForm.priceGroups.length === 0 ? (
+                            <div className="border rounded-lg p-4 text-center text-muted-foreground text-sm">
+                              단가 그룹을 추가하여 용지별 가격을 설정하세요.
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              {settingForm.priceGroups.map((group) => {
+                                const style = PRICE_GROUP_STYLES[group.color] || PRICE_GROUP_STYLES.none;
+                                const assignedPapers = Object.entries(settingForm.paperPriceGroupMap)
+                                  .filter(([, gid]) => gid === group.id)
+                                  .map(([pid]) => papersForPricing?.find(p => p.id === pid))
+                                  .filter(Boolean);
+                                const upPrices = group.upPrices || INDIGO_UP_UNITS.map((up) => ({
+                                  up,
+                                  weight: DEFAULT_INDIGO_WEIGHTS[up],
+                                  fourColorSinglePrice: 0,
+                                  fourColorDoublePrice: 0,
+                                  sixColorSinglePrice: 0,
+                                  sixColorDoublePrice: 0,
+                                }));
+
+                                // 1up 기준가로 다른 up 가격 자동 계산
+                                const calculate1upBasedPrices = (baseUp: typeof upPrices[0], priceField: keyof typeof baseUp, value: number) => {
+                                  const basePrice = value;
+                                  return upPrices.map(up => {
+                                    if (up.up === 1) {
+                                      return { ...up, [priceField]: value };
+                                    }
+                                    // 1up 가격 × 가중치
+                                    const calculated = Math.round(basePrice * up.weight);
+                                    return { ...up, [priceField]: calculated };
+                                  });
+                                };
+
+                                return (
+                                  <div key={group.id} className={cn("rounded-lg p-3 border-2", style.bg, style.border)}>
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className="flex items-center gap-2">
+                                        <span className={cn("text-sm font-semibold", style.text)}>
+                                          {style.dot} {style.label}
+                                        </span>
+                                        {assignedPapers.length > 0 && (
+                                          <span className="text-xs text-gray-500">
+                                            {assignedPapers.map(p => `${p?.name}${p?.grammage ? `(${p.grammage}g)` : ''}`).join(', ')}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                        onClick={() => {
+                                          setSettingForm((prev) => {
+                                            const newMap = { ...prev.paperPriceGroupMap };
+                                            Object.keys(newMap).forEach(pid => {
+                                              if (newMap[pid] === group.id) {
+                                                newMap[pid] = null;
+                                              }
+                                            });
+                                            return {
+                                              ...prev,
+                                              priceGroups: prev.priceGroups.filter(g => g.id !== group.id),
+                                              paperPriceGroupMap: newMap,
+                                            };
+                                          });
+                                        }}
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
+
+                                    {/* Up별 단가 테이블 */}
+                                    <div className="border rounded overflow-hidden bg-white/50">
+                                      <table className="w-full text-xs">
+                                        <thead className="bg-gray-100">
+                                          <tr>
+                                            <th className="px-1 py-1 text-left font-medium">Up</th>
+                                            <th className="px-1 py-1 text-center font-medium">4도단면</th>
+                                            <th className="px-1 py-1 text-center font-medium">4도양면</th>
+                                            <th className="px-1 py-1 text-center font-medium">6도단면</th>
+                                            <th className="px-1 py-1 text-center font-medium">6도양면</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {upPrices.map((upPrice, idx) => {
+                                            // 원가 계산 (용지+잉크)
+                                            const papers = assignedPapers.filter(Boolean) as Paper[];
+                                            const paperCostSingle = papers.length > 0 ? calculateIndigoTotalCost(papers, upPrice.up, false, indigoInk1ColorCost, 4) : null;
+                                            const paperCostDouble = papers.length > 0 ? calculateIndigoTotalCost(papers, upPrice.up, true, indigoInk1ColorCost, 4) : null;
+                                            const paperCost6Single = papers.length > 0 ? calculateIndigoTotalCost(papers, upPrice.up, false, indigoInk1ColorCost, 6) : null;
+                                            const paperCost6Double = papers.length > 0 ? calculateIndigoTotalCost(papers, upPrice.up, true, indigoInk1ColorCost, 6) : null;
+
+                                            const getCostDisplay = (field: string) => {
+                                              if (!indigoInk1ColorCost) return null;
+                                              let cost: { min: number; max: number } | null = null;
+                                              if (field === 'fourColorSinglePrice') cost = paperCostSingle;
+                                              else if (field === 'fourColorDoublePrice') cost = paperCostDouble;
+                                              else if (field === 'sixColorSinglePrice') cost = paperCost6Single;
+                                              else if (field === 'sixColorDoublePrice') cost = paperCost6Double;
+                                              if (!cost) return null;
+                                              return cost.min === cost.max ? formatCurrency(cost.min) : `${formatCurrency(cost.min)}~${formatCurrency(cost.max)}`;
+                                            };
+
+                                            return (
+                                              <tr key={upPrice.up} className={idx === 0 ? "bg-yellow-50" : ""}>
+                                                <td className="px-1 py-0.5 font-medium">{upPrice.up}up</td>
+                                                {['fourColorSinglePrice', 'fourColorDoublePrice', 'sixColorSinglePrice', 'sixColorDoublePrice'].map((field) => {
+                                                  const costDisplay = getCostDisplay(field);
+                                                  return (
+                                                    <td key={field} className="px-1 py-0.5">
+                                                      <div className="flex items-center gap-0.5">
+                                                        <Input
+                                                          type="number"
+                                                          className={cn("h-5 w-16 text-xs text-right p-0.5", idx === 0 ? "bg-yellow-100 font-medium" : "bg-gray-50")}
+                                                          value={(upPrice as any)[field] || ""}
+                                                          onChange={(e) => {
+                                                            const value = Number(e.target.value) || 0;
+                                                            setSettingForm((prev) => ({
+                                                              ...prev,
+                                                              priceGroups: prev.priceGroups.map(g => {
+                                                                if (g.id !== group.id) return g;
+                                                                if (upPrice.up === 1) {
+                                                                  // 1up 가격 변경 시: nup = 1up가격 / nup * 가중치
+                                                                  const newUpPrices = (g.upPrices || upPrices).map(up => {
+                                                                    if (up.up === 1) {
+                                                                      return { ...up, [field]: value };
+                                                                    }
+                                                                    return { ...up, [field]: Math.round((value / up.up) * up.weight) };
+                                                                  });
+                                                                  return { ...g, upPrices: newUpPrices };
+                                                                }
+                                                                const newUpPrices = (g.upPrices || upPrices).map(up =>
+                                                                  up.up === upPrice.up ? { ...up, [field]: value } : up
+                                                                );
+                                                                return { ...g, upPrices: newUpPrices };
+                                                              }),
+                                                            }));
+                                                          }}
+                                                          placeholder="0"
+                                                        />
+                                                        {costDisplay && (
+                                                          <span className="text-[9px] text-amber-600 whitespace-nowrap">({costDisplay})</span>
+                                                        )}
+                                                      </div>
+                                                    </td>
+                                                  );
+                                                })}
+                                              </tr>
+                                            );
+                                          })}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                    <p className="text-xs text-gray-400 mt-1">
+                                      * 1up 가격 설정 시, 선택된 Up 만큼 나눠진 가격이 자동 계산됩니다.
+                                      {indigoInk1ColorCost > 0 && assignedPapers.length > 0 && (
+                                        <span className="text-amber-600 ml-2">
+                                          (원가 = 용지+잉크, 잉크 {indigoInk1ColorCost}원×컬러수/up)
+                                        </span>
+                                      )}
+                                    </p>
+                                    {assignedPapers.length > 0 && indigoInk1ColorCost === 0 && (
+                                      <p className="mt-1 text-xs text-amber-600">
+                                        💡 원가 표시: 설정 &gt; 기초정보 &gt; 인쇄비에서 인디고 1도 인쇄비 설정 필요
+                                      </p>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 용지 목록 + 그룹 할당 드롭다운 */}
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold">용지별 그룹 지정</Label>
+                          <div className="border rounded-lg p-3 max-h-[200px] overflow-y-auto">
+                            {!papersForPricing || papersForPricing.length === 0 ? (
+                              <p className="text-center text-muted-foreground py-2 text-sm">
+                                인디고용 용지가 없습니다.
+                              </p>
+                            ) : (
+                              <div className="space-y-1.5">
+                                {papersForPricing.map((paper) => {
+                                  const assignedGroupId = settingForm.paperPriceGroupMap[paper.id];
+                                  const assignedGroup = settingForm.priceGroups.find(g => g.id === assignedGroupId);
+                                  const style = assignedGroup
+                                    ? (PRICE_GROUP_STYLES[assignedGroup.color] || PRICE_GROUP_STYLES.none)
+                                    : PRICE_GROUP_STYLES.none;
+
+                                  return (
+                                    <div
+                                      key={paper.id}
+                                      className={cn(
+                                        "flex items-center justify-between p-2 rounded-lg border",
+                                        assignedGroup ? style.bg : "bg-white",
+                                        assignedGroup ? style.border : "border-gray-200"
+                                      )}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <Checkbox
+                                          checked={settingForm.paperIds.includes(paper.id)}
+                                          onCheckedChange={(checked) => {
+                                            setSettingForm((prev) => ({
+                                              ...prev,
+                                              paperIds: checked
+                                                ? [...prev.paperIds, paper.id]
+                                                : prev.paperIds.filter(id => id !== paper.id),
+                                            }));
+                                          }}
+                                        />
+                                        <span className={cn("text-sm", assignedGroup ? style.text : "text-gray-500")}>
+                                          {paper.name}
+                                          {paper.grammage && (
+                                            <span className="text-xs text-gray-400 ml-1">({paper.grammage}g)</span>
+                                          )}
+                                        </span>
+                                      </div>
+                                      <Select
+                                        value={assignedGroupId || "none"}
+                                        onValueChange={(value) => {
+                                          setSettingForm((prev) => ({
+                                            ...prev,
+                                            paperPriceGroupMap: {
+                                              ...prev.paperPriceGroupMap,
+                                              [paper.id]: value === "none" ? null : value,
+                                            },
+                                            // 그룹 지정 시 자동으로 선택 상태로 만들기
+                                            paperIds: value !== "none" && !prev.paperIds.includes(paper.id)
+                                              ? [...prev.paperIds, paper.id]
+                                              : prev.paperIds,
+                                          }));
+                                        }}
+                                      >
+                                        <SelectTrigger className="w-28 h-7 text-xs">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="none">
+                                            <span className="text-gray-400">⚪ 미지정</span>
+                                          </SelectItem>
+                                          {settingForm.priceGroups.map((g) => {
+                                            const gs = PRICE_GROUP_STYLES[g.color] || PRICE_GROUP_STYLES.none;
+                                            return (
+                                              <SelectItem key={g.id} value={g.id}>
+                                                <span className={gs.text}>{gs.dot} {gs.label}</span>
+                                              </SelectItem>
+                                            );
+                                          })}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            선택된 용지: {settingForm.paperIds.length}개 |
+                            그룹 지정됨: {Object.values(settingForm.paperPriceGroupMap).filter(v => v !== null).length}개
+                          </p>
+                        </div>
+
+                      </>
+                    ) : (
+                      <>
+                        {/* 잉크젯/앨범/액자/책자: 그룹별 규격 단가 설정 */}
+
+                        {/* 규격 선택 (그룹보다 먼저) */}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-sm font-semibold">규격선택 ({PRINT_METHOD_LABELS[settingForm.printMethod]}용)</Label>
+                            <div className="flex gap-2">
+                              <Button variant="outline" size="sm" onClick={() => {
+                                const filteredSpecs = getFilteredSpecifications();
+                                setSettingForm((prev) => ({
+                                  ...prev,
+                                  specificationIds: filteredSpecs.map((s) => s.id),
+                                }));
+                              }}>
+                                전체선택
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={() => {
+                                setSettingForm((prev) => ({
+                                  ...prev,
+                                  specificationIds: [],
+                                }));
+                              }}>
+                                전체해제
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="border rounded-lg p-3 max-h-[100px] overflow-y-auto">
+                            <div className="grid grid-cols-4 gap-2">
+                              {getFilteredSpecifications().map((spec) => (
+                                <div key={spec.id} className="flex items-center gap-2">
+                                  <Checkbox
+                                    id={`spec-inkjet-${spec.id}`}
+                                    checked={settingForm.specificationIds.includes(spec.id)}
+                                    onCheckedChange={() => {
+                                      const isSelected = settingForm.specificationIds.includes(spec.id);
+                                      setSettingForm((prev) => ({
+                                        ...prev,
+                                        specificationIds: isSelected
+                                          ? prev.specificationIds.filter((id) => id !== spec.id)
+                                          : [...prev.specificationIds, spec.id],
+                                      }));
+                                    }}
+                                  />
+                                  <Label htmlFor={`spec-inkjet-${spec.id}`} className="text-xs font-mono cursor-pointer">
+                                    {spec.name}
+                                  </Label>
+                                </div>
+                              ))}
+                            </div>
+                            {getFilteredSpecifications().length === 0 && (
+                              <p className="text-center text-muted-foreground py-2 text-sm">
+                                {PRINT_METHOD_LABELS[settingForm.printMethod]}용 규격이 없습니다.
+                              </p>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">선택된 규격: {settingForm.specificationIds.length}개</p>
+                        </div>
+
+                        {/* 단가 그룹 관리 */}
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-sm font-semibold">단가 그룹 설정</Label>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={settingForm.priceGroups.length >= 5 || settingForm.specificationIds.length === 0}
+                              onClick={() => {
+                                const usedColors = settingForm.priceGroups.map(g => g.color);
+                                const nextColor = getNextAvailableColor(usedColors);
+                                if (!nextColor) return;
+
+                                // 빈 specPrices로 시작 (사용자가 규격 선택)
+                                setSettingForm((prev) => ({
+                                  ...prev,
+                                  priceGroups: [
+                                    ...prev.priceGroups,
+                                    {
+                                      id: generateGroupId(),
+                                      color: nextColor,
+                                      upPrices: INDIGO_UP_UNITS.map((up) => ({
+                                        up,
+                                        weight: DEFAULT_INDIGO_WEIGHTS[up],
+                                        fourColorSinglePrice: 0,
+                                        fourColorDoublePrice: 0,
+                                        sixColorSinglePrice: 0,
+                                        sixColorDoublePrice: 0,
+                                      })),
+                                      specPrices: [], // 빈 배열로 시작, 사용자가 규격 선택
+                                      inkjetBaseSpecId: "",
+                                      inkjetBasePrice: 0,
+                                    },
+                                  ],
+                                }));
+                              }}
+                            >
+                              <Plus className="h-4 w-4 mr-1" />
+                              그룹 추가
+                            </Button>
+                          </div>
+
+                          {settingForm.specificationIds.length === 0 && (
+                            <div className="border rounded-lg p-4 text-center text-muted-foreground text-sm">
+                              먼저 규격을 선택하세요.
+                            </div>
+                          )}
+
+                          {/* 그룹별 규격 단가 입력 */}
+                          {settingForm.priceGroups.length === 0 && settingForm.specificationIds.length > 0 ? (
+                            <div className="border rounded-lg p-4 text-center text-muted-foreground text-sm">
+                              단가 그룹을 추가하여 용지별 규격 가격을 설정하세요.
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              {settingForm.priceGroups.map((group) => {
+                                const style = PRICE_GROUP_STYLES[group.color] || PRICE_GROUP_STYLES.none;
+                                const assignedPapers = Object.entries(settingForm.paperPriceGroupMap)
+                                  .filter(([, gid]) => gid === group.id)
+                                  .map(([pid]) => papersForPricing?.find(p => p.id === pid))
+                                  .filter(Boolean);
+                                const specPrices = group.specPrices || [];
+
+                                return (
+                                  <div key={group.id} className={cn("rounded-lg p-3 border-2", style.bg, style.border)}>
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className="flex items-center gap-2">
+                                        <span className={cn("text-sm font-semibold", style.text)}>
+                                          {style.dot} {style.label}
+                                        </span>
+                                        <span className="text-xs bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded">
+                                          규격 {specPrices.length}/{settingForm.specificationIds.length}개
+                                        </span>
+                                        {assignedPapers.length > 0 && (
+                                          <span className="text-xs text-gray-500">
+                                            {assignedPapers.map(p => `${p?.name}${p?.grammage ? `(${p.grammage}g)` : ''}`).join(', ')}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                        onClick={() => {
+                                          setSettingForm((prev) => {
+                                            const newMap = { ...prev.paperPriceGroupMap };
+                                            Object.keys(newMap).forEach(pid => {
+                                              if (newMap[pid] === group.id) {
+                                                newMap[pid] = null;
+                                              }
+                                            });
+                                            return {
+                                              ...prev,
+                                              priceGroups: prev.priceGroups.filter(g => g.id !== group.id),
+                                              paperPriceGroupMap: newMap,
+                                            };
+                                          });
+                                        }}
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
+
+                                    {/* 기준규격 선택 */}
+                                    <div className="mb-2 p-2 bg-white/50 rounded border">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <Label className="text-xs font-medium">기준규격</Label>
+                                        <Select
+                                          value={group.inkjetBaseSpecId || ""}
+                                          onValueChange={(specId) => {
+                                            const spec = specifications?.find((s) => s.id === specId);
+                                            if (!spec) return;
+                                            const specArea = Number(spec.widthInch) * Number(spec.heightInch);
+                                            const existingPrice = specPrices.find(p => p.specificationId === specId)?.singleSidedPrice || 0;
+                                            const pricePerSqInch = specArea > 0 && existingPrice > 0 ? existingPrice / specArea : (group.inkjetBasePrice || 0);
+
+                                            setSettingForm((prev) => ({
+                                              ...prev,
+                                              priceGroups: prev.priceGroups.map(g => {
+                                                if (g.id !== group.id) return g;
+                                                // 다른 규격 가격 재계산
+                                                const newSpecPrices = (g.specPrices || specPrices).map((sp) => {
+                                                  if (sp.specificationId === specId) return sp;
+                                                  const targetSpec = specifications?.find((s) => s.id === sp.specificationId);
+                                                  if (!targetSpec) return sp;
+                                                  const targetArea = Number(targetSpec.widthInch) * Number(targetSpec.heightInch);
+                                                  const calculatedPrice = targetArea * pricePerSqInch * (sp.weight || 1.0);
+                                                  return { ...sp, singleSidedPrice: Math.max(0, Math.round(calculatedPrice)) };
+                                                });
+                                                return { ...g, inkjetBaseSpecId: specId, inkjetBasePrice: pricePerSqInch, specPrices: newSpecPrices };
+                                              }),
+                                            }));
+                                          }}
+                                        >
+                                          <SelectTrigger className="h-7 w-32 text-xs bg-white">
+                                            <SelectValue placeholder="선택" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {specPrices.length === 0 ? (
+                                              <SelectItem value="none" disabled>규격을 먼저 선택하세요</SelectItem>
+                                            ) : (
+                                              specPrices.map((sp) => {
+                                                const spec = specifications?.find((s) => s.id === sp.specificationId);
+                                                return (
+                                                  <SelectItem key={sp.specificationId} value={sp.specificationId}>
+                                                    {spec?.name || sp.specificationId}
+                                                  </SelectItem>
+                                                );
+                                              })
+                                            )}
+                                          </SelectContent>
+                                        </Select>
+                                        {group.inkjetBaseSpecId && (
+                                          <>
+                                            <Input
+                                              type="number"
+                                              className="h-7 w-20 text-xs bg-white"
+                                              placeholder="단가"
+                                              value={specPrices.find(p => p.specificationId === group.inkjetBaseSpecId)?.singleSidedPrice || ""}
+                                              onChange={(e) => {
+                                                const basePrice = Number(e.target.value);
+                                                const baseSpec = specifications?.find((s) => s.id === group.inkjetBaseSpecId);
+                                                if (!baseSpec) return;
+                                                const baseArea = Number(baseSpec.widthInch) * Number(baseSpec.heightInch);
+                                                const pricePerSqInch = baseArea > 0 ? basePrice / baseArea : 0;
+
+                                                setSettingForm((prev) => ({
+                                                  ...prev,
+                                                  priceGroups: prev.priceGroups.map(g => {
+                                                    if (g.id !== group.id) return g;
+                                                    const newSpecPrices = (g.specPrices || specPrices).map((sp) => {
+                                                      if (sp.specificationId === group.inkjetBaseSpecId) {
+                                                        return { ...sp, singleSidedPrice: basePrice };
+                                                      }
+                                                      const targetSpec = specifications?.find((s) => s.id === sp.specificationId);
+                                                      if (!targetSpec) return sp;
+                                                      const targetArea = Number(targetSpec.widthInch) * Number(targetSpec.heightInch);
+                                                      const calculatedPrice = targetArea * pricePerSqInch * (sp.weight || 1.0);
+                                                      return { ...sp, singleSidedPrice: Math.max(0, Math.round(calculatedPrice)) };
+                                                    });
+                                                    return { ...g, inkjetBasePrice: pricePerSqInch, specPrices: newSpecPrices };
+                                                  }),
+                                                }));
+                                              }}
+                                            />
+                                            <span className="text-xs text-gray-500">원</span>
+                                            <span className="text-xs text-gray-400 ml-2">
+                                              ({(group.inkjetBasePrice || 0).toFixed(1)}원/sq")
+                                            </span>
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* 규격별 단가 테이블 */}
+                                    <div className="border rounded overflow-hidden bg-white/50 max-h-[200px] overflow-y-auto">
+                                      <table className="w-full text-xs">
+                                        <thead className="bg-gray-100 sticky top-0">
+                                          <tr>
+                                            <th className="px-1 py-1 text-center font-medium w-8">
+                                              <input
+                                                type="checkbox"
+                                                className="h-3 w-3"
+                                                checked={specPrices.length === settingForm.specificationIds.length}
+                                                onChange={(e) => {
+                                                  const checked = e.target.checked;
+                                                  setSettingForm((prev) => ({
+                                                    ...prev,
+                                                    priceGroups: prev.priceGroups.map(g => {
+                                                      if (g.id !== group.id) return g;
+                                                      if (checked) {
+                                                        // 전체 선택: 모든 규격 추가
+                                                        const allSpecPrices = settingForm.specificationIds.map((specId) => {
+                                                          const existing = (g.specPrices || []).find(sp => sp.specificationId === specId);
+                                                          return existing || { specificationId: specId, singleSidedPrice: 0, weight: 1.0 };
+                                                        });
+                                                        return { ...g, specPrices: allSpecPrices };
+                                                      } else {
+                                                        // 전체 해제: 모든 규격 제거
+                                                        return { ...g, specPrices: [], inkjetBaseSpecId: "" };
+                                                      }
+                                                    }),
+                                                  }));
+                                                }}
+                                              />
+                                            </th>
+                                            <th className="px-2 py-1 text-left font-medium">규격</th>
+                                            <th className="px-2 py-1 text-center font-medium">면적</th>
+                                            <th className="px-2 py-1 text-center font-medium">단가</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {settingForm.specificationIds.map((specId) => {
+                                            const spec = specifications?.find((s) => s.id === specId);
+                                            const specArea = spec ? Number(spec.widthInch) * Number(spec.heightInch) : 0;
+                                            const priceData = specPrices.find(p => p.specificationId === specId);
+                                            const isIncluded = !!priceData;
+                                            const isBase = specId === group.inkjetBaseSpecId;
+                                            const selectedPapers = (papersForPricing || []).filter(p =>
+                                              Object.entries(settingForm.paperPriceGroupMap)
+                                                .some(([pid, gid]) => gid === group.id && pid === p.id)
+                                            );
+                                            const costData = spec ? calculateInkjetTotalCost(selectedPapers, spec) : null;
+
+                                            return (
+                                              <tr key={specId} className={cn(isBase ? "bg-green-50" : "", !isIncluded && "opacity-50")}>
+                                                <td className="px-1 py-1 text-center">
+                                                  <input
+                                                    type="checkbox"
+                                                    className="h-3 w-3"
+                                                    checked={isIncluded}
+                                                    onChange={(e) => {
+                                                      const checked = e.target.checked;
+                                                      setSettingForm((prev) => ({
+                                                        ...prev,
+                                                        priceGroups: prev.priceGroups.map(g => {
+                                                          if (g.id !== group.id) return g;
+                                                          if (checked) {
+                                                            // 규격 추가
+                                                            const newSpecPrices = [...(g.specPrices || []), { specificationId: specId, singleSidedPrice: 0, weight: 1.0 }];
+                                                            return { ...g, specPrices: newSpecPrices };
+                                                          } else {
+                                                            // 규격 제거
+                                                            const newSpecPrices = (g.specPrices || []).filter(sp => sp.specificationId !== specId);
+                                                            // 기준규격이 제거되면 기준규격도 초기화
+                                                            const newBaseSpecId = specId === g.inkjetBaseSpecId ? "" : g.inkjetBaseSpecId;
+                                                            return { ...g, specPrices: newSpecPrices, inkjetBaseSpecId: newBaseSpecId };
+                                                          }
+                                                        }),
+                                                      }));
+                                                    }}
+                                                  />
+                                                </td>
+                                                <td className="px-2 py-1 font-mono">
+                                                  {spec?.name}
+                                                  {isBase && <span className="text-green-600 ml-1">(기준)</span>}
+                                                </td>
+                                                <td className="px-2 py-1 text-center text-gray-500">
+                                                  {specArea.toFixed(0)}
+                                                </td>
+                                                <td className="px-2 py-1">
+                                                  {isIncluded ? (
+                                                    <div className="flex items-center gap-1">
+                                                      <Input
+                                                        type="number"
+                                                        className={cn("h-5 w-16 text-xs text-right p-0.5", isBase ? "bg-green-100" : "bg-gray-50")}
+                                                        value={priceData?.singleSidedPrice || ""}
+                                                        onChange={(e) => {
+                                                          const value = Number(e.target.value) || 0;
+                                                          setSettingForm((prev) => ({
+                                                            ...prev,
+                                                            priceGroups: prev.priceGroups.map(g => {
+                                                              if (g.id !== group.id) return g;
+                                                              const newSpecPrices = (g.specPrices || specPrices).map(sp =>
+                                                                sp.specificationId === specId ? { ...sp, singleSidedPrice: value } : sp
+                                                              );
+                                                              return { ...g, specPrices: newSpecPrices };
+                                                            }),
+                                                          }));
+                                                        }}
+                                                        placeholder="0"
+                                                      />
+                                                      {costData && (
+                                                        <span className="text-[9px] text-amber-600 whitespace-nowrap">
+                                                          ({costData.totalMin === costData.totalMax
+                                                            ? formatCurrency(costData.totalMin)
+                                                            : `${formatCurrency(costData.totalMin)}~${formatCurrency(costData.totalMax)}`})
+                                                        </span>
+                                                      )}
+                                                    </div>
+                                                  ) : (
+                                                    <span className="text-gray-400 text-xs">-</span>
+                                                  )}
+                                                </td>
+                                              </tr>
+                                            );
+                                          })}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                    <p className="text-xs text-gray-400 mt-1">* 체크된 규격만 그룹에 포함됩니다. 기준규격 단가 입력 시 면적 비례로 자동 계산됩니다.</p>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 용지 목록 + 그룹 할당 드롭다운 */}
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold">용지별 그룹 지정</Label>
+                          <div className="border rounded-lg p-3 max-h-[200px] overflow-y-auto">
+                            {!papersForPricing || papersForPricing.length === 0 ? (
+                              <p className="text-center text-muted-foreground py-2 text-sm">
+                                잉크젯용 용지가 없습니다.
+                              </p>
+                            ) : (
+                              <div className="space-y-1.5">
+                                {papersForPricing.map((paper) => {
+                                  const assignedGroupId = settingForm.paperPriceGroupMap[paper.id];
+                                  const assignedGroup = settingForm.priceGroups.find(g => g.id === assignedGroupId);
+                                  const style = assignedGroup
+                                    ? (PRICE_GROUP_STYLES[assignedGroup.color] || PRICE_GROUP_STYLES.none)
+                                    : PRICE_GROUP_STYLES.none;
+
+                                  return (
+                                    <div
+                                      key={paper.id}
+                                      className={cn(
+                                        "flex items-center justify-between p-2 rounded-lg border",
+                                        assignedGroup ? style.bg : "bg-white",
+                                        assignedGroup ? style.border : "border-gray-200"
+                                      )}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <Checkbox
+                                          checked={settingForm.paperIds.includes(paper.id)}
+                                          onCheckedChange={(checked) => {
+                                            setSettingForm((prev) => ({
+                                              ...prev,
+                                              paperIds: checked
+                                                ? [...prev.paperIds, paper.id]
+                                                : prev.paperIds.filter(id => id !== paper.id),
+                                            }));
+                                          }}
+                                        />
+                                        <span className={cn("text-sm", assignedGroup ? style.text : "text-gray-500")}>
+                                          {paper.name}
+                                          {paper.grammage && (
+                                            <span className="text-xs text-gray-400 ml-1">({paper.grammage}g)</span>
+                                          )}
+                                        </span>
+                                      </div>
+                                      <Select
+                                        value={assignedGroupId || "none"}
+                                        onValueChange={(value) => {
+                                          setSettingForm((prev) => ({
+                                            ...prev,
+                                            paperPriceGroupMap: {
+                                              ...prev.paperPriceGroupMap,
+                                              [paper.id]: value === "none" ? null : value,
+                                            },
+                                            paperIds: value !== "none" && !prev.paperIds.includes(paper.id)
+                                              ? [...prev.paperIds, paper.id]
+                                              : prev.paperIds,
+                                          }));
+                                        }}
+                                      >
+                                        <SelectTrigger className="w-28 h-7 text-xs">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="none">
+                                            <span className="text-gray-400">⚪ 미지정</span>
+                                          </SelectItem>
+                                          {settingForm.priceGroups.map((g) => {
+                                            const gs = PRICE_GROUP_STYLES[g.color] || PRICE_GROUP_STYLES.none;
+                                            return (
+                                              <SelectItem key={g.id} value={g.id}>
+                                                <span className={gs.text}>{gs.dot} {gs.label}</span>
+                                              </SelectItem>
+                                            );
+                                          })}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            선택된 용지: {settingForm.paperIds.length}개 |
+                            그룹 지정됨: {Object.values(settingForm.paperPriceGroupMap).filter(v => v !== null).length}개
+                          </p>
+                        </div>
+                      </>
+                    )}
+                  </>
+                ) : settingForm.pricingType === "indigo_spec" ? (
+                  <>
+                    {/* 인디고 규격별 단가 설정 */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-semibold">인디고 규격별 단가</Label>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              // forIndigo 규격 전체 선택
+                              const indigoSpecs = specifications?.filter(s => s.forIndigo) || [];
+                              setSettingForm(prev => ({
+                                ...prev,
+                                specificationIds: indigoSpecs.map(s => s.id),
+                                indigoSpecPrices: indigoSpecs.map(s => {
+                                  const existing = prev.indigoSpecPrices.find(p => p.specificationId === s.id);
+                                  return { specificationId: s.id, price: existing?.price || 0 };
+                                }),
+                              }));
+                            }}
+                          >
+                            전체선택
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSettingForm(prev => ({
+                                ...prev,
+                                specificationIds: [],
+                                indigoSpecPrices: [],
+                              }));
+                            }}
+                          >
+                            전체해제
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="text-xs text-muted-foreground bg-blue-50 rounded p-2 mb-2">
+                        ※ 인디고 규격(forIndigo)만 표시됩니다. 규격별 단가를 입력하세요.
+                      </div>
+
+                      <div className="border rounded-lg p-4 max-h-[400px] overflow-y-auto">
+                        <div className="grid grid-cols-1 gap-2">
+                          {specifications?.filter(s => s.forIndigo).map((spec) => {
+                            const isSelected = settingForm.specificationIds.includes(spec.id);
+                            const priceData = settingForm.indigoSpecPrices.find(p => p.specificationId === spec.id);
+
+                            return (
+                              <div key={spec.id} className="flex items-center gap-3 py-1.5 border-b last:border-b-0">
+                                <Checkbox
+                                  id={`indigo-spec-${spec.id}`}
+                                  checked={isSelected}
+                                  onCheckedChange={(checked) => {
+                                    setSettingForm(prev => {
+                                      if (checked) {
+                                        return {
+                                          ...prev,
+                                          specificationIds: [...prev.specificationIds, spec.id],
+                                          indigoSpecPrices: [...prev.indigoSpecPrices, { specificationId: spec.id, price: 0 }],
+                                        };
+                                      } else {
+                                        return {
+                                          ...prev,
+                                          specificationIds: prev.specificationIds.filter(id => id !== spec.id),
+                                          indigoSpecPrices: prev.indigoSpecPrices.filter(p => p.specificationId !== spec.id),
+                                        };
+                                      }
+                                    });
+                                  }}
+                                />
+                                <Label
+                                  htmlFor={`indigo-spec-${spec.id}`}
+                                  className="text-sm font-mono cursor-pointer min-w-[80px]"
+                                >
+                                  {spec.name}
+                                </Label>
+                                {isSelected && (
+                                  <div className="flex items-center gap-2 ml-auto">
+                                    <span className="text-xs text-gray-500">단가:</span>
+                                    <Input
+                                      type="number"
+                                      value={priceData?.price || 0}
+                                      onChange={(e) => {
+                                        const value = Number(e.target.value);
+                                        setSettingForm(prev => ({
+                                          ...prev,
+                                          indigoSpecPrices: prev.indigoSpecPrices.map(p =>
+                                            p.specificationId === spec.id ? { ...p, price: value } : p
+                                          ),
+                                        }));
+                                      }}
+                                      className="w-24 h-8 text-right font-mono"
+                                      placeholder="0"
+                                    />
+                                    <span className="text-xs text-gray-500">원</span>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                          {(!specifications || specifications.filter(s => s.forIndigo).length === 0) && (
+                            <p className="text-center text-muted-foreground py-4">
+                              인디고 규격이 없습니다. 규격 관리에서 forIndigo를 활성화해주세요.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <p className="text-sm text-muted-foreground">
+                        선택된 규격: {settingForm.specificationIds.length}개
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* 나머지: 규격 선택 */}
+                    <div className="flex items-center justify-between">
+                      <Label>규격선택</Label>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleSelectAllSpecifications}
+                        >
+                          전체선택
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleDeselectAllSpecifications}
+                        >
+                          전체해제
+                        </Button>
+                      </div>
+                    </div>
+
+                    {settingForm.pricingType === "per_sheet" ? (
+                      <div className="text-xs text-muted-foreground bg-gray-50 rounded p-2">
+                        ※ 장당가격은 규격 선택이 필요없습니다.
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Label>규격 용도 선택</Label>
+                        <Select
+                          value={settingForm.specUsageType}
+                          onValueChange={(value) =>
+                            setSettingForm((prev) => ({
+                              ...prev,
+                              specUsageType: value as typeof prev.specUsageType,
+                              specificationIds: [],
+                            }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="규격 용도 선택" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">전체 규격</SelectItem>
+                            <SelectItem value="indigo">인디고출력</SelectItem>
+                            <SelectItem value="inkjet">잉크젯출력</SelectItem>
+                            <SelectItem value="album">앨범전용</SelectItem>
+                            <SelectItem value="frame">액자전용</SelectItem>
+                            <SelectItem value="booklet">인쇄책자전용</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    <div className="border rounded-lg p-4 max-h-[350px] overflow-y-auto">
+                      {settingForm.pricingType === "per_sheet" ? (
+                        <p className="text-center text-muted-foreground py-4">
+                          장당가격은 규격 선택이 필요없습니다.
+                        </p>
+                      ) : (
+                        <>
+                          <div className="grid grid-cols-3 gap-2">
+                            {getFilteredSpecifications().map((spec) => (
+                              <div key={spec.id} className="flex items-center gap-2">
+                                <Checkbox
+                                  id={`spec-${spec.id}`}
+                                  checked={settingForm.specificationIds.includes(spec.id)}
+                                  onCheckedChange={() => handleToggleSpecification(spec.id)}
+                                />
+                                <Label
+                                  htmlFor={`spec-${spec.id}`}
+                                  className="text-sm font-mono cursor-pointer"
+                                >
+                                  {spec.name}
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
+                          {getFilteredSpecifications().length === 0 && (
+                            <p className="text-center text-muted-foreground py-4">
+                              해당 용도의 규격이 없습니다.
+                            </p>
+                          )}
+                        </>
+                      )}
+                    </div>
+
+                    <p className="text-sm text-muted-foreground">
+                      선택된 규격: {settingForm.specificationIds.length}개
+                    </p>
+                  </>
+                )}
+              </div>
             </div>
           </div>
-          <DialogFooter>
+
+          <div className="mt-6 flex justify-end gap-2 pt-4 border-t">
             <Button variant="outline" onClick={() => setIsSettingDialogOpen(false)}>
               취소
             </Button>
             <Button onClick={handleSaveSetting}>
               {editingSetting ? "수정" : "추가"}
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -1226,6 +2908,130 @@ export default function ProductionSettingPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+
+      {/* 단가 조정 다이얼로그 */}
+      <Dialog open={isPriceAdjustDialogOpen} onOpenChange={setIsPriceAdjustDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>단위 맞춤</DialogTitle>
+            <DialogDescription>
+              가격 범위별로 금액 단위를 맞춥니다.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* 범위별 조정 설정 - 단면/양면 모두 한 번에 조정 */}
+            <div className="rounded-lg overflow-hidden border border-gray-200">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100">
+                    <th className="px-3 py-3 text-center font-medium text-gray-500 w-12">구간</th>
+                    <th className="px-3 py-3 text-center font-medium text-gray-500">가격 범위</th>
+                    <th className="px-3 py-3 text-center font-medium text-gray-500 w-32">반올림 단위</th>
+                    <th className="px-3 py-3 text-center font-medium text-gray-500 w-10"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {priceAdjustRanges.map((range, index) => (
+                    <tr key={index} className="bg-white hover:bg-gray-50/50">
+                      <td className="px-3 py-2 text-center">
+                        <span className="inline-flex items-center justify-center w-6 h-6 bg-indigo-100 text-indigo-600 rounded text-xs font-semibold">
+                          {index + 1}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="relative flex-1">
+                            <Input
+                              type="number"
+                              className="h-9 w-full text-center bg-gray-50/50 border-gray-200 focus:bg-white focus:border-indigo-500 transition-colors"
+                              value={getRangeMinPrice(index)}
+                              readOnly
+                            />
+                          </div>
+                          <span className="text-gray-400">~</span>
+                          <div className="relative flex-1">
+                            <Input
+                              type="number"
+                              className="h-9 w-full text-center border-gray-200 focus:border-indigo-500 focus:ring-indigo-100 transition-all font-medium"
+                              value={range.maxPrice}
+                              onChange={(e) => {
+                                const value = Number(e.target.value);
+                                setPriceAdjustRanges(prev =>
+                                  prev.map((r, i) => i === index ? { ...r, maxPrice: value } : r)
+                                );
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center justify-center gap-1">
+                          <Input
+                            type="number"
+                            className="h-9 w-20 text-center border-gray-200 focus:border-indigo-500 focus:ring-indigo-100 transition-all font-medium"
+                            value={range.adjustment || 10}
+                            onChange={(e) => {
+                              const value = Number(e.target.value);
+                              setPriceAdjustRanges(prev =>
+                                prev.map((r, i) => i === index ? { ...r, adjustment: Math.max(1, value) } : r)
+                              );
+                            }}
+                          />
+                          <span className="text-gray-500 text-xs">원</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        {priceAdjustRanges.length > 1 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                            onClick={() => removePriceAdjustRange(index)}
+                          >
+                            ×
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* 구간 추가 버튼 */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full h-11 border-dashed border-gray-300 text-gray-600 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50/50 transition-all"
+              onClick={addPriceAdjustRange}
+            >
+              + 구간 추가
+            </Button>
+
+            <div className="bg-gray-50 rounded-lg p-3 space-y-1">
+              <p className="text-xs text-gray-500">
+                * 반올림 단위로 가격을 반올림합니다. (예: 50원 단위 → 930원→900원, 960원→1000원)
+              </p>
+              <p className="text-xs text-gray-500">
+                * 시작 가격은 이전 구간 끝 가격 + 1원으로 자동 설정됩니다.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" className="h-10 px-4" onClick={resetPriceAdjustment}>
+              초기화
+            </Button>
+            <Button variant="outline" className="h-10 px-4" onClick={() => setIsPriceAdjustDialogOpen(false)}>
+              취소
+            </Button>
+            <Button className="h-10 px-6 bg-indigo-600 hover:bg-indigo-700 shadow-sm" onClick={applyPriceAdjustment}>
+              적용
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div >
   );
 }

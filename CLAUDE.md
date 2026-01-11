@@ -219,12 +219,12 @@ npm run dev:api
 
 ```
 관리자:
-- Email: admin@printing-erp.com
-- Password: admin1234
+- Email: wooceo@gmail.com
+- Password: color060
 
 매니저:
 - Email: manager@printing-erp.com
-- Password: admin1234
+- Password: color060
 ```
 
 ## 완료된 작업
