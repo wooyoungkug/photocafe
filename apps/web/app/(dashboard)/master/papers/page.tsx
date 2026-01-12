@@ -95,7 +95,6 @@ import {
   FINISH_OPTIONS,
   PRINT_METHOD_OPTIONS,
   UNIT_TYPE_OPTIONS,
-  COLOR_GROUP_OPTIONS,
   GROUP_COLOR_OPTIONS,
 } from '@/lib/types/paper';
 
@@ -578,7 +577,6 @@ export default function PapersPage() {
               <TableHeader>
                 <TableRow className="bg-slate-50">
                   <TableHead className="font-semibold">용지명</TableHead>
-                  <TableHead>그룹</TableHead>
                   <TableHead>평량</TableHead>
                   <TableHead>제지사</TableHead>
                   <TableHead>구분</TableHead>
@@ -593,7 +591,7 @@ export default function PapersPage() {
               <TableBody>
                 {papersLoading ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center py-12">
+                    <TableCell colSpan={10} className="text-center py-12">
                       <div className="flex items-center justify-center gap-2 text-muted-foreground">
                         <div className="animate-spin h-4 w-4 border-2 border-indigo-500 border-t-transparent rounded-full" />
                         로딩 중...
@@ -602,7 +600,7 @@ export default function PapersPage() {
                   </TableRow>
                 ) : !papersData?.data?.length ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center py-12">
+                    <TableCell colSpan={10} className="text-center py-12">
                       <div className="text-muted-foreground">
                         <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
                         등록된 용지가 없습니다
@@ -611,19 +609,9 @@ export default function PapersPage() {
                   </TableRow>
                 ) : (
                   papersData.data.map((paper: Paper) => {
-                    const colorGroup = COLOR_GROUP_OPTIONS.find(opt => opt.value === paper.colorGroup);
                     return (
                     <TableRow key={paper.id} className="hover:bg-slate-50">
                       <TableCell className="font-medium">{paper.name}</TableCell>
-                      <TableCell>
-                        {colorGroup ? (
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${colorGroup.color}`}>
-                            {colorGroup.label.replace(/🟢|🔵|🟡|🔴|🟣/g, '').trim()}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
-                      </TableCell>
                       <TableCell className="text-slate-600">
                         {paper.grammage ? `${paper.grammage}g` : '-'}
                       </TableCell>
@@ -1169,39 +1157,6 @@ export default function PapersPage() {
                     );
                   })}
                 </div>
-              </div>
-            </div>
-
-            {/* 용지 컬러 그룹 */}
-            <div className="space-y-2">
-              <Label>용지 컬러그룹 (단가설정 시 그룹핑용)</Label>
-              <div className="flex flex-wrap gap-2">
-                {COLOR_GROUP_OPTIONS.map((opt) => {
-                  const isSelected = paperForm.watch('colorGroup') === opt.value;
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => paperForm.setValue('colorGroup', isSelected ? undefined : opt.value)}
-                      className={`px-3 py-2 rounded-lg border-2 transition-all ${
-                        isSelected
-                          ? opt.color
-                          : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                      }`}
-                    >
-                      <span className="text-sm font-medium">{opt.label}</span>
-                    </button>
-                  );
-                })}
-                {paperForm.watch('colorGroup') && (
-                  <button
-                    type="button"
-                    onClick={() => paperForm.setValue('colorGroup', undefined)}
-                    className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700"
-                  >
-                    선택해제
-                  </button>
-                )}
               </div>
             </div>
 

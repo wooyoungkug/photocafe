@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSystemSettings, useBulkUpdateSettings, settingsToMap, getNumericValue } from "@/hooks/use-system-settings";
 import {
   Table,
   TableBody,
@@ -24,7 +25,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Pencil, Trash2, Search, Ruler, ChevronUp, ChevronDown, Settings } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Plus, Pencil, Trash2, Search, Ruler, ChevronUp, ChevronDown, Settings, RectangleHorizontal, RectangleVertical, Square } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 
@@ -57,14 +65,16 @@ interface NupSettings {
   "1+up": number;  // 대형 기준 면적
   "1up": number;   // 표준 기준 면적
   "2up": number;   // 소형 기준 면적
+  "4up": number;   // 초소형 기준 면적
 }
 
 // Nup 기본 설정값
 const DEFAULT_NUP_SETTINGS: NupSettings = {
-  "1++up": 200,
-  "1+up": 100,
-  "1up": 50,
-  "2up": 25,
+  "1++up": 204.1,
+  "1+up": 154.1,
+  "1up": 102.1,
+  "2up": 48.1,
+  "4up": 0,
 };
 
 // Nup 레이블
@@ -74,6 +84,7 @@ const NUP_LABELS: Record<string, string> = {
   "1up": "표준",
   "2up": "소형",
   "4up": "초소형",
+  "8up": "극소형",
 };
 
 // Nup 계산 함수 (면적 기준, 설정값 사용)
@@ -83,7 +94,8 @@ function calculateNup(widthInch: number, heightInch: number, settings: NupSettin
   if (sqInch >= settings["1+up"]) return "1+up";
   if (sqInch >= settings["1up"]) return "1up";
   if (sqInch >= settings["2up"]) return "2up";
-  return "4up";
+  if (sqInch >= settings["4up"]) return "4up";
+  return "8up";
 }
 
 interface SpecificationForm {
@@ -137,6 +149,24 @@ export default function SpecificationsPage() {
   const [isNupSettingsOpen, setIsNupSettingsOpen] = useState(false);
   const [nupSettings, setNupSettings] = useState<NupSettings>(DEFAULT_NUP_SETTINGS);
   const [nupSettingsForm, setNupSettingsForm] = useState<NupSettings>(DEFAULT_NUP_SETTINGS);
+
+  // Nup 설정 DB 조회
+  const { data: systemSettings = [] } = useSystemSettings("nup");
+  const bulkUpdateSettings = useBulkUpdateSettings();
+
+  // DB에서 Nup 설정 로드
+  useEffect(() => {
+    if (systemSettings.length > 0) {
+      const settingsMap = settingsToMap(systemSettings);
+      setNupSettings({
+        "1++up": getNumericValue(settingsMap, "nup_1ppup", DEFAULT_NUP_SETTINGS["1++up"]),
+        "1+up": getNumericValue(settingsMap, "nup_1pup", DEFAULT_NUP_SETTINGS["1+up"]),
+        "1up": getNumericValue(settingsMap, "nup_1up", DEFAULT_NUP_SETTINGS["1up"]),
+        "2up": getNumericValue(settingsMap, "nup_2up", DEFAULT_NUP_SETTINGS["2up"]),
+        "4up": getNumericValue(settingsMap, "nup_4up", DEFAULT_NUP_SETTINGS["4up"]),
+      });
+    }
+  }, [systemSettings]);
 
   // 규격 목록 조회
   const { data: specifications = [], isLoading } = useQuery({
@@ -297,13 +327,21 @@ export default function SpecificationsPage() {
   // 앨범 체크박스 변경 핸들러 (Nup 자동 계산)
   const handleAlbumChange = (checked: boolean) => {
     const sqInch = form.widthInch * form.heightInch;
-    setForm({
-      ...form,
-      forAlbum: checked,
-      // 앨범 체크시 Nup 자동 계산, 체크 해제시 null
-      nup: checked && form.widthInch > 0 && form.heightInch > 0 ? calculateNup(form.widthInch, form.heightInch, nupSettings) : undefined,
-      nupSqInch: checked && form.widthInch > 0 && form.heightInch > 0 ? sqInch : undefined,
-    });
+    if (checked) {
+      // 앨범 체크시 Nup 자동 계산 (이미 값이 있으면 유지)
+      setForm({
+        ...form,
+        forAlbum: true,
+        nup: form.nup || (form.widthInch > 0 && form.heightInch > 0 ? calculateNup(form.widthInch, form.heightInch, nupSettings) : undefined),
+        nupSqInch: sqInch > 0 ? sqInch : undefined,
+      });
+    } else {
+      // 앨범 체크 해제시 Nup 값 유지 (DB에 저장된 값 보존)
+      setForm({
+        ...form,
+        forAlbum: false,
+      });
+    }
   };
 
   // Nup 설정 다이얼로그 열기
@@ -327,14 +365,28 @@ export default function SpecificationsPage() {
       toast({ variant: "destructive", title: "1up 값은 2up보다 커야 합니다." });
       return;
     }
-    if (nupSettingsForm["2up"] <= 0) {
-      toast({ variant: "destructive", title: "2up 값은 0보다 커야 합니다." });
+    if (nupSettingsForm["2up"] <= nupSettingsForm["4up"]) {
+      toast({ variant: "destructive", title: "2up 값은 4up보다 커야 합니다." });
+      return;
+    }
+    if (nupSettingsForm["4up"] < 0) {
+      toast({ variant: "destructive", title: "4up 값은 0 이상이어야 합니다." });
       return;
     }
 
-    setNupSettings({ ...nupSettingsForm });
-    setIsNupSettingsOpen(false);
-    toast({ title: "Nup 설정이 저장되었습니다." });
+    // DB에 저장
+    bulkUpdateSettings.mutate([
+      { key: "nup_1ppup", value: String(nupSettingsForm["1++up"]), category: "nup", label: "Nup 1++up 기준값" },
+      { key: "nup_1pup", value: String(nupSettingsForm["1+up"]), category: "nup", label: "Nup 1+up 기준값" },
+      { key: "nup_1up", value: String(nupSettingsForm["1up"]), category: "nup", label: "Nup 1up 기준값" },
+      { key: "nup_2up", value: String(nupSettingsForm["2up"]), category: "nup", label: "Nup 2up 기준값" },
+      { key: "nup_4up", value: String(nupSettingsForm["4up"]), category: "nup", label: "Nup 4up 기준값" },
+    ], {
+      onSuccess: () => {
+        setNupSettings({ ...nupSettingsForm });
+        setIsNupSettingsOpen(false);
+      }
+    });
   };
 
   // 용도 필터 토글
@@ -365,7 +417,12 @@ export default function SpecificationsPage() {
 
       return matchesSearch && matchesUsage;
     })
-    .sort((a, b) => a.sortOrder - b.sortOrder);
+    .sort((a, b) => {
+      // 크기(면적) 기준 오름차순 정렬
+      const areaA = Number(a.widthInch) * Number(a.heightInch);
+      const areaB = Number(b.widthInch) * Number(b.heightInch);
+      return areaA - areaB;
+    });
 
   const getOrientationLabel = (orientation: string) => {
     switch (orientation) {
@@ -413,41 +470,36 @@ export default function SpecificationsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">규격정보 관리</h1>
-        <p className="text-muted-foreground">출력물 및 제품의 규격을 관리합니다.</p>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">규격 관리</h1>
+          <p className="text-muted-foreground">제품 및 출력물의 규격 정보를 관리합니다.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={openNupSettings}>
+            <Settings className="h-4 w-4 mr-2" />
+            Nup 설정
+          </Button>
+          <Button size="sm" onClick={openCreateDialog}>
+            <Plus className="h-4 w-4 mr-2" />
+            규격 추가
+          </Button>
+        </div>
       </div>
 
-      {/* 필터 영역 */}
       <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="규격명으로 검색..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={openNupSettings}>
-                  <Settings className="h-4 w-4 mr-2" />
-                  Nup 설정
-                </Button>
-                <Button onClick={openCreateDialog}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  규격 추가
-                </Button>
-              </div>
+        <CardHeader className="pb-3">
+          <div className="flex flex-col md:flex-row gap-4 justify-between">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="규격명 검색..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-9"
+              />
             </div>
-            {/* 용도 필터 (멀티셀렉트) */}
-            <div className="flex flex-wrap gap-2 items-center">
-              <span className="text-sm text-muted-foreground mr-2">용도 필터:</span>
+            <div className="flex flex-wrap gap-1">
               {[
                 { key: "indigo", label: "인디고" },
                 { key: "inkjet", label: "잉크젯" },
@@ -457,10 +509,10 @@ export default function SpecificationsPage() {
               ].map((usage) => (
                 <Button
                   key={usage.key}
-                  variant={usageFilters.includes(usage.key) ? "default" : "outline"}
+                  variant={usageFilters.includes(usage.key) ? "secondary" : "ghost"}
                   size="sm"
                   onClick={() => toggleUsageFilter(usage.key)}
-                  className="h-8"
+                  className="h-9 px-3 border-dashed border transition-all"
                 >
                   {usage.label}
                 </Button>
@@ -470,139 +522,106 @@ export default function SpecificationsPage() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setUsageFilters([])}
-                  className="h-8 text-muted-foreground"
+                  className="h-9 px-3 text-muted-foreground"
                 >
                   초기화
                 </Button>
               )}
             </div>
           </div>
-        </CardContent>
+        </CardHeader>
       </Card>
 
-      {/* 규격 목록 */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Ruler className="h-5 w-5" />
-            규격 목록 ({filteredSpecs.length}개)
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[60px] text-center">순서</TableHead>
-                <TableHead>규격명</TableHead>
-                <TableHead className="w-[80px] text-center">Nup</TableHead>
-                <TableHead className="text-center">크기 (inch)</TableHead>
-                <TableHead className="text-center">크기 (mm)</TableHead>
-                <TableHead className="text-center">방향</TableHead>
-                <TableHead className="text-center">용도</TableHead>
-                <TableHead className="w-[80px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredSpecs.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                    등록된 규격이 없습니다.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredSpecs.map((spec, index) => (
-                  <TableRow key={spec.id}>
-                    <TableCell className="text-center">
-                      <div className="flex items-center justify-center gap-0.5">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={() => handleMoveUp(index)}
-                          disabled={index === 0 || reorderMutation.isPending}
-                        >
-                          <ChevronUp className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={() => handleMoveDown(index)}
-                          disabled={index === filteredSpecs.length - 1 || reorderMutation.isPending}
-                        >
-                          <ChevronDown className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-medium">{spec.name}</TableCell>
-                    <TableCell className="text-center">
-                      {spec.forAlbum ? (
-                        <Badge variant="outline" className="font-mono text-xs">
-                          {calculateNup(Number(spec.widthInch), Number(spec.heightInch), nupSettings)}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {parseFloat(Number(spec.widthInch).toFixed(2))} x {parseFloat(Number(spec.heightInch).toFixed(2))}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {parseFloat(Number(spec.widthMm).toFixed(1))} x {parseFloat(Number(spec.heightMm).toFixed(1))}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant="outline">{getOrientationLabel(spec.orientation)}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex flex-wrap gap-1 justify-center">
-                        {spec.forIndigo && (
-                          <Badge variant="secondary" className="text-xs">인디고</Badge>
-                        )}
-                        {spec.forInkjet && (
-                          <Badge variant="secondary" className="text-xs">잉크젯</Badge>
-                        )}
-                        {spec.forAlbum && (
-                          <Badge variant="secondary" className="text-xs">앨범</Badge>
-                        )}
-                        {spec.forFrame && (
-                          <Badge variant="secondary" className="text-xs">액자</Badge>
-                        )}
-                        {spec.forBooklet && (
-                          <Badge variant="secondary" className="text-xs">책자</Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                          onClick={() => openEditDialog(spec)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => {
-                            if (confirm("정말 삭제하시겠습니까?")) {
-                              deleteMutation.mutate(spec.id);
-                            }
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {/* 규격 목록 (리스트 레이아웃) */}
+      <div className="flex flex-col gap-2">
+        {filteredSpecs.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-xl bg-muted/10 text-muted-foreground">
+            <Ruler className="h-10 w-10 mb-4 opacity-20" />
+            <p>등록된 규격이 없습니다.</p>
+          </div>
+        ) : (
+          filteredSpecs.map((spec, index) => (
+            <Card key={spec.id} className="group hover:shadow-md transition-all border-muted hover:border-primary/50 bg-card/50 hover:bg-card">
+              <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                {/* 1. 순서 및 이름 */}
+                <div className="flex items-center gap-3 min-w-[180px]">
+                  <div className="flex flex-col items-center gap-0.5 text-muted-foreground opacity-30 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => handleMoveUp(index)} disabled={index === 0 || reorderMutation.isPending} className="hover:text-primary"><ChevronUp className="h-3 w-3" /></button>
+                    <span className="text-[10px] font-mono leading-none">{index + 1}</span>
+                    <button onClick={() => handleMoveDown(index)} disabled={index === filteredSpecs.length - 1 || reorderMutation.isPending} className="hover:text-primary"><ChevronDown className="h-3 w-3" /></button>
+                  </div>
+                  <div>
+                    <span className="font-bold text-base">{spec.name}</span>
+                    {spec.description && <p className="text-xs text-muted-foreground truncate max-w-[150px]">{spec.description}</p>}
+                  </div>
+                </div>
+
+                {/* 2. 크기 정보 */}
+                <div className="flex-1 grid grid-cols-2 lg:grid-cols-3 gap-4 items-center">
+                  <div className="flex flex-col">
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-lg font-light tabular-nums">{parseFloat(Number(spec.widthInch).toFixed(2))}</span>
+                      <span className="text-xs text-muted-foreground">x</span>
+                      <span className="text-lg font-light tabular-nums">{parseFloat(Number(spec.heightInch).toFixed(2))}</span>
+                      <span className="text-xs text-muted-foreground ml-0.5">in</span>
+                    </div>
+                  </div>
+                  <div className="hidden lg:flex flex-col">
+                    <div className="text-sm text-muted-foreground tabular-nums">
+                      {parseFloat(Number(spec.widthMm).toFixed(1))} x {parseFloat(Number(spec.heightMm).toFixed(1))} mm
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    {spec.orientation === "landscape" && <RectangleHorizontal className="h-4 w-4" />}
+                    {spec.orientation === "portrait" && <RectangleVertical className="h-4 w-4" />}
+                    {spec.orientation === "square" && <Square className="h-4 w-4" />}
+                    <span className="text-xs">{getOrientationLabel(spec.orientation)}</span>
+                    {spec.nup && (
+                      <Badge variant="secondary" className="font-mono text-[10px] h-5 px-1 ml-2">
+                        {spec.nup}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+
+                {/* 3. 용도 및 액션 */}
+                <div className="flex items-center gap-4 ml-auto">
+                  <div className="flex flex-wrap gap-1 justify-end min-w-[120px]">
+                    {spec.forIndigo && <Badge variant="outline" className="text-[10px] px-1.5 bg-indigo-50/50 text-indigo-700 border-indigo-200">인디고</Badge>}
+                    {spec.forInkjet && <Badge variant="outline" className="text-[10px] px-1.5 bg-orange-50/50 text-orange-700 border-orange-200">잉크젯</Badge>}
+                    {spec.forAlbum && <Badge variant="outline" className="text-[10px] px-1.5 bg-pink-50/50 text-pink-700 border-pink-200">앨범</Badge>}
+                    {spec.forFrame && <Badge variant="outline" className="text-[10px] px-1.5 bg-stone-50/50 text-stone-700 border-stone-200">액자</Badge>}
+                    {spec.forBooklet && <Badge variant="outline" className="text-[10px] px-1.5 bg-blue-50/50 text-blue-700 border-blue-200">책자</Badge>}
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                      onClick={() => openEditDialog(spec)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                      onClick={() => {
+                        if (confirm("정말 삭제하시겠습니까?")) {
+                          deleteMutation.mutate(spec.id);
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
 
       {/* 등록/수정 다이얼로그 */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -714,22 +733,65 @@ export default function SpecificationsPage() {
               </div>
             </div>
 
-            {/* Nup 정보 표시 (앨범 선택시) */}
-            {form.forAlbum && form.nup && (
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+            {/* Nup 설정 (앨범 선택시) */}
+            {form.forAlbum && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-md space-y-3">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-sm font-medium text-blue-700">Nup 자동 계산:</span>
-                    <span className="ml-2 text-lg font-bold text-blue-800">{form.nup}</span>
-                    <span className="ml-2 text-sm text-blue-600">({NUP_LABELS[form.nup]})</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium text-blue-700">Nup:</span>
+                    <Select
+                      value={form.nup || ""}
+                      onValueChange={(value) => {
+                        const sqInch = form.widthInch * form.heightInch;
+                        setForm({ ...form, nup: value, nupSqInch: sqInch > 0 ? sqInch : undefined });
+                      }}
+                    >
+                      <SelectTrigger className="w-[140px] h-8 bg-white">
+                        <SelectValue placeholder="선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1++up">1++up (초대형)</SelectItem>
+                        <SelectItem value="1+up">1+up (대형)</SelectItem>
+                        <SelectItem value="1up">1up (표준)</SelectItem>
+                        <SelectItem value="2up">2up (소형)</SelectItem>
+                        <SelectItem value="4up">4up (초소형)</SelectItem>
+                        <SelectItem value="8up">8up (극소형)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {form.nup && (
+                      <Badge variant="secondary" className="text-blue-700">
+                        {NUP_LABELS[form.nup]}
+                      </Badge>
+                    )}
                   </div>
                   <div className="text-sm text-blue-600">
-                    면적: {form.nupSqInch?.toFixed(2)} sq inch
+                    면적: {(form.widthInch * form.heightInch).toFixed(2)} sq inch
                   </div>
                 </div>
-                <p className="text-xs text-blue-500 mt-1">
-                  * Nup은 면적(가로×세로 인치) 기준으로 자동 결정됩니다.
-                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-blue-500">
+                    * 면적 기준 권장값: <strong>{form.widthInch > 0 && form.heightInch > 0 ? calculateNup(form.widthInch, form.heightInch, nupSettings) : "-"}</strong>
+                  </p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 text-xs text-blue-600 hover:text-blue-800"
+                    onClick={() => {
+                      if (form.widthInch > 0 && form.heightInch > 0) {
+                        const sqInch = form.widthInch * form.heightInch;
+                        setForm({
+                          ...form,
+                          nup: calculateNup(form.widthInch, form.heightInch, nupSettings),
+                          nupSqInch: sqInch,
+                        });
+                      }
+                    }}
+                    disabled={form.widthInch <= 0 || form.heightInch <= 0}
+                  >
+                    자동 계산 적용
+                  </Button>
+                </div>
               </div>
             )}
 
@@ -858,13 +920,30 @@ export default function SpecificationsPage() {
 
               <div className="flex items-center gap-4">
                 <div className="w-20">
-                  <Badge variant="secondary" className="w-full justify-center">4up</Badge>
+                  <Badge variant="outline" className="w-full justify-center">4up</Badge>
+                </div>
+                <div className="flex-1 flex items-center gap-2">
+                  <Input
+                    type="number"
+                    value={nupSettingsForm["4up"]}
+                    onChange={(e) => setNupSettingsForm({ ...nupSettingsForm, "4up": Number(e.target.value) })}
+                    className="w-20"
+                  />
+                  <span className="text-sm text-muted-foreground">~</span>
+                  <span className="text-sm w-16">{nupSettingsForm["2up"]}</span>
+                  <span className="text-xs text-muted-foreground">({NUP_LABELS["4up"]})</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className="w-20">
+                  <Badge variant="secondary" className="w-full justify-center">8up</Badge>
                 </div>
                 <div className="flex-1 flex items-center gap-2">
                   <span className="text-sm w-20 text-center">0</span>
                   <span className="text-sm text-muted-foreground">~</span>
-                  <span className="text-sm w-16">{nupSettingsForm["2up"]}</span>
-                  <span className="text-xs text-muted-foreground">({NUP_LABELS["4up"]})</span>
+                  <span className="text-sm w-16">{nupSettingsForm["4up"]}</span>
+                  <span className="text-xs text-muted-foreground">({NUP_LABELS["8up"]})</span>
                 </div>
               </div>
             </div>

@@ -88,20 +88,8 @@
       "Bash(powershell:*)",
       "Bash(cmd /c \"taskkill /F /PID 9828\")",
       "Bash(wc:*)",
-      "Bash(cmd /c \"npm run dev 2>&1\")",
-      "WebSearch",
-      "Bash(cmd /c \"taskkill /F /PID 6380\")",
-      "Bash(cmd /c \"taskkill /F /PID 1548\")",
-      "Bash(cmd //c \"netstat -ano | findstr :3001\")",
-      "Bash(cmd /c \"cd /d C:\\dev\\photocafe\\apps\\web && npx tsc --noEmit 2>&1\")",
-      "Bash(cmd.exe /c \"taskkill /PID 21012 /F\")",
-      "Bash(cmd //c \"taskkill /F /PID 21012\")",
-      "Bash(cmd //c \"taskkill /F /IM node.exe\")",
-      "Bash(Start-Sleep -Seconds 5)",
-      "Bash(Get-Content \"C:\\\\Users\\\\WOO\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--dev-photocafe\\\\tasks\\\\b8f2d30.output\" -Tail 30)"
-    ],
-    "additionalDirectories": [
-      "C:\\dev\\photocafe\\apps\\web\\.next"
+      "Bash(git pull:*)",
+      "Bash(git stash:*)"
     ]
   }
 }

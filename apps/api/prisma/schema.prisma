@@ -1165,11 +1165,10 @@ model ProductionSetting {
 
   // 가격 적용 단위
   // paper_output_spec: [1.출력전용] 용지별출력단가/규격별 (인쇄방식+규격)
-  // binding_page: [2.제본전용] 기본단가+page단가
-  // finishing_qty: [3.후가공] 규격별(수량)
-  // finishing_page: [3.후가공] 규격별(페이지당)
+  // indigo_spec: [1.출력전용] 인디고규격별 단가
+  // nup_page_range: [2.제본전용] 구간별 Nup+면당가격
   // per_sheet: 장당가격 (규격입력안함)
-  pricingType     String          @default("finishing_page")
+  pricingType     String          @default("paper_output_spec")
 
   // 세팅명 (박Color 등 추가 설정명)
   settingName     String?
@@ -1267,6 +1266,11 @@ model ProductionSettingPrice {
   // 인디고 6도칼라 가격
   sixColorSinglePrice    Decimal?       @db.Decimal(12, 2) // 6도칼라 단면 단가
   sixColorDoublePrice    Decimal?       @db.Decimal(12, 2) // 6도칼라 양면 단가
+
+  // 구간별 Nup+면당가격 (nup_page_range용)
+  basePages              Int?            // 기본 페이지 수 (예: 30p)
+  basePrice              Decimal?        @db.Decimal(12, 2) // 기본 가격 (예: 10000원)
+  pricePerPage           Decimal?        @db.Decimal(12, 2) // 1p당 추가 가격 (예: 200원)
 
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt

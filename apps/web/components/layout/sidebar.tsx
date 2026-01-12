@@ -95,15 +95,15 @@ const navigation = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [openMenus, setOpenMenus] = useState<string[]>(["기초정보", "회사정보", "상품관리", "가격관리", "주문관리", "통계"]);
+  // 기본적으로 모든 메뉴 접힘 (빈 배열)
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   const toggleMenu = (name: string) => {
-    setOpenMenus((prev) =>
-      prev.includes(name) ? prev.filter((m) => m !== name) : [...prev, name]
-    );
+    // 같은 메뉴 클릭 시 닫기, 다른 메뉴 클릭 시 해당 메뉴만 열기 (기존 메뉴 닫힘)
+    setOpenMenu((prev) => (prev === name ? null : name));
   };
 
-  const isMenuOpen = (name: string) => openMenus.includes(name);
+  const isMenuOpen = (name: string) => openMenu === name;
 
   return (
     <div className="flex h-full w-72 flex-col bg-[#0F172A] border-r border-slate-800 shadow-2xl">

@@ -403,6 +403,7 @@ export class ProductionGroupService {
       indigoUpPrices,
       inkjetSpecPrices,
       indigoSpecPrices,
+      nupPageRanges,
       priceGroups,
       paperPriceGroupMap,
       ...settingData
@@ -490,6 +491,20 @@ export class ProductionGroupService {
       });
     }
 
+    // 구간별 Nup+면당가격 저장 (nup_page_range용)
+    if (nupPageRanges && nupPageRanges.length > 0) {
+      await this.prisma.productionSettingPrice.createMany({
+        data: nupPageRanges.map((range) => ({
+          productionSettingId: setting.id,
+          specificationId: range.specificationId,
+          basePages: range.basePages,
+          basePrice: range.basePrice,
+          pricePerPage: range.pricePerPage,
+          price: range.basePrice, // 기본 가격 호환용
+        })),
+      });
+    }
+
     // 규격 연결
     if (specificationIds && specificationIds.length > 0) {
       await this.prisma.productionSettingSpecification.createMany({
@@ -508,7 +523,7 @@ export class ProductionGroupService {
     await this.findSettingById(id);
 
     // Prisma 스키마에 없는 필드 제외 (priceGroups, paperPriceGroupMap은 Json 필드로 저장)
-    const { specificationIds, groupId, indigoUpPrices, inkjetSpecPrices, indigoSpecPrices, priceGroups, paperPriceGroupMap, ...updateData } = data;
+    const { specificationIds, groupId, indigoUpPrices, inkjetSpecPrices, indigoSpecPrices, nupPageRanges, priceGroups, paperPriceGroupMap, ...updateData } = data;
 
     // 설정 업데이트 (단가 그룹 포함)
     await this.prisma.productionSetting.update({
@@ -525,8 +540,8 @@ export class ProductionGroupService {
       },
     });
 
-    // 인디고/잉크젯 가격 업데이트 (기존 삭제 후 새로 생성)
-    if (indigoUpPrices !== undefined || inkjetSpecPrices !== undefined || indigoSpecPrices !== undefined) {
+    // 인디고/잉크젯/구간별가격 업데이트 (기존 삭제 후 새로 생성)
+    if (indigoUpPrices !== undefined || inkjetSpecPrices !== undefined || indigoSpecPrices !== undefined || nupPageRanges !== undefined) {
       await this.prisma.productionSettingPrice.deleteMany({
         where: { productionSettingId: id },
       });
@@ -592,6 +607,20 @@ export class ProductionGroupService {
             productionSettingId: id,
             specificationId: specPrice.specificationId,
             price: specPrice.price,
+          })),
+        });
+      }
+
+      // 구간별 Nup+면당가격 저장 (nup_page_range용)
+      if (nupPageRanges && nupPageRanges.length > 0) {
+        await this.prisma.productionSettingPrice.createMany({
+          data: nupPageRanges.map((range) => ({
+            productionSettingId: id,
+            specificationId: range.specificationId,
+            basePages: range.basePages,
+            basePrice: range.basePrice,
+            pricePerPage: range.pricePerPage,
+            price: range.basePrice, // 기본 가격 호환용
           })),
         });
       }
