@@ -61,8 +61,8 @@ export function ShopFooter() {
               <p>{companyInfo.company_cs_hours || '평일 09:00 - 18:00'}</p>
               <p>주말/공휴일 휴무</p>
               <p className="mt-2">
-                <a href={`mailto:${companyInfo.company_email || 'support@photocafe.com'}`} className="hover:text-white">
-                  {companyInfo.company_email || 'support@photocafe.com'}
+                <a href={`mailto:${companyInfo.company_email || 'support@printing114.com'}`} className="hover:text-white">
+                  {companyInfo.company_email || 'support@printing114.com'}
                 </a>
               </p>
             </div>
@@ -74,7 +74,7 @@ export function ShopFooter() {
             <div className="space-y-2 text-sm">
               <p className="font-medium text-white">국민은행</p>
               <p>123-456-789012</p>
-              <p>예금주: {companyInfo.company_name || '(주)포토카페'}</p>
+              <p>예금주: {companyInfo.company_name || '(주)프린팅114'}</p>
             </div>
           </div>
         </div>

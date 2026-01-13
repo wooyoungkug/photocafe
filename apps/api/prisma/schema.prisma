@@ -1204,6 +1204,9 @@ model ProductionSetting {
   // paperPriceGroupMap: { paperId: priceGroupId | null }
   paperPriceGroupMap  Json?       // 용지별 그룹 할당 맵
 
+  // 구간별 Nup+면당가격 페이지 구간 설정
+  pageRanges          Json?       // 페이지 구간 배열 (예: [30, 40, 50, 60])
+
   // 정렬 및 상태
   sortOrder       Int             @default(0)
   isActive        Boolean         @default(true)
@@ -1271,6 +1274,7 @@ model ProductionSettingPrice {
   basePages              Int?            // 기본 페이지 수 (예: 30p)
   basePrice              Decimal?        @db.Decimal(12, 2) // 기본 가격 (예: 10000원)
   pricePerPage           Decimal?        @db.Decimal(12, 2) // 1p당 추가 가격 (예: 200원)
+  rangePrices            Json?           // 구간별 가격 (예: { "30": 20000, "40": 23000 })
 
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt

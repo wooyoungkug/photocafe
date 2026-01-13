@@ -433,7 +433,7 @@ export default function ClientsPage() {
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="contact@photocafe.com"
+                placeholder="contact@printing114.com"
               />
             </div>
             <div className="space-y-2">

@@ -60,6 +60,14 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { useSystemSettings, settingsToMap, getNumericValue } from "@/hooks/use-system-settings";
 
+// 숫자 포맷팅 (3자리 콤마)
+const formatNumber = (num: number | string | undefined | null): string => {
+  if (num === undefined || num === null || num === '') return '';
+  const n = typeof num === 'string' ? parseFloat(num) : num;
+  if (isNaN(n)) return '';
+  return n.toLocaleString('ko-KR');
+};
+
 // 가격 계산 방식 한글 라벨
 const PRICING_TYPE_LABELS: Record<PricingType, string> = {
   paper_output_spec: "[1.출력전용] 용지별출력단가/규격별/면",
@@ -811,10 +819,11 @@ export default function ProductionSettingPage() {
     // [2.제본전용] 구간별 Nup+면당가격 필드
     nupPageRanges: [] as Array<{
       specificationId: string;  // 규격 ID (Nup 정보 연동)
-      basePages: number;        // 기본 페이지 (예: 30p)
-      basePrice: number;        // 기본 가격 (예: 10000원)
-      pricePerPage: number;     // 1p당 추가 가격 (예: 200원)
+      pricePerPage: number;     // 1p당 추가 가격 (예: 500원)
+      rangePrices: Record<number, number>;  // 구간별 가격 {20: 35000, 30: 40000, ...}
     }>,
+    // 페이지 구간 설정 (전역)
+    pageRanges: [20, 30, 40, 50, 60] as number[],
   });
 
   // 시스템 설정 (인디고 잉크 원가용)
@@ -1226,13 +1235,24 @@ export default function ProductionSettingPage() {
       const nupPageRangesFromDB = setting.pricingType === "nup_page_range"
         ? prices
             .filter((p: any) => p.specificationId)
-            .map((p: any) => ({
-              specificationId: p.specificationId,
-              basePages: Number(p.basePages) || 30,
-              basePrice: Number(p.basePrice) || Number(p.price) || 0,
-              pricePerPage: Number(p.pricePerPage) || 0,
-            }))
+            .map((p: any) => {
+              // DB에서 string 키로 저장된 rangePrices를 number 키로 변환
+              const rangePrices: Record<number, number> = {};
+              if (p.rangePrices && typeof p.rangePrices === 'object') {
+                Object.entries(p.rangePrices).forEach(([key, value]) => {
+                  rangePrices[Number(key)] = Number(value);
+                });
+              }
+              return {
+                specificationId: p.specificationId,
+                pricePerPage: Number(p.pricePerPage) || 0,
+                rangePrices,
+              };
+            })
         : [];
+
+      // 페이지 구간 설정 로드
+      const pageRangesFromDB = (setting as any).pageRanges || [20, 30, 40, 50, 60];
 
       setSettingForm({
         codeName: setting.codeName || "",
@@ -1259,6 +1279,7 @@ export default function ProductionSettingPage() {
         priceGroups: (setting as any).priceGroups || [],
         paperPriceGroupMap: (setting as any).paperPriceGroupMap || {},
         nupPageRanges: nupPageRangesFromDB,
+        pageRanges: pageRangesFromDB,
       });
     } else {
       setEditingSetting(null);
@@ -1297,6 +1318,7 @@ export default function ProductionSettingPage() {
         priceGroups: [],
         paperPriceGroupMap: {},
         nupPageRanges: [],
+        pageRanges: [20, 30, 40, 50, 60],
       });
     }
     setIsSettingDialogOpen(true);
@@ -1349,8 +1371,28 @@ export default function ProductionSettingPage() {
       }
       // nup_page_range: 구간별 Nup+면당가격
       else if (formData.pricingType === "nup_page_range") {
+        apiData.printMethod = formData.printMethod;
         apiData.specificationIds = formData.specificationIds;
-        apiData.nupPageRanges = formData.nupPageRanges;
+        // rangePrices를 string 키로 변환하여 API에 전송
+        const firstRange = formData.pageRanges[0] || 20;
+        apiData.nupPageRanges = formData.nupPageRanges.map(item => {
+          // number 키를 string 키로 변환
+          const stringRangePrices: Record<string, number> = {};
+          if (item.rangePrices) {
+            Object.entries(item.rangePrices).forEach(([key, value]) => {
+              stringRangePrices[String(key)] = value;
+            });
+          }
+          return {
+            specificationId: item.specificationId,
+            basePages: firstRange,
+            basePrice: item.rangePrices?.[firstRange] || 0,
+            pricePerPage: item.pricePerPage || 0,
+            rangePrices: stringRangePrices,
+          };
+        });
+        // 페이지 구간 설정도 저장 (설정값에 포함)
+        apiData.pageRanges = formData.pageRanges;
       }
       // 나머지: 규격 선택
       else if (formData.pricingType !== "per_sheet") {
@@ -1836,13 +1878,14 @@ export default function ProductionSettingPage() {
                           value={settingForm.printMethod}
                           onValueChange={(value) =>
                             setSettingForm((prev) => {
-                              const newMethod = value as "indigo" | "inkjet";
+                              const newMethod = value as "indigo" | "inkjet" | "album" | "frame" | "booklet";
                               // 인쇄방식 변경 시 초기화 로직
                               return {
                                 ...prev,
                                 printMethod: newMethod,
                                 specificationIds: [],
                                 paperIds: [],
+                                nupPageRanges: [],
                                 indigoUpPrices: INDIGO_UP_UNITS.map((up) => ({
                                   up,
                                   weight: DEFAULT_INDIGO_WEIGHTS[up],
@@ -2861,20 +2904,52 @@ export default function ProductionSettingPage() {
                     {/* [2.제본전용] 구간별 Nup+면당가격 */}
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
-                        <Label className="text-sm font-semibold">구간별 Nup+면당가격</Label>
+                        {/* 인쇄방식 선택 */}
+                        <Select
+                          value={settingForm.printMethod}
+                          onValueChange={(value) =>
+                            setSettingForm((prev) => ({
+                              ...prev,
+                              printMethod: value as "indigo" | "inkjet" | "album" | "frame" | "booklet",
+                              specificationIds: [],
+                              nupPageRanges: [],
+                            }))
+                          }
+                        >
+                          <SelectTrigger className="w-32 bg-white">
+                            <SelectValue placeholder="인쇄방식" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(PRINT_METHOD_LABELS).map(([value, label]) => (
+                              <SelectItem key={value} value={value}>
+                                {label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <div className="flex gap-2">
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                              // Nup 있는 규격 전체 선택
-                              const nupSpecs = specifications?.filter(s => s.nup && s.nup > 0) || [];
+                              const method = settingForm.printMethod;
+                              const nupSpecs = specifications?.filter(s => {
+                                if (!s.nup) return false;
+                                if (method === 'indigo') return s.forIndigo;
+                                if (method === 'inkjet') return s.forInkjet;
+                                if (method === 'album') return s.forAlbum;
+                                if (method === 'frame') return s.forFrame;
+                                if (method === 'booklet') return s.forBooklet;
+                                return true;
+                              }) || [];
+                              const defaultRangePrices: Record<number, number> = {};
+                              settingForm.pageRanges.forEach(p => { defaultRangePrices[p] = 0; });
                               setSettingForm(prev => ({
                                 ...prev,
                                 specificationIds: nupSpecs.map(s => s.id),
                                 nupPageRanges: nupSpecs.map(s => {
                                   const existing = prev.nupPageRanges.find(p => p.specificationId === s.id);
-                                  return existing || { specificationId: s.id, basePages: 30, basePrice: 0, pricePerPage: 0 };
+                                  return existing || { specificationId: s.id, pricePerPage: 0, rangePrices: { ...defaultRangePrices } };
                                 }),
                               }));
                             }}
@@ -2897,151 +2972,349 @@ export default function ProductionSettingPage() {
                         </div>
                       </div>
 
-                      <div className="text-xs text-muted-foreground bg-amber-50 rounded p-2 mb-2">
-                        <p className="font-medium mb-1">계산 공식:</p>
-                        <p>• 기본페이지 이하: 기본가격 적용</p>
-                        <p>• 기본페이지 초과: 기본가격 + (초과페이지 × 1p당 추가가격)</p>
-                        <p className="text-amber-700 mt-1">예) 30p 10,000원, 1p당 200원 → 35p = 10,000 + (5 × 200) = 11,000원</p>
+                      {/* 페이지 구간 설정 */}
+                      <div className="bg-blue-50 rounded-lg p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm font-medium text-blue-700">페이지 구간 설정</Label>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs text-blue-600"
+                            onClick={() => {
+                              const newRange = Math.max(...settingForm.pageRanges) + 10;
+                              setSettingForm(prev => ({
+                                ...prev,
+                                pageRanges: [...prev.pageRanges, newRange].sort((a, b) => a - b),
+                              }));
+                            }}
+                          >
+                            + 구간 추가
+                          </Button>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {settingForm.pageRanges.map((range, idx) => (
+                            <div key={`range-${idx}`} className="flex items-center gap-1 bg-white rounded px-2 py-1 border border-blue-200">
+                              <Input
+                                type="number"
+                                value={range}
+                                onChange={(e) => {
+                                  const newValue = Number(e.target.value);
+                                  setSettingForm(prev => ({
+                                    ...prev,
+                                    pageRanges: prev.pageRanges.map((r, i) => i === idx ? newValue : r),
+                                  }));
+                                }}
+                                onBlur={() => {
+                                  // 입력 완료 시 정렬
+                                  setSettingForm(prev => ({
+                                    ...prev,
+                                    pageRanges: [...prev.pageRanges].sort((a, b) => a - b),
+                                  }));
+                                }}
+                                className="h-6 w-14 text-center text-sm font-mono border-0 p-0"
+                              />
+                              <span className="text-xs text-blue-600">p</span>
+                              {settingForm.pageRanges.length > 2 && (
+                                <button
+                                  type="button"
+                                  className="text-red-400 hover:text-red-600 ml-1"
+                                  onClick={() => {
+                                    setSettingForm(prev => ({
+                                      ...prev,
+                                      pageRanges: prev.pageRanges.filter((_, i) => i !== idx),
+                                    }));
+                                  }}
+                                >
+                                  ×
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
                       </div>
 
+                      {/* 규격별 단가 설정 */}
                       <div className="border rounded-lg p-4 max-h-[500px] overflow-y-auto">
-                        {/* 테이블 헤더 */}
-                        <div className="grid grid-cols-[1fr,80px,100px,100px,100px,120px,120px,120px] gap-2 pb-2 border-b mb-2 text-xs font-medium text-gray-600">
-                          <span>규격</span>
-                          <span className="text-center">Nup</span>
-                          <span className="text-right">기본P</span>
-                          <span className="text-right">기본가격</span>
-                          <span className="text-right">1p당</span>
-                          <span className="text-right text-blue-600">40p 예상가</span>
-                          <span className="text-right text-blue-600">50p 예상가</span>
-                          <span className="text-right text-blue-600">60p 예상가</span>
+
+                        {/* 테이블 헤더 - 동적 컬럼 */}
+                        <div
+                          className="grid gap-2 pb-2 border-b mb-2 text-xs font-medium text-gray-600 sticky top-0 bg-white items-center"
+                          style={{ gridTemplateColumns: settingForm.printMethod === 'indigo'
+                            ? `32px 70px 70px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
+                            : `32px 1fr 50px 70px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
+                          }}
+                        >
+                          <Checkbox
+                            checked={(() => {
+                              const method = settingForm.printMethod;
+                              const filtered = specifications?.filter(s => {
+                                if (!s.nup) return false;
+                                if (method === 'indigo') return s.forIndigo && s.nup;
+                                if (method === 'inkjet') return s.forInkjet;
+                                if (method === 'album') return s.forAlbum;
+                                if (method === 'frame') return s.forFrame;
+                                if (method === 'booklet') return s.forBooklet;
+                                return true;
+                              }) || [];
+                              // 인디고: 각 Nup별 대표 1개씩
+                              let displaySpecs = filtered;
+                              if (method === 'indigo') {
+                                const nupOrder = ['4up', '2up', '1up', '1+up', '1++up'];
+                                const nupMap = new Map<string, typeof filtered[0]>();
+                                filtered.forEach(s => {
+                                  if (s.nup && !nupMap.has(s.nup)) nupMap.set(s.nup, s);
+                                });
+                                displaySpecs = nupOrder.filter(nup => nupMap.has(nup)).map(nup => nupMap.get(nup)!);
+                              }
+                              return displaySpecs.length > 0 && displaySpecs.every(s => settingForm.specificationIds.includes(s.id));
+                            })()}
+                            onCheckedChange={(checked) => {
+                              const method = settingForm.printMethod;
+                              const filtered = specifications?.filter(s => {
+                                if (!s.nup) return false;
+                                if (method === 'indigo') return s.forIndigo && s.nup;
+                                if (method === 'inkjet') return s.forInkjet;
+                                if (method === 'album') return s.forAlbum;
+                                if (method === 'frame') return s.forFrame;
+                                if (method === 'booklet') return s.forBooklet;
+                                return true;
+                              }) || [];
+                              let displaySpecs = filtered;
+                              if (method === 'indigo') {
+                                const nupOrder = ['4up', '2up', '1up', '1+up', '1++up'];
+                                const nupMap = new Map<string, typeof filtered[0]>();
+                                filtered.forEach(s => {
+                                  if (s.nup && !nupMap.has(s.nup)) nupMap.set(s.nup, s);
+                                });
+                                displaySpecs = nupOrder.filter(nup => nupMap.has(nup)).map(nup => nupMap.get(nup)!);
+                              }
+                              const defaultRangePrices: Record<number, number> = {};
+                              settingForm.pageRanges.forEach(p => { defaultRangePrices[p] = 0; });
+                              if (checked) {
+                                setSettingForm(prev => ({
+                                  ...prev,
+                                  specificationIds: displaySpecs.map(s => s.id),
+                                  nupPageRanges: displaySpecs.map(s => {
+                                    const existing = prev.nupPageRanges.find(p => p.specificationId === s.id);
+                                    return existing || { specificationId: s.id, pricePerPage: 0, rangePrices: { ...defaultRangePrices } };
+                                  }),
+                                }));
+                              } else {
+                                setSettingForm(prev => ({
+                                  ...prev,
+                                  specificationIds: [],
+                                  nupPageRanges: [],
+                                }));
+                              }
+                            }}
+                          />
+                          {settingForm.printMethod === 'indigo' ? (
+                            <span>Nup</span>
+                          ) : (
+                            <>
+                              <span>규격</span>
+                              <span className="text-center">Nup</span>
+                            </>
+                          )}
+                          <span className="text-center">1p당</span>
+                          {settingForm.pageRanges.map(range => (
+                            <span key={range} className="text-center">{range}p</span>
+                          ))}
                         </div>
 
                         <div className="space-y-1">
-                          {specifications?.filter(s => s.nup && s.nup > 0).map((spec) => {
+                          {(() => {
+                            const filtered = specifications?.filter(s => {
+                              if (!s.nup) return false;
+                              const method = settingForm.printMethod;
+                              if (method === 'indigo') return s.forIndigo && s.nup;
+                              if (method === 'inkjet') return s.forInkjet;
+                              if (method === 'album') return s.forAlbum;
+                              if (method === 'frame') return s.forFrame;
+                              if (method === 'booklet') return s.forBooklet;
+                              return true;
+                            }) || [];
+
+                            // 인디고: 각 Nup별 대표 1개씩만 선택
+                            let displaySpecs = filtered;
+                            if (settingForm.printMethod === 'indigo') {
+                              const nupOrder = ['4up', '2up', '1up', '1+up', '1++up'];
+                              const nupMap = new Map<string, typeof filtered[0]>();
+                              filtered.forEach(s => {
+                                if (s.nup && !nupMap.has(s.nup)) {
+                                  nupMap.set(s.nup, s);
+                                }
+                              });
+                              displaySpecs = nupOrder
+                                .filter(nup => nupMap.has(nup))
+                                .map(nup => nupMap.get(nup)!);
+                            } else {
+                              // 기타: sq inch 오름차순 정렬
+                              displaySpecs = [...filtered].sort((a, b) => {
+                                const sqInchA = a.widthInch * a.heightInch;
+                                const sqInchB = b.widthInch * b.heightInch;
+                                return sqInchA - sqInchB;
+                              });
+                            }
+
+                            return displaySpecs.map((spec) => {
                             const isSelected = settingForm.specificationIds.includes(spec.id);
                             const rangeData = settingForm.nupPageRanges.find(p => p.specificationId === spec.id);
-                            const basePages = rangeData?.basePages || 30;
-                            const basePrice = rangeData?.basePrice || 0;
                             const pricePerPage = rangeData?.pricePerPage || 0;
-
-                            // 예상가격 계산 함수
-                            const calcPrice = (pages: number) => {
-                              if (pages <= basePages) return basePrice;
-                              return basePrice + ((pages - basePages) * pricePerPage);
-                            };
+                            const rangePrices = rangeData?.rangePrices || {};
 
                             return (
                               <div
                                 key={spec.id}
                                 className={cn(
-                                  "grid grid-cols-[1fr,80px,100px,100px,100px,120px,120px,120px] gap-2 py-2 items-center border-b last:border-b-0",
+                                  "grid gap-2 py-2 items-center border-b last:border-b-0",
                                   isSelected && "bg-amber-50/50"
                                 )}
+                                style={{ gridTemplateColumns: settingForm.printMethod === 'indigo'
+                                  ? `32px 70px 70px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
+                                  : `32px 1fr 50px 70px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
+                                }}
                               >
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                  <Checkbox
-                                    checked={isSelected}
-                                    onCheckedChange={(checked) => {
-                                      setSettingForm(prev => {
-                                        if (checked) {
-                                          return {
-                                            ...prev,
-                                            specificationIds: [...prev.specificationIds, spec.id],
-                                            nupPageRanges: [...prev.nupPageRanges, {
-                                              specificationId: spec.id,
-                                              basePages: 30,
-                                              basePrice: 0,
-                                              pricePerPage: 0
-                                            }],
-                                          };
-                                        } else {
-                                          return {
-                                            ...prev,
-                                            specificationIds: prev.specificationIds.filter(id => id !== spec.id),
-                                            nupPageRanges: prev.nupPageRanges.filter(p => p.specificationId !== spec.id),
-                                          };
-                                        }
-                                      });
-                                    }}
-                                  />
-                                  <span className="text-sm font-mono">{spec.name}</span>
-                                </label>
-                                <span className="text-center text-sm font-medium text-violet-600">{spec.nup}up</span>
+                                <Checkbox
+                                  checked={isSelected}
+                                  onCheckedChange={(checked) => {
+                                    setSettingForm(prev => {
+                                      const defaultRangePrices: Record<number, number> = {};
+                                      prev.pageRanges.forEach(p => { defaultRangePrices[p] = 0; });
+                                      if (checked) {
+                                        return {
+                                          ...prev,
+                                          specificationIds: [...prev.specificationIds, spec.id],
+                                          nupPageRanges: [...prev.nupPageRanges, {
+                                            specificationId: spec.id,
+                                            pricePerPage: 0,
+                                            rangePrices: defaultRangePrices
+                                          }],
+                                        };
+                                      } else {
+                                        return {
+                                          ...prev,
+                                          specificationIds: prev.specificationIds.filter(id => id !== spec.id),
+                                          nupPageRanges: prev.nupPageRanges.filter(p => p.specificationId !== spec.id),
+                                        };
+                                      }
+                                    });
+                                  }}
+                                />
+                                {settingForm.printMethod === 'indigo' ? (
+                                  <span className="text-sm font-semibold text-violet-700">{spec.nup}</span>
+                                ) : (
+                                  <>
+                                    <span className="text-sm font-mono truncate">{spec.name}</span>
+                                    <span className="text-center text-sm font-medium text-violet-600">{spec.nup}</span>
+                                  </>
+                                )}
 
                                 {isSelected ? (
                                   <>
+                                    {/* 1p당 가격 입력 - 변경시 나머지 구간 자동 계산 */}
                                     <Input
                                       type="number"
-                                      value={basePages}
-                                      onChange={(e) => {
-                                        const value = Number(e.target.value);
-                                        setSettingForm(prev => ({
-                                          ...prev,
-                                          nupPageRanges: prev.nupPageRanges.map(p =>
-                                            p.specificationId === spec.id ? { ...p, basePages: value } : p
-                                          ),
-                                        }));
-                                      }}
-                                      className="h-8 text-right font-mono text-sm"
-                                      placeholder="30"
-                                    />
-                                    <Input
-                                      type="number"
-                                      value={basePrice || ''}
-                                      onChange={(e) => {
-                                        const value = Number(e.target.value);
-                                        setSettingForm(prev => ({
-                                          ...prev,
-                                          nupPageRanges: prev.nupPageRanges.map(p =>
-                                            p.specificationId === spec.id ? { ...p, basePrice: value } : p
-                                          ),
-                                        }));
-                                      }}
-                                      className="h-8 text-right font-mono text-sm"
-                                      placeholder="0"
-                                    />
-                                    <Input
-                                      type="number"
+                                      step="0.01"
                                       value={pricePerPage || ''}
                                       onChange={(e) => {
                                         const value = Number(e.target.value);
-                                        setSettingForm(prev => ({
-                                          ...prev,
-                                          nupPageRanges: prev.nupPageRanges.map(p =>
-                                            p.specificationId === spec.id ? { ...p, pricePerPage: value } : p
-                                          ),
-                                        }));
+                                        const firstRange = settingForm.pageRanges[0] || 20;
+                                        setSettingForm(prev => {
+                                          const currentData = prev.nupPageRanges.find(p => p.specificationId === spec.id);
+                                          const firstPrice = currentData?.rangePrices?.[firstRange] || 0;
+                                          const newRangePrices: Record<number, number> = {};
+                                          prev.pageRanges.forEach((range, idx) => {
+                                            if (idx === 0) {
+                                              newRangePrices[range] = firstPrice;
+                                            } else {
+                                              // 소수점 2자리까지 반올림
+                                              newRangePrices[range] = Math.round((firstPrice + ((range - firstRange) * value)) * 100) / 100;
+                                            }
+                                          });
+                                          return {
+                                            ...prev,
+                                            nupPageRanges: prev.nupPageRanges.map(p =>
+                                              p.specificationId === spec.id
+                                                ? { ...p, pricePerPage: value, rangePrices: newRangePrices }
+                                                : p
+                                            ),
+                                          };
+                                        });
                                       }}
-                                      className="h-8 text-right font-mono text-sm"
+                                      className="h-7 text-center font-mono text-sm"
                                       placeholder="0"
                                     />
-                                    <span className="text-right text-sm font-mono text-blue-600">
-                                      {calcPrice(40).toLocaleString()}
-                                    </span>
-                                    <span className="text-right text-sm font-mono text-blue-600">
-                                      {calcPrice(50).toLocaleString()}
-                                    </span>
-                                    <span className="text-right text-sm font-mono text-blue-600">
-                                      {calcPrice(60).toLocaleString()}
-                                    </span>
+                                    {/* 첫 구간 가격 입력 - 변경시 나머지 구간 자동 계산 */}
+                                    {settingForm.pageRanges.map((range, idx) => (
+                                      idx === 0 ? (
+                                        <Input
+                                          key={range}
+                                          type="number"
+                                          step="0.01"
+                                          value={rangePrices[range] || ''}
+                                          onChange={(e) => {
+                                            const value = Number(e.target.value);
+                                            const firstRange = settingForm.pageRanges[0] || 20;
+                                            setSettingForm(prev => {
+                                              const currentData = prev.nupPageRanges.find(p => p.specificationId === spec.id);
+                                              const currentPricePerPage = currentData?.pricePerPage || 0;
+                                              const newRangePrices: Record<number, number> = {};
+                                              prev.pageRanges.forEach((r, i) => {
+                                                if (i === 0) {
+                                                  newRangePrices[r] = value;
+                                                } else {
+                                                  newRangePrices[r] = Math.round((value + ((r - firstRange) * currentPricePerPage)) * 100) / 100;
+                                                }
+                                              });
+                                              return {
+                                                ...prev,
+                                                nupPageRanges: prev.nupPageRanges.map(p =>
+                                                  p.specificationId === spec.id
+                                                    ? { ...p, rangePrices: newRangePrices }
+                                                    : p
+                                                ),
+                                              };
+                                            });
+                                          }}
+                                          className="h-7 text-center font-mono text-sm bg-blue-50 border-blue-300"
+                                          placeholder="0"
+                                        />
+                                      ) : (
+                                        <span
+                                          key={range}
+                                          className="h-7 flex items-center justify-center font-mono text-sm text-gray-600 bg-gray-50 rounded border"
+                                        >
+                                          {formatNumber(rangePrices[range])}
+                                        </span>
+                                      )
+                                    ))}
                                   </>
                                 ) : (
                                   <>
-                                    <span className="text-right text-gray-400 text-sm">-</span>
-                                    <span className="text-right text-gray-400 text-sm">-</span>
-                                    <span className="text-right text-gray-400 text-sm">-</span>
-                                    <span className="text-right text-gray-400 text-sm">-</span>
-                                    <span className="text-right text-gray-400 text-sm">-</span>
-                                    <span className="text-right text-gray-400 text-sm">-</span>
+                                    <span className="text-center text-gray-400 text-sm">-</span>
+                                    {settingForm.pageRanges.map(range => (
+                                      <span key={range} className="text-center text-gray-400 text-sm">-</span>
+                                    ))}
                                   </>
                                 )}
                               </div>
                             );
-                          })}
-                          {(!specifications || specifications.filter(s => s.nup && s.nup > 0).length === 0) && (
+                          });
+                          })()}
+                          {(!specifications || specifications.filter(s => {
+                            if (!s.nup) return false;
+                            const method = settingForm.printMethod;
+                            if (method === 'indigo') return s.forIndigo;
+                            if (method === 'inkjet') return s.forInkjet;
+                            if (method === 'album') return s.forAlbum;
+                            if (method === 'frame') return s.forFrame;
+                            if (method === 'booklet') return s.forBooklet;
+                            return true;
+                          }).length === 0) && (
                             <p className="text-center text-muted-foreground py-4">
-                              Nup이 설정된 규격이 없습니다. 규격 관리에서 Nup 값을 설정해주세요.
+                              {PRINT_METHOD_LABELS[settingForm.printMethod]} 인쇄방식에 해당하는 Nup 규격이 없습니다.
+                              규격 관리에서 해당 인쇄방식과 Nup 값을 설정해주세요.
                             </p>
                           )}
                         </div>
@@ -3114,6 +3387,20 @@ export default function ProductionSettingPage() {
                         </p>
                       ) : (
                         <>
+                          {/* 전체 선택 헤더 */}
+                          <div className="flex items-center gap-2 pb-2 mb-2 border-b">
+                            <Checkbox
+                              checked={getFilteredSpecifications().length > 0 && getFilteredSpecifications().every(s => settingForm.specificationIds.includes(s.id))}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  handleSelectAllSpecifications();
+                                } else {
+                                  handleDeselectAllSpecifications();
+                                }
+                              }}
+                            />
+                            <Label className="text-sm font-medium cursor-pointer">전체 선택</Label>
+                          </div>
                           <div className="grid grid-cols-3 gap-2">
                             {getFilteredSpecifications().map((spec) => (
                               <div key={spec.id} className="flex items-center gap-2">

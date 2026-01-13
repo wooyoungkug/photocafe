@@ -397,7 +397,7 @@ export class ProductionGroupService {
       sortOrder = (lastSetting?.sortOrder ?? -1) + 1;
     }
 
-    // Prisma 스키마에 없는 필드 제외 (priceGroups, paperPriceGroupMap은 Json 필드로 저장)
+    // Prisma 스키마에 없는 필드 제외 (priceGroups, paperPriceGroupMap, pageRanges은 Json 필드로 저장)
     const {
       specificationIds,
       indigoUpPrices,
@@ -406,6 +406,7 @@ export class ProductionGroupService {
       nupPageRanges,
       priceGroups,
       paperPriceGroupMap,
+      pageRanges,
       ...settingData
     } = data;
 
@@ -421,6 +422,8 @@ export class ProductionGroupService {
         // 단가 그룹 설정 (Json 필드) - DTO를 순수 JSON으로 변환
         priceGroups: priceGroups ? JSON.parse(JSON.stringify(priceGroups)) : Prisma.JsonNull,
         paperPriceGroupMap: paperPriceGroupMap ? JSON.parse(JSON.stringify(paperPriceGroupMap)) : Prisma.JsonNull,
+        // 페이지 구간 설정 (nup_page_range용)
+        pageRanges: pageRanges ? JSON.parse(JSON.stringify(pageRanges)) : Prisma.JsonNull,
       },
     });
 
@@ -500,6 +503,7 @@ export class ProductionGroupService {
           basePages: range.basePages,
           basePrice: range.basePrice,
           pricePerPage: range.pricePerPage,
+          rangePrices: range.rangePrices ? JSON.parse(JSON.stringify(range.rangePrices)) : Prisma.JsonNull,
           price: range.basePrice, // 기본 가격 호환용
         })),
       });
@@ -522,8 +526,8 @@ export class ProductionGroupService {
   async updateSetting(id: string, data: UpdateProductionSettingDto) {
     await this.findSettingById(id);
 
-    // Prisma 스키마에 없는 필드 제외 (priceGroups, paperPriceGroupMap은 Json 필드로 저장)
-    const { specificationIds, groupId, indigoUpPrices, inkjetSpecPrices, indigoSpecPrices, nupPageRanges, priceGroups, paperPriceGroupMap, ...updateData } = data;
+    // Prisma 스키마에 없는 필드 제외 (priceGroups, paperPriceGroupMap, pageRanges은 Json 필드로 저장)
+    const { specificationIds, groupId, indigoUpPrices, inkjetSpecPrices, indigoSpecPrices, nupPageRanges, priceGroups, paperPriceGroupMap, pageRanges, ...updateData } = data;
 
     // 설정 업데이트 (단가 그룹 포함)
     await this.prisma.productionSetting.update({
@@ -536,6 +540,10 @@ export class ProductionGroupService {
         }),
         ...(paperPriceGroupMap !== undefined && {
           paperPriceGroupMap: paperPriceGroupMap ? JSON.parse(JSON.stringify(paperPriceGroupMap)) : Prisma.JsonNull
+        }),
+        // 페이지 구간 설정 (nup_page_range용)
+        ...(pageRanges !== undefined && {
+          pageRanges: pageRanges ? JSON.parse(JSON.stringify(pageRanges)) : Prisma.JsonNull
         }),
       },
     });
@@ -620,6 +628,7 @@ export class ProductionGroupService {
             basePages: range.basePages,
             basePrice: range.basePrice,
             pricePerPage: range.pricePerPage,
+            rangePrices: range.rangePrices ? JSON.parse(JSON.stringify(range.rangePrices)) : Prisma.JsonNull,
             price: range.basePrice, // 기본 가격 호환용
           })),
         });

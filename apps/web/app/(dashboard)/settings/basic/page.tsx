@@ -333,7 +333,7 @@ export default function BasicSettingsPage() {
                     type="email"
                     value={companyInfo.email}
                     onChange={(e) => setCompanyInfo({ ...companyInfo, email: e.target.value })}
-                    placeholder="info@photocafe.co.kr"
+                    placeholder="info@printing114.com"
                   />
                 </div>
                 <div className="space-y-2">
@@ -409,7 +409,7 @@ export default function BasicSettingsPage() {
                     id="domain"
                     value={companyInfo.domain}
                     onChange={(e) => setCompanyInfo({ ...companyInfo, domain: e.target.value })}
-                    placeholder="www.photocafe.co.kr"
+                    placeholder="www.printing114.com"
                   />
                 </div>
                 <div className="space-y-2">
@@ -418,7 +418,7 @@ export default function BasicSettingsPage() {
                     id="admin_domain"
                     value={companyInfo.adminDomain}
                     onChange={(e) => setCompanyInfo({ ...companyInfo, adminDomain: e.target.value })}
-                    placeholder="admin.photocafe.co.kr"
+                    placeholder="admin.printing114.com"
                   />
                 </div>
                 <div className="space-y-2 md:col-span-2">

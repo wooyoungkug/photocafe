@@ -182,6 +182,12 @@ export class NupPageRangeDto {
   @ApiProperty({ description: '1p당 추가 가격 (예: 200)' })
   @IsNumber()
   pricePerPage: number;
+
+  @ApiPropertyOptional({ description: '구간별 가격 (예: { "30": 20000, "40": 23000 })' })
+  @IsOptional()
+  @IsObject()
+  @Allow()
+  rangePrices?: Record<string, number>;
 }
 
 // 가격 계산 방식
@@ -370,6 +376,12 @@ export class CreateProductionSettingDto {
   @ValidateNested({ each: true })
   @Type(() => NupPageRangeDto)
   nupPageRanges?: NupPageRangeDto[];
+
+  @ApiPropertyOptional({ description: '페이지 구간 배열 (예: [30, 40, 50, 60])' })
+  @IsOptional()
+  @IsArray()
+  @IsNumber({}, { each: true })
+  pageRanges?: number[];
 
   @ApiPropertyOptional({ description: '잉크젯 기준규격 ID (sq inch 가격 계산 기준)' })
   @IsOptional()

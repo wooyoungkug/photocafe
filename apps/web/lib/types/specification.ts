@@ -15,6 +15,7 @@ export interface Specification {
     forAlbum: boolean;
     forFrame: boolean;
     forBooklet: boolean;
+    nup: string | null;  // "1++up" | "1+up" | "1up" | "2up" | "4up" | "8up"
     squareMeters: number | null;
     description: string | null;
     sortOrder: number;

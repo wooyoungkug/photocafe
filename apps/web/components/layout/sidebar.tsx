@@ -222,11 +222,11 @@ export function Sidebar() {
           </div>
           <div className="flex flex-col overflow-hidden">
             <span className="text-xs font-medium text-slate-200 truncate">관리자</span>
-            <span className="text-[10px] text-slate-500 truncate">admin@photocafe.co.kr</span>
+            <span className="text-[10px] text-slate-500 truncate">admin@printing114.com</span>
           </div>
         </div>
         <div className="mt-3 text-[10px] text-slate-600 text-center">
-          © 2026 Photocafe Inc.
+          © 2026 Printing114 Inc.
         </div>
       </div>
     </div>

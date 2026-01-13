@@ -24,6 +24,7 @@ export interface Specification {
   forAlbum: boolean;    // 앨범전용
   forFrame: boolean;    // 액자전용
   forBooklet: boolean;  // 인쇄책자전용
+  nup?: string | null;  // "1++up" | "1+up" | "1up" | "2up" | "4up" | "8up"
   squareMeters?: number;
   description?: string;
   sortOrder: number;

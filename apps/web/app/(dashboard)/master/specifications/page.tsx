@@ -546,9 +546,9 @@ export default function SpecificationsPage() {
                 {/* 1. 순서 및 이름 */}
                 <div className="flex items-center gap-3 min-w-[180px]">
                   <div className="flex flex-col items-center gap-0.5 text-muted-foreground opacity-30 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => handleMoveUp(index)} disabled={index === 0 || reorderMutation.isPending} className="hover:text-primary"><ChevronUp className="h-3 w-3" /></button>
+                    <button type="button" onClick={() => handleMoveUp(index)} disabled={index === 0 || reorderMutation.isPending} className="hover:text-primary" aria-label="Move up"><ChevronUp className="h-3 w-3" /></button>
                     <span className="text-[10px] font-mono leading-none">{index + 1}</span>
-                    <button onClick={() => handleMoveDown(index)} disabled={index === filteredSpecs.length - 1 || reorderMutation.isPending} className="hover:text-primary"><ChevronDown className="h-3 w-3" /></button>
+                    <button type="button" onClick={() => handleMoveDown(index)} disabled={index === filteredSpecs.length - 1 || reorderMutation.isPending} className="hover:text-primary" aria-label="Move down"><ChevronDown className="h-3 w-3" /></button>
                   </div>
                   <div>
                     <span className="font-bold text-base">{spec.name}</span>
