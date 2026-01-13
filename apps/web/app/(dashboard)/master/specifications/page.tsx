@@ -46,11 +46,11 @@ interface Specification {
   heightMm: number;
   orientation: "landscape" | "portrait" | "square";
   pairId?: string;
-  forIndigo: boolean;
-  forInkjet: boolean;
-  forAlbum: boolean;
-  forFrame: boolean;
-  forBooklet: boolean;
+  usageIndigo: boolean;
+  usageInkjet: boolean;
+  usageAlbum: boolean;
+  usageFrame: boolean;
+  usageBooklet: boolean;
   squareMeters?: number;
   description?: string;
   nup?: string;
@@ -105,11 +105,11 @@ interface SpecificationForm {
   widthMm: number;
   heightMm: number;
   orientation: "landscape" | "portrait" | "square";
-  forIndigo: boolean;
-  forInkjet: boolean;
-  forAlbum: boolean;
-  forFrame: boolean;
-  forBooklet: boolean;
+  usageIndigo: boolean;
+  usageInkjet: boolean;
+  usageAlbum: boolean;
+  usageFrame: boolean;
+  usageBooklet: boolean;
   squareMeters?: number;
   description: string;
   nup?: string;
@@ -124,11 +124,11 @@ const defaultForm: SpecificationForm = {
   widthMm: 0,
   heightMm: 0,
   orientation: "landscape",
-  forIndigo: false,
-  forInkjet: false,
-  forAlbum: false,
-  forFrame: false,
-  forBooklet: false,
+  usageIndigo: false,
+  usageInkjet: false,
+  usageAlbum: false,
+  usageFrame: false,
+  usageBooklet: false,
   description: "",
   nup: undefined,
   nupSqInch: undefined,
@@ -249,11 +249,11 @@ export default function SpecificationsPage() {
       widthMm: Number(spec.widthMm),
       heightMm: Number(spec.heightMm),
       orientation: spec.orientation,
-      forIndigo: spec.forIndigo,
-      forInkjet: spec.forInkjet,
-      forAlbum: spec.forAlbum,
-      forFrame: spec.forFrame,
-      forBooklet: spec.forBooklet,
+      usageIndigo: spec.usageIndigo,
+      usageInkjet: spec.usageInkjet,
+      usageAlbum: spec.usageAlbum,
+      usageFrame: spec.usageFrame,
+      usageBooklet: spec.usageBooklet,
       squareMeters: spec.squareMeters ? Number(spec.squareMeters) : undefined,
       description: spec.description || "",
       nup: spec.nup,
@@ -301,8 +301,8 @@ export default function SpecificationsPage() {
       [mmField]: Math.round(value * INCH_TO_MM * 100) / 100,
       orientation: getOrientation(newWidth, newHeight),
       // 앨범 체크시 Nup 자동 계산
-      nup: form.forAlbum && newWidth > 0 && newHeight > 0 ? calculateNup(newWidth, newHeight, nupSettings) : form.nup,
-      nupSqInch: form.forAlbum && newWidth > 0 && newHeight > 0 ? sqInch : form.nupSqInch,
+      nup: form.usageAlbum && newWidth > 0 && newHeight > 0 ? calculateNup(newWidth, newHeight, nupSettings) : form.nup,
+      nupSqInch: form.usageAlbum && newWidth > 0 && newHeight > 0 ? sqInch : form.nupSqInch,
     });
   };
 
@@ -319,8 +319,8 @@ export default function SpecificationsPage() {
       [inchField]: inchValue,
       orientation: getOrientation(newWidth, newHeight),
       // 앨범 체크시 Nup 자동 계산
-      nup: form.forAlbum && newWidth > 0 && newHeight > 0 ? calculateNup(newWidth, newHeight, nupSettings) : form.nup,
-      nupSqInch: form.forAlbum && newWidth > 0 && newHeight > 0 ? sqInch : form.nupSqInch,
+      nup: form.usageAlbum && newWidth > 0 && newHeight > 0 ? calculateNup(newWidth, newHeight, nupSettings) : form.nup,
+      nupSqInch: form.usageAlbum && newWidth > 0 && newHeight > 0 ? sqInch : form.nupSqInch,
     });
   };
 
@@ -331,7 +331,7 @@ export default function SpecificationsPage() {
       // 앨범 체크시 Nup 자동 계산 (이미 값이 있으면 유지)
       setForm({
         ...form,
-        forAlbum: true,
+        usageAlbum: true,
         nup: form.nup || (form.widthInch > 0 && form.heightInch > 0 ? calculateNup(form.widthInch, form.heightInch, nupSettings) : undefined),
         nupSqInch: sqInch > 0 ? sqInch : undefined,
       });
@@ -339,7 +339,7 @@ export default function SpecificationsPage() {
       // 앨범 체크 해제시 Nup 값 유지 (DB에 저장된 값 보존)
       setForm({
         ...form,
-        forAlbum: false,
+        usageAlbum: false,
       });
     }
   };
@@ -409,11 +409,11 @@ export default function SpecificationsPage() {
       // 용도 필터 (멀티셀렉트: 선택한 용도 중 하나라도 매칭되면 표시)
       const matchesUsage =
         usageFilters.length === 0 ||
-        (usageFilters.includes("indigo") && spec.forIndigo) ||
-        (usageFilters.includes("inkjet") && spec.forInkjet) ||
-        (usageFilters.includes("album") && spec.forAlbum) ||
-        (usageFilters.includes("frame") && spec.forFrame) ||
-        (usageFilters.includes("booklet") && spec.forBooklet);
+        (usageFilters.includes("indigo") && spec.usageIndigo) ||
+        (usageFilters.includes("inkjet") && spec.usageInkjet) ||
+        (usageFilters.includes("album") && spec.usageAlbum) ||
+        (usageFilters.includes("frame") && spec.usageFrame) ||
+        (usageFilters.includes("booklet") && spec.usageBooklet);
 
       return matchesSearch && matchesUsage;
     })
@@ -587,11 +587,11 @@ export default function SpecificationsPage() {
                 {/* 3. 용도 및 액션 */}
                 <div className="flex items-center gap-4 ml-auto">
                   <div className="flex flex-wrap gap-1 justify-end min-w-[120px]">
-                    {spec.forIndigo && <Badge variant="outline" className="text-[10px] px-1.5 bg-indigo-50/50 text-indigo-700 border-indigo-200">인디고</Badge>}
-                    {spec.forInkjet && <Badge variant="outline" className="text-[10px] px-1.5 bg-orange-50/50 text-orange-700 border-orange-200">잉크젯</Badge>}
-                    {spec.forAlbum && <Badge variant="outline" className="text-[10px] px-1.5 bg-pink-50/50 text-pink-700 border-pink-200">앨범</Badge>}
-                    {spec.forFrame && <Badge variant="outline" className="text-[10px] px-1.5 bg-stone-50/50 text-stone-700 border-stone-200">액자</Badge>}
-                    {spec.forBooklet && <Badge variant="outline" className="text-[10px] px-1.5 bg-blue-50/50 text-blue-700 border-blue-200">책자</Badge>}
+                    {spec.usageIndigo && <Badge variant="outline" className="text-[10px] px-1.5 bg-indigo-50/50 text-indigo-700 border-indigo-200">인디고</Badge>}
+                    {spec.usageInkjet && <Badge variant="outline" className="text-[10px] px-1.5 bg-orange-50/50 text-orange-700 border-orange-200">잉크젯</Badge>}
+                    {spec.usageAlbum && <Badge variant="outline" className="text-[10px] px-1.5 bg-pink-50/50 text-pink-700 border-pink-200">앨범</Badge>}
+                    {spec.usageFrame && <Badge variant="outline" className="text-[10px] px-1.5 bg-stone-50/50 text-stone-700 border-stone-200">액자</Badge>}
+                    {spec.usageBooklet && <Badge variant="outline" className="text-[10px] px-1.5 bg-blue-50/50 text-blue-700 border-blue-200">책자</Badge>}
                   </div>
 
                   <div className="flex items-center gap-1">
@@ -688,53 +688,53 @@ export default function SpecificationsPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>용도 선택</Label>
+              <Label>용도별규격</Label>
               <div className="flex flex-wrap gap-4">
                 <div className="flex items-center space-x-2">
                   <Checkbox
-                    id="forIndigo"
-                    checked={form.forIndigo}
-                    onCheckedChange={(checked) => setForm({ ...form, forIndigo: !!checked })}
+                    id="usageIndigo"
+                    checked={form.usageIndigo}
+                    onCheckedChange={(checked) => setForm({ ...form, usageIndigo: !!checked })}
                   />
-                  <Label htmlFor="forIndigo" className="cursor-pointer">인디고출력</Label>
+                  <Label htmlFor="usageIndigo" className="cursor-pointer">인디고출력</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Checkbox
-                    id="forInkjet"
-                    checked={form.forInkjet}
-                    onCheckedChange={(checked) => setForm({ ...form, forInkjet: !!checked })}
+                    id="usageInkjet"
+                    checked={form.usageInkjet}
+                    onCheckedChange={(checked) => setForm({ ...form, usageInkjet: !!checked })}
                   />
-                  <Label htmlFor="forInkjet" className="cursor-pointer">잉크젯출력</Label>
+                  <Label htmlFor="usageInkjet" className="cursor-pointer">잉크젯출력</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Checkbox
-                    id="forAlbum"
-                    checked={form.forAlbum}
+                    id="usageAlbum"
+                    checked={form.usageAlbum}
                     onCheckedChange={(checked) => handleAlbumChange(!!checked)}
                   />
-                  <Label htmlFor="forAlbum" className="cursor-pointer">앨범</Label>
+                  <Label htmlFor="usageAlbum" className="cursor-pointer">앨범</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Checkbox
-                    id="forFrame"
-                    checked={form.forFrame}
-                    onCheckedChange={(checked) => setForm({ ...form, forFrame: !!checked })}
+                    id="usageFrame"
+                    checked={form.usageFrame}
+                    onCheckedChange={(checked) => setForm({ ...form, usageFrame: !!checked })}
                   />
-                  <Label htmlFor="forFrame" className="cursor-pointer">액자</Label>
+                  <Label htmlFor="usageFrame" className="cursor-pointer">액자</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Checkbox
-                    id="forBooklet"
-                    checked={form.forBooklet}
-                    onCheckedChange={(checked) => setForm({ ...form, forBooklet: !!checked })}
+                    id="usageBooklet"
+                    checked={form.usageBooklet}
+                    onCheckedChange={(checked) => setForm({ ...form, usageBooklet: !!checked })}
                   />
-                  <Label htmlFor="forBooklet" className="cursor-pointer">인쇄책자</Label>
+                  <Label htmlFor="usageBooklet" className="cursor-pointer">인쇄책자</Label>
                 </div>
               </div>
             </div>
 
             {/* Nup 설정 (앨범 선택시) */}
-            {form.forAlbum && (
+            {form.usageAlbum && (
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-md space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">

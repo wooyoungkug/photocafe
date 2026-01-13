@@ -71,9 +71,11 @@ const formatNumber = (num: number | string | undefined | null): string => {
 // 가격 계산 방식 한글 라벨
 const PRICING_TYPE_LABELS: Record<PricingType, string> = {
   paper_output_spec: "[1.출력전용] 용지별출력단가/규격별/면",
-  indigo_spec: "[1.출력전용] 인디고규격별 단가",
+  indigo_spec: "[1.출력전용] 용지별규격단가",
   nup_page_range: "[2.제본전용] 구간별 Nup+면당가격",
-  per_sheet: "장당가격 (규격입력안함)",
+  binding_page: "[2.제본전용] 제본 페이지당",
+  finishing_qty: "[3.후가공] 수량당",
+  finishing_page: "[3.후가공] 페이지당",
 };
 
 // 인디고 원가 계산 상수
@@ -587,7 +589,7 @@ const SettingCard = ({
               <table className="text-xs border-collapse">
                 <thead>
                   <tr className="text-gray-500">
-                    <th className="px-2 py-1 text-left font-medium">규격</th>
+                    <th className="px-2 py-1 text-center font-medium">규격</th>
                     {setting.specifications.slice(0, 8).map(spec => (
                       <th key={spec.id} className="px-2 py-1 text-center font-medium font-mono">
                         {spec.specification?.name}
@@ -622,7 +624,7 @@ const SettingCard = ({
               <table className="text-xs border-collapse">
                 <thead>
                   <tr className="text-gray-500">
-                    <th className="px-2 py-1 text-left font-medium">규격</th>
+                    <th className="px-2 py-1 text-center font-medium">규격</th>
                     {setting.specifications.slice(0, 8).map(spec => (
                       <th key={spec.id} className="px-2 py-1 text-center font-medium font-mono">
                         {spec.specification?.name}
@@ -1395,7 +1397,7 @@ export default function ProductionSettingPage() {
         apiData.pageRanges = formData.pageRanges;
       }
       // 나머지: 규격 선택
-      else if (formData.pricingType !== "per_sheet") {
+      else {
         apiData.specificationIds = formData.specificationIds;
       }
 
@@ -1464,7 +1466,6 @@ export default function ProductionSettingPage() {
   // 규격 필터링 함수
   const getFilteredSpecifications = () => {
     if (!specifications) return [];
-    if (settingForm.pricingType === "per_sheet") return [];
     if (settingForm.pricingType === "paper_output_spec") {
       // 용지별출력단가/규격별은 인쇄방식에 따라 필터링
       const method = settingForm.printMethod;
@@ -2589,7 +2590,7 @@ export default function ProductionSettingPage() {
                                                 }}
                                               />
                                             </th>
-                                            <th className="px-2 py-1 text-left font-medium">규격</th>
+                                            <th className="px-2 py-1 text-center font-medium">규격</th>
                                             <th className="px-2 py-1 text-center font-medium">면적</th>
                                             <th className="px-2 py-1 text-center font-medium">단가</th>
                                           </tr>
@@ -3038,10 +3039,10 @@ export default function ProductionSettingPage() {
 
                         {/* 테이블 헤더 - 동적 컬럼 */}
                         <div
-                          className="grid gap-2 pb-2 border-b mb-2 text-xs font-medium text-gray-600 sticky top-0 bg-white items-center"
+                          className="grid gap-1 pb-2 border-b mb-2 text-xs font-medium text-gray-600 sticky top-0 bg-white items-center"
                           style={{ gridTemplateColumns: settingForm.printMethod === 'indigo'
-                            ? `32px 70px 70px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
-                            : `32px 1fr 50px 70px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
+                            ? `28px 60px 60px ${settingForm.pageRanges.map(() => '70px').join(' ')}`
+                            : `28px 80px 45px 60px ${settingForm.pageRanges.map(() => '70px').join(' ')}`
                           }}
                         >
                           <Checkbox
@@ -3059,7 +3060,7 @@ export default function ProductionSettingPage() {
                               // 인디고: 각 Nup별 대표 1개씩
                               let displaySpecs = filtered;
                               if (method === 'indigo') {
-                                const nupOrder = ['4up', '2up', '1up', '1+up', '1++up'];
+                                const nupOrder = ['1++up', '1+up', '1up', '2up', '4up'];
                                 const nupMap = new Map<string, typeof filtered[0]>();
                                 filtered.forEach(s => {
                                   if (s.nup && !nupMap.has(s.nup)) nupMap.set(s.nup, s);
@@ -3081,7 +3082,7 @@ export default function ProductionSettingPage() {
                               }) || [];
                               let displaySpecs = filtered;
                               if (method === 'indigo') {
-                                const nupOrder = ['4up', '2up', '1up', '1+up', '1++up'];
+                                const nupOrder = ['1++up', '1+up', '1up', '2up', '4up'];
                                 const nupMap = new Map<string, typeof filtered[0]>();
                                 filtered.forEach(s => {
                                   if (s.nup && !nupMap.has(s.nup)) nupMap.set(s.nup, s);
@@ -3138,7 +3139,7 @@ export default function ProductionSettingPage() {
                             // 인디고: 각 Nup별 대표 1개씩만 선택
                             let displaySpecs = filtered;
                             if (settingForm.printMethod === 'indigo') {
-                              const nupOrder = ['4up', '2up', '1up', '1+up', '1++up'];
+                              const nupOrder = ['1++up', '1+up', '1up', '2up', '4up'];
                               const nupMap = new Map<string, typeof filtered[0]>();
                               filtered.forEach(s => {
                                 if (s.nup && !nupMap.has(s.nup)) {
@@ -3167,12 +3168,12 @@ export default function ProductionSettingPage() {
                               <div
                                 key={spec.id}
                                 className={cn(
-                                  "grid gap-2 py-2 items-center border-b last:border-b-0",
+                                  "grid gap-1 py-1 items-center border-b last:border-b-0",
                                   isSelected && "bg-amber-50/50"
                                 )}
                                 style={{ gridTemplateColumns: settingForm.printMethod === 'indigo'
-                                  ? `32px 70px 70px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
-                                  : `32px 1fr 50px 70px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
+                                  ? `28px 60px 60px ${settingForm.pageRanges.map(() => '70px').join(' ')}`
+                                  : `28px 80px 45px 60px ${settingForm.pageRanges.map(() => '70px').join(' ')}`
                                 }}
                               >
                                 <Checkbox
@@ -3348,82 +3349,68 @@ export default function ProductionSettingPage() {
                       </div>
                     </div>
 
-                    {settingForm.pricingType === "per_sheet" ? (
-                      <div className="text-xs text-muted-foreground bg-gray-50 rounded p-2">
-                        ※ 장당가격은 규격 선택이 필요없습니다.
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        <Label>규격 용도 선택</Label>
-                        <Select
-                          value={settingForm.specUsageType}
-                          onValueChange={(value) =>
-                            setSettingForm((prev) => ({
-                              ...prev,
-                              specUsageType: value as typeof prev.specUsageType,
-                              specificationIds: [],
-                            }))
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="규격 용도 선택" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">전체 규격</SelectItem>
-                            <SelectItem value="indigo">인디고출력</SelectItem>
-                            <SelectItem value="inkjet">잉크젯출력</SelectItem>
-                            <SelectItem value="album">앨범전용</SelectItem>
-                            <SelectItem value="frame">액자전용</SelectItem>
-                            <SelectItem value="booklet">인쇄책자전용</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
+                    <div className="space-y-2">
+                      <Label>규격 용도 선택</Label>
+                      <Select
+                        value={settingForm.specUsageType}
+                        onValueChange={(value) =>
+                          setSettingForm((prev) => ({
+                            ...prev,
+                            specUsageType: value as typeof prev.specUsageType,
+                            specificationIds: [],
+                          }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="규격 용도 선택" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">전체 규격</SelectItem>
+                          <SelectItem value="indigo">인디고출력</SelectItem>
+                          <SelectItem value="inkjet">잉크젯출력</SelectItem>
+                          <SelectItem value="album">앨범전용</SelectItem>
+                          <SelectItem value="frame">액자전용</SelectItem>
+                          <SelectItem value="booklet">인쇄책자전용</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
                     <div className="border rounded-lg p-4 max-h-[350px] overflow-y-auto">
-                      {settingForm.pricingType === "per_sheet" ? (
-                        <p className="text-center text-muted-foreground py-4">
-                          장당가격은 규격 선택이 필요없습니다.
-                        </p>
-                      ) : (
-                        <>
-                          {/* 전체 선택 헤더 */}
-                          <div className="flex items-center gap-2 pb-2 mb-2 border-b">
+                      {/* 전체 선택 헤더 */}
+                      <div className="flex items-center gap-2 pb-2 mb-2 border-b">
+                        <Checkbox
+                          checked={getFilteredSpecifications().length > 0 && getFilteredSpecifications().every(s => settingForm.specificationIds.includes(s.id))}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              handleSelectAllSpecifications();
+                            } else {
+                              handleDeselectAllSpecifications();
+                            }
+                          }}
+                        />
+                        <Label className="text-sm font-medium cursor-pointer">전체 선택</Label>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {getFilteredSpecifications().map((spec) => (
+                          <div key={spec.id} className="flex items-center gap-2">
                             <Checkbox
-                              checked={getFilteredSpecifications().length > 0 && getFilteredSpecifications().every(s => settingForm.specificationIds.includes(s.id))}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  handleSelectAllSpecifications();
-                                } else {
-                                  handleDeselectAllSpecifications();
-                                }
-                              }}
+                              id={`spec-${spec.id}`}
+                              checked={settingForm.specificationIds.includes(spec.id)}
+                              onCheckedChange={() => handleToggleSpecification(spec.id)}
                             />
-                            <Label className="text-sm font-medium cursor-pointer">전체 선택</Label>
+                            <Label
+                              htmlFor={`spec-${spec.id}`}
+                              className="text-sm font-mono cursor-pointer"
+                            >
+                              {spec.name}
+                            </Label>
                           </div>
-                          <div className="grid grid-cols-3 gap-2">
-                            {getFilteredSpecifications().map((spec) => (
-                              <div key={spec.id} className="flex items-center gap-2">
-                                <Checkbox
-                                  id={`spec-${spec.id}`}
-                                  checked={settingForm.specificationIds.includes(spec.id)}
-                                  onCheckedChange={() => handleToggleSpecification(spec.id)}
-                                />
-                                <Label
-                                  htmlFor={`spec-${spec.id}`}
-                                  className="text-sm font-mono cursor-pointer"
-                                >
-                                  {spec.name}
-                                </Label>
-                              </div>
-                            ))}
-                          </div>
-                          {getFilteredSpecifications().length === 0 && (
-                            <p className="text-center text-muted-foreground py-4">
-                              해당 용도의 규격이 없습니다.
-                            </p>
-                          )}
-                        </>
+                        ))}
+                      </div>
+                      {getFilteredSpecifications().length === 0 && (
+                        <p className="text-center text-muted-foreground py-4">
+                          해당 용도의 규격이 없습니다.
+                        </p>
                       )}
                     </div>
 
