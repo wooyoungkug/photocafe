@@ -1801,15 +1801,16 @@ export default function ProductionSettingPage() {
           <div className="flex-1 overflow-y-auto pr-2">
             <div className="flex flex-col gap-6">
               {/* 기본 정보 */}
-              <div className="space-y-6">
-                <div className="bg-gray-50/50 p-4 rounded-xl border space-y-4">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+              <div className="space-y-4">
+                <div className="bg-gray-50/50 p-4 rounded-xl border space-y-3">
+                  <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
                     <Settings2 className="w-4 h-4" /> 기본 정보
                   </h3>
 
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-xs font-medium text-gray-500">세팅명</Label>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                    {/* 1행: 세팅명, 적용단위 */}
+                    <div className="flex items-center gap-3">
+                      <Label className="text-xs font-medium text-gray-500 w-16 shrink-0">세팅명</Label>
                       <Input
                         placeholder="예: 박Color"
                         value={settingForm.settingName}
@@ -1819,31 +1820,12 @@ export default function ProductionSettingPage() {
                             settingName: e.target.value,
                           }))
                         }
-                        className="bg-white"
+                        className="bg-white h-8"
                       />
                     </div>
 
-                    <div className="space-y-2">
-                      <Label className="text-xs font-medium text-gray-500">작업시간</Label>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="number"
-                          step="0.1"
-                          value={settingForm.workDays}
-                          onChange={(e) =>
-                            setSettingForm((prev) => ({
-                              ...prev,
-                              workDays: Number(e.target.value),
-                            }))
-                          }
-                          className="bg-white"
-                        />
-                        <span className="text-muted-foreground text-xs whitespace-nowrap">일</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-xs font-medium text-gray-500">적용단위</Label>
+                    <div className="flex items-center gap-3">
+                      <Label className="text-xs font-medium text-gray-500 w-16 shrink-0">적용단위</Label>
                       <Select
                         value={settingForm.pricingType}
                         onValueChange={(value) =>
@@ -1853,7 +1835,7 @@ export default function ProductionSettingPage() {
                           }))
                         }
                       >
-                        <SelectTrigger className="bg-white">
+                        <SelectTrigger className="bg-white h-8">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -1869,18 +1851,16 @@ export default function ProductionSettingPage() {
                         </SelectContent>
                       </Select>
                     </div>
-                  </div>
 
-                  {settingForm.pricingType === "paper_output_spec" && (
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label className="text-xs font-medium text-gray-500">인쇄방식</Label>
+                    {/* 2행: 인쇄방식 (paper_output_spec일 때만), 작업시간 */}
+                    {settingForm.pricingType === "paper_output_spec" && (
+                      <div className="flex items-center gap-3">
+                        <Label className="text-xs font-medium text-gray-500 w-16 shrink-0">인쇄방식</Label>
                         <Select
                           value={settingForm.printMethod}
                           onValueChange={(value) =>
                             setSettingForm((prev) => {
                               const newMethod = value as "indigo" | "inkjet" | "album" | "frame" | "booklet";
-                              // 인쇄방식 변경 시 초기화 로직
                               return {
                                 ...prev,
                                 printMethod: newMethod,
@@ -1902,7 +1882,7 @@ export default function ProductionSettingPage() {
                             })
                           }
                         >
-                          <SelectTrigger className="bg-white">
+                          <SelectTrigger className="bg-white h-8">
                             <SelectValue placeholder="인쇄방식 선택" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1914,8 +1894,27 @@ export default function ProductionSettingPage() {
                           </SelectContent>
                         </Select>
                       </div>
+                    )}
+
+                    <div className="flex items-center gap-3">
+                      <Label className="text-xs font-medium text-gray-500 w-16 shrink-0">작업시간</Label>
+                      <div className="flex items-center gap-2 flex-1">
+                        <Input
+                          type="number"
+                          step="0.1"
+                          value={settingForm.workDays}
+                          onChange={(e) =>
+                            setSettingForm((prev) => ({
+                              ...prev,
+                              workDays: Number(e.target.value),
+                            }))
+                          }
+                          className="bg-white h-8"
+                        />
+                        <span className="text-muted-foreground text-xs whitespace-nowrap">일</span>
+                      </div>
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
 
@@ -2055,12 +2054,12 @@ export default function ProductionSettingPage() {
                                       <table className="w-full text-xs table-fixed">
                                         <thead className="bg-slate-100 border-b">
                                           <tr>
-                                            <th className="w-14 px-2 py-2.5 text-center font-semibold text-slate-600">Up</th>
-                                            <th className="w-20 px-2 py-2.5 text-center font-semibold text-slate-600">가중치</th>
-                                            <th className="px-2 py-2.5 text-center font-semibold text-slate-600">4도단면</th>
-                                            <th className="px-2 py-2.5 text-center font-semibold text-slate-600">4도양면</th>
-                                            <th className="px-2 py-2.5 text-center font-semibold text-slate-600">6도단면</th>
-                                            <th className="px-2 py-2.5 text-center font-semibold text-slate-600">6도양면</th>
+                                            <th className="w-14 px-2 py-1.5 text-center font-semibold text-slate-600">Up</th>
+                                            <th className="w-20 px-2 py-1.5 text-center font-semibold text-slate-600">가중치</th>
+                                            <th className="px-2 py-1.5 text-center font-semibold text-slate-600">4도단면</th>
+                                            <th className="px-2 py-1.5 text-center font-semibold text-slate-600">4도양면</th>
+                                            <th className="px-2 py-1.5 text-center font-semibold text-slate-600">6도단면</th>
+                                            <th className="px-2 py-1.5 text-center font-semibold text-slate-600">6도양면</th>
                                           </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100">
@@ -2088,8 +2087,8 @@ export default function ProductionSettingPage() {
                                                 "transition-colors",
                                                 idx === 0 ? "bg-amber-50/60" : "hover:bg-slate-50/50"
                                               )}>
-                                                <td className="px-2 py-2.5 text-center font-semibold text-slate-700">{upPrice.up}up</td>
-                                                <td className="px-2 py-2.5">
+                                                <td className="px-2 py-1 text-center font-semibold text-slate-700">{upPrice.up}up</td>
+                                                <td className="px-2 py-1">
                                                   <div className="flex justify-center">
                                                     <Input
                                                       type="number"
@@ -2138,7 +2137,7 @@ export default function ProductionSettingPage() {
                                                 {['fourColorSinglePrice', 'fourColorDoublePrice', 'sixColorSinglePrice', 'sixColorDoublePrice'].map((field) => {
                                                   const costDisplay = getCostDisplay(field);
                                                   return (
-                                                    <td key={field} className="px-2 py-2.5">
+                                                    <td key={field} className="px-2 py-1">
                                                       <div className="flex flex-col items-center gap-1">
                                                         <Input
                                                           type="number"
@@ -3041,8 +3040,8 @@ export default function ProductionSettingPage() {
                         <div
                           className="grid gap-1 pb-2 border-b mb-2 text-xs font-medium text-gray-600 sticky top-0 bg-white items-center"
                           style={{ gridTemplateColumns: settingForm.printMethod === 'indigo'
-                            ? `28px 60px 60px ${settingForm.pageRanges.map(() => '70px').join(' ')}`
-                            : `28px 80px 45px 60px ${settingForm.pageRanges.map(() => '70px').join(' ')}`
+                            ? `28px 60px 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
+                            : `28px 80px 45px 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
                           }}
                         >
                           <Checkbox
@@ -3117,7 +3116,7 @@ export default function ProductionSettingPage() {
                               <span className="text-center">Nup</span>
                             </>
                           )}
-                          <span className="text-center">1p당</span>
+                          <span className="text-right pr-2">1p당</span>
                           {settingForm.pageRanges.map(range => (
                             <span key={range} className="text-center">{range}p</span>
                           ))}
@@ -3172,8 +3171,8 @@ export default function ProductionSettingPage() {
                                   isSelected && "bg-amber-50/50"
                                 )}
                                 style={{ gridTemplateColumns: settingForm.printMethod === 'indigo'
-                                  ? `28px 60px 60px ${settingForm.pageRanges.map(() => '70px').join(' ')}`
-                                  : `28px 80px 45px 60px ${settingForm.pageRanges.map(() => '70px').join(' ')}`
+                                  ? `28px 60px 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
+                                  : `28px 80px 45px 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
                                 }}
                               >
                                 <Checkbox
@@ -3243,7 +3242,7 @@ export default function ProductionSettingPage() {
                                           };
                                         });
                                       }}
-                                      className="h-7 text-center font-mono text-sm"
+                                      className="h-7 text-right font-mono text-sm pr-2"
                                       placeholder="0"
                                     />
                                     {/* 첫 구간 가격 입력 - 변경시 나머지 구간 자동 계산 */}
@@ -3293,7 +3292,7 @@ export default function ProductionSettingPage() {
                                   </>
                                 ) : (
                                   <>
-                                    <span className="text-center text-gray-400 text-sm">-</span>
+                                    <span className="text-right text-gray-400 text-sm pr-2">-</span>
                                     {settingForm.pageRanges.map(range => (
                                       <span key={range} className="text-center text-gray-400 text-sm">-</span>
                                     ))}
