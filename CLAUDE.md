@@ -227,6 +227,55 @@ npm run dev:api
 - Password: color060
 ```
 
+## 개발 환경 설정 (WSL2 권장)
+
+Docker 대신 WSL2를 사용하여 빠른 개발 환경을 구성합니다.
+
+### WSL2 설치 및 설정
+
+```bash
+# PowerShell (관리자 권한)에서 Ubuntu 설치
+wsl --install -d Ubuntu
+
+# Ubuntu 터미널 실행
+wsl
+
+# 프로젝트 디렉토리로 이동 (Z: 드라이브가 읽기 전용인 경우)
+# 옵션 1: Windows 경로 직접 접근
+cd /mnt/z/docker/printing114-web
+
+# 옵션 2: 로컬에 복사 후 작업 (권장 - 더 빠름)
+cp -r /mnt/z/docker/printing114-web ~/printing114-web
+cd ~/printing114-web
+```
+
+### Node.js 설치 (Ubuntu에서)
+
+```bash
+# nvm 설치
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+source ~/.bashrc
+
+# Node.js LTS 설치
+nvm install --lts
+nvm use --lts
+```
+
+### 개발 서버 실행
+
+```bash
+# 의존성 설치
+npm install
+
+# 개발 서버 실행
+npm run dev
+```
+
+### 장점
+- Docker보다 부팅 시간 빠름 (1-2초)
+- Hot reload 성능 우수
+- Linux 환경과 동일한 개발 경험
+
 ## 완료된 작업
 
 - [x] 프로젝트 구조 생성 (monorepo)

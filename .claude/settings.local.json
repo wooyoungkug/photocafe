@@ -89,7 +89,9 @@
       "Bash(cmd /c \"taskkill /F /PID 9828\")",
       "Bash(wc:*)",
       "Bash(git pull:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(wsl --list:*)",
+      "Bash(wsl --install:*)"
     ]
   }
 }

@@ -513,7 +513,7 @@ export default function CategoriesPage() {
           {category.iconUrl ? (
             <img
               src={category.iconUrl.startsWith('/api')
-                ? `http://localhost:3001${category.iconUrl}`
+                ? `http://1.212.201.147:3001${category.iconUrl}`
                 : category.iconUrl}
               alt=""
               className="h-5 w-5 object-contain rounded"
@@ -983,7 +983,7 @@ export default function CategoriesPage() {
                     {formData.iconUrl && (
                       <img
                         src={formData.iconUrl.startsWith('/api')
-                          ? `http://localhost:3001${formData.iconUrl}`
+                          ? `http://1.212.201.147:3001${formData.iconUrl}`
                           : formData.iconUrl}
                         alt="카테고리 아이콘"
                         className="w-12 h-12 object-contain rounded border bg-gray-50"
@@ -1034,7 +1034,7 @@ export default function CategoriesPage() {
                           formDataUpload.append('file', file);
 
                           try {
-                            const response = await fetch('http://localhost:3001/api/v1/upload/category-icon', {
+                            const response = await fetch('http://1.212.201.147:3001/api/v1/upload/category-icon', {
                               method: 'POST',
                               headers: {
                                 'Authorization': `Bearer ${token}`,

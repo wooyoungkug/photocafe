@@ -65,7 +65,7 @@ export function CategoryNav() {
                 {category.iconUrl && (
                   <img
                     src={category.iconUrl.startsWith('/api')
-                      ? `http://localhost:3001${category.iconUrl}`
+                      ? `http://1.212.201.147:3001${category.iconUrl}`
                       : category.iconUrl}
                     alt=""
                     className="h-5 w-5 object-contain"
@@ -120,7 +120,7 @@ export function CategoryNav() {
                   {category.iconUrl && (
                     <img
                       src={category.iconUrl.startsWith('/api')
-                        ? `http://localhost:3001${category.iconUrl}`
+                        ? `http://1.212.201.147:3001${category.iconUrl}`
                         : category.iconUrl}
                       alt=""
                       className="h-4 w-4 object-contain"
@@ -157,7 +157,7 @@ function CategoryMenuItem({ category, level }: { category: Category; level: numb
           {category.iconUrl && (
             <img
               src={category.iconUrl.startsWith('/api')
-                ? `http://localhost:3001${category.iconUrl}`
+                ? `http://1.212.201.147:3001${category.iconUrl}`
                 : category.iconUrl}
               alt=""
               className="h-4 w-4 object-contain"

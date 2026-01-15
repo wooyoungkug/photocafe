@@ -236,8 +236,8 @@ export class StatisticsService {
       data,
       totals: {
         clientCount: data.length,
-        orderCount: data.reduce((sum, d) => sum + d.orderCount, 0),
-        revenue: data.reduce((sum, d) => sum + d.revenue, 0),
+        orderCount: data.reduce((sum: number, d) => sum + d.orderCount, 0),
+        revenue: data.reduce((sum: number, d) => sum + d.revenue, 0),
       },
     };
   }
@@ -279,9 +279,9 @@ export class StatisticsService {
     return {
       data,
       totals: {
-        orderCount: data.reduce((sum, d) => sum + d.orderCount, 0),
-        quantity: data.reduce((sum, d) => sum + d.quantity, 0),
-        revenue: data.reduce((sum, d) => sum + d.revenue, 0),
+        orderCount: data.reduce((sum: number, d) => sum + d.orderCount, 0),
+        quantity: data.reduce((sum: number, d) => sum + d.quantity, 0),
+        revenue: data.reduce((sum: number, d) => sum + d.revenue, 0),
       },
     };
   }
@@ -326,9 +326,9 @@ export class StatisticsService {
       data,
       totals: {
         productCount: stats.length,
-        orderCount: stats.reduce((sum, d) => sum + d._count.id, 0),
-        quantity: stats.reduce((sum, d) => sum + (d._sum.quantity || 0), 0),
-        revenue: stats.reduce((sum, d) => sum + Number(d._sum.totalPrice || 0), 0),
+        orderCount: stats.reduce((sum: number, d) => sum + d._count.id, 0),
+        quantity: stats.reduce((sum: number, d) => sum + (d._sum.quantity || 0), 0),
+        revenue: stats.reduce((sum: number, d) => sum + Number(d._sum.totalPrice || 0), 0),
       },
     };
   }
@@ -429,9 +429,9 @@ export class StatisticsService {
       data,
       totals: {
         categoryCount: data.length,
-        orderCount: data.reduce((sum, d) => sum + (d?.orderCount || 0), 0),
-        quantity: data.reduce((sum, d) => sum + (d?.quantity || 0), 0),
-        revenue: data.reduce((sum, d) => sum + (d?.revenue || 0), 0),
+        orderCount: data.reduce((sum: number, d) => sum + (d?.orderCount || 0), 0),
+        quantity: data.reduce((sum: number, d) => sum + (d?.quantity || 0), 0),
+        revenue: data.reduce((sum: number, d) => sum + (d?.revenue || 0), 0),
       },
       period: { startDate, endDate },
     };
@@ -594,14 +594,14 @@ export class StatisticsService {
       })
       .sort((a, b) => b.revenue - a.revenue);
 
-    const totalRevenue = tree.reduce((sum, t) => sum + t.revenue, 0);
+    const totalRevenue = tree.reduce((sum: number, t) => sum + t.revenue, 0);
 
     return {
       data: tree,
       totals: {
         categoryCount: allCategories.length,
-        orderCount: tree.reduce((sum, t) => sum + t.orderCount, 0),
-        quantity: tree.reduce((sum, t) => sum + t.quantity, 0),
+        orderCount: tree.reduce((sum: number, t) => sum + t.orderCount, 0),
+        quantity: tree.reduce((sum: number, t) => sum + t.quantity, 0),
         revenue: totalRevenue,
       },
       period: { startDate, endDate },

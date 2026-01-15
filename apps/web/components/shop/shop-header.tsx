@@ -94,9 +94,10 @@ export function ShopHeader() {
 
             {/* User */}
             {isAuthenticated ? (
-              <div className="hidden md:flex items-center gap-2">
-                <Link href="/mypage" className="p-2 hover:bg-gray-100 rounded-full">
-                  <User className="h-6 w-6" />
+              <div className="hidden md:flex items-center gap-3">
+                <Link href="/mypage" className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded-lg">
+                  <User className="h-5 w-5" />
+                  <span className="font-medium text-sm">{user?.name}님</span>
                 </Link>
                 <Button variant="ghost" size="sm" onClick={logout}>
                   로그아웃

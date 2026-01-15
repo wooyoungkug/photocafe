@@ -53,13 +53,6 @@ function LoginForm() {
     }
   };
 
-  const handleNaverLogin = () => {
-    const clientId = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID;
-    const redirectUri = encodeURIComponent('http://1.212.201.147:3000/api/auth/callback/naver');
-    const state = Math.random().toString(36).substring(7);
-    window.location.href = `https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&state=${state}`;
-  };
-
   return (
     <Card className="w-full max-w-md shadow-lg">
       <CardHeader className="space-y-1 text-center">
@@ -69,7 +62,7 @@ function LoginForm() {
           </div>
         </Link>
         <CardTitle className="text-2xl">로그인</CardTitle>
-        <CardDescription>Printing114에 오신 것을 환영합니다</CardDescription>
+        <CardDescription>PhotoCafe에 오신 것을 환영합니다</CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
@@ -150,25 +143,6 @@ function LoginForm() {
               회원가입
             </Link>
           </p>
-
-          {/* 소셜 로그인 */}
-          <div className="relative my-2">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">또는</span>
-            </div>
-          </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full bg-[#03C75A] hover:bg-[#02b351] text-white border-0"
-            onClick={handleNaverLogin}
-          >
-            네이버로 로그인
-          </Button>
         </CardFooter>
       </form>
     </Card>
@@ -183,7 +157,7 @@ function LoginFormFallback() {
           <span className="text-white font-bold text-2xl">P</span>
         </div>
         <CardTitle className="text-2xl">로그인</CardTitle>
-        <CardDescription>Printing114에 오신 것을 환영합니다</CardDescription>
+        <CardDescription>PhotoCafe에 오신 것을 환영합니다</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-center py-8">
