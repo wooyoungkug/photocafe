@@ -13,6 +13,8 @@ import {
   FileText,
   ChevronDown,
   ChevronRight,
+  Settings2,
+  X,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -97,6 +99,12 @@ import {
   UNIT_TYPE_OPTIONS,
   GROUP_COLOR_OPTIONS,
 } from '@/lib/types/paper';
+
+import {
+  useSystemSettings,
+  useUpdateSystemSetting,
+} from '@/hooks/use-system-settings';
+import { toast } from '@/hooks/use-toast';
 
 // 빈 문자열이나 NaN을 undefined로 변환하는 헬퍼
 const optionalNumber = z.preprocess(
@@ -219,6 +227,11 @@ export default function PapersPage() {
   const [editingGroup, setEditingGroup] = useState<PaperGroup | null>(null);
   const [deleteGroupId, setDeleteGroupId] = useState<string | null>(null);
 
+  // 표면질감 관리 다이얼로그
+  const [finishDialogOpen, setFinishDialogOpen] = useState(false);
+  const [newFinishValue, setNewFinishValue] = useState('');
+  const [newFinishLabel, setNewFinishLabel] = useState('');
+
   // 데이터 조회
   const { data: papersData, isLoading: papersLoading } = usePapers({
     search: searchTerm || undefined,
@@ -228,6 +241,75 @@ export default function PapersPage() {
   const { data: manufacturers, isLoading: manufacturersLoading } = usePaperManufacturers();
   const { data: suppliers, isLoading: suppliersLoading } = usePaperSuppliers();
   const { data: paperGroups, isLoading: groupsLoading } = usePaperGroups();
+
+  // 표면질감 옵션 조회 (시스템 설정에서)
+  const { data: systemSettings } = useSystemSettings('paper');
+  const updateSystemSetting = useUpdateSystemSetting();
+
+  // 표면질감 옵션 목록 (시스템 설정에서 가져오거나 기본값 사용)
+  const finishOptions = (() => {
+    const savedFinish = systemSettings?.find((s) => s.key === 'paper_finish_options');
+    if (savedFinish?.value) {
+      try {
+        return JSON.parse(savedFinish.value) as { value: string; label: string }[];
+      } catch {
+        return FINISH_OPTIONS;
+      }
+    }
+    return FINISH_OPTIONS;
+  })();
+
+  // 표면질감 추가
+  const handleAddFinish = () => {
+    if (!newFinishValue.trim() || !newFinishLabel.trim()) {
+      toast({
+        variant: 'destructive',
+        title: '입력 오류',
+        description: '영문코드와 라벨을 모두 입력해주세요.',
+      });
+      return;
+    }
+
+    // 중복 체크
+    if (finishOptions.some((opt) => opt.value === newFinishValue.trim())) {
+      toast({
+        variant: 'destructive',
+        title: '중복 오류',
+        description: '이미 존재하는 코드입니다.',
+      });
+      return;
+    }
+
+    const newOptions = [...finishOptions, { value: newFinishValue.trim(), label: newFinishLabel.trim() }];
+    saveFinishOptions(newOptions);
+    setNewFinishValue('');
+    setNewFinishLabel('');
+  };
+
+  // 표면질감 삭제
+  const handleDeleteFinish = (value: string) => {
+    const newOptions = finishOptions.filter((opt) => opt.value !== value);
+    saveFinishOptions(newOptions);
+  };
+
+  // 표면질감 옵션 저장
+  const saveFinishOptions = (options: { value: string; label: string }[]) => {
+    updateSystemSetting.mutate(
+      {
+        key: 'paper_finish_options',
+        value: JSON.stringify(options),
+        category: 'paper',
+        label: '용지 표면질감 옵션',
+      },
+      {
+        onSuccess: () => {
+          toast({
+            title: '표면질감 옵션이 저장되었습니다.',
+          });
+        },
+      }
+    );
+  };
 
   // 뮤테이션
   const createPaper = useCreatePaper();
@@ -869,226 +951,288 @@ export default function PapersPage() {
 
       {/* 용지 등록/수정 다이얼로그 */}
       <Dialog open={paperDialogOpen} onOpenChange={setPaperDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingPaper ? '용지 수정' : '용지 등록'}</DialogTitle>
+        <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto p-0">
+          <DialogHeader className="px-8 py-6 border-b bg-gradient-to-r from-slate-50 to-white sticky top-0 z-10">
+            <DialogTitle className="text-xl font-semibold text-slate-800">
+              {editingPaper ? '용지 수정' : '용지 등록'}
+            </DialogTitle>
           </DialogHeader>
           <form onSubmit={paperForm.handleSubmit(handlePaperSubmit, (errors) => {
             console.error('폼 검증 에러:', errors);
-          })} className="space-y-4">
+          })} className="px-8 py-6 space-y-8">
             {/* 용지 코드 숨김 - 자동 생성 */}
             <input type="hidden" {...paperForm.register('code')} />
 
-            <div className="space-y-2">
-              <Label htmlFor="name">용지명 *</Label>
-              <Input
-                id="name"
-                {...paperForm.register('name')}
-                placeholder="프리미엄 광택지"
-              />
-              {paperForm.formState.errors.name && (
-                <p className="text-sm text-destructive">{paperForm.formState.errors.name.message}</p>
+            {/* 기본 정보 섹션 */}
+            <div className="space-y-5">
+              <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider border-b pb-2">기본 정보</h3>
+
+              <div className="space-y-2">
+                <Label htmlFor="name" className="text-sm font-medium text-slate-700">용지명 <span className="text-red-500">*</span></Label>
+                <Input
+                  id="name"
+                  {...paperForm.register('name')}
+                  placeholder="프리미엄 광택지"
+                  className="h-11 text-base border-slate-200 focus:border-indigo-500 focus:ring-indigo-500"
+                />
+                {paperForm.formState.errors.name && (
+                  <p className="text-sm text-red-500">{paperForm.formState.errors.name.message}</p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-slate-700">제지사</Label>
+                  <div className="flex gap-2">
+                    <Select
+                      value={paperForm.watch('manufacturerId') || ''}
+                      onValueChange={(v) => paperForm.setValue('manufacturerId', v || undefined)}
+                    >
+                      <SelectTrigger className="flex-1 h-11 border-slate-200">
+                        <SelectValue placeholder="제지사 선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {manufacturersLoading ? (
+                          <SelectItem value="_loading" disabled>로딩 중...</SelectItem>
+                        ) : !manufacturers?.length ? (
+                          <SelectItem value="_empty" disabled>등록된 제지사가 없습니다</SelectItem>
+                        ) : (
+                          manufacturers.map((m: PaperManufacturer) => (
+                            <SelectItem key={m.id} value={m.id}>
+                              {m.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-11 w-11 border-slate-200 hover:bg-slate-50"
+                      onClick={() => openManufacturerDialog()}
+                      title="제지사 추가"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-slate-700">용지대리점</Label>
+                  <div className="flex gap-2">
+                    <Select
+                      value={paperForm.watch('supplierId') || ''}
+                      onValueChange={(v) => paperForm.setValue('supplierId', v || undefined)}
+                    >
+                      <SelectTrigger className="flex-1 h-11 border-slate-200">
+                        <SelectValue placeholder="대리점 선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {suppliersLoading ? (
+                          <SelectItem value="_loading" disabled>로딩 중...</SelectItem>
+                        ) : !suppliers?.length ? (
+                          <SelectItem value="_empty" disabled>등록된 대리점이 없습니다</SelectItem>
+                        ) : (
+                          suppliers.map((s: PaperSupplier) => (
+                            <SelectItem key={s.id} value={s.id}>
+                              {s.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-11 w-11 border-slate-200 hover:bg-slate-50"
+                      onClick={() => openSupplierDialog()}
+                      title="대리점 추가"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 규격 정보 섹션 */}
+            <div className="space-y-5">
+              <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider border-b pb-2">규격 정보</h3>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-slate-700">용지 구분 <span className="text-red-500">*</span></Label>
+                  <Select
+                    value={paperForm.watch('paperType')}
+                    onValueChange={(v) => {
+                      paperForm.setValue('paperType', v as PaperType);
+                      if (v === 'roll') {
+                        paperForm.setValue('unitType', 'roll');
+                      } else {
+                        paperForm.setValue('unitType', 'sheet');
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-11 border-slate-200">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PAPER_TYPE_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* 시트지 규격 */}
+              {watchPaperType === 'sheet' && (
+                <div className="bg-slate-50 rounded-xl p-5 space-y-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-slate-700">용지 규격</Label>
+                      <Select
+                        value={paperForm.watch('sheetSize') || ''}
+                        onValueChange={(v) => {
+                          paperForm.setValue('sheetSize', v);
+                          const selected = SHEET_SIZE_OPTIONS.find(opt => opt.value === v);
+                          if (selected && selected.width > 0) {
+                            paperForm.setValue('sheetWidthMm', selected.width);
+                            paperForm.setValue('sheetHeightMm', selected.height);
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="h-11 bg-white border-slate-200">
+                          <SelectValue placeholder="규격 선택" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SHEET_SIZE_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-slate-700">가로 (mm)</Label>
+                      <Input
+                        type="number"
+                        {...paperForm.register('sheetWidthMm', { valueAsNumber: true })}
+                        placeholder="788"
+                        readOnly={paperForm.watch('sheetSize') !== 'custom'}
+                        className={`h-11 ${paperForm.watch('sheetSize') !== 'custom' ? 'bg-slate-100 text-slate-500' : 'bg-white'}`}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-slate-700">세로 (mm)</Label>
+                      <Input
+                        type="number"
+                        {...paperForm.register('sheetHeightMm', { valueAsNumber: true })}
+                        placeholder="1091"
+                        readOnly={paperForm.watch('sheetSize') !== 'custom'}
+                        className={`h-11 ${paperForm.watch('sheetSize') !== 'custom' ? 'bg-slate-100 text-slate-500' : 'bg-white'}`}
+                      />
+                    </div>
+                  </div>
+                  {paperForm.watch('sheetSize') === 'custom' && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-slate-700">별사이즈 규격명</Label>
+                      <Input
+                        {...paperForm.register('customSheetName')}
+                        placeholder="예: 특수규격 500x700"
+                        className="h-11 bg-white"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 롤지 규격 */}
+              {watchPaperType === 'roll' && (
+                <div className="bg-slate-50 rounded-xl p-5">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-slate-700">용지폭</Label>
+                      <Select
+                        value={paperForm.watch('rollWidth') || ''}
+                        onValueChange={(v) => paperForm.setValue('rollWidth', v)}
+                      >
+                        <SelectTrigger className="h-11 bg-white border-slate-200">
+                          <SelectValue placeholder="용지폭 선택" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ROLL_WIDTH_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-slate-700">용지길이</Label>
+                      <Select
+                        value={paperForm.watch('rollLength') || ''}
+                        onValueChange={(v) => paperForm.setValue('rollLength', v)}
+                      >
+                        <SelectTrigger className="h-11 bg-white border-slate-200">
+                          <SelectValue placeholder="용지길이 선택" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ROLL_LENGTH_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>제지사</Label>
-                <div className="flex gap-2">
-                  <Select
-                    value={paperForm.watch('manufacturerId') || ''}
-                    onValueChange={(v) => paperForm.setValue('manufacturerId', v || undefined)}
-                  >
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="제지사 선택" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {manufacturersLoading ? (
-                        <SelectItem value="_loading" disabled>로딩 중...</SelectItem>
-                      ) : !manufacturers?.length ? (
-                        <SelectItem value="_empty" disabled>등록된 제지사가 없습니다</SelectItem>
-                      ) : (
-                        manufacturers.map((m: PaperManufacturer) => (
-                          <SelectItem key={m.id} value={m.id}>
-                            {m.name}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => openManufacturerDialog()}
-                    title="제지사 추가"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>용지대리점</Label>
-                <div className="flex gap-2">
-                  <Select
-                    value={paperForm.watch('supplierId') || ''}
-                    onValueChange={(v) => paperForm.setValue('supplierId', v || undefined)}
-                  >
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="대리점 선택" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {suppliersLoading ? (
-                        <SelectItem value="_loading" disabled>로딩 중...</SelectItem>
-                      ) : !suppliers?.length ? (
-                        <SelectItem value="_empty" disabled>등록된 대리점이 없습니다</SelectItem>
-                      ) : (
-                        suppliers.map((s: PaperSupplier) => (
-                          <SelectItem key={s.id} value={s.id}>
-                            {s.name}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => openSupplierDialog()}
-                    title="대리점 추가"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
+            {/* 용지 특성 섹션 */}
+            <div className="space-y-5">
+              <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider border-b pb-2">용지 특성</h3>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>용지 구분 *</Label>
-                <Select
-                  value={paperForm.watch('paperType')}
-                  onValueChange={(v) => {
-                    paperForm.setValue('paperType', v as PaperType);
-                    // 용지 구분 변경 시 단가 단위 자동 변경
-                    if (v === 'roll') {
-                      paperForm.setValue('unitType', 'roll');
-                    } else {
-                      paperForm.setValue('unitType', 'sheet');
-                    }
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PAPER_TYPE_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* 시트지 규격 */}
-            {watchPaperType === 'sheet' && (
-              <>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label>용지 규격</Label>
-                    <Select
-                      value={paperForm.watch('sheetSize') || ''}
-                      onValueChange={(v) => {
-                        paperForm.setValue('sheetSize', v);
-                        // 자동 MM 입력
-                        const selected = SHEET_SIZE_OPTIONS.find(opt => opt.value === v);
-                        if (selected && selected.width > 0) {
-                          paperForm.setValue('sheetWidthMm', selected.width);
-                          paperForm.setValue('sheetHeightMm', selected.height);
-                        }
-                      }}
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-slate-700">평량 (g/m²)</Label>
+                  <Input
+                    type="number"
+                    {...paperForm.register('grammage', { valueAsNumber: true })}
+                    placeholder="210"
+                    className="h-11 border-slate-200"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium text-slate-700">표면 질감</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFinishDialogOpen(true)}
+                      className="h-6 px-2 text-xs text-slate-500 hover:text-slate-700"
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="규격 선택" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {SHEET_SIZE_OPTIONS.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      <Settings2 className="h-3 w-3 mr-1" />
+                      관리
+                    </Button>
                   </div>
-                  <div className="space-y-2">
-                    <Label>가로 (mm)</Label>
-                    <Input
-                      type="number"
-                      {...paperForm.register('sheetWidthMm', { valueAsNumber: true })}
-                      placeholder="788"
-                      readOnly={paperForm.watch('sheetSize') !== 'custom'}
-                      className={paperForm.watch('sheetSize') !== 'custom' ? 'bg-gray-100' : ''}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>세로 (mm)</Label>
-                    <Input
-                      type="number"
-                      {...paperForm.register('sheetHeightMm', { valueAsNumber: true })}
-                      placeholder="1091"
-                      readOnly={paperForm.watch('sheetSize') !== 'custom'}
-                      className={paperForm.watch('sheetSize') !== 'custom' ? 'bg-gray-100' : ''}
-                    />
-                  </div>
-                </div>
-                {/* 별사이즈 규격명 입력 */}
-                {paperForm.watch('sheetSize') === 'custom' && (
-                  <div className="space-y-2">
-                    <Label>별사이즈 규격명</Label>
-                    <Input
-                      {...paperForm.register('customSheetName')}
-                      placeholder="예: 특수규격 500x700"
-                    />
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* 롤지 규격 */}
-            {watchPaperType === 'roll' && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>용지폭</Label>
                   <Select
-                    value={paperForm.watch('rollWidth') || ''}
-                    onValueChange={(v) => paperForm.setValue('rollWidth', v)}
+                    value={paperForm.watch('finish') || ''}
+                    onValueChange={(v) => paperForm.setValue('finish', v as Finish)}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="용지폭 선택" />
+                    <SelectTrigger className="h-11 border-slate-200">
+                      <SelectValue placeholder="선택" />
                     </SelectTrigger>
                     <SelectContent>
-                      {ROLL_WIDTH_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>용지길이</Label>
-                  <Select
-                    value={paperForm.watch('rollLength') || ''}
-                    onValueChange={(v) => paperForm.setValue('rollLength', v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="용지길이 선택" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ROLL_LENGTH_OPTIONS.map((opt) => (
+                      {finishOptions.map((opt) => (
                         <SelectItem key={opt.value} value={opt.value}>
                           {opt.label}
                         </SelectItem>
@@ -1097,48 +1241,20 @@ export default function PapersPage() {
                   </Select>
                 </div>
               </div>
-            )}
 
-            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>평량 (g/m²)</Label>
-                <Input
-                  type="number"
-                  {...paperForm.register('grammage', { valueAsNumber: true })}
-                  placeholder="210"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>표면 질감</Label>
-                <Select
-                  value={paperForm.watch('finish') || ''}
-                  onValueChange={(v) => paperForm.setValue('finish', v as Finish)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="선택" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {FINISH_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>인쇄방식 (복수선택)</Label>
-                <div className="flex flex-wrap gap-2 p-2 border rounded-md bg-white">
+                <Label className="text-sm font-medium text-slate-700">인쇄방식 (복수선택)</Label>
+                <div className="flex flex-wrap gap-3 p-4 border border-slate-200 rounded-xl bg-white">
                   {PRINT_METHOD_OPTIONS.filter(opt => opt.value !== 'both').map((opt) => {
                     const currentMethods = paperForm.watch('printMethods') || [];
                     const isChecked = currentMethods.includes(opt.value);
                     return (
                       <label
                         key={opt.value}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md cursor-pointer border transition-colors ${
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg cursor-pointer border-2 transition-all ${
                           isChecked
-                            ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
-                            : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                            ? 'bg-indigo-50 border-indigo-400 text-indigo-700 shadow-sm'
+                            : 'bg-slate-50 border-transparent hover:border-slate-300 hover:bg-white'
                         }`}
                       >
                         <input
@@ -1152,7 +1268,7 @@ export default function PapersPage() {
                           }}
                           className="sr-only"
                         />
-                        <span className="text-sm">{opt.label}</span>
+                        <span className="text-sm font-medium">{opt.label}</span>
                       </label>
                     );
                   })}
@@ -1160,141 +1276,165 @@ export default function PapersPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>단가 단위</Label>
-                <Select
-                  value={paperForm.watch('unitType') || 'sheet'}
-                  onValueChange={(v) => paperForm.setValue('unitType', v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {UNIT_TYPE_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>
-                  {paperForm.watch('unitType') === 'ream' ? '연당 가격 (원)' :
-                   paperForm.watch('unitType') === 'roll' ? '롤당 가격 (원)' :
-                   paperForm.watch('unitType') === 'sqm' ? '㎡당 가격 (원)' :
-                   '장당 가격 (원)'}
-                </Label>
-                <Input
-                  type="number"
-                  {...paperForm.register('basePrice', { valueAsNumber: true })}
-                  placeholder="0"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>할인율 (%)</Label>
-                <Input
-                  type="number"
-                  {...paperForm.register('discountRate', { valueAsNumber: true })}
-                  placeholder="0"
-                  min={0}
-                  max={100}
-                />
-              </div>
-            </div>
+            {/* 가격 정보 섹션 */}
+            <div className="space-y-5">
+              <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider border-b pb-2">가격 정보</h3>
 
-            {/* 연당 가격 선택시 절수별 계산 표시 */}
-            {paperForm.watch('unitType') === 'ream' && paperForm.watch('basePrice') > 0 && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="font-medium text-blue-900 mb-2">절수별 장당 가격 계산 (1연 = 500장 기준)</h4>
-                <div className="grid grid-cols-4 gap-3 text-sm">
-                  {[
-                    { name: '전지', sheets: 1 },
-                    { name: '2절', sheets: 2 },
-                    { name: '4절', sheets: 4 },
-                    { name: '8절', sheets: 8 },
-                    { name: '16절', sheets: 16 },
-                    { name: '32절', sheets: 32 },
-                  ].map((cut) => {
-                    const reamsPrice = paperForm.watch('basePrice') || 0;
-                    const sheetsPerReam = 500;
-                    const totalSheets = sheetsPerReam * cut.sheets;
-                    const pricePerSheet = reamsPrice / totalSheets;
-                    return (
-                      <div key={cut.name} className="bg-white rounded p-2 border">
-                        <div className="font-medium text-blue-800">{cut.name}</div>
-                        <div className="text-gray-600">{totalSheets.toLocaleString()}장</div>
-                        <div className="text-blue-600 font-semibold">
-                          {parseFloat(pricePerSheet.toFixed(1))}원/장
-                        </div>
-                      </div>
-                    );
-                  })}
+              <div className="grid grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-slate-700">단가 단위</Label>
+                  <Select
+                    value={paperForm.watch('unitType') || 'sheet'}
+                    onValueChange={(v) => paperForm.setValue('unitType', v)}
+                  >
+                    <SelectTrigger className="h-11 border-slate-200">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {UNIT_TYPE_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                {paperForm.watch('sheetSize') && (
-                  <div className="mt-3 pt-3 border-t border-blue-200">
-                    <div className="text-blue-800">
-                      <span className="font-medium">선택된 규격({paperForm.watch('sheetSize')}) 기준:</span>
-                      {(() => {
-                        const selectedSize = SHEET_SIZE_OPTIONS.find(s => s.value === paperForm.watch('sheetSize'));
-                        if (!selectedSize || selectedSize.value === 'custom') return null;
-
-                        // 국전지(788x1091) 기준 절수 계산
-                        const fullSheetArea = 788 * 1091;
-                        const selectedArea = selectedSize.width * selectedSize.height;
-                        const cutsFromFullSheet = Math.floor(fullSheetArea / selectedArea);
-
-                        const reamsPrice = paperForm.watch('basePrice') || 0;
-                        const sheetsPerReam = 500;
-                        const totalSheets = sheetsPerReam * cutsFromFullSheet;
-                        const pricePerSheet = reamsPrice / totalSheets;
-
-                        return (
-                          <span className="ml-2">
-                            국전지 1장당 약 <strong>{cutsFromFullSheet}장</strong> 절단 가능,
-                            1연당 <strong>{totalSheets.toLocaleString()}장</strong>,
-                            장당 <strong className="text-blue-600">{parseFloat(pricePerSheet.toFixed(1))}원</strong>
-                          </span>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-slate-700">
+                    {paperForm.watch('unitType') === 'ream' ? '연당 가격 (원)' :
+                     paperForm.watch('unitType') === 'roll' ? '롤당 가격 (원)' :
+                     paperForm.watch('unitType') === 'sqm' ? '㎡당 가격 (원)' :
+                     '장당 가격 (원)'}
+                  </Label>
+                  <Input
+                    type="number"
+                    {...paperForm.register('basePrice', { valueAsNumber: true })}
+                    placeholder="0"
+                    className="h-11 border-slate-200"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-slate-700">할인율 (%)</Label>
+                  <Input
+                    type="number"
+                    {...paperForm.register('discountRate', { valueAsNumber: true })}
+                    placeholder="0"
+                    min={0}
+                    max={100}
+                    className="h-11 border-slate-200"
+                  />
+                </div>
               </div>
-            )}
 
-            <div className="space-y-2">
-              <Label>설명</Label>
-              <Textarea
-                {...paperForm.register('description')}
-                placeholder="용지에 대한 설명을 입력하세요"
-                rows={2}
-              />
+              {/* 연당 가격 선택시 절수별 계산 표시 */}
+              {paperForm.watch('unitType') === 'ream' && paperForm.watch('basePrice') > 0 && (
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5">
+                  <h4 className="font-semibold text-blue-900 mb-4">절수별 장당 가격 계산 <span className="text-sm font-normal text-blue-600">(1연 = 500장 기준)</span></h4>
+                  <div className="grid grid-cols-6 gap-3">
+                    {[
+                      { name: '전지', sheets: 1 },
+                      { name: '2절', sheets: 2 },
+                      { name: '4절', sheets: 4 },
+                      { name: '8절', sheets: 8 },
+                      { name: '16절', sheets: 16 },
+                      { name: '32절', sheets: 32 },
+                    ].map((cut) => {
+                      const reamsPrice = paperForm.watch('basePrice') || 0;
+                      const sheetsPerReam = 500;
+                      const totalSheets = sheetsPerReam * cut.sheets;
+                      const pricePerSheet = reamsPrice / totalSheets;
+                      return (
+                        <div key={cut.name} className="bg-white rounded-lg p-3 border border-blue-100 text-center shadow-sm">
+                          <div className="font-semibold text-blue-800">{cut.name}</div>
+                          <div className="text-xs text-slate-500 mt-1">{totalSheets.toLocaleString()}장</div>
+                          <div className="text-blue-600 font-bold mt-1">
+                            {parseFloat(pricePerSheet.toFixed(1))}원
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {paperForm.watch('sheetSize') && (
+                    <div className="mt-4 pt-4 border-t border-blue-200">
+                      <div className="text-sm text-blue-800">
+                        <span className="font-semibold">선택된 규격({paperForm.watch('sheetSize')}) 기준:</span>
+                        {(() => {
+                          const selectedSize = SHEET_SIZE_OPTIONS.find(s => s.value === paperForm.watch('sheetSize'));
+                          if (!selectedSize || selectedSize.value === 'custom') return null;
+
+                          const fullSheetArea = 788 * 1091;
+                          const selectedArea = selectedSize.width * selectedSize.height;
+                          const cutsFromFullSheet = Math.floor(fullSheetArea / selectedArea);
+
+                          const reamsPrice = paperForm.watch('basePrice') || 0;
+                          const sheetsPerReam = 500;
+                          const totalSheets = sheetsPerReam * cutsFromFullSheet;
+                          const pricePerSheet = reamsPrice / totalSheets;
+
+                          return (
+                            <span className="ml-2">
+                              국전지 1장당 약 <strong>{cutsFromFullSheet}장</strong> 절단 가능,
+                              1연당 <strong>{totalSheets.toLocaleString()}장</strong>,
+                              장당 <strong className="text-indigo-600">{parseFloat(pricePerSheet.toFixed(1))}원</strong>
+                            </span>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
-            <div className="space-y-2">
-              <Label>관리자 메모</Label>
-              <Textarea
-                {...paperForm.register('memo')}
-                placeholder="관리자 메모"
-                rows={2}
-              />
+            {/* 추가 정보 섹션 */}
+            <div className="space-y-5">
+              <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider border-b pb-2">추가 정보</h3>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-slate-700">설명</Label>
+                  <Textarea
+                    {...paperForm.register('description')}
+                    placeholder="용지에 대한 설명을 입력하세요"
+                    rows={3}
+                    className="border-slate-200 resize-none"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-slate-700">관리자 메모</Label>
+                  <Textarea
+                    {...paperForm.register('memo')}
+                    placeholder="관리자 메모"
+                    rows={3}
+                    className="border-slate-200 resize-none"
+                  />
+                </div>
+              </div>
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
+            {/* 하단 버튼 영역 */}
+            <div className="flex items-center justify-between pt-6 border-t">
+              <div className="flex items-center gap-3">
                 <Switch
                   checked={paperForm.watch('isActive')}
                   onCheckedChange={(v) => paperForm.setValue('isActive', v)}
                 />
-                <Label>활성화</Label>
+                <Label className="text-sm font-medium text-slate-700">활성화</Label>
               </div>
-              <div className="flex gap-2">
-                <Button type="button" variant="outline" onClick={() => setPaperDialogOpen(false)}>
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setPaperDialogOpen(false)}
+                  className="px-6 h-11 border-slate-200"
+                >
                   취소
                 </Button>
-                <Button type="submit" disabled={createPaper.isPending || updatePaper.isPending}>
+                <Button
+                  type="submit"
+                  disabled={createPaper.isPending || updatePaper.isPending}
+                  className="px-8 h-11 bg-indigo-600 hover:bg-indigo-700"
+                >
                   {editingPaper ? '수정' : '등록'}
                 </Button>
               </div>
@@ -1513,6 +1653,73 @@ export default function PapersPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* 표면질감 관리 다이얼로그 */}
+      <Dialog open={finishDialogOpen} onOpenChange={setFinishDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>표면 질감 관리</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* 새 표면질감 추가 */}
+            <div className="space-y-3 p-4 bg-slate-50 rounded-lg">
+              <Label className="text-sm font-medium">새 표면질감 추가</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  placeholder="영문코드 (예: pearl)"
+                  value={newFinishValue}
+                  onChange={(e) => setNewFinishValue(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ''))}
+                />
+                <Input
+                  placeholder="라벨 (예: Pearl (펄))"
+                  value={newFinishLabel}
+                  onChange={(e) => setNewFinishLabel(e.target.value)}
+                />
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleAddFinish}
+                disabled={updateSystemSetting.isPending}
+                className="w-full"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                추가
+              </Button>
+            </div>
+
+            {/* 기존 표면질감 목록 */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">등록된 표면질감</Label>
+              <div className="max-h-60 overflow-y-auto space-y-1">
+                {finishOptions.map((opt) => (
+                  <div
+                    key={opt.value}
+                    className="flex items-center justify-between p-2 bg-white border rounded-md hover:bg-slate-50"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="font-mono text-xs">
+                        {opt.value}
+                      </Badge>
+                      <span className="text-sm">{opt.label}</span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteFinish(opt.value)}
+                      disabled={updateSystemSetting.isPending}
+                      className="h-7 w-7 p-0 text-slate-400 hover:text-red-500"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

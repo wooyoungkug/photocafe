@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, useCallback, useTransition } from "react";
 import {
   Building2,
   Package,
@@ -95,15 +95,25 @@ const navigation = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   // 기본적으로 모든 메뉴 접힘 (빈 배열)
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
-  const toggleMenu = (name: string) => {
+  const toggleMenu = useCallback((name: string) => {
     // 같은 메뉴 클릭 시 닫기, 다른 메뉴 클릭 시 해당 메뉴만 열기 (기존 메뉴 닫힘)
     setOpenMenu((prev) => (prev === name ? null : name));
-  };
+  }, []);
 
   const isMenuOpen = (name: string) => openMenu === name;
+
+  // 빠른 네비게이션을 위한 핸들러
+  const handleNavigation = useCallback((href: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    startTransition(() => {
+      router.push(href);
+    });
+  }, [router]);
 
   return (
     <div className="flex h-full w-72 flex-col bg-[#0F172A] border-r border-slate-800 shadow-2xl">
@@ -139,15 +149,18 @@ export function Sidebar() {
                 {item.href ? (
                   <Link
                     href={item.href}
+                    prefetch={true}
+                    onClick={(e) => handleNavigation(item.href!, e)}
                     className={cn(
-                      "flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 group relative overflow-hidden",
+                      "flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-colors duration-100 group relative overflow-hidden",
                       isActive
                         ? "bg-indigo-600 text-white shadow-md shadow-indigo-900/20"
-                        : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-100"
+                        : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-100",
+                      isPending && "opacity-70"
                     )}
                   >
                     <item.icon className={cn(
-                      "h-5 w-5 transition-colors duration-200",
+                      "h-5 w-5 transition-colors duration-100",
                       isActive ? "text-white" : "text-slate-500 group-hover:text-slate-300"
                     )} />
                     <span className="relative z-10">{item.name}</span>
@@ -176,7 +189,7 @@ export function Sidebar() {
 
                     <div
                       className={cn(
-                        "grid transition-all duration-300 ease-in-out",
+                        "grid transition-all duration-150 ease-out",
                         isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
                       )}
                     >
@@ -189,11 +202,14 @@ export function Sidebar() {
                               <Link
                                 key={child.href}
                                 href={child.href}
+                                prefetch={true}
+                                onClick={(e) => handleNavigation(child.href, e)}
                                 className={cn(
-                                  "flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-all duration-200",
+                                  "flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors duration-100",
                                   isChildActive
                                     ? "bg-slate-800 text-indigo-400 font-medium translate-x-1"
-                                    : "text-slate-500 hover:text-slate-300 hover:bg-slate-800/30 hover:translate-x-1"
+                                    : "text-slate-500 hover:text-slate-300 hover:bg-slate-800/30",
+                                  isPending && "opacity-70"
                                 )}
                               >
                                 <span>{child.name}</span>
