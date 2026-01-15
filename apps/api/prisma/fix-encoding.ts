@@ -8,7 +8,7 @@ async function fixEncoding() {
   // 1. 사용자 이름 수정
   const users = await prisma.user.findMany();
   for (const user of users) {
-    if (user.email === 'admin@photocafe.com') {
+    if (user.email === 'admin@printing114.com') {
       await prisma.user.update({
         where: { id: user.id },
         data: { name: '관리자' },

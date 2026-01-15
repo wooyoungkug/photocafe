@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSystemSettings, useBulkUpdateSettings, settingsToMap, getNumericValue } from "@/hooks/use-system-settings";
 import {
   Table,
   TableBody,
@@ -32,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, Search, Ruler, ChevronUp, ChevronDown, Settings, RectangleHorizontal, RectangleVertical, Square } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, ChevronUp, ChevronDown, RectangleHorizontal, RectangleVertical, Square } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 
@@ -53,49 +52,31 @@ interface Specification {
   usageBooklet: boolean;
   squareMeters?: number;
   description?: string;
-  nup?: string;
-  nupSqInch?: number;
+  nup?: number;  // 인디고 Nup (숫자)
   sortOrder: number;
   isActive: boolean;
 }
 
-// Nup 설정 인터페이스
-interface NupSettings {
-  "1++up": number; // 초대형 기준 면적
-  "1+up": number;  // 대형 기준 면적
-  "1up": number;   // 표준 기준 면적
-  "2up": number;   // 소형 기준 면적
-  "4up": number;   // 초소형 기준 면적
-}
+// 인디고 인쇄 면적 (mm)
+const INDIGO_PRINT_WIDTH = 310;  // 인쇄 가능 폭 (mm)
+const INDIGO_PRINT_HEIGHT = 450; // 인쇄 가능 높이 (mm)
 
-// Nup 기본 설정값
-const DEFAULT_NUP_SETTINGS: NupSettings = {
-  "1++up": 204.1,
-  "1+up": 154.1,
-  "1up": 102.1,
-  "2up": 48.1,
-  "4up": 0,
-};
+// Nup 계산 함수 - 인디고 인쇄면적(310x450mm)에 몇 장 들어가는지 계산
+function calculateNup(widthMm: number, heightMm: number): number {
+  if (widthMm <= 0 || heightMm <= 0) return 0;
 
-// Nup 레이블
-const NUP_LABELS: Record<string, string> = {
-  "1++up": "초대형",
-  "1+up": "대형",
-  "1up": "표준",
-  "2up": "소형",
-  "4up": "초소형",
-  "8up": "극소형",
-};
+  // 방향1: 원본 방향 그대로
+  const cols1 = Math.floor(INDIGO_PRINT_WIDTH / widthMm);
+  const rows1 = Math.floor(INDIGO_PRINT_HEIGHT / heightMm);
+  const count1 = cols1 * rows1;
 
-// Nup 계산 함수 (면적 기준, 설정값 사용)
-function calculateNup(widthInch: number, heightInch: number, settings: NupSettings = DEFAULT_NUP_SETTINGS): string {
-  const sqInch = widthInch * heightInch;
-  if (sqInch >= settings["1++up"]) return "1++up";
-  if (sqInch >= settings["1+up"]) return "1+up";
-  if (sqInch >= settings["1up"]) return "1up";
-  if (sqInch >= settings["2up"]) return "2up";
-  if (sqInch >= settings["4up"]) return "4up";
-  return "8up";
+  // 방향2: 90도 회전 (가로/세로 바꿈)
+  const cols2 = Math.floor(INDIGO_PRINT_WIDTH / heightMm);
+  const rows2 = Math.floor(INDIGO_PRINT_HEIGHT / widthMm);
+  const count2 = cols2 * rows2;
+
+  // 더 많이 들어가는 방향 선택
+  return Math.max(count1, count2);
 }
 
 interface SpecificationForm {
@@ -112,8 +93,7 @@ interface SpecificationForm {
   usageBooklet: boolean;
   squareMeters?: number;
   description: string;
-  nup?: string;
-  nupSqInch?: number;
+  nup?: number;  // 인디고 Nup (숫자)
   createPair: boolean;
 }
 
@@ -131,7 +111,6 @@ const defaultForm: SpecificationForm = {
   usageBooklet: false,
   description: "",
   nup: undefined,
-  nupSqInch: undefined,
   createPair: true,
 };
 
@@ -145,42 +124,48 @@ export default function SpecificationsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [usageFilters, setUsageFilters] = useState<string[]>([]);
 
-  // Nup 설정 상태
-  const [isNupSettingsOpen, setIsNupSettingsOpen] = useState(false);
-  const [nupSettings, setNupSettings] = useState<NupSettings>(DEFAULT_NUP_SETTINGS);
-  const [nupSettingsForm, setNupSettingsForm] = useState<NupSettings>(DEFAULT_NUP_SETTINGS);
-
-  // Nup 설정 DB 조회
-  const { data: systemSettings = [] } = useSystemSettings("nup");
-  const bulkUpdateSettings = useBulkUpdateSettings();
-
-  // DB에서 Nup 설정 로드
-  useEffect(() => {
-    if (systemSettings.length > 0) {
-      const settingsMap = settingsToMap(systemSettings);
-      setNupSettings({
-        "1++up": getNumericValue(settingsMap, "nup_1ppup", DEFAULT_NUP_SETTINGS["1++up"]),
-        "1+up": getNumericValue(settingsMap, "nup_1pup", DEFAULT_NUP_SETTINGS["1+up"]),
-        "1up": getNumericValue(settingsMap, "nup_1up", DEFAULT_NUP_SETTINGS["1up"]),
-        "2up": getNumericValue(settingsMap, "nup_2up", DEFAULT_NUP_SETTINGS["2up"]),
-        "4up": getNumericValue(settingsMap, "nup_4up", DEFAULT_NUP_SETTINGS["4up"]),
-      });
-    }
-  }, [systemSettings]);
+  // 백엔드 응답을 프론트엔드 필드명으로 변환
+  const transformApiToForm = (data: any): Specification => ({
+    ...data,
+    usageIndigo: data.forIndigo,
+    usageInkjet: data.forInkjet,
+    usageAlbum: data.forAlbum,
+    usageFrame: data.forFrame,
+    usageBooklet: data.forBooklet,
+  });
 
   // 규격 목록 조회
   const { data: specifications = [], isLoading } = useQuery({
     queryKey: ["specifications"],
     queryFn: async () => {
-      const response = await api.get<Specification[]>("/specifications");
-      return response;
+      const response = await api.get<any[]>("/specifications");
+      return response.map(transformApiToForm);
     },
+  });
+
+  // 프론트엔드 필드명을 백엔드 필드명으로 변환
+  const transformFormToApi = (data: SpecificationForm) => ({
+    name: data.name,
+    widthInch: data.widthInch,
+    heightInch: data.heightInch,
+    widthMm: data.widthMm,
+    heightMm: data.heightMm,
+    orientation: data.orientation,
+    forIndigo: data.usageIndigo,
+    forInkjet: data.usageInkjet,
+    forAlbum: data.usageAlbum,
+    forFrame: data.usageFrame,
+    forBooklet: data.usageBooklet,
+    squareMeters: data.squareMeters,
+    description: data.description,
+    nup: data.usageIndigo ? String(data.nup || 0) : undefined,  // 인디고 선택시에만 Nup 저장
+    createPair: data.createPair,
   });
 
   // 규격 생성
   const createMutation = useMutation({
     mutationFn: async (data: SpecificationForm) => {
-      return api.post("/specifications", data);
+      return api.post("/specifications", transformFormToApi(data));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["specifications"] });
@@ -195,7 +180,7 @@ export default function SpecificationsPage() {
   // 규격 수정
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<SpecificationForm> }) => {
-      return api.put(`/specifications/${id}`, data);
+      return api.put(`/specifications/${id}`, transformFormToApi(data as SpecificationForm));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["specifications"] });
@@ -256,8 +241,7 @@ export default function SpecificationsPage() {
       usageBooklet: spec.usageBooklet,
       squareMeters: spec.squareMeters ? Number(spec.squareMeters) : undefined,
       description: spec.description || "",
-      nup: spec.nup,
-      nupSqInch: spec.nupSqInch ? Number(spec.nupSqInch) : undefined,
+      nup: spec.nup ? Number(spec.nup) : undefined,
       createPair: false,
     });
     setIsDialogOpen(true);
@@ -289,104 +273,67 @@ export default function SpecificationsPage() {
     return "square";
   };
 
-  // 인치 -> mm 자동 변환 + 방향 자동 계산 + Nup 자동 계산
+  // 인치 -> mm 자동 변환 + 방향 자동 계산 + 인디고시 Nup 자동 계산
   const handleInchChange = (field: "widthInch" | "heightInch", value: number) => {
     const mmField = field === "widthInch" ? "widthMm" : "heightMm";
-    const newWidth = field === "widthInch" ? value : form.widthInch;
-    const newHeight = field === "heightInch" ? value : form.heightInch;
-    const sqInch = newWidth * newHeight;
+    const newWidthInch = field === "widthInch" ? value : form.widthInch;
+    const newHeightInch = field === "heightInch" ? value : form.heightInch;
+    const newWidthMm = field === "widthInch" ? Math.round(value * INCH_TO_MM * 100) / 100 : form.widthMm;
+    const newHeightMm = field === "heightInch" ? Math.round(value * INCH_TO_MM * 100) / 100 : form.heightMm;
+
     setForm({
       ...form,
       [field]: value,
       [mmField]: Math.round(value * INCH_TO_MM * 100) / 100,
-      orientation: getOrientation(newWidth, newHeight),
-      // 앨범 체크시 Nup 자동 계산
-      nup: form.usageAlbum && newWidth > 0 && newHeight > 0 ? calculateNup(newWidth, newHeight, nupSettings) : form.nup,
-      nupSqInch: form.usageAlbum && newWidth > 0 && newHeight > 0 ? sqInch : form.nupSqInch,
+      orientation: getOrientation(newWidthInch, newHeightInch),
+      // 인디고 체크시 Nup 자동 계산 (mm 기준)
+      nup: form.usageIndigo && newWidthMm > 0 && newHeightMm > 0
+        ? calculateNup(newWidthMm, newHeightMm)
+        : form.nup,
     });
   };
 
-  // mm -> 인치 자동 변환 + 방향 자동 계산 + Nup 자동 계산
+  // mm -> 인치 자동 변환 + 방향 자동 계산 + 인디고시 Nup 자동 계산
   const handleMmChange = (field: "widthMm" | "heightMm", value: number) => {
     const inchField = field === "widthMm" ? "widthInch" : "heightInch";
     const inchValue = Math.round((value / INCH_TO_MM) * 10000) / 10000;
-    const newWidth = field === "widthMm" ? inchValue : form.widthInch;
-    const newHeight = field === "heightMm" ? inchValue : form.heightInch;
-    const sqInch = newWidth * newHeight;
+    const newWidthInch = field === "widthMm" ? inchValue : form.widthInch;
+    const newHeightInch = field === "heightMm" ? inchValue : form.heightInch;
+    const newWidthMm = field === "widthMm" ? value : form.widthMm;
+    const newHeightMm = field === "heightMm" ? value : form.heightMm;
+
     setForm({
       ...form,
       [field]: value,
       [inchField]: inchValue,
-      orientation: getOrientation(newWidth, newHeight),
-      // 앨범 체크시 Nup 자동 계산
-      nup: form.usageAlbum && newWidth > 0 && newHeight > 0 ? calculateNup(newWidth, newHeight, nupSettings) : form.nup,
-      nupSqInch: form.usageAlbum && newWidth > 0 && newHeight > 0 ? sqInch : form.nupSqInch,
+      orientation: getOrientation(newWidthInch, newHeightInch),
+      // 인디고 체크시 Nup 자동 계산 (mm 기준)
+      nup: form.usageIndigo && newWidthMm > 0 && newHeightMm > 0
+        ? calculateNup(newWidthMm, newHeightMm)
+        : form.nup,
     });
   };
 
-  // 앨범 체크박스 변경 핸들러 (Nup 자동 계산)
-  const handleAlbumChange = (checked: boolean) => {
-    const sqInch = form.widthInch * form.heightInch;
+  // 인디고 체크박스 변경 핸들러 (Nup 자동 계산)
+  const handleIndigoChange = (checked: boolean) => {
     if (checked) {
-      // 앨범 체크시 Nup 자동 계산 (이미 값이 있으면 유지)
+      // 인디고 체크시 Nup 자동 계산 (mm 기준)
+      const calculatedNup = form.widthMm > 0 && form.heightMm > 0
+        ? calculateNup(form.widthMm, form.heightMm)
+        : 0;
       setForm({
         ...form,
-        usageAlbum: true,
-        nup: form.nup || (form.widthInch > 0 && form.heightInch > 0 ? calculateNup(form.widthInch, form.heightInch, nupSettings) : undefined),
-        nupSqInch: sqInch > 0 ? sqInch : undefined,
+        usageIndigo: true,
+        nup: calculatedNup,
       });
     } else {
-      // 앨범 체크 해제시 Nup 값 유지 (DB에 저장된 값 보존)
+      // 인디고 체크 해제시 Nup 초기화
       setForm({
         ...form,
-        usageAlbum: false,
+        usageIndigo: false,
+        nup: undefined,
       });
     }
-  };
-
-  // Nup 설정 다이얼로그 열기
-  const openNupSettings = () => {
-    setNupSettingsForm({ ...nupSettings });
-    setIsNupSettingsOpen(true);
-  };
-
-  // Nup 설정 저장
-  const saveNupSettings = () => {
-    // 유효성 검사: 값이 내림차순이어야 함
-    if (nupSettingsForm["1++up"] <= nupSettingsForm["1+up"]) {
-      toast({ variant: "destructive", title: "1++up 값은 1+up보다 커야 합니다." });
-      return;
-    }
-    if (nupSettingsForm["1+up"] <= nupSettingsForm["1up"]) {
-      toast({ variant: "destructive", title: "1+up 값은 1up보다 커야 합니다." });
-      return;
-    }
-    if (nupSettingsForm["1up"] <= nupSettingsForm["2up"]) {
-      toast({ variant: "destructive", title: "1up 값은 2up보다 커야 합니다." });
-      return;
-    }
-    if (nupSettingsForm["2up"] <= nupSettingsForm["4up"]) {
-      toast({ variant: "destructive", title: "2up 값은 4up보다 커야 합니다." });
-      return;
-    }
-    if (nupSettingsForm["4up"] < 0) {
-      toast({ variant: "destructive", title: "4up 값은 0 이상이어야 합니다." });
-      return;
-    }
-
-    // DB에 저장
-    bulkUpdateSettings.mutate([
-      { key: "nup_1ppup", value: String(nupSettingsForm["1++up"]), category: "nup", label: "Nup 1++up 기준값" },
-      { key: "nup_1pup", value: String(nupSettingsForm["1+up"]), category: "nup", label: "Nup 1+up 기준값" },
-      { key: "nup_1up", value: String(nupSettingsForm["1up"]), category: "nup", label: "Nup 1up 기준값" },
-      { key: "nup_2up", value: String(nupSettingsForm["2up"]), category: "nup", label: "Nup 2up 기준값" },
-      { key: "nup_4up", value: String(nupSettingsForm["4up"]), category: "nup", label: "Nup 4up 기준값" },
-    ], {
-      onSuccess: () => {
-        setNupSettings({ ...nupSettingsForm });
-        setIsNupSettingsOpen(false);
-      }
-    });
   };
 
   // 용도 필터 토글
@@ -476,10 +423,6 @@ export default function SpecificationsPage() {
           <p className="text-muted-foreground">제품 및 출력물의 규격 정보를 관리합니다.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={openNupSettings}>
-            <Settings className="h-4 w-4 mr-2" />
-            Nup 설정
-          </Button>
           <Button size="sm" onClick={openCreateDialog}>
             <Plus className="h-4 w-4 mr-2" />
             규격 추가
@@ -576,9 +519,9 @@ export default function SpecificationsPage() {
                     {spec.orientation === "portrait" && <RectangleVertical className="h-4 w-4" />}
                     {spec.orientation === "square" && <Square className="h-4 w-4" />}
                     <span className="text-xs">{getOrientationLabel(spec.orientation)}</span>
-                    {spec.nup && (
-                      <Badge variant="secondary" className="font-mono text-[10px] h-5 px-1 ml-2">
-                        {spec.nup}
+                    {spec.usageIndigo && (
+                      <Badge variant="secondary" className="font-mono text-[10px] h-5 px-1.5 ml-2 bg-indigo-100 text-indigo-700">
+                        {spec.nup || calculateNup(Number(spec.widthMm), Number(spec.heightMm))}up
                       </Badge>
                     )}
                   </div>
@@ -639,8 +582,33 @@ export default function SpecificationsPage() {
               <Input
                 id="name"
                 value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="예: 8x10"
+                onChange={(e) => {
+                  // ㅌ, X를 x로 변환
+                  const value = e.target.value.replace(/[ㅌX]/g, "x");
+                  setForm({ ...form, name: value });
+
+                  // "x"로 구분된 숫자 패턴 감지 (예: "3x5", "8x10")
+                  const match = value.match(/^(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)$/);
+                  if (match) {
+                    const width = parseFloat(match[1]);
+                    const height = parseFloat(match[2]);
+                    if (width > 0 && height > 0) {
+                      const widthMm = Math.round(width * INCH_TO_MM * 100) / 100;
+                      const heightMm = Math.round(height * INCH_TO_MM * 100) / 100;
+                      setForm(prev => ({
+                        ...prev,
+                        name: value,
+                        widthInch: width,
+                        heightInch: height,
+                        widthMm,
+                        heightMm,
+                        orientation: width > height ? "landscape" : height > width ? "portrait" : "square",
+                        nup: prev.usageIndigo ? calculateNup(widthMm, heightMm) : prev.nup,
+                      }));
+                    }
+                  }
+                }}
+                placeholder="예: 3x5, 8x10"
               />
             </div>
 
@@ -694,7 +662,7 @@ export default function SpecificationsPage() {
                   <Checkbox
                     id="usageIndigo"
                     checked={form.usageIndigo}
-                    onCheckedChange={(checked) => setForm({ ...form, usageIndigo: !!checked })}
+                    onCheckedChange={(checked) => handleIndigoChange(!!checked)}
                   />
                   <Label htmlFor="usageIndigo" className="cursor-pointer">인디고출력</Label>
                 </div>
@@ -733,65 +701,24 @@ export default function SpecificationsPage() {
               </div>
             </div>
 
-            {/* Nup 설정 (앨범 선택시) */}
-            {form.usageAlbum && (
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-md space-y-3">
+            {/* Nup 표시 (인디고 선택시) */}
+            {form.usageIndigo && (
+              <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-md">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <span className="text-sm font-medium text-blue-700">Nup:</span>
-                    <Select
-                      value={form.nup || ""}
-                      onValueChange={(value) => {
-                        const sqInch = form.widthInch * form.heightInch;
-                        setForm({ ...form, nup: value, nupSqInch: sqInch > 0 ? sqInch : undefined });
-                      }}
-                    >
-                      <SelectTrigger className="w-[140px] h-8 bg-white">
-                        <SelectValue placeholder="선택" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1++up">1++up (초대형)</SelectItem>
-                        <SelectItem value="1+up">1+up (대형)</SelectItem>
-                        <SelectItem value="1up">1up (표준)</SelectItem>
-                        <SelectItem value="2up">2up (소형)</SelectItem>
-                        <SelectItem value="4up">4up (초소형)</SelectItem>
-                        <SelectItem value="8up">8up (극소형)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {form.nup && (
-                      <Badge variant="secondary" className="text-blue-700">
-                        {NUP_LABELS[form.nup]}
-                      </Badge>
-                    )}
+                    <span className="text-sm font-medium text-indigo-700">인디고 Nup:</span>
+                    <span className="text-2xl font-bold text-indigo-600">{form.nup || 0}</span>
+                    <span className="text-sm text-indigo-500">장/1출력</span>
                   </div>
-                  <div className="text-sm text-blue-600">
-                    면적: {(form.widthInch * form.heightInch).toFixed(2)} sq inch
+                  <div className="text-xs text-indigo-500">
+                    인쇄면적 310×450mm 기준
                   </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-blue-500">
-                    * 면적 기준 권장값: <strong>{form.widthInch > 0 && form.heightInch > 0 ? calculateNup(form.widthInch, form.heightInch, nupSettings) : "-"}</strong>
+                {form.nup && form.nup > 0 && (
+                  <p className="text-xs text-indigo-600 mt-2">
+                    * 1출력 비용 1,000원 기준 → 장당 {Math.round(1000 / form.nup)}원
                   </p>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 text-xs text-blue-600 hover:text-blue-800"
-                    onClick={() => {
-                      if (form.widthInch > 0 && form.heightInch > 0) {
-                        const sqInch = form.widthInch * form.heightInch;
-                        setForm({
-                          ...form,
-                          nup: calculateNup(form.widthInch, form.heightInch, nupSettings),
-                          nupSqInch: sqInch,
-                        });
-                      }
-                    }}
-                    disabled={form.widthInch <= 0 || form.heightInch <= 0}
-                  >
-                    자동 계산 적용
-                  </Button>
-                </div>
+                )}
               </div>
             )}
 
@@ -833,138 +760,6 @@ export default function SpecificationsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Nup 설정 다이얼로그 */}
-      <Dialog open={isNupSettingsOpen} onOpenChange={setIsNupSettingsOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Nup 설정</DialogTitle>
-            <DialogDescription>
-              면적(sq inch) 기준으로 Nup 등급을 결정합니다.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <p className="text-sm text-muted-foreground">
-              각 등급의 최소 면적(가로×세로 인치)을 설정하세요.
-              해당 면적 이상이면 해당 등급으로 분류됩니다.
-            </p>
-
-            <div className="space-y-3">
-              <div className="flex items-center gap-4">
-                <div className="w-20">
-                  <Badge variant="outline" className="w-full justify-center">1++up</Badge>
-                </div>
-                <div className="flex-1 flex items-center gap-2">
-                  <Input
-                    type="number"
-                    value={nupSettingsForm["1++up"]}
-                    onChange={(e) => setNupSettingsForm({ ...nupSettingsForm, "1++up": Number(e.target.value) })}
-                    className="w-20"
-                  />
-                  <span className="text-sm text-muted-foreground">~</span>
-                  <span className="text-sm text-muted-foreground w-16">무제한</span>
-                  <span className="text-xs text-muted-foreground">({NUP_LABELS["1++up"]})</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <div className="w-20">
-                  <Badge variant="outline" className="w-full justify-center">1+up</Badge>
-                </div>
-                <div className="flex-1 flex items-center gap-2">
-                  <Input
-                    type="number"
-                    value={nupSettingsForm["1+up"]}
-                    onChange={(e) => setNupSettingsForm({ ...nupSettingsForm, "1+up": Number(e.target.value) })}
-                    className="w-20"
-                  />
-                  <span className="text-sm text-muted-foreground">~</span>
-                  <span className="text-sm w-16">{nupSettingsForm["1++up"]}</span>
-                  <span className="text-xs text-muted-foreground">({NUP_LABELS["1+up"]})</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <div className="w-20">
-                  <Badge variant="outline" className="w-full justify-center">1up</Badge>
-                </div>
-                <div className="flex-1 flex items-center gap-2">
-                  <Input
-                    type="number"
-                    value={nupSettingsForm["1up"]}
-                    onChange={(e) => setNupSettingsForm({ ...nupSettingsForm, "1up": Number(e.target.value) })}
-                    className="w-20"
-                  />
-                  <span className="text-sm text-muted-foreground">~</span>
-                  <span className="text-sm w-16">{nupSettingsForm["1+up"]}</span>
-                  <span className="text-xs text-muted-foreground">({NUP_LABELS["1up"]})</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <div className="w-20">
-                  <Badge variant="outline" className="w-full justify-center">2up</Badge>
-                </div>
-                <div className="flex-1 flex items-center gap-2">
-                  <Input
-                    type="number"
-                    value={nupSettingsForm["2up"]}
-                    onChange={(e) => setNupSettingsForm({ ...nupSettingsForm, "2up": Number(e.target.value) })}
-                    className="w-20"
-                  />
-                  <span className="text-sm text-muted-foreground">~</span>
-                  <span className="text-sm w-16">{nupSettingsForm["1up"]}</span>
-                  <span className="text-xs text-muted-foreground">({NUP_LABELS["2up"]})</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <div className="w-20">
-                  <Badge variant="outline" className="w-full justify-center">4up</Badge>
-                </div>
-                <div className="flex-1 flex items-center gap-2">
-                  <Input
-                    type="number"
-                    value={nupSettingsForm["4up"]}
-                    onChange={(e) => setNupSettingsForm({ ...nupSettingsForm, "4up": Number(e.target.value) })}
-                    className="w-20"
-                  />
-                  <span className="text-sm text-muted-foreground">~</span>
-                  <span className="text-sm w-16">{nupSettingsForm["2up"]}</span>
-                  <span className="text-xs text-muted-foreground">({NUP_LABELS["4up"]})</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <div className="w-20">
-                  <Badge variant="secondary" className="w-full justify-center">8up</Badge>
-                </div>
-                <div className="flex-1 flex items-center gap-2">
-                  <span className="text-sm w-20 text-center">0</span>
-                  <span className="text-sm text-muted-foreground">~</span>
-                  <span className="text-sm w-16">{nupSettingsForm["4up"]}</span>
-                  <span className="text-xs text-muted-foreground">({NUP_LABELS["8up"]})</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-3 bg-muted rounded-md">
-              <p className="text-xs text-muted-foreground">
-                예시: 8×10인치 = 80 sq inch → {calculateNup(8, 10, nupSettingsForm)}
-              </p>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsNupSettingsOpen(false)}>
-              취소
-            </Button>
-            <Button onClick={saveNupSettings}>
-              저장
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

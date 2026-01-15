@@ -10,7 +10,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private configService: ConfigService,
-  ) {}
+  ) { }
 
   async validateUser(email: string, password: string): Promise<any> {
     const user = await this.prisma.user.findUnique({
@@ -105,5 +105,69 @@ export class AuthService {
     }
 
     return user;
+  }
+
+  // 네이버 OAuth 사용자 검증/생성
+  async validateNaverUser(data: {
+    oauthId: string;
+    email: string;
+    name: string;
+    profileImage?: string;
+  }) {
+    // 기존 클라이언트 조회 (oauthProvider + oauthId로 검색)
+    let client = await this.prisma.client.findFirst({
+      where: {
+        oauthProvider: 'naver',
+        oauthId: data.oauthId,
+      },
+    });
+
+    // 기존 사용자가 없으면 새로 생성
+    if (!client) {
+      // 클라이언트 코드 생성 (N + 타임스탬프)
+      const clientCode = `N${Date.now().toString().slice(-8)}`;
+
+      client = await this.prisma.client.create({
+        data: {
+          clientCode,
+          clientName: data.name,
+          email: data.email,
+          oauthProvider: 'naver',
+          oauthId: data.oauthId,
+          memberType: 'individual',
+          priceType: 'standard',
+          paymentType: 'order',
+          status: 'active',
+        },
+      });
+    }
+
+    return client;
+  }
+
+  // 클라이언트(고객) 로그인 처리
+  async loginClient(client: any) {
+    const payload = {
+      sub: client.id,
+      email: client.email,
+      role: 'client',
+      type: 'client', // User와 구분하기 위한 타입
+    };
+
+    const accessToken = this.jwtService.sign(payload);
+    const refreshToken = this.jwtService.sign(payload, {
+      expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') || '7d',
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: client.id,
+        email: client.email,
+        name: client.clientName,
+        role: 'client',
+      },
+    };
   }
 }

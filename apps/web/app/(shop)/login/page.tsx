@@ -144,6 +144,36 @@ function LoginForm() {
             )}
           </Button>
 
+          <div className="relative w-full">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white px-2 text-muted-foreground">
+                간편 로그인
+              </span>
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full bg-[#03C75A] hover:bg-[#02b351] text-white hover:text-white border-0"
+            size="lg"
+            onClick={() => {
+              window.location.href = 'http://localhost:3001/api/v1/auth/naver';
+            }}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              className="mr-2 h-5 w-5"
+              fill="currentColor"
+            >
+              <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z" />
+            </svg>
+            네이버로 로그인
+          </Button>
+
           <p className="text-sm text-muted-foreground text-center">
             아직 회원이 아니신가요?{' '}
             <Link href="/register" className="text-primary hover:underline font-medium">

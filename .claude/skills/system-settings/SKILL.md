@@ -142,7 +142,7 @@ async function calculateShippingFee(params: ShippingCalculation): Promise<number
 
 | 설정 키 | 설명 | 예시 |
 |---------|------|------|
-| `company_name` | 회사명 | (주)포토카페 |
+| `company_name` | 회사명 | (주)프린팅114 |
 | `company_ceo` | 대표자명 | 홍길동 |
 | `company_business_number` | 사업자등록번호 | 123-45-67890 |
 | `company_business_type` | 업태 | 제조업, 서비스업 |
@@ -155,7 +155,7 @@ async function calculateShippingFee(params: ShippingCalculation): Promise<number
 |---------|------|------|
 | `company_phone` | 대표전화 | 02-1234-5678 |
 | `company_fax` | 팩스번호 | 02-1234-5679 |
-| `company_email` | 대표이메일 | info@photocafe.co.kr |
+| `company_email` | 대표이메일 | info@printing114.com |
 | `company_cs_phone` | 고객센터 전화 | 1588-1234 |
 | `company_cs_hours` | 고객센터 운영시간 | 평일 09:00~18:00 |
 
@@ -172,9 +172,9 @@ async function calculateShippingFee(params: ShippingCalculation): Promise<number
 
 | 설정 키 | 설명 | 예시 |
 |---------|------|------|
-| `company_domain` | 메인 도메인 | www.photocafe.co.kr |
-| `company_admin_domain` | 관리자 도메인 | admin.photocafe.co.kr |
-| `company_api_domain` | API 도메인 | api.photocafe.co.kr |
+| `company_domain` | 메인 도메인 | www.printing114.com |
+| `company_admin_domain` | 관리자 도메인 | admin.printing114.com |
+| `company_api_domain` | API 도메인 | api.printing114.com |
 | `company_server_info` | 서버정보 | AWS ap-northeast-2 |
 | `company_ssl_expiry` | SSL 만료일 | 2025-12-31 |
 

@@ -91,7 +91,23 @@
       "Bash(git pull:*)",
       "Bash(git stash:*)",
       "Bash(wsl --list:*)",
-      "Bash(wsl --install:*)"
+      "Bash(wsl --install:*)",
+      "Bash(git fetch:*)",
+      "Bash(cmd /c \"for /f \"\"tokens=5\"\" %a in \\(''netstat -ano ^| findstr :3002 ^| findstr LISTENING''\\) do taskkill /PID %a /F\")",
+      "Bash(cmd /c \"taskkill /F /PID 15924\")",
+      "Bash(cmd /c \"tasklist /FI \"\"PID eq 15924\"\"\")",
+      "Bash(git push:*)",
+      "Bash(ssh:*)",
+      "Bash(nmap:*)",
+      "Bash(ssh-keygen:*)",
+      "Bash(scp:*)",
+      "Bash(head:*)",
+      "Bash(robocopy:*)",
+      "Bash(cmd //c \"robocopy c:\\\\dev\\\\photocafe d:\\\\backup\\\\photocafe /MIR /XD node_modules .git\")",
+      "Bash(move /Y \"apps\\\\web\\\\app\\\\\\(dashboard\\)\\\\pricing\\\\production\\\\page_temp.tsx\" \"apps\\\\web\\\\app\\\\\\(dashboard\\)\\\\pricing\\\\production\\\\page.tsx\")",
+      "Bash(cmd /c \"taskkill /F /PID 40536\")",
+      "Bash(cmd /c \"taskkill /F /PID 24560\")",
+      "Bash(git rebase:*)"
     ]
   }
 }
