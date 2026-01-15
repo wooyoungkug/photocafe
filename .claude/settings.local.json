@@ -107,7 +107,8 @@
       "Bash(move /Y \"apps\\\\web\\\\app\\\\\\(dashboard\\)\\\\pricing\\\\production\\\\page_temp.tsx\" \"apps\\\\web\\\\app\\\\\\(dashboard\\)\\\\pricing\\\\production\\\\page.tsx\")",
       "Bash(cmd /c \"taskkill /F /PID 40536\")",
       "Bash(cmd /c \"taskkill /F /PID 24560\")",
-      "Bash(git rebase:*)"
+      "Bash(git rebase:*)",
+      "Bash(cmd /c \"taskkill /PID 17024 /F\")"
     ]
   }
 }

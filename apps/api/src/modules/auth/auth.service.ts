@@ -145,6 +145,44 @@ export class AuthService {
     return client;
   }
 
+  // 카카오 OAuth 사용자 검증/생성
+  async validateKakaoUser(data: {
+    oauthId: string;
+    email: string;
+    name: string;
+    profileImage?: string;
+  }) {
+    // 기존 클라이언트 조회 (oauthProvider + oauthId로 검색)
+    let client = await this.prisma.client.findFirst({
+      where: {
+        oauthProvider: 'kakao',
+        oauthId: data.oauthId,
+      },
+    });
+
+    // 기존 사용자가 없으면 새로 생성
+    if (!client) {
+      // 클라이언트 코드 생성 (K + 타임스탬프)
+      const clientCode = `K${Date.now().toString().slice(-8)}`;
+
+      client = await this.prisma.client.create({
+        data: {
+          clientCode,
+          clientName: data.name,
+          email: data.email,
+          oauthProvider: 'kakao',
+          oauthId: data.oauthId,
+          memberType: 'individual',
+          priceType: 'standard',
+          paymentType: 'order',
+          status: 'active',
+        },
+      });
+    }
+
+    return client;
+  }
+
   // 클라이언트(고객) 로그인 처리
   async loginClient(client: any) {
     const payload = {

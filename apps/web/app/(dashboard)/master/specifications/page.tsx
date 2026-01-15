@@ -31,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, Search, ChevronUp, ChevronDown, RectangleHorizontal, RectangleVertical, Square } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, ChevronUp, ChevronDown, RectangleHorizontal, RectangleVertical, Square, Ruler } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 
@@ -336,12 +336,10 @@ export default function SpecificationsPage() {
     }
   };
 
-  // 용도 필터 토글
+  // 용도 필터 토글 (배타적: 하나만 선택 가능, 같은 것 클릭 시 해제)
   const toggleUsageFilter = (usage: string) => {
     setUsageFilters((prev) =>
-      prev.includes(usage)
-        ? prev.filter((u) => u !== usage)
-        : [...prev, usage]
+      prev.includes(usage) ? [] : [usage]
     );
   };
 
@@ -436,9 +434,9 @@ export default function SpecificationsPage() {
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="규격명 검색..."
+                placeholder="규격명 검색... (예: 3x5)"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => setSearchQuery(e.target.value.replace(/[^0-9]/g, "x").replace(/x+/g, "x"))}
                 className="pl-9 h-9"
               />
             </div>
@@ -460,16 +458,6 @@ export default function SpecificationsPage() {
                   {usage.label}
                 </Button>
               ))}
-              {usageFilters.length > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setUsageFilters([])}
-                  className="h-9 px-3 text-muted-foreground"
-                >
-                  초기화
-                </Button>
-              )}
             </div>
           </div>
         </CardHeader>
@@ -583,8 +571,8 @@ export default function SpecificationsPage() {
                 id="name"
                 value={form.name}
                 onChange={(e) => {
-                  // ㅌ, X를 x로 변환
-                  const value = e.target.value.replace(/[ㅌX]/g, "x");
+                  // 숫자가 아닌 모든 문자를 x로 변환하고, 연속된 x는 하나로 합침
+                  const value = e.target.value.replace(/[^0-9]/g, "x").replace(/x+/g, "x");
                   setForm({ ...form, name: value });
 
                   // "x"로 구분된 숫자 패턴 감지 (예: "3x5", "8x10")
