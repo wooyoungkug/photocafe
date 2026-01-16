@@ -915,6 +915,128 @@ interface CreateClientGroupDto {
 | `apps/web/hooks/use-clients.ts` | 거래처/그룹 훅 (`useCreateClientGroup`) |
 | `apps/web/hooks/use-pricing.ts` | 가격 관련 훅 |
 
+## ⭐ 금액단위조정 (Price Rounding)
+
+자동 계산된 단가를 보기 좋게 반올림하는 기능입니다.
+**1구간만 설정하면 나머지 구간은 상품 유형에 따라 자동 생성됩니다.**
+**사용자가 구간/단위를 직접 수정할 수도 있습니다.**
+
+### 상품별 기본 설정
+
+| 상품 유형 | 가격대 | 자동 생성 구간 |
+|----------|--------|---------------|
+| **인디고출력** | ~1,500원 | 3구간 |
+| **잉크젯출력** | ~10,000원 | 3구간 |
+| **앨범** | ~50,000원 | 4구간 |
+| **액자** | ~100,000원 | 5구간 |
+
+### 상품별 자동 생성 구간 상세
+
+#### 인디고출력 (최대 1,500원) - 3구간
+```
+1구간:    500원 미만 →  10원 단위
+2구간:  1,000원 미만 →  50원 단위
+3구간:  1,500원 이하 → 100원 단위
+```
+
+#### 잉크젯출력 (최대 10,000원) - 3구간
+```
+1구간:   1,000원 미만 →   10원 단위
+2구간:   5,000원 미만 →   50원 단위
+3구간:  10,000원 이하 →  100원 단위
+```
+
+#### 앨범 (최대 50,000원) - 4구간
+```
+1구간:   1,000원 미만 →   10원 단위
+2구간:   5,000원 미만 →   50원 단위
+3구간:  10,000원 미만 →  100원 단위
+4구간:  50,000원 이하 →  500원 단위
+```
+
+#### 액자 (최대 100,000원) - 5구간
+```
+1구간:   1,000원 미만 →   10원 단위
+2구간:   5,000원 미만 →   50원 단위
+3구간:  10,000원 미만 →  100원 단위
+4구간:  50,000원 미만 →  500원 단위
+5구간: 100,000원 이하 → 1000원 단위
+```
+
+### 구현 코드
+
+```typescript
+// 단위 옵션
+const ROUNDING_UNIT_OPTIONS = [10, 50, 100, 500, 1000];
+
+// 구간 타입
+interface PriceRoundingTier {
+  maxPrice: number;  // 이 금액 미만 (마지막은 Infinity)
+  unit: number;      // 반올림 단위
+}
+
+// 상품 유형별 기본 구간 설정
+type ProductPriceType = 'indigo' | 'inkjet' | 'album' | 'frame';
+
+const DEFAULT_ROUNDING_TIERS: Record<ProductPriceType, PriceRoundingTier[]> = {
+  indigo: [
+    { maxPrice: 500, unit: 10 },
+    { maxPrice: 1000, unit: 50 },
+    { maxPrice: Infinity, unit: 100 },
+  ],
+  inkjet: [
+    { maxPrice: 1000, unit: 10 },
+    { maxPrice: 5000, unit: 50 },
+    { maxPrice: Infinity, unit: 100 },
+  ],
+  album: [
+    { maxPrice: 1000, unit: 10 },
+    { maxPrice: 5000, unit: 50 },
+    { maxPrice: 10000, unit: 100 },
+    { maxPrice: Infinity, unit: 500 },
+  ],
+  frame: [
+    { maxPrice: 1000, unit: 10 },
+    { maxPrice: 5000, unit: 50 },
+    { maxPrice: 10000, unit: 100 },
+    { maxPrice: 50000, unit: 500 },
+    { maxPrice: Infinity, unit: 1000 },
+  ],
+};
+
+// 구간별 단위조정 함수
+const roundPriceByTier = (price: number, tiers: PriceRoundingTier[]): number => {
+  if (price <= 0) return price;
+  const tier = tiers.find(t => price < t.maxPrice);
+  if (!tier) return price;
+  return Math.round(price / tier.unit) * tier.unit;
+};
+
+// 사용 예시
+const tiers = DEFAULT_ROUNDING_TIERS.inkjet;
+roundPriceByTier(127, tiers);    // → 130 (10원 단위)
+roundPriceByTier(2527, tiers);   // → 2550 (50원 단위)
+roundPriceByTier(8270, tiers);   // → 8300 (100원 단위)
+```
+
+### UI 구성
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ 🔧 단위조정 [잉크젯 ▼]                              [자동적용]   │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  1구간: [  1,000 ]원 미만 → [  10원 ▼]  [🗑]                    │
+│  2구간: [  5,000 ]원 미만 → [  50원 ▼]  [🗑]                    │
+│  3구간:      그 이상     → [ 100원 ▼]                           │
+│                                                                 │
+│  [+ 구간 추가]                                                   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## 체크리스트
 
 가격 관리 기능 구현 시 확인사항:

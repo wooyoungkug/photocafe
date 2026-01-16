@@ -108,7 +108,10 @@
       "Bash(cmd /c \"taskkill /F /PID 40536\")",
       "Bash(cmd /c \"taskkill /F /PID 24560\")",
       "Bash(git rebase:*)",
-      "Bash(cmd /c \"taskkill /PID 17024 /F\")"
+      "Bash(cmd /c \"taskkill /PID 17024 /F\")",
+      "Bash(git checkout:*)",
+      "Bash(cd:*)",
+      "Bash(find:*)"
     ]
   }
 }

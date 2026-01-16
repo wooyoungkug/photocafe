@@ -58,8 +58,10 @@ const navigation = [
     name: "가격관리",
     icon: DollarSign,
     children: [
-      { name: "표준단가", href: "/pricing/production" },
+      { name: "표준단가", href: "/pricing/standard" },
       { name: "그룹단가", href: "/pricing/group" },
+      { name: "생산설정", href: "/pricing/production" },
+      { name: "단가조정", href: "/pricing/rounding" },
     ],
   },
   {
