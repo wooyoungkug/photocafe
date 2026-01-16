@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -6,36 +6,79 @@ import { Loader2 } from 'lucide-react';
 
 interface AuthGuardProps {
   children: React.ReactNode;
+  requireAdmin?: boolean;
 }
 
-export function AuthGuard({ children }: AuthGuardProps) {
+export function AuthGuard({ children, requireAdmin = true }: AuthGuardProps) {
   const router = useRouter();
-  const [isChecking, setIsChecking] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthorized' | 'redirecting'>('loading');
 
   useEffect(() => {
-    const token = localStorage.getItem('accessToken');
-    if (!token) {
+    try {
+      const token = localStorage.getItem('accessToken');
+
+      if (!token) {
+        setStatus('redirecting');
+        router.replace('/login');
+        return;
+      }
+
+      if (requireAdmin) {
+        const authStorage = localStorage.getItem('auth-storage');
+        if (authStorage) {
+          const parsed = JSON.parse(authStorage);
+          const userRole = parsed?.state?.user?.role;
+
+          if (userRole !== 'admin') {
+            setStatus('unauthorized');
+            return;
+          }
+        }
+      }
+
+      setStatus('authenticated');
+    } catch (error) {
+      console.error('AuthGuard error:', error);
+      setStatus('redirecting');
       router.replace('/login');
-    } else {
-      setIsAuthenticated(true);
     }
-    setIsChecking(false);
-  }, [router]);
+  }, [router, requireAdmin]);
 
-  // 체크 중이면 children을 바로 렌더링 (깜빡임 방지)
-  // 토큰 체크는 백그라운드에서 진행
-  if (isChecking) {
-    // SSR에서는 children 렌더링, 클라이언트에서 토큰 없으면 리다이렉트
-    return <>{children}</>;
-  }
-
-  if (!isAuthenticated) {
+  if (status === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
-          <p className="text-sm text-gray-500">로그인 페이지로 이동 중...</p>
+          <p className="text-sm text-gray-500">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === 'redirecting') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
+          <p className="text-sm text-gray-500">Redirecting...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === 'unauthorized') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center max-w-md mx-auto p-8">
+          <div className="text-6xl mb-4">X</div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
+          <p className="text-gray-500 mb-6">Admin only page</p>
+          <button
+            onClick={() => router.replace('/')}
+            className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+          >
+            Go Home
+          </button>
         </div>
       </div>
     );

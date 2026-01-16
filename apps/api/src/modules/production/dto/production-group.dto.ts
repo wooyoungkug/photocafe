@@ -154,18 +154,7 @@ export class InkjetSpecPriceDto {
   isBaseSpec?: boolean;
 }
 
-// 인디고 규격별 단일 가격 (indigo_spec용)
-export class IndigoSpecPriceDto {
-  @ApiProperty({ description: '규격 ID' })
-  @IsString()
-  specificationId: string;
-
-  @ApiProperty({ description: '단가' })
-  @IsNumber()
-  price: number;
-}
-
-// 구간별 Nup+면당가격 (nup_page_range용)
+// 구간별 Nup/1p가격 (nup_page_range용)
 export class NupPageRangeDto {
   @ApiProperty({ description: '규격 ID (Nup 정보 연동)' })
   @IsString()
@@ -192,19 +181,15 @@ export class NupPageRangeDto {
 
 // 가격 계산 방식
 export const PRICING_TYPES = [
-  'paper_output_spec', // [1.출력전용] 용지별출력단가/규격별/면 (인쇄방식+규격)
-  'indigo_spec',       // [1.출력전용] 인디고규격별 단가 (nup방식)
-  'nup_page_range',    // [2.제본전용] 구간별 Nup+면당가격
-  'per_sheet',         // 장당가격 (규격입력안함)
+  'paper_output_spec', // [출력전용] 용지별출력단가/1p가격 (인쇄방식+규격)
+  'nup_page_range',    // [제본전용] 구간별 Nup/1p가격
 ] as const;
 export type PricingType = typeof PRICING_TYPES[number];
 
 // 가격 계산 방식 라벨
 export const PRICING_TYPE_LABELS: Record<PricingType, string> = {
-  paper_output_spec: '[1.출력전용] 용지별출력단가/규격별/면',
-  indigo_spec: '[1.출력전용] 인디고규격별 단가',
-  nup_page_range: '[2.제본전용] 구간별 Nup+면당가격',
-  per_sheet: '장당가격 (규격입력안함)',
+  paper_output_spec: '[출력전용] 용지별출력단가/1p가격',
+  nup_page_range: '[제본전용] 구간별 Nup/1p가격',
 };
 
 // 업체 타입
@@ -363,14 +348,7 @@ export class CreateProductionSettingDto {
   @Type(() => InkjetSpecPriceDto)
   inkjetSpecPrices?: InkjetSpecPriceDto[];
 
-  @ApiPropertyOptional({ description: '인디고 규격별 단가 (indigo_spec용)' })
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => IndigoSpecPriceDto)
-  indigoSpecPrices?: IndigoSpecPriceDto[];
-
-  @ApiPropertyOptional({ description: '구간별 Nup+면당가격 (nup_page_range용)' })
+  @ApiPropertyOptional({ description: '구간별 Nup/1p가격 (nup_page_range용)' })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })

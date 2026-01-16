@@ -181,24 +181,6 @@ function LoginForm() {
             </Link>
           </p>
 
-          {/* 소셜 로그인 */}
-          <div className="relative my-2">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">또는</span>
-            </div>
-          </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full bg-[#03C75A] hover:bg-[#02b351] text-white border-0"
-            onClick={handleNaverLogin}
-          >
-            네이버로 로그인
-          </Button>
 
           <Button
             type="button"
@@ -213,7 +195,7 @@ function LoginForm() {
               className="mr-2 h-5 w-5"
               fill="currentColor"
             >
-              <path d="M12 3C6.477 3 2 6.463 2 10.691c0 2.65 1.73 4.973 4.342 6.324-.143.532-.548 2.043-.623 2.359-.096.397.146.392.307.286.126-.083 2.016-1.368 2.838-1.925.698.103 1.43.157 2.136.157 5.523 0 10-3.463 10-7.691C21 6.463 17.523 3 12 3z"/>
+              <path d="M12 3C6.477 3 2 6.463 2 10.691c0 2.65 1.73 4.973 4.342 6.324-.143.532-.548 2.043-.623 2.359-.096.397.146.392.307.286.126-.083 2.016-1.368 2.838-1.925.698.103 1.43.157 2.136.157 5.523 0 10-3.463 10-7.691C21 6.463 17.523 3 12 3z" />
             </svg>
             카카오로 로그인
           </Button>

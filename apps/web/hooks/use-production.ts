@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
 // 가격 계산 방식 타입
-export type PricingType = 'paper_output_spec' | 'indigo_spec' | 'nup_page_range' | 'binding_page' | 'finishing_qty' | 'finishing_page';
+export type PricingType = 'paper_output_spec' | 'nup_page_range' | 'binding_page' | 'finishing_qty' | 'finishing_page';
 
 export interface PricingTypeOption {
   value: PricingType;
@@ -47,12 +47,6 @@ export interface InkjetSpecPrice {
   isBaseSpec?: boolean; // 기준규격 여부
 }
 
-// 인디고 규격별 단일 가격 타입 (indigo_spec용)
-export interface IndigoSpecPrice {
-  specificationId: string;
-  price: number;
-}
-
 // 생산설정 타입
 export interface ProductionSetting {
   id: string;
@@ -75,8 +69,6 @@ export interface ProductionSetting {
   indigoUpPrices?: IndigoUpPrice[];
   // 잉크젯 규격별 가격 (paper_output_spec 잉크젯용)
   inkjetSpecPrices?: InkjetSpecPrice[];
-  // 인디고 규격별 단가 (indigo_spec용)
-  indigoSpecPrices?: IndigoSpecPrice[];
   sortOrder: number;
   isActive: boolean;
   createdAt: string;
