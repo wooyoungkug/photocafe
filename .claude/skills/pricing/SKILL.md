@@ -226,7 +226,21 @@ function calculateIndigoTotalCost(
 **원가 계산 공식:**
 
 ```typescript
-// 잉크젯 원가 계산
+// 잉크젯 sq inch당 원가 계산
+function calculateInkjetCostPerSqInch(
+  rollPrice: number,      // 롤지 가격 (basePrice)
+  rollWidthInch: number,  // 롤지 폭 (inch)
+  rollLengthM: number     // 롤지 길이 (m)
+): number {
+  // 롤지 총 면적 (sq inch)
+  // 공식: 가로폭(inch) × 용지길이(m) × 39.37 (1m = 39.37 inch)
+  const totalSqInch = rollWidthInch * rollLengthM * 39.37;
+
+  // sq inch당 원가
+  return totalSqInch > 0 ? rollPrice / totalSqInch : 0;
+}
+
+// 잉크젯 규격별 원가 계산
 function calculateInkjetCost(
   rollPrice: number,      // 롤지 가격
   rollWidthInch: number,  // 롤지 폭 (inch)
@@ -234,15 +248,11 @@ function calculateInkjetCost(
   specWidthInch: number,  // 출력 규격 폭 (inch)
   specHeightInch: number  // 출력 규격 높이 (inch)
 ): { paper: number; ink: number; total: number } {
-  // 롤지 총 면적 (sq inch)
-  // 1m = 39.37 inch
-  const rollAreaSqInch = rollWidthInch * (rollLengthM * 39.37);
+  // sq inch당 원가
+  const costPerSqInch = calculateInkjetCostPerSqInch(rollPrice, rollWidthInch, rollLengthM);
 
   // 규격 면적 (sq inch)
   const specAreaSqInch = specWidthInch * specHeightInch;
-
-  // sq inch당 용지 원가
-  const costPerSqInch = rollPrice / rollAreaSqInch;
 
   // 용지 원가 = 규격 면적 × sq inch당 원가
   const paperCost = specAreaSqInch * costPerSqInch;
@@ -259,52 +269,138 @@ function calculateInkjetCost(
 }
 ```
 
-**예시 계산:** (롤지 24" × 30m, 가격 50,000원)
+**예시 계산:** (싸틴240g 롤지 24" × 30m, 가격 38,000원)
 
 ```
-롤지 면적 = 24 × (30 × 39.37) = 28,346.4 sq inch
-sq inch당 원가 = 50,000 ÷ 28,346.4 = 1.76원
+롤지 면적 = 24 × 30 × 39.37 = 28,346.4 sq inch
+sq inch당 원가 = 38,000 ÷ 28,346.4 = 1.34원
 
-규격 14×11의 경우:
-- 규격 면적 = 14 × 11 = 154 sq inch
-- 용지 원가 = 154 × 1.76 = 271원
-- 잉크 원가 = 271 × 1.5 = 407원
-- 총 원가 = 271 + 407 = 678원
+규격 8×10의 경우:
+- 규격 면적 = 8 × 10 = 80 sq inch
+- 용지 원가 = 80 × 1.34 = 107원
 ```
 
-| 규격 | 면적 (sq inch) | 용지 원가 | 잉크 원가 (×1.5) | 총 원가 |
-|------|---------------|----------|-----------------|--------|
-| 8×10 | 80 sq" | 141원 | 212원 | 353원 |
-| 11×14 | 154 sq" | 271원 | 407원 | 678원 |
-| 20×24 | 480 sq" | 845원 | 1,268원 | 2,113원 |
-| 30×40 | 1,200 sq" | 2,112원 | 3,168원 | 5,280원 |
+| 규격 | 면적 (sq inch) | 용지 원가 (1.34원/sq") |
+|------|---------------|----------------------|
+| 4×6 | 24 sq" | 32원 |
+| 5×7 | 35 sq" | 47원 |
+| 6×8 | 48 sq" | 64원 |
+| 8×8 | 64 sq" | 86원 |
+| 8×10 | 80 sq" | 107원 |
+| 10×8 | 80 sq" | 107원 |
+| 11×14 | 154 sq" | 206원 |
+| 20×24 | 480 sq" | 643원 |
+
+#### ⭐ 잉크젯 단가 설정 UI (기준규격 + sq" 가격)
+
+잉크젯 단가는 **두 가지 방식**으로 입력할 수 있습니다:
+
+1. **기준규격 + 기준가격 입력** → sq" 가격 자동 계산 → 다른 규격 면적 비례 계산
+2. **sq" 가격 직접 입력** → 모든 규격 가격 자동 계산
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│ [용지별출력단가/규격별/면] - 잉크젯출력                                      │
+│ [출력전용] 용지별출력단가/1p가격 - 잉크젯출력                               │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
-│ 1. 인쇄방식: [잉크젯출력 ▼]                                              │
+│ ● 그룹1  규격 2/2개  프리미엄매트(240g), 새틴(240g)                        │
 │                                                                         │
-│ 2. 용지 선택:                                                           │
-│    ☑ 프리미엄광택    ☑ 프리미엄무광    ☐ 캔버스                          │
+│   ┌─────────────────────────────────────────────────────────────────┐  │
+│   │ 기준규격 [6x8 ▼]  [  600  ] 원                                   │  │
+│   │                                                                 │  │
+│   │ sq" 가격 [ 12.5  ] 원/sq"  (원가: 1.76원/sq" - 프리미엄매트240g)  │  │
+│   └─────────────────────────────────────────────────────────────────┘  │
 │                                                                         │
-│ 3. 규격 선택 (잉크젯/앨범/액자전용):                                      │
-│    ☑ 8x10    ☑ 10x10    ☑ 11x14    ☑ A4                                │
+│   ┌───────────────────────────────────────────────────────────────┐    │
+│   │ ☑ │  규격  │  면적  │    단가     │  설명                    │    │
+│   ├───┼────────┼────────┼─────────────┼─────────────────────────┤    │
+│   │ ☑ │  6x8   │   48   │  [  600  ]  │ (기준) 면적×12.5원/sq"  │    │
+│   │ ☑ │  8x8   │   64   │  [  800  ]  │ 면적×12.5원/sq" 자동계산 │    │
+│   └───┴────────┴────────┴─────────────┴─────────────────────────┘    │
 │                                                                         │
-│ 4. 단가 입력 (단면만):                                                   │
-│    ┌──────────────┬──────────────┐                                      │
-│    │    규격       │   단면 단가   │                                      │
-│    ├──────────────┼──────────────┤                                      │
-│    │    8x10      │   1,500원    │                                      │
-│    │   10x10      │   2,000원    │                                      │
-│    │   11x14      │   2,500원    │                                      │
-│    │     A4       │   1,800원    │                                      │
-│    └──────────────┴──────────────┘                                      │
-│                                                                         │
-│ ※ 잉크젯은 단면 출력 방식이므로 양면 가격이 없습니다.                      │
+│   * 체크된 규격만 그룹에 포함됩니다. 기준규격 단가 입력 시 면적 비례로     │
+│     자동 계산됩니다.                                                     │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
+```
+
+**UI 동작:**
+
+1. **기준규격 선택 + 기준가격 입력:**
+   - 기준규격의 면적으로 sq" 가격 자동 계산
+   - 다른 규격들은 `면적 × sq" 가격 × 가중치`로 자동 계산
+
+2. **sq" 가격 직접 입력:**
+   - sq" 가격 입력 필드에서 직접 입력
+   - 모든 규격의 단가가 `면적 × sq" 가격 × 가중치`로 자동 계산
+
+3. **용지 원가/sq" 표시 (주황색):**
+   - 선택된 잉크젯 롤용지의 원가를 계산하여 표시
+   - 공식: `용지원가(basePrice) / (가로폭(inch) × 용지길이(m) × 39.37)`
+   - 판매가와 원가를 비교하여 마진 확인 가능
+
+**관련 코드:**
+
+```typescript
+// sq" 가격 입력 시 모든 규격 가격 재계산
+const handleSqInchPriceChange = (pricePerSqInch: number) => {
+  setSettingForm((prev) => ({
+    ...prev,
+    priceGroups: prev.priceGroups.map(g => {
+      if (g.id !== group.id) return g;
+      const newSpecPrices = (g.specPrices || []).map((sp) => {
+        const targetSpec = specifications?.find((s) => s.id === sp.specificationId);
+        if (!targetSpec) return sp;
+        const targetArea = Number(targetSpec.widthInch) * Number(targetSpec.heightInch);
+        const calculatedPrice = targetArea * pricePerSqInch * (sp.weight || 1.0);
+        return { ...sp, singleSidedPrice: Math.max(0, Math.round(calculatedPrice)) };
+      });
+      return { ...g, inkjetBasePrice: pricePerSqInch, specPrices: newSpecPrices };
+    }),
+  }));
+};
+
+// 용지 원가/sq" 계산 (롤지 문자열 필드에서 숫자 추출)
+const calculatePaperCostPerSqInch = (paper: Paper) => {
+  // rollWidthInch/rollLengthM 숫자 필드 또는 rollWidth/rollLength 문자열 필드에서 추출
+  const widthInch = paper.rollWidthInch
+    ? Number(paper.rollWidthInch)
+    : (paper.rollWidth ? parseFloat(paper.rollWidth.replace(/[^0-9.]/g, '')) : 0);
+  const lengthM = paper.rollLengthM
+    ? Number(paper.rollLengthM)
+    : (paper.rollLength ? parseFloat(paper.rollLength.replace(/[^0-9.]/g, '')) : 0);
+
+  if (widthInch <= 0 || lengthM <= 0 || !paper.basePrice) {
+    return null;
+  }
+  const totalSqInch = widthInch * lengthM * 39.37;
+  return totalSqInch > 0 ? Number(paper.basePrice) / totalSqInch : 0;
+};
+
+// 예시: 싸틴(240g) 롤지
+// - rollWidth: "24인치" → 24
+// - rollLength: "30m" → 30
+// - basePrice: 38000원
+// - 롤 총 면적: 24 × 30 × 39.37 = 28,346.4 sq"
+// - sq"당 원가: 38000 / 28346.4 = 1.34원/sq"
+// - 8x10" 규격 원가: 80 × 1.34 = 107원
+```
+
+**데이터 구조:**
+
+```typescript
+// 잉크젯 단가 그룹
+interface InkjetPriceGroup {
+  id: string;
+  color: 'green' | 'blue' | 'yellow' | 'red' | 'purple';
+  inkjetBaseSpecId?: string;     // 기준규격 ID
+  inkjetBasePrice?: number;      // sq" 당 가격
+  specPrices: {
+    specificationId: string;     // 규격 ID
+    singleSidedPrice: number;    // 단면 단가
+    weight: number;              // 가중치 (기본값: 1.0)
+  }[];
+}
 ```
 
 ### 출력방식별 단가 구조 비교
