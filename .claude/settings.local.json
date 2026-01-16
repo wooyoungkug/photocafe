@@ -111,7 +111,10 @@
       "Bash(cmd /c \"taskkill /PID 17024 /F\")",
       "Bash(git checkout:*)",
       "Bash(cd:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(\"C:/Program Files/PostgreSQL/16/bin/pg_dump.exe\" -h 192.168.0.67 -p 5433 -U postgres -d postgres -F c -f C:/dev/printing114/backup_prod.dump)",
+      "Bash(\"C:/Program Files/PostgreSQL/16/bin/pg_dump.exe\" -h localhost -p 5432 -U postgres -d printing_erp -F c -f C:/dev/printing114/backup_local.dump)",
+      "Bash(PGPASSWORD=postgres \"C:/Program Files/PostgreSQL/16/bin/pg_dump.exe\":*)"
     ]
   }
 }

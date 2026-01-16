@@ -222,11 +222,18 @@ export default function PriceRoundingPage() {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              {ROUNDING_PRICE_OPTIONS.map((price) => (
-                                <SelectItem key={price} value={String(price)}>
-                                  {price.toLocaleString()}원
-                                </SelectItem>
-                              ))}
+                              {ROUNDING_PRICE_OPTIONS
+                                .filter((price) => {
+                                  // 이전 구간의 금액보다 커야 함
+                                  const prevTier = tierSettings[activeType][index - 1];
+                                  const minPrice = prevTier ? prevTier.maxPrice : 0;
+                                  return price > minPrice;
+                                })
+                                .map((price) => (
+                                  <SelectItem key={price} value={String(price)}>
+                                    {price.toLocaleString()}원
+                                  </SelectItem>
+                                ))}
                             </SelectContent>
                           </Select>
                         )}
