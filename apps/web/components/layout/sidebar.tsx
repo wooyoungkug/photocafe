@@ -29,9 +29,10 @@ const navigation = [
     icon: Database,
     children: [
       { name: "기초정보 설정", href: "/settings/basic" },
-      { name: "카테고리", href: "/company/categories" },
       { name: "용지관리", href: "/master/papers" },
+      { name: "카테고리", href: "/company/categories" },
       { name: "규격정보", href: "/master/specifications" },
+      { name: "내부함수", href: "/settings/functions" },
     ],
   },
   {

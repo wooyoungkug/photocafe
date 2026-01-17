@@ -1676,18 +1676,6 @@ export default function ProductionSettingPage() {
                 <Settings2 className="h-12 w-12 mx-auto mb-2 opacity-50" />
                 <p>좌측에서 그룹을 선택해주세요.</p>
               </div>
-            ) : selectedGroup.depth === 1 ? (
-              <div className="text-center text-muted-foreground py-12">
-                <Folder className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p>대분류입니다. 소분류를 추가해주세요.</p>
-                <Button
-                  variant="link"
-                  className="mt-2"
-                  onClick={() => handleOpenGroupDialog(selectedGroup.id)}
-                >
-                  소분류 추가하기
-                </Button>
-              </div>
             ) : selectedSettings.length === 0 ? (
               <div className="text-center text-muted-foreground py-12">
                 <Settings2 className="h-12 w-12 mx-auto mb-2 opacity-50" />
@@ -1825,7 +1813,27 @@ export default function ProductionSettingPage() {
                       </Select>
                     </div>
 
-                    {/* 2행: 인쇄방식 (paper_output_spec일 때만), 작업시간 */}
+                    {/* 2행: 작업시간, 인쇄방식 (paper_output_spec일 때만) */}
+                    <div className="flex items-center gap-3">
+                      <Label className="text-xs font-medium text-gray-500 w-16 shrink-0">작업시간</Label>
+                      <div className="flex items-center gap-2 flex-1">
+                        <Input
+                          type="number"
+                          step="0.1"
+                          value={settingForm.workDays}
+                          onChange={(e) =>
+                            setSettingForm((prev) => ({
+                              ...prev,
+                              workDays: Number(e.target.value),
+                            }))
+                          }
+                          className="bg-white h-8"
+                        />
+                        <span className="text-muted-foreground text-xs whitespace-nowrap">일</span>
+                      </div>
+                    </div>
+
+                    {/* 인쇄방식 (paper_output_spec일 때만) */}
                     {settingForm.pricingType === "paper_output_spec" && (
                       <div className="flex items-center gap-3">
                         <Label className="text-xs font-medium text-gray-500 w-16 shrink-0">인쇄방식</Label>
@@ -1857,25 +1865,6 @@ export default function ProductionSettingPage() {
                         </Select>
                       </div>
                     )}
-
-                    <div className="flex items-center gap-3">
-                      <Label className="text-xs font-medium text-gray-500 w-16 shrink-0">작업시간</Label>
-                      <div className="flex items-center gap-2 flex-1">
-                        <Input
-                          type="number"
-                          step="0.1"
-                          value={settingForm.workDays}
-                          onChange={(e) =>
-                            setSettingForm((prev) => ({
-                              ...prev,
-                              workDays: Number(e.target.value),
-                            }))
-                          }
-                          className="bg-white h-8"
-                        />
-                        <span className="text-muted-foreground text-xs whitespace-nowrap">일</span>
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -1890,284 +1879,6 @@ export default function ProductionSettingPage() {
                     {/* 인디고출력: 단가그룹 설정 + 용지별 그룹 할당 */}
                     {settingForm.printMethod === "indigo" ? (
                       <>
-                        {/* 단가 그룹 관리 */}
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <Label className="text-sm font-semibold">단가 그룹 설정</Label>
-                            <div className="flex gap-2">
-                              <Button
-                                type="button"
-                                size="sm"
-                                className="bg-violet-600 hover:bg-violet-700 text-white shadow-sm border-0"
-                                onClick={() => setIsPriceAdjustDialogOpen(true)}
-                                disabled={settingForm.priceGroups.length === 0}
-                              >
-                                단위 맞춤
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={settingForm.priceGroups.length >= 5}
-                                onClick={() => {
-                                  const usedColors = settingForm.priceGroups.map(g => g.color);
-                                  const nextColor = getNextAvailableColor(usedColors);
-                                  if (!nextColor) return;
-
-                                  setSettingForm((prev) => ({
-                                    ...prev,
-                                    priceGroups: [
-                                      ...prev.priceGroups,
-                                      {
-                                        id: generateGroupId(),
-                                        color: nextColor,
-                                        upPrices: INDIGO_UP_UNITS.map((up) => ({
-                                          up,
-                                          weight: DEFAULT_INDIGO_WEIGHTS[up],
-                                          fourColorSinglePrice: 0,
-                                          fourColorDoublePrice: 0,
-                                          sixColorSinglePrice: 0,
-                                          sixColorDoublePrice: 0,
-                                        })),
-                                      },
-                                    ],
-                                  }));
-                                }}
-                              >
-                                <Plus className="h-4 w-4 mr-1" />
-                                + 용지그룹 추가
-                              </Button>
-                            </div>
-                          </div>
-
-                          {/* 그룹별 단가 입력 */}
-                          {settingForm.priceGroups.length === 0 ? (
-                            <div className="border rounded-lg p-4 text-center text-muted-foreground text-sm">
-                              용지그룹을 추가하여 용지별 가격을 설정하세요.
-                            </div>
-                          ) : (
-                            <div className="space-y-3">
-                              {settingForm.priceGroups.map((group) => {
-                                const style = PRICE_GROUP_STYLES[group.color] || PRICE_GROUP_STYLES.none;
-                                const assignedPapers = Object.entries(settingForm.paperPriceGroupMap)
-                                  .filter(([, gid]) => gid === group.id)
-                                  .map(([pid]) => papersForPricing?.find(p => p.id === pid))
-                                  .filter(Boolean);
-                                const upPrices = group.upPrices || INDIGO_UP_UNITS.map((up) => ({
-                                  up,
-                                  weight: DEFAULT_INDIGO_WEIGHTS[up],
-                                  fourColorSinglePrice: 0,
-                                  fourColorDoublePrice: 0,
-                                  sixColorSinglePrice: 0,
-                                  sixColorDoublePrice: 0,
-                                }));
-
-                                // 1up 기준가로 다른 up 가격 자동 계산
-                                const calculate1upBasedPrices = (baseUp: typeof upPrices[0], priceField: keyof typeof baseUp, value: number) => {
-                                  const basePrice = value;
-                                  return upPrices.map(up => {
-                                    if (up.up === 1) {
-                                      return { ...up, [priceField]: value };
-                                    }
-                                    // 1up 가격 × 가중치
-                                    const calculated = Math.round(basePrice * up.weight);
-                                    return { ...up, [priceField]: calculated };
-                                  });
-                                };
-
-                                return (
-                                  <div key={group.id} className={cn("rounded-lg p-3 border-2", style.bg, style.border)}>
-                                    <div className="flex items-center justify-between mb-2">
-                                      <div className="flex items-center gap-2">
-                                        <span className={cn("text-sm font-semibold", style.text)}>
-                                          {style.dot} {style.label}
-                                        </span>
-                                        {assignedPapers.length > 0 && (
-                                          <span className="text-xs text-gray-500">
-                                            {assignedPapers.map(p => `${p?.name}${p?.grammage ? `(${p.grammage}g)` : ''}`).join(', ')}
-                                          </span>
-                                        )}
-                                      </div>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                        onClick={() => {
-                                          setSettingForm((prev) => {
-                                            const newMap = { ...prev.paperPriceGroupMap };
-                                            Object.keys(newMap).forEach(pid => {
-                                              if (newMap[pid] === group.id) {
-                                                newMap[pid] = null;
-                                              }
-                                            });
-                                            return {
-                                              ...prev,
-                                              priceGroups: prev.priceGroups.filter(g => g.id !== group.id),
-                                              paperPriceGroupMap: newMap,
-                                            };
-                                          });
-                                        }}
-                                      >
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                      </Button>
-                                    </div>
-
-                                    {/* Up별 단가 테이블 */}
-                                    <div className="border rounded-lg overflow-hidden bg-white shadow-sm">
-                                      <table className="w-full text-xs table-fixed">
-                                        <thead className="bg-slate-100 border-b">
-                                          <tr>
-                                            <th className="w-14 px-2 py-1.5 text-center font-semibold text-slate-600">Up</th>
-                                            <th className="w-20 px-2 py-1.5 text-center font-semibold text-slate-600">가중치</th>
-                                            <th className="px-2 py-1.5 text-center font-semibold text-slate-600">4도단면</th>
-                                            <th className="px-2 py-1.5 text-center font-semibold text-slate-600">4도양면</th>
-                                            <th className="px-2 py-1.5 text-center font-semibold text-slate-600">6도단면</th>
-                                            <th className="px-2 py-1.5 text-center font-semibold text-slate-600">6도양면</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-100">
-                                          {upPrices.map((upPrice, idx) => {
-                                            // 원가 계산 (용지+잉크)
-                                            const papers = assignedPapers.filter(Boolean) as Paper[];
-                                            const paperCostSingle = papers.length > 0 ? calculateIndigoTotalCost(papers, upPrice.up, false, indigoInk1ColorCost, 4) : null;
-                                            const paperCostDouble = papers.length > 0 ? calculateIndigoTotalCost(papers, upPrice.up, true, indigoInk1ColorCost, 4) : null;
-                                            const paperCost6Single = papers.length > 0 ? calculateIndigoTotalCost(papers, upPrice.up, false, indigoInk1ColorCost, 6) : null;
-                                            const paperCost6Double = papers.length > 0 ? calculateIndigoTotalCost(papers, upPrice.up, true, indigoInk1ColorCost, 6) : null;
-
-                                            const getCostDisplay = (field: string) => {
-                                              if (!indigoInk1ColorCost) return null;
-                                              let cost: { min: number; max: number } | null = null;
-                                              if (field === 'fourColorSinglePrice') cost = paperCostSingle;
-                                              else if (field === 'fourColorDoublePrice') cost = paperCostDouble;
-                                              else if (field === 'sixColorSinglePrice') cost = paperCost6Single;
-                                              else if (field === 'sixColorDoublePrice') cost = paperCost6Double;
-                                              if (!cost) return null;
-                                              return cost.min === cost.max ? formatCurrency(cost.min) : `${formatCurrency(cost.min)}~${formatCurrency(cost.max)}`;
-                                            };
-
-                                            return (
-                                              <tr key={upPrice.up} className={cn(
-                                                "transition-colors",
-                                                idx === 0 ? "bg-amber-50/60" : "hover:bg-slate-50/50"
-                                              )}>
-                                                <td className="px-2 py-1 text-center font-semibold text-slate-700">{upPrice.up}up</td>
-                                                <td className="px-2 py-1">
-                                                  <div className="flex justify-center">
-                                                    <Input
-                                                      type="number"
-                                                      step="0.1"
-                                                      className={cn(
-                                                        "h-8 w-16 text-xs text-center rounded-md",
-                                                        idx === 0
-                                                          ? "bg-slate-200 text-slate-400 border-slate-300 cursor-not-allowed"
-                                                          : "bg-white border-slate-200 hover:border-indigo-300 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
-                                                      )}
-                                                      value={upPrice.weight || ""}
-                                                      disabled={upPrice.up === 1}
-                                                      onChange={(e) => {
-                                                        const weight = Number(e.target.value) || 1;
-                                                        setSettingForm((prev) => ({
-                                                          ...prev,
-                                                          priceGroups: prev.priceGroups.map(g => {
-                                                            if (g.id !== group.id) return g;
-                                                            const newUpPrices = (g.upPrices || upPrices).map(up => {
-                                                              if (up.up !== upPrice.up) return up;
-                                                              return { ...up, weight };
-                                                            });
-                                                            // 가중치 변경 시 1up 기준으로 가격 재계산
-                                                            const oneUpPrice = newUpPrices.find(up => up.up === 1);
-                                                            if (oneUpPrice) {
-                                                              const recalculated = newUpPrices.map(up => {
-                                                                if (up.up === 1) return up;
-                                                                return {
-                                                                  ...up,
-                                                                  fourColorSinglePrice: Math.round((oneUpPrice.fourColorSinglePrice / up.up) * up.weight),
-                                                                  fourColorDoublePrice: Math.round((oneUpPrice.fourColorDoublePrice / up.up) * up.weight),
-                                                                  sixColorSinglePrice: Math.round((oneUpPrice.sixColorSinglePrice / up.up) * up.weight),
-                                                                  sixColorDoublePrice: Math.round((oneUpPrice.sixColorDoublePrice / up.up) * up.weight),
-                                                                };
-                                                              });
-                                                              return { ...g, upPrices: recalculated };
-                                                            }
-                                                            return { ...g, upPrices: newUpPrices };
-                                                          }),
-                                                        }));
-                                                      }}
-                                                      placeholder="1"
-                                                    />
-                                                  </div>
-                                                </td>
-                                                {['fourColorSinglePrice', 'fourColorDoublePrice', 'sixColorSinglePrice', 'sixColorDoublePrice'].map((field) => {
-                                                  const costDisplay = getCostDisplay(field);
-                                                  return (
-                                                    <td key={field} className="px-2 py-1">
-                                                      <div className="flex flex-col items-center gap-1">
-                                                        <Input
-                                                          type="number"
-                                                          className={cn(
-                                                            "h-8 w-20 text-xs text-center rounded-md",
-                                                            idx === 0
-                                                              ? "bg-amber-100 border-amber-300 font-medium focus:border-amber-400 focus:ring-1 focus:ring-amber-200"
-                                                              : "bg-white border-slate-200 hover:border-indigo-300 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
-                                                          )}
-                                                          value={(upPrice as any)[field] || ""}
-                                                          onChange={(e) => {
-                                                            const value = Number(e.target.value) || 0;
-                                                            setSettingForm((prev) => ({
-                                                              ...prev,
-                                                              priceGroups: prev.priceGroups.map(g => {
-                                                                if (g.id !== group.id) return g;
-                                                                if (upPrice.up === 1) {
-                                                                  // 1up 가격 변경 시: nup = 1up가격 / nup * 가중치
-                                                                  const newUpPrices = (g.upPrices || upPrices).map(up => {
-                                                                    if (up.up === 1) {
-                                                                      return { ...up, [field]: value };
-                                                                    }
-                                                                    return { ...up, [field]: Math.round((value / up.up) * up.weight) };
-                                                                  });
-                                                                  return { ...g, upPrices: newUpPrices };
-                                                                }
-                                                                const newUpPrices = (g.upPrices || upPrices).map(up =>
-                                                                  up.up === upPrice.up ? { ...up, [field]: value } : up
-                                                                );
-                                                                return { ...g, upPrices: newUpPrices };
-                                                              }),
-                                                            }));
-                                                          }}
-                                                          placeholder="0"
-                                                        />
-                                                        {costDisplay && (
-                                                          <span className="text-[10px] text-amber-600 font-medium">({costDisplay})</span>
-                                                        )}
-                                                      </div>
-                                                    </td>
-                                                  );
-                                                })}
-                                              </tr>
-                                            );
-                                          })}
-                                        </tbody>
-                                      </table>
-                                    </div>
-                                    <p className="text-xs text-gray-400 mt-1">
-                                      * 1up 가격 설정 시, 선택된 Up 만큼 나눠진 가격이 자동 계산됩니다.
-                                      {indigoInk1ColorCost > 0 && assignedPapers.length > 0 && (
-                                        <span className="text-amber-600 ml-2">
-                                          (원가 = 용지+잉크, 잉크 {indigoInk1ColorCost}원×컬러수/up)
-                                        </span>
-                                      )}
-                                    </p>
-                                    {assignedPapers.length > 0 && indigoInk1ColorCost === 0 && (
-                                      <p className="mt-1 text-xs text-amber-600">
-                                        💡 원가 표시: 설정 &gt; 기초정보 &gt; 인쇄비에서 인디고 1도 인쇄비 설정 필요
-                                      </p>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-
                         {/* 용지 목록 + 그룹 할당 드롭다운 */}
                         <div className="space-y-2">
                           <Label className="text-sm font-semibold">용지별 그룹 지정</Label>
@@ -2256,6 +1967,291 @@ export default function ProductionSettingPage() {
                             선택된 용지: {settingForm.paperIds.length}개 |
                             그룹 지정됨: {Object.values(settingForm.paperPriceGroupMap).filter(v => v !== null).length}개
                           </p>
+                        </div>
+
+                        {/* 단가 그룹 관리 */}
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-sm font-semibold">단가 그룹 설정</Label>
+                            <div className="flex gap-2">
+                              <Button
+                                type="button"
+                                size="sm"
+                                className="bg-violet-600 hover:bg-violet-700 text-white shadow-sm border-0"
+                                onClick={() => setIsPriceAdjustDialogOpen(true)}
+                                disabled={settingForm.priceGroups.length === 0}
+                              >
+                                단위 맞춤
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={settingForm.priceGroups.length >= 5}
+                                onClick={() => {
+                                  const usedColors = settingForm.priceGroups.map(g => g.color);
+                                  const nextColor = getNextAvailableColor(usedColors);
+                                  if (!nextColor) return;
+
+                                  setSettingForm((prev) => ({
+                                    ...prev,
+                                    priceGroups: [
+                                      ...prev.priceGroups,
+                                      {
+                                        id: generateGroupId(),
+                                        color: nextColor,
+                                        upPrices: INDIGO_UP_UNITS.map((up) => ({
+                                          up,
+                                          weight: DEFAULT_INDIGO_WEIGHTS[up],
+                                          fourColorSinglePrice: 0,
+                                          fourColorDoublePrice: 0,
+                                          sixColorSinglePrice: 0,
+                                          sixColorDoublePrice: 0,
+                                        })),
+                                      },
+                                    ],
+                                  }));
+                                }}
+                              >
+                                <Plus className="h-4 w-4 mr-1" />
+                                + 용지그룹 추가
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* 그룹별 단가 입력 */}
+                          {settingForm.priceGroups.length === 0 ? (
+                            <div className="border rounded-lg p-4 text-center text-muted-foreground text-sm">
+                              용지그룹을 추가하여 용지별 가격을 설정하세요.
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-2 gap-3">
+                              {settingForm.priceGroups.map((group) => {
+                                const style = PRICE_GROUP_STYLES[group.color] || PRICE_GROUP_STYLES.none;
+                                const assignedPapers = Object.entries(settingForm.paperPriceGroupMap)
+                                  .filter(([, gid]) => gid === group.id)
+                                  .map(([pid]) => papersForPricing?.find(p => p.id === pid))
+                                  .filter(Boolean);
+                                const upPrices = group.upPrices || INDIGO_UP_UNITS.map((up) => ({
+                                  up,
+                                  weight: DEFAULT_INDIGO_WEIGHTS[up],
+                                  fourColorSinglePrice: 0,
+                                  fourColorDoublePrice: 0,
+                                  sixColorSinglePrice: 0,
+                                  sixColorDoublePrice: 0,
+                                }));
+
+                                // 1up 기준가로 다른 up 가격 자동 계산
+                                const calculate1upBasedPrices = (baseUp: typeof upPrices[0], priceField: keyof typeof baseUp, value: number) => {
+                                  const basePrice = value;
+                                  return upPrices.map(up => {
+                                    if (up.up === 1) {
+                                      return { ...up, [priceField]: value };
+                                    }
+                                    // 1up 가격 × 가중치
+                                    const calculated = Math.round(basePrice * up.weight);
+                                    return { ...up, [priceField]: calculated };
+                                  });
+                                };
+
+                                return (
+                                  <div key={group.id} className={cn("rounded-lg p-3 border-2", style.bg, style.border)}>
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className="flex items-center gap-2">
+                                        <span className={cn("text-sm font-semibold", style.text)}>
+                                          {style.dot} {style.label}
+                                        </span>
+                                        {assignedPapers.length > 0 && (
+                                          <span className="text-xs text-gray-500">
+                                            {assignedPapers.map(p => `${p?.name}${p?.grammage ? `(${p.grammage}g)` : ''}`).join(', ')}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                        onClick={() => {
+                                          setSettingForm((prev) => {
+                                            const newMap = { ...prev.paperPriceGroupMap };
+                                            Object.keys(newMap).forEach(pid => {
+                                              if (newMap[pid] === group.id) {
+                                                newMap[pid] = null;
+                                              }
+                                            });
+                                            return {
+                                              ...prev,
+                                              priceGroups: prev.priceGroups.filter(g => g.id !== group.id),
+                                              paperPriceGroupMap: newMap,
+                                            };
+                                          });
+                                        }}
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
+
+                                    {/* Up별 단가 테이블 */}
+                                    <div className="border rounded-lg overflow-hidden bg-white shadow-sm">
+                                      <table className="w-full text-[10px]">
+                                        <thead className="bg-slate-100 border-b">
+                                          <tr>
+                                            <th className="px-1 py-1 text-center font-semibold text-slate-600">Nup</th>
+                                            <th className="px-0.5 py-1 text-center font-semibold text-slate-600">가중치</th>
+                                            <th className="px-0.5 py-1 text-center font-semibold text-slate-600">4도단</th>
+                                            <th className="px-0.5 py-1 text-center font-semibold text-slate-600">4도양</th>
+                                            <th className="px-0.5 py-1 text-center font-semibold text-slate-600">6도단</th>
+                                            <th className="px-0.5 py-1 text-center font-semibold text-slate-600">6도양</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                          {upPrices.map((upPrice, idx) => {
+                                            // 원가 계산 (용지+잉크)
+                                            const papers = assignedPapers.filter(Boolean) as Paper[];
+                                            const paperCostSingle = papers.length > 0 ? calculateIndigoTotalCost(papers, upPrice.up, false, indigoInk1ColorCost, 4) : null;
+                                            const paperCostDouble = papers.length > 0 ? calculateIndigoTotalCost(papers, upPrice.up, true, indigoInk1ColorCost, 4) : null;
+                                            const paperCost6Single = papers.length > 0 ? calculateIndigoTotalCost(papers, upPrice.up, false, indigoInk1ColorCost, 6) : null;
+                                            const paperCost6Double = papers.length > 0 ? calculateIndigoTotalCost(papers, upPrice.up, true, indigoInk1ColorCost, 6) : null;
+
+                                            const getCostDisplay = (field: string) => {
+                                              if (!indigoInk1ColorCost) return null;
+                                              let cost: { min: number; max: number } | null = null;
+                                              if (field === 'fourColorSinglePrice') cost = paperCostSingle;
+                                              else if (field === 'fourColorDoublePrice') cost = paperCostDouble;
+                                              else if (field === 'sixColorSinglePrice') cost = paperCost6Single;
+                                              else if (field === 'sixColorDoublePrice') cost = paperCost6Double;
+                                              if (!cost) return null;
+                                              return cost.min === cost.max ? formatCurrency(cost.min) : `${formatCurrency(cost.min)}~${formatCurrency(cost.max)}`;
+                                            };
+
+                                            return (
+                                              <tr key={upPrice.up} className={cn(
+                                                "transition-colors",
+                                                idx === 0 ? "bg-amber-50/60" : "hover:bg-slate-50/50"
+                                              )}>
+                                                <td className="px-1 py-0.5 text-center">
+                                                  <span className={cn(
+                                                    "inline-flex items-center justify-center h-6 w-10 text-xs font-semibold rounded",
+                                                    idx === 0 ? "bg-amber-200 text-amber-800" : "bg-slate-100 text-slate-600"
+                                                  )}>
+                                                    {upPrice.up === 1 ? "1up" : `${upPrice.up}up`}
+                                                  </span>
+                                                </td>
+                                                <td className="px-0.5 py-0.5">
+                                                  <div className="flex justify-center">
+                                                    <Input
+                                                      type="number"
+                                                      step="0.1"
+                                                      className={cn(
+                                                        "h-7 w-12 text-xs text-center rounded [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+                                                        idx === 0
+                                                          ? "bg-slate-200 text-slate-400 border-slate-300 cursor-not-allowed"
+                                                          : "bg-white border-slate-200 hover:border-indigo-300 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
+                                                      )}
+                                                      value={upPrice.weight || ""}
+                                                      disabled={upPrice.up === 1}
+                                                      onChange={(e) => {
+                                                        const weight = Number(e.target.value) || 1;
+                                                        setSettingForm((prev) => ({
+                                                          ...prev,
+                                                          priceGroups: prev.priceGroups.map(g => {
+                                                            if (g.id !== group.id) return g;
+                                                            const newUpPrices = (g.upPrices || upPrices).map(up => {
+                                                              if (up.up !== upPrice.up) return up;
+                                                              return { ...up, weight };
+                                                            });
+                                                            // 가중치 변경 시 1up 기준으로 가격 재계산
+                                                            const oneUpPrice = newUpPrices.find(up => up.up === 1);
+                                                            if (oneUpPrice) {
+                                                              const recalculated = newUpPrices.map(up => {
+                                                                if (up.up === 1) return up;
+                                                                return {
+                                                                  ...up,
+                                                                  fourColorSinglePrice: Math.round((oneUpPrice.fourColorSinglePrice / up.up) * up.weight),
+                                                                  fourColorDoublePrice: Math.round((oneUpPrice.fourColorDoublePrice / up.up) * up.weight),
+                                                                  sixColorSinglePrice: Math.round((oneUpPrice.sixColorSinglePrice / up.up) * up.weight),
+                                                                  sixColorDoublePrice: Math.round((oneUpPrice.sixColorDoublePrice / up.up) * up.weight),
+                                                                };
+                                                              });
+                                                              return { ...g, upPrices: recalculated };
+                                                            }
+                                                            return { ...g, upPrices: newUpPrices };
+                                                          }),
+                                                        }));
+                                                      }}
+                                                      placeholder="1"
+                                                    />
+                                                  </div>
+                                                </td>
+                                                {['fourColorSinglePrice', 'fourColorDoublePrice', 'sixColorSinglePrice', 'sixColorDoublePrice'].map((field) => {
+                                                  const costDisplay = getCostDisplay(field);
+                                                  return (
+                                                    <td key={field} className="px-0.5 py-0.5">
+                                                      <div className="flex flex-col items-center">
+                                                        <Input
+                                                          type="number"
+                                                          className={cn(
+                                                            "h-8 w-16 text-sm text-center rounded [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+                                                            idx === 0
+                                                              ? "bg-amber-100 border-amber-300 font-medium focus:border-amber-400 focus:ring-1 focus:ring-amber-200"
+                                                              : "bg-white border-slate-200 hover:border-indigo-300 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
+                                                          )}
+                                                          value={(upPrice as any)[field] || ""}
+                                                          onChange={(e) => {
+                                                            const value = Number(e.target.value) || 0;
+                                                            setSettingForm((prev) => ({
+                                                              ...prev,
+                                                              priceGroups: prev.priceGroups.map(g => {
+                                                                if (g.id !== group.id) return g;
+                                                                if (upPrice.up === 1) {
+                                                                  // 1up 가격 변경 시: nup = 1up가격 / nup * 가중치
+                                                                  const newUpPrices = (g.upPrices || upPrices).map(up => {
+                                                                    if (up.up === 1) {
+                                                                      return { ...up, [field]: value };
+                                                                    }
+                                                                    return { ...up, [field]: Math.round((value / up.up) * up.weight) };
+                                                                  });
+                                                                  return { ...g, upPrices: newUpPrices };
+                                                                }
+                                                                const newUpPrices = (g.upPrices || upPrices).map(up =>
+                                                                  up.up === upPrice.up ? { ...up, [field]: value } : up
+                                                                );
+                                                                return { ...g, upPrices: newUpPrices };
+                                                              }),
+                                                            }));
+                                                          }}
+                                                          placeholder="0"
+                                                        />
+                                                        {costDisplay && (
+                                                          <span className="text-[8px] text-amber-600 leading-none">({costDisplay})</span>
+                                                        )}
+                                                      </div>
+                                                    </td>
+                                                  );
+                                                })}
+                                              </tr>
+                                            );
+                                          })}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                    <p className="text-xs text-gray-400 mt-1">
+                                      * 1up 가격 설정 시, 선택된 Up 만큼 나눠진 가격이 자동 계산됩니다.
+                                      {indigoInk1ColorCost > 0 && assignedPapers.length > 0 && (
+                                        <span className="text-amber-600 ml-2">
+                                          (원가 = 용지+잉크, 잉크 {indigoInk1ColorCost}원×컬러수/up)
+                                        </span>
+                                      )}
+                                    </p>
+                                    {assignedPapers.length > 0 && indigoInk1ColorCost === 0 && (
+                                      <p className="mt-1 text-xs text-amber-600">
+                                        💡 원가 표시: 설정 &gt; 기초정보 &gt; 인쇄비에서 인디고 1도 인쇄비 설정 필요
+                                      </p>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
 
                       </>
@@ -2707,7 +2703,7 @@ export default function ProductionSettingPage() {
                           <div className="border rounded-lg p-3 max-h-[200px] overflow-y-auto">
                             {!papersForPricing || papersForPricing.length === 0 ? (
                               <p className="text-center text-muted-foreground py-2 text-sm">
-                                잉크젯용 용지가 없습니다.
+                                {PRINT_METHOD_LABELS[settingForm.printMethod]}용 용지가 없습니다.
                               </p>
                             ) : (
                               <div className="grid grid-cols-3 gap-1.5">
