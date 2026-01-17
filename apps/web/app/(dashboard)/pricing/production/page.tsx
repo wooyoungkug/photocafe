@@ -690,7 +690,9 @@ export default function ProductionSettingPage() {
   const [isPriceAdjustDialogOpen, setIsPriceAdjustDialogOpen] = useState(false);
   const [priceAdjustTarget, setPriceAdjustTarget] = useState<"single" | "double">("single"); // 단면/양면
   const [priceAdjustRanges, setPriceAdjustRanges] = useState([
-    { maxPrice: 10000, adjustment: 10 },
+    { maxPrice: 500, adjustment: 10 },
+    { maxPrice: 1000, adjustment: 50 },
+    { maxPrice: Infinity, adjustment: 100 },
   ]);
 
   // 폼 상태
@@ -2383,13 +2385,13 @@ export default function ProductionSettingPage() {
                             </div>
                           )}
 
-                          {/* 그룹별 규격 단가 입력 */}
+                          {/* 그룹별 규격 단가 입력 - 3열 레이아웃 */}
                           {settingForm.priceGroups.length === 0 && settingForm.specificationIds.length > 0 ? (
                             <div className="border rounded-lg p-4 text-center text-muted-foreground text-sm">
                               단가 그룹을 추가하여 용지별 규격 가격을 설정하세요.
                             </div>
                           ) : (
-                            <div className="space-y-3">
+                            <div className="grid grid-cols-3 gap-3">
                               {settingForm.priceGroups.map((group) => {
                                 const style = PRICE_GROUP_STYLES[group.color] || PRICE_GROUP_STYLES.none;
                                 const assignedPapers = Object.entries(settingForm.paperPriceGroupMap)
@@ -2399,25 +2401,20 @@ export default function ProductionSettingPage() {
                                 const specPrices = group.specPrices || [];
 
                                 return (
-                                  <div key={group.id} className={cn("rounded-lg p-3 border-2", style.bg, style.border)}>
-                                    <div className="flex items-center justify-between mb-2">
-                                      <div className="flex items-center gap-2">
-                                        <span className={cn("text-sm font-semibold", style.text)}>
+                                  <div key={group.id} className={cn("rounded-lg p-2 border-2", style.bg, style.border)}>
+                                    <div className="flex items-center justify-between mb-1.5">
+                                      <div className="flex items-center gap-1">
+                                        <span className={cn("text-xs font-semibold", style.text)}>
                                           {style.dot} {style.label}
                                         </span>
-                                        <span className="text-xs bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded">
-                                          규격 {specPrices.length}/{settingForm.specificationIds.length}개
+                                        <span className="text-[10px] bg-gray-200 text-gray-700 px-1 py-0.5 rounded">
+                                          {specPrices.length}/{settingForm.specificationIds.length}개
                                         </span>
-                                        {assignedPapers.length > 0 && (
-                                          <span className="text-xs text-gray-500">
-                                            {assignedPapers.map(p => `${p?.name}${p?.grammage ? `(${p.grammage}g)` : ''}`).join(', ')}
-                                          </span>
-                                        )}
                                       </div>
                                       <Button
                                         variant="ghost"
                                         size="sm"
-                                        className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                        className="h-5 w-5 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
                                         onClick={() => {
                                           setSettingForm((prev) => {
                                             const newMap = { ...prev.paperPriceGroupMap };
@@ -2434,13 +2431,19 @@ export default function ProductionSettingPage() {
                                           });
                                         }}
                                       >
-                                        <Trash2 className="h-3.5 w-3.5" />
+                                        <Trash2 className="h-3 w-3" />
                                       </Button>
                                     </div>
 
-                                    {/* 단가 입력 방식 선택 (셀렉박스) */}
-                                    <div className="mb-2 p-2 bg-white/50 rounded border">
-                                      <div className="flex items-center gap-2 flex-wrap">
+                                    {assignedPapers.length > 0 && (
+                                      <div className="text-[9px] text-gray-500 mb-1 truncate">
+                                        {assignedPapers.map(p => `${p?.name}`).join(', ')}
+                                      </div>
+                                    )}
+
+                                    {/* 단가 입력 방식 선택 */}
+                                    <div className="mb-1.5 p-1.5 bg-white/50 rounded border text-[10px]">
+                                      <div className="flex items-center gap-1 flex-wrap">
                                         <Select
                                           value={group.pricingMode === 'sqinch' ? 'sqinch' : 'spec'}
                                           onValueChange={(value) => {
@@ -2453,16 +2456,15 @@ export default function ProductionSettingPage() {
                                             }));
                                           }}
                                         >
-                                          <SelectTrigger className="h-7 w-28 text-xs bg-white">
+                                          <SelectTrigger className="h-6 w-20 text-[10px] bg-white">
                                             <SelectValue />
                                           </SelectTrigger>
                                           <SelectContent>
-                                            <SelectItem value="spec">기준규격단가</SelectItem>
-                                            <SelectItem value="sqinch">sq" 단가</SelectItem>
+                                            <SelectItem value="spec">기준규격</SelectItem>
+                                            <SelectItem value="sqinch">sq"</SelectItem>
                                           </SelectContent>
                                         </Select>
 
-                                        {/* 기준규격단가 모드 */}
                                         {group.pricingMode !== 'sqinch' && (
                                           <>
                                             <Select
@@ -2477,28 +2479,24 @@ export default function ProductionSettingPage() {
                                                 }));
                                               }}
                                             >
-                                              <SelectTrigger className="h-7 w-24 text-xs bg-white">
-                                                <SelectValue placeholder="규격선택" />
+                                              <SelectTrigger className="h-6 w-16 text-[10px] bg-white">
+                                                <SelectValue placeholder="규격" />
                                               </SelectTrigger>
                                               <SelectContent>
-                                                {specPrices.length === 0 ? (
-                                                  <SelectItem value="none" disabled>규격을 먼저 선택하세요</SelectItem>
-                                                ) : (
-                                                  specPrices.map((sp) => {
-                                                    const spec = specifications?.find((s) => s.id === sp.specificationId);
-                                                    return (
-                                                      <SelectItem key={sp.specificationId} value={sp.specificationId}>
-                                                        {spec?.name || sp.specificationId}
-                                                      </SelectItem>
-                                                    );
-                                                  })
-                                                )}
+                                                {specPrices.map((sp) => {
+                                                  const spec = specifications?.find((s) => s.id === sp.specificationId);
+                                                  return (
+                                                    <SelectItem key={sp.specificationId} value={sp.specificationId}>
+                                                      {spec?.name}
+                                                    </SelectItem>
+                                                  );
+                                                })}
                                               </SelectContent>
                                             </Select>
                                             <Input
                                               type="number"
-                                              className={cn("h-7 w-24 text-xs bg-white", !group.inkjetBaseSpecId && "opacity-50")}
-                                              placeholder="판매가"
+                                              className="h-6 w-16 text-[10px] bg-white"
+                                              placeholder="단가"
                                               disabled={!group.inkjetBaseSpecId}
                                               value={group.inkjetBaseSpecId ? (specPrices.find(p => p.specificationId === group.inkjetBaseSpecId)?.singleSidedPrice || "") : ""}
                                               onChange={(e) => {
@@ -2527,99 +2525,44 @@ export default function ProductionSettingPage() {
                                                 }));
                                               }}
                                             />
-                                            {/* 기준규격 원가 표시 */}
-                                            {group.inkjetBaseSpecId && (() => {
-                                              const firstPaper = assignedPapers[0];
-                                              const baseSpec = specifications?.find((s) => s.id === group.inkjetBaseSpecId);
-                                              if (!baseSpec) return <span className="text-xs text-gray-400">(규격없음)</span>;
-
-                                              const baseArea = Number(baseSpec.widthInch) * Number(baseSpec.heightInch);
-
-                                              if (firstPaper && firstPaper.basePrice) {
-                                                // rollWidthInch/rollLengthM 또는 rollWidth/rollLength 문자열에서 숫자 추출
-                                                const widthInch = firstPaper.rollWidthInch
-                                                  ? Number(firstPaper.rollWidthInch)
-                                                  : (firstPaper.rollWidth ? parseFloat(firstPaper.rollWidth.replace(/[^0-9.]/g, '')) : 0);
-                                                const lengthM = firstPaper.rollLengthM
-                                                  ? Number(firstPaper.rollLengthM)
-                                                  : (firstPaper.rollLength ? parseFloat(firstPaper.rollLength.replace(/[^0-9.]/g, '')) : 0);
-
-                                                if (widthInch > 0 && lengthM > 0) {
-                                                  const totalSqInch = widthInch * lengthM * 39.37;
-                                                  const costPerSqInch = totalSqInch > 0 ? Number(firstPaper.basePrice) / totalSqInch : 0;
-                                                  const baseCost = Math.round(baseArea * costPerSqInch);
-                                                  return (
-                                                    <span className="text-xs text-orange-500">({baseCost.toLocaleString()}원 원가)</span>
-                                                  );
-                                                }
-                                              }
-                                              return <span className="text-xs text-gray-400">(원가: 용지정보 부족)</span>;
-                                            })()}
                                           </>
                                         )}
 
-                                        {/* sq" 단가 모드 */}
                                         {group.pricingMode === 'sqinch' && (
-                                          <>
-                                            <span className="text-xs font-medium shrink-0">sq" 단가</span>
-                                            <Input
-                                              type="number"
-                                              step="0.01"
-                                              className="h-7 w-24 text-xs bg-white border-blue-200"
-                                              placeholder="판매가"
-                                              value={group.inkjetBasePrice || ""}
-                                              onChange={(e) => {
-                                                const pricePerSqInch = Number(e.target.value);
-                                                setSettingForm((prev) => ({
-                                                  ...prev,
-                                                  priceGroups: prev.priceGroups.map(g => {
-                                                    if (g.id !== group.id) return g;
-                                                    // sq" 가격 입력 시 모든 규격 가격 재계산
-                                                    const newSpecPrices = (g.specPrices || specPrices).map((sp) => {
-                                                      const targetSpec = specifications?.find((s) => s.id === sp.specificationId);
-                                                      if (!targetSpec) return sp;
-                                                      const targetArea = Number(targetSpec.widthInch) * Number(targetSpec.heightInch);
-                                                      const calculatedPrice = targetArea * pricePerSqInch * (sp.weight || 1.0);
-                                                      return { ...sp, singleSidedPrice: Math.max(0, Math.round(calculatedPrice)) };
-                                                    });
-                                                    return { ...g, inkjetBasePrice: pricePerSqInch, specPrices: newSpecPrices };
-                                                  }),
-                                                }));
-                                              }}
-                                            />
-                                            {/* sq" 원가 표시 */}
-                                            {(() => {
-                                              const firstPaper = assignedPapers[0];
-                                              if (firstPaper && firstPaper.basePrice) {
-                                                // rollWidthInch/rollLengthM 또는 rollWidth/rollLength 문자열에서 숫자 추출
-                                                const widthInch = firstPaper.rollWidthInch
-                                                  ? Number(firstPaper.rollWidthInch)
-                                                  : (firstPaper.rollWidth ? parseFloat(firstPaper.rollWidth.replace(/[^0-9.]/g, '')) : 0);
-                                                const lengthM = firstPaper.rollLengthM
-                                                  ? Number(firstPaper.rollLengthM)
-                                                  : (firstPaper.rollLength ? parseFloat(firstPaper.rollLength.replace(/[^0-9.]/g, '')) : 0);
-
-                                                if (widthInch > 0 && lengthM > 0) {
-                                                  const totalSqInch = widthInch * lengthM * 39.37;
-                                                  const costPerSqInch = totalSqInch > 0 ? Number(firstPaper.basePrice) / totalSqInch : 0;
-                                                  return (
-                                                    <span className="text-xs text-orange-500">({costPerSqInch.toFixed(2)}원/sq" 원가)</span>
-                                                  );
-                                                }
-                                              }
-                                              return <span className="text-xs text-gray-400">(원가: 용지정보 부족)</span>;
-                                            })()}
-                                          </>
+                                          <Input
+                                            type="number"
+                                            step="0.01"
+                                            className="h-6 w-20 text-[10px] bg-white"
+                                            placeholder={'sq" 단가'}
+                                            value={group.inkjetBasePrice || ""}
+                                            onChange={(e) => {
+                                              const pricePerSqInch = Number(e.target.value);
+                                              setSettingForm((prev) => ({
+                                                ...prev,
+                                                priceGroups: prev.priceGroups.map(g => {
+                                                  if (g.id !== group.id) return g;
+                                                  const newSpecPrices = (g.specPrices || specPrices).map((sp) => {
+                                                    const targetSpec = specifications?.find((s) => s.id === sp.specificationId);
+                                                    if (!targetSpec) return sp;
+                                                    const targetArea = Number(targetSpec.widthInch) * Number(targetSpec.heightInch);
+                                                    const calculatedPrice = targetArea * pricePerSqInch * (sp.weight || 1.0);
+                                                    return { ...sp, singleSidedPrice: Math.max(0, Math.round(calculatedPrice)) };
+                                                  });
+                                                  return { ...g, inkjetBasePrice: pricePerSqInch, specPrices: newSpecPrices };
+                                                }),
+                                              }));
+                                            }}
+                                          />
                                         )}
                                       </div>
                                     </div>
 
-                                    {/* 규격별 단가 테이블 */}
+                                    {/* 규격별 단가 테이블 - 1열 (세로 목록) */}
                                     <div className="border rounded overflow-hidden bg-white/50">
-                                      <table className="w-full text-xs">
-                                        <thead className="bg-gray-100 sticky top-0">
-                                          <tr className="divide-x divide-gray-200 border-b">
-                                            <th className="px-1 py-1 text-center font-medium w-8">
+                                      <table className="w-full text-[10px]">
+                                        <thead className="bg-gray-100">
+                                          <tr className="border-b">
+                                            <th className="px-1 py-1 text-center w-6">
                                               <input
                                                 type="checkbox"
                                                 className="h-3 w-3"
@@ -2631,14 +2574,12 @@ export default function ProductionSettingPage() {
                                                     priceGroups: prev.priceGroups.map(g => {
                                                       if (g.id !== group.id) return g;
                                                       if (checked) {
-                                                        // 전체 선택: 모든 규격 추가
                                                         const allSpecPrices = settingForm.specificationIds.map((specId) => {
                                                           const existing = (g.specPrices || []).find(sp => sp.specificationId === specId);
                                                           return existing || { specificationId: specId, singleSidedPrice: 0, weight: 1.0 };
                                                         });
                                                         return { ...g, specPrices: allSpecPrices };
                                                       } else {
-                                                        // 전체 해제: 모든 규격 제거
                                                         return { ...g, specPrices: [], inkjetBaseSpecId: "" };
                                                       }
                                                     }),
@@ -2646,13 +2587,12 @@ export default function ProductionSettingPage() {
                                                 }}
                                               />
                                             </th>
-                                            <th className="px-2 py-1 text-center font-medium">규격</th>
-                                            <th className="px-2 py-1 text-center font-medium">면적</th>
-                                            <th className="px-2 py-1 text-center font-medium w-16">가중치</th>
-                                            <th className="px-2 py-1 text-center font-medium">단가</th>
+                                            <th className="px-1 py-1 text-center">규격</th>
+                                            <th className="px-1 py-1 text-center w-12">가중치</th>
+                                            <th className="px-1 py-1 text-center w-16">단가</th>
                                           </tr>
                                         </thead>
-                                        <tbody>
+                                        <tbody className="max-h-[200px] overflow-y-auto">
                                           {[...settingForm.specificationIds]
                                             .map(specId => {
                                               const spec = specifications?.find((s) => s.id === specId);
@@ -2662,19 +2602,13 @@ export default function ProductionSettingPage() {
                                             .sort((a, b) => a.area - b.area)
                                             .map(({ specId }) => {
                                               const spec = specifications?.find((s) => s.id === specId);
-                                              const specArea = spec ? Number(spec.widthInch) * Number(spec.heightInch) : 0;
                                               const priceData = specPrices.find(p => p.specificationId === specId);
                                               const isIncluded = !!priceData;
                                               const isBase = specId === group.inkjetBaseSpecId;
-                                              const selectedPapers = (papersForPricing || []).filter(p =>
-                                                Object.entries(settingForm.paperPriceGroupMap)
-                                                  .some(([pid, gid]) => gid === group.id && pid === p.id)
-                                              );
-                                              const costData = spec ? calculateInkjetTotalCost(selectedPapers, spec) : null;
 
                                               return (
-                                                <tr key={specId} className={cn("divide-x divide-gray-100 border-b", isBase ? "bg-green-50" : "", !isIncluded && "opacity-50")}>
-                                                  <td className="px-1 py-1 text-center">
+                                                <tr key={specId} className={cn("border-b", isBase ? "bg-green-50" : "", !isIncluded && "opacity-50")}>
+                                                  <td className="px-1 py-0.5 text-center">
                                                     <input
                                                       type="checkbox"
                                                       className="h-3 w-3"
@@ -2686,13 +2620,10 @@ export default function ProductionSettingPage() {
                                                           priceGroups: prev.priceGroups.map(g => {
                                                             if (g.id !== group.id) return g;
                                                             if (checked) {
-                                                              // 규격 추가
                                                               const newSpecPrices = [...(g.specPrices || []), { specificationId: specId, singleSidedPrice: 0, weight: 1.0 }];
                                                               return { ...g, specPrices: newSpecPrices };
                                                             } else {
-                                                              // 규격 제거
                                                               const newSpecPrices = (g.specPrices || []).filter(sp => sp.specificationId !== specId);
-                                                              // 기준규격이 제거되면 기준규격도 초기화
                                                               const newBaseSpecId = specId === g.inkjetBaseSpecId ? "" : g.inkjetBaseSpecId;
                                                               return { ...g, specPrices: newSpecPrices, inkjetBaseSpecId: newBaseSpecId };
                                                             }
@@ -2701,80 +2632,61 @@ export default function ProductionSettingPage() {
                                                       }}
                                                     />
                                                   </td>
-                                                  <td className="px-2 py-1 font-mono">
+                                                  <td className={cn("px-1 py-0.5 text-center font-mono", isBase && "text-green-700 font-semibold")}>
                                                     {spec?.name}
-                                                    {isBase && <span className="text-green-600 ml-1">(기준)</span>}
+                                                    {isBase && <span className="text-green-600 ml-0.5 text-[8px]">(기준)</span>}
                                                   </td>
-                                                  <td className="px-2 py-1 text-center text-gray-500">
-                                                    {specArea.toFixed(0)}
+                                                  <td className="px-1 py-0.5 text-center">
+                                                    <Input
+                                                      type="number"
+                                                      step="0.1"
+                                                      className="h-5 w-10 text-[10px] text-center p-0 bg-gray-50"
+                                                      value={isIncluded ? (priceData?.weight ?? 1.0) : ""}
+                                                      disabled={!isIncluded}
+                                                      onChange={(e) => {
+                                                        const newWeight = Number(e.target.value) || 1.0;
+                                                        const sqInchPrice = group.inkjetBasePrice || 0;
+                                                        setSettingForm((prev) => ({
+                                                          ...prev,
+                                                          priceGroups: prev.priceGroups.map(g => {
+                                                            if (g.id !== group.id) return g;
+                                                            const newSpecPrices = (g.specPrices || specPrices).map(sp => {
+                                                              if (sp.specificationId !== specId) return sp;
+                                                              const targetSpec = specifications?.find((s) => s.id === specId);
+                                                              if (!targetSpec || !sqInchPrice) {
+                                                                return { ...sp, weight: newWeight };
+                                                              }
+                                                              const targetArea = Number(targetSpec.widthInch) * Number(targetSpec.heightInch);
+                                                              const calculatedPrice = targetArea * sqInchPrice * newWeight;
+                                                              return { ...sp, weight: newWeight, singleSidedPrice: Math.max(0, Math.round(calculatedPrice)) };
+                                                            });
+                                                            return { ...g, specPrices: newSpecPrices };
+                                                          }),
+                                                        }));
+                                                      }}
+                                                    />
                                                   </td>
-                                                  <td className="px-1 py-1 text-center">
-                                                    {isIncluded ? (
-                                                      <Input
-                                                        type="number"
-                                                        step="0.1"
-                                                        className="h-5 w-14 text-xs text-center p-0.5 bg-gray-50"
-                                                        value={priceData?.weight ?? 1.0}
-                                                        onChange={(e) => {
-                                                          const newWeight = Number(e.target.value) || 1.0;
-                                                          const sqInchPrice = group.inkjetBasePrice || 0;
-                                                          setSettingForm((prev) => ({
-                                                            ...prev,
-                                                            priceGroups: prev.priceGroups.map(g => {
-                                                              if (g.id !== group.id) return g;
-                                                              const newSpecPrices = (g.specPrices || specPrices).map(sp => {
-                                                                if (sp.specificationId !== specId) return sp;
-                                                                // 가중치 변경 시 단가 재계산
-                                                                const targetSpec = specifications?.find((s) => s.id === specId);
-                                                                if (!targetSpec || !sqInchPrice) {
-                                                                  return { ...sp, weight: newWeight };
-                                                                }
-                                                                const targetArea = Number(targetSpec.widthInch) * Number(targetSpec.heightInch);
-                                                                const calculatedPrice = targetArea * sqInchPrice * newWeight;
-                                                                return { ...sp, weight: newWeight, singleSidedPrice: Math.max(0, Math.round(calculatedPrice)) };
-                                                              });
-                                                              return { ...g, specPrices: newSpecPrices };
-                                                            }),
-                                                          }));
-                                                        }}
-                                                      />
-                                                    ) : (
-                                                      <span className="text-gray-400">-</span>
-                                                    )}
-                                                  </td>
-                                                  <td className="px-2 py-1">
-                                                    {isIncluded ? (
-                                                      <div className="flex items-center gap-1">
-                                                        <Input
-                                                          type="number"
-                                                          className={cn("h-5 w-16 text-xs text-right p-0.5", isBase ? "bg-green-100" : "bg-gray-50")}
-                                                          value={priceData?.singleSidedPrice || ""}
-                                                          onChange={(e) => {
-                                                            const value = Number(e.target.value) || 0;
-                                                            setSettingForm((prev) => ({
-                                                              ...prev,
-                                                              priceGroups: prev.priceGroups.map(g => {
-                                                                if (g.id !== group.id) return g;
-                                                                const newSpecPrices = (g.specPrices || specPrices).map(sp =>
-                                                                  sp.specificationId === specId ? { ...sp, singleSidedPrice: value } : sp
-                                                                );
-                                                                return { ...g, specPrices: newSpecPrices };
-                                                              }),
-                                                            }));
-                                                          }}
-                                                          placeholder="0"
-                                                        />
-                                                        {costData && (
-                                                          <span className="text-[9px] text-amber-600 whitespace-nowrap">
-                                                            ({costData.totalMin === costData.totalMax
-                                                              ? formatCurrency(costData.totalMin)
-                                                              : `${formatCurrency(costData.totalMin)}~${formatCurrency(costData.totalMax)}`})
-                                                          </span>
-                                                        )}
-                                                      </div>
-                                                    ) : (
-                                                      <span className="text-gray-400 text-xs">-</span>
-                                                    )}
+                                                  <td className="px-1 py-0.5 text-center">
+                                                    <Input
+                                                      type="number"
+                                                      className={cn("h-5 w-14 text-[10px] text-center p-0", isBase ? "bg-green-100" : "bg-gray-50")}
+                                                      value={isIncluded ? (priceData?.singleSidedPrice || "") : ""}
+                                                      disabled={!isIncluded}
+                                                      onChange={(e) => {
+                                                        const value = Number(e.target.value) || 0;
+                                                        setSettingForm((prev) => ({
+                                                          ...prev,
+                                                          priceGroups: prev.priceGroups.map(g => {
+                                                            if (g.id !== group.id) return g;
+                                                            const newSpecPrices = (g.specPrices || specPrices).map(sp =>
+                                                              sp.specificationId === specId ? { ...sp, singleSidedPrice: value } : sp
+                                                            );
+                                                            return { ...g, specPrices: newSpecPrices };
+                                                          }),
+                                                        }));
+                                                      }}
+                                                      placeholder="0"
+                                                    />
                                                   </td>
                                                 </tr>
                                               );
@@ -2782,7 +2694,6 @@ export default function ProductionSettingPage() {
                                         </tbody>
                                       </table>
                                     </div>
-                                    <p className="text-xs text-gray-400 mt-1">* 체크된 규격만 그룹에 포함됩니다. 기준규격 단가 입력 시 면적 비례로 자동 계산됩니다.</p>
                                   </div>
                                 );
                               })}
@@ -3441,113 +3352,152 @@ export default function ProductionSettingPage() {
 
       {/* 단가 조정 다이얼로그 */}
       <Dialog open={isPriceAdjustDialogOpen} onOpenChange={setIsPriceAdjustDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>단위 맞춤</DialogTitle>
+            <DialogTitle>인디고 단가조정 구간</DialogTitle>
             <DialogDescription>
-              적용할 최소 금액과 반올림 단위를 선택하세요.
+              가격 구간별로 반올림 단위를 설정합니다.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            {/* 구간별 설정 테이블 */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-semibold text-gray-700">가격 구간별 반올림 단위</Label>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-xs"
-                  onClick={() => {
-                    const lastMax = priceAdjustRanges[priceAdjustRanges.length - 1]?.maxPrice || 10000;
-                    setPriceAdjustRanges(prev => [...prev, { maxPrice: lastMax + 10000, adjustment: 100 }]);
-                  }}
-                >
-                  + 구간 추가
-                </Button>
-              </div>
+            {/* 상단 버튼 영역 */}
+            <div className="flex items-center justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={() => {
+                  setPriceAdjustRanges([
+                    { maxPrice: 500, adjustment: 10 },
+                    { maxPrice: 1000, adjustment: 50 },
+                    { maxPrice: Infinity, adjustment: 100 },
+                  ]);
+                }}
+              >
+                초기화
+              </Button>
+              <Button
+                size="sm"
+                className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700"
+                onClick={() => {
+                  const lastMax = priceAdjustRanges.length > 0
+                    ? (priceAdjustRanges[priceAdjustRanges.length - 1].maxPrice === Infinity
+                      ? (priceAdjustRanges[priceAdjustRanges.length - 2]?.maxPrice || 1000) + 1000
+                      : priceAdjustRanges[priceAdjustRanges.length - 1].maxPrice + 1000)
+                    : 1000;
+                  // 마지막 무한 구간 앞에 새 구간 삽입
+                  setPriceAdjustRanges(prev => {
+                    const hasInfinity = prev.some(r => r.maxPrice === Infinity);
+                    if (hasInfinity) {
+                      const withoutInfinity = prev.filter(r => r.maxPrice !== Infinity);
+                      const infinityItem = prev.find(r => r.maxPrice === Infinity)!;
+                      return [...withoutInfinity, { maxPrice: lastMax, adjustment: 100 }, infinityItem];
+                    }
+                    return [...prev, { maxPrice: lastMax, adjustment: 100 }];
+                  });
+                }}
+              >
+                + 구간 추가
+              </Button>
+            </div>
 
-              <div className="border rounded-lg overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 w-28">시작 금액</th>
-                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 w-32">끝 금액</th>
-                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-500">반올림 단위</th>
-                      <th className="px-3 py-2 w-10"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {priceAdjustRanges.map((range, index) => {
-                      const startPrice = index === 0 ? 0 : priceAdjustRanges[index - 1].maxPrice + 1;
-                      return (
-                        <tr key={index} className="bg-white">
-                          <td className="px-3 py-2 text-center">
-                            <span className="text-gray-500 font-mono text-xs">{formatNumber(startPrice)}원</span>
-                          </td>
-                          <td className="px-3 py-2">
+            {/* 구간별 설정 테이블 */}
+            <div className="border rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="px-3 py-2.5 text-center text-xs font-medium text-gray-500 w-12">#</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500">기준 금액 (미만)</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500">반올림 단위</th>
+                    <th className="px-3 py-2.5 text-center text-xs font-medium text-gray-500 w-16">삭제</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {priceAdjustRanges.map((range, index) => {
+                    const isLast = range.maxPrice === Infinity;
+                    return (
+                      <tr key={index} className="bg-white hover:bg-gray-50">
+                        <td className="px-3 py-3 text-center">
+                          <span className="text-gray-600 font-medium">{index + 1}</span>
+                        </td>
+                        <td className="px-3 py-3">
+                          {isLast ? (
+                            <div className="inline-flex items-center px-3 py-1.5 bg-gray-100 rounded-md">
+                              <span className="text-sm text-gray-700">그 이상 모두</span>
+                            </div>
+                          ) : (
                             <Select
                               value={String(range.maxPrice)}
                               onValueChange={(val) => {
                                 setPriceAdjustRanges(prev => prev.map((r, i) => i === index ? { ...r, maxPrice: Number(val) } : r));
                               }}
                             >
-                              <SelectTrigger className="h-8 text-xs w-full">
-                                <span className="truncate">{formatNumber(startPrice)}~{formatNumber(range.maxPrice)}원</span>
+                              <SelectTrigger className="h-9 w-40 text-sm">
+                                <span>{formatNumber(range.maxPrice)}원</span>
                               </SelectTrigger>
                               <SelectContent>
-                                {[1000, 5000, 10000, 20000, 50000, 100000, 500000, 1000000].map((v) => (
+                                {[500, 1000, 2000, 3000, 5000, 10000, 20000, 50000, 100000].map((v) => (
                                   <SelectItem key={v} value={String(v)}>
-                                    {formatNumber(startPrice)}~{formatNumber(v)}원
+                                    {formatNumber(v)}원
                                   </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
-                          </td>
-                          <td className="px-3 py-2">
-                            <div className="flex gap-1 justify-center flex-wrap">
-                              {[10, 50, 100, 1000, 10000].map((unit) => (
-                                <Button
-                                  key={unit}
-                                  variant={range.adjustment === unit ? "default" : "outline"}
-                                  size="sm"
-                                  className={cn(
-                                    "h-7 px-2 text-[10px]",
-                                    range.adjustment === unit ? "bg-indigo-600" : ""
-                                  )}
-                                  onClick={() => {
-                                    setPriceAdjustRanges(prev => prev.map((r, i) => i === index ? { ...r, adjustment: unit } : r));
-                                  }}
-                                >
-                                  {formatNumber(unit)}
-                                </Button>
+                          )}
+                        </td>
+                        <td className="px-3 py-3">
+                          <Select
+                            value={String(range.adjustment)}
+                            onValueChange={(val) => {
+                              setPriceAdjustRanges(prev => prev.map((r, i) => i === index ? { ...r, adjustment: Number(val) } : r));
+                            }}
+                          >
+                            <SelectTrigger className="h-9 w-36 text-sm">
+                              <span>{formatNumber(range.adjustment)}원 단위</span>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {[10, 50, 100, 500, 1000, 10000].map((unit) => (
+                                <SelectItem key={unit} value={String(unit)}>
+                                  {formatNumber(unit)}원 단위
+                                </SelectItem>
                               ))}
-                            </div>
-                          </td>
-                          <td className="px-3 py-2 text-center">
-                            {priceAdjustRanges.length > 1 && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 w-7 p-0 text-gray-400 hover:text-red-500"
-                                onClick={() => {
-                                  setPriceAdjustRanges(prev => prev.filter((_, i) => i !== index));
-                                }}
-                              >
-                                ×
-                              </Button>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                            </SelectContent>
+                          </Select>
+                        </td>
+                        <td className="px-3 py-3 text-center">
+                          {!isLast && priceAdjustRanges.length > 1 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-red-400 hover:text-red-600 hover:bg-red-50"
+                              onClick={() => {
+                                setPriceAdjustRanges(prev => prev.filter((_, i) => i !== index));
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
 
-              <p className="text-xs text-gray-500">
-                * 각 구간의 가격에 해당하는 반올림 단위가 적용됩니다.
-              </p>
+            {/* 현재 설정 요약 */}
+            <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-2.5">
+              <span className="text-sm text-indigo-700 font-medium">현재 설정: </span>
+              <span className="text-sm text-indigo-600">
+                {priceAdjustRanges.map((range, idx) => {
+                  const prevMax = idx === 0 ? 0 : priceAdjustRanges[idx - 1].maxPrice;
+                  if (range.maxPrice === Infinity) {
+                    return `그 이상: ${formatNumber(range.adjustment)}원`;
+                  }
+                  return `${formatNumber(range.maxPrice)}원 미만: ${formatNumber(range.adjustment)}원`;
+                }).join(' / ')}
+              </span>
             </div>
           </div>
 
@@ -3568,6 +3518,6 @@ export default function ProductionSettingPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div >
+    </div>
   );
 }

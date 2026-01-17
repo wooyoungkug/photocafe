@@ -336,6 +336,14 @@ export default function SpecificationsPage() {
     }
   };
 
+  // 앨범 체크박스 변경 핸들러
+  const handleAlbumChange = (checked: boolean) => {
+    setForm({
+      ...form,
+      usageAlbum: checked,
+    });
+  };
+
   // 용도 필터 토글 (배타적: 하나만 선택 가능, 같은 것 클릭 시 해제)
   const toggleUsageFilter = (usage: string) => {
     setUsageFilters((prev) =>
