@@ -81,6 +81,8 @@ const PRICING_TYPE_LABELS: Record<PricingType, string> = {
 // 인디고 규격: 315x467mm (국전지 4절 기준)
 // 국전지 1연 = 500매, 4절이므로 500 * 4 = 2000장
 const INDIGO_SHEETS_PER_REAM = 2000;
+// 인디고 1장 면적 (sq inch): 315mm x 467mm ≈ 12.4" x 18.4" ≈ 228 sq inch
+const INDIGO_SPEC_SQ_INCH = (315 / 25.4) * (467 / 25.4); // ≈ 228
 
 // 업체 타입 라벨
 const VENDOR_TYPE_LABELS: Record<string, string> = {
@@ -182,24 +184,31 @@ const calculateInkjetCost = (papers: Paper[], spec: Specification) => {
   const costs = papers.map(p => {
     let costPerSqInch = 0;
 
-    // 롤지인 경우 (보통 sqm당 가격이나 롤당 가격)
     if (p.unitType === 'sqm') {
       // 1 sqm = 1550 sq inch (약)
-      // 1 m = 39.37 inch, 1 sqm = 1550.0031 sq inch
       const costPerSqm = p.basePrice || 0;
       costPerSqInch = costPerSqm / 1550;
     } else if (p.unitType === 'roll') {
       // 롤 전체 가격 / 롤 전체 면적
       const rollW = Number(p.rollWidthInch) || 0;
-      // rollLengthM -> inch 변환
       const rollL = (Number(p.rollLengthM) || 0) * 39.37;
       const totalArea = rollW * rollL;
       if (totalArea > 0) {
         costPerSqInch = (p.basePrice || 0) / totalArea;
       }
+    } else if (p.unitType === 'sheet') {
+      // 시트지: 장당 가격 / 시트 면적
+      const sheetWInch = (Number(p.sheetWidthMm) || 0) / 25.4;
+      const sheetHInch = (Number(p.sheetHeightMm) || 0) / 25.4;
+      const sheetArea = sheetWInch * sheetHInch;
+      if (sheetArea > 0) {
+        costPerSqInch = (p.basePrice || 0) / sheetArea;
+      }
+    } else if (p.unitType === 'ream') {
+      // 연당 가격: 국전지 1연 = 500장
+      const REAM_TOTAL_SQ_INCH = 666150;
+      costPerSqInch = (p.basePrice || 0) / REAM_TOTAL_SQ_INCH;
     } else {
-      // 시트지 등 기타 단위는 일단 0 처리하거나 기본 로직 적용
-      // 가정: 잉크젯은 주로 sqm단위 아니면 롤단위
       return 0;
     }
 
@@ -274,15 +283,34 @@ const calculateInkjetTotalCost = (papers: Paper[], spec: Specification) => {
     let costPerSqInch = 0;
 
     if (p.unitType === 'sqm') {
+      // ㎡당 가격 -> sq inch당 가격
+      // 1 sqm = 1550.0031 sq inch
       const costPerSqm = p.basePrice || 0;
       costPerSqInch = costPerSqm / 1550;
     } else if (p.unitType === 'roll') {
+      // 롤 전체 가격 / 롤 전체 면적
       const rollW = Number(p.rollWidthInch) || 0;
+      // rollLengthM -> inch 변환
       const rollL = (Number(p.rollLengthM) || 0) * 39.37;
       const totalArea = rollW * rollL;
       if (totalArea > 0) {
         costPerSqInch = (p.basePrice || 0) / totalArea;
       }
+    } else if (p.unitType === 'sheet') {
+      // 시트지: 장당 가격 / 시트 면적
+      // sheetWidthMm, sheetHeightMm -> inch 변환 (1 inch = 25.4mm)
+      const sheetWInch = (Number(p.sheetWidthMm) || 0) / 25.4;
+      const sheetHInch = (Number(p.sheetHeightMm) || 0) / 25.4;
+      const sheetArea = sheetWInch * sheetHInch;
+      if (sheetArea > 0) {
+        costPerSqInch = (p.basePrice || 0) / sheetArea;
+      }
+    } else if (p.unitType === 'ream') {
+      // 연당 가격: 국전지 1연 = 500장, 국전지 규격 788x1091mm
+      // 국전지 면적 in sq inch: (788/25.4) * (1091/25.4) = 31.02 * 42.95 = 1332.3 sq inch
+      // 1연 총 면적 = 1332.3 * 500 = 666,150 sq inch
+      const REAM_TOTAL_SQ_INCH = 666150;
+      costPerSqInch = (p.basePrice || 0) / REAM_TOTAL_SQ_INCH;
     } else {
       return { paper: 0, ink: 0, total: 0 };
     }
@@ -1239,7 +1267,10 @@ export default function ProductionSettingPage() {
         inkjetBasePrice: Number((setting as any).basePricePerSqInch) || (setting as any).inkjetBasePrice || 0,
         inkjetWeightPerSqm: (setting as any).inkjetWeightPerSqm || 0,
         inkjetSpecPrices: inkjetSpecPricesFromDB.length > 0 ? inkjetSpecPricesFromDB : [],
-        priceGroups: (setting as any).priceGroups || [],
+        priceGroups: ((setting as any).priceGroups || []).map((g: any) => ({
+          ...g,
+          pricingMode: g.pricingMode || 'spec',
+        })),
         paperPriceGroupMap: (setting as any).paperPriceGroupMap || {},
         nupPageRanges: nupPageRangesFromDB,
         pageRanges: pageRangesFromDB,
@@ -1769,9 +1800,9 @@ export default function ProductionSettingPage() {
                   </h3>
 
                   <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-                    {/* 1행: 세팅명, 적용단위 */}
+                    {/* 1행: 용지별그룹명, 적용단위 */}
                     <div className="flex items-center gap-3">
-                      <Label className="text-xs font-medium text-gray-500 w-16 shrink-0">세팅명</Label>
+                      <Label className="text-xs font-medium text-gray-500 w-24 shrink-0">용지별그룹명</Label>
                       <Input
                         placeholder="예: 박Color"
                         value={settingForm.settingName}
@@ -1879,9 +1910,9 @@ export default function ProductionSettingPage() {
                     {/* 인디고출력: 단가그룹 설정 + 용지별 그룹 할당 */}
                     {settingForm.printMethod === "indigo" ? (
                       <>
-                        {/* 용지 목록 + 그룹 할당 드롭다운 */}
+                        {/* 용지별그룹 */}
                         <div className="space-y-2">
-                          <Label className="text-sm font-semibold">용지별 그룹 지정</Label>
+                          <Label className="text-sm font-semibold">용지별그룹</Label>
                           <div className="border rounded-lg p-3 max-h-[200px] overflow-y-auto">
                             {!papersForPricing || papersForPricing.length === 0 ? (
                               <p className="text-center text-muted-foreground py-2 text-sm">
@@ -1981,7 +2012,7 @@ export default function ProductionSettingPage() {
                                 onClick={() => setIsPriceAdjustDialogOpen(true)}
                                 disabled={settingForm.priceGroups.length === 0}
                               >
-                                단위 맞춤
+                                단가맞춤
                               </Button>
                               <Button
                                 variant="outline"
@@ -2012,7 +2043,6 @@ export default function ProductionSettingPage() {
                                   }));
                                 }}
                               >
-                                <Plus className="h-4 w-4 mr-1" />
                                 + 용지그룹 추가
                               </Button>
                             </div>
@@ -2047,106 +2077,108 @@ export default function ProductionSettingPage() {
                                     if (up.up === 1) {
                                       return { ...up, [priceField]: value };
                                     }
-                                    // 1up 가격 × 가중치
-                                    const calculated = Math.round(basePrice * up.weight);
-                                    return { ...up, [priceField]: calculated };
+                                    return { ...up, [priceField]: Math.round((basePrice / up.up) * up.weight) };
                                   });
                                 };
 
+                                // 그룹에 할당된 용지들의 평균 원가 계산
+                                const getAvgPaperCost = () => {
+                                  if (!assignedPapers.length || !indigoInk1ColorCost) return null;
+                                  const costs = assignedPapers.map((p: any) => {
+                                    const rollPricePerM = p?.basePrice || 0;
+                                    const rollWidth = p?.rollWidthInch || 13;
+                                    const sqInchPerM = rollWidth * 39.37;
+                                    const pricePerSqInch = rollPricePerM / sqInchPerM;
+                                    return pricePerSqInch;
+                                  });
+                                  return costs.reduce((a, b) => a + b, 0) / costs.length;
+                                };
+
+                                const avgPaperCostPerSqInch = getAvgPaperCost();
+
+                                // Up별 원가 표시용 계산
+                                const getCostDisplay = (priceField: string) => {
+                                  if (!avgPaperCostPerSqInch || !indigoInk1ColorCost) return null;
+                                  const upPrice = upPrices.find(up => up.up === 1);
+                                  if (!upPrice) return null;
+                                  const colorCount = priceField.includes('four') ? 4 : 6;
+                                  const paperCost = Math.round(avgPaperCostPerSqInch * INDIGO_SPEC_SQ_INCH);
+                                  const inkCost = indigoInk1ColorCost * colorCount;
+                                  const sideCost = priceField.includes('Double') ? (paperCost + inkCost) * 2 : paperCost + inkCost;
+                                  return formatNumber(Math.round(sideCost));
+                                };
+
                                 return (
-                                  <div key={group.id} className={cn("rounded-lg p-3 border-2", style.bg, style.border)}>
-                                    <div className="flex items-center justify-between mb-2">
+                                  <div
+                                    key={group.id}
+                                    className={cn(
+                                      "rounded-xl border-2 p-3 space-y-2 shadow-sm",
+                                      style.bg, style.border
+                                    )}
+                                  >
+                                    {/* 그룹 헤더 */}
+                                    <div className="flex items-center justify-between">
                                       <div className="flex items-center gap-2">
-                                        <span className={cn("text-sm font-semibold", style.text)}>
-                                          {style.dot} {style.label}
-                                        </span>
-                                        {assignedPapers.length > 0 && (
-                                          <span className="text-xs text-gray-500">
-                                            {assignedPapers.map(p => `${p?.name}${p?.grammage ? `(${p.grammage}g)` : ''}`).join(', ')}
-                                          </span>
-                                        )}
+                                        <span className="text-xl">{style.dot}</span>
+                                        <span className={cn("font-bold text-base", style.text)}>{style.label} 그룹</span>
+                                        <Badge variant="outline" className="text-xs">
+                                          {assignedPapers.length}개 용지
+                                        </Badge>
                                       </div>
                                       <Button
                                         variant="ghost"
                                         size="sm"
-                                        className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                        className="h-7 w-7 p-0 text-gray-400 hover:text-red-500"
                                         onClick={() => {
-                                          setSettingForm((prev) => {
-                                            const newMap = { ...prev.paperPriceGroupMap };
-                                            Object.keys(newMap).forEach(pid => {
-                                              if (newMap[pid] === group.id) {
-                                                newMap[pid] = null;
-                                              }
-                                            });
-                                            return {
-                                              ...prev,
-                                              priceGroups: prev.priceGroups.filter(g => g.id !== group.id),
-                                              paperPriceGroupMap: newMap,
-                                            };
-                                          });
+                                          setSettingForm((prev) => ({
+                                            ...prev,
+                                            priceGroups: prev.priceGroups.filter(g => g.id !== group.id),
+                                            paperPriceGroupMap: Object.fromEntries(
+                                              Object.entries(prev.paperPriceGroupMap).map(([k, v]) =>
+                                                v === group.id ? [k, null] : [k, v]
+                                              )
+                                            ),
+                                          }));
                                         }}
                                       >
-                                        <Trash2 className="h-3.5 w-3.5" />
+                                        <Trash2 className="h-4 w-4" />
                                       </Button>
                                     </div>
 
-                                    {/* Up별 단가 테이블 */}
-                                    <div className="border rounded-lg overflow-hidden bg-white shadow-sm">
-                                      <table className="w-full text-[10px]">
-                                        <thead className="bg-slate-100 border-b">
-                                          <tr>
-                                            <th className="px-1 py-1 text-center font-semibold text-slate-600">Nup</th>
-                                            <th className="px-0.5 py-1 text-center font-semibold text-slate-600">가중치</th>
-                                            <th className="px-0.5 py-1 text-center font-semibold text-slate-600">4도단</th>
-                                            <th className="px-0.5 py-1 text-center font-semibold text-slate-600">4도양</th>
-                                            <th className="px-0.5 py-1 text-center font-semibold text-slate-600">6도단</th>
-                                            <th className="px-0.5 py-1 text-center font-semibold text-slate-600">6도양</th>
+                                    {/* 할당된 용지 미리보기 */}
+                                    {assignedPapers.length > 0 && (
+                                      <div className="text-xs text-gray-500 truncate">
+                                        {assignedPapers.map((p: any) => p?.name).join(", ")}
+                                      </div>
+                                    )}
+
+                                    {/* Up별 가격 입력 테이블 (간소화) */}
+                                    <div className="rounded-lg border border-gray-200 overflow-hidden">
+                                      <table className="w-full text-xs">
+                                        <thead>
+                                          <tr className="bg-gray-100 border-b border-gray-200">
+                                            <th className="text-center py-1 px-1 font-medium text-gray-600">Up</th>
+                                            <th className="text-center py-1 px-1 font-medium text-gray-400 text-[10px]">가중치</th>
+                                            <th className="text-center py-1 px-1 font-medium text-gray-600">4도단면</th>
+                                            <th className="text-center py-1 px-1 font-medium text-gray-600">4도양면</th>
+                                            <th className="text-center py-1 px-1 font-medium text-gray-600">6도단면</th>
+                                            <th className="text-center py-1 px-1 font-medium text-gray-600">6도양면</th>
                                           </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-slate-100">
+                                        <tbody>
                                           {upPrices.map((upPrice, idx) => {
-                                            // 원가 계산 (용지+잉크)
-                                            const papers = assignedPapers.filter(Boolean) as Paper[];
-                                            const paperCostSingle = papers.length > 0 ? calculateIndigoTotalCost(papers, upPrice.up, false, indigoInk1ColorCost, 4) : null;
-                                            const paperCostDouble = papers.length > 0 ? calculateIndigoTotalCost(papers, upPrice.up, true, indigoInk1ColorCost, 4) : null;
-                                            const paperCost6Single = papers.length > 0 ? calculateIndigoTotalCost(papers, upPrice.up, false, indigoInk1ColorCost, 6) : null;
-                                            const paperCost6Double = papers.length > 0 ? calculateIndigoTotalCost(papers, upPrice.up, true, indigoInk1ColorCost, 6) : null;
-
-                                            const getCostDisplay = (field: string) => {
-                                              if (!indigoInk1ColorCost) return null;
-                                              let cost: { min: number; max: number } | null = null;
-                                              if (field === 'fourColorSinglePrice') cost = paperCostSingle;
-                                              else if (field === 'fourColorDoublePrice') cost = paperCostDouble;
-                                              else if (field === 'sixColorSinglePrice') cost = paperCost6Single;
-                                              else if (field === 'sixColorDoublePrice') cost = paperCost6Double;
-                                              if (!cost) return null;
-                                              return cost.min === cost.max ? formatCurrency(cost.min) : `${formatCurrency(cost.min)}~${formatCurrency(cost.max)}`;
-                                            };
-
+                                            const costDisplay = getCostDisplay('fourColorSinglePrice');
                                             return (
-                                              <tr key={upPrice.up} className={cn(
-                                                "transition-colors",
-                                                idx === 0 ? "bg-amber-50/60" : "hover:bg-slate-50/50"
-                                              )}>
-                                                <td className="px-1 py-0.5 text-center">
-                                                  <span className={cn(
-                                                    "inline-flex items-center justify-center h-6 w-10 text-xs font-semibold rounded",
-                                                    idx === 0 ? "bg-amber-200 text-amber-800" : "bg-slate-100 text-slate-600"
-                                                  )}>
-                                                    {upPrice.up === 1 ? "1up" : `${upPrice.up}up`}
-                                                  </span>
-                                                </td>
-                                                <td className="px-0.5 py-0.5">
-                                                  <div className="flex justify-center">
+                                              <tr key={upPrice.up} className={cn("border-b border-gray-100 last:border-0", idx === 0 && "bg-amber-50/50")}>
+                                                <td className="text-center py-0.5 px-0.5 font-medium text-indigo-600">{upPrice.up}up</td>
+                                                <td className="text-center px-0.5 py-0.5">
+                                                  <div className="relative">
                                                     <Input
                                                       type="number"
                                                       step="0.1"
-                                                      className={cn(
-                                                        "h-7 w-12 text-xs text-center rounded [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
-                                                        idx === 0
-                                                          ? "bg-slate-200 text-slate-400 border-slate-300 cursor-not-allowed"
-                                                          : "bg-white border-slate-200 hover:border-indigo-300 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
-                                                      )}
+                                                      min="0.1"
+                                                      max="5"
+                                                      className="h-8 w-12 text-center text-[11px] bg-gray-50 border-gray-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                                       value={upPrice.weight || ""}
                                                       disabled={upPrice.up === 1}
                                                       onChange={(e) => {
@@ -2328,7 +2360,7 @@ export default function ProductionSettingPage() {
                                 onClick={() => setIsPriceAdjustDialogOpen(true)}
                                 disabled={settingForm.priceGroups.length === 0}
                               >
-                                단위 맞춤
+                                단가맞춤
                               </Button>
                               <Button
                                 variant="outline"
@@ -2364,12 +2396,12 @@ export default function ProductionSettingPage() {
                                         specPrices: initialSpecPrices,
                                         inkjetBaseSpecId: "",
                                         inkjetBasePrice: 0,
+                                        pricingMode: 'spec' as const,
                                       },
                                     ],
                                   }));
                                 }}
                               >
-                                <Plus className="h-4 w-4 mr-1" />
                                 + 용지그룹 추가
                               </Button>
                             </div>
@@ -2521,34 +2553,109 @@ export default function ProductionSettingPage() {
                                                 }));
                                               }}
                                             />
+                                            {/* 원가 표시 */}
+                                            {(() => {
+                                              // 기준규격이 선택되지 않으면 첫 번째 규격 사용
+                                              const baseSpec = group.inkjetBaseSpecId
+                                                ? specifications?.find((s) => s.id === group.inkjetBaseSpecId)
+                                                : specifications?.find((s) => s.id === specPrices[0]?.specificationId);
+                                              if (!baseSpec) return null;
+
+                                              // 원가 계산에 사용할 용지 결정:
+                                              // 1. 그룹에 할당된 용지가 있으면 사용
+                                              // 2. 없으면 settingForm.paperIds로 선택된 용지 사용
+                                              // 3. 그것도 없으면 전체 papersForPricing 사용
+                                              let papersToUse: Paper[] = [];
+                                              if (assignedPapers.length > 0) {
+                                                papersToUse = assignedPapers as Paper[];
+                                              } else if (settingForm.paperIds.length > 0) {
+                                                papersToUse = settingForm.paperIds
+                                                  .map(pid => papersForPricing?.find(p => p.id === pid))
+                                                  .filter(Boolean) as Paper[];
+                                              } else if (papersForPricing && papersForPricing.length > 0) {
+                                                papersToUse = papersForPricing;
+                                              }
+
+                                              if (papersToUse.length === 0) return null;
+
+                                              const costInfo = calculateInkjetTotalCost(papersToUse, baseSpec);
+                                              if (!costInfo) return null;
+                                              const costDisplay = costInfo.totalMin === costInfo.totalMax
+                                                ? formatNumber(costInfo.totalMin)
+                                                : `${formatNumber(costInfo.totalMin)}~${formatNumber(costInfo.totalMax)}`;
+                                              return (
+                                                <span className="text-[9px] text-amber-600 whitespace-nowrap">
+                                                  (원가:{costDisplay})
+                                                </span>
+                                              );
+                                            })()}
                                           </>
                                         )}
 
                                         {group.pricingMode === 'sqinch' && (
-                                          <Input
-                                            type="number"
-                                            step="0.01"
-                                            className="h-6 w-20 text-[10px] bg-white"
-                                            placeholder={'sq" 단가'}
-                                            value={group.inkjetBasePrice || ""}
-                                            onChange={(e) => {
-                                              const pricePerSqInch = Number(e.target.value);
-                                              setSettingForm((prev) => ({
-                                                ...prev,
-                                                priceGroups: prev.priceGroups.map(g => {
-                                                  if (g.id !== group.id) return g;
-                                                  const newSpecPrices = (g.specPrices || specPrices).map((sp) => {
-                                                    const targetSpec = specifications?.find((s) => s.id === sp.specificationId);
-                                                    if (!targetSpec) return sp;
-                                                    const targetArea = Number(targetSpec.widthInch) * Number(targetSpec.heightInch);
-                                                    const calculatedPrice = targetArea * pricePerSqInch * (sp.weight || 1.0);
-                                                    return { ...sp, singleSidedPrice: Math.max(0, Math.round(calculatedPrice)) };
-                                                  });
-                                                  return { ...g, inkjetBasePrice: pricePerSqInch, specPrices: newSpecPrices };
-                                                }),
-                                              }));
-                                            }}
-                                          />
+                                          <>
+                                            <Input
+                                              type="number"
+                                              step="0.01"
+                                              className="h-6 w-20 text-[10px] bg-white"
+                                              placeholder={'sq" 단가'}
+                                              value={group.inkjetBasePrice || ""}
+                                              onChange={(e) => {
+                                                const pricePerSqInch = Number(e.target.value);
+                                                setSettingForm((prev) => ({
+                                                  ...prev,
+                                                  priceGroups: prev.priceGroups.map(g => {
+                                                    if (g.id !== group.id) return g;
+                                                    const newSpecPrices = (g.specPrices || specPrices).map((sp) => {
+                                                      const targetSpec = specifications?.find((s) => s.id === sp.specificationId);
+                                                      if (!targetSpec) return sp;
+                                                      const targetArea = Number(targetSpec.widthInch) * Number(targetSpec.heightInch);
+                                                      const calculatedPrice = targetArea * pricePerSqInch * (sp.weight || 1.0);
+                                                      return { ...sp, singleSidedPrice: Math.max(0, Math.round(calculatedPrice)) };
+                                                    });
+                                                    return { ...g, inkjetBasePrice: pricePerSqInch, specPrices: newSpecPrices };
+                                                  }),
+                                                }));
+                                              }}
+                                            />
+                                            {/* 원가 표시 (sq" 모드) */}
+                                            {(() => {
+                                              // 첫 번째 규격을 기준으로 원가 계산
+                                              const firstSpecId = specPrices[0]?.specificationId || settingForm.specificationIds[0];
+                                              const firstSpec = specifications?.find((s) => s.id === firstSpecId);
+                                              if (!firstSpec) return null;
+
+                                              // 원가 계산에 사용할 용지 결정
+                                              let papersToUse: Paper[] = [];
+                                              if (assignedPapers.length > 0) {
+                                                papersToUse = assignedPapers as Paper[];
+                                              } else if (settingForm.paperIds.length > 0) {
+                                                papersToUse = settingForm.paperIds
+                                                  .map(pid => papersForPricing?.find(p => p.id === pid))
+                                                  .filter(Boolean) as Paper[];
+                                              } else if (papersForPricing && papersForPricing.length > 0) {
+                                                papersToUse = papersForPricing;
+                                              }
+
+                                              if (papersToUse.length === 0) return null;
+
+                                              const costInfo = calculateInkjetTotalCost(papersToUse, firstSpec);
+                                              if (!costInfo) return null;
+                                              // sq" 당 원가 계산
+                                              const specArea = Number(firstSpec.widthInch) * Number(firstSpec.heightInch);
+                                              if (specArea <= 0) return null;
+                                              const costPerSqInchMin = costInfo.totalMin / specArea;
+                                              const costPerSqInchMax = costInfo.totalMax / specArea;
+                                              const costDisplay = costPerSqInchMin === costPerSqInchMax
+                                                ? costPerSqInchMin.toFixed(2)
+                                                : `${costPerSqInchMin.toFixed(2)}~${costPerSqInchMax.toFixed(2)}`;
+                                              return (
+                                                <span className="text-[9px] text-amber-600 whitespace-nowrap">
+                                                  (원가:{costDisplay})
+                                                </span>
+                                              );
+                                            })()}
+                                          </>
                                         )}
                                       </div>
                                     </div>
@@ -2699,7 +2806,7 @@ export default function ProductionSettingPage() {
 
                         {/* 용지 목록 + 그룹 할당 드롭다운 */}
                         <div className="space-y-2">
-                          <Label className="text-sm font-semibold">용지별 그룹 지정</Label>
+                          <Label className="text-sm font-semibold">용지별그룹명</Label>
                           <div className="border rounded-lg p-3 max-h-[200px] overflow-y-auto">
                             {!papersForPricing || papersForPricing.length === 0 ? (
                               <p className="text-center text-muted-foreground py-2 text-sm">

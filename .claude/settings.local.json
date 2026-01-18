@@ -115,7 +115,12 @@
       "Bash(\"C:/Program Files/PostgreSQL/16/bin/pg_dump.exe\" -h 192.168.0.67 -p 5433 -U postgres -d postgres -F c -f C:/dev/printing114/backup_prod.dump)",
       "Bash(\"C:/Program Files/PostgreSQL/16/bin/pg_dump.exe\" -h localhost -p 5432 -U postgres -d printing_erp -F c -f C:/dev/printing114/backup_local.dump)",
       "Bash(PGPASSWORD=postgres \"C:/Program Files/PostgreSQL/16/bin/pg_dump.exe\":*)",
-      "Bash(cmd //c \"taskkill /PID 13384 /F\")"
+      "Bash(cmd //c \"taskkill /PID 13384 /F\")",
+      "Bash(cmd //c \"dir /ad C:\\\\Users\\\\WOO\\\\ 2>nul\")",
+      "Bash(cmd //c \"dir C:\\\\Users\\\\WOO\\\\SynologyDrive\"\")",
+      "Bash(cmd //c \"taskkill /F /PID 12264\")",
+      "Bash(cmd //c \"taskkill /F /PID 24256\")",
+      "Bash(cmd //c \"taskkill /F /IM node.exe\")"
     ]
   }
 }

@@ -57,13 +57,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
   // SSR 중에도 children을 렌더링하되, 클라이언트에서 hydration 후 정상 동작
   // 로딩 스피너를 보여주는 대신 바로 children 렌더링 (깜빡임 감소)
   if (!mounted) {
-    // SSR에서는 children을 그대로 렌더링하여 초기 로딩 속도 향상
+    // SSR에서는 Toaster(포털 기반)를 제외하여 hydration 불일치 방지
     return (
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
           <TooltipProvider delayDuration={300}>
             {children}
-            <Toaster />
           </TooltipProvider>
         </QueryClientProvider>
       </ErrorBoundary>

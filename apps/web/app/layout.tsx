@@ -25,7 +25,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ko" suppressHydrationWarning>
+    <html lang="ko" translate="no" className="notranslate" suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
       </head>
