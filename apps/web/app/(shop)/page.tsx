@@ -158,6 +158,28 @@ export default function HomePage() {
         )
       ))}
 
+      {/* Tarot Promotion Section */}
+      <section className="bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 text-white">
+        <div className="container mx-auto px-4 py-16">
+          <div className="max-w-3xl mx-auto text-center">
+            <div className="text-6xl mb-6">🔮</div>
+            <h2 className="text-2xl md:text-3xl font-bold mb-4">
+              오늘의 타로점으로 하루를 시작하세요
+            </h2>
+            <p className="text-purple-200 mb-8 text-lg leading-relaxed">
+              타로 카드가 전하는 오늘의 메시지를 받아보세요.<br />
+              당신에게 필요한 조언과 통찰을 얻어보세요.
+            </p>
+            <Link href="/tarot">
+              <Button size="lg" className="bg-white text-purple-900 hover:bg-purple-50 font-semibold px-8">
+                <Sparkles className="mr-2 h-5 w-5" />
+                타로점 보러가기
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="bg-gray-900 text-white">
         <div className="container mx-auto px-4 py-16 text-center">
