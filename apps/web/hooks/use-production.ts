@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
 // 가격 계산 방식 타입
-export type PricingType = 'paper_output_spec' | 'nup_page_range' | 'binding_page' | 'finishing_qty' | 'finishing_page';
+export type PricingType = 'paper_output_spec' | 'nup_page_range' | 'finishing_spec_nup' | 'binding_page' | 'finishing_qty' | 'finishing_page';
 
 export interface PricingTypeOption {
   value: PricingType;

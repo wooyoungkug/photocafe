@@ -64,7 +64,7 @@ function LoginForm() {
     <Card className="w-full max-w-md shadow-lg">
       <CardHeader className="space-y-1 text-center">
         <Link href="/" className="inline-block mb-4">
-          <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center mx-auto">
+          <div className="w-12 h-12 bg-[#E4007F] rounded-lg flex items-center justify-center mx-auto">
             <span className="text-white font-bold text-2xl">P</span>
           </div>
         </Link>

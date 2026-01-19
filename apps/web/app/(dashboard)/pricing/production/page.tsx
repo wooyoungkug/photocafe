@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import {
   Plus,
   ChevronDown,
+  ChevronUp,
   ChevronRight,
   Folder,
   FolderOpen,
@@ -72,6 +73,7 @@ const formatNumber = (num: number | string | undefined | null): string => {
 const PRICING_TYPE_LABELS: Record<PricingType, string> = {
   paper_output_spec: "[출력전용] 용지별출력단가/1p가격",
   nup_page_range: "[제본전용] 구간별 Nup/1p가격",
+  finishing_spec_nup: "[후가공전용] 규격별 Nup/1p단가",
   binding_page: "[제본전용] 제본 페이지당",
   finishing_qty: "[후가공] 수량당",
   finishing_page: "[후가공] 페이지당",
@@ -133,6 +135,51 @@ const getNextAvailableColor = (usedColors: PriceGroupColor[]): PriceGroupColor |
 
 // 고유 ID 생성
 const generateGroupId = () => `pg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+// Nup 값 목록 및 정렬 순서 (큰 면적 순: 1++up > 1+up > 1up > 2up > 4up > 8up)
+const NUP_ORDER = ['1++up', '1+up', '1up', '2up', '4up', '8up'] as const;
+type NupValue = typeof NUP_ORDER[number];
+
+// 규격을 Nup 그룹으로 묶어서 반환하는 헬퍼 함수
+// 각 그룹의 대표 규격 1개만 UI에 표시하고, 선택 시 같은 Nup의 모든 규격이 함께 선택됨
+const groupSpecificationsByNup = (specs: Specification[]): Map<string, Specification[]> => {
+  const nupGroups = new Map<string, Specification[]>();
+
+  specs.forEach(spec => {
+    if (!spec.nup) return;
+    const nup = spec.nup;
+    if (!nupGroups.has(nup)) {
+      nupGroups.set(nup, []);
+    }
+    nupGroups.get(nup)!.push(spec);
+  });
+
+  // Nup 순서대로 정렬된 Map 반환
+  const sortedGroups = new Map<string, Specification[]>();
+  NUP_ORDER.forEach(nup => {
+    if (nupGroups.has(nup)) {
+      sortedGroups.set(nup, nupGroups.get(nup)!);
+    }
+  });
+  // NUP_ORDER에 없는 nup 값도 추가
+  nupGroups.forEach((specs, nup) => {
+    if (!sortedGroups.has(nup)) {
+      sortedGroups.set(nup, specs);
+    }
+  });
+
+  return sortedGroups;
+};
+
+// Nup 그룹의 대표 규격명 (포함된 규격들의 이름 나열)
+const getNupGroupLabel = (specs: Specification[]): string => {
+  if (specs.length === 0) return '';
+  if (specs.length === 1) return specs[0].name;
+  // 규격명 최대 3개까지 표시, 나머지는 +N개로 표시
+  const names = specs.map(s => s.name).slice(0, 3);
+  const remaining = specs.length - 3;
+  return remaining > 0 ? `${names.join(', ')} 외 ${remaining}개` : names.join(', ');
+};
 
 // 숫자 포맷
 const formatCurrency = (num: number) => {
@@ -272,31 +319,56 @@ const calculateIndigoTotalCost = (
 
 // 잉크젯 총 원가 계산 (용지 + 잉크)
 // 잉크 원가 = 용지 원가 × 1.5
-const calculateInkjetTotalCost = (papers: Paper[], spec: Specification) => {
+const calculateInkjetTotalCost = (papers: Paper[], spec: Specification): { paperMin: number; paperMax: number; inkMin: number; inkMax: number; totalMin: number; totalMax: number; debug?: string } | null => {
   if (!papers.length || !spec) return null;
 
   const widthInch = Number(spec.widthInch) || 0;
   const heightInch = Number(spec.heightInch) || 0;
   const specAreaSqInch = widthInch * heightInch;
 
+  if (specAreaSqInch <= 0) {
+    console.log('[원가계산] 규격 면적이 0:', { spec: spec.name, widthInch, heightInch });
+    return null;
+  }
+
   const costs = papers.map(p => {
     let costPerSqInch = 0;
+    let debugInfo = '';
 
-    if (p.unitType === 'sqm') {
+    // paperType이 roll이면 롤지로 판단 (unitType보다 우선)
+    const isRollPaper = p.paperType === 'roll';
+    const effectiveType = isRollPaper ? 'roll' : (p.unitType || 'sheet');
+
+    if (effectiveType === 'sqm') {
       // ㎡당 가격 -> sq inch당 가격
       // 1 sqm = 1550.0031 sq inch
       const costPerSqm = p.basePrice || 0;
       costPerSqInch = costPerSqm / 1550;
-    } else if (p.unitType === 'roll') {
+      debugInfo = `sqm: ${costPerSqm}/1550=${costPerSqInch.toFixed(4)}`;
+    } else if (effectiveType === 'roll') {
       // 롤 전체 가격 / 롤 전체 면적
-      const rollW = Number(p.rollWidthInch) || 0;
+      // rollWidthInch가 null이면 rollWidth 문자열에서 파싱 (예: "24\"" -> 24)
+      let rollW = Number(p.rollWidthInch) || 0;
+      if (rollW === 0 && p.rollWidth) {
+        const match = String(p.rollWidth).match(/(\d+(?:\.\d+)?)/);
+        if (match) rollW = parseFloat(match[1]);
+      }
+      // rollLengthM이 null이면 rollLength 문자열에서 파싱 (예: "30m" -> 30)
+      let rollLengthM = Number(p.rollLengthM) || 0;
+      if (rollLengthM === 0 && p.rollLength) {
+        const match = String(p.rollLength).match(/(\d+(?:\.\d+)?)/);
+        if (match) rollLengthM = parseFloat(match[1]);
+      }
       // rollLengthM -> inch 변환
-      const rollL = (Number(p.rollLengthM) || 0) * 39.37;
+      const rollL = rollLengthM * 39.37;
       const totalArea = rollW * rollL;
       if (totalArea > 0) {
         costPerSqInch = (p.basePrice || 0) / totalArea;
+        debugInfo = `roll: ${p.basePrice}/(${rollW}"*${rollLengthM}m=${rollL.toFixed(0)}")=${costPerSqInch.toFixed(4)}`;
+      } else {
+        debugInfo = `roll: 면적0 (rollW=${rollW}", rollL=${rollLengthM}m, raw: ${p.rollWidth}/${p.rollLength})`;
       }
-    } else if (p.unitType === 'sheet') {
+    } else if (effectiveType === 'sheet') {
       // 시트지: 장당 가격 / 시트 면적
       // sheetWidthMm, sheetHeightMm -> inch 변환 (1 inch = 25.4mm)
       const sheetWInch = (Number(p.sheetWidthMm) || 0) / 25.4;
@@ -304,24 +376,36 @@ const calculateInkjetTotalCost = (papers: Paper[], spec: Specification) => {
       const sheetArea = sheetWInch * sheetHInch;
       if (sheetArea > 0) {
         costPerSqInch = (p.basePrice || 0) / sheetArea;
+        debugInfo = `sheet: ${p.basePrice}/(${sheetWInch.toFixed(1)}*${sheetHInch.toFixed(1)})=${costPerSqInch.toFixed(4)}`;
+      } else {
+        debugInfo = `sheet: 면적0 (sheetW=${p.sheetWidthMm}mm, sheetH=${p.sheetHeightMm}mm)`;
       }
-    } else if (p.unitType === 'ream') {
+    } else if (effectiveType === 'ream') {
       // 연당 가격: 국전지 1연 = 500장, 국전지 규격 788x1091mm
       // 국전지 면적 in sq inch: (788/25.4) * (1091/25.4) = 31.02 * 42.95 = 1332.3 sq inch
       // 1연 총 면적 = 1332.3 * 500 = 666,150 sq inch
       const REAM_TOTAL_SQ_INCH = 666150;
       costPerSqInch = (p.basePrice || 0) / REAM_TOTAL_SQ_INCH;
+      debugInfo = `ream: ${p.basePrice}/666150=${costPerSqInch.toFixed(6)}`;
     } else {
-      return { paper: 0, ink: 0, total: 0 };
+      debugInfo = `unknown type: ${effectiveType}`;
+      console.log('[원가계산] 알 수 없는 타입:', { paper: p.name, paperType: p.paperType, unitType: p.unitType, effectiveType });
+      return { paper: 0, ink: 0, total: 0, debug: debugInfo };
     }
 
     const paperCost = specAreaSqInch * costPerSqInch;
     const inkCost = paperCost * 1.5; // 잉크 원가 = 용지 원가 × 1.5
-    return { paper: paperCost, ink: inkCost, total: paperCost + inkCost };
+
+    console.log(`[원가계산] ${p.name}: ${debugInfo} → 용지=${paperCost.toFixed(0)}원, 잉크=${inkCost.toFixed(0)}원, 총=${(paperCost + inkCost).toFixed(0)}원`);
+
+    return { paper: paperCost, ink: inkCost, total: paperCost + inkCost, debug: debugInfo };
   });
 
   const validCosts = costs.filter(c => c.total > 0);
-  if (!validCosts.length) return null;
+  if (!validCosts.length) {
+    console.log('[원가계산] 유효한 원가 없음:', costs.map(c => c.debug).join(', '));
+    return null;
+  }
 
   const paperMin = Math.round(Math.min(...validCosts.map(c => c.paper)));
   const paperMax = Math.round(Math.max(...validCosts.map(c => c.paper)));
@@ -352,6 +436,7 @@ function TreeNode({
   toggleExpand,
   selectedGroupId,
   onSelectGroup,
+  onMoveGroup,
   level = 0,
 }: {
   group: ProductionGroup;
@@ -359,95 +444,150 @@ function TreeNode({
   toggleExpand: (id: string) => void;
   selectedGroupId: string | null;
   onSelectGroup: (group: ProductionGroup) => void;
+  onMoveGroup: (id: string, direction: "up" | "down") => void;
   level?: number;
 }) {
   const isExpanded = expandedIds.has(group.id);
   const hasChildren = group.children && group.children.length > 0;
   const hasSettings = group.settings && group.settings.length > 0;
   const isSelected = selectedGroupId === group.id;
-  const isParent = group.depth === 1;
+  const depth = group.depth || 1;
+  const isLeaf = depth === 3; // 소분류 (설정 가능한 최하위)
   const settingsCount = group.settings?.length || 0;
 
+  // 뱃지 스타일 및 라벨
+  const getDepthLabel = () => {
+    if (depth === 1) return "대분류";
+    if (depth === 2) return "중분류";
+    return "소분류";
+  };
+
+  const getBadgeStyle = () => {
+    if (depth === 1) return "bg-indigo-600 text-white shadow-sm";
+    if (depth === 2) return "bg-violet-100 text-violet-600 border border-violet-200";
+    return "bg-slate-100 text-slate-500 border border-slate-200";
+  };
+
   return (
-    <div>
+    <div className="relative">
+      {/* 계층 구조 연결선 (소분류일 경우) */}
+      {level > 0 && (
+        <div
+          className="absolute left-[-12px] top-0 bottom-0 w-px bg-gray-100"
+          style={{ height: '100%' }}
+        />
+      )}
+
       <div
         className={cn(
-          "flex items-center gap-2 py-2.5 px-3 rounded-lg cursor-pointer transition-all",
+          "group flex items-center gap-2 py-1.5 px-2 rounded-lg cursor-pointer transition-all duration-200 border",
           isSelected
-            ? "bg-indigo-50 border border-indigo-200 shadow-sm"
-            : "hover:bg-gray-50 border border-transparent",
-          isParent ? "font-medium" : "font-normal"
+            ? "bg-indigo-50 border-indigo-200 shadow-sm"
+            : "hover:bg-gray-50 border-transparent hover:border-gray-100"
         )}
-        style={{ marginLeft: `${level * 16}px` }}
+        style={{ marginLeft: `${level * 24}px` }} // 들여쓰기 증가
         onClick={() => onSelectGroup(group)}
       >
         {/* 확장 버튼 */}
-        {hasChildren ? (
-          <button
-            className="p-0.5 rounded hover:bg-gray-200 transition-colors"
-            onClick={(e) => {
+        <div
+          className={cn(
+            "flex items-center justify-center w-6 h-6 rounded-md transition-colors",
+            hasChildren ? "hover:bg-black/5 cursor-pointer" : "pointer-events-none"
+          )}
+          onClick={(e) => {
+            if (hasChildren) {
               e.stopPropagation();
               toggleExpand(group.id);
-            }}
-          >
-            {isExpanded ? (
-              <ChevronDown className="h-4 w-4 text-gray-500" />
+            }
+          }}
+        >
+          {hasChildren && (
+            isExpanded ? (
+              <ChevronDown className="h-3.5 w-3.5 text-gray-500" />
             ) : (
-              <ChevronRight className="h-4 w-4 text-gray-400" />
-            )}
-          </button>
-        ) : (
-          <span className="w-5" />
-        )}
+              <ChevronRight className="h-3.5 w-3.5 text-gray-400 group-hover:text-gray-600" />
+            )
+          )}
+        </div>
 
         {/* 폴더 아이콘 */}
-        {isExpanded ? (
-          <FolderOpen
-            className={cn(
-              "h-4 w-4 shrink-0",
-              isParent ? "text-indigo-500" : "text-violet-500"
-            )}
-          />
-        ) : (
-          <Folder
-            className={cn(
-              "h-4 w-4 shrink-0",
-              isParent ? "text-indigo-400" : "text-violet-400"
-            )}
-          />
-        )}
-
-        {/* 이름 */}
-        <span className={cn(
-          "flex-1 truncate",
-          isSelected ? "text-indigo-900" : "text-gray-700"
+        <div className={cn(
+          "flex items-center justify-center w-6 h-6 rounded-md shrink-0 transition-colors",
+          isSelected
+            ? (depth === 1 ? "bg-indigo-100 text-indigo-600" : "bg-white text-indigo-500 shadow-sm border border-indigo-100")
+            : (depth === 1 ? "bg-gray-100 text-gray-500 group-hover:bg-white group-hover:shadow-sm" : "bg-transparent text-gray-400 group-hover:text-gray-500")
         )}>
-          {group.name}
-        </span>
-
-        {/* 설정 카운트 (소분류만) */}
-        {!isParent && settingsCount > 0 && (
-          <span className="text-xs text-gray-400 tabular-nums">
-            {settingsCount}
-          </span>
-        )}
-
-        {/* 대분류/소분류 뱃지 */}
-        <span
-          className={cn(
-            "text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0",
-            isParent
-              ? "bg-indigo-100 text-indigo-600"
-              : "bg-violet-100 text-violet-600"
+          {isExpanded ? (
+            <FolderOpen className="h-4 w-4" />
+          ) : (
+            <Folder className="h-4 w-4" />
           )}
-        >
-          {isParent ? "대분류" : "소분류"}
-        </span>
+        </div>
+
+        {/* 이름 및 정보 */}
+        <div className="flex-1 min-w-0 flex flex-col justify-center">
+          <div className="flex items-center gap-2">
+            <span className={cn(
+              "truncate font-medium transition-colors",
+              isSelected
+                ? "text-indigo-900"
+                : "text-gray-700 group-hover:text-gray-900",
+              depth === 1 ? "text-sm" : "text-[13px]"
+            )}>
+              {group.name}
+              {hasChildren && (
+                <span className="ml-1.5 text-[11px] text-gray-400 font-normal">
+                  {group.children?.length}
+                </span>
+              )}
+            </span>
+
+            {/* 뱃지 */}
+            {/* 뱃지 제거됨 */}
+          </div>
+
+          {/* 하단 메타 정보 (설정 개수 등 - 소분류만) */}
+          {isLeaf && (
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                <Settings2 className="w-2.5 h-2.5" />
+                {settingsCount}개 설정
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* 순서 이동 버튼 (호버 시 표시) */}
+        <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+          <button
+            className="p-1 rounded-sm hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              // @ts-ignore
+              onMoveGroup(group.id, "up");
+            }}
+            title="위로 이동"
+          >
+            <ArrowUp className="w-3 h-3" />
+          </button>
+          <button
+            className="p-1 rounded-sm hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              // @ts-ignore
+              onMoveGroup(group.id, "down");
+            }}
+            title="아래로 이동"
+          >
+            <ArrowDown className="w-3 h-3" />
+          </button>
+        </div>
       </div>
 
       {/* 하위 그룹 */}
       {isExpanded && hasChildren && (
-        <div className="mt-0.5">
+        <div className="mt-0.5 relative">
+
           {group.children?.map((child) => (
             <TreeNode
               key={child.id}
@@ -456,6 +596,7 @@ function TreeNode({
               toggleExpand={toggleExpand}
               selectedGroupId={selectedGroupId}
               onSelectGroup={onSelectGroup}
+              onMoveGroup={onMoveGroup}
               level={level + 1}
             />
           ))}
@@ -713,6 +854,9 @@ export default function ProductionSettingPage() {
   const [editingSetting, setEditingSetting] = useState<ProductionSetting | null>(null);
   const [deletingItem, setDeletingItem] = useState<{ type: "group" | "setting"; item: any } | null>(null);
   const [parentGroupId, setParentGroupId] = useState<string | null>(null);
+
+  // 규격선택 펼치기 상태
+  const [isSpecSelectorExpanded, setIsSpecSelectorExpanded] = useState(false);
 
   // 단가 조정 다이얼로그 상태
   const [isPriceAdjustDialogOpen, setIsPriceAdjustDialogOpen] = useState(false);
@@ -1109,6 +1253,15 @@ export default function ProductionSettingPage() {
       if (next.has(id)) {
         next.delete(id);
       } else {
+        // 아코디언 효과: 최상위 그룹을 펼칠 때 다른 최상위 그룹은 접음
+        const isTopLevel = groupTree?.some(g => g.id === id);
+        if (isTopLevel) {
+          groupTree?.forEach(g => {
+            if (g.id !== id && next.has(g.id)) {
+              next.delete(g.id);
+            }
+          });
+        }
         next.add(id);
       }
       return next;
@@ -1206,8 +1359,8 @@ export default function ProductionSettingPage() {
           weight: p.weight ? Number(p.weight) : 1,
         }));
 
-      // prices 배열에서 구간별 Nup/1p가격 변환 (nup_page_range용)
-      const nupPageRangesFromDB = setting.pricingType === "nup_page_range"
+      // prices 배열에서 구간별 Nup/1p가격 변환 (nup_page_range, finishing_spec_nup용)
+      const nupPageRangesFromDB = (setting.pricingType === "nup_page_range" || setting.pricingType === "finishing_spec_nup")
         ? prices
           .filter((p: any) => p.specificationId)
           .map((p: any) => {
@@ -1319,8 +1472,17 @@ export default function ProductionSettingPage() {
 
   const handleSaveSetting = async () => {
     try {
-      // 백엔드 DTO에서 허용하지 않는 필드 제외
-      const { specUsageType, ...formData } = settingForm;
+      const formData = settingForm;
+
+      // 필수값 검증: 용지별그룹명 (settingName)
+      if (!formData.settingName || formData.settingName.trim() === "") {
+        toast({
+          title: "필수 입력 누락",
+          description: "용지별그룹명을 입력해주세요.",
+          variant: "destructive"
+        });
+        return;
+      }
 
       // pricingType에 따라 필요한 필드만 포함
       const apiData: any = {
@@ -1333,17 +1495,15 @@ export default function ProductionSettingPage() {
         basePrice: formData.basePrice,
         workDays: formData.workDays,
         weightInfo: formData.weightInfo,
+        specUsageType: formData.specUsageType, // 규격 용도 선택
       };
 
       // paper_output_spec: 인쇄방식에 따라 다른 데이터 구조
       if (formData.pricingType === "paper_output_spec") {
         apiData.printMethod = formData.printMethod;
         apiData.paperIds = formData.paperIds; // 인디고, 잉크젯 모두 용지선택 필요
-        // 그룹 단가 저장 (pricingMode는 UI 전용이므로 제외)
-        apiData.priceGroups = formData.priceGroups.map((g: any) => {
-          const { pricingMode, ...rest } = g;
-          return rest;
-        });
+        // 그룹 단가 저장 (pricingMode 포함하여 저장)
+        apiData.priceGroups = formData.priceGroups;
         apiData.paperPriceGroupMap = formData.paperPriceGroupMap;
 
         if (formData.printMethod === "indigo") {
@@ -1400,6 +1560,29 @@ export default function ProductionSettingPage() {
         // 페이지 구간 설정도 저장 (설정값에 포함)
         apiData.pageRanges = formData.pageRanges;
       }
+      // finishing_spec_nup: 규격별 Nup/1p단가 (모든 Nup 규격 사용)
+      else if (formData.pricingType === "finishing_spec_nup") {
+        // 모든 Nup 규격 ID를 자동으로 포함
+        const allNupSpecs = specifications
+          ?.filter((s: any) => {
+            if (!s.nup) return false;
+            if (formData.specUsageType === "all") return true;
+            return s.usage === formData.specUsageType;
+          })
+          .map((s: any) => s.id) || [];
+        apiData.specificationIds = allNupSpecs;
+        apiData.specUsageType = formData.specUsageType;
+        // nupPageRanges에서 pricePerPage 저장
+        if (formData.nupPageRanges && formData.nupPageRanges.length > 0) {
+          apiData.nupPageRanges = formData.nupPageRanges.map(item => ({
+            specificationId: item.specificationId,
+            basePages: 1,
+            basePrice: 0,
+            pricePerPage: item.pricePerPage || 0,
+            rangePrices: {},
+          }));
+        }
+      }
       // 나머지: 규격 선택
       else {
         apiData.specificationIds = formData.specificationIds;
@@ -1448,6 +1631,8 @@ export default function ProductionSettingPage() {
       toast({ title: "오류 발생", description: error.message || "오류가 발생했습니다.", variant: "destructive" });
     }
   };
+
+
 
   const handleMoveGroup = (id: string, direction: "up" | "down") => {
     moveGroupMutation.mutate({ id, direction });
@@ -1548,56 +1733,43 @@ export default function ProductionSettingPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="표준단가 설정"
-        description="제품별 표준단가, 가격 계산 방식, 규격, 작업시간을 설정합니다."
-        breadcrumbs={[
-          { label: "홈", href: "/" },
-          { label: "가격관리", href: "/pricing" },
-          { label: "표준단가" },
-        ]}
-        actions={
-          <Button onClick={() => handleOpenGroupDialog(null)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            대분류 추가
-          </Button>
-        }
-      />
-
-      <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6">
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
         {/* 좌측: 그룹 트리 */}
-        <Card className="flex flex-col">
-          <CardHeader className="border-b bg-gray-50/50 py-3 px-4">
+        <Card className="flex flex-col border-0 shadow-lg bg-white/50 backdrop-blur-sm overflow-hidden h-full">
+          <CardHeader className="border-b border-gray-100 bg-white/80 py-3 px-4">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-semibold text-gray-700">
+              <CardTitle className="text-base font-bold text-gray-800 flex items-center gap-2">
+                <FolderOpen className="w-4 h-4 text-indigo-500" />
                 제품 분류
               </CardTitle>
               <div className="flex gap-1">
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 px-2 text-xs text-gray-500 hover:text-gray-700"
+                  className="h-8 px-2.5 text-xs font-medium text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
                   onClick={expandAll}
                 >
-                  펼치기
+                  <ArrowDown className="w-3.5 h-3.5 mr-1" />
+                  모두 펼치기
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 px-2 text-xs text-gray-500 hover:text-gray-700"
+                  className="h-8 px-2.5 text-xs font-medium text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
                   onClick={collapseAll}
                 >
-                  접기
+                  <ArrowUp className="w-3.5 h-3.5 mr-1" />
+                  모두 접기
                 </Button>
               </div>
             </div>
           </CardHeader>
-          <CardContent className="p-2 flex-1 overflow-y-auto" style={{ maxHeight: "calc(100vh - 280px)" }}>
+          <CardContent className="p-4 flex-1 overflow-y-auto" style={{ maxHeight: "calc(100vh - 280px)" }}>
             {isLoadingGroups ? (
-              <div className="space-y-2 p-4">
+              <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-10 w-full" />
+                  <Skeleton key={i} className="h-12 w-full rounded-xl" />
                 ))}
               </div>
             ) : !groupTree || groupTree.length === 0 ? (
@@ -1622,6 +1794,7 @@ export default function ProductionSettingPage() {
                     toggleExpand={toggleExpand}
                     selectedGroupId={selectedGroup?.id || null}
                     onSelectGroup={handleSelectGroup}
+                    onMoveGroup={handleMoveGroup}
                   />
                 ))}
               </div>
@@ -1629,114 +1802,151 @@ export default function ProductionSettingPage() {
           </CardContent>
         </Card>
 
-        {/* 우측: 선택된 그룹의 설정 */}
-        <Card className="flex flex-col">
-          <CardHeader className="border-b bg-gray-50/50 py-4 px-5">
-            <div className="flex items-center justify-between">
-              <div>
-                {selectedGroup ? (
-                  <>
-                    <div className="flex items-center gap-2">
-                      <CardTitle className="text-base font-semibold">
-                        {selectedGroup.name}
-                      </CardTitle>
-                      <span className="text-sm text-gray-500 font-mono">
-                        ({selectedGroup.code})
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {selectedGroup.depth === 1 ? "대분류" : "소분류"} · {selectedSettings.length}개 설정
-                    </p>
-                  </>
-                ) : (
-                  <CardTitle className="text-base font-semibold text-gray-400">
-                    그룹을 선택하세요
-                  </CardTitle>
-                )}
-              </div>
-
-              {selectedGroup && (
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-gray-600"
-                    onClick={() => handleOpenGroupDialog(selectedGroup.parentId, selectedGroup)}
-                  >
-                    <Edit className="h-3.5 w-3.5 mr-1.5" />
-                    그룹 수정
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                    onClick={() => {
-                      setDeletingItem({ type: "group", item: selectedGroup });
-                      setIsDeleteDialogOpen(true);
-                    }}
-                  >
-                    <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                    그룹 삭제
-                  </Button>
-                  {selectedGroup.depth === 1 ? (
-                    <Button
-                      size="sm"
-                      className="h-8 bg-indigo-600 hover:bg-indigo-700"
-                      onClick={() => handleOpenGroupDialog(selectedGroup.id)}
-                    >
-                      <Plus className="h-3.5 w-3.5 mr-1.5" />
-                      소분류 추가
-                    </Button>
+        {/* 우측: 표준단가 설정 */}
+        <div className="flex flex-col gap-4">
+          <PageHeader
+            title="표준단가 설정"
+            description="제품별 표준단가, 가격 계산 방식, 규격, 작업시간을 설정합니다."
+            breadcrumbs={[
+              { label: "홈", href: "/" },
+              { label: "가격관리", href: "/pricing" },
+              { label: "표준단가" },
+            ]}
+            actions={
+              <Button onClick={() => handleOpenGroupDialog(null)} className="gap-2">
+                <Plus className="h-4 w-4" />
+                대분류 추가
+              </Button>
+            }
+          />
+          <Card className="flex flex-col">
+            <CardHeader className="border-b bg-gray-50/50 py-4 px-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  {selectedGroup ? (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <CardTitle className="text-base font-semibold">
+                          {selectedGroup.name}
+                        </CardTitle>
+                        <span className="text-sm text-gray-500 font-mono">
+                          ({selectedGroup.code})
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {selectedGroup.depth === 1 ? "대분류" : selectedGroup.depth === 2 ? "중분류" : "소분류"} · {selectedSettings.length}개 설정
+                      </p>
+                    </>
                   ) : (
-                    <Button
-                      size="sm"
-                      className="h-8 bg-indigo-600 hover:bg-indigo-700"
-                      onClick={() => handleOpenSettingDialog()}
-                    >
-                      <Plus className="h-3.5 w-3.5 mr-1.5" />
-                      설정 추가
-                    </Button>
+                    <CardTitle className="text-base font-semibold text-gray-400">
+                      그룹을 선택하세요
+                    </CardTitle>
                   )}
                 </div>
+
+                {selectedGroup && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-gray-600"
+                      onClick={() => handleOpenGroupDialog(selectedGroup.parentId, selectedGroup)}
+                    >
+                      <Edit className="h-3.5 w-3.5 mr-1.5" />
+                      그룹 수정
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                      onClick={() => {
+                        setDeletingItem({ type: "group", item: selectedGroup });
+                        setIsDeleteDialogOpen(true);
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                      그룹 삭제
+                    </Button>
+                    {selectedGroup.depth === 1 ? (
+                      <Button
+                        size="sm"
+                        className="h-8 bg-indigo-600 hover:bg-indigo-700"
+                        onClick={() => handleOpenGroupDialog(selectedGroup.id)}
+                      >
+                        <Plus className="h-3.5 w-3.5 mr-1.5" />
+                        중분류 추가
+                      </Button>
+                    ) : selectedGroup.depth === 2 ? (
+                      <>
+                        <Button
+                          size="sm"
+                          className="h-8 bg-indigo-600 hover:bg-indigo-700"
+                          onClick={() => handleOpenGroupDialog(selectedGroup.id)}
+                        >
+                          <Plus className="h-3.5 w-3.5 mr-1.5" />
+                          소분류 추가
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8"
+                          onClick={() => handleOpenSettingDialog()}
+                        >
+                          <Plus className="h-3.5 w-3.5 mr-1.5" />
+                          설정 추가
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        size="sm"
+                        className="h-8 bg-indigo-600 hover:bg-indigo-700"
+                        onClick={() => handleOpenSettingDialog()}
+                      >
+                        <Plus className="h-3.5 w-3.5 mr-1.5" />
+                        설정 추가
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 max-h-[calc(100vh-280px)] overflow-y-auto">
+              {!selectedGroup ? (
+                <div className="text-center text-muted-foreground py-12">
+                  <Settings2 className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                  <p>좌측에서 그룹을 선택해주세요.</p>
+                </div>
+              ) : selectedSettings.length === 0 ? (
+                <div className="text-center text-muted-foreground py-12">
+                  <Settings2 className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                  <p>등록된 설정이 없습니다.</p>
+                  <Button
+                    variant="link"
+                    className="mt-2"
+                    onClick={() => handleOpenSettingDialog()}
+                  >
+                    설정 추가하기
+                  </Button>
+                </div>
+              ) : (
+                <div>
+                  {selectedSettings.map((setting) => (
+                    <SettingCard
+                      key={setting.id}
+                      setting={setting}
+                      onEdit={handleOpenSettingDialog}
+                      onDelete={(s) => {
+                        setDeletingItem({ type: "setting", item: s });
+                        setIsDeleteDialogOpen(true);
+                      }}
+                      onMove={handleMoveSetting}
+                    />
+                  ))}
+                </div>
               )}
-            </div>
-          </CardHeader>
-          <CardContent className="p-4 max-h-[calc(100vh-280px)] overflow-y-auto">
-            {!selectedGroup ? (
-              <div className="text-center text-muted-foreground py-12">
-                <Settings2 className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p>좌측에서 그룹을 선택해주세요.</p>
-              </div>
-            ) : selectedSettings.length === 0 ? (
-              <div className="text-center text-muted-foreground py-12">
-                <Settings2 className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p>등록된 설정이 없습니다.</p>
-                <Button
-                  variant="link"
-                  className="mt-2"
-                  onClick={() => handleOpenSettingDialog()}
-                >
-                  설정 추가하기
-                </Button>
-              </div>
-            ) : (
-              <div>
-                {selectedSettings.map((setting) => (
-                  <SettingCard
-                    key={setting.id}
-                    setting={setting}
-                    onEdit={handleOpenSettingDialog}
-                    onDelete={(s) => {
-                      setDeletingItem({ type: "setting", item: s });
-                      setIsDeleteDialogOpen(true);
-                    }}
-                    onMove={handleMoveSetting}
-                  />
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* 그룹 다이얼로그 */}
@@ -1744,10 +1954,41 @@ export default function ProductionSettingPage() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {editingGroup ? "그룹 수정" : parentGroupId ? "소분류 추가" : "대분류 추가"}
+              {editingGroup ? "그룹 수정" : (() => {
+                if (!parentGroupId) return "대분류 추가";
+                // 재귀적으로 모든 그룹에서 부모 찾기
+                const findGroup = (groups: ProductionGroup[] | undefined, id: string): ProductionGroup | null => {
+                  if (!groups) return null;
+                  for (const g of groups) {
+                    if (g.id === id) return g;
+                    const found = findGroup(g.children, id);
+                    if (found) return found;
+                  }
+                  return null;
+                };
+                const parentGroup = findGroup(groupTree, parentGroupId);
+                if (parentGroup?.depth === 1) return "중분류 추가";
+                if (parentGroup?.depth === 2) return "소분류 추가";
+                return "하위 그룹 추가";
+              })()}
             </DialogTitle>
             <DialogDescription>
-              {parentGroupId ? "소분류" : "대분류"} 그룹 정보를 입력하세요.
+              {(() => {
+                if (!parentGroupId) return "대분류";
+                const findGroup = (groups: ProductionGroup[] | undefined, id: string): ProductionGroup | null => {
+                  if (!groups) return null;
+                  for (const g of groups) {
+                    if (g.id === id) return g;
+                    const found = findGroup(g.children, id);
+                    if (found) return found;
+                  }
+                  return null;
+                };
+                const parentGroup = findGroup(groupTree, parentGroupId);
+                if (parentGroup?.depth === 1) return "중분류";
+                if (parentGroup?.depth === 2) return "소분류";
+                return "하위 그룹";
+              })()} 그룹 정보를 입력하세요.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -1800,9 +2041,11 @@ export default function ProductionSettingPage() {
                   </h3>
 
                   <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-                    {/* 1행: 용지별그룹명, 적용단위 */}
+                    {/* 1행: 용지별그룹명, 작업시간 */}
                     <div className="flex items-center gap-3">
-                      <Label className="text-xs font-medium text-gray-500 w-24 shrink-0">용지별그룹명</Label>
+                      <Label className="text-xs font-medium text-gray-500 w-24 shrink-0">
+                        용지별그룹명 <span className="text-red-500">*</span>
+                      </Label>
                       <Input
                         placeholder="예: 박Color"
                         value={settingForm.settingName}
@@ -1817,7 +2060,27 @@ export default function ProductionSettingPage() {
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <Label className="text-xs font-medium text-gray-500 w-16 shrink-0">적용단위</Label>
+                      <Label className="text-xs font-medium text-gray-500 w-16 shrink-0">작업시간</Label>
+                      <div className="flex items-center gap-2 flex-1">
+                        <Input
+                          type="number"
+                          step="0.1"
+                          value={settingForm.workDays}
+                          onChange={(e) =>
+                            setSettingForm((prev) => ({
+                              ...prev,
+                              workDays: Number(e.target.value),
+                            }))
+                          }
+                          className="bg-white h-8 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                        <span className="text-muted-foreground text-xs whitespace-nowrap">일</span>
+                      </div>
+                    </div>
+
+                    {/* 2행: 적용단위, 규격용도선택 */}
+                    <div className="flex items-center gap-3">
+                      <Label className="text-xs font-medium text-gray-500 w-24 shrink-0">적용단위</Label>
                       <Select
                         value={settingForm.pricingType}
                         onValueChange={(value) =>
@@ -1827,7 +2090,7 @@ export default function ProductionSettingPage() {
                           }))
                         }
                       >
-                        <SelectTrigger className="bg-white h-8">
+                        <SelectTrigger className="bg-white h-8 w-auto min-w-[120px]">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -1844,28 +2107,37 @@ export default function ProductionSettingPage() {
                       </Select>
                     </div>
 
-                    {/* 2행: 작업시간, 인쇄방식 (paper_output_spec일 때만) */}
-                    <div className="flex items-center gap-3">
-                      <Label className="text-xs font-medium text-gray-500 w-16 shrink-0">작업시간</Label>
-                      <div className="flex items-center gap-2 flex-1">
-                        <Input
-                          type="number"
-                          step="0.1"
-                          value={settingForm.workDays}
-                          onChange={(e) =>
+                    {/* 규격 용도 선택 (finishing_spec_nup일 때) */}
+                    {settingForm.pricingType === "finishing_spec_nup" && (
+                      <div className="flex items-center gap-3">
+                        <Label className="text-xs font-medium text-gray-500 w-24 shrink-0">규격용도</Label>
+                        <Select
+                          value={settingForm.specUsageType}
+                          onValueChange={(value) =>
                             setSettingForm((prev) => ({
                               ...prev,
-                              workDays: Number(e.target.value),
+                              specUsageType: value as typeof prev.specUsageType,
+                              specificationIds: [],
                             }))
                           }
-                          className="bg-white h-8"
-                        />
-                        <span className="text-muted-foreground text-xs whitespace-nowrap">일</span>
+                        >
+                          <SelectTrigger className="bg-white h-8 w-auto min-w-[100px]">
+                            <SelectValue placeholder="규격 용도 선택" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">전체 규격</SelectItem>
+                            <SelectItem value="indigo">인디고출력</SelectItem>
+                            <SelectItem value="inkjet">잉크젯출력</SelectItem>
+                            <SelectItem value="album">앨범전용</SelectItem>
+                            <SelectItem value="frame">액자전용</SelectItem>
+                            <SelectItem value="booklet">인쇄책자전용</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                    </div>
+                    )}
 
-                    {/* 인쇄방식 (paper_output_spec일 때만) */}
-                    {settingForm.pricingType === "paper_output_spec" && (
+                    {/* 인쇄방식 (paper_output_spec 또는 nup_page_range일 때) */}
+                    {(settingForm.pricingType === "paper_output_spec" || settingForm.pricingType === "nup_page_range") && (
                       <div className="flex items-center gap-3">
                         <Label className="text-xs font-medium text-gray-500 w-16 shrink-0">인쇄방식</Label>
                         <Select
@@ -1873,17 +2145,18 @@ export default function ProductionSettingPage() {
                           onValueChange={(value) =>
                             setSettingForm((prev) => {
                               const newMethod = value as "indigo" | "inkjet" | "album" | "frame" | "booklet";
-                              // 인쇄방식 변경 시 용지만 초기화, 규격/단가그룹은 유지
+                              // 인쇄방식 변경 시 용지/규격 초기화
                               return {
                                 ...prev,
                                 printMethod: newMethod,
-                                paperIds: [], // 용지만 초기화 (인쇄방식별로 다름)
-                                // specificationIds, priceGroups, inkjetSpecPrices 등은 유지
+                                paperIds: [], // 용지 초기화 (인쇄방식별로 다름)
+                                specificationIds: [], // 규격 초기화
+                                nupPageRanges: [], // nup 페이지 범위 초기화
                               };
                             })
                           }
                         >
-                          <SelectTrigger className="bg-white h-8">
+                          <SelectTrigger className="bg-white h-8 w-32">
                             <SelectValue placeholder="인쇄방식 선택" />
                           </SelectTrigger>
                           <SelectContent>
@@ -2081,31 +2354,37 @@ export default function ProductionSettingPage() {
                                   });
                                 };
 
-                                // 그룹에 할당된 용지들의 평균 원가 계산
-                                const getAvgPaperCost = () => {
+                                // 그룹에 할당된 용지들의 평균 면당 용지 원가 계산
+                                // 공식: 국전지가격 / 500 / 4 / 2 (1연 500장, 4절, 양면)
+                                const getAvgPaperCostPerSide = () => {
                                   if (!assignedPapers.length || !indigoInk1ColorCost) return null;
                                   const costs = assignedPapers.map((p: any) => {
-                                    const rollPricePerM = p?.basePrice || 0;
-                                    const rollWidth = p?.rollWidthInch || 13;
-                                    const sqInchPerM = rollWidth * 39.37;
-                                    const pricePerSqInch = rollPricePerM / sqInchPerM;
-                                    return pricePerSqInch;
+                                    // 국전지 1연 가격 (basePrice를 연 가격으로 가정)
+                                    const reamPrice = p?.basePrice || 0;
+                                    // 면당 용지 원가 = 연가격 / 500장 / 4절 / 2면
+                                    const paperCostPerSide = reamPrice / 500 / 4 / 2;
+                                    return paperCostPerSide;
                                   });
                                   return costs.reduce((a, b) => a + b, 0) / costs.length;
                                 };
 
-                                const avgPaperCostPerSqInch = getAvgPaperCost();
+                                const avgPaperCostPerSide = getAvgPaperCostPerSide();
 
                                 // Up별 원가 표시용 계산
-                                const getCostDisplay = (priceField: string) => {
-                                  if (!avgPaperCostPerSqInch || !indigoInk1ColorCost) return null;
-                                  const upPrice = upPrices.find(up => up.up === 1);
-                                  if (!upPrice) return null;
+                                // 1up 원가 = (국전지가격/500/4/2) + 클릭차지
+                                // nup 원가 = 1up 원가 / n
+                                // 클릭차지 = 1도당 잉크비용 × 도수 (4도 또는 6도)
+                                const getCostDisplay = (priceField: string, up: number) => {
+                                  if (avgPaperCostPerSide === null || !indigoInk1ColorCost) return null;
                                   const colorCount = priceField.includes('four') ? 4 : 6;
-                                  const paperCost = Math.round(avgPaperCostPerSqInch * INDIGO_SPEC_SQ_INCH);
-                                  const inkCost = indigoInk1ColorCost * colorCount;
-                                  const sideCost = priceField.includes('Double') ? (paperCost + inkCost) * 2 : paperCost + inkCost;
-                                  return formatNumber(Math.round(sideCost));
+                                  const clickCharge = indigoInk1ColorCost * colorCount;
+                                  // 1up 면당 원가
+                                  const costPerSide1up = avgPaperCostPerSide + clickCharge;
+                                  // 단면: 1면, 양면: 2면
+                                  const totalCost1up = priceField.includes('Double') ? costPerSide1up * 2 : costPerSide1up;
+                                  // Up별 원가 = 1up 원가 / up
+                                  const costPerUp = totalCost1up / up;
+                                  return formatNumber(Math.round(costPerUp));
                                 };
 
                                 return (
@@ -2167,7 +2446,6 @@ export default function ProductionSettingPage() {
                                         </thead>
                                         <tbody>
                                           {upPrices.map((upPrice, idx) => {
-                                            const costDisplay = getCostDisplay('fourColorSinglePrice');
                                             return (
                                               <tr key={upPrice.up} className={cn("border-b border-gray-100 last:border-0", idx === 0 && "bg-amber-50/50")}>
                                                 <td className="text-center py-0.5 px-0.5 font-medium text-indigo-600">{upPrice.up}up</td>
@@ -2215,7 +2493,7 @@ export default function ProductionSettingPage() {
                                                   </div>
                                                 </td>
                                                 {['fourColorSinglePrice', 'fourColorDoublePrice', 'sixColorSinglePrice', 'sixColorDoublePrice'].map((field) => {
-                                                  const costDisplay = getCostDisplay(field);
+                                                  const costDisplay = getCostDisplay(field, upPrice.up);
                                                   return (
                                                     <td key={field} className="px-0.5 py-0.5">
                                                       <div className="flex flex-col items-center">
@@ -2291,61 +2569,176 @@ export default function ProductionSettingPage() {
                       <>
                         {/* 잉크젯/앨범/액자/책자: 그룹별 규격 단가 설정 */}
 
+                        {/* 용지 목록 + 그룹 할당 드롭다운 */}
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold">용지별그룹명</Label>
+                          <div className="border rounded-lg p-3 max-h-[200px] overflow-y-auto">
+                            {!papersForPricing || papersForPricing.length === 0 ? (
+                              <p className="text-center text-muted-foreground py-2 text-sm">
+                                {PRINT_METHOD_LABELS[settingForm.printMethod]}용 용지가 없습니다.
+                              </p>
+                            ) : (
+                              <div className="grid grid-cols-3 gap-1.5">
+                                {papersForPricing.map((paper) => {
+                                  const assignedGroupId = settingForm.paperPriceGroupMap[paper.id];
+                                  const assignedGroup = settingForm.priceGroups.find(g => g.id === assignedGroupId);
+                                  const style = assignedGroup
+                                    ? (PRICE_GROUP_STYLES[assignedGroup.color] || PRICE_GROUP_STYLES.none)
+                                    : PRICE_GROUP_STYLES.none;
+
+                                  return (
+                                    <div
+                                      key={paper.id}
+                                      className={cn(
+                                        "flex items-center justify-between p-2 rounded-lg border",
+                                        assignedGroup ? style.bg : "bg-white",
+                                        assignedGroup ? style.border : "border-gray-200"
+                                      )}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <Checkbox
+                                          checked={settingForm.paperIds.includes(paper.id)}
+                                          onCheckedChange={(checked) => {
+                                            setSettingForm((prev) => ({
+                                              ...prev,
+                                              paperIds: checked
+                                                ? [...prev.paperIds, paper.id]
+                                                : prev.paperIds.filter(id => id !== paper.id),
+                                            }));
+                                          }}
+                                        />
+                                        <span className={cn("text-sm", assignedGroup ? style.text : "text-gray-500")}>
+                                          {paper.name}
+                                          {paper.grammage && (
+                                            <span className="text-xs text-gray-400 ml-1">({paper.grammage}g)</span>
+                                          )}
+                                        </span>
+                                      </div>
+                                      <Select
+                                        value={assignedGroupId || "none"}
+                                        onValueChange={(value) => {
+                                          setSettingForm((prev) => ({
+                                            ...prev,
+                                            paperPriceGroupMap: {
+                                              ...prev.paperPriceGroupMap,
+                                              [paper.id]: value === "none" ? null : value,
+                                            },
+                                            paperIds: value !== "none" && !prev.paperIds.includes(paper.id)
+                                              ? [...prev.paperIds, paper.id]
+                                              : prev.paperIds,
+                                          }));
+                                        }}
+                                      >
+                                        <SelectTrigger className="w-28 h-7 text-xs">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="none">
+                                            <span className="text-gray-400">⚪ 미지정</span>
+                                          </SelectItem>
+                                          {settingForm.priceGroups.map((g) => {
+                                            const gs = PRICE_GROUP_STYLES[g.color] || PRICE_GROUP_STYLES.none;
+                                            return (
+                                              <SelectItem key={g.id} value={g.id}>
+                                                <span className={gs.text}>{gs.dot} {gs.label}</span>
+                                              </SelectItem>
+                                            );
+                                          })}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            선택된 용지: {settingForm.paperIds.length}개 |
+                            그룹 지정됨: {Object.values(settingForm.paperPriceGroupMap).filter(v => v !== null).length}개
+                          </p>
+                        </div>
+
                         {/* 규격 선택 (그룹보다 먼저) */}
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
-                            <Label className="text-sm font-semibold">규격선택 ({PRINT_METHOD_LABELS[settingForm.printMethod]}용)</Label>
+                            <div className="flex items-center gap-2">
+                              <Label className="text-sm font-semibold">규격선택 ({PRINT_METHOD_LABELS[settingForm.printMethod]}용)</Label>
+                              <span className="text-xs text-muted-foreground">선택: {settingForm.specificationIds.length}개</span>
+                            </div>
                             <div className="flex gap-2">
-                              <Button variant="outline" size="sm" onClick={() => {
-                                const filteredSpecs = getFilteredSpecifications();
-                                setSettingForm((prev) => ({
-                                  ...prev,
-                                  specificationIds: filteredSpecs.map((s) => s.id),
-                                }));
-                              }}>
-                                전체선택
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs text-gray-600"
+                                onClick={() => setIsSpecSelectorExpanded(!isSpecSelectorExpanded)}
+                              >
+                                {isSpecSelectorExpanded ? (
+                                  <>
+                                    <ChevronUp className="h-3.5 w-3.5 mr-1" />
+                                    접기
+                                  </>
+                                ) : (
+                                  <>
+                                    <ChevronDown className="h-3.5 w-3.5 mr-1" />
+                                    펼치기
+                                  </>
+                                )}
                               </Button>
-                              <Button variant="outline" size="sm" onClick={() => {
-                                setSettingForm((prev) => ({
-                                  ...prev,
-                                  specificationIds: [],
-                                }));
-                              }}>
-                                전체해제
-                              </Button>
+                              {isSpecSelectorExpanded && (
+                                <>
+                                  <Button variant="outline" size="sm" className="h-7" onClick={() => {
+                                    const filteredSpecs = getFilteredSpecifications();
+                                    setSettingForm((prev) => ({
+                                      ...prev,
+                                      specificationIds: filteredSpecs.map((s) => s.id),
+                                    }));
+                                  }}>
+                                    전체선택
+                                  </Button>
+                                  <Button variant="outline" size="sm" className="h-7" onClick={() => {
+                                    setSettingForm((prev) => ({
+                                      ...prev,
+                                      specificationIds: [],
+                                    }));
+                                  }}>
+                                    전체해제
+                                  </Button>
+                                </>
+                              )}
                             </div>
                           </div>
-                          <div className="border rounded-lg bg-gray-50">
-                            <div className="grid grid-cols-4 gap-px bg-gray-200 border-b">
-                              {getFilteredSpecifications().map((spec) => (
-                                <div key={spec.id} className="flex items-center gap-2 bg-white p-2 text-sm">
-                                  <Checkbox
-                                    id={`spec-inkjet-${spec.id}`}
-                                    className="h-4 w-4"
-                                    checked={settingForm.specificationIds.includes(spec.id)}
-                                    onCheckedChange={() => {
-                                      const isSelected = settingForm.specificationIds.includes(spec.id);
-                                      setSettingForm((prev) => ({
-                                        ...prev,
-                                        specificationIds: isSelected
-                                          ? prev.specificationIds.filter((id) => id !== spec.id)
-                                          : [...prev.specificationIds, spec.id],
-                                      }));
-                                    }}
-                                  />
-                                  <Label htmlFor={`spec-inkjet-${spec.id}`} className="font-mono cursor-pointer flex-1">
-                                    {spec.name}
-                                  </Label>
-                                </div>
-                              ))}
+                          {isSpecSelectorExpanded && (
+                            <div className="border rounded-lg bg-gray-50">
+                              <div className="grid grid-cols-4 gap-px bg-gray-200 border-b">
+                                {getFilteredSpecifications().map((spec) => (
+                                  <div key={spec.id} className="flex items-center gap-2 bg-white p-2 text-sm">
+                                    <Checkbox
+                                      id={`spec-inkjet-${spec.id}`}
+                                      className="h-4 w-4"
+                                      checked={settingForm.specificationIds.includes(spec.id)}
+                                      onCheckedChange={() => {
+                                        const isSelected = settingForm.specificationIds.includes(spec.id);
+                                        setSettingForm((prev) => ({
+                                          ...prev,
+                                          specificationIds: isSelected
+                                            ? prev.specificationIds.filter((id) => id !== spec.id)
+                                            : [...prev.specificationIds, spec.id],
+                                        }));
+                                      }}
+                                    />
+                                    <Label htmlFor={`spec-inkjet-${spec.id}`} className="font-mono cursor-pointer flex-1">
+                                      {spec.name}
+                                    </Label>
+                                  </div>
+                                ))}
+                              </div>
+                              {getFilteredSpecifications().length === 0 && (
+                                <p className="text-center text-muted-foreground py-2 text-sm">
+                                  {PRINT_METHOD_LABELS[settingForm.printMethod]}용 규격이 없습니다.
+                                </p>
+                              )}
                             </div>
-                            {getFilteredSpecifications().length === 0 && (
-                              <p className="text-center text-muted-foreground py-2 text-sm">
-                                {PRINT_METHOD_LABELS[settingForm.printMethod]}용 규격이 없습니다.
-                              </p>
-                            )}
-                          </div>
-                          <p className="text-xs text-muted-foreground">선택된 규격: {settingForm.specificationIds.length}개</p>
+                          )}
                         </div>
 
                         {/* 단가 그룹 관리 */}
@@ -2523,7 +2916,7 @@ export default function ProductionSettingPage() {
                                             </Select>
                                             <Input
                                               type="number"
-                                              className="h-6 w-16 text-[10px] bg-white"
+                                              className="h-6 w-16 text-[10px] bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                               placeholder="단가"
                                               disabled={!group.inkjetBaseSpecId}
                                               value={group.inkjetBaseSpecId ? (specPrices.find(p => p.specificationId === group.inkjetBaseSpecId)?.singleSidedPrice || "") : ""}
@@ -2553,13 +2946,19 @@ export default function ProductionSettingPage() {
                                                 }));
                                               }}
                                             />
-                                            {/* 원가 표시 */}
+                                            {/* 원가 표시 + 원가 적용 버튼 */}
                                             {(() => {
-                                              // 기준규격이 선택되지 않으면 첫 번째 규격 사용
-                                              const baseSpec = group.inkjetBaseSpecId
-                                                ? specifications?.find((s) => s.id === group.inkjetBaseSpecId)
-                                                : specifications?.find((s) => s.id === specPrices[0]?.specificationId);
-                                              if (!baseSpec) return null;
+                                              // 기준규격 찾기: inkjetBaseSpecId > specPrices[0] > specificationIds[0]
+                                              let baseSpec: Specification | null | undefined = null;
+                                              if (group.inkjetBaseSpecId) {
+                                                baseSpec = specifications?.find((s) => s.id === group.inkjetBaseSpecId);
+                                              }
+                                              if (!baseSpec && specPrices.length > 0 && specPrices[0]?.specificationId) {
+                                                baseSpec = specifications?.find((s) => s.id === specPrices[0].specificationId);
+                                              }
+                                              if (!baseSpec && settingForm.specificationIds.length > 0) {
+                                                baseSpec = specifications?.find((s) => s.id === settingForm.specificationIds[0]);
+                                              }
 
                                               // 원가 계산에 사용할 용지 결정:
                                               // 1. 그룹에 할당된 용지가 있으면 사용
@@ -2576,17 +2975,69 @@ export default function ProductionSettingPage() {
                                                 papersToUse = papersForPricing;
                                               }
 
-                                              if (papersToUse.length === 0) return null;
+                                              // 디버그 로그
+                                              console.log('[기준규격 원가]', {
+                                                groupId: group.id,
+                                                inkjetBaseSpecId: group.inkjetBaseSpecId,
+                                                specPricesLen: specPrices.length,
+                                                specificationIdsLen: settingForm.specificationIds.length,
+                                                baseSpec: baseSpec?.name,
+                                                papersToUseLen: papersToUse.length,
+                                                assignedPapersLen: assignedPapers.length,
+                                              });
+
+                                              // 디버그: 조건 불충족 시 메시지 표시
+                                              if (!baseSpec) {
+                                                return <span className="text-[10px] text-gray-400">(규격선택)</span>;
+                                              }
+                                              if (papersToUse.length === 0) {
+                                                return <span className="text-[10px] text-gray-400">(용지선택)</span>;
+                                              }
 
                                               const costInfo = calculateInkjetTotalCost(papersToUse, baseSpec);
-                                              if (!costInfo) return null;
+                                              if (!costInfo) {
+                                                return <span className="text-[10px] text-gray-400">(용지정보부족)</span>;
+                                              }
+                                              const costValue = costInfo.totalMax; // 최대값 사용 (안전마진)
                                               const costDisplay = costInfo.totalMin === costInfo.totalMax
                                                 ? formatNumber(costInfo.totalMin)
                                                 : `${formatNumber(costInfo.totalMin)}~${formatNumber(costInfo.totalMax)}`;
+
+                                              // 원가 적용 함수
+                                              const applyCost = () => {
+                                                if (!group.inkjetBaseSpecId) return;
+                                                const baseArea = Number(baseSpec.widthInch) * Number(baseSpec.heightInch);
+                                                const pricePerSqInch = baseArea > 0 ? costValue / baseArea : 0;
+
+                                                setSettingForm((prev) => ({
+                                                  ...prev,
+                                                  priceGroups: prev.priceGroups.map(g => {
+                                                    if (g.id !== group.id) return g;
+                                                    const newSpecPrices = (g.specPrices || specPrices).map((sp) => {
+                                                      if (sp.specificationId === group.inkjetBaseSpecId) {
+                                                        return { ...sp, singleSidedPrice: costValue };
+                                                      }
+                                                      const targetSpec = specifications?.find((s) => s.id === sp.specificationId);
+                                                      if (!targetSpec) return sp;
+                                                      const targetArea = Number(targetSpec.widthInch) * Number(targetSpec.heightInch);
+                                                      const calculatedPrice = targetArea * pricePerSqInch * (sp.weight || 1.0);
+                                                      return { ...sp, singleSidedPrice: Math.max(0, Math.round(calculatedPrice)) };
+                                                    });
+                                                    return { ...g, inkjetBasePrice: pricePerSqInch, specPrices: newSpecPrices };
+                                                  }),
+                                                }));
+                                              };
+
                                               return (
-                                                <span className="text-[9px] text-amber-600 whitespace-nowrap">
-                                                  (원가:{costDisplay})
-                                                </span>
+                                                <button
+                                                  type="button"
+                                                  onClick={applyCost}
+                                                  disabled={!group.inkjetBaseSpecId}
+                                                  className="text-[13px] text-rose-600 font-semibold whitespace-nowrap hover:bg-rose-100 px-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                                                  title="클릭하면 원가가 자동 적용됩니다"
+                                                >
+                                                  {costDisplay}
+                                                </button>
                                               );
                                             })()}
                                           </>
@@ -2597,7 +3048,7 @@ export default function ProductionSettingPage() {
                                             <Input
                                               type="number"
                                               step="0.01"
-                                              className="h-6 w-20 text-[10px] bg-white"
+                                              className="h-6 w-20 text-[10px] bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                               placeholder={'sq" 단가'}
                                               value={group.inkjetBasePrice || ""}
                                               onChange={(e) => {
@@ -2618,12 +3069,16 @@ export default function ProductionSettingPage() {
                                                 }));
                                               }}
                                             />
-                                            {/* 원가 표시 (sq" 모드) */}
+                                            {/* 원가 표시 (sq" 모드) + 원가 적용 버튼 */}
                                             {(() => {
-                                              // 첫 번째 규격을 기준으로 원가 계산
-                                              const firstSpecId = specPrices[0]?.specificationId || settingForm.specificationIds[0];
-                                              const firstSpec = specifications?.find((s) => s.id === firstSpecId);
-                                              if (!firstSpec) return null;
+                                              // 첫 번째 규격을 기준으로 원가 계산: specPrices[0] > specificationIds[0]
+                                              let firstSpec: Specification | null | undefined = null;
+                                              if (specPrices.length > 0 && specPrices[0]?.specificationId) {
+                                                firstSpec = specifications?.find((s) => s.id === specPrices[0].specificationId);
+                                              }
+                                              if (!firstSpec && settingForm.specificationIds.length > 0) {
+                                                firstSpec = specifications?.find((s) => s.id === settingForm.specificationIds[0]);
+                                              }
 
                                               // 원가 계산에 사용할 용지 결정
                                               let papersToUse: Paper[] = [];
@@ -2637,22 +3092,67 @@ export default function ProductionSettingPage() {
                                                 papersToUse = papersForPricing;
                                               }
 
-                                              if (papersToUse.length === 0) return null;
+                                              // 디버그 로그
+                                              console.log('[sq" 원가]', {
+                                                groupId: group.id,
+                                                specPricesLen: specPrices.length,
+                                                specificationIdsLen: settingForm.specificationIds.length,
+                                                firstSpec: firstSpec?.name,
+                                                papersToUseLen: papersToUse.length,
+                                                assignedPapersLen: assignedPapers.length,
+                                                paperNames: papersToUse.map(p => p.name),
+                                              });
+
+                                              // 디버그: 조건 불충족 시 메시지 표시
+                                              if (!firstSpec) {
+                                                return <span className="text-[10px] text-gray-400">(규격선택)</span>;
+                                              }
+                                              if (papersToUse.length === 0) {
+                                                return <span className="text-[10px] text-gray-400">(용지선택)</span>;
+                                              }
 
                                               const costInfo = calculateInkjetTotalCost(papersToUse, firstSpec);
-                                              if (!costInfo) return null;
+                                              if (!costInfo) {
+                                                return <span className="text-[10px] text-gray-400">(용지정보부족)</span>;
+                                              }
                                               // sq" 당 원가 계산
                                               const specArea = Number(firstSpec.widthInch) * Number(firstSpec.heightInch);
                                               if (specArea <= 0) return null;
                                               const costPerSqInchMin = costInfo.totalMin / specArea;
                                               const costPerSqInchMax = costInfo.totalMax / specArea;
+                                              const costPerSqInchValue = costPerSqInchMax; // 최대값 사용 (안전마진)
                                               const costDisplay = costPerSqInchMin === costPerSqInchMax
                                                 ? costPerSqInchMin.toFixed(2)
                                                 : `${costPerSqInchMin.toFixed(2)}~${costPerSqInchMax.toFixed(2)}`;
+
+                                              // sq" 원가 적용 함수
+                                              const applySqInchCost = () => {
+                                                const pricePerSqInch = costPerSqInchValue;
+                                                setSettingForm((prev) => ({
+                                                  ...prev,
+                                                  priceGroups: prev.priceGroups.map(g => {
+                                                    if (g.id !== group.id) return g;
+                                                    const newSpecPrices = (g.specPrices || specPrices).map((sp) => {
+                                                      const targetSpec = specifications?.find((s) => s.id === sp.specificationId);
+                                                      if (!targetSpec) return sp;
+                                                      const targetArea = Number(targetSpec.widthInch) * Number(targetSpec.heightInch);
+                                                      const calculatedPrice = targetArea * pricePerSqInch * (sp.weight || 1.0);
+                                                      return { ...sp, singleSidedPrice: Math.max(0, Math.round(calculatedPrice)) };
+                                                    });
+                                                    return { ...g, inkjetBasePrice: Math.round(pricePerSqInch * 100) / 100, specPrices: newSpecPrices };
+                                                  }),
+                                                }));
+                                              };
+
                                               return (
-                                                <span className="text-[9px] text-amber-600 whitespace-nowrap">
-                                                  (원가:{costDisplay})
-                                                </span>
+                                                <button
+                                                  type="button"
+                                                  onClick={applySqInchCost}
+                                                  className="text-[13px] text-rose-600 font-semibold whitespace-nowrap hover:bg-rose-100 px-1 rounded"
+                                                  title="클릭하면 원가가 자동 적용됩니다"
+                                                >
+                                                  {costDisplay}
+                                                </button>
                                               );
                                             })()}
                                           </>
@@ -2743,7 +3243,7 @@ export default function ProductionSettingPage() {
                                                     <Input
                                                       type="number"
                                                       step="0.1"
-                                                      className="h-5 w-10 text-[10px] text-center p-0 bg-gray-50"
+                                                      className="h-5 w-10 text-[10px] text-center p-0 bg-gray-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                                       value={isIncluded ? (priceData?.weight ?? 1.0) : ""}
                                                       disabled={!isIncluded}
                                                       onChange={(e) => {
@@ -2772,7 +3272,7 @@ export default function ProductionSettingPage() {
                                                   <td className="px-1 py-0.5 text-center">
                                                     <Input
                                                       type="number"
-                                                      className={cn("h-5 w-14 text-[10px] text-center p-0", isBase ? "bg-green-100" : "bg-gray-50")}
+                                                      className={cn("h-5 w-14 text-[10px] text-center p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none", isBase ? "bg-green-100" : "bg-gray-50")}
                                                       value={isIncluded ? (priceData?.singleSidedPrice || "") : ""}
                                                       disabled={!isIncluded}
                                                       onChange={(e) => {
@@ -2803,95 +3303,6 @@ export default function ProductionSettingPage() {
                             </div>
                           )}
                         </div>
-
-                        {/* 용지 목록 + 그룹 할당 드롭다운 */}
-                        <div className="space-y-2">
-                          <Label className="text-sm font-semibold">용지별그룹명</Label>
-                          <div className="border rounded-lg p-3 max-h-[200px] overflow-y-auto">
-                            {!papersForPricing || papersForPricing.length === 0 ? (
-                              <p className="text-center text-muted-foreground py-2 text-sm">
-                                {PRINT_METHOD_LABELS[settingForm.printMethod]}용 용지가 없습니다.
-                              </p>
-                            ) : (
-                              <div className="grid grid-cols-3 gap-1.5">
-                                {papersForPricing.map((paper) => {
-                                  const assignedGroupId = settingForm.paperPriceGroupMap[paper.id];
-                                  const assignedGroup = settingForm.priceGroups.find(g => g.id === assignedGroupId);
-                                  const style = assignedGroup
-                                    ? (PRICE_GROUP_STYLES[assignedGroup.color] || PRICE_GROUP_STYLES.none)
-                                    : PRICE_GROUP_STYLES.none;
-
-                                  return (
-                                    <div
-                                      key={paper.id}
-                                      className={cn(
-                                        "flex items-center justify-between p-2 rounded-lg border",
-                                        assignedGroup ? style.bg : "bg-white",
-                                        assignedGroup ? style.border : "border-gray-200"
-                                      )}
-                                    >
-                                      <div className="flex items-center gap-2">
-                                        <Checkbox
-                                          checked={settingForm.paperIds.includes(paper.id)}
-                                          onCheckedChange={(checked) => {
-                                            setSettingForm((prev) => ({
-                                              ...prev,
-                                              paperIds: checked
-                                                ? [...prev.paperIds, paper.id]
-                                                : prev.paperIds.filter(id => id !== paper.id),
-                                            }));
-                                          }}
-                                        />
-                                        <span className={cn("text-sm", assignedGroup ? style.text : "text-gray-500")}>
-                                          {paper.name}
-                                          {paper.grammage && (
-                                            <span className="text-xs text-gray-400 ml-1">({paper.grammage}g)</span>
-                                          )}
-                                        </span>
-                                      </div>
-                                      <Select
-                                        value={assignedGroupId || "none"}
-                                        onValueChange={(value) => {
-                                          setSettingForm((prev) => ({
-                                            ...prev,
-                                            paperPriceGroupMap: {
-                                              ...prev.paperPriceGroupMap,
-                                              [paper.id]: value === "none" ? null : value,
-                                            },
-                                            paperIds: value !== "none" && !prev.paperIds.includes(paper.id)
-                                              ? [...prev.paperIds, paper.id]
-                                              : prev.paperIds,
-                                          }));
-                                        }}
-                                      >
-                                        <SelectTrigger className="w-28 h-7 text-xs">
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="none">
-                                            <span className="text-gray-400">⚪ 미지정</span>
-                                          </SelectItem>
-                                          {settingForm.priceGroups.map((g) => {
-                                            const gs = PRICE_GROUP_STYLES[g.color] || PRICE_GROUP_STYLES.none;
-                                            return (
-                                              <SelectItem key={g.id} value={g.id}>
-                                                <span className={gs.text}>{gs.dot} {gs.label}</span>
-                                              </SelectItem>
-                                            );
-                                          })}
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            선택된 용지: {settingForm.paperIds.length}개 |
-                            그룹 지정됨: {Object.values(settingForm.paperPriceGroupMap).filter(v => v !== null).length}개
-                          </p>
-                        </div>
                       </>
                     )}
                   </>
@@ -2899,30 +3310,7 @@ export default function ProductionSettingPage() {
                   <>
                     {/* [제본전용] 구간별 Nup/1p가격 */}
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        {/* 인쇄방식 선택 */}
-                        <Select
-                          value={settingForm.printMethod}
-                          onValueChange={(value) =>
-                            setSettingForm((prev) => ({
-                              ...prev,
-                              printMethod: value as "indigo" | "inkjet" | "album" | "frame" | "booklet",
-                              specificationIds: [],
-                              nupPageRanges: [],
-                            }))
-                          }
-                        >
-                          <SelectTrigger className="w-32 bg-white">
-                            <SelectValue placeholder="인쇄방식" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Object.entries(PRINT_METHOD_LABELS).map(([value, label]) => (
-                              <SelectItem key={value} value={value}>
-                                {label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                      <div className="flex items-center justify-end">
                         <div className="flex gap-2">
                           <Button
                             variant="outline"
@@ -2987,7 +3375,7 @@ export default function ProductionSettingPage() {
                             + 구간 추가
                           </Button>
                         </div>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-2 justify-center">
                           {settingForm.pageRanges.map((range, idx) => (
                             <div key={`range-${idx}`} className="flex items-center gap-1 bg-white rounded px-2 py-1 border border-blue-200">
                               <Input
@@ -3007,7 +3395,7 @@ export default function ProductionSettingPage() {
                                     pageRanges: [...prev.pageRanges].sort((a, b) => a - b),
                                   }));
                                 }}
-                                className="h-6 w-14 text-center text-sm font-mono border-0 p-0"
+                                className="h-6 w-14 text-center text-sm font-mono border-0 p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                               />
                               <span className="text-xs text-blue-600">p</span>
                               {settingForm.pageRanges.length > 2 && (
@@ -3164,7 +3552,7 @@ export default function ProductionSettingPage() {
                                 <div
                                   key={spec.id}
                                   className={cn(
-                                    "grid gap-1 py-1 items-center border-b last:border-b-0",
+                                    "grid gap-0 py-0.5 items-center",
                                     isSelected && "bg-amber-50/50"
                                   )}
                                   style={{
@@ -3240,7 +3628,7 @@ export default function ProductionSettingPage() {
                                             };
                                           });
                                         }}
-                                        className="h-7 text-right font-mono text-sm pr-2"
+                                        className="h-7 text-right font-mono text-sm pr-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                         placeholder="0"
                                       />
                                       {/* 첫 구간 가격 입력 - 변경시 나머지 구간 자동 계산 */}
@@ -3275,7 +3663,7 @@ export default function ProductionSettingPage() {
                                                 };
                                               });
                                             }}
-                                            className="h-7 text-center font-mono text-sm bg-blue-50 border-blue-300"
+                                            className="h-7 text-center font-mono text-sm bg-blue-50 border-blue-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                             placeholder="0"
                                           />
                                         ) : (
@@ -3321,6 +3709,76 @@ export default function ProductionSettingPage() {
                       <p className="text-sm text-muted-foreground">
                         선택된 규격: {settingForm.specificationIds.length}개
                       </p>
+                    </div>
+                  </>
+                ) : settingForm.pricingType === "finishing_spec_nup" ? (
+                  <>
+                    {/* [후가공전용] 규격별 Nup/1p단가 - Nup 그룹별로 표시 (모든 Nup 사용) */}
+                    <div className="border rounded-lg p-4 max-h-[350px] overflow-y-auto">
+                      {/* Nup 그룹별 표시 */}
+                      <div className="space-y-0">
+                        {(() => {
+                          const filteredSpecs = getFilteredSpecifications().filter(s => s.nup);
+                          const nupGroups = groupSpecificationsByNup(filteredSpecs);
+
+                          if (nupGroups.size === 0) {
+                            return (
+                              <p className="text-center text-muted-foreground py-4">
+                                해당 용도의 Nup 규격이 없습니다.
+                              </p>
+                            );
+                          }
+
+                          return Array.from(nupGroups.entries()).map(([nup, specs]) => {
+                            return (
+                              <div key={nup} className="py-2 border-b last:border-0">
+                                <div className="flex items-center gap-3">
+                                  {/* Nup 뱃지 - 고정 너비 */}
+                                  <div className="w-14 shrink-0">
+                                    <Badge variant="secondary" className="bg-violet-100 text-violet-700 font-semibold w-full justify-center">
+                                      {nup}
+                                    </Badge>
+                                  </div>
+                                  {/* 단가 입력 필드 - 고정 너비 */}
+                                  <div className="w-24 shrink-0 flex items-center gap-1">
+                                    <Input
+                                      type="number"
+                                      placeholder="단가"
+                                      className="w-full h-7 text-sm text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                      value={settingForm.nupPageRanges?.find(r => r.specificationId === specs[0]?.id)?.pricePerPage || ""}
+                                      onChange={(e) => {
+                                        const price = Number(e.target.value) || 0;
+                                        setSettingForm(prev => {
+                                          const existing = prev.nupPageRanges || [];
+                                          // 해당 Nup 그룹의 모든 규격에 동일한 가격 적용
+                                          const updatedRanges = [...existing];
+                                          specs.forEach(spec => {
+                                            const idx = updatedRanges.findIndex(r => r.specificationId === spec.id);
+                                            if (idx >= 0) {
+                                              updatedRanges[idx] = { ...updatedRanges[idx], pricePerPage: price };
+                                            } else {
+                                              updatedRanges.push({
+                                                specificationId: spec.id,
+                                                pricePerPage: price,
+                                                rangePrices: {},
+                                              });
+                                            }
+                                          });
+                                          return { ...prev, nupPageRanges: updatedRanges };
+                                        });
+                                      }}
+                                    />
+                                  </div>
+                                  {/* 규격 목록 - 나머지 공간 */}
+                                  <div className="flex-1 text-xs text-gray-500 truncate">
+                                    {specs.map(s => s.name).join(", ")}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
                     </div>
                   </>
                 ) : (

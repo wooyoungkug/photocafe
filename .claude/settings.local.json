@@ -90,8 +90,6 @@
       "Bash(wc:*)",
       "Bash(git pull:*)",
       "Bash(git stash:*)",
-      "Bash(wsl --list:*)",
-      "Bash(wsl --install:*)",
       "Bash(git fetch:*)",
       "Bash(cmd /c \"for /f \"\"tokens=5\"\" %a in \\(''netstat -ano ^| findstr :3002 ^| findstr LISTENING''\\) do taskkill /PID %a /F\")",
       "Bash(cmd /c \"taskkill /F /PID 15924\")",

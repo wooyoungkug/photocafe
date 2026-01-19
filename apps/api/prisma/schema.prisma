@@ -1188,6 +1188,9 @@ model ProductionSetting {
   printMethod     String?         // indigo, inkjet
   paperIds        String[]        @default([]) // 선택된 용지 ID 목록
 
+  // 규격 용도 선택 (all, indigo, inkjet, album, frame, booklet)
+  specUsageType   String          @default("all")
+
   // 양면/단면 가격
   singleSidedPrice  Decimal?      @db.Decimal(12, 2) // 단면 단가
   doubleSidedPrice  Decimal?      @db.Decimal(12, 2) // 양면 단가

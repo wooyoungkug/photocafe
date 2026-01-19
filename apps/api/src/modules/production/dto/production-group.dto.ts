@@ -131,6 +131,11 @@ export class PriceGroupDto {
   @IsOptional()
   @IsNumber()
   inkjetBasePrice?: number;
+
+  @ApiPropertyOptional({ description: '단가 입력 방식 (spec: 기준규격, sqinch: sq" 단가)' })
+  @IsOptional()
+  @IsString()
+  pricingMode?: string;
 }
 
 // 잉크젯 규격별 가격
@@ -183,6 +188,7 @@ export class NupPageRangeDto {
 export const PRICING_TYPES = [
   'paper_output_spec', // [출력전용] 용지별출력단가/1p가격 (인쇄방식+규격)
   'nup_page_range',    // [제본전용] 구간별 Nup/1p가격
+  'finishing_spec_nup', // [후가공전용] 규격별 Nup/1p단가
 ] as const;
 export type PricingType = typeof PRICING_TYPES[number];
 
@@ -190,6 +196,7 @@ export type PricingType = typeof PRICING_TYPES[number];
 export const PRICING_TYPE_LABELS: Record<PricingType, string> = {
   paper_output_spec: '[출력전용] 용지별출력단가/1p가격',
   nup_page_range: '[제본전용] 구간별 Nup/1p가격',
+  finishing_spec_nup: '[후가공전용] 규격별 Nup/1p단가',
 };
 
 // 업체 타입
@@ -321,6 +328,11 @@ export class CreateProductionSettingDto {
   @IsArray()
   @IsString({ each: true })
   paperIds?: string[];
+
+  @ApiPropertyOptional({ description: '규격 용도 선택 (all, indigo, inkjet, album, frame, booklet)', default: 'all' })
+  @IsOptional()
+  @IsString()
+  specUsageType?: string;
 
   @ApiPropertyOptional({ description: '단면 단가' })
   @IsOptional()

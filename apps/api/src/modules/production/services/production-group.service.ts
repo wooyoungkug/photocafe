@@ -81,8 +81,7 @@ export class ProductionGroupService {
       orderBy: { sortOrder: 'asc' },
     });
 
-    // 트리 구조로 변환
-    const rootGroups = allGroups.filter(g => !g.parentId);
+    // 트리 구조로 변환 (3단계 지원: 대분류 → 중분류 → 소분류)
     const childMap = new Map<string, typeof allGroups>();
 
     for (const group of allGroups) {
@@ -93,10 +92,16 @@ export class ProductionGroupService {
       }
     }
 
-    return rootGroups.map(parent => ({
-      ...parent,
-      children: childMap.get(parent.id) || [],
-    }));
+    // 재귀적으로 children 연결
+    const buildTree = (groups: typeof allGroups): any[] => {
+      return groups.map(group => ({
+        ...group,
+        children: buildTree(childMap.get(group.id) || []),
+      }));
+    };
+
+    const rootGroups = allGroups.filter(g => !g.parentId);
+    return buildTree(rootGroups);
   }
 
   async findGroupById(id: string) {
