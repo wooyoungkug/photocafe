@@ -74,6 +74,7 @@ const PRICING_TYPE_LABELS: Record<PricingType, string> = {
   paper_output_spec: "[출력전용] 용지별출력단가/1p가격",
   nup_page_range: "[제본전용] 구간별 Nup/1p가격",
   finishing_spec_nup: "[후가공전용] 규격별 Nup/1p단가",
+  finishing_length: "[후가공전용] 길이별단가",
   binding_page: "[제본전용] 제본 페이지당",
   finishing_qty: "[후가공] 수량당",
   finishing_page: "[후가공] 페이지당",
@@ -953,6 +954,13 @@ export default function ProductionSettingPage() {
     }>,
     // 페이지 구간 설정 (전역)
     pageRanges: [20, 30, 40, 50, 60] as number[],
+    // [후가공전용] 길이별단가 필드
+    lengthUnit: 'cm' as 'cm' | 'mm',  // 길이 단위
+    lengthPriceRanges: [] as Array<{
+      minLength: number;  // 시작 길이
+      maxLength: number;  // 끝 길이
+      price: number;      // 해당 구간 단가
+    }>,
   });
 
   // 시스템 설정 (인디고 잉크 원가용)
@@ -1427,6 +1435,8 @@ export default function ProductionSettingPage() {
         paperPriceGroupMap: (setting as any).paperPriceGroupMap || {},
         nupPageRanges: nupPageRangesFromDB,
         pageRanges: pageRangesFromDB,
+        lengthUnit: (setting as any).lengthUnit || 'cm',
+        lengthPriceRanges: (setting as any).lengthPriceRanges || [],
       });
     } else {
       setEditingSetting(null);
@@ -1465,6 +1475,8 @@ export default function ProductionSettingPage() {
         paperPriceGroupMap: {},
         nupPageRanges: [],
         pageRanges: [20, 30, 40, 50, 60],
+        lengthUnit: 'cm',
+        lengthPriceRanges: [],
       });
     }
     setIsSettingDialogOpen(true);
@@ -1582,6 +1594,11 @@ export default function ProductionSettingPage() {
             rangePrices: {},
           }));
         }
+      }
+      // finishing_length: 길이별단가
+      else if (formData.pricingType === "finishing_length") {
+        apiData.lengthUnit = formData.lengthUnit;
+        apiData.lengthPriceRanges = formData.lengthPriceRanges;
       }
       // 나머지: 규격 선택
       else {
@@ -3778,6 +3795,134 @@ export default function ProductionSettingPage() {
                             );
                           });
                         })()}
+                      </div>
+                    </div>
+                  </>
+                ) : settingForm.pricingType === "finishing_length" ? (
+                  <>
+                    {/* [후가공전용] 길이별단가 */}
+                    <div className="space-y-4">
+                      {/* 길이 단위 선택 */}
+                      <div className="flex items-center gap-4">
+                        <Label className="w-20">길이 단위</Label>
+                        <Select
+                          value={settingForm.lengthUnit}
+                          onValueChange={(value: 'cm' | 'mm') =>
+                            setSettingForm(prev => ({ ...prev, lengthUnit: value }))
+                          }
+                        >
+                          <SelectTrigger className="w-32">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="cm">cm (센티미터)</SelectItem>
+                            <SelectItem value="mm">mm (밀리미터)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* 구간별 단가 설정 */}
+                      <div className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <Label className="text-sm font-medium">구간별 단가</Label>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSettingForm(prev => {
+                                const ranges = prev.lengthPriceRanges || [];
+                                const lastMax = ranges.length > 0 ? ranges[ranges.length - 1].maxLength : 0;
+                                return {
+                                  ...prev,
+                                  lengthPriceRanges: [
+                                    ...ranges,
+                                    { minLength: lastMax, maxLength: lastMax + 100, price: 0 }
+                                  ]
+                                };
+                              });
+                            }}
+                          >
+                            <Plus className="h-4 w-4 mr-1" />
+                            구간 추가
+                          </Button>
+                        </div>
+
+                        {settingForm.lengthPriceRanges.length === 0 ? (
+                          <p className="text-center text-muted-foreground py-4 text-sm">
+                            구간을 추가하여 길이별 단가를 설정하세요.
+                          </p>
+                        ) : (
+                          <div className="space-y-2">
+                            {settingForm.lengthPriceRanges.map((range, idx) => (
+                              <div key={idx} className="flex items-center gap-2 py-2 border-b last:border-0">
+                                <Input
+                                  type="number"
+                                  placeholder="시작"
+                                  className="w-20 h-8 text-sm text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                  value={range.minLength || ""}
+                                  onChange={(e) => {
+                                    const val = Number(e.target.value) || 0;
+                                    setSettingForm(prev => ({
+                                      ...prev,
+                                      lengthPriceRanges: prev.lengthPriceRanges.map((r, i) =>
+                                        i === idx ? { ...r, minLength: val } : r
+                                      )
+                                    }));
+                                  }}
+                                />
+                                <span className="text-sm text-gray-500">~</span>
+                                <Input
+                                  type="number"
+                                  placeholder="끝"
+                                  className="w-20 h-8 text-sm text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                  value={range.maxLength || ""}
+                                  onChange={(e) => {
+                                    const val = Number(e.target.value) || 0;
+                                    setSettingForm(prev => ({
+                                      ...prev,
+                                      lengthPriceRanges: prev.lengthPriceRanges.map((r, i) =>
+                                        i === idx ? { ...r, maxLength: val } : r
+                                      )
+                                    }));
+                                  }}
+                                />
+                                <span className="text-sm text-gray-500 w-8">{settingForm.lengthUnit}</span>
+                                <span className="text-sm text-gray-500">:</span>
+                                <Input
+                                  type="number"
+                                  placeholder="단가"
+                                  className="w-24 h-8 text-sm text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                  value={range.price || ""}
+                                  onChange={(e) => {
+                                    const val = Number(e.target.value) || 0;
+                                    setSettingForm(prev => ({
+                                      ...prev,
+                                      lengthPriceRanges: prev.lengthPriceRanges.map((r, i) =>
+                                        i === idx ? { ...r, price: val } : r
+                                      )
+                                    }));
+                                  }}
+                                />
+                                <span className="text-sm text-gray-500">원</span>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
+                                  onClick={() => {
+                                    setSettingForm(prev => ({
+                                      ...prev,
+                                      lengthPriceRanges: prev.lengthPriceRanges.filter((_, i) => i !== idx)
+                                    }));
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </>

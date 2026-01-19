@@ -411,6 +411,7 @@ export class ProductionGroupService {
       priceGroups,
       paperPriceGroupMap,
       pageRanges,
+      lengthPriceRanges,
       ...settingData
     } = data;
 
@@ -428,6 +429,8 @@ export class ProductionGroupService {
         paperPriceGroupMap: paperPriceGroupMap ? JSON.parse(JSON.stringify(paperPriceGroupMap)) : Prisma.JsonNull,
         // 페이지 구간 설정 (nup_page_range용)
         pageRanges: pageRanges ? JSON.parse(JSON.stringify(pageRanges)) : Prisma.JsonNull,
+        // 길이별 단가 설정 (finishing_length용)
+        lengthPriceRanges: lengthPriceRanges ? JSON.parse(JSON.stringify(lengthPriceRanges)) : Prisma.JsonNull,
       },
     });
 
@@ -519,8 +522,8 @@ export class ProductionGroupService {
   async updateSetting(id: string, data: UpdateProductionSettingDto) {
     await this.findSettingById(id);
 
-    // Prisma 스키마에 없는 필드 제외 (priceGroups, paperPriceGroupMap, pageRanges은 Json 필드로 저장)
-    const { specificationIds, groupId, indigoUpPrices, inkjetSpecPrices, nupPageRanges, priceGroups, paperPriceGroupMap, pageRanges, ...updateData } = data;
+    // Prisma 스키마에 없는 필드 제외 (priceGroups, paperPriceGroupMap, pageRanges, lengthPriceRanges은 Json 필드로 저장)
+    const { specificationIds, groupId, indigoUpPrices, inkjetSpecPrices, nupPageRanges, priceGroups, paperPriceGroupMap, pageRanges, lengthPriceRanges, ...updateData } = data;
 
     // 설정 업데이트 (단가 그룹 포함)
     await this.prisma.productionSetting.update({
@@ -537,6 +540,10 @@ export class ProductionGroupService {
         // 페이지 구간 설정 (nup_page_range용)
         ...(pageRanges !== undefined && {
           pageRanges: pageRanges ? JSON.parse(JSON.stringify(pageRanges)) : Prisma.JsonNull
+        }),
+        // 길이별 단가 설정 (finishing_length용)
+        ...(lengthPriceRanges !== undefined && {
+          lengthPriceRanges: lengthPriceRanges ? JSON.parse(JSON.stringify(lengthPriceRanges)) : Prisma.JsonNull
         }),
       },
     });

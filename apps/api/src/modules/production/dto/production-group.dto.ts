@@ -189,6 +189,7 @@ export const PRICING_TYPES = [
   'paper_output_spec', // [출력전용] 용지별출력단가/1p가격 (인쇄방식+규격)
   'nup_page_range',    // [제본전용] 구간별 Nup/1p가격
   'finishing_spec_nup', // [후가공전용] 규격별 Nup/1p단가
+  'finishing_length',   // [후가공전용] 길이별단가
 ] as const;
 export type PricingType = typeof PRICING_TYPES[number];
 
@@ -197,6 +198,7 @@ export const PRICING_TYPE_LABELS: Record<PricingType, string> = {
   paper_output_spec: '[출력전용] 용지별출력단가/1p가격',
   nup_page_range: '[제본전용] 구간별 Nup/1p가격',
   finishing_spec_nup: '[후가공전용] 규격별 Nup/1p단가',
+  finishing_length: '[후가공전용] 길이별단가',
 };
 
 // 업체 타입
@@ -390,6 +392,21 @@ export class CreateProductionSettingDto {
   @IsObject()
   @Allow()
   paperPriceGroupMap?: Record<string, string | null>;
+
+  @ApiPropertyOptional({ description: '길이 단위 (cm, mm)', default: 'cm' })
+  @IsOptional()
+  @IsString()
+  lengthUnit?: string;
+
+  @ApiPropertyOptional({ description: '길이별 구간 단가 배열' })
+  @IsOptional()
+  @IsArray()
+  @Allow()
+  lengthPriceRanges?: Array<{
+    minLength: number;
+    maxLength: number;
+    price: number;
+  }>;
 
   @ApiPropertyOptional({ description: '정렬 순서', default: 0 })
   @IsOptional()

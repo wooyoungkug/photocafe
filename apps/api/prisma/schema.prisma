@@ -1208,6 +1208,10 @@ model ProductionSetting {
   // 구간별 Nup+면당가격 페이지 구간 설정
   pageRanges          Json?       // 페이지 구간 배열 (예: [30, 40, 50, 60])
 
+  // [후가공전용] 길이별단가 설정
+  lengthUnit          String?     @default("cm") // cm, mm
+  lengthPriceRanges   Json?       // 길이별 구간 단가 배열 [{minLength, maxLength, price}]
+
   // 정렬 및 상태
   sortOrder       Int             @default(0)
   isActive        Boolean         @default(true)
