@@ -13,6 +13,8 @@ import { ProductionModule } from './modules/production/production.module';
 import { StaffModule } from './modules/staff/staff.module';
 import { PaperModule } from './modules/paper/paper.module';
 import { SystemSettingsModule } from './modules/system-settings/system-settings.module';
+import { DeliveryModule } from './modules/delivery/delivery.module';
+import { ConsultationModule } from './modules/consultation/consultation.module';
 // import { NotionModule } from './modules/notion/notion.module';  // TODO: npm install @notionhq/client
 import { PrismaModule } from './common/prisma/prisma.module';
 import { AppController } from './app.controller';
@@ -38,6 +40,8 @@ import { AppController } from './app.controller';
     StaffModule,
     PaperModule,
     SystemSettingsModule,
+    DeliveryModule,
+    ConsultationModule,
     // NotionModule,  // TODO: npm install @notionhq/client
   ],
 })

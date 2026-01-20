@@ -38,6 +38,13 @@ export function useClient(id: string) {
   });
 }
 
+export function useNextClientCode() {
+  return useQuery({
+    queryKey: [CLIENTS_KEY, 'next-code'],
+    queryFn: () => api.get<{ code: string }>('/clients/next-code'),
+  });
+}
+
 export function useCreateClient() {
   const queryClient = useQueryClient();
 

@@ -98,6 +98,56 @@ export class PriceGroupSpecPriceDto {
   weight?: number;
 }
 
+// 길이별 구간 단가 DTO (finishing_length용)
+export class LengthPriceRangeDto {
+  @ApiProperty({ description: '시작 길이' })
+  @IsNumber()
+  minLength: number;
+
+  @ApiProperty({ description: '끝 길이' })
+  @IsNumber()
+  maxLength: number;
+
+  @ApiProperty({ description: '단가' })
+  @IsNumber()
+  price: number;
+}
+
+// 면적별 구간 단가 DTO (finishing_area용 - 가로×세로)
+export class AreaPriceRangeDto {
+  @ApiProperty({ description: '최대 가로' })
+  @IsNumber()
+  maxWidth: number;
+
+  @ApiProperty({ description: '최대 세로' })
+  @IsNumber()
+  maxHeight: number;
+
+  @ApiPropertyOptional({ description: '면적 (가로×세로, 자동계산)' })
+  @IsOptional()
+  @IsNumber()
+  area?: number;
+
+  @ApiProperty({ description: '단가' })
+  @IsNumber()
+  price: number;
+}
+
+// 거리별 구간 단가 DTO (배송비용)
+export class DistancePriceRangeDto {
+  @ApiProperty({ description: '시작 거리 (km)' })
+  @IsNumber()
+  minDistance: number;
+
+  @ApiProperty({ description: '끝 거리 (km)' })
+  @IsNumber()
+  maxDistance: number;
+
+  @ApiProperty({ description: '단가' })
+  @IsNumber()
+  price: number;
+}
+
 // 단가 그룹
 export class PriceGroupDto {
   @ApiProperty({ description: '그룹 ID' })
@@ -190,6 +240,13 @@ export const PRICING_TYPES = [
   'nup_page_range',    // [제본전용] 구간별 Nup/1p가격
   'finishing_spec_nup', // [후가공전용] 규격별 Nup/1p단가
   'finishing_length',   // [후가공전용] 길이별단가
+  'finishing_area',     // [후가공전용] 면적별단가
+  // 배송비 전용
+  'delivery_parcel',     // [배송] 택배
+  'delivery_motorcycle', // [배송] 오토바이퀵배달
+  'delivery_damas',      // [배송] 다마스
+  'delivery_freight',    // [배송] 화물배송
+  'delivery_pickup',     // [배송] 방문수령
 ] as const;
 export type PricingType = typeof PRICING_TYPES[number];
 
@@ -199,6 +256,49 @@ export const PRICING_TYPE_LABELS: Record<PricingType, string> = {
   nup_page_range: '[제본전용] 구간별 Nup/1p가격',
   finishing_spec_nup: '[후가공전용] 규격별 Nup/1p단가',
   finishing_length: '[후가공전용] 길이별단가',
+  finishing_area: '[후가공전용] 면적별단가',
+  // 배송비 전용
+  delivery_parcel: '[배송] 택배',
+  delivery_motorcycle: '[배송] 오토바이퀵배달',
+  delivery_damas: '[배송] 다마스',
+  delivery_freight: '[배송] 화물배송',
+  delivery_pickup: '[배송] 방문수령',
+};
+
+// 배송방법 타입
+export const DELIVERY_PRICING_TYPES = [
+  'delivery_parcel',
+  'delivery_motorcycle',
+  'delivery_damas',
+  'delivery_freight',
+  'delivery_pickup',
+] as const;
+export type DeliveryPricingType = typeof DELIVERY_PRICING_TYPES[number];
+
+// 배송방법 라벨
+export const DELIVERY_METHOD_LABELS: Record<DeliveryPricingType, string> = {
+  delivery_parcel: '택배',
+  delivery_motorcycle: '오토바이퀵배달',
+  delivery_damas: '다마스',
+  delivery_freight: '화물배송',
+  delivery_pickup: '방문수령',
+};
+
+// 할증조건 타입
+export const SURCHARGE_TYPES = [
+  'night30_weekend20',  // 야간 30%, 주말 20%
+  'night20_weekend10',  // 야간 20%, 주말 10%
+  'free_condition',     // 무료배송 조건
+  'none',               // 할증 없음
+] as const;
+export type SurchargeType = typeof SURCHARGE_TYPES[number];
+
+// 할증조건 라벨
+export const SURCHARGE_TYPE_LABELS: Record<SurchargeType, string> = {
+  night30_weekend20: '야간 30% / 주말 20%',
+  night20_weekend10: '야간 20% / 주말 10%',
+  free_condition: '무료배송 조건',
+  none: '할증 없음',
 };
 
 // 업체 타입
@@ -398,15 +498,62 @@ export class CreateProductionSettingDto {
   @IsString()
   lengthUnit?: string;
 
-  @ApiPropertyOptional({ description: '길이별 구간 단가 배열' })
+  @ApiPropertyOptional({ description: '길이별 구간 단가 배열', type: [LengthPriceRangeDto] })
   @IsOptional()
   @IsArray()
-  @Allow()
-  lengthPriceRanges?: Array<{
-    minLength: number;
-    maxLength: number;
-    price: number;
-  }>;
+  @ValidateNested({ each: true })
+  @Type(() => LengthPriceRangeDto)
+  lengthPriceRanges?: LengthPriceRangeDto[];
+
+  @ApiPropertyOptional({ description: '길이 단위 (mm, cm, m) - 가로×세로 규격용', default: 'mm' })
+  @IsOptional()
+  @IsString()
+  areaUnit?: string;
+
+  @ApiPropertyOptional({ description: '가로×세로 규격별 구간 단가 배열', type: [AreaPriceRangeDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AreaPriceRangeDto)
+  areaPriceRanges?: AreaPriceRangeDto[];
+
+  // ==================== 배송비 관련 필드 ====================
+
+  @ApiPropertyOptional({ description: '할증조건 타입', enum: SURCHARGE_TYPES })
+  @IsOptional()
+  @IsIn(SURCHARGE_TYPES)
+  surchargeType?: SurchargeType;
+
+  @ApiPropertyOptional({ description: '거리별 구간 단가 배열 (배송비용)', type: [DistancePriceRangeDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DistancePriceRangeDto)
+  distancePriceRanges?: DistancePriceRangeDto[];
+
+  @ApiPropertyOptional({ description: 'km당 추가단가 (거리비례 계산시)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  extraPricePerKm?: number;
+
+  @ApiPropertyOptional({ description: '기본거리 (km, 이 거리까지 기본요금)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  maxBaseDistance?: number;
+
+  @ApiPropertyOptional({ description: '무료배송 기준금액' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  freeThreshold?: number;
+
+  @ApiPropertyOptional({ description: '도서산간 추가비용' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  islandFee?: number;
 
   @ApiPropertyOptional({ description: '정렬 순서', default: 0 })
   @IsOptional()

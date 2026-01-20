@@ -559,8 +559,11 @@ export default function CategoriesPage() {
             </Tooltip>
           )}
 
-          {/* 액션 버튼 */}
-          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          {/* 액션 버튼 - 대분류는 항상 표시, 나머지는 호버 시 표시 */}
+          <div className={cn(
+            "flex items-center gap-0.5 transition-opacity",
+            category.level === "large" ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+          )}>
             {/* 하위 카테고리 추가 (대분류, 중분류만) */}
             {category.level !== "small" && (
               <Tooltip>
@@ -591,7 +594,12 @@ export default function CategoriesPage() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 text-gray-500 hover:text-primary"
+                  className={cn(
+                    "h-7 w-7 transition-colors",
+                    category.level === "large"
+                      ? "text-blue-400 hover:text-blue-600 hover:bg-blue-50"
+                      : "text-gray-500 hover:text-primary"
+                  )}
                   onClick={(e) => handleMoveUp(category.id, e)}
                 >
                   <ChevronUp className="h-4 w-4" />
@@ -604,7 +612,12 @@ export default function CategoriesPage() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 text-gray-500 hover:text-primary"
+                  className={cn(
+                    "h-7 w-7 transition-colors",
+                    category.level === "large"
+                      ? "text-blue-400 hover:text-blue-600 hover:bg-blue-50"
+                      : "text-gray-500 hover:text-primary"
+                  )}
                   onClick={(e) => handleMoveDown(category.id, e)}
                 >
                   <ChevronDown className="h-4 w-4" />

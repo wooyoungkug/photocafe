@@ -41,6 +41,13 @@ export class ClientController {
     return this.clientService.findAll({ skip, take, search, groupId, status });
   }
 
+  @Get('next-code')
+  @ApiOperation({ summary: '다음 회원코드 조회' })
+  async getNextCode() {
+    const code = await this.clientService.getNextClientCode();
+    return { code };
+  }
+
   @Get(':id')
   @ApiOperation({ summary: '거래처 상세 조회' })
   async findOne(@Param('id') id: string) {

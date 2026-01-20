@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -37,8 +38,11 @@ import {
   useCreateClient,
   useUpdateClient,
   useDeleteClient,
+  useNextClientCode,
 } from '@/hooks/use-clients';
+import { useClientConsultations } from '@/hooks/use-consultations';
 import { Client, CreateClientDto } from '@/lib/types/client';
+import { CONSULTATION_CATEGORY_COLORS, CONSULTATION_STATUS_CONFIG } from '@/lib/types/consultation';
 import { AddressSearch } from '@/components/address-search';
 import {
   Plus,
@@ -50,7 +54,16 @@ import {
   Mail,
   Loader2,
   AlertCircle,
+  User,
+  MapPin,
+  CreditCard,
+  MessageSquare,
+  Users,
+  Clock,
 } from 'lucide-react';
+import { format } from 'date-fns';
+import { ko } from 'date-fns/locale';
+import { toast } from '@/hooks/use-toast';
 
 export default function MembersPage() {
   const [search, setSearch] = useState('');
@@ -60,6 +73,7 @@ export default function MembersPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Client | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Client | null>(null);
+  const [activeTab, setActiveTab] = useState('basic');
 
   const { data: membersData, isLoading, error } = useClients({
     page,
@@ -70,6 +84,8 @@ export default function MembersPage() {
   });
 
   const { data: groupsData } = useClientGroups({ limit: 100 });
+  const { data: consultations } = useClientConsultations(editingMember?.id || '', 5);
+  const { data: nextCodeData, refetch: refetchNextCode } = useNextClientCode();
   const createMember = useCreateClient();
   const updateMember = useUpdateClient();
   const deleteMember = useDeleteClient();
@@ -112,23 +128,27 @@ export default function MembersPage() {
       });
     } else {
       setEditingMember(null);
-      setFormData({
-        clientCode: '',
-        clientName: '',
-        businessNumber: '',
-        representative: '',
-        phone: '',
-        mobile: '',
-        email: '',
-        postalCode: '',
-        address: '',
-        addressDetail: '',
-        groupId: '',
-        creditGrade: 'B',
-        paymentTerms: 30,
-        status: 'active',
+      // 새 회원 추가 시 다음 코드를 가져옴
+      refetchNextCode().then((result) => {
+        setFormData({
+          clientCode: result.data?.code || '',
+          clientName: '',
+          businessNumber: '',
+          representative: '',
+          phone: '',
+          mobile: '',
+          email: '',
+          postalCode: '',
+          address: '',
+          addressDetail: '',
+          groupId: '',
+          creditGrade: 'B',
+          paymentTerms: 30,
+          status: 'active',
+        });
       });
     }
+    setActiveTab('basic');
     setIsDialogOpen(true);
   };
 
@@ -144,30 +164,46 @@ export default function MembersPage() {
   };
 
   const handleSubmit = async () => {
-    const submitData = {
-      ...formData,
-      groupId: formData.groupId || undefined,
-    };
-
-    if (editingMember) {
-      await updateMember.mutateAsync({ id: editingMember.id, data: submitData });
-    } else {
-      await createMember.mutateAsync(submitData);
+    if (!formData.clientCode || !formData.clientName) {
+      toast({ title: '필수 항목을 입력해주세요.', variant: 'destructive' });
+      return;
     }
-    setIsDialogOpen(false);
+
+    try {
+      const submitData = {
+        ...formData,
+        groupId: formData.groupId || undefined,
+      };
+
+      if (editingMember) {
+        await updateMember.mutateAsync({ id: editingMember.id, data: submitData });
+        toast({ title: '회원 정보가 수정되었습니다.' });
+      } else {
+        await createMember.mutateAsync(submitData);
+        toast({ title: '회원이 추가되었습니다.' });
+      }
+      setIsDialogOpen(false);
+    } catch (err) {
+      toast({ title: '오류가 발생했습니다.', variant: 'destructive' });
+    }
   };
 
   const handleDelete = async () => {
     if (deleteConfirm) {
-      await deleteMember.mutateAsync(deleteConfirm.id);
-      setDeleteConfirm(null);
+      try {
+        await deleteMember.mutateAsync(deleteConfirm.id);
+        toast({ title: '회원이 삭제되었습니다.' });
+        setDeleteConfirm(null);
+      } catch (err) {
+        toast({ title: '삭제에 실패했습니다.', variant: 'destructive' });
+      }
     }
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'active':
-        return <Badge variant="default">활성</Badge>;
+        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">활성</Badge>;
       case 'inactive':
         return <Badge variant="secondary">비활성</Badge>;
       case 'suspended':
@@ -180,13 +216,13 @@ export default function MembersPage() {
   const getCreditBadge = (grade?: string) => {
     if (!grade) return null;
     const colors: Record<string, string> = {
-      A: 'bg-green-100 text-green-800',
-      B: 'bg-blue-100 text-blue-800',
-      C: 'bg-yellow-100 text-yellow-800',
-      D: 'bg-red-100 text-red-800',
+      A: 'bg-green-100 text-green-800 border-green-200',
+      B: 'bg-blue-100 text-blue-800 border-blue-200',
+      C: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      D: 'bg-red-100 text-red-800 border-red-200',
     };
     return (
-      <span className={`px-2 py-1 rounded text-xs font-medium ${colors[grade]}`}>
+      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${colors[grade]}`}>
         {grade}등급
       </span>
     );
@@ -204,28 +240,31 @@ export default function MembersPage() {
         ]}
       />
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>회원 목록</CardTitle>
-          <Button onClick={() => handleOpenDialog()}>
+      <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-slate-50">
+        <CardHeader className="flex flex-row items-center justify-between border-b bg-gradient-to-r from-blue-50/50 to-transparent">
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-blue-600" />
+            회원 목록
+          </CardTitle>
+          <Button onClick={() => handleOpenDialog()} className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-md">
             <Plus className="h-4 w-4 mr-2" />
             회원 추가
           </Button>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           {/* 필터 영역 */}
-          <div className="flex gap-4 mb-6">
-            <div className="relative flex-1 max-w-sm">
+          <div className="flex flex-wrap gap-4 mb-6 p-4 bg-slate-50/50 rounded-xl border">
+            <div className="relative flex-1 min-w-[200px] max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="회원명, 코드, 사업자번호 검색..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-10"
+                className="pl-10 bg-white"
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-32">
+              <SelectTrigger className="w-32 bg-white">
                 <SelectValue placeholder="상태" />
               </SelectTrigger>
               <SelectContent>
@@ -236,7 +275,7 @@ export default function MembersPage() {
               </SelectContent>
             </Select>
             <Select value={groupFilter} onValueChange={setGroupFilter}>
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-40 bg-white">
                 <SelectValue placeholder="그룹" />
               </SelectTrigger>
               <SelectContent>
@@ -264,87 +303,92 @@ export default function MembersPage() {
             </div>
           ) : (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>회원코드</TableHead>
-                    <TableHead>회원명</TableHead>
-                    <TableHead>대표자</TableHead>
-                    <TableHead>연락처</TableHead>
-                    <TableHead>그룹</TableHead>
-                    <TableHead>신용등급</TableHead>
-                    <TableHead>상태</TableHead>
-                    <TableHead className="text-right">작업</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {membersData?.data?.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                        등록된 회원이 없습니다.
-                      </TableCell>
+              <div className="rounded-xl border overflow-hidden bg-white">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-slate-50/80">
+                      <TableHead className="w-[120px]">회원코드</TableHead>
+                      <TableHead>회원명</TableHead>
+                      <TableHead className="w-[100px]">대표자</TableHead>
+                      <TableHead>연락처</TableHead>
+                      <TableHead className="w-[120px]">그룹</TableHead>
+                      <TableHead className="w-[80px]">신용등급</TableHead>
+                      <TableHead className="w-[80px]">상태</TableHead>
+                      <TableHead className="w-[100px] text-right">작업</TableHead>
                     </TableRow>
-                  ) : (
-                    membersData?.data?.map((member) => (
-                      <TableRow key={member.id}>
-                        <TableCell className="font-mono">{member.clientCode}</TableCell>
-                        <TableCell className="font-medium">{member.clientName}</TableCell>
-                        <TableCell>{member.representative || '-'}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-1 text-sm">
-                            {member.phone && (
-                              <span className="flex items-center gap-1">
-                                <Phone className="h-3 w-3" />
-                                {member.phone}
-                              </span>
-                            )}
-                            {member.email && (
-                              <span className="flex items-center gap-1">
-                                <Mail className="h-3 w-3" />
-                                {member.email}
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {member.group ? (
-                            <span className="flex items-center gap-1">
-                              <Building2 className="h-3 w-3" />
-                              {member.group.groupName}
-                            </span>
-                          ) : (
-                            '-'
-                          )}
-                        </TableCell>
-                        <TableCell>{getCreditBadge(member.creditGrade)}</TableCell>
-                        <TableCell>{getStatusBadge(member.status)}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleOpenDialog(member)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setDeleteConfirm(member)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
+                  </TableHeader>
+                  <TableBody>
+                    {membersData?.data?.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+                          <Users className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                          등록된 회원이 없습니다.
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                    ) : (
+                      membersData?.data?.map((member) => (
+                        <TableRow key={member.id} className="hover:bg-slate-50/50 transition-colors">
+                          <TableCell className="font-mono text-sm text-blue-600">{member.clientCode}</TableCell>
+                          <TableCell className="font-semibold">{member.clientName}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{member.representative || '-'}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-1 text-sm">
+                              {member.phone && (
+                                <span className="flex items-center gap-1.5 text-muted-foreground">
+                                  <Phone className="h-3 w-3" />
+                                  {member.phone}
+                                </span>
+                              )}
+                              {member.email && (
+                                <span className="flex items-center gap-1.5 text-muted-foreground">
+                                  <Mail className="h-3 w-3" />
+                                  {member.email}
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {member.group ? (
+                              <span className="flex items-center gap-1.5 text-sm">
+                                <Building2 className="h-3.5 w-3.5 text-blue-500" />
+                                {member.group.groupName}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>{getCreditBadge(member.creditGrade)}</TableCell>
+                          <TableCell>{getStatusBadge(member.status)}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleOpenDialog(member)}
+                                className="hover:bg-blue-50"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setDeleteConfirm(member)}
+                                className="hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
 
               {/* 페이지네이션 */}
               {membersData?.meta && membersData.meta.totalPages > 1 && (
-                <div className="flex justify-center gap-2 mt-4">
+                <div className="flex justify-center gap-2 mt-6">
                   <Button
                     variant="outline"
                     size="sm"
@@ -353,7 +397,7 @@ export default function MembersPage() {
                   >
                     이전
                   </Button>
-                  <span className="flex items-center px-4 text-sm">
+                  <span className="flex items-center px-4 text-sm text-muted-foreground">
                     {page} / {membersData.meta.totalPages}
                   </span>
                   <Button
@@ -371,196 +415,352 @@ export default function MembersPage() {
         </CardContent>
       </Card>
 
-      {/* 회원 추가/수정 다이얼로그 */}
+      {/* 회원 추가/수정 다이얼로그 - 확대된 3열 레이아웃 */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="border-b pb-4">
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <User className="h-5 w-5 text-blue-600" />
               {editingMember ? '회원 수정' : '회원 추가'}
             </DialogTitle>
             <DialogDescription>
-              회원 정보를 입력하세요.
+              {editingMember ? `회원코드: ${editingMember.clientCode}` : '회원 정보를 입력하세요.'}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid grid-cols-2 gap-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="clientCode">회원 코드 *</Label>
-              <Input
-                id="clientCode"
-                value={formData.clientCode}
-                onChange={(e) => setFormData({ ...formData, clientCode: e.target.value })}
-                placeholder="M0001"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="clientName">회원명 *</Label>
-              <Input
-                id="clientName"
-                value={formData.clientName}
-                onChange={(e) => setFormData({ ...formData, clientName: e.target.value })}
-                placeholder="홍길동"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="businessNumber">사업자등록번호</Label>
-              <Input
-                id="businessNumber"
-                value={formData.businessNumber}
-                onChange={(e) => setFormData({ ...formData, businessNumber: e.target.value })}
-                placeholder="123-45-67890"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="representative">대표자명</Label>
-              <Input
-                id="representative"
-                value={formData.representative}
-                onChange={(e) => setFormData({ ...formData, representative: e.target.value })}
-                placeholder="홍길동"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">전화번호</Label>
-              <Input
-                id="phone"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                placeholder="02-1234-5678"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="mobile">휴대폰번호</Label>
-              <Input
-                id="mobile"
-                value={formData.mobile}
-                onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
-                placeholder="010-1234-5678"
-              />
-            </div>
-            <div className="col-span-2 space-y-2">
-              <Label htmlFor="email">이메일</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="contact@example.com"
-              />
-            </div>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
+            <TabsList className="grid w-full grid-cols-3 mb-6">
+              <TabsTrigger value="basic" className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                기본정보
+              </TabsTrigger>
+              <TabsTrigger value="payment" className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4" />
+                결제/배송
+              </TabsTrigger>
+              <TabsTrigger value="history" className="flex items-center gap-2" disabled={!editingMember}>
+                <MessageSquare className="h-4 w-4" />
+                상담이력
+              </TabsTrigger>
+            </TabsList>
 
-            {/* 주소 입력 영역 */}
-            <div className="col-span-2 space-y-4 p-4 border rounded-lg bg-muted/30">
-              <div className="flex items-center gap-2">
-                <Label className="text-base font-semibold">주소 정보</Label>
-                <AddressSearch onComplete={handleAddressComplete} size="sm" />
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="postalCode">우편번호</Label>
-                  <Input
-                    id="postalCode"
-                    value={formData.postalCode}
-                    onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
-                    placeholder="12345"
-                    readOnly
-                    className="bg-muted"
-                  />
+            <TabsContent value="basic" className="space-y-6">
+              {/* 고객 정보 섹션 */}
+              <div className="p-5 border rounded-xl bg-gradient-to-r from-blue-50/70 to-transparent">
+                <h3 className="font-semibold mb-4 text-blue-700 flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  고객 정보
+                </h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="clientCode" className="text-sm font-medium">회원 코드 *</Label>
+                    <Input
+                      id="clientCode"
+                      value={formData.clientCode}
+                      onChange={(e) => setFormData({ ...formData, clientCode: e.target.value })}
+                      placeholder="M0001"
+                      readOnly={!editingMember}
+                      className={editingMember ? "bg-white" : "bg-slate-50 text-blue-600 font-mono"}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="clientName" className="text-sm font-medium">회원명 *</Label>
+                    <Input
+                      id="clientName"
+                      value={formData.clientName}
+                      onChange={(e) => setFormData({ ...formData, clientName: e.target.value })}
+                      placeholder="홍길동"
+                      className="bg-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="businessNumber" className="text-sm font-medium">사업자등록번호</Label>
+                    <Input
+                      id="businessNumber"
+                      value={formData.businessNumber}
+                      onChange={(e) => setFormData({ ...formData, businessNumber: e.target.value })}
+                      placeholder="123-45-67890"
+                      className="bg-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="representative" className="text-sm font-medium">대표자명</Label>
+                    <Input
+                      id="representative"
+                      value={formData.representative}
+                      onChange={(e) => setFormData({ ...formData, representative: e.target.value })}
+                      placeholder="홍길동"
+                      className="bg-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone" className="text-sm font-medium">전화번호</Label>
+                    <Input
+                      id="phone"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      placeholder="02-1234-5678"
+                      className="bg-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="mobile" className="text-sm font-medium">휴대폰번호</Label>
+                    <Input
+                      id="mobile"
+                      value={formData.mobile}
+                      onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
+                      placeholder="010-1234-5678"
+                      className="bg-white"
+                    />
+                  </div>
+                  <div className="col-span-2 space-y-2">
+                    <Label htmlFor="email" className="text-sm font-medium">이메일</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      placeholder="contact@example.com"
+                      className="bg-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="groupId" className="text-sm font-medium">회원 그룹</Label>
+                    <Select
+                      value={formData.groupId || 'none'}
+                      onValueChange={(v) => setFormData({ ...formData, groupId: v === 'none' ? '' : v })}
+                    >
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder="그룹 선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">그룹 없음</SelectItem>
+                        {groupsData?.data?.map((group) => (
+                          <SelectItem key={group.id} value={group.id}>
+                            {group.groupName} (일반 {group.generalDiscount}%)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="col-span-2 space-y-2">
-                  <Label htmlFor="address">주소</Label>
-                  <Input
-                    id="address"
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    placeholder="주소 검색 버튼을 눌러주세요"
-                    readOnly
-                    className="bg-muted"
-                  />
+              </div>
+
+              {/* 주소 정보 섹션 */}
+              <div className="p-5 border rounded-xl bg-gradient-to-r from-green-50/70 to-transparent">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-green-700 flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    주소 정보
+                  </h3>
+                  <AddressSearch onComplete={handleAddressComplete} size="sm" />
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="postalCode" className="text-sm font-medium">우편번호</Label>
+                    <Input
+                      id="postalCode"
+                      value={formData.postalCode}
+                      onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
+                      placeholder="12345"
+                      readOnly
+                      className="bg-slate-50"
+                    />
+                  </div>
+                  <div className="col-span-2 space-y-2">
+                    <Label htmlFor="address" className="text-sm font-medium">주소</Label>
+                    <Input
+                      id="address"
+                      value={formData.address}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      placeholder="주소 검색 버튼을 눌러주세요"
+                      readOnly
+                      className="bg-slate-50"
+                    />
+                  </div>
+                  <div className="col-span-3 space-y-2">
+                    <Label htmlFor="addressDetail" className="text-sm font-medium">상세주소</Label>
+                    <Input
+                      id="addressDetail"
+                      value={formData.addressDetail}
+                      onChange={(e) => setFormData({ ...formData, addressDetail: e.target.value })}
+                      placeholder="상세주소를 입력하세요 (예: 101동 202호)"
+                      className="bg-white"
+                    />
+                  </div>
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="addressDetail">상세주소</Label>
-                <Input
-                  id="addressDetail"
-                  value={formData.addressDetail}
-                  onChange={(e) => setFormData({ ...formData, addressDetail: e.target.value })}
-                  placeholder="상세주소를 입력하세요 (예: 101동 202호)"
-                />
+            </TabsContent>
+
+            <TabsContent value="payment" className="space-y-6">
+              {/* 결제 설정 섹션 */}
+              <div className="p-5 border rounded-xl bg-gradient-to-r from-purple-50/70 to-transparent">
+                <h3 className="font-semibold mb-4 text-purple-700 flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" />
+                  결제 설정
+                </h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="creditGrade" className="text-sm font-medium">신용등급</Label>
+                    <Select
+                      value={formData.creditGrade}
+                      onValueChange={(v) => setFormData({ ...formData, creditGrade: v as 'A' | 'B' | 'C' | 'D' })}
+                    >
+                      <SelectTrigger className="bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="A">
+                          <span className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-green-500" />
+                            A등급 (우수)
+                          </span>
+                        </SelectItem>
+                        <SelectItem value="B">
+                          <span className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-blue-500" />
+                            B등급 (양호)
+                          </span>
+                        </SelectItem>
+                        <SelectItem value="C">
+                          <span className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-yellow-500" />
+                            C등급 (보통)
+                          </span>
+                        </SelectItem>
+                        <SelectItem value="D">
+                          <span className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-red-500" />
+                            D등급 (주의)
+                          </span>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="paymentTerms" className="text-sm font-medium">결제조건 (일)</Label>
+                    <Input
+                      id="paymentTerms"
+                      type="number"
+                      value={formData.paymentTerms}
+                      onChange={(e) => setFormData({ ...formData, paymentTerms: parseInt(e.target.value) || 0 })}
+                      placeholder="30"
+                      className="bg-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="status" className="text-sm font-medium">상태</Label>
+                    <Select
+                      value={formData.status}
+                      onValueChange={(v) => setFormData({ ...formData, status: v as 'active' | 'inactive' | 'suspended' })}
+                    >
+                      <SelectTrigger className="bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">
+                          <span className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-green-500" />
+                            활성
+                          </span>
+                        </SelectItem>
+                        <SelectItem value="inactive">
+                          <span className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-gray-400" />
+                            비활성
+                          </span>
+                        </SelectItem>
+                        <SelectItem value="suspended">
+                          <span className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-red-500" />
+                            정지
+                          </span>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="groupId">회원 그룹</Label>
-              <Select
-                value={formData.groupId || 'none'}
-                onValueChange={(v) => setFormData({ ...formData, groupId: v === 'none' ? '' : v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="그룹 선택" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">그룹 없음</SelectItem>
-                  {groupsData?.data?.map((group) => (
-                    <SelectItem key={group.id} value={group.id}>
-                      {group.groupName} (일반 {group.generalDiscount}%)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="creditGrade">신용등급</Label>
-              <Select
-                value={formData.creditGrade}
-                onValueChange={(v) => setFormData({ ...formData, creditGrade: v as 'A' | 'B' | 'C' | 'D' })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="A">A등급 (우수)</SelectItem>
-                  <SelectItem value="B">B등급 (양호)</SelectItem>
-                  <SelectItem value="C">C등급 (보통)</SelectItem>
-                  <SelectItem value="D">D등급 (주의)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="paymentTerms">결제조건 (일)</Label>
-              <Input
-                id="paymentTerms"
-                type="number"
-                value={formData.paymentTerms}
-                onChange={(e) => setFormData({ ...formData, paymentTerms: parseInt(e.target.value) || 0 })}
-                placeholder="30"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="status">상태</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(v) => setFormData({ ...formData, status: v as 'active' | 'inactive' | 'suspended' })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">활성</SelectItem>
-                  <SelectItem value="inactive">비활성</SelectItem>
-                  <SelectItem value="suspended">정지</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+              {/* 배송 안내 */}
+              <div className="p-4 bg-slate-50 rounded-lg border">
+                <p className="text-sm text-muted-foreground">
+                  <AlertCircle className="h-4 w-4 inline-block mr-2" />
+                  배송비 및 결제 관련 상세 설정은 관리자에게 문의하세요.
+                </p>
+              </div>
+            </TabsContent>
 
-          <DialogFooter>
+            <TabsContent value="history" className="space-y-6">
+              {/* 상담 이력 */}
+              <div className="p-5 border rounded-xl bg-gradient-to-r from-orange-50/70 to-transparent">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-orange-700 flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4" />
+                    최근 상담 이력
+                  </h3>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.open(`/company/consultations?clientId=${editingMember?.id}`, '_blank')}
+                  >
+                    전체 보기
+                  </Button>
+                </div>
+
+                {consultations && consultations.length > 0 ? (
+                  <div className="space-y-3">
+                    {consultations.map((consultation) => (
+                      <div key={consultation.id} className="p-4 bg-white border rounded-lg hover:shadow-sm transition-shadow">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge
+                                variant="outline"
+                                className={`text-xs ${
+                                  consultation.category?.colorCode
+                                    ? CONSULTATION_CATEGORY_COLORS[consultation.category.colorCode]
+                                    : CONSULTATION_CATEGORY_COLORS.gray
+                                }`}
+                              >
+                                {consultation.category?.name}
+                              </Badge>
+                              <Badge className={`text-xs ${CONSULTATION_STATUS_CONFIG[consultation.status]?.color}`}>
+                                {CONSULTATION_STATUS_CONFIG[consultation.status]?.label}
+                              </Badge>
+                            </div>
+                            <p className="font-medium text-sm">{consultation.title}</p>
+                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{consultation.content}</p>
+                          </div>
+                          <div className="text-right text-xs text-muted-foreground flex flex-col items-end gap-1">
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {format(new Date(consultation.consultedAt), 'MM/dd HH:mm', { locale: ko })}
+                            </span>
+                            <span>{consultation.counselorName}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                    <p>상담 이력이 없습니다.</p>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          <DialogFooter className="mt-6 border-t pt-4">
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
               취소
             </Button>
             <Button
               onClick={handleSubmit}
               disabled={createMember.isPending || updateMember.isPending}
+              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
             >
               {(createMember.isPending || updateMember.isPending) && (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -575,7 +775,10 @@ export default function MembersPage() {
       <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>회원 삭제</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertCircle className="h-5 w-5" />
+              회원 삭제
+            </DialogTitle>
             <DialogDescription>
               &apos;{deleteConfirm?.clientName}&apos; 회원을 삭제하시겠습니까?
               <br />

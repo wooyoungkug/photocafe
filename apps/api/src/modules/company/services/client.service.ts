@@ -113,4 +113,34 @@ export class ClientService {
       include: { group: true },
     });
   }
+
+  async getNextClientCode(): Promise<string> {
+    // M0001 형식으로 다음 코드 생성
+    const lastClient = await this.prisma.client.findFirst({
+      where: {
+        clientCode: {
+          startsWith: 'M',
+        },
+      },
+      orderBy: {
+        clientCode: 'desc',
+      },
+      select: {
+        clientCode: true,
+      },
+    });
+
+    if (!lastClient) {
+      return 'M0001';
+    }
+
+    // M0001에서 숫자 부분 추출
+    const match = lastClient.clientCode.match(/^M(\d+)$/);
+    if (!match) {
+      return 'M0001';
+    }
+
+    const nextNumber = parseInt(match[1], 10) + 1;
+    return `M${nextNumber.toString().padStart(4, '0')}`;
+  }
 }

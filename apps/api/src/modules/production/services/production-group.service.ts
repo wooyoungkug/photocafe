@@ -12,9 +12,17 @@ import {
   UpdatePricesDto,
 } from '../dto';
 
+// 보호되는 그룹 이름 (삭제/수정 불가)
+const PROTECTED_GROUP_NAMES = ['기타', '배송'];
+
 @Injectable()
 export class ProductionGroupService {
   constructor(private prisma: PrismaService) { }
+
+  // 보호되는 그룹인지 확인
+  private isProtectedGroup(name: string): boolean {
+    return PROTECTED_GROUP_NAMES.includes(name);
+  }
 
   // ==================== 생산그룹 ====================
 
@@ -229,7 +237,12 @@ export class ProductionGroupService {
   }
 
   async updateGroup(id: string, data: UpdateProductionGroupDto) {
-    await this.findGroupById(id);
+    const group = await this.findGroupById(id);
+
+    // 보호되는 그룹은 수정 불가
+    if (this.isProtectedGroup(group.name)) {
+      throw new BadRequestException(`'${group.name}' 그룹은 시스템 그룹이므로 수정할 수 없습니다.`);
+    }
 
     // 코드 변경 시 중복 확인
     if (data.code) {
@@ -256,6 +269,11 @@ export class ProductionGroupService {
 
   async deleteGroup(id: string) {
     const group = await this.findGroupById(id);
+
+    // 보호되는 그룹은 삭제 불가
+    if (this.isProtectedGroup(group.name)) {
+      throw new BadRequestException(`'${group.name}' 그룹은 시스템 그룹이므로 삭제할 수 없습니다.`);
+    }
 
     // 하위 그룹이 있으면 삭제 불가
     if (group.children.length > 0) {
@@ -412,6 +430,8 @@ export class ProductionGroupService {
       paperPriceGroupMap,
       pageRanges,
       lengthPriceRanges,
+      areaPriceRanges,
+      distancePriceRanges,
       ...settingData
     } = data;
 
@@ -431,6 +451,10 @@ export class ProductionGroupService {
         pageRanges: pageRanges ? JSON.parse(JSON.stringify(pageRanges)) : Prisma.JsonNull,
         // 길이별 단가 설정 (finishing_length용)
         lengthPriceRanges: lengthPriceRanges ? JSON.parse(JSON.stringify(lengthPriceRanges)) : Prisma.JsonNull,
+        // 면적별 단가 설정 (finishing_area용)
+        areaPriceRanges: areaPriceRanges ? JSON.parse(JSON.stringify(areaPriceRanges)) : Prisma.JsonNull,
+        // 배송비 거리별 단가 설정
+        distancePriceRanges: distancePriceRanges ? JSON.parse(JSON.stringify(distancePriceRanges)) : Prisma.JsonNull,
       },
     });
 
@@ -522,8 +546,8 @@ export class ProductionGroupService {
   async updateSetting(id: string, data: UpdateProductionSettingDto) {
     await this.findSettingById(id);
 
-    // Prisma 스키마에 없는 필드 제외 (priceGroups, paperPriceGroupMap, pageRanges, lengthPriceRanges은 Json 필드로 저장)
-    const { specificationIds, groupId, indigoUpPrices, inkjetSpecPrices, nupPageRanges, priceGroups, paperPriceGroupMap, pageRanges, lengthPriceRanges, ...updateData } = data;
+    // Prisma 스키마에 없는 필드 제외 (priceGroups, paperPriceGroupMap, pageRanges, lengthPriceRanges, areaPriceRanges, distancePriceRanges은 Json 필드로 저장)
+    const { specificationIds, groupId, indigoUpPrices, inkjetSpecPrices, nupPageRanges, priceGroups, paperPriceGroupMap, pageRanges, lengthPriceRanges, areaPriceRanges, distancePriceRanges, ...updateData } = data;
 
     // 설정 업데이트 (단가 그룹 포함)
     await this.prisma.productionSetting.update({
@@ -544,6 +568,14 @@ export class ProductionGroupService {
         // 길이별 단가 설정 (finishing_length용)
         ...(lengthPriceRanges !== undefined && {
           lengthPriceRanges: lengthPriceRanges ? JSON.parse(JSON.stringify(lengthPriceRanges)) : Prisma.JsonNull
+        }),
+        // 면적별 단가 설정 (finishing_area용)
+        ...(areaPriceRanges !== undefined && {
+          areaPriceRanges: areaPriceRanges ? JSON.parse(JSON.stringify(areaPriceRanges)) : Prisma.JsonNull
+        }),
+        // 배송비 거리별 단가 설정
+        ...(distancePriceRanges !== undefined && {
+          distancePriceRanges: distancePriceRanges ? JSON.parse(JSON.stringify(distancePriceRanges)) : Prisma.JsonNull
         }),
       },
     });

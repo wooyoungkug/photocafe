@@ -39,6 +39,54 @@ model SystemSetting {
   @@map("system_settings")
 }
 
+// ==================== 배송비 설정 ====================
+
+// 배송방법: parcel(택배), motorcycle(오토바이/퀵), damas(다마스), freight(화물)
+model DeliveryPricing {
+  id              String   @id @default(cuid())
+
+  // 배송방법
+  deliveryMethod  String   // parcel, motorcycle, damas, freight
+  name            String   // 표시명 (예: "퀵서비스", "택배", "다마스", "화물")
+
+  // 기본요금 설정
+  baseFee         Decimal  @db.Decimal(10, 2) @default(0)  // 기본요금
+
+  // 거리별 요금 (오토바이/다마스용)
+  // [{minDistance: 0, maxDistance: 5, price: 8000}, {minDistance: 5, maxDistance: 10, price: 12000}, ...]
+  distanceRanges  Json?    // 거리 구간별 단가 배열
+
+  // km당 추가요금 (최대거리 초과 시)
+  extraPricePerKm Decimal? @db.Decimal(10, 2)  // km당 추가요금
+  maxBaseDistance Int?     // 기본요금 적용 최대거리 (km)
+
+  // 할증 설정
+  nightSurchargeRate    Decimal? @db.Decimal(5, 2)  // 야간할증 비율 (예: 0.3 = 30%)
+  nightStartHour        Int?     @default(22)       // 야간 시작 시간
+  nightEndHour          Int?     @default(6)        // 야간 종료 시간
+  weekendSurchargeRate  Decimal? @db.Decimal(5, 2)  // 주말/공휴일 할증 비율
+
+  // 화물 크기별 추가요금 (화물용)
+  // [{name: "소형", maxWeight: 30, maxVolume: 0.1, price: 0}, ...]
+  sizeRanges      Json?    // 크기/무게별 추가요금
+
+  // 도서산간 추가요금 (택배용)
+  islandFee       Decimal? @db.Decimal(10, 2)  // 도서산간 추가요금
+
+  // 무료배송 기준 (택배용)
+  freeThreshold   Decimal? @db.Decimal(10, 2)  // 무료배송 기준금액
+
+  // 상태
+  sortOrder       Int      @default(0)
+  isActive        Boolean  @default(true)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([deliveryMethod])
+  @@map("delivery_pricings")
+}
+
 
 // ==================== 직원관리 ====================
 
@@ -273,6 +321,7 @@ model Client {
   orders       Order[]
   myProducts   MyProduct[]
   assignedStaff StaffClient[]
+  consultations Consultation[]
 
   @@unique([oauthProvider, oauthId])
   @@index([groupId])
@@ -1212,6 +1261,18 @@ model ProductionSetting {
   lengthUnit          String?     @default("cm") // cm, mm
   lengthPriceRanges   Json?       // 길이별 구간 단가 배열 [{minLength, maxLength, price}]
 
+  // [후가공전용] 면적별단가 설정 (가로×세로 규격 기준)
+  areaUnit            String?     @default("mm") // mm, cm, m (길이 단위)
+  areaPriceRanges     Json?       // 가로×세로 규격별 단가 배열 [{maxWidth, maxHeight, price}]
+
+  // [배송비 전용] 거리별 단가 설정
+  surchargeType       String?     @default("none") // 할증조건: night30_weekend20, night20_weekend10, free_condition, none
+  distancePriceRanges Json?       // 거리 구간별 단가 배열 [{minDistance, maxDistance, price}]
+  extraPricePerKm     Decimal?    @db.Decimal(10, 2) // km당 추가요금
+  maxBaseDistance     Int?        // 기본요금 적용 최대거리 (km)
+  freeThreshold       Decimal?    @db.Decimal(10, 2) // 무료배송 기준금액 (택배용)
+  islandFee           Decimal?    @db.Decimal(10, 2) // 도서산간 추가요금 (택배용)
+
   // 정렬 및 상태
   sortOrder       Int             @default(0)
   isActive        Boolean         @default(true)
@@ -1286,4 +1347,107 @@ model ProductionSettingPrice {
 
   @@index([productionSettingId])
   @@map("production_setting_prices")
+}
+
+// ==================== 고객 상담 관리 ====================
+
+// 상담 분류 코드
+model ConsultationCategory {
+  id          String   @id @default(cuid())
+  code        String   @unique  // claim_quality, claim_delivery, etc.
+  name        String             // 품질 클레임, 배송 클레임, etc.
+  colorCode   String?            // 분류별 색상 코드 (red, orange, yellow, etc.)
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  consultations Consultation[]
+
+  @@index([isActive])
+  @@map("consultation_categories")
+}
+
+// 상담 내역
+model Consultation {
+  id              String   @id @default(cuid())
+  consultNumber   String   @unique          // 상담번호 (CS-20260120-0001)
+
+  // 고객 정보
+  clientId        String
+  client          Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // 상담 분류
+  categoryId      String
+  category        ConsultationCategory @relation(fields: [categoryId], references: [id])
+
+  // 상담 내용
+  title           String                    // 상담 제목
+  content         String   @db.Text         // 상담 내용
+
+  // 관련 주문 (선택적)
+  orderId         String?
+  orderNumber     String?                   // 참조용 주문번호
+
+  // 상담자 정보
+  counselorId     String                    // 상담 담당 직원 ID
+  counselorName   String                    // 상담자명 (스냅샷)
+  consultedAt     DateTime @default(now())  // 상담 시간
+
+  // 처리 상태
+  status          String   @default("open") // open: 접수, in_progress: 처리중, resolved: 해결, closed: 종료
+  priority        String   @default("normal") // low, normal, high, urgent
+
+  // 처리 내용
+  resolution      String?  @db.Text         // 처리 내용
+  resolvedAt      DateTime?                 // 해결 시간
+  resolvedBy      String?                   // 해결 담당자 ID
+
+  // 후속 조치
+  followUpDate    DateTime?                 // 후속 조치 예정일
+  followUpNote    String?  @db.Text         // 후속 조치 메모
+
+  // 카카오톡 예약전송 설정
+  kakaoScheduled  Boolean  @default(false)  // 카카오톡 예약 전송 여부
+  kakaoSendAt     DateTime?                 // 카카오톡 전송 예약 시간
+  kakaoSentAt     DateTime?                 // 실제 전송 시간
+  kakaoMessage    String?  @db.Text         // 전송 메시지 내용
+
+  // 첨부파일
+  attachments     Json?                     // 첨부파일 URL 배열
+
+  // 메모 (내부용)
+  internalMemo    String?  @db.Text
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  followUps       ConsultationFollowUp[]
+
+  @@index([clientId])
+  @@index([categoryId])
+  @@index([counselorId])
+  @@index([status])
+  @@index([consultedAt])
+  @@index([followUpDate])
+  @@map("consultations")
+}
+
+// 상담 후속 조치 기록
+model ConsultationFollowUp {
+  id              String       @id @default(cuid())
+  consultationId  String
+  consultation    Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+
+  content         String       @db.Text     // 후속 조치 내용
+  actionType      String                    // phone: 전화, visit: 방문, email: 이메일, kakao: 카카오톡, other: 기타
+
+  staffId         String                    // 조치 담당자 ID
+  staffName       String                    // 담당자명 (스냅샷)
+
+  createdAt       DateTime     @default(now())
+
+  @@index([consultationId])
+  @@map("consultation_follow_ups")
 }

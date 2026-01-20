@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useCallback, useTransition } from "react";
+import { useState, useCallback, useTransition, useEffect } from "react";
 import {
   Building2,
   Package,
@@ -12,19 +13,22 @@ import {
   Settings,
   ChevronDown,
   ChevronRight,
+  ChevronUp,
   LayoutDashboard,
-  Sparkles,
   Database,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const navigation = [
+const defaultNavigation = [
   {
+    id: "dashboard",
     name: "대시보드",
     href: "/dashboard",
     icon: LayoutDashboard,
   },
   {
+    id: "basic-info",
     name: "기초정보",
     icon: Database,
     children: [
@@ -36,6 +40,7 @@ const navigation = [
     ],
   },
   {
+    id: "company",
     name: "회사정보",
     icon: Building2,
     children: [
@@ -43,10 +48,11 @@ const navigation = [
       { name: "직원관리", href: "/company/employees" },
       { name: "회원관리", href: "/company/members" },
       { name: "회원그룹", href: "/company/member-groups" },
+      { name: "상담관리", href: "/company/consultations" },
     ],
   },
-
   {
+    id: "products",
     name: "상품관리",
     icon: Package,
     children: [
@@ -56,6 +62,7 @@ const navigation = [
     ],
   },
   {
+    id: "pricing",
     name: "가격관리",
     icon: DollarSign,
     children: [
@@ -65,6 +72,7 @@ const navigation = [
     ],
   },
   {
+    id: "orders",
     name: "주문관리",
     icon: ClipboardList,
     children: [
@@ -76,6 +84,7 @@ const navigation = [
     ],
   },
   {
+    id: "statistics",
     name: "통계",
     icon: BarChart3,
     children: [
@@ -86,6 +95,7 @@ const navigation = [
     ],
   },
   {
+    id: "settings",
     name: "설정",
     icon: Settings,
     children: [
@@ -95,12 +105,71 @@ const navigation = [
   },
 ];
 
+const STORAGE_KEY = "sidebar-menu-order";
+
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   // 기본적으로 모든 메뉴 접힘 (빈 배열)
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [navigation, setNavigation] = useState(defaultNavigation);
+
+  // localStorage에서 메뉴 순서 불러오기
+  useEffect(() => {
+    try {
+      const savedOrder = localStorage.getItem(STORAGE_KEY);
+      if (savedOrder) {
+        const orderIds = JSON.parse(savedOrder) as string[];
+        if (Array.isArray(orderIds) && orderIds.length > 0) {
+          const reordered = orderIds
+            .map(id => defaultNavigation.find(item => item.id === id))
+            .filter(Boolean) as typeof defaultNavigation;
+          // 새로 추가된 메뉴가 있을 수 있으므로 나머지 추가
+          const existingIds = new Set(orderIds);
+          const newItems = defaultNavigation.filter(item => !existingIds.has(item.id));
+          const result = [...reordered, ...newItems];
+          // 결과가 유효한 배열인지 확인
+          if (Array.isArray(result) && result.length > 0) {
+            setNavigation(result);
+          }
+        }
+      }
+    } catch {
+      // 에러 발생 시 기본값 유지
+      setNavigation(defaultNavigation);
+    }
+  }, []);
+
+  // 메뉴 순서 저장
+  const saveOrder = useCallback((items: typeof defaultNavigation) => {
+    const orderIds = items.map(item => item.id);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(orderIds));
+  }, []);
+
+  // 메뉴 위로 이동
+  const moveMenuUp = useCallback((index: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (index <= 0) return;
+    setNavigation(prev => {
+      const newItems = [...prev];
+      [newItems[index - 1], newItems[index]] = [newItems[index], newItems[index - 1]];
+      saveOrder(newItems);
+      return newItems;
+    });
+  }, [saveOrder]);
+
+  // 메뉴 아래로 이동
+  const moveMenuDown = useCallback((index: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setNavigation(prev => {
+      if (index >= prev.length - 1) return prev;
+      const newItems = [...prev];
+      [newItems[index], newItems[index + 1]] = [newItems[index + 1], newItems[index]];
+      saveOrder(newItems);
+      return newItems;
+    });
+  }, [saveOrder]);
 
   const toggleMenu = useCallback((name: string) => {
     // 같은 메뉴 클릭 시 닫기, 다른 메뉴 클릭 시 해당 메뉴만 열기 (기존 메뉴 닫힘)
@@ -120,26 +189,23 @@ export function Sidebar() {
   return (
     <div className="flex h-full w-72 flex-col bg-[#0F172A] border-r border-slate-800 shadow-2xl">
       {/* 로고 영역 */}
-      <div className="flex h-20 items-center px-6">
-        <Link href="/dashboard" className="flex items-center gap-3 group">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg group-hover:shadow-indigo-500/25 transition-all duration-300">
-            <Sparkles className="h-5 w-5 text-white" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-lg font-bold text-white tracking-tight">
-              인쇄업 ERP
-            </span>
-            <span className="text-[10px] text-slate-400 font-medium">
-              Enterprise Solution
-            </span>
-          </div>
+      <div className="flex h-20 items-center px-4">
+        <Link href="/dashboard" className="flex items-center group">
+          <Image
+            src="/images/logo.png"
+            alt="Printing114 로고"
+            width={200}
+            height={60}
+            className="h-14 w-auto brightness-0 invert group-hover:opacity-80 transition-opacity duration-300"
+            priority
+          />
         </Link>
       </div>
 
       {/* 네비게이션 */}
       <nav className="flex-1 overflow-y-auto py-2 px-3 custom-scrollbar">
         <div className="space-y-1">
-          {navigation.map((item) => {
+          {(navigation || defaultNavigation).map((item, index) => {
             const isActive = item.href ? pathname === item.href : false;
             const isOpen = isMenuOpen(item.name);
 
@@ -147,47 +213,85 @@ export function Sidebar() {
             // const hasActiveChild = item.children?.some(child => pathname === child.href);
 
             return (
-              <div key={item.name} className="space-y-1">
+              <div key={item.id} className="space-y-1">
                 {item.href ? (
-                  <Link
-                    href={item.href}
-                    prefetch={true}
-                    onClick={(e) => handleNavigation(item.href!, e)}
-                    className={cn(
-                      "flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-colors duration-100 group relative overflow-hidden",
-                      isActive
-                        ? "bg-indigo-600 text-white shadow-md shadow-indigo-900/20"
-                        : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-100",
-                      isPending && "opacity-70"
-                    )}
-                  >
-                    <item.icon className={cn(
-                      "h-5 w-5 transition-colors duration-100",
-                      isActive ? "text-white" : "text-slate-500 group-hover:text-slate-300"
-                    )} />
-                    <span className="relative z-10">{item.name}</span>
-                  </Link>
-                ) : (
-                  <div>
-                    <button
-                      onClick={() => toggleMenu(item.name)}
+                  <div className="flex items-center group/nav">
+                    <Link
+                      href={item.href}
+                      prefetch={true}
+                      onClick={(e) => handleNavigation(item.href!, e)}
                       className={cn(
-                        "flex w-full items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 group hover:bg-slate-800/50",
-                        isOpen ? "text-slate-200" : "text-slate-400"
+                        "flex-1 flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-colors duration-100 relative overflow-hidden",
+                        isActive
+                          ? "bg-indigo-600 text-white shadow-md shadow-indigo-900/20"
+                          : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-100",
+                        isPending && "opacity-70"
                       )}
                     >
                       <item.icon className={cn(
-                        "h-5 w-5 transition-colors duration-200",
-                        isOpen ? "text-indigo-400" : "text-slate-500 group-hover:text-slate-300"
+                        "h-5 w-5 transition-colors duration-100",
+                        isActive ? "text-white" : "text-slate-500 group-hover/nav:text-slate-300"
                       )} />
-                      <span className="flex-1 text-left">{item.name}</span>
-                      <ChevronRight
+                      <span className="relative z-10">{item.name}</span>
+                    </Link>
+                    {/* 이동 버튼 */}
+                    <div className="flex items-center gap-0.5 ml-1 opacity-0 group-hover/nav:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => moveMenuUp(index, e)}
+                        className="p-1 rounded hover:bg-slate-700 text-slate-500 hover:text-indigo-400 transition-colors"
+                        title="위로 이동"
+                      >
+                        <ChevronUp className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={(e) => moveMenuDown(index, e)}
+                        className="p-1 rounded hover:bg-slate-700 text-slate-500 hover:text-indigo-400 transition-colors"
+                        title="아래로 이동"
+                      >
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="group/nav">
+                    <div className="flex items-center">
+                      <button
+                        onClick={() => toggleMenu(item.name)}
                         className={cn(
-                          "h-4 w-4 text-slate-600 transition-transform duration-300",
-                          isOpen ? "rotate-90 text-slate-400" : ""
+                          "flex-1 flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 hover:bg-slate-800/50",
+                          isOpen ? "text-slate-200" : "text-slate-400"
                         )}
-                      />
-                    </button>
+                      >
+                        <item.icon className={cn(
+                          "h-5 w-5 transition-colors duration-200",
+                          isOpen ? "text-indigo-400" : "text-slate-500 group-hover/nav:text-slate-300"
+                        )} />
+                        <span className="flex-1 text-left">{item.name}</span>
+                        <ChevronRight
+                          className={cn(
+                            "h-4 w-4 text-slate-600 transition-transform duration-300",
+                            isOpen ? "rotate-90 text-slate-400" : ""
+                          )}
+                        />
+                      </button>
+                      {/* 이동 버튼 */}
+                      <div className="flex items-center gap-0.5 ml-1 opacity-0 group-hover/nav:opacity-100 transition-opacity">
+                        <button
+                          onClick={(e) => moveMenuUp(index, e)}
+                          className="p-1 rounded hover:bg-slate-700 text-slate-500 hover:text-indigo-400 transition-colors"
+                          title="위로 이동"
+                        >
+                          <ChevronUp className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={(e) => moveMenuDown(index, e)}
+                          className="p-1 rounded hover:bg-slate-700 text-slate-500 hover:text-indigo-400 transition-colors"
+                          title="아래로 이동"
+                        >
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
 
                     <div
                       className={cn(
