@@ -32,6 +32,7 @@ export function ShopHeader() {
         <div className="container mx-auto px-4 py-2 flex justify-between items-center">
           <span>포토카페 - 고품질 인쇄 서비스</span>
           <div className="hidden md:flex items-center gap-4">
+            <Link href="/tarot" className="hover:text-gray-300">🔮 오늘의 타로점</Link>
             <Link href="/notice" className="hover:text-gray-300">공지사항</Link>
             <Link href="/guide" className="hover:text-gray-300">이용안내</Link>
             <Link href="/support" className="hover:text-gray-300">고객센터</Link>
@@ -174,6 +175,9 @@ export function ShopHeader() {
               </div>
             )}
             <div className="border-t pt-4 space-y-2">
+              <Link href="/tarot" className="block py-2" onClick={() => setMobileMenuOpen(false)}>
+                🔮 오늘의 타로점
+              </Link>
               <Link href="/notice" className="block py-2" onClick={() => setMobileMenuOpen(false)}>
                 공지사항
               </Link>
