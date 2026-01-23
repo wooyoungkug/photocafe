@@ -15,8 +15,11 @@ const notoSansKR = Noto_Sans_KR({
 });
 
 export const metadata: Metadata = {
-  title: "인쇄업 ERP",
+  title: "printing114",
   description: "포토북/앨범 인쇄업체를 위한 통합 ERP 시스템",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({

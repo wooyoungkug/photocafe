@@ -12,6 +12,8 @@ import {
   PriceCalculationResult,
   ProductSummary,
   HalfProductSummary,
+  GroupProductionSettingPrice,
+  SetGroupProductionSettingPricesDto,
 } from '@/lib/types/pricing';
 import { PaginatedResponse } from '@/lib/types/client';
 
@@ -146,5 +148,49 @@ export function useCalculateHalfProductPrice() {
   return useMutation({
     mutationFn: (dto: CalculateHalfProductPriceDto) =>
       api.post<PriceCalculationResult>('/pricing/calculate/half-product', dto),
+  });
+}
+
+// ==================== 그룹 생산설정 단가 ====================
+
+export function useGroupProductionSettingPrices(clientGroupId: string, productionSettingId?: string) {
+  return useQuery({
+    queryKey: [PRICING_KEY, 'group-production-settings', clientGroupId, productionSettingId],
+    queryFn: () => {
+      const params = productionSettingId ? { productionSettingId } : undefined;
+      return api.get<GroupProductionSettingPrice[]>(
+        `/pricing/groups/${clientGroupId}/production-settings`,
+        params
+      );
+    },
+    enabled: !!clientGroupId,
+  });
+}
+
+export function useSetGroupProductionSettingPrices() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (dto: SetGroupProductionSettingPricesDto) =>
+      api.post<GroupProductionSettingPrice[]>('/pricing/groups/production-settings', dto),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: [PRICING_KEY, 'group-production-settings', variables.clientGroupId],
+      });
+    },
+  });
+}
+
+export function useDeleteGroupProductionSettingPrices() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ clientGroupId, productionSettingId }: { clientGroupId: string; productionSettingId: string }) =>
+      api.delete(`/pricing/groups/${clientGroupId}/production-settings/${productionSettingId}`),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: [PRICING_KEY, 'group-production-settings', variables.clientGroupId],
+      });
+    },
   });
 }

@@ -11,6 +11,8 @@ import {
   UpdateConsultationCategoryDto,
   CreateFollowUpDto,
   ConsultationStatus,
+  ConsultationMessage,
+  CreateMessageDto,
 } from '@/lib/types/consultation';
 
 interface PaginatedResponse<T> {
@@ -198,6 +200,40 @@ export function useInitializeConsultationCategories() {
     mutationFn: () => api.post<ConsultationCategory[]>('/consultation-categories/initialize'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['consultationCategories'] });
+    },
+  });
+}
+
+// ==================== 상담 메시지 ====================
+
+export function useConsultationMessages(consultationId: string) {
+  return useQuery<PaginatedResponse<ConsultationMessage>>({
+    queryKey: ['consultationMessages', consultationId],
+    queryFn: () => api.get<PaginatedResponse<ConsultationMessage>>(`/consultations/${consultationId}/messages`),
+    enabled: !!consultationId,
+  });
+}
+
+export function useCreateMessage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ consultationId, data }: { consultationId: string; data: CreateMessageDto }) =>
+      api.post<ConsultationMessage>(`/consultations/${consultationId}/messages`, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['consultationMessages', variables.consultationId] });
+    },
+  });
+}
+
+export function useDeleteMessage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ consultationId, messageId }: { consultationId: string; messageId: string }) =>
+      api.delete(`/consultations/${consultationId}/messages/${messageId}`),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['consultationMessages', variables.consultationId] });
     },
   });
 }

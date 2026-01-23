@@ -30,7 +30,7 @@ export class ClientService {
       ...(memberType && { memberType }),
     };
 
-    const [data, total] = await Promise.all([
+    const [clients, total] = await Promise.all([
       this.prisma.client.findMany({
         where,
         skip,
@@ -43,11 +43,39 @@ export class ClientService {
               groupCode: true,
             },
           },
+          _count: {
+            select: {
+              consultations: true,
+            },
+          },
         },
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.client.count({ where }),
     ]);
+
+    // 미완료 상담 건수 계산
+    const clientIds = clients.map((c: { id: string }) => c.id);
+    const openConsultationsCount = await this.prisma.consultation.groupBy({
+      by: ['clientId'],
+      where: {
+        clientId: { in: clientIds },
+        status: { in: ['open', 'in_progress'] },
+      },
+      _count: true,
+    });
+
+    const openCountMap = new Map(
+      openConsultationsCount.map((item: { clientId: string; _count: number }) => [item.clientId, item._count])
+    );
+
+    const data = clients.map((client: any) => ({
+      ...client,
+      _count: {
+        consultations: client._count.consultations,
+        openConsultations: openCountMap.get(client.id) || 0,
+      },
+    }));
 
     return {
       data,

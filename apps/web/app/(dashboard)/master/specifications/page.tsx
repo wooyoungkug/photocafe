@@ -472,7 +472,7 @@ export default function SpecificationsPage() {
       </Card>
 
       {/* 규격 목록 (리스트 레이아웃) */}
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1">
         {filteredSpecs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-xl bg-muted/10 text-muted-foreground">
             <Ruler className="h-10 w-10 mb-4 opacity-20" />
@@ -481,12 +481,12 @@ export default function SpecificationsPage() {
         ) : (
           filteredSpecs.map((spec, index) => (
             <Card key={spec.id} className="group hover:shadow-md transition-all border-muted hover:border-primary/50 bg-card/50 hover:bg-card">
-              <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <CardContent className="py-1 px-3 flex flex-col sm:flex-row items-start sm:items-center gap-2">
                 {/* 1. 순서 및 이름 */}
                 <div className="flex items-center gap-3 min-w-[180px]">
                   <div className="flex flex-col items-center gap-0.5 text-muted-foreground opacity-30 group-hover:opacity-100 transition-opacity">
                     <button type="button" onClick={() => handleMoveUp(index)} disabled={index === 0 || reorderMutation.isPending} className="hover:text-primary" aria-label="Move up"><ChevronUp className="h-3 w-3" /></button>
-                    <span className="text-[10px] font-mono leading-none">{index + 1}</span>
+                    <span className="text-sm font-bold text-primary leading-none">{filteredSpecs.length - index}</span>
                     <button type="button" onClick={() => handleMoveDown(index)} disabled={index === filteredSpecs.length - 1 || reorderMutation.isPending} className="hover:text-primary" aria-label="Move down"><ChevronDown className="h-3 w-3" /></button>
                   </div>
                   <div>

@@ -101,21 +101,21 @@ export default function DashboardPage() {
   // 로딩 상태
   if (isPending) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <PageHeader
           title="대시보드"
           description="인쇄업 ERP 시스템 현황을 한눈에 확인하세요."
           breadcrumbs={[{ label: "홈", href: "/" }, { label: "대시보드" }]}
         />
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i} className="overflow-hidden">
               <CardHeader className="pb-2">
                 <Skeleton className="h-4 w-20" />
               </CardHeader>
               <CardContent>
-                <Skeleton className="h-8 w-24 mb-2" />
-                <Skeleton className="h-3 w-32" />
+                <Skeleton className="h-6 sm:h-8 w-20 sm:w-24 mb-2" />
+                <Skeleton className="h-3 w-24 sm:w-32" />
               </CardContent>
             </Card>
           ))}
@@ -127,22 +127,22 @@ export default function DashboardPage() {
   // 에러 상태
   if (isError) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <PageHeader
           title="대시보드"
           description="인쇄업 ERP 시스템 현황을 한눈에 확인하세요."
           breadcrumbs={[{ label: "홈", href: "/" }, { label: "대시보드" }]}
         />
         <Card className="border-red-200 bg-red-50">
-          <CardContent className="flex flex-col items-center gap-4 py-8 text-red-600">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5" />
-              <span className="font-medium">통계 데이터를 불러오는데 실패했습니다.</span>
+          <CardContent className="flex flex-col items-center gap-3 sm:gap-4 py-6 sm:py-8 text-red-600 px-4">
+            <div className="flex items-center gap-2 text-center">
+              <AlertCircle className="h-5 w-5 flex-shrink-0" />
+              <span className="font-medium text-sm sm:text-base">통계 데이터를 불러오는데 실패했습니다.</span>
             </div>
-            <p className="text-sm text-red-500">
+            <p className="text-xs sm:text-sm text-red-500 text-center">
               {error?.message || "알 수 없는 오류가 발생했습니다."}
             </p>
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-gray-500 text-center">
               백엔드 서버가 실행 중인지 확인해주세요 (Port 3001)
             </div>
             <Button
@@ -162,7 +162,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <PageHeader
         title="대시보드"
         description="인쇄업 ERP 시스템 현황을 한눈에 확인하세요."
@@ -170,30 +170,30 @@ export default function DashboardPage() {
       />
 
       {/* 주요 통계 카드 */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
         {statCards.map((stat) => (
-          <Card key={stat.title} className="group overflow-hidden border-0 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-600">
+          <Card key={stat.title} className="group overflow-hidden border-0 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 relative">
+            <CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2">
+              <CardTitle className="text-xs sm:text-sm font-medium text-slate-600">
                 {stat.title}
               </CardTitle>
-              <div className={`p-2 rounded-xl ${stat.iconBg}`}>
-                <stat.icon className={`h-4 w-4 ${stat.iconColor}`} />
+              <div className={`p-1.5 sm:p-2 ${stat.iconBg}`}>
+                <stat.icon className={`h-3 w-3 sm:h-4 sm:w-4 ${stat.iconColor}`} />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-slate-800">{stat.value}</div>
-              <div className="flex items-center text-xs text-slate-500 mt-1">
-                <span>{stat.description}</span>
+              <div className="text-lg sm:text-2xl font-bold text-slate-800 truncate">{stat.value}</div>
+              <div className="flex items-center text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1">
+                <span className="truncate">{stat.description}</span>
                 {stat.trend && (
                   <span
-                    className={`ml-2 flex items-center font-medium ${stat.trendUp ? "text-emerald-500" : "text-red-500"
+                    className={`ml-1 sm:ml-2 flex items-center font-medium flex-shrink-0 ${stat.trendUp ? "text-emerald-500" : "text-red-500"
                       }`}
                   >
                     {stat.trendUp ? (
-                      <ArrowUpRight className="h-3 w-3" />
+                      <ArrowUpRight className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                     ) : (
-                      <ArrowDownRight className="h-3 w-3" />
+                      <ArrowDownRight className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                     )}
                     {stat.trend}
                   </span>
@@ -207,18 +207,18 @@ export default function DashboardPage() {
       </div>
 
       {/* 보조 통계 */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-3">
         {subStatCards.map((stat) => (
           <Card key={stat.title} className="overflow-hidden border-0 shadow-md hover:shadow-lg transition-all duration-300">
-            <CardContent className="flex items-center gap-4 p-6">
-              <div className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${stat.gradient} text-white shadow-lg`}>
-                <stat.icon className="h-6 w-6" />
+            <CardContent className="flex items-center gap-3 sm:gap-4 p-4 sm:p-6">
+              <div className={`flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center bg-gradient-to-br ${stat.gradient} text-white shadow-lg flex-shrink-0`}>
+                <stat.icon className="h-5 w-5 sm:h-6 sm:w-6" />
               </div>
-              <div>
-                <p className="text-sm font-medium text-slate-500">
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-slate-500">
                   {stat.title}
                 </p>
-                <p className="text-2xl font-bold text-slate-800">{stat.value}</p>
+                <p className="text-xl sm:text-2xl font-bold text-slate-800 truncate">{stat.value}</p>
               </div>
             </CardContent>
           </Card>
@@ -226,33 +226,33 @@ export default function DashboardPage() {
       </div>
 
       {/* 최근 활동 */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-2">
         <Card className="border-0 shadow-md overflow-hidden">
           <CardHeader className="bg-gradient-to-r from-slate-50 to-white border-b">
-            <CardTitle className="flex items-center gap-2 text-slate-800">
+            <CardTitle className="flex items-center gap-2 text-slate-800 text-sm sm:text-base">
               <Sparkles className="h-4 w-4 text-indigo-500" />
               최근 주문
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-center text-slate-400 py-12">
-              <ShoppingCart className="h-12 w-12 mx-auto mb-3 text-slate-300" />
-              <p>최근 주문 내역이 없습니다.</p>
+            <div className="text-center text-slate-400 py-8 sm:py-12">
+              <ShoppingCart className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-2 sm:mb-3 text-slate-300" />
+              <p className="text-sm">최근 주문 내역이 없습니다.</p>
             </div>
           </CardContent>
         </Card>
 
         <Card className="border-0 shadow-md overflow-hidden">
           <CardHeader className="bg-gradient-to-r from-slate-50 to-white border-b">
-            <CardTitle className="flex items-center gap-2 text-slate-800">
+            <CardTitle className="flex items-center gap-2 text-slate-800 text-sm sm:text-base">
               <Factory className="h-4 w-4 text-amber-500" />
               생산 현황
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-center text-slate-400 py-12">
-              <Factory className="h-12 w-12 mx-auto mb-3 text-slate-300" />
-              <p>진행 중인 생산이 없습니다.</p>
+            <div className="text-center text-slate-400 py-8 sm:py-12">
+              <Factory className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-2 sm:mb-3 text-slate-300" />
+              <p className="text-sm">진행 중인 생산이 없습니다.</p>
             </div>
           </CardContent>
         </Card>
@@ -260,4 +260,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-

@@ -113,22 +113,6 @@ Swagger 문서: http://localhost:3001/api/docs
 
 ---
 
-## ⏳ 대기 작업
-
-| # | 작업 | 설명 |
-|---|------|------|
-| 1 | nup 대표그룹만 표시 | 인디고/잉크젯앨범 가격설정 UI |
-| 2 | per_sheet 타입 에러 | 가격 계산 오류 수정 |
-| 3 | 사진 백업 삭제 | 스케줄러 자동 삭제 |
-| 4 | 카카오/구글 로그인 | 추가 소셜 로그인 |
-
----
-
-## 🔧 알려진 이슈
-
-1. **이미지 업로드 경로** - localhost 설정으로 ERR_CONNECTION_REFUSED
-2. **네이버 로그인 DB 저장** - 회원 저장 확인 필요
-
 ---
 
 ## 🐳 Docker 명령어 (운영 서버)
@@ -184,3 +168,68 @@ npm run db:seed
 |------|------|
 | 백엔드 | `/volume1/docker/printing114/` |
 | 프론트엔드 | `/volume1/docker/printing114-web/apps/web/` |
+
+---
+
+## 📱 반응형 디자인 가이드
+
+**모든 UI 컴포넌트는 반응형으로 디자인해야 합니다.**
+
+### Breakpoints (Tailwind CSS)
+
+| Breakpoint | 최소 너비 | 용도 |
+| ---------- | --------- | ---- |
+| `sm` | 640px | 모바일 가로 |
+| `md` | 768px | 태블릿 |
+| `lg` | 1024px | 데스크톱 |
+| `xl` | 1280px | 대형 화면 |
+
+### 반응형 패턴
+
+#### 1. 레이아웃
+
+```jsx
+// 모바일: 1열, 태블릿: 2열, 데스크톱: 4열
+<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+```
+
+#### 2. 패딩/마진
+
+```jsx
+// 모바일: 작은 여백, 데스크톱: 큰 여백
+<div className="p-3 sm:p-4 lg:p-6">
+```
+
+#### 3. 텍스트 크기
+
+```jsx
+// 모바일: 작은 텍스트, 데스크톱: 큰 텍스트
+<h1 className="text-xl sm:text-2xl lg:text-3xl">
+```
+
+#### 4. 숨기기/표시
+
+```jsx
+// 모바일에서 숨기기
+<div className="hidden md:block">
+// 데스크톱에서 숨기기
+<div className="block md:hidden">
+```
+
+#### 5. Flex 방향
+
+```jsx
+// 모바일: 세로, 데스크톱: 가로
+<div className="flex flex-col sm:flex-row">
+```
+
+### 주요 컴포넌트 반응형 규칙
+
+| 컴포넌트 | 모바일 | 태블릿+ |
+| -------- | ------ | ------- |
+| Sidebar | 슬라이드 메뉴 (숨김) | 고정 사이드바 |
+| Header | 검색 아이콘만 | 전체 검색바 |
+| Table | 가로 스크롤 | 전체 표시 |
+| Card | 작은 패딩 | 큰 패딩 |
+| Dialog | 전체 너비 | 고정 너비 |
+| PageHeader | 제목+액션 수직 | 제목+액션 수평 |

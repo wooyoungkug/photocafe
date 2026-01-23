@@ -223,11 +223,32 @@ export class ConsultationService {
   async updateStatus(id: string, data: UpdateConsultationStatusDto) {
     await this.findOne(id);
 
+    // 상태별 변경 이력 데이터 구성
+    const statusHistoryData: Record<string, any> = {
+      status: data.status,
+    };
+
+    const now = new Date();
+    const updatedBy = data.updatedBy || null;
+
+    switch (data.status) {
+      case 'in_progress':
+        statusHistoryData.inProgressAt = now;
+        statusHistoryData.inProgressBy = updatedBy;
+        break;
+      case 'resolved':
+        statusHistoryData.resolvedAt = now;
+        statusHistoryData.resolvedBy = updatedBy;
+        break;
+      case 'closed':
+        statusHistoryData.closedAt = now;
+        statusHistoryData.closedBy = updatedBy;
+        break;
+    }
+
     return this.prisma.consultation.update({
       where: { id },
-      data: {
-        status: data.status,
-      },
+      data: statusHistoryData,
     });
   }
 
@@ -301,20 +322,20 @@ export class ConsultationService {
     ]);
 
     const categories = await this.prisma.consultationCategory.findMany();
-    const categoryMap = new Map(categories.map((c) => [c.id, c]));
+    const categoryMap = new Map(categories.map((c: any) => [c.id, c]));
 
     return {
       total,
-      byStatus: byStatus.map((item) => ({
+      byStatus: byStatus.map((item: any) => ({
         status: item.status,
         count: item._count,
       })),
-      byCategory: byCategory.map((item) => ({
+      byCategory: byCategory.map((item: any) => ({
         categoryId: item.categoryId,
         category: categoryMap.get(item.categoryId),
         count: item._count,
       })),
-      byPriority: byPriority.map((item) => ({
+      byPriority: byPriority.map((item: any) => ({
         priority: item.priority,
         count: item._count,
       })),

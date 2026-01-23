@@ -6,6 +6,7 @@ import {
   PriceCalculationResultDto,
   SetGroupProductPriceDto,
   SetGroupHalfProductPriceDto,
+  SetGroupProductionSettingPricesDto,
 } from '../dto';
 
 /**
@@ -48,17 +49,17 @@ export class PricingService {
       for (const option of dto.options) {
         switch (option.type) {
           case 'specification': {
-            const spec = product.specifications.find(s => s.id === option.optionId);
+            const spec = product.specifications.find((s: { id: string }) => s.id === option.optionId);
             if (spec) optionPrice += Number(spec.price);
             break;
           }
           case 'binding': {
-            const binding = product.bindings.find(b => b.id === option.optionId);
+            const binding = product.bindings.find((b: { id: string }) => b.id === option.optionId);
             if (binding) optionPrice += Number(binding.price);
             break;
           }
           case 'paper': {
-            const paper = product.papers.find(p => p.id === option.optionId);
+            const paper = product.papers.find((p: { id: string }) => p.id === option.optionId);
             if (paper) {
               optionPrice += Number(paper.price);
               paperType = paper.type;
@@ -66,17 +67,17 @@ export class PricingService {
             break;
           }
           case 'cover': {
-            const cover = product.covers.find(c => c.id === option.optionId);
+            const cover = product.covers.find((c: { id: string }) => c.id === option.optionId);
             if (cover) optionPrice += Number(cover.price);
             break;
           }
           case 'foil': {
-            const foil = product.foils.find(f => f.id === option.optionId);
+            const foil = product.foils.find((f: { id: string }) => f.id === option.optionId);
             if (foil) optionPrice += Number(foil.price);
             break;
           }
           case 'finishing': {
-            const finishing = product.finishings.find(f => f.id === option.optionId);
+            const finishing = product.finishings.find((f: { id: string }) => f.id === option.optionId);
             if (finishing) optionPrice += Number(finishing.price);
             break;
           }
@@ -167,14 +168,14 @@ export class PricingService {
 
     // 규격 가격 추가
     if (dto.specificationId) {
-      const spec = halfProduct.specifications.find(s => s.id === dto.specificationId);
+      const spec = halfProduct.specifications.find((s: { id: string }) => s.id === dto.specificationId);
       if (spec) optionPrice += Number(spec.price);
     }
 
     // 옵션 가격 추가
     if (dto.optionSelections) {
       for (const selection of dto.optionSelections) {
-        const option = halfProduct.options.find(o => o.id === selection.optionId);
+        const option = halfProduct.options.find((o: { id: string }) => o.id === selection.optionId);
         if (option && option.values) {
           const optionValues = option.values as { name: string; price?: number }[];
           const selectedValue = optionValues.find(v => v.name === selection.value);
@@ -327,6 +328,120 @@ export class PricingService {
             basePrice: true,
           },
         },
+      },
+    });
+  }
+
+  // ==================== 그룹 생산설정 단가 관리 ====================
+
+  /**
+   * 그룹별 생산설정 단가 조회
+   */
+  async getGroupProductionSettingPrices(clientGroupId: string, productionSettingId?: string) {
+    const where: any = { clientGroupId };
+    if (productionSettingId) {
+      where.productionSettingId = productionSettingId;
+    }
+
+    return this.prisma.groupProductionSettingPrice.findMany({
+      where,
+      include: {
+        productionSetting: {
+          select: {
+            id: true,
+            codeName: true,
+            settingName: true,
+            pricingType: true,
+            printMethod: true,
+          },
+        },
+      },
+      orderBy: [
+        { productionSettingId: 'asc' },
+        { minQuantity: 'asc' },
+        { specificationId: 'asc' },
+      ],
+    });
+  }
+
+  /**
+   * 그룹별 생산설정 단가 설정 (upsert)
+   */
+  async setGroupProductionSettingPrices(dto: SetGroupProductionSettingPricesDto) {
+    const results = [];
+
+    for (const priceData of dto.prices) {
+      // 고유 키 구성 (priceGroupId 포함)
+      const uniqueKey = {
+        clientGroupId: dto.clientGroupId,
+        productionSettingId: dto.productionSettingId,
+        specificationId: priceData.specificationId || null,
+        priceGroupId: priceData.priceGroupId || null,
+        minQuantity: priceData.minQuantity || null,
+      };
+
+      const data = {
+        clientGroupId: dto.clientGroupId,
+        productionSettingId: dto.productionSettingId,
+        specificationId: priceData.specificationId,
+        priceGroupId: priceData.priceGroupId,
+        minQuantity: priceData.minQuantity,
+        maxQuantity: priceData.maxQuantity,
+        weight: priceData.weight,
+        price: priceData.price || 0,
+        singleSidedPrice: priceData.singleSidedPrice,
+        doubleSidedPrice: priceData.doubleSidedPrice,
+        fourColorSinglePrice: priceData.fourColorSinglePrice,
+        fourColorDoublePrice: priceData.fourColorDoublePrice,
+        sixColorSinglePrice: priceData.sixColorSinglePrice,
+        sixColorDoublePrice: priceData.sixColorDoublePrice,
+        basePages: priceData.basePages,
+        basePrice: priceData.basePrice,
+        pricePerPage: priceData.pricePerPage,
+        rangePrices: priceData.rangePrices,
+      };
+
+      // 기존 레코드 찾기
+      const existing = await this.prisma.groupProductionSettingPrice.findFirst({
+        where: uniqueKey,
+      });
+
+      if (existing) {
+        // 업데이트
+        const updated = await this.prisma.groupProductionSettingPrice.update({
+          where: { id: existing.id },
+          data,
+        });
+        results.push(updated);
+      } else {
+        // 생성
+        const created = await this.prisma.groupProductionSettingPrice.create({
+          data,
+        });
+        results.push(created);
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * 그룹별 생산설정 단가 삭제
+   */
+  async deleteGroupProductionSettingPrice(id: string) {
+    return this.prisma.groupProductionSettingPrice.delete({
+      where: { id },
+    });
+  }
+
+  /**
+   * 그룹별 생산설정 단가 전체 삭제 (특정 설정에 대해)
+   */
+  async deleteGroupProductionSettingPrices(clientGroupId: string, productionSettingId: string) {
+    return this.prisma.groupProductionSettingPrice.deleteMany({
+      where: {
+        clientGroupId,
+        productionSettingId,
       },
     });
   }

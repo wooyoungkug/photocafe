@@ -260,9 +260,10 @@ model ClientGroup {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  clients              Client[]
-  halfProductPrices    GroupHalfProductPrice[]
-  productPrices        GroupProductPrice[]
+  clients                      Client[]
+  halfProductPrices            GroupHalfProductPrice[]
+  productPrices                GroupProductPrice[]
+  productionSettingPrices      GroupProductionSettingPrice[]
 
   @@index([branchId])
   @@map("client_groups")
@@ -287,19 +288,19 @@ model Client {
   groupId         String?
   group           ClientGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
 
-  // 회원 타입: individual(개인), business(사업자)
+  // 회원 타입: individual(개인), business(사업자/스튜디오)
   memberType      String       @default("individual")
-  
+
   // OAuth 정보
   oauthProvider   String?      // google, naver, kakao
   oauthId         String?      // OAuth 고유 ID
-  
+
   // 가격 적용: standard(표준단가-개인), group(그룹단가-사업자)
   priceType       String       @default("standard")
 
   // 결제 방식: order(주문시결제), credit(신용거래)
   paymentType     String       @default("order")
-  
+
   // 신용거래 설정 (관리자만 수정 가능)
   creditEnabled      Boolean   @default(false)  // 신용거래 허용 여부
   creditPeriodDays   Int?                       // 신용거래 기간 (일)
@@ -307,13 +308,47 @@ model Client {
   creditBlocked      Boolean   @default(false)  // 미입금으로 인한 주문 차단
   creditBlockedAt    DateTime?                  // 차단 시점
   lastPaymentDate    DateTime?                  // 마지막 결제일
-  
+
   // 배송 설정 (관리자만 수정 가능): conditional(조건부), free(무료), prepaid(선불), cod(착불)
   shippingType       String    @default("conditional")
 
   creditGrade     String       @default("B") // A, B, C, D
   paymentTerms    Int          @default(30)
   status          String       @default("active") // active, inactive, suspended
+
+  // ========== B2B 스튜디오 전용 필드 ==========
+
+  // 사업자 정보
+  businessType       String?   // 업태 (예: 사진촬영업, 광고대행)
+  businessCategory   String?   // 종목 (예: 웨딩, 베이비)
+  taxInvoiceEmail    String?   // 세금계산서 수신 이메일
+  taxInvoiceMethod   String?   // 전자발행, 팩스, 우편
+
+  // 실무 담당자 정보
+  contactPerson      String?   // 실무 담당자명
+  contactPhone       String?   // 실무 담당자 연락처
+
+  // 스튜디오 특성 (영업 데이터)
+  mainGenre          String?   // 주력 촬영 장르: wedding, baby, profile, snap, family, etc.
+  monthlyOrderVolume String?   // 월 평균 주문량: under10, 10to50, over50
+  colorProfile       String?   // 색상 프로필: sRGB, AdobeRGB
+  acquisitionChannel String?   // 유입 경로: referral, search, exhibition, sns, etc.
+
+  // 제품 선호도
+  preferredSize      String?   // 선호 앨범 규격: 11x14, 12x12, etc.
+  preferredFinish    String?   // 선호 내지 재질: glossy, matte, luster, metallic
+  hasLogo            Boolean   @default(false)  // 로고/낙관 사용 여부
+  logoPath           String?   // 로고 파일 경로
+  deliveryNote       String?   // 배송 요청사항
+
+  // CS 및 내부 관리
+  memberGrade        String    @default("normal") // vip, gold, normal, bronze
+  assignedManager    String?   // 전담 영업 담당자 ID
+  sensitivityScore   Int       @default(3)       // 고객 민감도 점수 (1~5)
+  recentMemo         String?   // 최근 상담 메모
+  totalClaims        Int       @default(0)       // 누적 클레임 건수
+  isBlacklist        Boolean   @default(false)   // 블랙리스트 여부
+  isWhitelist        Boolean   @default(false)   // 화이트리스트(우수고객) 여부
 
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
@@ -322,12 +357,16 @@ model Client {
   myProducts   MyProduct[]
   assignedStaff StaffClient[]
   consultations Consultation[]
+  healthScore  CustomerHealthScore?
+  copperPlates CopperPlate[]
 
   @@unique([oauthProvider, oauthId])
   @@index([groupId])
   @@index([clientCode])
   @@index([memberType])
   @@index([oauthProvider])
+  @@index([mainGenre])
+  @@index([memberGrade])
   @@map("clients")
 }
 
@@ -1283,6 +1322,7 @@ model ProductionSetting {
   // Relations
   specifications  ProductionSettingSpecification[]
   prices          ProductionSettingPrice[]
+  groupPrices     GroupProductionSettingPrice[]
 
   @@index([groupId])
   @@index([pricingType])
@@ -1349,6 +1389,52 @@ model ProductionSettingPrice {
   @@map("production_setting_prices")
 }
 
+// 그룹별 생산설정 가격 (거래처 그룹별 특별 단가)
+model GroupProductionSettingPrice {
+  id                  String            @id @default(cuid())
+  clientGroupId       String
+  clientGroup         ClientGroup       @relation(fields: [clientGroupId], references: [id], onDelete: Cascade)
+  productionSettingId String
+  productionSetting   ProductionSetting @relation(fields: [productionSettingId], references: [id], onDelete: Cascade)
+
+  // 가격 조건 (ProductionSettingPrice와 동일한 구조)
+  specificationId     String?           // 규격별 가격인 경우
+  priceGroupId        String?           // 단가 그룹 ID (인디고 priceGroups용)
+  minQuantity         Int?              // 최소 수량 (수량별 가격인 경우) / Up값 (인디고)
+  maxQuantity         Int?              // 최대 수량
+
+  // 가중치 (Up별 가격 계산용)
+  weight              Decimal?          @db.Decimal(5, 2)
+
+  // 가격 (단면/양면)
+  price               Decimal           @db.Decimal(12, 2) @default(0)
+  singleSidedPrice    Decimal?          @db.Decimal(12, 2)
+  doubleSidedPrice    Decimal?          @db.Decimal(12, 2)
+
+  // 인디고 4도칼라 가격
+  fourColorSinglePrice   Decimal?       @db.Decimal(12, 2)
+  fourColorDoublePrice   Decimal?       @db.Decimal(12, 2)
+
+  // 인디고 6도칼라 가격
+  sixColorSinglePrice    Decimal?       @db.Decimal(12, 2)
+  sixColorDoublePrice    Decimal?       @db.Decimal(12, 2)
+
+  // 구간별 Nup+면당가격 (nup_page_range용)
+  basePages              Int?
+  basePrice              Decimal?        @db.Decimal(12, 2)
+  pricePerPage           Decimal?        @db.Decimal(12, 2)
+  rangePrices            Json?
+
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@unique([clientGroupId, productionSettingId, specificationId, priceGroupId, minQuantity])
+  @@index([clientGroupId])
+  @@index([productionSettingId])
+  @@index([priceGroupId])
+  @@map("group_production_setting_prices")
+}
+
 // ==================== 고객 상담 관리 ====================
 
 // 상담 분류 코드
@@ -1398,6 +1484,14 @@ model Consultation {
   status          String   @default("open") // open: 접수, in_progress: 처리중, resolved: 해결, closed: 종료
   priority        String   @default("normal") // low, normal, high, urgent
 
+  // 상태 변경 이력
+  openedAt        DateTime @default(now())  // 접수 시간
+  openedBy        String?                   // 접수 담당자
+  inProgressAt    DateTime?                 // 처리중 변경 시간
+  inProgressBy    String?                   // 처리중 담당자
+  closedAt        DateTime?                 // 종료 시간
+  closedBy        String?                   // 종료 담당자
+
   // 처리 내용
   resolution      String?  @db.Text         // 처리 내용
   resolvedAt      DateTime?                 // 해결 시간
@@ -1424,6 +1518,7 @@ model Consultation {
 
   // Relations
   followUps       ConsultationFollowUp[]
+  messages        ConsultationMessage[]
 
   @@index([clientId])
   @@index([categoryId])
@@ -1450,4 +1545,881 @@ model ConsultationFollowUp {
 
   @@index([consultationId])
   @@map("consultation_follow_ups")
+}
+
+// ==================== CS 고도화 시스템 ====================
+
+// 고객 건강 점수 (Customer Health Score)
+model CustomerHealthScore {
+  id            String   @id @default(cuid())
+  clientId      String   @unique
+  client        Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // 점수 구성요소 (0-100점 각각)
+  claimScore        Int      @default(100)   // 클레임 빈도 점수 (높을수록 좋음)
+  satisfactionScore Int      @default(100)   // 만족도 점수
+  loyaltyScore      Int      @default(100)   // 충성도 점수 (재주문율)
+  communicationScore Int     @default(100)   // 소통 점수 (응답률)
+
+  // 총합 점수 (자동 계산)
+  totalScore        Int      @default(100)   // 가중 평균 점수
+  grade             String   @default("A")   // A, B, C, D, F (점수 기반 등급)
+
+  // 위험 플래그
+  isAtRisk          Boolean  @default(false) // 이탈 위험 고객
+  riskReason        String?                  // 위험 사유
+
+  // 마지막 계산 시점
+  lastCalculatedAt  DateTime @default(now())
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([totalScore])
+  @@index([isAtRisk])
+  @@index([grade])
+  @@map("customer_health_scores")
+}
+
+// 상담 태그 (Smart Tagging)
+model ConsultationTag {
+  id          String   @id @default(cuid())
+  code        String   @unique              // print_quality, binding_defect, color_issue 등
+  name        String                        // 인쇄 화질, 제본 불량, 색상 불만 등
+  colorCode   String?                       // 태그 색상
+  category    String   @default("claim")    // claim: 클레임, inquiry: 문의, sales: 영업
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  isAutoTag   Boolean  @default(false)      // AI 자동 태깅 대상 여부
+  keywords    String[] @default([])         // 자동 태깅용 키워드 목록
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  consultations ConsultationTagMapping[]
+
+  @@index([category])
+  @@index([isActive])
+  @@map("consultation_tags")
+}
+
+// 상담-태그 매핑 (다대다)
+model ConsultationTagMapping {
+  id              String          @id @default(cuid())
+  consultationId  String
+  tagId           String
+  tag             ConsultationTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  isAutoTagged    Boolean  @default(false)  // AI 자동 태깅 여부
+  confidence      Decimal? @db.Decimal(3, 2) // AI 태깅 신뢰도 (0.00-1.00)
+
+  createdAt       DateTime @default(now())
+
+  @@unique([consultationId, tagId])
+  @@index([consultationId])
+  @@index([tagId])
+  @@map("consultation_tag_mappings")
+}
+
+// 상담 채널 기록 (옴니채널 통합)
+model ConsultationChannel {
+  id              String   @id @default(cuid())
+  consultationId  String
+
+  channel         String   // phone, kakao, web, email, visit, other
+  channelDetail   String?  // 세부 채널 정보
+
+  // 인바운드/아웃바운드 구분
+  direction       String   @default("inbound") // inbound: 고객→회사, outbound: 회사→고객
+
+  // 통화 시간 (phone 채널)
+  callDuration    Int?     // 통화 시간 (초)
+  callRecordUrl   String?  // 통화 녹음 URL
+
+  // 채널별 메타데이터
+  metadata        Json?    // 채널별 추가 정보
+
+  createdAt       DateTime @default(now())
+
+  @@index([consultationId])
+  @@index([channel])
+  @@map("consultation_channels")
+}
+
+// 상담 알림 (Alert System)
+model ConsultationAlert {
+  id              String   @id @default(cuid())
+
+  // 대상
+  clientId        String?
+  consultationId  String?
+
+  // 알림 유형
+  alertType       String   // repeat_claim: 반복 클레임, urgent: 긴급, sla_breach: SLA 위반, at_risk: 이탈 위험
+  alertLevel      String   @default("warning") // info, warning, critical
+
+  // 알림 내용
+  title           String
+  message         String   @db.Text
+
+  // 조건 (트리거된 조건)
+  triggerCondition Json?   // { claimCount: 3, period: "30days" } 등
+
+  // 처리 상태
+  isRead          Boolean  @default(false)
+  readAt          DateTime?
+  readBy          String?
+
+  // 해결 여부
+  isResolved      Boolean  @default(false)
+  resolvedAt      DateTime?
+  resolvedBy      String?
+  resolution      String?  @db.Text
+
+  createdAt       DateTime @default(now())
+  expiresAt       DateTime?                // 알림 만료 시간
+
+  @@index([clientId])
+  @@index([consultationId])
+  @@index([alertType])
+  @@index([isRead])
+  @@index([isResolved])
+  @@index([createdAt])
+  @@map("consultation_alerts")
+}
+
+// 상담 SLA 설정 (Service Level Agreement)
+model ConsultationSLA {
+  id              String   @id @default(cuid())
+
+  name            String                    // SLA 규칙 이름
+  categoryId      String?                   // 특정 카테고리에만 적용 (null이면 전체)
+  priority        String?                   // 특정 우선순위에만 적용
+
+  // 응답 시간 목표 (분 단위)
+  firstResponseTarget   Int   @default(60)    // 최초 응답 목표 시간 (분)
+  resolutionTarget      Int   @default(1440)  // 해결 목표 시간 (분) - 24시간
+
+  // 에스컬레이션 설정
+  escalationTime        Int?                  // 에스컬레이션 시간 (분)
+  escalateTo            String?               // 에스컬레이션 대상 (직원 ID)
+
+  // 알림 설정
+  warningThreshold      Int   @default(80)    // 경고 임계값 (목표 시간의 %)
+  criticalThreshold     Int   @default(100)   // 위험 임계값 (목표 시간의 %)
+
+  sortOrder       Int      @default(0)
+  isActive        Boolean  @default(true)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("consultation_slas")
+}
+
+// 상담 만족도 조사
+model ConsultationSurvey {
+  id              String   @id @default(cuid())
+  consultationId  String   @unique
+
+  // 점수 (1-5점)
+  satisfactionScore   Int              // 전체 만족도
+  responseSpeedScore  Int?             // 응답 속도
+  resolutionScore     Int?             // 문제 해결
+  friendlinessScore   Int?             // 친절도
+
+  // 추가 피드백
+  feedback        String?  @db.Text     // 고객 피드백
+  wouldRecommend  Boolean?              // 추천 의향
+
+  // 설문 메타데이터
+  surveyMethod    String   @default("email") // email, kakao, web, phone
+  surveyedAt      DateTime @default(now())
+
+  createdAt       DateTime @default(now())
+
+  @@index([consultationId])
+  @@index([satisfactionScore])
+  @@map("consultation_surveys")
+}
+
+// 상담 대처 가이드 (Knowledge Base)
+model ConsultationGuide {
+  id              String   @id @default(cuid())
+
+  // 분류
+  categoryId      String?                   // 관련 상담 분류
+  tagCodes        String[] @default([])     // 관련 태그 코드들
+
+  // 가이드 내용
+  title           String
+  problem         String   @db.Text         // 문제 상황 설명
+  solution        String   @db.Text         // 해결 방법
+
+  // 스크립트
+  scripts         Json?                     // 상담 스크립트 배열
+
+  // 참조
+  relatedGuideIds String[] @default([])     // 관련 가이드 ID들
+  attachments     Json?                     // 첨부파일 URL 배열
+
+  // 통계
+  usageCount      Int      @default(0)      // 사용 횟수
+  helpfulCount    Int      @default(0)      // 도움됨 횟수
+
+  sortOrder       Int      @default(0)
+  isActive        Boolean  @default(true)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([categoryId])
+  @@map("consultation_guides")
+}
+
+// 상담 통계 스냅샷 (일별/주별/월별)
+model ConsultationStatSnapshot {
+  id              String   @id @default(cuid())
+
+  // 기간
+  period          String   // daily, weekly, monthly
+  periodStart     DateTime
+  periodEnd       DateTime
+
+  // 주요 지표
+  totalCount          Int   @default(0)   // 총 상담 건수
+  claimCount          Int   @default(0)   // 클레임 건수
+  inquiryCount        Int   @default(0)   // 문의 건수
+  salesCount          Int   @default(0)   // 영업 상담 건수
+
+  // 처리 현황
+  resolvedCount       Int   @default(0)   // 해결된 건수
+  pendingCount        Int   @default(0)   // 미해결 건수
+
+  // 응답/해결 시간 (분)
+  avgFirstResponseTime  Decimal? @db.Decimal(10, 2)  // 평균 최초 응답 시간
+  avgResolutionTime     Decimal? @db.Decimal(10, 2)  // 평균 해결 시간
+
+  // SLA 달성률
+  slaComplianceRate   Decimal? @db.Decimal(5, 2)    // SLA 준수율 (%)
+
+  // 만족도
+  avgSatisfactionScore  Decimal? @db.Decimal(3, 2)  // 평균 만족도 점수
+
+  // 채널별 통계
+  channelStats        Json?    // { phone: 50, kakao: 30, web: 20 }
+
+  // 카테고리별 통계
+  categoryStats       Json?    // { claim_quality: 15, claim_delivery: 10 }
+
+  // 태그별 통계
+  tagStats            Json?    // { print_quality: 8, binding_defect: 5 }
+
+  // 담당자별 통계
+  counselorStats      Json?    // { staffId: { count: 10, avgTime: 30 } }
+
+  createdAt           DateTime @default(now())
+
+  @@unique([period, periodStart])
+  @@index([period])
+  @@index([periodStart])
+  @@map("consultation_stat_snapshots")
+}
+
+// ==================== 일정 및 Todo 관리 ====================
+
+// Todo (할일) 관리
+model Todo {
+  id              String   @id @default(cuid())
+
+  // 작성자 정보
+  creatorId       String               // 작성자 직원 ID
+  creatorName     String               // 작성자명 (스냅샷)
+  creatorDeptId   String?              // 작성자 부서 ID
+  creatorDeptName String?              // 작성자 부서명 (스냅샷)
+
+  // Todo 내용
+  title           String               // 할일 제목
+  content         String?  @db.Text    // 상세 내용
+  priority        String   @default("normal") // low, normal, high, urgent
+
+  // 일정 정보
+  startDate       DateTime?            // 시작일시
+  dueDate         DateTime?            // 마감일시
+  isAllDay        Boolean  @default(false) // 종일 일정 여부
+
+  // 상태
+  status          String   @default("pending") // pending: 대기, in_progress: 진행중, completed: 완료, cancelled: 취소
+  completedAt     DateTime?            // 완료 시간
+  completedBy     String?              // 완료 처리자
+
+  // 일정 범위 (여러 개 선택 가능)
+  isPersonal      Boolean  @default(true)   // 개인일정
+  isDepartment    Boolean  @default(false)  // 부서일정
+  isCompany       Boolean  @default(false)  // 전체일정
+
+  // 공개 부서 (isDepartment가 true인 경우)
+  sharedDeptIds   String[] @default([])     // 공유 대상 부서 ID 목록
+
+  // 알림 설정
+  reminderAt      DateTime?            // 알림 시간
+  isReminderSent  Boolean  @default(false)
+
+  // 반복 설정 (선택적)
+  isRecurring     Boolean  @default(false)
+  recurringType   String?              // daily, weekly, monthly, yearly
+  recurringEnd    DateTime?            // 반복 종료일
+
+  // 관련 정보 (선택적)
+  relatedType     String?              // order, client, consultation 등
+  relatedId       String?              // 관련 엔티티 ID
+
+  // 태그/색상
+  color           String?  @default("#3B82F6") // 일정 색상
+  tags            String[] @default([])        // 태그 목록
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([creatorId])
+  @@index([creatorDeptId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([isPersonal])
+  @@index([isDepartment])
+  @@index([isCompany])
+  @@map("todos")
+}
+
+// 일정 (Schedule/Calendar) 관리
+model Schedule {
+  id              String   @id @default(cuid())
+
+  // 작성자 정보
+  creatorId       String               // 작성자 직원 ID
+  creatorName     String               // 작성자명 (스냅샷)
+  creatorDeptId   String?              // 작성자 부서 ID
+  creatorDeptName String?              // 작성자 부서명 (스냅샷)
+
+  // 일정 내용
+  title           String               // 일정 제목
+  description     String?  @db.Text    // 상세 설명
+  location        String?              // 장소
+
+  // 일정 시간
+  startAt         DateTime             // 시작 일시
+  endAt           DateTime             // 종료 일시
+  isAllDay        Boolean  @default(false) // 종일 일정 여부
+
+  // 일정 범위 (여러 개 선택 가능)
+  isPersonal      Boolean  @default(true)   // 개인일정
+  isDepartment    Boolean  @default(false)  // 부서일정
+  isCompany       Boolean  @default(false)  // 전체일정
+
+  // 공개 부서 (isDepartment가 true인 경우)
+  sharedDeptIds   String[] @default([])     // 공유 대상 부서 ID 목록
+
+  // 일정 타입
+  scheduleType    String   @default("meeting") // meeting: 회의, event: 이벤트, task: 작업, reminder: 리마인더, holiday: 휴일
+
+  // 알림 설정
+  reminders       Json?                // 알림 설정 배열 [{ type: 'popup'|'email', minutes: 30 }]
+
+  // 반복 설정
+  isRecurring     Boolean  @default(false)
+  recurringRule   String?              // RRULE 형식 (RFC 5545)
+  recurringConfig Json?                // 반복 설정 (UI용 - 네이버 캘린더 스타일)
+  recurringEnd    DateTime?            // 반복 종료일
+  parentId        String?              // 반복 일정의 원본 ID
+
+  // 참석자 (선택적)
+  attendees       Json?                // 참석자 배열 [{ staffId, name, status: 'pending'|'accepted'|'declined' }]
+
+  // 태그/색상
+  color           String?  @default("#3B82F6") // 일정 색상
+  tags            String[] @default([])        // 태그 목록
+
+  // 관련 정보 (선택적)
+  relatedType     String?              // order, client, consultation 등
+  relatedId       String?              // 관련 엔티티 ID
+
+  // 상태
+  status          String   @default("confirmed") // confirmed, tentative, cancelled
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([creatorId])
+  @@index([creatorDeptId])
+  @@index([startAt])
+  @@index([endAt])
+  @@index([isPersonal])
+  @@index([isDepartment])
+  @@index([isCompany])
+  @@index([scheduleType])
+  @@index([parentId])
+  @@map("schedules")
+}
+
+// ==================== 동판 관리 ====================
+
+model CopperPlate {
+  id              String   @id @default(cuid())
+  clientId        String
+  client          Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  plateName       String               // 동판명
+  plateCode       String?              // 동판 코드
+  plateType       String   @default("copper") // copper: 동판, soft: 연판
+  foilColor       String               // 박색상 코드
+  foilColorName   String?              // 박색상 이름
+  foilPosition    String?              // 박위치 (center, top_center, right_center, right_bottom, bottom_center, left_bottom, left_center, top_left, top_right)
+  widthMm         Decimal? @db.Decimal(10, 2)  // 가로 (mm)
+  heightMm        Decimal? @db.Decimal(10, 2)  // 세로 (mm)
+  storageLocation String?              // 보관 위치
+  imageUrl        String?              // 동판 이미지 URL
+  aiFileUrl       String?              // AI 파일 URL
+  designFileUrl   String?              // 디자인 파일 URL
+  appliedAlbumName String?             // 적용 앨범명
+  albumPhotoUrl   String?              // 적용된 앨범 사진 URL
+  notes           String?  @db.Text    // 메모
+
+  registeredById  String?              // 등록자 ID
+  registeredBy    String?              // 등록자명
+  registeredAt    DateTime @default(now()) // 동판 등록일
+
+  status          String   @default("stored") // stored: 보관중, in_use: 사용중, returned: 반환됨, disposed: 폐기
+  sortOrder       Int      @default(0)
+  usageCount      Int      @default(0)        // 사용 횟수
+  firstUsedAt     DateTime?                   // 최초 사용일
+  lastUsedAt      DateTime?                   // 마지막 사용일
+  returnedAt      DateTime?                   // 반환일
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  histories       CopperPlateHistory[]
+
+  @@index([clientId])
+  @@index([status])
+  @@index([plateType])
+  @@map("copper_plates")
+}
+
+model CopperPlateHistory {
+  id              String      @id @default(cuid())
+  copperPlateId   String
+  copperPlate     CopperPlate @relation(fields: [copperPlateId], references: [id], onDelete: Cascade)
+
+  actionType      String               // registered, used, location_changed, status_changed
+  previousStatus  String?
+  newStatus       String?
+  previousLocation String?
+  newLocation     String?
+  orderId         String?              // 관련 주문 ID
+  orderNumber     String?              // 관련 주문번호
+  description     String?  @db.Text    // 설명
+  actionById      String?              // 작업자 ID
+  actionBy        String?              // 작업자명
+
+  createdAt       DateTime @default(now())
+
+  @@index([copperPlateId])
+  @@index([actionType])
+  @@map("copper_plate_histories")
+}
+
+// ==================== 원단 관리 ====================
+
+// 원단 공급업체 (Fabric Supplier)
+model FabricSupplier {
+  id          String   @id @default(cuid())
+  code        String   @unique     // 고유 코드
+  name        String               // 공급업체명
+  phone       String?              // 전화번호
+  mobile      String?              // 휴대폰
+  email       String?              // 이메일
+  fax         String?              // 팩스
+  postalCode  String?              // 우편번호
+  address     String?              // 주소
+  addressDetail String?            // 상세주소
+  representative String?           // 담당자명
+  website     String?              // 웹사이트
+  description String?  @db.Text    // 설명
+  memo        String?  @db.Text    // 관리자 메모
+
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  fabrics     Fabric[]
+
+  @@index([isActive])
+  @@map("fabric_suppliers")
+}
+
+// 원단 (Fabric)
+model Fabric {
+  id              String          @id @default(cuid())
+  code            String          @unique     // 고유 코드
+  name            String                      // 원단명
+
+  // 원단 분류
+  category        String          @default("cloth")  // leather: 가죽, cloth: 천, velvet: 벨벳, silk: 실크, linen: 린넨, canvas: 캔버스, synthetic: 합성, other: 기타
+
+  // 재질
+  material        String          @default("cotton") // genuine_leather: 천연가죽, pu_leather: PU가죽, pvc_leather: PVC가죽, cotton: 면, polyester: 폴리에스터, nylon: 나일론, wool: 울, mixed: 혼방, other: 기타
+
+  // 색상 정보
+  colorCode       String?                     // 색상 코드
+  colorName       String?                     // 색상명
+
+  // 규격 정보
+  widthCm         Decimal?        @db.Decimal(10, 2)  // 폭 (cm)
+  thickness       Decimal?        @db.Decimal(10, 3)  // 두께 (mm)
+  weight          Decimal?        @db.Decimal(10, 2)  // 무게 (g/m²)
+
+  // 공급업체 연결
+  supplierId      String?
+  supplier        FabricSupplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+
+  // 가격 정보
+  basePrice       Decimal         @db.Decimal(12, 2) @default(0)  // 기본 단가
+  unitType        String          @default("m")  // m: 미터당, roll: 롤당, yard: 야드당
+
+  // 할인 정보
+  discountRate    Decimal         @db.Decimal(5, 2) @default(0)   // 할인율 (%)
+  discountPrice   Decimal?        @db.Decimal(12, 2)              // 할인가
+
+  // 재고 관련
+  stockQuantity   Int             @default(0)        // 재고 수량
+  minStockLevel   Int             @default(0)        // 최소 재고 수준
+
+  // 용도 (앨범 커버용 등)
+  forAlbumCover   Boolean         @default(false)    // 앨범 커버용
+  forBoxCover     Boolean         @default(false)    // 박스 커버용
+  forFrameCover   Boolean         @default(false)    // 액자 커버용
+  forOther        Boolean         @default(false)    // 기타 용도
+
+  // 이미지
+  imageUrl        String?                            // 원단 이미지 URL
+  thumbnailUrl    String?                            // 썸네일 URL
+
+  // 추가 정보
+  description     String?         @db.Text           // 설명
+  memo            String?         @db.Text           // 관리자 메모
+
+  // 정렬 및 상태
+  sortOrder       Int             @default(0)
+  isActive        Boolean         @default(true)
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([supplierId])
+  @@index([category])
+  @@index([material])
+  @@index([isActive])
+  @@map("fabrics")
+}
+
+// ==================== 상담 메시지 ====================
+
+model ConsultationMessage {
+  id              String       @id @default(cuid())
+  consultationId  String
+  consultation    Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+
+  direction       String               // inbound: 고객→회사, outbound: 회사→고객
+  channel         String   @default("kakao") // kakao, phone, email, web
+  content         String   @db.Text    // 메시지 내용
+  attachments     Json?                // 첨부파일 배열
+
+  senderName      String?              // 발신자명
+  senderType      String?              // customer, staff
+  staffId         String?              // 담당 직원 ID
+  staffName       String?              // 담당 직원명
+
+  messageAt       DateTime @default(now()) // 메시지 시간
+  isRead          Boolean  @default(false)
+  readAt          DateTime?
+
+  createdAt       DateTime @default(now())
+
+  @@index([consultationId])
+  @@index([direction])
+  @@index([isRead])
+  @@map("consultation_messages")
+}
+
+// ==================== 회계관리 ====================
+
+// 계정과목 유형
+enum AccountType {
+  ASSET           // 자산
+  LIABILITY       // 부채
+  EQUITY          // 자본
+  REVENUE         // 수익
+  EXPENSE         // 비용
+}
+
+// 전표 유형
+enum VoucherType {
+  RECEIPT         // 입금전표
+  PAYMENT         // 출금전표
+  TRANSFER        // 대체전표
+}
+
+// 거래 유형 (차변/대변)
+enum TransactionType {
+  DEBIT           // 차변
+  CREDIT          // 대변
+}
+
+// 계정과목
+model Account {
+  id              String        @id @default(cuid())
+  code            String        @unique  // 계정코드 (101, 201, 401 등)
+  name            String                 // 계정명
+  type            AccountType            // 자산/부채/자본/수익/비용
+  parentId        String?                // 상위 계정 (계층 구조)
+  parent          Account?      @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children        Account[]     @relation("AccountHierarchy")
+  description     String?
+  isActive        Boolean       @default(true)
+  sortOrder       Int           @default(0)
+
+  journalEntries  JournalEntry[]
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([type])
+  @@index([isActive])
+  @@map("accounts")
+}
+
+// 분개장 (전표 헤더)
+model Journal {
+  id              String        @id @default(cuid())
+  voucherNo       String        @unique  // 전표번호 (V-2026-000001)
+  voucherType     VoucherType            // 전표 유형
+  journalDate     DateTime               // 전표 일자
+
+  // 거래처 (선택)
+  clientId        String?
+  clientName      String?                // 거래처명 (스냅샷)
+
+  description     String?                // 적요
+  totalAmount     Decimal       @db.Decimal(12, 2)
+
+  // 주문 연동 (선택)
+  orderId         String?
+  orderNumber     String?                // 주문번호 (스냅샷)
+
+  entries         JournalEntry[]
+
+  createdBy       String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([journalDate])
+  @@index([clientId])
+  @@index([voucherType])
+  @@map("journals")
+}
+
+// 분개 상세 (전표 라인)
+model JournalEntry {
+  id              String          @id @default(cuid())
+  journalId       String
+  journal         Journal         @relation(fields: [journalId], references: [id], onDelete: Cascade)
+
+  accountId       String
+  account         Account         @relation(fields: [accountId], references: [id])
+
+  transactionType TransactionType // 차변/대변
+  amount          Decimal         @db.Decimal(12, 2)
+  description     String?         // 적요
+
+  sortOrder       Int             @default(0)
+
+  @@index([journalId])
+  @@index([accountId])
+  @@map("journal_entries")
+}
+
+// 미수금 (Receivable)
+model Receivable {
+  id              String        @id @default(cuid())
+
+  clientId        String
+  clientName      String                          // 거래처명 (스냅샷)
+  clientCode      String?                         // 거래처코드 (스냅샷)
+
+  // 원천 (주문 또는 전표)
+  orderId         String?
+  orderNumber     String?                         // 주문번호 (스냅샷)
+  journalId       String?
+
+  originalAmount  Decimal       @db.Decimal(12, 2)  // 원금
+  paidAmount      Decimal       @default(0) @db.Decimal(12, 2)  // 수금액
+  balance         Decimal       @db.Decimal(12, 2)  // 잔액
+
+  issueDate       DateTime                          // 발생일
+  dueDate         DateTime?                         // 수금예정일
+
+  // 상태: outstanding(미수), partial(부분수금), paid(완납), overdue(연체)
+  status          String        @default("outstanding")
+
+  description     String?
+
+  payments        ReceivablePayment[]
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([clientId])
+  @@index([dueDate])
+  @@index([status])
+  @@map("receivables")
+}
+
+// 미수금 수금 이력
+model ReceivablePayment {
+  id              String        @id @default(cuid())
+  receivableId    String
+  receivable      Receivable    @relation(fields: [receivableId], references: [id], onDelete: Cascade)
+
+  amount          Decimal       @db.Decimal(12, 2)
+  paymentDate     DateTime
+  paymentMethod   String?       // cash, bank_transfer, card
+  description     String?
+  journalId       String?       // 연결된 입금전표
+
+  createdBy       String?
+  createdAt       DateTime      @default(now())
+
+  @@index([receivableId])
+  @@index([paymentDate])
+  @@map("receivable_payments")
+}
+
+// 미지급금 (Payable)
+model Payable {
+  id              String        @id @default(cuid())
+
+  supplierId      String?                         // 매입처 ID
+  supplierName    String                          // 매입처명
+  supplierCode    String?                         // 매입처코드
+
+  journalId       String?
+
+  originalAmount  Decimal       @db.Decimal(12, 2)
+  paidAmount      Decimal       @default(0) @db.Decimal(12, 2)
+  balance         Decimal       @db.Decimal(12, 2)
+
+  issueDate       DateTime
+  dueDate         DateTime?                         // 지급예정일
+
+  // 상태: outstanding(미지급), partial(부분지급), paid(완납), overdue(연체)
+  status          String        @default("outstanding")
+
+  description     String?
+
+  payments        PayablePayment[]
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([supplierId])
+  @@index([dueDate])
+  @@index([status])
+  @@map("payables")
+}
+
+// 미지급금 지급 이력
+model PayablePayment {
+  id              String        @id @default(cuid())
+  payableId       String
+  payable         Payable       @relation(fields: [payableId], references: [id], onDelete: Cascade)
+
+  amount          Decimal       @db.Decimal(12, 2)
+  paymentDate     DateTime
+  paymentMethod   String?
+  description     String?
+  journalId       String?       // 연결된 출금전표
+
+  createdBy       String?
+  createdAt       DateTime      @default(now())
+
+  @@index([payableId])
+  @@index([paymentDate])
+  @@map("payable_payments")
+}
+
+// 은행계좌
+model BankAccount {
+  id              String        @id @default(cuid())
+  accountName     String                          // 계좌별칭 (기업은행 주거래)
+  bankName        String                          // 은행명
+  accountNumber   String                          // 계좌번호
+  accountHolder   String?                         // 예금주
+
+  balance         Decimal       @db.Decimal(14, 2) @default(0)  // 잔액
+
+  isDefault       Boolean       @default(false)   // 기본 계좌 여부
+  isActive        Boolean       @default(true)
+
+  description     String?
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([isActive])
+  @@map("bank_accounts")
+}
+
+// 정산 (Settlement) - 기간별 정산 스냅샷
+model Settlement {
+  id              String        @id @default(cuid())
+
+  // 정산 기간
+  periodType      String                          // daily, weekly, monthly
+  periodStart     DateTime
+  periodEnd       DateTime
+
+  // 매출/매입
+  totalSales      Decimal       @db.Decimal(14, 2) @default(0)
+  totalPurchases  Decimal       @db.Decimal(14, 2) @default(0)
+
+  // 입출금
+  totalIncome     Decimal       @db.Decimal(14, 2) @default(0)
+  totalExpense    Decimal       @db.Decimal(14, 2) @default(0)
+
+  // 미수/미지급 잔액
+  receivablesBalance  Decimal   @db.Decimal(14, 2) @default(0)
+  payablesBalance     Decimal   @db.Decimal(14, 2) @default(0)
+
+  // 순이익/순현금흐름
+  netProfit       Decimal       @db.Decimal(14, 2) @default(0)
+  netCashFlow     Decimal       @db.Decimal(14, 2) @default(0)
+
+  // 정산 상태
+  status          String        @default("draft") // draft, confirmed, closed
+
+  confirmedBy     String?
+  confirmedAt     DateTime?
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([periodType, periodStart])
+  @@index([periodType])
+  @@index([periodStart])
+  @@index([status])
+  @@map("settlements")
 }

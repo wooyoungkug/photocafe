@@ -23,7 +23,10 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     }
   }
 
-  const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+  // localStorage 또는 sessionStorage에서 토큰 가져오기
+  const token = typeof window !== 'undefined'
+    ? (localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken'))
+    : null;
 
   // 타임아웃 처리를 위한 AbortController
   const controller = new AbortController();
@@ -55,6 +58,8 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     if (response.status === 401 && typeof window !== 'undefined') {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
+      sessionStorage.removeItem('accessToken');
+      sessionStorage.removeItem('refreshToken');
       window.location.href = '/login';
       throw new Error('Unauthorized');
     }

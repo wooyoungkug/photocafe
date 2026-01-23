@@ -1,8 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cmd /c \"taskkill /PID 15924 /F\")",
-      "Bash(rsync:*)"
+      "Bash(cmd /c \"taskkill /PID 15924 /F\")"
     ]
   }
 }

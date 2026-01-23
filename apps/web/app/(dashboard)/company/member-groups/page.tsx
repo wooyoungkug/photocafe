@@ -71,7 +71,7 @@ export default function MemberGroupsPage() {
   const [formData, setFormData] = useState<CreateClientGroupDto>({
     groupCode: '',
     groupName: '',
-    discountRate: 0,
+    generalDiscount: 100,
     description: '',
     isActive: true,
   });
@@ -82,7 +82,7 @@ export default function MemberGroupsPage() {
       setFormData({
         groupCode: group.groupCode,
         groupName: group.groupName,
-        discountRate: group.generalDiscount || 0,
+        generalDiscount: group.generalDiscount ?? 100,
         description: group.description || '',
         isActive: group.isActive,
       });
@@ -91,7 +91,7 @@ export default function MemberGroupsPage() {
       setFormData({
         groupCode: '',
         groupName: '',
-        discountRate: 0,
+        generalDiscount: 100,
         description: '',
         isActive: true,
       });
@@ -313,16 +313,17 @@ export default function MemberGroupsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="discountRate">기본 할인율 (%)</Label>
+              <Label htmlFor="generalDiscount">기본 할인율 (%)</Label>
               <Input
-                id="discountRate"
+                id="generalDiscount"
                 type="number"
                 min={0}
-                max={100}
-                value={formData.discountRate}
-                onChange={(e) => setFormData({ ...formData, discountRate: parseInt(e.target.value) || 0 })}
-                placeholder="10"
+                max={200}
+                value={formData.generalDiscount}
+                onChange={(e) => setFormData({ ...formData, generalDiscount: parseInt(e.target.value) || 0 })}
+                placeholder="100"
               />
+              <p className="text-xs text-muted-foreground">100 = 정가, 90 = 10% 할인</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="description">설명</Label>

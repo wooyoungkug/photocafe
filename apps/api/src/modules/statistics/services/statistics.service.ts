@@ -206,7 +206,7 @@ export class StatisticsService {
     });
 
     // 거래처 정보 조회
-    const clientIds = clientStats.map((s) => s.clientId);
+    const clientIds = clientStats.map((s: { clientId: string }) => s.clientId);
     const clients = await this.prisma.client.findMany({
       where: { id: { in: clientIds } },
       include: {
@@ -216,10 +216,10 @@ export class StatisticsService {
       },
     });
 
-    const clientMap = new Map(clients.map((c) => [c.id, c]));
+    const clientMap = new Map(clients.map((c: any) => [c.id, c]));
 
     const data = clientStats
-      .map((stat) => {
+      .map((stat: any) => {
         const client = clientMap.get(stat.clientId);
         return {
           clientId: stat.clientId,
@@ -230,14 +230,14 @@ export class StatisticsService {
           revenue: Number(stat._sum.finalAmount) || 0,
         };
       })
-      .sort((a, b) => b.revenue - a.revenue);
+      .sort((a: any, b: any) => b.revenue - a.revenue);
 
     return {
       data,
       totals: {
         clientCount: data.length,
-        orderCount: data.reduce((sum: number, d) => sum + d.orderCount, 0),
-        revenue: data.reduce((sum: number, d) => sum + d.revenue, 0),
+        orderCount: data.reduce((sum: number, d: any) => sum + d.orderCount, 0),
+        revenue: data.reduce((sum: number, d: any) => sum + d.revenue, 0),
       },
     };
   }
@@ -268,20 +268,20 @@ export class StatisticsService {
     });
 
     const data = stats
-      .map((stat) => ({
+      .map((stat: any) => ({
         bindingType: stat.bindingType,
         orderCount: stat._count.id,
         quantity: stat._sum.quantity || 0,
         revenue: Number(stat._sum.totalPrice) || 0,
       }))
-      .sort((a, b) => b.revenue - a.revenue);
+      .sort((a: any, b: any) => b.revenue - a.revenue);
 
     return {
       data,
       totals: {
-        orderCount: data.reduce((sum: number, d) => sum + d.orderCount, 0),
-        quantity: data.reduce((sum: number, d) => sum + d.quantity, 0),
-        revenue: data.reduce((sum: number, d) => sum + d.revenue, 0),
+        orderCount: data.reduce((sum: number, d: any) => sum + d.orderCount, 0),
+        quantity: data.reduce((sum: number, d: any) => sum + d.quantity, 0),
+        revenue: data.reduce((sum: number, d: any) => sum + d.revenue, 0),
       },
     };
   }
@@ -312,23 +312,23 @@ export class StatisticsService {
     });
 
     const data = stats
-      .map((stat) => ({
+      .map((stat: any) => ({
         productId: stat.productId,
         productName: stat.productName,
         orderCount: stat._count.id,
         quantity: stat._sum.quantity || 0,
         revenue: Number(stat._sum.totalPrice) || 0,
       }))
-      .sort((a, b) => b.revenue - a.revenue)
+      .sort((a: any, b: any) => b.revenue - a.revenue)
       .slice(0, 20); // 상위 20개
 
     return {
       data,
       totals: {
         productCount: stats.length,
-        orderCount: stats.reduce((sum: number, d) => sum + d._count.id, 0),
-        quantity: stats.reduce((sum: number, d) => sum + (d._sum.quantity || 0), 0),
-        revenue: stats.reduce((sum: number, d) => sum + Number(d._sum.totalPrice || 0), 0),
+        orderCount: stats.reduce((sum: number, d: any) => sum + d._count.id, 0),
+        quantity: stats.reduce((sum: number, d: any) => sum + (d._sum.quantity || 0), 0),
+        revenue: stats.reduce((sum: number, d: any) => sum + Number(d._sum.totalPrice || 0), 0),
       },
     };
   }
@@ -362,7 +362,7 @@ export class StatisticsService {
     });
 
     // Product ID로 Category 정보 조회
-    const productIds = [...new Set(orderItems.map(item => item.productId))];
+    const productIds = [...new Set(orderItems.map((item: { productId: string }) => item.productId))];
     const products = await this.prisma.product.findMany({
       where: { id: { in: productIds } },
       select: {
@@ -372,7 +372,7 @@ export class StatisticsService {
     });
 
     const productCategoryMap = new Map(
-      products.map(p => [p.id, p.categoryId])
+      products.map((p: { id: string; categoryId: string | null }) => [p.id, p.categoryId])
     );
 
     // 카테고리별로 집계
@@ -406,7 +406,7 @@ export class StatisticsService {
       },
     });
 
-    const categoryMap = new Map(categories.map(c => [c.id, c]));
+    const categoryMap = new Map(categories.map((c: any) => [c.id, c]));
 
     // 결과 정리
     const data = [...categoryStats.entries()]
@@ -470,7 +470,7 @@ export class StatisticsService {
     });
 
     // Product -> Category 매핑
-    const productIds = [...new Set(orderItems.map(item => item.productId))];
+    const productIds = [...new Set(orderItems.map((item: { productId: string }) => item.productId))];
     const products = await this.prisma.product.findMany({
       where: { id: { in: productIds } },
       select: {
@@ -480,7 +480,7 @@ export class StatisticsService {
     });
 
     const productCategoryMap = new Map(
-      products.map(p => [p.id, p.categoryId])
+      products.map((p: { id: string; categoryId: string | null }) => [p.id, p.categoryId])
     );
 
     // 카테고리별 집계 (소분류 기준)
@@ -556,21 +556,21 @@ export class StatisticsService {
 
     // 트리 구조로 변환
     const tree = allCategories
-      .filter(cat => cat.level === 'large')
-      .map(large => {
+      .filter((cat: any) => cat.level === 'large')
+      .map((large: any) => {
         const mediumChildren = allCategories
-          .filter(cat => cat.parentId === large.id && cat.level === 'medium')
-          .map(medium => {
+          .filter((cat: any) => cat.parentId === large.id && cat.level === 'medium')
+          .map((medium: any) => {
             const smallChildren = allCategories
-              .filter(cat => cat.parentId === medium.id && cat.level === 'small')
-              .map(small => ({
+              .filter((cat: any) => cat.parentId === medium.id && cat.level === 'small')
+              .map((small: any) => ({
                 id: small.id,
                 code: small.code,
                 name: small.name,
                 level: small.level,
                 ...((stats.get(small.id)) || { orderCount: 0, quantity: 0, revenue: 0 }),
               }))
-              .sort((a, b) => b.revenue - a.revenue);
+              .sort((a: any, b: any) => b.revenue - a.revenue);
 
             return {
               id: medium.id,
@@ -581,7 +581,7 @@ export class StatisticsService {
               children: smallChildren,
             };
           })
-          .sort((a, b) => b.revenue - a.revenue);
+          .sort((a: any, b: any) => b.revenue - a.revenue);
 
         return {
           id: large.id,
@@ -592,16 +592,16 @@ export class StatisticsService {
           children: mediumChildren,
         };
       })
-      .sort((a, b) => b.revenue - a.revenue);
+      .sort((a: any, b: any) => b.revenue - a.revenue);
 
-    const totalRevenue = tree.reduce((sum: number, t) => sum + t.revenue, 0);
+    const totalRevenue = tree.reduce((sum: number, t: any) => sum + t.revenue, 0);
 
     return {
       data: tree,
       totals: {
         categoryCount: allCategories.length,
-        orderCount: tree.reduce((sum: number, t) => sum + t.orderCount, 0),
-        quantity: tree.reduce((sum: number, t) => sum + t.quantity, 0),
+        orderCount: tree.reduce((sum: number, t: any) => sum + t.orderCount, 0),
+        quantity: tree.reduce((sum: number, t: any) => sum + t.quantity, 0),
         revenue: totalRevenue,
       },
       period: { startDate, endDate },

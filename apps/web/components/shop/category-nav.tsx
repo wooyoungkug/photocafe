@@ -69,6 +69,9 @@ export function CategoryNav() {
                       : category.iconUrl}
                     alt=""
                     className="h-5 w-5 object-contain"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
                   />
                 )}
                 {category.name}
@@ -124,6 +127,9 @@ export function CategoryNav() {
                         : category.iconUrl}
                       alt=""
                       className="h-4 w-4 object-contain"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
                     />
                   )}
                   {category.name}
@@ -161,6 +167,9 @@ function CategoryMenuItem({ category, level }: { category: Category; level: numb
                 : category.iconUrl}
               alt=""
               className="h-4 w-4 object-contain"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
             />
           )}
           {category.name}

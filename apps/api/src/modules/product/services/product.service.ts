@@ -51,7 +51,7 @@ export class ProductService {
         },
         select: { id: true },
       });
-      categoryIds = childCategories.map(c => c.id);
+      categoryIds = childCategories.map((c: { id: string }) => c.id);
     }
 
     const where: Prisma.ProductWhereInput = {

@@ -94,3 +94,56 @@ export interface PriceInfo {
   discountRate?: number;
   amount: number;
 }
+
+// 그룹 생산설정 단가
+export interface GroupProductionSettingPrice {
+  id: string;
+  clientGroupId: string;
+  productionSettingId: string;
+  specificationId?: string;
+  minQuantity?: number;
+  maxQuantity?: number;
+  weight?: number;
+  price: number;
+  singleSidedPrice?: number;
+  doubleSidedPrice?: number;
+  fourColorSinglePrice?: number;
+  fourColorDoublePrice?: number;
+  sixColorSinglePrice?: number;
+  sixColorDoublePrice?: number;
+  basePages?: number;
+  basePrice?: number;
+  pricePerPage?: number;
+  rangePrices?: Record<string, number>;
+  productionSetting?: {
+    id: string;
+    codeName?: string;
+    settingName?: string;
+    pricingType: string;
+    printMethod?: string;
+  };
+}
+
+export interface GroupProductionSettingPriceDto {
+  specificationId?: string;
+  minQuantity?: number;
+  maxQuantity?: number;
+  weight?: number;
+  price?: number;
+  singleSidedPrice?: number;
+  doubleSidedPrice?: number;
+  fourColorSinglePrice?: number;
+  fourColorDoublePrice?: number;
+  sixColorSinglePrice?: number;
+  sixColorDoublePrice?: number;
+  basePages?: number;
+  basePrice?: number;
+  pricePerPage?: number;
+  rangePrices?: Record<string, number>;
+}
+
+export interface SetGroupProductionSettingPricesDto {
+  clientGroupId: string;
+  productionSettingId: string;
+  prices: GroupProductionSettingPriceDto[];
+}

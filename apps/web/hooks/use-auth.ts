@@ -71,3 +71,15 @@ export function useCurrentUser() {
   const { user, isAuthenticated, isLoading } = useAuthStore();
   return { user, isAuthenticated, isLoading };
 }
+
+interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: (data: ChangePasswordRequest) =>
+      api.patch<{ success: boolean; message: string }>('/auth/change-password', data),
+  });
+}

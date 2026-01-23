@@ -41,6 +41,10 @@ export interface Client {
   status: 'active' | 'inactive' | 'suspended';
   createdAt: string;
   updatedAt: string;
+  _count?: {
+    consultations: number;
+    openConsultations: number;
+  };
 }
 
 // 거래처 생성 DTO
@@ -68,7 +72,9 @@ export type UpdateClientDto = Partial<CreateClientDto>;
 export interface CreateClientGroupDto {
   groupCode: string;
   groupName: string;
-  discountRate?: number;
+  generalDiscount?: number;
+  premiumDiscount?: number;
+  importedDiscount?: number;
   description?: string;
   isActive?: boolean;
   branchId?: string;

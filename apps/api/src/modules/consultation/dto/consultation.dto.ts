@@ -216,6 +216,11 @@ export class UpdateConsultationStatusDto {
   })
   @IsEnum(ConsultationStatus)
   status: ConsultationStatus;
+
+  @ApiPropertyOptional({ description: '상태 변경자 (담당자명)' })
+  @IsOptional()
+  @IsString()
+  updatedBy?: string;
 }
 
 export class ResolveConsultationDto {

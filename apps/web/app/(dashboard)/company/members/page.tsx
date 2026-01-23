@@ -60,6 +60,10 @@ import {
   MessageSquare,
   Users,
   Clock,
+  Package,
+  Layers,
+  Star,
+  Palette,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -304,23 +308,25 @@ export default function MembersPage() {
           ) : (
             <>
               <div className="rounded-xl border overflow-hidden bg-white">
-                <Table>
+                <Table className="table-fixed w-full">
                   <TableHeader>
                     <TableRow className="bg-slate-50/80">
-                      <TableHead className="w-[120px]">회원코드</TableHead>
-                      <TableHead>회원명</TableHead>
-                      <TableHead className="w-[100px]">대표자</TableHead>
-                      <TableHead>연락처</TableHead>
-                      <TableHead className="w-[120px]">그룹</TableHead>
-                      <TableHead className="w-[80px]">신용등급</TableHead>
-                      <TableHead className="w-[80px]">상태</TableHead>
-                      <TableHead className="w-[100px] text-right">작업</TableHead>
+                      <TableHead className="w-[14%]">회원명</TableHead>
+                      <TableHead className="w-[17%]">이메일</TableHead>
+                      <TableHead className="w-[10%]">연락처</TableHead>
+                      <TableHead className="w-[9%]">그룹</TableHead>
+                      <TableHead className="w-[9%] text-center whitespace-nowrap">등록일</TableHead>
+                      <TableHead className="w-[6%] text-center whitespace-nowrap">상담</TableHead>
+                      <TableHead className="w-[6%] text-center whitespace-nowrap">미완료</TableHead>
+                      <TableHead className="w-[7%] text-center whitespace-nowrap">신용</TableHead>
+                      <TableHead className="w-[6%] text-center whitespace-nowrap">상태</TableHead>
+                      <TableHead className="w-[8%] text-center whitespace-nowrap">작업</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {membersData?.data?.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+                        <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
                           <Users className="h-12 w-12 mx-auto mb-4 opacity-20" />
                           등록된 회원이 없습니다.
                         </TableCell>
@@ -328,54 +334,59 @@ export default function MembersPage() {
                     ) : (
                       membersData?.data?.map((member) => (
                         <TableRow key={member.id} className="hover:bg-slate-50/50 transition-colors">
-                          <TableCell className="font-mono text-sm text-blue-600">{member.clientCode}</TableCell>
-                          <TableCell className="font-semibold">{member.clientName}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{member.representative || '-'}</TableCell>
                           <TableCell>
-                            <div className="flex flex-col gap-1 text-sm">
-                              {member.phone && (
-                                <span className="flex items-center gap-1.5 text-muted-foreground">
-                                  <Phone className="h-3 w-3" />
-                                  {member.phone}
-                                </span>
-                              )}
-                              {member.email && (
-                                <span className="flex items-center gap-1.5 text-muted-foreground">
-                                  <Mail className="h-3 w-3" />
-                                  {member.email}
-                                </span>
-                              )}
-                            </div>
+                            <div className="font-semibold">{member.clientName}</div>
+                            {member.representative && (
+                              <div className="text-xs text-muted-foreground">{member.representative}</div>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {member.email || '-'}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {member.mobile || member.phone || '-'}
                           </TableCell>
                           <TableCell>
                             {member.group ? (
-                              <span className="flex items-center gap-1.5 text-sm">
-                                <Building2 className="h-3.5 w-3.5 text-blue-500" />
-                                {member.group.groupName}
-                              </span>
+                              <span className="text-sm text-blue-600">{member.group.groupName}</span>
                             ) : (
                               <span className="text-muted-foreground text-sm">-</span>
                             )}
                           </TableCell>
-                          <TableCell>{getCreditBadge(member.creditGrade)}</TableCell>
-                          <TableCell>{getStatusBadge(member.status)}</TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-1">
+                          <TableCell className="text-center text-sm text-muted-foreground">
+                            {format(new Date(member.createdAt), 'yy.MM.dd')}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <span className="text-sm font-medium">{member._count?.consultations ?? 0}</span>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {(member._count?.openConsultations ?? 0) > 0 ? (
+                              <Badge variant="destructive" className="text-xs px-2">
+                                {member._count?.openConsultations}
+                              </Badge>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">0</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">{getCreditBadge(member.creditGrade)}</TableCell>
+                          <TableCell className="text-center">{getStatusBadge(member.status)}</TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex justify-center gap-0.5">
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleOpenDialog(member)}
-                                className="hover:bg-blue-50"
+                                className="hover:bg-blue-50 h-7 w-7 p-0"
                               >
-                                <Edit className="h-4 w-4" />
+                                <Edit className="h-3.5 w-3.5" />
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => setDeleteConfirm(member)}
-                                className="hover:bg-red-50"
+                                className="hover:bg-red-50 h-7 w-7 p-0"
                               >
-                                <Trash2 className="h-4 w-4 text-destructive" />
+                                <Trash2 className="h-3.5 w-3.5 text-destructive" />
                               </Button>
                             </div>
                           </TableCell>
@@ -429,17 +440,33 @@ export default function MembersPage() {
           </DialogHeader>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-            <TabsList className="grid w-full grid-cols-3 mb-6">
-              <TabsTrigger value="basic" className="flex items-center gap-2">
-                <User className="h-4 w-4" />
+            <TabsList className="grid w-full grid-cols-7 mb-6">
+              <TabsTrigger value="basic" className="flex items-center gap-1 text-xs px-2">
+                <User className="h-3.5 w-3.5" />
                 기본정보
               </TabsTrigger>
-              <TabsTrigger value="payment" className="flex items-center gap-2">
-                <CreditCard className="h-4 w-4" />
+              <TabsTrigger value="payment" className="flex items-center gap-1 text-xs px-2">
+                <CreditCard className="h-3.5 w-3.5" />
                 결제/배송
               </TabsTrigger>
-              <TabsTrigger value="history" className="flex items-center gap-2" disabled={!editingMember}>
-                <MessageSquare className="h-4 w-4" />
+              <TabsTrigger value="products" className="flex items-center gap-1 text-xs px-2" disabled={!editingMember}>
+                <Package className="h-3.5 w-3.5" />
+                상품정보
+              </TabsTrigger>
+              <TabsTrigger value="plates" className="flex items-center gap-1 text-xs px-2" disabled={!editingMember}>
+                <Layers className="h-3.5 w-3.5" />
+                동판정보
+              </TabsTrigger>
+              <TabsTrigger value="myproducts" className="flex items-center gap-1 text-xs px-2" disabled={!editingMember}>
+                <Star className="h-3.5 w-3.5" />
+                MY상품
+              </TabsTrigger>
+              <TabsTrigger value="fabrics" className="flex items-center gap-1 text-xs px-2" disabled={!editingMember}>
+                <Palette className="h-3.5 w-3.5" />
+                원단정보
+              </TabsTrigger>
+              <TabsTrigger value="history" className="flex items-center gap-1 text-xs px-2" disabled={!editingMember}>
+                <MessageSquare className="h-3.5 w-3.5" />
                 상담이력
               </TabsTrigger>
             </TabsList>
@@ -688,6 +715,90 @@ export default function MembersPage() {
                   <AlertCircle className="h-4 w-4 inline-block mr-2" />
                   배송비 및 결제 관련 상세 설정은 관리자에게 문의하세요.
                 </p>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="products" className="space-y-6">
+              {/* 상품 정보 */}
+              <div className="p-5 border rounded-xl bg-gradient-to-r from-indigo-50/70 to-transparent">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-indigo-700 flex items-center gap-2">
+                    <Package className="h-4 w-4" />
+                    등록 상품 목록
+                  </h3>
+                  <Button variant="outline" size="sm">
+                    <Plus className="h-4 w-4 mr-1" />
+                    상품 추가
+                  </Button>
+                </div>
+                <div className="text-center py-12 text-muted-foreground">
+                  <Package className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                  <p>등록된 상품이 없습니다.</p>
+                  <p className="text-xs mt-2">이 회원에게 특별 상품을 등록할 수 있습니다.</p>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="plates" className="space-y-6">
+              {/* 동판 정보 */}
+              <div className="p-5 border rounded-xl bg-gradient-to-r from-amber-50/70 to-transparent">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-amber-700 flex items-center gap-2">
+                    <Layers className="h-4 w-4" />
+                    동판 목록
+                  </h3>
+                  <Button variant="outline" size="sm">
+                    <Plus className="h-4 w-4 mr-1" />
+                    동판 등록
+                  </Button>
+                </div>
+                <div className="text-center py-12 text-muted-foreground">
+                  <Layers className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                  <p>등록된 동판이 없습니다.</p>
+                  <p className="text-xs mt-2">이 회원의 로고/낙관 동판을 관리합니다.</p>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="myproducts" className="space-y-6">
+              {/* MY 상품 */}
+              <div className="p-5 border rounded-xl bg-gradient-to-r from-pink-50/70 to-transparent">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-pink-700 flex items-center gap-2">
+                    <Star className="h-4 w-4" />
+                    MY 상품 (즐겨찾기)
+                  </h3>
+                  <Button variant="outline" size="sm">
+                    <Plus className="h-4 w-4 mr-1" />
+                    MY상품 추가
+                  </Button>
+                </div>
+                <div className="text-center py-12 text-muted-foreground">
+                  <Star className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                  <p>등록된 MY상품이 없습니다.</p>
+                  <p className="text-xs mt-2">자주 주문하는 상품을 MY상품으로 등록합니다.</p>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="fabrics" className="space-y-6">
+              {/* 원단 정보 */}
+              <div className="p-5 border rounded-xl bg-gradient-to-r from-teal-50/70 to-transparent">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-teal-700 flex items-center gap-2">
+                    <Palette className="h-4 w-4" />
+                    원단 정보
+                  </h3>
+                  <Button variant="outline" size="sm">
+                    <Plus className="h-4 w-4 mr-1" />
+                    원단 등록
+                  </Button>
+                </div>
+                <div className="text-center py-12 text-muted-foreground">
+                  <Palette className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                  <p>등록된 원단이 없습니다.</p>
+                  <p className="text-xs mt-2">이 회원이 사용하는 원단 정보를 관리합니다.</p>
+                </div>
               </div>
             </TabsContent>
 

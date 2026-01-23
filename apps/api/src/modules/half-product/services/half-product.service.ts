@@ -203,7 +203,7 @@ export class HalfProductService {
 
     // 규격 가격 추가
     if (specificationId) {
-      const spec = halfProduct.specifications.find(s => s.id === specificationId);
+      const spec = halfProduct.specifications.find((s: { id: string }) => s.id === specificationId);
       if (spec) {
         price += Number(spec.price);
       }
@@ -212,7 +212,7 @@ export class HalfProductService {
     // 옵션 가격 추가
     if (optionSelections) {
       for (const selection of optionSelections) {
-        const option = halfProduct.options.find(o => o.id === selection.optionId);
+        const option = halfProduct.options.find((o: { id: string }) => o.id === selection.optionId);
         if (option && option.values) {
           const optionValues = option.values as { name: string; price?: number }[];
           const selectedValue = optionValues.find(v => v.name === selection.value);

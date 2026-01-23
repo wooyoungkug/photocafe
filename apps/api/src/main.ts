@@ -54,6 +54,30 @@ async function bootstrap() {
     });
   });
 
+  // Database health check (global prefix 우회)
+  expressApp.get('/health/db', async (req: any, res: any) => {
+    const startTime = Date.now();
+    try {
+      const { PrismaClient } = require('@prisma/client');
+      const prisma = new PrismaClient();
+      await prisma.$queryRaw`SELECT 1`;
+      await prisma.$disconnect();
+      res.json({
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        service: 'PostgreSQL',
+        responseTime: Date.now() - startTime,
+      });
+    } catch (error: any) {
+      res.json({
+        status: 'error',
+        timestamp: new Date().toISOString(),
+        service: 'PostgreSQL',
+        error: error?.message || 'Unknown error',
+      });
+    }
+  });
+
   // Swagger
   const config = new DocumentBuilder()
     .setTitle('인쇄업 ERP API')

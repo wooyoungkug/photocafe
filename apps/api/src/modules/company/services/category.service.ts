@@ -313,7 +313,7 @@ export class CategoryService {
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
     });
 
-    const currentIndex = siblings.findIndex((s) => s.id === id);
+    const currentIndex = siblings.findIndex((s: { id: string }) => s.id === id);
     if (currentIndex <= 0) {
       return category; // 이미 최상위
     }
@@ -361,7 +361,7 @@ export class CategoryService {
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
     });
 
-    const currentIndex = siblings.findIndex((s) => s.id === id);
+    const currentIndex = siblings.findIndex((s: { id: string }) => s.id === id);
     if (currentIndex < 0 || currentIndex >= siblings.length - 1) {
       return category; // 이미 최하위
     }

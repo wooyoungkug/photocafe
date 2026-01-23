@@ -10,9 +10,10 @@ export class CreateClientGroupDto {
   @IsString()
   groupName: string;
 
-  @ApiProperty({ description: '지점 ID' })
+  @ApiPropertyOptional({ description: '지점 ID (없으면 본사 자동 지정)' })
+  @IsOptional()
   @IsString()
-  branchId: string;
+  branchId?: string;
 
   @ApiPropertyOptional({ description: '일반 할인율 (100 = 정가)', default: 100 })
   @IsOptional()

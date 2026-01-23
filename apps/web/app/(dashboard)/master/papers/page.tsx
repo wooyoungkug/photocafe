@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Settings2,
   X,
+  History,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -231,6 +232,17 @@ export default function PapersPage() {
   const [finishDialogOpen, setFinishDialogOpen] = useState(false);
   const [newFinishValue, setNewFinishValue] = useState('');
   const [newFinishLabel, setNewFinishLabel] = useState('');
+
+  // 가격 히스토리 다이얼로그
+  const [priceHistoryDialogOpen, setPriceHistoryDialogOpen] = useState(false);
+
+  // 샘플 가격 히스토리 데이터 (실제로는 API에서 가져와야 함)
+  const priceHistory = editingPaper ? [
+    { date: '2026-01-15', discountRate: 0, appliedPrice: editingPaper.basePrice, memo: '신규 등록' },
+    { date: '2025-12-01', discountRate: 5, appliedPrice: Math.round(editingPaper.basePrice * 0.95), memo: '연말 할인 적용' },
+    { date: '2025-10-15', discountRate: 0, appliedPrice: Math.round(editingPaper.basePrice * 1.1), memo: '원자재 가격 상승' },
+    { date: '2025-08-01', discountRate: 10, appliedPrice: Math.round(editingPaper.basePrice * 0.9), memo: '프로모션 할인' },
+  ] : [];
 
   // 데이터 조회
   const { data: papersData, isLoading: papersLoading } = usePapers({
@@ -1315,14 +1327,27 @@ export default function PapersPage() {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-slate-700">할인율 (%)</Label>
-                  <Input
-                    type="number"
-                    {...paperForm.register('discountRate', { valueAsNumber: true })}
-                    placeholder="0"
-                    min={0}
-                    max={100}
-                    className="h-11 border-slate-200"
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      {...paperForm.register('discountRate', { valueAsNumber: true })}
+                      placeholder="0"
+                      min={0}
+                      max={100}
+                      className="h-11 border-slate-200 flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-11 w-11 border-slate-200 hover:bg-blue-50 hover:border-blue-300"
+                      onClick={() => setPriceHistoryDialogOpen(true)}
+                      title="가격변동 히스토리"
+                      disabled={!editingPaper}
+                    >
+                      <History className="h-4 w-4 text-blue-600" />
+                    </Button>
+                  </div>
                 </div>
               </div>
 
@@ -1716,6 +1741,67 @@ export default function PapersPage() {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 가격 히스토리 다이얼로그 */}
+      <Dialog open={priceHistoryDialogOpen} onOpenChange={setPriceHistoryDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-5 w-5 text-blue-600" />
+              가격변동 히스토리
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {editingPaper && (
+              <div className="p-3 bg-slate-50 rounded-lg">
+                <div className="text-sm text-slate-600">용지명</div>
+                <div className="font-semibold">{editingPaper.name}</div>
+              </div>
+            )}
+
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-slate-50">
+                    <TableHead className="text-center">날짜</TableHead>
+                    <TableHead className="text-center">할인율</TableHead>
+                    <TableHead className="text-right">적용금액</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {priceHistory.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                        가격변동 이력이 없습니다.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    priceHistory.map((history, idx) => (
+                      <TableRow key={idx} className={idx === 0 ? 'bg-blue-50' : ''}>
+                        <TableCell className="text-center font-mono text-sm">
+                          {history.date}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant={history.discountRate > 0 ? 'default' : 'outline'} className="text-xs">
+                            {history.discountRate}%
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-semibold">
+                          {history.appliedPrice.toLocaleString()}원
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+
+            <div className="text-xs text-muted-foreground text-center">
+              * 최근 변경 이력 순으로 표시됩니다
             </div>
           </div>
         </DialogContent>

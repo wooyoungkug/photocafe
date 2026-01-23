@@ -3,7 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "sonner";
 import { useAuthStore } from "@/stores/auth-store";
 import { ErrorBoundary } from "@/components/error-boundary";
 
@@ -74,7 +74,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <QueryClientProvider client={queryClient}>
         <TooltipProvider delayDuration={300}>
           {children}
-          <Toaster />
+          <Toaster
+            position="top-right"
+            richColors
+            closeButton
+            duration={3000}
+          />
         </TooltipProvider>
       </QueryClientProvider>
     </ErrorBoundary>

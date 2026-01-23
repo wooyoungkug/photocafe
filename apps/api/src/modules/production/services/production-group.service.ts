@@ -102,13 +102,13 @@ export class ProductionGroupService {
 
     // 재귀적으로 children 연결
     const buildTree = (groups: typeof allGroups): any[] => {
-      return groups.map(group => ({
+      return groups.map((group: any) => ({
         ...group,
         children: buildTree(childMap.get(group.id) || []),
       }));
     };
 
-    const rootGroups = allGroups.filter(g => !g.parentId);
+    const rootGroups = allGroups.filter((g: { parentId: string | null }) => !g.parentId);
     return buildTree(rootGroups);
   }
 

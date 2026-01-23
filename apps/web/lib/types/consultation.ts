@@ -117,6 +117,7 @@ export interface CreateConsultationCategoryDto {
   code: string;
   name: string;
   colorCode?: string;
+  description?: string;
   sortOrder?: number;
   isActive?: boolean;
 }
@@ -203,4 +204,50 @@ export const FOLLOW_UP_ACTION_TYPE_CONFIG: Record<FollowUpActionType, { label: s
   email: { label: '이메일', icon: 'Mail' },
   kakao: { label: '카카오톡', icon: 'MessageSquare' },
   other: { label: '기타', icon: 'MoreHorizontal' },
+};
+
+// ==================== 상담 메시지 ====================
+
+export type MessageChannel = 'kakao' | 'phone' | 'email' | 'web';
+export type MessageDirection = 'inbound' | 'outbound';
+
+export interface ConsultationMessage {
+  id: string;
+  consultationId: string;
+  direction: MessageDirection;
+  channel: MessageChannel;
+  content: string;
+  attachments?: any[];
+  senderName?: string;
+  senderType?: 'customer' | 'staff' | 'client';
+  staffId?: string;
+  staffName?: string;
+  messageAt: string;
+  isRead: boolean;
+  readAt?: string;
+  createdAt: string;
+}
+
+export interface CreateMessageDto {
+  direction: MessageDirection;
+  channel?: MessageChannel;
+  content: string;
+  attachments?: any[];
+  senderName?: string;
+  senderType?: 'customer' | 'staff' | 'client';
+  staffId?: string;
+  staffName?: string;
+  messageAt?: string;
+}
+
+export interface UpdateMessageDto {
+  content?: string;
+  attachments?: any[];
+}
+
+export const MESSAGE_CHANNEL_CONFIG: Record<MessageChannel, { label: string; icon: string; color: string }> = {
+  kakao: { label: '카카오톡', icon: 'MessageSquare', color: 'bg-yellow-100 text-yellow-800' },
+  phone: { label: '전화', icon: 'Phone', color: 'bg-green-100 text-green-800' },
+  email: { label: '이메일', icon: 'Mail', color: 'bg-blue-100 text-blue-800' },
+  web: { label: '웹', icon: 'Globe', color: 'bg-gray-100 text-gray-800' },
 };

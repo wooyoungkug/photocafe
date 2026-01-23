@@ -1,0 +1,453 @@
+'use client';
+
+import { useState } from 'react';
+import { format } from 'date-fns';
+import {
+  Plus,
+  Search,
+  Download,
+  FileText,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Filter,
+  MoreHorizontal,
+  Receipt,
+  TrendingDown,
+} from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Progress } from '@/components/ui/progress';
+import { useReceivables, useReceivableSummary, useCreatePayment } from '@/hooks/use-accounting';
+import { toast } from '@/hooks/use-toast';
+import type { Receivable } from '@/lib/types/accounting';
+
+export default function ReceivablesPage() {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [selectedReceivable, setSelectedReceivable] = useState<any>(null);
+
+  const { data: receivablesData, isLoading } = useReceivables({
+    status: statusFilter === 'all' ? undefined : statusFilter,
+  });
+  const { data: summary } = useReceivableSummary();
+  const createPayment = useCreatePayment();
+
+  const [paymentForm, setPaymentForm] = useState({
+    amount: 0,
+    paymentDate: format(new Date(), 'yyyy-MM-dd'),
+    paymentMethod: 'bank_transfer',
+    description: '',
+  });
+
+  const handleOpenPaymentDialog = (receivable: any) => {
+    setSelectedReceivable(receivable);
+    setPaymentForm({
+      amount: receivable.remainingAmount,
+      paymentDate: format(new Date(), 'yyyy-MM-dd'),
+      paymentMethod: 'bank_transfer',
+      description: '',
+    });
+    setIsPaymentDialogOpen(true);
+  };
+
+  const handlePayment = async () => {
+    if (paymentForm.amount <= 0) {
+      toast({ title: '수금액을 입력해주세요.', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      await createPayment.mutateAsync({
+        type: 'income',
+        amount: paymentForm.amount,
+        paymentDate: paymentForm.paymentDate,
+        paymentMethod: paymentForm.paymentMethod as any,
+        clientId: selectedReceivable?.clientId,
+        clientName: selectedReceivable?.clientName,
+        description: paymentForm.description || `${selectedReceivable?.clientName} 미수금 수금`,
+      });
+      toast({ title: '수금이 처리되었습니다.' });
+      setIsPaymentDialogOpen(false);
+    } catch {
+      toast({ title: '수금 처리에 실패했습니다.', variant: 'destructive' });
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const configs: Record<string, { label: string; color: string; icon: any }> = {
+      outstanding: { label: '미수', color: 'bg-orange-100 text-orange-700', icon: Clock },
+      partial: { label: '부분수금', color: 'bg-blue-100 text-blue-700', icon: TrendingDown },
+      paid: { label: '완납', color: 'bg-green-100 text-green-700', icon: CheckCircle },
+      overdue: { label: '연체', color: 'bg-red-100 text-red-700', icon: AlertTriangle },
+    };
+    const config = configs[status] || configs.outstanding;
+    const Icon = config.icon;
+    return (
+      <Badge className={`${config.color} text-xs flex items-center gap-1`}>
+        <Icon className="h-3 w-3" />
+        {config.label}
+      </Badge>
+    );
+  };
+
+  const getCollectionRate = (paid: number, total: number) => {
+    return total > 0 ? Math.round((paid / total) * 100) : 0;
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* 헤더 */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">미수금 관리</h1>
+          <p className="text-muted-foreground">거래처별 미수금 현황을 관리합니다.</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline">
+            <Download className="h-4 w-4 mr-2" />
+            엑셀 다운로드
+          </Button>
+        </div>
+      </div>
+
+      {/* 요약 카드 */}
+      <div className="grid grid-cols-4 gap-4">
+        <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-orange-600 font-medium">총 미수금</p>
+                <p className="text-2xl font-bold text-orange-900">
+                  {(summary?.totalReceivables || 0).toLocaleString()}원
+                </p>
+              </div>
+              <div className="h-12 w-12 bg-orange-500 rounded-xl flex items-center justify-center">
+                <FileText className="h-6 w-6 text-white" />
+              </div>
+            </div>
+            <div className="mt-2 text-xs text-orange-600">
+              {summary?.clientCount || 0}개 거래처
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-red-600 font-medium">연체금액</p>
+                <p className="text-2xl font-bold text-red-900">
+                  {(summary?.overdueAmount || 0).toLocaleString()}원
+                </p>
+              </div>
+              <div className="h-12 w-12 bg-red-500 rounded-xl flex items-center justify-center">
+                <AlertTriangle className="h-6 w-6 text-white" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-blue-600 font-medium">30일 이내</p>
+                <p className="text-2xl font-bold text-blue-900">
+                  {(summary?.aging?.under30 || 0).toLocaleString()}원
+                </p>
+              </div>
+              <div className="h-12 w-12 bg-blue-500 rounded-xl flex items-center justify-center">
+                <Clock className="h-6 w-6 text-white" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-purple-600 font-medium">90일 초과</p>
+                <p className="text-2xl font-bold text-purple-900">
+                  {(summary?.aging?.over90 || 0).toLocaleString()}원
+                </p>
+              </div>
+              <div className="h-12 w-12 bg-purple-500 rounded-xl flex items-center justify-center">
+                <AlertTriangle className="h-6 w-6 text-white" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Aging 분석 바 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Aging 분석</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="w-24 text-sm text-muted-foreground">30일 이내</div>
+              <Progress value={40} className="flex-1 h-3" />
+              <div className="w-32 text-right text-sm font-medium">
+                {(summary?.aging?.under30 || 0).toLocaleString()}원
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="w-24 text-sm text-muted-foreground">31~60일</div>
+              <Progress value={25} className="flex-1 h-3 [&>div]:bg-yellow-500" />
+              <div className="w-32 text-right text-sm font-medium">
+                {(summary?.aging?.days30to60 || 0).toLocaleString()}원
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="w-24 text-sm text-muted-foreground">61~90일</div>
+              <Progress value={20} className="flex-1 h-3 [&>div]:bg-orange-500" />
+              <div className="w-32 text-right text-sm font-medium">
+                {(summary?.aging?.days60to90 || 0).toLocaleString()}원
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="w-24 text-sm text-muted-foreground">90일 초과</div>
+              <Progress value={15} className="flex-1 h-3 [&>div]:bg-red-500" />
+              <div className="w-32 text-right text-sm font-medium">
+                {(summary?.aging?.over90 || 0).toLocaleString()}원
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 필터 및 검색 */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="relative flex-1 min-w-[200px] max-w-sm">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="거래처명 검색..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[130px]">
+                <SelectValue placeholder="상태" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">전체 상태</SelectItem>
+                <SelectItem value="outstanding">미수</SelectItem>
+                <SelectItem value="partial">부분수금</SelectItem>
+                <SelectItem value="overdue">연체</SelectItem>
+                <SelectItem value="paid">완납</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm">
+              <Filter className="h-4 w-4 mr-1" />
+              필터 초기화
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 미수금 목록 */}
+      <Card>
+        <CardHeader>
+          <CardTitle>미수금 현황</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-slate-50">
+                <TableHead>거래처</TableHead>
+                <TableHead className="text-right">발생금액</TableHead>
+                <TableHead className="text-right">수금액</TableHead>
+                <TableHead className="text-right">잔액</TableHead>
+                <TableHead className="text-center">수금률</TableHead>
+                <TableHead className="text-center">수금예정일</TableHead>
+                <TableHead className="text-center">상태</TableHead>
+                <TableHead className="w-[100px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8">
+                    로딩 중...
+                  </TableCell>
+                </TableRow>
+              ) : !receivablesData?.data?.length ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+                    <FileText className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                    미수금 내역이 없습니다.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                receivablesData.data.map((item: Receivable) => {
+                  const rate = getCollectionRate(item.paidAmount, item.totalAmount);
+                  return (
+                    <TableRow key={item.id} className="hover:bg-slate-50">
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{item.clientName}</div>
+                          <div className="text-xs text-muted-foreground">{item.clientCode}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {item.totalAmount.toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right text-green-600">
+                        {item.paidAmount.toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-orange-600">
+                        {item.remainingAmount.toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <Progress value={rate} className="w-16 h-2" />
+                          <span className="text-xs text-muted-foreground">{rate}%</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center font-mono text-sm">
+                        {item.dueDate ? format(new Date(item.dueDate), 'yyyy-MM-dd') : '-'}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {getStatusBadge(item.status)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenPaymentDialog(item)}
+                            disabled={item.status === 'paid'}
+                          >
+                            <Receipt className="h-3 w-3 mr-1" />
+                            수금
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* 수금 등록 다이얼로그 */}
+      <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>수금 등록</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div className="p-4 bg-slate-50 rounded-lg space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">거래처</span>
+                <span className="font-medium">{selectedReceivable?.clientName}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">미수금 잔액</span>
+                <span className="font-bold text-orange-600">
+                  {selectedReceivable?.remainingAmount?.toLocaleString()}원
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>수금일자</Label>
+              <Input
+                type="date"
+                value={paymentForm.paymentDate}
+                onChange={(e) => setPaymentForm({ ...paymentForm, paymentDate: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>수금액</Label>
+              <Input
+                type="number"
+                value={paymentForm.amount}
+                onChange={(e) => setPaymentForm({ ...paymentForm, amount: Number(e.target.value) })}
+                max={selectedReceivable?.remainingAmount}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>결제방법</Label>
+              <Select
+                value={paymentForm.paymentMethod}
+                onValueChange={(v) => setPaymentForm({ ...paymentForm, paymentMethod: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="bank_transfer">계좌이체</SelectItem>
+                  <SelectItem value="cash">현금</SelectItem>
+                  <SelectItem value="card">카드</SelectItem>
+                  <SelectItem value="check">수표</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>메모</Label>
+              <Input
+                value={paymentForm.description}
+                onChange={(e) => setPaymentForm({ ...paymentForm, description: e.target.value })}
+                placeholder="수금 내용을 입력하세요"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="mt-6">
+            <Button variant="outline" onClick={() => setIsPaymentDialogOpen(false)}>
+              취소
+            </Button>
+            <Button onClick={handlePayment} disabled={createPayment.isPending}>
+              수금 등록
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

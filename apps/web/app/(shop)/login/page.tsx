@@ -41,6 +41,7 @@ function LoginForm() {
         user: response.user,
         accessToken: response.accessToken,
         refreshToken: response.refreshToken,
+        rememberMe,
       });
 
       const redirectTo = searchParams.get('redirect') || '/';

@@ -15,6 +15,8 @@ import { PaperModule } from './modules/paper/paper.module';
 import { SystemSettingsModule } from './modules/system-settings/system-settings.module';
 import { DeliveryModule } from './modules/delivery/delivery.module';
 import { ConsultationModule } from './modules/consultation/consultation.module';
+import { ScheduleModule } from './modules/schedule/schedule.module';
+import { AccountingModule } from './modules/accounting/accounting.module';
 // import { NotionModule } from './modules/notion/notion.module';  // TODO: npm install @notionhq/client
 import { PrismaModule } from './common/prisma/prisma.module';
 import { AppController } from './app.controller';
@@ -42,6 +44,8 @@ import { AppController } from './app.controller';
     SystemSettingsModule,
     DeliveryModule,
     ConsultationModule,
+    ScheduleModule,
+    AccountingModule,
     // NotionModule,  // TODO: npm install @notionhq/client
   ],
 })

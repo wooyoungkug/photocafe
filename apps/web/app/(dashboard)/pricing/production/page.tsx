@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Plus,
   ChevronDown,
@@ -14,6 +16,7 @@ import {
   Edit,
   Trash2,
   Ruler,
+  Users,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,6 +42,14 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { PageHeader } from "@/components/layout/page-header";
 import {
   useProductionGroupTree,
@@ -56,6 +67,7 @@ import {
   type PricingType,
 } from "@/hooks/use-production";
 import { useSpecifications, type Specification } from "@/hooks/use-specifications";
+import { useClientGroups } from "@/hooks/use-clients";
 import { usePapersByPrintMethod } from "@/hooks/use-paper";
 import { Paper } from "@/lib/types/paper";
 import { cn } from "@/lib/utils";
@@ -1087,9 +1099,11 @@ export default function ProductionSettingPage() {
   );
 
   // API 호출
+  const router = useRouter();
   const { data: groupTree, isLoading: isLoadingGroups } = useProductionGroupTree();
   const { data: specifications } = useSpecifications();
   const { data: pricingTypes } = usePricingTypes();
+  const { data: clientGroupsData } = useClientGroups({ limit: 100 });
 
   const createGroupMutation = useCreateProductionGroup();
   const updateGroupMutation = useUpdateProductionGroup();
@@ -1989,10 +2003,52 @@ export default function ProductionSettingPage() {
               { label: "표준단가" },
             ]}
             actions={
-              <Button onClick={() => handleOpenGroupDialog(null)} className="gap-2">
-                <Plus className="h-4 w-4" />
-                대분류 추가
-              </Button>
+              <div className="flex items-center gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline">
+                      <Users className="h-4 w-4 mr-2" />
+                      그룹단가
+                      <ChevronDown className="h-4 w-4 ml-2" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>거래처 그룹 선택</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {clientGroupsData?.data?.length === 0 ? (
+                      <DropdownMenuItem disabled>
+                        등록된 그룹이 없습니다
+                      </DropdownMenuItem>
+                    ) : (
+                      clientGroupsData?.data?.map((group) => (
+                        <DropdownMenuItem
+                          key={group.id}
+                          onClick={() => router.push(`/pricing/group?groupId=${group.id}`)}
+                          className="cursor-pointer"
+                        >
+                          <span className="flex-1">{group.groupName}</span>
+                          {group.generalDiscount !== 100 && (
+                            <Badge variant="secondary" className="ml-2 text-xs">
+                              {100 - group.generalDiscount}% 할인
+                            </Badge>
+                          )}
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => router.push('/pricing/group')}
+                      className="cursor-pointer text-muted-foreground"
+                    >
+                      전체 그룹단가 관리
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button onClick={() => handleOpenGroupDialog(null)} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  대분류 추가
+                </Button>
+              </div>
             }
           />
           <Card className="flex flex-col">
@@ -2938,7 +2994,7 @@ export default function ProductionSettingPage() {
 
                           {/* 그룹별 단가 입력 */}
                           {settingForm.priceGroups.length === 0 ? (
-                            <div className="border rounded-lg p-4 text-center text-muted-foreground text-sm">
+                            <div className="border p-4 text-center text-muted-foreground text-sm">
                               용지그룹을 추가하여 용지별 가격을 설정하세요.
                             </div>
                           ) : (
@@ -3006,7 +3062,7 @@ export default function ProductionSettingPage() {
                                   <div
                                     key={group.id}
                                     className={cn(
-                                      "rounded-xl border-2 p-3 space-y-2 shadow-sm",
+                                      "border-2 p-3 space-y-2 shadow-sm",
                                       style.bg, style.border
                                     )}
                                   >
@@ -3047,7 +3103,7 @@ export default function ProductionSettingPage() {
                                     )}
 
                                     {/* Up별 가격 입력 테이블 (간소화) */}
-                                    <div className="rounded-lg border border-gray-200 overflow-hidden">
+                                    <div className="border border-gray-200 overflow-hidden">
                                       <table className="w-full text-xs">
                                         <thead>
                                           <tr className="bg-gray-100 border-b border-gray-200">
@@ -3115,7 +3171,7 @@ export default function ProductionSettingPage() {
                                                         <Input
                                                           type="number"
                                                           className={cn(
-                                                            "h-8 w-16 text-sm text-center rounded [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+                                                            "h-8 w-16 text-sm text-center rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
                                                             idx === 0
                                                               ? "bg-amber-100 border-amber-300 font-medium focus:border-amber-400 focus:ring-1 focus:ring-amber-200"
                                                               : "bg-white border-slate-200 hover:border-indigo-300 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
@@ -3416,14 +3472,14 @@ export default function ProductionSettingPage() {
                           </div>
 
                           {settingForm.specificationIds.length === 0 && (
-                            <div className="border rounded-lg p-4 text-center text-muted-foreground text-sm">
+                            <div className="border p-4 text-center text-muted-foreground text-sm">
                               먼저 규격을 선택하세요.
                             </div>
                           )}
 
                           {/* 그룹별 규격 단가 입력 - 3열 레이아웃 */}
                           {settingForm.priceGroups.length === 0 && settingForm.specificationIds.length > 0 ? (
-                            <div className="border rounded-lg p-4 text-center text-muted-foreground text-sm">
+                            <div className="border p-4 text-center text-muted-foreground text-sm">
                               단가 그룹을 추가하여 용지별 규격 가격을 설정하세요.
                             </div>
                           ) : (
@@ -3437,13 +3493,13 @@ export default function ProductionSettingPage() {
                                 const specPrices = group.specPrices || [];
 
                                 return (
-                                  <div key={group.id} className={cn("rounded-lg p-2 border-2", style.bg, style.border)}>
+                                  <div key={group.id} className={cn("p-2 border-2", style.bg, style.border)}>
                                     <div className="flex items-center justify-between mb-1.5">
                                       <div className="flex items-center gap-1">
                                         <span className={cn("text-xs font-semibold", style.text)}>
                                           {style.dot} {style.label}
                                         </span>
-                                        <span className="text-[10px] bg-gray-200 text-gray-700 px-1 py-0.5 rounded">
+                                        <span className="text-[10px] bg-gray-200 text-gray-700 px-1 py-0.5">
                                           {specPrices.length}/{settingForm.specificationIds.length}개
                                         </span>
                                       </div>
@@ -3478,7 +3534,7 @@ export default function ProductionSettingPage() {
                                     )}
 
                                     {/* 단가 입력 방식 선택 */}
-                                    <div className="mb-1.5 p-1.5 bg-white/50 rounded border text-[10px]">
+                                    <div className="mb-1.5 p-1.5 bg-white/50 border text-[10px]">
                                       <div className="flex items-center gap-1 flex-wrap">
                                         <Select
                                           value={group.pricingMode === 'sqinch' ? 'sqinch' : 'spec'}
@@ -3648,7 +3704,7 @@ export default function ProductionSettingPage() {
                                                   type="button"
                                                   onClick={applyCost}
                                                   disabled={!group.inkjetBaseSpecId}
-                                                  className="text-[13px] text-rose-600 font-semibold whitespace-nowrap hover:bg-rose-100 px-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                                                  className="text-[13px] text-rose-600 font-semibold whitespace-nowrap hover:bg-rose-100 px-1 disabled:opacity-50 disabled:cursor-not-allowed"
                                                   title="클릭하면 원가가 자동 적용됩니다"
                                                 >
                                                   {costDisplay}
@@ -3763,7 +3819,7 @@ export default function ProductionSettingPage() {
                                                 <button
                                                   type="button"
                                                   onClick={applySqInchCost}
-                                                  className="text-[13px] text-rose-600 font-semibold whitespace-nowrap hover:bg-rose-100 px-1 rounded"
+                                                  className="text-[13px] text-rose-600 font-semibold whitespace-nowrap hover:bg-rose-100 px-1"
                                                   title="클릭하면 원가가 자동 적용됩니다"
                                                 >
                                                   {costDisplay}
@@ -3776,7 +3832,7 @@ export default function ProductionSettingPage() {
                                     </div>
 
                                     {/* 규격별 단가 테이블 - 1열 (세로 목록) */}
-                                    <div className="border rounded overflow-hidden bg-white/50">
+                                    <div className="border overflow-hidden bg-white/50">
                                       <table className="w-full text-[10px]">
                                         <thead className="bg-gray-100">
                                           <tr className="border-b">

@@ -5,9 +5,10 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 import { PricingService } from '../services/pricing.service';
 import {
@@ -15,6 +16,7 @@ import {
   CalculateHalfProductPriceDto,
   SetGroupProductPriceDto,
   SetGroupHalfProductPriceDto,
+  SetGroupProductionSettingPricesDto,
 } from '../dto';
 
 @ApiTags('가격관리')
@@ -82,5 +84,38 @@ export class PricingController {
     @Param('halfProductId') halfProductId: string,
   ) {
     return this.pricingService.deleteGroupHalfProductPrice(groupId, halfProductId);
+  }
+
+  // ==================== 그룹 생산설정 단가 관리 ====================
+
+  @Get('groups/:clientGroupId/production-settings')
+  @ApiOperation({ summary: '그룹별 생산설정 단가 목록' })
+  @ApiQuery({ name: 'productionSettingId', required: false, description: '생산설정 ID (선택)' })
+  async getGroupProductionSettingPrices(
+    @Param('clientGroupId') clientGroupId: string,
+    @Query('productionSettingId') productionSettingId?: string,
+  ) {
+    return this.pricingService.getGroupProductionSettingPrices(clientGroupId, productionSettingId);
+  }
+
+  @Post('groups/production-settings')
+  @ApiOperation({ summary: '그룹 생산설정 단가 설정' })
+  async setGroupProductionSettingPrices(@Body() dto: SetGroupProductionSettingPricesDto) {
+    return this.pricingService.setGroupProductionSettingPrices(dto);
+  }
+
+  @Delete('groups/:clientGroupId/production-settings/:productionSettingId')
+  @ApiOperation({ summary: '그룹 생산설정 단가 삭제 (특정 설정 전체)' })
+  async deleteGroupProductionSettingPrices(
+    @Param('clientGroupId') clientGroupId: string,
+    @Param('productionSettingId') productionSettingId: string,
+  ) {
+    return this.pricingService.deleteGroupProductionSettingPrices(clientGroupId, productionSettingId);
+  }
+
+  @Delete('groups/production-settings/:id')
+  @ApiOperation({ summary: '그룹 생산설정 단가 개별 삭제' })
+  async deleteGroupProductionSettingPrice(@Param('id') id: string) {
+    return this.pricingService.deleteGroupProductionSettingPrice(id);
   }
 }

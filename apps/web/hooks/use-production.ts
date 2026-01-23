@@ -65,6 +65,8 @@ export interface InkjetSpecPrice {
 export interface ProductionSetting {
   id: string;
   groupId: string;
+  name?: string;
+  description?: string;
   codeName: string | null;
   vendorType: string;
   pricingType: PricingType;

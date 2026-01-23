@@ -129,98 +129,91 @@ function calculateIndigoUpPrices(oneUpPrice: number): Record<number, number> {
 - 국전지 기준 4절 크기
 - 국전지 1연(500매) × 4절 = **2,000장**
 
-**1up 면당 용지 원가 공식:**
-```
-1up 면당 용지 원가 = 국전지가격 / 500 / 4 / 2
-                   = 국전지가격 / 4000
-
-- /500: 1연 = 500장
-- /4: 인디고 1장 = 국전지 4절
-- /2: 양면 (앞뒤 2면)
-```
-
-**Up별 원가 공식:**
-```
-nup 원가 = 1up 원가 / n
-
-예시 (1up 원가 = 121원):
-- 1up: 121원 (121 / 1)
-- 2up: 60.5원 → 61원 (121 / 2)
-- 4up: 30.25원 → 30원 (121 / 4)
-- 8up: 15.125원 → 15원 (121 / 8)
-```
-
 **원가 계산 공식:**
 
 ```typescript
-// 인디고 원가 계산
-// 1up 면당 용지 원가 = 국전지가격 / 500 / 4 / 2
-function getIndigoPaperCostPerSide(reamPrice: number): number {
-  return reamPrice / 500 / 4 / 2;  // = reamPrice / 4000
-}
+// 인디고 원가 계산 상수
+const INDIGO_SHEETS_PER_REAM = 2000;  // 국전지 4절 기준 장수
 
-// Up별 총 원가 계산
+// 원가 계산 함수
 function calculateIndigoCost(
-  reamPrice: number,       // 국전지 1연 가격
-  ink1ColorPrice: number,  // 1컬러 잉크 가격
-  colorCount: 4 | 6,       // 4도/6도
-  up: number,              // Up 수 (1, 2, 4, 8)
-  isDoubleSided: boolean   // 양면 여부
+  reamPrice: number,    // 국전지 1연 가격 (basePrice)
+  up: number,           // Up 수 (1, 2, 4, 8)
+  isDoubleSided: boolean // 양면 여부
 ): number {
-  // 1up 면당 용지 원가
-  const paperCostPerSide = reamPrice / 500 / 4 / 2;
+  // 장당 원가 = 국전가격 / 2000
+  const perSheetCost = reamPrice / INDIGO_SHEETS_PER_REAM;
 
-  // 1up 클릭차지 (잉크비)
-  const clickCharge = ink1ColorPrice * colorCount;
-
-  // 1up 면당 총 원가
-  const costPerSide1up = paperCostPerSide + clickCharge;
-
-  // 단면: 1면, 양면: 2면
-  const totalCost1up = isDoubleSided ? costPerSide1up * 2 : costPerSide1up;
-
-  // ⭐ Up별 원가 = 1up 원가 / up
-  return Math.round(totalCost1up / up);
+  if (isDoubleSided) {
+    // 양면: 장당원가 / 2 / up (한 장에 양면 인쇄하므로 2로 나눔)
+    return perSheetCost / 2 / up;
+  } else {
+    // 단면: 장당원가 / up
+    return perSheetCost / up;
+  }
 }
 ```
 
-**예시 계산:** (국전가격 242,000원, 1컬러 잉크 21원)
+**예시 계산:**
 
-```
-1up 면당 용지 원가 = 242,000 / 500 / 4 / 2 = 60.5원
-4도 클릭차지 = 21 × 4 = 84원
-1up 면당 총 원가 = 60.5 + 84 = 144.5원 → 단면 145원
+| 국전가격 | Up | 단면 원가 | 양면 원가 |
+|---------|-----|----------|----------|
+| 230,000원 | 1up | 115원 (230000÷2000÷1) | 57.5원 (230000÷2000÷2÷1) |
+| 230,000원 | 2up | 57.5원 (230000÷2000÷2) | 28.75원 (230000÷2000÷2÷2) |
+| 230,000원 | 4up | 28.75원 (230000÷2000÷4) | 14.38원 (230000÷2000÷2÷4) |
+| 230,000원 | 8up | 14.38원 (230000÷2000÷8) | 7.19원 (230000÷2000÷2÷8) |
 
-Up별 단면 원가:
-- 1up: 145원 (145 / 1)
-- 2up: 73원 (145 / 2)
-- 4up: 36원 (145 / 4)
-- 8up: 18원 (145 / 8)
-```
-
-| 국전가격 | 1컬러잉크 | Up | 4도단면 원가 | 4도양면 원가 |
-|---------|----------|-----|-------------|-------------|
-| 242,000원 | 21원 | 1up | 145원 | 290원 |
-| 242,000원 | 21원 | 2up | 73원 (145÷2) | 145원 (290÷2) |
-| 242,000원 | 21원 | 4up | 36원 (145÷4) | 73원 (290÷4) |
-| 242,000원 | 21원 | 8up | 18원 (145÷8) | 36원 (290÷8) |
-
-#### ⭐ 인디고 잉크 원가 (클릭차지)
+#### ⭐ 인디고 잉크 원가 계산 (핵심)
 
 인디고 잉크 원가는 **기초설정**에서 설정한 1컬러 가격을 기준으로 계산합니다.
 
 **설정 위치:** 설정 > 기초정보 > 인쇄비 > 인디고 1도(1color) 인쇄비
 
-**클릭차지 공식:**
-```
-클릭차지 = 1컬러가격 × 컬러수
+**원가 계산 공식:**
 
-예시 (1컬러 = 21원):
-- 4도: 21 × 4 = 84원
-- 6도: 21 × 6 = 126원
+```typescript
+// 인디고 잉크 원가 계산
+// 공식: 1컬러가격 × 컬러수(4도/6도) / up
+// 양면도 잉크비는 동일 (용지만 절반, 잉크는 1면 기준)
+function calculateIndigoInkCost(
+  ink1ColorPrice: number,  // 기초설정의 1컬러 가격
+  colorCount: 4 | 6,       // 4도칼라 또는 6도칼라
+  up: number,              // Up 수 (1, 2, 4, 8)
+  isDoubleSided: boolean   // 양면 여부 (잉크비 계산에는 영향 없음)
+): number {
+  // 단면/양면 모두: 잉크 원가 / up (양면은 용지가 절반이지만 잉크비는 동일)
+  const baseCost = ink1ColorPrice * colorCount;
+  return Math.round(baseCost / up);
+}
+
+// 인디고 총 원가 (용지 + 잉크)
+function calculateIndigoTotalCost(
+  reamPrice: number,       // 용지 연당 가격
+  up: number,              // Up 수
+  isDoubleSided: boolean,  // 양면 여부
+  ink1ColorPrice: number,  // 1컬러 잉크 가격
+  colorCount: 4 | 6        // 4도/6도
+): number {
+  const paperCost = calculateIndigoCost(reamPrice, up, isDoubleSided);
+  const inkCost = calculateIndigoInkCost(ink1ColorPrice, colorCount, up, isDoubleSided);
+  return paperCost + inkCost;
+}
 ```
 
-**총 원가 = (용지 원가 + 클릭차지) / Up**
+**예시 계산:** (1컬러 가격 = 10원 가정)
+
+| Up | 4도 잉크원가 | 6도 잉크원가 | 비고 |
+|-----|-------------|-------------|------|
+| 1up | 40원 (10×4÷1) | 60원 (10×6÷1) | 단면/양면 동일 |
+| 2up | 20원 (10×4÷2) | 30원 (10×6÷2) | 단면/양면 동일 |
+| 4up | 10원 (10×4÷4) | 15원 (10×6÷4) | 단면/양면 동일 |
+| 8up | 5원 (10×4÷8) | 8원 (10×6÷8) | 단면/양면 동일 |
+
+**양면 인쇄 시:**
+- 용지비: 절반 (한 장에 양면 인쇄하므로)
+- 잉크비: 동일 (1면 기준)
+
+**총 원가 = 용지 원가 + 잉크 원가**
 
 ### 잉크젯출력 (단면 출력 방식)
 

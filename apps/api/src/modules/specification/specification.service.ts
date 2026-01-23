@@ -292,7 +292,7 @@ export class SpecificationService {
         const processedPairs = new Set<string>();
 
         for (const item of items) {
-            const spec = specs.find(s => s.id === item.id);
+            const spec = specs.find((s: { id: string }) => s.id === item.id);
 
             updates.push(
                 this.prisma.specification.update({
