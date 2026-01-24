@@ -7,23 +7,18 @@ WORKDIR /app
 # Install dependencies for native modules
 RUN apk add --no-cache libc6-compat
 
-# Copy all package files
-COPY package.json package-lock.json ./
-COPY apps/api/package.json ./apps/api/
-COPY apps/api/prisma ./apps/api/prisma/
+# Copy package files (when build context is apps/api)
+COPY package.json ./
+COPY prisma ./prisma/
 
-# Install all dependencies
-RUN npm ci --include-workspace-root --workspace=apps/api
+# Install dependencies
+RUN npm install
 
 # Copy source code
-COPY apps/api ./apps/api
+COPY . .
 
 # Generate Prisma client and build
-WORKDIR /app/apps/api
-RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npm run db:generate
-# Copy generated Prisma client to root node_modules for runtime
-RUN cp -r ./node_modules/.prisma /app/node_modules/ 2>/dev/null || true
-RUN cp -r ./node_modules/@prisma /app/node_modules/ 2>/dev/null || true
+RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npx prisma generate
 RUN npm run build
 
 # ================================
@@ -43,9 +38,9 @@ RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nestjs
 
 # Copy built application
-COPY --from=builder /app/apps/api/dist ./dist
-COPY --from=builder /app/apps/api/prisma ./prisma
-COPY --from=builder /app/apps/api/package.json ./package.json
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/node_modules ./node_modules
 
 # Set ownership

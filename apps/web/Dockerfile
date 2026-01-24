@@ -6,22 +6,20 @@ WORKDIR /app
 
 RUN apk add --no-cache libc6-compat
 
-# Copy package files
-COPY package.json package-lock.json ./
-COPY apps/web/package.json ./apps/web/
+# Copy package files (when build context is apps/web)
+COPY package.json ./
 
 # Install dependencies
-RUN npm ci --include-workspace-root --workspace=apps/web
+RUN npm install
 
 # Copy source code
-COPY apps/web ./apps/web
+COPY . .
 
 # Set build-time environment variables
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 # Build the application
-WORKDIR /app/apps/web
 RUN npm run build
 
 # ================================
@@ -37,10 +35,10 @@ ENV TZ=Asia/Seoul
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Copy built application (monorepo structure)
-COPY --from=builder /app/apps/web/public ./public
-COPY --from=builder /app/apps/web/.next/standalone ./
-COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
+# Copy built application
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 
 # Set ownership
 RUN chown -R nextjs:nodejs /app
@@ -52,4 +50,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "apps/web/server.js"]
+CMD ["node", "server.js"]
