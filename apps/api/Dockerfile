@@ -17,6 +17,7 @@ RUN npm ci --include-workspace-root --workspace=apps/api
 
 # Install prisma globally and generate client
 RUN npm install -g prisma
+ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 RUN prisma generate --schema=apps/api/prisma/schema.prisma
 
 # Copy source code
