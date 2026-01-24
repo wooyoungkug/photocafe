@@ -18,11 +18,12 @@ RUN npm ci --include-workspace-root --workspace=apps/api
 # Copy source code
 COPY apps/api ./apps/api
 
-# Generate Prisma client (from root to ensure client goes to /app/node_modules)
-RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npm exec prisma -- generate --schema=apps/api/prisma/schema.prisma
-
-# Build the application
+# Generate Prisma client and build
 WORKDIR /app/apps/api
+RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npm run db:generate
+# Copy generated Prisma client to root node_modules for runtime
+RUN cp -r ./node_modules/.prisma /app/node_modules/ 2>/dev/null || true
+RUN cp -r ./node_modules/@prisma /app/node_modules/ 2>/dev/null || true
 RUN npm run build
 
 # ================================
