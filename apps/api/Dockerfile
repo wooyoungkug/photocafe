@@ -18,9 +18,11 @@ RUN npm ci --include-workspace-root --workspace=apps/api
 # Copy source code
 COPY apps/api ./apps/api
 
-# Generate Prisma client and build
+# Generate Prisma client (from root to ensure client goes to /app/node_modules)
+RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npx prisma generate --schema=apps/api/prisma/schema.prisma
+
+# Build the application
 WORKDIR /app/apps/api
-RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npm run db:generate
 RUN npm run build
 
 # ================================
@@ -44,9 +46,6 @@ COPY --from=builder /app/apps/api/dist ./dist
 COPY --from=builder /app/apps/api/prisma ./prisma
 COPY --from=builder /app/apps/api/package.json ./package.json
 COPY --from=builder /app/node_modules ./node_modules
-
-# Regenerate Prisma client for production
-RUN npx prisma generate --schema=./prisma/schema.prisma
 
 # Set ownership
 RUN chown -R nestjs:nodejs /app
