@@ -9,8 +9,8 @@ RUN apk add --no-cache libc6-compat
 # Copy package files (when build context is apps/web)
 COPY package.json ./
 
-# Install dependencies
-RUN npm install
+# Install dependencies and upgrade next to fix security vulnerabilities
+RUN npm install && npm install next@15.5.9
 
 # Copy source code
 COPY . .
