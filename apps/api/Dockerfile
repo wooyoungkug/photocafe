@@ -52,4 +52,5 @@ USER nestjs
 
 EXPOSE 3001
 
-CMD ["node", "dist/main.js"]
+# Run prisma db push on startup, then start server
+CMD ["sh", "-c", "npx prisma db push --skip-generate && node dist/main.js"]
