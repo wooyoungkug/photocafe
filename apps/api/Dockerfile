@@ -20,7 +20,7 @@ COPY apps/api ./apps/api
 
 # Generate Prisma client and build
 WORKDIR /app/apps/api
-RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" ../../node_modules/.bin/prisma generate
+RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" /app/node_modules/.bin/prisma generate
 RUN npm run build
 
 # ================================
