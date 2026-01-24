@@ -16,7 +16,7 @@ COPY apps/api/prisma ./apps/api/prisma/
 RUN npm ci --include-workspace-root --workspace=apps/api
 
 # Generate Prisma Client
-RUN npx prisma generate --schema=apps/api/prisma/schema.prisma
+RUN ./node_modules/.bin/prisma generate --schema=apps/api/prisma/schema.prisma
 
 # Copy source code
 COPY apps/api ./apps/api
