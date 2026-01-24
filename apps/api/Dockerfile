@@ -16,7 +16,7 @@ COPY apps/api/prisma ./apps/api/prisma/
 RUN npm ci --include-workspace-root --workspace=apps/api
 
 # Generate Prisma client using local version
-RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npm exec --workspace=apps/api -- prisma generate --schema=apps/api/prisma/schema.prisma
+RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npm exec --workspace=apps/api -- prisma generate
 
 # Copy source code
 COPY apps/api ./apps/api
