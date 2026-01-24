@@ -11,13 +11,14 @@ async function bootstrap() {
   // Global prefix
   app.setGlobalPrefix('api/v1');
 
-  // CORS - Allow localhost and NAS server
+  // CORS - Allow localhost, NAS server, and Railway
   app.enableCors({
     origin: [
       'http://localhost:3000',
       'http://localhost:3002',
       'http://1.212.201.147:3000',
       'http://1.212.201.147:3002',
+      'https://renewed-vitality-production-4f21.up.railway.app',
       process.env.FRONTEND_URL,
     ].filter(Boolean) as string[],
     credentials: true,
