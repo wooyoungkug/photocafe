@@ -151,7 +151,19 @@
       "Bash(net start:*)",
       "Bash(sc query:*)",
       "Bash(Get-Service)",
-      "Bash(Where-Object {$_DisplayName -like \"*postgres*\" -or $_Name -like \"*postgres*\"})"
+      "Bash(Where-Object {$_DisplayName -like \"*postgres*\" -or $_Name -like \"*postgres*\"})",
+      "Bash(gh auth status:*)",
+      "Bash(git config:*)",
+      "Bash(where gh:*)",
+      "Bash(winget install:*)",
+      "Bash(\"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" --version)",
+      "Bash(\"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" auth status)",
+      "Bash(\"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" auth login --web -h github.com)",
+      "Bash(\"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" repo create photome-image-tool --public --source=. --remote=origin --push)",
+      "Bash(\"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" api repos/wooyoungkug/photome-image-tool/pages -X POST -f build_type=legacy -f source='{\"\"branch\"\":\"\"master\"\",\"\"path\"\":\"\"/\"\"}')",
+      "Bash(\"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" api repos/wooyoungkug/photome-image-tool/pages -X POST -F build_type=legacy -F source[branch]=master -F source[path]=/)",
+      "Bash(copy \"C:\\\\Users\\\\WOO\\\\Desktop\\\\인천달빛_이미지도구_v5.html\" \"C:\\\\Users\\\\WOO\\\\Desktop\\\\photome-image-tool\\\\index.html\" /Y)",
+      "Bash(\"C:/Program Files/PostgreSQL/16/bin/pg_dump.exe\" -U postgres -d printing_erp -f \"/d/printing114_backup_20260123_164625/printing_erp_backup.sql\")"
     ]
   }
 }
