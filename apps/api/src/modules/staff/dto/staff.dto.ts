@@ -10,6 +10,8 @@ import {
   Min,
   Max,
   IsEnum,
+  IsNotEmpty,
+  MinLength,
 } from 'class-validator';
 
 export enum ViewScope {
@@ -52,8 +54,10 @@ export class CreateStaffDto {
   @IsString()
   staffId: string;
 
-  @ApiProperty({ description: '비밀번호' })
+  @ApiProperty({ description: '비밀번호 (최소 4자)' })
   @IsString()
+  @IsNotEmpty({ message: '비밀번호를 입력해주세요' })
+  @MinLength(4, { message: '비밀번호는 최소 4자 이상이어야 합니다' })
   password: string;
 
   @ApiProperty({ description: '실명', example: '송민석' })
@@ -201,9 +205,11 @@ export class CreateStaffDto {
 
 export class UpdateStaffDto extends PartialType(CreateStaffDto) {}
 
-export class ChangePasswordDto {
-  @ApiProperty({ description: '새 비밀번호' })
+export class StaffChangePasswordDto {
+  @ApiProperty({ description: '새 비밀번호 (최소 4자)' })
   @IsString()
+  @IsNotEmpty({ message: '새 비밀번호를 입력해주세요' })
+  @MinLength(4, { message: '비밀번호는 최소 4자 이상이어야 합니다' })
   newPassword: string;
 }
 
