@@ -15,14 +15,12 @@ COPY apps/api/prisma ./apps/api/prisma/
 # Install all dependencies
 RUN npm ci --include-workspace-root --workspace=apps/api
 
-# Generate Prisma client using local version
-RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npm exec --workspace=apps/api -- prisma generate
-
 # Copy source code
 COPY apps/api ./apps/api
 
-# Build the application
+# Generate Prisma client and build
 WORKDIR /app/apps/api
+RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" ../../node_modules/.bin/prisma generate
 RUN npm run build
 
 # ================================
