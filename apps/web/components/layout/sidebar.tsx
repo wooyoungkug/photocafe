@@ -68,8 +68,9 @@ const defaultNavigation = [
     name: "상품관리",
     icon: Package,
     children: [
-      { name: "제품", href: "/products/finished" },
-      { name: "상품", href: "/products/half" },
+      { name: "상품목록", href: "/products" },
+      { name: "상품등록", href: "/products/new" },
+      { name: "반제품", href: "/products/half" },
     ],
   },
   {
@@ -470,7 +471,9 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
                       className={cn(
                         "flex-1 flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-colors duration-100 relative overflow-hidden",
                         isActive
-                          ? "bg-indigo-600 text-white shadow-md shadow-indigo-900/20"
+                          ? item.id === "dashboard"
+                            ? "bg-red-600 text-white shadow-md shadow-red-900/20"
+                            : "bg-indigo-600 text-white shadow-md shadow-indigo-900/20"
                           : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-100",
                         isPending && "opacity-70"
                       )}
