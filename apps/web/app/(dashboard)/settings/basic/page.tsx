@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Building2, Printer, Truck, ListChecks, Save, RotateCcw, Plus, Trash2 } from "lucide-react";
+import { Building2, Printer, Truck, ListChecks, Save, RotateCcw, Plus, Trash2, Package, Bike, Box } from "lucide-react";
 import {
   useSystemSettings,
   useBulkUpdateSettings,
@@ -27,7 +27,7 @@ import {
   DELIVERY_METHODS,
   DeliveryPricing,
 } from "@/hooks/use-delivery-pricing";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export default function BasicSettingsPage() {
   const { data: settings, isLoading } = useSystemSettings();
@@ -79,6 +79,9 @@ export default function BasicSettingsPage() {
     damas: {},
     freight: {},
   });
+
+  // 방금 저장한 배송 방법을 추적하는 ref (폼 리셋 방지용)
+  const justSavedMethodRef = useRef<DeliveryMethod | null>(null);
 
   // 공정단계 상태
   const [enabledStages, setEnabledStages] = useState<string[]>([
@@ -160,13 +163,43 @@ export default function BasicSettingsPage() {
       };
 
       deliveryPricings.forEach((pricing) => {
-        formData[pricing.deliveryMethod] = {
-          ...pricing,
-          // 택배 전용 필드 기본값 설정
-          packagingFee: pricing.packagingFee ?? 0,
-          shippingFee: pricing.shippingFee ?? 0,
-        };
+        // 방금 저장한 배송 방법이면 현재 폼 데이터 유지 (리셋 방지)
+        if (justSavedMethodRef.current === pricing.deliveryMethod) {
+          formData[pricing.deliveryMethod] = deliveryFormData[pricing.deliveryMethod];
+        } else {
+          formData[pricing.deliveryMethod] = {
+            ...pricing,
+            // 모든 숫자 필드를 명시적으로 Number로 변환
+            baseFee: Number(pricing.baseFee) || 0,
+            packagingFee: Number(pricing.packagingFee) || 0,
+            shippingFee: Number(pricing.shippingFee) || 0,
+            islandFee: pricing.islandFee ? Number(pricing.islandFee) : undefined,
+            freeThreshold: pricing.freeThreshold ? Number(pricing.freeThreshold) : undefined,
+            maxBaseDistance: pricing.maxBaseDistance ? Number(pricing.maxBaseDistance) : undefined,
+            extraPricePerKm: pricing.extraPricePerKm ? Number(pricing.extraPricePerKm) : undefined,
+            nightSurchargeRate: pricing.nightSurchargeRate ? Number(pricing.nightSurchargeRate) : undefined,
+            weekendSurchargeRate: pricing.weekendSurchargeRate ? Number(pricing.weekendSurchargeRate) : undefined,
+            // 거리별 구간 데이터도 숫자로 변환
+            distanceRanges: pricing.distanceRanges?.map(range => ({
+              minDistance: Number(range.minDistance) || 0,
+              maxDistance: Number(range.maxDistance) || 0,
+              price: Number(range.price) || 0,
+            })),
+            // 크기별 구간 데이터도 숫자로 변환
+            sizeRanges: pricing.sizeRanges?.map(range => ({
+              name: range.name,
+              maxWeight: range.maxWeight ? Number(range.maxWeight) : undefined,
+              maxVolume: range.maxVolume ? Number(range.maxVolume) : undefined,
+              price: Number(range.price) || 0,
+            })),
+          };
+        }
       });
+
+      // ref 초기화
+      if (justSavedMethodRef.current) {
+        justSavedMethodRef.current = null;
+      }
 
       setDeliveryFormData(formData);
     }
@@ -221,18 +254,22 @@ export default function BasicSettingsPage() {
   const saveDeliveryPricing = async (method: DeliveryMethod) => {
     try {
       const pricingData = deliveryFormData[method];
-      console.log('[배송비 저장] 요청 데이터:', { method, pricingData });
+
+      // id, createdAt, updatedAt 필드 제외하고 전송
+      const { id, createdAt, updatedAt, ...dataToSend } = pricingData as any;
+
+      console.log('[배송비 저장] 요청 데이터:', { method, dataToSend });
+
+      // 저장한 배송 방법을 ref에 기록 (useEffect에서 리셋 방지용)
+      justSavedMethodRef.current = method;
 
       await updateDeliveryPricing.mutateAsync({
         method,
-        dto: pricingData,
+        dto: dataToSend,
       });
 
       console.log('[배송비 저장] 성공');
-      toast({
-        title: "저장 완료",
-        description: `${DELIVERY_METHOD_LABELS[method]} 배송비가 저장되었습니다.`,
-      });
+      toast.success(`${DELIVERY_METHOD_LABELS[method]} 저장 완료`);
     } catch (error) {
       console.error('[배송비 저장] 실패:', error);
       toast({
@@ -618,12 +655,23 @@ export default function BasicSettingsPage() {
                       const pricing = deliveryFormData[method];
                       const label = DELIVERY_METHOD_LABELS[method];
 
+                      // 배송 방법별 아이콘 설정
+                      const getIcon = () => {
+                        switch (method) {
+                          case 'parcel': return <Package className="h-5 w-5 text-muted-foreground" />;
+                          case 'motorcycle': return <Bike className="h-5 w-5 text-muted-foreground" />;
+                          case 'damas': return <Truck className="h-5 w-5 text-muted-foreground" />;
+                          case 'freight': return <Box className="h-5 w-5 text-muted-foreground" />;
+                          default: return <Truck className="h-5 w-5 text-muted-foreground" />;
+                        }
+                      };
+
                       return (
                         <AccordionItem key={method} value={method}>
-                          <AccordionTrigger className="hover:no-underline">
-                            <div className="flex items-center justify-between w-full pr-4">
+                          <div className="flex items-center border-b">
+                            <AccordionTrigger className="hover:no-underline flex-1">
                               <div className="flex items-center gap-3">
-                                <Truck className="h-5 w-5 text-muted-foreground" />
+                                {getIcon()}
                                 <div className="text-left">
                                   <div className="font-semibold">{label}</div>
                                   <div className="text-xs text-muted-foreground">
@@ -634,36 +682,36 @@ export default function BasicSettingsPage() {
                                   </div>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                                <span className="text-xs text-muted-foreground mr-2">
-                                  {pricing.isActive ?? true ? '활성화' : '비활성화'}
-                                </span>
-                                <Checkbox
-                                  checked={pricing.isActive ?? true}
-                                  onCheckedChange={(checked) => {
-                                    setDeliveryFormData({
-                                      ...deliveryFormData,
-                                      [method]: { ...pricing, isActive: !!checked },
-                                    });
-                                  }}
-                                />
-                              </div>
+                            </AccordionTrigger>
+                            <div className="flex items-center gap-2 px-4">
+                              <span className="text-xs text-muted-foreground">
+                                {pricing.isActive ?? true ? '활성화' : '비활성화'}
+                              </span>
+                              <Checkbox
+                                checked={pricing.isActive ?? true}
+                                onCheckedChange={(checked) => {
+                                  setDeliveryFormData({
+                                    ...deliveryFormData,
+                                    [method]: { ...pricing, isActive: !!checked },
+                                  });
+                                }}
+                              />
                             </div>
-                          </AccordionTrigger>
+                          </div>
                           <AccordionContent>
                             <div className="pt-4 space-y-4">
                       {method === 'parcel' && (
                         <>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                              <Label>포장비</Label>
+                              <Label>포장비(박스+포장)</Label>
                               <div className="flex items-center gap-2">
                                 <Input
-                                  type="number"
-                                  value={pricing?.packagingFee ?? 0}
+                                  type="text"
+                                  value={(pricing?.packagingFee ?? 0).toLocaleString()}
                                   onChange={(e) => {
-                                    const packagingFee = Number(e.target.value) || 0;
-                                    const shippingFee = pricing?.shippingFee ?? 0;
+                                    const packagingFee = Number(e.target.value.replace(/,/g, '')) || 0;
+                                    const shippingFee = Number(pricing?.shippingFee) || 0;
                                     setDeliveryFormData({
                                       ...deliveryFormData,
                                       [method]: {
@@ -679,14 +727,14 @@ export default function BasicSettingsPage() {
                               </div>
                             </div>
                             <div className="space-y-2">
-                              <Label>배송비</Label>
+                              <Label>택배비</Label>
                               <div className="flex items-center gap-2">
                                 <Input
-                                  type="number"
-                                  value={pricing?.shippingFee ?? 0}
+                                  type="text"
+                                  value={(pricing?.shippingFee ?? 0).toLocaleString()}
                                   onChange={(e) => {
-                                    const shippingFee = Number(e.target.value) || 0;
-                                    const packagingFee = pricing?.packagingFee ?? 0;
+                                    const shippingFee = Number(e.target.value.replace(/,/g, '')) || 0;
+                                    const packagingFee = Number(pricing?.packagingFee) || 0;
                                     setDeliveryFormData({
                                       ...deliveryFormData,
                                       [method]: {
@@ -705,9 +753,9 @@ export default function BasicSettingsPage() {
 
                           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                             <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-blue-900">택배비 합계 (포장비 + 배송비)</span>
+                              <span className="text-sm font-medium text-blue-900">택배비 합계 (포장비(박스+포장) + 택배비)</span>
                               <span className="text-lg font-bold text-blue-600">
-                                {((pricing?.packagingFee ?? 0) + (pricing?.shippingFee ?? 0)).toLocaleString()}원
+                                {(Number(pricing?.packagingFee ?? 0) + Number(pricing?.shippingFee ?? 0)).toLocaleString()}원
                               </span>
                             </div>
                           </div>
@@ -717,12 +765,12 @@ export default function BasicSettingsPage() {
                               <Label>도서산간 추가요금</Label>
                               <div className="flex items-center gap-2">
                                 <Input
-                                  type="number"
-                                  value={pricing?.islandFee ?? 0}
+                                  type="text"
+                                  value={(pricing?.islandFee ?? 0).toLocaleString()}
                                   onChange={(e) => {
                                     setDeliveryFormData({
                                       ...deliveryFormData,
-                                      [method]: { ...pricing, islandFee: Number(e.target.value) || 0 },
+                                      [method]: { ...pricing, islandFee: Number(e.target.value.replace(/,/g, '')) || 0 },
                                     });
                                   }}
                                   className="w-32"
@@ -734,12 +782,12 @@ export default function BasicSettingsPage() {
                               <Label>무료배송 기준금액</Label>
                               <div className="flex items-center gap-2">
                                 <Input
-                                  type="number"
-                                  value={pricing?.freeThreshold ?? 0}
+                                  type="text"
+                                  value={(pricing?.freeThreshold ?? 0).toLocaleString()}
                                   onChange={(e) => {
                                     setDeliveryFormData({
                                       ...deliveryFormData,
-                                      [method]: { ...pricing, freeThreshold: Number(e.target.value) || 0 },
+                                      [method]: { ...pricing, freeThreshold: Number(e.target.value.replace(/,/g, '')) || 0 },
                                     });
                                   }}
                                   className="w-32"
@@ -789,12 +837,12 @@ export default function BasicSettingsPage() {
                                   />
                                   <span className="text-sm">km</span>
                                   <Input
-                                    type="number"
+                                    type="text"
                                     placeholder="요금"
-                                    value={range?.price ?? 0}
+                                    value={(range?.price ?? 0).toLocaleString()}
                                     onChange={(e) => {
                                       const newRanges = [...(pricing.distanceRanges ?? [])];
-                                      newRanges[idx] = { ...range, price: Number(e.target.value) || 0 };
+                                      newRanges[idx] = { ...range, price: Number(e.target.value.replace(/,/g, '')) || 0 };
                                       setDeliveryFormData({
                                         ...deliveryFormData,
                                         [method]: { ...pricing, distanceRanges: newRanges },
@@ -901,12 +949,12 @@ export default function BasicSettingsPage() {
                               <Label>초과거리 추가요금 (원/km)</Label>
                               <div className="flex items-center gap-2">
                                 <Input
-                                  type="number"
-                                  value={pricing?.extraPricePerKm ?? 0}
+                                  type="text"
+                                  value={(pricing?.extraPricePerKm ?? 0).toLocaleString()}
                                   onChange={(e) => {
                                     setDeliveryFormData({
                                       ...deliveryFormData,
-                                      [method]: { ...pricing, extraPricePerKm: Number(e.target.value) || 0 },
+                                      [method]: { ...pricing, extraPricePerKm: Number(e.target.value.replace(/,/g, '')) || 0 },
                                     });
                                   }}
                                   className="w-32"
@@ -956,12 +1004,12 @@ export default function BasicSettingsPage() {
                             <Label>기본요금</Label>
                             <div className="flex items-center gap-2">
                               <Input
-                                type="number"
-                                value={pricing.baseFee ?? 0}
+                                type="text"
+                                value={(pricing.baseFee ?? 0).toLocaleString()}
                                 onChange={(e) => {
                                   setDeliveryFormData({
                                     ...deliveryFormData,
-                                    [method]: { ...pricing, baseFee: Number(e.target.value) },
+                                    [method]: { ...pricing, baseFee: Number(e.target.value.replace(/,/g, '')) || 0 },
                                   });
                                 }}
                                 className="w-32"
@@ -1052,12 +1100,12 @@ export default function BasicSettingsPage() {
                                     <div className="space-y-1">
                                       <Label className="text-xs text-muted-foreground">추가요금 (원)</Label>
                                       <Input
-                                        type="number"
+                                        type="text"
                                         placeholder="추가요금"
-                                        value={range?.price ?? 0}
+                                        value={(range?.price ?? 0).toLocaleString()}
                                         onChange={(e) => {
                                           const newRanges = [...(pricing.sizeRanges ?? [])];
-                                          newRanges[idx] = { ...range, price: Number(e.target.value) || 0 };
+                                          newRanges[idx] = { ...range, price: Number(e.target.value.replace(/,/g, '')) || 0 };
                                           setDeliveryFormData({
                                             ...deliveryFormData,
                                             [method]: { ...pricing, sizeRanges: newRanges },

@@ -68,8 +68,8 @@ export function useLogout() {
 }
 
 export function useCurrentUser() {
-  const { user, isAuthenticated, isLoading } = useAuthStore();
-  return { user, isAuthenticated, isLoading };
+  const { user, isAuthenticated } = useAuthStore();
+  return { user, isAuthenticated };
 }
 
 interface ChangePasswordRequest {
