@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict DPQe7DrcfhAHZTljkYMclIEpEvT2dKvhLEHPpmTLHMEeeLLJJkhXx8jtr9Nh2GM
+\restrict kVwACo0keV3I9SVcVGaZmMrfnML612G9k9AuumwjYgviYmJkjgt8njlczQjhRnT
 
 -- Dumped from database version 16.11
 -- Dumped by pg_dump version 16.11
@@ -34,9 +34,90 @@ ALTER SCHEMA public OWNER TO postgres;
 COMMENT ON SCHEMA public IS '';
 
 
+--
+-- Name: AccountType; Type: TYPE; Schema: public; Owner: postgres
+--
+
+CREATE TYPE public."AccountType" AS ENUM (
+    'ASSET',
+    'LIABILITY',
+    'EQUITY',
+    'REVENUE',
+    'EXPENSE'
+);
+
+
+ALTER TYPE public."AccountType" OWNER TO postgres;
+
+--
+-- Name: TransactionType; Type: TYPE; Schema: public; Owner: postgres
+--
+
+CREATE TYPE public."TransactionType" AS ENUM (
+    'DEBIT',
+    'CREDIT'
+);
+
+
+ALTER TYPE public."TransactionType" OWNER TO postgres;
+
+--
+-- Name: VoucherType; Type: TYPE; Schema: public; Owner: postgres
+--
+
+CREATE TYPE public."VoucherType" AS ENUM (
+    'RECEIPT',
+    'PAYMENT',
+    'TRANSFER'
+);
+
+
+ALTER TYPE public."VoucherType" OWNER TO postgres;
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
+
+--
+-- Name: accounts; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.accounts (
+    id text NOT NULL,
+    code text NOT NULL,
+    name text NOT NULL,
+    type public."AccountType" NOT NULL,
+    "parentId" text,
+    description text,
+    "isActive" boolean DEFAULT true NOT NULL,
+    "sortOrder" integer DEFAULT 0 NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL
+);
+
+
+ALTER TABLE public.accounts OWNER TO postgres;
+
+--
+-- Name: bank_accounts; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.bank_accounts (
+    id text NOT NULL,
+    "accountName" text NOT NULL,
+    "bankName" text NOT NULL,
+    "accountNumber" text NOT NULL,
+    "accountHolder" text,
+    balance numeric(14,2) DEFAULT 0 NOT NULL,
+    "isDefault" boolean DEFAULT false NOT NULL,
+    "isActive" boolean DEFAULT true NOT NULL,
+    description text,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL
+);
+
+
+ALTER TABLE public.bank_accounts OWNER TO postgres;
 
 --
 -- Name: branches; Type: TABLE; Schema: public; Owner: postgres
@@ -144,30 +225,30 @@ CREATE TABLE public.clients (
     "creditGrade" text DEFAULT 'B'::text NOT NULL,
     "paymentTerms" integer DEFAULT 30 NOT NULL,
     status text DEFAULT 'active'::text NOT NULL,
-    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    "updatedAt" timestamp(3) without time zone NOT NULL,
-    "acquisitionChannel" text,
-    "assignedManager" text,
-    "businessCategory" text,
     "businessType" text,
-    "colorProfile" text,
-    "contactPerson" text,
-    "contactPhone" text,
-    "deliveryNote" text,
-    "hasLogo" boolean DEFAULT false NOT NULL,
-    "isBlacklist" boolean DEFAULT false NOT NULL,
-    "isWhitelist" boolean DEFAULT false NOT NULL,
-    "logoPath" text,
-    "mainGenre" text,
-    "memberGrade" text DEFAULT 'normal'::text NOT NULL,
-    "monthlyOrderVolume" text,
-    "preferredFinish" text,
-    "preferredSize" text,
-    "recentMemo" text,
-    "sensitivityScore" integer DEFAULT 3 NOT NULL,
+    "businessCategory" text,
     "taxInvoiceEmail" text,
     "taxInvoiceMethod" text,
-    "totalClaims" integer DEFAULT 0 NOT NULL
+    "contactPerson" text,
+    "contactPhone" text,
+    "mainGenre" text,
+    "monthlyOrderVolume" text,
+    "colorProfile" text,
+    "acquisitionChannel" text,
+    "preferredSize" text,
+    "preferredFinish" text,
+    "hasLogo" boolean DEFAULT false NOT NULL,
+    "logoPath" text,
+    "deliveryNote" text,
+    "memberGrade" text DEFAULT 'normal'::text NOT NULL,
+    "assignedManager" text,
+    "sensitivityScore" integer DEFAULT 3 NOT NULL,
+    "recentMemo" text,
+    "totalClaims" integer DEFAULT 0 NOT NULL,
+    "isBlacklist" boolean DEFAULT false NOT NULL,
+    "isWhitelist" boolean DEFAULT false NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL
 );
 
 
@@ -278,6 +359,30 @@ CREATE TABLE public.consultation_guides (
 
 
 ALTER TABLE public.consultation_guides OWNER TO postgres;
+
+--
+-- Name: consultation_messages; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.consultation_messages (
+    id text NOT NULL,
+    "consultationId" text NOT NULL,
+    direction text NOT NULL,
+    channel text DEFAULT 'kakao'::text NOT NULL,
+    content text NOT NULL,
+    attachments jsonb,
+    "senderName" text,
+    "senderType" text,
+    "staffId" text,
+    "staffName" text,
+    "messageAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "isRead" boolean DEFAULT false NOT NULL,
+    "readAt" timestamp(3) without time zone,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+ALTER TABLE public.consultation_messages OWNER TO postgres;
 
 --
 -- Name: consultation_slas; Type: TABLE; Schema: public; Owner: postgres
@@ -408,6 +513,12 @@ CREATE TABLE public.consultations (
     "consultedAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     status text DEFAULT 'open'::text NOT NULL,
     priority text DEFAULT 'normal'::text NOT NULL,
+    "openedAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "openedBy" text,
+    "inProgressAt" timestamp(3) without time zone,
+    "inProgressBy" text,
+    "closedAt" timestamp(3) without time zone,
+    "closedBy" text,
     resolution text,
     "resolvedAt" timestamp(3) without time zone,
     "resolvedBy" text,
@@ -420,17 +531,72 @@ CREATE TABLE public.consultations (
     attachments jsonb,
     "internalMemo" text,
     "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    "updatedAt" timestamp(3) without time zone NOT NULL,
-    "closedAt" timestamp(3) without time zone,
-    "closedBy" text,
-    "inProgressAt" timestamp(3) without time zone,
-    "inProgressBy" text,
-    "openedAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    "openedBy" text
+    "updatedAt" timestamp(3) without time zone NOT NULL
 );
 
 
 ALTER TABLE public.consultations OWNER TO postgres;
+
+--
+-- Name: copper_plate_histories; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.copper_plate_histories (
+    id text NOT NULL,
+    "copperPlateId" text NOT NULL,
+    "actionType" text NOT NULL,
+    "previousStatus" text,
+    "newStatus" text,
+    "previousLocation" text,
+    "newLocation" text,
+    "orderId" text,
+    "orderNumber" text,
+    description text,
+    "actionById" text,
+    "actionBy" text,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+ALTER TABLE public.copper_plate_histories OWNER TO postgres;
+
+--
+-- Name: copper_plates; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.copper_plates (
+    id text NOT NULL,
+    "clientId" text NOT NULL,
+    "plateName" text NOT NULL,
+    "plateCode" text,
+    "plateType" text DEFAULT 'copper'::text NOT NULL,
+    "foilColor" text NOT NULL,
+    "foilColorName" text,
+    "foilPosition" text,
+    "widthMm" numeric(10,2),
+    "heightMm" numeric(10,2),
+    "storageLocation" text,
+    "imageUrl" text,
+    "aiFileUrl" text,
+    "designFileUrl" text,
+    "appliedAlbumName" text,
+    "albumPhotoUrl" text,
+    notes text,
+    "registeredById" text,
+    "registeredBy" text,
+    "registeredAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    status text DEFAULT 'stored'::text NOT NULL,
+    "sortOrder" integer DEFAULT 0 NOT NULL,
+    "usageCount" integer DEFAULT 0 NOT NULL,
+    "firstUsedAt" timestamp(3) without time zone,
+    "lastUsedAt" timestamp(3) without time zone,
+    "returnedAt" timestamp(3) without time zone,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL
+);
+
+
+ALTER TABLE public.copper_plates OWNER TO postgres;
 
 --
 -- Name: custom_options; Type: TABLE; Schema: public; Owner: postgres
@@ -520,6 +686,73 @@ CREATE TABLE public.departments (
 ALTER TABLE public.departments OWNER TO postgres;
 
 --
+-- Name: fabric_suppliers; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.fabric_suppliers (
+    id text NOT NULL,
+    code text NOT NULL,
+    name text NOT NULL,
+    phone text,
+    mobile text,
+    email text,
+    fax text,
+    "postalCode" text,
+    address text,
+    "addressDetail" text,
+    representative text,
+    website text,
+    description text,
+    memo text,
+    "sortOrder" integer DEFAULT 0 NOT NULL,
+    "isActive" boolean DEFAULT true NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL
+);
+
+
+ALTER TABLE public.fabric_suppliers OWNER TO postgres;
+
+--
+-- Name: fabrics; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.fabrics (
+    id text NOT NULL,
+    code text NOT NULL,
+    name text NOT NULL,
+    category text DEFAULT 'cloth'::text NOT NULL,
+    material text DEFAULT 'cotton'::text NOT NULL,
+    "colorCode" text,
+    "colorName" text,
+    "widthCm" numeric(10,2),
+    thickness numeric(10,3),
+    weight numeric(10,2),
+    "supplierId" text,
+    "basePrice" numeric(12,2) DEFAULT 0 NOT NULL,
+    "unitType" text DEFAULT 'm'::text NOT NULL,
+    "discountRate" numeric(5,2) DEFAULT 0 NOT NULL,
+    "discountPrice" numeric(12,2),
+    "stockQuantity" integer DEFAULT 0 NOT NULL,
+    "minStockLevel" integer DEFAULT 0 NOT NULL,
+    "forAlbumCover" boolean DEFAULT false NOT NULL,
+    "forBoxCover" boolean DEFAULT false NOT NULL,
+    "forFrameCover" boolean DEFAULT false NOT NULL,
+    "forOther" boolean DEFAULT false NOT NULL,
+    "imageUrl" text,
+    "thumbnailUrl" text,
+    description text,
+    memo text,
+    "sortOrder" integer DEFAULT 0 NOT NULL,
+    "isActive" boolean DEFAULT true NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL
+);
+
+
+ALTER TABLE public.fabrics OWNER TO postgres;
+
+--
 -- Name: group_half_product_prices; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -550,6 +783,37 @@ CREATE TABLE public.group_product_prices (
 
 
 ALTER TABLE public.group_product_prices OWNER TO postgres;
+
+--
+-- Name: group_production_setting_prices; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.group_production_setting_prices (
+    id text NOT NULL,
+    "clientGroupId" text NOT NULL,
+    "productionSettingId" text NOT NULL,
+    "specificationId" text,
+    "minQuantity" integer,
+    "maxQuantity" integer,
+    weight numeric(5,2),
+    price numeric(12,2) DEFAULT 0 NOT NULL,
+    "singleSidedPrice" numeric(12,2),
+    "doubleSidedPrice" numeric(12,2),
+    "fourColorSinglePrice" numeric(12,2),
+    "fourColorDoublePrice" numeric(12,2),
+    "sixColorSinglePrice" numeric(12,2),
+    "sixColorDoublePrice" numeric(12,2),
+    "basePages" integer,
+    "basePrice" numeric(12,2),
+    "pricePerPage" numeric(12,2),
+    "rangePrices" jsonb,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL,
+    "priceGroupId" text
+);
+
+
+ALTER TABLE public.group_production_setting_prices OWNER TO postgres;
 
 --
 -- Name: half_product_options; Type: TABLE; Schema: public; Owner: postgres
@@ -625,6 +889,46 @@ CREATE TABLE public.half_products (
 
 
 ALTER TABLE public.half_products OWNER TO postgres;
+
+--
+-- Name: journal_entries; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.journal_entries (
+    id text NOT NULL,
+    "journalId" text NOT NULL,
+    "accountId" text NOT NULL,
+    "transactionType" public."TransactionType" NOT NULL,
+    amount numeric(12,2) NOT NULL,
+    description text,
+    "sortOrder" integer DEFAULT 0 NOT NULL
+);
+
+
+ALTER TABLE public.journal_entries OWNER TO postgres;
+
+--
+-- Name: journals; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.journals (
+    id text NOT NULL,
+    "voucherNo" text NOT NULL,
+    "voucherType" public."VoucherType" NOT NULL,
+    "journalDate" timestamp(3) without time zone NOT NULL,
+    "clientId" text,
+    "clientName" text,
+    description text,
+    "totalAmount" numeric(12,2) NOT NULL,
+    "orderId" text,
+    "orderNumber" text,
+    "createdBy" text NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL
+);
+
+
+ALTER TABLE public.journals OWNER TO postgres;
 
 --
 -- Name: my_products; Type: TABLE; Schema: public; Owner: postgres
@@ -894,6 +1198,49 @@ CREATE TABLE public.papers (
 ALTER TABLE public.papers OWNER TO postgres;
 
 --
+-- Name: payable_payments; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.payable_payments (
+    id text NOT NULL,
+    "payableId" text NOT NULL,
+    amount numeric(12,2) NOT NULL,
+    "paymentDate" timestamp(3) without time zone NOT NULL,
+    "paymentMethod" text,
+    description text,
+    "journalId" text,
+    "createdBy" text,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+ALTER TABLE public.payable_payments OWNER TO postgres;
+
+--
+-- Name: payables; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.payables (
+    id text NOT NULL,
+    "supplierId" text,
+    "supplierName" text NOT NULL,
+    "supplierCode" text,
+    "journalId" text,
+    "originalAmount" numeric(12,2) NOT NULL,
+    "paidAmount" numeric(12,2) DEFAULT 0 NOT NULL,
+    balance numeric(12,2) NOT NULL,
+    "issueDate" timestamp(3) without time zone NOT NULL,
+    "dueDate" timestamp(3) without time zone,
+    status text DEFAULT 'outstanding'::text NOT NULL,
+    description text,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL
+);
+
+
+ALTER TABLE public.payables OWNER TO postgres;
+
+--
 -- Name: permission_templates; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -1140,18 +1487,18 @@ CREATE TABLE public.production_settings (
     "pageRanges" jsonb,
     "lengthUnit" text DEFAULT 'cm'::text,
     "lengthPriceRanges" jsonb,
+    "areaUnit" text DEFAULT 'mm'::text,
+    "areaPriceRanges" jsonb,
+    "surchargeType" text DEFAULT 'none'::text,
+    "distancePriceRanges" jsonb,
+    "extraPricePerKm" numeric(10,2),
+    "maxBaseDistance" integer,
+    "freeThreshold" numeric(10,2),
+    "islandFee" numeric(10,2),
     "sortOrder" integer DEFAULT 0 NOT NULL,
     "isActive" boolean DEFAULT true NOT NULL,
     "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    "updatedAt" timestamp(3) without time zone NOT NULL,
-    "areaPriceRanges" jsonb,
-    "areaUnit" text DEFAULT 'mm'::text,
-    "distancePriceRanges" jsonb,
-    "extraPricePerKm" numeric(10,2),
-    "freeThreshold" numeric(10,2),
-    "islandFee" numeric(10,2),
-    "maxBaseDistance" integer,
-    "surchargeType" text DEFAULT 'none'::text
+    "updatedAt" timestamp(3) without time zone NOT NULL
 );
 
 
@@ -1181,6 +1528,51 @@ CREATE TABLE public.products (
 
 
 ALTER TABLE public.products OWNER TO postgres;
+
+--
+-- Name: receivable_payments; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.receivable_payments (
+    id text NOT NULL,
+    "receivableId" text NOT NULL,
+    amount numeric(12,2) NOT NULL,
+    "paymentDate" timestamp(3) without time zone NOT NULL,
+    "paymentMethod" text,
+    description text,
+    "journalId" text,
+    "createdBy" text,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+ALTER TABLE public.receivable_payments OWNER TO postgres;
+
+--
+-- Name: receivables; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.receivables (
+    id text NOT NULL,
+    "clientId" text NOT NULL,
+    "clientName" text NOT NULL,
+    "clientCode" text,
+    "orderId" text,
+    "orderNumber" text,
+    "journalId" text,
+    "originalAmount" numeric(12,2) NOT NULL,
+    "paidAmount" numeric(12,2) DEFAULT 0 NOT NULL,
+    balance numeric(12,2) NOT NULL,
+    "issueDate" timestamp(3) without time zone NOT NULL,
+    "dueDate" timestamp(3) without time zone,
+    status text DEFAULT 'outstanding'::text NOT NULL,
+    description text,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL
+);
+
+
+ALTER TABLE public.receivables OWNER TO postgres;
 
 --
 -- Name: reception_schedules; Type: TABLE; Schema: public; Owner: postgres
@@ -1291,6 +1683,7 @@ CREATE TABLE public.schedules (
     reminders jsonb,
     "isRecurring" boolean DEFAULT false NOT NULL,
     "recurringRule" text,
+    "recurringConfig" jsonb,
     "recurringEnd" timestamp(3) without time zone,
     "parentId" text,
     attendees jsonb,
@@ -1305,6 +1698,33 @@ CREATE TABLE public.schedules (
 
 
 ALTER TABLE public.schedules OWNER TO postgres;
+
+--
+-- Name: settlements; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.settlements (
+    id text NOT NULL,
+    "periodType" text NOT NULL,
+    "periodStart" timestamp(3) without time zone NOT NULL,
+    "periodEnd" timestamp(3) without time zone NOT NULL,
+    "totalSales" numeric(14,2) DEFAULT 0 NOT NULL,
+    "totalPurchases" numeric(14,2) DEFAULT 0 NOT NULL,
+    "totalIncome" numeric(14,2) DEFAULT 0 NOT NULL,
+    "totalExpense" numeric(14,2) DEFAULT 0 NOT NULL,
+    "receivablesBalance" numeric(14,2) DEFAULT 0 NOT NULL,
+    "payablesBalance" numeric(14,2) DEFAULT 0 NOT NULL,
+    "netProfit" numeric(14,2) DEFAULT 0 NOT NULL,
+    "netCashFlow" numeric(14,2) DEFAULT 0 NOT NULL,
+    status text DEFAULT 'draft'::text NOT NULL,
+    "confirmedBy" text,
+    "confirmedAt" timestamp(3) without time zone,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL
+);
+
+
+ALTER TABLE public.settlements OWNER TO postgres;
 
 --
 -- Name: specification_prices; Type: TABLE; Schema: public; Owner: postgres
@@ -1490,6 +1910,22 @@ CREATE TABLE public.users (
 ALTER TABLE public.users OWNER TO postgres;
 
 --
+-- Data for Name: accounts; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.accounts (id, code, name, type, "parentId", description, "isActive", "sortOrder", "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- Data for Name: bank_accounts; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.bank_accounts (id, "accountName", "bankName", "accountNumber", "accountHolder", balance, "isDefault", "isActive", description, "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
 -- Data for Name: branches; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
@@ -1509,8 +1945,8 @@ cmk64q1bv000114aye864h6eq	02000000	디지털앨범	large	1	\N	t	t	always	HTML	\N
 cmk64tnq3000714ayr2wp4dsf	02010000	압축앨범	medium	2	cmk64q1bv000114aye864h6eq	t	f	always	HTML	\N	f	\N	\N	\N	\N	0	t	\N	\N	2026-01-09 00:22:36.123	2026-01-09 00:22:36.123
 cmk64twl1000914ayr1k0mddl	02020000	화보앨범	medium	2	cmk64q1bv000114aye864h6eq	t	f	always	HTML	\N	f	\N	\N	\N	\N	0	t	\N	\N	2026-01-09 00:22:47.605	2026-01-09 00:22:47.605
 cmk64snfn000514ayta937zrr	01030000	잉크젯출력	medium	2	cmk5cqvwy000114micn51e4oe	t	f	always	HTML	\N	f	\N	\N	\N	\N	0	t	\N	\N	2026-01-09 00:21:49.091	2026-01-09 00:42:32.547
-cmk6huxe2000512uch5cfhh8j	02010100	고급압축앨범	small	3	cmk64tnq3000714ayr2wp4dsf	t	f	always	POD	\N	f	\N	\N	\N	\N	0	t	\N	\N	2026-01-09 06:27:30.314	2026-01-09 06:27:30.314
 cmk6hvgkv000712ucc3zajjsd	02010200	레이플릿 압축앨범	small	3	cmk64tnq3000714ayr2wp4dsf	t	f	always	POD	\N	f	\N	\N	\N	\N	0	t	\N	\N	2026-01-09 06:27:55.183	2026-01-09 06:27:55.183
+cmk6huxe2000512uch5cfhh8j	02010100	고급압축앨범	large	1	\N	t	f	always	POD	\N	f	\N	\N	\N	\N	0	t	\N	\N	2026-01-09 06:27:30.314	2026-01-22 03:58:25.333
 \.
 
 
@@ -1519,8 +1955,8 @@ cmk6hvgkv000712ucc3zajjsd	02010200	레이플릿 압축앨범	small	3	cmk64tnq300
 --
 
 COPY public.client_groups (id, "groupCode", "groupName", "branchId", "generalDiscount", "premiumDiscount", "importedDiscount", description, "isActive", "sortOrder", "createdAt", "updatedAt") FROM stdin;
-cmkaiqnum000xkz5ow7k25rf9	GRPMKAIQNU6	스튜디오고객	cmkaiqnuj000wkz5o74elpdb6	100	100	100		t	0	2026-01-12 02:03:15.647	2026-01-21 03:43:16.644
-cmknnikwm0000g2ty8fggegcd	GRPMKNNIKWF	일반고객	cmkaiqnuj000wkz5o74elpdb6	100	100	100	\N	t	0	2026-01-21 06:37:56.95	2026-01-21 06:37:56.95
+cmko20a3z0025v6kupgm3goza	g002	졸업앨범관련 업체	cmkaiqnuj000wkz5o74elpdb6	100	100	100		t	0	2026-01-21 13:23:37.391	2026-01-21 13:23:37.391
+cmkaiqnum000xkz5ow7k25rf9	GRPMKAIQNU6	웨딩스튜디오	cmkaiqnuj000wkz5o74elpdb6	100	100	100		t	0	2026-01-12 02:03:15.647	2026-01-21 13:27:34.796
 \.
 
 
@@ -1528,8 +1964,8 @@ cmknnikwm0000g2ty8fggegcd	GRPMKNNIKWF	일반고객	cmkaiqnuj000wkz5o74elpdb6	100
 -- Data for Name: clients; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.clients (id, "clientCode", "clientName", "businessNumber", representative, phone, mobile, email, password, "postalCode", address, "addressDetail", "groupId", "memberType", "oauthProvider", "oauthId", "priceType", "paymentType", "creditEnabled", "creditPeriodDays", "creditPaymentDay", "creditBlocked", "creditBlockedAt", "lastPaymentDate", "shippingType", "creditGrade", "paymentTerms", status, "createdAt", "updatedAt", "acquisitionChannel", "assignedManager", "businessCategory", "businessType", "colorProfile", "contactPerson", "contactPhone", "deliveryNote", "hasLogo", "isBlacklist", "isWhitelist", "logoPath", "mainGenre", "memberGrade", "monthlyOrderVolume", "preferredFinish", "preferredSize", "recentMemo", "sensitivityScore", "taxInvoiceEmail", "taxInvoiceMethod", "totalClaims") FROM stdin;
-cmkg8vzuf0000at5m0dyaydie	N29645365	네이버사용자	201-8602	우영국	01023131228	01023131228	wooceo@gmail.com	\N	13230	경기 성남시 중원구 둔촌대로 560 (상대원동)	벽산테크노타운	cmkaiqnum000xkz5ow7k25rf9	individual	naver	SbmqSiAQ2fsIFu969c7YTxyngCoJRAtY6u_G0WM-fo8	standard	order	f	\N	\N	f	\N	\N	conditional	B	30	active	2026-01-16 02:14:05.367	2026-01-21 03:40:19.512	\N	\N	\N	\N	\N	\N	\N	\N	f	f	f	\N	\N	normal	\N	\N	\N	\N	3	\N	\N	0
+COPY public.clients (id, "clientCode", "clientName", "businessNumber", representative, phone, mobile, email, password, "postalCode", address, "addressDetail", "groupId", "memberType", "oauthProvider", "oauthId", "priceType", "paymentType", "creditEnabled", "creditPeriodDays", "creditPaymentDay", "creditBlocked", "creditBlockedAt", "lastPaymentDate", "shippingType", "creditGrade", "paymentTerms", status, "businessType", "businessCategory", "taxInvoiceEmail", "taxInvoiceMethod", "contactPerson", "contactPhone", "mainGenre", "monthlyOrderVolume", "colorProfile", "acquisitionChannel", "preferredSize", "preferredFinish", "hasLogo", "logoPath", "deliveryNote", "memberGrade", "assignedManager", "sensitivityScore", "recentMemo", "totalClaims", "isBlacklist", "isWhitelist", "createdAt", "updatedAt") FROM stdin;
+cmkg8vzuf0000at5m0dyaydie	N29645365	네이버사용자	포토미		01023131228	01023131228	wooceo@gmail.com	\N				cmko20a3z0025v6kupgm3goza	individual	naver	SbmqSiAQ2fsIFu969c7YTxyngCoJRAtY6u_G0WM-fo8	standard	order	f	\N	\N	f	\N	\N	conditional	B	30	active	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	f	\N	\N	normal	\N	3	\N	0	f	f	2026-01-16 02:14:05.367	2026-01-22 05:11:41.087
 \.
 
 
@@ -1546,9 +1982,11 @@ COPY public.consultation_alerts (id, "clientId", "consultationId", "alertType", 
 --
 
 COPY public.consultation_categories (id, code, name, "colorCode", "sortOrder", "isActive", "createdAt", "updatedAt") FROM stdin;
-cmkndtynw0006106jftt30qap	앨범크레임	앨범크레임	#3B82F6	0	t	2026-01-21 02:06:51.836	2026-01-21 02:06:51.836
-cmknduz3m0008106jf2bwo8yd	category	신규영업	#EAB308	2	t	2026-01-21 02:07:39.058	2026-01-21 02:07:39.058
-cmknduhjq0007106j1dwtql0b	액자크레임	액자크레임	#8B5CF6	1	t	2026-01-21 02:07:16.31	2026-01-21 02:08:16.621
+cmknzaj1u00003e2efxjz6rsh	album	앨범크레임	#EF4444	0	t	2026-01-21 12:07:36.689	2026-01-21 12:07:36.689
+cmknzar2s00013e2e2kx3cg8v	category	액자크레임	#F97316	1	t	2026-01-21 12:07:47.092	2026-01-21 12:07:47.092
+cmknzb07q00023e2euonc8ibb	delivery	배송크레이	#EAB308	2	t	2026-01-21 12:07:58.935	2026-01-21 12:07:58.935
+cmko0thwp000iv6kukv1xpo66	consult	신규영업상담	#3B82F6	3	t	2026-01-21 12:50:21.289	2026-01-21 12:50:28.224
+cmko0uauf000jv6ku1fl0bveq	product_inquiry	제품설정및 문의	#06B6D4	4	t	2026-01-21 12:50:58.792	2026-01-21 12:50:58.792
 \.
 
 
@@ -1573,13 +2011,16 @@ COPY public.consultation_follow_ups (id, "consultationId", content, "actionType"
 --
 
 COPY public.consultation_guides (id, "categoryId", "tagCodes", title, problem, solution, scripts, "relatedGuideIds", attachments, "usageCount", "helpfulCount", "sortOrder", "isActive", "createdAt", "updatedAt") FROM stdin;
-cmknda5im0000106jw05pfjfa	\N	{}	인쇄불량	색상불량	출력에 문제가 있어요	\N	{}	\N	0	0	0	t	2026-01-21 01:51:27.544	2026-01-21 01:51:27.544
-cmkndb2qz0001106jcureium2	\N	{}	제본불량	순서가 바뀌었어요	반품신청	\N	{}	\N	0	0	0	t	2026-01-21 01:52:10.667	2026-01-21 01:52:10.667
-cmkndbvgy0002106jacmed1xy	\N	{}	재단불량	재단이 잘못되었어요.	반품신청	\N	{}	\N	0	0	0	t	2026-01-21 01:52:47.89	2026-01-21 01:52:47.89
-cmkndcf9g0003106jx56kubee	\N	{}	내지오염	이물질	반품신청	\N	{}	\N	0	0	0	t	2026-01-21 01:53:13.54	2026-01-21 01:53:13.54
-cmkndcysj0004106jln7mveoz	\N	{}	커버오염	커버에 스크레치	반품신청	\N	{}	\N	0	0	0	t	2026-01-21 01:53:38.852	2026-01-21 01:53:38.852
-cmkndl7b30005106jejn9ld1d	\N	{}	신규영업상담	신규영업	영업부에게 전달	\N	{}	\N	0	0	0	t	2026-01-21 02:00:03.085	2026-01-21 02:00:03.085
-cmkned4c8000b106jm1bdkzz6	\N	{}	상품문의	추가상품 설정요청등	영업부 담당직원에게 카톡으로 요청	\N	{}	\N	0	0	0	t	2026-01-21 02:21:45.596	2026-01-21 02:21:45.596
+cmknzci0c00033e2eov40zpmq	cmknzaj1u00003e2efxjz6rsh	{}	앨범 속지순서가 바뀌었어요	페이지 순서 제본순서바뀜	택배 반송처리	\N	{}	\N	0	0	0	t	2026-01-21 12:09:08.653	2026-01-21 12:09:08.653
+cmknzfk2g00043e2ek442ywn1	cmknzaj1u00003e2efxjz6rsh	{}	색상이 이상해요	전과 색상이 달라요	1. 모니터 CMS(Color Management System)가 되었는지요?\n2. 앨범 반송처리하여 확인해보겠습니다.	\N	{}	\N	0	0	0	t	2026-01-21 12:11:31.288	2026-01-21 12:11:31.288
+\.
+
+
+--
+-- Data for Name: consultation_messages; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.consultation_messages (id, "consultationId", direction, channel, content, attachments, "senderName", "senderType", "staffId", "staffName", "messageAt", "isRead", "readAt", "createdAt") FROM stdin;
 \.
 
 
@@ -1627,10 +2068,24 @@ COPY public.consultation_tags (id, code, name, "colorCode", category, "sortOrder
 -- Data for Name: consultations; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.consultations (id, "consultNumber", "clientId", "categoryId", title, content, "orderId", "orderNumber", "counselorId", "counselorName", "consultedAt", status, priority, resolution, "resolvedAt", "resolvedBy", "followUpDate", "followUpNote", "kakaoScheduled", "kakaoSendAt", "kakaoSentAt", "kakaoMessage", attachments, "internalMemo", "createdAt", "updatedAt", "closedAt", "closedBy", "inProgressAt", "inProgressBy", "openedAt", "openedBy") FROM stdin;
-cmkndxbr9000a106jl3db26qm	CS-20260121-0001	cmkg8vzuf0000at5m0dyaydie	cmkndtynw0006106jftt30qap	인쇄불량	[문제]\n색상불량\n\n[해결방법]\n반품요청하겠습니다.	\N	\N	staff-1	상담원	2026-01-21 02:09:28.773	in_progress	high	\N	\N	\N	\N	택배반품요청	f	\N	\N	\N	\N	택배반품요청	2026-01-21 02:09:28.773	2026-01-21 02:23:30.584	\N	\N	\N	\N	2026-01-21 14:26:26.043	\N
-cmkneeqac000d106j7cfs0as5	CS-20260121-0002	cmkg8vzuf0000at5m0dyaydie	cmknduz3m0008106jf2bwo8yd	신규영업상담	[문제]\n신규영업\n\n[해결방법]\n영업부에게 전달	\N	\N	staff-1	상담원	2026-01-21 02:23:00.755	closed	high	\N	\N	\N	2026-01-21 00:00:00	송만석이사에게 카톡으로 전달	f	\N	\N	\N	\N	좋은가격 제안	2026-01-21 02:23:00.756	2026-01-21 05:21:04.836	\N	\N	\N	\N	2026-01-21 14:26:26.043	\N
-cmknkaria000111n5irwfvk4o	CS-20260121-0003	cmkg8vzuf0000at5m0dyaydie	cmkndtynw0006106jftt30qap	신규영업상담	[문제]\n신규영업\n\n[해결방법]\n영업부에게 전달	\N	\N	staff-1	상담원	2026-01-21 05:07:53.41	resolved	normal	\N	2026-01-21 06:28:57.551	상담원	\N	반품신청 	f	\N	\N	\N	\N	\N	2026-01-21 05:07:53.411	2026-01-21 06:28:57.552	\N	\N	\N	\N	2026-01-21 14:26:26.043	\N
+COPY public.consultations (id, "consultNumber", "clientId", "categoryId", title, content, "orderId", "orderNumber", "counselorId", "counselorName", "consultedAt", status, priority, "openedAt", "openedBy", "inProgressAt", "inProgressBy", "closedAt", "closedBy", resolution, "resolvedAt", "resolvedBy", "followUpDate", "followUpNote", "kakaoScheduled", "kakaoSendAt", "kakaoSentAt", "kakaoMessage", attachments, "internalMemo", "createdAt", "updatedAt") FROM stdin;
+cmko0gtl0000hv6ku96zsbi1c	CS-20260121-0001	cmkg8vzuf0000at5m0dyaydie	cmknzaj1u00003e2efxjz6rsh	표지 스크레치	반품요청	\N	\N	admin	관리자	2026-01-21 12:40:29.891	in_progress	normal	2026-01-21 12:40:29.892	\N	2026-01-21 12:52:38.523	상담원	\N	\N	\N	\N	\N	\N	\N	f	\N	\N	\N	\N	반품신청	2026-01-21 12:40:29.892	2026-01-21 12:52:38.524
+\.
+
+
+--
+-- Data for Name: copper_plate_histories; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.copper_plate_histories (id, "copperPlateId", "actionType", "previousStatus", "newStatus", "previousLocation", "newLocation", "orderId", "orderNumber", description, "actionById", "actionBy", "createdAt") FROM stdin;
+\.
+
+
+--
+-- Data for Name: copper_plates; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.copper_plates (id, "clientId", "plateName", "plateCode", "plateType", "foilColor", "foilColorName", "foilPosition", "widthMm", "heightMm", "storageLocation", "imageUrl", "aiFileUrl", "designFileUrl", "appliedAlbumName", "albumPhotoUrl", notes, "registeredById", "registeredBy", "registeredAt", status, "sortOrder", "usageCount", "firstUsedAt", "lastUsedAt", "returnedAt", "createdAt", "updatedAt") FROM stdin;
 \.
 
 
@@ -1647,6 +2102,7 @@ COPY public.custom_options (id, "productId", name, type, "values", price, "isReq
 --
 
 COPY public.customer_health_scores (id, "clientId", "claimScore", "satisfactionScore", "loyaltyScore", "communicationScore", "totalScore", grade, "isAtRisk", "riskReason", "lastCalculatedAt", "createdAt", "updatedAt") FROM stdin;
+cmko0xdat000lv6ku4ob17g3u	cmkg8vzuf0000at5m0dyaydie	100	100	0	80	76	B	f	\N	2026-01-21 12:53:39.185	2026-01-21 12:53:21.941	2026-01-21 12:53:39.187
 \.
 
 
@@ -1670,6 +2126,22 @@ cmk6f0eli0003o43x4pg3ci2e	출력팀7039	출력팀	\N	3	t	2026-01-09 05:07:47.046
 
 
 --
+-- Data for Name: fabric_suppliers; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.fabric_suppliers (id, code, name, phone, mobile, email, fax, "postalCode", address, "addressDetail", representative, website, description, memo, "sortOrder", "isActive", "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- Data for Name: fabrics; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.fabrics (id, code, name, category, material, "colorCode", "colorName", "widthCm", thickness, weight, "supplierId", "basePrice", "unitType", "discountRate", "discountPrice", "stockQuantity", "minStockLevel", "forAlbumCover", "forBoxCover", "forFrameCover", "forOther", "imageUrl", "thumbnailUrl", description, memo, "sortOrder", "isActive", "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
 -- Data for Name: group_half_product_prices; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
@@ -1682,6 +2154,46 @@ COPY public.group_half_product_prices (id, "groupId", "halfProductId", price, "c
 --
 
 COPY public.group_product_prices (id, "groupId", "productId", price, "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- Data for Name: group_production_setting_prices; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.group_production_setting_prices (id, "clientGroupId", "productionSettingId", "specificationId", "minQuantity", "maxQuantity", weight, price, "singleSidedPrice", "doubleSidedPrice", "fourColorSinglePrice", "fourColorDoublePrice", "sixColorSinglePrice", "sixColorDoublePrice", "basePages", "basePrice", "pricePerPage", "rangePrices", "createdAt", "updatedAt", "priceGroupId") FROM stdin;
+cmkq5393r000b13913jjw75bs	cmko20a3z0025v6kupgm3goza	cmkgcqgel0001vuyqquqn2f9z	\N	1	\N	\N	0.00	\N	\N	900.00	850.00	1100.00	1000.00	\N	\N	\N	\N	2026-01-23 00:25:27.255	2026-01-23 00:25:45.099	pg_1768536096664_hxqs8hls0
+cmkq5393t000d1391r6nejspy	cmko20a3z0025v6kupgm3goza	cmkgcqgel0001vuyqquqn2f9z	\N	2	\N	\N	0.00	\N	\N	450.00	430.00	550.00	500.00	\N	\N	\N	\N	2026-01-23 00:25:27.258	2026-01-23 00:25:45.102	pg_1768536096664_hxqs8hls0
+cmkq5393v000f13915f4ig5zb	cmko20a3z0025v6kupgm3goza	cmkgcqgel0001vuyqquqn2f9z	\N	4	\N	\N	0.00	\N	\N	230.00	210.00	280.00	250.00	\N	\N	\N	\N	2026-01-23 00:25:27.259	2026-01-23 00:25:45.103	pg_1768536096664_hxqs8hls0
+cmkq5393x000h1391th6mvfpw	cmko20a3z0025v6kupgm3goza	cmkgcqgel0001vuyqquqn2f9z	\N	8	\N	\N	0.00	\N	\N	110.00	110.00	140.00	130.00	\N	\N	\N	\N	2026-01-23 00:25:27.261	2026-01-23 00:25:45.104	pg_1768536096664_hxqs8hls0
+cmkq4merq000113910lbinryd	cmko20a3z0025v6kupgm3goza	cmkafl76r0001kz5orjfsda7c	\N	1	\N	\N	0.00	\N	\N	900.00	900.00	900.00	900.00	\N	\N	\N	\N	2026-01-23 00:12:21.446	2026-01-23 00:28:22.873	pg_1768178038155_nz57kv6ai
+cmkq4merw00031391beimo8zb	cmko20a3z0025v6kupgm3goza	cmkafl76r0001kz5orjfsda7c	\N	2	\N	\N	0.00	\N	\N	550.00	550.00	550.00	550.00	\N	\N	\N	\N	2026-01-23 00:12:21.452	2026-01-23 00:28:22.875	pg_1768178038155_nz57kv6ai
+cmkq4mery00051391zwivid94	cmko20a3z0025v6kupgm3goza	cmkafl76r0001kz5orjfsda7c	\N	4	\N	\N	0.00	\N	\N	300.00	300.00	300.00	300.00	\N	\N	\N	\N	2026-01-23 00:12:21.454	2026-01-23 00:28:22.877	pg_1768178038155_nz57kv6ai
+cmkq5393y000j1391bzce7e3z	cmko20a3z0025v6kupgm3goza	cmkgcqgel0001vuyqquqn2f9z	\N	1	\N	\N	0.00	\N	\N	1200.00	1100.00	1100.00	950.00	\N	\N	\N	\N	2026-01-23 00:25:27.262	2026-01-23 00:26:53.506	pg_1768536123869_f96k5mt6y
+cmkq5393z000l13917tk5u575	cmko20a3z0025v6kupgm3goza	cmkgcqgel0001vuyqquqn2f9z	\N	2	\N	\N	0.00	\N	\N	600.00	550.00	550.00	475.00	\N	\N	\N	\N	2026-01-23 00:25:27.263	2026-01-23 00:26:53.508	pg_1768536123869_f96k5mt6y
+cmkq53940000n13916adm3mz3	cmko20a3z0025v6kupgm3goza	cmkgcqgel0001vuyqquqn2f9z	\N	4	\N	\N	0.00	\N	\N	300.00	280.00	280.00	238.00	\N	\N	\N	\N	2026-01-23 00:25:27.265	2026-01-23 00:26:53.509	pg_1768536123869_f96k5mt6y
+cmkp1gj3k001ntaz0t8pbmtkr	cmko20a3z0025v6kupgm3goza	cmkgcqgel0001vuyqquqn2f9z	\N	1	\N	\N	0.00	\N	\N	1000.00	1000.00	1000.00	1000.00	\N	\N	\N	\N	2026-01-22 05:56:02.097	2026-01-22 05:59:03.368	\N
+cmkp1gj3n001ptaz0b1x105fi	cmko20a3z0025v6kupgm3goza	cmkgcqgel0001vuyqquqn2f9z	\N	2	\N	\N	0.00	\N	\N	500.00	500.00	500.00	500.00	\N	\N	\N	\N	2026-01-22 05:56:02.099	2026-01-22 05:59:03.37	\N
+cmkp1gj3o001rtaz05nid9sl7	cmko20a3z0025v6kupgm3goza	cmkgcqgel0001vuyqquqn2f9z	\N	4	\N	\N	0.00	\N	\N	250.00	250.00	250.00	250.00	\N	\N	\N	\N	2026-01-22 05:56:02.101	2026-01-22 05:59:03.372	\N
+cmkp1gj3q001ttaz0skl9e41r	cmko20a3z0025v6kupgm3goza	cmkgcqgel0001vuyqquqn2f9z	\N	8	\N	\N	0.00	\N	\N	125.00	125.00	125.00	125.00	\N	\N	\N	\N	2026-01-22 05:56:02.102	2026-01-22 05:59:03.373	\N
+cmkozrlxw0003taz018nasivg	cmko20a3z0025v6kupgm3goza	cmkafl76r0001kz5orjfsda7c	\N	1	\N	\N	0.00	\N	\N	1000.00	1000.00	1000.00	1000.00	\N	\N	\N	\N	2026-01-22 05:08:39.764	2026-01-22 05:59:04.587	\N
+cmkozrly00005taz0v0tyb7b6	cmko20a3z0025v6kupgm3goza	cmkafl76r0001kz5orjfsda7c	\N	2	\N	\N	0.00	\N	\N	600.00	600.00	600.00	600.00	\N	\N	\N	\N	2026-01-22 05:08:39.768	2026-01-22 05:59:04.59	\N
+cmkozrly20007taz0ljs5qgqf	cmko20a3z0025v6kupgm3goza	cmkafl76r0001kz5orjfsda7c	\N	4	\N	\N	0.00	\N	\N	325.00	325.00	330.00	325.00	\N	\N	\N	\N	2026-01-22 05:08:39.77	2026-01-22 05:59:04.592	\N
+cmkozrly30009taz0ga8qlwkb	cmko20a3z0025v6kupgm3goza	cmkafl76r0001kz5orjfsda7c	\N	8	\N	\N	0.00	\N	\N	175.00	175.00	180.00	175.00	\N	\N	\N	\N	2026-01-22 05:08:39.771	2026-01-22 05:59:04.593	\N
+cmkq4merz00071391hn2hljjc	cmko20a3z0025v6kupgm3goza	cmkafl76r0001kz5orjfsda7c	\N	8	\N	\N	0.00	\N	\N	160.00	160.00	160.00	160.00	\N	\N	\N	\N	2026-01-23 00:12:21.456	2026-01-23 00:28:22.879	pg_1768178038155_nz57kv6ai
+cmkq55ha2000r1391c38s6ldu	cmko20a3z0025v6kupgm3goza	cmkafl76r0001kz5orjfsda7c	\N	1	\N	\N	0.00	\N	\N	900.00	900.00	900.00	900.00	\N	\N	\N	\N	2026-01-23 00:27:11.163	2026-01-23 00:28:22.881	pg_1768178039087_itb887tbc
+cmkq55ha4000t1391qbgat3fm	cmko20a3z0025v6kupgm3goza	cmkafl76r0001kz5orjfsda7c	\N	2	\N	\N	0.00	\N	\N	450.00	450.00	450.00	450.00	\N	\N	\N	\N	2026-01-23 00:27:11.164	2026-01-23 00:28:22.882	pg_1768178039087_itb887tbc
+cmkq55ha5000v1391byi9nsuq	cmko20a3z0025v6kupgm3goza	cmkafl76r0001kz5orjfsda7c	\N	4	\N	\N	0.00	\N	\N	230.00	230.00	230.00	230.00	\N	\N	\N	\N	2026-01-23 00:27:11.166	2026-01-23 00:28:22.883	pg_1768178039087_itb887tbc
+cmkq53941000p1391k98i9m3n	cmko20a3z0025v6kupgm3goza	cmkgcqgel0001vuyqquqn2f9z	\N	8	\N	\N	0.00	\N	\N	150.00	140.00	140.00	119.00	\N	\N	\N	\N	2026-01-23 00:25:27.266	2026-01-23 00:26:53.511	pg_1768536123869_f96k5mt6y
+cmkq585ma001d1391n31070of	cmkaiqnum000xkz5ow7k25rf9	cmkafl76r0001kz5orjfsda7c	\N	8	\N	\N	0.00	\N	\N	144.00	144.00	144.00	144.00	\N	\N	\N	\N	2026-01-23 00:29:16.018	2026-01-23 00:29:16.018	pg_1768178039087_itb887tbc
+cmkq55ha7000x1391mqtamfz9	cmko20a3z0025v6kupgm3goza	cmkafl76r0001kz5orjfsda7c	\N	8	\N	\N	0.00	\N	\N	110.00	110.00	110.00	110.00	\N	\N	\N	\N	2026-01-23 00:27:11.167	2026-01-23 00:28:22.884	pg_1768178039087_itb887tbc
+cmkq585ly000z1391fa51bwjk	cmkaiqnum000xkz5ow7k25rf9	cmkafl76r0001kz5orjfsda7c	\N	1	\N	\N	0.00	\N	\N	800.00	800.00	800.00	800.00	\N	\N	\N	\N	2026-01-23 00:29:16.006	2026-01-23 00:29:16.006	pg_1768178038155_nz57kv6ai
+cmkq585m100111391d280jl2w	cmkaiqnum000xkz5ow7k25rf9	cmkafl76r0001kz5orjfsda7c	\N	2	\N	\N	0.00	\N	\N	480.00	480.00	480.00	480.00	\N	\N	\N	\N	2026-01-23 00:29:16.01	2026-01-23 00:29:16.01	pg_1768178038155_nz57kv6ai
+cmkq585m3001313915qjvdp22	cmkaiqnum000xkz5ow7k25rf9	cmkafl76r0001kz5orjfsda7c	\N	4	\N	\N	0.00	\N	\N	264.00	264.00	264.00	264.00	\N	\N	\N	\N	2026-01-23 00:29:16.011	2026-01-23 00:29:16.011	pg_1768178038155_nz57kv6ai
+cmkq585m4001513913pb38ot2	cmkaiqnum000xkz5ow7k25rf9	cmkafl76r0001kz5orjfsda7c	\N	8	\N	\N	0.00	\N	\N	144.00	144.00	144.00	144.00	\N	\N	\N	\N	2026-01-23 00:29:16.012	2026-01-23 00:29:16.012	pg_1768178038155_nz57kv6ai
+cmkq585m50017139132dzq6x2	cmkaiqnum000xkz5ow7k25rf9	cmkafl76r0001kz5orjfsda7c	\N	1	\N	\N	0.00	\N	\N	800.00	800.00	800.00	800.00	\N	\N	\N	\N	2026-01-23 00:29:16.014	2026-01-23 00:29:16.014	pg_1768178039087_itb887tbc
+cmkq585m700191391bwir8u0x	cmkaiqnum000xkz5ow7k25rf9	cmkafl76r0001kz5orjfsda7c	\N	2	\N	\N	0.00	\N	\N	480.00	480.00	480.00	480.00	\N	\N	\N	\N	2026-01-23 00:29:16.016	2026-01-23 00:29:16.016	pg_1768178039087_itb887tbc
+cmkq585m8001b1391t1o6ut6h	cmkaiqnum000xkz5ow7k25rf9	cmkafl76r0001kz5orjfsda7c	\N	4	\N	\N	0.00	\N	\N	264.00	264.00	264.00	264.00	\N	\N	\N	\N	2026-01-23 00:29:16.017	2026-01-23 00:29:16.017	pg_1768178039087_itb887tbc
 \.
 
 
@@ -1714,6 +2226,22 @@ COPY public.half_product_specifications (id, "halfProductId", name, "widthMm", "
 --
 
 COPY public.half_products (id, code, name, "categoryLargeId", "basePrice", "isPriceAdditive", "memberType", "requiredFileCount", "thumbnailUrl", "detailImages", status, "sortOrder", "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- Data for Name: journal_entries; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.journal_entries (id, "journalId", "accountId", "transactionType", amount, description, "sortOrder") FROM stdin;
+\.
+
+
+--
+-- Data for Name: journals; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.journals (id, "voucherNo", "voucherType", "journalDate", "clientId", "clientName", description, "totalAmount", "orderId", "orderNumber", "createdBy", "createdAt", "updatedAt") FROM stdin;
 \.
 
 
@@ -1804,6 +2332,24 @@ cmk6bw3930004w4rgfz1xi87r	PAPERMK6BUH2E	스노우	\N	cmk6ay5yb0000ccm4kecgba4o	c
 cmk6c19320008w4rgtgxtmtlc	PAPERMK6BYYKY	아티젠	\N	cmk6ay5yb0000ccm4kecgba4o	cmk6b4g8y00006wgjlqaztouz	sheet	국전지	788.00	1091.00	\N	\N	\N	\N	\N	230	230g/m²	matte	\N	{indigo,offset}	\N	\N	\N	222103.00	ream	0.00	\N	0	0			0	t	2026-01-09 03:44:27.711	2026-01-09 03:46:00.412
 cmk6cl3kp0004oeub4w4fpghp	PAPERMK6CJT5O	싸틴	\N	cmk6ay5yb0000ccm4kecgba4o	cmk6ckcsh0002oeubwy8mjfww	roll	국전지	788.00	1091.00	\N	24"	\N	30m	\N	240	240g/m²	satin	\N	{inkjet}	\N	\N	\N	38000.00	roll	0.00	\N	0	0			0	t	2026-01-09 03:59:53.689	2026-01-09 04:00:29.466
 cmk6cj27s0001oeub8ot2p5wq	PAPERMK6CHF48	프리미엄메트	\N	cmk69gtdb0004alpyf4o3mjc8	cmk6b4g8y00006wgjlqaztouz	roll	국전지	788.00	1091.00	\N	24"	\N	30m	\N	240	240g/m²	matte	\N	{inkjet}	\N	\N	\N	28000.00	roll	0.00	\N	0	0			0	t	2026-01-09 03:58:18.616	2026-01-16 04:00:26.867
+cmko0b90d000dv6kucf3istj1	PAPERMKO0A5DI	캔버스	\N	cmk69gtdb0004alpyf4o3mjc8	cmk6b4g8y00006wgjlqaztouz	roll	\N	\N	\N	\N	24"	\N	30m	\N	240	240g/m²	matte	\N	{inkjet}	\N	\N	\N	250000.00	roll	0.00	\N	0	0			0	t	2026-01-21 12:36:09.95	2026-01-21 12:36:31.671
+cmko0dy6g000fv6kuem61w1s2	PAPERMKO0D0LP	스노우	\N	cmk6ay5yb0000ccm4kecgba4o	cmk6b4g8y00006wgjlqaztouz	sheet	국전지	788.00	1091.00	\N	\N	\N	\N	\N	180	180g/m²	lustre	\N	{indigo,offset}	\N	\N	\N	107127.00	ream	0.00	\N	0	0			0	t	2026-01-21 12:38:15.881	2026-01-21 12:38:49.359
+\.
+
+
+--
+-- Data for Name: payable_payments; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.payable_payments (id, "payableId", amount, "paymentDate", "paymentMethod", description, "journalId", "createdBy", "createdAt") FROM stdin;
+\.
+
+
+--
+-- Data for Name: payables; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.payables (id, "supplierId", "supplierName", "supplierCode", "journalId", "originalAmount", "paidAmount", balance, "issueDate", "dueDate", status, description, "createdAt", "updatedAt") FROM stdin;
 \.
 
 
@@ -1904,71 +2450,14 @@ cmklvrqx40001dgdw7f98ssrs	2401	배송	2	cmklulwn600007nn5m8uenxhh	0	t	2026-01-20
 --
 
 COPY public.production_setting_prices (id, "productionSettingId", "specificationId", "minQuantity", "maxQuantity", weight, price, "singleSidedPrice", "doubleSidedPrice", "fourColorSinglePrice", "fourColorDoublePrice", "sixColorSinglePrice", "sixColorDoublePrice", "basePages", "basePrice", "pricePerPage", "rangePrices", "createdAt", "updatedAt") FROM stdin;
-cmklw5eg00002iz63rqs6dy5y	cmklw5efx0001iz63pvsa7i8j	\N	1	\N	1.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	\N	\N	\N	\N	2026-01-20 01:04:06.24	2026-01-20 01:04:06.24
-cmklw5eg00003iz6329vv50f5	cmklw5efx0001iz63pvsa7i8j	\N	2	\N	1.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	\N	\N	\N	\N	2026-01-20 01:04:06.24	2026-01-20 01:04:06.24
-cmklw5eg00004iz63c2y256dt	cmklw5efx0001iz63pvsa7i8j	\N	4	\N	1.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	\N	\N	\N	\N	2026-01-20 01:04:06.24	2026-01-20 01:04:06.24
-cmklw5eg00005iz63ochslg3c	cmklw5efx0001iz63pvsa7i8j	\N	8	\N	1.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	\N	\N	\N	\N	2026-01-20 01:04:06.24	2026-01-20 01:04:06.24
-cmklw66ah000eiz63wheg1x6q	cmklw66ag000diz63dhe9kkcw	\N	1	\N	1.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	\N	\N	\N	\N	2026-01-20 01:04:42.33	2026-01-20 01:04:42.33
-cmklw66ah000fiz637rkq3yfm	cmklw66ag000diz63dhe9kkcw	\N	2	\N	1.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	\N	\N	\N	\N	2026-01-20 01:04:42.33	2026-01-20 01:04:42.33
-cmklw66ah000giz630zmvdi2t	cmklw66ag000diz63dhe9kkcw	\N	4	\N	1.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	\N	\N	\N	\N	2026-01-20 01:04:42.33	2026-01-20 01:04:42.33
-cmklw66ah000hiz63dk6vxyyd	cmklw66ag000diz63dhe9kkcw	\N	8	\N	1.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	\N	\N	\N	\N	2026-01-20 01:04:42.33	2026-01-20 01:04:42.33
-cmklw6k9l000kiz63b8fzt1wv	cmklw6k9k000jiz63ea5ng1h4	\N	1	\N	1.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	\N	\N	\N	\N	2026-01-20 01:05:00.442	2026-01-20 01:05:00.442
-cmklw6k9l000liz631qnpet8m	cmklw6k9k000jiz63ea5ng1h4	\N	2	\N	1.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	\N	\N	\N	\N	2026-01-20 01:05:00.442	2026-01-20 01:05:00.442
-cmklw6k9l000miz63xrx0978w	cmklw6k9k000jiz63ea5ng1h4	\N	4	\N	1.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	\N	\N	\N	\N	2026-01-20 01:05:00.442	2026-01-20 01:05:00.442
-cmklw6k9l000niz63il0hqea5	cmklw6k9k000jiz63ea5ng1h4	\N	8	\N	1.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	\N	\N	\N	\N	2026-01-20 01:05:00.442	2026-01-20 01:05:00.442
-cmklvlxkg000oja77be9pwznp	cmkkvrn1q001y1032yamghstu	cmk6f27np0004o43xbl1qfr5n	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	100.00	{}	2026-01-20 00:48:57.904	2026-01-20 00:48:57.904
-cmklvlxkg000pja77icucsifk	cmkkvrn1q001y1032yamghstu	cmk6f27nr0005o43xwyhm7een	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	100.00	{}	2026-01-20 00:48:57.904	2026-01-20 00:48:57.904
-cmklvlxkg000qja77k8snza2y	cmkkvrn1q001y1032yamghstu	cmk6f3ym20006o43xdewhcbes	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	120.00	{}	2026-01-20 00:48:57.904	2026-01-20 00:48:57.904
-cmklvlxkg000rja77f7nm5wk6	cmkkvrn1q001y1032yamghstu	cmk6f3ym40007o43x4w1i7igj	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	120.00	{}	2026-01-20 00:48:57.904	2026-01-20 00:48:57.904
-cmklvlxkg000sja772npm0yv6	cmkkvrn1q001y1032yamghstu	cmk6f6ndh0008o43xcv3mdzu1	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	150.00	{}	2026-01-20 00:48:57.904	2026-01-20 00:48:57.904
-cmklvlxkg000tja77j0zpv7j5	cmkkvrn1q001y1032yamghstu	cmk6f88vs0009o43x378tye2v	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	120.00	{}	2026-01-20 00:48:57.904	2026-01-20 00:48:57.904
-cmklvlxkg000uja77qdmz22cm	cmkkvrn1q001y1032yamghstu	cmk6f88vu000ao43x13j2f12j	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	120.00	{}	2026-01-20 00:48:57.904	2026-01-20 00:48:57.904
-cmklvlxkg000vja77ghfer5q7	cmkkvrn1q001y1032yamghstu	cmk6fbng100004b63c70xzv5a	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	100.00	{}	2026-01-20 00:48:57.904	2026-01-20 00:48:57.904
-cmklvlxkg000wja77z48zyxrd	cmkkvrn1q001y1032yamghstu	cmk6fbng600014b63lbz4hbql	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	100.00	{}	2026-01-20 00:48:57.904	2026-01-20 00:48:57.904
-cmklvlxkg000xja77vnpus08h	cmkkvrn1q001y1032yamghstu	cmk6fc2o500024b63vwcm68cp	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	80.00	{}	2026-01-20 00:48:57.904	2026-01-20 00:48:57.904
-cmklvlxkg000yja77jogvpm3p	cmkkvrn1q001y1032yamghstu	cmk6fc2od00034b63mc8vtlep	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	80.00	{}	2026-01-20 00:48:57.904	2026-01-20 00:48:57.904
-cmklvlxkg000zja778t3sos89	cmkkvrn1q001y1032yamghstu	cmk6fjyhm000c4b631modt98m	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	150.00	{}	2026-01-20 00:48:57.904	2026-01-20 00:48:57.904
-cmklvlxkg0010ja77xahiw11r	cmkkvrn1q001y1032yamghstu	cmk6fjyhq000d4b63ltsp5xkp	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	150.00	{}	2026-01-20 00:48:57.904	2026-01-20 00:48:57.904
-cmklvlxkg0011ja77ccay72bh	cmkkvrn1q001y1032yamghstu	cmk6fkx5j000e4b639whx3sxx	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	200.00	{}	2026-01-20 00:48:57.904	2026-01-20 00:48:57.904
-cmklvlxkg0012ja77s0xn59i9	cmkkvrn1q001y1032yamghstu	cmk6fkx5l000f4b63teec2nro	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	200.00	{}	2026-01-20 00:48:57.904	2026-01-20 00:48:57.904
-cmklvlxkg0013ja77metn94pp	cmkkvrn1q001y1032yamghstu	cmk6ftqqu0004hxtskccmbx2s	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	150.00	{}	2026-01-20 00:48:57.904	2026-01-20 00:48:57.904
-cmklvlxkg0014ja776b9taqzb	cmkkvrn1q001y1032yamghstu	cmk6fu8av0005hxtsrjafllf0	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	120.00	{}	2026-01-20 00:48:57.904	2026-01-20 00:48:57.904
-cmklvlxkg0015ja77qnzf8x8r	cmkkvrn1q001y1032yamghstu	cmk6fvjvy0006hxtspj3i6nks	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	200.00	{}	2026-01-20 00:48:57.904	2026-01-20 00:48:57.904
-cmklvlxkg0016ja77rrleh0wg	cmkkvrn1q001y1032yamghstu	cmk6fvjw00007hxtsirwx4s8m	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	200.00	{}	2026-01-20 00:48:57.904	2026-01-20 00:48:57.904
-cmklvlxkg0017ja77sydigyv1	cmkkvrn1q001y1032yamghstu	cmkauuj580000620v7qprf1fa	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	200.00	{}	2026-01-20 00:48:57.904	2026-01-20 00:48:57.904
-cmklvlxkg0018ja774iz8jgwp	cmkkvrn1q001y1032yamghstu	cmkauuj5e0001620vtvan1277	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	200.00	{}	2026-01-20 00:48:57.904	2026-01-20 00:48:57.904
-cmklvm5y80019ja77912klusy	cmkkl7404000d10u6awja3pml	cmk6f27np0004o43xbl1qfr5n	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	90.00	{}	2026-01-20 00:49:08.768	2026-01-20 00:49:08.768
-cmklvm5y8001aja77qvi8eswb	cmkkl7404000d10u6awja3pml	cmk6f27nr0005o43xwyhm7een	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	90.00	{}	2026-01-20 00:49:08.768	2026-01-20 00:49:08.768
-cmklvm5y8001bja771dj1o57c	cmkkl7404000d10u6awja3pml	cmk6f3ym20006o43xdewhcbes	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	100.00	{}	2026-01-20 00:49:08.768	2026-01-20 00:49:08.768
-cmklvm5y8001cja77olryzaqo	cmkkl7404000d10u6awja3pml	cmk6f3ym40007o43x4w1i7igj	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	100.00	{}	2026-01-20 00:49:08.768	2026-01-20 00:49:08.768
-cmklvm5y8001dja77y6isk141	cmkkl7404000d10u6awja3pml	cmk6f6ndh0008o43xcv3mdzu1	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	120.00	{}	2026-01-20 00:49:08.768	2026-01-20 00:49:08.768
-cmklvm5y8001eja77l3ybo5hv	cmkkl7404000d10u6awja3pml	cmk6f88vs0009o43x378tye2v	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	100.00	{}	2026-01-20 00:49:08.768	2026-01-20 00:49:08.768
-cmklvm5y8001fja77ga5uwf1e	cmkkl7404000d10u6awja3pml	cmk6f88vu000ao43x13j2f12j	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	100.00	{}	2026-01-20 00:49:08.768	2026-01-20 00:49:08.768
-cmklvm5y8001gja77qt5rtp5x	cmkkl7404000d10u6awja3pml	cmk6fbng100004b63c70xzv5a	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	90.00	{}	2026-01-20 00:49:08.768	2026-01-20 00:49:08.768
-cmklvm5y8001hja774ml3wlz3	cmkkl7404000d10u6awja3pml	cmk6fbng600014b63lbz4hbql	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	90.00	{}	2026-01-20 00:49:08.768	2026-01-20 00:49:08.768
-cmklvm5y8001ija77d9hyu7ag	cmkkl7404000d10u6awja3pml	cmk6fc2o500024b63vwcm68cp	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	80.00	{}	2026-01-20 00:49:08.768	2026-01-20 00:49:08.768
-cmklvm5y8001jja77isglndp9	cmkkl7404000d10u6awja3pml	cmk6fc2od00034b63mc8vtlep	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	80.00	{}	2026-01-20 00:49:08.768	2026-01-20 00:49:08.768
-cmklvm5y8001kja772p195eub	cmkkl7404000d10u6awja3pml	cmk6fjyhm000c4b631modt98m	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	120.00	{}	2026-01-20 00:49:08.768	2026-01-20 00:49:08.768
-cmklvm5y8001lja77i3te020x	cmkkl7404000d10u6awja3pml	cmk6fjyhq000d4b63ltsp5xkp	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	120.00	{}	2026-01-20 00:49:08.768	2026-01-20 00:49:08.768
-cmklvm5y8001mja77qm5ycki8	cmkkl7404000d10u6awja3pml	cmk6fkx5j000e4b639whx3sxx	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	150.00	{}	2026-01-20 00:49:08.768	2026-01-20 00:49:08.768
-cmklvm5y8001nja77xee9uhk3	cmkkl7404000d10u6awja3pml	cmk6fkx5l000f4b63teec2nro	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	150.00	{}	2026-01-20 00:49:08.768	2026-01-20 00:49:08.768
-cmklvm5y8001oja772uq4h7vl	cmkkl7404000d10u6awja3pml	cmk6ftqqu0004hxtskccmbx2s	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	120.00	{}	2026-01-20 00:49:08.768	2026-01-20 00:49:08.768
-cmklvm5y8001pja77csc53gev	cmkkl7404000d10u6awja3pml	cmk6fu8av0005hxtsrjafllf0	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	100.00	{}	2026-01-20 00:49:08.768	2026-01-20 00:49:08.768
-cmklvm5y8001qja77cesmy9mc	cmkkl7404000d10u6awja3pml	cmk6fvjvy0006hxtspj3i6nks	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	150.00	{}	2026-01-20 00:49:08.768	2026-01-20 00:49:08.768
-cmklvm5y8001rja777jegwtkv	cmkkl7404000d10u6awja3pml	cmk6fvjw00007hxtsirwx4s8m	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	150.00	{}	2026-01-20 00:49:08.768	2026-01-20 00:49:08.768
-cmklvm5y8001sja775vs0gx20	cmkkl7404000d10u6awja3pml	cmkauuj580000620v7qprf1fa	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	150.00	{}	2026-01-20 00:49:08.768	2026-01-20 00:49:08.768
-cmklvm5y8001tja77nj26dug4	cmkkl7404000d10u6awja3pml	cmkauuj5e0001620vtvan1277	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	150.00	{}	2026-01-20 00:49:08.768	2026-01-20 00:49:08.768
-cmklvm5y8001uja77jipmy7ja	cmkkl7404000d10u6awja3pml	cmkavuol30000ft7ltr5dldbf	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	180.00	{}	2026-01-20 00:49:08.768	2026-01-20 00:49:08.768
-cmklvm5y8001vja77uw3nw7mp	cmkkl7404000d10u6awja3pml	cmkavvbot0001ft7l6yfnze23	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	180.00	{}	2026-01-20 00:49:08.768	2026-01-20 00:49:08.768
-cmklvm5y8001wja77yqhmkx3o	cmkkl7404000d10u6awja3pml	cmkavvboy0002ft7lsl0ipbee	\N	\N	\N	0.00	\N	\N	\N	\N	\N	\N	1	0.00	180.00	{}	2026-01-20 00:49:08.768	2026-01-20 00:49:08.768
-cmklwg4m0000213ix5uwgc0s8	cmklwg4lx000113ixxok1a64o	\N	1	\N	1.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	\N	\N	\N	\N	2026-01-20 01:12:26.713	2026-01-20 01:12:26.713
-cmklwg4m0000313ix70bqg4hr	cmklwg4lx000113ixxok1a64o	\N	2	\N	1.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	\N	\N	\N	\N	2026-01-20 01:12:26.713	2026-01-20 01:12:26.713
-cmklwg4m0000413ixtprs7f2j	cmklwg4lx000113ixxok1a64o	\N	4	\N	1.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	\N	\N	\N	\N	2026-01-20 01:12:26.713	2026-01-20 01:12:26.713
-cmklwg4m0000513ixan2oq25p	cmklwg4lx000113ixxok1a64o	\N	8	\N	1.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	\N	\N	\N	\N	2026-01-20 01:12:26.713	2026-01-20 01:12:26.713
-cmklwgi5c000613ix7j8jysh4	cmklw5zmv0007iz63kbhevsc2	\N	1	\N	1.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	\N	\N	\N	\N	2026-01-20 01:12:44.257	2026-01-20 01:12:44.257
-cmklwgi5c000713ixaduxh3is	cmklw5zmv0007iz63kbhevsc2	\N	2	\N	1.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	\N	\N	\N	\N	2026-01-20 01:12:44.257	2026-01-20 01:12:44.257
-cmklwgi5c000813ixhrsxa0kf	cmklw5zmv0007iz63kbhevsc2	\N	4	\N	1.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	\N	\N	\N	\N	2026-01-20 01:12:44.257	2026-01-20 01:12:44.257
-cmklwgi5c000913ix030jxz1s	cmklw5zmv0007iz63kbhevsc2	\N	8	\N	1.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	\N	\N	\N	\N	2026-01-20 01:12:44.257	2026-01-20 01:12:44.257
+cmkp0sj37000itaz0mx8jct5n	cmkgcqgel0001vuyqquqn2f9z	\N	1	\N	1.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	\N	\N	\N	\N	2026-01-22 05:37:22.339	2026-01-22 05:37:22.339
+cmkp0sj37000jtaz0fcmnu904	cmkgcqgel0001vuyqquqn2f9z	\N	2	\N	1.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	\N	\N	\N	\N	2026-01-22 05:37:22.339	2026-01-22 05:37:22.339
+cmkp0sj37000ktaz04ikaghqj	cmkgcqgel0001vuyqquqn2f9z	\N	4	\N	1.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	\N	\N	\N	\N	2026-01-22 05:37:22.339	2026-01-22 05:37:22.339
+cmkp0sj37000ltaz0fb9pa27f	cmkgcqgel0001vuyqquqn2f9z	\N	8	\N	1.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	\N	\N	\N	\N	2026-01-22 05:37:22.339	2026-01-22 05:37:22.339
+cmkp1j68e001ytaz0jhonsi1p	cmkafl76r0001kz5orjfsda7c	\N	1	\N	1.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	\N	\N	\N	\N	2026-01-22 05:58:05.391	2026-01-22 05:58:05.391
+cmkp1j68e001ztaz06y8h2tpv	cmkafl76r0001kz5orjfsda7c	\N	2	\N	1.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	\N	\N	\N	\N	2026-01-22 05:58:05.391	2026-01-22 05:58:05.391
+cmkp1j68e0020taz0yung3wym	cmkafl76r0001kz5orjfsda7c	\N	4	\N	1.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	\N	\N	\N	\N	2026-01-22 05:58:05.391	2026-01-22 05:58:05.391
+cmkp1j68e0021taz07bhukykj	cmkafl76r0001kz5orjfsda7c	\N	8	\N	1.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	\N	\N	\N	\N	2026-01-22 05:58:05.391	2026-01-22 05:58:05.391
 \.
 
 
@@ -1977,6 +2466,42 @@ cmklwgi5c000913ix030jxz1s	cmklw5zmv0007iz63kbhevsc2	\N	8	\N	1.00	0.00	0.00	0.00	
 --
 
 COPY public.production_setting_specifications (id, "productionSettingId", "specificationId", price, "sortOrder", "createdAt", "updatedAt") FROM stdin;
+cmkp0ttcg000mtaz0j8vuqdk8	cmkkhk9d600542fduuvm9kmec	cmk6fbng100004b63c70xzv5a	\N	0	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg000ntaz0l8p6kgqa	cmkkhk9d600542fduuvm9kmec	cmk6fu8av0005hxtsrjafllf0	\N	1	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg000otaz01qgfcmxe	cmkkhk9d600542fduuvm9kmec	cmk6f3ym20006o43xdewhcbes	\N	2	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg000ptaz0vjvcoqv0	cmkkhk9d600542fduuvm9kmec	cmk6f88vs0009o43x378tye2v	\N	3	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg000qtaz0xhhj6p45	cmkkhk9d600542fduuvm9kmec	cmk6ftqqu0004hxtskccmbx2s	\N	4	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg000rtaz0hmjtw8g2	cmkkhk9d600542fduuvm9kmec	cmk6f6ndh0008o43xcv3mdzu1	\N	5	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg000staz0t4o67rd6	cmkkhk9d600542fduuvm9kmec	cmk6fjyhm000c4b631modt98m	\N	6	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg000ttaz0nl6678ol	cmkkhk9d600542fduuvm9kmec	cmk6fkx5j000e4b639whx3sxx	\N	7	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg000utaz0b266m1kz	cmkkhk9d600542fduuvm9kmec	cmk6fvjvy0006hxtspj3i6nks	\N	8	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg000vtaz06fszbpkj	cmkkhk9d600542fduuvm9kmec	cmkauuj580000620v7qprf1fa	\N	9	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg000wtaz0bk8n9hry	cmkkhk9d600542fduuvm9kmec	cmkavuol30000ft7ltr5dldbf	\N	10	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg000xtaz0sn2ze6t7	cmkkhk9d600542fduuvm9kmec	cmkavvbot0001ft7l6yfnze23	\N	11	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg000ytaz0jy3m7wng	cmkkhk9d600542fduuvm9kmec	cmk6fdf7400084b63698iy8j5	\N	12	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg000ztaz09qhhtr5l	cmkkhk9d600542fduuvm9kmec	cmk6fcj4d00044b63ydvo3m99	\N	13	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg0010taz09s2i9gp4	cmkkhk9d600542fduuvm9kmec	cmk6fd3tf00064b63chde9ajf	\N	14	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg0011taz05n9cx8nk	cmkkhk9d600542fduuvm9kmec	cmk6feqsv000a4b631dxzz34w	\N	15	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg0012taz0b5mcutdw	cmkkhk9d600542fduuvm9kmec	cmk6gcadq0000v9w22gdjvtj0	\N	16	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg0013taz01anlwu0n	cmkkhk9d600542fduuvm9kmec	cmk6gcljh0002v9w2h60pr8xa	\N	17	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg0014taz0hrkcik5y	cmkkhk9d600542fduuvm9kmec	cmk6f27np0004o43xbl1qfr5n	\N	18	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg0015taz0pdym2jqs	cmkkhk9d600542fduuvm9kmec	cmk6fbng600014b63lbz4hbql	\N	19	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg0016taz04ek62qzp	cmkkhk9d600542fduuvm9kmec	cmk6f3ym40007o43x4w1i7igj	\N	20	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg0017taz0yxu5yyvb	cmkkhk9d600542fduuvm9kmec	cmk6f88vu000ao43x13j2f12j	\N	21	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg0018taz043y5vrkc	cmkkhk9d600542fduuvm9kmec	cmk6fjyhq000d4b63ltsp5xkp	\N	22	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg0019taz05uwi9217	cmkkhk9d600542fduuvm9kmec	cmk6fvjw00007hxtsirwx4s8m	\N	23	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg001ataz0arye7w6d	cmkkhk9d600542fduuvm9kmec	cmk6fkx5l000f4b63teec2nro	\N	24	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg001btaz0nrz9zho2	cmkkhk9d600542fduuvm9kmec	cmkauuj5e0001620vtvan1277	\N	25	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg001ctaz065i3glda	cmkkhk9d600542fduuvm9kmec	cmkavvboy0002ft7lsl0ipbee	\N	26	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg001dtaz00s4htnoo	cmkkhk9d600542fduuvm9kmec	cmk6fdf7600094b63ff6454lx	\N	27	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg001etaz0cys9pz6l	cmkkhk9d600542fduuvm9kmec	cmk6fcj4f00054b63m430jdn4	\N	28	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg001ftaz0cf2l0ux5	cmkkhk9d600542fduuvm9kmec	cmk6fd3th00074b63i1ouhou9	\N	29	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg001gtaz0c6umyso1	cmkkhk9d600542fduuvm9kmec	cmk6feqsy000b4b63vxejnfur	\N	30	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg001htaz0rjwjhb4o	cmkkhk9d600542fduuvm9kmec	cmk6gcadu0001v9w2k7ogf6zt	\N	31	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg001itaz0mvyubm14	cmkkhk9d600542fduuvm9kmec	cmk6gcljl0003v9w2qe2j0lo1	\N	32	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg001jtaz0899xaohd	cmkkhk9d600542fduuvm9kmec	cmk6fc2o500024b63vwcm68cp	\N	33	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg001ktaz0aytxy5df	cmkkhk9d600542fduuvm9kmec	cmk6f27nr0005o43xwyhm7een	\N	34	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
+cmkp0ttcg001ltaz0y8t42lc3	cmkkhk9d600542fduuvm9kmec	cmk6fc2od00034b63mc8vtlep	\N	35	2026-01-22 05:38:22.288	2026-01-22 05:38:22.288
 \.
 
 
@@ -1984,22 +2509,22 @@ COPY public.production_setting_specifications (id, "productionSettingId", "speci
 -- Data for Name: production_settings; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.production_settings (id, "groupId", "codeName", "vendorType", "pricingType", "settingName", "sCode", "settingFee", "basePrice", "workDays", "weightInfo", "printMethod", "paperIds", "specUsageType", "singleSidedPrice", "doubleSidedPrice", "baseSpecificationId", "basePricePerSqInch", "priceGroups", "paperPriceGroupMap", "pageRanges", "lengthUnit", "lengthPriceRanges", "sortOrder", "isActive", "createdAt", "updatedAt", "areaPriceRanges", "areaUnit", "distancePriceRanges", "extraPricePerKm", "freeThreshold", "islandFee", "maxBaseDistance", "surchargeType") FROM stdin;
-cmkc9ptog0001jautjvefxhf6	cmk6hojvf000312ucl4e7yq1i	22203_001	in_house	nup_page_range	제본+출력(고급용지)		0.00	0.00	1.0		indigo	{cmk6bx7xd0006w4rgt2s54dqp,cmk6bw3930004w4rgfz1xi87r,cmk6bnlsk0002w4rgwhc1y6dw}	all	\N	\N	\N	\N	[{"id": "pg_1768290703920_9w889gcv5", "color": "green", "upPrices": [{"up": 1, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 2, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 4, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 8, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}]}, {"id": "pg_1768290748020_r6zoyq7pl", "color": "blue", "upPrices": [{"up": 1, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 2, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 4, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 8, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}]}]	{"cmk6bnlsk0002w4rgwhc1y6dw": "pg_1768290748020_r6zoyq7pl", "cmk6bw3930004w4rgfz1xi87r": null, "cmk6bx7xd0006w4rgt2s54dqp": "pg_1768290703920_9w889gcv5"}	[30, 40, 50]	cm	\N	0	t	2026-01-13 07:26:12.351	2026-01-19 02:20:24.508	\N	mm2	\N	\N	\N	\N	\N	none
-cmk6h6n41000fv9w2zc6fckd0	cmk6dka5d000coeubkdhjlz3u	22201_001	in_house	nup_page_range	스타제본		0.00	0.00	0.0	30\n40\n50	indigo	{}	all	\N	\N	\N	\N	[{"id": "pg_1768178522776_dihnptpoo", "color": "green", "upPrices": [{"up": 1, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 2, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 4, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 8, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}]}, {"id": "pg_1768178523052_ezp9yb9tr", "color": "blue", "upPrices": [{"up": 1, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 2, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 4, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 8, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}]}, {"id": "pg_1768178532061_injjo2woi", "color": "yellow", "upPrices": [{"up": 1, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 2, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 4, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 8, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}]}]	{}	[30, 40, 50, 60, 70, 80]	cm	\N	0	t	2026-01-09 06:08:37.249	2026-01-19 02:45:55.242	\N	mm2	\N	\N	\N	\N	\N	none
-cmkkhk9d600542fduuvm9kmec	cmkkh5l1w00522fducendddo0	111NaN_001	in_house	paper_output_spec	웨딩베이비		0.00	0.00	1.0		inkjet	{cmk6cl3kp0004oeub4w4fpghp,cmk6cj27s0001oeub8ot2p5wq}	all	\N	\N		\N	[{"id": "pg_1768786011033_7qd25f1mq", "color": "green", "upPrices": [{"up": 1, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 2, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 4, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 8, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}], "specPrices": [{"weight": 1, "specificationId": "cmk6fbng100004b63c70xzv5a", "singleSidedPrice": 600}, {"weight": 1, "specificationId": "cmk6fu8av0005hxtsrjafllf0", "singleSidedPrice": 850}, {"weight": 1, "specificationId": "cmk6f3ym20006o43xdewhcbes", "singleSidedPrice": 1000}, {"weight": 1, "specificationId": "cmk6f88vs0009o43x378tye2v", "singleSidedPrice": 1300}, {"weight": 1, "specificationId": "cmk6ftqqu0004hxtskccmbx2s", "singleSidedPrice": 1300}, {"weight": 1, "specificationId": "cmk6f6ndh0008o43xcv3mdzu1", "singleSidedPrice": 1600}, {"weight": 1, "specificationId": "cmk6fjyhm000c4b631modt98m", "singleSidedPrice": 2000}, {"weight": 1, "specificationId": "cmk6fkx5j000e4b639whx3sxx", "singleSidedPrice": 2100}, {"weight": 1, "specificationId": "cmk6fvjvy0006hxtspj3i6nks", "singleSidedPrice": 2300}, {"weight": 1, "specificationId": "cmkauuj580000620v7qprf1fa", "singleSidedPrice": 2300}, {"weight": 1, "specificationId": "cmkavuol30000ft7ltr5dldbf", "singleSidedPrice": 2500}, {"weight": 1, "specificationId": "cmkavvbot0001ft7l6yfnze23", "singleSidedPrice": 2900}, {"weight": 1, "specificationId": "cmk6fdf7400084b63698iy8j5", "singleSidedPrice": 4200}, {"weight": 1, "specificationId": "cmk6fcj4d00044b63ydvo3m99", "singleSidedPrice": 5000}, {"weight": 1, "specificationId": "cmk6fd3tf00064b63chde9ajf", "singleSidedPrice": 6200}, {"weight": 1, "specificationId": "cmk6feqsv000a4b631dxzz34w", "singleSidedPrice": 7800}, {"weight": 1, "specificationId": "cmk6gcadq0000v9w22gdjvtj0", "singleSidedPrice": 10000}, {"weight": 1, "specificationId": "cmk6gcljh0002v9w2h60pr8xa", "singleSidedPrice": 18300}, {"weight": 1, "specificationId": "cmk6f27np0004o43xbl1qfr5n", "singleSidedPrice": 460}, {"weight": 1, "specificationId": "cmk6fbng600014b63lbz4hbql", "singleSidedPrice": 600}, {"weight": 1, "specificationId": "cmk6f3ym40007o43x4w1i7igj", "singleSidedPrice": 1000}, {"weight": 1, "specificationId": "cmk6f88vu000ao43x13j2f12j", "singleSidedPrice": 1300}, {"weight": 1, "specificationId": "cmk6fjyhq000d4b63ltsp5xkp", "singleSidedPrice": 2000}, {"weight": 1, "specificationId": "cmk6fvjw00007hxtsirwx4s8m", "singleSidedPrice": 2300}, {"weight": 1, "specificationId": "cmk6fkx5l000f4b63teec2nro", "singleSidedPrice": 2100}, {"weight": 1, "specificationId": "cmkauuj5e0001620vtvan1277", "singleSidedPrice": 2300}, {"weight": 1, "specificationId": "cmkavvboy0002ft7lsl0ipbee", "singleSidedPrice": 2900}, {"weight": 1, "specificationId": "cmk6fdf7600094b63ff6454lx", "singleSidedPrice": 4200}, {"weight": 1, "specificationId": "cmk6fcj4f00054b63m430jdn4", "singleSidedPrice": 5000}, {"weight": 1, "specificationId": "cmk6fd3th00074b63i1ouhou9", "singleSidedPrice": 6200}, {"weight": 1, "specificationId": "cmk6feqsy000b4b63vxejnfur", "singleSidedPrice": 7800}, {"weight": 1, "specificationId": "cmk6gcadu0001v9w2k7ogf6zt", "singleSidedPrice": 10000}, {"weight": 1, "specificationId": "cmk6gcljl0003v9w2qe2j0lo1", "singleSidedPrice": 18300}, {"weight": 1, "specificationId": "cmk6fc2o500024b63vwcm68cp", "singleSidedPrice": 310}, {"weight": 1, "specificationId": "cmk6f27nr0005o43xwyhm7een", "singleSidedPrice": 460}, {"weight": 1, "specificationId": "cmk6fc2od00034b63mc8vtlep", "singleSidedPrice": 310}], "pricingMode": "spec", "inkjetBasePrice": 12.98701298701299, "inkjetBaseSpecId": "cmk6fjyhm000c4b631modt98m"}, {"id": "pg_1768786011553_8h4u0zoem", "color": "blue", "upPrices": [{"up": 1, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 2, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 4, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 8, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}], "specPrices": [{"weight": 1, "specificationId": "cmk6fbng100004b63c70xzv5a", "singleSidedPrice": 430}, {"weight": 1, "specificationId": "cmk6fu8av0005hxtsrjafllf0", "singleSidedPrice": 600}, {"weight": 1, "specificationId": "cmk6f3ym20006o43xdewhcbes", "singleSidedPrice": 700}, {"weight": 1, "specificationId": "cmk6f88vs0009o43x378tye2v", "singleSidedPrice": 850}, {"weight": 1, "specificationId": "cmk6ftqqu0004hxtskccmbx2s", "singleSidedPrice": 900}, {"weight": 1, "specificationId": "cmk6f6ndh0008o43xcv3mdzu1", "singleSidedPrice": 1100}, {"weight": 1, "specificationId": "cmk6fjyhm000c4b631modt98m", "singleSidedPrice": 1400}, {"weight": 1, "specificationId": "cmk6fkx5j000e4b639whx3sxx", "singleSidedPrice": 1500}, {"weight": 1, "specificationId": "cmk6fvjvy0006hxtspj3i6nks", "singleSidedPrice": 1600}, {"weight": 1, "specificationId": "cmkauuj580000620v7qprf1fa", "singleSidedPrice": 1600}, {"weight": 1, "specificationId": "cmkavuol30000ft7ltr5dldbf", "singleSidedPrice": 1800}, {"weight": 1, "specificationId": "cmkavvbot0001ft7l6yfnze23", "singleSidedPrice": 2000}, {"weight": 1, "specificationId": "cmk6fdf7400084b63698iy8j5", "singleSidedPrice": 2900}, {"weight": 1, "specificationId": "cmk6fcj4d00044b63ydvo3m99", "singleSidedPrice": 3500}, {"weight": 1, "specificationId": "cmk6fd3tf00064b63chde9ajf", "singleSidedPrice": 4300}, {"weight": 1, "specificationId": "cmk6feqsv000a4b631dxzz34w", "singleSidedPrice": 5400}, {"weight": 1, "specificationId": "cmk6gcadq0000v9w22gdjvtj0", "singleSidedPrice": 6900}, {"weight": 1, "specificationId": "cmk6gcljh0002v9w2h60pr8xa", "singleSidedPrice": 12700}, {"weight": 1, "specificationId": "cmk6f27np0004o43xbl1qfr5n", "singleSidedPrice": 320}, {"weight": 1, "specificationId": "cmk6fbng600014b63lbz4hbql", "singleSidedPrice": 430}, {"weight": 1, "specificationId": "cmk6f3ym40007o43x4w1i7igj", "singleSidedPrice": 700}, {"weight": 1, "specificationId": "cmk6f88vu000ao43x13j2f12j", "singleSidedPrice": 850}, {"weight": 1, "specificationId": "cmk6fjyhq000d4b63ltsp5xkp", "singleSidedPrice": 1400}, {"weight": 1, "specificationId": "cmk6fvjw00007hxtsirwx4s8m", "singleSidedPrice": 1600}, {"weight": 1, "specificationId": "cmk6fkx5l000f4b63teec2nro", "singleSidedPrice": 1500}, {"weight": 1, "specificationId": "cmkauuj5e0001620vtvan1277", "singleSidedPrice": 1600}, {"weight": 1, "specificationId": "cmkavvboy0002ft7lsl0ipbee", "singleSidedPrice": 2000}, {"weight": 1, "specificationId": "cmk6fdf7600094b63ff6454lx", "singleSidedPrice": 2900}, {"weight": 1, "specificationId": "cmk6fcj4f00054b63m430jdn4", "singleSidedPrice": 3500}, {"weight": 1, "specificationId": "cmk6fd3th00074b63i1ouhou9", "singleSidedPrice": 4300}, {"weight": 1, "specificationId": "cmk6feqsy000b4b63vxejnfur", "singleSidedPrice": 5400}, {"weight": 1, "specificationId": "cmk6gcadu0001v9w2k7ogf6zt", "singleSidedPrice": 6900}, {"weight": 1, "specificationId": "cmk6gcljl0003v9w2qe2j0lo1", "singleSidedPrice": 12700}, {"weight": 1, "specificationId": "cmk6fc2o500024b63vwcm68cp", "singleSidedPrice": 220}, {"weight": 1, "specificationId": "cmk6f27nr0005o43xwyhm7een", "singleSidedPrice": 320}, {"weight": 1, "specificationId": "cmk6fc2od00034b63mc8vtlep", "singleSidedPrice": 220}], "pricingMode": "sqinch", "inkjetBasePrice": 9, "inkjetBaseSpecId": ""}, {"id": "pg_1768786011964_9cx7ux2sp", "color": "yellow", "upPrices": [{"up": 1, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 2, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 4, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 8, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}], "specPrices": [], "pricingMode": "spec", "inkjetBasePrice": 0, "inkjetBaseSpecId": ""}]	{"cmk6cj27s0001oeub8ot2p5wq": "pg_1768786011553_8h4u0zoem", "cmk6cl3kp0004oeub4w4fpghp": "pg_1768786011033_7qd25f1mq"}	null	cm	\N	0	t	2026-01-19 01:27:59.081	2026-01-19 01:49:20.32	\N	mm2	\N	\N	\N	\N	\N	none
-cmkafl76r0001kz5orjfsda7c	cmk5crnw9000514mitnz68inm	11_001	in_house	paper_output_spec	웨딩베이비		0.00	0.00	1.0		indigo	{}	all	\N	\N		\N	[{"id": "pg_1768178038155_nz57kv6ai", "color": "green", "upPrices": [{"up": 1, "weight": 1, "sixColorDoublePrice": 1100, "sixColorSinglePrice": 1100, "fourColorDoublePrice": 1000, "fourColorSinglePrice": 1000}, {"up": 2, "weight": 1.2, "sixColorDoublePrice": 660, "sixColorSinglePrice": 660, "fourColorDoublePrice": 600, "fourColorSinglePrice": 600}, {"up": 4, "weight": 1.3, "sixColorDoublePrice": 360, "sixColorSinglePrice": 358, "fourColorDoublePrice": 325, "fourColorSinglePrice": 330}, {"up": 8, "weight": 1.4, "sixColorDoublePrice": 190, "sixColorSinglePrice": 193, "fourColorDoublePrice": 175, "fourColorSinglePrice": 180}], "specPrices": [{"weight": 1, "specificationId": "cmk6fbng100004b63c70xzv5a", "singleSidedPrice": 270}, {"weight": 1, "specificationId": "cmk6fu8av0005hxtsrjafllf0", "singleSidedPrice": 360}, {"weight": 1, "specificationId": "cmk6f3ym20006o43xdewhcbes", "singleSidedPrice": 450}, {"weight": 1, "specificationId": "cmk6f88vs0009o43x378tye2v", "singleSidedPrice": 544}, {"weight": 1, "specificationId": "cmk6ftqqu0004hxtskccmbx2s", "singleSidedPrice": 563}, {"weight": 1, "specificationId": "cmk6f6ndh0008o43xcv3mdzu1", "singleSidedPrice": 681}, {"weight": 1, "specificationId": "cmk6fjyhm000c4b631modt98m", "singleSidedPrice": 866}, {"weight": 1, "specificationId": "cmk6fkx5j000e4b639whx3sxx", "singleSidedPrice": 928}, {"weight": 1, "specificationId": "cmk6fvjvy0006hxtspj3i6nks", "singleSidedPrice": 990}, {"weight": 1, "specificationId": "cmkauuj580000620v7qprf1fa", "singleSidedPrice": 1013}, {"weight": 1, "specificationId": "cmkavuol30000ft7ltr5dldbf", "singleSidedPrice": 1103}, {"weight": 1, "specificationId": "cmkavvbot0001ft7l6yfnze23", "singleSidedPrice": 1260}, {"weight": 1, "specificationId": "cmk6fdf7400084b63698iy8j5", "singleSidedPrice": 1800}, {"weight": 1, "specificationId": "cmk6fcj4d00044b63ydvo3m99", "singleSidedPrice": 2160}, {"weight": 1, "specificationId": "cmk6fd3tf00064b63chde9ajf", "singleSidedPrice": 2700}, {"weight": 1, "specificationId": "cmk6feqsv000a4b631dxzz34w", "singleSidedPrice": 3375}, {"weight": 1, "specificationId": "cmk6gcadq0000v9w22gdjvtj0", "singleSidedPrice": 4320}, {"weight": 1, "specificationId": "cmk6gcljh0002v9w2h60pr8xa", "singleSidedPrice": 7920}, {"weight": 1, "specificationId": "cmk6f27np0004o43xbl1qfr5n", "singleSidedPrice": 197}, {"weight": 1, "specificationId": "cmk6fbng600014b63lbz4hbql", "singleSidedPrice": 270}, {"weight": 1, "specificationId": "cmk6f3ym40007o43x4w1i7igj", "singleSidedPrice": 450}, {"weight": 1, "specificationId": "cmk6f88vu000ao43x13j2f12j", "singleSidedPrice": 544}, {"weight": 1, "specificationId": "cmk6fjyhq000d4b63ltsp5xkp", "singleSidedPrice": 866}, {"weight": 1, "specificationId": "cmk6fvjw00007hxtsirwx4s8m", "singleSidedPrice": 990}, {"weight": 1, "specificationId": "cmk6fkx5l000f4b63teec2nro", "singleSidedPrice": 928}, {"weight": 1, "specificationId": "cmkauuj5e0001620vtvan1277", "singleSidedPrice": 1013}, {"weight": 1, "specificationId": "cmkavvboy0002ft7lsl0ipbee", "singleSidedPrice": 1260}, {"weight": 1, "specificationId": "cmk6fdf7600094b63ff6454lx", "singleSidedPrice": 1800}, {"weight": 1, "specificationId": "cmk6fcj4f00054b63m430jdn4", "singleSidedPrice": 2160}, {"weight": 1, "specificationId": "cmk6fd3th00074b63i1ouhou9", "singleSidedPrice": 2700}, {"weight": 1, "specificationId": "cmk6feqsy000b4b63vxejnfur", "singleSidedPrice": 3375}, {"weight": 1, "specificationId": "cmk6gcadu0001v9w2k7ogf6zt", "singleSidedPrice": 4320}, {"weight": 1, "specificationId": "cmk6gcljl0003v9w2qe2j0lo1", "singleSidedPrice": 7920}, {"weight": 1.2, "specificationId": "cmk6fc2o500024b63vwcm68cp", "singleSidedPrice": 162}, {"weight": 1, "specificationId": "cmk6f27nr0005o43xwyhm7een", "singleSidedPrice": 197}, {"weight": 1, "specificationId": "cmk6fc2od00034b63mc8vtlep", "singleSidedPrice": 135}], "inkjetBasePrice": 5.625, "inkjetBaseSpecId": "cmk6f3ym20006o43xdewhcbes"}, {"id": "pg_1768178039087_itb887tbc", "color": "blue", "upPrices": [{"up": 1, "weight": 1, "sixColorDoublePrice": 1100, "sixColorSinglePrice": 1200, "fourColorDoublePrice": 950, "fourColorSinglePrice": 1000}, {"up": 2, "weight": 1, "sixColorDoublePrice": 550, "sixColorSinglePrice": 600, "fourColorDoublePrice": 480, "fourColorSinglePrice": 500}, {"up": 4, "weight": 1, "sixColorDoublePrice": 280, "sixColorSinglePrice": 300, "fourColorDoublePrice": 240, "fourColorSinglePrice": 250}, {"up": 8, "weight": 1, "sixColorDoublePrice": 140, "sixColorSinglePrice": 150, "fourColorDoublePrice": 120, "fourColorSinglePrice": 130}], "specPrices": [], "inkjetBasePrice": 5}]	{"cmk6bnlsk0002w4rgwhc1y6dw": "pg_1768178039087_itb887tbc", "cmk6bw3930004w4rgfz1xi87r": "pg_1768178038155_nz57kv6ai", "cmk6bx7xd0006w4rgt2s54dqp": null, "cmk6c19320008w4rgtgxtmtlc": "pg_1768178039087_itb887tbc", "cmk6cj27s0001oeub8ot2p5wq": "pg_1768178039087_itb887tbc", "cmk6cl3kp0004oeub4w4fpghp": "pg_1768178038155_nz57kv6ai"}	\N	cm	\N	0	t	2026-01-12 00:35:01.922	2026-01-19 00:37:11.79	\N	mm2	\N	\N	\N	\N	\N	none
-cmkgcqgel0001vuyqquqn2f9z	cmk5crnw9000514mitnz68inm	11_002	in_house	paper_output_spec	인디고스냅사진		0.00	0.00	1.0		indigo	{}	all	\N	\N		\N	[{"id": "pg_1768536096664_hxqs8hls0", "color": "green", "upPrices": [{"up": 1, "weight": 1, "sixColorDoublePrice": 480, "sixColorSinglePrice": 500, "fourColorDoublePrice": 380, "fourColorSinglePrice": 400}, {"up": 2, "weight": 1, "sixColorDoublePrice": 240, "sixColorSinglePrice": 250, "fourColorDoublePrice": 190, "fourColorSinglePrice": 200}, {"up": 4, "weight": 1, "sixColorDoublePrice": 120, "sixColorSinglePrice": 130, "fourColorDoublePrice": 100, "fourColorSinglePrice": 100}, {"up": 8, "weight": 1, "sixColorDoublePrice": 60, "sixColorSinglePrice": 60, "fourColorDoublePrice": 50, "fourColorSinglePrice": 50}], "specPrices": [{"weight": 1, "specificationId": "cmk6fbng100004b63c70xzv5a", "singleSidedPrice": 310}, {"weight": 1, "specificationId": "cmk6fu8av0005hxtsrjafllf0", "singleSidedPrice": 420}, {"weight": 1, "specificationId": "cmk6f3ym20006o43xdewhcbes", "singleSidedPrice": 500}, {"weight": 1, "specificationId": "cmk6f88vs0009o43x378tye2v", "singleSidedPrice": 650}, {"weight": 1, "specificationId": "cmk6ftqqu0004hxtskccmbx2s", "singleSidedPrice": 650}, {"weight": 1, "specificationId": "cmk6f6ndh0008o43xcv3mdzu1", "singleSidedPrice": 800}, {"weight": 1, "specificationId": "cmk6fjyhm000c4b631modt98m", "singleSidedPrice": 1000}, {"weight": 1, "specificationId": "cmk6fkx5j000e4b639whx3sxx", "singleSidedPrice": 1100}, {"weight": 1, "specificationId": "cmk6fvjvy0006hxtspj3i6nks", "singleSidedPrice": 1100}, {"weight": 1, "specificationId": "cmkauuj580000620v7qprf1fa", "singleSidedPrice": 1200}, {"weight": 1, "specificationId": "cmkavuol30000ft7ltr5dldbf", "singleSidedPrice": 1300}, {"weight": 1, "specificationId": "cmkavvbot0001ft7l6yfnze23", "singleSidedPrice": 1500}, {"weight": 1, "specificationId": "cmk6fdf7400084b63698iy8j5", "singleSidedPrice": 2100}, {"weight": 1, "specificationId": "cmk6fcj4d00044b63ydvo3m99", "singleSidedPrice": 2500}, {"weight": 1, "specificationId": "cmk6fd3tf00064b63chde9ajf", "singleSidedPrice": 3100}, {"weight": 1, "specificationId": "cmk6feqsv000a4b631dxzz34w", "singleSidedPrice": 3900}, {"weight": 1, "specificationId": "cmk6gcadq0000v9w22gdjvtj0", "singleSidedPrice": 5000}, {"weight": 1, "specificationId": "cmk6gcljh0002v9w2h60pr8xa", "singleSidedPrice": 9100}, {"weight": 1, "specificationId": "cmk6f27np0004o43xbl1qfr5n", "singleSidedPrice": 230}, {"weight": 1, "specificationId": "cmk6fbng600014b63lbz4hbql", "singleSidedPrice": 310}, {"weight": 1, "specificationId": "cmk6f3ym40007o43x4w1i7igj", "singleSidedPrice": 500}, {"weight": 1, "specificationId": "cmk6f88vu000ao43x13j2f12j", "singleSidedPrice": 650}, {"weight": 1, "specificationId": "cmk6fjyhq000d4b63ltsp5xkp", "singleSidedPrice": 1000}, {"weight": 1, "specificationId": "cmk6fvjw00007hxtsirwx4s8m", "singleSidedPrice": 1100}, {"weight": 1, "specificationId": "cmk6fkx5l000f4b63teec2nro", "singleSidedPrice": 1100}, {"weight": 1, "specificationId": "cmkauuj5e0001620vtvan1277", "singleSidedPrice": 1200}, {"weight": 1, "specificationId": "cmkavvboy0002ft7lsl0ipbee", "singleSidedPrice": 1500}, {"weight": 1, "specificationId": "cmk6fdf7600094b63ff6454lx", "singleSidedPrice": 2100}, {"weight": 1, "specificationId": "cmk6fcj4f00054b63m430jdn4", "singleSidedPrice": 2500}, {"weight": 1, "specificationId": "cmk6fd3th00074b63i1ouhou9", "singleSidedPrice": 3100}, {"weight": 1, "specificationId": "cmk6feqsy000b4b63vxejnfur", "singleSidedPrice": 3900}, {"weight": 1, "specificationId": "cmk6gcadu0001v9w2k7ogf6zt", "singleSidedPrice": 5000}, {"weight": 1, "specificationId": "cmk6gcljl0003v9w2qe2j0lo1", "singleSidedPrice": 9100}, {"weight": 1, "specificationId": "cmk6fc2o500024b63vwcm68cp", "singleSidedPrice": 160}, {"weight": 1, "specificationId": "cmk6f27nr0005o43xwyhm7een", "singleSidedPrice": 230}, {"weight": 1, "specificationId": "cmk6fc2od00034b63mc8vtlep", "singleSidedPrice": 160}], "inkjetBasePrice": 6.493506493506493, "inkjetBaseSpecId": "cmk6fjyhm000c4b631modt98m"}, {"id": "pg_1768536123869_f96k5mt6y", "color": "blue", "upPrices": [{"up": 1, "weight": 1, "sixColorDoublePrice": 450, "sixColorSinglePrice": 480, "fourColorDoublePrice": 350, "fourColorSinglePrice": 380}, {"up": 2, "weight": 1, "sixColorDoublePrice": 230, "sixColorSinglePrice": 240, "fourColorDoublePrice": 180, "fourColorSinglePrice": 190}, {"up": 4, "weight": 1, "sixColorDoublePrice": 110, "sixColorSinglePrice": 120, "fourColorDoublePrice": 90, "fourColorSinglePrice": 100}, {"up": 8, "weight": 1, "sixColorDoublePrice": 60, "sixColorSinglePrice": 60, "fourColorDoublePrice": 40, "fourColorSinglePrice": 50}], "specPrices": [], "inkjetBasePrice": 5}]	{"cmk6bw3930004w4rgfz1xi87r": "pg_1768536096664_hxqs8hls0", "cmk6bx7xd0006w4rgt2s54dqp": "pg_1768536123869_f96k5mt6y", "cmk6cj27s0001oeub8ot2p5wq": "pg_1768536123869_f96k5mt6y", "cmk6cl3kp0004oeub4w4fpghp": "pg_1768536096664_hxqs8hls0"}	null	cm	\N	1	t	2026-01-16 04:01:45.356	2026-01-19 01:34:07.055	\N	mm2	\N	\N	\N	\N	\N	none
-cmkkhsxxs00ba2fdul36si9el	cmkkh5l1w00522fducendddo0	111NaN_002	in_house	paper_output_spec	잉크젯 스냅사진		0.00	0.00	1.0		inkjet	{cmk6cl3kp0004oeub4w4fpghp,cmk6cj27s0001oeub8ot2p5wq}	all	\N	\N		\N	[{"id": "pg_1768786473212_8pfnqfvuo", "color": "green", "upPrices": [{"up": 1, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 2, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 4, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 8, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}], "specPrices": [{"weight": 1, "specificationId": "cmk6fbng100004b63c70xzv5a", "singleSidedPrice": 468}, {"weight": 1, "specificationId": "cmk6fu8av0005hxtsrjafllf0", "singleSidedPrice": 623}, {"weight": 1, "specificationId": "cmk6f3ym20006o43xdewhcbes", "singleSidedPrice": 779}, {"weight": 1, "specificationId": "cmk6f88vs0009o43x378tye2v", "singleSidedPrice": 942}, {"weight": 1, "specificationId": "cmk6ftqqu0004hxtskccmbx2s", "singleSidedPrice": 974}, {"weight": 1, "specificationId": "cmk6f6ndh0008o43xcv3mdzu1", "singleSidedPrice": 1179}, {"weight": 1, "specificationId": "cmk6fjyhm000c4b631modt98m", "singleSidedPrice": 1500}, {"weight": 1, "specificationId": "cmk6fkx5j000e4b639whx3sxx", "singleSidedPrice": 1607}, {"weight": 1, "specificationId": "cmk6fvjvy0006hxtspj3i6nks", "singleSidedPrice": 1714}, {"weight": 1, "specificationId": "cmkauuj580000620v7qprf1fa", "singleSidedPrice": 1753}, {"weight": 1, "specificationId": "cmkavuol30000ft7ltr5dldbf", "singleSidedPrice": 1909}, {"weight": 1, "specificationId": "cmkavvbot0001ft7l6yfnze23", "singleSidedPrice": 2182}, {"weight": 1, "specificationId": "cmk6fdf7400084b63698iy8j5", "singleSidedPrice": 3117}, {"weight": 1, "specificationId": "cmk6fcj4d00044b63ydvo3m99", "singleSidedPrice": 3740}, {"weight": 1, "specificationId": "cmk6fd3tf00064b63chde9ajf", "singleSidedPrice": 4675}, {"weight": 1, "specificationId": "cmk6feqsv000a4b631dxzz34w", "singleSidedPrice": 5844}, {"weight": 1, "specificationId": "cmk6gcadq0000v9w22gdjvtj0", "singleSidedPrice": 7481}, {"weight": 1, "specificationId": "cmk6gcljh0002v9w2h60pr8xa", "singleSidedPrice": 13714}, {"weight": 1, "specificationId": "cmk6f27np0004o43xbl1qfr5n", "singleSidedPrice": 341}, {"weight": 1, "specificationId": "cmk6fbng600014b63lbz4hbql", "singleSidedPrice": 468}, {"weight": 1, "specificationId": "cmk6f3ym40007o43x4w1i7igj", "singleSidedPrice": 779}, {"weight": 1, "specificationId": "cmk6f88vu000ao43x13j2f12j", "singleSidedPrice": 942}, {"weight": 1, "specificationId": "cmk6fjyhq000d4b63ltsp5xkp", "singleSidedPrice": 1500}, {"weight": 1, "specificationId": "cmk6fvjw00007hxtsirwx4s8m", "singleSidedPrice": 1714}, {"weight": 1, "specificationId": "cmk6fkx5l000f4b63teec2nro", "singleSidedPrice": 1607}, {"weight": 1, "specificationId": "cmkauuj5e0001620vtvan1277", "singleSidedPrice": 1753}, {"weight": 1, "specificationId": "cmkavvboy0002ft7lsl0ipbee", "singleSidedPrice": 2182}, {"weight": 1, "specificationId": "cmk6fdf7600094b63ff6454lx", "singleSidedPrice": 3117}, {"weight": 1, "specificationId": "cmk6fcj4f00054b63m430jdn4", "singleSidedPrice": 3740}, {"weight": 1, "specificationId": "cmk6fd3th00074b63i1ouhou9", "singleSidedPrice": 4675}, {"weight": 1, "specificationId": "cmk6feqsy000b4b63vxejnfur", "singleSidedPrice": 5844}, {"weight": 1, "specificationId": "cmk6gcadu0001v9w2k7ogf6zt", "singleSidedPrice": 7481}, {"weight": 1, "specificationId": "cmk6gcljl0003v9w2qe2j0lo1", "singleSidedPrice": 13714}, {"weight": 1, "specificationId": "cmk6fc2o500024b63vwcm68cp", "singleSidedPrice": 234}, {"weight": 1, "specificationId": "cmk6f27nr0005o43xwyhm7een", "singleSidedPrice": 341}, {"weight": 1, "specificationId": "cmk6fc2od00034b63mc8vtlep", "singleSidedPrice": 234}], "pricingMode": "spec", "inkjetBasePrice": 9.74025974025974, "inkjetBaseSpecId": "cmk6fjyhm000c4b631modt98m"}, {"id": "pg_1768786475001_pjeb1zdss", "color": "blue", "upPrices": [{"up": 1, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 2, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 4, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 8, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}], "specPrices": [], "pricingMode": "sqinch", "inkjetBasePrice": 5, "inkjetBaseSpecId": ""}]	{"cmk6cj27s0001oeub8ot2p5wq": "pg_1768786475001_pjeb1zdss", "cmk6cl3kp0004oeub4w4fpghp": "pg_1768786473212_8pfnqfvuo"}	null	cm	\N	1	t	2026-01-19 01:34:44.176	2026-01-19 01:41:27.886	\N	mm2	\N	\N	\N	\N	\N	none
-cmklw5efx0001iz63pvsa7i8j	cmklvrqx40001dgdw7f98ssrs	2401_001	in_house	delivery_parcel	택배비		0.00	5500.00	0.0		indigo	{}	all	\N	\N	\N	\N	[]	{}	null	cm	null	0	t	2026-01-20 01:04:06.237	2026-01-20 06:58:46.056	null	mm2	\N	\N	\N	\N	\N	none
-cmkkvrn1q001y1032yamghstu	cmkkl5cfm000910u634dg5itg	230101_002	in_house	finishing_spec_nup	라미네이팅코팅 유광		0.00	0.00	0.0		\N	{}	indigo	\N	\N	\N	\N	null	null	null	cm	\N	1	t	2026-01-19 08:05:38.03	2026-01-20 00:48:57.902	\N	mm2	\N	\N	\N	\N	\N	none
-cmkkl7404000d10u6awja3pml	cmkkl5cfm000910u634dg5itg	230101_001	in_house	finishing_spec_nup	수성무광코팅		0.00	0.00	0.5		indigo	{}	inkjet	\N	\N	\N	\N	[]	{}	null	cm	\N	0	t	2026-01-19 03:09:44.068	2026-01-20 00:49:08.765	\N	mm2	\N	\N	\N	\N	\N	none
-cmklw5zmv0007iz63kbhevsc2	cmklvrqx40001dgdw7f98ssrs	2401_002	in_house	delivery_motorcycle	오토바이퀵배달		0.00	0.00	0.0		indigo	{}	all	\N	\N	\N	\N	[]	{}	null	cm	null	1	t	2026-01-20 01:04:33.704	2026-01-20 06:58:54.778	null	mm2	[{"price": 8000, "maxDistance": 5, "minDistance": 0}, {"price": 13000, "maxDistance": 10, "minDistance": 5}, {"price": 18000, "maxDistance": 15, "minDistance": 10}, {"price": 20000, "maxDistance": 20, "minDistance": 15}]	1000.00	50000.00	3000.00	0	night30_weekend20
-cmkkwnyu80001znpspowsyqks	cmkkvz2dp002o1032eo930jjl	230102_001	in_house	finishing_area	동판		0.00	0.00	2.0		\N	{}	all	\N	\N	\N	\N	null	null	null	cm	[{"price": 1000, "maxLength": 100, "minLength": 0}, {"price": 2000, "maxLength": 200, "minLength": 100}]	0	t	2026-01-19 08:30:46.305	2026-01-20 01:02:18.848	[{"area": 2400, "price": 50000, "maxWidth": 30, "maxHeight": 80}, {"area": 3000, "price": 70000, "maxWidth": 30, "maxHeight": 100}, {"area": 4500, "price": 120000, "maxWidth": 30, "maxHeight": 150}, {"area": 6000, "price": 150000, "maxWidth": 30, "maxHeight": 200}]	mm	\N	\N	\N	\N	\N	none
-cmklwg4lx000113ixxok1a64o	cmklvrqx40001dgdw7f98ssrs	2401_005	in_house	delivery_pickup	방문수령		0.00	0.00	0.0		indigo	{}	all	\N	\N	\N	\N	[]	{}	null	cm	null	4	t	2026-01-20 01:12:26.709	2026-01-20 01:58:37.182	null	mm2	\N	\N	\N	\N	\N	none
-cmklw66ag000diz63dhe9kkcw	cmklvrqx40001dgdw7f98ssrs	2401_003	in_house	delivery_damas	다마스		0.00	55000.00	0.0		indigo	{}	all	\N	\N	\N	\N	[]	{}	null	cm	null	2	t	2026-01-20 01:04:42.329	2026-01-20 07:06:48.226	null	mm2	[{"price": 15000, "maxDistance": 5, "minDistance": 0}, {"price": 20000, "maxDistance": 10, "minDistance": 5}, {"price": 25000, "maxDistance": 15, "minDistance": 10}, {"price": 30000, "maxDistance": 20, "minDistance": 15}]	1500.00	50000.00	3000.00	0	night30_weekend20
-cmklwokoe00012xun3harcjh6	cmkkvz2dp002o1032eo930jjl	230102_002	in_house	finishing_area	연판		0.00	0.00	1.0		\N	{}	all	\N	\N	\N	\N	null	null	null	cm	null	1	t	2026-01-20 01:19:00.782	2026-01-20 02:04:05.922	[{"area": 2400, "price": 25000, "maxWidth": 30, "maxHeight": 80}, {"area": 3000, "price": 50000, "maxWidth": 30, "maxHeight": 100}, {"area": 4500, "price": 77000, "maxWidth": 30, "maxHeight": 150}, {"area": 6000, "price": 132000, "maxWidth": 30, "maxHeight": 200}]	mm	\N	\N	\N	\N	\N	none
-cmklw6k9k000jiz63ea5ng1h4	cmklvrqx40001dgdw7f98ssrs	2401_004	in_house	delivery_freight	화물배송		0.00	0.00	0.0		indigo	{}	all	\N	\N	\N	\N	[]	{}	null	cm	null	3	t	2026-01-20 01:05:00.44	2026-01-20 07:07:04.101	null	mm2	[]	0.00	50000.00	3000.00	0	none
+COPY public.production_settings (id, "groupId", "codeName", "vendorType", "pricingType", "settingName", "sCode", "settingFee", "basePrice", "workDays", "weightInfo", "printMethod", "paperIds", "specUsageType", "singleSidedPrice", "doubleSidedPrice", "baseSpecificationId", "basePricePerSqInch", "priceGroups", "paperPriceGroupMap", "pageRanges", "lengthUnit", "lengthPriceRanges", "areaUnit", "areaPriceRanges", "surchargeType", "distancePriceRanges", "extraPricePerKm", "maxBaseDistance", "freeThreshold", "islandFee", "sortOrder", "isActive", "createdAt", "updatedAt") FROM stdin;
+cmk6h6n41000fv9w2zc6fckd0	cmk6dka5d000coeubkdhjlz3u	22201_001	in_house	nup_page_range	스타제본		0.00	0.00	0.0	30\n40\n50	indigo	{}	all	\N	\N	\N	\N	[{"id": "pg_1768178522776_dihnptpoo", "color": "green", "upPrices": [{"up": 1, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 2, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 4, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 8, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}]}, {"id": "pg_1768178523052_ezp9yb9tr", "color": "blue", "upPrices": [{"up": 1, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 2, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 4, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 8, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}]}, {"id": "pg_1768178532061_injjo2woi", "color": "yellow", "upPrices": [{"up": 1, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 2, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 4, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 8, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}]}]	{}	[30, 40, 50, 60, 70, 80]	cm	\N	mm2	\N	none	\N	\N	\N	\N	\N	0	t	2026-01-09 06:08:37.249	2026-01-19 02:45:55.242
+cmkkhsxxs00ba2fdul36si9el	cmkkh5l1w00522fducendddo0	111NaN_002	in_house	paper_output_spec	잉크젯 스냅사진		0.00	0.00	1.0		inkjet	{cmk6cl3kp0004oeub4w4fpghp,cmk6cj27s0001oeub8ot2p5wq}	all	\N	\N		\N	[{"id": "pg_1768786473212_8pfnqfvuo", "color": "green", "upPrices": [{"up": 1, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 2, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 4, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 8, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}], "specPrices": [{"weight": 1, "specificationId": "cmk6fbng100004b63c70xzv5a", "singleSidedPrice": 468}, {"weight": 1, "specificationId": "cmk6fu8av0005hxtsrjafllf0", "singleSidedPrice": 623}, {"weight": 1, "specificationId": "cmk6f3ym20006o43xdewhcbes", "singleSidedPrice": 779}, {"weight": 1, "specificationId": "cmk6f88vs0009o43x378tye2v", "singleSidedPrice": 942}, {"weight": 1, "specificationId": "cmk6ftqqu0004hxtskccmbx2s", "singleSidedPrice": 974}, {"weight": 1, "specificationId": "cmk6f6ndh0008o43xcv3mdzu1", "singleSidedPrice": 1179}, {"weight": 1, "specificationId": "cmk6fjyhm000c4b631modt98m", "singleSidedPrice": 1500}, {"weight": 1, "specificationId": "cmk6fkx5j000e4b639whx3sxx", "singleSidedPrice": 1607}, {"weight": 1, "specificationId": "cmk6fvjvy0006hxtspj3i6nks", "singleSidedPrice": 1714}, {"weight": 1, "specificationId": "cmkauuj580000620v7qprf1fa", "singleSidedPrice": 1753}, {"weight": 1, "specificationId": "cmkavuol30000ft7ltr5dldbf", "singleSidedPrice": 1909}, {"weight": 1, "specificationId": "cmkavvbot0001ft7l6yfnze23", "singleSidedPrice": 2182}, {"weight": 1, "specificationId": "cmk6fdf7400084b63698iy8j5", "singleSidedPrice": 3117}, {"weight": 1, "specificationId": "cmk6fcj4d00044b63ydvo3m99", "singleSidedPrice": 3740}, {"weight": 1, "specificationId": "cmk6fd3tf00064b63chde9ajf", "singleSidedPrice": 4675}, {"weight": 1, "specificationId": "cmk6feqsv000a4b631dxzz34w", "singleSidedPrice": 5844}, {"weight": 1, "specificationId": "cmk6gcadq0000v9w22gdjvtj0", "singleSidedPrice": 7481}, {"weight": 1, "specificationId": "cmk6gcljh0002v9w2h60pr8xa", "singleSidedPrice": 13714}, {"weight": 1, "specificationId": "cmk6f27np0004o43xbl1qfr5n", "singleSidedPrice": 341}, {"weight": 1, "specificationId": "cmk6fbng600014b63lbz4hbql", "singleSidedPrice": 468}, {"weight": 1, "specificationId": "cmk6f3ym40007o43x4w1i7igj", "singleSidedPrice": 779}, {"weight": 1, "specificationId": "cmk6f88vu000ao43x13j2f12j", "singleSidedPrice": 942}, {"weight": 1, "specificationId": "cmk6fjyhq000d4b63ltsp5xkp", "singleSidedPrice": 1500}, {"weight": 1, "specificationId": "cmk6fvjw00007hxtsirwx4s8m", "singleSidedPrice": 1714}, {"weight": 1, "specificationId": "cmk6fkx5l000f4b63teec2nro", "singleSidedPrice": 1607}, {"weight": 1, "specificationId": "cmkauuj5e0001620vtvan1277", "singleSidedPrice": 1753}, {"weight": 1, "specificationId": "cmkavvboy0002ft7lsl0ipbee", "singleSidedPrice": 2182}, {"weight": 1, "specificationId": "cmk6fdf7600094b63ff6454lx", "singleSidedPrice": 3117}, {"weight": 1, "specificationId": "cmk6fcj4f00054b63m430jdn4", "singleSidedPrice": 3740}, {"weight": 1, "specificationId": "cmk6fd3th00074b63i1ouhou9", "singleSidedPrice": 4675}, {"weight": 1, "specificationId": "cmk6feqsy000b4b63vxejnfur", "singleSidedPrice": 5844}, {"weight": 1, "specificationId": "cmk6gcadu0001v9w2k7ogf6zt", "singleSidedPrice": 7481}, {"weight": 1, "specificationId": "cmk6gcljl0003v9w2qe2j0lo1", "singleSidedPrice": 13714}, {"weight": 1, "specificationId": "cmk6fc2o500024b63vwcm68cp", "singleSidedPrice": 234}, {"weight": 1, "specificationId": "cmk6f27nr0005o43xwyhm7een", "singleSidedPrice": 341}, {"weight": 1, "specificationId": "cmk6fc2od00034b63mc8vtlep", "singleSidedPrice": 234}], "pricingMode": "spec", "inkjetBasePrice": 9.74025974025974, "inkjetBaseSpecId": "cmk6fjyhm000c4b631modt98m"}, {"id": "pg_1768786475001_pjeb1zdss", "color": "blue", "upPrices": [{"up": 1, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 2, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 4, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 8, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}], "specPrices": [], "pricingMode": "sqinch", "inkjetBasePrice": 5, "inkjetBaseSpecId": ""}]	{"cmk6cj27s0001oeub8ot2p5wq": "pg_1768786475001_pjeb1zdss", "cmk6cl3kp0004oeub4w4fpghp": "pg_1768786473212_8pfnqfvuo"}	null	cm	\N	mm2	\N	none	\N	\N	\N	\N	\N	1	t	2026-01-19 01:34:44.176	2026-01-19 01:41:27.886
+cmklw5efx0001iz63pvsa7i8j	cmklvrqx40001dgdw7f98ssrs	2401_001	in_house	delivery_parcel	택배비		0.00	5500.00	0.0		indigo	{}	all	\N	\N	\N	\N	[]	{}	null	cm	null	mm2	null	none	\N	\N	\N	\N	\N	0	t	2026-01-20 01:04:06.237	2026-01-20 06:58:46.056
+cmkkvrn1q001y1032yamghstu	cmkkl5cfm000910u634dg5itg	230101_002	in_house	finishing_spec_nup	라미네이팅코팅 유광		0.00	0.00	0.0		\N	{}	indigo	\N	\N	\N	\N	null	null	null	cm	\N	mm2	\N	none	\N	\N	\N	\N	\N	1	t	2026-01-19 08:05:38.03	2026-01-20 00:48:57.902
+cmkkl7404000d10u6awja3pml	cmkkl5cfm000910u634dg5itg	230101_001	in_house	finishing_spec_nup	수성무광코팅		0.00	0.00	0.5		indigo	{}	inkjet	\N	\N	\N	\N	[]	{}	null	cm	\N	mm2	\N	none	\N	\N	\N	\N	\N	0	t	2026-01-19 03:09:44.068	2026-01-20 00:49:08.765
+cmkgcqgel0001vuyqquqn2f9z	cmk5crnw9000514mitnz68inm	11_002	in_house	paper_output_spec	인디고스냅사진		0.00	0.00	1.0		indigo	{}	all	\N	\N		\N	[{"id": "pg_1768536096664_hxqs8hls0", "color": "green", "upPrices": [{"up": 1, "weight": 1, "sixColorDoublePrice": 480, "sixColorSinglePrice": 500, "fourColorDoublePrice": 380, "fourColorSinglePrice": 400}, {"up": 2, "weight": 1, "sixColorDoublePrice": 240, "sixColorSinglePrice": 250, "fourColorDoublePrice": 190, "fourColorSinglePrice": 200}, {"up": 4, "weight": 1, "sixColorDoublePrice": 120, "sixColorSinglePrice": 130, "fourColorDoublePrice": 100, "fourColorSinglePrice": 100}, {"up": 8, "weight": 1, "sixColorDoublePrice": 60, "sixColorSinglePrice": 60, "fourColorDoublePrice": 50, "fourColorSinglePrice": 50}], "specPrices": [{"weight": 1, "specificationId": "cmk6fbng100004b63c70xzv5a", "singleSidedPrice": 310}, {"weight": 1, "specificationId": "cmk6fu8av0005hxtsrjafllf0", "singleSidedPrice": 420}, {"weight": 1, "specificationId": "cmk6f3ym20006o43xdewhcbes", "singleSidedPrice": 500}, {"weight": 1, "specificationId": "cmk6f88vs0009o43x378tye2v", "singleSidedPrice": 650}, {"weight": 1, "specificationId": "cmk6ftqqu0004hxtskccmbx2s", "singleSidedPrice": 650}, {"weight": 1, "specificationId": "cmk6f6ndh0008o43xcv3mdzu1", "singleSidedPrice": 800}, {"weight": 1, "specificationId": "cmk6fjyhm000c4b631modt98m", "singleSidedPrice": 1000}, {"weight": 1, "specificationId": "cmk6fkx5j000e4b639whx3sxx", "singleSidedPrice": 1100}, {"weight": 1, "specificationId": "cmk6fvjvy0006hxtspj3i6nks", "singleSidedPrice": 1100}, {"weight": 1, "specificationId": "cmkauuj580000620v7qprf1fa", "singleSidedPrice": 1200}, {"weight": 1, "specificationId": "cmkavuol30000ft7ltr5dldbf", "singleSidedPrice": 1300}, {"weight": 1, "specificationId": "cmkavvbot0001ft7l6yfnze23", "singleSidedPrice": 1500}, {"weight": 1, "specificationId": "cmk6fdf7400084b63698iy8j5", "singleSidedPrice": 2100}, {"weight": 1, "specificationId": "cmk6fcj4d00044b63ydvo3m99", "singleSidedPrice": 2500}, {"weight": 1, "specificationId": "cmk6fd3tf00064b63chde9ajf", "singleSidedPrice": 3100}, {"weight": 1, "specificationId": "cmk6feqsv000a4b631dxzz34w", "singleSidedPrice": 3900}, {"weight": 1, "specificationId": "cmk6gcadq0000v9w22gdjvtj0", "singleSidedPrice": 5000}, {"weight": 1, "specificationId": "cmk6gcljh0002v9w2h60pr8xa", "singleSidedPrice": 9100}, {"weight": 1, "specificationId": "cmk6f27np0004o43xbl1qfr5n", "singleSidedPrice": 230}, {"weight": 1, "specificationId": "cmk6fbng600014b63lbz4hbql", "singleSidedPrice": 310}, {"weight": 1, "specificationId": "cmk6f3ym40007o43x4w1i7igj", "singleSidedPrice": 500}, {"weight": 1, "specificationId": "cmk6f88vu000ao43x13j2f12j", "singleSidedPrice": 650}, {"weight": 1, "specificationId": "cmk6fjyhq000d4b63ltsp5xkp", "singleSidedPrice": 1000}, {"weight": 1, "specificationId": "cmk6fvjw00007hxtsirwx4s8m", "singleSidedPrice": 1100}, {"weight": 1, "specificationId": "cmk6fkx5l000f4b63teec2nro", "singleSidedPrice": 1100}, {"weight": 1, "specificationId": "cmkauuj5e0001620vtvan1277", "singleSidedPrice": 1200}, {"weight": 1, "specificationId": "cmkavvboy0002ft7lsl0ipbee", "singleSidedPrice": 1500}, {"weight": 1, "specificationId": "cmk6fdf7600094b63ff6454lx", "singleSidedPrice": 2100}, {"weight": 1, "specificationId": "cmk6fcj4f00054b63m430jdn4", "singleSidedPrice": 2500}, {"weight": 1, "specificationId": "cmk6fd3th00074b63i1ouhou9", "singleSidedPrice": 3100}, {"weight": 1, "specificationId": "cmk6feqsy000b4b63vxejnfur", "singleSidedPrice": 3900}, {"weight": 1, "specificationId": "cmk6gcadu0001v9w2k7ogf6zt", "singleSidedPrice": 5000}, {"weight": 1, "specificationId": "cmk6gcljl0003v9w2qe2j0lo1", "singleSidedPrice": 9100}, {"weight": 1, "specificationId": "cmk6fc2o500024b63vwcm68cp", "singleSidedPrice": 160}, {"weight": 1, "specificationId": "cmk6f27nr0005o43xwyhm7een", "singleSidedPrice": 230}, {"weight": 1, "specificationId": "cmk6fc2od00034b63mc8vtlep", "singleSidedPrice": 160}], "pricingMode": "spec", "inkjetBasePrice": 6.493506493506493, "inkjetBaseSpecId": "cmk6fjyhm000c4b631modt98m"}, {"id": "pg_1768536123869_f96k5mt6y", "color": "blue", "upPrices": [{"up": 1, "weight": 1, "sixColorDoublePrice": 450, "sixColorSinglePrice": 480, "fourColorDoublePrice": 350, "fourColorSinglePrice": 380}, {"up": 2, "weight": 1, "sixColorDoublePrice": 230, "sixColorSinglePrice": 240, "fourColorDoublePrice": 180, "fourColorSinglePrice": 190}, {"up": 4, "weight": 1, "sixColorDoublePrice": 110, "sixColorSinglePrice": 120, "fourColorDoublePrice": 90, "fourColorSinglePrice": 100}, {"up": 8, "weight": 1, "sixColorDoublePrice": 60, "sixColorSinglePrice": 60, "fourColorDoublePrice": 40, "fourColorSinglePrice": 50}], "specPrices": [], "pricingMode": "spec", "inkjetBasePrice": 5}]	{"cmk6bw3930004w4rgfz1xi87r": "pg_1768536096664_hxqs8hls0", "cmk6bx7xd0006w4rgt2s54dqp": "pg_1768536123869_f96k5mt6y", "cmk6cj27s0001oeub8ot2p5wq": "pg_1768536123869_f96k5mt6y", "cmk6cl3kp0004oeub4w4fpghp": "pg_1768536096664_hxqs8hls0"}	null	cm	\N	mm2	\N	none	\N	\N	\N	\N	\N	1	t	2026-01-16 04:01:45.356	2026-01-22 05:37:22.335
+cmkkhk9d600542fduuvm9kmec	cmkkh5l1w00522fducendddo0	111NaN_001	in_house	paper_output_spec	웨딩베이비		0.00	0.00	1.0		inkjet	{cmk6cl3kp0004oeub4w4fpghp,cmk6cj27s0001oeub8ot2p5wq}	all	\N	\N		\N	[{"id": "pg_1768786011033_7qd25f1mq", "color": "green", "upPrices": [{"up": 1, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 2, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 4, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 8, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}], "specPrices": [{"weight": 1, "specificationId": "cmk6fbng100004b63c70xzv5a", "singleSidedPrice": 600}, {"weight": 1, "specificationId": "cmk6fu8av0005hxtsrjafllf0", "singleSidedPrice": 850}, {"weight": 1, "specificationId": "cmk6f3ym20006o43xdewhcbes", "singleSidedPrice": 1000}, {"weight": 1, "specificationId": "cmk6f88vs0009o43x378tye2v", "singleSidedPrice": 1300}, {"weight": 1, "specificationId": "cmk6ftqqu0004hxtskccmbx2s", "singleSidedPrice": 1300}, {"weight": 1, "specificationId": "cmk6f6ndh0008o43xcv3mdzu1", "singleSidedPrice": 1600}, {"weight": 1, "specificationId": "cmk6fjyhm000c4b631modt98m", "singleSidedPrice": 2000}, {"weight": 1, "specificationId": "cmk6fkx5j000e4b639whx3sxx", "singleSidedPrice": 2100}, {"weight": 1, "specificationId": "cmk6fvjvy0006hxtspj3i6nks", "singleSidedPrice": 2300}, {"weight": 1, "specificationId": "cmkauuj580000620v7qprf1fa", "singleSidedPrice": 2300}, {"weight": 1, "specificationId": "cmkavuol30000ft7ltr5dldbf", "singleSidedPrice": 2500}, {"weight": 1, "specificationId": "cmkavvbot0001ft7l6yfnze23", "singleSidedPrice": 2900}, {"weight": 1, "specificationId": "cmk6fdf7400084b63698iy8j5", "singleSidedPrice": 4200}, {"weight": 1, "specificationId": "cmk6fcj4d00044b63ydvo3m99", "singleSidedPrice": 5000}, {"weight": 1, "specificationId": "cmk6fd3tf00064b63chde9ajf", "singleSidedPrice": 6200}, {"weight": 1, "specificationId": "cmk6feqsv000a4b631dxzz34w", "singleSidedPrice": 7800}, {"weight": 1, "specificationId": "cmk6gcadq0000v9w22gdjvtj0", "singleSidedPrice": 10000}, {"weight": 1, "specificationId": "cmk6gcljh0002v9w2h60pr8xa", "singleSidedPrice": 18300}, {"weight": 1, "specificationId": "cmk6f27np0004o43xbl1qfr5n", "singleSidedPrice": 460}, {"weight": 1, "specificationId": "cmk6fbng600014b63lbz4hbql", "singleSidedPrice": 600}, {"weight": 1, "specificationId": "cmk6f3ym40007o43x4w1i7igj", "singleSidedPrice": 1000}, {"weight": 1, "specificationId": "cmk6f88vu000ao43x13j2f12j", "singleSidedPrice": 1300}, {"weight": 1, "specificationId": "cmk6fjyhq000d4b63ltsp5xkp", "singleSidedPrice": 2000}, {"weight": 1, "specificationId": "cmk6fvjw00007hxtsirwx4s8m", "singleSidedPrice": 2300}, {"weight": 1, "specificationId": "cmk6fkx5l000f4b63teec2nro", "singleSidedPrice": 2100}, {"weight": 1, "specificationId": "cmkauuj5e0001620vtvan1277", "singleSidedPrice": 2300}, {"weight": 1, "specificationId": "cmkavvboy0002ft7lsl0ipbee", "singleSidedPrice": 2900}, {"weight": 1, "specificationId": "cmk6fdf7600094b63ff6454lx", "singleSidedPrice": 4200}, {"weight": 1, "specificationId": "cmk6fcj4f00054b63m430jdn4", "singleSidedPrice": 5000}, {"weight": 1, "specificationId": "cmk6fd3th00074b63i1ouhou9", "singleSidedPrice": 6200}, {"weight": 1, "specificationId": "cmk6feqsy000b4b63vxejnfur", "singleSidedPrice": 7800}, {"weight": 1, "specificationId": "cmk6gcadu0001v9w2k7ogf6zt", "singleSidedPrice": 10000}, {"weight": 1, "specificationId": "cmk6gcljl0003v9w2qe2j0lo1", "singleSidedPrice": 18300}, {"weight": 1, "specificationId": "cmk6fc2o500024b63vwcm68cp", "singleSidedPrice": 310}, {"weight": 1, "specificationId": "cmk6f27nr0005o43xwyhm7een", "singleSidedPrice": 460}, {"weight": 1, "specificationId": "cmk6fc2od00034b63mc8vtlep", "singleSidedPrice": 310}], "pricingMode": "spec", "inkjetBasePrice": 12.98701298701299, "inkjetBaseSpecId": "cmk6fjyhm000c4b631modt98m"}, {"id": "pg_1768786011553_8h4u0zoem", "color": "blue", "upPrices": [{"up": 1, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 2, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 4, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 8, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}], "specPrices": [{"weight": 1, "specificationId": "cmk6fbng100004b63c70xzv5a", "singleSidedPrice": 430}, {"weight": 1, "specificationId": "cmk6fu8av0005hxtsrjafllf0", "singleSidedPrice": 600}, {"weight": 1, "specificationId": "cmk6f3ym20006o43xdewhcbes", "singleSidedPrice": 700}, {"weight": 1, "specificationId": "cmk6f88vs0009o43x378tye2v", "singleSidedPrice": 850}, {"weight": 1, "specificationId": "cmk6ftqqu0004hxtskccmbx2s", "singleSidedPrice": 900}, {"weight": 1, "specificationId": "cmk6f6ndh0008o43xcv3mdzu1", "singleSidedPrice": 1100}, {"weight": 1, "specificationId": "cmk6fjyhm000c4b631modt98m", "singleSidedPrice": 1400}, {"weight": 1, "specificationId": "cmk6fkx5j000e4b639whx3sxx", "singleSidedPrice": 1500}, {"weight": 1, "specificationId": "cmk6fvjvy0006hxtspj3i6nks", "singleSidedPrice": 1600}, {"weight": 1, "specificationId": "cmkauuj580000620v7qprf1fa", "singleSidedPrice": 1600}, {"weight": 1, "specificationId": "cmkavuol30000ft7ltr5dldbf", "singleSidedPrice": 1800}, {"weight": 1, "specificationId": "cmkavvbot0001ft7l6yfnze23", "singleSidedPrice": 2000}, {"weight": 1, "specificationId": "cmk6fdf7400084b63698iy8j5", "singleSidedPrice": 2900}, {"weight": 1, "specificationId": "cmk6fcj4d00044b63ydvo3m99", "singleSidedPrice": 3500}, {"weight": 1, "specificationId": "cmk6fd3tf00064b63chde9ajf", "singleSidedPrice": 4300}, {"weight": 1, "specificationId": "cmk6feqsv000a4b631dxzz34w", "singleSidedPrice": 5400}, {"weight": 1, "specificationId": "cmk6gcadq0000v9w22gdjvtj0", "singleSidedPrice": 6900}, {"weight": 1, "specificationId": "cmk6gcljh0002v9w2h60pr8xa", "singleSidedPrice": 12700}, {"weight": 1, "specificationId": "cmk6f27np0004o43xbl1qfr5n", "singleSidedPrice": 320}, {"weight": 1, "specificationId": "cmk6fbng600014b63lbz4hbql", "singleSidedPrice": 430}, {"weight": 1, "specificationId": "cmk6f3ym40007o43x4w1i7igj", "singleSidedPrice": 700}, {"weight": 1, "specificationId": "cmk6f88vu000ao43x13j2f12j", "singleSidedPrice": 850}, {"weight": 1, "specificationId": "cmk6fjyhq000d4b63ltsp5xkp", "singleSidedPrice": 1400}, {"weight": 1, "specificationId": "cmk6fvjw00007hxtsirwx4s8m", "singleSidedPrice": 1600}, {"weight": 1, "specificationId": "cmk6fkx5l000f4b63teec2nro", "singleSidedPrice": 1500}, {"weight": 1, "specificationId": "cmkauuj5e0001620vtvan1277", "singleSidedPrice": 1600}, {"weight": 1, "specificationId": "cmkavvboy0002ft7lsl0ipbee", "singleSidedPrice": 2000}, {"weight": 1, "specificationId": "cmk6fdf7600094b63ff6454lx", "singleSidedPrice": 2900}, {"weight": 1, "specificationId": "cmk6fcj4f00054b63m430jdn4", "singleSidedPrice": 3500}, {"weight": 1, "specificationId": "cmk6fd3th00074b63i1ouhou9", "singleSidedPrice": 4300}, {"weight": 1, "specificationId": "cmk6feqsy000b4b63vxejnfur", "singleSidedPrice": 5400}, {"weight": 1, "specificationId": "cmk6gcadu0001v9w2k7ogf6zt", "singleSidedPrice": 6900}, {"weight": 1, "specificationId": "cmk6gcljl0003v9w2qe2j0lo1", "singleSidedPrice": 12700}, {"weight": 1, "specificationId": "cmk6fc2o500024b63vwcm68cp", "singleSidedPrice": 220}, {"weight": 1, "specificationId": "cmk6f27nr0005o43xwyhm7een", "singleSidedPrice": 320}, {"weight": 1, "specificationId": "cmk6fc2od00034b63mc8vtlep", "singleSidedPrice": 220}], "pricingMode": "sqinch", "inkjetBasePrice": 9, "inkjetBaseSpecId": ""}, {"id": "pg_1768786011964_9cx7ux2sp", "color": "yellow", "upPrices": [{"up": 1, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 2, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 4, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 8, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}], "specPrices": [{"weight": 1, "specificationId": "cmk6fbng100004b63c70xzv5a", "singleSidedPrice": 430}, {"weight": 1, "specificationId": "cmk6fu8av0005hxtsrjafllf0", "singleSidedPrice": 600}, {"weight": 1, "specificationId": "cmk6f3ym20006o43xdewhcbes", "singleSidedPrice": 700}, {"weight": 1, "specificationId": "cmk6f88vs0009o43x378tye2v", "singleSidedPrice": 850}, {"weight": 1, "specificationId": "cmk6ftqqu0004hxtskccmbx2s", "singleSidedPrice": 900}, {"weight": 1, "specificationId": "cmk6f6ndh0008o43xcv3mdzu1", "singleSidedPrice": 1100}, {"weight": 1, "specificationId": "cmk6fjyhm000c4b631modt98m", "singleSidedPrice": 1400}, {"weight": 1, "specificationId": "cmk6fkx5j000e4b639whx3sxx", "singleSidedPrice": 1500}, {"weight": 1, "specificationId": "cmk6fvjvy0006hxtspj3i6nks", "singleSidedPrice": 1600}, {"weight": 1, "specificationId": "cmkauuj580000620v7qprf1fa", "singleSidedPrice": 1600}, {"weight": 1, "specificationId": "cmkavuol30000ft7ltr5dldbf", "singleSidedPrice": 1800}, {"weight": 1, "specificationId": "cmkavvbot0001ft7l6yfnze23", "singleSidedPrice": 2000}, {"weight": 1, "specificationId": "cmk6fdf7400084b63698iy8j5", "singleSidedPrice": 2900}, {"weight": 1, "specificationId": "cmk6fcj4d00044b63ydvo3m99", "singleSidedPrice": 3500}, {"weight": 1, "specificationId": "cmk6fd3tf00064b63chde9ajf", "singleSidedPrice": 4300}, {"weight": 1, "specificationId": "cmk6feqsv000a4b631dxzz34w", "singleSidedPrice": 5400}, {"weight": 1, "specificationId": "cmk6gcadq0000v9w22gdjvtj0", "singleSidedPrice": 6900}, {"weight": 1, "specificationId": "cmk6gcljh0002v9w2h60pr8xa", "singleSidedPrice": 12700}, {"weight": 1, "specificationId": "cmk6f27np0004o43xbl1qfr5n", "singleSidedPrice": 320}, {"weight": 1, "specificationId": "cmk6fbng600014b63lbz4hbql", "singleSidedPrice": 430}, {"weight": 1, "specificationId": "cmk6f3ym40007o43x4w1i7igj", "singleSidedPrice": 700}, {"weight": 1, "specificationId": "cmk6f88vu000ao43x13j2f12j", "singleSidedPrice": 850}, {"weight": 1, "specificationId": "cmk6fjyhq000d4b63ltsp5xkp", "singleSidedPrice": 1400}, {"weight": 1, "specificationId": "cmk6fvjw00007hxtsirwx4s8m", "singleSidedPrice": 1600}, {"weight": 1, "specificationId": "cmk6fkx5l000f4b63teec2nro", "singleSidedPrice": 1500}, {"weight": 1, "specificationId": "cmkauuj5e0001620vtvan1277", "singleSidedPrice": 1600}, {"weight": 1, "specificationId": "cmkavvboy0002ft7lsl0ipbee", "singleSidedPrice": 2000}, {"weight": 1, "specificationId": "cmk6fdf7600094b63ff6454lx", "singleSidedPrice": 2900}, {"weight": 1, "specificationId": "cmk6fcj4f00054b63m430jdn4", "singleSidedPrice": 3500}, {"weight": 1, "specificationId": "cmk6fd3th00074b63i1ouhou9", "singleSidedPrice": 4300}, {"weight": 1, "specificationId": "cmk6feqsy000b4b63vxejnfur", "singleSidedPrice": 5400}, {"weight": 1, "specificationId": "cmk6gcadu0001v9w2k7ogf6zt", "singleSidedPrice": 6900}, {"weight": 1, "specificationId": "cmk6gcljl0003v9w2qe2j0lo1", "singleSidedPrice": 12700}, {"weight": 1, "specificationId": "cmk6fc2o500024b63vwcm68cp", "singleSidedPrice": 220}, {"weight": 1, "specificationId": "cmk6f27nr0005o43xwyhm7een", "singleSidedPrice": 320}, {"weight": 1, "specificationId": "cmk6fc2od00034b63mc8vtlep", "singleSidedPrice": 220}], "pricingMode": "sqinch", "inkjetBasePrice": 9, "inkjetBaseSpecId": ""}]	{"cmk6cj27s0001oeub8ot2p5wq": "pg_1768786011553_8h4u0zoem", "cmk6cl3kp0004oeub4w4fpghp": "pg_1768786011033_7qd25f1mq"}	null	cm	\N	mm2	\N	none	\N	\N	\N	\N	\N	0	t	2026-01-19 01:27:59.081	2026-01-22 05:38:22.282
+cmklw5zmv0007iz63kbhevsc2	cmklvrqx40001dgdw7f98ssrs	2401_002	in_house	delivery_motorcycle	오토바이퀵배달		0.00	0.00	0.0		indigo	{}	all	\N	\N	\N	\N	[]	{}	null	cm	null	mm2	null	night30_weekend20	[{"price": 8000, "maxDistance": 5, "minDistance": 0}, {"price": 13000, "maxDistance": 10, "minDistance": 5}, {"price": 18000, "maxDistance": 15, "minDistance": 10}, {"price": 20000, "maxDistance": 20, "minDistance": 15}]	1000.00	0	50000.00	3000.00	1	t	2026-01-20 01:04:33.704	2026-01-20 06:58:54.778
+cmklwg4lx000113ixxok1a64o	cmklvrqx40001dgdw7f98ssrs	2401_005	in_house	delivery_pickup	방문수령		0.00	0.00	0.0		indigo	{}	all	\N	\N	\N	\N	[]	{}	null	cm	null	mm2	null	none	\N	\N	\N	\N	\N	4	t	2026-01-20 01:12:26.709	2026-01-20 01:58:37.182
+cmklw66ag000diz63dhe9kkcw	cmklvrqx40001dgdw7f98ssrs	2401_003	in_house	delivery_damas	다마스		0.00	55000.00	0.0		indigo	{}	all	\N	\N	\N	\N	[]	{}	null	cm	null	mm2	null	night30_weekend20	[{"price": 15000, "maxDistance": 5, "minDistance": 0}, {"price": 20000, "maxDistance": 10, "minDistance": 5}, {"price": 25000, "maxDistance": 15, "minDistance": 10}, {"price": 30000, "maxDistance": 20, "minDistance": 15}]	1500.00	0	50000.00	3000.00	2	t	2026-01-20 01:04:42.329	2026-01-20 07:06:48.226
+cmklwokoe00012xun3harcjh6	cmkkvz2dp002o1032eo930jjl	230102_002	in_house	finishing_area	연판		0.00	0.00	1.0		\N	{}	all	\N	\N	\N	\N	null	null	null	cm	null	mm	[{"area": 2400, "price": 25000, "maxWidth": 30, "maxHeight": 80}, {"area": 3000, "price": 50000, "maxWidth": 30, "maxHeight": 100}, {"area": 4500, "price": 77000, "maxWidth": 30, "maxHeight": 150}, {"area": 6000, "price": 132000, "maxWidth": 30, "maxHeight": 200}]	none	\N	\N	\N	\N	\N	1	t	2026-01-20 01:19:00.782	2026-01-20 02:04:05.922
+cmklw6k9k000jiz63ea5ng1h4	cmklvrqx40001dgdw7f98ssrs	2401_004	in_house	delivery_freight	화물배송		0.00	0.00	0.0		indigo	{}	all	\N	\N	\N	\N	[]	{}	null	cm	null	mm2	null	none	[]	0.00	0	50000.00	3000.00	3	t	2026-01-20 01:05:00.44	2026-01-20 07:07:04.101
+cmkc9ptog0001jautjvefxhf6	cmk6hojvf000312ucl4e7yq1i	22203_001	in_house	nup_page_range	스타제본+출력(고급용지)		0.00	0.00	1.0		indigo	{cmk6bx7xd0006w4rgt2s54dqp,cmk6bw3930004w4rgfz1xi87r,cmk6bnlsk0002w4rgwhc1y6dw}	all	\N	\N	\N	\N	[{"id": "pg_1768290703920_9w889gcv5", "color": "green", "upPrices": [{"up": 1, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 2, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 4, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 8, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}]}, {"id": "pg_1768290748020_r6zoyq7pl", "color": "blue", "upPrices": [{"up": 1, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 2, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 4, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}, {"up": 8, "weight": 1, "sixColorDoublePrice": 0, "sixColorSinglePrice": 0, "fourColorDoublePrice": 0, "fourColorSinglePrice": 0}]}]	{"cmk6bnlsk0002w4rgwhc1y6dw": "pg_1768290748020_r6zoyq7pl", "cmk6bw3930004w4rgfz1xi87r": null, "cmk6bx7xd0006w4rgt2s54dqp": "pg_1768290703920_9w889gcv5"}	[30, 40, 50]	cm	\N	mm2	\N	none	\N	\N	\N	\N	\N	0	t	2026-01-13 07:26:12.351	2026-01-21 13:32:30.037
+cmkkwnyu80001znpspowsyqks	cmkkvz2dp002o1032eo930jjl	230102_001	in_house	finishing_area	동판		0.00	0.00	2.0		\N	{}	all	\N	\N	\N	\N	null	null	null	cm	[{"price": 1000, "maxLength": 100, "minLength": 0}, {"price": 2000, "maxLength": 200, "minLength": 100}]	mm	[{"area": 2400, "price": 50000, "maxWidth": 30, "maxHeight": 80}, {"area": 3000, "price": 77000, "maxWidth": 30, "maxHeight": 100}, {"area": 4500, "price": 120000, "maxWidth": 30, "maxHeight": 150}, {"area": 6000, "price": 150000, "maxWidth": 30, "maxHeight": 200}]	none	\N	\N	\N	\N	\N	0	t	2026-01-19 08:30:46.305	2026-01-22 05:20:03.948
+cmkafl76r0001kz5orjfsda7c	cmk5crnw9000514mitnz68inm	11_001	in_house	paper_output_spec	웨딩베이비		0.00	0.00	1.0		indigo	{}	all	\N	\N		\N	[{"id": "pg_1768178038155_nz57kv6ai", "color": "green", "upPrices": [{"up": 1, "weight": 1, "sixColorDoublePrice": 1000, "sixColorSinglePrice": 1000, "fourColorDoublePrice": 1000, "fourColorSinglePrice": 1000}, {"up": 2, "weight": 1.2, "sixColorDoublePrice": 600, "sixColorSinglePrice": 600, "fourColorDoublePrice": 600, "fourColorSinglePrice": 600}, {"up": 4, "weight": 1.3, "sixColorDoublePrice": 330, "sixColorSinglePrice": 330, "fourColorDoublePrice": 330, "fourColorSinglePrice": 330}, {"up": 8, "weight": 1.4, "sixColorDoublePrice": 180, "sixColorSinglePrice": 180, "fourColorDoublePrice": 180, "fourColorSinglePrice": 180}], "specPrices": [{"weight": 1, "specificationId": "cmk6fbng100004b63c70xzv5a", "singleSidedPrice": 270}, {"weight": 1, "specificationId": "cmk6fu8av0005hxtsrjafllf0", "singleSidedPrice": 360}, {"weight": 1, "specificationId": "cmk6f3ym20006o43xdewhcbes", "singleSidedPrice": 450}, {"weight": 1, "specificationId": "cmk6f88vs0009o43x378tye2v", "singleSidedPrice": 550}, {"weight": 1, "specificationId": "cmk6ftqqu0004hxtskccmbx2s", "singleSidedPrice": 550}, {"weight": 1, "specificationId": "cmk6f6ndh0008o43xcv3mdzu1", "singleSidedPrice": 700}, {"weight": 1, "specificationId": "cmk6fjyhm000c4b631modt98m", "singleSidedPrice": 850}, {"weight": 1, "specificationId": "cmk6fkx5j000e4b639whx3sxx", "singleSidedPrice": 950}, {"weight": 1, "specificationId": "cmk6fvjvy0006hxtspj3i6nks", "singleSidedPrice": 1000}, {"weight": 1, "specificationId": "cmkauuj580000620v7qprf1fa", "singleSidedPrice": 1000}, {"weight": 1, "specificationId": "cmkavuol30000ft7ltr5dldbf", "singleSidedPrice": 1100}, {"weight": 1, "specificationId": "cmkavvbot0001ft7l6yfnze23", "singleSidedPrice": 1300}, {"weight": 1, "specificationId": "cmk6fdf7400084b63698iy8j5", "singleSidedPrice": 1800}, {"weight": 1, "specificationId": "cmk6fcj4d00044b63ydvo3m99", "singleSidedPrice": 2200}, {"weight": 1, "specificationId": "cmk6fd3tf00064b63chde9ajf", "singleSidedPrice": 2700}, {"weight": 1, "specificationId": "cmk6feqsv000a4b631dxzz34w", "singleSidedPrice": 3400}, {"weight": 1, "specificationId": "cmk6gcadq0000v9w22gdjvtj0", "singleSidedPrice": 4300}, {"weight": 1, "specificationId": "cmk6gcljh0002v9w2h60pr8xa", "singleSidedPrice": 7900}, {"weight": 1, "specificationId": "cmk6f27np0004o43xbl1qfr5n", "singleSidedPrice": 200}, {"weight": 1, "specificationId": "cmk6fbng600014b63lbz4hbql", "singleSidedPrice": 270}, {"weight": 1, "specificationId": "cmk6f3ym40007o43x4w1i7igj", "singleSidedPrice": 450}, {"weight": 1, "specificationId": "cmk6f88vu000ao43x13j2f12j", "singleSidedPrice": 550}, {"weight": 1, "specificationId": "cmk6fjyhq000d4b63ltsp5xkp", "singleSidedPrice": 850}, {"weight": 1, "specificationId": "cmk6fvjw00007hxtsirwx4s8m", "singleSidedPrice": 1000}, {"weight": 1, "specificationId": "cmk6fkx5l000f4b63teec2nro", "singleSidedPrice": 950}, {"weight": 1, "specificationId": "cmkauuj5e0001620vtvan1277", "singleSidedPrice": 1000}, {"weight": 1, "specificationId": "cmkavvboy0002ft7lsl0ipbee", "singleSidedPrice": 1300}, {"weight": 1, "specificationId": "cmk6fdf7600094b63ff6454lx", "singleSidedPrice": 1800}, {"weight": 1, "specificationId": "cmk6fcj4f00054b63m430jdn4", "singleSidedPrice": 2200}, {"weight": 1, "specificationId": "cmk6fd3th00074b63i1ouhou9", "singleSidedPrice": 2700}, {"weight": 1, "specificationId": "cmk6feqsy000b4b63vxejnfur", "singleSidedPrice": 3400}, {"weight": 1, "specificationId": "cmk6gcadu0001v9w2k7ogf6zt", "singleSidedPrice": 4300}, {"weight": 1, "specificationId": "cmk6gcljl0003v9w2qe2j0lo1", "singleSidedPrice": 7900}, {"weight": 1.2, "specificationId": "cmk6fc2o500024b63vwcm68cp", "singleSidedPrice": 160}, {"weight": 1, "specificationId": "cmk6f27nr0005o43xwyhm7een", "singleSidedPrice": 200}, {"weight": 1, "specificationId": "cmk6fc2od00034b63mc8vtlep", "singleSidedPrice": 140}], "pricingMode": "spec", "inkjetBasePrice": 5.625, "inkjetBaseSpecId": "cmk6f3ym20006o43xdewhcbes"}, {"id": "pg_1768178039087_itb887tbc", "color": "blue", "upPrices": [{"up": 1, "weight": 1, "sixColorDoublePrice": 1000, "sixColorSinglePrice": 1000, "fourColorDoublePrice": 1000, "fourColorSinglePrice": 1000}, {"up": 2, "weight": 1.2, "sixColorDoublePrice": 600, "sixColorSinglePrice": 600, "fourColorDoublePrice": 600, "fourColorSinglePrice": 600}, {"up": 4, "weight": 1.3, "sixColorDoublePrice": 330, "sixColorSinglePrice": 330, "fourColorDoublePrice": 330, "fourColorSinglePrice": 330}, {"up": 8, "weight": 1.4, "sixColorDoublePrice": 180, "sixColorSinglePrice": 180, "fourColorDoublePrice": 180, "fourColorSinglePrice": 180}], "specPrices": [], "pricingMode": "spec", "inkjetBasePrice": 5}]	{"cmk6bnlsk0002w4rgwhc1y6dw": "pg_1768178039087_itb887tbc", "cmk6bw3930004w4rgfz1xi87r": "pg_1768178038155_nz57kv6ai", "cmk6bx7xd0006w4rgt2s54dqp": null, "cmk6c19320008w4rgtgxtmtlc": "pg_1768178039087_itb887tbc", "cmk6cj27s0001oeub8ot2p5wq": "pg_1768178039087_itb887tbc", "cmk6cl3kp0004oeub4w4fpghp": "pg_1768178038155_nz57kv6ai"}	\N	cm	\N	mm2	\N	none	\N	\N	\N	\N	\N	0	t	2026-01-12 00:35:01.922	2026-01-22 05:58:05.387
 \.
 
 
@@ -2008,6 +2533,22 @@ cmklw6k9k000jiz63ea5ng1h4	cmklvrqx40001dgdw7f98ssrs	2401_004	in_house	delivery_f
 --
 
 COPY public.products (id, "productCode", "productName", "categoryId", "isActive", "isNew", "isBest", "memberType", "basePrice", "thumbnailUrl", "detailImages", description, "sortOrder", "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- Data for Name: receivable_payments; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.receivable_payments (id, "receivableId", amount, "paymentDate", "paymentMethod", description, "journalId", "createdBy", "createdAt") FROM stdin;
+\.
+
+
+--
+-- Data for Name: receivables; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.receivables (id, "clientId", "clientName", "clientCode", "orderId", "orderNumber", "journalId", "originalAmount", "paidAmount", balance, "issueDate", "dueDate", status, description, "createdAt", "updatedAt") FROM stdin;
 \.
 
 
@@ -2047,7 +2588,15 @@ COPY public.sales_category_options (id, code, name, "sortOrder", "isActive", "cr
 -- Data for Name: schedules; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.schedules (id, "creatorId", "creatorName", "creatorDeptId", "creatorDeptName", title, description, location, "startAt", "endAt", "isAllDay", "isPersonal", "isDepartment", "isCompany", "sharedDeptIds", "scheduleType", reminders, "isRecurring", "recurringRule", "recurringEnd", "parentId", attendees, color, tags, "relatedType", "relatedId", status, "createdAt", "updatedAt") FROM stdin;
+COPY public.schedules (id, "creatorId", "creatorName", "creatorDeptId", "creatorDeptName", title, description, location, "startAt", "endAt", "isAllDay", "isPersonal", "isDepartment", "isCompany", "sharedDeptIds", "scheduleType", reminders, "isRecurring", "recurringRule", "recurringConfig", "recurringEnd", "parentId", attendees, color, tags, "relatedType", "relatedId", status, "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- Data for Name: settlements; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.settlements (id, "periodType", "periodStart", "periodEnd", "totalSales", "totalPurchases", "totalIncome", "totalExpense", "receivablesBalance", "payablesBalance", "netProfit", "netCashFlow", status, "confirmedBy", "confirmedAt", "createdAt", "updatedAt") FROM stdin;
 \.
 
 
@@ -2100,6 +2649,8 @@ cmk6f88vs0009o43x378tye2v	SPEC_MK6F88VRR1BBT9	A4_세로	8.2677	11.6929	210.00	29
 cmk6f6ndh0008o43xcv3mdzu1	SPEC_MK6F6NDGHIGTYA	11x11	11.0000	11.0000	279.40	279.40	square	\N	t	t	t	t	f	0.08		1up	121.00	0	t	2026-01-09 05:12:38.357	2026-01-12 07:45:22.964
 cmk6f27nr0005o43xwyhm7een	SPEC_MK6F27NR73M7YI	7x5	7.0000	5.0000	177.80	127.00	landscape	cmk6f27np0004o43xbl1qfr5n	t	t	t	t	f	0.02		4up	35.00	2	t	2026-01-09 05:09:11.368	2026-01-12 07:44:37.955
 cmk6fbng100004b63c70xzv5a	SPEC_MK6FBNFZRK6CZQ	6x8	6.0000	8.0000	152.40	203.20	portrait	cmk6fbng600014b63lbz4hbql	t	t	t	t	f	0.03		4up	48.00	0	t	2026-01-09 05:16:31.728	2026-01-12 07:44:43.781
+cmko09lk5000bv6kuzlu1kxro	SPEC_MKO09LK4F53K2K	10x13	10.0000	13.0000	254.00	330.20	portrait	cmko09ljq000av6kuaenx18dg	t	t	t	f	f	0.08		1	130.00	1	t	2026-01-21 12:34:52.902	2026-01-21 12:34:52.902
+cmko09ljq000av6kuaenx18dg	SPEC_MKO09LJOYZGE2R	13x10	13.0000	10.0000	330.20	254.00	landscape	cmko09lk5000bv6kuzlu1kxro	t	t	t	f	f	0.08		1	130.00	0	t	2026-01-21 12:34:52.886	2026-01-21 12:34:52.91
 \.
 
 
@@ -2131,6 +2682,23 @@ cmklxtuo9000256sbtmiec5i9	shipping_standard_fee	5500	shipping	일반 택배비	2
 cmklxtuo9000056sbtlal2oy7	shipping_free_threshold	90000	shipping	무료배송 기준금액	2026-01-20 01:51:06.633	2026-01-20 01:51:06.633
 cmklxtupz000456sb9tn3skow	shipping_include_mountain	true	shipping	산간지역 포함	2026-01-20 01:51:06.633	2026-01-20 01:51:06.633
 cmklxtuq3000556sb7zf47dr7	shipping_island_fee	7500	shipping	도서산간 택배비	2026-01-20 01:51:06.633	2026-01-20 01:51:06.633
+cmko1hief0016v6kuxu9clq4w	company_ecommerce_number		company	통신판매번호	2026-01-21 13:09:01.643	2026-01-21 13:09:16.104
+cmko1hie70015v6ku8j38bmm9	company_fax		company	팩스	2026-01-21 13:09:01.644	2026-01-21 13:09:16.104
+cmko1hido000tv6kusna8rrkt	company_phone		company	대표전화	2026-01-21 13:09:01.643	2026-01-21 13:09:16.104
+cmko1hie30012v6kuwa81v5fj	company_business_number	201-86-02186	company	사업자번호	2026-01-21 13:09:01.642	2026-01-21 13:09:16.104
+cmko1hie1000yv6kunf99x13q	company_cs_phone		company	고객센터	2026-01-21 13:09:01.644	2026-01-21 13:09:16.105
+cmko1hido000sv6kuemwjvaxm	company_ceo	우	company	대표자	2026-01-21 13:09:01.641	2026-01-21 13:09:16.105
+cmko1hido000qv6kusuep2na8	company_business_type		company	업태	2026-01-21 13:09:01.64	2026-01-21 13:09:16.104
+cmko1hido000uv6kuxqsm0crq	company_email		company	이메일	2026-01-21 13:09:01.643	2026-01-21 13:09:16.104
+cmko1hie30013v6kukk3bci57	company_postal_code		company	우편번호	2026-01-21 13:09:01.644	2026-01-21 13:09:16.11
+cmko1hie0000xv6kuiwa4qltx	company_address		company	주소	2026-01-21 13:09:01.644	2026-01-21 13:09:16.11
+cmko1hidp000vv6kuk0ttv5lc	company_cs_hours		company	운영시간	2026-01-21 13:09:01.644	2026-01-21 13:09:16.11
+cmko1hie20011v6ku5wmhyuwi	company_address_detail		company	상세주소	2026-01-21 13:09:01.644	2026-01-21 13:09:16.11
+cmko1hie2000zv6ku6c6g32z6	company_domain		company	도메인	2026-01-21 13:09:01.644	2026-01-21 13:09:16.11
+cmko1hie20010v6kurihw0yld	company_server_info		company	서버정보	2026-01-21 13:09:01.644	2026-01-21 13:09:16.112
+cmko1hie50014v6kunfyr5rps	company_admin_domain		company	관리자도메인	2026-01-21 13:09:01.644	2026-01-21 13:09:16.112
+cmko1hido000rv6kuo0evhq0t	company_name	(주)프린팅솔루션즈	company	회사명	2026-01-21 13:09:01.64	2026-01-21 13:09:16.104
+cmko1hidq000wv6kur1si3sxt	company_business_category		company	종목	2026-01-21 13:09:01.641	2026-01-21 13:09:16.104
 \.
 
 
@@ -2139,6 +2707,11 @@ cmklxtuq3000556sb7zf47dr7	shipping_island_fee	7500	shipping	도서산간 택배�
 --
 
 COPY public.todos (id, "creatorId", "creatorName", "creatorDeptId", "creatorDeptName", title, content, priority, "startDate", "dueDate", "isAllDay", status, "completedAt", "completedBy", "isPersonal", "isDepartment", "isCompany", "sharedDeptIds", "reminderAt", "isReminderSent", "isRecurring", "recurringType", "recurringEnd", "relatedType", "relatedId", color, tags, "createdAt", "updatedAt") FROM stdin;
+cmkotkv310000mz200i5x40l1	cmk5cpt1z0000ijuehpm9vtid	사용자	\N	\N	이음학교에 졸업앨범 PDF보내기		normal	2026-01-21 15:00:00	2026-01-22 02:15:00	f	completed	2026-01-22 03:48:57.662	\N	t	t	f	{}	\N	f	f	\N	\N	\N	\N	#3B82F6	{}	2026-01-22 02:15:27.326	2026-01-22 03:48:57.664
+cmkozcf1l0001taz0kkt26jpi	cmk5cpt1z0000ijuehpm9vtid	사용자	\N	\N	222	222	urgent	2026-01-21 15:00:00	2026-01-22 04:59:00	f	completed	2026-01-22 04:57:13.181	\N	t	f	f	{}	\N	f	f	\N	\N	\N	\N	#3B82F6	{}	2026-01-22 04:56:50.985	2026-01-22 04:57:13.182
+cmkq4wo3u00081391qh1ua3s3	cmk5cpt1z0000ijuehpm9vtid	사용자	\N	\N	경기초등학교 시안 보내기		normal	\N	\N	f	completed	2026-01-23 00:24:00.776	\N	t	f	f	{}	\N	f	f	\N	\N	\N	\N	#3B82F6	{}	2026-01-23 00:20:20.106	2026-01-23 00:24:00.778
+cmkq4x1tw000913918k9zpbq4	cmk5cpt1z0000ijuehpm9vtid	사용자	\N	\N	경기초등학교 시안 보내기		normal	2026-01-22 15:00:00	2026-01-23 14:59:00	f	completed	2026-01-24 07:41:34.061	\N	t	f	f	{}	\N	f	f	\N	\N	\N	\N	#3B82F6	{}	2026-01-23 00:20:37.892	2026-01-24 07:41:34.063
+cmkozby700000taz0eni73zi0	cmk5cpt1z0000ijuehpm9vtid	사용자	\N	\N	222	231	normal	\N	\N	f	completed	2026-01-24 07:41:36.144	\N	t	t	f	{}	\N	f	f	\N	\N	\N	\N	#3B82F6	{}	2026-01-22 04:56:29.148	2026-01-24 07:41:36.145
 \.
 
 
@@ -2149,7 +2722,24 @@ COPY public.todos (id, "creatorId", "creatorName", "creatorDeptId", "creatorDept
 COPY public.users (id, email, password, name, role, "isActive", "createdAt", "updatedAt") FROM stdin;
 cmk5cpt1z0000ijuehpm9vtid	admin@printing-erp.com	$2b$10$pkTmO8AUAt19kq5RiMwLa.pDQUOI63yVVAeYd7M45GKa73jqHJrR.	관리자	admin	t	2026-01-08 11:15:47.159	2026-01-08 11:15:47.159
 cmk5cpt270001ijue6jqvlvbb	manager@printing-erp.com	$2b$10$pkTmO8AUAt19kq5RiMwLa.pDQUOI63yVVAeYd7M45GKa73jqHJrR.	매니저	manager	t	2026-01-08 11:15:47.168	2026-01-08 11:15:47.168
+cmks3rakp00009zk3u0xtn8k8	wooceo@gmail.com	$2b$10$hPgGnfgiPvaSPN51.oZsOOwausjPMvH2dMYkCjhw14Jv7B0orp5oG	관리자	admin	t	2026-01-24 09:23:42.025	2026-01-24 09:23:42.025
 \.
+
+
+--
+-- Name: accounts accounts_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.accounts
+    ADD CONSTRAINT accounts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: bank_accounts bank_accounts_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.bank_accounts
+    ADD CONSTRAINT bank_accounts_pkey PRIMARY KEY (id);
 
 
 --
@@ -2225,6 +2815,14 @@ ALTER TABLE ONLY public.consultation_guides
 
 
 --
+-- Name: consultation_messages consultation_messages_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.consultation_messages
+    ADD CONSTRAINT consultation_messages_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: consultation_slas consultation_slas_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2273,6 +2871,22 @@ ALTER TABLE ONLY public.consultations
 
 
 --
+-- Name: copper_plate_histories copper_plate_histories_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.copper_plate_histories
+    ADD CONSTRAINT copper_plate_histories_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: copper_plates copper_plates_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.copper_plates
+    ADD CONSTRAINT copper_plates_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: custom_options custom_options_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2305,6 +2919,22 @@ ALTER TABLE ONLY public.departments
 
 
 --
+-- Name: fabric_suppliers fabric_suppliers_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.fabric_suppliers
+    ADD CONSTRAINT fabric_suppliers_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: fabrics fabrics_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.fabrics
+    ADD CONSTRAINT fabrics_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: group_half_product_prices group_half_product_prices_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2318,6 +2948,14 @@ ALTER TABLE ONLY public.group_half_product_prices
 
 ALTER TABLE ONLY public.group_product_prices
     ADD CONSTRAINT group_product_prices_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: group_production_setting_prices group_production_setting_prices_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.group_production_setting_prices
+    ADD CONSTRAINT group_production_setting_prices_pkey PRIMARY KEY (id);
 
 
 --
@@ -2350,6 +2988,22 @@ ALTER TABLE ONLY public.half_product_specifications
 
 ALTER TABLE ONLY public.half_products
     ADD CONSTRAINT half_products_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: journal_entries journal_entries_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.journal_entries
+    ADD CONSTRAINT journal_entries_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: journals journals_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.journals
+    ADD CONSTRAINT journals_pkey PRIMARY KEY (id);
 
 
 --
@@ -2430,6 +3084,22 @@ ALTER TABLE ONLY public.paper_suppliers
 
 ALTER TABLE ONLY public.papers
     ADD CONSTRAINT papers_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: payable_payments payable_payments_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.payable_payments
+    ADD CONSTRAINT payable_payments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: payables payables_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.payables
+    ADD CONSTRAINT payables_pkey PRIMARY KEY (id);
 
 
 --
@@ -2545,6 +3215,22 @@ ALTER TABLE ONLY public.products
 
 
 --
+-- Name: receivable_payments receivable_payments_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.receivable_payments
+    ADD CONSTRAINT receivable_payments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: receivables receivables_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.receivables
+    ADD CONSTRAINT receivables_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: reception_schedules reception_schedules_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2582,6 +3268,14 @@ ALTER TABLE ONLY public.sales_category_options
 
 ALTER TABLE ONLY public.schedules
     ADD CONSTRAINT schedules_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: settlements settlements_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.settlements
+    ADD CONSTRAINT settlements_pkey PRIMARY KEY (id);
 
 
 --
@@ -2638,6 +3332,34 @@ ALTER TABLE ONLY public.todos
 
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: accounts_code_key; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX accounts_code_key ON public.accounts USING btree (code);
+
+
+--
+-- Name: accounts_isActive_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "accounts_isActive_idx" ON public.accounts USING btree ("isActive");
+
+
+--
+-- Name: accounts_type_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX accounts_type_idx ON public.accounts USING btree (type);
+
+
+--
+-- Name: bank_accounts_isActive_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "bank_accounts_isActive_idx" ON public.bank_accounts USING btree ("isActive");
 
 
 --
@@ -2830,6 +3552,27 @@ CREATE INDEX "consultation_guides_categoryId_idx" ON public.consultation_guides 
 
 
 --
+-- Name: consultation_messages_consultationId_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "consultation_messages_consultationId_idx" ON public.consultation_messages USING btree ("consultationId");
+
+
+--
+-- Name: consultation_messages_direction_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX consultation_messages_direction_idx ON public.consultation_messages USING btree (direction);
+
+
+--
+-- Name: consultation_messages_isRead_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "consultation_messages_isRead_idx" ON public.consultation_messages USING btree ("isRead");
+
+
+--
 -- Name: consultation_stat_snapshots_periodStart_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -2963,6 +3706,41 @@ CREATE INDEX consultations_status_idx ON public.consultations USING btree (statu
 
 
 --
+-- Name: copper_plate_histories_actionType_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "copper_plate_histories_actionType_idx" ON public.copper_plate_histories USING btree ("actionType");
+
+
+--
+-- Name: copper_plate_histories_copperPlateId_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "copper_plate_histories_copperPlateId_idx" ON public.copper_plate_histories USING btree ("copperPlateId");
+
+
+--
+-- Name: copper_plates_clientId_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "copper_plates_clientId_idx" ON public.copper_plates USING btree ("clientId");
+
+
+--
+-- Name: copper_plates_plateType_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "copper_plates_plateType_idx" ON public.copper_plates USING btree ("plateType");
+
+
+--
+-- Name: copper_plates_status_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX copper_plates_status_idx ON public.copper_plates USING btree (status);
+
+
+--
 -- Name: custom_options_productId_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3012,6 +3790,55 @@ CREATE UNIQUE INDEX departments_code_key ON public.departments USING btree (code
 
 
 --
+-- Name: fabric_suppliers_code_key; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX fabric_suppliers_code_key ON public.fabric_suppliers USING btree (code);
+
+
+--
+-- Name: fabric_suppliers_isActive_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "fabric_suppliers_isActive_idx" ON public.fabric_suppliers USING btree ("isActive");
+
+
+--
+-- Name: fabrics_category_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX fabrics_category_idx ON public.fabrics USING btree (category);
+
+
+--
+-- Name: fabrics_code_key; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX fabrics_code_key ON public.fabrics USING btree (code);
+
+
+--
+-- Name: fabrics_isActive_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "fabrics_isActive_idx" ON public.fabrics USING btree ("isActive");
+
+
+--
+-- Name: fabrics_material_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX fabrics_material_idx ON public.fabrics USING btree (material);
+
+
+--
+-- Name: fabrics_supplierId_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "fabrics_supplierId_idx" ON public.fabrics USING btree ("supplierId");
+
+
+--
 -- Name: group_half_product_prices_groupId_halfProductId_key; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3023,6 +3850,34 @@ CREATE UNIQUE INDEX "group_half_product_prices_groupId_halfProductId_key" ON pub
 --
 
 CREATE UNIQUE INDEX "group_product_prices_groupId_productId_key" ON public.group_product_prices USING btree ("groupId", "productId");
+
+
+--
+-- Name: group_production_setting_prices_clientGroupId_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "group_production_setting_prices_clientGroupId_idx" ON public.group_production_setting_prices USING btree ("clientGroupId");
+
+
+--
+-- Name: group_production_setting_prices_clientGroupId_productionSet_key; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX "group_production_setting_prices_clientGroupId_productionSet_key" ON public.group_production_setting_prices USING btree ("clientGroupId", "productionSettingId", "specificationId", "priceGroupId", "minQuantity");
+
+
+--
+-- Name: group_production_setting_prices_priceGroupId_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "group_production_setting_prices_priceGroupId_idx" ON public.group_production_setting_prices USING btree ("priceGroupId");
+
+
+--
+-- Name: group_production_setting_prices_productionSettingId_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "group_production_setting_prices_productionSettingId_idx" ON public.group_production_setting_prices USING btree ("productionSettingId");
 
 
 --
@@ -3058,6 +3913,48 @@ CREATE INDEX "half_products_categoryLargeId_idx" ON public.half_products USING b
 --
 
 CREATE UNIQUE INDEX half_products_code_key ON public.half_products USING btree (code);
+
+
+--
+-- Name: journal_entries_accountId_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "journal_entries_accountId_idx" ON public.journal_entries USING btree ("accountId");
+
+
+--
+-- Name: journal_entries_journalId_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "journal_entries_journalId_idx" ON public.journal_entries USING btree ("journalId");
+
+
+--
+-- Name: journals_clientId_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "journals_clientId_idx" ON public.journals USING btree ("clientId");
+
+
+--
+-- Name: journals_journalDate_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "journals_journalDate_idx" ON public.journals USING btree ("journalDate");
+
+
+--
+-- Name: journals_voucherNo_key; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX "journals_voucherNo_key" ON public.journals USING btree ("voucherNo");
+
+
+--
+-- Name: journals_voucherType_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "journals_voucherType_idx" ON public.journals USING btree ("voucherType");
 
 
 --
@@ -3236,6 +4133,41 @@ CREATE INDEX "papers_supplierId_idx" ON public.papers USING btree ("supplierId")
 
 
 --
+-- Name: payable_payments_payableId_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "payable_payments_payableId_idx" ON public.payable_payments USING btree ("payableId");
+
+
+--
+-- Name: payable_payments_paymentDate_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "payable_payments_paymentDate_idx" ON public.payable_payments USING btree ("paymentDate");
+
+
+--
+-- Name: payables_dueDate_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "payables_dueDate_idx" ON public.payables USING btree ("dueDate");
+
+
+--
+-- Name: payables_status_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX payables_status_idx ON public.payables USING btree (status);
+
+
+--
+-- Name: payables_supplierId_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "payables_supplierId_idx" ON public.payables USING btree ("supplierId");
+
+
+--
 -- Name: permission_templates_name_key; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3362,6 +4294,41 @@ CREATE UNIQUE INDEX "products_productCode_key" ON public.products USING btree ("
 
 
 --
+-- Name: receivable_payments_paymentDate_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "receivable_payments_paymentDate_idx" ON public.receivable_payments USING btree ("paymentDate");
+
+
+--
+-- Name: receivable_payments_receivableId_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "receivable_payments_receivableId_idx" ON public.receivable_payments USING btree ("receivableId");
+
+
+--
+-- Name: receivables_clientId_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "receivables_clientId_idx" ON public.receivables USING btree ("clientId");
+
+
+--
+-- Name: receivables_dueDate_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "receivables_dueDate_idx" ON public.receivables USING btree ("dueDate");
+
+
+--
+-- Name: receivables_status_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX receivables_status_idx ON public.receivables USING btree (status);
+
+
+--
 -- Name: reception_schedules_status_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3478,6 +4445,34 @@ CREATE INDEX "schedules_scheduleType_idx" ON public.schedules USING btree ("sche
 --
 
 CREATE INDEX "schedules_startAt_idx" ON public.schedules USING btree ("startAt");
+
+
+--
+-- Name: settlements_periodStart_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "settlements_periodStart_idx" ON public.settlements USING btree ("periodStart");
+
+
+--
+-- Name: settlements_periodType_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "settlements_periodType_idx" ON public.settlements USING btree ("periodType");
+
+
+--
+-- Name: settlements_periodType_periodStart_key; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX "settlements_periodType_periodStart_key" ON public.settlements USING btree ("periodType", "periodStart");
+
+
+--
+-- Name: settlements_status_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX settlements_status_idx ON public.settlements USING btree (status);
 
 
 --
@@ -3670,6 +4665,14 @@ CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email);
 
 
 --
+-- Name: accounts accounts_parentId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.accounts
+    ADD CONSTRAINT "accounts_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES public.accounts(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
 -- Name: categories categories_parentId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3702,6 +4705,14 @@ ALTER TABLE ONLY public.consultation_follow_ups
 
 
 --
+-- Name: consultation_messages consultation_messages_consultationId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.consultation_messages
+    ADD CONSTRAINT "consultation_messages_consultationId_fkey" FOREIGN KEY ("consultationId") REFERENCES public.consultations(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
 -- Name: consultation_tag_mappings consultation_tag_mappings_tagId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3726,6 +4737,22 @@ ALTER TABLE ONLY public.consultations
 
 
 --
+-- Name: copper_plate_histories copper_plate_histories_copperPlateId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.copper_plate_histories
+    ADD CONSTRAINT "copper_plate_histories_copperPlateId_fkey" FOREIGN KEY ("copperPlateId") REFERENCES public.copper_plates(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: copper_plates copper_plates_clientId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.copper_plates
+    ADD CONSTRAINT "copper_plates_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES public.clients(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
 -- Name: custom_options custom_options_productId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3739,6 +4766,14 @@ ALTER TABLE ONLY public.custom_options
 
 ALTER TABLE ONLY public.customer_health_scores
     ADD CONSTRAINT "customer_health_scores_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES public.clients(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: fabrics fabrics_supplierId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.fabrics
+    ADD CONSTRAINT "fabrics_supplierId_fkey" FOREIGN KEY ("supplierId") REFERENCES public.fabric_suppliers(id) ON UPDATE CASCADE ON DELETE SET NULL;
 
 
 --
@@ -3774,6 +4809,22 @@ ALTER TABLE ONLY public.group_product_prices
 
 
 --
+-- Name: group_production_setting_prices group_production_setting_prices_clientGroupId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.group_production_setting_prices
+    ADD CONSTRAINT "group_production_setting_prices_clientGroupId_fkey" FOREIGN KEY ("clientGroupId") REFERENCES public.client_groups(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: group_production_setting_prices group_production_setting_prices_productionSettingId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.group_production_setting_prices
+    ADD CONSTRAINT "group_production_setting_prices_productionSettingId_fkey" FOREIGN KEY ("productionSettingId") REFERENCES public.production_settings(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
 -- Name: half_product_options half_product_options_halfProductId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3803,6 +4854,22 @@ ALTER TABLE ONLY public.half_product_specifications
 
 ALTER TABLE ONLY public.half_products
     ADD CONSTRAINT "half_products_categoryLargeId_fkey" FOREIGN KEY ("categoryLargeId") REFERENCES public.categories(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: journal_entries journal_entries_accountId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.journal_entries
+    ADD CONSTRAINT "journal_entries_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES public.accounts(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: journal_entries journal_entries_journalId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.journal_entries
+    ADD CONSTRAINT "journal_entries_journalId_fkey" FOREIGN KEY ("journalId") REFERENCES public.journals(id) ON UPDATE CASCADE ON DELETE CASCADE;
 
 
 --
@@ -3875,6 +4942,14 @@ ALTER TABLE ONLY public.papers
 
 ALTER TABLE ONLY public.papers
     ADD CONSTRAINT "papers_supplierId_fkey" FOREIGN KEY ("supplierId") REFERENCES public.paper_suppliers(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- Name: payable_payments payable_payments_payableId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.payable_payments
+    ADD CONSTRAINT "payable_payments_payableId_fkey" FOREIGN KEY ("payableId") REFERENCES public.payables(id) ON UPDATE CASCADE ON DELETE CASCADE;
 
 
 --
@@ -3998,6 +5073,14 @@ ALTER TABLE ONLY public.products
 
 
 --
+-- Name: receivable_payments receivable_payments_receivableId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.receivable_payments
+    ADD CONSTRAINT "receivable_payments_receivableId_fkey" FOREIGN KEY ("receivableId") REFERENCES public.receivables(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
 -- Name: sales_categories sales_categories_parentId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -4056,5 +5139,5 @@ REVOKE USAGE ON SCHEMA public FROM PUBLIC;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict DPQe7DrcfhAHZTljkYMclIEpEvT2dKvhLEHPpmTLHMEeeLLJJkhXx8jtr9Nh2GM
+\unrestrict kVwACo0keV3I9SVcVGaZmMrfnML612G9k9AuumwjYgviYmJkjgt8njlczQjhRnT
 

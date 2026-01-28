@@ -16,7 +16,7 @@ import {
   UpdateStaffDto,
   StaffQueryDto,
   AssignClientsDto,
-  ChangePasswordDto,
+  StaffChangePasswordDto,
 } from '../dto/staff.dto';
 
 @ApiTags('직원관리')
@@ -55,7 +55,7 @@ export class StaffController {
   @Patch(':id/password')
   @ApiOperation({ summary: '비밀번호 변경' })
   @ApiResponse({ status: 200, description: '비밀번호 변경 성공' })
-  changePassword(@Param('id') id: string, @Body() data: ChangePasswordDto) {
+  changePassword(@Param('id') id: string, @Body() data: StaffChangePasswordDto) {
     return this.staffService.changePassword(id, data);
   }
 

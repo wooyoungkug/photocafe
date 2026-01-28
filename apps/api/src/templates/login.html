@@ -136,7 +136,16 @@
       document.getElementById('userEmail').textContent = user.email;
       document.getElementById('userRole').textContent = user.role === 'admin' ? '관리자' : '스태프';
     }
-    function goToDashboard() { window.location.href = 'http://localhost:3000'; }
+    function goToDashboard() {
+      const token = localStorage.getItem('accessToken');
+      const refreshToken = localStorage.getItem('refreshToken');
+      const user = localStorage.getItem('user');
+      const params = new URLSearchParams();
+      if (token) params.set('token', token);
+      if (refreshToken) params.set('refreshToken', refreshToken);
+      if (user) params.set('user', user);
+      window.location.href = 'http://localhost:3002/auth/callback?' + params.toString();
+    }
     function handleLogout() {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');

@@ -69,6 +69,7 @@ import type {
 import { useAuthStore } from "@/stores/auth-store";
 import { CATEGORY_LEVEL_LABELS, PRICING_UNIT_LABELS } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { API_URL, API_BASE_URL } from "@/lib/api";
 
 const LEVEL_COLORS: Record<CategoryLevel, string> = {
   large: "bg-blue-100 text-blue-700 border-blue-200",
@@ -513,7 +514,7 @@ export default function CategoriesPage() {
           {category.iconUrl ? (
             <img
               src={category.iconUrl.startsWith('/api')
-                ? `http://1.212.201.147:3001${category.iconUrl}`
+                ? `${API_BASE_URL}${category.iconUrl}`
                 : category.iconUrl}
               alt=""
               className="h-5 w-5 object-contain rounded"
@@ -996,7 +997,7 @@ export default function CategoriesPage() {
                     {formData.iconUrl && (
                       <img
                         src={formData.iconUrl.startsWith('/api')
-                          ? `http://1.212.201.147:3001${formData.iconUrl}`
+                          ? `${API_BASE_URL}${formData.iconUrl}`
                           : formData.iconUrl}
                         alt="카테고리 아이콘"
                         className="w-12 h-12 object-contain rounded border bg-gray-50"
@@ -1047,7 +1048,7 @@ export default function CategoriesPage() {
                           formDataUpload.append('file', file);
 
                           try {
-                            const response = await fetch('http://1.212.201.147:3001/api/v1/upload/category-icon', {
+                            const response = await fetch(`${API_URL}/upload/category-icon`, {
                               method: 'POST',
                               headers: {
                                 'Authorization': `Bearer ${token}`,

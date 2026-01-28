@@ -49,13 +49,20 @@ export class DeliveryPricingService {
   }
 
   async update(deliveryMethod: DeliveryMethod, dto: UpdateDeliveryPricingDto) {
-    await this.findByMethod(deliveryMethod);
-
     const { distanceRanges, sizeRanges, ...data } = dto;
 
-    return this.prisma.deliveryPricing.update({
+    // upsert를 사용하여 없으면 생성, 있으면 업데이트
+    return this.prisma.deliveryPricing.upsert({
       where: { deliveryMethod },
-      data: {
+      create: {
+        deliveryMethod,
+        name: data.name || deliveryMethod,
+        baseFee: data.baseFee ?? 0,
+        distanceRanges: distanceRanges ? JSON.parse(JSON.stringify(distanceRanges)) : Prisma.JsonNull,
+        sizeRanges: sizeRanges ? JSON.parse(JSON.stringify(sizeRanges)) : Prisma.JsonNull,
+        ...data,
+      },
+      update: {
         ...data,
         ...(distanceRanges !== undefined && {
           distanceRanges: distanceRanges ? JSON.parse(JSON.stringify(distanceRanges)) : Prisma.JsonNull,

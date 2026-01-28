@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/layout/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { AuthGuard } from "@/components/auth/auth-guard";
 import { useDashboardSummary } from "@/hooks/use-statistics";
 import {
   ShoppingCart,
@@ -21,6 +22,14 @@ import {
 } from "lucide-react";
 
 export default function DashboardPage() {
+  return (
+    <AuthGuard requireAdmin={true}>
+      <DashboardContent />
+    </AuthGuard>
+  );
+}
+
+function DashboardContent() {
   const { data: summary, isPending, isError, error, refetch, isFetching } = useDashboardSummary();
 
   // 성장률 포맷팅

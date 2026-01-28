@@ -41,3 +41,4 @@ coverage/
 *.tsbuildinfo
 .turbo/
 nul
+.mcp.json

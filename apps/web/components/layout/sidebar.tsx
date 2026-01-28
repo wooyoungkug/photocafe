@@ -26,6 +26,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/stores/auth-store";
 
 interface SidebarProps {
   onClose?: () => void;
@@ -188,9 +189,14 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const { user } = useAuthStore();
+
   // 기본적으로 모든 메뉴 접힘 (빈 배열)
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [navigation, setNavigation] = useState(defaultNavigation);
+
+  // 관리자 여부 확인
+  const isAdmin = user?.role === 'admin' || user?.role === 'staff';
 
   // 서버 상태 관리 (API, Frontend, Database)
   const [apiStatus, setApiStatus] = useState<ServerStatusInfo>({ status: 'checking', responseTime: null });
@@ -452,8 +458,27 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
 
       {/* 네비게이션 */}
       <nav className="flex-1 overflow-y-auto py-2 px-3 custom-scrollbar">
-        <div className="space-y-1">
-          {(navigation || defaultNavigation).map((item, index) => {
+        {!isAdmin ? (
+          <div className="flex flex-col items-center justify-center h-full px-4 text-center">
+            <div className="bg-red-900/20 border border-red-700/50 rounded-lg p-6 space-y-3">
+              <div className="text-red-400 text-sm font-medium">
+                접근 권한 없음
+              </div>
+              <p className="text-xs text-slate-400">
+                관리자 페이지는 관리자만 접근할 수 있습니다.
+              </p>
+              <Link
+                href="/"
+                onClick={() => isMobile && onClose?.()}
+                className="inline-block px-4 py-2 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700 transition-colors"
+              >
+                쇼핑몰로 이동
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {(navigation || defaultNavigation).map((item, index) => {
             const isActive = item.href ? pathname === item.href : false;
             const isOpen = isMenuOpen(item.name);
 
@@ -471,9 +496,7 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
                       className={cn(
                         "flex-1 flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-colors duration-100 relative overflow-hidden",
                         isActive
-                          ? item.id === "dashboard"
-                            ? "bg-red-600 text-white shadow-md shadow-red-900/20"
-                            : "bg-indigo-600 text-white shadow-md shadow-indigo-900/20"
+                          ? "bg-indigo-600 text-white shadow-md shadow-indigo-900/20"
                           : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-100",
                         isPending && "opacity-70"
                       )}
@@ -601,7 +624,8 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
               </div>
             );
           })}
-        </div>
+          </div>
+        )}
       </nav>
 
       {/* 하단 정보 */}

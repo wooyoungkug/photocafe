@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,6 +54,7 @@ import {
 } from 'lucide-react';
 
 export default function ProductsPage() {
+  const router = useRouter();
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -160,7 +162,7 @@ export default function ProductsPage() {
             <Package className="h-5 w-5" />
             상품 목록
           </CardTitle>
-          <Button onClick={() => handleOpenDialog()}>
+          <Button onClick={() => router.push('/products/new')}>
             <Plus className="h-4 w-4 mr-2" />
             상품 추가
           </Button>
@@ -276,7 +278,7 @@ export default function ProductsPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleOpenDialog(product)}
+                              onClick={() => router.push(`/products/${product.id}/edit`)}
                             >
                               <Edit className="h-4 w-4" />
                             </Button>

@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { Building2, Printer, Truck, ListChecks, Save, RotateCcw } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Building2, Printer, Truck, ListChecks, Save, RotateCcw, Plus, Trash2 } from "lucide-react";
 import {
   useSystemSettings,
   useBulkUpdateSettings,
@@ -17,11 +18,23 @@ import {
   PROCESS_STAGES,
   PROCESS_CATEGORIES,
 } from "@/hooks/use-system-settings";
+import {
+  useDeliveryPricings,
+  useUpdateDeliveryPricing,
+  useInitializeDeliveryPricing,
+  DeliveryMethod,
+  DELIVERY_METHOD_LABELS,
+  DELIVERY_METHODS,
+  DeliveryPricing,
+} from "@/hooks/use-delivery-pricing";
 import { toast } from "@/hooks/use-toast";
 
 export default function BasicSettingsPage() {
   const { data: settings, isLoading } = useSystemSettings();
   const bulkUpdate = useBulkUpdateSettings();
+  const { data: deliveryPricings, isLoading: isLoadingDelivery } = useDeliveryPricings();
+  const updateDeliveryPricing = useUpdateDeliveryPricing();
+  const initializeDeliveryPricing = useInitializeDeliveryPricing();
 
   // 회사정보 상태
   const [companyInfo, setCompanyInfo] = useState({
@@ -49,7 +62,7 @@ export default function BasicSettingsPage() {
     indigo1ColorCost: 0,
   });
 
-  // 택배비 상태
+  // 택배비 상태 (레거시)
   const [shippingInfo, setShippingInfo] = useState({
     standardFee: 3500,
     islandFee: 6000,
@@ -57,6 +70,14 @@ export default function BasicSettingsPage() {
     includeJeju: true,
     includeIslands: true,
     includeMountain: true,
+  });
+
+  // 배송비 상태 (새로운 delivery pricing 시스템)
+  const [deliveryFormData, setDeliveryFormData] = useState<Record<DeliveryMethod, Partial<DeliveryPricing>>>({
+    parcel: {},
+    motorcycle: {},
+    damas: {},
+    freight: {},
   });
 
   // 공정단계 상태
@@ -128,6 +149,29 @@ export default function BasicSettingsPage() {
     }
   }, [settings]);
 
+  // 배송비 데이터 로드
+  useEffect(() => {
+    if (deliveryPricings) {
+      const formData: Record<DeliveryMethod, Partial<DeliveryPricing>> = {
+        parcel: {},
+        motorcycle: {},
+        damas: {},
+        freight: {},
+      };
+
+      deliveryPricings.forEach((pricing) => {
+        formData[pricing.deliveryMethod] = {
+          ...pricing,
+          // 택배 전용 필드 기본값 설정
+          packagingFee: pricing.packagingFee ?? 0,
+          shippingFee: pricing.shippingFee ?? 0,
+        };
+      });
+
+      setDeliveryFormData(formData);
+    }
+  }, [deliveryPricings]);
+
   // 회사정보 저장
   const saveCompanyInfo = async () => {
     const settingsToSave = [
@@ -171,6 +215,50 @@ export default function BasicSettingsPage() {
       { key: "shipping_include_mountain", value: String(shippingInfo.includeMountain), category: "shipping", label: "산간지역 포함" },
     ];
     await bulkUpdate.mutateAsync(settingsToSave);
+  };
+
+  // 배송비 저장 (새로운 delivery pricing 시스템)
+  const saveDeliveryPricing = async (method: DeliveryMethod) => {
+    try {
+      const pricingData = deliveryFormData[method];
+      console.log('[배송비 저장] 요청 데이터:', { method, pricingData });
+
+      await updateDeliveryPricing.mutateAsync({
+        method,
+        dto: pricingData,
+      });
+
+      console.log('[배송비 저장] 성공');
+      toast({
+        title: "저장 완료",
+        description: `${DELIVERY_METHOD_LABELS[method]} 배송비가 저장되었습니다.`,
+      });
+    } catch (error) {
+      console.error('[배송비 저장] 실패:', error);
+      toast({
+        title: "저장 실패",
+        description: error instanceof Error ? error.message : "배송비 저장에 실패했습니다.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // 배송비 초기화
+  const initializeDelivery = async () => {
+    try {
+      await initializeDeliveryPricing.mutateAsync();
+      toast({
+        title: "초기화 완료",
+        description: "기본 배송비 설정이 초기화되었습니다.",
+      });
+    } catch (error) {
+      console.error('[배송비 초기화] 실패:', error);
+      toast({
+        title: "초기화 실패",
+        description: error instanceof Error ? error.message : "배송비 초기화에 실패했습니다.",
+        variant: "destructive",
+      });
+    }
   };
 
   // 공정단계 저장
@@ -226,7 +314,7 @@ export default function BasicSettingsPage() {
           </TabsTrigger>
           <TabsTrigger value="shipping" className="flex items-center gap-2">
             <Truck className="h-4 w-4" />
-            <span className="hidden sm:inline">택배비</span>
+            <span className="hidden sm:inline">배송비</span>
           </TabsTrigger>
           <TabsTrigger value="process" className="flex items-center gap-2">
             <ListChecks className="h-4 w-4" />
@@ -495,127 +583,573 @@ export default function BasicSettingsPage() {
           </div>
         </TabsContent>
 
-        {/* 택배비 탭 */}
+        {/* 배송비 탭 */}
         <TabsContent value="shipping" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>기본 택배비</CardTitle>
-              <CardDescription>배송비 기본 설정입니다.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="standard_fee">일반 택배비</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="standard_fee"
-                      type="number"
-                      value={shippingInfo.standardFee}
-                      onChange={(e) => setShippingInfo({ ...shippingInfo, standardFee: Number(e.target.value) })}
-                      className="w-32"
-                    />
-                    <span className="text-muted-foreground">원</span>
+          {isLoadingDelivery ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : (
+            <>
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>배송비 관리</CardTitle>
+                      <CardDescription>
+                        {deliveryPricings && deliveryPricings.length > 0
+                          ? '배송 방법별로 요금을 설정하세요.'
+                          : '배송비 데이터가 없습니다. 초기화 버튼을 클릭하여 기본 설정을 생성하세요.'}
+                      </CardDescription>
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={initializeDelivery}
+                      disabled={initializeDeliveryPricing.isPending}
+                    >
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                      기본 설정 초기화
+                    </Button>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="island_fee">도서산간 택배비</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="island_fee"
-                      type="number"
-                      value={shippingInfo.islandFee}
-                      onChange={(e) => setShippingInfo({ ...shippingInfo, islandFee: Number(e.target.value) })}
-                      className="w-32"
-                    />
-                    <span className="text-muted-foreground">원</span>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="free_threshold">무료배송 기준금액</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="free_threshold"
-                      type="number"
-                      value={shippingInfo.freeThreshold}
-                      onChange={(e) => setShippingInfo({ ...shippingInfo, freeThreshold: Number(e.target.value) })}
-                      className="w-32"
-                    />
-                    <span className="text-muted-foreground">원 이상</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                </CardHeader>
+                <CardContent>
+                  <Accordion type="single" collapsible className="w-full">
+                    {DELIVERY_METHODS.map((method) => {
+                      const pricing = deliveryFormData[method];
+                      const label = DELIVERY_METHOD_LABELS[method];
 
-          <Card>
-            <CardHeader>
-              <CardTitle>도서산간 지역 설정</CardTitle>
-              <CardDescription>도서산간 추가 배송비가 적용되는 지역을 설정합니다.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="include_jeju"
-                    checked={shippingInfo.includeJeju}
-                    onCheckedChange={(checked) => setShippingInfo({ ...shippingInfo, includeJeju: !!checked })}
-                  />
-                  <Label htmlFor="include_jeju" className="cursor-pointer">
-                    제주도 전체 포함
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="include_islands"
-                    checked={shippingInfo.includeIslands}
-                    onCheckedChange={(checked) => setShippingInfo({ ...shippingInfo, includeIslands: !!checked })}
-                  />
-                  <Label htmlFor="include_islands" className="cursor-pointer">
-                    섬 지역 포함 (울릉도, 백령도, 거제도 등)
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="include_mountain"
-                    checked={shippingInfo.includeMountain}
-                    onCheckedChange={(checked) => setShippingInfo({ ...shippingInfo, includeMountain: !!checked })}
-                  />
-                  <Label htmlFor="include_mountain" className="cursor-pointer">
-                    산간 지역 포함 (택배사 추가요금 발생 지역)
-                  </Label>
-                </div>
-              </div>
+                      return (
+                        <AccordionItem key={method} value={method}>
+                          <AccordionTrigger className="hover:no-underline">
+                            <div className="flex items-center justify-between w-full pr-4">
+                              <div className="flex items-center gap-3">
+                                <Truck className="h-5 w-5 text-muted-foreground" />
+                                <div className="text-left">
+                                  <div className="font-semibold">{label}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {method === 'parcel' && '일반 택배 배송비 설정'}
+                                    {method === 'motorcycle' && '오토바이 퀵서비스 배송비 설정'}
+                                    {method === 'damas' && '다마스 차량 배송비 설정'}
+                                    {method === 'freight' && '화물 배송비 설정'}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                <span className="text-xs text-muted-foreground mr-2">
+                                  {pricing.isActive ?? true ? '활성화' : '비활성화'}
+                                </span>
+                                <Checkbox
+                                  checked={pricing.isActive ?? true}
+                                  onCheckedChange={(checked) => {
+                                    setDeliveryFormData({
+                                      ...deliveryFormData,
+                                      [method]: { ...pricing, isActive: !!checked },
+                                    });
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <div className="pt-4 space-y-4">
+                      {method === 'parcel' && (
+                        <>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>포장비</Label>
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  type="number"
+                                  value={pricing?.packagingFee ?? 0}
+                                  onChange={(e) => {
+                                    const packagingFee = Number(e.target.value) || 0;
+                                    const shippingFee = pricing?.shippingFee ?? 0;
+                                    setDeliveryFormData({
+                                      ...deliveryFormData,
+                                      [method]: {
+                                        ...pricing,
+                                        packagingFee,
+                                        baseFee: packagingFee + shippingFee,
+                                      },
+                                    });
+                                  }}
+                                  className="w-32"
+                                />
+                                <span className="text-sm text-muted-foreground">원</span>
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>배송비</Label>
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  type="number"
+                                  value={pricing?.shippingFee ?? 0}
+                                  onChange={(e) => {
+                                    const shippingFee = Number(e.target.value) || 0;
+                                    const packagingFee = pricing?.packagingFee ?? 0;
+                                    setDeliveryFormData({
+                                      ...deliveryFormData,
+                                      [method]: {
+                                        ...pricing,
+                                        shippingFee,
+                                        baseFee: packagingFee + shippingFee,
+                                      },
+                                    });
+                                  }}
+                                  className="w-32"
+                                />
+                                <span className="text-sm text-muted-foreground">원</span>
+                              </div>
+                            </div>
+                          </div>
 
-              <div className="bg-muted/50 p-4 rounded-lg">
-                <p className="text-sm text-muted-foreground">
-                  도서산간 지역은 제주도 포함 섬/산간지역으로, 택배사에서 추가요금을 받는 지역입니다.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-blue-900">택배비 합계 (포장비 + 배송비)</span>
+                              <span className="text-lg font-bold text-blue-600">
+                                {((pricing?.packagingFee ?? 0) + (pricing?.shippingFee ?? 0)).toLocaleString()}원
+                              </span>
+                            </div>
+                          </div>
 
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={() =>
-                setShippingInfo({
-                  standardFee: 3500,
-                  islandFee: 6000,
-                  freeThreshold: 50000,
-                  includeJeju: true,
-                  includeIslands: true,
-                  includeMountain: true,
-                })
-              }
-            >
-              <RotateCcw className="h-4 w-4 mr-2" />
-              초기화
-            </Button>
-            <Button onClick={saveShippingInfo} disabled={bulkUpdate.isPending}>
-              <Save className="h-4 w-4 mr-2" />
-              저장
-            </Button>
-          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>도서산간 추가요금</Label>
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  type="number"
+                                  value={pricing?.islandFee ?? 0}
+                                  onChange={(e) => {
+                                    setDeliveryFormData({
+                                      ...deliveryFormData,
+                                      [method]: { ...pricing, islandFee: Number(e.target.value) || 0 },
+                                    });
+                                  }}
+                                  className="w-32"
+                                />
+                                <span className="text-sm text-muted-foreground">원</span>
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>무료배송 기준금액</Label>
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  type="number"
+                                  value={pricing?.freeThreshold ?? 0}
+                                  onChange={(e) => {
+                                    setDeliveryFormData({
+                                      ...deliveryFormData,
+                                      [method]: { ...pricing, freeThreshold: Number(e.target.value) || 0 },
+                                    });
+                                  }}
+                                  className="w-32"
+                                />
+                                <span className="text-sm text-muted-foreground">원 이상</span>
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      )}
+
+                      {(method === 'motorcycle' || method === 'damas') && (
+                        <>
+                          <div className="space-y-2">
+                            <Label>거리별 요금 구간</Label>
+                            <div className="space-y-2">
+                              {(pricing.distanceRanges ?? []).map((range, idx) => (
+                                <div key={idx} className="flex items-center gap-2">
+                                  <Input
+                                    type="number"
+                                    placeholder="최소거리"
+                                    value={range?.minDistance ?? 0}
+                                    onChange={(e) => {
+                                      const newRanges = [...(pricing.distanceRanges ?? [])];
+                                      newRanges[idx] = { ...range, minDistance: Number(e.target.value) || 0 };
+                                      setDeliveryFormData({
+                                        ...deliveryFormData,
+                                        [method]: { ...pricing, distanceRanges: newRanges },
+                                      });
+                                    }}
+                                    className="w-24"
+                                  />
+                                  <span className="text-sm">~</span>
+                                  <Input
+                                    type="number"
+                                    placeholder="최대거리"
+                                    value={range?.maxDistance ?? 0}
+                                    onChange={(e) => {
+                                      const newRanges = [...(pricing.distanceRanges ?? [])];
+                                      newRanges[idx] = { ...range, maxDistance: Number(e.target.value) || 0 };
+                                      setDeliveryFormData({
+                                        ...deliveryFormData,
+                                        [method]: { ...pricing, distanceRanges: newRanges },
+                                      });
+                                    }}
+                                    className="w-24"
+                                  />
+                                  <span className="text-sm">km</span>
+                                  <Input
+                                    type="number"
+                                    placeholder="요금"
+                                    value={range?.price ?? 0}
+                                    onChange={(e) => {
+                                      const newRanges = [...(pricing.distanceRanges ?? [])];
+                                      newRanges[idx] = { ...range, price: Number(e.target.value) || 0 };
+                                      setDeliveryFormData({
+                                        ...deliveryFormData,
+                                        [method]: { ...pricing, distanceRanges: newRanges },
+                                      });
+                                    }}
+                                    className="w-32"
+                                  />
+                                  <span className="text-sm text-muted-foreground">원</span>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                      const newRanges = (pricing.distanceRanges ?? []).filter((_, i) => i !== idx);
+                                      setDeliveryFormData({
+                                        ...deliveryFormData,
+                                        [method]: { ...pricing, distanceRanges: newRanges },
+                                      });
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const currentRanges = pricing.distanceRanges ?? [];
+
+                                  // 기존 구간이 있는지 확인
+                                  if (currentRanges.length === 0) {
+                                    // 첫 번째 구간 추가
+                                    const newRanges = [{ minDistance: 0, maxDistance: 10, price: 0 }];
+                                    setDeliveryFormData({
+                                      ...deliveryFormData,
+                                      [method]: { ...pricing, distanceRanges: newRanges },
+                                    });
+                                    return;
+                                  }
+
+                                  // 마지막 구간 검증
+                                  const lastRange = currentRanges[currentRanges.length - 1];
+                                  const minDist = Number(lastRange.minDistance) || 0;
+                                  const maxDist = Number(lastRange.maxDistance) || 0;
+
+                                  // 최대거리가 유효한지 확인 (0보다 크고 최소거리보다 커야 함)
+                                  if (maxDist <= 0) {
+                                    toast({
+                                      title: "입력 오류",
+                                      description: "마지막 구간의 최대거리는 0보다 커야 합니다.",
+                                      variant: "destructive",
+                                    });
+                                    return;
+                                  }
+                                  if (maxDist <= minDist) {
+                                    toast({
+                                      title: "입력 오류",
+                                      description: "최대거리는 최소거리보다 커야 합니다.",
+                                      variant: "destructive",
+                                    });
+                                    return;
+                                  }
+
+                                  // 새 구간 자동 생성 (마지막 구간의 최대거리부터 시작)
+                                  const newMinDistance = maxDist;
+                                  const newMaxDistance = newMinDistance + 10; // 기본 10km 간격
+
+                                  const newRanges = [
+                                    ...currentRanges,
+                                    { minDistance: newMinDistance, maxDistance: newMaxDistance, price: 0 },
+                                  ];
+                                  setDeliveryFormData({
+                                    ...deliveryFormData,
+                                    [method]: { ...pricing, distanceRanges: newRanges },
+                                  });
+                                }}
+                              >
+                                <Plus className="h-4 w-4 mr-2" />
+                                구간 추가
+                              </Button>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>최대 기본거리 (km)</Label>
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  type="number"
+                                  value={pricing?.maxBaseDistance ?? 0}
+                                  onChange={(e) => {
+                                    setDeliveryFormData({
+                                      ...deliveryFormData,
+                                      [method]: { ...pricing, maxBaseDistance: Number(e.target.value) || 0 },
+                                    });
+                                  }}
+                                  className="w-32"
+                                />
+                                <span className="text-sm text-muted-foreground">km</span>
+                              </div>
+                              <p className="text-xs text-muted-foreground">이 거리를 초과하면 km당 추가요금이 적용됩니다</p>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>초과거리 추가요금 (원/km)</Label>
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  type="number"
+                                  value={pricing?.extraPricePerKm ?? 0}
+                                  onChange={(e) => {
+                                    setDeliveryFormData({
+                                      ...deliveryFormData,
+                                      [method]: { ...pricing, extraPricePerKm: Number(e.target.value) || 0 },
+                                    });
+                                  }}
+                                  className="w-32"
+                                />
+                                <span className="text-sm text-muted-foreground">원/km</span>
+                              </div>
+                              <p className="text-xs text-muted-foreground">최대 기본거리 초과 시 km당 요금</p>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>야간할증률 (%)</Label>
+                              <Input
+                                type="number"
+                                value={(pricing?.nightSurchargeRate ?? 0) * 100}
+                                onChange={(e) => {
+                                  setDeliveryFormData({
+                                    ...deliveryFormData,
+                                    [method]: { ...pricing, nightSurchargeRate: (Number(e.target.value) || 0) / 100 },
+                                  });
+                                }}
+                                className="w-32"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>주말할증률 (%)</Label>
+                              <Input
+                                type="number"
+                                value={(pricing?.weekendSurchargeRate ?? 0) * 100}
+                                onChange={(e) => {
+                                  setDeliveryFormData({
+                                    ...deliveryFormData,
+                                    [method]: { ...pricing, weekendSurchargeRate: (Number(e.target.value) || 0) / 100 },
+                                  });
+                                }}
+                                className="w-32"
+                              />
+                            </div>
+                          </div>
+                        </>
+                      )}
+
+                      {method === 'freight' && (
+                        <>
+                          <div className="space-y-2">
+                            <Label>기본요금</Label>
+                            <div className="flex items-center gap-2">
+                              <Input
+                                type="number"
+                                value={pricing.baseFee ?? 0}
+                                onChange={(e) => {
+                                  setDeliveryFormData({
+                                    ...deliveryFormData,
+                                    [method]: { ...pricing, baseFee: Number(e.target.value) },
+                                  });
+                                }}
+                                className="w-32"
+                              />
+                              <span className="text-sm text-muted-foreground">원</span>
+                            </div>
+                          </div>
+
+                          <div className="space-y-3">
+                            <Label>크기별 추가요금</Label>
+                            <div className="space-y-3">
+                              {(pricing.sizeRanges ?? []).map((range, idx) => (
+                                <div key={idx} className="border rounded-lg p-4 space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <Label className="text-sm font-medium">구간 {idx + 1}</Label>
+                                      <Input
+                                        placeholder="크기명 (예: 소형, 중형)"
+                                        value={range?.name ?? ''}
+                                        onChange={(e) => {
+                                          const newRanges = [...(pricing.sizeRanges ?? [])];
+                                          newRanges[idx] = { ...range, name: e.target.value };
+                                          setDeliveryFormData({
+                                            ...deliveryFormData,
+                                            [method]: { ...pricing, sizeRanges: newRanges },
+                                          });
+                                        }}
+                                        className="w-40"
+                                      />
+                                    </div>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => {
+                                        const newRanges = (pricing.sizeRanges ?? []).filter((_, i) => i !== idx);
+                                        setDeliveryFormData({
+                                          ...deliveryFormData,
+                                          [method]: { ...pricing, sizeRanges: newRanges },
+                                        });
+                                      }}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    <div className="space-y-1">
+                                      <Label className="text-xs text-muted-foreground">최대 무게 (kg)</Label>
+                                      <Input
+                                        type="number"
+                                        placeholder="무게 제한 (선택)"
+                                        value={range?.maxWeight ?? ''}
+                                        onChange={(e) => {
+                                          const newRanges = [...(pricing.sizeRanges ?? [])];
+                                          newRanges[idx] = {
+                                            ...range,
+                                            maxWeight: e.target.value ? Number(e.target.value) : undefined
+                                          };
+                                          setDeliveryFormData({
+                                            ...deliveryFormData,
+                                            [method]: { ...pricing, sizeRanges: newRanges },
+                                          });
+                                        }}
+                                        className="w-full"
+                                      />
+                                    </div>
+                                    <div className="space-y-1">
+                                      <Label className="text-xs text-muted-foreground">최대 부피 (m³)</Label>
+                                      <Input
+                                        type="number"
+                                        step="0.01"
+                                        placeholder="부피 제한 (선택)"
+                                        value={range?.maxVolume ?? ''}
+                                        onChange={(e) => {
+                                          const newRanges = [...(pricing.sizeRanges ?? [])];
+                                          newRanges[idx] = {
+                                            ...range,
+                                            maxVolume: e.target.value ? Number(e.target.value) : undefined
+                                          };
+                                          setDeliveryFormData({
+                                            ...deliveryFormData,
+                                            [method]: { ...pricing, sizeRanges: newRanges },
+                                          });
+                                        }}
+                                        className="w-full"
+                                      />
+                                    </div>
+                                    <div className="space-y-1">
+                                      <Label className="text-xs text-muted-foreground">추가요금 (원)</Label>
+                                      <Input
+                                        type="number"
+                                        placeholder="추가요금"
+                                        value={range?.price ?? 0}
+                                        onChange={(e) => {
+                                          const newRanges = [...(pricing.sizeRanges ?? [])];
+                                          newRanges[idx] = { ...range, price: Number(e.target.value) || 0 };
+                                          setDeliveryFormData({
+                                            ...deliveryFormData,
+                                            [method]: { ...pricing, sizeRanges: newRanges },
+                                          });
+                                        }}
+                                        className="w-full"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const newRanges = [
+                                    ...(pricing.sizeRanges ?? []),
+                                    { name: '', price: 0 },
+                                  ];
+                                  setDeliveryFormData({
+                                    ...deliveryFormData,
+                                    [method]: { ...pricing, sizeRanges: newRanges },
+                                  });
+                                }}
+                              >
+                                <Plus className="h-4 w-4 mr-2" />
+                                크기 구간 추가
+                              </Button>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>야간할증률 (%)</Label>
+                              <Input
+                                type="number"
+                                value={(pricing.nightSurchargeRate ?? 0) * 100}
+                                onChange={(e) => {
+                                  setDeliveryFormData({
+                                    ...deliveryFormData,
+                                    [method]: { ...pricing, nightSurchargeRate: Number(e.target.value) / 100 },
+                                  });
+                                }}
+                                className="w-32"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>주말할증률 (%)</Label>
+                              <Input
+                                type="number"
+                                value={(pricing.weekendSurchargeRate ?? 0) * 100}
+                                onChange={(e) => {
+                                  setDeliveryFormData({
+                                    ...deliveryFormData,
+                                    [method]: { ...pricing, weekendSurchargeRate: Number(e.target.value) / 100 },
+                                  });
+                                }}
+                                className="w-32"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="bg-muted/50 p-4 rounded-lg text-sm text-muted-foreground">
+                            <p className="font-medium mb-2">💡 화물 요금 계산 방법</p>
+                            <ul className="space-y-1 text-xs">
+                              <li>• 총 요금 = 기본요금 + 크기별 추가요금 + 할증(야간/주말)</li>
+                              <li>• 무게 또는 부피 중 하나라도 기준을 만족하면 해당 구간 적용</li>
+                              <li>• 모든 구간을 초과하면 마지막 구간 요금 적용</li>
+                            </ul>
+                          </div>
+                        </>
+                      )}
+
+                              <div className="flex justify-end pt-2">
+                                <Button
+                                  onClick={() => saveDeliveryPricing(method)}
+                                  disabled={updateDeliveryPricing.isPending}
+                                >
+                                  <Save className="h-4 w-4 mr-2" />
+                                  {label} 저장
+                                </Button>
+                              </div>
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      );
+                    })}
+                  </Accordion>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </TabsContent>
 
         {/* 공정단계 탭 */}

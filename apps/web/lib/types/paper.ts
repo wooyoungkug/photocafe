@@ -157,6 +157,10 @@ export interface Paper {
   description?: string;
   memo?: string;
 
+  // nUP 정보
+  nUpIndigo?: number; // 인디고 nUP (자동계산)
+  nUpInkjet?: number; // 잉크젯 nUP (수동입력)
+
   sortOrder: number;
   isActive: boolean;
   createdAt: string;
@@ -195,6 +199,8 @@ export interface CreatePaperDto {
   minStockLevel?: number;
   description?: string;
   memo?: string;
+  nUpIndigo?: number; // 인디고 nUP (자동계산)
+  nUpInkjet?: number; // 잉크젯 nUP (수동입력)
   sortOrder?: number;
   isActive?: boolean;
 }

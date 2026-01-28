@@ -15,12 +15,10 @@ interface AuthState {
   accessToken: string | null;
   refreshToken: string | null;
   isAuthenticated: boolean;
-  isLoading: boolean;
   rememberMe: boolean;
 
   setAuth: (data: { user: User; accessToken: string; refreshToken: string; rememberMe?: boolean }) => void;
   logout: () => void;
-  setLoading: (loading: boolean) => void;
 }
 
 // 커스텀 스토리지: rememberMe 상태에 따라 localStorage 또는 sessionStorage 사용
@@ -73,7 +71,6 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       refreshToken: null,
       isAuthenticated: false,
-      isLoading: true,
       rememberMe: false,
 
       setAuth: ({ user, accessToken, refreshToken, rememberMe = false }) => {
@@ -93,7 +90,6 @@ export const useAuthStore = create<AuthState>()(
           accessToken,
           refreshToken,
           isAuthenticated: true,
-          isLoading: false,
           rememberMe,
         });
       },
@@ -112,12 +108,9 @@ export const useAuthStore = create<AuthState>()(
           accessToken: null,
           refreshToken: null,
           isAuthenticated: false,
-          isLoading: false,
           rememberMe: false,
         });
       },
-
-      setLoading: (loading) => set({ isLoading: loading }),
     }),
     {
       name: 'auth-storage',

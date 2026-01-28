@@ -33,6 +33,8 @@ export interface DeliveryPricing {
   deliveryMethod: DeliveryMethod;
   name: string;
   baseFee: number;
+  packagingFee?: number; // 포장비 (택배 전용)
+  shippingFee?: number; // 배송비 (택배 전용)
   distanceRanges?: DistanceRange[];
   extraPricePerKm?: number;
   maxBaseDistance?: number;

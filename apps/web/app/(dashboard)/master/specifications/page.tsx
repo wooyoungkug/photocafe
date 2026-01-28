@@ -34,6 +34,7 @@ import {
 import { Plus, Pencil, Trash2, Search, ChevronUp, ChevronDown, RectangleHorizontal, RectangleVertical, Square, Ruler } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
+import { Toaster } from "@/components/ui/toaster";
 
 interface Specification {
   id: string;
@@ -123,6 +124,7 @@ export default function SpecificationsPage() {
   const [form, setForm] = useState<SpecificationForm>(defaultForm);
   const [searchQuery, setSearchQuery] = useState("");
   const [usageFilters, setUsageFilters] = useState<string[]>([]);
+  const [validationError, setValidationError] = useState<string>("");
 
   // 백엔드 응답을 프론트엔드 필드명으로 변환
   const transformApiToForm = (data: any): Specification => ({
@@ -222,6 +224,7 @@ export default function SpecificationsPage() {
   const openCreateDialog = () => {
     setEditingSpec(null);
     setForm(defaultForm);
+    setValidationError("");
     setIsDialogOpen(true);
   };
 
@@ -244,6 +247,7 @@ export default function SpecificationsPage() {
       nup: spec.nup ? Number(spec.nup) : undefined,
       createPair: false,
     });
+    setValidationError("");
     setIsDialogOpen(true);
   };
 
@@ -251,11 +255,26 @@ export default function SpecificationsPage() {
     setIsDialogOpen(false);
     setEditingSpec(null);
     setForm(defaultForm);
+    setValidationError("");
   };
 
   const handleSubmit = () => {
+    setValidationError("");  // 에러 초기화
+
     if (!form.name) {
-      toast({ variant: "destructive", title: "규격명을 입력하세요." });
+      setValidationError("규격명을 입력하세요.");
+      return;
+    }
+
+    // 중복 규격명 체크
+    const duplicateSpec = specifications.find(
+      (spec) =>
+        spec.name.trim().toLowerCase() === form.name.trim().toLowerCase() &&
+        spec.id !== editingSpec?.id  // 수정 시 자기 자신은 제외
+    );
+
+    if (duplicateSpec) {
+      setValidationError(`"${form.name}" 규격명이 이미 존재합니다. 다른 이름을 입력해주세요.`);
       return;
     }
 
@@ -579,6 +598,8 @@ export default function SpecificationsPage() {
                 id="name"
                 value={form.name}
                 onChange={(e) => {
+                  // 에러 초기화
+                  setValidationError("");
                   // 숫자가 아닌 모든 문자를 x로 변환하고, 연속된 x는 하나로 합침
                   const value = e.target.value.replace(/[^0-9]/g, "x").replace(/x+/g, "x");
                   setForm({ ...form, name: value });
@@ -606,6 +627,14 @@ export default function SpecificationsPage() {
                 }}
                 placeholder="예: 3x5, 8x10"
               />
+              {validationError && (
+                <p className="text-sm text-red-600 font-medium mt-1 flex items-center gap-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  {validationError}
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -718,6 +747,34 @@ export default function SpecificationsPage() {
               </div>
             )}
 
+            {/* Nup 수동입력 (잉크젯 선택시) */}
+            {form.usageInkjet && !form.usageIndigo && (
+              <div className="p-3 bg-orange-50 border border-orange-200 rounded-md">
+                <Label className="text-sm font-medium text-orange-700 mb-2 block">
+                  잉크젯 Nup (수동입력)
+                </Label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    type="number"
+                    value={form.nup || ''}
+                    onChange={(e) => setForm({ ...form, nup: Number(e.target.value) || undefined })}
+                    placeholder="예: 4"
+                    min={1}
+                    className="w-32 h-11 border-orange-300 bg-white"
+                  />
+                  <span className="text-sm text-orange-700">장/1출력</span>
+                </div>
+                <p className="text-xs text-orange-600 mt-2">
+                  잉크젯 인쇄기 규격에 맞는 Nup 값을 직접 입력하세요.
+                </p>
+                {form.nup && form.nup > 0 && (
+                  <p className="text-xs text-orange-600 mt-2">
+                    * 1출력 비용 1,000원 기준 → 장당 {Math.round(1000 / form.nup)}원
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="description">설명</Label>
               <Input
@@ -756,6 +813,7 @@ export default function SpecificationsPage() {
         </DialogContent>
       </Dialog>
 
+      <Toaster />
     </div>
   );
 }

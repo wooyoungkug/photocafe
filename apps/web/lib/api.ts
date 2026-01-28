@@ -1,4 +1,5 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+export const API_BASE_URL = API_URL.replace('/api/v1', '');
 
 interface RequestOptions extends RequestInit {
   params?: Record<string, string | number | boolean | undefined>;
@@ -56,11 +57,24 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   if (!response.ok) {
     // 401 Unauthorized - 토큰 만료/무효 시 로그인으로 리다이렉트
     if (response.status === 401 && typeof window !== 'undefined') {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      sessionStorage.removeItem('accessToken');
-      sessionStorage.removeItem('refreshToken');
-      window.location.href = '/login';
+      console.error('[API] 401 Unauthorized 응답 받음:', {
+        url,
+        endpoint,
+        hasToken: !!token,
+        tokenPrefix: token?.substring(0, 20),
+      });
+
+      // 로그인 페이지가 아닌 경우에만 리다이렉트
+      if (!window.location.pathname.includes('/login')) {
+        console.log('[API] 토큰 만료/무효 - 토큰 삭제 및 로그인 페이지로 이동');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('auth-storage');
+        sessionStorage.removeItem('accessToken');
+        sessionStorage.removeItem('refreshToken');
+        sessionStorage.removeItem('auth-storage');
+        window.location.href = '/login';
+      }
       throw new Error('Unauthorized');
     }
     const error = await response.json().catch(() => ({ message: 'Network error' }));

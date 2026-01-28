@@ -3,7 +3,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiConsumes, ApiBody, ApiOperation } from '@nestjs/swagger';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import { existsSync, mkdirSync } from 'fs';
 import { Response } from 'express';
 
@@ -42,7 +42,7 @@ export class UploadController {
             storage: diskStorage({
                 destination: categoryIconsDir,
                 filename: (req, file, callback) => {
-                    const uniqueName = `${uuidv4()}${extname(file.originalname)}`;
+                    const uniqueName = `${randomUUID()}${extname(file.originalname)}`;
                     callback(null, uniqueName);
                 },
             }),

@@ -69,6 +69,19 @@ export class CreateDeliveryPricingDto {
   @IsNumber()
   baseFee?: number;
 
+  // 택배용
+  @ApiPropertyOptional({ description: '포장비 (택배 전용)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  packagingFee?: number;
+
+  @ApiPropertyOptional({ description: '배송비 (택배 전용)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  shippingFee?: number;
+
   // 거리별 요금 설정 (오토바이/다마스용)
   @ApiPropertyOptional({ description: '거리 구간별 단가 배열' })
   @IsOptional()

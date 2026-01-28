@@ -4093,11 +4093,11 @@ export default function ProductionSettingPage() {
 
                         {/* 테이블 헤더 - 동적 컬럼 */}
                         <div
-                          className="grid gap-1 pb-2 border-b mb-2 text-xs font-medium text-gray-600 sticky top-0 bg-white items-center"
+                          className="grid gap-0 pb-2 border-b mb-2 text-xs font-medium text-gray-600 sticky top-0 bg-white items-center"
                           style={{
                             gridTemplateColumns: settingForm.printMethod === 'indigo'
                               ? `28px 60px 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
-                              : `28px 80px 45px 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
+                              : `28px 80px 50px 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
                           }}
                         >
                           <Checkbox
@@ -4229,7 +4229,7 @@ export default function ProductionSettingPage() {
                                   style={{
                                     gridTemplateColumns: settingForm.printMethod === 'indigo'
                                       ? `28px 60px 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
-                                      : `28px 80px 45px 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
+                                      : `28px 80px 50px 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
                                   }}
                                 >
                                   <Checkbox

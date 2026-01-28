@@ -12,7 +12,7 @@ import {
   UpdateStaffDto,
   StaffQueryDto,
   AssignClientsDto,
-  ChangePasswordDto,
+  StaffChangePasswordDto,
 } from '../dto/staff.dto';
 
 @Injectable()
@@ -274,7 +274,7 @@ export class StaffService {
     return result;
   }
 
-  async changePassword(id: string, dto: ChangePasswordDto) {
+  async changePassword(id: string, dto: StaffChangePasswordDto) {
     await this.findOne(id);
 
     const hashedPassword = await bcrypt.hash(dto.newPassword, 10);

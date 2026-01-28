@@ -51,7 +51,9 @@ model DeliveryPricing {
   name            String   // 표시명 (예: "퀵서비스", "택배", "다마스", "화물")
 
   // 기본요금 설정
-  baseFee         Decimal  @db.Decimal(10, 2) @default(0)  // 기본요금
+  baseFee         Decimal  @db.Decimal(10, 2) @default(0)  // 기본요금 (포장비 + 배송비)
+  packagingFee    Decimal? @db.Decimal(10, 2)  // 포장비 (택배 전용)
+  shippingFee     Decimal? @db.Decimal(10, 2)  // 배송비 (택배 전용)
 
   // 거리별 요금 (오토바이/다마스용)
   // [{minDistance: 0, maxDistance: 5, price: 8000}, {minDistance: 5, maxDistance: 10, price: 12000}, ...]
@@ -1167,6 +1169,10 @@ model Paper {
   // 추가 정보
   description     String?           @db.Text           // 설명
   memo            String?           @db.Text           // 관리자 메모
+
+  // nUP 정보 (1장당 출력 매수)
+  nUpIndigo       Int?              // 인디고 nUP (자동계산)
+  nUpInkjet       Int?              // 잉크젯 nUP (수동입력)
 
   // 정렬 및 상태
   sortOrder       Int               @default(0)

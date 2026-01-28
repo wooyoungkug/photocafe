@@ -1,7 +1,7 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "sonner";
 import { useAuthStore } from "@/stores/auth-store";
@@ -38,48 +38,27 @@ function getQueryClient() {
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
-  const rehydrated = useRef(false);
   const queryClient = getQueryClient();
 
-  // Zustand persist 수동 하이드레이션 (SSR 호환) - 한 번만 실행
+  // Zustand persist 수동 하이드레이션 (SSR 호환)
   useEffect(() => {
-    if (!rehydrated.current) {
-      rehydrated.current = true;
-      try {
-        useAuthStore.persist.rehydrate();
-      } catch (e) {
-        console.error('Auth store rehydration error:', e);
-      }
-    }
+    useAuthStore.persist.rehydrate();
     setMounted(true);
   }, []);
-
-  // SSR 중에도 children을 렌더링하되, 클라이언트에서 hydration 후 정상 동작
-  // 로딩 스피너를 보여주는 대신 바로 children 렌더링 (깜빡임 감소)
-  if (!mounted) {
-    // SSR에서는 Toaster(포털 기반)를 제외하여 hydration 불일치 방지
-    return (
-      <ErrorBoundary>
-        <QueryClientProvider client={queryClient}>
-          <TooltipProvider delayDuration={300}>
-            {children}
-          </TooltipProvider>
-        </QueryClientProvider>
-      </ErrorBoundary>
-    );
-  }
 
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider delayDuration={300}>
           {children}
-          <Toaster
-            position="top-right"
-            richColors
-            closeButton
-            duration={3000}
-          />
+          {mounted && (
+            <Toaster
+              position="top-right"
+              richColors
+              closeButton
+              duration={3000}
+            />
+          )}
         </TooltipProvider>
       </QueryClientProvider>
     </ErrorBoundary>

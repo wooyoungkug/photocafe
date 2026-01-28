@@ -44,11 +44,8 @@ export default function CategoryPage() {
     router.push(`/category/${categoryId}?${params.toString()}`);
   };
 
-  if (categoryLoading) {
-    return <CategoryPageSkeleton />;
-  }
-
-  if (!category) {
+  // 카테고리 정보가 없으면 에러 표시 (로딩은 스켈레톤으로 표시)
+  if (!categoryLoading && !category) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
         <h1 className="text-2xl font-bold mb-4">카테고리를 찾을 수 없습니다</h1>
@@ -62,54 +59,67 @@ export default function CategoryPage() {
 
   const products = productsData?.data || [];
   const meta = productsData?.meta;
-  const hasChildren = category.children && category.children.length > 0;
+  const hasChildren = category?.children && category.children.length > 0;
 
   return (
     <div className="min-h-screen">
       {/* Breadcrumb */}
       <div className="bg-white border-b">
         <div className="container mx-auto px-4 py-3">
-          <nav className="flex items-center gap-2 text-sm text-gray-500">
-            <Link href="/" className="hover:text-primary">홈</Link>
-            <ChevronRight className="h-4 w-4" />
-            {category.parent && (
-              <>
-                <Link href={`/category/${category.parent.id}`} className="hover:text-primary">
-                  {category.parent.name}
-                </Link>
-                <ChevronRight className="h-4 w-4" />
-              </>
-            )}
-            <span className="text-gray-900 font-medium">{category.name}</span>
-          </nav>
+          {categoryLoading ? (
+            <Skeleton className="h-4 w-48" />
+          ) : (
+            <nav className="flex items-center gap-2 text-sm text-gray-500">
+              <Link href="/" className="hover:text-primary">홈</Link>
+              <ChevronRight className="h-4 w-4" />
+              {category?.parent && (
+                <>
+                  <Link href={`/category/${category.parent.id}`} className="hover:text-primary">
+                    {category.parent.name}
+                  </Link>
+                  <ChevronRight className="h-4 w-4" />
+                </>
+              )}
+              <span className="text-gray-900 font-medium">{category?.name}</span>
+            </nav>
+          )}
         </div>
       </div>
 
       {/* Category Header */}
       <div className="bg-gradient-to-r from-gray-100 to-gray-50">
         <div className="container mx-auto px-4 py-8">
-          <h1 className="text-3xl font-bold mb-2">{category.name}</h1>
-          {category.htmlContent && (
-            <div
-              className="text-gray-600 max-w-2xl"
-              dangerouslySetInnerHTML={{ __html: category.htmlContent }}
-            />
+          {categoryLoading ? (
+            <>
+              <Skeleton className="h-10 w-64 mb-2" />
+              <Skeleton className="h-4 w-96" />
+            </>
+          ) : (
+            <>
+              <h1 className="text-3xl font-bold mb-2">{category?.name}</h1>
+              {category?.htmlContent && (
+                <div
+                  className="text-gray-600 max-w-2xl"
+                  dangerouslySetInnerHTML={{ __html: category.htmlContent }}
+                />
+              )}
+            </>
           )}
         </div>
       </div>
 
       {/* Sub Categories */}
-      {hasChildren && (
+      {!categoryLoading && hasChildren && (
         <div className="bg-white border-b">
           <div className="container mx-auto px-4 py-4">
             <div className="flex flex-wrap gap-2">
               <Link
-                href={`/category/${category.id}`}
+                href={`/category/${category!.id}`}
                 className="px-4 py-2 rounded-full bg-primary text-white text-sm font-medium"
               >
                 전체
               </Link>
-              {category.children!
+              {category!.children!
                 .filter(c => c.isVisible)
                 .map((child) => (
                   <Link

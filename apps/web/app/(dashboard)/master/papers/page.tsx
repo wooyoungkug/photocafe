@@ -163,6 +163,8 @@ const paperSchema = z.object({
   memo: z.string().optional(),
   sortOrder: requiredNumber(0),
   isActive: z.boolean().default(true),
+  nUpIndigo: optionalNumber, // 인디고 nUP (자동계산)
+  nUpInkjet: optionalNumber, // 잉크젯 nUP (수동입력)
 });
 
 type PaperFormData = z.infer<typeof paperSchema>;
@@ -201,6 +203,22 @@ const supplierSchema = z.object({
 });
 
 type SupplierFormData = z.infer<typeof supplierSchema>;
+
+// nUP 계산 함수 (인디고 기준: 국전지 788x1091mm)
+const calculateNUpIndigo = (widthMm: number, heightMm: number): number => {
+  if (!widthMm || !heightMm || widthMm <= 0 || heightMm <= 0) return 0;
+
+  const FULL_SHEET_WIDTH = 788;
+  const FULL_SHEET_HEIGHT = 1091;
+
+  // 가로 배치
+  const horizontalFit = Math.floor(FULL_SHEET_WIDTH / widthMm) * Math.floor(FULL_SHEET_HEIGHT / heightMm);
+  // 세로 배치 (90도 회전)
+  const verticalFit = Math.floor(FULL_SHEET_WIDTH / heightMm) * Math.floor(FULL_SHEET_HEIGHT / widthMm);
+
+  // 더 많이 들어가는 경우 반환
+  return Math.max(horizontalFit, verticalFit);
+};
 
 export default function PapersPage() {
   const [activeTab, setActiveTab] = useState('papers');
@@ -384,6 +402,14 @@ export default function PapersPage() {
 
   const watchPaperType = paperForm.watch('paperType');
   const watchPaperGroupId = paperForm.watch('paperGroupId');
+  const watchPrintMethods = paperForm.watch('printMethods') || [];
+  const watchSheetWidthMm = paperForm.watch('sheetWidthMm');
+  const watchSheetHeightMm = paperForm.watch('sheetHeightMm');
+
+  // 인디고 nUP 자동 계산
+  const calculatedNUpIndigo = watchSheetWidthMm && watchSheetHeightMm
+    ? calculateNUpIndigo(watchSheetWidthMm, watchSheetHeightMm)
+    : 0;
 
   // 용지 다이얼로그 열기
   const openPaperDialog = (paper?: Paper) => {
@@ -417,6 +443,8 @@ export default function PapersPage() {
         memo: paper.memo || undefined,
         sortOrder: paper.sortOrder || 0,
         isActive: paper.isActive,
+        nUpIndigo: (paper as any).nUpIndigo || undefined,
+        nUpInkjet: (paper as any).nUpInkjet || undefined,
       });
     } else {
       setEditingPaper(null);
@@ -433,6 +461,8 @@ export default function PapersPage() {
         minStockLevel: 0,
         sortOrder: 0,
         isActive: true,
+        nUpIndigo: undefined,
+        nUpInkjet: undefined,
       });
     }
     setPaperDialogOpen(true);
@@ -441,6 +471,12 @@ export default function PapersPage() {
   // 용지 저장
   const handlePaperSubmit = async (data: PaperFormData) => {
     console.log('폼 데이터:', data);
+
+    // 인디고 nUP 자동계산 값 설정
+    if (data.printMethods?.includes('indigo') && data.sheetWidthMm && data.sheetHeightMm) {
+      data.nUpIndigo = calculateNUpIndigo(data.sheetWidthMm, data.sheetHeightMm);
+    }
+
     try {
       if (editingPaper) {
         console.log('수정 요청:', { id: editingPaper.id, ...data });
@@ -676,6 +712,7 @@ export default function PapersPage() {
                   <TableHead>구분</TableHead>
                   <TableHead>규격</TableHead>
                   <TableHead>인쇄방식</TableHead>
+                  <TableHead className="text-center">nUP</TableHead>
                   <TableHead className="text-right">단가</TableHead>
                   <TableHead className="text-right">4절 장당</TableHead>
                   <TableHead className="text-center">상태</TableHead>
@@ -685,7 +722,7 @@ export default function PapersPage() {
               <TableBody>
                 {papersLoading ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-12">
+                    <TableCell colSpan={11} className="text-center py-12">
                       <div className="flex items-center justify-center gap-2 text-muted-foreground">
                         <div className="animate-spin h-4 w-4 border-2 border-indigo-500 border-t-transparent rounded-full" />
                         로딩 중...
@@ -694,7 +731,7 @@ export default function PapersPage() {
                   </TableRow>
                 ) : !papersData?.data?.length ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-12">
+                    <TableCell colSpan={11} className="text-center py-12">
                       <div className="text-muted-foreground">
                         <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
                         등록된 용지가 없습니다
@@ -730,6 +767,23 @@ export default function PapersPage() {
                             ))
                           ) : (
                             <span className="text-muted-foreground">-</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex flex-col gap-0.5">
+                          {(paper as any).nUpIndigo && (
+                            <Badge variant="default" className="bg-blue-600 text-xs">
+                              인디고 {(paper as any).nUpIndigo}up
+                            </Badge>
+                          )}
+                          {(paper as any).nUpInkjet && (
+                            <Badge variant="default" className="bg-green-600 text-xs">
+                              잉크젯 {(paper as any).nUpInkjet}up
+                            </Badge>
+                          )}
+                          {!(paper as any).nUpIndigo && !(paper as any).nUpInkjet && (
+                            <span className="text-muted-foreground text-xs">-</span>
                           )}
                         </div>
                       </TableCell>
@@ -1286,6 +1340,55 @@ export default function PapersPage() {
                   })}
                 </div>
               </div>
+
+              {/* nUP 설정 */}
+              {watchPaperType === 'sheet' && watchPrintMethods.length > 0 && (
+                <div className="space-y-4">
+                  <h4 className="text-sm font-semibold text-slate-700 border-b pb-2">nUP (1장당 출력 매수)</h4>
+
+                  {/* 인디고 nUP - 자동계산 */}
+                  {watchPrintMethods.includes('indigo') && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <Label className="text-sm font-medium text-blue-900">인디고 nUP (자동계산)</Label>
+                        {calculatedNUpIndigo > 0 && (
+                          <Badge className="bg-blue-600 text-white text-lg px-3 py-1">
+                            {calculatedNUpIndigo}up
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-blue-700">
+                        국전지(788×1091mm) 기준으로 자동 계산됩니다.
+                        {watchSheetWidthMm && watchSheetHeightMm && calculatedNUpIndigo > 0 && (
+                          <> 현재 규격({watchSheetWidthMm}×{watchSheetHeightMm}mm)으로 <strong>{calculatedNUpIndigo}장</strong> 출력 가능</>
+                        )}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* 잉크젯 nUP - 수동입력 */}
+                  {watchPrintMethods.includes('inkjet') && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <Label className="text-sm font-medium text-green-900 mb-2 block">
+                        잉크젯 nUP (수동입력)
+                      </Label>
+                      <div className="flex items-center gap-3">
+                        <Input
+                          type="number"
+                          {...paperForm.register('nUpInkjet', { valueAsNumber: true })}
+                          placeholder="예: 4"
+                          min={1}
+                          className="h-11 border-green-300 bg-white w-32"
+                        />
+                        <span className="text-sm text-green-700">up</span>
+                      </div>
+                      <p className="text-xs text-green-600 mt-2">
+                        잉크젯 인쇄기 규격에 맞는 nUP 값을 직접 입력하세요.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* 가격 정보 섹션 */}

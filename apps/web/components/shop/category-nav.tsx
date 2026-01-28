@@ -6,6 +6,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { useTopMenuCategories } from '@/hooks/use-categories';
 import { cn } from '@/lib/utils';
+import { API_BASE_URL } from '@/lib/api';
 import type { Category } from '@/lib/types/category';
 
 export function CategoryNav() {
@@ -65,7 +66,7 @@ export function CategoryNav() {
                 {category.iconUrl && (
                   <img
                     src={category.iconUrl.startsWith('/api')
-                      ? `http://1.212.201.147:3001${category.iconUrl}`
+                      ? `${API_BASE_URL}${category.iconUrl}`
                       : category.iconUrl}
                     alt=""
                     className="h-5 w-5 object-contain"
@@ -123,7 +124,7 @@ export function CategoryNav() {
                   {category.iconUrl && (
                     <img
                       src={category.iconUrl.startsWith('/api')
-                        ? `http://1.212.201.147:3001${category.iconUrl}`
+                        ? `${API_BASE_URL}${category.iconUrl}`
                         : category.iconUrl}
                       alt=""
                       className="h-4 w-4 object-contain"
@@ -163,7 +164,7 @@ function CategoryMenuItem({ category, level }: { category: Category; level: numb
           {category.iconUrl && (
             <img
               src={category.iconUrl.startsWith('/api')
-                ? `http://1.212.201.147:3001${category.iconUrl}`
+                ? `${API_BASE_URL}${category.iconUrl}`
                 : category.iconUrl}
               alt=""
               className="h-4 w-4 object-contain"

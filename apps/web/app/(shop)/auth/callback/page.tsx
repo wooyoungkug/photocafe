@@ -11,12 +11,55 @@ function AuthCallbackContent() {
     const { setAuth } = useAuthStore();
 
     useEffect(() => {
-        const accessToken = searchParams.get('accessToken');
-        const refreshToken = searchParams.get('refreshToken');
+        // OAuth callback params
+        let accessToken = searchParams.get('accessToken');
+        let refreshToken = searchParams.get('refreshToken');
         const userId = searchParams.get('userId');
         const userName = searchParams.get('userName');
         const userEmail = searchParams.get('userEmail');
 
+        // Admin login callback params (from API login page)
+        const token = searchParams.get('token');
+        const userParam = searchParams.get('user');
+
+        // Handle admin login callback
+        if (token) {
+            accessToken = token;
+            refreshToken = searchParams.get('refreshToken') || '';
+
+            // Store tokens in localStorage for AuthGuard
+            localStorage.setItem('accessToken', token);
+            if (refreshToken) {
+                localStorage.setItem('refreshToken', refreshToken);
+            }
+
+            if (userParam) {
+                try {
+                    const userData = JSON.parse(userParam);
+                    localStorage.setItem('user', JSON.stringify(userData));
+
+                    setAuth({
+                        user: {
+                            id: userData.id,
+                            email: userData.email || '',
+                            name: userData.name || '관리자',
+                            role: userData.role || 'admin',
+                        },
+                        accessToken: token,
+                        refreshToken: refreshToken || '',
+                        rememberMe: true, // 백엔드 로그인은 항상 localStorage 사용
+                    });
+
+                    // Redirect to dashboard for admin
+                    router.push('/dashboard');
+                    return;
+                } catch (e) {
+                    console.error('Failed to parse user data:', e);
+                }
+            }
+        }
+
+        // Handle OAuth callback
         if (accessToken && refreshToken && userId) {
             // 로그인 상태 저장
             setAuth({
@@ -28,11 +71,12 @@ function AuthCallbackContent() {
                 },
                 accessToken,
                 refreshToken,
+                rememberMe: true, // OAuth 로그인도 localStorage 사용
             });
 
             // 메인 페이지로 리다이렉트
             router.push('/');
-        } else {
+        } else if (!token) {
             // 토큰이 없으면 로그인 페이지로 리다이렉트
             router.push('/login?error=oauth_failed');
         }

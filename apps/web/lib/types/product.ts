@@ -129,6 +129,54 @@ export interface ProductListResponse {
   };
 }
 
+export interface CreateProductSpecificationDto {
+  name: string;
+  widthMm: number;
+  heightMm: number;
+  price?: number;
+  isDefault?: boolean;
+  sortOrder?: number;
+}
+
+export interface CreateProductBindingDto {
+  name: string;
+  price?: number;
+  isDefault?: boolean;
+  sortOrder?: number;
+}
+
+export interface CreateProductPaperDto {
+  name: string;
+  type: string;
+  price?: number;
+  isDefault?: boolean;
+  sortOrder?: number;
+}
+
+export interface CreateProductCoverDto {
+  name: string;
+  materialCode?: string;
+  price?: number;
+  imageUrl?: string;
+  isDefault?: boolean;
+  sortOrder?: number;
+}
+
+export interface CreateProductFoilDto {
+  name: string;
+  color?: string;
+  price?: number;
+  isDefault?: boolean;
+  sortOrder?: number;
+}
+
+export interface CreateProductFinishingDto {
+  name: string;
+  price?: number;
+  isDefault?: boolean;
+  sortOrder?: number;
+}
+
 export interface CreateProductDto {
   productCode: string;
   productName: string;
@@ -142,6 +190,12 @@ export interface CreateProductDto {
   detailImages?: string[];
   description?: string;
   sortOrder?: number;
+  specifications?: CreateProductSpecificationDto[];
+  bindings?: CreateProductBindingDto[];
+  papers?: CreateProductPaperDto[];
+  covers?: CreateProductCoverDto[];
+  foils?: CreateProductFoilDto[];
+  finishings?: CreateProductFinishingDto[];
 }
 
 export type UpdateProductDto = Partial<CreateProductDto>;
