@@ -53,11 +53,12 @@
     "react-day-picker": "^9.4.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.71.1",
-    "react-quill-new": "^3.7.0",
+    "react-quill-new": "^3.8.2",
     "recharts": "^3.6.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",
+    "tinymce": "^8.3.2",
     "zod": "^4.3.5",
     "zustand": "^5.0.10"
   },
