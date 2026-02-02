@@ -18,7 +18,10 @@ import {
   RecordCopperPlateUsageDto,
   ChangeCopperPlateLocationDto,
   ChangeCopperPlateStatusDto,
-  FOIL_COLOR_LABELS,
+  CreateFoilColorDto,
+  UpdateFoilColorDto,
+  CreatePlatePositionDto,
+  UpdatePlatePositionDto,
   COPPER_PLATE_STATUS_LABELS,
 } from '../dto/copper-plate.dto';
 
@@ -31,12 +34,69 @@ export class CopperPlateController {
 
   // 라벨 조회 (프론트엔드용)
   @Get('labels')
-  @ApiOperation({ summary: '박 컬러 및 상태 라벨 조회' })
-  getLabels() {
+  @ApiOperation({ summary: '박 컬러, 위치 및 상태 라벨 조회' })
+  async getLabels() {
+    const [foilColors, platePositions] = await Promise.all([
+      this.copperPlateService.getFoilColors(),
+      this.copperPlateService.getPlatePositions(),
+    ]);
     return {
-      foilColors: FOIL_COLOR_LABELS,
+      foilColors,
+      platePositions,
       statuses: COPPER_PLATE_STATUS_LABELS,
     };
+  }
+
+  // ==================== 박 컬러 관리 ====================
+
+  @Get('foil-colors')
+  @ApiOperation({ summary: '박 컬러 목록 조회' })
+  getFoilColors() {
+    return this.copperPlateService.getFoilColors();
+  }
+
+  @Post('foil-colors')
+  @ApiOperation({ summary: '박 컬러 등록' })
+  createFoilColor(@Body() dto: CreateFoilColorDto) {
+    return this.copperPlateService.createFoilColor(dto);
+  }
+
+  @Put('foil-colors/:id')
+  @ApiOperation({ summary: '박 컬러 수정' })
+  updateFoilColor(@Param('id') id: string, @Body() dto: UpdateFoilColorDto) {
+    return this.copperPlateService.updateFoilColor(id, dto);
+  }
+
+  @Delete('foil-colors/:id')
+  @ApiOperation({ summary: '박 컬러 삭제' })
+  deleteFoilColor(@Param('id') id: string) {
+    return this.copperPlateService.deleteFoilColor(id);
+  }
+
+  // ==================== 동판 위치 관리 ====================
+
+  @Get('plate-positions')
+  @ApiOperation({ summary: '동판 위치 목록 조회' })
+  getPlatePositions() {
+    return this.copperPlateService.getPlatePositions();
+  }
+
+  @Post('plate-positions')
+  @ApiOperation({ summary: '동판 위치 등록' })
+  createPlatePosition(@Body() dto: CreatePlatePositionDto) {
+    return this.copperPlateService.createPlatePosition(dto);
+  }
+
+  @Put('plate-positions/:id')
+  @ApiOperation({ summary: '동판 위치 수정' })
+  updatePlatePosition(@Param('id') id: string, @Body() dto: UpdatePlatePositionDto) {
+    return this.copperPlateService.updatePlatePosition(id, dto);
+  }
+
+  @Delete('plate-positions/:id')
+  @ApiOperation({ summary: '동판 위치 삭제' })
+  deletePlatePosition(@Param('id') id: string) {
+    return this.copperPlateService.deletePlatePosition(id);
   }
 
   // 전체 동판 검색 (관리자용)

@@ -202,7 +202,18 @@
       "Bash(python:*)",
       "Bash(copy \"c:\\\\dev\\\\printing114\\\\답변서_권고사직.docx\" \"C:\\\\Users\\\\WOO\\\\Desktop\\\\답변서_권고사직.docx\")",
       "Bash(tail:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(\"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -c \"UPDATE \"\"DeliveryPricing\"\" SET \"\"distanceRanges\"\" = ''[{\"\"minDistance\"\": 0, \"\"maxDistance\"\": 5, \"\"price\"\": 8000},{\"\"minDistance\"\": 5, \"\"maxDistance\"\": 10, \"\"price\"\": 12000},{\"\"minDistance\"\": 10, \"\"maxDistance\"\": 15, \"\"price\"\": 16000},{\"\"minDistance\"\": 15, \"\"maxDistance\"\": 20, \"\"price\"\": 20000}]''::jsonb WHERE \"\"deliveryMethod\"\" = ''motorcycle'';\")",
+      "Bash(\"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -c \"\\\\d delivery_pricings\")",
+      "Bash(Select-String -Pattern \"motorcycle|damas|distanceRanges\" -Context 2,5)",
+      "Bash(del appsapifix-motorcycle.js)",
+      "Bash(del appsapireset-delivery.js)",
+      "Bash(del \"apps\\\\api\\\\reset-delivery.js\")",
+      "Bash(Get-Content \"C:\\\\Users\\\\WOO\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--dev-printing114\\\\tasks\\\\b36e3ab.output\" -Tail 30)",
+      "Bash(pip show:*)",
+      "Bash(xcopy:*)",
+      "Bash(\"C:\\\\\\\\Program Files\\\\\\\\PostgreSQL\\\\\\\\16\\\\\\\\bin\\\\\\\\pg_dump.exe\":*)",
+      "mcp__filesystem__read_multiple_files"
     ]
   }
 }

@@ -362,6 +362,7 @@ model Client {
   consultations Consultation[]
   healthScore  CustomerHealthScore?
   copperPlates CopperPlate[]
+  productionSettingPrices ClientProductionSettingPrice[]
 
   @@unique([oauthProvider, oauthId])
   @@index([groupId])
@@ -409,6 +410,28 @@ model Specification {
   // 정렬 및 상태
   sortOrder   Int      @default(0)
   isActive    Boolean  @default(true)
+
+  // ========== JDF LayoutIntent 필드 ==========
+  // JDF: FinishedDimensions (완성 치수)
+  jdfFinishedWidth    Decimal?  @db.Decimal(10, 2)        // 재단 후 가로 (mm)
+  jdfFinishedHeight   Decimal?  @db.Decimal(10, 2)        // 재단 후 세로 (mm)
+  // JDF: Bleed (도련)
+  jdfBleedTop         Decimal?  @db.Decimal(10, 2) @default(3)  // mm
+  jdfBleedBottom      Decimal?  @db.Decimal(10, 2) @default(3)
+  jdfBleedLeft        Decimal?  @db.Decimal(10, 2) @default(3)
+  jdfBleedRight       Decimal?  @db.Decimal(10, 2) @default(3)
+  // JDF: TrimSize (재단 크기)
+  jdfTrimWidth        Decimal?  @db.Decimal(10, 2)
+  jdfTrimHeight       Decimal?  @db.Decimal(10, 2)
+  // JDF: PageOrder (페이지 순서)
+  jdfPageOrder        String?   @default("Booklet")       // Booklet, Sequential
+  // JDF: Sides (인쇄 면)
+  jdfSides            String?   @default("TwoSidedHeadToHead")  // OneSided, TwoSidedHeadToHead, TwoSidedHeadToFoot
+  // JDF: NumberUp (임포지션)
+  jdfNumberUpX        Int?      @default(1)               // 가로 배치 수
+  jdfNumberUpY        Int?      @default(1)               // 세로 배치 수
+  // JDF: SpreadType (스프레드 유형)
+  jdfSpreadType       String?   @default("Single")        // Single, Spread
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -918,9 +941,27 @@ model OrderItem {
   unitPrice        Decimal  @db.Decimal(10, 2)
   totalPrice       Decimal  @db.Decimal(12, 2)
 
+  // ========== JDF Intent 참조 ==========
+  colorIntentId       String?               // ColorIntent ID
+  bindingIntentId     String?               // BindingIntent ID
+  foldingIntentId     String?               // FoldingIntent ID
+  proofingIntentId    String?               // ProofingIntent ID
+  fileSpecId          String?               // FileSpec ID
+  qualityControlId    String?               // QualityControl ID
+
+  // JDF Intent 스냅샷 (주문 시점의 정보 보존)
+  jdfNumColorsFront   Int?                  // 앞면 색상 수
+  jdfNumColorsBack    Int?                  // 뒷면 색상 수
+  jdfCoatingFront     String?               // 앞면 코팅
+  jdfCoatingBack      String?               // 뒷면 코팅
+  jdfBindingType      String?               // 제본 유형
+  jdfBindingSide      String?               // 제본 위치
+
   files OrderFile[]
 
   @@index([orderId])
+  @@index([colorIntentId])
+  @@index([bindingIntentId])
   @@map("order_items")
 }
 
@@ -1178,6 +1219,25 @@ model Paper {
   sortOrder       Int               @default(0)
   isActive        Boolean           @default(true)
 
+  // ========== JDF MediaIntent 필드 ==========
+  // JDF: MediaType (용지 매체 유형)
+  jdfMediaType        String?       @default("Paper")      // Paper, Transparency, Film, Plate
+  // JDF: MediaTypeDetails (용지 세부 유형)
+  jdfMediaTypeDetails String?                              // Photographic, Bond, Cardstock, Coated
+  // JDF: FrontCoatings / BackCoatings (코팅 정보)
+  jdfFrontCoating     String?                              // HighGloss, Glossy, Matte, Satin
+  jdfBackCoating      String?                              // 뒷면 코팅
+  // JDF: Opacity (불투명도)
+  jdfOpacity          String?       @default("Opaque")     // Opaque, Translucent, Transparent
+  // JDF: Texture (질감)
+  jdfTexture          String?                              // Smooth, Linen, Laid, Felt
+  // JDF: Grade (용지 등급)
+  jdfGrade            Int?          @default(1)            // 1-5 등급
+  // JDF: PrePrinted (사전 인쇄 여부)
+  jdfPrePrinted       Boolean       @default(false)
+  // JDF: HoleType (펀치 구멍)
+  jdfHoleType         String?                              // None, R2-generic, R3-generic
+
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -1330,6 +1390,7 @@ model ProductionSetting {
   specifications  ProductionSettingSpecification[]
   prices          ProductionSettingPrice[]
   groupPrices     GroupProductionSettingPrice[]
+  clientPrices    ClientProductionSettingPrice[]
 
   @@index([groupId])
   @@index([pricingType])
@@ -1440,6 +1501,52 @@ model GroupProductionSettingPrice {
   @@index([productionSettingId])
   @@index([priceGroupId])
   @@map("group_production_setting_prices")
+}
+
+// 거래처 개별 생산설정 단가 (GroupProductionSettingPrice와 동일 구조, clientId 사용)
+model ClientProductionSettingPrice {
+  id                  String            @id @default(cuid())
+  clientId            String
+  client              Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  productionSettingId String
+  productionSetting   ProductionSetting @relation(fields: [productionSettingId], references: [id], onDelete: Cascade)
+
+  // 가격 조건 (ProductionSettingPrice와 동일한 구조)
+  specificationId     String?           // 규격별 가격인 경우
+  priceGroupId        String?           // 단가 그룹 ID (인디고 priceGroups용)
+  minQuantity         Int?              // 최소 수량 (수량별 가격인 경우) / Up값 (인디고)
+  maxQuantity         Int?              // 최대 수량
+
+  // 가중치 (Up별 가격 계산용)
+  weight              Decimal?          @db.Decimal(5, 2)
+
+  // 가격 (단면/양면)
+  price               Decimal           @db.Decimal(12, 2) @default(0)
+  singleSidedPrice    Decimal?          @db.Decimal(12, 2)
+  doubleSidedPrice    Decimal?          @db.Decimal(12, 2)
+
+  // 인디고 4도칼라 가격
+  fourColorSinglePrice   Decimal?       @db.Decimal(12, 2)
+  fourColorDoublePrice   Decimal?       @db.Decimal(12, 2)
+
+  // 인디고 6도칼라 가격
+  sixColorSinglePrice    Decimal?       @db.Decimal(12, 2)
+  sixColorDoublePrice    Decimal?       @db.Decimal(12, 2)
+
+  // 구간별 Nup+면당가격 (nup_page_range용)
+  basePages              Int?
+  basePrice              Decimal?        @db.Decimal(12, 2)
+  pricePerPage           Decimal?        @db.Decimal(12, 2)
+  rangePrices            Json?
+
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@unique([clientId, productionSettingId, specificationId, priceGroupId, minQuantity])
+  @@index([clientId])
+  @@index([productionSettingId])
+  @@index([priceGroupId])
+  @@map("client_production_setting_prices")
 }
 
 // ==================== 고객 상담 관리 ====================
@@ -1970,6 +2077,33 @@ model Schedule {
 
 // ==================== 동판 관리 ====================
 
+// 박 컬러 (Foil Color) - 동적 관리
+model FoilColor {
+  id          String   @id @default(cuid())
+  code        String   @unique     // 코드 (예: gold_glossy)
+  name        String               // 이름 (예: 금박(유광))
+  colorHex    String?              // 대표 색상 (예: #FFD700)
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("foil_colors")
+}
+
+// 동판 위치 (Plate Position) - 동적 관리
+model PlatePosition {
+  id          String   @id @default(cuid())
+  code        String   @unique     // 코드 (예: center)
+  name        String               // 이름 (예: 정중앙)
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("plate_positions")
+}
+
 model CopperPlate {
   id              String   @id @default(cuid())
   clientId        String
@@ -2429,4 +2563,229 @@ model Settlement {
   @@index([periodStart])
   @@index([status])
   @@map("settlements")
+}
+
+// ==================== JDF (CIP4 Job Definition Format) ====================
+
+// JDF ColorIntent - 색상 의도 (인쇄 도수, 코팅)
+model ColorIntent {
+  id              String   @id @default(cuid())
+  code            String   @unique                    // CI-4C-1S, CI-6C-2S 등
+  name            String                              // "4도 단면", "6도 양면"
+
+  // JDF: NumColors (색상 수)
+  numColorsFront  Int      @default(4)                // 앞면 색상 수 (4=CMYK, 6=CMYKOV)
+  numColorsBack   Int      @default(0)                // 뒷면 색상 수 (0=단면, 4=양면)
+
+  // JDF: ColorType
+  colorType       String   @default("Process")        // Process, Spot, DeviceN
+
+  // JDF: ColorantOrder (색상 순서)
+  colorantOrder   String[] @default([])               // ["Cyan", "Magenta", "Yellow", "Black"]
+
+  // JDF: Coatings (코팅)
+  coatingFront    String?                             // UV, Laminate, Varnish, Matte, Glossy
+  coatingBack     String?
+
+  // JDF: ColorStandard
+  colorStandard   String?  @default("FOGRA39")        // FOGRA39, GRACoL, SWOP
+
+  // JDF: PrintingTechnology
+  printingTechnology String? @default("DigitalPrinting") // Offset, DigitalPrinting, Inkjet
+
+  // 한국어 표시용
+  displayNameKo   String?                             // "4도 풀컬러 양면 인쇄"
+
+  sortOrder       Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([isActive])
+  @@map("color_intents")
+}
+
+// JDF BindingIntent - 제본 의도
+model BindingIntent {
+  id              String   @id @default(cuid())
+  code            String   @unique                    // BI-SOFT, BI-HARD 등
+  name            String                              // "무선제본", "양장제본"
+
+  // JDF: BindingType
+  jdfBindingType  String   @default("SoftCover")      // SoftCover, HardCover, Saddle, Ring, Wire, Perfect, Spiral
+
+  // JDF: BindingSide
+  jdfBindingSide  String   @default("Left")           // Left, Right, Top, Bottom
+
+  // JDF: BindingOrder
+  jdfBindingOrder String?  @default("Gathering")      // Collecting, Gathering
+
+  // JDF: EdgeGilding (금박)
+  edgeGilding     String?                             // None, Gold, Silver
+
+  // JDF: SpineThickness
+  spineThickness  String?  @default("Auto")           // Auto, Fixed
+
+  // JDF: CoverType
+  coverType       String?  @default("Separate")       // Separate, Integral
+
+  // 한국어 표시용
+  displayNameKo   String?                             // "양장 하드커버 제본"
+
+  // 가격 정보
+  basePrice       Decimal  @db.Decimal(12, 2) @default(0)
+
+  sortOrder       Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([isActive])
+  @@map("binding_intents")
+}
+
+// JDF FoldingIntent - 접지 의도
+model FoldingIntent {
+  id              String   @id @default(cuid())
+  code            String   @unique                    // FI-F2, FI-Z 등
+  name            String                              // "2단접지", "대문접지"
+
+  // JDF: FoldCatalog
+  jdfFoldCatalog  String                              // F2-1, F4-1, F6-1, Z, Gate, Roll, Letter
+
+  // JDF: FoldingDetails
+  foldCount       Int      @default(1)                // 접지 횟수
+  foldDirection   String?  @default("Parallel")       // Parallel, Perpendicular, Mixed
+
+  // 접지 도식 이미지
+  diagramUrl      String?
+
+  // 한국어 표시용
+  displayNameKo   String?                             // "병풍 6단 접지"
+
+  // 가격 정보
+  basePrice       Decimal  @db.Decimal(12, 2) @default(0)
+  pricePerFold    Decimal  @db.Decimal(10, 2) @default(0)  // 접지당 추가요금
+
+  sortOrder       Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([isActive])
+  @@map("folding_intents")
+}
+
+// JDF ProofingIntent - 교정 의도
+model ProofingIntent {
+  id              String   @id @default(cuid())
+  code            String   @unique                    // PI-NONE, PI-DIGITAL 등
+  name            String                              // "교정없음", "디지털 교정"
+
+  // JDF: ProofType
+  jdfProofType    String   @default("None")           // None, Digital, Proof, Press
+
+  // JDF: ProofQuality
+  jdfProofQuality String?  @default("Standard")       // Draft, Standard, High
+
+  // JDF: ColorProof
+  isColorProof    Boolean  @default(false)            // 색상 교정 포함 여부
+
+  // JDF: ContractProof
+  isContractProof Boolean  @default(false)            // 계약용 교정 여부
+
+  // 한국어 표시용
+  displayNameKo   String?                             // "색상 확인용 디지털 프루프"
+
+  // 가격 정보
+  basePrice       Decimal  @db.Decimal(12, 2) @default(0)
+
+  sortOrder       Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([isActive])
+  @@map("proofing_intents")
+}
+
+// JDF FileSpec - 파일 규격
+model FileSpec {
+  id              String   @id @default(cuid())
+  code            String   @unique                    // FS-INDIGO, FS-INKJET 등
+  name            String                              // "인디고 출력용", "잉크젯 출력용"
+
+  // JDF: MimeType
+  mimeType        String   @default("application/pdf") // application/pdf, image/tiff
+
+  // JDF: Resolution
+  resolutionX     Int      @default(300)              // DPI (가로)
+  resolutionY     Int      @default(300)              // DPI (세로)
+  minResolution   Int      @default(200)              // 최소 허용 해상도
+
+  // JDF: ColorSpace
+  colorSpace      String   @default("CMYK")           // CMYK, RGB, sRGB, AdobeRGB, Grayscale
+
+  // JDF: ColorProfile
+  colorProfile    String?                             // FOGRA39, Japan Color 2001 Coated
+
+  // JDF: Compression
+  compression     String?  @default("None")           // None, LZW, JPEG, ZIP
+
+  // JDF: ScreeningType
+  screeningType   String?  @default("AM")             // AM, FM, Hybrid
+  screenLPI       Int?     @default(175)              // 라인 스크린 (LPI)
+
+  // 파일 크기 제한
+  maxFileSizeMB   Int?     @default(500)              // 최대 파일 크기 (MB)
+
+  // 한국어 표시용
+  displayNameKo   String?                             // "인디고 CMYK 300dpi"
+
+  sortOrder       Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([isActive])
+  @@map("file_specs")
+}
+
+// JDF QualityControl - 품질 기준
+model QualityControl {
+  id              String   @id @default(cuid())
+  code            String   @unique                    // QC-STD, QC-PREMIUM 등
+  name            String                              // "표준품질", "프리미엄품질"
+
+  // 색상 정확도
+  deltaE          Decimal? @db.Decimal(5, 2)          // 허용 Delta E (색차)
+  colorTolerance  String?  @default("Standard")       // Tight, Standard, Loose
+
+  // 밀도 기준
+  densityCyan     Decimal? @db.Decimal(5, 2)
+  densityMagenta  Decimal? @db.Decimal(5, 2)
+  densityYellow   Decimal? @db.Decimal(5, 2)
+  densityBlack    Decimal? @db.Decimal(5, 2)
+
+  // 도트 게인
+  dotGainTarget   Int?     @default(15)               // 목표 도트 게인 (%)
+
+  // 허용 오차
+  trimTolerance   Decimal? @db.Decimal(5, 2) @default(0.5)  // 재단 허용오차 (mm)
+  foldTolerance   Decimal? @db.Decimal(5, 2) @default(1.0)  // 접지 허용오차 (mm)
+  bindingTolerance Decimal? @db.Decimal(5, 2) @default(2.0) // 제본 허용오차 (mm)
+
+  // 한국어 표시용
+  displayNameKo   String?                             // "프리미엄 품질 기준"
+
+  // 검수 체크리스트 (JSON)
+  checklistItems  Json?                               // 검수 항목 배열
+
+  sortOrder       Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([isActive])
+  @@map("quality_controls")
 }

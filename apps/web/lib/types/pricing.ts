@@ -147,3 +147,81 @@ export interface SetGroupProductionSettingPricesDto {
   productionSettingId: string;
   prices: GroupProductionSettingPriceDto[];
 }
+
+// 거래처 개별 생산설정 단가
+export interface ClientProductionSettingPrice {
+  id: string;
+  clientId: string;
+  productionSettingId: string;
+  specificationId?: string;
+  priceGroupId?: string;
+  minQuantity?: number;
+  maxQuantity?: number;
+  weight?: number;
+  price: number;
+  singleSidedPrice?: number;
+  doubleSidedPrice?: number;
+  fourColorSinglePrice?: number;
+  fourColorDoublePrice?: number;
+  sixColorSinglePrice?: number;
+  sixColorDoublePrice?: number;
+  basePages?: number;
+  basePrice?: number;
+  pricePerPage?: number;
+  rangePrices?: Record<string, number>;
+  productionSetting?: {
+    id: string;
+    codeName?: string;
+    settingName?: string;
+    pricingType: string;
+    printMethod?: string;
+    group?: {
+      id: string;
+      name: string;
+    };
+  };
+}
+
+export interface ClientProductionSettingPriceDto {
+  specificationId?: string;
+  priceGroupId?: string;
+  minQuantity?: number;
+  maxQuantity?: number;
+  weight?: number;
+  price?: number;
+  singleSidedPrice?: number;
+  doubleSidedPrice?: number;
+  fourColorSinglePrice?: number;
+  fourColorDoublePrice?: number;
+  sixColorSinglePrice?: number;
+  sixColorDoublePrice?: number;
+  basePages?: number;
+  basePrice?: number;
+  pricePerPage?: number;
+  rangePrices?: Record<string, number>;
+}
+
+export interface SetClientProductionSettingPricesDto {
+  clientId: string;
+  productionSettingId: string;
+  prices: ClientProductionSettingPriceDto[];
+}
+
+// 거래처 개별 단가 설정 요약 (마킹용)
+export interface ClientProductionSettingSummary {
+  productionSettingId: string;
+  id: string;
+  codeName?: string;
+  settingName?: string;
+  pricingType: string;
+  printMethod?: string;
+  group?: {
+    id: string;
+    name: string;
+    parentId?: string;
+    parent?: {
+      id: string;
+      name: string;
+    };
+  };
+}

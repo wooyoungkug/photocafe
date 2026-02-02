@@ -13,7 +13,7 @@ export type PricingType =
   | 'binding_page'
   | 'finishing_qty'
   | 'finishing_page'
-  // 배송비 전용
+  // 배송 타입 (배송 설정 페이지에서 사용 - 단가설정 드롭다운에는 표시하지 않음)
   | 'delivery_parcel'
   | 'delivery_motorcycle'
   | 'delivery_damas'

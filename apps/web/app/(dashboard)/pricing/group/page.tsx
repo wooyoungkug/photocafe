@@ -79,34 +79,6 @@ const PRICING_TYPE_LABELS: Record<string, string> = {
   binding_page: "[제본전용] 제본 페이지당",
   finishing_qty: "[후가공] 수량당",
   finishing_page: "[후가공] 페이지당",
-  delivery_parcel: "[배송] 택배",
-  delivery_motorcycle: "[배송] 오토바이퀵배달",
-  delivery_damas: "[배송] 다마스",
-  delivery_freight: "[배송] 화물배송",
-  delivery_pickup: "[배송] 방문수령",
-};
-
-// 배송방법 타입 목록
-const DELIVERY_PRICING_TYPES = [
-  'delivery_parcel',
-  'delivery_motorcycle',
-  'delivery_damas',
-  'delivery_freight',
-  'delivery_pickup',
-] as const;
-
-// 배송방법 라벨 (심플한 이름)
-const DELIVERY_METHOD_LABELS: Record<string, string> = {
-  delivery_parcel: '택배',
-  delivery_motorcycle: '오토바이퀵배달',
-  delivery_damas: '다마스',
-  delivery_freight: '화물배송',
-  delivery_pickup: '방문수령',
-};
-
-// 배송방법인지 확인하는 헬퍼 함수
-const isDeliveryPricingType = (type: string): boolean => {
-  return DELIVERY_PRICING_TYPES.includes(type as any);
 };
 
 // 인쇄방식 라벨
@@ -332,11 +304,21 @@ export default function GroupPricingPage() {
     const map = new Map<string, any>();
     if (groupPrices) {
       groupPrices.forEach((gp: any) => {
-        // priceGroupId가 있으면 그룹 기반 키, 없으면 규격 기반 키
-        const key = gp.priceGroupId
-          ? `${gp.productionSettingId}_${gp.priceGroupId}_${gp.minQuantity || ''}`
-          : `${gp.productionSettingId}_${gp.minQuantity || ''}_${gp.specificationId || ''}`;
-        map.set(key, gp);
+        // priceGroupId와 specificationId가 모두 있으면 (잉크젯 그룹별 규격단가)
+        if (gp.priceGroupId && gp.specificationId) {
+          const key = `${gp.productionSettingId}_${gp.priceGroupId}_${gp.specificationId}`;
+          map.set(key, gp);
+        }
+        // priceGroupId만 있으면 (인디고 그룹별 Up단가)
+        else if (gp.priceGroupId) {
+          const key = `${gp.productionSettingId}_${gp.priceGroupId}_${gp.minQuantity || ''}`;
+          map.set(key, gp);
+        }
+        // 둘 다 없으면 규격 기반 키
+        else {
+          const key = `${gp.productionSettingId}_${gp.minQuantity || ''}_${gp.specificationId || ''}`;
+          map.set(key, gp);
+        }
       });
     }
     return map;
@@ -551,7 +533,7 @@ export default function GroupPricingPage() {
         const key = `${settingId}_${group.id}_spec_${specId}`;
         const editedValue = editingPrices[key];
 
-        if (editedValue) {
+        if (editedValue !== undefined && editedValue !== '') {
           prices.push({
             priceGroupId: group.id,
             specificationId: specId,
@@ -563,6 +545,12 @@ export default function GroupPricingPage() {
 
     if (prices.length > 0) {
       await handleSavePrices(settingId, prices);
+    } else {
+      toast({
+        title: '변경사항 없음',
+        description: '수정된 단가가 없습니다. 단가를 입력 후 저장해주세요.',
+        variant: 'default',
+      });
     }
   };
 
@@ -609,6 +597,29 @@ export default function GroupPricingPage() {
 
     toast({
       title: `가중치 ${weightPercent}% 적용`,
+      description: `표준단가의 ${weightPercent}%로 그룹단가가 계산되었습니다.`,
+    });
+  };
+
+  // 잉크젯 가중치 적용 함수 (표준단가 * 가중치% = 그룹단가)
+  const applyInkjetWeight = (settingId: string, groupId: string, specPrices: any[], specifications: any[], weightPercent: number) => {
+    const updates: Record<string, string> = {};
+    const weight = weightPercent / 100;
+
+    specPrices.forEach((specPrice: any) => {
+      const standardPrice = specPrice.singleSidedPrice || 0;
+      if (standardPrice > 0) {
+        const groupPrice = Math.round(standardPrice * weight);
+        const key = `${settingId}_${groupId}_spec_${specPrice.specificationId}`;
+        updates[key] = groupPrice.toString();
+      }
+    });
+
+    setEditingPrices(prev => ({ ...prev, ...updates }));
+    setWeights(prev => ({ ...prev, [`${settingId}_${groupId}`]: weightPercent }));
+
+    toast({
+      title: `단가맞춤 ${weightPercent}% 적용`,
       description: `표준단가의 ${weightPercent}%로 그룹단가가 계산되었습니다.`,
     });
   };
@@ -956,7 +967,6 @@ export default function GroupPricingPage() {
                   {selectedProductionGroup.settings?.map((setting) => {
                     const printMethod = (setting as any).printMethod;
                     const pricingType = (setting as any).pricingType || '';
-                    const isDelivery = isDeliveryPricingType(pricingType);
                     const isSelected = selectedSettingId === setting.id;
 
                     // 표준 단가 그룹 가져오기 (인디고/잉크젯 모두 지원)
@@ -1003,13 +1013,11 @@ export default function GroupPricingPage() {
 
                             {/* 적용단위 */}
                             <Badge variant="outline" className="text-xs font-normal text-gray-600 bg-gray-50">
-                              {isDelivery
-                                ? DELIVERY_METHOD_LABELS[pricingType] || pricingType
-                                : PRICING_TYPE_LABELS[pricingType] || pricingType}
+                              {PRICING_TYPE_LABELS[pricingType] || pricingType}
                             </Badge>
 
                             {/* 인쇄방식 */}
-                            {!isDelivery && printMethod && (
+                            {printMethod && (
                               <Badge variant="secondary" className="text-xs">
                                 {PRINT_METHOD_LABELS[printMethod] || printMethod}
                               </Badge>
@@ -1083,11 +1091,11 @@ export default function GroupPricingPage() {
                           </div>
                         </div>
 
-                        {/* 단가 입력 패널 - 인디고만 인라인 (3열 레이아웃) */}
+                        {/* 단가 입력 패널 - 인디고만 인라인 (2열 레이아웃) */}
                         {isSelected && hasPriceGroups && printMethod === 'indigo' && (
                           <div className="border-t px-4 py-4 bg-gray-50/50">
-                            {/* 그룹별 단가 입력 - 3열 그리드 */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {/* 그룹별 단가 입력 - 2열 그리드 */}
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                               {priceGroups.map((group: any) => {
                                 const style = PRICE_GROUP_STYLES[group.color] || PRICE_GROUP_STYLES.none;
                                 const upPrices = (group.upPrices || []).sort((a: any, b: any) => a.up - b.up);
@@ -1986,64 +1994,6 @@ export default function GroupPricingPage() {
                           </div>
                         )}
 
-                        {/* 배송방법 그룹단가 입력 */}
-                        {isSelected && isDelivery && (
-                          <div className="border-t px-4 py-4 bg-gray-50/50">
-                            {(() => {
-                              const standardPrice = (setting as any).basePrice || (setting as any).prices?.[0]?.price || 0;
-                              const key = `${setting.id}_delivery_price`;
-                              const savedGroupPrice = groupPricesMap.get(`${setting.id}__delivery`);
-
-                              return (
-                                <div className="space-y-3">
-                                  <div className="flex items-center gap-4 p-4 bg-white rounded border">
-                                    <span className="text-sm font-medium text-gray-700">
-                                      {DELIVERY_METHOD_LABELS[pricingType] || '배송'} 단가
-                                    </span>
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-xs text-gray-400">표준: {formatNumber(standardPrice)}원</span>
-                                      <Input
-                                        type="number"
-                                        className="h-8 w-28 text-sm text-center font-mono"
-                                        placeholder="그룹단가"
-                                        value={editingPrices[key] ?? (savedGroupPrice?.price ? String(Number(savedGroupPrice.price)) : '')}
-                                        onChange={(e) => {
-                                          setEditingPrices(prev => ({ ...prev, [key]: e.target.value }));
-                                        }}
-                                      />
-                                      <span className="text-xs text-gray-500">원</span>
-                                    </div>
-                                  </div>
-
-                                  {/* 저장 버튼 */}
-                                  <div className="flex justify-end">
-                                    <Button
-                                      size="sm"
-                                      className="h-8 bg-indigo-600 hover:bg-indigo-700"
-                                      disabled={isSaving || !editingPrices[key]}
-                                      onClick={() => {
-                                        const editedValue = editingPrices[key];
-                                        if (editedValue) {
-                                          handleSavePrices(setting.id, [{
-                                            price: parseFloat(editedValue),
-                                          }]);
-                                        }
-                                      }}
-                                    >
-                                      {isSaving ? (
-                                        <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                                      ) : (
-                                        <Save className="h-3.5 w-3.5 mr-1.5" />
-                                      )}
-                                      저장
-                                    </Button>
-                                  </div>
-                                </div>
-                              );
-                            })()}
-                          </div>
-                        )}
-
                         {/* 지원하지 않는 경우 메시지 */}
                         {isSelected && !hasPriceGroups && !hasInkjetSpecs &&
                          pricingType !== 'nup_page_range' &&
@@ -2052,8 +2002,7 @@ export default function GroupPricingPage() {
                          pricingType !== 'finishing_area' &&
                          pricingType !== 'finishing_qty' &&
                          pricingType !== 'finishing_page' &&
-                         pricingType !== 'binding_page' &&
-                         !isDelivery && (
+                         pricingType !== 'binding_page' && (
                           <div className="border-t px-4 py-6 bg-gray-50/50 text-center text-gray-500 text-sm">
                             {printMethod === 'indigo'
                               ? "표준단가에서 먼저 단가 그룹을 설정해주세요."
@@ -2283,6 +2232,43 @@ export default function GroupPricingPage() {
                           <Badge variant="outline" className="text-[10px] h-5">
                             {(group.specPrices || []).length}개 규격
                           </Badge>
+                        </div>
+                        {/* 단가맞춤 */}
+                        <div className="flex items-center gap-1">
+                          <Input
+                            type="number"
+                            className="h-5 w-12 text-[10px] text-center font-mono px-1"
+                            placeholder="100"
+                            value={weights[`${inkjetDialogSetting?.id}_${group.id}`] || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setWeights(prev => ({ ...prev, [`${inkjetDialogSetting?.id}_${group.id}`]: val ? Number(val) : 0 }));
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                const weightVal = weights[`${inkjetDialogSetting?.id}_${group.id}`] || 100;
+                                if (weightVal > 0 && weightVal <= 200) {
+                                  applyInkjetWeight(inkjetDialogSetting?.id, group.id, group.specPrices || [], specifications, weightVal);
+                                }
+                              }
+                            }}
+                          />
+                          <span className="text-[9px] text-gray-400">%</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-5 px-1.5 text-[9px] text-indigo-600 hover:bg-indigo-50"
+                            onClick={() => {
+                              const weightVal = weights[`${inkjetDialogSetting?.id}_${group.id}`] || 100;
+                              if (weightVal > 0 && weightVal <= 200) {
+                                applyInkjetWeight(inkjetDialogSetting?.id, group.id, group.specPrices || [], specifications, weightVal);
+                              } else {
+                                toast({ title: '1~200 사이 값을 입력하세요.', variant: 'destructive' });
+                              }
+                            }}
+                          >
+                            적용
+                          </Button>
                         </div>
                       </div>
 

@@ -14,6 +14,9 @@ import {
   HalfProductSummary,
   GroupProductionSettingPrice,
   SetGroupProductionSettingPricesDto,
+  ClientProductionSettingPrice,
+  SetClientProductionSettingPricesDto,
+  ClientProductionSettingSummary,
 } from '@/lib/types/pricing';
 import { PaginatedResponse } from '@/lib/types/client';
 
@@ -190,6 +193,66 @@ export function useDeleteGroupProductionSettingPrices() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: [PRICING_KEY, 'group-production-settings', variables.clientGroupId],
+      });
+    },
+  });
+}
+
+// ==================== 거래처 개별 생산설정 단가 ====================
+
+export function useClientProductionSettingPrices(clientId: string, productionSettingId?: string) {
+  return useQuery({
+    queryKey: [PRICING_KEY, 'client-production-settings', clientId, productionSettingId],
+    queryFn: () => {
+      const params = productionSettingId ? { productionSettingId } : undefined;
+      return api.get<ClientProductionSettingPrice[]>(
+        `/pricing/clients/${clientId}/production-settings`,
+        params
+      );
+    },
+    enabled: !!clientId,
+  });
+}
+
+export function useClientProductionSettingSummary(clientId: string) {
+  return useQuery({
+    queryKey: [PRICING_KEY, 'client-production-settings-summary', clientId],
+    queryFn: () => api.get<ClientProductionSettingSummary[]>(
+      `/pricing/clients/${clientId}/production-settings/summary`
+    ),
+    enabled: !!clientId,
+  });
+}
+
+export function useSetClientProductionSettingPrices() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (dto: SetClientProductionSettingPricesDto) =>
+      api.post<ClientProductionSettingPrice[]>('/pricing/clients/production-settings', dto),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: [PRICING_KEY, 'client-production-settings', variables.clientId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [PRICING_KEY, 'client-production-settings-summary', variables.clientId],
+      });
+    },
+  });
+}
+
+export function useDeleteClientProductionSettingPrices() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ clientId, productionSettingId }: { clientId: string; productionSettingId: string }) =>
+      api.delete(`/pricing/clients/${clientId}/production-settings/${productionSettingId}`),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: [PRICING_KEY, 'client-production-settings', variables.clientId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [PRICING_KEY, 'client-production-settings-summary', variables.clientId],
       });
     },
   });

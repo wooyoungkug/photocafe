@@ -48,8 +48,33 @@ export class DeliveryPricingService {
     });
   }
 
+  // distanceRanges 유효성 검증
+  private isValidDistanceRanges(ranges: any): boolean {
+    if (!Array.isArray(ranges) || ranges.length === 0) return false;
+    return ranges.every(
+      (r) => r && typeof r === 'object' && 'minDistance' in r && 'maxDistance' in r && 'price' in r
+    );
+  }
+
+  // sizeRanges 유효성 검증
+  private isValidSizeRanges(ranges: any): boolean {
+    if (!Array.isArray(ranges) || ranges.length === 0) return false;
+    return ranges.every((r) => r && typeof r === 'object' && 'name' in r && 'price' in r);
+  }
+
   async update(deliveryMethod: DeliveryMethod, dto: UpdateDeliveryPricingDto) {
+    console.log('[배송비 업데이트] deliveryMethod:', deliveryMethod);
+    console.log('[배송비 업데이트] dto:', JSON.stringify(dto, null, 2));
+
     const { distanceRanges, sizeRanges, ...data } = dto;
+
+    // 유효하지 않은 distanceRanges/sizeRanges는 업데이트하지 않음
+    const validDistanceRanges = this.isValidDistanceRanges(distanceRanges) ? distanceRanges : undefined;
+    const validSizeRanges = this.isValidSizeRanges(sizeRanges) ? sizeRanges : undefined;
+
+    console.log('[배송비 업데이트] validDistanceRanges:', JSON.stringify(validDistanceRanges, null, 2));
+    console.log('[배송비 업데이트] validSizeRanges:', JSON.stringify(validSizeRanges, null, 2));
+    console.log('[배송비 업데이트] data:', JSON.stringify(data, null, 2));
 
     // upsert를 사용하여 없으면 생성, 있으면 업데이트
     return this.prisma.deliveryPricing.upsert({
@@ -58,17 +83,17 @@ export class DeliveryPricingService {
         deliveryMethod,
         name: data.name || deliveryMethod,
         baseFee: data.baseFee ?? 0,
-        distanceRanges: distanceRanges ? JSON.parse(JSON.stringify(distanceRanges)) : Prisma.JsonNull,
-        sizeRanges: sizeRanges ? JSON.parse(JSON.stringify(sizeRanges)) : Prisma.JsonNull,
+        distanceRanges: validDistanceRanges ? JSON.parse(JSON.stringify(validDistanceRanges)) : Prisma.JsonNull,
+        sizeRanges: validSizeRanges ? JSON.parse(JSON.stringify(validSizeRanges)) : Prisma.JsonNull,
         ...data,
       },
       update: {
         ...data,
-        ...(distanceRanges !== undefined && {
-          distanceRanges: distanceRanges ? JSON.parse(JSON.stringify(distanceRanges)) : Prisma.JsonNull,
+        ...(validDistanceRanges !== undefined && {
+          distanceRanges: JSON.parse(JSON.stringify(validDistanceRanges)),
         }),
-        ...(sizeRanges !== undefined && {
-          sizeRanges: sizeRanges ? JSON.parse(JSON.stringify(sizeRanges)) : Prisma.JsonNull,
+        ...(validSizeRanges !== undefined && {
+          sizeRanges: JSON.parse(JSON.stringify(validSizeRanges)),
         }),
       },
     });
@@ -330,26 +355,32 @@ export class DeliveryPricingService {
   // ==================== 초기 데이터 설정 ====================
 
   /**
-   * 기본 배송비 설정 초기화
+   * 기본 배송비 설정 초기화 (기존 데이터 덮어쓰기)
    */
   async initializeDefaultPricing() {
+    // production_settings 배송 데이터 기준으로 초기화
     const defaults = [
       {
-        deliveryMethod: 'parcel',
+        deliveryMethod: 'parcel' as const,
         name: '택배',
-        baseFee: 3500,
+        baseFee: 5500, // production_settings 기준
         islandFee: 3000,
         freeThreshold: 50000,
+        packagingFee: 0,
+        shippingFee: 0,
         sortOrder: 1,
+        isActive: true,
       },
       {
-        deliveryMethod: 'motorcycle',
+        deliveryMethod: 'motorcycle' as const,
         name: '오토바이(퀵)',
         baseFee: 0,
+        packagingFee: 0,
+        shippingFee: 0,
         distanceRanges: [
-          { minDistance: 0, maxDistance: 5, price: 8000 },
-          { minDistance: 5, maxDistance: 10, price: 12000 },
-          { minDistance: 10, maxDistance: 15, price: 16000 },
+          { minDistance: 0, maxDistance: 5, price: 3000 },
+          { minDistance: 5, maxDistance: 10, price: 13000 },
+          { minDistance: 10, maxDistance: 15, price: 18000 },
           { minDistance: 15, maxDistance: 20, price: 20000 },
         ],
         extraPricePerKm: 1000,
@@ -359,11 +390,14 @@ export class DeliveryPricingService {
         nightEndHour: 6,
         weekendSurchargeRate: 0.2,
         sortOrder: 2,
+        isActive: true,
       },
       {
-        deliveryMethod: 'damas',
+        deliveryMethod: 'damas' as const,
         name: '다마스',
-        baseFee: 0,
+        baseFee: 55000, // production_settings 기준
+        packagingFee: 0,
+        shippingFee: 0,
         distanceRanges: [
           { minDistance: 0, maxDistance: 5, price: 15000 },
           { minDistance: 5, maxDistance: 10, price: 20000 },
@@ -375,11 +409,14 @@ export class DeliveryPricingService {
         nightSurchargeRate: 0.3,
         weekendSurchargeRate: 0.2,
         sortOrder: 3,
+        isActive: true,
       },
       {
-        deliveryMethod: 'freight',
+        deliveryMethod: 'freight' as const,
         name: '화물',
         baseFee: 30000,
+        packagingFee: 0,
+        shippingFee: 0,
         sizeRanges: [
           { name: '소형', maxWeight: 30, maxVolume: 0.1, price: 0 },
           { name: '중형', maxWeight: 100, maxVolume: 0.5, price: 20000 },
@@ -389,17 +426,31 @@ export class DeliveryPricingService {
         nightSurchargeRate: 0.2,
         weekendSurchargeRate: 0.1,
         sortOrder: 4,
+        isActive: true,
+      },
+      {
+        deliveryMethod: 'pickup' as const,
+        name: '방문수령',
+        baseFee: 0,
+        packagingFee: 0,
+        shippingFee: 0,
+        sortOrder: 5,
+        isActive: true,
       },
     ];
 
-    for (const def of defaults) {
-      const existing = await this.prisma.deliveryPricing.findUnique({
-        where: { deliveryMethod: def.deliveryMethod },
-      });
+    // 기존 데이터 모두 삭제 후 새로 생성 (깔끔한 초기화)
+    await this.prisma.deliveryPricing.deleteMany({});
 
-      if (!existing) {
-        await this.create(def as any);
-      }
+    for (const def of defaults) {
+      const { distanceRanges, sizeRanges, ...data } = def;
+      await this.prisma.deliveryPricing.create({
+        data: {
+          ...data,
+          distanceRanges: distanceRanges ? JSON.parse(JSON.stringify(distanceRanges)) : Prisma.JsonNull,
+          sizeRanges: sizeRanges ? JSON.parse(JSON.stringify(sizeRanges)) : Prisma.JsonNull,
+        },
+      });
     }
 
     return { message: '기본 배송비 설정이 초기화되었습니다' };

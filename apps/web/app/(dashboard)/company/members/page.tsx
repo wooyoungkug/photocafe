@@ -64,10 +64,13 @@ import {
   Layers,
   Star,
   Palette,
+  DollarSign,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { toast } from '@/hooks/use-toast';
+import { CopperPlateTab } from '@/components/members/copper-plate-tab';
+import { IndividualPricingTab } from '@/components/members/individual-pricing-tab';
 
 export default function MembersPage() {
   const [search, setSearch] = useState('');
@@ -440,7 +443,7 @@ export default function MembersPage() {
           </DialogHeader>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-            <TabsList className="grid w-full grid-cols-7 mb-6">
+            <TabsList className="grid w-full grid-cols-8 mb-6">
               <TabsTrigger value="basic" className="flex items-center gap-1 text-xs px-2">
                 <User className="h-3.5 w-3.5" />
                 기본정보
@@ -448,6 +451,10 @@ export default function MembersPage() {
               <TabsTrigger value="payment" className="flex items-center gap-1 text-xs px-2">
                 <CreditCard className="h-3.5 w-3.5" />
                 결제/배송
+              </TabsTrigger>
+              <TabsTrigger value="pricing" className="flex items-center gap-1 text-xs px-2" disabled={!editingMember}>
+                <DollarSign className="h-3.5 w-3.5" />
+                개별단가
               </TabsTrigger>
               <TabsTrigger value="products" className="flex items-center gap-1 text-xs px-2" disabled={!editingMember}>
                 <Package className="h-3.5 w-3.5" />
@@ -718,6 +725,15 @@ export default function MembersPage() {
               </div>
             </TabsContent>
 
+            <TabsContent value="pricing" className="space-y-6">
+              {editingMember && (
+                <IndividualPricingTab
+                  clientId={editingMember.id}
+                  clientName={editingMember.clientName}
+                />
+              )}
+            </TabsContent>
+
             <TabsContent value="products" className="space-y-6">
               {/* 상품 정보 */}
               <div className="p-5 border rounded-xl bg-gradient-to-r from-indigo-50/70 to-transparent">
@@ -740,24 +756,12 @@ export default function MembersPage() {
             </TabsContent>
 
             <TabsContent value="plates" className="space-y-6">
-              {/* 동판 정보 */}
-              <div className="p-5 border rounded-xl bg-gradient-to-r from-amber-50/70 to-transparent">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-amber-700 flex items-center gap-2">
-                    <Layers className="h-4 w-4" />
-                    동판 목록
-                  </h3>
-                  <Button variant="outline" size="sm">
-                    <Plus className="h-4 w-4 mr-1" />
-                    동판 등록
-                  </Button>
-                </div>
-                <div className="text-center py-12 text-muted-foreground">
-                  <Layers className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                  <p>등록된 동판이 없습니다.</p>
-                  <p className="text-xs mt-2">이 회원의 로고/낙관 동판을 관리합니다.</p>
-                </div>
-              </div>
+              {editingMember && (
+                <CopperPlateTab
+                  clientId={editingMember.id}
+                  clientName={editingMember.clientName}
+                />
+              )}
             </TabsContent>
 
             <TabsContent value="myproducts" className="space-y-6">

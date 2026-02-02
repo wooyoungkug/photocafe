@@ -36,6 +36,11 @@ import { api } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 
+// ==================== CIP4 JDF LayoutIntent 타입 ====================
+type JdfPageOrder = 'Booklet' | 'Sequential' | 'Spread';
+type JdfSides = 'OneSided' | 'TwoSidedHeadToHead' | 'TwoSidedHeadToFoot';
+type JdfSpreadType = 'Single' | 'Spread';
+
 interface Specification {
   id: string;
   code: string;
@@ -53,9 +58,24 @@ interface Specification {
   usageBooklet: boolean;
   squareMeters?: number;
   description?: string;
-  nup?: number;  // 인디고 Nup (숫자)
+  nup?: string;  // 인디고 Nup (별칭: "1up", "1+up", "1++up", "2up", "4up" 등)
   sortOrder: number;
   isActive: boolean;
+
+  // ========== CIP4 JDF LayoutIntent 필드 ==========
+  jdfFinishedWidth?: number;     // 완성 가로 (mm)
+  jdfFinishedHeight?: number;    // 완성 세로 (mm)
+  jdfBleedTop?: number;          // 도련 상단 (mm)
+  jdfBleedBottom?: number;       // 도련 하단 (mm)
+  jdfBleedLeft?: number;         // 도련 좌측 (mm)
+  jdfBleedRight?: number;        // 도련 우측 (mm)
+  jdfTrimWidth?: number;         // 재단 가로 (mm)
+  jdfTrimHeight?: number;        // 재단 세로 (mm)
+  jdfPageOrder?: JdfPageOrder;   // 페이지 순서
+  jdfSides?: JdfSides;           // 인쇄 면
+  jdfNumberUpX?: number;         // 임포지션 가로 배치 수
+  jdfNumberUpY?: number;         // 임포지션 세로 배치 수
+  jdfSpreadType?: JdfSpreadType; // 스프레드 유형
 }
 
 // 인디고 인쇄 면적 (mm)
@@ -80,6 +100,17 @@ function calculateNup(widthMm: number, heightMm: number): number {
   return Math.max(count1, count2);
 }
 
+// Nup 숫자를 문자열 별칭으로 변환 (예: 1 -> "1up")
+function nupToString(nup: number): string {
+  return `${nup}up`;
+}
+
+// Nup 별칭에서 숫자 추출 (예: "1+up" -> 1, "2up" -> 2)
+function parseNupNumber(nup: string): number {
+  const match = nup.match(/^(\d+)/);
+  return match ? parseInt(match[1], 10) : 0;
+}
+
 interface SpecificationForm {
   name: string;
   widthInch: number;
@@ -94,8 +125,22 @@ interface SpecificationForm {
   usageBooklet: boolean;
   squareMeters?: number;
   description: string;
-  nup?: number;  // 인디고 Nup (숫자)
+  nup?: string;  // 인디고 Nup 별칭 ("1up", "1+up", "1++up", "2up", "4up" 등)
   createPair: boolean;
+  // CIP4 JDF LayoutIntent 필드
+  jdfFinishedWidth?: number;
+  jdfFinishedHeight?: number;
+  jdfBleedTop?: number;
+  jdfBleedBottom?: number;
+  jdfBleedLeft?: number;
+  jdfBleedRight?: number;
+  jdfTrimWidth?: number;
+  jdfTrimHeight?: number;
+  jdfPageOrder?: string;
+  jdfSides?: string;
+  jdfNumberUpX?: number;
+  jdfNumberUpY?: number;
+  jdfSpreadType?: string;
 }
 
 const defaultForm: SpecificationForm = {
@@ -113,9 +158,37 @@ const defaultForm: SpecificationForm = {
   description: "",
   nup: undefined,
   createPair: true,
+  // JDF LayoutIntent 기본값
+  jdfBleedTop: 3,
+  jdfBleedBottom: 3,
+  jdfBleedLeft: 3,
+  jdfBleedRight: 3,
+  jdfPageOrder: "Booklet",
+  jdfSides: "TwoSidedHeadToHead",
+  jdfNumberUpX: 1,
+  jdfNumberUpY: 1,
+  jdfSpreadType: "Single",
 };
 
 const INCH_TO_MM = 25.4;
+
+// ==================== CIP4 JDF LayoutIntent 옵션 ====================
+const JDF_PAGE_ORDER_OPTIONS = [
+  { value: 'Booklet', label: 'Booklet (책자)' },
+  { value: 'Sequential', label: 'Sequential (순차)' },
+  { value: 'Spread', label: 'Spread (펼침)' },
+];
+
+const JDF_SIDES_OPTIONS = [
+  { value: 'OneSided', label: 'OneSided (단면)' },
+  { value: 'TwoSidedHeadToHead', label: 'TwoSidedHeadToHead (양면-상하동일)' },
+  { value: 'TwoSidedHeadToFoot', label: 'TwoSidedHeadToFoot (양면-상하반전)' },
+];
+
+const JDF_SPREAD_TYPE_OPTIONS = [
+  { value: 'Single', label: 'Single (단일)' },
+  { value: 'Spread', label: 'Spread (펼침)' },
+];
 
 export default function SpecificationsPage() {
   const queryClient = useQueryClient();
@@ -160,8 +233,22 @@ export default function SpecificationsPage() {
     forBooklet: data.usageBooklet,
     squareMeters: data.squareMeters,
     description: data.description,
-    nup: data.usageIndigo ? String(data.nup || 0) : undefined,  // 인디고 선택시에만 Nup 저장
+    nup: (data.usageIndigo || data.usageInkjet) ? data.nup : undefined,  // 인디고 또는 잉크젯 선택시 Nup 저장 (텍스트 별칭)
     createPair: data.createPair,
+    // JDF LayoutIntent 필드
+    jdfFinishedWidth: data.jdfFinishedWidth,
+    jdfFinishedHeight: data.jdfFinishedHeight,
+    jdfBleedTop: data.jdfBleedTop,
+    jdfBleedBottom: data.jdfBleedBottom,
+    jdfBleedLeft: data.jdfBleedLeft,
+    jdfBleedRight: data.jdfBleedRight,
+    jdfTrimWidth: data.jdfTrimWidth,
+    jdfTrimHeight: data.jdfTrimHeight,
+    jdfPageOrder: data.jdfPageOrder,
+    jdfSides: data.jdfSides,
+    jdfNumberUpX: data.jdfNumberUpX,
+    jdfNumberUpY: data.jdfNumberUpY,
+    jdfSpreadType: data.jdfSpreadType,
   });
 
   // 규격 생성
@@ -244,8 +331,22 @@ export default function SpecificationsPage() {
       usageBooklet: spec.usageBooklet,
       squareMeters: spec.squareMeters ? Number(spec.squareMeters) : undefined,
       description: spec.description || "",
-      nup: spec.nup ? Number(spec.nup) : undefined,
+      nup: spec.nup || undefined,  // 문자열 그대로 사용
       createPair: false,
+      // JDF LayoutIntent 필드
+      jdfFinishedWidth: spec.jdfFinishedWidth,
+      jdfFinishedHeight: spec.jdfFinishedHeight,
+      jdfBleedTop: spec.jdfBleedTop ?? 3,
+      jdfBleedBottom: spec.jdfBleedBottom ?? 3,
+      jdfBleedLeft: spec.jdfBleedLeft ?? 3,
+      jdfBleedRight: spec.jdfBleedRight ?? 3,
+      jdfTrimWidth: spec.jdfTrimWidth,
+      jdfTrimHeight: spec.jdfTrimHeight,
+      jdfPageOrder: spec.jdfPageOrder || "Booklet",
+      jdfSides: spec.jdfSides || "TwoSidedHeadToHead",
+      jdfNumberUpX: spec.jdfNumberUpX ?? 1,
+      jdfNumberUpY: spec.jdfNumberUpY ?? 1,
+      jdfSpreadType: spec.jdfSpreadType || "Single",
     });
     setValidationError("");
     setIsDialogOpen(true);
@@ -305,9 +406,9 @@ export default function SpecificationsPage() {
       [field]: value,
       [mmField]: Math.round(value * INCH_TO_MM * 100) / 100,
       orientation: getOrientation(newWidthInch, newHeightInch),
-      // 인디고 체크시 Nup 자동 계산 (mm 기준)
-      nup: form.usageIndigo && newWidthMm > 0 && newHeightMm > 0
-        ? calculateNup(newWidthMm, newHeightMm)
+      // 인디고 체크시 Nup 자동 계산 (mm 기준) - 별칭이 없으면 자동 계산
+      nup: form.usageIndigo && newWidthMm > 0 && newHeightMm > 0 && !form.nup
+        ? nupToString(calculateNup(newWidthMm, newHeightMm))
         : form.nup,
     });
   };
@@ -326,9 +427,9 @@ export default function SpecificationsPage() {
       [field]: value,
       [inchField]: inchValue,
       orientation: getOrientation(newWidthInch, newHeightInch),
-      // 인디고 체크시 Nup 자동 계산 (mm 기준)
-      nup: form.usageIndigo && newWidthMm > 0 && newHeightMm > 0
-        ? calculateNup(newWidthMm, newHeightMm)
+      // 인디고 체크시 Nup 자동 계산 (mm 기준) - 별칭이 없으면 자동 계산
+      nup: form.usageIndigo && newWidthMm > 0 && newHeightMm > 0 && !form.nup
+        ? nupToString(calculateNup(newWidthMm, newHeightMm))
         : form.nup,
     });
   };
@@ -336,21 +437,38 @@ export default function SpecificationsPage() {
   // 인디고 체크박스 변경 핸들러 (Nup 자동 계산)
   const handleIndigoChange = (checked: boolean) => {
     if (checked) {
-      // 인디고 체크시 Nup 자동 계산 (mm 기준)
+      // 인디고 체크시 Nup 자동 계산 (mm 기준) - 기존 값이 없으면 자동 계산
       const calculatedNup = form.widthMm > 0 && form.heightMm > 0
-        ? calculateNup(form.widthMm, form.heightMm)
-        : 0;
+        ? nupToString(calculateNup(form.widthMm, form.heightMm))
+        : undefined;
       setForm({
         ...form,
         usageIndigo: true,
-        nup: calculatedNup,
+        nup: form.nup || calculatedNup,
       });
     } else {
-      // 인디고 체크 해제시 Nup 초기화
+      // 인디고 체크 해제시 - 잉크젯이 체크되어 있으면 Nup 유지, 아니면 초기화
       setForm({
         ...form,
         usageIndigo: false,
-        nup: undefined,
+        nup: form.usageInkjet ? form.nup : undefined,
+      });
+    }
+  };
+
+  // 잉크젯 체크박스 변경 핸들러
+  const handleInkjetChange = (checked: boolean) => {
+    if (checked) {
+      setForm({
+        ...form,
+        usageInkjet: true,
+      });
+    } else {
+      // 잉크젯 체크 해제시 - 인디고가 체크되어 있으면 Nup 유지, 아니면 초기화
+      setForm({
+        ...form,
+        usageInkjet: false,
+        nup: form.usageIndigo ? form.nup : undefined,
       });
     }
   };
@@ -536,7 +654,12 @@ export default function SpecificationsPage() {
                     <span className="text-xs">{getOrientationLabel(spec.orientation)}</span>
                     {spec.usageIndigo && (
                       <Badge variant="secondary" className="font-mono text-[10px] h-5 px-1.5 ml-2 bg-indigo-100 text-indigo-700">
-                        {spec.nup || calculateNup(Number(spec.widthMm), Number(spec.heightMm))}up
+                        {spec.nup || nupToString(calculateNup(Number(spec.widthMm), Number(spec.heightMm)))}
+                      </Badge>
+                    )}
+                    {spec.usageInkjet && !spec.usageIndigo && spec.nup && (
+                      <Badge variant="secondary" className="font-mono text-[10px] h-5 px-1.5 ml-2 bg-orange-100 text-orange-700">
+                        {spec.nup}
                       </Badge>
                     )}
                   </div>
@@ -620,7 +743,7 @@ export default function SpecificationsPage() {
                         widthMm,
                         heightMm,
                         orientation: width > height ? "landscape" : height > width ? "portrait" : "square",
-                        nup: prev.usageIndigo ? calculateNup(widthMm, heightMm) : prev.nup,
+                        nup: prev.usageIndigo && !prev.nup ? nupToString(calculateNup(widthMm, heightMm)) : prev.nup,
                       }));
                     }
                   }
@@ -695,7 +818,7 @@ export default function SpecificationsPage() {
                   <Checkbox
                     id="usageInkjet"
                     checked={form.usageInkjet}
-                    onCheckedChange={(checked) => setForm({ ...form, usageInkjet: !!checked })}
+                    onCheckedChange={(checked) => handleInkjetChange(!!checked)}
                   />
                   <Label htmlFor="usageInkjet" className="cursor-pointer">잉크젯출력</Label>
                 </div>
@@ -726,22 +849,57 @@ export default function SpecificationsPage() {
               </div>
             </div>
 
-            {/* Nup 표시 (인디고 선택시) */}
+            {/* Nup 입력 (인디고 선택시) */}
             {form.usageIndigo && (
               <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-md">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-medium text-indigo-700">인디고 Nup:</span>
-                    <span className="text-2xl font-bold text-indigo-600">{form.nup || 0}</span>
-                    <span className="text-sm text-indigo-500">장/1출력</span>
-                  </div>
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-sm font-medium text-indigo-700">인디고 Nup</Label>
                   <div className="text-xs text-indigo-500">
                     인쇄면적 310×450mm 기준
                   </div>
                 </div>
-                {form.nup && form.nup > 0 && (
+                <div className="flex items-center gap-3">
+                  <Input
+                    type="text"
+                    value={form.nup || ''}
+                    onChange={(e) => setForm({ ...form, nup: e.target.value || undefined })}
+                    placeholder="예: 1up, 1+up, 2up"
+                    className="w-32 h-11 border-indigo-300 bg-white text-center text-lg font-bold"
+                  />
+                  <span className="text-sm text-indigo-500">장/1출력</span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="ml-auto text-indigo-600 border-indigo-300 hover:bg-indigo-100"
+                    onClick={() => {
+                      const calculated = calculateNup(form.widthMm, form.heightMm);
+                      setForm({ ...form, nup: nupToString(calculated) });
+                    }}
+                  >
+                    자동계산
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  <span className="text-xs text-indigo-500">별칭 예시:</span>
+                  {['1++up', '1+up', '1up', '2up', '4up', '6up', '8up'].map((alias) => (
+                    <button
+                      key={alias}
+                      type="button"
+                      onClick={() => setForm({ ...form, nup: alias })}
+                      className={`px-2 py-0.5 text-xs rounded border transition-colors ${
+                        form.nup === alias
+                          ? 'bg-indigo-600 text-white border-indigo-600'
+                          : 'bg-white text-indigo-600 border-indigo-300 hover:bg-indigo-100'
+                      }`}
+                    >
+                      {alias}
+                    </button>
+                  ))}
+                </div>
+                {form.nup && parseNupNumber(form.nup) > 0 && (
                   <p className="text-xs text-indigo-600 mt-2">
-                    * 1출력 비용 1,000원 기준 → 장당 {Math.round(1000 / form.nup)}원
+                    * 1출력 비용 1,000원 기준 → 장당 {Math.round(1000 / parseNupNumber(form.nup))}원
                   </p>
                 )}
               </div>
@@ -755,21 +913,37 @@ export default function SpecificationsPage() {
                 </Label>
                 <div className="flex items-center gap-3">
                   <Input
-                    type="number"
+                    type="text"
                     value={form.nup || ''}
-                    onChange={(e) => setForm({ ...form, nup: Number(e.target.value) || undefined })}
-                    placeholder="예: 4"
-                    min={1}
+                    onChange={(e) => setForm({ ...form, nup: e.target.value || undefined })}
+                    placeholder="예: 1up, 1+up, 4up"
                     className="w-32 h-11 border-orange-300 bg-white"
                   />
                   <span className="text-sm text-orange-700">장/1출력</span>
                 </div>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  <span className="text-xs text-orange-500">별칭 예시:</span>
+                  {['1++up', '1+up', '1up', '2up', '4up'].map((alias) => (
+                    <button
+                      key={alias}
+                      type="button"
+                      onClick={() => setForm({ ...form, nup: alias })}
+                      className={`px-2 py-0.5 text-xs rounded border transition-colors ${
+                        form.nup === alias
+                          ? 'bg-orange-600 text-white border-orange-600'
+                          : 'bg-white text-orange-600 border-orange-300 hover:bg-orange-100'
+                      }`}
+                    >
+                      {alias}
+                    </button>
+                  ))}
+                </div>
                 <p className="text-xs text-orange-600 mt-2">
                   잉크젯 인쇄기 규격에 맞는 Nup 값을 직접 입력하세요.
                 </p>
-                {form.nup && form.nup > 0 && (
+                {form.nup && parseNupNumber(form.nup) > 0 && (
                   <p className="text-xs text-orange-600 mt-2">
-                    * 1출력 비용 1,000원 기준 → 장당 {Math.round(1000 / form.nup)}원
+                    * 1출력 비용 1,000원 기준 → 장당 {Math.round(1000 / parseNupNumber(form.nup))}원
                   </p>
                 )}
               </div>
@@ -783,6 +957,201 @@ export default function SpecificationsPage() {
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 placeholder="규격에 대한 추가 설명"
               />
+            </div>
+
+            {/* CIP4 JDF LayoutIntent 섹션 */}
+            <div className="space-y-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="inline-block w-2 h-2 bg-amber-500 rounded-full"></span>
+                <h4 className="font-semibold text-amber-800">CIP4 JDF LayoutIntent</h4>
+              </div>
+
+              {/* 완성 치수 & 재단 크기 */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-sm text-amber-700">완성 치수 (FinishedDimensions)</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={form.jdfFinishedWidth || form.widthMm || ""}
+                      onChange={(e) => setForm({ ...form, jdfFinishedWidth: Number(e.target.value) || undefined })}
+                      placeholder="가로 mm"
+                      className="h-9 bg-white border-amber-200"
+                    />
+                    <span className="text-xs text-amber-600">x</span>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={form.jdfFinishedHeight || form.heightMm || ""}
+                      onChange={(e) => setForm({ ...form, jdfFinishedHeight: Number(e.target.value) || undefined })}
+                      placeholder="세로 mm"
+                      className="h-9 bg-white border-amber-200"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm text-amber-700">재단 크기 (TrimSize)</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={form.jdfTrimWidth || ""}
+                      onChange={(e) => setForm({ ...form, jdfTrimWidth: Number(e.target.value) || undefined })}
+                      placeholder="가로 mm"
+                      className="h-9 bg-white border-amber-200"
+                    />
+                    <span className="text-xs text-amber-600">x</span>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={form.jdfTrimHeight || ""}
+                      onChange={(e) => setForm({ ...form, jdfTrimHeight: Number(e.target.value) || undefined })}
+                      placeholder="세로 mm"
+                      className="h-9 bg-white border-amber-200"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 도련 (Bleed) */}
+              <div className="space-y-2">
+                <Label className="text-sm text-amber-700">도련 (Bleed) mm</Label>
+                <div className="flex items-center gap-2">
+                  <div className="flex flex-col items-center">
+                    <span className="text-xs text-amber-600 mb-1">상</span>
+                    <Input
+                      type="number"
+                      step="0.5"
+                      value={form.jdfBleedTop ?? 3}
+                      onChange={(e) => setForm({ ...form, jdfBleedTop: Number(e.target.value) })}
+                      className="w-16 h-9 text-center bg-white border-amber-200"
+                    />
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <span className="text-xs text-amber-600 mb-1">하</span>
+                    <Input
+                      type="number"
+                      step="0.5"
+                      value={form.jdfBleedBottom ?? 3}
+                      onChange={(e) => setForm({ ...form, jdfBleedBottom: Number(e.target.value) })}
+                      className="w-16 h-9 text-center bg-white border-amber-200"
+                    />
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <span className="text-xs text-amber-600 mb-1">좌</span>
+                    <Input
+                      type="number"
+                      step="0.5"
+                      value={form.jdfBleedLeft ?? 3}
+                      onChange={(e) => setForm({ ...form, jdfBleedLeft: Number(e.target.value) })}
+                      className="w-16 h-9 text-center bg-white border-amber-200"
+                    />
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <span className="text-xs text-amber-600 mb-1">우</span>
+                    <Input
+                      type="number"
+                      step="0.5"
+                      value={form.jdfBleedRight ?? 3}
+                      onChange={(e) => setForm({ ...form, jdfBleedRight: Number(e.target.value) })}
+                      className="w-16 h-9 text-center bg-white border-amber-200"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="ml-2 text-amber-700 border-amber-300 hover:bg-amber-100"
+                    onClick={() => setForm({ ...form, jdfBleedTop: 3, jdfBleedBottom: 3, jdfBleedLeft: 3, jdfBleedRight: 3 })}
+                  >
+                    기본값 (3mm)
+                  </Button>
+                </div>
+              </div>
+
+              {/* 페이지 순서, 인쇄면, 스프레드 */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-sm text-amber-700">페이지 순서 (PageOrder)</Label>
+                  <Select
+                    value={form.jdfPageOrder || "Booklet"}
+                    onValueChange={(v) => setForm({ ...form, jdfPageOrder: v })}
+                  >
+                    <SelectTrigger className="h-9 bg-white border-amber-200">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {JDF_PAGE_ORDER_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm text-amber-700">인쇄 면 (Sides)</Label>
+                  <Select
+                    value={form.jdfSides || "TwoSidedHeadToHead"}
+                    onValueChange={(v) => setForm({ ...form, jdfSides: v })}
+                  >
+                    <SelectTrigger className="h-9 bg-white border-amber-200">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {JDF_SIDES_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm text-amber-700">스프레드 (SpreadType)</Label>
+                  <Select
+                    value={form.jdfSpreadType || "Single"}
+                    onValueChange={(v) => setForm({ ...form, jdfSpreadType: v })}
+                  >
+                    <SelectTrigger className="h-9 bg-white border-amber-200">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {JDF_SPREAD_TYPE_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* 임포지션 (NumberUp) */}
+              <div className="space-y-2">
+                <Label className="text-sm text-amber-700">임포지션 (NumberUp)</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min={1}
+                    value={form.jdfNumberUpX ?? 1}
+                    onChange={(e) => setForm({ ...form, jdfNumberUpX: parseInt(e.target.value) || 1 })}
+                    className="w-20 h-9 text-center bg-white border-amber-200"
+                  />
+                  <span className="text-xs text-amber-600">x</span>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={form.jdfNumberUpY ?? 1}
+                    onChange={(e) => setForm({ ...form, jdfNumberUpY: parseInt(e.target.value) || 1 })}
+                    className="w-20 h-9 text-center bg-white border-amber-200"
+                  />
+                  <span className="text-sm text-amber-600 ml-2">
+                    = {(form.jdfNumberUpX ?? 1) * (form.jdfNumberUpY ?? 1)}up
+                  </span>
+                </div>
+              </div>
             </div>
 
             {!editingSpec && (

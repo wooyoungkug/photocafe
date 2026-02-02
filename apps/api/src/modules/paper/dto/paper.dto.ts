@@ -30,6 +30,38 @@ export type PrintMethod = typeof PRINT_METHOD_OPTIONS[number];
 export const UNIT_TYPE_OPTIONS = ['sheet', 'roll', 'ream', 'sqm'] as const;
 export type UnitType = typeof UNIT_TYPE_OPTIONS[number];
 
+// ==================== CIP4 JDF MediaIntent 상수 ====================
+
+// JDF MediaType (용지 매체 유형)
+export const JDF_MEDIA_TYPE_OPTIONS = ['Paper', 'Transparency', 'Film', 'Plate', 'Vinyl', 'Label', 'Envelope', 'Cardboard'] as const;
+export type JdfMediaType = typeof JDF_MEDIA_TYPE_OPTIONS[number];
+
+// JDF MediaTypeDetails (용지 세부 유형)
+export const JDF_MEDIA_TYPE_DETAILS_OPTIONS = [
+  'Photographic', 'Bond', 'Cardstock', 'Coated', 'Uncoated',
+  'Offset', 'Newsprint', 'NCR', 'Synthetic', 'Canvas', 'Fabric'
+] as const;
+export type JdfMediaTypeDetails = typeof JDF_MEDIA_TYPE_DETAILS_OPTIONS[number];
+
+// JDF Coating (코팅)
+export const JDF_COATING_OPTIONS = [
+  'None', 'HighGloss', 'Glossy', 'SemiGloss', 'LightSatin',
+  'Satin', 'Matte', 'Dull', 'Silk', 'Velvet', 'Pearl'
+] as const;
+export type JdfCoating = typeof JDF_COATING_OPTIONS[number];
+
+// JDF Opacity (불투명도)
+export const JDF_OPACITY_OPTIONS = ['Opaque', 'Translucent', 'Transparent'] as const;
+export type JdfOpacity = typeof JDF_OPACITY_OPTIONS[number];
+
+// JDF Texture (질감)
+export const JDF_TEXTURE_OPTIONS = ['Smooth', 'Linen', 'Laid', 'Felt', 'Canvas', 'Wove', 'Vellum', 'Embossed'] as const;
+export type JdfTexture = typeof JDF_TEXTURE_OPTIONS[number];
+
+// JDF HoleType (펀치 구멍)
+export const JDF_HOLE_TYPE_OPTIONS = ['None', 'R2-generic', 'R3-generic', 'R5-US', 'R7-generic', 'W3-generic'] as const;
+export type JdfHoleType = typeof JDF_HOLE_TYPE_OPTIONS[number];
+
 export class CreatePaperDto {
   @ApiPropertyOptional({ description: '용지 코드 (자동생성)', example: 'PAPER001' })
   @IsOptional()
@@ -211,6 +243,54 @@ export class CreatePaperDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  // ==================== CIP4 JDF MediaIntent 필드 ====================
+
+  @ApiPropertyOptional({ description: 'JDF MediaType (용지 매체 유형)', enum: JDF_MEDIA_TYPE_OPTIONS, default: 'Paper' })
+  @IsOptional()
+  @IsString()
+  jdfMediaType?: string;
+
+  @ApiPropertyOptional({ description: 'JDF MediaTypeDetails (용지 세부 유형)', enum: JDF_MEDIA_TYPE_DETAILS_OPTIONS })
+  @IsOptional()
+  @IsString()
+  jdfMediaTypeDetails?: string;
+
+  @ApiPropertyOptional({ description: 'JDF FrontCoating (앞면 코팅)', enum: JDF_COATING_OPTIONS })
+  @IsOptional()
+  @IsString()
+  jdfFrontCoating?: string;
+
+  @ApiPropertyOptional({ description: 'JDF BackCoating (뒷면 코팅)', enum: JDF_COATING_OPTIONS })
+  @IsOptional()
+  @IsString()
+  jdfBackCoating?: string;
+
+  @ApiPropertyOptional({ description: 'JDF Opacity (불투명도)', enum: JDF_OPACITY_OPTIONS, default: 'Opaque' })
+  @IsOptional()
+  @IsString()
+  jdfOpacity?: string;
+
+  @ApiPropertyOptional({ description: 'JDF Texture (질감)', enum: JDF_TEXTURE_OPTIONS })
+  @IsOptional()
+  @IsString()
+  jdfTexture?: string;
+
+  @ApiPropertyOptional({ description: 'JDF Grade (용지 등급 1-5)', default: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  jdfGrade?: number;
+
+  @ApiPropertyOptional({ description: 'JDF PrePrinted (사전 인쇄 여부)', default: false })
+  @IsOptional()
+  @IsBoolean()
+  jdfPrePrinted?: boolean;
+
+  @ApiPropertyOptional({ description: 'JDF HoleType (펀치 구멍)', enum: JDF_HOLE_TYPE_OPTIONS })
+  @IsOptional()
+  @IsString()
+  jdfHoleType?: string;
 }
 
 export class UpdatePaperDto extends PartialType(CreatePaperDto) { }

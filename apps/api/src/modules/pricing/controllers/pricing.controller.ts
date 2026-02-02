@@ -17,6 +17,7 @@ import {
   SetGroupProductPriceDto,
   SetGroupHalfProductPriceDto,
   SetGroupProductionSettingPricesDto,
+  SetClientProductionSettingPricesDto,
 } from '../dto';
 
 @ApiTags('가격관리')
@@ -117,5 +118,44 @@ export class PricingController {
   @ApiOperation({ summary: '그룹 생산설정 단가 개별 삭제' })
   async deleteGroupProductionSettingPrice(@Param('id') id: string) {
     return this.pricingService.deleteGroupProductionSettingPrice(id);
+  }
+
+  // ==================== 거래처 개별 생산설정 단가 관리 ====================
+
+  @Get('clients/:clientId/production-settings')
+  @ApiOperation({ summary: '거래처별 개별 생산설정 단가 목록' })
+  @ApiQuery({ name: 'productionSettingId', required: false, description: '생산설정 ID (선택)' })
+  async getClientProductionSettingPrices(
+    @Param('clientId') clientId: string,
+    @Query('productionSettingId') productionSettingId?: string,
+  ) {
+    return this.pricingService.getClientProductionSettingPrices(clientId, productionSettingId);
+  }
+
+  @Get('clients/:clientId/production-settings/summary')
+  @ApiOperation({ summary: '거래처별 개별 단가 설정된 생산설정 요약 (마킹용)' })
+  async getClientProductionSettingSummary(@Param('clientId') clientId: string) {
+    return this.pricingService.getClientProductionSettingSummary(clientId);
+  }
+
+  @Post('clients/production-settings')
+  @ApiOperation({ summary: '거래처 개별 생산설정 단가 설정' })
+  async setClientProductionSettingPrices(@Body() dto: SetClientProductionSettingPricesDto) {
+    return this.pricingService.setClientProductionSettingPrices(dto);
+  }
+
+  @Delete('clients/:clientId/production-settings/:productionSettingId')
+  @ApiOperation({ summary: '거래처 개별 생산설정 단가 삭제 (특정 설정 전체)' })
+  async deleteClientProductionSettingPrices(
+    @Param('clientId') clientId: string,
+    @Param('productionSettingId') productionSettingId: string,
+  ) {
+    return this.pricingService.deleteClientProductionSettingPrices(clientId, productionSettingId);
+  }
+
+  @Delete('clients/production-settings/:id')
+  @ApiOperation({ summary: '거래처 개별 생산설정 단가 개별 삭제' })
+  async deleteClientProductionSettingPrice(@Param('id') id: string) {
+    return this.pricingService.deleteClientProductionSettingPrice(id);
   }
 }

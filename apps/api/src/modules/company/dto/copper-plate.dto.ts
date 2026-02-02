@@ -102,19 +102,19 @@ export class CreateCopperPlateDto {
   @IsOptional()
   plateType?: PlateType;
 
-  @ApiProperty({ description: '박 컬러', enum: FoilColor })
-  @IsEnum(FoilColor)
-  foilColor: FoilColor;
+  @ApiProperty({ description: '박 컬러 코드 (동적 관리)' })
+  @IsString()
+  foilColor: string;
 
   @ApiPropertyOptional({ description: '커스텀 박 컬러명' })
   @IsString()
   @IsOptional()
   foilColorName?: string;
 
-  @ApiPropertyOptional({ description: '박 위치', enum: FoilPosition })
-  @IsEnum(FoilPosition)
+  @ApiPropertyOptional({ description: '박 위치 코드 (동적 관리)' })
+  @IsString()
   @IsOptional()
-  foilPosition?: FoilPosition;
+  foilPosition?: string;
 
   @ApiPropertyOptional({ description: '가로 (mm)' })
   @IsNumber()
@@ -194,20 +194,20 @@ export class UpdateCopperPlateDto {
   @IsOptional()
   plateType?: PlateType;
 
-  @ApiPropertyOptional({ description: '박 컬러', enum: FoilColor })
-  @IsEnum(FoilColor)
+  @ApiPropertyOptional({ description: '박 컬러 코드 (동적 관리)' })
+  @IsString()
   @IsOptional()
-  foilColor?: FoilColor;
+  foilColor?: string;
 
   @ApiPropertyOptional({ description: '커스텀 박 컬러명' })
   @IsString()
   @IsOptional()
   foilColorName?: string;
 
-  @ApiPropertyOptional({ description: '박 위치', enum: FoilPosition })
-  @IsEnum(FoilPosition)
+  @ApiPropertyOptional({ description: '박 위치 코드 (동적 관리)' })
+  @IsString()
   @IsOptional()
-  foilPosition?: FoilPosition;
+  foilPosition?: string;
 
   @ApiPropertyOptional({ description: '가로 (mm)' })
   @IsNumber()
@@ -340,4 +340,90 @@ export class ChangeCopperPlateStatusDto {
   @IsString()
   @IsOptional()
   actionBy?: string;
+}
+
+// ==================== 박 컬러 관리 DTO ====================
+
+export class CreateFoilColorDto {
+  @ApiProperty({ description: '코드 (예: gold_glossy)' })
+  @IsString()
+  code: string;
+
+  @ApiProperty({ description: '이름 (예: 금박(유광))' })
+  @IsString()
+  name: string;
+
+  @ApiPropertyOptional({ description: '대표 색상 (예: #FFD700)' })
+  @IsString()
+  @IsOptional()
+  colorHex?: string;
+
+  @ApiPropertyOptional({ description: '정렬 순서' })
+  @IsNumber()
+  @IsOptional()
+  sortOrder?: number;
+}
+
+export class UpdateFoilColorDto {
+  @ApiPropertyOptional({ description: '코드' })
+  @IsString()
+  @IsOptional()
+  code?: string;
+
+  @ApiPropertyOptional({ description: '이름' })
+  @IsString()
+  @IsOptional()
+  name?: string;
+
+  @ApiPropertyOptional({ description: '대표 색상' })
+  @IsString()
+  @IsOptional()
+  colorHex?: string;
+
+  @ApiPropertyOptional({ description: '정렬 순서' })
+  @IsNumber()
+  @IsOptional()
+  sortOrder?: number;
+
+  @ApiPropertyOptional({ description: '활성 상태' })
+  @IsOptional()
+  isActive?: boolean;
+}
+
+// ==================== 동판 위치 관리 DTO ====================
+
+export class CreatePlatePositionDto {
+  @ApiProperty({ description: '코드 (예: center)' })
+  @IsString()
+  code: string;
+
+  @ApiProperty({ description: '이름 (예: 정중앙)' })
+  @IsString()
+  name: string;
+
+  @ApiPropertyOptional({ description: '정렬 순서' })
+  @IsNumber()
+  @IsOptional()
+  sortOrder?: number;
+}
+
+export class UpdatePlatePositionDto {
+  @ApiPropertyOptional({ description: '코드' })
+  @IsString()
+  @IsOptional()
+  code?: string;
+
+  @ApiPropertyOptional({ description: '이름' })
+  @IsString()
+  @IsOptional()
+  name?: string;
+
+  @ApiPropertyOptional({ description: '정렬 순서' })
+  @IsNumber()
+  @IsOptional()
+  sortOrder?: number;
+
+  @ApiPropertyOptional({ description: '활성 상태' })
+  @IsOptional()
+  isActive?: boolean;
 }

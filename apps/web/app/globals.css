@@ -242,3 +242,122 @@
   outline-offset: 2px;
   border-radius: 0.25rem;
 }
+
+/* ===== 모바일 반응형 스타일 ===== */
+
+/* 모바일 터치 최적화 */
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+
+  /* 모바일에서 텍스트 크기 자동 조절 방지 */
+  body {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  /* 모바일에서 input focus 시 zoom 방지 */
+  @media screen and (max-width: 768px) {
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="number"],
+    input[type="tel"],
+    input[type="url"],
+    input[type="search"],
+    textarea,
+    select {
+      font-size: 16px !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* 모바일 테이블 가로 스크롤 */
+  .mobile-table-wrapper {
+    @apply overflow-x-auto -mx-4 px-4;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  @media screen and (min-width: 768px) {
+    .mobile-table-wrapper {
+      @apply mx-0 px-0;
+    }
+  }
+
+  /* 모바일 카드 스타일 */
+  .mobile-card {
+    @apply bg-white rounded-lg shadow-sm border p-4;
+  }
+
+  @media screen and (max-width: 640px) {
+    .mobile-card {
+      @apply rounded-none border-x-0 -mx-4 px-4;
+    }
+  }
+
+  /* 터치 친화적 버튼 */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+
+  /* 모바일 숨김 */
+  .hide-mobile {
+    @apply hidden sm:block;
+  }
+
+  /* 데스크톱 숨김 */
+  .hide-desktop {
+    @apply block sm:hidden;
+  }
+
+  /* 안전 영역 (노치 대응) */
+  .safe-area-inset {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* 모바일 풀 너비 버튼 */
+  .mobile-full-btn {
+    @apply w-full sm:w-auto;
+  }
+
+  /* 모바일 스택 레이아웃 */
+  .mobile-stack {
+    @apply flex flex-col sm:flex-row gap-2 sm:gap-4;
+  }
+
+  /* 모바일 그리드 */
+  .mobile-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4;
+  }
+}
+
+/* 모바일에서 스크롤바 숨기기 (터치 스크롤) */
+@media screen and (max-width: 768px) {
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* 모바일 폼 요소 스타일 */
+@media screen and (max-width: 640px) {
+  /* 모바일에서 Select 높이 조정 */
+  [data-radix-select-trigger] {
+    min-height: 44px;
+  }
+
+  /* 모바일에서 Dialog 너비 조정 */
+  [data-radix-dialog-content] {
+    max-width: calc(100vw - 2rem) !important;
+    max-height: calc(100vh - 4rem) !important;
+  }
+}

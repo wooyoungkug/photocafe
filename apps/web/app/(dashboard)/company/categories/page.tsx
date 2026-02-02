@@ -1021,7 +1021,7 @@ export default function CategoriesPage() {
                           // 토큰 확인 - 여러 소스에서 토큰 검색
                           let token = accessToken;
                           if (!token) {
-                            token = localStorage.getItem('accessToken');
+                            token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
                           }
                           if (!token) {
                             // zustand persist storage에서도 확인

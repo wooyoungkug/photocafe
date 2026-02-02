@@ -2,31 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
 // 타입 정의
-export type FoilColor = 'gold' | 'silver' | 'hologram' | 'black' | 'rosegold' | 'custom';
-export type FoilPosition = 'center' | 'top_center' | 'right_center' | 'right_bottom' | 'bottom_center' | 'left_bottom' | 'left_center' | 'top_left' | 'top_right';
 export type PlateType = 'copper' | 'soft';
 export type CopperPlateStatus = 'stored' | 'in_use' | 'returned' | 'disposed';
-
-export const FOIL_COLOR_LABELS: Record<FoilColor, string> = {
-  gold: '금박',
-  silver: '은박',
-  hologram: '홀로그램',
-  black: '먹박',
-  rosegold: '로즈골드',
-  custom: '기타',
-};
-
-export const FOIL_POSITION_LABELS: Record<FoilPosition, string> = {
-  center: '정중앙',
-  top_center: '중상',
-  right_center: '우중',
-  right_bottom: '우하',
-  bottom_center: '중하',
-  left_bottom: '좌하',
-  left_center: '좌중',
-  top_left: '좌상',
-  top_right: '우상',
-};
 
 export const PLATE_TYPE_LABELS: Record<PlateType, string> = {
   copper: '동판',
@@ -47,14 +24,66 @@ export const COPPER_PLATE_STATUS_COLORS: Record<CopperPlateStatus, string> = {
   disposed: 'bg-red-100 text-red-800 border-red-200',
 };
 
-export const FOIL_COLOR_COLORS: Record<FoilColor, string> = {
-  gold: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-  silver: 'bg-gray-100 text-gray-700 border-gray-300',
-  hologram: 'bg-purple-100 text-purple-800 border-purple-300',
-  black: 'bg-gray-800 text-white border-gray-900',
-  rosegold: 'bg-pink-100 text-pink-800 border-pink-300',
-  custom: 'bg-slate-100 text-slate-800 border-slate-300',
+// 박 컬러 타입 (기본값)
+export type FoilColor = 'gold' | 'silver' | 'rose_gold' | 'black' | 'white' | 'red' | 'blue' | 'green' | 'custom';
+
+export const FOIL_COLOR_LABELS: Record<string, string> = {
+  gold: '금박',
+  silver: '은박',
+  rose_gold: '로즈골드',
+  black: '먹박',
+  white: '백박',
+  red: '적박',
+  blue: '청박',
+  green: '녹박',
+  custom: '커스텀',
 };
+
+export const FOIL_COLOR_COLORS: Record<string, string> = {
+  gold: 'bg-yellow-100 text-yellow-800',
+  silver: 'bg-gray-100 text-gray-800',
+  rose_gold: 'bg-pink-100 text-pink-800',
+  black: 'bg-gray-800 text-white',
+  white: 'bg-white text-gray-800 border border-gray-300',
+  red: 'bg-red-100 text-red-800',
+  blue: 'bg-blue-100 text-blue-800',
+  green: 'bg-green-100 text-green-800',
+  custom: 'bg-purple-100 text-purple-800',
+};
+
+// 박 위치 타입
+export type FoilPosition = 'center' | 'top' | 'bottom' | 'left' | 'right' | 'top_left' | 'top_right' | 'bottom_left' | 'bottom_right';
+
+export const FOIL_POSITION_LABELS: Record<string, string> = {
+  center: '중앙',
+  top: '상단',
+  bottom: '하단',
+  left: '좌측',
+  right: '우측',
+  top_left: '좌상단',
+  top_right: '우상단',
+  bottom_left: '좌하단',
+  bottom_right: '우하단',
+};
+
+// 박 컬러 (동적 관리)
+export interface FoilColorItem {
+  id: string;
+  code: string;
+  name: string;
+  colorHex?: string;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+// 동판 위치 (동적 관리)
+export interface PlatePositionItem {
+  id: string;
+  code: string;
+  name: string;
+  sortOrder: number;
+  isActive: boolean;
+}
 
 export interface CopperPlate {
   id: string;
@@ -62,9 +91,9 @@ export interface CopperPlate {
   plateName: string;
   plateCode?: string;
   plateType: PlateType;
-  foilColor: FoilColor;
+  foilColor: string;        // 동적 관리 (code)
   foilColorName?: string;
-  foilPosition?: FoilPosition;
+  foilPosition?: string;    // 동적 관리 (code)
   widthMm?: number;
   heightMm?: number;
   storageLocation?: string;
@@ -114,9 +143,9 @@ export interface CreateCopperPlateDto {
   plateName: string;
   plateCode?: string;
   plateType?: PlateType;
-  foilColor: FoilColor;
+  foilColor: string;        // 동적 관리 (code)
   foilColorName?: string;
-  foilPosition?: FoilPosition;
+  foilPosition?: string;    // 동적 관리 (code)
   widthMm?: number;
   heightMm?: number;
   storageLocation?: string;
@@ -135,9 +164,9 @@ export interface UpdateCopperPlateDto {
   plateName?: string;
   plateCode?: string;
   plateType?: PlateType;
-  foilColor?: FoilColor;
+  foilColor?: string;        // 동적 관리 (code)
   foilColorName?: string;
-  foilPosition?: FoilPosition;
+  foilPosition?: string;     // 동적 관리 (code)
   widthMm?: number;
   heightMm?: number;
   storageLocation?: string;
@@ -309,5 +338,135 @@ export function useReorderCopperPlate() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['copper-plates'] });
     },
+  });
+}
+
+// 라벨 조회 (동적 데이터)
+export interface CopperPlateLabels {
+  foilColors: FoilColorItem[];
+  platePositions: PlatePositionItem[];
+  statuses: Record<string, string>;
+}
+
+export function useCopperPlateLabels() {
+  return useQuery<CopperPlateLabels>({
+    queryKey: ['copper-plates', 'labels'],
+    queryFn: () => api.get<CopperPlateLabels>('/copper-plates/labels'),
+    staleTime: 1000 * 60 * 5, // 5분
+  });
+}
+
+// ==================== 박 컬러 관리 ====================
+
+export function useFoilColors() {
+  return useQuery<FoilColorItem[]>({
+    queryKey: ['copper-plates', 'foil-colors'],
+    queryFn: () => api.get<FoilColorItem[]>('/copper-plates/foil-colors'),
+  });
+}
+
+export function useCreateFoilColor() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { code: string; name: string; colorHex?: string; sortOrder?: number }) =>
+      api.post<FoilColorItem>('/copper-plates/foil-colors', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['copper-plates', 'foil-colors'] });
+      queryClient.invalidateQueries({ queryKey: ['copper-plates', 'labels'] });
+    },
+  });
+}
+
+export function useUpdateFoilColor() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { code?: string; name?: string; colorHex?: string; sortOrder?: number; isActive?: boolean } }) =>
+      api.put<FoilColorItem>(`/copper-plates/foil-colors/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['copper-plates', 'foil-colors'] });
+      queryClient.invalidateQueries({ queryKey: ['copper-plates', 'labels'] });
+    },
+  });
+}
+
+export function useDeleteFoilColor() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/copper-plates/foil-colors/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['copper-plates', 'foil-colors'] });
+      queryClient.invalidateQueries({ queryKey: ['copper-plates', 'labels'] });
+    },
+  });
+}
+
+// ==================== 동판 위치 관리 ====================
+
+export function usePlatePositions() {
+  return useQuery<PlatePositionItem[]>({
+    queryKey: ['copper-plates', 'plate-positions'],
+    queryFn: () => api.get<PlatePositionItem[]>('/copper-plates/plate-positions'),
+  });
+}
+
+export function useCreatePlatePosition() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { code: string; name: string; sortOrder?: number }) =>
+      api.post<PlatePositionItem>('/copper-plates/plate-positions', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['copper-plates', 'plate-positions'] });
+      queryClient.invalidateQueries({ queryKey: ['copper-plates', 'labels'] });
+    },
+  });
+}
+
+export function useUpdatePlatePosition() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { code?: string; name?: string; sortOrder?: number; isActive?: boolean } }) =>
+      api.put<PlatePositionItem>(`/copper-plates/plate-positions/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['copper-plates', 'plate-positions'] });
+      queryClient.invalidateQueries({ queryKey: ['copper-plates', 'labels'] });
+    },
+  });
+}
+
+export function useDeletePlatePosition() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/copper-plates/plate-positions/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['copper-plates', 'plate-positions'] });
+      queryClient.invalidateQueries({ queryKey: ['copper-plates', 'labels'] });
+    },
+  });
+}
+
+// 전체 동판 검색 (관리자용)
+export interface SearchCopperPlatesParams {
+  [key: string]: string | number | boolean | undefined;
+  search?: string;
+  status?: string;
+  foilColor?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface SearchCopperPlatesResult {
+  data: CopperPlate[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export function useSearchCopperPlates(params: SearchCopperPlatesParams = {}) {
+  return useQuery<SearchCopperPlatesResult>({
+    queryKey: ['copper-plates', 'search', params],
+    queryFn: () => api.get<SearchCopperPlatesResult>('/copper-plates', params),
   });
 }

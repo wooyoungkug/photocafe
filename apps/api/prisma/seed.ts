@@ -149,6 +149,53 @@ async function seedCategories() {
   console.log('Categories seeded: 6 items');
 }
 
+async function seedFoilColors() {
+  const existingColors = await prisma.foilColor.count();
+  if (existingColors > 0) {
+    console.log(`Foil colors already exist (${existingColors} items)`);
+    return;
+  }
+
+  const foilColors = [
+    { code: 'gold_glossy', name: '금박(유광)', colorHex: '#FFD700', sortOrder: 1 },
+    { code: 'gold_matte', name: '금박(무광)', colorHex: '#DAA520', sortOrder: 2 },
+    { code: 'silver_glossy', name: '은박(유광)', colorHex: '#C0C0C0', sortOrder: 3 },
+    { code: 'silver_matte', name: '은박(무광)', colorHex: '#A8A8A8', sortOrder: 4 },
+    { code: 'brown', name: '밤박(브라운)', colorHex: '#8B4513', sortOrder: 5 },
+    { code: 'white', name: '흰색박', colorHex: '#FFFFFF', sortOrder: 6 },
+    { code: 'black', name: '먹박', colorHex: '#000000', sortOrder: 7 },
+    { code: 'hologram', name: '홀로그램박', colorHex: '#E6E6FA', sortOrder: 8 },
+  ];
+
+  for (const color of foilColors) {
+    await prisma.foilColor.create({ data: color });
+  }
+
+  console.log(`Foil colors seeded: ${foilColors.length} items`);
+}
+
+async function seedPlatePositions() {
+  const existingPositions = await prisma.platePosition.count();
+  if (existingPositions > 0) {
+    console.log(`Plate positions already exist (${existingPositions} items)`);
+    return;
+  }
+
+  const positions = [
+    { code: 'center', name: '정중앙', sortOrder: 1 },
+    { code: 'top_center', name: '중상', sortOrder: 2 },
+    { code: 'bottom_center', name: '중하', sortOrder: 3 },
+    { code: 'right_center', name: '우중', sortOrder: 4 },
+    { code: 'right_bottom', name: '우하', sortOrder: 5 },
+  ];
+
+  for (const position of positions) {
+    await prisma.platePosition.create({ data: position });
+  }
+
+  console.log(`Plate positions seeded: ${positions.length} items`);
+}
+
 async function seedSpecifications() {
   const existingSpecs = await prisma.specification.count();
   if (existingSpecs > 0) {
@@ -199,12 +246,131 @@ async function seedSpecifications() {
   console.log('Specifications seeded: 2 items');
 }
 
+// ==================== JDF Intent 시드 데이터 ====================
+
+async function seedJdfIntents() {
+  // ColorIntent (색상 의도)
+  const colorIntents = [
+    { code: 'CI-4C-1S', name: '4도 단면', numColorsFront: 4, numColorsBack: 0, displayNameKo: '4도 풀컬러 단면', colorType: 'Process' },
+    { code: 'CI-4C-2S', name: '4도 양면', numColorsFront: 4, numColorsBack: 4, displayNameKo: '4도 풀컬러 양면', colorType: 'Process' },
+    { code: 'CI-6C-1S', name: '6도 단면', numColorsFront: 6, numColorsBack: 0, displayNameKo: '6도 컬러 단면', colorType: 'Process' },
+    { code: 'CI-6C-2S', name: '6도 양면', numColorsFront: 6, numColorsBack: 6, displayNameKo: '6도 컬러 양면', colorType: 'Process' },
+    { code: 'CI-1C-1S', name: '단색 단면', numColorsFront: 1, numColorsBack: 0, displayNameKo: '흑백 단면', colorType: 'Process' },
+    { code: 'CI-1C-2S', name: '단색 양면', numColorsFront: 1, numColorsBack: 1, displayNameKo: '흑백 양면', colorType: 'Process' },
+  ];
+
+  for (let i = 0; i < colorIntents.length; i++) {
+    const ci = colorIntents[i];
+    await prisma.colorIntent.upsert({
+      where: { code: ci.code },
+      update: {},
+      create: { ...ci, sortOrder: i + 1 },
+    });
+  }
+  console.log('ColorIntent seeded:', colorIntents.length, 'items');
+
+  // BindingIntent (제본 의도)
+  const bindingIntents = [
+    { code: 'BI-SOFT', name: '무선제본', jdfBindingType: 'SoftCover', displayNameKo: '무선(소프트커버) 제본', jdfBindingSide: 'Left' },
+    { code: 'BI-HARD', name: '양장제본', jdfBindingType: 'HardCover', displayNameKo: '양장(하드커버) 제본', jdfBindingSide: 'Left' },
+    { code: 'BI-SADDLE', name: '중철제본', jdfBindingType: 'Saddle', displayNameKo: '중철 스테이플 제본', jdfBindingSide: 'Left' },
+    { code: 'BI-RING', name: '링제본', jdfBindingType: 'Ring', displayNameKo: '링/스프링 제본', jdfBindingSide: 'Left' },
+    { code: 'BI-WIRE', name: '와이어제본', jdfBindingType: 'Wire', displayNameKo: '트윈링 와이어 제본', jdfBindingSide: 'Left' },
+    { code: 'BI-PERFECT', name: 'PUR제본', jdfBindingType: 'Perfect', displayNameKo: 'PUR 무선제본', jdfBindingSide: 'Left' },
+  ];
+
+  for (let i = 0; i < bindingIntents.length; i++) {
+    const bi = bindingIntents[i];
+    await prisma.bindingIntent.upsert({
+      where: { code: bi.code },
+      update: {},
+      create: { ...bi, sortOrder: i + 1 },
+    });
+  }
+  console.log('BindingIntent seeded:', bindingIntents.length, 'items');
+
+  // FoldingIntent (접지 의도)
+  const foldingIntents = [
+    { code: 'FI-F2', name: '2단접지', jdfFoldCatalog: 'F2-1', foldCount: 1, displayNameKo: '2단 병풍접지' },
+    { code: 'FI-F4', name: '4단접지', jdfFoldCatalog: 'F4-1', foldCount: 2, displayNameKo: '4단 병풍접지' },
+    { code: 'FI-F6', name: '6단접지', jdfFoldCatalog: 'F6-1', foldCount: 3, displayNameKo: '6단 병풍접지' },
+    { code: 'FI-Z', name: 'Z접지', jdfFoldCatalog: 'Z', foldCount: 2, displayNameKo: 'Z자 접지' },
+    { code: 'FI-GATE', name: '대문접지', jdfFoldCatalog: 'Gate', foldCount: 2, displayNameKo: '대문(게이트) 접지' },
+    { code: 'FI-LETTER', name: '편지접지', jdfFoldCatalog: 'Letter', foldCount: 2, displayNameKo: '편지 3단접지' },
+  ];
+
+  for (let i = 0; i < foldingIntents.length; i++) {
+    const fi = foldingIntents[i];
+    await prisma.foldingIntent.upsert({
+      where: { code: fi.code },
+      update: {},
+      create: { ...fi, sortOrder: i + 1 },
+    });
+  }
+  console.log('FoldingIntent seeded:', foldingIntents.length, 'items');
+
+  // FileSpec (파일 규격)
+  const fileSpecs = [
+    { code: 'FS-INDIGO', name: '인디고 출력용', resolutionX: 300, resolutionY: 300, colorSpace: 'CMYK', displayNameKo: '인디고 CMYK 300dpi' },
+    { code: 'FS-INKJET', name: '잉크젯 출력용', resolutionX: 240, resolutionY: 240, colorSpace: 'sRGB', displayNameKo: '잉크젯 sRGB 240dpi' },
+    { code: 'FS-INKJET-HD', name: '잉크젯 고해상도', resolutionX: 360, resolutionY: 360, colorSpace: 'AdobeRGB', displayNameKo: '잉크젯 AdobeRGB 360dpi' },
+    { code: 'FS-OFFSET', name: '오프셋 인쇄용', resolutionX: 350, resolutionY: 350, colorSpace: 'CMYK', displayNameKo: '오프셋 CMYK 350dpi' },
+  ];
+
+  for (let i = 0; i < fileSpecs.length; i++) {
+    const fs = fileSpecs[i];
+    await prisma.fileSpec.upsert({
+      where: { code: fs.code },
+      update: {},
+      create: { ...fs, sortOrder: i + 1 },
+    });
+  }
+  console.log('FileSpec seeded:', fileSpecs.length, 'items');
+
+  // QualityControl (품질 기준)
+  const qualityControls = [
+    { code: 'QC-STD', name: '표준품질', deltaE: 5, colorTolerance: 'Standard', trimTolerance: 1, displayNameKo: '표준 품질 기준' },
+    { code: 'QC-PREMIUM', name: '프리미엄품질', deltaE: 3, colorTolerance: 'Tight', trimTolerance: 0.5, displayNameKo: '프리미엄 품질 기준' },
+    { code: 'QC-BASIC', name: '기본품질', deltaE: 8, colorTolerance: 'Loose', trimTolerance: 2, displayNameKo: '기본 품질 기준' },
+  ];
+
+  for (let i = 0; i < qualityControls.length; i++) {
+    const qc = qualityControls[i];
+    await prisma.qualityControl.upsert({
+      where: { code: qc.code },
+      update: {},
+      create: { ...qc, sortOrder: i + 1 },
+    });
+  }
+  console.log('QualityControl seeded:', qualityControls.length, 'items');
+
+  // ProofingIntent (교정 의도)
+  const proofingIntents = [
+    { code: 'PI-NONE', name: '교정없음', jdfProofType: 'None', displayNameKo: '교정 생략' },
+    { code: 'PI-DIGITAL', name: '디지털 교정', jdfProofType: 'Digital', isColorProof: true, displayNameKo: '디지털 컬러 프루프' },
+    { code: 'PI-CONTRACT', name: '계약 교정', jdfProofType: 'Proof', isColorProof: true, isContractProof: true, displayNameKo: '계약용 교정쇄' },
+  ];
+
+  for (let i = 0; i < proofingIntents.length; i++) {
+    const pi = proofingIntents[i];
+    await prisma.proofingIntent.upsert({
+      where: { code: pi.code },
+      update: {},
+      create: { ...pi, sortOrder: i + 1 },
+    });
+  }
+  console.log('ProofingIntent seeded:', proofingIntents.length, 'items');
+}
+
 async function main() {
   console.log('Starting seed...');
 
   await seedUsers();
   await seedCategories();
   await seedSpecifications();
+  await seedFoilColors();
+  await seedPlatePositions();
+  await seedJdfIntents();
 
   console.log('Seed completed');
 }

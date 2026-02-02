@@ -29,6 +29,7 @@ const METHOD_ICONS: Record<DeliveryMethod, React.ReactNode> = {
   motorcycle: <Bike className="h-4 w-4" />,
   damas: <Truck className="h-4 w-4" />,
   freight: <Box className="h-4 w-4" />,
+  pickup: <MapPin className="h-4 w-4" />,
 };
 
 export default function DeliverySettingsPage() {
@@ -83,6 +84,10 @@ export default function DeliverySettingsPage() {
       weekendSurchargeRate: 0.1,
       isActive: true,
     },
+    pickup: {
+      baseFee: 0,
+      isActive: true,
+    },
   });
 
   // 계산기 상태
@@ -103,24 +108,53 @@ export default function DeliverySettingsPage() {
   });
   const [addressCalcResult, setAddressCalcResult] = useState<any>(null);
 
+  // distanceRanges 유효성 검증 함수
+  const isValidDistanceRanges = (ranges: any): ranges is DistanceRange[] => {
+    if (!Array.isArray(ranges) || ranges.length === 0) return false;
+    return ranges.every(
+      (r) => r && typeof r === 'object' && 'minDistance' in r && 'maxDistance' in r && 'price' in r
+    );
+  };
+
+  // sizeRanges 유효성 검증 함수
+  const isValidSizeRanges = (ranges: any): ranges is SizeRange[] => {
+    if (!Array.isArray(ranges) || ranges.length === 0) return false;
+    return ranges.every((r) => r && typeof r === 'object' && 'name' in r && 'price' in r);
+  };
+
   // 서버 데이터 로드
   useEffect(() => {
     if (pricings) {
-      const newFormData = { ...formData };
-      pricings.forEach((p) => {
-        const method = p.deliveryMethod as DeliveryMethod;
-        newFormData[method] = {
-          ...formData[method],
-          ...p,
-          baseFee: Number(p.baseFee) || 0,
-          islandFee: p.islandFee ? Number(p.islandFee) : undefined,
-          freeThreshold: p.freeThreshold ? Number(p.freeThreshold) : undefined,
-          extraPricePerKm: p.extraPricePerKm ? Number(p.extraPricePerKm) : undefined,
-          nightSurchargeRate: p.nightSurchargeRate ? Number(p.nightSurchargeRate) : undefined,
-          weekendSurchargeRate: p.weekendSurchargeRate ? Number(p.weekendSurchargeRate) : undefined,
-        };
+      setFormData((prev) => {
+        const newFormData = { ...prev };
+        pricings.forEach((p) => {
+          const method = p.deliveryMethod as DeliveryMethod;
+
+          // distanceRanges 검증 - 유효하지 않으면 기본값 유지
+          const distanceRanges = isValidDistanceRanges(p.distanceRanges)
+            ? p.distanceRanges
+            : prev[method].distanceRanges;
+
+          // sizeRanges 검증 - 유효하지 않으면 기본값 유지
+          const sizeRanges = isValidSizeRanges(p.sizeRanges)
+            ? p.sizeRanges
+            : prev[method].sizeRanges;
+
+          newFormData[method] = {
+            ...prev[method],
+            ...p,
+            distanceRanges,
+            sizeRanges,
+            baseFee: Number(p.baseFee) || 0,
+            islandFee: p.islandFee ? Number(p.islandFee) : undefined,
+            freeThreshold: p.freeThreshold ? Number(p.freeThreshold) : undefined,
+            extraPricePerKm: p.extraPricePerKm ? Number(p.extraPricePerKm) : undefined,
+            nightSurchargeRate: p.nightSurchargeRate ? Number(p.nightSurchargeRate) : undefined,
+            weekendSurchargeRate: p.weekendSurchargeRate ? Number(p.weekendSurchargeRate) : undefined,
+          };
+        });
+        return newFormData;
       });
-      setFormData(newFormData);
     }
   }, [pricings]);
 
@@ -185,30 +219,34 @@ export default function DeliverySettingsPage() {
 
   // 거리 구간 추가
   const addDistanceRange = (method: DeliveryMethod) => {
-    const ranges = formData[method].distanceRanges || [];
-    const lastMax = ranges.length > 0 ? ranges[ranges.length - 1].maxDistance : 0;
-    setFormData({
-      ...formData,
-      [method]: {
-        ...formData[method],
-        distanceRanges: [
-          ...ranges,
-          { minDistance: lastMax, maxDistance: lastMax + 5, price: 0 },
-        ],
-      },
+    setFormData(prev => {
+      const ranges = prev[method].distanceRanges || [];
+      const lastMax = ranges.length > 0 ? ranges[ranges.length - 1].maxDistance : 0;
+      return {
+        ...prev,
+        [method]: {
+          ...prev[method],
+          distanceRanges: [
+            ...ranges,
+            { minDistance: lastMax, maxDistance: lastMax + 5, price: 0 },
+          ],
+        },
+      };
     });
   };
 
   // 거리 구간 삭제
   const removeDistanceRange = (method: DeliveryMethod, index: number) => {
-    const ranges = [...(formData[method].distanceRanges || [])];
-    ranges.splice(index, 1);
-    setFormData({
-      ...formData,
-      [method]: {
-        ...formData[method],
-        distanceRanges: ranges,
-      },
+    setFormData(prev => {
+      const ranges = [...(prev[method].distanceRanges || [])];
+      ranges.splice(index, 1);
+      return {
+        ...prev,
+        [method]: {
+          ...prev[method],
+          distanceRanges: ranges,
+        },
+      };
     });
   };
 
@@ -219,14 +257,16 @@ export default function DeliverySettingsPage() {
     field: keyof DistanceRange,
     value: number
   ) => {
-    const ranges = [...(formData[method].distanceRanges || [])];
-    ranges[index] = { ...ranges[index], [field]: value };
-    setFormData({
-      ...formData,
-      [method]: {
-        ...formData[method],
-        distanceRanges: ranges,
-      },
+    setFormData(prev => {
+      const ranges = [...(prev[method].distanceRanges || [])];
+      ranges[index] = { ...ranges[index], [field]: value };
+      return {
+        ...prev,
+        [method]: {
+          ...prev[method],
+          distanceRanges: ranges,
+        },
+      };
     });
   };
 
@@ -248,8 +288,8 @@ export default function DeliverySettingsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as DeliveryMethod)}>
-        <TabsList className="grid w-full grid-cols-4">
-          {(['motorcycle', 'damas', 'parcel', 'freight'] as DeliveryMethod[]).map((method) => (
+        <TabsList className="grid w-full grid-cols-5">
+          {(['motorcycle', 'damas', 'parcel', 'freight', 'pickup'] as DeliveryMethod[]).map((method) => (
             <TabsTrigger key={method} value={method} className="flex items-center gap-2">
               {METHOD_ICONS[method]}
               {DELIVERY_METHOD_LABELS[method]}
@@ -335,13 +375,13 @@ export default function DeliverySettingsPage() {
                       type="number"
                       value={formData.motorcycle.maxBaseDistance || 20}
                       onChange={(e) =>
-                        setFormData({
-                          ...formData,
+                        setFormData(prev => ({
+                          ...prev,
                           motorcycle: {
-                            ...formData.motorcycle,
+                            ...prev.motorcycle,
                             maxBaseDistance: Number(e.target.value),
                           },
-                        })
+                        }))
                       }
                     />
                     <p className="text-xs text-muted-foreground">
@@ -354,13 +394,13 @@ export default function DeliverySettingsPage() {
                       type="number"
                       value={formData.motorcycle.extraPricePerKm || 1000}
                       onChange={(e) =>
-                        setFormData({
-                          ...formData,
+                        setFormData(prev => ({
+                          ...prev,
                           motorcycle: {
-                            ...formData.motorcycle,
+                            ...prev.motorcycle,
                             extraPricePerKm: Number(e.target.value),
                           },
-                        })
+                        }))
                       }
                     />
                   </div>
@@ -378,13 +418,13 @@ export default function DeliverySettingsPage() {
                         step="0.1"
                         value={(formData.motorcycle.nightSurchargeRate || 0) * 100}
                         onChange={(e) =>
-                          setFormData({
-                            ...formData,
+                          setFormData(prev => ({
+                            ...prev,
                             motorcycle: {
-                              ...formData.motorcycle,
+                              ...prev.motorcycle,
                               nightSurchargeRate: Number(e.target.value) / 100,
                             },
-                          })
+                          }))
                         }
                         className="w-24"
                       />
@@ -402,13 +442,13 @@ export default function DeliverySettingsPage() {
                         step="0.1"
                         value={(formData.motorcycle.weekendSurchargeRate || 0) * 100}
                         onChange={(e) =>
-                          setFormData({
-                            ...formData,
+                          setFormData(prev => ({
+                            ...prev,
                             motorcycle: {
-                              ...formData.motorcycle,
+                              ...prev.motorcycle,
                               weekendSurchargeRate: Number(e.target.value) / 100,
                             },
-                          })
+                          }))
                         }
                         className="w-24"
                       />
@@ -577,10 +617,10 @@ export default function DeliverySettingsPage() {
                       type="number"
                       value={formData.damas.maxBaseDistance || 20}
                       onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          damas: { ...formData.damas, maxBaseDistance: Number(e.target.value) },
-                        })
+                        setFormData(prev => ({
+                          ...prev,
+                          damas: { ...prev.damas, maxBaseDistance: Number(e.target.value) },
+                        }))
                       }
                     />
                   </div>
@@ -590,10 +630,10 @@ export default function DeliverySettingsPage() {
                       type="number"
                       value={formData.damas.extraPricePerKm || 1500}
                       onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          damas: { ...formData.damas, extraPricePerKm: Number(e.target.value) },
-                        })
+                        setFormData(prev => ({
+                          ...prev,
+                          damas: { ...prev.damas, extraPricePerKm: Number(e.target.value) },
+                        }))
                       }
                     />
                   </div>
@@ -606,10 +646,10 @@ export default function DeliverySettingsPage() {
                       type="number"
                       value={(formData.damas.nightSurchargeRate || 0) * 100}
                       onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          damas: { ...formData.damas, nightSurchargeRate: Number(e.target.value) / 100 },
-                        })
+                        setFormData(prev => ({
+                          ...prev,
+                          damas: { ...prev.damas, nightSurchargeRate: Number(e.target.value) / 100 },
+                        }))
                       }
                     />
                   </div>
@@ -619,10 +659,10 @@ export default function DeliverySettingsPage() {
                       type="number"
                       value={(formData.damas.weekendSurchargeRate || 0) * 100}
                       onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          damas: { ...formData.damas, weekendSurchargeRate: Number(e.target.value) / 100 },
-                        })
+                        setFormData(prev => ({
+                          ...prev,
+                          damas: { ...prev.damas, weekendSurchargeRate: Number(e.target.value) / 100 },
+                        }))
                       }
                     />
                   </div>
@@ -680,10 +720,10 @@ export default function DeliverySettingsPage() {
                     type="number"
                     value={formData.parcel.baseFee || 3500}
                     onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        parcel: { ...formData.parcel, baseFee: Number(e.target.value) },
-                      })
+                      setFormData(prev => ({
+                        ...prev,
+                        parcel: { ...prev.parcel, baseFee: Number(e.target.value) },
+                      }))
                     }
                   />
                 </div>
@@ -693,10 +733,10 @@ export default function DeliverySettingsPage() {
                     type="number"
                     value={formData.parcel.islandFee || 3000}
                     onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        parcel: { ...formData.parcel, islandFee: Number(e.target.value) },
-                      })
+                      setFormData(prev => ({
+                        ...prev,
+                        parcel: { ...prev.parcel, islandFee: Number(e.target.value) },
+                      }))
                     }
                   />
                 </div>
@@ -708,10 +748,10 @@ export default function DeliverySettingsPage() {
                   type="number"
                   value={formData.parcel.freeThreshold || 50000}
                   onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      parcel: { ...formData.parcel, freeThreshold: Number(e.target.value) },
-                    })
+                    setFormData(prev => ({
+                      ...prev,
+                      parcel: { ...prev.parcel, freeThreshold: Number(e.target.value) },
+                    }))
                   }
                 />
                 <p className="text-xs text-muted-foreground">
@@ -746,10 +786,10 @@ export default function DeliverySettingsPage() {
                   type="number"
                   value={formData.freight.baseFee || 30000}
                   onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      freight: { ...formData.freight, baseFee: Number(e.target.value) },
-                    })
+                    setFormData(prev => ({
+                      ...prev,
+                      freight: { ...prev.freight, baseFee: Number(e.target.value) },
+                    }))
                   }
                   className="w-48"
                 />
@@ -772,11 +812,14 @@ export default function DeliverySettingsPage() {
                       <Input
                         value={range.name}
                         onChange={(e) => {
-                          const ranges = [...(formData.freight.sizeRanges || [])];
-                          ranges[idx] = { ...ranges[idx], name: e.target.value };
-                          setFormData({
-                            ...formData,
-                            freight: { ...formData.freight, sizeRanges: ranges },
+                          const newName = e.target.value;
+                          setFormData(prev => {
+                            const ranges = [...(prev.freight.sizeRanges || [])];
+                            ranges[idx] = { ...ranges[idx], name: newName };
+                            return {
+                              ...prev,
+                              freight: { ...prev.freight, sizeRanges: ranges },
+                            };
                           });
                         }}
                         className="h-9"
@@ -786,14 +829,17 @@ export default function DeliverySettingsPage() {
                         value={range.maxWeight ?? ''}
                         placeholder="무제한"
                         onChange={(e) => {
-                          const ranges = [...(formData.freight.sizeRanges || [])];
-                          ranges[idx] = {
-                            ...ranges[idx],
-                            maxWeight: e.target.value ? Number(e.target.value) : null,
-                          };
-                          setFormData({
-                            ...formData,
-                            freight: { ...formData.freight, sizeRanges: ranges },
+                          const newMaxWeight = e.target.value ? Number(e.target.value) : null;
+                          setFormData(prev => {
+                            const ranges = [...(prev.freight.sizeRanges || [])];
+                            ranges[idx] = {
+                              ...ranges[idx],
+                              maxWeight: newMaxWeight,
+                            };
+                            return {
+                              ...prev,
+                              freight: { ...prev.freight, sizeRanges: ranges },
+                            };
                           });
                         }}
                         className="h-9"
@@ -804,14 +850,17 @@ export default function DeliverySettingsPage() {
                         value={range.maxVolume ?? ''}
                         placeholder="무제한"
                         onChange={(e) => {
-                          const ranges = [...(formData.freight.sizeRanges || [])];
-                          ranges[idx] = {
-                            ...ranges[idx],
-                            maxVolume: e.target.value ? Number(e.target.value) : null,
-                          };
-                          setFormData({
-                            ...formData,
-                            freight: { ...formData.freight, sizeRanges: ranges },
+                          const newMaxVolume = e.target.value ? Number(e.target.value) : null;
+                          setFormData(prev => {
+                            const ranges = [...(prev.freight.sizeRanges || [])];
+                            ranges[idx] = {
+                              ...ranges[idx],
+                              maxVolume: newMaxVolume,
+                            };
+                            return {
+                              ...prev,
+                              freight: { ...prev.freight, sizeRanges: ranges },
+                            };
                           });
                         }}
                         className="h-9"
@@ -820,11 +869,14 @@ export default function DeliverySettingsPage() {
                         type="number"
                         value={range.price}
                         onChange={(e) => {
-                          const ranges = [...(formData.freight.sizeRanges || [])];
-                          ranges[idx] = { ...ranges[idx], price: Number(e.target.value) };
-                          setFormData({
-                            ...formData,
-                            freight: { ...formData.freight, sizeRanges: ranges },
+                          const newPrice = Number(e.target.value);
+                          setFormData(prev => {
+                            const ranges = [...(prev.freight.sizeRanges || [])];
+                            ranges[idx] = { ...ranges[idx], price: newPrice };
+                            return {
+                              ...prev,
+                              freight: { ...prev.freight, sizeRanges: ranges },
+                            };
                           });
                         }}
                         className="h-9"
@@ -833,11 +885,13 @@ export default function DeliverySettingsPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                          const ranges = [...(formData.freight.sizeRanges || [])];
-                          ranges.splice(idx, 1);
-                          setFormData({
-                            ...formData,
-                            freight: { ...formData.freight, sizeRanges: ranges },
+                          setFormData(prev => {
+                            const ranges = [...(prev.freight.sizeRanges || [])];
+                            ranges.splice(idx, 1);
+                            return {
+                              ...prev,
+                              freight: { ...prev.freight, sizeRanges: ranges },
+                            };
                           });
                         }}
                         className="text-red-500 hover:text-red-700"
@@ -856,10 +910,10 @@ export default function DeliverySettingsPage() {
                     type="number"
                     value={(formData.freight.nightSurchargeRate || 0) * 100}
                     onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        freight: { ...formData.freight, nightSurchargeRate: Number(e.target.value) / 100 },
-                      })
+                      setFormData(prev => ({
+                        ...prev,
+                        freight: { ...prev.freight, nightSurchargeRate: Number(e.target.value) / 100 },
+                      }))
                     }
                   />
                 </div>
@@ -869,10 +923,10 @@ export default function DeliverySettingsPage() {
                     type="number"
                     value={(formData.freight.weekendSurchargeRate || 0) * 100}
                     onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        freight: { ...formData.freight, weekendSurchargeRate: Number(e.target.value) / 100 },
-                      })
+                      setFormData(prev => ({
+                        ...prev,
+                        freight: { ...prev.freight, weekendSurchargeRate: Number(e.target.value) / 100 },
+                      }))
                     }
                   />
                 </div>
@@ -880,6 +934,52 @@ export default function DeliverySettingsPage() {
 
               <div className="flex justify-end pt-4">
                 <Button onClick={() => handleSave('freight')} disabled={updatePricing.isPending}>
+                  <Save className="h-4 w-4 mr-2" />
+                  저장
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 방문수령 설정 */}
+        <TabsContent value="pickup" className="space-y-4">
+          <Card className="max-w-2xl">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                방문수령 설정
+              </CardTitle>
+              <CardDescription>고객이 직접 방문하여 수령하는 경우의 설정입니다</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-muted/50 p-4 rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  방문수령은 고객이 공장/매장으로 직접 방문하여 제품을 수령하는 방식입니다.
+                  배송비가 발생하지 않습니다.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>기본요금 (원)</Label>
+                <Input
+                  type="number"
+                  value={formData.pickup?.baseFee || 0}
+                  onChange={(e) =>
+                    setFormData(prev => ({
+                      ...prev,
+                      pickup: { ...prev.pickup, baseFee: Number(e.target.value) },
+                    }))
+                  }
+                  className="w-48"
+                />
+                <p className="text-xs text-muted-foreground">
+                  일반적으로 0원으로 설정합니다
+                </p>
+              </div>
+
+              <div className="flex justify-end pt-4">
+                <Button onClick={() => handleSave('pickup')} disabled={updatePricing.isPending}>
                   <Save className="h-4 w-4 mr-2" />
                   저장
                 </Button>

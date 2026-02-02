@@ -5,7 +5,7 @@ import { api } from '@/lib/api';
 
 // ==================== 타입 정의 ====================
 
-export const DELIVERY_METHODS = ['parcel', 'motorcycle', 'damas', 'freight'] as const;
+export const DELIVERY_METHODS = ['parcel', 'motorcycle', 'damas', 'freight', 'pickup'] as const;
 export type DeliveryMethod = typeof DELIVERY_METHODS[number];
 
 export const DELIVERY_METHOD_LABELS: Record<DeliveryMethod, string> = {
@@ -13,6 +13,7 @@ export const DELIVERY_METHOD_LABELS: Record<DeliveryMethod, string> = {
   motorcycle: '오토바이(퀵)',
   damas: '다마스',
   freight: '화물',
+  pickup: '방문수령',
 };
 
 export interface DistanceRange {

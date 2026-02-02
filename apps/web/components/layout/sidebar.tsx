@@ -24,6 +24,7 @@ import {
   CalendarDays,
   Wallet,
   X,
+  Pencil,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
@@ -50,6 +51,7 @@ const defaultNavigation = [
       { name: "원단정보", href: "/master/fabrics" },
       { name: "카테고리", href: "/company/categories" },
       { name: "규격정보", href: "/master/specifications" },
+      { name: "JDF 표준", href: "/master/jdf" },
       { name: "가격관리", href: "/pricing/production" },
     ],
   },
@@ -84,6 +86,16 @@ const defaultNavigation = [
       { name: "생산진행", href: "/orders/production" },
       { name: "배송관리", href: "/orders/shipping" },
       { name: "마감관리", href: "/orders/reception" },
+    ],
+  },
+  {
+    id: "editing",
+    name: "편집관리",
+    icon: Pencil,
+    children: [
+      { name: "편집대기", href: "/editing/pending" },
+      { name: "편집진행", href: "/editing/progress" },
+      { name: "편집완료", href: "/editing/completed" },
     ],
   },
   {

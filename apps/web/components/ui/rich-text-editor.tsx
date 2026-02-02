@@ -9,7 +9,7 @@ import Underline from '@tiptap/extension-underline';
 import { TextStyle } from '@tiptap/extension-text-style';
 import Color from '@tiptap/extension-color';
 import Placeholder from '@tiptap/extension-placeholder';
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import { Button } from './button';
 import { cn } from '@/lib/utils';
 import {
@@ -376,6 +376,13 @@ export function RichTextEditor({
       },
     },
   });
+
+  // 외부 value 변경 시 에디터 내용 동기화
+  useEffect(() => {
+    if (editor && value !== editor.getHTML()) {
+      editor.commands.setContent(value, { emitUpdate: false });
+    }
+  }, [value, editor]);
 
   return (
     <div className={cn('border rounded-lg overflow-hidden bg-background', className)}>

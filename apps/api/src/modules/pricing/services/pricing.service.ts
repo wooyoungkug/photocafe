@@ -7,6 +7,7 @@ import {
   SetGroupProductPriceDto,
   SetGroupHalfProductPriceDto,
   SetGroupProductionSettingPricesDto,
+  SetClientProductionSettingPricesDto,
 } from '../dto';
 
 /**
@@ -444,5 +445,165 @@ export class PricingService {
         productionSettingId,
       },
     });
+  }
+
+  // ==================== 거래처 개별 생산설정 단가 관리 ====================
+
+  /**
+   * 거래처별 개별 생산설정 단가 목록 조회
+   */
+  async getClientProductionSettingPrices(clientId: string, productionSettingId?: string) {
+    const where: any = { clientId };
+    if (productionSettingId) {
+      where.productionSettingId = productionSettingId;
+    }
+
+    return this.prisma.clientProductionSettingPrice.findMany({
+      where,
+      include: {
+        productionSetting: {
+          select: {
+            id: true,
+            codeName: true,
+            settingName: true,
+            pricingType: true,
+            printMethod: true,
+            group: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: [
+        { productionSettingId: 'asc' },
+        { minQuantity: 'asc' },
+        { specificationId: 'asc' },
+      ],
+    });
+  }
+
+  /**
+   * 거래처별 개별 생산설정 단가 설정 (upsert)
+   */
+  async setClientProductionSettingPrices(dto: SetClientProductionSettingPricesDto) {
+    const results = [];
+
+    for (const priceData of dto.prices) {
+      // 고유 키 구성 (priceGroupId 포함)
+      const uniqueKey = {
+        clientId: dto.clientId,
+        productionSettingId: dto.productionSettingId,
+        specificationId: priceData.specificationId || null,
+        priceGroupId: priceData.priceGroupId || null,
+        minQuantity: priceData.minQuantity || null,
+      };
+
+      const data = {
+        clientId: dto.clientId,
+        productionSettingId: dto.productionSettingId,
+        specificationId: priceData.specificationId,
+        priceGroupId: priceData.priceGroupId,
+        minQuantity: priceData.minQuantity,
+        maxQuantity: priceData.maxQuantity,
+        weight: priceData.weight,
+        price: priceData.price || 0,
+        singleSidedPrice: priceData.singleSidedPrice,
+        doubleSidedPrice: priceData.doubleSidedPrice,
+        fourColorSinglePrice: priceData.fourColorSinglePrice,
+        fourColorDoublePrice: priceData.fourColorDoublePrice,
+        sixColorSinglePrice: priceData.sixColorSinglePrice,
+        sixColorDoublePrice: priceData.sixColorDoublePrice,
+        basePages: priceData.basePages,
+        basePrice: priceData.basePrice,
+        pricePerPage: priceData.pricePerPage,
+        rangePrices: priceData.rangePrices,
+      };
+
+      // 기존 레코드 찾기
+      const existing = await this.prisma.clientProductionSettingPrice.findFirst({
+        where: uniqueKey,
+      });
+
+      if (existing) {
+        // 업데이트
+        const updated = await this.prisma.clientProductionSettingPrice.update({
+          where: { id: existing.id },
+          data,
+        });
+        results.push(updated);
+      } else {
+        // 생성
+        const created = await this.prisma.clientProductionSettingPrice.create({
+          data,
+        });
+        results.push(created);
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * 거래처별 개별 생산설정 단가 개별 삭제
+   */
+  async deleteClientProductionSettingPrice(id: string) {
+    return this.prisma.clientProductionSettingPrice.delete({
+      where: { id },
+    });
+  }
+
+  /**
+   * 거래처별 개별 생산설정 단가 전체 삭제 (특정 설정에 대해)
+   */
+  async deleteClientProductionSettingPrices(clientId: string, productionSettingId: string) {
+    return this.prisma.clientProductionSettingPrice.deleteMany({
+      where: {
+        clientId,
+        productionSettingId,
+      },
+    });
+  }
+
+  /**
+   * 거래처별 개별 단가 설정된 생산설정 목록 조회 (카테고리별 구분용)
+   */
+  async getClientProductionSettingSummary(clientId: string) {
+    const prices = await this.prisma.clientProductionSettingPrice.findMany({
+      where: { clientId },
+      select: {
+        productionSettingId: true,
+        productionSetting: {
+          select: {
+            id: true,
+            codeName: true,
+            settingName: true,
+            pricingType: true,
+            printMethod: true,
+            group: {
+              select: {
+                id: true,
+                name: true,
+                parentId: true,
+                parent: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      distinct: ['productionSettingId'],
+    });
+
+    return prices.map((p) => ({
+      productionSettingId: p.productionSettingId,
+      ...p.productionSetting,
+    }));
   }
 }

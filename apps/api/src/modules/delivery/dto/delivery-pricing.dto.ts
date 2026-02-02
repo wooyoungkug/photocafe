@@ -1,10 +1,10 @@
-import { IsString, IsOptional, IsInt, Min, IsBoolean, IsIn, IsArray, IsNumber, Allow } from 'class-validator';
+import { IsString, IsOptional, IsInt, Min, IsBoolean, IsIn, IsArray, IsNumber, ValidateNested } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 
 // ==================== 배송방법 타입 ====================
 
-export const DELIVERY_METHODS = ['parcel', 'motorcycle', 'damas', 'freight'] as const;
+export const DELIVERY_METHODS = ['parcel', 'motorcycle', 'damas', 'freight', 'pickup'] as const;
 export type DeliveryMethod = typeof DELIVERY_METHODS[number];
 
 export const DELIVERY_METHOD_LABELS: Record<DeliveryMethod, string> = {
@@ -12,6 +12,7 @@ export const DELIVERY_METHOD_LABELS: Record<DeliveryMethod, string> = {
   motorcycle: '오토바이(퀵)',
   damas: '다마스',
   freight: '화물',
+  pickup: '방문수령',
 };
 
 // ==================== 거리 구간 단가 DTO ====================
@@ -83,10 +84,11 @@ export class CreateDeliveryPricingDto {
   shippingFee?: number;
 
   // 거리별 요금 설정 (오토바이/다마스용)
-  @ApiPropertyOptional({ description: '거리 구간별 단가 배열' })
+  @ApiPropertyOptional({ description: '거리 구간별 단가 배열', type: [DistanceRangeDto] })
   @IsOptional()
   @IsArray()
-  @Allow()
+  @ValidateNested({ each: true })
+  @Type(() => DistanceRangeDto)
   distanceRanges?: DistanceRangeDto[];
 
   @ApiPropertyOptional({ description: 'km당 추가요금 (최대거리 초과 시)' })
@@ -127,10 +129,11 @@ export class CreateDeliveryPricingDto {
   weekendSurchargeRate?: number;
 
   // 화물용
-  @ApiPropertyOptional({ description: '크기/무게별 추가요금 배열' })
+  @ApiPropertyOptional({ description: '크기/무게별 추가요금 배열', type: [SizeRangeDto] })
   @IsOptional()
   @IsArray()
-  @Allow()
+  @ValidateNested({ each: true })
+  @Type(() => SizeRangeDto)
   sizeRanges?: SizeRangeDto[];
 
   // 택배용

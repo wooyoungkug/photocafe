@@ -99,6 +99,13 @@ import {
   PRINT_METHOD_OPTIONS,
   UNIT_TYPE_OPTIONS,
   GROUP_COLOR_OPTIONS,
+  JDF_MEDIA_TYPE_OPTIONS,
+  JDF_MEDIA_TYPE_DETAILS_OPTIONS,
+  JDF_COATING_OPTIONS,
+  JDF_OPACITY_OPTIONS,
+  JDF_TEXTURE_OPTIONS,
+  JDF_HOLE_TYPE_OPTIONS,
+  JDF_GRADE_OPTIONS,
 } from '@/lib/types/paper';
 
 import {
@@ -165,6 +172,16 @@ const paperSchema = z.object({
   isActive: z.boolean().default(true),
   nUpIndigo: optionalNumber, // 인디고 nUP (자동계산)
   nUpInkjet: optionalNumber, // 잉크젯 nUP (수동입력)
+  // CIP4 JDF MediaIntent 필드
+  jdfMediaType: z.string().optional(),
+  jdfMediaTypeDetails: z.string().optional(),
+  jdfFrontCoating: z.string().optional(),
+  jdfBackCoating: z.string().optional(),
+  jdfOpacity: z.string().optional(),
+  jdfTexture: z.string().optional(),
+  jdfGrade: optionalNumber,
+  jdfPrePrinted: z.boolean().default(false),
+  jdfHoleType: z.string().optional(),
 });
 
 type PaperFormData = z.infer<typeof paperSchema>;
@@ -367,6 +384,11 @@ export default function PapersPage() {
       minStockLevel: 0,
       sortOrder: 0,
       isActive: true,
+      // JDF MediaIntent 기본값
+      jdfMediaType: 'Paper',
+      jdfOpacity: 'Opaque',
+      jdfGrade: 1,
+      jdfPrePrinted: false,
     },
   });
 
@@ -445,6 +467,16 @@ export default function PapersPage() {
         isActive: paper.isActive,
         nUpIndigo: (paper as any).nUpIndigo || undefined,
         nUpInkjet: (paper as any).nUpInkjet || undefined,
+        // JDF MediaIntent 필드
+        jdfMediaType: (paper as any).jdfMediaType || 'Paper',
+        jdfMediaTypeDetails: (paper as any).jdfMediaTypeDetails || undefined,
+        jdfFrontCoating: (paper as any).jdfFrontCoating || undefined,
+        jdfBackCoating: (paper as any).jdfBackCoating || undefined,
+        jdfOpacity: (paper as any).jdfOpacity || 'Opaque',
+        jdfTexture: (paper as any).jdfTexture || undefined,
+        jdfGrade: (paper as any).jdfGrade || 1,
+        jdfPrePrinted: (paper as any).jdfPrePrinted || false,
+        jdfHoleType: (paper as any).jdfHoleType || undefined,
       });
     } else {
       setEditingPaper(null);
@@ -463,6 +495,11 @@ export default function PapersPage() {
         isActive: true,
         nUpIndigo: undefined,
         nUpInkjet: undefined,
+        // JDF MediaIntent 기본값
+        jdfMediaType: 'Paper',
+        jdfOpacity: 'Opaque',
+        jdfGrade: 1,
+        jdfPrePrinted: false,
       });
     }
     setPaperDialogOpen(true);
@@ -472,18 +509,16 @@ export default function PapersPage() {
   const handlePaperSubmit = async (data: PaperFormData) => {
     console.log('폼 데이터:', data);
 
-    // 인디고 nUP 자동계산 값 설정
-    if (data.printMethods?.includes('indigo') && data.sheetWidthMm && data.sheetHeightMm) {
-      data.nUpIndigo = calculateNUpIndigo(data.sheetWidthMm, data.sheetHeightMm);
-    }
+    // 백엔드로 전송할 데이터 준비 (nUpIndigo, nUpInkjet 제외)
+    const { nUpIndigo, nUpInkjet, ...submitData } = data;
 
     try {
       if (editingPaper) {
-        console.log('수정 요청:', { id: editingPaper.id, ...data });
-        await updatePaper.mutateAsync({ id: editingPaper.id, ...data } as CreatePaperDto & { id: string });
+        console.log('수정 요청:', { id: editingPaper.id, ...submitData });
+        await updatePaper.mutateAsync({ id: editingPaper.id, ...submitData } as CreatePaperDto & { id: string });
       } else {
-        console.log('등록 요청:', data);
-        await createPaper.mutateAsync(data as CreatePaperDto);
+        console.log('등록 요청:', submitData);
+        await createPaper.mutateAsync(submitData as CreatePaperDto);
       }
       setPaperDialogOpen(false);
       paperForm.reset();
@@ -713,6 +748,7 @@ export default function PapersPage() {
                   <TableHead>규격</TableHead>
                   <TableHead>인쇄방식</TableHead>
                   <TableHead className="text-center">nUP</TableHead>
+                  <TableHead>JDF</TableHead>
                   <TableHead className="text-right">단가</TableHead>
                   <TableHead className="text-right">4절 장당</TableHead>
                   <TableHead className="text-center">상태</TableHead>
@@ -722,7 +758,7 @@ export default function PapersPage() {
               <TableBody>
                 {papersLoading ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center py-12">
+                    <TableCell colSpan={12} className="text-center py-12">
                       <div className="flex items-center justify-center gap-2 text-muted-foreground">
                         <div className="animate-spin h-4 w-4 border-2 border-indigo-500 border-t-transparent rounded-full" />
                         로딩 중...
@@ -731,7 +767,7 @@ export default function PapersPage() {
                   </TableRow>
                 ) : !papersData?.data?.length ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center py-12">
+                    <TableCell colSpan={12} className="text-center py-12">
                       <div className="text-muted-foreground">
                         <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
                         등록된 용지가 없습니다
@@ -783,6 +819,23 @@ export default function PapersPage() {
                             </Badge>
                           )}
                           {!(paper as any).nUpIndigo && !(paper as any).nUpInkjet && (
+                            <span className="text-muted-foreground text-xs">-</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {(paper as any).jdfMediaTypeDetails && (
+                            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs">
+                              {(paper as any).jdfMediaTypeDetails}
+                            </Badge>
+                          )}
+                          {(paper as any).jdfFrontCoating && (paper as any).jdfFrontCoating !== 'None' && (
+                            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-xs">
+                              {(paper as any).jdfFrontCoating}
+                            </Badge>
+                          )}
+                          {!(paper as any).jdfMediaTypeDetails && !(paper as any).jdfFrontCoating && (
                             <span className="text-muted-foreground text-xs">-</span>
                           )}
                         </div>
@@ -1512,6 +1565,188 @@ export default function PapersPage() {
                   )}
                 </div>
               )}
+            </div>
+
+            {/* CIP4 JDF MediaIntent 섹션 */}
+            <div className="space-y-5">
+              <h3 className="text-sm font-semibold text-amber-600 uppercase tracking-wider border-b border-amber-200 pb-2 flex items-center gap-2">
+                <span className="inline-block w-2 h-2 bg-amber-500 rounded-full"></span>
+                CIP4 JDF MediaIntent
+              </h3>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 space-y-5">
+                {/* MediaType & MediaTypeDetails */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-slate-700">MediaType (매체 유형)</Label>
+                    <Select
+                      value={paperForm.watch('jdfMediaType') || 'Paper'}
+                      onValueChange={(v) => paperForm.setValue('jdfMediaType', v)}
+                    >
+                      <SelectTrigger className="h-11 bg-white border-slate-200">
+                        <SelectValue placeholder="선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {JDF_MEDIA_TYPE_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-slate-700">MediaTypeDetails (세부 유형)</Label>
+                    <Select
+                      value={paperForm.watch('jdfMediaTypeDetails') || ''}
+                      onValueChange={(v) => paperForm.setValue('jdfMediaTypeDetails', v || undefined)}
+                    >
+                      <SelectTrigger className="h-11 bg-white border-slate-200">
+                        <SelectValue placeholder="선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {JDF_MEDIA_TYPE_DETAILS_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Coating (앞면/뒷면) */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-slate-700">FrontCoating (앞면 코팅)</Label>
+                    <Select
+                      value={paperForm.watch('jdfFrontCoating') || ''}
+                      onValueChange={(v) => paperForm.setValue('jdfFrontCoating', v || undefined)}
+                    >
+                      <SelectTrigger className="h-11 bg-white border-slate-200">
+                        <SelectValue placeholder="선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {JDF_COATING_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-slate-700">BackCoating (뒷면 코팅)</Label>
+                    <Select
+                      value={paperForm.watch('jdfBackCoating') || ''}
+                      onValueChange={(v) => paperForm.setValue('jdfBackCoating', v || undefined)}
+                    >
+                      <SelectTrigger className="h-11 bg-white border-slate-200">
+                        <SelectValue placeholder="선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {JDF_COATING_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Opacity, Texture, Grade */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-slate-700">Opacity (불투명도)</Label>
+                    <Select
+                      value={paperForm.watch('jdfOpacity') || 'Opaque'}
+                      onValueChange={(v) => paperForm.setValue('jdfOpacity', v)}
+                    >
+                      <SelectTrigger className="h-11 bg-white border-slate-200">
+                        <SelectValue placeholder="선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {JDF_OPACITY_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-slate-700">Texture (질감)</Label>
+                    <Select
+                      value={paperForm.watch('jdfTexture') || ''}
+                      onValueChange={(v) => paperForm.setValue('jdfTexture', v || undefined)}
+                    >
+                      <SelectTrigger className="h-11 bg-white border-slate-200">
+                        <SelectValue placeholder="선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {JDF_TEXTURE_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-slate-700">Grade (등급)</Label>
+                    <Select
+                      value={String(paperForm.watch('jdfGrade') || 1)}
+                      onValueChange={(v) => paperForm.setValue('jdfGrade', parseInt(v))}
+                    >
+                      <SelectTrigger className="h-11 bg-white border-slate-200">
+                        <SelectValue placeholder="선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {JDF_GRADE_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={String(opt.value)}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* HoleType & PrePrinted */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-slate-700">HoleType (펀치 구멍)</Label>
+                    <Select
+                      value={paperForm.watch('jdfHoleType') || 'None'}
+                      onValueChange={(v) => paperForm.setValue('jdfHoleType', v)}
+                    >
+                      <SelectTrigger className="h-11 bg-white border-slate-200">
+                        <SelectValue placeholder="선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {JDF_HOLE_TYPE_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-slate-700">PrePrinted (사전 인쇄)</Label>
+                    <div className="h-11 flex items-center">
+                      <Switch
+                        checked={paperForm.watch('jdfPrePrinted') || false}
+                        onCheckedChange={(v) => paperForm.setValue('jdfPrePrinted', v)}
+                      />
+                      <span className="ml-3 text-sm text-slate-600">
+                        {paperForm.watch('jdfPrePrinted') ? '예 (사전 인쇄됨)' : '아니오'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* 추가 정보 섹션 */}

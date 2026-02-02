@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import {
   CreateCopperPlateDto,
@@ -6,6 +6,10 @@ import {
   RecordCopperPlateUsageDto,
   ChangeCopperPlateLocationDto,
   ChangeCopperPlateStatusDto,
+  CreateFoilColorDto,
+  UpdateFoilColorDto,
+  CreatePlatePositionDto,
+  UpdatePlatePositionDto,
   CopperPlateActionType,
 } from '../dto/copper-plate.dto';
 
@@ -61,14 +65,19 @@ export class CopperPlateService {
         plateCode: dto.plateCode,
         foilColor: dto.foilColor,
         foilColorName: dto.foilColorName,
+        foilPosition: dto.foilPosition,
         widthMm: dto.widthMm,
         heightMm: dto.heightMm,
         storageLocation: dto.storageLocation,
         imageUrl: dto.imageUrl,
+        aiFileUrl: dto.aiFileUrl,
         designFileUrl: dto.designFileUrl,
+        albumPhotoUrl: dto.albumPhotoUrl,
+        appliedAlbumName: dto.appliedAlbumName,
         notes: dto.notes,
         registeredById: dto.registeredById,
         registeredBy: dto.registeredBy,
+        registeredAt: dto.registeredAt ? new Date(dto.registeredAt) : undefined,
         status: 'stored',
       },
     });
@@ -100,13 +109,18 @@ export class CopperPlateService {
         ...(dto.plateCode !== undefined && { plateCode: dto.plateCode }),
         ...(dto.foilColor && { foilColor: dto.foilColor }),
         ...(dto.foilColorName !== undefined && { foilColorName: dto.foilColorName }),
+        ...(dto.foilPosition !== undefined && { foilPosition: dto.foilPosition }),
         ...(dto.widthMm !== undefined && { widthMm: dto.widthMm }),
         ...(dto.heightMm !== undefined && { heightMm: dto.heightMm }),
         ...(dto.storageLocation !== undefined && { storageLocation: dto.storageLocation }),
         ...(dto.imageUrl !== undefined && { imageUrl: dto.imageUrl }),
+        ...(dto.aiFileUrl !== undefined && { aiFileUrl: dto.aiFileUrl }),
         ...(dto.designFileUrl !== undefined && { designFileUrl: dto.designFileUrl }),
+        ...(dto.albumPhotoUrl !== undefined && { albumPhotoUrl: dto.albumPhotoUrl }),
+        ...(dto.appliedAlbumName !== undefined && { appliedAlbumName: dto.appliedAlbumName }),
         ...(dto.notes !== undefined && { notes: dto.notes }),
         ...(dto.status && { status: dto.status }),
+        ...(dto.registeredAt && { registeredAt: new Date(dto.registeredAt) }),
         ...(dto.firstUsedAt && { firstUsedAt: new Date(dto.firstUsedAt) }),
         ...(dto.returnedAt && { returnedAt: new Date(dto.returnedAt) }),
       },
@@ -312,5 +326,149 @@ export class CopperPlateService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  // ==================== 박 컬러 관리 ====================
+
+  async getFoilColors() {
+    return this.prisma.foilColor.findMany({
+      where: { isActive: true },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+    });
+  }
+
+  async createFoilColor(dto: CreateFoilColorDto) {
+    // 중복 코드 체크
+    const existing = await this.prisma.foilColor.findUnique({
+      where: { code: dto.code },
+    });
+    if (existing) {
+      throw new ConflictException('이미 존재하는 코드입니다.');
+    }
+
+    // 정렬 순서가 없으면 마지막으로
+    let sortOrder = dto.sortOrder;
+    if (sortOrder === undefined) {
+      const maxOrder = await this.prisma.foilColor.aggregate({
+        _max: { sortOrder: true },
+      });
+      sortOrder = (maxOrder._max.sortOrder || 0) + 1;
+    }
+
+    return this.prisma.foilColor.create({
+      data: {
+        code: dto.code,
+        name: dto.name,
+        colorHex: dto.colorHex,
+        sortOrder,
+      },
+    });
+  }
+
+  async updateFoilColor(id: string, dto: UpdateFoilColorDto) {
+    const foilColor = await this.prisma.foilColor.findUnique({ where: { id } });
+    if (!foilColor) {
+      throw new NotFoundException('박 컬러를 찾을 수 없습니다.');
+    }
+
+    // 코드 변경 시 중복 체크
+    if (dto.code && dto.code !== foilColor.code) {
+      const existing = await this.prisma.foilColor.findUnique({
+        where: { code: dto.code },
+      });
+      if (existing) {
+        throw new ConflictException('이미 존재하는 코드입니다.');
+      }
+    }
+
+    return this.prisma.foilColor.update({
+      where: { id },
+      data: {
+        ...(dto.code && { code: dto.code }),
+        ...(dto.name && { name: dto.name }),
+        ...(dto.colorHex !== undefined && { colorHex: dto.colorHex }),
+        ...(dto.sortOrder !== undefined && { sortOrder: dto.sortOrder }),
+        ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+      },
+    });
+  }
+
+  async deleteFoilColor(id: string) {
+    const foilColor = await this.prisma.foilColor.findUnique({ where: { id } });
+    if (!foilColor) {
+      throw new NotFoundException('박 컬러를 찾을 수 없습니다.');
+    }
+    return this.prisma.foilColor.delete({ where: { id } });
+  }
+
+  // ==================== 동판 위치 관리 ====================
+
+  async getPlatePositions() {
+    return this.prisma.platePosition.findMany({
+      where: { isActive: true },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+    });
+  }
+
+  async createPlatePosition(dto: CreatePlatePositionDto) {
+    // 중복 코드 체크
+    const existing = await this.prisma.platePosition.findUnique({
+      where: { code: dto.code },
+    });
+    if (existing) {
+      throw new ConflictException('이미 존재하는 코드입니다.');
+    }
+
+    // 정렬 순서가 없으면 마지막으로
+    let sortOrder = dto.sortOrder;
+    if (sortOrder === undefined) {
+      const maxOrder = await this.prisma.platePosition.aggregate({
+        _max: { sortOrder: true },
+      });
+      sortOrder = (maxOrder._max.sortOrder || 0) + 1;
+    }
+
+    return this.prisma.platePosition.create({
+      data: {
+        code: dto.code,
+        name: dto.name,
+        sortOrder,
+      },
+    });
+  }
+
+  async updatePlatePosition(id: string, dto: UpdatePlatePositionDto) {
+    const position = await this.prisma.platePosition.findUnique({ where: { id } });
+    if (!position) {
+      throw new NotFoundException('동판 위치를 찾을 수 없습니다.');
+    }
+
+    // 코드 변경 시 중복 체크
+    if (dto.code && dto.code !== position.code) {
+      const existing = await this.prisma.platePosition.findUnique({
+        where: { code: dto.code },
+      });
+      if (existing) {
+        throw new ConflictException('이미 존재하는 코드입니다.');
+      }
+    }
+
+    return this.prisma.platePosition.update({
+      where: { id },
+      data: {
+        ...(dto.code && { code: dto.code }),
+        ...(dto.name && { name: dto.name }),
+        ...(dto.sortOrder !== undefined && { sortOrder: dto.sortOrder }),
+        ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+      },
+    });
+  }
+
+  async deletePlatePosition(id: string) {
+    const position = await this.prisma.platePosition.findUnique({ where: { id } });
+    if (!position) {
+      throw new NotFoundException('동판 위치를 찾을 수 없습니다.');
+    }
+    return this.prisma.platePosition.delete({ where: { id } });
   }
 }

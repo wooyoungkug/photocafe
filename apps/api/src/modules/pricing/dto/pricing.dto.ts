@@ -131,6 +131,104 @@ export class SetGroupProductionSettingPricesDto {
   prices: GroupProductionSettingPriceDto[];
 }
 
+// ==================== 거래처 개별 생산설정 단가 DTO ====================
+export class ClientProductionSettingPriceDto {
+  @ApiPropertyOptional({ description: '규격 ID (규격별 가격인 경우)' })
+  @IsOptional()
+  @IsString()
+  specificationId?: string;
+
+  @ApiPropertyOptional({ description: '단가 그룹 ID (인디고 priceGroups용)' })
+  @IsOptional()
+  @IsString()
+  priceGroupId?: string;
+
+  @ApiPropertyOptional({ description: '최소 수량 / Up값' })
+  @IsOptional()
+  @IsNumber()
+  minQuantity?: number;
+
+  @ApiPropertyOptional({ description: '최대 수량' })
+  @IsOptional()
+  @IsNumber()
+  maxQuantity?: number;
+
+  @ApiPropertyOptional({ description: '가중치' })
+  @IsOptional()
+  @IsNumber()
+  weight?: number;
+
+  @ApiPropertyOptional({ description: '기본 가격' })
+  @IsOptional()
+  @IsNumber()
+  price?: number;
+
+  @ApiPropertyOptional({ description: '단면 단가' })
+  @IsOptional()
+  @IsNumber()
+  singleSidedPrice?: number;
+
+  @ApiPropertyOptional({ description: '양면 단가' })
+  @IsOptional()
+  @IsNumber()
+  doubleSidedPrice?: number;
+
+  @ApiPropertyOptional({ description: '4도칼라 단면 단가' })
+  @IsOptional()
+  @IsNumber()
+  fourColorSinglePrice?: number;
+
+  @ApiPropertyOptional({ description: '4도칼라 양면 단가' })
+  @IsOptional()
+  @IsNumber()
+  fourColorDoublePrice?: number;
+
+  @ApiPropertyOptional({ description: '6도칼라 단면 단가' })
+  @IsOptional()
+  @IsNumber()
+  sixColorSinglePrice?: number;
+
+  @ApiPropertyOptional({ description: '6도칼라 양면 단가' })
+  @IsOptional()
+  @IsNumber()
+  sixColorDoublePrice?: number;
+
+  @ApiPropertyOptional({ description: '기본 페이지 수' })
+  @IsOptional()
+  @IsNumber()
+  basePages?: number;
+
+  @ApiPropertyOptional({ description: '기본 가격 (구간별)' })
+  @IsOptional()
+  @IsNumber()
+  basePrice?: number;
+
+  @ApiPropertyOptional({ description: '페이지당 가격' })
+  @IsOptional()
+  @IsNumber()
+  pricePerPage?: number;
+
+  @ApiPropertyOptional({ description: '구간별 가격 (JSON)' })
+  @IsOptional()
+  rangePrices?: Record<string, number>;
+}
+
+export class SetClientProductionSettingPricesDto {
+  @ApiProperty({ description: '거래처 ID' })
+  @IsString()
+  clientId: string;
+
+  @ApiProperty({ description: '생산설정 ID' })
+  @IsString()
+  productionSettingId: string;
+
+  @ApiProperty({ description: '가격 목록', type: [ClientProductionSettingPriceDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ClientProductionSettingPriceDto)
+  prices: ClientProductionSettingPriceDto[];
+}
+
 // ==================== 가격 계산 요청 DTO ====================
 export class OptionSelectionDto {
   @ApiProperty({ description: '옵션 타입 (specification, binding, paper, cover, foil, finishing)' })

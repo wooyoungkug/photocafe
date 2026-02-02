@@ -33,6 +33,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
+import { ProductEditor } from '@/components/ui/product-editor';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   useProducts,
@@ -41,7 +42,26 @@ import {
   useDeleteProduct,
 } from '@/hooks/use-products';
 import { useCategories } from '@/hooks/use-categories';
+import { API_URL, API_BASE_URL } from '@/lib/api';
 import type { Product, CreateProductDto } from '@/lib/types';
+
+// 이미지 URL 정규화 함수
+const normalizeImageUrl = (url: string | null | undefined): string => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url.replace(/\/api\/v1\/api\/v1\//g, '/api/v1/');
+  }
+  if (url.startsWith('/api/v1/')) {
+    return `${API_BASE_URL}${url}`;
+  }
+  if (url.startsWith('/upload')) {
+    return `${API_URL}${url}`;
+  }
+  if (url.startsWith('/api/')) {
+    return `${API_BASE_URL}${url}`;
+  }
+  return url;
+};
 import {
   Plus,
   Search,
@@ -51,6 +71,7 @@ import {
   AlertCircle,
   Package,
   Image as ImageIcon,
+  Copy,
 } from 'lucide-react';
 
 export default function ProductsPage() {
@@ -141,6 +162,27 @@ export default function ProductsPage() {
     }
   };
 
+  const handleCopy = (product: Product) => {
+    // 상품 코드에 '_복사' 추가
+    const copiedProductCode = `${product.productCode}_복사`;
+
+    setEditingProduct(null);
+    setFormData({
+      productCode: copiedProductCode,
+      productName: `${product.productName} (복사)`,
+      categoryId: product.categoryId,
+      basePrice: Number(product.basePrice),
+      isActive: product.isActive,
+      isNew: product.isNew,
+      isBest: product.isBest,
+      memberType: product.memberType,
+      thumbnailUrl: product.thumbnailUrl || '',
+      description: product.description || '',
+      sortOrder: product.sortOrder,
+    });
+    setIsDialogOpen(true);
+  };
+
   const formatPrice = (price: number | string) => {
     return Number(price).toLocaleString();
   };
@@ -157,20 +199,20 @@ export default function ProductsPage() {
       />
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <CardTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
             상품 목록
           </CardTitle>
-          <Button onClick={() => router.push('/products/new')}>
+          <Button onClick={() => router.push('/products/new')} className="w-full sm:w-auto">
             <Plus className="h-4 w-4 mr-2" />
             상품 추가
           </Button>
         </CardHeader>
         <CardContent>
           {/* 필터 영역 */}
-          <div className="flex gap-4 mb-6">
-            <div className="relative flex-1 max-w-sm">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-6">
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="상품명, 코드 검색..."
@@ -179,29 +221,31 @@ export default function ProductsPage() {
                 className="pl-10"
               />
             </div>
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="카테고리" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">전체 카테고리</SelectItem>
-                {categoriesData?.map((category) => (
-                  <SelectItem key={category.id} value={category.id}>
-                    {category.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-32">
-                <SelectValue placeholder="상태" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">전체</SelectItem>
-                <SelectItem value="active">활성</SelectItem>
-                <SelectItem value="inactive">비활성</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex gap-2 sm:gap-4">
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="flex-1 sm:w-48">
+                  <SelectValue placeholder="카테고리" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체 카테고리</SelectItem>
+                  {categoriesData?.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="flex-1 sm:w-32">
+                  <SelectValue placeholder="상태" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체</SelectItem>
+                  <SelectItem value="active">활성</SelectItem>
+                  <SelectItem value="inactive">비활성</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* 테이블 */}
@@ -218,74 +262,94 @@ export default function ProductsPage() {
             </div>
           ) : (
             <>
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <div className="inline-block min-w-full align-middle px-4 sm:px-0">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-20">이미지</TableHead>
-                    <TableHead>상품코드</TableHead>
-                    <TableHead>상품명</TableHead>
-                    <TableHead>카테고리</TableHead>
-                    <TableHead className="text-right">기본가격</TableHead>
-                    <TableHead>태그</TableHead>
-                    <TableHead>상태</TableHead>
-                    <TableHead className="text-right">작업</TableHead>
+                    <TableHead className="w-16 sm:w-20 text-center">이미지</TableHead>
+                    <TableHead className="text-center">상품명</TableHead>
+                    <TableHead className="hidden md:table-cell text-center">카테고리</TableHead>
+                    <TableHead className="text-center">기본가격</TableHead>
+                    <TableHead className="hidden lg:table-cell text-center">태그</TableHead>
+                    <TableHead className="hidden sm:table-cell text-center">상태</TableHead>
+                    <TableHead className="text-center">작업</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {productsData?.data?.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                         등록된 상품이 없습니다.
                       </TableCell>
                     </TableRow>
                   ) : (
                     productsData?.data?.map((product) => (
                       <TableRow key={product.id}>
-                        <TableCell>
-                          {product.thumbnailUrl ? (
-                            <img
-                              src={product.thumbnailUrl}
-                              alt={product.productName}
-                              className="w-12 h-12 object-cover rounded"
-                            />
-                          ) : (
-                            <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center">
-                              <ImageIcon className="h-5 w-5 text-gray-400" />
-                            </div>
-                          )}
+                        <TableCell className="text-center">
+                          <div className="flex justify-center">
+                            {product.thumbnailUrl ? (
+                              <img
+                                src={normalizeImageUrl(product.thumbnailUrl)}
+                                alt={product.productName}
+                                className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 rounded flex items-center justify-center">
+                                <ImageIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
+                              </div>
+                            )}
+                          </div>
                         </TableCell>
-                        <TableCell className="font-mono text-sm">{product.productCode}</TableCell>
-                        <TableCell className="font-medium">{product.productName}</TableCell>
-                        <TableCell>
+                        <TableCell className="text-center font-medium">
+                          <div className="flex flex-col items-center">
+                            <span className="truncate max-w-[120px] sm:max-w-none">{product.productName}</span>
+                            <span className="md:hidden text-xs text-muted-foreground">{product.category?.name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell text-center">
                           <Badge variant="outline">{product.category?.name || '-'}</Badge>
                         </TableCell>
-                        <TableCell className="text-right font-mono">
+                        <TableCell className="text-center font-mono text-sm">
                           {formatPrice(product.basePrice)}원
                         </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
+                        <TableCell className="hidden lg:table-cell text-center">
+                          <div className="flex gap-1 justify-center">
                             {product.isNew && <Badge className="bg-green-500">NEW</Badge>}
                             {product.isBest && <Badge className="bg-orange-500">BEST</Badge>}
                           </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="hidden sm:table-cell text-center">
                           <Badge variant={product.isActive ? 'default' : 'secondary'}>
                             {product.isActive ? '활성' : '비활성'}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
+                        <TableCell className="text-center">
+                          <div className="flex justify-center gap-1 sm:gap-2">
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => router.push(`/products/${product.id}/edit`)}
+                              title="수정"
+                              className="h-8 w-8 p-0 sm:h-9 sm:w-9"
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="sm"
+                              onClick={() => handleCopy(product)}
+                              title="복사"
+                              className="h-8 w-8 p-0 sm:h-9 sm:w-9"
+                            >
+                              <Copy className="h-4 w-4 text-blue-600" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               onClick={() => setDeleteConfirm(product)}
+                              title="삭제"
+                              className="h-8 w-8 p-0 sm:h-9 sm:w-9"
                             >
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
@@ -296,6 +360,8 @@ export default function ProductsPage() {
                   )}
                 </TableBody>
               </Table>
+                </div>
+              </div>
 
               {/* 페이지네이션 */}
               {productsData?.meta && productsData.meta.totalPages > 1 && (
@@ -328,17 +394,19 @@ export default function ProductsPage() {
 
       {/* 상품 추가/수정 다이얼로그 */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editingProduct ? '상품 수정' : '상품 추가'}
+              {editingProduct ? '상품 수정' : formData.productCode.includes('_복사') ? '상품 복사' : '상품 추가'}
             </DialogTitle>
             <DialogDescription>
-              상품 정보를 입력하세요.
+              {formData.productCode.includes('_복사')
+                ? '복사된 상품 정보를 확인하고 필요한 항목을 수정하세요.'
+                : '상품 정보를 입력하세요.'}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid grid-cols-2 gap-4 py-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="productCode">상품 코드 *</Label>
               <Input
@@ -385,7 +453,7 @@ export default function ProductsPage() {
                 placeholder="50000"
               />
             </div>
-            <div className="col-span-2 space-y-2">
+            <div className="sm:col-span-2 space-y-2">
               <Label htmlFor="thumbnailUrl">썸네일 URL</Label>
               <Input
                 id="thumbnailUrl"
@@ -394,14 +462,12 @@ export default function ProductsPage() {
                 placeholder="https://..."
               />
             </div>
-            <div className="col-span-2 space-y-2">
-              <Label htmlFor="description">상품 설명</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            <div className="sm:col-span-2 space-y-2">
+              <Label>상품 설명</Label>
+              <ProductEditor
+                value={formData.description || ''}
+                onChange={(value) => setFormData({ ...formData, description: value })}
                 placeholder="상품에 대한 설명을 입력하세요"
-                rows={3}
               />
             </div>
             <div className="space-y-2">
@@ -429,7 +495,7 @@ export default function ProductsPage() {
                 onChange={(e) => setFormData({ ...formData, sortOrder: Number(e.target.value) })}
               />
             </div>
-            <div className="col-span-2 flex gap-6 pt-2">
+            <div className="sm:col-span-2 flex flex-wrap gap-4 sm:gap-6 pt-2">
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="isActive"
@@ -457,18 +523,19 @@ export default function ProductsPage() {
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="w-full sm:w-auto">
               취소
             </Button>
             <Button
               onClick={handleSubmit}
               disabled={createProduct.isPending || updateProduct.isPending}
+              className="w-full sm:w-auto"
             >
               {(createProduct.isPending || updateProduct.isPending) && (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               )}
-              {editingProduct ? '수정' : '추가'}
+              {editingProduct ? '수정' : formData.productCode.includes('_복사') ? '복사하여 추가' : '추가'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -476,7 +543,7 @@ export default function ProductsPage() {
 
       {/* 삭제 확인 다이얼로그 */}
       <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
-        <DialogContent>
+        <DialogContent className="w-[calc(100%-2rem)] sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>상품 삭제</DialogTitle>
             <DialogDescription>
@@ -485,14 +552,15 @@ export default function ProductsPage() {
               이 작업은 되돌릴 수 없습니다.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)} className="w-full sm:w-auto">
               취소
             </Button>
             <Button
               variant="destructive"
               onClick={handleDelete}
               disabled={deleteProduct.isPending}
+              className="w-full sm:w-auto"
             >
               {deleteProduct.isPending && (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />

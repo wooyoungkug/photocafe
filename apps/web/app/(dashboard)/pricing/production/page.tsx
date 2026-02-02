@@ -90,8 +90,8 @@ const formatNumber = (num: number | string | undefined | null): string => {
   return n.toLocaleString('ko-KR');
 };
 
-// 가격 계산 방식 한글 라벨
-const PRICING_TYPE_LABELS: Record<PricingType, string> = {
+// 가격 계산 방식 한글 라벨 (배송 타입 제외)
+const PRICING_TYPE_LABELS: Partial<Record<PricingType, string>> = {
   paper_output_spec: "[출력전용] 용지별출력단가/1p가격",
   nup_page_range: "[제본전용] 구간별 Nup/1p가격",
   finishing_spec_nup: "[후가공전용] 규격별 Nup/1p단가",
@@ -100,30 +100,6 @@ const PRICING_TYPE_LABELS: Record<PricingType, string> = {
   binding_page: "[제본전용] 제본 페이지당",
   finishing_qty: "[후가공] 수량당",
   finishing_page: "[후가공] 페이지당",
-  // 배송비 전용
-  delivery_parcel: "[배송] 택배",
-  delivery_motorcycle: "[배송] 오토바이퀵배달",
-  delivery_damas: "[배송] 다마스",
-  delivery_freight: "[배송] 화물배송",
-  delivery_pickup: "[배송] 방문수령",
-};
-
-// 배송방법 타입 목록
-const DELIVERY_PRICING_TYPES = [
-  'delivery_parcel',
-  'delivery_motorcycle',
-  'delivery_damas',
-  'delivery_freight',
-  'delivery_pickup',
-] as const;
-
-// 배송방법 라벨 (심플한 이름)
-const DELIVERY_METHOD_LABELS: Record<string, string> = {
-  delivery_parcel: '택배',
-  delivery_motorcycle: '오토바이퀵배달',
-  delivery_damas: '다마스',
-  delivery_freight: '화물배송',
-  delivery_pickup: '방문수령',
 };
 
 // 할증조건 타입
@@ -141,11 +117,6 @@ const SURCHARGE_TYPE_LABELS: Record<SurchargeType, string> = {
   night20_weekend10: '야간 20% / 주말 10%',
   free_condition: '무료배송 조건',
   none: '할증 없음',
-};
-
-// 배송방법인지 확인하는 헬퍼 함수
-const isDeliveryPricingType = (type: string): boolean => {
-  return DELIVERY_PRICING_TYPES.includes(type as any);
 };
 
 // 인디고 원가 계산 상수
@@ -701,8 +672,6 @@ const SettingCard = ({
   // prices 배열에서 가격 정보 추출
   const prices = (setting as any).prices || [];
   const printMethod = (setting as any).printMethod;
-  const isDelivery = isDeliveryPricingType(setting.pricingType);
-  const surchargeType = (setting as any).surchargeType as SurchargeType;
 
   // 인디고 Up별 가격 (minQuantity로 구분) - 4도/6도 칼라 구분
   const indigoUpPrices = [1, 2, 4, 8].map(up => {
@@ -739,30 +708,13 @@ const SettingCard = ({
               {setting.settingName || setting.codeName || "설정"}
             </span>
 
-            {/* 적용단위 (서브 정보) - 배송일 때는 배송방법만 표시 */}
+            {/* 적용단위 */}
             <Badge variant="outline" className="text-xs font-normal text-gray-600 bg-gray-50">
-              {isDelivery
-                ? DELIVERY_METHOD_LABELS[setting.pricingType] || setting.pricingType
-                : PRICING_TYPE_LABELS[setting.pricingType] || setting.pricingType}
+              {PRICING_TYPE_LABELS[setting.pricingType] || setting.pricingType}
             </Badge>
 
-            {/* 할증조건 (배송일 때만 표시) */}
-            {isDelivery && surchargeType && surchargeType !== 'none' && (
-              <Badge
-                variant="outline"
-                className={cn(
-                  "text-xs font-normal",
-                  surchargeType === 'night30_weekend20' && "bg-orange-50 text-orange-600 border-orange-200",
-                  surchargeType === 'night20_weekend10' && "bg-yellow-50 text-yellow-600 border-yellow-200",
-                  surchargeType === 'free_condition' && "bg-green-50 text-green-600 border-green-200"
-                )}
-              >
-                {SURCHARGE_TYPE_LABELS[surchargeType]}
-              </Badge>
-            )}
-
-            {/* 인쇄방식 (배송이 아닐 때만 표시) */}
-            {!isDelivery && printMethod && (
+            {/* 인쇄방식 */}
+            {printMethod && (
               <Badge variant="secondary" className="text-xs">
                 {PRINT_METHOD_LABELS[printMethod] || printMethod}
               </Badge>
@@ -1764,15 +1716,6 @@ export default function ProductionSettingPage() {
           area: (range.maxWidth || 0) * (range.maxHeight || 0)
         }));
       }
-      // 배송비 타입
-      else if (isDeliveryPricingType(formData.pricingType)) {
-        apiData.surchargeType = formData.surchargeType;
-        apiData.distancePriceRanges = formData.distancePriceRanges;
-        apiData.extraPricePerKm = formData.extraPricePerKm;
-        apiData.maxBaseDistance = formData.maxBaseDistance;
-        apiData.freeThreshold = formData.freeThreshold;
-        apiData.islandFee = formData.islandFee;
-      }
       // 나머지: 규격 선택
       else {
         apiData.specificationIds = formData.specificationIds;
@@ -2314,10 +2257,10 @@ export default function ProductionSettingPage() {
                       </div>
                     </div>
 
-                    {/* 2행: 적용단위/배송방법, 규격용도선택/할증조건 */}
+                    {/* 2행: 적용단위 */}
                     <div className="flex items-center gap-3">
                       <Label className="text-xs font-medium text-gray-500 w-24 shrink-0">
-                        {isDeliveryPricingType(settingForm.pricingType) ? "배송방법" : "적용단위"}
+                        적용단위
                       </Label>
                       <Select
                         value={settingForm.pricingType}
@@ -2325,29 +2268,6 @@ export default function ProductionSettingPage() {
                           setSettingForm((prev) => ({
                             ...prev,
                             pricingType: value as PricingType,
-                            // 배송방법 변경 시 기본값 설정
-                            ...(isDeliveryPricingType(value) && {
-                              surchargeType: value === 'delivery_parcel' ? 'free_condition'
-                                : value === 'delivery_pickup' ? 'none'
-                                : value === 'delivery_freight' ? 'night20_weekend10'
-                                : 'night30_weekend20',
-                              distancePriceRanges: value === 'delivery_motorcycle'
-                                ? [
-                                    { minDistance: 0, maxDistance: 5, price: 8000 },
-                                    { minDistance: 5, maxDistance: 10, price: 12000 },
-                                    { minDistance: 10, maxDistance: 15, price: 16000 },
-                                    { minDistance: 15, maxDistance: 20, price: 20000 },
-                                  ]
-                                : value === 'delivery_damas'
-                                ? [
-                                    { minDistance: 0, maxDistance: 5, price: 15000 },
-                                    { minDistance: 5, maxDistance: 10, price: 20000 },
-                                    { minDistance: 10, maxDistance: 15, price: 25000 },
-                                    { minDistance: 15, maxDistance: 20, price: 30000 },
-                                  ]
-                                : [],
-                              extraPricePerKm: value === 'delivery_motorcycle' ? 1000 : value === 'delivery_damas' ? 1500 : 0,
-                            }),
                           }))
                         }
                       >
@@ -2355,25 +2275,15 @@ export default function ProductionSettingPage() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {/* 배송비 그룹이면 배송방법만 표시 */}
-                          {selectedGroup?.name?.includes('배송') ? (
-                            DELIVERY_PRICING_TYPES.map((value) => (
-                              <SelectItem key={value} value={value}>
-                                {DELIVERY_METHOD_LABELS[value]}
-                              </SelectItem>
-                            ))
-                          ) : (
-                            // 일반 그룹이면 전체 표시
-                            pricingTypes?.map((type) => (
-                              <SelectItem key={type.value} value={type.value}>
-                                {type.label}
-                              </SelectItem>
-                            )) || Object.entries(PRICING_TYPE_LABELS).map(([value, label]) => (
-                              <SelectItem key={value} value={value}>
-                                {label}
-                              </SelectItem>
-                            ))
-                          )}
+                          {pricingTypes?.map((type) => (
+                            <SelectItem key={type.value} value={type.value}>
+                              {type.label}
+                            </SelectItem>
+                          )) || Object.entries(PRICING_TYPE_LABELS).map(([value, label]) => (
+                            <SelectItem key={value} value={value}>
+                              {label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -2441,412 +2351,13 @@ export default function ProductionSettingPage() {
                       </div>
                     )}
 
-                    {/* 할증조건 (배송비일 때) */}
-                    {isDeliveryPricingType(settingForm.pricingType) && (
-                      <div className="flex items-center gap-3">
-                        <Label className="text-xs font-medium text-gray-500 w-16 shrink-0">할증조건</Label>
-                        <Select
-                          value={settingForm.surchargeType}
-                          onValueChange={(value) =>
-                            setSettingForm((prev) => ({
-                              ...prev,
-                              surchargeType: value as SurchargeType,
-                            }))
-                          }
-                        >
-                          <SelectTrigger className="bg-white h-8 w-auto min-w-[160px]">
-                            <SelectValue placeholder="할증조건 선택" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {SURCHARGE_TYPES.map((value) => (
-                              <SelectItem key={value} value={value}>
-                                {SURCHARGE_TYPE_LABELS[value]}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
 
               {/* 상세 설정 */}
               <div className="space-y-6">
-                {/* 배송비 전용 UI */}
-                {isDeliveryPricingType(settingForm.pricingType) ? (
-                  <div className="space-y-6">
-                    {/* 택배: 기본요금 + 도서산간 + 무료배송 조건 */}
-                    {settingForm.pricingType === "delivery_parcel" && (
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-3 gap-4">
-                          <div className="space-y-2">
-                            <Label className="text-sm">기본 택배비</Label>
-                            <div className="flex items-center gap-2">
-                              <Input
-                                type="number"
-                                value={settingForm.basePrice || 3500}
-                                onChange={(e) => setSettingForm(prev => ({ ...prev, basePrice: Number(e.target.value) }))}
-                                className="w-28 text-right"
-                              />
-                              <span className="text-sm text-muted-foreground">원</span>
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-sm">도서산간 추가</Label>
-                            <div className="flex items-center gap-2">
-                              <Input
-                                type="number"
-                                value={settingForm.islandFee || 3000}
-                                onChange={(e) => setSettingForm(prev => ({ ...prev, islandFee: Number(e.target.value) }))}
-                                className="w-28 text-right"
-                              />
-                              <span className="text-sm text-muted-foreground">원</span>
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-sm">무료배송 기준</Label>
-                            <div className="flex items-center gap-2">
-                              <Input
-                                type="number"
-                                value={settingForm.freeThreshold || 50000}
-                                onChange={(e) => setSettingForm(prev => ({ ...prev, freeThreshold: Number(e.target.value) }))}
-                                className="w-28 text-right"
-                              />
-                              <span className="text-sm text-muted-foreground">원 이상</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* 오토바이/다마스: 거리별 단가 설정 */}
-                    {(settingForm.pricingType === "delivery_motorcycle" || settingForm.pricingType === "delivery_damas") && (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-sm font-semibold">거리별 단가</Label>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              const ranges = settingForm.distancePriceRanges || [];
-                              const lastMax = ranges.length > 0 ? ranges[ranges.length - 1].maxDistance : 0;
-                              setSettingForm(prev => ({
-                                ...prev,
-                                distancePriceRanges: [
-                                  ...ranges,
-                                  { minDistance: lastMax, maxDistance: lastMax + 5, price: 0 }
-                                ]
-                              }));
-                            }}
-                          >
-                            <Plus className="h-4 w-4 mr-1" />
-                            구간 추가
-                          </Button>
-                        </div>
-                        <div className="border rounded-lg">
-                          <div className="grid grid-cols-4 gap-2 p-3 bg-muted/50 text-xs font-medium border-b">
-                            <div>시작 (km)</div>
-                            <div>종료 (km)</div>
-                            <div>단가 (원)</div>
-                            <div></div>
-                          </div>
-                          {(settingForm.distancePriceRanges || []).map((range, idx) => (
-                            <div key={idx} className="grid grid-cols-4 gap-2 p-2 border-b last:border-0 items-center">
-                              <Input
-                                type="number"
-                                value={range.minDistance}
-                                onChange={(e) => {
-                                  const ranges = [...(settingForm.distancePriceRanges || [])];
-                                  ranges[idx] = { ...ranges[idx], minDistance: Number(e.target.value) };
-                                  setSettingForm(prev => ({ ...prev, distancePriceRanges: ranges }));
-                                }}
-                                className="h-8 text-sm"
-                              />
-                              <Input
-                                type="number"
-                                value={range.maxDistance}
-                                onChange={(e) => {
-                                  const ranges = [...(settingForm.distancePriceRanges || [])];
-                                  ranges[idx] = { ...ranges[idx], maxDistance: Number(e.target.value) };
-                                  setSettingForm(prev => ({ ...prev, distancePriceRanges: ranges }));
-                                }}
-                                className="h-8 text-sm"
-                              />
-                              <Input
-                                type="number"
-                                value={range.price}
-                                onChange={(e) => {
-                                  const ranges = [...(settingForm.distancePriceRanges || [])];
-                                  ranges[idx] = { ...ranges[idx], price: Number(e.target.value) };
-                                  setSettingForm(prev => ({ ...prev, distancePriceRanges: ranges }));
-                                }}
-                                className="h-8 text-sm text-right"
-                              />
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  const ranges = [...(settingForm.distancePriceRanges || [])];
-                                  ranges.splice(idx, 1);
-                                  setSettingForm(prev => ({ ...prev, distancePriceRanges: ranges }));
-                                }}
-                                className="h-8 text-red-500 hover:text-red-700"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ))}
-                          {(settingForm.distancePriceRanges || []).length === 0 && (
-                            <p className="text-center text-muted-foreground py-4 text-sm">
-                              구간을 추가하여 거리별 단가를 설정하세요.
-                            </p>
-                          )}
-                        </div>
-
-                        {/* 초과거리 설정 */}
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label className="text-sm">최대거리 (기준)</Label>
-                            <div className="flex items-center gap-2">
-                              <Input
-                                type="number"
-                                value={settingForm.maxBaseDistance || 20}
-                                onChange={(e) => setSettingForm(prev => ({ ...prev, maxBaseDistance: Number(e.target.value) }))}
-                                className="w-24 text-right"
-                              />
-                              <span className="text-sm text-muted-foreground">km</span>
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-sm">km당 추가요금</Label>
-                            <div className="flex items-center gap-2">
-                              <Input
-                                type="number"
-                                value={settingForm.extraPricePerKm || 0}
-                                onChange={(e) => setSettingForm(prev => ({ ...prev, extraPricePerKm: Number(e.target.value) }))}
-                                className="w-24 text-right"
-                              />
-                              <span className="text-sm text-muted-foreground">원</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* 화물배송: 기본요금만 */}
-                    {settingForm.pricingType === "delivery_freight" && (
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <Label className="text-sm">기본 화물비</Label>
-                          <div className="flex items-center gap-2">
-                            <Input
-                              type="number"
-                              value={settingForm.basePrice || 30000}
-                              onChange={(e) => setSettingForm(prev => ({ ...prev, basePrice: Number(e.target.value) }))}
-                              className="w-32 text-right"
-                            />
-                            <span className="text-sm text-muted-foreground">원</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* 방문수령: 무료 */}
-                    {settingForm.pricingType === "delivery_pickup" && (
-                      <div className="text-center text-muted-foreground py-8">
-                        방문수령은 배송비가 없습니다.
-                      </div>
-                    )}
-
-                    {/* 시뮬레이션 */}
-                    {settingForm.pricingType !== "delivery_pickup" && (
-                      <div className="border-t pt-4">
-                        <Label className="text-sm font-semibold mb-3 block">배송비 시뮬레이션</Label>
-                        <div className="bg-muted/30 rounded-lg p-4 space-y-4">
-                          {/* 시뮬레이션 입력 */}
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            {/* 거리 (오토바이/다마스) */}
-                            {(settingForm.pricingType === "delivery_motorcycle" || settingForm.pricingType === "delivery_damas") && (
-                              <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">거리</Label>
-                                <div className="flex items-center gap-1">
-                                  <Input
-                                    type="number"
-                                    value={settingForm.simDistance}
-                                    onChange={(e) => setSettingForm(prev => ({ ...prev, simDistance: Number(e.target.value) }))}
-                                    className="h-8 w-20 text-right text-sm"
-                                  />
-                                  <span className="text-xs">km</span>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* 주문금액 (택배) */}
-                            {settingForm.pricingType === "delivery_parcel" && (
-                              <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">주문금액</Label>
-                                <div className="flex items-center gap-1">
-                                  <Input
-                                    type="number"
-                                    value={settingForm.simOrderAmount}
-                                    onChange={(e) => setSettingForm(prev => ({ ...prev, simOrderAmount: Number(e.target.value) }))}
-                                    className="h-8 w-24 text-right text-sm"
-                                  />
-                                  <span className="text-xs">원</span>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* 야간 여부 */}
-                            {settingForm.surchargeType !== 'none' && settingForm.surchargeType !== 'free_condition' && (
-                              <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">야간</Label>
-                                <div className="flex items-center h-8">
-                                  <Switch
-                                    checked={settingForm.simIsNight}
-                                    onCheckedChange={(checked) => setSettingForm(prev => ({ ...prev, simIsNight: checked }))}
-                                  />
-                                  <span className="text-xs ml-2">{settingForm.simIsNight ? "22~06시" : "주간"}</span>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* 주말 여부 */}
-                            {settingForm.surchargeType !== 'none' && settingForm.surchargeType !== 'free_condition' && (
-                              <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">주말</Label>
-                                <div className="flex items-center h-8">
-                                  <Switch
-                                    checked={settingForm.simIsWeekend}
-                                    onCheckedChange={(checked) => setSettingForm(prev => ({ ...prev, simIsWeekend: checked }))}
-                                  />
-                                  <span className="text-xs ml-2">{settingForm.simIsWeekend ? "주말/공휴일" : "평일"}</span>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* 도서산간 (택배) */}
-                            {settingForm.pricingType === "delivery_parcel" && (
-                              <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">도서산간</Label>
-                                <div className="flex items-center h-8">
-                                  <Switch
-                                    checked={settingForm.simIsIsland}
-                                    onCheckedChange={(checked) => setSettingForm(prev => ({ ...prev, simIsIsland: checked }))}
-                                  />
-                                  <span className="text-xs ml-2">{settingForm.simIsIsland ? "도서산간" : "일반"}</span>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* 시뮬레이션 결과 */}
-                          <div className="bg-white rounded-lg p-3 border">
-                            {(() => {
-                              // 배송비 계산 로직
-                              let baseFee = 0;
-                              let distanceFee = 0;
-                              let surchargeFee = 0;
-                              let extraFee = 0;
-                              let isFree = false;
-                              let breakdown = '';
-
-                              if (settingForm.pricingType === 'delivery_parcel') {
-                                baseFee = settingForm.basePrice || 3500;
-                                extraFee = settingForm.simIsIsland ? (settingForm.islandFee || 3000) : 0;
-                                isFree = (settingForm.simOrderAmount || 0) >= (settingForm.freeThreshold || 50000);
-                                breakdown = settingForm.simIsIsland ? '도서산간' : '일반';
-                              } else if (settingForm.pricingType === 'delivery_motorcycle' || settingForm.pricingType === 'delivery_damas') {
-                                const distance = settingForm.simDistance || 0;
-                                const ranges = settingForm.distancePriceRanges || [];
-
-                                // 구간 찾기
-                                const range = ranges.find(r => distance >= r.minDistance && distance < r.maxDistance);
-                                if (range) {
-                                  distanceFee = range.price;
-                                  breakdown = `${range.minDistance}~${range.maxDistance}km`;
-                                } else if (ranges.length > 0) {
-                                  const maxRange = ranges[ranges.length - 1];
-                                  const maxBase = settingForm.maxBaseDistance || maxRange.maxDistance;
-                                  if (distance >= maxBase) {
-                                    distanceFee = maxRange.price;
-                                    const extraDist = distance - maxBase;
-                                    distanceFee += extraDist * (settingForm.extraPricePerKm || 0);
-                                    breakdown = `${maxBase}km 초과 (+${extraDist}km)`;
-                                  }
-                                }
-
-                                // 할증 계산
-                                const subtotal = baseFee + distanceFee;
-                                if (settingForm.surchargeType === 'night30_weekend20') {
-                                  if (settingForm.simIsNight) surchargeFee += subtotal * 0.3;
-                                  if (settingForm.simIsWeekend) surchargeFee += subtotal * 0.2;
-                                } else if (settingForm.surchargeType === 'night20_weekend10') {
-                                  if (settingForm.simIsNight) surchargeFee += subtotal * 0.2;
-                                  if (settingForm.simIsWeekend) surchargeFee += subtotal * 0.1;
-                                }
-                              } else if (settingForm.pricingType === 'delivery_freight') {
-                                baseFee = settingForm.basePrice || 30000;
-                                const subtotal = baseFee;
-                                if (settingForm.surchargeType === 'night20_weekend10') {
-                                  if (settingForm.simIsNight) surchargeFee += subtotal * 0.2;
-                                  if (settingForm.simIsWeekend) surchargeFee += subtotal * 0.1;
-                                }
-                              }
-
-                              const totalFee = isFree ? 0 : Math.round(baseFee + distanceFee + surchargeFee + extraFee);
-
-                              return (
-                                <div className="space-y-2">
-                                  {baseFee > 0 && (
-                                    <div className="flex justify-between text-sm">
-                                      <span className="text-muted-foreground">기본요금</span>
-                                      <span>{baseFee.toLocaleString()}원</span>
-                                    </div>
-                                  )}
-                                  {distanceFee > 0 && (
-                                    <div className="flex justify-between text-sm">
-                                      <span className="text-muted-foreground">거리별 단가 ({breakdown})</span>
-                                      <span>{distanceFee.toLocaleString()}원</span>
-                                    </div>
-                                  )}
-                                  {surchargeFee > 0 && (
-                                    <div className="flex justify-between text-sm">
-                                      <span className="text-muted-foreground">
-                                        할증 ({settingForm.simIsNight ? '야간' : ''}{settingForm.simIsNight && settingForm.simIsWeekend ? '+' : ''}{settingForm.simIsWeekend ? '주말' : ''})
-                                      </span>
-                                      <span className="text-orange-600">+{Math.round(surchargeFee).toLocaleString()}원</span>
-                                    </div>
-                                  )}
-                                  {extraFee > 0 && (
-                                    <div className="flex justify-between text-sm">
-                                      <span className="text-muted-foreground">추가요금 ({breakdown})</span>
-                                      <span>+{extraFee.toLocaleString()}원</span>
-                                    </div>
-                                  )}
-                                  <div className="border-t pt-2 flex justify-between font-bold">
-                                    <span>총 배송비</span>
-                                    <span className={isFree ? "text-green-600" : "text-primary"}>
-                                      {isFree ? "무료" : `${totalFee.toLocaleString()}원`}
-                                    </span>
-                                  </div>
-                                  {isFree && (
-                                    <p className="text-xs text-green-600">
-                                      {(settingForm.freeThreshold || 50000).toLocaleString()}원 이상 주문으로 무료배송
-                                    </p>
-                                  )}
-                                </div>
-                              );
-                            })()}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : settingForm.pricingType === "paper_output_spec" ? (
+                {settingForm.pricingType === "paper_output_spec" ? (
                   <>
                     {/* 용지별출력단가/규격별: 인쇄방식에 따라 다른 UI */}
 
@@ -3070,7 +2581,7 @@ export default function ProductionSettingPage() {
                                     <div className="flex items-center justify-between">
                                       <div className="flex items-center gap-2">
                                         <span className="text-xl">{style.dot}</span>
-                                        <span className={cn("font-bold text-base", style.text)}>{style.label} 그룹</span>
+                                        <span className={cn("font-bold text-base", style.text)}>{style.label}</span>
                                         <Badge variant="outline" className="text-xs">
                                           {assignedPapers.length}개 용지
                                         </Badge>

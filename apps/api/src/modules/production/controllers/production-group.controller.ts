@@ -21,6 +21,7 @@ import {
   UpdatePricesDto,
   PRICING_TYPES,
   PRICING_TYPE_LABELS,
+  DELIVERY_PRICING_TYPES,
 } from '../dto';
 
 @ApiTags('생산설정')
@@ -94,12 +95,15 @@ export class ProductionGroupController {
   }
 
   @Get('settings/pricing-types')
-  @ApiOperation({ summary: '가격 계산 방식 목록' })
+  @ApiOperation({ summary: '가격 계산 방식 목록 (배송 타입 제외)' })
   async getPricingTypes() {
-    return PRICING_TYPES.map(type => ({
-      value: type,
-      label: PRICING_TYPE_LABELS[type],
-    }));
+    // 배송 타입은 배송비 설정 전용 페이지에서만 사용하므로 제외
+    return PRICING_TYPES
+      .filter(type => !DELIVERY_PRICING_TYPES.includes(type as any))
+      .map(type => ({
+        value: type,
+        label: PRICING_TYPE_LABELS[type],
+      }));
   }
 
   @Get('settings/:id')

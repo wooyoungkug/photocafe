@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { RichTextEditor } from '@/components/ui/rich-text-editor';
+import { ProductEditor } from '@/components/ui/product-editor';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
@@ -39,6 +39,35 @@ import { useHalfProducts } from '@/hooks/use-half-products';
 import { useCreateProduct } from '@/hooks/use-products';
 import { useToast } from '@/hooks/use-toast';
 import { API_URL, API_BASE_URL } from '@/lib/api';
+
+// 이미지 URL 정규화 함수
+const normalizeImageUrl = (url: string | null | undefined): string => {
+  if (!url) return '';
+
+  // 이미 전체 URL인 경우
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    // 중복 /api/v1/api/v1/ 수정
+    return url.replace(/\/api\/v1\/api\/v1\//g, '/api/v1/');
+  }
+
+  // /api/v1/upload/... 형식인 경우
+  if (url.startsWith('/api/v1/')) {
+    return `${API_BASE_URL}${url}`;
+  }
+
+  // /upload/... 형식인 경우 (API_URL에 /api/v1이 포함됨)
+  if (url.startsWith('/upload')) {
+    return `${API_URL}${url}`;
+  }
+
+  // /api/upload/... 형식인 경우
+  if (url.startsWith('/api/')) {
+    return `${API_BASE_URL}${url}`;
+  }
+
+  return url;
+};
+
 import {
   ArrowLeft,
   Plus,
@@ -176,7 +205,7 @@ export default function NewProductPage() {
   }, []);
 
   const handleImageUpload = async (file: File, index: number) => {
-    const token = localStorage.getItem('accessToken');
+    const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
     if (!token) {
       toast({ variant: 'destructive', title: '로그인이 필요합니다.' });
       return;
@@ -691,7 +720,7 @@ export default function NewProductPage() {
               <div className="relative w-full aspect-square bg-gray-100 rounded-lg border-2 border-dashed flex items-center justify-center overflow-hidden">
                 {thumbnailUrl ? (
                   <>
-                    <img src={thumbnailUrl.startsWith('/api') ? `${API_BASE_URL}${thumbnailUrl}` : thumbnailUrl} alt="썸네일" className="w-full h-full object-cover" />
+                    <img src={normalizeImageUrl(thumbnailUrl)} alt="썸네일" className="w-full h-full object-cover" />
                     <Button
                       type="button"
                       variant="destructive"
@@ -724,7 +753,7 @@ export default function NewProductPage() {
                 <div className="relative w-full aspect-square bg-gray-100 rounded-lg border-2 border-dashed flex items-center justify-center overflow-hidden">
                   {img ? (
                     <>
-                      <img src={img.startsWith('/api') ? `${API_BASE_URL}${img}` : img} alt={`상세${idx + 1}`} className="w-full h-full object-cover" />
+                      <img src={normalizeImageUrl(img)} alt={`상세${idx + 1}`} className="w-full h-full object-cover" />
                       <Button
                         type="button"
                         variant="destructive"
@@ -764,12 +793,12 @@ export default function NewProductPage() {
           <CardTitle className="text-sm font-medium">상세정보 편집</CardTitle>
         </CardHeader>
         <CardContent className="p-6">
-          <RichTextEditor
+          <ProductEditor
             value={description}
             onChange={setDescription}
             placeholder="상품 상세 설명을 입력하세요. 이미지와 텍스트를 자유롭게 편집할 수 있습니다."
-            onImageUpload={async (file) => {
-              const token = localStorage.getItem('accessToken');
+            onImageUpload={async (file: File) => {
+              const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
               if (!token) throw new Error('로그인이 필요합니다.');
 
               const formData = new FormData();
@@ -784,7 +813,7 @@ export default function NewProductPage() {
               if (!response.ok) throw new Error('업로드 실패');
 
               const result = await response.json();
-              return result.url.startsWith('/api') ? `${API_BASE_URL}${result.url}` : result.url;
+              return normalizeImageUrl(result.url);
             }}
           />
         </CardContent>
