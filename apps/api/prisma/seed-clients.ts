@@ -28,6 +28,8 @@ async function seedClients() {
 
   // 1. 거래처 그룹 생성
   const groups = [
+    { groupCode: 'INDIVIDUAL', groupName: '일반고객그룹', generalDiscount: 100, description: '개인 고객 기본 그룹 (정가)' },
+    { groupCode: 'STUDIO', groupName: '스튜디오회원', generalDiscount: 95, description: '스튜디오/사업자 고객 그룹 (5% 할인)' },
     { groupCode: 'VIP', groupName: 'VIP 거래처', generalDiscount: 85, description: '우수 거래처 그룹 (15% 할인)' },
     { groupCode: 'GOLD', groupName: '골드 거래처', generalDiscount: 90, description: '골드 등급 거래처 (10% 할인)' },
     { groupCode: 'SILVER', groupName: '실버 거래처', generalDiscount: 95, description: '실버 등급 거래처 (5% 할인)' },

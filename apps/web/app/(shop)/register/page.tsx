@@ -56,6 +56,32 @@ interface StudioFormData {
   deliveryNote: string;
 }
 
+// 사업자번호 포맷팅 (XXX-XX-XXXXX)
+const formatBusinessNumber = (value: string): string => {
+  const numbers = value.replace(/\D/g, '').slice(0, 10);
+  if (numbers.length <= 3) return numbers;
+  if (numbers.length <= 5) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
+  return `${numbers.slice(0, 3)}-${numbers.slice(3, 5)}-${numbers.slice(5)}`;
+};
+
+// 전화번호 포맷팅 (휴대폰: 010-XXXX-XXXX, 일반: 02-XXX-XXXX 또는 031-XXX-XXXX)
+const formatPhoneNumber = (value: string): string => {
+  const numbers = value.replace(/\D/g, '').slice(0, 11);
+
+  // 02 지역번호 (서울)
+  if (numbers.startsWith('02')) {
+    if (numbers.length <= 2) return numbers;
+    if (numbers.length <= 5) return `${numbers.slice(0, 2)}-${numbers.slice(2)}`;
+    if (numbers.length <= 9) return `${numbers.slice(0, 2)}-${numbers.slice(2, 5)}-${numbers.slice(5)}`;
+    return `${numbers.slice(0, 2)}-${numbers.slice(2, 6)}-${numbers.slice(6)}`;
+  }
+
+  // 휴대폰 또는 지역번호 (3자리)
+  if (numbers.length <= 3) return numbers;
+  if (numbers.length <= 7) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
+  return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7)}`;
+};
+
 export default function RegisterPage() {
   const router = useRouter();
   const [memberType, setMemberType] = useState<'individual' | 'studio'>('individual');
@@ -107,15 +133,34 @@ export default function RegisterPage() {
 
   const handleIndividualChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setIndividualForm(prev => ({ ...prev, [name]: value }));
+    let formattedValue = value;
+
+    // 휴대폰 번호 자동 포맷팅
+    if (name === 'mobile') {
+      formattedValue = formatPhoneNumber(value);
+    }
+
+    setIndividualForm(prev => ({ ...prev, [name]: formattedValue }));
     if (name === 'email') setEmailChecked(false);
   };
 
   const handleStudioChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setStudioForm(prev => ({ ...prev, [name]: value }));
+    let formattedValue = value;
+
+    // 사업자번호 자동 포맷팅
+    if (name === 'businessNumber') {
+      formattedValue = formatBusinessNumber(value);
+      setBusinessNumberChecked(false);
+    }
+
+    // 전화번호 자동 포맷팅
+    if (name === 'mobile' || name === 'phone' || name === 'contactPhone') {
+      formattedValue = formatPhoneNumber(value);
+    }
+
+    setStudioForm(prev => ({ ...prev, [name]: formattedValue }));
     if (name === 'email') setEmailChecked(false);
-    if (name === 'businessNumber') setBusinessNumberChecked(false);
   };
 
   const handleStudioSelectChange = (name: string, value: string) => {
