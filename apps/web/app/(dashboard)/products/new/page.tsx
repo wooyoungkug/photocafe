@@ -271,8 +271,8 @@ export default function NewProductPage() {
           const spec = specifications?.find(s => s.id === specId);
           return {
             name: spec?.name || '',
-            widthMm: spec?.widthMm || 0,
-            heightMm: spec?.heightMm || 0,
+            widthMm: Number(spec?.widthMm) || 0,
+            heightMm: Number(spec?.heightMm) || 0,
             price: 0,
             isDefault: idx === 0,
             sortOrder: idx,

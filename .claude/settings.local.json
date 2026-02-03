@@ -213,7 +213,11 @@
       "Bash(pip show:*)",
       "Bash(xcopy:*)",
       "Bash(\"C:\\\\\\\\Program Files\\\\\\\\PostgreSQL\\\\\\\\16\\\\\\\\bin\\\\\\\\pg_dump.exe\":*)",
-      "mcp__filesystem__read_multiple_files"
+      "mcp__filesystem__read_multiple_files",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbWtzOHhhYTcwMDAwbjUzY3VkN3EzOGJsIiwiZW1haWwiOiJ3b29jZW9AZ21haWwuY29tIiwicm9sZSI6ImFkbWluIiwiaWF0IjoxNzcwMDE0OTcyLCJleHAiOjE3NzAxMDEzNzJ9.UE1CY76CpaF4mWhBqQO4vxmtMrQw-bOnSyCiRWiDw9U\")",
+      "Bash(DATA='{\"\"papers\"\":[{\"\"name\"\":\"\"Snow 180g\"\",\"\"type\"\":\"\"sheet\"\",\"\"printMethod\"\":\"\"indigo\"\",\"\"grammage\"\":180,\"\"price\"\":100,\"\"isDefault\"\":true,\"\"sortOrder\"\":0}]}')",
+      "Bash(DATA='{\"\"papers\"\":[{\"\"name\"\":\"\"Snow 180g\"\",\"\"type\"\":\"\"sheet\"\",\"\"printMethod\"\":\"\"indigo\"\",\"\"grammage\"\":180,\"\"price\"\":0,\"\"isDefault\"\":true,\"\"sortOrder\"\":0}]}')",
+      "Bash(\"/c/Program Files/PostgreSQL/16/bin/pg_dump.exe\" -U postgres -d printing_erp -f /d/backup_20250202/printing_erp_20250202.sql)"
     ]
   }
 }

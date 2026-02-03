@@ -98,7 +98,7 @@ export const api = {
     request<T>(endpoint, { method: 'POST', body: JSON.stringify(data) }),
 
   put: <T>(endpoint: string, data?: unknown) =>
-    request<T>(endpoint, { method: 'PUT', body: JSON.stringify(data) }),
+    request<T>(endpoint, { method: 'PUT', body: JSON.stringify(data), timeout: 30000 }),
 
   patch: <T>(endpoint: string, data?: unknown) =>
     request<T>(endpoint, { method: 'PATCH', body: JSON.stringify(data) }),

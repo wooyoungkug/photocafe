@@ -88,23 +88,6 @@ export function QuillEditor({
     [imageHandler]
   );
 
-  const formats = [
-    'header',
-    'bold',
-    'italic',
-    'underline',
-    'strike',
-    'color',
-    'background',
-    'list',
-    'bullet',
-    'align',
-    'blockquote',
-    'code-block',
-    'link',
-    'image',
-  ];
-
   return (
     <div className={cn('quill-wrapper', className)}>
       <ReactQuill
@@ -113,7 +96,6 @@ export function QuillEditor({
         value={value}
         onChange={onChange}
         modules={modules}
-        formats={formats}
         placeholder={placeholder}
       />
       <style jsx global>{`

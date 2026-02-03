@@ -199,47 +199,58 @@ export class ProductService {
 
     const { specifications, bindings, papers, covers, foils, finishings, ...productData } = dto;
 
-    // 기존 옵션들 삭제 후 재생성
-    const deleteAndCreate = async () => {
-      if (specifications) {
+    console.log('=== Product Update Debug ===');
+    console.log('Product ID:', id);
+    console.log('Specifications:', JSON.stringify(specifications, null, 2));
+    console.log('Bindings:', JSON.stringify(bindings, null, 2));
+    console.log('Papers:', JSON.stringify(papers, null, 2));
+
+    try {
+      // 기존 옵션들 삭제
+      if (specifications !== undefined) {
+        console.log('Deleting existing specifications...');
         await this.prisma.productSpecification.deleteMany({ where: { productId: id } });
       }
-      if (bindings) {
+      if (bindings !== undefined) {
+        console.log('Deleting existing bindings...');
         await this.prisma.productBinding.deleteMany({ where: { productId: id } });
       }
-      if (papers) {
+      if (papers !== undefined) {
+        console.log('Deleting existing papers...');
         await this.prisma.productPaper.deleteMany({ where: { productId: id } });
       }
-      if (covers) {
+      if (covers !== undefined) {
         await this.prisma.productCover.deleteMany({ where: { productId: id } });
       }
-      if (foils) {
+      if (foils !== undefined) {
         await this.prisma.productFoil.deleteMany({ where: { productId: id } });
       }
-      if (finishings) {
+      if (finishings !== undefined) {
         await this.prisma.productFinishing.deleteMany({ where: { productId: id } });
       }
 
-      return this.prisma.product.update({
+      console.log('Creating new options...');
+      // 상품 업데이트
+      const result = await this.prisma.product.update({
         where: { id },
         data: {
           ...productData,
-          specifications: specifications?.length
+          specifications: specifications !== undefined && specifications.length > 0
             ? { create: specifications }
             : undefined,
-          bindings: bindings?.length
+          bindings: bindings !== undefined && bindings.length > 0
             ? { create: bindings }
             : undefined,
-          papers: papers?.length
+          papers: papers !== undefined && papers.length > 0
             ? { create: papers }
             : undefined,
-          covers: covers?.length
+          covers: covers !== undefined && covers.length > 0
             ? { create: covers }
             : undefined,
-          foils: foils?.length
+          foils: foils !== undefined && foils.length > 0
             ? { create: foils }
             : undefined,
-          finishings: finishings?.length
+          finishings: finishings !== undefined && finishings.length > 0
             ? { create: finishings }
             : undefined,
         },
@@ -253,11 +264,16 @@ export class ProductService {
           finishings: true,
         },
       });
-    };
 
-    return this.prisma.$transaction(async () => {
-      return deleteAndCreate();
-    });
+      console.log('Update successful! Specs count:', result.specifications.length);
+      console.log('Papers count:', result.papers.length);
+      console.log('Bindings count:', result.bindings.length);
+      return result;
+    } catch (error) {
+      console.error('=== Product Update Error ===');
+      console.error('Error:', error);
+      throw error;
+    }
   }
 
   async delete(id: string) {

@@ -51,6 +51,7 @@ const defaultNavigation = [
       { name: "원단정보", href: "/master/fabrics" },
       { name: "카테고리", href: "/company/categories" },
       { name: "규격정보", href: "/master/specifications" },
+      { name: "공용동판관리", href: "/settings/public-copper-plates" },
       { name: "JDF 표준", href: "/master/jdf" },
       { name: "가격관리", href: "/pricing/production" },
     ],

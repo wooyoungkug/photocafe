@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
@@ -39,7 +39,13 @@ import { useCategories } from '@/hooks/use-categories';
 import { useSpecifications } from '@/hooks/use-specifications';
 import { useHalfProducts } from '@/hooks/use-half-products';
 import { useProduct, useUpdateProduct } from '@/hooks/use-products';
+import { useProductionGroupTree, type ProductionGroup, type ProductionSetting } from '@/hooks/use-production';
+import { usePapers } from '@/hooks/use-paper';
+import { useFoilColors, type FoilColorItem } from '@/hooks/use-copper-plates';
+import { usePublicCopperPlates, useProductPublicCopperPlates, useLinkPublicCopperPlateToProduct, useUnlinkPublicCopperPlateFromProduct, type PublicCopperPlate } from '@/hooks/use-public-copper-plates';
+import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
+import { Textarea } from '@/components/ui/textarea';
 import { API_URL, API_BASE_URL } from '@/lib/api';
 
 // 이미지 URL 정규화 함수
@@ -81,6 +87,9 @@ import {
   Star,
   Eye,
   EyeOff,
+  ChevronDown,
+  ChevronRight,
+  Folder,
 } from 'lucide-react';
 
 // 제본방향 옵션
@@ -123,7 +132,7 @@ function SectionHeader({
   icon: Icon,
   title,
   subtitle,
-  gradient = 'from-blue-500 to-blue-600',
+  gradient = 'text-slate-800', // gradient prop retained for backward compatibility but treated as text color/theme hint
   actions
 }: {
   icon: React.ElementType;
@@ -133,14 +142,14 @@ function SectionHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className={`bg-gradient-to-r ${gradient} rounded-t-xl p-4 flex items-center justify-between`}>
-      <div className="flex items-center gap-3">
-        <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-          <Icon className="h-5 w-5 text-white" />
+    <div className="flex items-center justify-between p-6 pb-2">
+      <div className="flex items-start gap-4">
+        <div className="p-2.5 bg-slate-100 rounded-xl">
+          <Icon className="h-5 w-5 text-slate-600" />
         </div>
         <div>
-          <h3 className="font-semibold text-white">{title}</h3>
-          {subtitle && <p className="text-white/70 text-sm">{subtitle}</p>}
+          <h3 className="font-bold text-lg text-slate-900 leading-tight">{title}</h3>
+          {subtitle && <p className="text-slate-500 text-sm mt-0.5 font-medium">{subtitle}</p>}
         </div>
       </div>
       {actions}
@@ -175,7 +184,9 @@ export default function EditProductPage() {
   const { data: specifications } = useSpecifications();
   const { data: halfProductsData } = useHalfProducts({ limit: 100 });
   const { data: product, isLoading: isProductLoading } = useProduct(productId);
+  const { data: productionGroupTree } = useProductionGroupTree();
   const updateProduct = useUpdateProduct();
+  const { data: productPublicPlates } = useProductPublicCopperPlates(productId);
 
   // 카테고리 분류
   const [largeCategoryId, setLargeCategoryId] = useState('');
@@ -196,12 +207,20 @@ export default function EditProductPage() {
   const [basePrice, setBasePrice] = useState(0);
   const [selectedSpecs, setSelectedSpecs] = useState<string[]>([]);
   const [selectedHalfProductId, setSelectedHalfProductId] = useState('');
-  const [selectedBindings, setSelectedBindings] = useState<{ id: string; name: string; price: number }[]>([]);
+  const [selectedBindings, setSelectedBindings] = useState<{ id: string; name: string; price: number; productionSettingId?: string; pricingType?: string }[]>([]);
   const [bindingDirection, setBindingDirection] = useState('left');
-  const [selectedPapers, setSelectedPapers] = useState<{ id: string; name: string; type: string; price: number }[]>([]);
+  const [selectedPapers, setSelectedPapers] = useState<{ id: string; name: string; type: string; price: number; grammage?: number; printMethod?: string }[]>([]);
   const [printType, setPrintType] = useState('double');
   const [selectedCovers, setSelectedCovers] = useState<{ id: string; name: string; price: number }[]>([]);
   const [selectedFoils, setSelectedFoils] = useState<{ id: string; name: string; color: string; price: number }[]>([]);
+  const [selectedPublicPlates, setSelectedPublicPlates] = useState<{
+    id: string;
+    plateId: string;
+    plateName: string;
+    foilColor: string;
+    foilColorName: string;
+    engravingText: string;
+  }[]>([]);
 
   // 후가공정보
   const [finishingOptions, setFinishingOptions] = useState<Record<string, boolean>>({});
@@ -225,6 +244,7 @@ export default function EditProductPage() {
   const [paperDialogOpen, setPaperDialogOpen] = useState(false);
   const [coverDialogOpen, setCoverDialogOpen] = useState(false);
   const [foilDialogOpen, setFoilDialogOpen] = useState(false);
+  const [publicPlateDialogOpen, setPublicPlateDialogOpen] = useState(false);
 
   // 규격 타입 선택
   const [specType, setSpecType] = useState<'indigo' | 'inkjet' | 'album' | 'frame' | 'booklet'>('album');
@@ -249,9 +269,14 @@ export default function EditProductPage() {
   const mediumCategories = categories?.filter(c => c.level === 'medium' && c.parentId === largeCategoryId) || [];
   const smallCategories = categories?.filter(c => c.level === 'small' && c.parentId === mediumCategoryId) || [];
 
-  // 기존 상품 데이터 로드
+  // 초기 데이터 로드 여부 추적
+  const isInitialLoadDone = useRef(false);
+
+  // 기존 상품 데이터 로드 (초기 1회만 실행)
   useEffect(() => {
-    if (product && categories) {
+    if (product && categories && !isInitialLoadDone.current) {
+      isInitialLoadDone.current = true;
+
       setProductCode(product.productCode);
       setProductName(product.productName);
       setIsActive(product.isActive);
@@ -288,28 +313,19 @@ export default function EditProductPage() {
         setDetailImages(images.slice(0, 4));
       }
 
-      if (product.specifications && Array.isArray(product.specifications) && specifications) {
-        const productSpecs = product.specifications as Array<{ name: string; widthMm: number; heightMm: number }>;
-        const matchedSpecIds = productSpecs
-          .map((productSpec) => {
-            const matchedSpec = specifications.find(
-              (s) => s.name === productSpec.name && s.widthMm === productSpec.widthMm && s.heightMm === productSpec.heightMm
-            );
-            return matchedSpec?.id;
-          })
-          .filter((id): id is string => !!id);
-        setSelectedSpecs(matchedSpecIds);
-      }
-
       if (product.bindings && Array.isArray(product.bindings)) {
-        setSelectedBindings(product.bindings.map((b: { id: string; name: string; price: number }) => ({
-          id: b.id, name: b.name, price: Number(b.price),
+        setSelectedBindings(product.bindings.map((b: { id: string; name: string; price: number; productionSettingId?: string; pricingType?: string }) => ({
+          id: b.id,
+          name: b.name,
+          price: Number(b.price),
+          productionSettingId: b.productionSettingId,
+          pricingType: b.pricingType,
         })));
       }
 
       if (product.papers && Array.isArray(product.papers)) {
-        setSelectedPapers(product.papers.map((p: { id: string; name: string; type: string; price: number }) => ({
-          id: p.id, name: p.name, type: p.type, price: Number(p.price),
+        setSelectedPapers(product.papers.map((p: { id: string; name: string; type: string; price: number; grammage?: number; printMethod?: string }) => ({
+          id: p.id, name: p.name, type: p.type, price: Number(p.price), grammage: p.grammage, printMethod: p.printMethod,
         })));
       }
 
@@ -333,8 +349,48 @@ export default function EditProductPage() {
         });
         setFinishingOptions(opts);
       }
+
+      // 제본 방향 및 출력 타입 로드
+      if ((product as any).bindingDirection) {
+        setBindingDirection((product as any).bindingDirection);
+      }
+      if ((product as any).printType) {
+        setPrintType((product as any).printType);
+      }
     }
-  }, [product, categories, specifications]);
+  }, [product, categories]);
+
+  // 규격 매칭 (specifications가 로드된 후 실행)
+  useEffect(() => {
+    if (product?.specifications && Array.isArray(product.specifications) && specifications && specifications.length > 0) {
+      const productSpecs = product.specifications as Array<{ name: string; widthMm: number; heightMm: number }>;
+      const matchedSpecIds = productSpecs
+        .map((productSpec) => {
+          const matchedSpec = specifications.find(
+            (s) => s.name === productSpec.name &&
+                   Number(s.widthMm) === Number(productSpec.widthMm) &&
+                   Number(s.heightMm) === Number(productSpec.heightMm)
+          );
+          return matchedSpec?.id;
+        })
+        .filter((id): id is string => !!id);
+      setSelectedSpecs(matchedSpecIds);
+    }
+  }, [product?.specifications, specifications]);
+
+  // 공용동판 로드
+  useEffect(() => {
+    if (productPublicPlates && Array.isArray(productPublicPlates)) {
+      setSelectedPublicPlates(productPublicPlates.map((pp: { id: string; publicCopperPlateId: string; publicCopperPlate: { plateName: string; plateType: string }; engravingText?: string | null }) => ({
+        id: pp.id,
+        plateId: pp.publicCopperPlateId,
+        plateName: pp.publicCopperPlate.plateName,
+        foilColor: pp.publicCopperPlate.plateType || '',
+        foilColorName: pp.publicCopperPlate.plateType || '기본',
+        engravingText: pp.engravingText || '',
+      })));
+    }
+  }, [productPublicPlates]);
 
   const handleImageUpload = async (file: File, index: number) => {
     const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
@@ -427,22 +483,29 @@ export default function EditProductPage() {
         thumbnailUrl: thumbnailUrl || undefined,
         detailImages: detailImages.filter(url => url),
         description: description || undefined,
+        bindingDirection,
+        printType,
         specifications: selectedSpecs.map((specId, idx) => {
           const spec = specifications?.find(s => s.id === specId);
           return {
             name: spec?.name || '',
-            widthMm: spec?.widthMm || 0,
-            heightMm: spec?.heightMm || 0,
+            widthMm: Number(spec?.widthMm) || 0,
+            heightMm: Number(spec?.heightMm) || 0,
             price: 0,
             isDefault: idx === 0,
             sortOrder: idx,
           };
         }),
         bindings: selectedBindings.map((b, idx) => ({
-          name: b.name, price: b.price, isDefault: idx === 0, sortOrder: idx,
+          name: b.name,
+          price: b.price,
+          isDefault: idx === 0,
+          sortOrder: idx,
+          productionSettingId: b.productionSettingId,
+          pricingType: b.pricingType,
         })),
         papers: selectedPapers.map((p, idx) => ({
-          name: p.name, type: p.type, price: p.price, isDefault: idx === 0, sortOrder: idx,
+          name: p.name, type: p.type, printMethod: p.printMethod, grammage: p.grammage, price: p.price, isDefault: idx === 0, sortOrder: idx,
         })),
         covers: selectedCovers.map((c, idx) => ({
           name: c.name, price: c.price, isDefault: idx === 0, sortOrder: idx,
@@ -458,7 +521,38 @@ export default function EditProductPage() {
           }),
       };
 
+      console.log('=== 상품 수정 데이터 ===');
+      console.log('Specifications:', productData.specifications);
+      console.log('Bindings:', productData.bindings);
+      console.log('Papers:', productData.papers);
+
       await updateProduct.mutateAsync({ id: productId, data: productData });
+
+      // 공용동판 동기화
+      const existingPlateIds = (productPublicPlates || []).map((pp: { publicCopperPlateId: string }) => pp.publicCopperPlateId);
+      const newPlateIds = selectedPublicPlates.map(p => p.plateId);
+
+      // 삭제된 동판 연결 해제
+      const platesToUnlink = existingPlateIds.filter((id: string) => !newPlateIds.includes(id));
+      for (const plateId of platesToUnlink) {
+        try {
+          await api.delete(`/public-copper-plates/product/${productId}/unlink/${plateId}`);
+        } catch (e) {
+          console.error('공용동판 연결 해제 실패:', e);
+        }
+      }
+
+      // 새로 추가된 동판 연결
+      for (const plate of selectedPublicPlates) {
+        try {
+          await api.post(`/public-copper-plates/product/${productId}/link/${plate.plateId}`, {
+            engravingText: plate.engravingText || '',
+          });
+        } catch (e) {
+          console.error('공용동판 연결 실패:', e);
+        }
+      }
+
       toast({ variant: 'success', title: '상품이 수정되었습니다.' });
       router.push('/products');
     } catch (error) {
@@ -512,14 +606,14 @@ export default function EditProductPage() {
       />
 
       {/* 기본정보 섹션 */}
-      <Card className="overflow-hidden border-0 shadow-lg">
+      <Card className="overflow-hidden border shadow-sm">
         <SectionHeader
           icon={Package}
           title="기본정보"
           subtitle="상품의 기본 정보를 입력합니다"
-          gradient="from-blue-500 to-indigo-600"
+          gradient="text-blue-600"
         />
-        <CardContent className="p-6 space-y-1 bg-gradient-to-b from-slate-50/50 to-white">
+        <CardContent className="p-6 space-y-1">
           {/* 카테고리 선택 */}
           <FormRow label="판매카테고리" required>
             <div className="flex gap-3">
@@ -557,27 +651,6 @@ export default function EditProductPage() {
           </FormRow>
 
           <Separator className="my-2" />
-
-          {/* 상품코드/부수이름 */}
-          <FormRow label="상품코드">
-            <div className="flex gap-6 items-center">
-              <Input
-                value={productCode}
-                onChange={(e) => setProductCode(e.target.value)}
-                className="w-48 font-mono"
-                placeholder="자동생성"
-              />
-              <div className="flex items-center gap-3">
-                <Label className="text-sm text-slate-600 whitespace-nowrap">부수이름</Label>
-                <Input
-                  value={unitName}
-                  onChange={(e) => setUnitName(e.target.value)}
-                  className="w-20 text-center"
-                />
-                <span className="text-xs text-slate-400">ex) 부, EA</span>
-              </div>
-            </div>
-          </FormRow>
 
           {/* 상품명 */}
           <FormRow label="상품명" required>
@@ -640,14 +713,14 @@ export default function EditProductPage() {
       </Card>
 
       {/* 가격정보 섹션 */}
-      <Card className="overflow-hidden border-0 shadow-lg">
+      <Card className="overflow-hidden border shadow-sm">
         <SectionHeader
           icon={Tag}
           title="가격정보 상세"
           subtitle="규격, 제본, 용지 등 가격 옵션을 설정합니다"
-          gradient="from-emerald-500 to-teal-600"
+          gradient="text-emerald-600"
         />
-        <CardContent className="p-6 space-y-4 bg-gradient-to-b from-emerald-50/30 to-white">
+        <CardContent className="p-6 space-y-4">
           {/* 규격 선택 */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -685,21 +758,20 @@ export default function EditProductPage() {
 
             {/* 선택된 규격 */}
             {selectedSpecs.length > 0 && (
-              <div className="flex flex-wrap gap-2 p-3 bg-emerald-50/50 rounded-lg border border-emerald-100">
+              <div className="grid grid-cols-6 gap-2 p-3 bg-slate-50 rounded-lg border">
                 {selectedSpecs.map(specId => {
                   const spec = specifications?.find(s => s.id === specId);
                   return spec ? (
-                    <Badge key={specId} variant="secondary" className="flex items-center gap-1.5 py-1.5 px-3 bg-white border shadow-sm">
-                      <span className="font-medium">{spec.name}</span>
-                      <span className="text-slate-400 text-xs">({spec.widthMm}×{spec.heightMm}mm)</span>
+                    <div key={specId} className="flex items-center justify-between py-1.5 px-2 bg-white border rounded text-sm">
+                      <span className="font-medium text-slate-900 truncate">{spec.name}</span>
                       <button
                         type="button"
-                        className="ml-1 hover:bg-red-100 rounded-full p-0.5 transition-colors"
+                        className="ml-1 hover:bg-red-100 rounded-full p-0.5 flex-shrink-0"
                         onClick={() => setSelectedSpecs(prev => prev.filter(id => id !== specId))}
                       >
-                        <X className="h-3 w-3 text-red-500" />
+                        <X className="h-3 w-3 text-slate-400 hover:text-red-500" />
                       </button>
-                    </Badge>
+                    </div>
                   ) : null;
                 })}
               </div>
@@ -723,9 +795,19 @@ export default function EditProductPage() {
                 </Button>
               </div>
               {selectedBindings.length > 0 && (
-                <div className="flex flex-wrap gap-2">
+                <div className="space-y-2">
                   {selectedBindings.map((b, idx) => (
-                    <Badge key={idx} variant="outline" className="bg-white">{b.name}</Badge>
+                    <div key={idx} className="flex items-center gap-2 p-2 bg-white border rounded-lg">
+                      <span className="font-medium text-sm flex-1">{b.name}</span>
+                      <button
+                        type="button"
+                        title="제거"
+                        className="ml-1 hover:bg-red-100 rounded-full p-1"
+                        onClick={() => setSelectedBindings(prev => prev.filter((_, i) => i !== idx))}
+                      >
+                        <X className="h-4 w-4 text-red-500" />
+                      </button>
+                    </div>
                   ))}
                 </div>
               )}
@@ -762,10 +844,24 @@ export default function EditProductPage() {
                 </Button>
               </div>
               {selectedPapers.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {selectedPapers.map((p, idx) => (
-                    <Badge key={idx} variant="outline" className="bg-white">{p.name}</Badge>
-                  ))}
+                <div className="space-y-1.5 p-2 bg-slate-50 rounded-lg border text-xs">
+                  {['indigo', 'inkjet', 'offset'].map(method => {
+                    const methodPapers = selectedPapers.filter(p => p.printMethod === method);
+                    if (methodPapers.length === 0) return null;
+                    const methodLabels: Record<string, string> = { indigo: '인디고', inkjet: '잉크젯', offset: '오프셋' };
+                    return (
+                      <div key={method} className="flex items-start gap-2">
+                        <span className="text-slate-500 font-medium w-12 flex-shrink-0">{methodLabels[method]}:</span>
+                        <span className="text-slate-700">{methodPapers.map(p => `${p.name}${p.grammage ? ` ${p.grammage}g` : ''}`).join(', ')}</span>
+                      </div>
+                    );
+                  })}
+                  {selectedPapers.filter(p => !p.printMethod || !['indigo', 'inkjet', 'offset'].includes(p.printMethod)).length > 0 && (
+                    <div className="flex items-start gap-2">
+                      <span className="text-slate-500 font-medium w-12 flex-shrink-0">기타:</span>
+                      <span className="text-slate-700">{selectedPapers.filter(p => !p.printMethod || !['indigo', 'inkjet', 'offset'].includes(p.printMethod)).map(p => `${p.name}${p.grammage ? ` ${p.grammage}g` : ''}`).join(', ')}</span>
+                    </div>
+                  )}
                 </div>
               )}
               <div className="flex gap-4 pt-2">
@@ -809,22 +905,40 @@ export default function EditProductPage() {
               )}
             </div>
 
-            {/* 박 선택 */}
+            {/* 공용동판 선택 */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-emerald-600" />
-                  박 선택
+                  공용동판 (박 각인)
                 </Label>
-                <Button type="button" variant="outline" size="sm" onClick={() => setFoilDialogOpen(true)} className="gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => setPublicPlateDialogOpen(true)} className="gap-2">
                   <Plus className="h-4 w-4" />
-                  박선택
+                  공용동판선택
                 </Button>
               </div>
-              {selectedFoils.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {selectedFoils.map((f, idx) => (
-                    <Badge key={idx} variant="outline" className="bg-white">{f.name}</Badge>
+              {selectedPublicPlates.length > 0 && (
+                <div className="space-y-2 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                  {selectedPublicPlates.map((plate, idx) => (
+                    <div key={idx} className="flex items-start gap-3 p-2 bg-white rounded border">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-medium text-sm">{plate.plateName}</span>
+                          <Badge variant="outline" className="text-xs">{plate.foilColorName}</Badge>
+                        </div>
+                        {plate.engravingText && (
+                          <p className="text-xs text-slate-500">각인문구: {plate.engravingText}</p>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        title="제거"
+                        className="hover:bg-red-100 rounded-full p-1"
+                        onClick={() => setSelectedPublicPlates(prev => prev.filter((_, i) => i !== idx))}
+                      >
+                        <X className="h-4 w-4 text-red-500" />
+                      </button>
+                    </div>
                   ))}
                 </div>
               )}
@@ -843,11 +957,10 @@ export default function EditProductPage() {
               {FINISHING_OPTIONS.map(opt => (
                 <label
                   key={opt.id}
-                  className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                    finishingOptions[opt.id]
-                      ? 'border-emerald-500 bg-emerald-50'
-                      : 'border-slate-200 bg-white hover:border-slate-300'
-                  }`}
+                  className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${finishingOptions[opt.id]
+                    ? 'border-emerald-500 bg-emerald-50'
+                    : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
                 >
                   <Checkbox
                     id={opt.id}
@@ -865,12 +978,12 @@ export default function EditProductPage() {
       </Card>
 
       {/* 옵션정보 섹션 */}
-      <Card className="overflow-hidden border-0 shadow-lg">
+      <Card className="overflow-hidden border shadow-sm">
         <SectionHeader
           icon={Settings}
           title="옵션정보"
           subtitle="주문 시 선택 가능한 추가 옵션을 설정합니다"
-          gradient="from-violet-500 to-purple-600"
+          gradient="text-violet-600"
           actions={
             <Button type="button" size="sm" variant="secondary" onClick={() => setOptionDialogOpen(true)} className="gap-2">
               <Plus className="h-4 w-4" />
@@ -878,7 +991,7 @@ export default function EditProductPage() {
             </Button>
           }
         />
-        <CardContent className="p-6 bg-gradient-to-b from-violet-50/30 to-white">
+        <CardContent className="p-6">
           {customOptions.length > 0 ? (
             <div className="rounded-lg border overflow-hidden">
               <Table>
@@ -933,22 +1046,21 @@ export default function EditProductPage() {
       </Card>
 
       {/* 상세이미지 섹션 */}
-      <Card className="overflow-hidden border-0 shadow-lg">
+      <Card className="overflow-hidden border shadow-sm">
         <SectionHeader
           icon={ImageIcon}
           title="상품 이미지"
           subtitle="썸네일 및 상세 이미지를 등록합니다"
-          gradient="from-orange-500 to-amber-600"
+          gradient="text-orange-600"
         />
-        <CardContent className="p-6 bg-gradient-to-b from-orange-50/30 to-white">
+        <CardContent className="p-6">
           <div className="grid grid-cols-5 gap-4">
             {/* 썸네일 */}
             <div className="space-y-2">
               <Label className="text-sm font-medium text-slate-600">썸네일</Label>
               <div
-                className={`relative aspect-square rounded-xl border-2 border-dashed flex items-center justify-center overflow-hidden transition-all ${
-                  dragOver === -1 ? 'bg-orange-50 border-orange-400' : 'bg-slate-50 border-slate-200 hover:border-orange-300'
-                }`}
+                className={`relative aspect-square rounded-xl border-2 border-dashed flex items-center justify-center overflow-hidden transition-all ${dragOver === -1 ? 'bg-slate-50 border-slate-400' : 'bg-slate-50/50 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                  }`}
                 onDragOver={(e) => handleDragOver(e, -1)}
                 onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, -1)}
@@ -971,7 +1083,7 @@ export default function EditProductPage() {
                     <div className="p-3 bg-orange-100 rounded-full">
                       <Upload className="h-6 w-6 text-orange-500" />
                     </div>
-                    <span className="text-xs text-center">클릭 또는<br/>드래그</span>
+                    <span className="text-xs text-center">클릭 또는<br />드래그</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -988,9 +1100,8 @@ export default function EditProductPage() {
               <div key={idx} className="space-y-2">
                 <Label className="text-sm font-medium text-slate-600">상세 {idx + 1}</Label>
                 <div
-                  className={`relative aspect-square rounded-xl border-2 border-dashed flex items-center justify-center overflow-hidden transition-all ${
-                    dragOver === idx ? 'bg-orange-50 border-orange-400' : 'bg-slate-50 border-slate-200 hover:border-orange-300'
-                  }`}
+                  className={`relative aspect-square rounded-xl border-2 border-dashed flex items-center justify-center overflow-hidden transition-all ${dragOver === idx ? 'bg-slate-50 border-slate-400' : 'bg-slate-50/50 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                    }`}
                   onDragOver={(e) => handleDragOver(e, idx)}
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, idx)}
@@ -1017,7 +1128,7 @@ export default function EditProductPage() {
                       <div className="p-3 bg-slate-100 rounded-full">
                         <Upload className="h-6 w-6 text-slate-400" />
                       </div>
-                      <span className="text-xs text-center">클릭 또는<br/>드래그</span>
+                      <span className="text-xs text-center">클릭 또는<br />드래그</span>
                       <input
                         type="file"
                         accept="image/*"
@@ -1034,12 +1145,12 @@ export default function EditProductPage() {
       </Card>
 
       {/* 상세설명 섹션 */}
-      <Card className="overflow-hidden border-0 shadow-lg">
+      <Card className="overflow-hidden border shadow-sm">
         <SectionHeader
           icon={FileText}
           title="상세정보 편집"
           subtitle="상품 상세 설명을 작성합니다"
-          gradient="from-slate-600 to-slate-700"
+          gradient="text-slate-600"
         />
         <CardContent className="p-6">
           <ProductEditor
@@ -1074,7 +1185,7 @@ export default function EditProductPage() {
           onClick={handleSubmit}
           disabled={updateProduct.isPending}
           size="lg"
-          className="px-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg"
+          className="px-12 bg-slate-900 hover:bg-slate-800 shadow-md"
         >
           {updateProduct.isPending ? (
             <Loader2 className="h-5 w-5 mr-2 animate-spin" />
@@ -1258,6 +1369,375 @@ export default function EditProductPage() {
           />
         </DialogContent>
       </Dialog>
+
+      {/* 제본 선택 다이얼로그 */}
+      <Dialog open={bindingDialogOpen} onOpenChange={setBindingDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Layers className="h-5 w-5 text-emerald-600" />
+              제본 선택 (단가 구조에서 선택)
+            </DialogTitle>
+          </DialogHeader>
+          <BindingSelectionForm
+            productionGroupTree={productionGroupTree || []}
+            selectedBindings={selectedBindings}
+            onSelect={(bindings) => {
+              setSelectedBindings(bindings);
+              setBindingDialogOpen(false);
+            }}
+            onCancel={() => setBindingDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* 용지 선택 다이얼로그 */}
+      <Dialog open={paperDialogOpen} onOpenChange={setPaperDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-emerald-600" />
+              용지 선택 (용지관리에서 선택)
+            </DialogTitle>
+          </DialogHeader>
+          <PaperSelectionForm
+            selectedPapers={selectedPapers}
+            onSelect={(papers) => {
+              setSelectedPapers(papers);
+              setPaperDialogOpen(false);
+            }}
+            onCancel={() => setPaperDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* 박 선택 다이얼로그 (기존 - 유지) */}
+      <Dialog open={foilDialogOpen} onOpenChange={setFoilDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-emerald-600" />
+              박 선택 (거래처정보에서 선택)
+            </DialogTitle>
+          </DialogHeader>
+          <FoilSelectionForm
+            selectedFoils={selectedFoils}
+            onSelect={(foils) => {
+              setSelectedFoils(foils);
+              setFoilDialogOpen(false);
+            }}
+            onCancel={() => setFoilDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* 공용동판 선택 다이얼로그 */}
+      <Dialog open={publicPlateDialogOpen} onOpenChange={setPublicPlateDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-amber-600" />
+              공용동판 선택 (박 각인용)
+            </DialogTitle>
+          </DialogHeader>
+          <PublicCopperPlateSelectionForm
+            selectedPlates={selectedPublicPlates}
+            onSelect={(plates) => {
+              setSelectedPublicPlates(plates);
+              setPublicPlateDialogOpen(false);
+            }}
+            onCancel={() => setPublicPlateDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// 용지 선택 폼 컴포넌트
+function PaperSelectionForm({
+  selectedPapers,
+  onSelect,
+  onCancel,
+}: {
+  selectedPapers: { id: string; name: string; type: string; price: number; grammage?: number; printMethod?: string }[];
+  onSelect: (papers: { id: string; name: string; type: string; price: number; grammage?: number; printMethod?: string }[]) => void;
+  onCancel: () => void;
+}) {
+  const [localSelected, setLocalSelected] = useState<{ id: string; name: string; type: string; price: number; grammage?: number; printMethod?: string }[]>(selectedPapers);
+  const [printMethodFilter, setPrintMethodFilter] = useState<string>('indigo');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const { data: papersData, isLoading } = usePapers({
+    limit: 100,
+    isActive: true,
+    printMethod: printMethodFilter === 'all' ? undefined : printMethodFilter,
+    search: searchTerm || undefined,
+  });
+
+  const papers = papersData?.data || [];
+
+  const togglePaper = (paper: any) => {
+    setLocalSelected(prev => {
+      const exists = prev.find(p => p.id === paper.id);
+      if (exists) {
+        return prev.filter(p => p.id !== paper.id);
+      } else {
+        // 현재 필터에서 선택된 인쇄방식 저장
+        const selectedPrintMethod = printMethodFilter === 'all'
+          ? (paper.printMethods?.[0] || 'indigo')
+          : printMethodFilter;
+        return [...prev, {
+          id: paper.id,
+          name: paper.name,
+          type: paper.paperType || 'sheet',
+          price: Number(paper.basePrice) || 0,
+          grammage: paper.grammage,
+          printMethod: selectedPrintMethod,
+        }];
+      }
+    });
+  };
+
+  // 전체 선택/해제
+  const isAllSelected = papers.length > 0 && papers.every((paper: any) => localSelected.some(p => p.id === paper.id));
+  const isSomeSelected = papers.some((paper: any) => localSelected.some(p => p.id === paper.id));
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      // 현재 필터된 용지들만 선택 해제
+      const paperIds = papers.map((p: any) => p.id);
+      setLocalSelected(prev => prev.filter(p => !paperIds.includes(p.id)));
+    } else {
+      // 현재 필터된 용지들 모두 선택 (기존 선택 유지)
+      const selectedPrintMethod = printMethodFilter === 'all' ? 'indigo' : printMethodFilter;
+      const newPapers = papers
+        .filter((paper: any) => !localSelected.some(p => p.id === paper.id))
+        .map((paper: any) => ({
+          id: paper.id,
+          name: paper.name,
+          type: paper.paperType || 'sheet',
+          price: Number(paper.basePrice) || 0,
+          grammage: paper.grammage,
+          printMethod: printMethodFilter === 'all' ? (paper.printMethods?.[0] || 'indigo') : selectedPrintMethod,
+        }));
+      setLocalSelected(prev => [...prev, ...newPapers]);
+    }
+  };
+
+  // 선택된 용지를 인쇄방식별로 그룹화
+  const groupedSelected = {
+    indigo: localSelected.filter(p => p.printMethod === 'indigo'),
+    inkjet: localSelected.filter(p => p.printMethod === 'inkjet'),
+    offset: localSelected.filter(p => p.printMethod === 'offset'),
+    other: localSelected.filter(p => !p.printMethod || !['indigo', 'inkjet', 'offset'].includes(p.printMethod)),
+  };
+
+  const printMethodLabels: Record<string, string> = {
+    indigo: '🖨️ 인디고',
+    inkjet: '💧 잉크젯',
+    offset: '📰 오프셋',
+    other: '📋 기타',
+  };
+
+  const getFinishLabel = (finish: string) => {
+    const finishMap: Record<string, string> = {
+      glossy: '광택',
+      matte: '무광',
+      lustre: '반광',
+      canvas: '캔버스',
+      satin: '새틴',
+      silk: '실크',
+    };
+    return finishMap[finish] || finish;
+  };
+
+  const getPrintMethodLabel = (methods: string[]) => {
+    const methodMap: Record<string, string> = {
+      indigo: '인디고',
+      inkjet: '잉크젯',
+      offset: '오프셋',
+      both: '모두',
+    };
+    return methods?.map(m => methodMap[m] || m).join(', ') || '-';
+  };
+
+  return (
+    <div className="flex flex-col flex-1 overflow-hidden">
+      <div className="text-sm text-slate-500 mb-3">
+        인쇄방식을 먼저 선택한 후 용지를 선택합니다.
+      </div>
+
+      {/* 인쇄방식 선택 탭 */}
+      <div className="flex gap-1 p-1 bg-slate-100 rounded-lg mb-4">
+        {[
+          { key: 'indigo', label: '인디고', icon: '🖨️' },
+          { key: 'inkjet', label: '잉크젯', icon: '💧' },
+          { key: 'offset', label: '오프셋', icon: '📰' },
+          { key: 'all', label: '전체', icon: '📋' },
+        ].map(tab => (
+          <Button
+            key={tab.key}
+            type="button"
+            variant={printMethodFilter === tab.key ? 'default' : 'ghost'}
+            size="sm"
+            className={`flex-1 h-9 gap-1.5 ${printMethodFilter === tab.key ? 'shadow-sm' : ''}`}
+            onClick={() => setPrintMethodFilter(tab.key)}
+          >
+            <span>{tab.icon}</span>
+            {tab.label}
+          </Button>
+        ))}
+      </div>
+
+      {/* 검색 */}
+      <div className="mb-4">
+        <Input
+          placeholder="용지명 검색..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="h-9"
+        />
+      </div>
+
+      {isLoading ? (
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+        </div>
+      ) : papers.length === 0 ? (
+        <div className="flex-1 flex items-center justify-center text-slate-400">
+          <div className="text-center">
+            <FileText className="h-12 w-12 mx-auto mb-2 opacity-30" />
+            <p>등록된 용지가 없습니다.</p>
+            <p className="text-sm mt-1">용지관리 메뉴에서 용지를 먼저 등록해주세요.</p>
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 overflow-y-auto border rounded-lg">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-slate-50">
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={isAllSelected}
+                    ref={(el) => {
+                      if (el) {
+                        (el as any).indeterminate = !isAllSelected && isSomeSelected;
+                      }
+                    }}
+                    onCheckedChange={toggleSelectAll}
+                    className="data-[state=checked]:bg-emerald-600"
+                    title="전체 선택"
+                  />
+                </TableHead>
+                <TableHead>용지명</TableHead>
+                <TableHead>타입</TableHead>
+                <TableHead>규격</TableHead>
+                <TableHead>평량</TableHead>
+                <TableHead>질감</TableHead>
+                <TableHead>출력방식</TableHead>
+                <TableHead className="text-right">기본가</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {papers.map((paper: any) => {
+                const isSelected = localSelected.some(p => p.id === paper.id);
+                return (
+                  <TableRow
+                    key={paper.id}
+                    className={`cursor-pointer ${isSelected ? 'bg-emerald-50' : 'hover:bg-slate-50'}`}
+                    onClick={() => togglePaper(paper)}
+                  >
+                    <TableCell>
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => togglePaper(paper)}
+                        className="data-[state=checked]:bg-emerald-600"
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium">{paper.name}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-xs">
+                        {paper.paperType === 'roll' ? '롤지' : '시트지'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-slate-600">
+                      {paper.paperType === 'roll'
+                        ? `${paper.rollWidth || '-'} × ${paper.rollLength || '-'}`
+                        : paper.sheetSize || `${paper.sheetWidthMm || '-'} × ${paper.sheetHeightMm || '-'}mm`
+                      }
+                    </TableCell>
+                    <TableCell className="text-sm">{paper.grammageDisplay || (paper.grammage ? `${paper.grammage}g/m²` : '-')}</TableCell>
+                    <TableCell className="text-sm">{paper.finish ? getFinishLabel(paper.finish) : '-'}</TableCell>
+                    <TableCell className="text-sm">{getPrintMethodLabel(paper.printMethods)}</TableCell>
+                    <TableCell className="text-right text-sm font-medium">
+                      {Number(paper.basePrice).toLocaleString()}원
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {/* 전체 선택 버튼 */}
+      {papers.length > 0 && (
+        <div className="mt-2 flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={toggleSelectAll}
+            className="text-xs"
+          >
+            {isAllSelected ? `현재 목록 전체 해제 (${papers.length}개)` : `현재 목록 전체 선택 (${papers.length}개)`}
+          </Button>
+        </div>
+      )}
+
+      {localSelected.length > 0 && (
+        <div className="mt-4 p-3 bg-emerald-50 rounded-lg">
+          <p className="text-sm font-medium mb-3">선택된 용지 ({localSelected.length}개)</p>
+          <div className="space-y-3">
+            {(['indigo', 'inkjet', 'offset', 'other'] as const).map(method => {
+              const papers = groupedSelected[method];
+              if (papers.length === 0) return null;
+              return (
+                <div key={method} className="space-y-1">
+                  <p className="text-xs font-medium text-slate-600">{printMethodLabels[method]} ({papers.length}개)</p>
+                  <div className="flex flex-wrap gap-2">
+                    {papers.map((paper) => (
+                      <Badge key={paper.id} variant="secondary" className="flex items-center gap-1 bg-white">
+                        {paper.name}{paper.grammage ? ` ${paper.grammage}g` : ''}
+                        <button
+                          type="button"
+                          title="제거"
+                          className="ml-1 hover:bg-red-100 rounded-full p-0.5"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setLocalSelected(prev => prev.filter(p => p.id !== paper.id));
+                          }}
+                        >
+                          <X className="h-3 w-3 text-red-500" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <DialogFooter className="mt-4">
+        <Button variant="outline" onClick={() => setLocalSelected([])}>전체 해제</Button>
+        <Button variant="outline" onClick={onCancel}>취소</Button>
+        <Button onClick={() => onSelect(localSelected)} className="bg-emerald-600 hover:bg-emerald-700">
+          선택 완료
+        </Button>
+      </DialogFooter>
     </div>
   );
 }
@@ -1352,3 +1832,668 @@ function OptionForm({ onSubmit, onCancel }: { onSubmit: (opt: Omit<ProductOption
     </div>
   );
 }
+
+// 제본 선택 폼 컴포넌트 (단가 구조에서 선택)
+function BindingSelectionForm({
+  productionGroupTree,
+  selectedBindings,
+  onSelect,
+  onCancel,
+}: {
+  productionGroupTree: ProductionGroup[];
+  selectedBindings: { id: string; name: string; price: number; productionSettingId?: string; pricingType?: string }[];
+  onSelect: (bindings: { id: string; name: string; price: number; productionSettingId?: string; pricingType?: string }[]) => void;
+  onCancel: () => void;
+}) {
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [localSelected, setLocalSelected] = useState<{ id: string; name: string; price: number; productionSettingId?: string; pricingType?: string }[]>(selectedBindings);
+
+  // "제본" 그룹 찾기 (대분류에서)
+  const bindingGroup = productionGroupTree.find(g => g.name === '제본');
+
+  // 그룹 펼치기/접기
+  const toggleExpand = (groupId: string) => {
+    setExpandedGroups(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(groupId)) {
+        newSet.delete(groupId);
+      } else {
+        newSet.add(groupId);
+      }
+      return newSet;
+    });
+  };
+
+  // 설정 선택/해제
+  const toggleSetting = (setting: ProductionSetting, groupName: string) => {
+    setLocalSelected(prev => {
+      const exists = prev.find(b => b.productionSettingId === setting.id);
+      if (exists) {
+        return prev.filter(b => b.productionSettingId !== setting.id);
+      } else {
+        return [...prev, {
+          id: Date.now().toString(),
+          name: `${groupName} - ${setting.codeName || setting.settingName || '설정'}`,
+          price: Number(setting.basePrice) || 0,
+          productionSettingId: setting.id,
+          pricingType: setting.pricingType,
+        }];
+      }
+    });
+  };
+
+  // 재귀적으로 그룹과 설정을 렌더링
+  const renderGroup = (group: ProductionGroup, level: number = 0) => {
+    const isExpanded = expandedGroups.has(group.id);
+    const hasChildren = group.children && group.children.length > 0;
+    const hasSettings = group.settings && group.settings.length > 0;
+
+    return (
+      <div key={group.id} className="border-b last:border-b-0">
+        <div
+          className={`flex items-center gap-2 p-3 cursor-pointer hover:bg-slate-50 ${level > 0 ? 'pl-' + (level * 4 + 3) : ''}`}
+          style={{ paddingLeft: `${level * 16 + 12}px` }}
+          onClick={() => toggleExpand(group.id)}
+        >
+          {(hasChildren || hasSettings) ? (
+            isExpanded ? (
+              <ChevronDown className="h-4 w-4 text-slate-400" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-slate-400" />
+            )
+          ) : (
+            <div className="w-4" />
+          )}
+          <Folder className={`h-4 w-4 ${isExpanded ? 'text-emerald-600' : 'text-slate-400'}`} />
+          <span className="font-medium text-sm">{group.name}</span>
+          {group._count?.settings && (
+            <Badge variant="secondary" className="text-xs">
+              {group._count.settings}개 설정
+            </Badge>
+          )}
+        </div>
+
+        {isExpanded && (
+          <div>
+            {/* 하위 그룹 */}
+            {hasChildren && group.children!.map(child => renderGroup(child, level + 1))}
+
+            {/* 설정 목록 */}
+            {hasSettings && group.settings!.map(setting => {
+              const isSelected = localSelected.some(b => b.productionSettingId === setting.id);
+              return (
+                <div
+                  key={setting.id}
+                  className={`flex items-center gap-3 p-3 cursor-pointer border-l-2 ${isSelected
+                    ? 'bg-emerald-50 border-l-emerald-500'
+                    : 'hover:bg-slate-50 border-l-transparent'
+                    }`}
+                  style={{ paddingLeft: `${(level + 1) * 16 + 12}px` }}
+                  onClick={() => toggleSetting(setting, group.name)}
+                >
+                  <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={() => toggleSetting(setting, group.name)}
+                    className="data-[state=checked]:bg-emerald-600"
+                  />
+                  <Settings className="h-4 w-4 text-slate-400" />
+                  <div className="flex-1">
+                    <div className="font-medium text-sm">
+                      {setting.codeName || setting.settingName || '설정'}
+                    </div>
+                    <div className="text-xs text-slate-500 flex gap-2">
+                      <span>{getPricingTypeLabel(setting.pricingType)}</span>
+                      {setting.basePrice > 0 && (
+                        <span className="text-emerald-600">
+                          기본가: {Number(setting.basePrice).toLocaleString()}원
+                        </span>
+                      )}
+                      {setting.workDays > 0 && (
+                        <span>작업일: {setting.workDays}일</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // 가격타입 라벨
+  const getPricingTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      nup_page_range: '구간별 Nup/1p가격',
+      binding_page: '제본 페이지당',
+      paper_output_spec: '용지별출력단가',
+    };
+    return labels[type] || type;
+  };
+
+  return (
+    <div className="flex flex-col flex-1 overflow-hidden">
+      <div className="text-sm text-slate-500 mb-3">
+        가격관리 &gt; 표준단가에서 설정된 제본 단가 구조를 선택합니다.
+      </div>
+
+      {!bindingGroup ? (
+        <div className="flex-1 flex items-center justify-center text-slate-400">
+          <div className="text-center">
+            <Layers className="h-12 w-12 mx-auto mb-2 opacity-30" />
+            <p>&quot;제본&quot; 분류가 없습니다.</p>
+            <p className="text-sm mt-1">가격관리 &gt; 표준단가에서 제본 분류를 먼저 추가해주세요.</p>
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 overflow-y-auto border rounded-lg">
+          {renderGroup(bindingGroup)}
+        </div>
+      )}
+
+      {localSelected.length > 0 && (
+        <div className="mt-4 p-3 bg-emerald-50 rounded-lg">
+          <p className="text-sm font-medium mb-2">선택된 제본 설정 ({localSelected.length}개)</p>
+          <div className="flex flex-wrap gap-2">
+            {localSelected.map((binding, idx) => (
+              <Badge key={idx} variant="secondary" className="flex items-center gap-1 bg-white">
+                {binding.name}
+                <button
+                  type="button"
+                  title="제거"
+                  className="ml-1 hover:bg-red-100 rounded-full p-0.5"
+                  onClick={() => setLocalSelected(prev => prev.filter((_, i) => i !== idx))}
+                >
+                  <X className="h-3 w-3 text-red-500" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <DialogFooter className="mt-4">
+        <Button variant="outline" onClick={() => setLocalSelected([])}>전체 해제</Button>
+        <Button variant="outline" onClick={onCancel}>취소</Button>
+        <Button onClick={() => onSelect(localSelected)} className="bg-emerald-600 hover:bg-emerald-700">
+          선택 완료
+        </Button>
+      </DialogFooter>
+    </div>
+  );
+}
+
+// 박 선택 폼 컴포넌트 (거래처정보 > 박 컬러에서 선택)
+function FoilSelectionForm({
+  selectedFoils,
+  onSelect,
+  onCancel,
+}: {
+  selectedFoils: { id: string; name: string; color: string; price: number }[];
+  onSelect: (foils: { id: string; name: string; color: string; price: number }[]) => void;
+  onCancel: () => void;
+}) {
+  const [localSelected, setLocalSelected] = useState<{ id: string; name: string; color: string; price: number }[]>(selectedFoils);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const { data: foilColors, isLoading } = useFoilColors();
+
+  // 검색 필터링
+  const filteredFoils = foilColors?.filter(foil =>
+    foil.isActive &&
+    (searchTerm === '' || foil.name.toLowerCase().includes(searchTerm.toLowerCase()) || foil.code.toLowerCase().includes(searchTerm.toLowerCase()))
+  ) || [];
+
+  const toggleFoil = (foil: FoilColorItem) => {
+    setLocalSelected(prev => {
+      const exists = prev.find(f => f.id === foil.id);
+      if (exists) {
+        return prev.filter(f => f.id !== foil.id);
+      } else {
+        return [...prev, {
+          id: foil.id,
+          name: foil.name,
+          color: foil.colorHex || '',
+          price: 0,
+        }];
+      }
+    });
+  };
+
+  // 전체 선택/해제
+  const isAllSelected = filteredFoils.length > 0 && filteredFoils.every(foil => localSelected.some(f => f.id === foil.id));
+  const isSomeSelected = filteredFoils.some(foil => localSelected.some(f => f.id === foil.id));
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      const foilIds = filteredFoils.map(f => f.id);
+      setLocalSelected(prev => prev.filter(f => !foilIds.includes(f.id)));
+    } else {
+      const newFoils = filteredFoils
+        .filter(foil => !localSelected.some(f => f.id === foil.id))
+        .map(foil => ({
+          id: foil.id,
+          name: foil.name,
+          color: foil.colorHex || '',
+          price: 0,
+        }));
+      setLocalSelected(prev => [...prev, ...newFoils]);
+    }
+  };
+
+  return (
+    <div className="flex flex-col flex-1 overflow-hidden">
+      <div className="text-sm text-slate-500 mb-3">
+        거래처정보 &gt; 동판관리에서 등록된 박 컬러를 선택합니다.
+      </div>
+
+      {/* 검색 */}
+      <div className="mb-4">
+        <Input
+          placeholder="박 이름 검색..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="h-9"
+        />
+      </div>
+
+      {isLoading ? (
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+        </div>
+      ) : filteredFoils.length === 0 ? (
+        <div className="flex-1 flex items-center justify-center text-slate-400">
+          <div className="text-center">
+            <Sparkles className="h-12 w-12 mx-auto mb-2 opacity-30" />
+            <p>등록된 박 컬러가 없습니다.</p>
+            <p className="text-sm mt-1">거래처정보 &gt; 동판관리에서 박 컬러를 먼저 등록해주세요.</p>
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 overflow-y-auto border rounded-lg">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-slate-50">
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={isAllSelected}
+                    ref={(el) => {
+                      if (el) {
+                        (el as any).indeterminate = !isAllSelected && isSomeSelected;
+                      }
+                    }}
+                    onCheckedChange={toggleSelectAll}
+                    className="data-[state=checked]:bg-emerald-600"
+                    title="전체 선택"
+                  />
+                </TableHead>
+                <TableHead>컬러</TableHead>
+                <TableHead>박 이름</TableHead>
+                <TableHead>코드</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredFoils.map((foil) => {
+                const isSelected = localSelected.some(f => f.id === foil.id);
+                return (
+                  <TableRow
+                    key={foil.id}
+                    className={`cursor-pointer ${isSelected ? 'bg-emerald-50' : 'hover:bg-slate-50'}`}
+                    onClick={() => toggleFoil(foil)}
+                  >
+                    <TableCell>
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleFoil(foil)}
+                        className="data-[state=checked]:bg-emerald-600"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {foil.colorHex ? (
+                        <div
+                          className="w-8 h-8 rounded-lg border border-slate-300 shadow-inner"
+                          style={{ backgroundColor: foil.colorHex }}
+                          title={foil.colorHex}
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-lg border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-xs">
+                          N/A
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-medium">{foil.name}</TableCell>
+                    <TableCell className="text-sm text-slate-500">{foil.code}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {/* 전체 선택 버튼 */}
+      {filteredFoils.length > 0 && (
+        <div className="mt-2 flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={toggleSelectAll}
+            className="text-xs"
+          >
+            {isAllSelected ? `전체 해제 (${filteredFoils.length}개)` : `전체 선택 (${filteredFoils.length}개)`}
+          </Button>
+        </div>
+      )}
+
+      {localSelected.length > 0 && (
+        <div className="mt-4 p-3 bg-emerald-50 rounded-lg">
+          <p className="text-sm font-medium mb-2">선택된 박 컬러 ({localSelected.length}개)</p>
+          <div className="flex flex-wrap gap-2">
+            {localSelected.map((foil) => (
+              <Badge key={foil.id} variant="secondary" className="flex items-center gap-2 bg-white">
+                {foil.color && (
+                  <div
+                    className="w-4 h-4 rounded border border-slate-300"
+                    style={{ backgroundColor: foil.color }}
+                  />
+                )}
+                {foil.name}
+                <button
+                  type="button"
+                  title="제거"
+                  className="ml-1 hover:bg-red-100 rounded-full p-0.5"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLocalSelected(prev => prev.filter(f => f.id !== foil.id));
+                  }}
+                >
+                  <X className="h-3 w-3 text-red-500" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <DialogFooter className="mt-4">
+        <Button variant="outline" onClick={() => setLocalSelected([])}>전체 해제</Button>
+        <Button variant="outline" onClick={onCancel}>취소</Button>
+        <Button onClick={() => onSelect(localSelected)} className="bg-emerald-600 hover:bg-emerald-700">
+          선택 완료
+        </Button>
+      </DialogFooter>
+    </div>
+  );
+}
+
+// 공용동판 선택 폼 컴포넌트
+function PublicCopperPlateSelectionForm({
+  selectedPlates,
+  onSelect,
+  onCancel,
+}: {
+  selectedPlates: {
+    id: string;
+    plateId: string;
+    plateName: string;
+    foilColor: string;
+    foilColorName: string;
+    engravingText: string;
+  }[];
+  onSelect: (plates: {
+    id: string;
+    plateId: string;
+    plateName: string;
+    foilColor: string;
+    foilColorName: string;
+    engravingText: string;
+  }[]) => void;
+  onCancel: () => void;
+}) {
+  const [localSelected, setLocalSelected] = useState(selectedPlates);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const { data: platesData, isLoading } = usePublicCopperPlates({
+    limit: 100,
+    status: 'active',
+    search: searchTerm || undefined,
+  });
+
+  const plates = platesData?.data || [];
+
+  // 박색상 이름 매핑
+  const FOIL_COLORS: Record<string, { name: string; color: string }> = {
+    gold_glossy: { name: '금박(유광)', color: '#FFD700' },
+    gold_matte: { name: '금박(무광)', color: '#DAA520' },
+    silver_glossy: { name: '은박(유광)', color: '#C0C0C0' },
+    silver_matte: { name: '은박(무광)', color: '#A9A9A9' },
+    brown: { name: '밤박(브라운)', color: '#8B4513' },
+    black: { name: '먹박(블랙)', color: '#000000' },
+    white: { name: '백박(화이트)', color: '#FFFFFF' },
+    rose_gold: { name: '로즈골드', color: '#B76E79' },
+  };
+
+  const togglePlate = (plate: PublicCopperPlate) => {
+    setLocalSelected(prev => {
+      const exists = prev.find(p => p.plateId === plate.id);
+      if (exists) {
+        return prev.filter(p => p.plateId !== plate.id);
+      } else {
+        return [...prev, {
+          id: Date.now().toString(),
+          plateId: plate.id,
+          plateName: plate.plateName,
+          foilColor: plate.plateType || '',
+          foilColorName: FOIL_COLORS[plate.plateType]?.name || plate.plateType || '기본',
+          engravingText: plate.defaultEngravingText || '',
+        }];
+      }
+    });
+  };
+
+  const updateEngravingText = (plateId: string, text: string) => {
+    setLocalSelected(prev => prev.map(p =>
+      p.plateId === plateId ? { ...p, engravingText: text } : p
+    ));
+  };
+
+  // 전체 선택 관련
+  const isAllSelected = plates.length > 0 && plates.every((plate) => localSelected.some(p => p.plateId === plate.id));
+  const isSomeSelected = plates.some((plate) => localSelected.some(p => p.plateId === plate.id));
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      // 현재 필터된 동판들만 선택 해제
+      const plateIds = plates.map((p) => p.id);
+      setLocalSelected(prev => prev.filter(p => !plateIds.includes(p.plateId)));
+    } else {
+      // 현재 필터된 동판들 모두 선택 (기존 선택 유지)
+      const newPlates = plates
+        .filter((plate) => !localSelected.some(p => p.plateId === plate.id))
+        .map((plate) => ({
+          id: Date.now().toString() + plate.id,
+          plateId: plate.id,
+          plateName: plate.plateName,
+          foilColor: plate.plateType || '',
+          foilColorName: FOIL_COLORS[plate.plateType]?.name || plate.plateType || '기본',
+          engravingText: plate.defaultEngravingText || '',
+        }));
+      setLocalSelected(prev => [...prev, ...newPlates]);
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full max-h-[60vh]">
+      <div className="text-sm text-slate-500 mb-3 flex-shrink-0">
+        기초정보 &gt; 공용동판관리에서 등록된 공용동판을 선택합니다. 상품별 각인문구를 설정할 수 있습니다.
+      </div>
+
+      {/* 검색 */}
+      <div className="mb-4 flex-shrink-0">
+        <Input
+          placeholder="동판명 검색..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="h-9"
+        />
+      </div>
+
+      {/* 스크롤 가능한 콘텐츠 영역 */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+        {isLoading ? (
+          <div className="h-40 flex items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+          </div>
+        ) : plates.length === 0 ? (
+          <div className="h-40 flex items-center justify-center text-slate-400">
+            <div className="text-center">
+              <Sparkles className="h-12 w-12 mx-auto mb-2 opacity-30" />
+              <p>등록된 공용동판이 없습니다.</p>
+              <p className="text-sm mt-1">기초정보 &gt; 공용동판관리에서 먼저 등록해주세요.</p>
+            </div>
+          </div>
+        ) : (
+          <div className="border rounded-lg">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-slate-50">
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={isAllSelected}
+                    ref={(el) => {
+                      if (el) {
+                        (el as unknown as HTMLInputElement).indeterminate = !isAllSelected && isSomeSelected;
+                      }
+                    }}
+                    onCheckedChange={toggleSelectAll}
+                    className="data-[state=checked]:bg-amber-600"
+                    title="전체 선택"
+                  />
+                </TableHead>
+                <TableHead>동판명</TableHead>
+                <TableHead>박색상</TableHead>
+                <TableHead>기본 각인문구</TableHead>
+                <TableHead>크기</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {plates.map((plate) => {
+                const isSelected = localSelected.some(p => p.plateId === plate.id);
+                const foilInfo = FOIL_COLORS[plate.plateType];
+                return (
+                  <TableRow
+                    key={plate.id}
+                    className={`cursor-pointer ${isSelected ? 'bg-amber-50' : 'hover:bg-slate-50'}`}
+                    onClick={() => togglePlate(plate)}
+                  >
+                    <TableCell>
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => togglePlate(plate)}
+                        className="data-[state=checked]:bg-amber-600"
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium">{plate.plateName}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className="gap-1.5"
+                        style={{
+                          borderColor: foilInfo?.color || '#ccc',
+                          backgroundColor: foilInfo ? `${foilInfo.color}20` : '#f5f5f5',
+                        }}
+                      >
+                        {foilInfo && (
+                          <span
+                            className="w-3 h-3 rounded-full border"
+                            style={{ backgroundColor: foilInfo.color }}
+                          />
+                        )}
+                        {foilInfo?.name || plate.plateType || '기본'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-slate-500 max-w-[200px] truncate">
+                      {plate.defaultEngravingText || '-'}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {plate.widthMm && plate.heightMm
+                        ? `${plate.widthMm}×${plate.heightMm}mm`
+                        : '-'}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+        )}
+
+        {/* 전체 선택 버튼 */}
+        {plates.length > 0 && (
+          <div className="mt-2 flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={toggleSelectAll}
+              className="text-xs"
+            >
+              {isAllSelected ? `현재 목록 전체 해제 (${plates.length}개)` : `현재 목록 전체 선택 (${plates.length}개)`}
+            </Button>
+          </div>
+        )}
+
+        {localSelected.length > 0 && (
+          <div className="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
+            <p className="text-sm font-medium mb-3">선택된 공용동판 ({localSelected.length}개) - 각인문구 설정</p>
+            <div className="space-y-3 max-h-[200px] overflow-y-auto">
+              {localSelected.map((plate) => (
+                <div key={plate.plateId} className="flex items-start gap-3 p-3 bg-white rounded-lg border">
+                  <div className="flex-shrink-0">
+                    <Badge variant="outline" className="text-xs">{plate.foilColorName}</Badge>
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <div className="font-medium text-sm">{plate.plateName}</div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-slate-500 whitespace-nowrap">각인문구:</Label>
+                      <Input
+                        value={plate.engravingText}
+                        onChange={(e) => updateEngravingText(plate.plateId, e.target.value)}
+                        placeholder="각인문구 입력 (선택)"
+                        className="h-8 text-sm"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    title="제거"
+                    className="hover:bg-red-100 rounded-full p-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLocalSelected(prev => prev.filter(p => p.plateId !== plate.plateId));
+                    }}
+                  >
+                    <X className="h-4 w-4 text-red-500" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 하단 버튼 - 항상 표시 */}
+      <DialogFooter className="mt-4 flex-shrink-0 border-t pt-4">
+        <Button variant="outline" onClick={() => setLocalSelected([])}>전체 해제</Button>
+        <Button variant="outline" onClick={onCancel}>취소</Button>
+        <Button onClick={() => onSelect(localSelected)} className="bg-amber-600 hover:bg-amber-700">
+          선택 완료
+        </Button>
+      </DialogFooter>
+    </div>
+  );
+}
+

@@ -64,6 +64,16 @@ export class ProductBindingDto {
   @IsOptional()
   @IsNumber()
   sortOrder?: number;
+
+  @ApiPropertyOptional({ description: '연결된 단가설정 ID' })
+  @IsOptional()
+  @IsString()
+  productionSettingId?: string;
+
+  @ApiPropertyOptional({ description: '단가 계산 방식' })
+  @IsOptional()
+  @IsString()
+  pricingType?: string;
 }
 
 // ==================== 용지 DTO ====================
@@ -72,9 +82,19 @@ export class ProductPaperDto {
   @IsString()
   name: string;
 
-  @ApiProperty({ description: '용지 타입', enum: ['normal', 'premium', 'imported'] })
-  @IsIn(['normal', 'premium', 'imported'])
+  @ApiProperty({ description: '용지 타입', enum: ['normal', 'premium', 'imported', 'sheet', 'roll'] })
+  @IsIn(['normal', 'premium', 'imported', 'sheet', 'roll'])
   type: string;
+
+  @ApiPropertyOptional({ description: '출력방식', enum: ['indigo', 'inkjet', 'offset'] })
+  @IsOptional()
+  @IsString()
+  printMethod?: string;
+
+  @ApiPropertyOptional({ description: '평량 (g/m²)' })
+  @IsOptional()
+  @IsNumber()
+  grammage?: number;
 
   @ApiPropertyOptional({ description: '추가 가격' })
   @IsOptional()
@@ -232,6 +252,16 @@ export class CreateProductDto {
   @IsOptional()
   @IsNumber()
   sortOrder?: number;
+
+  @ApiPropertyOptional({ description: '제본 방향', enum: ['left', 'right', 'customer'] })
+  @IsOptional()
+  @IsIn(['left', 'right', 'customer'])
+  bindingDirection?: string;
+
+  @ApiPropertyOptional({ description: '출력 타입', enum: ['single', 'double', 'customer'] })
+  @IsOptional()
+  @IsIn(['single', 'double', 'customer'])
+  printType?: string;
 
   @ApiPropertyOptional({ description: '규격 옵션' })
   @IsOptional()

@@ -59,6 +59,12 @@ export class ProductController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '상품 수정' })
   async update(@Param('id') id: string, @Body() dto: UpdateProductDto) {
+    console.log('=== Controller: Update Product ===');
+    console.log('Product ID:', id);
+    console.log('DTO keys:', Object.keys(dto));
+    console.log('Specifications count:', dto.specifications?.length);
+    console.log('Bindings count:', dto.bindings?.length);
+    console.log('Papers count:', dto.papers?.length);
     return this.productService.update(id, dto);
   }
 

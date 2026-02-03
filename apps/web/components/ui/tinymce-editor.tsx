@@ -4,34 +4,6 @@ import { useRef } from 'react';
 import { Editor } from '@tinymce/tinymce-react';
 import { cn } from '@/lib/utils';
 
-// TinyMCE 자체 호스팅을 위한 import
-import 'tinymce/tinymce';
-import 'tinymce/models/dom';
-import 'tinymce/themes/silver';
-import 'tinymce/icons/default';
-import 'tinymce/skins/ui/oxide/skin.min.css';
-
-// 플러그인 import
-import 'tinymce/plugins/advlist';
-import 'tinymce/plugins/autolink';
-import 'tinymce/plugins/lists';
-import 'tinymce/plugins/link';
-import 'tinymce/plugins/image';
-import 'tinymce/plugins/charmap';
-import 'tinymce/plugins/preview';
-import 'tinymce/plugins/anchor';
-import 'tinymce/plugins/searchreplace';
-import 'tinymce/plugins/visualblocks';
-import 'tinymce/plugins/code';
-import 'tinymce/plugins/fullscreen';
-import 'tinymce/plugins/insertdatetime';
-import 'tinymce/plugins/media';
-import 'tinymce/plugins/table';
-import 'tinymce/plugins/help';
-import 'tinymce/plugins/wordcount';
-import 'tinymce/plugins/emoticons';
-import 'tinymce/plugins/emoticons/js/emojis';
-
 interface TinyMCEEditorProps {
   value: string;
   onChange: (value: string) => void;
@@ -77,14 +49,13 @@ export function TinyMCEEditor({
   return (
     <div className={cn('tinymce-wrapper', className)}>
       <Editor
+        apiKey={process.env.NEXT_PUBLIC_TINYMCE_API_KEY}
         onInit={(evt, editor) => (editorRef.current = editor)}
         value={value}
         onEditorChange={(newValue) => onChange(newValue)}
         init={{
           height: 400,
           menubar: true,
-          skin: false, // 자체 호스팅 시 skin은 CSS import로 처리
-          content_css: false, // content CSS도 content_style로 처리
           plugins: [
             'advlist',
             'autolink',

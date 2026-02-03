@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { RichTextEditor } from './rich-text-editor';
 import { QuillEditor } from './quill-editor';
 import { Button } from './button';
 import { cn } from '@/lib/utils';
 import { Palette, Type, ImagePlus, Loader2 } from 'lucide-react';
+
+const EDITOR_STORAGE_KEY = 'preferred-product-editor';
 
 // TinyMCE는 동적 로드 (무거움)
 const TinyMCEEditor = dynamic(
@@ -42,6 +44,20 @@ export function ProductEditor({
 }: ProductEditorProps) {
   const [editorType, setEditorType] = useState<EditorType>(defaultEditor);
 
+  // 저장된 에디터 타입 불러오기
+  useEffect(() => {
+    const saved = localStorage.getItem(EDITOR_STORAGE_KEY) as EditorType | null;
+    if (saved && ['quill', 'tiptap', 'tinymce'].includes(saved)) {
+      setEditorType(saved);
+    }
+  }, []);
+
+  // 에디터 타입 변경 시 저장
+  const handleEditorChange = (type: EditorType) => {
+    setEditorType(type);
+    localStorage.setItem(EDITOR_STORAGE_KEY, type);
+  };
+
   return (
     <div className={cn('space-y-2', className)}>
       {/* 에디터 선택 탭 */}
@@ -50,7 +66,7 @@ export function ProductEditor({
           type="button"
           variant={editorType === 'quill' ? 'default' : 'ghost'}
           size="sm"
-          onClick={() => setEditorType('quill')}
+          onClick={() => handleEditorChange('quill')}
           className="h-8 gap-1.5 text-xs"
         >
           <Palette className="h-3.5 w-3.5" />
@@ -60,7 +76,7 @@ export function ProductEditor({
           type="button"
           variant={editorType === 'tiptap' ? 'default' : 'ghost'}
           size="sm"
-          onClick={() => setEditorType('tiptap')}
+          onClick={() => handleEditorChange('tiptap')}
           className="h-8 gap-1.5 text-xs"
         >
           <Type className="h-3.5 w-3.5" />
@@ -70,7 +86,7 @@ export function ProductEditor({
           type="button"
           variant={editorType === 'tinymce' ? 'default' : 'ghost'}
           size="sm"
-          onClick={() => setEditorType('tinymce')}
+          onClick={() => handleEditorChange('tinymce')}
           className="h-8 gap-1.5 text-xs"
         >
           <ImagePlus className="h-3.5 w-3.5" />
