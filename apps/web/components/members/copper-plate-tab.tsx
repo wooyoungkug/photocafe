@@ -104,6 +104,7 @@ export function CopperPlateTab({ clientId, clientName }: CopperPlateTabProps) {
   const [formData, setFormData] = useState<Omit<CreateCopperPlateDto, 'clientId'>>(initialFormData);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState<'ai' | 'image' | 'album' | null>(null);
+  const [dragOver, setDragOver] = useState<'ai' | 'image' | 'album' | null>(null);
 
   // 설정 관리용 state
   const [newColorName, setNewColorName] = useState("");
@@ -224,6 +225,46 @@ export function CopperPlateTab({ clientId, clientName }: CopperPlateTabProps) {
       refetch();
     } catch (error) {
       toast.error("동판 삭제에 실패했습니다.");
+    }
+  };
+
+  // 드래그앤드롭 핸들러
+  const handleDragOver = (e: React.DragEvent, type: 'ai' | 'image' | 'album') => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(type);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, type: 'ai' | 'image' | 'album') => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(null);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      // 파일 타입 검증
+      const allowedTypes: Record<string, string[]> = {
+        ai: ['.ai', '.pdf', '.eps'],
+        image: ['.jpg', '.jpeg', '.png', '.pdf'],
+        album: ['.jpg', '.jpeg', '.png'],
+      };
+
+      const fileName = file.name.toLowerCase();
+      const isAllowed = allowedTypes[type].some(ext => fileName.endsWith(ext));
+
+      if (!isAllowed) {
+        toast.error(`허용된 파일 형식: ${allowedTypes[type].join(', ')}`);
+        return;
+      }
+
+      handleFileUpload(file, type);
     }
   };
 
@@ -595,41 +636,55 @@ export function CopperPlateTab({ clientId, clientName }: CopperPlateTabProps) {
             {/* AI 파일 */}
             <div className="space-y-2">
               <Label>동판 AI 파일</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  value={formData.aiFileUrl || ""}
-                  onChange={(e) => setFormData(prev => ({ ...prev, aiFileUrl: e.target.value }))}
-                  placeholder="AI 파일 URL 또는 업로드"
-                  className="flex-1"
-                />
-                <input
-                  type="file"
-                  ref={aiFileRef}
-                  className="hidden"
-                  accept=".ai,.pdf,.eps"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleFileUpload(file, 'ai');
-                  }}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => aiFileRef.current?.click()}
-                  disabled={isUploading === 'ai'}
-                >
-                  {isUploading === 'ai' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                </Button>
-                {formData.aiFileUrl && (
+              <div
+                className={`border-2 border-dashed rounded-lg p-3 transition-colors ${
+                  dragOver === 'ai'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+                onDragOver={(e) => handleDragOver(e, 'ai')}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, 'ai')}
+              >
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={formData.aiFileUrl || ""}
+                    onChange={(e) => setFormData(prev => ({ ...prev, aiFileUrl: e.target.value }))}
+                    placeholder="AI 파일 URL 또는 드래그앤드롭"
+                    className="flex-1 border-0 bg-transparent focus-visible:ring-0 p-0"
+                  />
+                  <input
+                    type="file"
+                    ref={aiFileRef}
+                    className="hidden"
+                    accept=".ai,.pdf,.eps"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFileUpload(file, 'ai');
+                    }}
+                  />
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    onClick={() => setFormData(prev => ({ ...prev, aiFileUrl: undefined }))}
+                    onClick={() => aiFileRef.current?.click()}
+                    disabled={isUploading === 'ai'}
                   >
-                    <X className="h-4 w-4" />
+                    {isUploading === 'ai' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                   </Button>
+                  {formData.aiFileUrl && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFormData(prev => ({ ...prev, aiFileUrl: undefined }))}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                {dragOver === 'ai' && (
+                  <p className="text-xs text-primary mt-2 text-center">파일을 놓아주세요 (.ai, .pdf, .eps)</p>
                 )}
               </div>
             </div>
@@ -637,51 +692,65 @@ export function CopperPlateTab({ clientId, clientName }: CopperPlateTabProps) {
             {/* 동판 이미지 */}
             <div className="space-y-2">
               <Label>동판 이미지 (JPG, PNG, PDF)</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  value={formData.imageUrl || ""}
-                  onChange={(e) => setFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
-                  placeholder="이미지 URL 또는 업로드"
-                  className="flex-1"
-                />
-                <input
-                  type="file"
-                  ref={imageFileRef}
-                  className="hidden"
-                  accept=".jpg,.jpeg,.png,.pdf"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleFileUpload(file, 'image');
-                  }}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => imageFileRef.current?.click()}
-                  disabled={isUploading === 'image'}
-                >
-                  {isUploading === 'image' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                </Button>
-                {formData.imageUrl && (
-                  <>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setPreviewImage(getFullImageUrl(formData.imageUrl))}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setFormData(prev => ({ ...prev, imageUrl: undefined }))}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </>
+              <div
+                className={`border-2 border-dashed rounded-lg p-3 transition-colors ${
+                  dragOver === 'image'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+                onDragOver={(e) => handleDragOver(e, 'image')}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, 'image')}
+              >
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={formData.imageUrl || ""}
+                    onChange={(e) => setFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
+                    placeholder="이미지 URL 또는 드래그앤드롭"
+                    className="flex-1 border-0 bg-transparent focus-visible:ring-0 p-0"
+                  />
+                  <input
+                    type="file"
+                    ref={imageFileRef}
+                    className="hidden"
+                    accept=".jpg,.jpeg,.png,.pdf"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFileUpload(file, 'image');
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => imageFileRef.current?.click()}
+                    disabled={isUploading === 'image'}
+                  >
+                    {isUploading === 'image' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  </Button>
+                  {formData.imageUrl && (
+                    <>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setPreviewImage(getFullImageUrl(formData.imageUrl))}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setFormData(prev => ({ ...prev, imageUrl: undefined }))}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+                {dragOver === 'image' && (
+                  <p className="text-xs text-primary mt-2 text-center">파일을 놓아주세요 (.jpg, .png, .pdf)</p>
                 )}
               </div>
             </div>
@@ -689,51 +758,65 @@ export function CopperPlateTab({ clientId, clientName }: CopperPlateTabProps) {
             {/* 앨범 이미지 */}
             <div className="space-y-2">
               <Label>앨범 이미지</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  value={formData.albumPhotoUrl || ""}
-                  onChange={(e) => setFormData(prev => ({ ...prev, albumPhotoUrl: e.target.value }))}
-                  placeholder="앨범 이미지 URL 또는 업로드"
-                  className="flex-1"
-                />
-                <input
-                  type="file"
-                  ref={albumImageRef}
-                  className="hidden"
-                  accept=".jpg,.jpeg,.png"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleFileUpload(file, 'album');
-                  }}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => albumImageRef.current?.click()}
-                  disabled={isUploading === 'album'}
-                >
-                  {isUploading === 'album' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                </Button>
-                {formData.albumPhotoUrl && (
-                  <>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setPreviewImage(getFullImageUrl(formData.albumPhotoUrl))}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setFormData(prev => ({ ...prev, albumPhotoUrl: undefined }))}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </>
+              <div
+                className={`border-2 border-dashed rounded-lg p-3 transition-colors ${
+                  dragOver === 'album'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+                onDragOver={(e) => handleDragOver(e, 'album')}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, 'album')}
+              >
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={formData.albumPhotoUrl || ""}
+                    onChange={(e) => setFormData(prev => ({ ...prev, albumPhotoUrl: e.target.value }))}
+                    placeholder="앨범 이미지 URL 또는 드래그앤드롭"
+                    className="flex-1 border-0 bg-transparent focus-visible:ring-0 p-0"
+                  />
+                  <input
+                    type="file"
+                    ref={albumImageRef}
+                    className="hidden"
+                    accept=".jpg,.jpeg,.png"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFileUpload(file, 'album');
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => albumImageRef.current?.click()}
+                    disabled={isUploading === 'album'}
+                  >
+                    {isUploading === 'album' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  </Button>
+                  {formData.albumPhotoUrl && (
+                    <>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setPreviewImage(getFullImageUrl(formData.albumPhotoUrl))}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setFormData(prev => ({ ...prev, albumPhotoUrl: undefined }))}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+                {dragOver === 'album' && (
+                  <p className="text-xs text-primary mt-2 text-center">파일을 놓아주세요 (.jpg, .png)</p>
                 )}
               </div>
             </div>

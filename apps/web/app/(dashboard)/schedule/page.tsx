@@ -540,9 +540,22 @@ export default function SchedulePage() {
           <Card>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">
-                  {format(currentDate, 'yyyy년 M월', { locale: ko })}
-                </CardTitle>
+                <div className="flex items-center gap-4">
+                  <CardTitle className="text-lg">
+                    {format(currentDate, 'yyyy년 M월', { locale: ko })}
+                  </CardTitle>
+                  {/* 범례 */}
+                  <div className="flex items-center gap-3 text-xs">
+                    <div className="flex items-center gap-1">
+                      <div className="w-3 h-3 rounded bg-blue-100 border-l-2 border-blue-500"></div>
+                      <span className="text-muted-foreground">일정</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-3 h-3 rounded bg-emerald-100 border-l-2 border-emerald-500"></div>
+                      <span className="text-muted-foreground">할일</span>
+                    </div>
+                  </div>
+                </div>
                 <div className="flex items-center gap-1">
                   <Button variant="ghost" size="icon" onClick={() => setCurrentDate(subMonths(currentDate, 1))}>
                     <ChevronLeft className="h-4 w-4" />
@@ -604,8 +617,7 @@ export default function SchedulePage() {
                           {daySchedules.slice(0, 2).map((schedule) => (
                             <div
                               key={schedule.id}
-                              className="text-[10px] px-1 py-0.5 rounded truncate flex items-center gap-0.5"
-                              style={{ backgroundColor: schedule.color ? `${schedule.color}20` : '#3B82F620', color: schedule.color || '#3B82F6' }}
+                              className="text-[10px] px-1 py-0.5 rounded truncate flex items-center gap-0.5 bg-blue-100 text-blue-700 border-l-2 border-blue-500"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 openScheduleDialog(schedule);
@@ -619,10 +631,9 @@ export default function SchedulePage() {
                             <div
                               key={todo.id}
                               className={cn(
-                                'text-[10px] px-1 py-0.5 rounded truncate flex items-center gap-0.5',
-                                todo.status === 'completed' && 'line-through opacity-50'
+                                'text-[10px] px-1 py-0.5 rounded truncate flex items-center gap-0.5 bg-emerald-100 text-emerald-700 border-l-2 border-emerald-500',
+                                todo.status === 'completed' && 'line-through opacity-50 bg-gray-100 text-gray-500 border-gray-400'
                               )}
-                              style={{ backgroundColor: todo.color ? `${todo.color}20` : '#10B98120', color: todo.color || '#10B981' }}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 openTodoDialog(todo);

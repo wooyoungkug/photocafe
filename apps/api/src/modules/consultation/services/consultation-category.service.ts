@@ -48,6 +48,7 @@ export class ConsultationCategoryService {
       data: {
         code: data.code,
         name: data.name,
+        description: data.description,
         colorCode: data.colorCode,
         sortOrder: data.sortOrder ?? 0,
         isActive: data.isActive ?? true,

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
@@ -20,6 +20,7 @@ import {
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -1935,15 +1936,45 @@ export default function PapersPage() {
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>전화번호</Label>
-                <Input {...supplierForm.register('phone')} placeholder="02-000-0000" />
+                <Controller
+                  name="phone"
+                  control={supplierForm.control}
+                  render={({ field }) => (
+                    <PhoneInput
+                      value={field.value || ''}
+                      onChange={field.onChange}
+                      placeholder="02-000-0000"
+                    />
+                  )}
+                />
               </div>
               <div className="space-y-2">
                 <Label>휴대폰</Label>
-                <Input {...supplierForm.register('mobile')} placeholder="010-0000-0000" />
+                <Controller
+                  name="mobile"
+                  control={supplierForm.control}
+                  render={({ field }) => (
+                    <PhoneInput
+                      value={field.value || ''}
+                      onChange={field.onChange}
+                      placeholder="010-0000-0000"
+                    />
+                  )}
+                />
               </div>
               <div className="space-y-2">
                 <Label>팩스</Label>
-                <Input {...supplierForm.register('fax')} placeholder="02-000-0001" />
+                <Controller
+                  name="fax"
+                  control={supplierForm.control}
+                  render={({ field }) => (
+                    <PhoneInput
+                      value={field.value || ''}
+                      onChange={field.onChange}
+                      placeholder="02-000-0001"
+                    />
+                  )}
+                />
               </div>
             </div>
 

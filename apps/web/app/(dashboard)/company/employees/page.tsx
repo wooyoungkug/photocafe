@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -42,6 +43,7 @@ import {
   useUpdateStaff,
   useDeleteStaff,
   useDepartments,
+  useBranches,
   useChangeStaffPassword,
 } from '@/hooks/use-staff';
 import { Staff, CreateStaffRequest, MENU_PERMISSIONS, CATEGORY_PERMISSIONS } from '@/lib/types/staff';
@@ -53,6 +55,7 @@ import {
   Edit,
   Trash2,
   Users,
+  User,
   Building2,
   Shield,
   Key,
@@ -63,12 +66,6 @@ import {
   Globe,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
-// 지점 목록 (임시 - 실제로는 API에서 가져와야 함)
-const BRANCHES = [
-  { id: 'branch1', branchCode: 'HQ', branchName: '본사' },
-  { id: 'branch2', branchCode: 'BR01', branchName: '외주업체' },
-];
 
 // 정산등급 목록
 const SETTLEMENT_GRADES = Array.from({ length: 16 }, (_, i) => ({
@@ -94,6 +91,7 @@ export default function EmployeesPage() {
     departmentId: departmentFilter !== 'all' ? departmentFilter : undefined,
   });
   const { data: departments } = useDepartments();
+  const { data: branches } = useBranches(true); // 활성 지점만 조회
 
   // Mutations
   const createStaff = useCreateStaff();
@@ -130,6 +128,9 @@ export default function EmployeesPage() {
     canChangeOrderAmount: false,
     memberViewScope: 'own',
     salesViewScope: 'own',
+    isPersonal: false,
+    isDepartment: true,
+    isCompany: false,
     menuPermissions: {},
     categoryPermissions: {},
     isActive: true,
@@ -167,6 +168,9 @@ export default function EmployeesPage() {
         canChangeOrderAmount: staff.canChangeOrderAmount,
         memberViewScope: staff.memberViewScope,
         salesViewScope: staff.salesViewScope,
+        isPersonal: staff.isPersonal,
+        isDepartment: staff.isDepartment,
+        isCompany: staff.isCompany,
         menuPermissions: staff.menuPermissions || {},
         categoryPermissions: staff.categoryPermissions || {},
         isActive: staff.isActive,
@@ -199,6 +203,9 @@ export default function EmployeesPage() {
         canChangeOrderAmount: false,
         memberViewScope: 'own',
         salesViewScope: 'own',
+        isPersonal: false,
+        isDepartment: true,
+        isCompany: false,
         menuPermissions: {},
         categoryPermissions: {},
         isActive: true,
@@ -279,6 +286,48 @@ export default function EmployeesPage() {
     }));
   };
 
+  // 메뉴 권한 전체선택/해제
+  const handleMenuPermissionSelectAll = (checked: boolean) => {
+    setFormData((prev) => {
+      const newPermissions: typeof prev.menuPermissions = {};
+      if (checked) {
+        Object.values(MENU_PERMISSIONS).forEach((item) => {
+          newPermissions[item.code] = { menuCode: item.code, canView: true };
+        });
+      }
+      return {
+        ...prev,
+        menuPermissions: newPermissions,
+      };
+    });
+  };
+
+  // 카테고리 권한 전체선택/해제
+  const handleCategoryPermissionSelectAll = (checked: boolean) => {
+    setFormData((prev) => {
+      const newPermissions: typeof prev.categoryPermissions = {};
+      if (checked) {
+        Object.values(CATEGORY_PERMISSIONS).forEach((item) => {
+          newPermissions[item.code] = true;
+        });
+      }
+      return {
+        ...prev,
+        categoryPermissions: newPermissions,
+      };
+    });
+  };
+
+  // 메뉴 권한 전체 선택 여부 확인
+  const isAllMenuPermissionsSelected =
+    Object.keys(MENU_PERMISSIONS).length > 0 &&
+    Object.values(MENU_PERMISSIONS).every((item) => !!formData.menuPermissions?.[item.code]);
+
+  // 카테고리 권한 전체 선택 여부 확인
+  const isAllCategoryPermissionsSelected =
+    Object.keys(CATEGORY_PERMISSIONS).length > 0 &&
+    Object.values(CATEGORY_PERMISSIONS).every((item) => !!formData.categoryPermissions?.[item.code]);
+
   const handleSubmit = async () => {
     if (!formData.staffId.trim()) {
       toast({
@@ -306,6 +355,14 @@ export default function EmployeesPage() {
         password: formData.password || undefined, // 비어있으면 제외
       };
 
+      console.log('=== 직원 정보 저장 데이터 ===');
+      console.log('submitData:', JSON.stringify(submitData, null, 2));
+      console.log('menuPermissions:', submitData.menuPermissions);
+      console.log('categoryPermissions:', submitData.categoryPermissions);
+      console.log('isPersonal:', submitData.isPersonal);
+      console.log('isDepartment:', submitData.isDepartment);
+      console.log('isCompany:', submitData.isCompany);
+
       if (editingStaff) {
         await updateStaff.mutateAsync({ id: editingStaff.id, data: submitData });
         toast({
@@ -321,6 +378,7 @@ export default function EmployeesPage() {
       }
       setIsDialogOpen(false);
     } catch (error) {
+      console.error('직원 정보 저장 오류:', error);
       toast({
         title: '오류',
         description: error instanceof Error ? error.message : '오류가 발생했습니다',
@@ -603,7 +661,7 @@ export default function EmployeesPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">---소속---</SelectItem>
-                      {BRANCHES.map((branch) => (
+                      {branches?.map((branch) => (
                         <SelectItem key={branch.id} value={branch.id}>
                           {branch.branchName}
                         </SelectItem>
@@ -658,10 +716,10 @@ export default function EmployeesPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">전화번호</Label>
-                  <Input
+                  <PhoneInput
                     id="phone"
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    onChange={(value) => setFormData({ ...formData, phone: value })}
                     placeholder="055-000-0000"
                   />
                 </div>
@@ -670,11 +728,11 @@ export default function EmployeesPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="mobile">핸드폰번호</Label>
-                  <Input
+                  <PhoneInput
                     id="mobile"
                     value={formData.mobile}
-                    onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
-                    placeholder="011-000-0000"
+                    onChange={(value) => setFormData({ ...formData, mobile: value })}
+                    placeholder="010-0000-0000"
                   />
                 </div>
                 <div className="space-y-2">
@@ -730,6 +788,67 @@ export default function EmployeesPage() {
                     value={formData.joinDate?.split('T')[0] || ''}
                     onChange={(e) => setFormData({ ...formData, joinDate: e.target.value })}
                   />
+                </div>
+              </div>
+
+              {/* 직원 공개 범위 */}
+              <div className="p-4 border rounded-lg bg-blue-50 dark:bg-blue-950">
+                <h3 className="font-semibold mb-4 text-blue-700 dark:text-blue-300 flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  직원 공개 범위
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  이 직원 정보를 누가 볼 수 있는지 설정합니다. (일정 관리와 동일한 방식)
+                </p>
+                <div className="flex flex-wrap gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <Checkbox
+                      checked={formData.isPersonal}
+                      onCheckedChange={(checked) =>
+                        setFormData({
+                          ...formData,
+                          isPersonal: !!checked,
+                          isDepartment: false,
+                          isCompany: false
+                        })
+                      }
+                    />
+                    <User className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm font-medium">개인</span>
+                    <span className="text-xs text-muted-foreground">(본인만)</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <Checkbox
+                      checked={formData.isDepartment}
+                      onCheckedChange={(checked) =>
+                        setFormData({
+                          ...formData,
+                          isPersonal: false,
+                          isDepartment: !!checked,
+                          isCompany: false
+                        })
+                      }
+                    />
+                    <Building2 className="h-4 w-4 text-blue-500" />
+                    <span className="text-sm font-medium">부서</span>
+                    <span className="text-xs text-muted-foreground">(같은 부서)</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <Checkbox
+                      checked={formData.isCompany}
+                      onCheckedChange={(checked) =>
+                        setFormData({
+                          ...formData,
+                          isPersonal: false,
+                          isDepartment: false,
+                          isCompany: !!checked
+                        })
+                      }
+                    />
+                    <Globe className="h-4 w-4 text-purple-500" />
+                    <span className="text-sm font-medium">전체</span>
+                    <span className="text-xs text-muted-foreground">(모든 직원)</span>
+                  </label>
                 </div>
               </div>
 
@@ -971,7 +1090,19 @@ export default function EmployeesPage() {
             <TabsContent value="access" className="space-y-4 mt-4">
               {/* 메뉴 접근 권한 */}
               <div className="p-4 border rounded-lg">
-                <h3 className="font-semibold mb-4">메뉴 접근 권한</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold">메뉴 접근 권한</h3>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="menu-select-all"
+                      checked={isAllMenuPermissionsSelected}
+                      onCheckedChange={(checked) => handleMenuPermissionSelectAll(checked === true)}
+                    />
+                    <Label htmlFor="menu-select-all" className="text-sm font-medium text-blue-600 cursor-pointer">
+                      전체선택
+                    </Label>
+                  </div>
+                </div>
                 <p className="text-xs text-muted-foreground mb-4">
                   ※ 하위메뉴(검정 글씨)선택 하실 때는 앞쪽에 상위메뉴(파란글씨)를 체크해주세요.
                 </p>
@@ -995,7 +1126,19 @@ export default function EmployeesPage() {
 
               {/* 카테고리 접근 권한 */}
               <div className="p-4 border rounded-lg">
-                <h3 className="font-semibold mb-4">카테고리 접근 권한</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold">카테고리 접근 권한</h3>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="category-select-all"
+                      checked={isAllCategoryPermissionsSelected}
+                      onCheckedChange={(checked) => handleCategoryPermissionSelectAll(checked === true)}
+                    />
+                    <Label htmlFor="category-select-all" className="text-sm font-medium text-blue-600 cursor-pointer">
+                      전체선택
+                    </Label>
+                  </div>
+                </div>
                 <div className="grid grid-cols-5 gap-4">
                   {Object.entries(CATEGORY_PERMISSIONS).map(([key, item]) => (
                     <div key={key} className="flex items-center gap-2">

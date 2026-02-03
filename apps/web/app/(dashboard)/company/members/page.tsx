@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -109,6 +110,7 @@ export default function MembersPage() {
     address: '',
     addressDetail: '',
     groupId: '',
+    memberType: 'individual',
     creditGrade: 'B',
     paymentTerms: 30,
     status: 'active',
@@ -129,6 +131,7 @@ export default function MembersPage() {
         address: member.address || '',
         addressDetail: member.addressDetail || '',
         groupId: member.groupId || '',
+        memberType: member.memberType || 'individual',
         creditGrade: member.creditGrade || 'B',
         paymentTerms: member.paymentTerms || 30,
         status: member.status || 'active',
@@ -149,6 +152,7 @@ export default function MembersPage() {
           address: '',
           addressDetail: '',
           groupId: '',
+          memberType: 'individual',
           creditGrade: 'B',
           paymentTerms: 30,
           status: 'active',
@@ -314,10 +318,10 @@ export default function MembersPage() {
                 <Table className="table-fixed w-full">
                   <TableHeader>
                     <TableRow className="bg-slate-50/80">
-                      <TableHead className="w-[14%]">회원명</TableHead>
-                      <TableHead className="w-[17%]">이메일</TableHead>
-                      <TableHead className="w-[10%]">연락처</TableHead>
-                      <TableHead className="w-[9%]">그룹</TableHead>
+                      <TableHead className="w-[14%] text-center">회원명</TableHead>
+                      <TableHead className="w-[17%] text-center">이메일</TableHead>
+                      <TableHead className="w-[10%] text-center">연락처</TableHead>
+                      <TableHead className="w-[9%] text-center">그룹</TableHead>
                       <TableHead className="w-[9%] text-center whitespace-nowrap">등록일</TableHead>
                       <TableHead className="w-[6%] text-center whitespace-nowrap">상담</TableHead>
                       <TableHead className="w-[6%] text-center whitespace-nowrap">미완료</TableHead>
@@ -337,19 +341,19 @@ export default function MembersPage() {
                     ) : (
                       membersData?.data?.map((member) => (
                         <TableRow key={member.id} className="hover:bg-slate-50/50 transition-colors">
-                          <TableCell>
+                          <TableCell className="text-center">
                             <div className="font-semibold">{member.clientName}</div>
                             {member.representative && (
                               <div className="text-xs text-muted-foreground">{member.representative}</div>
                             )}
                           </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
+                          <TableCell className="text-sm text-muted-foreground text-center">
                             {member.email || '-'}
                           </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
+                          <TableCell className="text-sm text-muted-foreground text-center">
                             {member.mobile || member.phone || '-'}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="text-center">
                             {member.group ? (
                               <span className="text-sm text-blue-600">{member.group.groupName}</span>
                             ) : (
@@ -485,6 +489,36 @@ export default function MembersPage() {
                   <User className="h-4 w-4" />
                   고객 정보
                 </h3>
+
+                {/* 회원 유형 선택 */}
+                <div className="mb-6 p-4 bg-white rounded-lg border-2 border-blue-200">
+                  <Label className="text-sm font-semibold text-blue-900 mb-3 block">회원 유형 선택 *</Label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="memberType"
+                        value="individual"
+                        checked={formData.memberType === 'individual'}
+                        onChange={(e) => setFormData({ ...formData, memberType: e.target.value as 'individual' | 'business', groupId: '' })}
+                        className="w-4 h-4 text-blue-600"
+                      />
+                      <span className="text-sm font-medium">개인고객</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="memberType"
+                        value="business"
+                        checked={formData.memberType === 'business'}
+                        onChange={(e) => setFormData({ ...formData, memberType: e.target.value as 'individual' | 'business', groupId: '' })}
+                        className="w-4 h-4 text-blue-600"
+                      />
+                      <span className="text-sm font-medium">스튜디오/사업자</span>
+                    </label>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="clientCode" className="text-sm font-medium">회원 코드 *</Label>
@@ -497,78 +531,131 @@ export default function MembersPage() {
                       className={editingMember ? "bg-white" : "bg-slate-50 text-blue-600 font-mono"}
                     />
                   </div>
+
                   <div className="space-y-2">
-                    <Label htmlFor="clientName" className="text-sm font-medium">회원명 *</Label>
+                    <Label htmlFor="clientName" className="text-sm font-medium">
+                      {formData.memberType === 'business' ? '상호(스튜디오) *' : '회원명 *'}
+                    </Label>
                     <Input
                       id="clientName"
                       value={formData.clientName}
                       onChange={(e) => setFormData({ ...formData, clientName: e.target.value })}
-                      placeholder="홍길동"
+                      placeholder={formData.memberType === 'business' ? '포토스튜디오' : '홍길동'}
                       className="bg-white"
                     />
                   </div>
+
+                  {/* 개인고객: 상호, 휴대폰번호 표시 */}
+                  {formData.memberType === 'individual' && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="representative" className="text-sm font-medium">상호(스튜디오)</Label>
+                        <Input
+                          id="representative"
+                          value={formData.representative}
+                          onChange={(e) => setFormData({ ...formData, representative: e.target.value })}
+                          placeholder="풀로우스튜디오"
+                          className="bg-white"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="mobile" className="text-sm font-medium">휴대폰번호</Label>
+                        <PhoneInput
+                          id="mobile"
+                          value={formData.mobile}
+                          onChange={(value) => setFormData({ ...formData, mobile: value })}
+                          placeholder="010-1234-5678"
+                          className="bg-white"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="email" className="text-sm font-medium">이메일</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          placeholder="contact@example.com"
+                          className="bg-white"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {/* 스튜디오/사업자 전용 필드 */}
+                  {formData.memberType === 'business' && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="businessNumber" className="text-sm font-medium">사업자등록번호</Label>
+                        <Input
+                          id="businessNumber"
+                          value={formData.businessNumber}
+                          onChange={(e) => setFormData({ ...formData, businessNumber: e.target.value })}
+                          placeholder="123-45-67890"
+                          className="bg-white"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="representative" className="text-sm font-medium">대표자명</Label>
+                        <Input
+                          id="representative"
+                          value={formData.representative}
+                          onChange={(e) => setFormData({ ...formData, representative: e.target.value })}
+                          placeholder="홍길동"
+                          className="bg-white"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="phone" className="text-sm font-medium">자택(긴급)연락처</Label>
+                        <PhoneInput
+                          id="phone"
+                          value={formData.phone}
+                          onChange={(value) => setFormData({ ...formData, phone: value })}
+                          placeholder="02-1234-5678"
+                          className="bg-white"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="mobile" className="text-sm font-medium">휴대폰번호</Label>
+                        <PhoneInput
+                          id="mobile"
+                          value={formData.mobile}
+                          onChange={(value) => setFormData({ ...formData, mobile: value })}
+                          placeholder="010-1234-5678"
+                          className="bg-white"
+                        />
+                      </div>
+                      <div className="col-span-2 space-y-2">
+                        <Label htmlFor="email" className="text-sm font-medium">이메일</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          placeholder="contact@example.com"
+                          className="bg-white"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {/* 회원 그룹 선택 (기본값 자동 할당, 수정 가능) */}
                   <div className="space-y-2">
-                    <Label htmlFor="businessNumber" className="text-sm font-medium">사업자등록번호</Label>
-                    <Input
-                      id="businessNumber"
-                      value={formData.businessNumber}
-                      onChange={(e) => setFormData({ ...formData, businessNumber: e.target.value })}
-                      placeholder="123-45-67890"
-                      className="bg-white"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="representative" className="text-sm font-medium">대표자명</Label>
-                    <Input
-                      id="representative"
-                      value={formData.representative}
-                      onChange={(e) => setFormData({ ...formData, representative: e.target.value })}
-                      placeholder="홍길동"
-                      className="bg-white"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone" className="text-sm font-medium">전화번호</Label>
-                    <Input
-                      id="phone"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      placeholder="02-1234-5678"
-                      className="bg-white"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="mobile" className="text-sm font-medium">휴대폰번호</Label>
-                    <Input
-                      id="mobile"
-                      value={formData.mobile}
-                      onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
-                      placeholder="010-1234-5678"
-                      className="bg-white"
-                    />
-                  </div>
-                  <div className="col-span-2 space-y-2">
-                    <Label htmlFor="email" className="text-sm font-medium">이메일</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      placeholder="contact@example.com"
-                      className="bg-white"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="groupId" className="text-sm font-medium">회원 그룹</Label>
+                    <Label htmlFor="groupId" className="text-sm font-medium">
+                      회원 그룹 {!editingMember && <span className="text-xs text-blue-500">(기본: {formData.memberType === 'business' ? '스튜디오회원' : '일반고객그룹'})</span>}
+                    </Label>
                     <Select
-                      value={formData.groupId || 'none'}
-                      onValueChange={(v) => setFormData({ ...formData, groupId: v === 'none' ? '' : v })}
+                      value={formData.groupId || 'auto'}
+                      onValueChange={(v) => setFormData({ ...formData, groupId: v === 'auto' ? '' : v })}
                     >
                       <SelectTrigger className="bg-white">
                         <SelectValue placeholder="그룹 선택" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">그룹 없음</SelectItem>
+                        <SelectItem value="auto">
+                          <span className="text-blue-600">자동 할당</span>
+                          <span className="text-gray-400 ml-1 text-xs">({formData.memberType === 'business' ? '스튜디오회원' : '일반고객그룹'})</span>
+                        </SelectItem>
                         {groupsData?.data?.map((group) => (
                           <SelectItem key={group.id} value={group.id}>
                             {group.groupName} (일반 {group.generalDiscount}%)
@@ -832,11 +919,10 @@ export default function MembersPage() {
                             <div className="flex items-center gap-2 mb-1">
                               <Badge
                                 variant="outline"
-                                className={`text-xs ${
-                                  consultation.category?.colorCode
-                                    ? CONSULTATION_CATEGORY_COLORS[consultation.category.colorCode]
-                                    : CONSULTATION_CATEGORY_COLORS.gray
-                                }`}
+                                className={`text-xs ${consultation.category?.colorCode
+                                  ? CONSULTATION_CATEGORY_COLORS[consultation.category.colorCode]
+                                  : CONSULTATION_CATEGORY_COLORS.gray
+                                  }`}
                               >
                                 {consultation.category?.name}
                               </Badge>

@@ -16,6 +16,11 @@ export class CreateConsultationCategoryDto {
   @IsString()
   name: string;
 
+  @ApiPropertyOptional({ description: '분류 설명', example: '품질 관련 클레임' })
+  @IsString()
+  @IsOptional()
+  description?: string;
+
   @ApiPropertyOptional({ description: '색상 코드', example: 'red' })
   @IsString()
   @IsOptional()
@@ -43,6 +48,11 @@ export class UpdateConsultationCategoryDto {
   @IsString()
   @IsOptional()
   name?: string;
+
+  @ApiPropertyOptional({ description: '분류 설명', example: '품질 관련 클레임' })
+  @IsString()
+  @IsOptional()
+  description?: string;
 
   @ApiPropertyOptional({ description: '색상 코드', example: 'red' })
   @IsString()

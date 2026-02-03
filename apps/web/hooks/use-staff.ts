@@ -268,3 +268,24 @@ export function useDeleteDepartment() {
     },
   });
 }
+
+// ==================== 지점 관리 ====================
+
+const BRANCHES_KEY = 'branches';
+
+export interface Branch {
+  id: string;
+  branchCode: string;
+  branchName: string;
+  isHeadquarters: boolean;
+  address?: string;
+  phone?: string;
+  isActive: boolean;
+}
+
+export function useBranches(isActive?: boolean) {
+  return useQuery({
+    queryKey: [BRANCHES_KEY, isActive],
+    queryFn: () => api.get<Branch[]>('/branches', isActive !== undefined ? { isActive } : undefined),
+  });
+}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   MessageSquare,
@@ -8,6 +8,7 @@ import {
   User,
   Search,
   Phone,
+  Smartphone,
   Mail,
   Tag,
   Calendar,
@@ -26,6 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -67,19 +69,32 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { CreateConsultationDto, ConsultationPriority } from '@/lib/types/cs';
 import { Client } from '@/lib/types/client';
+import { useAuthStore } from '@/stores/auth-store';
 import Link from 'next/link';
 
 export default function NewConsultationPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { user } = useAuthStore();
 
   const [formData, setFormData] = useState<Partial<CreateConsultationDto>>({
     title: '',
     content: '',
     priority: 'normal',
-    counselorId: 'staff-1', // TODO: 실제 로그인한 직원 ID
-    counselorName: '상담원', // TODO: 실제 로그인한 직원명
+    counselorId: '',
+    counselorName: '',
   });
+
+  // 로그인된 사용자 정보로 담당자 설정
+  useEffect(() => {
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        counselorId: user.id,
+        counselorName: user.name,
+      }));
+    }
+  }, [user]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [clientSearch, setClientSearch] = useState('');
@@ -409,11 +424,11 @@ export default function NewConsultationPage() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="nonMemberPhone">연락처 *</Label>
-                      <Input
+                      <PhoneInput
                         id="nonMemberPhone"
                         placeholder="010-0000-0000"
                         value={nonMemberInfo.phone}
-                        onChange={(e) => setNonMemberInfo(prev => ({ ...prev, phone: e.target.value }))}
+                        onChange={(value) => setNonMemberInfo(prev => ({ ...prev, phone: value }))}
                       />
                     </div>
                   </div>
@@ -446,10 +461,22 @@ export default function NewConsultationPage() {
                         <Badge variant="outline">{selectedClient.clientCode}</Badge>
                       </div>
                       <div className="space-y-1 text-sm text-muted-foreground">
+                        {selectedClient.mobile && (
+                          <div className="flex items-center gap-2">
+                            <Smartphone className="h-3.5 w-3.5" />
+                            <a href={`tel:${selectedClient.mobile}`} className="text-blue-600 hover:underline">
+                              {selectedClient.mobile}
+                            </a>
+                            <span className="text-xs text-muted-foreground">(휴대폰)</span>
+                          </div>
+                        )}
                         {selectedClient.phone && (
                           <div className="flex items-center gap-2">
                             <Phone className="h-3.5 w-3.5" />
-                            {selectedClient.phone}
+                            <a href={`tel:${selectedClient.phone}`} className="text-blue-600 hover:underline">
+                              {selectedClient.phone}
+                            </a>
+                            <span className="text-xs text-muted-foreground">(전화)</span>
                           </div>
                         )}
                         {selectedClient.email && (

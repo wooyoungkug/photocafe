@@ -219,7 +219,13 @@
       "Bash(DATA='{\"\"papers\"\":[{\"\"name\"\":\"\"Snow 180g\"\",\"\"type\"\":\"\"sheet\"\",\"\"printMethod\"\":\"\"indigo\"\",\"\"grammage\"\":180,\"\"price\"\":0,\"\"isDefault\"\":true,\"\"sortOrder\"\":0}]}')",
       "Bash(\"/c/Program Files/PostgreSQL/16/bin/pg_dump.exe\" -U postgres -d printing_erp -f /d/backup_20250202/printing_erp_20250202.sql)",
       "Bash(code:*)",
-      "Bash(code --uninstall-extension:*)"
+      "Bash(code --uninstall-extension:*)",
+      "Bash(\"C:/Program Files/PostgreSQL/16/bin/pg_dump.exe\" -U postgres -d printing_erp -F c -f \"C:/Users/WOO/Desktop/printing_erp_backup.dump\")",
+      "Bash(set:*)",
+      "Bash(\"C:/Program Files/PostgreSQL/16/bin/pg_restore.exe\" -U postgres -h 192.168.0.67 -p 5433 -d postgres --clean --if-exists -v \"C:/Users/WOO/Desktop/printing_erp_backup.dump\")",
+      "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -h 192.168.0.67 -p 5433 -d postgres -c \"SELECT 1\")",
+      "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -h 1.212.201.147 -p 5433 -d postgres -c \"SELECT version\\(\\);\")",
+      "Bash(\"C:/Program Files/PostgreSQL/16/bin/pg_dump.exe\" -U postgres -d printing_erp -f \"C:/Users/WOO/Desktop/printing_erp_backup.sql\")"
     ]
   }
 }

@@ -17,7 +17,7 @@ import {
 
 @Injectable()
 export class StaffService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   // ==================== 직원 CRUD ====================
 
@@ -60,7 +60,7 @@ export class StaffService {
     ]);
 
     // 비밀번호 필드 제외
-    const sanitizedData = data.map(({ password, ...rest }: { password: string; [key: string]: any }) => rest);
+    const sanitizedData = data.map(({ password, ...rest }: { password: string;[key: string]: any }) => rest);
 
     return {
       data: sanitizedData,
@@ -152,6 +152,9 @@ export class StaffService {
       canChangeOrderAmount: dto.canChangeOrderAmount ?? false,
       memberViewScope: dto.memberViewScope ?? 'own',
       salesViewScope: dto.salesViewScope ?? 'own',
+      isPersonal: dto.isPersonal ?? false,
+      isDepartment: dto.isDepartment ?? true,
+      isCompany: dto.isCompany ?? false,
       menuPermissions: dto.menuPermissions ? JSON.parse(JSON.stringify(dto.menuPermissions)) : Prisma.JsonNull,
       categoryPermissions: dto.categoryPermissions ? JSON.parse(JSON.stringify(dto.categoryPermissions)) : Prisma.JsonNull,
       processPermissions: dto.processPermissions ? JSON.parse(JSON.stringify(dto.processPermissions)) : Prisma.JsonNull,
@@ -230,6 +233,9 @@ export class StaffService {
     if (dto.canChangeOrderAmount !== undefined) data.canChangeOrderAmount = dto.canChangeOrderAmount;
     if (dto.memberViewScope !== undefined) data.memberViewScope = dto.memberViewScope;
     if (dto.salesViewScope !== undefined) data.salesViewScope = dto.salesViewScope;
+    if (dto.isPersonal !== undefined) data.isPersonal = dto.isPersonal;
+    if (dto.isDepartment !== undefined) data.isDepartment = dto.isDepartment;
+    if (dto.isCompany !== undefined) data.isCompany = dto.isCompany;
     if (dto.isActive !== undefined) data.isActive = dto.isActive;
     if (dto.adminMemo !== undefined) data.adminMemo = dto.adminMemo;
     if (dto.joinDate !== undefined) data.joinDate = new Date(dto.joinDate);
@@ -253,12 +259,12 @@ export class StaffService {
 
     // 지점 연결
     if (dto.branchId !== undefined) {
-      data.branch = dto.branchId ? { connect: { id: dto.branchId } } : { disconnect: true };
+      data.branch = dto.branchId && dto.branchId.trim() !== '' ? { connect: { id: dto.branchId } } : { disconnect: true };
     }
 
     // 부서 연결
     if (dto.departmentId !== undefined) {
-      data.department = dto.departmentId ? { connect: { id: dto.departmentId } } : { disconnect: true };
+      data.department = dto.departmentId && dto.departmentId.trim() !== '' ? { connect: { id: dto.departmentId } } : { disconnect: true };
     }
 
     const staff = await this.prisma.staff.update({

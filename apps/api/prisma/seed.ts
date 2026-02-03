@@ -362,10 +362,99 @@ async function seedJdfIntents() {
   console.log('ProofingIntent seeded:', proofingIntents.length, 'items');
 }
 
+// ==================== 지점 및 부서 시드 데이터 ====================
+
+async function seedBranchesAndDepartments() {
+  // 지점 생성
+  const existingBranch = await prisma.branch.findFirst({
+    where: { branchCode: 'HQ' },
+  });
+
+  let headquarters;
+  if (!existingBranch) {
+    headquarters = await prisma.branch.create({
+      data: {
+        branchCode: 'HQ',
+        branchName: '본사',
+        isHeadquarters: true,
+        address: '',
+        phone: '',
+        isActive: true,
+      },
+    });
+    console.log('Branch created: 본사');
+  } else {
+    headquarters = existingBranch;
+    console.log('Branch already exists: 본사');
+  }
+
+  // 부서 생성
+  const departments = [
+    { code: 'MGMT', name: '관리팀', sortOrder: 1 },
+    { code: 'SALES', name: '영업팀', sortOrder: 2 },
+    { code: 'PROD', name: '생산팀', sortOrder: 3 },
+    { code: 'DESIGN', name: '디자인팀', sortOrder: 4 },
+    { code: 'CS', name: '고객지원팀', sortOrder: 5 },
+  ];
+
+  for (const dept of departments) {
+    await prisma.department.upsert({
+      where: { code: dept.code },
+      update: {},
+      create: {
+        code: dept.code,
+        name: dept.name,
+        sortOrder: dept.sortOrder,
+        isActive: true,
+      },
+    });
+  }
+  console.log(`Departments seeded: ${departments.length} items`);
+}
+
+// ==================== 거래처 그룹 시드 데이터 ====================
+
+async function seedClientGroups() {
+  const existingGroups = await prisma.clientGroup.count();
+  if (existingGroups > 0) {
+    console.log(`Client groups already exist (${existingGroups} items)`);
+    return;
+  }
+
+  // 지점 찾기
+  const headquarters = await prisma.branch.findFirst({
+    where: { branchCode: 'HQ' },
+  });
+
+  if (!headquarters) {
+    console.log('No headquarters found, skipping client groups');
+    return;
+  }
+
+  const groups = [
+    { groupCode: 'INDIVIDUAL', groupName: '일반고객그룹', generalDiscount: 100, premiumDiscount: 100, importedDiscount: 100 },
+    { groupCode: 'STUDIO', groupName: '스튜디오회원', generalDiscount: 90, premiumDiscount: 95, importedDiscount: 95 },
+    { groupCode: 'VIP', groupName: 'VIP회원', generalDiscount: 85, premiumDiscount: 90, importedDiscount: 90 },
+  ];
+
+  for (const group of groups) {
+    await prisma.clientGroup.create({
+      data: {
+        ...group,
+        branchId: headquarters.id,
+        isActive: true,
+      },
+    });
+  }
+  console.log(`Client groups seeded: ${groups.length} items`);
+}
+
 async function main() {
   console.log('Starting seed...');
 
   await seedUsers();
+  await seedBranchesAndDepartments();
+  await seedClientGroups();
   await seedCategories();
   await seedSpecifications();
   await seedFoilColors();

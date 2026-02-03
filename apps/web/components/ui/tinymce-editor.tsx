@@ -1,8 +1,24 @@
 'use client';
 
 import { useRef } from 'react';
-import { Editor } from '@tinymce/tinymce-react';
+import dynamic from 'next/dynamic';
 import { cn } from '@/lib/utils';
+
+// TinyMCE를 동적으로 로드하여 초기 번들 크기 감소
+const Editor = dynamic(
+  () => import('@tinymce/tinymce-react').then((mod) => ({ default: mod.Editor })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center h-[400px] border rounded-lg bg-muted/30">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+          <p className="text-sm text-muted-foreground">에디터 로딩 중...</p>
+        </div>
+      </div>
+    ),
+  }
+);
 
 interface TinyMCEEditorProps {
   value: string;

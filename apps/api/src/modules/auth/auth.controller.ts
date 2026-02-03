@@ -25,7 +25,9 @@ import {
   RegisterIndividualDto,
   RegisterStudioDto,
   ClientLoginDto,
+  AdminLoginDto,
 } from './dto/auth.dto';
+
 
 @ApiTags('auth')
 @Controller('auth')
@@ -157,4 +159,17 @@ export class AuthController {
 
     return res.redirect(redirectUrl);
   }
+
+  // ========== 관리자(직원) 로그인 ==========
+
+  @Post('admin/login')
+  @ApiOperation({ summary: '관리자(직원) 로그인' })
+  async adminLogin(@Body() dto: AdminLoginDto) {
+    const staff = await this.authService.validateStaff(dto.staffId, dto.password);
+    if (!staff) {
+      throw new UnauthorizedException('직원 ID 또는 비밀번호가 일치하지 않습니다');
+    }
+    return this.authService.loginStaff(staff);
+  }
 }
+

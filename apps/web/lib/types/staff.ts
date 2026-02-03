@@ -102,6 +102,11 @@ export interface Staff {
   memberViewScope: ViewScope;
   salesViewScope: ViewScope;
 
+  // 직원 공개 범위 (일정 관리와 동일한 방식)
+  isPersonal: boolean;    // 개인: 본인만 볼 수 있음
+  isDepartment: boolean;  // 부서: 같은 부서 직원들이 볼 수 있음
+  isCompany: boolean;     // 전체: 모든 직원이 볼 수 있음
+
   // 권한 설정 (JSON)
   menuPermissions?: Record<string, MenuPermission>;
   categoryPermissions?: Record<string, boolean>;
@@ -154,6 +159,9 @@ export interface CreateStaffRequest {
   canChangeOrderAmount?: boolean;
   memberViewScope?: ViewScope;
   salesViewScope?: ViewScope;
+  isPersonal?: boolean;
+  isDepartment?: boolean;
+  isCompany?: boolean;
   menuPermissions?: Record<string, MenuPermission>;
   categoryPermissions?: Record<string, boolean>;
   processPermissions?: Record<string, ProcessPermission>;

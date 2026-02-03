@@ -414,6 +414,16 @@ export default function ConsultationsPage() {
                             <div className="flex flex-col">
                               <span className="font-medium text-sm">{consultation.client.clientName}</span>
                               <span className="text-xs text-muted-foreground">{consultation.client.clientCode}</span>
+                              {(consultation.client.mobile || consultation.client.phone) && (
+                                <a
+                                  href={`tel:${(consultation.client.mobile || consultation.client.phone || '').replace(/-/g, '')}`}
+                                  className="inline-flex items-center gap-1 text-xs text-green-600 hover:text-green-700 mt-0.5"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Phone className="h-3 w-3" />
+                                  {consultation.client.mobile || consultation.client.phone}
+                                </a>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell className="text-sm">{consultation.counselorName}</TableCell>
@@ -537,6 +547,20 @@ export default function ConsultationsPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                    {/* 선택된 고객 전화번호 표시 */}
+                    {formData.clientId && (() => {
+                      const selectedClient = clientsData?.data?.find(c => c.id === formData.clientId);
+                      const phone = selectedClient?.mobile || selectedClient?.phone;
+                      return phone ? (
+                        <a
+                          href={`tel:${phone.replace(/-/g, '')}`}
+                          className="inline-flex items-center gap-2 mt-2 px-3 py-2 bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg text-green-700 transition-colors"
+                        >
+                          <Phone className="h-4 w-4" />
+                          <span className="font-medium">{phone}</span>
+                        </a>
+                      ) : null;
+                    })()}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="categoryId">상담 분류 *</Label>

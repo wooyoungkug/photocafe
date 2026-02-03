@@ -10,6 +10,7 @@ import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -234,10 +235,10 @@ export default function OrderPage() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="phone">연락처 *</Label>
-                      <Input
+                      <PhoneInput
                         id="phone"
                         value={shippingInfo.phone}
-                        onChange={(e) => setShippingInfo(prev => ({ ...prev, phone: e.target.value }))}
+                        onChange={(value) => setShippingInfo(prev => ({ ...prev, phone: value }))}
                         placeholder="010-0000-0000"
                         required
                       />

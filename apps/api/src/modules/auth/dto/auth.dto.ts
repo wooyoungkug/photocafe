@@ -208,3 +208,16 @@ export class ClientLoginDto {
   @MinLength(6, { message: '비밀번호는 최소 6자 이상이어야 합니다' })
   password: string;
 }
+
+// 관리자(직원) 로그인 DTO
+export class AdminLoginDto {
+  @ApiProperty({ example: 'smsl1122', description: '직원 ID' })
+  @IsString()
+  @IsNotEmpty({ message: '직원 ID는 필수입니다' })
+  staffId: string;
+
+  @ApiProperty({ example: 'password123', description: '비밀번호' })
+  @IsString()
+  @MinLength(4, { message: '비밀번호는 최소 4자 이상이어야 합니다' })
+  password: string;
+}

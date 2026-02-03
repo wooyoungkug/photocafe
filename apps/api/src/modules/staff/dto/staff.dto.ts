@@ -172,6 +172,21 @@ export class CreateStaffDto {
   @IsOptional()
   salesViewScope?: ViewScope;
 
+  @ApiPropertyOptional({ description: '직원 공개 범위: 개인 (본인만)', default: false })
+  @IsBoolean()
+  @IsOptional()
+  isPersonal?: boolean;
+
+  @ApiPropertyOptional({ description: '직원 공개 범위: 부서 (같은 부서)', default: true })
+  @IsBoolean()
+  @IsOptional()
+  isDepartment?: boolean;
+
+  @ApiPropertyOptional({ description: '직원 공개 범위: 전체 (모든 직원)', default: false })
+  @IsBoolean()
+  @IsOptional()
+  isCompany?: boolean;
+
   @ApiPropertyOptional({ description: '메뉴 접근 권한' })
   @IsObject()
   @IsOptional()
@@ -203,7 +218,7 @@ export class CreateStaffDto {
   joinDate?: string;
 }
 
-export class UpdateStaffDto extends PartialType(CreateStaffDto) {}
+export class UpdateStaffDto extends PartialType(CreateStaffDto) { }
 
 export class StaffChangePasswordDto {
   @ApiProperty({ description: '새 비밀번호 (최소 4자)' })
@@ -278,4 +293,4 @@ export class CreateDepartmentDto {
   isActive?: boolean;
 }
 
-export class UpdateDepartmentDto extends PartialType(CreateDepartmentDto) {}
+export class UpdateDepartmentDto extends PartialType(CreateDepartmentDto) { }

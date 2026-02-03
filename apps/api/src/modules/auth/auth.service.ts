@@ -379,4 +379,72 @@ export class AuthService {
 
     return client;
   }
+
+  // ========== 관리자(직원) 로그인 ==========
+
+  // 직원 인증 (staffId + 비밀번호)
+  async validateStaff(staffId: string, password: string) {
+    const staff = await this.prisma.staff.findUnique({
+      where: { staffId },
+      include: {
+        branch: true,
+        department: true,
+      },
+    });
+
+    if (!staff) {
+      return null;
+    }
+
+    // canLoginAsManager 권한 확인
+    if (!staff.canLoginAsManager) {
+      throw new UnauthorizedException('관리자 로그인 권한이 없습니다');
+    }
+
+    // 활성 상태 확인
+    if (!staff.isActive) {
+      throw new UnauthorizedException('비활성화된 계정입니다');
+    }
+
+    // 비밀번호 확인
+    const isValid = await bcrypt.compare(password, staff.password);
+    if (!isValid) {
+      return null;
+    }
+
+    return staff;
+  }
+
+  // 직원 로그인 처리
+  async loginStaff(staff: any) {
+    const payload = {
+      sub: staff.id,
+      staffId: staff.staffId,
+      name: staff.name,
+      role: 'admin',
+      type: 'staff', // User와 구분하기 위한 타입
+      branchId: staff.branchId,
+      departmentId: staff.departmentId,
+    };
+
+    const accessToken = this.jwtService.sign(payload);
+    const refreshToken = this.jwtService.sign(payload, {
+      expiresIn: '7d' as const,
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: staff.id,
+        staffId: staff.staffId,
+        name: staff.name,
+        role: 'admin',
+        email: staff.email,
+        branch: staff.branch,
+        department: staff.department,
+      },
+    };
+  }
 }
+

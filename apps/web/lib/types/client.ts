@@ -36,6 +36,7 @@ export interface Client {
   addressDetail?: string;
   groupId?: string;
   group?: ClientGroup;
+  memberType?: 'individual' | 'business';
   creditGrade?: 'A' | 'B' | 'C' | 'D';
   paymentTerms?: number;
   status: 'active' | 'inactive' | 'suspended';
@@ -60,6 +61,7 @@ export interface CreateClientDto {
   address?: string;
   addressDetail?: string;
   groupId?: string;
+  memberType?: 'individual' | 'business';
   creditGrade?: 'A' | 'B' | 'C' | 'D';
   paymentTerms?: number;
   status?: 'active' | 'inactive' | 'suspended';

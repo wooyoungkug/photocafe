@@ -161,6 +161,11 @@ model Staff {
   // 매출 조회 범위
   salesViewScope        String   @default("own")   // own: 본인거래처만, all: 전체
 
+  // 직원 공개 범위 (일정 관리와 동일한 방식)
+  isPersonal            Boolean  @default(false)   // 개인: 본인만 볼 수 있음
+  isDepartment          Boolean  @default(true)    // 부서: 같은 부서 직원들이 볼 수 있음
+  isCompany             Boolean  @default(false)   // 전체: 모든 직원이 볼 수 있음
+
   // 메뉴/카테고리별 접근 권한 (JSON)
   menuPermissions       Json?    // 메뉴별 접근 권한
   categoryPermissions   Json?    // 카테고리별 접근 권한
@@ -1564,6 +1569,7 @@ model ConsultationCategory {
   id          String   @id @default(cuid())
   code        String   @unique  // claim_quality, claim_delivery, etc.
   name        String             // 품질 클레임, 배송 클레임, etc.
+  description String?            // 분류 설명
   colorCode   String?            // 분류별 색상 코드 (red, orange, yellow, etc.)
   sortOrder   Int      @default(0)
   isActive    Boolean  @default(true)

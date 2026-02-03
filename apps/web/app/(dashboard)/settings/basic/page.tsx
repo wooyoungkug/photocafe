@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -278,19 +279,19 @@ export default function BasicSettingsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="phone">대표전화</Label>
-                  <Input
+                  <PhoneInput
                     id="phone"
                     value={companyInfo.phone}
-                    onChange={(e) => setCompanyInfo({ ...companyInfo, phone: e.target.value })}
+                    onChange={(value) => setCompanyInfo({ ...companyInfo, phone: value })}
                     placeholder="02-1234-5678"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="fax">팩스번호</Label>
-                  <Input
+                  <PhoneInput
                     id="fax"
                     value={companyInfo.fax}
-                    onChange={(e) => setCompanyInfo({ ...companyInfo, fax: e.target.value })}
+                    onChange={(value) => setCompanyInfo({ ...companyInfo, fax: value })}
                     placeholder="02-1234-5679"
                   />
                 </div>
@@ -306,10 +307,10 @@ export default function BasicSettingsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="cs_phone">고객센터 전화</Label>
-                  <Input
+                  <PhoneInput
                     id="cs_phone"
                     value={companyInfo.csPhone}
-                    onChange={(e) => setCompanyInfo({ ...companyInfo, csPhone: e.target.value })}
+                    onChange={(value) => setCompanyInfo({ ...companyInfo, csPhone: value })}
                     placeholder="1588-1234"
                   />
                 </div>

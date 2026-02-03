@@ -108,6 +108,18 @@ export class ClientService {
   }
 
   async create(data: Prisma.ClientCreateInput) {
+    // 자동 그룹 할당: group이 없고 memberType이 있는 경우
+    if (!data.group && data.memberType) {
+      const groupName = data.memberType === 'individual' ? '일반고객그룹' : '스튜디오회원';
+      const defaultGroup = await this.prisma.clientGroup.findFirst({
+        where: { groupName },
+      });
+
+      if (defaultGroup) {
+        data.group = { connect: { id: defaultGroup.id } };
+      }
+    }
+
     return this.prisma.client.create({
       data,
       include: { group: true },

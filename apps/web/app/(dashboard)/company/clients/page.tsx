@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -583,19 +584,19 @@ export default function ClientsPage() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="phone">전화번호</Label>
-                    <Input
+                    <PhoneInput
                       id="phone"
                       value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      onChange={(value) => setFormData({ ...formData, phone: value })}
                       placeholder="02-1234-5678"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="mobile">휴대폰번호</Label>
-                    <Input
+                    <PhoneInput
                       id="mobile"
                       value={formData.mobile}
-                      onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
+                      onChange={(value) => setFormData({ ...formData, mobile: value })}
                       placeholder="010-1234-5678"
                     />
                   </div>
