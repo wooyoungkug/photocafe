@@ -47,13 +47,14 @@ function CategoryPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const categoryId = params.id as string;
+  const isAllProducts = categoryId === 'all';
 
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const page = parseInt(searchParams.get('page') || '1');
   const sortBy = searchParams.get('sort') || 'sortOrder';
 
-  const { data: category, isLoading: categoryLoading } = useCategory(categoryId);
-  const { data: productsData, isLoading: productsLoading } = useCategoryProducts(categoryId, {
+  const { data: category, isLoading: categoryLoading } = useCategory(isAllProducts ? '' : categoryId);
+  const { data: productsData, isLoading: productsLoading } = useCategoryProducts(isAllProducts ? '' : categoryId, {
     page,
     limit: 20,
   });
@@ -71,8 +72,8 @@ function CategoryPageContent() {
     router.push(`/category/${categoryId}?${params.toString()}`);
   };
 
-  // 카테고리 정보가 없으면 에러 표시 (로딩은 스켈레톤으로 표시)
-  if (!categoryLoading && !category) {
+  // 카테고리 정보가 없으면 에러 표시 (로딩은 스켈레톤으로 표시, "all"은 제외)
+  if (!isAllProducts && !categoryLoading && !category) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
         <h1 className="text-2xl font-bold mb-4">카테고리를 찾을 수 없습니다</h1>
@@ -93,13 +94,13 @@ function CategoryPageContent() {
       {/* Breadcrumb */}
       <div className="bg-white border-b">
         <div className="container mx-auto px-4 py-3">
-          {categoryLoading ? (
+          {categoryLoading && !isAllProducts ? (
             <Skeleton className="h-4 w-48" />
           ) : (
             <nav className="flex items-center gap-2 text-sm text-gray-500">
               <Link href="/" className="hover:text-primary">홈</Link>
               <ChevronRight className="h-4 w-4" />
-              {category?.parent && (
+              {!isAllProducts && category?.parent && (
                 <>
                   <Link href={`/category/${category.parent.id}`} className="hover:text-primary">
                     {category.parent.name}
@@ -107,7 +108,9 @@ function CategoryPageContent() {
                   <ChevronRight className="h-4 w-4" />
                 </>
               )}
-              <span className="text-gray-900 font-medium">{category?.name}</span>
+              <span className="text-gray-900 font-medium">
+                {isAllProducts ? '전체 상품' : category?.name}
+              </span>
             </nav>
           )}
         </div>
@@ -116,15 +119,19 @@ function CategoryPageContent() {
       {/* Category Header */}
       <div className="bg-gradient-to-r from-gray-100 to-gray-50">
         <div className="container mx-auto px-4 py-8">
-          {categoryLoading ? (
+          {categoryLoading && !isAllProducts ? (
             <>
               <Skeleton className="h-10 w-64 mb-2" />
               <Skeleton className="h-4 w-96" />
             </>
           ) : (
             <>
-              <h1 className="text-3xl font-bold mb-2">{category?.name}</h1>
-              {category?.htmlContent && (
+              <h1 className="text-3xl font-bold mb-2">
+                {isAllProducts ? '전체 상품' : category?.name}
+              </h1>
+              {isAllProducts ? (
+                <p className="text-gray-600 max-w-2xl">모든 상품을 한눈에 확인하세요</p>
+              ) : category?.htmlContent && (
                 <div
                   className="text-gray-600 max-w-2xl"
                   dangerouslySetInnerHTML={{ __html: category.htmlContent }}
@@ -136,7 +143,7 @@ function CategoryPageContent() {
       </div>
 
       {/* Sub Categories */}
-      {!categoryLoading && hasChildren && (
+      {!isAllProducts && !categoryLoading && hasChildren && (
         <div className="bg-white border-b">
           <div className="container mx-auto px-4 py-4">
             <div className="flex flex-wrap gap-2">

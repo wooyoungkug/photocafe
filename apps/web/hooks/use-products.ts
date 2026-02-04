@@ -22,13 +22,14 @@ export function useProduct(id: string) {
 }
 
 export function useCategoryProducts(categoryId: string, params?: Omit<ProductQueryParams, 'categoryId'>) {
+  // categoryId가 빈 문자열이면 전체 상품 조회
+  const queryParams = categoryId
+    ? { categoryId, ...params }
+    : { ...params, isActive: true };
+
   return useQuery({
-    queryKey: [PRODUCTS_KEY, 'category', categoryId, params],
-    queryFn: () => api.get<ProductListResponse>('/products', {
-      categoryId,
-      ...params,
-    } as Record<string, string | number | boolean | undefined>),
-    enabled: !!categoryId,
+    queryKey: [PRODUCTS_KEY, 'category', categoryId || 'all', params],
+    queryFn: () => api.get<ProductListResponse>('/products', queryParams as Record<string, string | number | boolean | undefined>),
   });
 }
 
