@@ -219,7 +219,9 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
     setApiStatus(prev => ({ ...prev, status: 'checking' }));
     const startTime = Date.now();
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/health`, {
+      // NEXT_PUBLIC_API_URL은 이미 /api/v1을 포함하고 있음
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+      const response = await fetch(`${apiUrl}/health`, {
         method: 'GET',
         cache: 'no-store',
         signal: AbortSignal.timeout(5000),
@@ -261,7 +263,9 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
   const checkDbStatus = useCallback(async () => {
     setDbStatus(prev => ({ ...prev, status: 'checking' }));
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/health/db`, {
+      // NEXT_PUBLIC_API_URL은 이미 /api/v1을 포함하고 있음
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+      const response = await fetch(`${apiUrl}/health/db`, {
         method: 'GET',
         cache: 'no-store',
         signal: AbortSignal.timeout(5000),
