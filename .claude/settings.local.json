@@ -223,7 +223,9 @@
       "Bash(\"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -c \"SELECT email, \"\"companyName\"\" FROM clients LIMIT 5;\")",
       "Bash(cmd //c \"taskkill //F //IM node.exe\")",
       "Bash(cmd //c \"taskkill /PID 26692 /F\")",
-      "Bash(cmd //c \"taskkill /PID 23884 /F\")"
+      "Bash(cmd //c \"taskkill /PID 23884 /F\")",
+      "Bash(cmd //c \"taskkill /PID 26856 /F\")",
+      "Bash(cmd //c \"taskkill /PID 26648 /F\")"
     ]
   }
 }
