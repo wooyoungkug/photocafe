@@ -1,5 +1,5 @@
 import type { NextConfig } from "next";
-import { join } from 'path';
+import { join } from "path";
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -15,11 +15,11 @@ const nextConfig: NextConfig = {
   // When Next.js infers a workspace root (monorepo), it may warn about multiple lockfiles.
   // Set `outputFileTracingRoot` to the repository root to silence the warning and ensure
   // standalone output traces are resolved from the workspace root.
-  outputFileTracingRoot: join(__dirname, '..', '..'),
+  outputFileTracingRoot: join(__dirname, "..", ".."),
 
   // Image optimization
   images: {
-    formats: ['image/webp', 'image/avif'],
+    formats: ["image/webp", "image/avif"],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     minimumCacheTTL: 60 * 60 * 24 * 365, // 1 year
@@ -27,9 +27,12 @@ const nextConfig: NextConfig = {
 
   // Compiler optimizations
   compiler: {
-    removeConsole: process.env.NODE_ENV === 'production' ? {
-      exclude: ['error', 'warn'],
-    } : false,
+    removeConsole:
+      process.env.NODE_ENV === "production"
+        ? {
+            exclude: ["error", "warn"],
+          }
+        : false,
   },
 
   async rewrites() {
@@ -43,4 +46,3 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
-
