@@ -17,13 +17,15 @@ function AuthCallbackContent() {
 
         const processAuth = async () => {
             try {
-                // Admin login callback params (from API login page)
                 // 'token' 또는 'accessToken' 둘 다 지원
                 const token = searchParams.get('token') || searchParams.get('accessToken');
                 const userParam = searchParams.get('user');
+                const isImpersonated = searchParams.get('impersonated') === 'true';
 
-                console.log('Auth callback - token exists:', !!token);
-                console.log('Auth callback - user param exists:', !!userParam);
+                // 대리 로그인 시 URL 파라미터에서 사용자 정보 가져오기
+                const userId = searchParams.get('userId') || '';
+                const userName = searchParams.get('userName') || '';
+                const userEmail = searchParams.get('userEmail') || '';
 
                 if (!token) {
                     setError('토큰이 없습니다');
@@ -33,25 +35,25 @@ function AuthCallbackContent() {
                 // Store token in localStorage
                 localStorage.setItem('accessToken', token);
 
-                if (userParam) {
-                    try {
-                        // userParam은 이미 URLSearchParams에 의해 디코딩되어 있음
-                        const userData = JSON.parse(userParam);
-                        localStorage.setItem('user', JSON.stringify(userData));
-                        setStatus('로그인 성공! 대시보드로 이동합니다...');
-                    } catch (e) {
-                        console.error('Failed to parse user data:', e);
-                        setStatus('사용자 정보 파싱 실패, 대시보드로 이동합니다...');
-                    }
-                }
-
                 // Parse user data
                 let userData = { id: '', email: '', name: '관리자', role: 'admin' };
-                if (userParam) {
+
+                if (isImpersonated) {
+                    // 대리 로그인: URL 파라미터에서 사용자 정보 구성
+                    userData = {
+                        id: userId,
+                        email: userEmail,
+                        name: userName || '회원',
+                        role: 'client',
+                    };
+                    setStatus('회원으로 로그인 중...');
+                } else if (userParam) {
                     try {
                         userData = JSON.parse(userParam);
+                        localStorage.setItem('user', JSON.stringify(userData));
+                        setStatus('로그인 성공! 대시보드로 이동합니다...');
                     } catch {
-                        // Use default
+                        setStatus('사용자 정보 파싱 실패, 대시보드로 이동합니다...');
                     }
                 }
 
@@ -63,8 +65,8 @@ function AuthCallbackContent() {
                         user: {
                             id: userData.id || '',
                             email: userData.email || '',
-                            name: userData.name || '관리자',
-                            role: userData.role || 'admin',
+                            name: userData.name || (isImpersonated ? '회원' : '관리자'),
+                            role: userData.role || (isImpersonated ? 'client' : 'admin'),
                         },
                         accessToken: token,
                         refreshToken: refreshToken,
@@ -76,15 +78,12 @@ function AuthCallbackContent() {
                 localStorage.setItem('auth-storage', JSON.stringify(authStorageData));
                 localStorage.setItem('refreshToken', refreshToken);
 
-                console.log('Auth data saved to localStorage');
-                console.log('accessToken:', localStorage.getItem('accessToken'));
-                console.log('auth-storage:', localStorage.getItem('auth-storage'));
+                // 대리 로그인이면 쇼핑몰로, 아니면 대시보드로 이동
+                const redirectUrl = isImpersonated ? '/' : '/dashboard';
+                setStatus(isImpersonated ? '쇼핑몰로 이동합니다...' : '대시보드로 이동합니다...');
 
-                setStatus('로그인 완료! 대시보드로 이동합니다...');
-
-                // Redirect to dashboard (use window.location for full page reload)
                 setTimeout(() => {
-                    window.location.href = '/dashboard';
+                    window.location.href = redirectUrl;
                 }, 300);
 
             } catch (e) {

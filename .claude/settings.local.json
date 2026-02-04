@@ -221,7 +221,9 @@
       "Bash(cmd /c \"for /f \"\"tokens=5\"\" %a in \\(''netstat -ano ^| findstr :3001 ^| findstr LISTENING''\\) do taskkill /F /PID %a\")",
       "Bash(cmd /c \"taskkill /F /PID 16020\")",
       "Bash(\"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -c \"SELECT email, \"\"companyName\"\" FROM clients LIMIT 5;\")",
-      "Bash(cmd //c \"taskkill //F //IM node.exe\")"
+      "Bash(cmd //c \"taskkill //F //IM node.exe\")",
+      "Bash(cmd //c \"taskkill /PID 26692 /F\")",
+      "Bash(cmd //c \"taskkill /PID 23884 /F\")"
     ]
   }
 }

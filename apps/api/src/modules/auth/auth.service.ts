@@ -446,5 +446,54 @@ export class AuthService {
       },
     };
   }
+
+  // ========== 관리자 대리 로그인 (Impersonate) ==========
+
+  // 관리자가 특정 회원으로 대리 로그인
+  async impersonateClient(clientId: string, adminId: string) {
+    // 회원(Client) 조회
+    const client = await this.prisma.client.findUnique({
+      where: { id: clientId },
+      include: { group: true },
+    });
+
+    if (!client) {
+      throw new BadRequestException('회원을 찾을 수 없습니다');
+    }
+
+    if (client.status !== 'active') {
+      throw new BadRequestException('비활성 회원은 대리 로그인할 수 없습니다');
+    }
+
+    // 대리 로그인 토큰 발급 (impersonatedBy 필드 추가)
+    const payload = {
+      sub: client.id,
+      email: client.email,
+      role: 'client',
+      type: 'client',
+      impersonatedBy: adminId, // 대리 로그인한 관리자 ID
+    };
+
+    const accessToken = this.jwtService.sign(payload, {
+      expiresIn: '1h', // 대리 로그인은 1시간 제한
+    });
+    const refreshToken = this.jwtService.sign(payload, {
+      expiresIn: '1h',
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: client.id,
+        email: client.email,
+        name: client.clientName,
+        role: 'client',
+        clientCode: client.clientCode,
+        group: client.group,
+      },
+      impersonated: true,
+    };
+  }
 }
 

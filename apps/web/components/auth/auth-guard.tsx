@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 
@@ -10,29 +10,32 @@ interface AuthGuardProps {
   loginPath?: string;
 }
 
+// 전역 인증 캐시 (페이지 이동 시에도 유지)
+let authCache: { authenticated: boolean; timestamp: number } | null = null;
+const AUTH_CACHE_DURATION = 30000; // 30초간 캐시 유지
+
 export function AuthGuard({ children, requireAdmin = false, loginPath = '/admin-login' }: AuthGuardProps) {
-  const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthorized'>('loading');
-  const [checked, setChecked] = useState(false);
+  // 캐시된 인증 상태가 있으면 즉시 사용
+  const initialStatus = authCache && (Date.now() - authCache.timestamp < AUTH_CACHE_DURATION) && authCache.authenticated
+    ? 'authenticated'
+    : 'loading';
+
+  const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthorized'>(initialStatus);
+  const checkedRef = useRef(initialStatus === 'authenticated');
 
   useEffect(() => {
-    // 클라이언트에서만 실행, 한 번만 체크
-    if (typeof window === 'undefined' || checked) return;
+    // 이미 인증됨 상태면 스킵
+    if (checkedRef.current && status === 'authenticated') return;
+    if (typeof window === 'undefined') return;
 
+    // 즉시 체크 (딜레이 제거)
     const checkAuth = () => {
       try {
-        // localStorage와 sessionStorage에서 직접 토큰 확인
         const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
 
-        console.log('[AuthGuard] 토큰 확인:', {
-          hasToken: !!token,
-          requireAdmin,
-          token: token?.substring(0, 20) + '...',
-        });
-
         if (!token) {
-          console.log('[AuthGuard] 토큰 없음 - 로그인 페이지로 이동');
-          setChecked(true);
-          // 토큰이 없으면 관리자 로그인 페이지로
+          checkedRef.current = true;
+          authCache = null;
           window.location.href = loginPath;
           return;
         }
@@ -44,34 +47,30 @@ export function AuthGuard({ children, requireAdmin = false, loginPath = '/admin-
             try {
               const parsed = JSON.parse(authStorage);
               const userRole = parsed?.state?.user?.role;
-              console.log('[AuthGuard] 사용자 role:', userRole);
-
-              if (userRole !== 'admin') {
-                console.log('[AuthGuard] 관리자 권한 없음');
+              if (userRole !== 'admin' && userRole !== 'staff') {
                 setStatus('unauthorized');
-                setChecked(true);
+                checkedRef.current = true;
                 return;
               }
-            } catch (e) {
-              console.error('[AuthGuard] auth-storage 파싱 에러:', e);
+            } catch {
+              // 파싱 실패시 무시
             }
           }
         }
 
-        console.log('[AuthGuard] 인증 성공');
+        // 인증 성공 - 캐시에 저장
+        authCache = { authenticated: true, timestamp: Date.now() };
         setStatus('authenticated');
-        setChecked(true);
-      } catch (error) {
-        console.error('AuthGuard error:', error);
-        setChecked(true);
+        checkedRef.current = true;
+      } catch {
+        checkedRef.current = true;
+        authCache = null;
         window.location.href = loginPath;
       }
     };
 
-    // 약간의 딜레이를 주어 storage가 준비될 시간 확보
-    const timer = setTimeout(checkAuth, 100);
-    return () => clearTimeout(timer);
-  }, [requireAdmin, loginPath]);
+    checkAuth();
+  }, [requireAdmin, loginPath, status]);
 
   if (status === 'loading') {
     return (

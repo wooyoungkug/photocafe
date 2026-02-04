@@ -9,6 +9,7 @@ import {
   Res,
   UnauthorizedException,
   Query,
+  Param,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
@@ -170,6 +171,23 @@ export class AuthController {
       throw new UnauthorizedException('직원 ID 또는 비밀번호가 일치하지 않습니다');
     }
     return this.authService.loginStaff(staff);
+  }
+
+  // ========== 관리자 대리 로그인 ==========
+
+  @Post('impersonate/:clientId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '관리자가 특정 회원으로 대리 로그인' })
+  async impersonateClient(
+    @Param('clientId') clientId: string,
+    @Request() req: any,
+  ) {
+    // 관리자 권한 확인 (type이 staff이거나 role이 admin)
+    if (req.user.type !== 'staff' && req.user.role !== 'admin') {
+      throw new UnauthorizedException('관리자 권한이 필요합니다');
+    }
+    return this.authService.impersonateClient(clientId, req.user.sub);
   }
 }
 

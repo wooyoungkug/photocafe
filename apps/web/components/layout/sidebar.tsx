@@ -63,7 +63,7 @@ const defaultNavigation = [
     children: [
       { name: "환경설정", href: "/company/settings" },
       { name: "직원관리", href: "/company/employees" },
-      { name: "거래처관리", href: "/company/members" },
+      { name: "회원관리", href: "/company/members" },
       { name: "회원그룹", href: "/company/member-groups" },
     ],
   },
@@ -219,7 +219,7 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
     setApiStatus(prev => ({ ...prev, status: 'checking' }));
     const startTime = Date.now();
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/health`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/health`, {
         method: 'GET',
         cache: 'no-store',
         signal: AbortSignal.timeout(5000),
@@ -261,7 +261,7 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
   const checkDbStatus = useCallback(async () => {
     setDbStatus(prev => ({ ...prev, status: 'checking' }));
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/health/db`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/health/db`, {
         method: 'GET',
         cache: 'no-store',
         signal: AbortSignal.timeout(5000),
