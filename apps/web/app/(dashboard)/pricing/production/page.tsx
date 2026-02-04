@@ -1657,10 +1657,54 @@ export default function ProductionSettingPage() {
       // nup_page_range: 구간별 Nup/1p가격
       else if (formData.pricingType === "nup_page_range") {
         apiData.printMethod = formData.printMethod;
-        apiData.specificationIds = formData.specificationIds;
+
+        // 같은 Nup의 모든 규격에 동일한 가격 적용
+        const method = formData.printMethod;
+        const filteredSpecs = specifications?.filter((s: any) => {
+          if (!s.nup) return false;
+          if (method === 'indigo') return s.forIndigo && s.nup;
+          if (method === 'inkjet') return s.forInkjet;
+          if (method === 'album') return s.forAlbum;
+          if (method === 'frame') return s.forFrame;
+          if (method === 'booklet') return s.forBooklet;
+          return true;
+        }) || [];
+
+        // 선택된 대표 규격의 Nup 값들을 가져옴
+        const selectedNups = new Set<string>();
+        formData.specificationIds.forEach(specId => {
+          const spec = filteredSpecs.find((s: any) => s.id === specId);
+          if (spec?.nup) selectedNups.add(spec.nup);
+        });
+
+        // 같은 Nup을 가진 모든 규격 ID를 수집
+        const allSpecIds: string[] = [];
+        const expandedNupPageRanges: typeof formData.nupPageRanges = [];
+
+        formData.nupPageRanges.forEach(item => {
+          const representativeSpec = filteredSpecs.find((s: any) => s.id === item.specificationId);
+          if (!representativeSpec?.nup) return;
+
+          // 같은 Nup을 가진 모든 규격 찾기
+          const sameNupSpecs = filteredSpecs.filter((s: any) => s.nup === representativeSpec.nup);
+
+          sameNupSpecs.forEach((spec: any) => {
+            if (!allSpecIds.includes(spec.id)) {
+              allSpecIds.push(spec.id);
+              // 동일한 가격 데이터를 각 규격에 복사
+              expandedNupPageRanges.push({
+                ...item,
+                specificationId: spec.id,
+              });
+            }
+          });
+        });
+
+        apiData.specificationIds = allSpecIds;
+
         // rangePrices를 string 키로 변환하여 API에 전송
         const firstRange = formData.pageRanges[0] || 20;
-        apiData.nupPageRanges = formData.nupPageRanges.map(item => {
+        apiData.nupPageRanges = expandedNupPageRanges.map(item => {
           // number 키를 string 키로 변환
           const stringRangePrices: Record<string, number> = {};
           if (item.rangePrices) {
@@ -3599,16 +3643,14 @@ export default function ProductionSettingPage() {
                         </div>
                       </div>
 
-                      {/* 규격별 단가 설정 */}
+                      {/* Nup 그룹별 단가 설정 */}
                       <div className="border rounded-lg p-4 max-h-[500px] overflow-y-auto">
 
-                        {/* 테이블 헤더 - 동적 컬럼 */}
+                        {/* 테이블 헤더 - Nup 그룹 기반 */}
                         <div
                           className="grid gap-0 pb-2 border-b mb-2 text-xs font-medium text-gray-600 sticky top-0 bg-white items-center"
                           style={{
-                            gridTemplateColumns: settingForm.printMethod === 'indigo'
-                              ? `28px 60px 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
-                              : `28px 80px 50px 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
+                            gridTemplateColumns: `28px 60px minmax(120px, 1fr) 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
                           }}
                         >
                           <Checkbox
@@ -3623,16 +3665,13 @@ export default function ProductionSettingPage() {
                                 if (method === 'booklet') return s.forBooklet;
                                 return true;
                               }) || [];
-                              // 인디고: 각 Nup별 대표 1개씩
-                              let displaySpecs = filtered;
-                              if (method === 'indigo') {
-                                const nupOrder = ['1++up', '1+up', '1up', '2up', '4up'];
-                                const nupMap = new Map<string, typeof filtered[0]>();
-                                filtered.forEach(s => {
-                                  if (s.nup && !nupMap.has(s.nup)) nupMap.set(s.nup, s);
-                                });
-                                displaySpecs = nupOrder.filter(nup => nupMap.has(nup)).map(nup => nupMap.get(nup)!);
-                              }
+                              // Nup 그룹별로 대표 1개씩
+                              const nupOrder = ['1++up', '1+up', '1up', '2up', '4up', '8up'];
+                              const nupMap = new Map<string, typeof filtered[0]>();
+                              filtered.forEach(s => {
+                                if (s.nup && !nupMap.has(s.nup)) nupMap.set(s.nup, s);
+                              });
+                              const displaySpecs = nupOrder.filter(nup => nupMap.has(nup)).map(nup => nupMap.get(nup)!);
                               return displaySpecs.length > 0 && displaySpecs.every(s => settingForm.specificationIds.includes(s.id));
                             })()}
                             onCheckedChange={(checked) => {
@@ -3646,15 +3685,13 @@ export default function ProductionSettingPage() {
                                 if (method === 'booklet') return s.forBooklet;
                                 return true;
                               }) || [];
-                              let displaySpecs = filtered;
-                              if (method === 'indigo') {
-                                const nupOrder = ['1++up', '1+up', '1up', '2up', '4up'];
-                                const nupMap = new Map<string, typeof filtered[0]>();
-                                filtered.forEach(s => {
-                                  if (s.nup && !nupMap.has(s.nup)) nupMap.set(s.nup, s);
-                                });
-                                displaySpecs = nupOrder.filter(nup => nupMap.has(nup)).map(nup => nupMap.get(nup)!);
-                              }
+                              // Nup 그룹별로 대표 1개씩
+                              const nupOrder = ['1++up', '1+up', '1up', '2up', '4up', '8up'];
+                              const nupMap = new Map<string, typeof filtered[0]>();
+                              filtered.forEach(s => {
+                                if (s.nup && !nupMap.has(s.nup)) nupMap.set(s.nup, s);
+                              });
+                              const displaySpecs = nupOrder.filter(nup => nupMap.has(nup)).map(nup => nupMap.get(nup)!);
                               const defaultRangePrices: Record<number, number> = {};
                               settingForm.pageRanges.forEach(p => { defaultRangePrices[p] = 0; });
                               if (checked) {
@@ -3675,14 +3712,8 @@ export default function ProductionSettingPage() {
                               }
                             }}
                           />
-                          {settingForm.printMethod === 'indigo' ? (
-                            <span>Nup</span>
-                          ) : (
-                            <>
-                              <span>규격</span>
-                              <span className="text-center">Nup</span>
-                            </>
-                          )}
+                          <span>Nup</span>
+                          <span>규격 목록</span>
                           <span className="text-right pr-2">1p당</span>
                           {settingForm.pageRanges.map(range => (
                             <span key={range} className="text-center">{range}p</span>
@@ -3691,9 +3722,9 @@ export default function ProductionSettingPage() {
 
                         <div className="space-y-1">
                           {(() => {
+                            const method = settingForm.printMethod;
                             const filtered = specifications?.filter(s => {
                               if (!s.nup) return false;
-                              const method = settingForm.printMethod;
                               if (method === 'indigo') return s.forIndigo && s.nup;
                               if (method === 'inkjet') return s.forInkjet;
                               if (method === 'album') return s.forAlbum;
@@ -3702,45 +3733,42 @@ export default function ProductionSettingPage() {
                               return true;
                             }) || [];
 
-                            // 인디고: 각 Nup별 대표 1개씩만 선택
-                            let displaySpecs = filtered;
-                            if (settingForm.printMethod === 'indigo') {
-                              const nupOrder = ['1++up', '1+up', '1up', '2up', '4up'];
-                              const nupMap = new Map<string, typeof filtered[0]>();
-                              filtered.forEach(s => {
-                                if (s.nup && !nupMap.has(s.nup)) {
-                                  nupMap.set(s.nup, s);
-                                }
-                              });
-                              displaySpecs = nupOrder
-                                .filter(nup => nupMap.has(nup))
-                                .map(nup => nupMap.get(nup)!);
-                            } else {
-                              // 기타: sq inch 오름차순 정렬
-                              displaySpecs = [...filtered].sort((a, b) => {
-                                const sqInchA = a.widthInch * a.heightInch;
-                                const sqInchB = b.widthInch * b.heightInch;
-                                return sqInchA - sqInchB;
-                              });
-                            }
+                            // Nup별로 그룹화
+                            const nupOrder = ['1++up', '1+up', '1up', '2up', '4up', '8up'];
+                            const nupGroups = new Map<string, typeof filtered>();
+                            filtered.forEach(s => {
+                              if (s.nup) {
+                                const group = nupGroups.get(s.nup) || [];
+                                group.push(s);
+                                nupGroups.set(s.nup, group);
+                              }
+                            });
 
-                            return displaySpecs.map((spec) => {
-                              const isSelected = settingForm.specificationIds.includes(spec.id);
-                              const rangeData = settingForm.nupPageRanges.find(p => p.specificationId === spec.id);
+                            // Nup 순서대로 정렬
+                            const sortedNups = nupOrder.filter(nup => nupGroups.has(nup));
+
+                            return sortedNups.map((nup) => {
+                              const specsInGroup = nupGroups.get(nup) || [];
+                              const representativeSpec = specsInGroup[0];
+                              if (!representativeSpec) return null;
+
+                              const isSelected = settingForm.specificationIds.includes(representativeSpec.id);
+                              const rangeData = settingForm.nupPageRanges.find(p => p.specificationId === representativeSpec.id);
                               const pricePerPage = rangeData?.pricePerPage || 0;
                               const rangePrices = rangeData?.rangePrices || {};
 
+                              // 규격 목록 문자열 (예: 5x7, 7x5, 6x8, 8x6)
+                              const specNames = specsInGroup.map(s => s.name).join(', ');
+
                               return (
                                 <div
-                                  key={spec.id}
+                                  key={nup}
                                   className={cn(
-                                    "grid gap-0 py-0.5 items-center",
+                                    "grid gap-0 py-1 items-center",
                                     isSelected && "bg-amber-50/50"
                                   )}
                                   style={{
-                                    gridTemplateColumns: settingForm.printMethod === 'indigo'
-                                      ? `28px 60px 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
-                                      : `28px 80px 50px 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
+                                    gridTemplateColumns: `28px 60px minmax(120px, 1fr) 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
                                   }}
                                 >
                                   <Checkbox
@@ -3752,9 +3780,9 @@ export default function ProductionSettingPage() {
                                         if (checked) {
                                           return {
                                             ...prev,
-                                            specificationIds: [...prev.specificationIds, spec.id],
+                                            specificationIds: [...prev.specificationIds, representativeSpec.id],
                                             nupPageRanges: [...prev.nupPageRanges, {
-                                              specificationId: spec.id,
+                                              specificationId: representativeSpec.id,
                                               pricePerPage: 0,
                                               rangePrices: defaultRangePrices
                                             }],
@@ -3762,21 +3790,15 @@ export default function ProductionSettingPage() {
                                         } else {
                                           return {
                                             ...prev,
-                                            specificationIds: prev.specificationIds.filter(id => id !== spec.id),
-                                            nupPageRanges: prev.nupPageRanges.filter(p => p.specificationId !== spec.id),
+                                            specificationIds: prev.specificationIds.filter(id => id !== representativeSpec.id),
+                                            nupPageRanges: prev.nupPageRanges.filter(p => p.specificationId !== representativeSpec.id),
                                           };
                                         }
                                       });
                                     }}
                                   />
-                                  {settingForm.printMethod === 'indigo' ? (
-                                    <span className="text-sm font-semibold text-violet-700">{spec.nup}</span>
-                                  ) : (
-                                    <>
-                                      <span className="text-sm font-mono truncate">{spec.name}</span>
-                                      <span className="text-center text-sm font-medium text-violet-600">{spec.nup}</span>
-                                    </>
-                                  )}
+                                  <span className="text-sm font-semibold text-violet-700">{nup}</span>
+                                  <span className="text-xs text-gray-500 truncate" title={specNames}>{specNames}</span>
 
                                   {isSelected ? (
                                     <>
@@ -3789,21 +3811,20 @@ export default function ProductionSettingPage() {
                                           const value = Number(e.target.value);
                                           const firstRange = settingForm.pageRanges[0] || 20;
                                           setSettingForm(prev => {
-                                            const currentData = prev.nupPageRanges.find(p => p.specificationId === spec.id);
+                                            const currentData = prev.nupPageRanges.find(p => p.specificationId === representativeSpec.id);
                                             const firstPrice = currentData?.rangePrices?.[firstRange] || 0;
                                             const newRangePrices: Record<number, number> = {};
                                             prev.pageRanges.forEach((range, idx) => {
                                               if (idx === 0) {
                                                 newRangePrices[range] = firstPrice;
                                               } else {
-                                                // 소수점 2자리까지 반올림
                                                 newRangePrices[range] = Math.round((firstPrice + ((range - firstRange) * value)) * 100) / 100;
                                               }
                                             });
                                             return {
                                               ...prev,
                                               nupPageRanges: prev.nupPageRanges.map(p =>
-                                                p.specificationId === spec.id
+                                                p.specificationId === representativeSpec.id
                                                   ? { ...p, pricePerPage: value, rangePrices: newRangePrices }
                                                   : p
                                               ),
@@ -3825,7 +3846,7 @@ export default function ProductionSettingPage() {
                                               const value = Number(e.target.value);
                                               const firstRange = settingForm.pageRanges[0] || 20;
                                               setSettingForm(prev => {
-                                                const currentData = prev.nupPageRanges.find(p => p.specificationId === spec.id);
+                                                const currentData = prev.nupPageRanges.find(p => p.specificationId === representativeSpec.id);
                                                 const currentPricePerPage = currentData?.pricePerPage || 0;
                                                 const newRangePrices: Record<number, number> = {};
                                                 prev.pageRanges.forEach((r, i) => {
@@ -3838,7 +3859,7 @@ export default function ProductionSettingPage() {
                                                 return {
                                                   ...prev,
                                                   nupPageRanges: prev.nupPageRanges.map(p =>
-                                                    p.specificationId === spec.id
+                                                    p.specificationId === representativeSpec.id
                                                       ? { ...p, rangePrices: newRangePrices }
                                                       : p
                                                   ),
@@ -3889,7 +3910,7 @@ export default function ProductionSettingPage() {
                       </div>
 
                       <p className="text-sm text-muted-foreground">
-                        선택된 규격: {settingForm.specificationIds.length}개
+                        선택된 Nup 그룹: {settingForm.specificationIds.length}개 (같은 Nup의 모든 규격에 동일 가격 적용)
                       </p>
                     </div>
                   </>

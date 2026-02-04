@@ -15,7 +15,28 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useCartStore, type CartItemOption } from '@/stores/cart-store';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import type { Product, ProductSpecification, ProductBinding, ProductPaper, ProductCover, ProductFoil, ProductFinishing } from '@/lib/types';
+import { API_URL, API_BASE_URL } from '@/lib/api';
+import type { Product, ProductSpecification, ProductBinding, ProductPaper, ProductCover, ProductFoil, ProductFinishing, ProductPublicCopperPlate } from '@/lib/types';
+import { useAuthStore } from '@/stores/auth-store';
+import { useCopperPlatesByClient, useCopperPlateLabels, type CopperPlate } from '@/hooks/use-copper-plates';
+
+// 이미지 URL 정규화 함수
+const normalizeImageUrl = (url: string | null | undefined): string => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url.replace(/\/api\/v1\/api\/v1\//g, '/api/v1/');
+  }
+  if (url.startsWith('/api/v1/')) {
+    return `${API_BASE_URL}${url}`;
+  }
+  if (url.startsWith('/upload')) {
+    return `${API_URL}${url}`;
+  }
+  if (url.startsWith('/api/')) {
+    return `${API_BASE_URL}${url}`;
+  }
+  return url;
+};
 
 interface SelectedOptions {
   specification?: ProductSpecification;
@@ -24,7 +45,30 @@ interface SelectedOptions {
   cover?: ProductCover;
   foil?: ProductFoil;
   finishings: ProductFinishing[];
+  printSide?: 'single' | 'double';  // 단면/양면
+  // 동판 관련
+  copperPlateType?: 'none' | 'public' | 'owned';  // 동판 선택 타입
+  publicCopperPlate?: ProductPublicCopperPlate;   // 공용동판
+  ownedCopperPlate?: CopperPlate;                 // 보유동판
+  foilColor?: string;                              // 박 색상 (동판 선택 시)
+  foilPosition?: string;                           // 박 위치 (동판 선택 시)
 }
+
+// 제본방법에 따른 기본 출력구분 결정
+// 화보(핀화보, 스타화보, 포토북) → 양면출력
+// 압축제본(압축제본, 맞장제본, 레이플릿제본) → 단면출력
+const getDefaultPrintSideByBinding = (bindingName: string): 'single' | 'double' => {
+  const lowerName = bindingName.toLowerCase();
+  // 압축제본류 → 단면출력
+  if (lowerName.includes('압축') || lowerName.includes('맞장') || lowerName.includes('레이플릿')) {
+    return 'single'; // 단면출력
+  }
+  // 화보류 → 양면출력
+  if (lowerName.includes('화보') || lowerName.includes('핀화보') || lowerName.includes('스타화보') || lowerName.includes('포토북')) {
+    return 'double'; // 양면출력
+  }
+  return 'double'; // 기본값: 양면출력
+};
 
 export default function ProductPage() {
   const params = useParams();
@@ -34,6 +78,12 @@ export default function ProductPage() {
 
   const { data: product, isLoading, error } = useProduct(productId);
   const { addItem } = useCartStore();
+  const { user, isAuthenticated } = useAuthStore();
+
+  // 보유동판 조회 (로그인한 사용자의 거래처 동판)
+  const { data: ownedCopperPlates } = useCopperPlatesByClient(isAuthenticated ? user?.id : undefined);
+  // 박 색상/위치 라벨 조회
+  const { data: copperPlateLabels } = useCopperPlateLabels();
 
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
@@ -44,16 +94,25 @@ export default function ProductPage() {
   // Set default options when product loads
   useEffect(() => {
     if (product) {
+      const defaultBinding = product.bindings?.find(b => b.isDefault) || product.bindings?.[0];
+      const defaultPublicCopperPlate = product.publicCopperPlates?.find(p => p.isDefault) || product.publicCopperPlates?.[0];
       setSelectedOptions({
         specification: product.specifications?.find(s => s.isDefault) || product.specifications?.[0],
-        binding: product.bindings?.find(b => b.isDefault) || product.bindings?.[0],
+        binding: defaultBinding,
         paper: product.papers?.find(p => p.isDefault) || product.papers?.[0],
         cover: product.covers?.find(c => c.isDefault) || product.covers?.[0],
         foil: product.foils?.find(f => f.isDefault) || product.foils?.[0],
         finishings: product.finishings?.filter(f => f.isDefault) || [],
+        printSide: defaultBinding ? getDefaultPrintSideByBinding(defaultBinding.name) : 'double',
+        // 동판 기본값: 공용동판이 있으면 공용동판 선택, 없으면 선택 안 함
+        copperPlateType: defaultPublicCopperPlate ? 'public' : 'none',
+        publicCopperPlate: defaultPublicCopperPlate,
+        ownedCopperPlate: undefined,
+        foilColor: copperPlateLabels?.foilColors?.[0]?.code,
+        foilPosition: copperPlateLabels?.platePositions?.[0]?.code,
       });
     }
-  }, [product]);
+  }, [product, copperPlateLabels]);
 
   if (isLoading) {
     return <ProductPageSkeleton />;
@@ -141,6 +200,52 @@ export default function ProductPage() {
         price: finishing.price,
       });
     }
+    // 출력구분 추가
+    options.push({
+      name: '출력구분',
+      value: selectedOptions.printSide === 'single' ? '단면출력' : '양면출력',
+      price: 0,
+    });
+
+    // 동판 정보 추가
+    if (selectedOptions.copperPlateType === 'public' && selectedOptions.publicCopperPlate) {
+      const plate = selectedOptions.publicCopperPlate.publicCopperPlate;
+      const foilColorLabel = copperPlateLabels?.foilColors?.find(c => c.code === selectedOptions.foilColor)?.name || selectedOptions.foilColor;
+      const foilPositionLabel = copperPlateLabels?.platePositions?.find(p => p.code === selectedOptions.foilPosition)?.name || selectedOptions.foilPosition;
+      options.push({
+        name: '동판',
+        value: `공용동판: ${plate.plateName}`,
+        price: 0,
+      });
+      if (selectedOptions.foilColor) {
+        options.push({
+          name: '박색상',
+          value: foilColorLabel || '',
+          price: 0,
+        });
+      }
+      if (selectedOptions.foilPosition) {
+        options.push({
+          name: '박위치',
+          value: foilPositionLabel || '',
+          price: 0,
+        });
+      }
+    } else if (selectedOptions.copperPlateType === 'owned' && selectedOptions.ownedCopperPlate) {
+      const plate = selectedOptions.ownedCopperPlate;
+      options.push({
+        name: '동판',
+        value: `보유동판: ${plate.plateName}`,
+        price: 0,
+      });
+      if (plate.foilColorName) {
+        options.push({
+          name: '박색상',
+          value: plate.foilColorName,
+          price: 0,
+        });
+      }
+    }
 
     addItem({
       productId: product.id,
@@ -165,10 +270,10 @@ export default function ProductPage() {
   };
 
   const images = product.thumbnailUrl
-    ? [product.thumbnailUrl, ...product.detailImages]
+    ? [normalizeImageUrl(product.thumbnailUrl), ...product.detailImages.map(img => normalizeImageUrl(img))]
     : product.detailImages.length > 0
-    ? product.detailImages
-    : [];
+      ? product.detailImages.map(img => normalizeImageUrl(img))
+      : [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -242,7 +347,10 @@ export default function ProductPage() {
               </div>
               <h1 className="text-2xl md:text-3xl font-bold mb-2">{product.productName}</h1>
               {product.description && (
-                <p className="text-gray-600">{product.description}</p>
+                <div
+                  className="text-gray-600 prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ __html: product.description }}
+                />
               )}
             </div>
 
@@ -263,33 +371,37 @@ export default function ProductPage() {
             <div className="space-y-6">
               {/* Specification */}
               {product.specifications && product.specifications.length > 0 && (
-                <OptionSection title="규격">
-                  <RadioGroup
-                    value={selectedOptions.specification?.id}
-                    onValueChange={(value) => {
-                      const spec = product.specifications?.find(s => s.id === value);
-                      setSelectedOptions(prev => ({ ...prev, specification: spec }));
-                    }}
-                    className="grid grid-cols-2 gap-2"
-                  >
-                    {product.specifications.map((spec) => (
-                      <Label
-                        key={spec.id}
-                        className={cn(
-                          "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors",
-                          selectedOptions.specification?.id === spec.id
-                            ? "border-primary bg-primary/5"
-                            : "hover:border-gray-400"
-                        )}
-                      >
-                        <RadioGroupItem value={spec.id} />
-                        <span className="flex-1">{spec.name}</span>
-                        {spec.price > 0 && (
-                          <span className="text-sm text-primary">+{spec.price.toLocaleString()}</span>
-                        )}
-                      </Label>
-                    ))}
-                  </RadioGroup>
+                <OptionSection title="규격" count={product.specifications.length}>
+                  <div className="max-h-[240px] overflow-y-auto pr-1">
+                    <RadioGroup
+                      value={selectedOptions.specification?.id}
+                      onValueChange={(value) => {
+                        const spec = product.specifications?.find(s => s.id === value);
+                        setSelectedOptions(prev => ({ ...prev, specification: spec }));
+                      }}
+                      className="grid grid-cols-2 sm:grid-cols-3 gap-1.5"
+                    >
+                      {product.specifications.map((spec) => (
+                        <Label
+                          key={spec.id}
+                          className={cn(
+                            "flex items-center gap-1.5 px-2.5 py-2 border rounded-md cursor-pointer transition-colors text-sm",
+                            selectedOptions.specification?.id === spec.id
+                              ? "border-primary bg-primary/5 font-medium"
+                              : "hover:border-gray-400"
+                          )}
+                        >
+                          <RadioGroupItem value={spec.id} className="h-3.5 w-3.5 flex-shrink-0" />
+                          <div className="flex flex-col min-w-0">
+                            <span className="truncate font-medium">{spec.name}</span>
+                            {spec.widthMm && spec.heightMm && (
+                              <span className="text-xs text-gray-500">{spec.widthMm}x{spec.heightMm}mm</span>
+                            )}
+                          </div>
+                        </Label>
+                      ))}
+                    </RadioGroup>
+                  </div>
                 </OptionSection>
               )}
 
@@ -300,7 +412,11 @@ export default function ProductPage() {
                     value={selectedOptions.binding?.id}
                     onValueChange={(value) => {
                       const binding = product.bindings?.find(b => b.id === value);
-                      setSelectedOptions(prev => ({ ...prev, binding }));
+                      setSelectedOptions(prev => ({
+                        ...prev,
+                        binding,
+                        printSide: binding ? getDefaultPrintSideByBinding(binding.name) : prev.printSide,
+                      }));
                     }}
                     className="grid grid-cols-2 gap-2"
                   >
@@ -315,7 +431,7 @@ export default function ProductPage() {
                         )}
                       >
                         <RadioGroupItem value={binding.id} />
-                        <span className="flex-1">{binding.name}</span>
+                        <span className="flex-1">{binding.name.split(' - ')[0]}</span>
                         {binding.price > 0 && (
                           <span className="text-sm text-primary">+{binding.price.toLocaleString()}</span>
                         )}
@@ -327,40 +443,39 @@ export default function ProductPage() {
 
               {/* Paper */}
               {product.papers && product.papers.length > 0 && (
-                <OptionSection title="용지">
-                  <RadioGroup
-                    value={selectedOptions.paper?.id}
-                    onValueChange={(value) => {
-                      const paper = product.papers?.find(p => p.id === value);
-                      setSelectedOptions(prev => ({ ...prev, paper }));
-                    }}
-                    className="grid grid-cols-2 gap-2"
-                  >
-                    {product.papers.map((paper) => (
-                      <Label
-                        key={paper.id}
-                        className={cn(
-                          "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors",
-                          selectedOptions.paper?.id === paper.id
-                            ? "border-primary bg-primary/5"
-                            : "hover:border-gray-400"
-                        )}
-                      >
-                        <RadioGroupItem value={paper.id} />
-                        <span className="flex-1">
-                          {paper.name}
-                          {paper.type !== 'normal' && (
-                            <Badge variant="outline" className="ml-1 text-xs">
-                              {paper.type === 'premium' ? '프리미엄' : '수입지'}
-                            </Badge>
+                <OptionSection title="용지" count={product.papers.length}>
+                  <div className="max-h-[200px] overflow-y-auto pr-1">
+                    <RadioGroup
+                      value={selectedOptions.paper?.id}
+                      onValueChange={(value) => {
+                        const paper = product.papers?.find(p => p.id === value);
+                        setSelectedOptions(prev => ({ ...prev, paper }));
+                      }}
+                      className="grid grid-cols-2 gap-1.5"
+                    >
+                      {product.papers.map((paper) => (
+                        <Label
+                          key={paper.id}
+                          className={cn(
+                            "flex items-center gap-1.5 px-2.5 py-2 border rounded-md cursor-pointer transition-colors text-sm",
+                            selectedOptions.paper?.id === paper.id
+                              ? "border-primary bg-primary/5 font-medium"
+                              : "hover:border-gray-400"
                           )}
-                        </span>
-                        {paper.price > 0 && (
-                          <span className="text-sm text-primary">+{paper.price.toLocaleString()}</span>
-                        )}
-                      </Label>
-                    ))}
-                  </RadioGroup>
+                        >
+                          <RadioGroupItem value={paper.id} className="h-3.5 w-3.5 flex-shrink-0" />
+                          <span className="truncate flex-1">
+                            {paper.name}
+                            {paper.grammage && <span className="text-gray-500 ml-1">{paper.grammage}g</span>}
+                          </span>
+                          <div className="flex items-center gap-1 text-xs text-gray-500 flex-shrink-0">
+                            {paper.frontCoating && <Badge variant="outline" className="text-[10px] px-1 py-0">{paper.frontCoating}</Badge>}
+                            {paper.grade && <Badge variant="secondary" className="text-[10px] px-1 py-0">G{paper.grade}</Badge>}
+                          </div>
+                        </Label>
+                      ))}
+                    </RadioGroup>
+                  </div>
                 </OptionSection>
               )}
 
@@ -398,6 +513,259 @@ export default function ProductPage() {
                   </div>
                 </OptionSection>
               )}
+
+              {/* 출력구분 - 제본방법에 따라 자동 설정 (읽기 전용) */}
+              <OptionSection title="출력구분">
+                <div className="grid grid-cols-2 gap-2">
+                  <div
+                    className={cn(
+                      "flex items-center gap-2 p-3 border rounded-lg transition-colors",
+                      selectedOptions.printSide === 'single'
+                        ? "border-primary bg-primary/5"
+                        : "border-gray-200 bg-gray-50 text-gray-400"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-4 h-4 rounded-full border-2",
+                      selectedOptions.printSide === 'single'
+                        ? "border-primary bg-primary"
+                        : "border-gray-300"
+                    )}>
+                      {selectedOptions.printSide === 'single' && (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <div className="w-2 h-2 rounded-full bg-white" />
+                        </div>
+                      )}
+                    </div>
+                    <span className="flex-1">단면출력</span>
+                  </div>
+                  <div
+                    className={cn(
+                      "flex items-center gap-2 p-3 border rounded-lg transition-colors",
+                      selectedOptions.printSide === 'double'
+                        ? "border-primary bg-primary/5"
+                        : "border-gray-200 bg-gray-50 text-gray-400"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-4 h-4 rounded-full border-2",
+                      selectedOptions.printSide === 'double'
+                        ? "border-primary bg-primary"
+                        : "border-gray-300"
+                    )}>
+                      {selectedOptions.printSide === 'double' && (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <div className="w-2 h-2 rounded-full bg-white" />
+                        </div>
+                      )}
+                    </div>
+                    <span className="flex-1">양면출력</span>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  {selectedOptions.binding?.name?.includes('압축') ||
+                    selectedOptions.binding?.name?.includes('맞장') ||
+                    selectedOptions.binding?.name?.includes('레이플릿')
+                    ? '※ 압축제본류(압축, 맞장, 레이플릿)는 단면출력으로 고정됩니다.'
+                    : selectedOptions.binding?.name?.includes('화보') ||
+                      selectedOptions.binding?.name?.includes('포토북')
+                      ? '※ 화보류(핀화보, 스타화보, 포토북)는 양면출력으로 고정됩니다.'
+                      : '※ 제본방법에 따라 자동으로 설정됩니다.'}
+                </p>
+              </OptionSection>
+
+              {/* 동판 선택 */}
+              {(product.publicCopperPlates && product.publicCopperPlates.length > 0) || (isAuthenticated && ownedCopperPlates && ownedCopperPlates.length > 0) ? (
+                <OptionSection title="동판">
+                  {/* 동판 타입 선택 */}
+                  <RadioGroup
+                    value={selectedOptions.copperPlateType || 'none'}
+                    onValueChange={(value) => {
+                      const plateType = value as 'none' | 'public' | 'owned';
+                      setSelectedOptions(prev => ({
+                        ...prev,
+                        copperPlateType: plateType,
+                        publicCopperPlate: plateType === 'public' ? (product.publicCopperPlates?.[0] || prev.publicCopperPlate) : undefined,
+                        ownedCopperPlate: plateType === 'owned' ? (ownedCopperPlates?.[0] || prev.ownedCopperPlate) : undefined,
+                      }));
+                    }}
+                    className="space-y-3"
+                  >
+                    {/* 동판 없음 */}
+                    <Label
+                      className={cn(
+                        "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors",
+                        selectedOptions.copperPlateType === 'none'
+                          ? "border-primary bg-primary/5"
+                          : "hover:border-gray-400"
+                      )}
+                    >
+                      <RadioGroupItem value="none" />
+                      <span>동판 없음</span>
+                    </Label>
+
+                    {/* 공용동판 */}
+                    {product.publicCopperPlates && product.publicCopperPlates.length > 0 && (
+                      <div className="space-y-2">
+                        <Label
+                          className={cn(
+                            "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors",
+                            selectedOptions.copperPlateType === 'public'
+                              ? "border-primary bg-primary/5"
+                              : "hover:border-gray-400"
+                          )}
+                        >
+                          <RadioGroupItem value="public" />
+                          <span>공용동판</span>
+                        </Label>
+
+                        {/* 공용동판 목록 (선택 시 표시) */}
+                        {selectedOptions.copperPlateType === 'public' && (
+                          <div className="ml-6 space-y-2">
+                            <div className="grid grid-cols-1 gap-2">
+                              {product.publicCopperPlates.map((pcp) => (
+                                <Label
+                                  key={pcp.id}
+                                  className={cn(
+                                    "flex items-center gap-3 p-2 border rounded-md cursor-pointer transition-colors",
+                                    selectedOptions.publicCopperPlate?.id === pcp.id
+                                      ? "border-primary bg-primary/5"
+                                      : "hover:border-gray-400"
+                                  )}
+                                  onClick={() => setSelectedOptions(prev => ({ ...prev, publicCopperPlate: pcp }))}
+                                >
+                                  {pcp.publicCopperPlate.imageUrl && (
+                                    <img
+                                      src={normalizeImageUrl(pcp.publicCopperPlate.imageUrl)}
+                                      alt={pcp.publicCopperPlate.plateName}
+                                      className="w-12 h-12 object-cover rounded"
+                                    />
+                                  )}
+                                  <div className="flex-1">
+                                    <div className="font-medium text-sm">{pcp.publicCopperPlate.plateName}</div>
+                                    {pcp.engravingText && (
+                                      <div className="text-xs text-gray-500">각인: {pcp.engravingText}</div>
+                                    )}
+                                  </div>
+                                  <Checkbox
+                                    checked={selectedOptions.publicCopperPlate?.id === pcp.id}
+                                    className="pointer-events-none"
+                                  />
+                                </Label>
+                              ))}
+                            </div>
+
+                            {/* 박 색상 선택 */}
+                            {copperPlateLabels?.foilColors && copperPlateLabels.foilColors.length > 0 && (
+                              <div className="mt-3">
+                                <Label className="text-xs text-gray-600 mb-1 block">박 색상</Label>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {copperPlateLabels.foilColors.filter(c => c.isActive).map((color) => (
+                                    <button
+                                      key={color.id}
+                                      type="button"
+                                      onClick={() => setSelectedOptions(prev => ({ ...prev, foilColor: color.code }))}
+                                      className={cn(
+                                        "px-2 py-1 text-xs rounded-md border transition-colors",
+                                        selectedOptions.foilColor === color.code
+                                          ? "border-primary bg-primary text-white"
+                                          : "border-gray-300 hover:border-gray-400"
+                                      )}
+                                    >
+                                      {color.name}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 박 위치 선택 */}
+                            {copperPlateLabels?.platePositions && copperPlateLabels.platePositions.length > 0 && (
+                              <div className="mt-2">
+                                <Label className="text-xs text-gray-600 mb-1 block">박 위치</Label>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {copperPlateLabels.platePositions.filter(p => p.isActive).map((pos) => (
+                                    <button
+                                      key={pos.id}
+                                      type="button"
+                                      onClick={() => setSelectedOptions(prev => ({ ...prev, foilPosition: pos.code }))}
+                                      className={cn(
+                                        "px-2 py-1 text-xs rounded-md border transition-colors",
+                                        selectedOptions.foilPosition === pos.code
+                                          ? "border-primary bg-primary text-white"
+                                          : "border-gray-300 hover:border-gray-400"
+                                      )}
+                                    >
+                                      {pos.name}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 보유동판 (로그인 시에만 표시) */}
+                    {isAuthenticated && ownedCopperPlates && ownedCopperPlates.length > 0 && (
+                      <div className="space-y-2">
+                        <Label
+                          className={cn(
+                            "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors",
+                            selectedOptions.copperPlateType === 'owned'
+                              ? "border-primary bg-primary/5"
+                              : "hover:border-gray-400"
+                          )}
+                        >
+                          <RadioGroupItem value="owned" />
+                          <span>보유동판</span>
+                          <Badge variant="secondary" className="ml-1 text-xs">{ownedCopperPlates.length}개</Badge>
+                        </Label>
+
+                        {/* 보유동판 목록 (선택 시 표시) */}
+                        {selectedOptions.copperPlateType === 'owned' && (
+                          <div className="ml-6 max-h-[200px] overflow-y-auto">
+                            <div className="grid grid-cols-1 gap-2">
+                              {ownedCopperPlates.filter(cp => cp.status === 'stored').map((cp) => (
+                                <Label
+                                  key={cp.id}
+                                  className={cn(
+                                    "flex items-center gap-3 p-2 border rounded-md cursor-pointer transition-colors",
+                                    selectedOptions.ownedCopperPlate?.id === cp.id
+                                      ? "border-primary bg-primary/5"
+                                      : "hover:border-gray-400"
+                                  )}
+                                  onClick={() => setSelectedOptions(prev => ({ ...prev, ownedCopperPlate: cp }))}
+                                >
+                                  {cp.imageUrl && (
+                                    <img
+                                      src={normalizeImageUrl(cp.imageUrl)}
+                                      alt={cp.plateName}
+                                      className="w-12 h-12 object-cover rounded"
+                                    />
+                                  )}
+                                  <div className="flex-1">
+                                    <div className="font-medium text-sm">{cp.plateName}</div>
+                                    <div className="text-xs text-gray-500">
+                                      {cp.foilColorName && <span className="mr-2">{cp.foilColorName}</span>}
+                                      {cp.plateType === 'copper' ? '동판' : '연판'}
+                                    </div>
+                                  </div>
+                                  <Checkbox
+                                    checked={selectedOptions.ownedCopperPlate?.id === cp.id}
+                                    className="pointer-events-none"
+                                  />
+                                </Label>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </RadioGroup>
+                </OptionSection>
+              ) : null}
 
               {/* Quantity */}
               <OptionSection title="수량">
@@ -460,9 +828,10 @@ export default function ProductPage() {
             </CardHeader>
             <CardContent>
               {product.description ? (
-                <div className="prose max-w-none">
-                  {product.description}
-                </div>
+                <div
+                  className="prose max-w-none"
+                  dangerouslySetInnerHTML={{ __html: product.description }}
+                />
               ) : (
                 <p className="text-gray-500 text-center py-8">
                   상세 정보가 등록되지 않았습니다.
@@ -474,7 +843,7 @@ export default function ProductPage() {
                   {product.detailImages.map((img, idx) => (
                     <img
                       key={idx}
-                      src={img}
+                      src={normalizeImageUrl(img)}
                       alt={`${product.productName} 상세 ${idx + 1}`}
                       className="w-full rounded-lg"
                     />
@@ -489,10 +858,15 @@ export default function ProductPage() {
   );
 }
 
-function OptionSection({ title, children }: { title: string; children: React.ReactNode }) {
+function OptionSection({ title, count, children }: { title: string; count?: number; children: React.ReactNode }) {
   return (
     <div>
-      <h3 className="font-medium mb-2">{title}</h3>
+      <h3 className="font-medium mb-2 flex items-center gap-2">
+        {title}
+        {count !== undefined && count > 0 && (
+          <span className="text-xs text-gray-500 font-normal">({count}개)</span>
+        )}
+      </h3>
       {children}
     </div>
   );

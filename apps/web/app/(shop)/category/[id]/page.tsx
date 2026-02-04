@@ -3,7 +3,7 @@
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronRight, Grid3X3, List, SlidersHorizontal, ShoppingCart } from 'lucide-react';
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useCategory } from '@/hooks/use-categories';
 import { useCategoryProducts } from '@/hooks/use-products';
 import { Button } from '@/components/ui/button';
@@ -13,9 +13,36 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCartStore } from '@/stores/cart-store';
 import { cn } from '@/lib/utils';
+import { API_URL, API_BASE_URL } from '@/lib/api';
+
+// 이미지 URL 정규화 함수
+const normalizeImageUrl = (url: string | null | undefined): string => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url.replace(/\/api\/v1\/api\/v1\//g, '/api/v1/');
+  }
+  if (url.startsWith('/api/v1/')) {
+    return `${API_BASE_URL}${url}`;
+  }
+  if (url.startsWith('/upload')) {
+    return `${API_URL}${url}`;
+  }
+  if (url.startsWith('/api/')) {
+    return `${API_BASE_URL}${url}`;
+  }
+  return url;
+};
 import type { Product } from '@/lib/types';
 
 export default function CategoryPage() {
+  return (
+    <Suspense fallback={<CategoryPageSkeleton />}>
+      <CategoryPageContent />
+    </Suspense>
+  );
+}
+
+function CategoryPageContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -263,7 +290,7 @@ function ProductCard({ product }: { product: Product }) {
         <div className="aspect-square bg-gray-100 relative">
           {product.thumbnailUrl && !imageError ? (
             <img
-              src={product.thumbnailUrl}
+              src={normalizeImageUrl(product.thumbnailUrl)}
               alt={product.productName}
               className="w-full h-full object-cover"
               onError={() => setImageError(true)}
@@ -294,9 +321,14 @@ function ProductCard({ product }: { product: Product }) {
         </div>
         <CardContent className="p-3">
           <p className="text-xs text-gray-500 mb-1">{product.category?.name}</p>
-          <h3 className="font-medium text-sm line-clamp-2 mb-2 group-hover:text-primary transition-colors">
+          <h3 className="font-medium text-sm line-clamp-2 mb-1 group-hover:text-primary transition-colors">
             {product.productName}
           </h3>
+          <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
+            <span>조회 {(product.viewCount || 0).toLocaleString()}</span>
+            <span>·</span>
+            <span>주문 {(product.orderCount || 0).toLocaleString()}</span>
+          </div>
           <p className="font-bold text-primary">
             {product.basePrice.toLocaleString()}원
           </p>
@@ -332,7 +364,7 @@ function ProductListItem({ product }: { product: Product }) {
           <div className="w-32 h-32 bg-gray-100 flex-shrink-0 relative">
             {product.thumbnailUrl && !imageError ? (
               <img
-                src={product.thumbnailUrl}
+                src={normalizeImageUrl(product.thumbnailUrl)}
                 alt={product.productName}
                 className="w-full h-full object-cover"
                 onError={() => setImageError(true)}

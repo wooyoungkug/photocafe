@@ -9,6 +9,25 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useState } from 'react';
+import { API_URL, API_BASE_URL } from '@/lib/api';
+
+// 이미지 URL 정규화 함수
+const normalizeImageUrl = (url: string | null | undefined): string => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url.replace(/\/api\/v1\/api\/v1\//g, '/api/v1/');
+  }
+  if (url.startsWith('/api/v1/')) {
+    return `${API_BASE_URL}${url}`;
+  }
+  if (url.startsWith('/upload')) {
+    return `${API_URL}${url}`;
+  }
+  if (url.startsWith('/api/')) {
+    return `${API_BASE_URL}${url}`;
+  }
+  return url;
+};
 
 export default function CartPage() {
   const router = useRouter();
@@ -128,7 +147,7 @@ export default function CartPage() {
                   <div className="w-24 h-24 md:w-32 md:h-32 bg-gray-100 flex-shrink-0">
                     {item.thumbnailUrl ? (
                       <img
-                        src={item.thumbnailUrl}
+                        src={normalizeImageUrl(item.thumbnailUrl)}
                         alt={item.name}
                         className="w-full h-full object-cover"
                       />

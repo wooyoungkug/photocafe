@@ -18,7 +18,8 @@ function AuthCallbackContent() {
         const processAuth = async () => {
             try {
                 // Admin login callback params (from API login page)
-                const token = searchParams.get('token');
+                // 'token' 또는 'accessToken' 둘 다 지원
+                const token = searchParams.get('token') || searchParams.get('accessToken');
                 const userParam = searchParams.get('user');
 
                 console.log('Auth callback - token exists:', !!token);

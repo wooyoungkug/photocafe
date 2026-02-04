@@ -20,6 +20,9 @@ export interface ProductPaper {
   id: string;
   name: string;
   type: 'normal' | 'premium' | 'imported';
+  grammage?: number;
+  frontCoating?: string;
+  grade?: number;
   price: number;
   isDefault: boolean;
   sortOrder: number;
@@ -62,6 +65,35 @@ export interface CustomOption {
   sortOrder: number;
 }
 
+// 공용동판
+export interface PublicCopperPlate {
+  id: string;
+  plateName: string;
+  plateCode?: string;
+  plateType: 'copper' | 'soft';
+  widthMm?: number;
+  heightMm?: number;
+  storageLocation?: string;
+  imageUrl?: string;
+  aiFileUrl?: string;
+  designFileUrl?: string;
+  description?: string;
+  defaultEngravingText?: string;
+  status: string;
+  sortOrder: number;
+}
+
+// 상품-공용동판 연결
+export interface ProductPublicCopperPlate {
+  id: string;
+  productId: string;
+  publicCopperPlateId: string;
+  engravingText?: string;
+  isDefault: boolean;
+  sortOrder: number;
+  publicCopperPlate: PublicCopperPlate;
+}
+
 export interface Product {
   id: string;
   productCode: string;
@@ -81,6 +113,8 @@ export interface Product {
   detailImages: string[];
   description?: string;
   sortOrder: number;
+  viewCount: number;
+  orderCount: number;
   createdAt: string;
   updatedAt: string;
 
@@ -101,6 +135,7 @@ export interface Product {
     };
     isRequired: boolean;
   }>;
+  publicCopperPlates?: ProductPublicCopperPlate[];
 
   _count?: {
     specifications: number;

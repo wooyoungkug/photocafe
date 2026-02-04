@@ -11,7 +11,7 @@ import {
 
 @Injectable()
 export class OrderService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   // ==================== 주문번호 생성 ====================
   private async generateOrderNumber(): Promise<string> {
@@ -70,11 +70,11 @@ export class OrderService {
       ...(isUrgent !== undefined && { isUrgent }),
       ...(startDate || endDate
         ? {
-            orderedAt: {
-              ...(startDate && { gte: startDate }),
-              ...(endDate && { lte: endDate }),
-            },
-          }
+          orderedAt: {
+            ...(startDate && { gte: startDate }),
+            ...(endDate && { lte: endDate }),
+          },
+        }
         : {}),
     };
 
@@ -181,7 +181,7 @@ export class OrderService {
       const tax = Math.round(productPrice * 0.1); // 부가세 10%
       const totalAmount = productPrice + tax;
 
-      return this.prisma.order.create({
+      const order = await this.prisma.order.create({
         data: {
           orderNumber,
           barcode,
@@ -215,6 +215,19 @@ export class OrderService {
           },
         },
       });
+
+      // 상품별 주문수 증가 (비동기, 에러 무시)
+      const productIds = [...new Set(items.map(item => item.productId))];
+      Promise.all(
+        productIds.map(productId =>
+          this.prisma.product.update({
+            where: { id: productId },
+            data: { orderCount: { increment: 1 } },
+          }).catch(() => { })
+        )
+      ).catch(() => { });
+
+      return order;
     } catch (error) {
       console.error('Order creation error:', error);
       throw error;

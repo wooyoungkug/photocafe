@@ -106,6 +106,20 @@ const PRINT_TYPE_OPTIONS = [
   { value: 'customer', label: '고객선택' },
 ];
 
+// 제본방법에 따른 출력구분 자동 결정
+// 압축제본류(압축, 맞장, 레이플릿) → 단면출력
+// 화보류(핀화보, 스타화보, 포토북) → 양면출력
+const getPrintTypeByBinding = (bindingName: string): 'single' | 'double' | 'customer' => {
+  const lowerName = bindingName.toLowerCase();
+  if (lowerName.includes('압축') || lowerName.includes('맞장') || lowerName.includes('레이플릿')) {
+    return 'single';
+  }
+  if (lowerName.includes('화보') || lowerName.includes('포토북') || lowerName.includes('스타')) {
+    return 'double';
+  }
+  return 'double'; // 기본값
+};
+
 // 후가공 옵션 목록
 const FINISHING_OPTIONS = [
   { id: 'coating', label: '코팅선택', icon: '✨' },
@@ -183,7 +197,7 @@ export default function EditProductPage() {
   const { data: categories } = useCategories();
   const { data: specifications } = useSpecifications();
   const { data: halfProductsData } = useHalfProducts({ limit: 100 });
-  const { data: product, isLoading: isProductLoading } = useProduct(productId);
+  const { data: product, isLoading: isProductLoading, refetch: refetchProduct } = useProduct(productId);
   const { data: productionGroupTree } = useProductionGroupTree();
   const updateProduct = useUpdateProduct();
   const { data: productPublicPlates } = useProductPublicCopperPlates(productId);
@@ -380,6 +394,16 @@ export default function EditProductPage() {
       setSelectedSpecs(matchedSpecIds);
     }
   }, [product?.specifications, specifications]);
+
+  // 제본 선택에 따른 출력구분 자동 설정
+  useEffect(() => {
+    if (selectedBindings.length > 0) {
+      // 첫 번째 제본의 이름으로 출력구분 결정
+      const firstBinding = selectedBindings[0];
+      const autoPrintType = getPrintTypeByBinding(firstBinding.name);
+      setPrintType(autoPrintType);
+    }
+  }, [selectedBindings]);
 
   // 공용동판 로드
   useEffect(() => {
@@ -873,23 +897,28 @@ export default function EditProductPage() {
                   ))}
                 </div>
               )}
-              <div className="flex gap-4 pt-2">
-                <Label className="text-xs text-slate-500">출력구분</Label>
-                <div className="flex gap-3">
-                  {PRINT_TYPE_OPTIONS.map(opt => (
-                    <label key={opt.value} className="flex items-center gap-1.5 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="printType"
-                        value={opt.value}
-                        checked={printType === opt.value}
-                        onChange={(e) => setPrintType(e.target.value)}
-                        className="w-3.5 h-3.5 text-emerald-600"
-                      />
-                      <span className="text-xs">{opt.label}</span>
-                    </label>
-                  ))}
+              <div className="pt-2 space-y-1">
+                <div className="flex gap-4 items-center">
+                  <Label className="text-xs text-slate-500">출력구분</Label>
+                  <div className="flex gap-3">
+                    {PRINT_TYPE_OPTIONS.filter(opt => opt.value !== 'customer').map(opt => (
+                      <label key={opt.value} className={`flex items-center gap-1.5 ${selectedBindings.length === 0 ? 'opacity-50' : ''}`}>
+                        <input
+                          type="radio"
+                          name="printType"
+                          value={opt.value}
+                          checked={printType === opt.value}
+                          disabled
+                          className="w-3.5 h-3.5 text-emerald-600"
+                        />
+                        <span className="text-xs">{opt.label}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
+                <p className="text-[10px] text-slate-400">
+                  ※ 제본방법에 따라 자동으로 설정됩니다
+                </p>
               </div>
             </div>
 
@@ -1163,6 +1192,7 @@ export default function EditProductPage() {
         />
         <CardContent className="p-6">
           <ProductEditor
+            key={product?.id || 'new'}
             value={description}
             onChange={setDescription}
             placeholder="상품 상세 설명을 입력하세요."
@@ -1831,7 +1861,7 @@ function OutputPriceSelectionForm({
   const handleSelectSetting = (setting: ProductionSetting) => {
     setSelectedSettingId(setting.id);
     setSelectedSetting(setting);
-    setStep(4); // 세부 옵션 선택으로 이동
+    setStep(3); // 세부 옵션 선택으로 이동
   };
 
   // 추가 버튼
@@ -1873,6 +1903,91 @@ function OutputPriceSelectionForm({
   // 선택 제거
   const removeSelection = (id: string) => {
     setLocalSelected(prev => prev.filter(p => p.id !== id));
+  };
+
+  // 컴팩트 그룹 트리 렌더링 (Step 1에서 출력방식 선택 시 하단에 표시)
+  const renderGroupTreeCompact = (groups: ProductionGroup[], method: 'INDIGO' | 'INKJET', depth = 0): React.ReactNode[] => {
+    return groups.map(group => {
+      // 해당 출력방식에 맞는 설정만 필터링
+      const filteredGroupSettings = group.settings?.filter(s => {
+        if (s.pricingType !== 'paper_output_spec') return false;
+        if (method === 'INDIGO') {
+          return s.printMethod === 'indigo' || (s.indigoUpPrices && s.indigoUpPrices.length > 0);
+        } else {
+          return s.printMethod === 'inkjet' || (s.inkjetSpecPrices && s.inkjetSpecPrices.length > 0);
+        }
+      }) || [];
+
+      const hasSettings = filteredGroupSettings.length > 0;
+      const hasChildren = group.children && group.children.length > 0;
+      const childrenWithSettings = group.children?.filter(child => {
+        const childSettings = child.settings?.filter(s => {
+          if (s.pricingType !== 'paper_output_spec') return false;
+          if (method === 'INDIGO') {
+            return s.printMethod === 'indigo' || (s.indigoUpPrices && s.indigoUpPrices.length > 0);
+          } else {
+            return s.printMethod === 'inkjet' || (s.inkjetSpecPrices && s.inkjetSpecPrices.length > 0);
+          }
+        }) || [];
+        return childSettings.length > 0 || (child.children && child.children.length > 0);
+      }) || [];
+
+      if (!hasSettings && childrenWithSettings.length === 0) return null;
+
+      const isExpanded = expandedGroups.has(group.id);
+
+      return (
+        <div key={group.id} style={{ marginLeft: depth * 12 }}>
+          {/* 그룹 헤더 */}
+          <div
+            className="flex items-center gap-1.5 py-1.5 px-2 rounded cursor-pointer hover:bg-slate-100 text-xs"
+            onClick={() => toggleGroup(group.id)}
+          >
+            {(hasChildren || childrenWithSettings.length > 0) ? (
+              isExpanded ? (
+                <ChevronDown className="h-3 w-3 text-slate-400" />
+              ) : (
+                <ChevronRight className="h-3 w-3 text-slate-400" />
+              )
+            ) : (
+              <div className="w-3" />
+            )}
+            <Folder className="h-3 w-3 text-amber-500" />
+            <span className="font-medium">{group.name}</span>
+            <Badge variant="secondary" className="ml-auto text-[10px] h-4 px-1.5">
+              {filteredGroupSettings.length}
+            </Badge>
+          </div>
+
+          {/* 설정 목록 */}
+          {isExpanded && filteredGroupSettings.length > 0 && (
+            <div className="ml-5 space-y-0.5 mb-1">
+              {filteredGroupSettings.map(setting => (
+                <div
+                  key={setting.id}
+                  className={`flex items-center gap-1.5 py-1.5 px-2 rounded cursor-pointer text-xs transition-all ${
+                    selectedSettingId === setting.id
+                      ? 'bg-emerald-100 border border-emerald-400 font-medium'
+                      : 'bg-white border border-slate-200 hover:bg-emerald-50 hover:border-emerald-300'
+                  }`}
+                  onClick={() => {
+                    setSelectedSettingId(setting.id);
+                    setSelectedSetting(setting);
+                    setStep(3); // 세부 옵션으로 이동
+                  }}
+                >
+                  <Settings className="h-3 w-3 text-emerald-600" />
+                  <span className="truncate flex-1">{setting.settingName || setting.codeName}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* 하위 그룹 */}
+          {isExpanded && childrenWithSettings.length > 0 && renderGroupTreeCompact(childrenWithSettings, method, depth + 1)}
+        </div>
+      );
+    });
   };
 
   // 그룹 트리 렌더링
@@ -1961,7 +2076,6 @@ function OutputPriceSelectionForm({
       <div className="flex items-center gap-2 mb-4 px-2">
         {[
           { num: 1, label: '출력방식' },
-          { num: 2, label: '단가설정' },
           { num: 3, label: '세부옵션' },
         ].map((s, idx) => (
           <div key={s.num} className="flex items-center">
@@ -1987,38 +2101,70 @@ function OutputPriceSelectionForm({
         <div className="flex-1 overflow-y-auto p-4">
           <p className="text-sm text-slate-500 mb-4">출력방식을 선택해주세요.</p>
           <div className="grid grid-cols-2 gap-4">
-            <button
-              type="button"
-              className={`p-6 rounded-xl border-2 transition-all ${
-                outputMethod === 'INDIGO'
-                  ? 'border-emerald-500 bg-emerald-50'
-                  : 'border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50'
-              }`}
-              onClick={() => {
-                setOutputMethod('INDIGO');
-                setStep(2);
-              }}
-            >
-              <div className="text-3xl mb-2">🖨️</div>
-              <div className="font-semibold text-lg">인디고 출력</div>
-              <div className="text-sm text-slate-500 mt-1">4도/6도 선택, Up별 가격</div>
-            </button>
-            <button
-              type="button"
-              className={`p-6 rounded-xl border-2 transition-all ${
-                outputMethod === 'INKJET'
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-slate-200 hover:border-blue-300 hover:bg-blue-50/50'
-              }`}
-              onClick={() => {
-                setOutputMethod('INKJET');
-                setStep(2);
-              }}
-            >
-              <div className="text-3xl mb-2">💧</div>
-              <div className="font-semibold text-lg">잉크젯 출력</div>
-              <div className="text-sm text-slate-500 mt-1">규격별 가격</div>
-            </button>
+            <div className="space-y-3">
+              <button
+                type="button"
+                className={`w-full p-6 rounded-xl border-2 transition-all ${
+                  outputMethod === 'INDIGO'
+                    ? 'border-emerald-500 bg-emerald-50'
+                    : 'border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50'
+                }`}
+                onClick={() => {
+                  setOutputMethod(outputMethod === 'INDIGO' ? null : 'INDIGO');
+                  setSelectedSetting(null);
+                  setSelectedSettingId('');
+                }}
+              >
+                <div className="text-3xl mb-2">🖨️</div>
+                <div className="font-semibold text-lg">인디고 출력</div>
+                <div className="text-sm text-slate-500 mt-1">4도/6도 선택, Up별 가격</div>
+              </button>
+              {/* 인디고 출력 선택 시 하단에 세팅 목록 표시 */}
+              {outputMethod === 'INDIGO' && (
+                <div className="border rounded-lg p-3 bg-emerald-50/50 max-h-[250px] overflow-y-auto">
+                  <p className="text-xs font-medium text-slate-600 mb-2">단가설정 선택</p>
+                  {productionGroupTree && productionGroupTree.length > 0 ? (
+                    <div className="space-y-1">
+                      {renderGroupTreeCompact(productionGroupTree, 'INDIGO')}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400 text-center py-4">등록된 단가설정이 없습니다.</p>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="space-y-3">
+              <button
+                type="button"
+                className={`w-full p-6 rounded-xl border-2 transition-all ${
+                  outputMethod === 'INKJET'
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-slate-200 hover:border-blue-300 hover:bg-blue-50/50'
+                }`}
+                onClick={() => {
+                  setOutputMethod(outputMethod === 'INKJET' ? null : 'INKJET');
+                  setSelectedSetting(null);
+                  setSelectedSettingId('');
+                }}
+              >
+                <div className="text-3xl mb-2">💧</div>
+                <div className="font-semibold text-lg">잉크젯 출력</div>
+                <div className="text-sm text-slate-500 mt-1">규격별 가격</div>
+              </button>
+              {/* 잉크젯 출력 선택 시 하단에 세팅 목록 표시 */}
+              {outputMethod === 'INKJET' && (
+                <div className="border rounded-lg p-3 bg-blue-50/50 max-h-[250px] overflow-y-auto">
+                  <p className="text-xs font-medium text-slate-600 mb-2">단가설정 선택</p>
+                  {productionGroupTree && productionGroupTree.length > 0 ? (
+                    <div className="space-y-1">
+                      {renderGroupTreeCompact(productionGroupTree, 'INKJET')}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400 text-center py-4">등록된 단가설정이 없습니다.</p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -2049,7 +2195,7 @@ function OutputPriceSelectionForm({
       )}
 
       {/* Step 4: 세부 옵션 (인디고: 4도/6도, 잉크젯: 규격 선택) */}
-      {step === 4 && selectedSetting && (
+      {step === 3 && selectedSetting && (
         <div className="flex-1 overflow-y-auto p-4">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -2058,7 +2204,7 @@ function OutputPriceSelectionForm({
                 선택된 설정: <span className="text-emerald-600">{selectedSetting.settingName || selectedSetting.codeName}</span>
               </p>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => setStep(2)}>
+            <Button variant="ghost" size="sm" onClick={() => setStep(1)}>
               <ArrowLeft className="h-4 w-4 mr-1" /> 이전
             </Button>
           </div>

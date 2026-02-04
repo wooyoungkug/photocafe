@@ -5,7 +5,7 @@ import { CreateProductDto, UpdateProductDto } from '../dto';
 
 @Injectable()
 export class ProductService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   // Decimal을 number로 변환하는 헬퍼 함수
   private convertDecimalToNumber<T>(obj: T): T {
@@ -104,6 +104,24 @@ export class ProductService {
     };
   }
 
+  // 조회수 증가
+  async incrementViewCount(id: string) {
+    return this.prisma.product.update({
+      where: { id },
+      data: { viewCount: { increment: 1 } },
+      select: { viewCount: true },
+    });
+  }
+
+  // 주문수 증가
+  async incrementOrderCount(id: string) {
+    return this.prisma.product.update({
+      where: { id },
+      data: { orderCount: { increment: 1 } },
+      select: { orderCount: true },
+    });
+  }
+
   async findOne(id: string) {
     const product = await this.prisma.product.findUnique({
       where: { id },
@@ -127,6 +145,12 @@ export class ProductService {
               },
             },
           },
+        },
+        publicCopperPlates: {
+          include: {
+            publicCopperPlate: true,
+          },
+          orderBy: { sortOrder: 'asc' },
         },
       },
     });

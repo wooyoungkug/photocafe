@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
-import { useState, useCallback, useTransition, useEffect } from "react";
+import { usePathname } from "next/navigation";
+import { useState, useCallback, useEffect } from "react";
 import {
   Building2,
   Package,
@@ -200,8 +200,6 @@ function ServerStatusBadge({ status }: { status: ServerStatusInfo }) {
 
 export function Sidebar({ onClose, isMobile }: SidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
   const { user } = useAuthStore();
 
   // 기본적으로 모든 메뉴 접힘 (빈 배열)
@@ -288,11 +286,13 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
     await Promise.all([checkApiStatus(), checkFrontendStatus(), checkDbStatus()]);
   }, [checkApiStatus, checkFrontendStatus, checkDbStatus]);
 
-  // 초기 로드 및 주기적 상태 체크
+  // 초기 로드 시 한 번만 상태 체크 (주기적 폴링 제거로 성능 개선)
   useEffect(() => {
     checkAllServers();
-    const interval = setInterval(checkAllServers, 30000); // 30초마다 체크
-    return () => clearInterval(interval);
+    // 페이지 포커스 시에만 재체크 (탭 전환 후 돌아올 때)
+    const handleFocus = () => checkAllServers();
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, [checkAllServers]);
 
   // localStorage에서 메뉴 순서 불러오기
@@ -429,17 +429,13 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
 
   const isMenuOpen = (name: string) => openMenu === name;
 
-  // 빠른 네비게이션을 위한 핸들러
-  const handleNavigation = useCallback((href: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    startTransition(() => {
-      router.push(href);
-    });
+  // 네비게이션 핸들러 - Link의 기본 동작 활용, 모바일에서만 사이드바 닫기
+  const handleNavigation = useCallback(() => {
     // 모바일에서 네비게이션 후 사이드바 닫기
     if (isMobile && onClose) {
       onClose();
     }
-  }, [router, isMobile, onClose]);
+  }, [isMobile, onClose]);
 
   return (
     <div className="flex h-full w-72 flex-col bg-[#0F172A] border-r border-slate-800 shadow-2xl">
@@ -504,15 +500,14 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
                   <div className="flex items-center group/nav">
                     <Link
                       href={item.href}
-                      prefetch={true}
-                      onClick={(e) => handleNavigation(item.href!, e)}
+                      prefetch={false}
+                      onClick={handleNavigation}
                       className={cn(
                         "flex-1 flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-colors duration-100 relative overflow-hidden",
                         isActive
                           ? "bg-indigo-600 text-white shadow-md shadow-indigo-900/20"
                           : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-100",
-                        isPending && "opacity-70"
-                      )}
+                                              )}
                     >
                       <item.icon className={cn(
                         "h-5 w-5 transition-colors duration-100",
@@ -594,15 +589,14 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
                               <div key={child.href} className="flex items-center group/child">
                                 <Link
                                   href={child.href}
-                                  prefetch={true}
-                                  onClick={(e) => handleNavigation(child.href, e)}
+                                  prefetch={false}
+                                  onClick={handleNavigation}
                                   className={cn(
                                     "flex-1 flex items-center justify-between px-3 py-2 text-sm transition-colors duration-100",
                                     isChildActive
                                       ? "bg-slate-800 text-indigo-400 font-medium translate-x-1"
                                       : "text-slate-500 hover:text-slate-300 hover:bg-slate-800/30",
-                                    isPending && "opacity-70"
-                                  )}
+                                                                      )}
                                 >
                                   <span>{child.name}</span>
                                   {isChildActive && (

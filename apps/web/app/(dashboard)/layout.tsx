@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { AuthGuard } from "@/components/auth/auth-guard";
@@ -17,6 +17,7 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const resizeTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // localStorage에서 사이드바 접힘 상태 복원
   useEffect(() => {
@@ -24,20 +25,33 @@ export default function DashboardLayout({
     if (saved === "true") {
       setSidebarCollapsed(true);
     }
+    // 초기 모바일 상태 설정
+    setIsMobile(window.innerWidth < 1024);
   }, []);
 
-  // 화면 크기 감지
+  // 화면 크기 감지 (디바운싱 적용)
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024);
-      if (window.innerWidth >= 1024) {
-        setSidebarOpen(false);
+      // 디바운싱: 150ms 후에 실행
+      if (resizeTimerRef.current) {
+        clearTimeout(resizeTimerRef.current);
       }
+      resizeTimerRef.current = setTimeout(() => {
+        const mobile = window.innerWidth < 1024;
+        setIsMobile(mobile);
+        if (!mobile) {
+          setSidebarOpen(false);
+        }
+      }, 150);
     };
 
-    checkMobile();
     window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
+    return () => {
+      window.removeEventListener("resize", checkMobile);
+      if (resizeTimerRef.current) {
+        clearTimeout(resizeTimerRef.current);
+      }
+    };
   }, []);
 
   // 사이드바 토글 (데스크탑용)

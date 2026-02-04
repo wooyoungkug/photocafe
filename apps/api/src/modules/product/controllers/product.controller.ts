@@ -27,7 +27,7 @@ import {
 @ApiTags('상품')
 @Controller('products')
 export class ProductController {
-  constructor(private productService: ProductService) {}
+  constructor(private productService: ProductService) { }
 
   // 공개 API (인증 불필요)
   @Get()
@@ -42,6 +42,8 @@ export class ProductController {
   @Get(':id')
   @ApiOperation({ summary: '상품 상세 조회' })
   async findOne(@Param('id') id: string) {
+    // 조회수 증가 (별도 처리, 에러 무시)
+    this.productService.incrementViewCount(id).catch(() => { });
     return this.productService.findOne(id);
   }
 
