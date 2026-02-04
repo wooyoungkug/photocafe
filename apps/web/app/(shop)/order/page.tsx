@@ -2,8 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useState } from 'react';
-import { ArrowLeft, CreditCard, Wallet, Building2, Smartphone, Upload, X } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { ArrowLeft, CreditCard, Wallet, Building2, Smartphone, Upload, X, AlertTriangle } from 'lucide-react';
 import { useCartStore } from '@/stores/cart-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { api } from '@/lib/api';
@@ -17,6 +17,14 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface ShippingInfo {
   recipientName: string;
@@ -24,6 +32,23 @@ interface ShippingInfo {
   postalCode: string;
   address: string;
   addressDetail: string;
+}
+
+interface ClientInfo {
+  id: string;
+  clientName: string;
+  phone: string | null;
+  mobile: string | null;
+  postalCode: string | null;
+  address: string | null;
+  addressDetail: string | null;
+}
+
+interface ShippingChanges {
+  field: string;
+  label: string;
+  oldValue: string;
+  newValue: string;
 }
 
 export default function OrderPage() {
@@ -43,6 +68,223 @@ export default function OrderPage() {
   const [memo, setMemo] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // 회원정보 변경 감지 관련 상태
+  const [clientInfo, setClientInfo] = useState<ClientInfo | null>(null);
+  const [showChangeConfirmModal, setShowChangeConfirmModal] = useState(false);
+  const [shippingChanges, setShippingChanges] = useState<ShippingChanges[]>([]);
+  const [pendingOrderData, setPendingOrderData] = useState<any>(null);
+  const [updateMemberInfo, setUpdateMemberInfo] = useState(true);
+
+  // 회원정보 로드
+  const loadClientInfo = useCallback(async () => {
+    if (!user?.id) return;
+
+    try {
+      const response = await api.get<ClientInfo>(`/clients/${user.id}`);
+      setClientInfo(response);
+
+      // 회원정보로 배송정보 초기화
+      setShippingInfo({
+        recipientName: response.clientName || user?.name || '',
+        phone: response.mobile || response.phone || '',
+        postalCode: response.postalCode || '',
+        address: response.address || '',
+        addressDetail: response.addressDetail || '',
+      });
+    } catch (error) {
+      console.error('Failed to load client info:', error);
+      // 회원정보 로드 실패 시 기본값 유지
+    }
+  }, [user?.id, user?.name]);
+
+  useEffect(() => {
+    if (isAuthenticated && user?.id) {
+      loadClientInfo();
+    }
+  }, [isAuthenticated, user?.id, loadClientInfo]);
+
+  // 배송정보 변경사항 비교
+  const detectShippingChanges = useCallback((): ShippingChanges[] => {
+    if (!clientInfo) return [];
+
+    const changes: ShippingChanges[] = [];
+
+    const savedPhone = clientInfo.mobile || clientInfo.phone || '';
+    if (shippingInfo.phone && shippingInfo.phone !== savedPhone) {
+      changes.push({
+        field: 'phone',
+        label: '연락처',
+        oldValue: savedPhone || '(없음)',
+        newValue: shippingInfo.phone,
+      });
+    }
+
+    if (shippingInfo.postalCode && shippingInfo.postalCode !== (clientInfo.postalCode || '')) {
+      changes.push({
+        field: 'postalCode',
+        label: '우편번호',
+        oldValue: clientInfo.postalCode || '(없음)',
+        newValue: shippingInfo.postalCode,
+      });
+    }
+
+    if (shippingInfo.address && shippingInfo.address !== (clientInfo.address || '')) {
+      changes.push({
+        field: 'address',
+        label: '주소',
+        oldValue: clientInfo.address || '(없음)',
+        newValue: shippingInfo.address,
+      });
+    }
+
+    if (shippingInfo.addressDetail && shippingInfo.addressDetail !== (clientInfo.addressDetail || '')) {
+      changes.push({
+        field: 'addressDetail',
+        label: '상세주소',
+        oldValue: clientInfo.addressDetail || '(없음)',
+        newValue: shippingInfo.addressDetail,
+      });
+    }
+
+    return changes;
+  }, [clientInfo, shippingInfo]);
+
+  // 회원정보 업데이트 및 상담이력 기록
+  const updateClientInfoAndLog = async (changes: ShippingChanges[]) => {
+    if (!clientInfo) return;
+
+    try {
+      // 1. 회원정보 업데이트
+      const updateData: Record<string, string> = {};
+      changes.forEach((change) => {
+        if (change.field === 'phone') {
+          updateData.mobile = change.newValue;
+        } else {
+          updateData[change.field] = change.newValue;
+        }
+      });
+
+      await api.put(`/clients/${clientInfo.id}`, updateData);
+
+      // 2. 상담이력에 변경 내용 기록
+      const changeDetails = changes
+        .map((c) => `• ${c.label}: ${c.oldValue} → ${c.newValue}`)
+        .join('\n');
+
+      // 상담 분류 조회 (시스템/정보변경 카테고리)
+      let categoryId: string | null = null;
+      try {
+        const categories = await api.get<{ data: { id: string; name: string }[] }>('/consultation-categories');
+        const systemCategory = categories.data?.find(
+          (cat) => cat.name.includes('시스템') || cat.name.includes('정보변경') || cat.name.includes('기타')
+        );
+        categoryId = systemCategory?.id || null;
+      } catch {
+        // 카테고리 조회 실패 시 무시
+      }
+
+      // 상담이력 생성 (카테고리가 있는 경우에만)
+      if (categoryId) {
+        await api.post('/consultations', {
+          clientId: clientInfo.id,
+          categoryId,
+          title: '[자동] 주문 시 회원정보 변경',
+          content: `고객이 주문 과정에서 배송정보를 변경하고 회원정보 수정에 동의했습니다.\n\n변경 내역:\n${changeDetails}`,
+          counselorId: 'SYSTEM',
+          counselorName: '시스템',
+          status: 'closed',
+          priority: 'low',
+          internalMemo: '주문 페이지에서 자동 생성된 상담 기록',
+        });
+      }
+
+      toast({
+        title: '회원정보가 업데이트되었습니다',
+        description: '변경된 배송정보가 회원정보에 저장되었습니다.',
+      });
+    } catch (error) {
+      console.error('Failed to update client info:', error);
+      // 회원정보 업데이트 실패해도 주문은 진행
+    }
+  };
+
+  // 주문 실행 (모달 확인 후)
+  const executeOrder = async (orderData: any, shouldUpdateMemberInfo: boolean, changes: ShippingChanges[]) => {
+    try {
+      await api.post('/orders', orderData);
+
+      // 회원정보 업데이트가 선택된 경우
+      if (shouldUpdateMemberInfo && changes.length > 0) {
+        await updateClientInfoAndLog(changes);
+      } else if (changes.length > 0 && clientInfo) {
+        // 회원정보 업데이트 거부한 경우에도 상담이력에 기록
+        const changeDetails = changes
+          .map((c) => `• ${c.label}: ${c.oldValue} → ${c.newValue}`)
+          .join('\n');
+
+        try {
+          const categories = await api.get<{ data: { id: string; name: string }[] }>('/consultation-categories');
+          const systemCategory = categories.data?.find(
+            (cat) => cat.name.includes('시스템') || cat.name.includes('정보변경') || cat.name.includes('기타')
+          );
+
+          if (systemCategory?.id) {
+            await api.post('/consultations', {
+              clientId: clientInfo.id,
+              categoryId: systemCategory.id,
+              title: '[자동] 주문 시 배송정보 변경 (회원정보 미수정)',
+              content: `고객이 주문 과정에서 회원정보와 다른 배송정보로 주문했습니다.\n(회원정보 수정 거부)\n\n배송정보 변경 내역:\n${changeDetails}`,
+              counselorId: 'SYSTEM',
+              counselorName: '시스템',
+              status: 'closed',
+              priority: 'low',
+              internalMemo: '주문 페이지에서 자동 생성된 상담 기록 - 회원정보 수정 거부',
+            });
+          }
+        } catch {
+          // 상담이력 기록 실패 시 무시
+        }
+      }
+
+      toast({
+        title: '주문이 완료되었습니다',
+        description: '주문내역은 마이페이지에서 확인하실 수 있습니다.',
+      });
+
+      clearCart();
+      router.push('/order/complete');
+    } catch (error) {
+      console.error('Order error:', error);
+      toast({
+        title: '주문 실패',
+        description: error instanceof Error ? error.message : '주문 처리 중 오류가 발생했습니다.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // 모달 확인 버튼 핸들러
+  const handleConfirmOrder = async () => {
+    setShowChangeConfirmModal(false);
+    setIsSubmitting(true);
+
+    try {
+      await executeOrder(pendingOrderData, updateMemberInfo, shippingChanges);
+    } finally {
+      setIsSubmitting(false);
+      setPendingOrderData(null);
+      setShippingChanges([]);
+    }
+  };
+
+  // 모달 취소 핸들러
+  const handleCancelModal = () => {
+    setShowChangeConfirmModal(false);
+    setPendingOrderData(null);
+    setShippingChanges([]);
+    setIsSubmitting(false);
+  };
 
   // Redirect to login if not authenticated
   if (!isAuthenticated) {
@@ -98,53 +340,54 @@ export default function OrderPage() {
       return;
     }
 
-    setIsSubmitting(true);
+    // 로그인한 회원의 clientId 사용
+    const clientId = clientInfo?.id || user?.id;
 
-    try {
-      // 거래처 목록에서 첫 번째 거래처 가져오기 (테스트용)
-      const clientsResponse = await api.get<{ data: { id: string }[] }>('/clients', { limit: 1 });
-      const clientId = clientsResponse.data[0]?.id;
-
-      if (!clientId) {
-        throw new Error('등록된 거래처가 없습니다.');
-      }
-
-      // 주문 생성 API 호출
-      const orderData = {
-        clientId,
-        paymentMethod,
-        isUrgent: false,
-        customerMemo: memo || undefined,
-        items: items.map(item => ({
-          productId: item.productId || 'default-product',
-          productName: item.name,
-          size: item.options.find(o => o.name === '규격')?.value || 'A4',
-          pages: parseInt(item.options.find(o => o.name === '페이지')?.value || '20'),
-          printMethod: item.options.find(o => o.name === '인쇄방식')?.value || '디지털인쇄',
-          paper: item.options.find(o => o.name === '용지')?.value || '스노우화이트',
-          bindingType: item.options.find(o => o.name === '제본')?.value || '무선제본',
-          quantity: item.quantity,
-          unitPrice: item.basePrice,
-        })),
-        shipping: shippingInfo,
-      };
-
-      await api.post('/orders', orderData);
-
+    if (!clientId) {
       toast({
-        title: '주문이 완료되었습니다',
-        description: '주문내역은 마이페이지에서 확인하실 수 있습니다.',
-      });
-
-      clearCart();
-      router.push('/order/complete');
-    } catch (error) {
-      console.error('Order error:', error);
-      toast({
-        title: '주문 실패',
-        description: error instanceof Error ? error.message : '주문 처리 중 오류가 발생했습니다.',
+        title: '회원 정보 오류',
+        description: '회원 정보를 불러올 수 없습니다. 다시 로그인해주세요.',
         variant: 'destructive',
       });
+      return;
+    }
+
+    // 주문 데이터 준비
+    const orderData = {
+      clientId,
+      paymentMethod,
+      isUrgent: false,
+      customerMemo: memo || undefined,
+      items: items.map(item => ({
+        productId: item.productId || 'default-product',
+        productName: item.name,
+        size: item.options.find(o => o.name === '규격')?.value || 'A4',
+        pages: parseInt(item.options.find(o => o.name === '페이지')?.value || '20'),
+        printMethod: item.options.find(o => o.name === '인쇄방식')?.value || '디지털인쇄',
+        paper: item.options.find(o => o.name === '용지')?.value || '스노우화이트',
+        bindingType: item.options.find(o => o.name === '제본')?.value || '무선제본',
+        quantity: item.quantity,
+        unitPrice: item.basePrice,
+      })),
+      shipping: shippingInfo,
+    };
+
+    // 배송정보 변경사항 확인
+    const changes = detectShippingChanges();
+
+    if (changes.length > 0) {
+      // 변경사항이 있으면 확인 모달 표시
+      setShippingChanges(changes);
+      setPendingOrderData(orderData);
+      setUpdateMemberInfo(true);
+      setShowChangeConfirmModal(true);
+      return;
+    }
+
+    // 변경사항이 없으면 바로 주문 진행
+    setIsSubmitting(true);
+    try {
+      await executeOrder(orderData, false, []);
     } finally {
       setIsSubmitting(false);
     }
@@ -414,6 +657,77 @@ export default function OrderPage() {
           </div>
         </div>
       </form>
+
+      {/* 배송정보 변경 확인 모달 */}
+      <Dialog open={showChangeConfirmModal} onOpenChange={setShowChangeConfirmModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <AlertTriangle className="h-5 w-5" />
+              배송정보가 변경되었습니다
+            </DialogTitle>
+            <DialogDescription>
+              입력하신 배송정보가 기존 회원정보와 다릅니다.
+              회원정보를 업데이트하시겠습니까?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+              <p className="text-sm font-medium text-gray-700">변경 내역:</p>
+              {shippingChanges.map((change, index) => (
+                <div key={index} className="text-sm">
+                  <span className="font-medium">{change.label}:</span>
+                  <div className="ml-4 text-gray-600">
+                    <span className="line-through text-red-500">{change.oldValue}</span>
+                    <span className="mx-2">→</span>
+                    <span className="text-green-600 font-medium">{change.newValue}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 space-y-3">
+              <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                <input
+                  type="radio"
+                  name="updateOption"
+                  checked={updateMemberInfo}
+                  onChange={() => setUpdateMemberInfo(true)}
+                  className="w-4 h-4 text-primary"
+                />
+                <div>
+                  <p className="font-medium">회원정보 업데이트</p>
+                  <p className="text-sm text-gray-500">변경된 배송정보를 회원정보에 저장합니다</p>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                <input
+                  type="radio"
+                  name="updateOption"
+                  checked={!updateMemberInfo}
+                  onChange={() => setUpdateMemberInfo(false)}
+                  className="w-4 h-4 text-primary"
+                />
+                <div>
+                  <p className="font-medium">이번 주문만 적용</p>
+                  <p className="text-sm text-gray-500">회원정보는 변경하지 않고 이번 주문에만 적용합니다</p>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={handleCancelModal}>
+              취소
+            </Button>
+            <Button onClick={handleConfirmOrder} disabled={isSubmitting}>
+              {isSubmitting ? '처리중...' : '주문 진행'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
