@@ -73,7 +73,17 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
         sessionStorage.removeItem('accessToken');
         sessionStorage.removeItem('refreshToken');
         sessionStorage.removeItem('auth-storage');
-        window.location.href = '/login';
+
+        // 대시보드 경로면 관리자 로그인으로, 그 외에는 일반 로그인으로
+        const isDashboard = window.location.pathname.startsWith('/dashboard') ||
+          window.location.pathname.startsWith('/company') ||
+          window.location.pathname.startsWith('/product') ||
+          window.location.pathname.startsWith('/order') ||
+          window.location.pathname.startsWith('/production') ||
+          window.location.pathname.startsWith('/cs') ||
+          window.location.pathname.startsWith('/settings') ||
+          window.location.pathname.startsWith('/statistics');
+        window.location.href = isDashboard ? '/admin-login' : '/login';
       }
       throw new Error('Unauthorized');
     }
