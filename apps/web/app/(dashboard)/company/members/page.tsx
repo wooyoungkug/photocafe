@@ -66,12 +66,14 @@ import {
   Star,
   Palette,
   DollarSign,
+  ExternalLink,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { toast } from '@/hooks/use-toast';
 import { CopperPlateTab } from '@/components/members/copper-plate-tab';
 import { IndividualPricingTab } from '@/components/members/individual-pricing-tab';
+import { api } from '@/lib/api';
 
 export default function MembersPage() {
   const [search, setSearch] = useState('');
@@ -239,6 +241,23 @@ export default function MembersPage() {
     );
   };
 
+  // 대리 로그인 (회원으로 로그인된 쇼핑몰 새 창 열기)
+  const handleImpersonate = async (member: Client) => {
+    try {
+      const result = await api.post<{
+        accessToken: string;
+        refreshToken: string;
+        user: { id: string; name: string; email: string };
+      }>(`/auth/impersonate/${member.id}`);
+
+      // 새 창에서 쇼핑몰 열기 (토큰을 URL 파라미터로 전달)
+      const shopUrl = `/auth/callback?accessToken=${result.accessToken}&refreshToken=${result.refreshToken}&userId=${result.user.id}&userName=${encodeURIComponent(result.user.name)}&userEmail=${encodeURIComponent(result.user.email || '')}&impersonated=true`;
+      window.open(shopUrl, '_blank');
+    } catch (err) {
+      toast({ title: '대리 로그인에 실패했습니다.', variant: 'destructive' });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -342,10 +361,20 @@ export default function MembersPage() {
                       membersData?.data?.map((member) => (
                         <TableRow key={member.id} className="hover:bg-slate-50/50 transition-colors">
                           <TableCell className="text-center">
-                            <div className="font-semibold">{member.clientName}</div>
-                            {member.representative && (
-                              <div className="text-xs text-muted-foreground">{member.representative}</div>
-                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleImpersonate(member)}
+                              className="group text-left hover:bg-blue-50 rounded-md px-2 py-1 -mx-2 -my-1 transition-colors"
+                              title="클릭하여 해당 회원으로 쇼핑몰 접속"
+                            >
+                              <div className="font-semibold text-blue-600 group-hover:text-blue-800 flex items-center gap-1">
+                                {member.clientName}
+                                <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
+                              {member.representative && (
+                                <div className="text-xs text-muted-foreground">{member.representative}</div>
+                              )}
+                            </button>
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground text-center">
                             {member.email || '-'}
