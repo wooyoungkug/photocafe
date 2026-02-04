@@ -51,6 +51,24 @@ interface ShippingChanges {
   newValue: string;
 }
 
+// 동판 정보 변경 감지용 인터페이스
+interface CopperPlateChangeItem {
+  field: string;
+  label: string;
+  oldValue: string;
+  newValue: string;
+}
+
+interface CopperPlateChanges {
+  itemId: string;
+  itemName: string;
+  plateName: string;
+  copperPlateId: string;
+  selectedFoilColor: string;
+  selectedFoilPosition: string;
+  changes: CopperPlateChangeItem[];
+}
+
 export default function OrderPage() {
   const router = useRouter();
   const { toast } = useToast();
@@ -75,6 +93,10 @@ export default function OrderPage() {
   const [shippingChanges, setShippingChanges] = useState<ShippingChanges[]>([]);
   const [pendingOrderData, setPendingOrderData] = useState<any>(null);
   const [updateMemberInfo, setUpdateMemberInfo] = useState(true);
+
+  // 동판 정보 변경 감지 관련 상태
+  const [copperPlateChanges, setCopperPlateChanges] = useState<CopperPlateChanges[]>([]);
+  const [updateCopperPlateInfo, setUpdateCopperPlateInfo] = useState(true);
 
   // 회원정보 로드
   const loadClientInfo = useCallback(async () => {
@@ -150,6 +172,52 @@ export default function OrderPage() {
     return changes;
   }, [clientInfo, shippingInfo]);
 
+  // 동판 정보 변경사항 비교
+  const detectCopperPlateChanges = useCallback((): CopperPlateChanges[] => {
+    const allChanges: CopperPlateChanges[] = [];
+
+    items.forEach(item => {
+      if (!item.copperPlateInfo) return;
+
+      const info = item.copperPlateInfo;
+      const changes: CopperPlateChangeItem[] = [];
+
+      // 박색상 비교
+      if (info.selectedFoilColor && info.selectedFoilColor !== info.originalFoilColor) {
+        changes.push({
+          field: 'foilColor',
+          label: '박색상',
+          oldValue: info.originalFoilColorName || info.originalFoilColor || '(없음)',
+          newValue: info.selectedFoilColorName || info.selectedFoilColor,
+        });
+      }
+
+      // 박위치 비교
+      if (info.selectedFoilPosition && info.selectedFoilPosition !== info.originalFoilPosition) {
+        changes.push({
+          field: 'foilPosition',
+          label: '박위치',
+          oldValue: info.originalFoilPositionName || info.originalFoilPosition || '(없음)',
+          newValue: info.selectedFoilPositionName || info.selectedFoilPosition,
+        });
+      }
+
+      if (changes.length > 0) {
+        allChanges.push({
+          itemId: item.id,
+          itemName: item.name,
+          plateName: info.plateName,
+          copperPlateId: info.copperPlateId,
+          selectedFoilColor: info.selectedFoilColor,
+          selectedFoilPosition: info.selectedFoilPosition,
+          changes,
+        });
+      }
+    });
+
+    return allChanges;
+  }, [items]);
+
   // 회원정보 업데이트 및 상담이력 기록
   const updateClientInfoAndLog = async (changes: ShippingChanges[]) => {
     if (!clientInfo) return;
@@ -209,8 +277,115 @@ export default function OrderPage() {
     }
   };
 
+  // 동판 정보 업데이트 및 상담이력 기록
+  const updateCopperPlateInfoAndLog = async (cpChanges: CopperPlateChanges[]) => {
+    if (!clientInfo || cpChanges.length === 0) return;
+
+    try {
+      for (const cpChange of cpChanges) {
+        // 1. 동판 정보 업데이트
+        const updateData: Record<string, string> = {};
+        if (cpChange.selectedFoilColor) {
+          updateData.foilColor = cpChange.selectedFoilColor;
+        }
+        if (cpChange.selectedFoilPosition) {
+          updateData.foilPosition = cpChange.selectedFoilPosition;
+        }
+
+        await api.put(`/copper-plates/${cpChange.copperPlateId}`, updateData);
+      }
+
+      // 2. 상담이력에 변경 내용 기록
+      const changeDetails = cpChanges
+        .map(cp => {
+          const changes = cp.changes
+            .map(c => `  • ${c.label}: ${c.oldValue} → ${c.newValue}`)
+            .join('\n');
+          return `[${cp.plateName}] (${cp.itemName})\n${changes}`;
+        })
+        .join('\n\n');
+
+      // 상담 분류 조회
+      let categoryId: string | null = null;
+      try {
+        const categories = await api.get<{ data: { id: string; name: string }[] }>('/consultation-categories');
+        const systemCategory = categories.data?.find(
+          (cat) => cat.name.includes('시스템') || cat.name.includes('정보변경') || cat.name.includes('기타')
+        );
+        categoryId = systemCategory?.id || null;
+      } catch {
+        // 카테고리 조회 실패 시 무시
+      }
+
+      if (categoryId) {
+        await api.post('/consultations', {
+          clientId: clientInfo.id,
+          categoryId,
+          title: '[자동] 주문 시 동판 정보 변경',
+          content: `고객이 주문 과정에서 동판(박 각인) 정보를 변경하고 동판 정보 수정에 동의했습니다.\n\n변경 내역:\n${changeDetails}`,
+          counselorId: 'SYSTEM',
+          counselorName: '시스템',
+          status: 'closed',
+          priority: 'low',
+          internalMemo: '주문 페이지에서 자동 생성된 상담 기록 - 동판 정보 변경',
+        });
+      }
+
+      toast({
+        title: '동판 정보가 업데이트되었습니다',
+        description: '변경된 박색상/박위치가 동판 정보에 저장되었습니다.',
+      });
+    } catch (error) {
+      console.error('Failed to update copper plate info:', error);
+      // 동판 정보 업데이트 실패해도 주문은 진행
+    }
+  };
+
+  // 동판 정보 변경 이력만 상담에 기록 (업데이트 거부 시)
+  const logCopperPlateChangesOnly = async (cpChanges: CopperPlateChanges[]) => {
+    if (!clientInfo || cpChanges.length === 0) return;
+
+    try {
+      const changeDetails = cpChanges
+        .map(cp => {
+          const changes = cp.changes
+            .map(c => `  • ${c.label}: ${c.oldValue} → ${c.newValue}`)
+            .join('\n');
+          return `[${cp.plateName}] (${cp.itemName})\n${changes}`;
+        })
+        .join('\n\n');
+
+      const categories = await api.get<{ data: { id: string; name: string }[] }>('/consultation-categories');
+      const systemCategory = categories.data?.find(
+        (cat) => cat.name.includes('시스템') || cat.name.includes('정보변경') || cat.name.includes('기타')
+      );
+
+      if (systemCategory?.id) {
+        await api.post('/consultations', {
+          clientId: clientInfo.id,
+          categoryId: systemCategory.id,
+          title: '[자동] 주문 시 동판 정보 변경 (동판 정보 미수정)',
+          content: `고객이 주문 과정에서 동판(박 각인) 정보와 다른 설정으로 주문했습니다.\n(동판 정보 수정 거부)\n\n변경 내역:\n${changeDetails}`,
+          counselorId: 'SYSTEM',
+          counselorName: '시스템',
+          status: 'closed',
+          priority: 'low',
+          internalMemo: '주문 페이지에서 자동 생성된 상담 기록 - 동판 정보 수정 거부',
+        });
+      }
+    } catch {
+      // 상담이력 기록 실패 시 무시
+    }
+  };
+
   // 주문 실행 (모달 확인 후)
-  const executeOrder = async (orderData: any, shouldUpdateMemberInfo: boolean, changes: ShippingChanges[]) => {
+  const executeOrder = async (
+    orderData: any,
+    shouldUpdateMemberInfo: boolean,
+    changes: ShippingChanges[],
+    shouldUpdateCopperPlate: boolean,
+    cpChanges: CopperPlateChanges[]
+  ) => {
     try {
       await api.post('/orders', orderData);
 
@@ -247,6 +422,14 @@ export default function OrderPage() {
         }
       }
 
+      // 동판 정보 업데이트가 선택된 경우
+      if (shouldUpdateCopperPlate && cpChanges.length > 0) {
+        await updateCopperPlateInfoAndLog(cpChanges);
+      } else if (cpChanges.length > 0) {
+        // 동판 정보 업데이트 거부한 경우에도 상담이력에 기록
+        await logCopperPlateChangesOnly(cpChanges);
+      }
+
       toast({
         title: '주문이 완료되었습니다',
         description: '주문내역은 마이페이지에서 확인하실 수 있습니다.',
@@ -270,11 +453,12 @@ export default function OrderPage() {
     setIsSubmitting(true);
 
     try {
-      await executeOrder(pendingOrderData, updateMemberInfo, shippingChanges);
+      await executeOrder(pendingOrderData, updateMemberInfo, shippingChanges, updateCopperPlateInfo, copperPlateChanges);
     } finally {
       setIsSubmitting(false);
       setPendingOrderData(null);
       setShippingChanges([]);
+      setCopperPlateChanges([]);
     }
   };
 
@@ -283,6 +467,7 @@ export default function OrderPage() {
     setShowChangeConfirmModal(false);
     setPendingOrderData(null);
     setShippingChanges([]);
+    setCopperPlateChanges([]);
     setIsSubmitting(false);
   };
 
@@ -374,12 +559,16 @@ export default function OrderPage() {
 
     // 배송정보 변경사항 확인
     const changes = detectShippingChanges();
+    // 동판 정보 변경사항 확인
+    const cpChanges = detectCopperPlateChanges();
 
-    if (changes.length > 0) {
+    if (changes.length > 0 || cpChanges.length > 0) {
       // 변경사항이 있으면 확인 모달 표시
       setShippingChanges(changes);
+      setCopperPlateChanges(cpChanges);
       setPendingOrderData(orderData);
       setUpdateMemberInfo(true);
+      setUpdateCopperPlateInfo(true);
       setShowChangeConfirmModal(true);
       return;
     }
@@ -387,7 +576,7 @@ export default function OrderPage() {
     // 변경사항이 없으면 바로 주문 진행
     setIsSubmitting(true);
     try {
-      await executeOrder(orderData, false, []);
+      await executeOrder(orderData, false, [], false, []);
     } finally {
       setIsSubmitting(false);
     }
@@ -658,64 +847,123 @@ export default function OrderPage() {
         </div>
       </form>
 
-      {/* 배송정보 변경 확인 모달 */}
+      {/* 정보 변경 확인 모달 */}
       <Dialog open={showChangeConfirmModal} onOpenChange={setShowChangeConfirmModal}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[550px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-amber-600">
               <AlertTriangle className="h-5 w-5" />
-              배송정보가 변경되었습니다
+              정보가 변경되었습니다
             </DialogTitle>
             <DialogDescription>
-              입력하신 배송정보가 기존 회원정보와 다릅니다.
-              회원정보를 업데이트하시겠습니까?
+              입력하신 정보가 기존 저장된 정보와 다릅니다.
+              정보를 업데이트하시겠습니까?
             </DialogDescription>
           </DialogHeader>
 
-          <div className="py-4">
-            <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-              <p className="text-sm font-medium text-gray-700">변경 내역:</p>
-              {shippingChanges.map((change, index) => (
-                <div key={index} className="text-sm">
-                  <span className="font-medium">{change.label}:</span>
-                  <div className="ml-4 text-gray-600">
-                    <span className="line-through text-red-500">{change.oldValue}</span>
-                    <span className="mx-2">→</span>
-                    <span className="text-green-600 font-medium">{change.newValue}</span>
-                  </div>
+          <div className="py-4 space-y-6">
+            {/* 배송정보 변경 섹션 */}
+            {shippingChanges.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-800 mb-2">배송정보 변경</h4>
+                <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                  {shippingChanges.map((change, index) => (
+                    <div key={index} className="text-sm">
+                      <span className="font-medium">{change.label}:</span>
+                      <div className="ml-4 text-gray-600">
+                        <span className="line-through text-red-500">{change.oldValue}</span>
+                        <span className="mx-2">→</span>
+                        <span className="text-green-600 font-medium">{change.newValue}</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
 
-            <div className="mt-4 space-y-3">
-              <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                <input
-                  type="radio"
-                  name="updateOption"
-                  checked={updateMemberInfo}
-                  onChange={() => setUpdateMemberInfo(true)}
-                  className="w-4 h-4 text-primary"
-                />
-                <div>
-                  <p className="font-medium">회원정보 업데이트</p>
-                  <p className="text-sm text-gray-500">변경된 배송정보를 회원정보에 저장합니다</p>
-                </div>
-              </label>
+                <div className="mt-3 space-y-2">
+                  <label className="flex items-center gap-3 p-2 border rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="shippingUpdateOption"
+                      checked={updateMemberInfo}
+                      onChange={() => setUpdateMemberInfo(true)}
+                      className="w-4 h-4 text-primary"
+                    />
+                    <div className="text-sm">
+                      <p className="font-medium">회원정보 업데이트</p>
+                    </div>
+                  </label>
 
-              <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                <input
-                  type="radio"
-                  name="updateOption"
-                  checked={!updateMemberInfo}
-                  onChange={() => setUpdateMemberInfo(false)}
-                  className="w-4 h-4 text-primary"
-                />
-                <div>
-                  <p className="font-medium">이번 주문만 적용</p>
-                  <p className="text-sm text-gray-500">회원정보는 변경하지 않고 이번 주문에만 적용합니다</p>
+                  <label className="flex items-center gap-3 p-2 border rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="shippingUpdateOption"
+                      checked={!updateMemberInfo}
+                      onChange={() => setUpdateMemberInfo(false)}
+                      className="w-4 h-4 text-primary"
+                    />
+                    <div className="text-sm">
+                      <p className="font-medium">이번 주문만 적용</p>
+                    </div>
+                  </label>
                 </div>
-              </label>
-            </div>
+              </div>
+            )}
+
+            {/* 동판 정보 변경 섹션 */}
+            {copperPlateChanges.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-800 mb-2">동판(박 각인) 정보 변경</h4>
+                <div className="bg-amber-50 rounded-lg p-4 space-y-3">
+                  {copperPlateChanges.map((cpChange, cpIndex) => (
+                    <div key={cpIndex} className="text-sm">
+                      <div className="font-medium text-amber-800 mb-1">
+                        [{cpChange.plateName}] - {cpChange.itemName}
+                      </div>
+                      {cpChange.changes.map((change, index) => (
+                        <div key={index} className="ml-2">
+                          <span className="font-medium">{change.label}:</span>
+                          <div className="ml-4 text-gray-600">
+                            <span className="line-through text-red-500">{change.oldValue}</span>
+                            <span className="mx-2">→</span>
+                            <span className="text-green-600 font-medium">{change.newValue}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-3 space-y-2">
+                  <label className="flex items-center gap-3 p-2 border rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="copperPlateUpdateOption"
+                      checked={updateCopperPlateInfo}
+                      onChange={() => setUpdateCopperPlateInfo(true)}
+                      className="w-4 h-4 text-primary"
+                    />
+                    <div className="text-sm">
+                      <p className="font-medium">동판 정보 업데이트</p>
+                      <p className="text-xs text-gray-500">변경된 박색상/박위치를 동판에 저장합니다</p>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center gap-3 p-2 border rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="copperPlateUpdateOption"
+                      checked={!updateCopperPlateInfo}
+                      onChange={() => setUpdateCopperPlateInfo(false)}
+                      className="w-4 h-4 text-primary"
+                    />
+                    <div className="text-sm">
+                      <p className="font-medium">이번 주문만 적용</p>
+                      <p className="text-xs text-gray-500">동판 정보는 변경하지 않습니다</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            )}
           </div>
 
           <DialogFooter className="gap-2">

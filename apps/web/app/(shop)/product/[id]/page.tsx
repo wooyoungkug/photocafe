@@ -260,6 +260,30 @@ export default function ProductPage() {
       }
     }
 
+    // 보유동판 정보 준비 (변경 감지용)
+    const copperPlateInfo = selectedOptions.copperPlateType === 'owned' && selectedOptions.ownedCopperPlate
+      ? {
+          copperPlateId: selectedOptions.ownedCopperPlate.id,
+          plateName: selectedOptions.ownedCopperPlate.plateName,
+          // 원래 동판에 저장된 값
+          originalFoilColor: selectedOptions.ownedCopperPlate.foilColor || '',
+          originalFoilColorName: selectedOptions.ownedCopperPlate.foilColorName || '',
+          originalFoilPosition: selectedOptions.ownedCopperPlate.foilPosition || '',
+          originalFoilPositionName: copperPlateLabels?.platePositions?.find(
+            p => p.code === selectedOptions.ownedCopperPlate?.foilPosition
+          )?.name || '',
+          // 사용자가 선택한 값
+          selectedFoilColor: selectedOptions.foilColor || selectedOptions.ownedCopperPlate.foilColor || '',
+          selectedFoilColorName: copperPlateLabels?.foilColors?.find(
+            c => c.code === (selectedOptions.foilColor || selectedOptions.ownedCopperPlate?.foilColor)
+          )?.name || selectedOptions.ownedCopperPlate.foilColorName || '',
+          selectedFoilPosition: selectedOptions.foilPosition || selectedOptions.ownedCopperPlate.foilPosition || '',
+          selectedFoilPositionName: copperPlateLabels?.platePositions?.find(
+            p => p.code === (selectedOptions.foilPosition || selectedOptions.ownedCopperPlate?.foilPosition)
+          )?.name || '',
+        }
+      : undefined;
+
     addItem({
       productId: product.id,
       productType: 'product',
@@ -269,6 +293,7 @@ export default function ProductPage() {
       quantity,
       options,
       totalPrice: calculatePrice(),
+      copperPlateInfo,
     });
 
     toast({
@@ -608,22 +633,23 @@ export default function ProductPage() {
                     }}
                     className="space-y-3"
                   >
-                    {/* 동판 없음 */}
-                    <Label
-                      className={cn(
-                        "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors",
-                        selectedOptions.copperPlateType === 'none'
-                          ? "border-primary bg-primary/5"
-                          : "hover:border-gray-400"
-                      )}
-                    >
-                      <RadioGroupItem value="none" />
-                      <span>동판 없음</span>
-                    </Label>
+                    {/* 동판 타입 가로 배치 */}
+                    <div className="grid grid-cols-3 gap-2">
+                      {/* 동판 없음 */}
+                      <Label
+                        className={cn(
+                          "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors",
+                          selectedOptions.copperPlateType === 'none'
+                            ? "border-primary bg-primary/5"
+                            : "hover:border-gray-400"
+                        )}
+                      >
+                        <RadioGroupItem value="none" />
+                        <span>동판 없음</span>
+                      </Label>
 
-                    {/* 공용동판 */}
-                    {product.publicCopperPlates && product.publicCopperPlates.length > 0 && (
-                      <div className="space-y-2">
+                      {/* 공용동판 */}
+                      {product.publicCopperPlates && product.publicCopperPlates.length > 0 && (
                         <Label
                           className={cn(
                             "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors",
@@ -635,46 +661,169 @@ export default function ProductPage() {
                           <RadioGroupItem value="public" />
                           <span>공용동판</span>
                         </Label>
+                      )}
 
-                        {/* 공용동판 목록 (선택 시 표시) */}
-                        {selectedOptions.copperPlateType === 'public' && (
-                          <div className="ml-6 space-y-2">
-                            <div className="grid grid-cols-1 gap-2">
-                              {product.publicCopperPlates.map((pcp) => (
-                                <Label
-                                  key={pcp.id}
+                      {/* 보유동판 (로그인 시에만 표시) */}
+                      {isAuthenticated && ownedCopperPlates && ownedCopperPlates.length > 0 && (
+                        <Label
+                          className={cn(
+                            "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors",
+                            selectedOptions.copperPlateType === 'owned'
+                              ? "border-primary bg-primary/5"
+                              : "hover:border-gray-400"
+                          )}
+                        >
+                          <RadioGroupItem value="owned" />
+                          <span>보유동판</span>
+                          <Badge variant="secondary" className="ml-auto text-xs">{ownedCopperPlates.length}개</Badge>
+                        </Label>
+                      )}
+                    </div>
+
+                    {/* 공용동판 목록 (선택 시 표시) */}
+                    {selectedOptions.copperPlateType === 'public' && product.publicCopperPlates && product.publicCopperPlates.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-1 gap-2">
+                          {product.publicCopperPlates.map((pcp) => (
+                            <Label
+                              key={pcp.id}
+                              className={cn(
+                                "flex items-center gap-3 p-2 border rounded-md cursor-pointer transition-colors",
+                                selectedOptions.publicCopperPlate?.id === pcp.id
+                                  ? "border-primary bg-primary/5"
+                                  : "hover:border-gray-400"
+                              )}
+                              onClick={() => setSelectedOptions(prev => ({ ...prev, publicCopperPlate: pcp }))}
+                            >
+                              {pcp.publicCopperPlate.imageUrl && (
+                                <img
+                                  src={normalizeImageUrl(pcp.publicCopperPlate.imageUrl)}
+                                  alt={pcp.publicCopperPlate.plateName}
+                                  className="w-12 h-12 object-cover rounded"
+                                />
+                              )}
+                              <div className="flex-1">
+                                <div className="font-medium text-sm">{pcp.publicCopperPlate.plateName}</div>
+                                {pcp.engravingText && (
+                                  <div className="text-xs text-gray-500">각인: {pcp.engravingText}</div>
+                                )}
+                              </div>
+                              <Checkbox
+                                checked={selectedOptions.publicCopperPlate?.id === pcp.id}
+                                className="pointer-events-none"
+                              />
+                            </Label>
+                          ))}
+                        </div>
+
+                        {/* 박 색상 선택 */}
+                        {copperPlateLabels?.foilColors && copperPlateLabels.foilColors.length > 0 && (
+                          <div className="mt-3">
+                            <Label className="text-xs text-gray-600 mb-1 block">박 색상</Label>
+                            <div className="flex flex-wrap gap-1.5">
+                              {copperPlateLabels.foilColors.filter(c => c.isActive).map((color) => (
+                                <button
+                                  key={color.id}
+                                  type="button"
+                                  onClick={() => setSelectedOptions(prev => ({ ...prev, foilColor: color.code }))}
                                   className={cn(
-                                    "flex items-center gap-3 p-2 border rounded-md cursor-pointer transition-colors",
-                                    selectedOptions.publicCopperPlate?.id === pcp.id
-                                      ? "border-primary bg-primary/5"
-                                      : "hover:border-gray-400"
+                                    "px-2 py-1 text-xs rounded-md border transition-colors",
+                                    selectedOptions.foilColor === color.code
+                                      ? "border-primary bg-primary text-white"
+                                      : "border-gray-300 hover:border-gray-400"
                                   )}
-                                  onClick={() => setSelectedOptions(prev => ({ ...prev, publicCopperPlate: pcp }))}
                                 >
-                                  {pcp.publicCopperPlate.imageUrl && (
-                                    <img
-                                      src={normalizeImageUrl(pcp.publicCopperPlate.imageUrl)}
-                                      alt={pcp.publicCopperPlate.plateName}
-                                      className="w-12 h-12 object-cover rounded"
-                                    />
-                                  )}
-                                  <div className="flex-1">
-                                    <div className="font-medium text-sm">{pcp.publicCopperPlate.plateName}</div>
-                                    {pcp.engravingText && (
-                                      <div className="text-xs text-gray-500">각인: {pcp.engravingText}</div>
-                                    )}
-                                  </div>
-                                  <Checkbox
-                                    checked={selectedOptions.publicCopperPlate?.id === pcp.id}
-                                    className="pointer-events-none"
-                                  />
-                                </Label>
+                                  {color.name}
+                                </button>
                               ))}
                             </div>
+                          </div>
+                        )}
 
+                        {/* 박 위치 선택 */}
+                        {copperPlateLabels?.platePositions && copperPlateLabels.platePositions.length > 0 && (
+                          <div className="mt-2">
+                            <Label className="text-xs text-gray-600 mb-1 block">박 위치</Label>
+                            <div className="flex flex-wrap gap-1.5">
+                              {copperPlateLabels.platePositions.filter(p => p.isActive).map((pos) => (
+                                <button
+                                  key={pos.id}
+                                  type="button"
+                                  onClick={() => setSelectedOptions(prev => ({ ...prev, foilPosition: pos.code }))}
+                                  className={cn(
+                                    "px-2 py-1 text-xs rounded-md border transition-colors",
+                                    selectedOptions.foilPosition === pos.code
+                                      ? "border-primary bg-primary text-white"
+                                      : "border-gray-300 hover:border-gray-400"
+                                  )}
+                                >
+                                  {pos.name}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 보유동판 목록 (선택 시 표시) */}
+                    {selectedOptions.copperPlateType === 'owned' && isAuthenticated && ownedCopperPlates && ownedCopperPlates.length > 0 && (
+                      <div className="space-y-3">
+                        <div className="max-h-[200px] overflow-y-auto">
+                          <div className="grid grid-cols-1 gap-2">
+                            {ownedCopperPlates.filter(cp => cp.status === 'stored').map((cp) => (
+                              <Label
+                                key={cp.id}
+                                className={cn(
+                                  "flex items-center gap-3 p-2 border rounded-md cursor-pointer transition-colors",
+                                  selectedOptions.ownedCopperPlate?.id === cp.id
+                                    ? "border-primary bg-primary/5"
+                                    : "hover:border-gray-400"
+                                )}
+                                onClick={() => {
+                                  // 보유동판 선택 시 저장된 색상/위치 자동 로드
+                                  setSelectedOptions(prev => ({
+                                    ...prev,
+                                    ownedCopperPlate: cp,
+                                    foilColor: cp.foilColor || prev.foilColor,
+                                    foilPosition: cp.foilPosition || prev.foilPosition,
+                                  }));
+                                }}
+                              >
+                                {cp.imageUrl && (
+                                  <img
+                                    src={normalizeImageUrl(cp.imageUrl)}
+                                    alt={cp.plateName}
+                                    className="w-12 h-12 object-cover rounded"
+                                  />
+                                )}
+                                <div className="flex-1">
+                                  <div className="font-medium text-sm">{cp.plateName}</div>
+                                  <div className="text-xs text-gray-500">
+                                    {cp.foilColorName && <span className="mr-2">{cp.foilColorName}</span>}
+                                    {cp.foilPosition && (
+                                      <span className="mr-2">
+                                        {copperPlateLabels?.platePositions?.find(p => p.code === cp.foilPosition)?.name || cp.foilPosition}
+                                      </span>
+                                    )}
+                                    {cp.plateType === 'copper' ? '동판' : '연판'}
+                                  </div>
+                                </div>
+                                <Checkbox
+                                  checked={selectedOptions.ownedCopperPlate?.id === cp.id}
+                                  className="pointer-events-none"
+                                />
+                              </Label>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* 보유동판 선택 시 박 색상/위치 수정 가능 */}
+                        {selectedOptions.ownedCopperPlate && (
+                          <>
                             {/* 박 색상 선택 */}
                             {copperPlateLabels?.foilColors && copperPlateLabels.foilColors.length > 0 && (
-                              <div className="mt-3">
+                              <div>
                                 <Label className="text-xs text-gray-600 mb-1 block">박 색상</Label>
                                 <div className="flex flex-wrap gap-1.5">
                                   {copperPlateLabels.foilColors.filter(c => c.isActive).map((color) => (
@@ -698,7 +847,7 @@ export default function ProductPage() {
 
                             {/* 박 위치 선택 */}
                             {copperPlateLabels?.platePositions && copperPlateLabels.platePositions.length > 0 && (
-                              <div className="mt-2">
+                              <div>
                                 <Label className="text-xs text-gray-600 mb-1 block">박 위치</Label>
                                 <div className="flex flex-wrap gap-1.5">
                                   {copperPlateLabels.platePositions.filter(p => p.isActive).map((pos) => (
@@ -719,132 +868,7 @@ export default function ProductPage() {
                                 </div>
                               </div>
                             )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* 보유동판 (로그인 시에만 표시) */}
-                    {isAuthenticated && ownedCopperPlates && ownedCopperPlates.length > 0 && (
-                      <div className="space-y-2">
-                        <Label
-                          className={cn(
-                            "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors",
-                            selectedOptions.copperPlateType === 'owned'
-                              ? "border-primary bg-primary/5"
-                              : "hover:border-gray-400"
-                          )}
-                        >
-                          <RadioGroupItem value="owned" />
-                          <span>보유동판</span>
-                          <Badge variant="secondary" className="ml-1 text-xs">{ownedCopperPlates.length}개</Badge>
-                        </Label>
-
-                        {/* 보유동판 목록 (선택 시 표시) */}
-                        {selectedOptions.copperPlateType === 'owned' && (
-                          <div className="ml-6 space-y-3">
-                            <div className="max-h-[200px] overflow-y-auto">
-                              <div className="grid grid-cols-1 gap-2">
-                                {ownedCopperPlates.filter(cp => cp.status === 'stored').map((cp) => (
-                                  <Label
-                                    key={cp.id}
-                                    className={cn(
-                                      "flex items-center gap-3 p-2 border rounded-md cursor-pointer transition-colors",
-                                      selectedOptions.ownedCopperPlate?.id === cp.id
-                                        ? "border-primary bg-primary/5"
-                                        : "hover:border-gray-400"
-                                    )}
-                                    onClick={() => {
-                                      // 보유동판 선택 시 저장된 색상/위치 자동 로드
-                                      setSelectedOptions(prev => ({
-                                        ...prev,
-                                        ownedCopperPlate: cp,
-                                        foilColor: cp.foilColor || prev.foilColor,
-                                        foilPosition: cp.foilPosition || prev.foilPosition,
-                                      }));
-                                    }}
-                                  >
-                                    {cp.imageUrl && (
-                                      <img
-                                        src={normalizeImageUrl(cp.imageUrl)}
-                                        alt={cp.plateName}
-                                        className="w-12 h-12 object-cover rounded"
-                                      />
-                                    )}
-                                    <div className="flex-1">
-                                      <div className="font-medium text-sm">{cp.plateName}</div>
-                                      <div className="text-xs text-gray-500">
-                                        {cp.foilColorName && <span className="mr-2">{cp.foilColorName}</span>}
-                                        {cp.foilPosition && (
-                                          <span className="mr-2">
-                                            {copperPlateLabels?.platePositions?.find(p => p.code === cp.foilPosition)?.name || cp.foilPosition}
-                                          </span>
-                                        )}
-                                        {cp.plateType === 'copper' ? '동판' : '연판'}
-                                      </div>
-                                    </div>
-                                    <Checkbox
-                                      checked={selectedOptions.ownedCopperPlate?.id === cp.id}
-                                      className="pointer-events-none"
-                                    />
-                                  </Label>
-                                ))}
-                              </div>
-                            </div>
-
-                            {/* 보유동판 선택 시 박 색상/위치 수정 가능 */}
-                            {selectedOptions.ownedCopperPlate && (
-                              <>
-                                {/* 박 색상 선택 */}
-                                {copperPlateLabels?.foilColors && copperPlateLabels.foilColors.length > 0 && (
-                                  <div>
-                                    <Label className="text-xs text-gray-600 mb-1 block">박 색상</Label>
-                                    <div className="flex flex-wrap gap-1.5">
-                                      {copperPlateLabels.foilColors.filter(c => c.isActive).map((color) => (
-                                        <button
-                                          key={color.id}
-                                          type="button"
-                                          onClick={() => setSelectedOptions(prev => ({ ...prev, foilColor: color.code }))}
-                                          className={cn(
-                                            "px-2 py-1 text-xs rounded-md border transition-colors",
-                                            selectedOptions.foilColor === color.code
-                                              ? "border-primary bg-primary text-white"
-                                              : "border-gray-300 hover:border-gray-400"
-                                          )}
-                                        >
-                                          {color.name}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* 박 위치 선택 */}
-                                {copperPlateLabels?.platePositions && copperPlateLabels.platePositions.length > 0 && (
-                                  <div>
-                                    <Label className="text-xs text-gray-600 mb-1 block">박 위치</Label>
-                                    <div className="flex flex-wrap gap-1.5">
-                                      {copperPlateLabels.platePositions.filter(p => p.isActive).map((pos) => (
-                                        <button
-                                          key={pos.id}
-                                          type="button"
-                                          onClick={() => setSelectedOptions(prev => ({ ...prev, foilPosition: pos.code }))}
-                                          className={cn(
-                                            "px-2 py-1 text-xs rounded-md border transition-colors",
-                                            selectedOptions.foilPosition === pos.code
-                                              ? "border-primary bg-primary text-white"
-                                              : "border-gray-300 hover:border-gray-400"
-                                          )}
-                                        >
-                                          {pos.name}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-                              </>
-                            )}
-                          </div>
+                          </>
                         )}
                       </div>
                     )}

@@ -9,6 +9,20 @@ export interface CartItemOption {
   price: number;
 }
 
+// 동판 정보 (박 색상/위치 변경 감지용)
+export interface CopperPlateCartInfo {
+  copperPlateId: string;           // 동판 ID
+  plateName: string;               // 동판명
+  originalFoilColor: string;       // 원래 박색상 코드
+  originalFoilColorName: string;   // 원래 박색상 이름
+  originalFoilPosition: string;    // 원래 박위치 코드
+  originalFoilPositionName: string;// 원래 박위치 이름
+  selectedFoilColor: string;       // 선택한 박색상 코드
+  selectedFoilColorName: string;   // 선택한 박색상 이름
+  selectedFoilPosition: string;    // 선택한 박위치 코드
+  selectedFoilPositionName: string;// 선택한 박위치 이름
+}
+
 export interface CartItem {
   id: string;
   productId: string;
@@ -23,6 +37,7 @@ export interface CartItem {
     name: string;
     url: string;
   }>;
+  copperPlateInfo?: CopperPlateCartInfo; // 동판 정보 (변경 감지용)
 }
 
 interface CartState {
