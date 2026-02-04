@@ -1868,28 +1868,40 @@ function OutputPriceSelectionForm({
   const handleAddSelection = () => {
     if (!outputMethod || !selectedSetting) return;
 
-    const newSelection: OutputPriceSelection = {
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      outputMethod,
-      productionSettingId: selectedSetting.id,
-      productionSettingName: selectedSetting.settingName || selectedSetting.codeName || '단가설정',
-    };
-
     if (outputMethod === 'INDIGO') {
-      newSelection.colorType = colorType;
-      newSelection.selectedUpPrices = selectedSetting.indigoUpPrices?.filter(p => {
-        // 4도 또는 6도에 해당하는 가격만 선택
-        return true; // 모든 Up 가격 포함
-      });
+      // 인디고 출력: 4도와 6도 둘 다 자동 추가 (고객이 선택)
+      const selection4do: OutputPriceSelection = {
+        id: `${Date.now()}-4do-${Math.random().toString(36).substr(2, 9)}`,
+        outputMethod,
+        productionSettingId: selectedSetting.id,
+        productionSettingName: selectedSetting.settingName || selectedSetting.codeName || '단가설정',
+        colorType: '4도',
+        selectedUpPrices: selectedSetting.indigoUpPrices,
+      };
+      const selection6do: OutputPriceSelection = {
+        id: `${Date.now()}-6do-${Math.random().toString(36).substr(2, 9)}`,
+        outputMethod,
+        productionSettingId: selectedSetting.id,
+        productionSettingName: selectedSetting.settingName || selectedSetting.codeName || '단가설정',
+        colorType: '6도',
+        selectedUpPrices: selectedSetting.indigoUpPrices,
+      };
+      setLocalSelected(prev => [...prev, selection4do, selection6do]);
     } else if (outputMethod === 'INKJET' && selectedSpecId) {
+      // 잉크젯 출력
       const specPrice = selectedSetting.inkjetSpecPrices?.find(p => p.specificationId === selectedSpecId);
       if (specPrice) {
-        newSelection.specificationId = selectedSpecId;
-        newSelection.selectedSpecPrice = specPrice;
+        const newSelection: OutputPriceSelection = {
+          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          outputMethod,
+          productionSettingId: selectedSetting.id,
+          productionSettingName: selectedSetting.settingName || selectedSetting.codeName || '단가설정',
+          specificationId: selectedSpecId,
+          selectedSpecPrice: specPrice,
+        };
+        setLocalSelected(prev => [...prev, newSelection]);
       }
     }
-
-    setLocalSelected(prev => [...prev, newSelection]);
 
     // 초기화
     setStep(1);
@@ -2211,29 +2223,14 @@ function OutputPriceSelectionForm({
 
           {outputMethod === 'INDIGO' && (
             <>
-              {/* 4도/6도 선택 */}
-              <div className="mb-4">
-                <Label className="text-sm font-medium mb-2 block">색상 타입</Label>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant={colorType === '4도' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setColorType('4도')}
-                    className={colorType === '4도' ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
-                  >
-                    4도
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={colorType === '6도' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setColorType('6도')}
-                    className={colorType === '6도' ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
-                  >
-                    6도
-                  </Button>
-                </div>
+              {/* 4도/6도 자동 추가 안내 */}
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <span className="font-medium">💡 4도/6도 자동 추가:</span> 추가 버튼 클릭 시 4도와 6도가 모두 등록됩니다.
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  고객이 주문 시 4도/6도 중 선택할 수 있습니다.
+                </p>
               </div>
 
               {/* Up별 가격 테이블 */}
