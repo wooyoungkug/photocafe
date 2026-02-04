@@ -4,8 +4,10 @@ import { useState, useEffect } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { AuthGuard } from "@/components/auth/auth-guard";
-import { Menu, X } from "lucide-react";
+import { PanelLeftClose, PanelLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const SIDEBAR_COLLAPSED_KEY = "sidebar-collapsed";
 
 export default function DashboardLayout({
   children,
@@ -13,7 +15,16 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+
+  // localStorage에서 사이드바 접힘 상태 복원
+  useEffect(() => {
+    const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+    if (saved === "true") {
+      setSidebarCollapsed(true);
+    }
+  }, []);
 
   // 화면 크기 감지
   useEffect(() => {
@@ -28,6 +39,15 @@ export default function DashboardLayout({
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
+
+  // 사이드바 토글 (데스크탑용)
+  const toggleSidebarCollapsed = () => {
+    setSidebarCollapsed((prev) => {
+      const newValue = !prev;
+      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(newValue));
+      return newValue;
+    });
+  };
 
   // ESC 키로 사이드바 닫기
   useEffect(() => {
@@ -57,12 +77,38 @@ export default function DashboardLayout({
         {/* 사이드바 */}
         <aside
           className={cn(
-            "fixed lg:static inset-y-0 left-0 z-50 transition-transform duration-300 ease-in-out lg:translate-x-0",
-            sidebarOpen ? "translate-x-0" : "-translate-x-full"
+            "fixed lg:static inset-y-0 left-0 z-50 transition-all duration-300 ease-in-out",
+            // 모바일: 열림/닫힘
+            isMobile
+              ? sidebarOpen
+                ? "translate-x-0"
+                : "-translate-x-full"
+              : // 데스크탑: 접힘/펼침
+                sidebarCollapsed
+                ? "-ml-72"
+                : "ml-0"
           )}
         >
           <Sidebar onClose={() => setSidebarOpen(false)} isMobile={isMobile} />
         </aside>
+
+        {/* 사이드바 토글 버튼 (데스크탑) */}
+        {!isMobile && (
+          <button
+            onClick={toggleSidebarCollapsed}
+            className={cn(
+              "fixed z-[60] top-20 flex items-center gap-2 px-2 py-3 bg-slate-800 hover:bg-indigo-600 text-white rounded-r-lg shadow-lg transition-all duration-300",
+              sidebarCollapsed ? "left-0" : "left-72"
+            )}
+            title={sidebarCollapsed ? "메뉴 펼치기" : "메뉴 접기"}
+          >
+            {sidebarCollapsed ? (
+              <PanelLeft className="h-5 w-5" />
+            ) : (
+              <PanelLeftClose className="h-5 w-5" />
+            )}
+          </button>
+        )}
 
         {/* 메인 콘텐츠 */}
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">

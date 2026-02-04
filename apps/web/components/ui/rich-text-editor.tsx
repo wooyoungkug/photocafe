@@ -379,7 +379,7 @@ export function RichTextEditor({
 
   // 외부 value 변경 시 에디터 내용 동기화
   useEffect(() => {
-    if (editor && value !== editor.getHTML()) {
+    if (editor && value && value !== editor.getHTML()) {
       editor.commands.setContent(value, { emitUpdate: false });
     }
   }, [value, editor]);

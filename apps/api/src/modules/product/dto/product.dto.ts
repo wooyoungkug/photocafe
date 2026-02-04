@@ -193,6 +193,51 @@ export class ProductFinishingDto {
   sortOrder?: number;
 }
 
+// ==================== 출력단가 설정 DTO ====================
+export class ProductOutputPriceSettingDto {
+  @ApiProperty({ description: '출력방식', enum: ['INDIGO', 'INKJET'] })
+  @IsIn(['INDIGO', 'INKJET'])
+  outputMethod: 'INDIGO' | 'INKJET';
+
+  @ApiProperty({ description: '출력단가설정 ID' })
+  @IsString()
+  productionSettingId: string;
+
+  @ApiPropertyOptional({ description: '출력단가설정명' })
+  @IsOptional()
+  @IsString()
+  productionSettingName?: string;
+
+  @ApiPropertyOptional({ description: '출력기종 ID' })
+  @IsOptional()
+  @IsString()
+  deviceId?: string;
+
+  @ApiPropertyOptional({ description: '출력기종명' })
+  @IsOptional()
+  @IsString()
+  deviceName?: string;
+
+  @ApiPropertyOptional({ description: '색상타입 (인디고)', enum: ['4도', '6도'] })
+  @IsOptional()
+  @IsIn(['4도', '6도'])
+  colorType?: '4도' | '6도';
+
+  @ApiPropertyOptional({ description: '규격 ID (잉크젯)' })
+  @IsOptional()
+  @IsString()
+  specificationId?: string;
+
+  @ApiPropertyOptional({ description: '규격명 (잉크젯)' })
+  @IsOptional()
+  @IsString()
+  specificationName?: string;
+
+  @ApiPropertyOptional({ description: '가격 정보 (JSON)' })
+  @IsOptional()
+  priceData?: any;
+}
+
 // ==================== 상품 생성 DTO ====================
 export class CreateProductDto {
   @ApiProperty({ description: '상품 코드' })
@@ -304,6 +349,13 @@ export class CreateProductDto {
   @ValidateNested({ each: true })
   @Type(() => ProductFinishingDto)
   finishings?: ProductFinishingDto[];
+
+  @ApiPropertyOptional({ description: '출력단가 설정' })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductOutputPriceSettingDto)
+  outputPriceSettings?: ProductOutputPriceSettingDto[];
 }
 
 export class UpdateProductDto extends PartialType(CreateProductDto) {}

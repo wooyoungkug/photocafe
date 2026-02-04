@@ -61,6 +61,25 @@ export interface InkjetSpecPrice {
   isBaseSpec?: boolean; // 기준규격 여부
 }
 
+// 출력 단가 선택 인터페이스 (상품 가격 설정용)
+export interface OutputPriceSelection {
+  id: string;                                    // 고유 ID
+  outputMethod: 'INDIGO' | 'INKJET';            // 출력방식
+  productionSettingId: string;                   // 선택한 단가설정 ID
+  productionSettingName: string;                 // 단가설정명 (표시용)
+  deviceId?: string;                             // 출력기종 ID
+  deviceName?: string;                           // 출력기종명
+
+  // 인디고 전용
+  colorType?: '4도' | '6도';                     // 색상 타입
+  selectedUpPrices?: IndigoUpPrice[];            // 선택된 Up별 가격
+
+  // 잉크젯 전용
+  specificationId?: string;                      // 규격 ID
+  specificationName?: string;                    // 규격명
+  selectedSpecPrice?: InkjetSpecPrice;           // 선택된 규격 가격
+}
+
 // 생산설정 타입
 export interface ProductionSetting {
   id: string;

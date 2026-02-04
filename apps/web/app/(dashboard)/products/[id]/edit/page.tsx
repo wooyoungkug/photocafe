@@ -39,7 +39,7 @@ import { useCategories } from '@/hooks/use-categories';
 import { useSpecifications } from '@/hooks/use-specifications';
 import { useHalfProducts } from '@/hooks/use-half-products';
 import { useProduct, useUpdateProduct } from '@/hooks/use-products';
-import { useProductionGroupTree, type ProductionGroup, type ProductionSetting } from '@/hooks/use-production';
+import { useProductionGroupTree, useProductionSettings, type ProductionGroup, type ProductionSetting, type OutputPriceSelection, type IndigoUpPrice, type InkjetSpecPrice } from '@/hooks/use-production';
 import { usePapers } from '@/hooks/use-paper';
 import { useFoilColors, type FoilColorItem } from '@/hooks/use-copper-plates';
 import { usePublicCopperPlates, useProductPublicCopperPlates, useLinkPublicCopperPlateToProduct, useUnlinkPublicCopperPlateFromProduct, type PublicCopperPlate } from '@/hooks/use-public-copper-plates';
@@ -210,6 +210,9 @@ export default function EditProductPage() {
   const [selectedBindings, setSelectedBindings] = useState<{ id: string; name: string; price: number; productionSettingId?: string; pricingType?: string }[]>([]);
   const [bindingDirection, setBindingDirection] = useState('left');
   const [selectedPapers, setSelectedPapers] = useState<{ id: string; name: string; type: string; price: number; grammage?: number; printMethod?: string }[]>([]);
+  // 출력단가 선택 (새로운 방식)
+  const [outputPriceSelections, setOutputPriceSelections] = useState<OutputPriceSelection[]>([]);
+  const [outputPriceDialogOpen, setOutputPriceDialogOpen] = useState(false);
   const [printType, setPrintType] = useState('double');
   const [selectedCovers, setSelectedCovers] = useState<{ id: string; name: string; price: number }[]>([]);
   const [selectedFoils, setSelectedFoils] = useState<{ id: string; name: string; color: string; price: number }[]>([]);
@@ -831,37 +834,43 @@ export default function EditProductPage() {
               </div>
             </div>
 
-            {/* 용지 선택 */}
+            {/* 출력단가 선택 (새로운 방식) */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                   <FileText className="h-4 w-4 text-emerald-600" />
-                  용지 선택
+                  출력단가 설정
                 </Label>
-                <Button type="button" variant="outline" size="sm" onClick={() => setPaperDialogOpen(true)} className="gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => setOutputPriceDialogOpen(true)} className="gap-2">
                   <Plus className="h-4 w-4" />
-                  용지선택
+                  출력단가 선택
                 </Button>
               </div>
-              {selectedPapers.length > 0 && (
-                <div className="space-y-1.5 p-2 bg-slate-50 rounded-lg border text-xs">
-                  {['indigo', 'inkjet', 'offset'].map(method => {
-                    const methodPapers = selectedPapers.filter(p => p.printMethod === method);
-                    if (methodPapers.length === 0) return null;
-                    const methodLabels: Record<string, string> = { indigo: '인디고', inkjet: '잉크젯', offset: '오프셋' };
-                    return (
-                      <div key={method} className="flex items-start gap-2">
-                        <span className="text-slate-500 font-medium w-12 flex-shrink-0">{methodLabels[method]}:</span>
-                        <span className="text-slate-700">{methodPapers.map(p => `${p.name}${p.grammage ? ` ${p.grammage}g` : ''}`).join(', ')}</span>
+              {outputPriceSelections.length > 0 && (
+                <div className="space-y-2 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                  {outputPriceSelections.map((selection, idx) => (
+                    <div key={selection.id} className="flex items-center justify-between p-2 bg-white rounded-lg border">
+                      <div className="flex items-center gap-3">
+                        <span className="text-lg">{selection.outputMethod === 'INDIGO' ? '🖨️' : '💧'}</span>
+                        <div>
+                          <p className="font-medium text-sm">{selection.productionSettingName}</p>
+                          <p className="text-xs text-slate-500">
+                            {selection.outputMethod === 'INDIGO'
+                              ? `인디고 ${selection.colorType}`
+                              : `잉크젯 - ${selection.specificationId || '규격 미선택'}`}
+                          </p>
+                        </div>
                       </div>
-                    );
-                  })}
-                  {selectedPapers.filter(p => !p.printMethod || !['indigo', 'inkjet', 'offset'].includes(p.printMethod)).length > 0 && (
-                    <div className="flex items-start gap-2">
-                      <span className="text-slate-500 font-medium w-12 flex-shrink-0">기타:</span>
-                      <span className="text-slate-700">{selectedPapers.filter(p => !p.printMethod || !['indigo', 'inkjet', 'offset'].includes(p.printMethod)).map(p => `${p.name}${p.grammage ? ` ${p.grammage}g` : ''}`).join(', ')}</span>
+                      <button
+                        type="button"
+                        title="제거"
+                        className="p-1 hover:bg-red-100 rounded-full"
+                        onClick={() => setOutputPriceSelections(prev => prev.filter(p => p.id !== selection.id))}
+                      >
+                        <X className="h-4 w-4 text-red-500" />
+                      </button>
                     </div>
-                  )}
+                  ))}
                 </div>
               )}
               <div className="flex gap-4 pt-2">
@@ -1391,22 +1400,23 @@ export default function EditProductPage() {
         </DialogContent>
       </Dialog>
 
-      {/* 용지 선택 다이얼로그 */}
-      <Dialog open={paperDialogOpen} onOpenChange={setPaperDialogOpen}>
+      {/* 출력단가 선택 다이얼로그 */}
+      <Dialog open={outputPriceDialogOpen} onOpenChange={setOutputPriceDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-emerald-600" />
-              용지 선택 (용지관리에서 선택)
+              출력단가 선택 (표준단가설정에서 선택)
             </DialogTitle>
           </DialogHeader>
-          <PaperSelectionForm
-            selectedPapers={selectedPapers}
-            onSelect={(papers) => {
-              setSelectedPapers(papers);
-              setPaperDialogOpen(false);
+          <OutputPriceSelectionForm
+            selectedOutputPrices={outputPriceSelections}
+            productionGroupTree={productionGroupTree || []}
+            onSelect={(prices) => {
+              setOutputPriceSelections(prices);
+              setOutputPriceDialogOpen(false);
             }}
-            onCancel={() => setPaperDialogOpen(false)}
+            onCancel={() => setOutputPriceDialogOpen(false)}
           />
         </DialogContent>
       </Dialog>
@@ -1732,6 +1742,476 @@ function PaperSelectionForm({
       )}
 
       <DialogFooter className="mt-4">
+        <Button variant="outline" onClick={() => setLocalSelected([])}>전체 해제</Button>
+        <Button variant="outline" onClick={onCancel}>취소</Button>
+        <Button onClick={() => onSelect(localSelected)} className="bg-emerald-600 hover:bg-emerald-700">
+          선택 완료
+        </Button>
+      </DialogFooter>
+    </div>
+  );
+}
+
+// 출력단가 선택 폼 컴포넌트 (새로운 방식)
+function OutputPriceSelectionForm({
+  selectedOutputPrices,
+  onSelect,
+  onCancel,
+  productionGroupTree,
+}: {
+  selectedOutputPrices: OutputPriceSelection[];
+  onSelect: (prices: OutputPriceSelection[]) => void;
+  onCancel: () => void;
+  productionGroupTree?: ProductionGroup[];
+}) {
+  // 단계: 1=출력방식, 2=단가설정, 3=기종, 4=세부옵션
+  const [step, setStep] = useState(1);
+  const [outputMethod, setOutputMethod] = useState<'INDIGO' | 'INKJET' | null>(null);
+  const [selectedGroupId, setSelectedGroupId] = useState<string>('');
+  const [selectedSettingId, setSelectedSettingId] = useState<string>('');
+  const [selectedSetting, setSelectedSetting] = useState<ProductionSetting | null>(null);
+  const [colorType, setColorType] = useState<'4도' | '6도'>('4도');
+  const [selectedSpecId, setSelectedSpecId] = useState<string>('');
+  const [localSelected, setLocalSelected] = useState<OutputPriceSelection[]>(selectedOutputPrices);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  // paper_output_spec 타입의 설정만 필터링
+  const { data: productionSettings } = useProductionSettings({
+    pricingType: 'paper_output_spec',
+    isActive: true,
+  });
+
+  // 출력방식에 따라 필터링된 설정 목록
+  const filteredSettings = productionSettings?.filter(setting => {
+    if (!outputMethod) return false;
+    if (outputMethod === 'INDIGO') {
+      return setting.printMethod === 'indigo' || setting.indigoUpPrices?.length;
+    } else {
+      return setting.printMethod === 'inkjet' || setting.inkjetSpecPrices?.length;
+    }
+  }) || [];
+
+  // 그룹 트리에서 설정 찾기
+  const findSettingsInGroup = (group: ProductionGroup): ProductionSetting[] => {
+    const settings: ProductionSetting[] = [];
+    if (group.settings) {
+      const filtered = group.settings.filter(s => {
+        if (s.pricingType !== 'paper_output_spec') return false;
+        if (outputMethod === 'INDIGO') {
+          return s.printMethod === 'indigo' || (s.indigoUpPrices && s.indigoUpPrices.length > 0);
+        } else if (outputMethod === 'INKJET') {
+          return s.printMethod === 'inkjet' || (s.inkjetSpecPrices && s.inkjetSpecPrices.length > 0);
+        }
+        return false;
+      });
+      settings.push(...filtered);
+    }
+    if (group.children) {
+      group.children.forEach(child => {
+        settings.push(...findSettingsInGroup(child));
+      });
+    }
+    return settings;
+  };
+
+  // 트리 토글
+  const toggleGroup = (groupId: string) => {
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return next;
+    });
+  };
+
+  // 설정 선택 시
+  const handleSelectSetting = (setting: ProductionSetting) => {
+    setSelectedSettingId(setting.id);
+    setSelectedSetting(setting);
+    setStep(4); // 세부 옵션 선택으로 이동
+  };
+
+  // 추가 버튼
+  const handleAddSelection = () => {
+    if (!outputMethod || !selectedSetting) return;
+
+    const newSelection: OutputPriceSelection = {
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      outputMethod,
+      productionSettingId: selectedSetting.id,
+      productionSettingName: selectedSetting.settingName || selectedSetting.codeName || '단가설정',
+    };
+
+    if (outputMethod === 'INDIGO') {
+      newSelection.colorType = colorType;
+      newSelection.selectedUpPrices = selectedSetting.indigoUpPrices?.filter(p => {
+        // 4도 또는 6도에 해당하는 가격만 선택
+        return true; // 모든 Up 가격 포함
+      });
+    } else if (outputMethod === 'INKJET' && selectedSpecId) {
+      const specPrice = selectedSetting.inkjetSpecPrices?.find(p => p.specificationId === selectedSpecId);
+      if (specPrice) {
+        newSelection.specificationId = selectedSpecId;
+        newSelection.selectedSpecPrice = specPrice;
+      }
+    }
+
+    setLocalSelected(prev => [...prev, newSelection]);
+
+    // 초기화
+    setStep(1);
+    setOutputMethod(null);
+    setSelectedSettingId('');
+    setSelectedSetting(null);
+    setColorType('4도');
+    setSelectedSpecId('');
+  };
+
+  // 선택 제거
+  const removeSelection = (id: string) => {
+    setLocalSelected(prev => prev.filter(p => p.id !== id));
+  };
+
+  // 그룹 트리 렌더링
+  const renderGroupTree = (groups: ProductionGroup[], depth = 0) => {
+    return groups.map(group => {
+      const hasSettings = findSettingsInGroup(group).length > 0;
+      const hasChildren = group.children && group.children.length > 0;
+      const isExpanded = expandedGroups.has(group.id);
+
+      if (!hasSettings && !hasChildren) return null;
+
+      return (
+        <div key={group.id} style={{ marginLeft: depth * 16 }}>
+          <div
+            className={`flex items-center gap-2 py-2 px-3 rounded-lg cursor-pointer hover:bg-slate-100 ${
+              selectedGroupId === group.id ? 'bg-blue-50' : ''
+            }`}
+            onClick={() => {
+              if (hasChildren) {
+                toggleGroup(group.id);
+              }
+              setSelectedGroupId(group.id);
+            }}
+          >
+            {hasChildren ? (
+              isExpanded ? (
+                <ChevronDown className="h-4 w-4 text-slate-400" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-slate-400" />
+              )
+            ) : (
+              <div className="w-4" />
+            )}
+            <Folder className="h-4 w-4 text-amber-500" />
+            <span className="text-sm">{group.name}</span>
+            {group.settings && group.settings.length > 0 && (
+              <Badge variant="secondary" className="ml-auto text-xs">
+                {findSettingsInGroup(group).length}
+              </Badge>
+            )}
+          </div>
+
+          {/* 해당 그룹의 설정 목록 */}
+          {isExpanded && group.settings && (
+            <div className="ml-8 space-y-1 mb-2">
+              {group.settings
+                .filter(s => {
+                  if (s.pricingType !== 'paper_output_spec') return false;
+                  if (outputMethod === 'INDIGO') {
+                    return s.printMethod === 'indigo' || (s.indigoUpPrices && s.indigoUpPrices.length > 0);
+                  } else if (outputMethod === 'INKJET') {
+                    return s.printMethod === 'inkjet' || (s.inkjetSpecPrices && s.inkjetSpecPrices.length > 0);
+                  }
+                  return false;
+                })
+                .map(setting => (
+                  <div
+                    key={setting.id}
+                    className={`flex items-center gap-2 py-2 px-3 rounded-lg cursor-pointer hover:bg-emerald-50 ${
+                      selectedSettingId === setting.id ? 'bg-emerald-100 border border-emerald-300' : 'bg-white border border-slate-200'
+                    }`}
+                    onClick={() => handleSelectSetting(setting)}
+                  >
+                    <Settings className="h-4 w-4 text-emerald-600" />
+                    <span className="text-sm font-medium">{setting.settingName || setting.codeName}</span>
+                    {setting.printMethod && (
+                      <Badge variant="outline" className="ml-auto text-xs">
+                        {setting.printMethod === 'indigo' ? '인디고' : '잉크젯'}
+                      </Badge>
+                    )}
+                  </div>
+                ))}
+            </div>
+          )}
+
+          {/* 하위 그룹 */}
+          {isExpanded && hasChildren && renderGroupTree(group.children!, depth + 1)}
+        </div>
+      );
+    });
+  };
+
+  return (
+    <div className="flex flex-col flex-1 overflow-hidden">
+      {/* Step 표시 */}
+      <div className="flex items-center gap-2 mb-4 px-2">
+        {[
+          { num: 1, label: '출력방식' },
+          { num: 2, label: '단가설정' },
+          { num: 3, label: '세부옵션' },
+        ].map((s, idx) => (
+          <div key={s.num} className="flex items-center">
+            <div
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${
+                step >= s.num
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-slate-100 text-slate-400'
+              }`}
+            >
+              <span>{s.num}</span>
+              <span>{s.label}</span>
+            </div>
+            {idx < 2 && (
+              <ChevronRight className={`h-4 w-4 mx-1 ${step > s.num ? 'text-emerald-600' : 'text-slate-300'}`} />
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Step 1: 출력방식 선택 */}
+      {step === 1 && (
+        <div className="flex-1 overflow-y-auto p-4">
+          <p className="text-sm text-slate-500 mb-4">출력방식을 선택해주세요.</p>
+          <div className="grid grid-cols-2 gap-4">
+            <button
+              type="button"
+              className={`p-6 rounded-xl border-2 transition-all ${
+                outputMethod === 'INDIGO'
+                  ? 'border-emerald-500 bg-emerald-50'
+                  : 'border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50'
+              }`}
+              onClick={() => {
+                setOutputMethod('INDIGO');
+                setStep(2);
+              }}
+            >
+              <div className="text-3xl mb-2">🖨️</div>
+              <div className="font-semibold text-lg">인디고 출력</div>
+              <div className="text-sm text-slate-500 mt-1">4도/6도 선택, Up별 가격</div>
+            </button>
+            <button
+              type="button"
+              className={`p-6 rounded-xl border-2 transition-all ${
+                outputMethod === 'INKJET'
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-slate-200 hover:border-blue-300 hover:bg-blue-50/50'
+              }`}
+              onClick={() => {
+                setOutputMethod('INKJET');
+                setStep(2);
+              }}
+            >
+              <div className="text-3xl mb-2">💧</div>
+              <div className="font-semibold text-lg">잉크젯 출력</div>
+              <div className="text-sm text-slate-500 mt-1">규격별 가격</div>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 2: 단가설정 선택 (트리) */}
+      {step === 2 && outputMethod && (
+        <div className="flex-1 overflow-y-auto p-2">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm text-slate-500">
+              {outputMethod === 'INDIGO' ? '인디고' : '잉크젯'} 출력 단가설정을 선택해주세요.
+            </p>
+            <Button variant="ghost" size="sm" onClick={() => setStep(1)}>
+              <ArrowLeft className="h-4 w-4 mr-1" /> 이전
+            </Button>
+          </div>
+
+          <div className="border rounded-lg p-2 max-h-[400px] overflow-y-auto bg-slate-50">
+            {productionGroupTree && productionGroupTree.length > 0 ? (
+              renderGroupTree(productionGroupTree)
+            ) : (
+              <div className="text-center py-8 text-slate-400">
+                <Settings className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                <p>등록된 단가설정이 없습니다.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Step 4: 세부 옵션 (인디고: 4도/6도, 잉크젯: 규격 선택) */}
+      {step === 4 && selectedSetting && (
+        <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-sm text-slate-500">세부 옵션을 선택해주세요.</p>
+              <p className="text-sm font-medium mt-1">
+                선택된 설정: <span className="text-emerald-600">{selectedSetting.settingName || selectedSetting.codeName}</span>
+              </p>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setStep(2)}>
+              <ArrowLeft className="h-4 w-4 mr-1" /> 이전
+            </Button>
+          </div>
+
+          {outputMethod === 'INDIGO' && (
+            <>
+              {/* 4도/6도 선택 */}
+              <div className="mb-4">
+                <Label className="text-sm font-medium mb-2 block">색상 타입</Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={colorType === '4도' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setColorType('4도')}
+                    className={colorType === '4도' ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
+                  >
+                    4도
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={colorType === '6도' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setColorType('6도')}
+                    className={colorType === '6도' ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
+                  >
+                    6도
+                  </Button>
+                </div>
+              </div>
+
+              {/* Up별 가격 테이블 */}
+              {selectedSetting.indigoUpPrices && selectedSetting.indigoUpPrices.length > 0 && (
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-slate-50">
+                        <TableHead>Up</TableHead>
+                        <TableHead className="text-right">단면 가격</TableHead>
+                        <TableHead className="text-right">양면 가격</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedSetting.indigoUpPrices.map((upPrice) => (
+                        <TableRow key={upPrice.up}>
+                          <TableCell className="font-medium">{upPrice.up}Up</TableCell>
+                          <TableCell className="text-right">{upPrice.singleSidedPrice.toLocaleString()}원</TableCell>
+                          <TableCell className="text-right">{upPrice.doubleSidedPrice.toLocaleString()}원</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </>
+          )}
+
+          {outputMethod === 'INKJET' && (
+            <>
+              {/* 규격 선택 */}
+              <div className="mb-4">
+                <Label className="text-sm font-medium mb-2 block">규격 선택</Label>
+                {selectedSetting.inkjetSpecPrices && selectedSetting.inkjetSpecPrices.length > 0 ? (
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-slate-50">
+                          <TableHead className="w-12">선택</TableHead>
+                          <TableHead>규격 ID</TableHead>
+                          <TableHead className="text-right">가격</TableHead>
+                          <TableHead className="text-center">기준규격</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedSetting.inkjetSpecPrices.map((specPrice) => (
+                          <TableRow
+                            key={specPrice.specificationId}
+                            className={`cursor-pointer ${selectedSpecId === specPrice.specificationId ? 'bg-blue-50' : 'hover:bg-slate-50'}`}
+                            onClick={() => setSelectedSpecId(specPrice.specificationId)}
+                          >
+                            <TableCell>
+                              <Checkbox
+                                checked={selectedSpecId === specPrice.specificationId}
+                                onCheckedChange={() => setSelectedSpecId(specPrice.specificationId)}
+                              />
+                            </TableCell>
+                            <TableCell className="font-medium">{specPrice.specificationId}</TableCell>
+                            <TableCell className="text-right">{specPrice.singleSidedPrice.toLocaleString()}원</TableCell>
+                            <TableCell className="text-center">
+                              {specPrice.isBaseSpec && <Badge variant="secondary">기준</Badge>}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <p className="text-slate-400 text-sm">등록된 규격이 없습니다.</p>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* 추가 버튼 */}
+          <div className="mt-4">
+            <Button
+              type="button"
+              onClick={handleAddSelection}
+              className="w-full bg-emerald-600 hover:bg-emerald-700"
+              disabled={outputMethod === 'INKJET' && !selectedSpecId}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              출력단가 추가
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* 선택된 출력단가 목록 */}
+      {localSelected.length > 0 && (
+        <div className="p-4 border-t bg-emerald-50">
+          <p className="text-sm font-medium mb-3">선택된 출력단가 ({localSelected.length}개)</p>
+          <div className="space-y-2 max-h-[200px] overflow-y-auto">
+            {localSelected.map((selection) => (
+              <div
+                key={selection.id}
+                className="flex items-center justify-between p-3 bg-white rounded-lg border"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">{selection.outputMethod === 'INDIGO' ? '🖨️' : '💧'}</span>
+                  <div>
+                    <p className="font-medium text-sm">{selection.productionSettingName}</p>
+                    <p className="text-xs text-slate-500">
+                      {selection.outputMethod === 'INDIGO'
+                        ? `인디고 ${selection.colorType}`
+                        : `잉크젯 - ${selection.specificationId || '규격 미선택'}`}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeSelection(selection.id)}
+                  className="p-1 hover:bg-red-100 rounded-full"
+                >
+                  <X className="h-4 w-4 text-red-500" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <DialogFooter className="mt-4 p-4 border-t">
         <Button variant="outline" onClick={() => setLocalSelected([])}>전체 해제</Button>
         <Button variant="outline" onClick={onCancel}>취소</Button>
         <Button onClick={() => onSelect(localSelected)} className="bg-emerald-600 hover:bg-emerald-700">

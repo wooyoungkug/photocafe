@@ -233,7 +233,8 @@
       "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\" -h 192.168.0.67 -p 5433 -U postgres -d postgres -c \"SELECT 1;\")",
       "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\":*)",
       "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -c \"SELECT COUNT\\(*\\) as table_count FROM information_schema.tables WHERE table_schema = ''public'';\")",
-      "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\" -h 192.168.0.67 -p 5433 -U postgres -d postgres -c \"SELECT id, \"\"staffId\"\", name, \"\"branchId\"\" FROM staff;\")"
+      "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\" -h 192.168.0.67 -p 5433 -U postgres -d postgres -c \"SELECT id, \"\"staffId\"\", name, \"\"branchId\"\" FROM staff;\")",
+      "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -c \"SELECT id, \"\"productName\"\", description FROM products WHERE id = ''cml4ixxoc0001gpi1byhcm6bf'';\")"
     ]
   }
 }
