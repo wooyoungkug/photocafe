@@ -225,7 +225,9 @@
       "Bash(cmd //c \"taskkill /PID 26692 /F\")",
       "Bash(cmd //c \"taskkill /PID 23884 /F\")",
       "Bash(cmd //c \"taskkill /PID 26856 /F\")",
-      "Bash(cmd //c \"taskkill /PID 26648 /F\")"
+      "Bash(cmd //c \"taskkill /PID 26648 /F\")",
+      "Bash(cmd //c \"taskkill /PID 16060 /F\")",
+      "Bash(cmd //c \"taskkill /PID 9792 /F\")"
     ]
   }
 }

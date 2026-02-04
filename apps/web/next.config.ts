@@ -1,14 +1,21 @@
 import type { NextConfig } from "next";
+import { join } from 'path';
 
 const nextConfig: NextConfig = {
   output: "standalone",
   reactStrictMode: true,
 
   // Performance optimizations
-  swcMinify: true, // Use SWC for faster minification
+  // `swcMinify` is no longer a valid top-level Next config key in newer Next versions
+  // (Next uses the SWC toolchain by default). Remove the option to avoid invalid-config warnings.
   compress: true, // Enable gzip compression
   poweredByHeader: false, // Remove X-Powered-By header
   generateEtags: true, // Generate ETags for better caching
+
+  // When Next.js infers a workspace root (monorepo), it may warn about multiple lockfiles.
+  // Set `outputFileTracingRoot` to the repository root to silence the warning and ensure
+  // standalone output traces are resolved from the workspace root.
+  outputFileTracingRoot: join(__dirname, '..', '..'),
 
   // Image optimization
   images: {
