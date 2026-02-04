@@ -35,7 +35,7 @@ function LoginForm() {
         user: { id: string; email: string; name: string; role: string };
         accessToken: string;
         refreshToken: string;
-      }>('/auth/login', { email, password });
+      }>('/auth/client/login', { email, password });
 
       setAuth({
         user: response.user,

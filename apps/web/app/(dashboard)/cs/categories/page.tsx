@@ -66,41 +66,73 @@ const COLOR_PRESETS = [
 // 한글을 영문 코드로 변환하는 함수
 function generateCode(name: string): string {
   // 한글 -> 영문 매핑 (일반적인 상담 분류 용어)
-  const koreanToEnglish: Record<string, string> = {
-    '클레임': 'claim',
-    '품질': 'quality',
-    '배송': 'delivery',
-    '결제': 'payment',
-    '환불': 'refund',
-    '교환': 'exchange',
-    '문의': 'inquiry',
-    '상담': 'consult',
-    '일반': 'general',
-    '긴급': 'urgent',
-    '주문': 'order',
-    '취소': 'cancel',
-    '변경': 'change',
-    '기타': 'etc',
-    '제품': 'product',
-    '서비스': 'service',
-    '가격': 'price',
-    '기술': 'tech',
-    '앨범': 'album',
-    '인쇄': 'print',
-    '출력': 'output',
-    '사진': 'photo',
-    '파일': 'file',
-  };
+  // 긴 단어를 먼저 처리하기 위해 배열로 순서 지정
+  const koreanToEnglish: [string, string][] = [
+    // 복합어 (먼저 처리)
+    ['클레임', 'claim'],
+    ['품질', 'quality'],
+    ['배송', 'delivery'],
+    ['결제', 'payment'],
+    ['환불', 'refund'],
+    ['교환', 'exchange'],
+    ['문의', 'inquiry'],
+    ['상담', 'consult'],
+    ['일반', 'general'],
+    ['긴급', 'urgent'],
+    ['주문', 'order'],
+    ['취소', 'cancel'],
+    ['변경', 'change'],
+    ['기타', 'etc'],
+    ['제품', 'product'],
+    ['서비스', 'service'],
+    ['가격', 'price'],
+    ['기술', 'tech'],
+    ['앨범', 'album'],
+    ['인쇄', 'print'],
+    ['출력', 'output'],
+    ['사진', 'photo'],
+    ['파일', 'file'],
+    // 추가 매핑
+    ['표지', 'cover'],
+    ['내지', 'inner'],
+    ['커버', 'cover'],
+    ['견적', 'quote'],
+    ['디자인', 'design'],
+    ['색상', 'color'],
+    ['편집', 'edit'],
+    ['수정', 'modify'],
+    ['재작업', 'rework'],
+    ['재주문', 'reorder'],
+    ['고객', 'customer'],
+    ['거래처', 'client'],
+    ['정산', 'settle'],
+    ['미수금', 'receivable'],
+    ['입금', 'deposit'],
+    ['포장', 'pack'],
+    ['제본', 'binding'],
+    ['코팅', 'coating'],
+    ['후가공', 'finishing'],
+    ['샘플', 'sample'],
+    ['시안', 'draft'],
+    ['확인', 'confirm'],
+    ['승인', 'approve'],
+    ['반려', 'reject'],
+    ['보류', 'hold'],
+    ['완료', 'done'],
+    ['진행', 'progress'],
+    ['대기', 'pending'],
+  ];
 
-  let code = name.toLowerCase();
+  let code = name;
 
-  // 한글 단어를 영문으로 변환
-  Object.entries(koreanToEnglish).forEach(([korean, english]) => {
-    code = code.replace(new RegExp(korean, 'g'), english);
+  // 한글 단어를 영문으로 변환 (언더스코어로 연결)
+  koreanToEnglish.forEach(([korean, english]) => {
+    code = code.replace(new RegExp(korean, 'g'), `_${english}_`);
   });
 
-  // 남은 한글이 있으면 제거하고, 공백을 언더스코어로
+  // 정리
   code = code
+    .toLowerCase()
     .replace(/[가-힣]/g, '') // 남은 한글 제거
     .replace(/\s+/g, '_')    // 공백을 언더스코어로
     .replace(/[^a-z0-9_]/g, '') // 영문, 숫자, 언더스코어만 유지
@@ -185,7 +217,9 @@ export default function CategoriesPage() {
       setIsFormOpen(false);
       resetForm();
     } catch (error) {
-      toast({ title: '저장에 실패했습니다.', variant: 'destructive' });
+      console.error('분류 저장 에러:', error);
+      const message = error instanceof Error ? error.message : '저장에 실패했습니다.';
+      toast({ title: message, variant: 'destructive' });
     }
   };
 

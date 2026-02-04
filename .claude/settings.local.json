@@ -225,7 +225,15 @@
       "Bash(\"C:/Program Files/PostgreSQL/16/bin/pg_restore.exe\" -U postgres -h 192.168.0.67 -p 5433 -d postgres --clean --if-exists -v \"C:/Users/WOO/Desktop/printing_erp_backup.dump\")",
       "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -h 192.168.0.67 -p 5433 -d postgres -c \"SELECT 1\")",
       "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -h 1.212.201.147 -p 5433 -d postgres -c \"SELECT version\\(\\);\")",
-      "Bash(\"C:/Program Files/PostgreSQL/16/bin/pg_dump.exe\" -U postgres -d printing_erp -f \"C:/Users/WOO/Desktop/printing_erp_backup.sql\")"
+      "Bash(\"C:/Program Files/PostgreSQL/16/bin/pg_dump.exe\" -U postgres -d printing_erp -f \"C:/Users/WOO/Desktop/printing_erp_backup.sql\")",
+      "Bash(\"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\pg_dump.exe\":*)",
+      "Bash(\"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -h 192.168.0.67 -p 5433 -U postgres -d postgres -c \"DROP SCHEMA public CASCADE; CREATE SCHEMA public;\")",
+      "Bash(PGPASSWORD='photocafe2024!' \"C:/Program Files/PostgreSQL/16/bin/psql.exe\":*)",
+      "Bash(export PGPASSWORD='photocafe2024!')",
+      "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\" -h 192.168.0.67 -p 5433 -U postgres -d postgres -c \"SELECT 1;\")",
+      "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\":*)",
+      "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -c \"SELECT COUNT\\(*\\) as table_count FROM information_schema.tables WHERE table_schema = ''public'';\")",
+      "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\" -h 192.168.0.67 -p 5433 -U postgres -d postgres -c \"SELECT id, \"\"staffId\"\", name, \"\"branchId\"\" FROM staff;\")"
     ]
   }
 }

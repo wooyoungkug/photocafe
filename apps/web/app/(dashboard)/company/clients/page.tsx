@@ -60,6 +60,7 @@ import {
   CopperPlateStatus,
 } from '@/hooks/use-copper-plates';
 import { Client, CreateClientDto } from '@/lib/types/client';
+import { useConsultations } from '@/hooks/use-cs';
 import {
   Plus,
   Search,
@@ -152,6 +153,11 @@ export default function ClientsPage() {
   const createCopperPlate = useCreateCopperPlate();
   const updateCopperPlate = useUpdateCopperPlate();
   const deleteCopperPlate = useDeleteCopperPlate();
+
+  // 상담이력 조회 (편집 중인 회원의 상담만)
+  const { data: consultationsData, isLoading: isConsultationsLoading } = useConsultations(
+    editingClient?.id ? { clientId: editingClient.id, limit: 50 } : undefined
+  );
 
   const handleOpenDialog = (client?: Client) => {
     setActiveTab('basic'); // 탭 초기화
@@ -849,10 +855,75 @@ export default function ClientsPage() {
 
             {/* 상담이력 탭 */}
             <TabsContent value="consultation" className="space-y-4">
-              <div className="border rounded-lg p-4">
-                <div className="flex items-center justify-center h-32 text-muted-foreground">
-                  상담이력 기능은 준비 중입니다.
-                </div>
+              <div className="border rounded-lg">
+                {isConsultationsLoading ? (
+                  <div className="flex items-center justify-center h-32">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : !consultationsData?.data || consultationsData.data.length === 0 ? (
+                  <div className="flex items-center justify-center h-32 text-muted-foreground">
+                    <div className="text-center">
+                      <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>상담 이력이 없습니다.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>상담번호</TableHead>
+                        <TableHead>분류</TableHead>
+                        <TableHead>제목</TableHead>
+                        <TableHead>담당자</TableHead>
+                        <TableHead>상태</TableHead>
+                        <TableHead>접수일</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {consultationsData.data.map((consultation: any) => (
+                        <TableRow key={consultation.id}>
+                          <TableCell className="font-mono text-xs">
+                            {consultation.consultNumber}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              style={{
+                                borderColor: consultation.category?.colorCode || '#6B7280',
+                                color: consultation.category?.colorCode || '#6B7280',
+                              }}
+                            >
+                              {consultation.category?.name || '-'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="max-w-[200px] truncate">
+                            {consultation.title}
+                          </TableCell>
+                          <TableCell>{consultation.counselorName}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                consultation.status === 'open' ? 'default' :
+                                consultation.status === 'in_progress' ? 'secondary' :
+                                consultation.status === 'resolved' ? 'outline' : 'outline'
+                              }
+                            >
+                              {consultation.status === 'open' ? '접수' :
+                               consultation.status === 'in_progress' ? '처리중' :
+                               consultation.status === 'resolved' ? '해결' : '종료'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {new Date(consultation.consultedAt).toLocaleDateString('ko-KR')}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
+              <div className="text-xs text-muted-foreground text-right">
+                총 {consultationsData?.meta?.total || 0}건
               </div>
             </TabsContent>
           </Tabs>

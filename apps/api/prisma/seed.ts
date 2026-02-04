@@ -449,11 +449,64 @@ async function seedClientGroups() {
   console.log(`Client groups seeded: ${groups.length} items`);
 }
 
+// 직원(Staff) 시드 데이터
+async function seedStaff() {
+  const existingStaff = await prisma.staff.findFirst({
+    where: { staffId: 'admin' },
+  });
+
+  if (existingStaff) {
+    console.log('Staff already exists');
+    return;
+  }
+
+  // 본사 지점 찾기
+  const headquarters = await prisma.branch.findFirst({
+    where: { branchCode: 'HQ' },
+  });
+
+  // 관리팀 부서 찾기
+  const adminDept = await prisma.department.findFirst({
+    where: { code: 'ADMIN' },
+  });
+
+  const hashedPassword = await bcrypt.hash('admin', 10);
+
+  await prisma.staff.create({
+    data: {
+      staffId: 'admin',
+      password: hashedPassword,
+      name: '관리자',
+      position: '대표',
+      email: 'admin@printing114.com',
+      mobile: '010-1234-5678',
+      branchId: headquarters?.id,
+      departmentId: adminDept?.id,
+      canLoginAsManager: true,
+      canEditInManagerView: true,
+      canChangeDepositStage: true,
+      canChangeReceptionStage: true,
+      canChangeCancelStage: true,
+      canEditMemberInfo: true,
+      canViewSettlement: true,
+      canChangeOrderAmount: true,
+      memberViewScope: 'all',
+      salesViewScope: 'all',
+      isCompany: true,
+      settlementGrade: 15,
+      isActive: true,
+    },
+  });
+
+  console.log('Admin staff created: admin / admin');
+}
+
 async function main() {
   console.log('Starting seed...');
 
   await seedUsers();
   await seedBranchesAndDepartments();
+  await seedStaff();
   await seedClientGroups();
   await seedCategories();
   await seedSpecifications();

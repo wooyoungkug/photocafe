@@ -7,9 +7,10 @@ import { useAuthStore } from '@/stores/auth-store';
 interface AuthGuardProps {
   children: React.ReactNode;
   requireAdmin?: boolean;
+  loginPath?: string;
 }
 
-export function AuthGuard({ children, requireAdmin = false }: AuthGuardProps) {
+export function AuthGuard({ children, requireAdmin = false, loginPath = '/admin-login' }: AuthGuardProps) {
   const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthorized'>('loading');
   const [checked, setChecked] = useState(false);
 
@@ -31,8 +32,8 @@ export function AuthGuard({ children, requireAdmin = false }: AuthGuardProps) {
         if (!token) {
           console.log('[AuthGuard] 토큰 없음 - 로그인 페이지로 이동');
           setChecked(true);
-          // 토큰이 없으면 로그인 페이지로
-          window.location.href = '/login';
+          // 토큰이 없으면 관리자 로그인 페이지로
+          window.location.href = loginPath;
           return;
         }
 
@@ -63,14 +64,14 @@ export function AuthGuard({ children, requireAdmin = false }: AuthGuardProps) {
       } catch (error) {
         console.error('AuthGuard error:', error);
         setChecked(true);
-        window.location.href = '/login';
+        window.location.href = loginPath;
       }
     };
 
     // 약간의 딜레이를 주어 storage가 준비될 시간 확보
     const timer = setTimeout(checkAuth, 100);
     return () => clearTimeout(timer);
-  }, [requireAdmin]);
+  }, [requireAdmin, loginPath]);
 
   if (status === 'loading') {
     return (
