@@ -232,7 +232,9 @@
       "Bash(xargs:*)",
       "Bash(cmd //c \"taskkill /PID 27892 /F\")",
       "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\":*)",
-      "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -c \"SELECT \"\"staffId\"\", password FROM staff LIMIT 1;\")"
+      "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -c \"SELECT \"\"staffId\"\", password FROM staff LIMIT 1;\")",
+      "Bash(pushd:*)",
+      "Bash(popd:*)"
     ]
   }
 }

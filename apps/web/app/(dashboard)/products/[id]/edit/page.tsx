@@ -374,6 +374,10 @@ export default function EditProductPage() {
       if ((product as any).printType) {
         setPrintType((product as any).printType);
       }
+      // 출력단가 설정 로드
+      if ((product as any).outputPriceSettings && Array.isArray((product as any).outputPriceSettings)) {
+        setOutputPriceSelections((product as any).outputPriceSettings);
+      }
     }
   }, [product, categories]);
 
@@ -546,6 +550,7 @@ export default function EditProductPage() {
             const opt = FINISHING_OPTIONS.find(o => o.id === key);
             return { name: opt?.label || key, price: 0, isDefault: false, sortOrder: idx };
           }),
+        outputPriceSettings: outputPriceSelections.length > 0 ? outputPriceSelections : undefined,
       };
 
       console.log('=== 상품 수정 데이터 ===');
@@ -1442,6 +1447,7 @@ export default function EditProductPage() {
           <OutputPriceSelectionForm
             selectedOutputPrices={outputPriceSelections}
             productionGroupTree={productionGroupTree || []}
+            selectedBindings={selectedBindings}
             onSelect={(prices) => {
               setOutputPriceSelections(prices);
               setOutputPriceDialogOpen(false);
@@ -1788,12 +1794,18 @@ function OutputPriceSelectionForm({
   onSelect,
   onCancel,
   productionGroupTree,
+  selectedBindings,
 }: {
   selectedOutputPrices: OutputPriceSelection[];
   onSelect: (prices: OutputPriceSelection[]) => void;
   onCancel: () => void;
   productionGroupTree?: ProductionGroup[];
+  selectedBindings?: { id: string; name: string; price: number; productionSettingId?: string; pricingType?: string }[];
 }) {
+  // 스타화보 등 화보류 제본이 선택되었는지 확인 (화보류는 인디고만 가능)
+  const isHwaboBinding = selectedBindings?.some(b =>
+    b.name.includes('화보') || b.name.includes('스타제본') || b.name.includes('포토북')
+  ) || false;
   // 단계: 1=출력방식, 2=단가설정, 3=기종, 4=세부옵션
   const [step, setStep] = useState(1);
   const [outputMethod, setOutputMethod] = useState<'INDIGO' | 'INKJET' | null>(null);
@@ -2148,12 +2160,16 @@ function OutputPriceSelectionForm({
             <div className="space-y-3">
               <button
                 type="button"
+                disabled={isHwaboBinding}
                 className={`w-full p-6 rounded-xl border-2 transition-all ${
-                  outputMethod === 'INKJET'
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-slate-200 hover:border-blue-300 hover:bg-blue-50/50'
+                  isHwaboBinding
+                    ? 'border-slate-200 bg-slate-100 opacity-50 cursor-not-allowed'
+                    : outputMethod === 'INKJET'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-slate-200 hover:border-blue-300 hover:bg-blue-50/50'
                 }`}
                 onClick={() => {
+                  if (isHwaboBinding) return;
                   setOutputMethod(outputMethod === 'INKJET' ? null : 'INKJET');
                   setSelectedSetting(null);
                   setSelectedSettingId('');
@@ -2162,9 +2178,12 @@ function OutputPriceSelectionForm({
                 <div className="text-3xl mb-2">💧</div>
                 <div className="font-semibold text-lg">잉크젯 출력</div>
                 <div className="text-sm text-slate-500 mt-1">규격별 가격</div>
+                {isHwaboBinding && (
+                  <div className="text-xs text-red-500 mt-2">※ 화보/스타제본/포토북은 인디고만 가능</div>
+                )}
               </button>
               {/* 잉크젯 출력 선택 시 하단에 세팅 목록 표시 */}
-              {outputMethod === 'INKJET' && (
+              {outputMethod === 'INKJET' && !isHwaboBinding && (
                 <div className="border rounded-lg p-3 bg-blue-50/50 max-h-[250px] overflow-y-auto">
                   <p className="text-xs font-medium text-slate-600 mb-2">단가설정 선택</p>
                   {productionGroupTree && productionGroupTree.length > 0 ? (
@@ -2487,6 +2506,16 @@ function BindingSelectionForm({
     });
   };
 
+  // 가격타입 라벨
+  const getPricingTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      nup_page_range: '구간별 Nup/1p가격',
+      binding_page: '제본 페이지당',
+      paper_output_spec: '용지별출력단가',
+    };
+    return labels[type] || type;
+  };
+
   // 설정 선택/해제
   const toggleSetting = (setting: ProductionSetting, groupName: string) => {
     setLocalSelected(prev => {
@@ -2494,9 +2523,11 @@ function BindingSelectionForm({
       if (exists) {
         return prev.filter(b => b.productionSettingId !== setting.id);
       } else {
+        const bindingName = setting.settingName || setting.codeName || '설정';
+        const pricingLabel = getPricingTypeLabel(setting.pricingType);
         return [...prev, {
           id: Date.now().toString(),
-          name: `${groupName} - ${setting.codeName || setting.settingName || '설정'}`,
+          name: `${bindingName} (${pricingLabel})`,
           price: Number(setting.basePrice) || 0,
           productionSettingId: setting.id,
           pricingType: setting.pricingType,
@@ -2562,7 +2593,7 @@ function BindingSelectionForm({
                   <Settings className="h-4 w-4 text-slate-400" />
                   <div className="flex-1">
                     <div className="font-medium text-sm">
-                      {setting.codeName || setting.settingName || '설정'}
+                      {setting.settingName || setting.codeName || '설정'}
                     </div>
                     <div className="text-xs text-slate-500 flex gap-2">
                       <span>{getPricingTypeLabel(setting.pricingType)}</span>
@@ -2583,16 +2614,6 @@ function BindingSelectionForm({
         )}
       </div>
     );
-  };
-
-  // 가격타입 라벨
-  const getPricingTypeLabel = (type: string) => {
-    const labels: Record<string, string> = {
-      nup_page_range: '구간별 Nup/1p가격',
-      binding_page: '제본 페이지당',
-      paper_output_spec: '용지별출력단가',
-    };
-    return labels[type] || type;
   };
 
   return (

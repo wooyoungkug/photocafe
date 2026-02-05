@@ -595,6 +595,7 @@ model Product {
   description      String?  @db.Text
   bindingDirection String   @default("left") // left, right, customer
   printType        String   @default("double") // single, double, customer
+  outputPriceSettings Json?  // 출력단가 설정 (JSON)
 
   sortOrder    Int      @default(0)
   viewCount    Int      @default(0)  // 조회수
@@ -842,34 +843,46 @@ model GroupProductPrice {
   @@map("group_product_prices")
 }
 
-// ==================== My상품 ====================
+// ==================== 마이상품 (My Product) ====================
+// 고객이 자주 주문하는 상품 옵션을 저장
 
 model MyProduct {
-  id               String    @id @default(cuid())
-  clientId         String
-  client           Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  id              String   @id @default(cuid())
 
-  productType      String    // product, half_product
-  productId        String
+  // 고객 정보
+  clientId        String
+  client          Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
-  customName       String?
-  customThumbnail  String?
+  // 원본 상품 정보
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  registrationType String    // customer, admin
-  registeredBy     String
+  // 마이상품 정보
+  name            String   // 마이상품 이름 (예: "우리학교 졸업앨범 10x13")
+  thumbnailUrl    String?  // 썸네일 이미지 (상품 이미지 또는 커스텀)
 
-  defaultOptions   Json?
+  // 저장된 옵션 (JSON)
+  options         Json
 
-  sortOrder        Int       @default(0)
-  isActive         Boolean   @default(true)
-  usageCount       Int       @default(0)
-  lastUsedAt       DateTime?
+  // 기본 수량
+  defaultQuantity Int      @default(1)
 
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  // 메모
+  memo            String?
 
-  @@unique([clientId, productType, productId])
+  // 정렬 순서
+  sortOrder       Int      @default(0)
+
+  // 사용 횟수 (인기 순 정렬용)
+  usageCount      Int      @default(0)
+  lastUsedAt      DateTime?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
   @@index([clientId])
+  @@index([productId])
+  @@index([clientId, sortOrder])
   @@map("my_products")
 }
 
@@ -2869,65 +2882,3 @@ model QualityControl {
   @@map("quality_controls")
 }
 
-// ==================== 마이상품 (My Product) ====================
-// 고객이 자주 주문하는 상품 옵션을 저장
-
-model MyProduct {
-  id              String   @id @default(cuid())
-
-  // 고객 정보
-  clientId        String
-  client          Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  // 원본 상품 정보
-  productId       String
-  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  // 마이상품 정보
-  name            String   // 마이상품 이름 (예: "우리학교 졸업앨범 10x13")
-  thumbnailUrl    String?  // 썸네일 이미지 (상품 이미지 또는 커스텀)
-
-  // 저장된 옵션 (JSON)
-  // {
-  //   specificationId: "...",
-  //   specificationName: "10x13",
-  //   bindingId: "...",
-  //   bindingName: "스타제본",
-  //   paperId: "...",
-  //   paperName: "스노우 250g",
-  //   coverId: "...",
-  //   coverName: "...",
-  //   printSide: "double",
-  //   copperPlateType: "owned",
-  //   copperPlateId: "...",
-  //   copperPlateName: "Scotter",
-  //   foilColor: "gold_matte",
-  //   foilColorName: "금박(무광)",
-  //   foilPosition: "center_top",
-  //   foilPositionName: "중상",
-  //   finishingIds: ["...", "..."],
-  //   finishingNames: ["코팅", "라미네이팅"]
-  // }
-  options         Json
-
-  // 기본 수량
-  defaultQuantity Int      @default(1)
-
-  // 메모
-  memo            String?
-
-  // 정렬 순서
-  sortOrder       Int      @default(0)
-
-  // 사용 횟수 (인기 순 정렬용)
-  usageCount      Int      @default(0)
-  lastUsedAt      DateTime?
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@index([clientId])
-  @@index([productId])
-  @@index([clientId, sortOrder])
-  @@map("my_products")
-}
