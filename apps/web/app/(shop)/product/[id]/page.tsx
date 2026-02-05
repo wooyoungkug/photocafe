@@ -1285,11 +1285,23 @@ export default function ProductPage() {
                 <p className="text-gray-600">출력: {selectedOptions.printSide === 'single' ? '단면' : '양면'}</p>
               )}
               {selectedOptions.copperPlateType !== 'none' && (
-                <p className="text-gray-600">
-                  동판: {selectedOptions.copperPlateType === 'owned'
-                    ? selectedOptions.ownedCopperPlate?.plateName
-                    : selectedOptions.publicCopperPlate?.publicCopperPlate?.plateName}
-                </p>
+                <>
+                  <p className="text-gray-600">
+                    동판: {selectedOptions.copperPlateType === 'owned'
+                      ? selectedOptions.ownedCopperPlate?.plateName
+                      : selectedOptions.publicCopperPlate?.publicCopperPlate?.plateName}
+                  </p>
+                  {selectedOptions.foilColor && (
+                    <p className="text-gray-600">
+                      박 컬러: {copperPlateLabels?.foilColors?.find(c => c.code === selectedOptions.foilColor)?.name || selectedOptions.foilColor}
+                    </p>
+                  )}
+                  {selectedOptions.foilPosition && (
+                    <p className="text-gray-600">
+                      박 위치: {copperPlateLabels?.platePositions?.find(p => p.code === selectedOptions.foilPosition)?.name || selectedOptions.foilPosition}
+                    </p>
+                  )}
+                </>
               )}
               {selectedOptions.finishings.length > 0 && (
                 <p className="text-gray-600">후가공: {selectedOptions.finishings.map(f => f.name).join(', ')}</p>
@@ -1356,6 +1368,12 @@ export default function ProductPage() {
                       )}
                       {myProduct.options.copperPlateName && (
                         <p>동판: {myProduct.options.copperPlateName}</p>
+                      )}
+                      {myProduct.options.foilColorName && (
+                        <p>박 컬러: {myProduct.options.foilColorName}</p>
+                      )}
+                      {myProduct.options.foilPositionName && (
+                        <p>박 위치: {myProduct.options.foilPositionName}</p>
                       )}
                       <p>수량: {myProduct.defaultQuantity}개</p>
                     </div>
