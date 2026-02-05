@@ -223,24 +223,15 @@ export class ProductService {
 
     const { specifications, bindings, papers, covers, foils, finishings, outputPriceSettings, categoryId, ...productData } = dto;
 
-    console.log('=== Product Update Debug ===');
-    console.log('Product ID:', id);
-    console.log('Specifications:', JSON.stringify(specifications, null, 2));
-    console.log('Bindings:', JSON.stringify(bindings, null, 2));
-    console.log('Papers:', JSON.stringify(papers, null, 2));
-
     try {
       // 기존 옵션들 삭제
       if (specifications !== undefined) {
-        console.log('Deleting existing specifications...');
         await this.prisma.productSpecification.deleteMany({ where: { productId: id } });
       }
       if (bindings !== undefined) {
-        console.log('Deleting existing bindings...');
         await this.prisma.productBinding.deleteMany({ where: { productId: id } });
       }
       if (papers !== undefined) {
-        console.log('Deleting existing papers...');
         await this.prisma.productPaper.deleteMany({ where: { productId: id } });
       }
       if (covers !== undefined) {
@@ -253,13 +244,13 @@ export class ProductService {
         await this.prisma.productFinishing.deleteMany({ where: { productId: id } });
       }
 
-      console.log('Creating new options...');
       // 상품 업데이트
       const result = await this.prisma.product.update({
         where: { id },
         data: {
           ...productData,
           ...(categoryId && { category: { connect: { id: categoryId } } }),
+          ...(outputPriceSettings !== undefined && { outputPriceSettings: JSON.parse(JSON.stringify(outputPriceSettings)) }),
           specifications: specifications !== undefined && specifications.length > 0
             ? { create: specifications }
             : undefined,
@@ -290,11 +281,8 @@ export class ProductService {
         },
       });
 
-      console.log('Update successful!');
       return result;
     } catch (error) {
-      console.error('=== Product Update Error ===');
-      console.error('Error:', error);
       throw error;
     }
   }

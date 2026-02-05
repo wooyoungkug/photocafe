@@ -195,6 +195,11 @@ export class ProductFinishingDto {
 
 // ==================== 출력단가 설정 DTO ====================
 export class ProductOutputPriceSettingDto {
+  @ApiPropertyOptional({ description: '고유 ID' })
+  @IsOptional()
+  @IsString()
+  id?: string;
+
   @ApiProperty({ description: '출력방식', enum: ['INDIGO', 'INKJET'] })
   @IsIn(['INDIGO', 'INKJET'])
   outputMethod: 'INDIGO' | 'INKJET';
@@ -233,9 +238,13 @@ export class ProductOutputPriceSettingDto {
   @IsString()
   specificationName?: string;
 
-  @ApiPropertyOptional({ description: '가격 정보 (JSON)' })
+  @ApiPropertyOptional({ description: '선택된 Up별 가격 (인디고)' })
   @IsOptional()
-  priceData?: any;
+  selectedUpPrices?: any[];
+
+  @ApiPropertyOptional({ description: '선택된 규격 가격 (잉크젯)' })
+  @IsOptional()
+  selectedSpecPrice?: any;
 }
 
 // ==================== 상품 생성 DTO ====================

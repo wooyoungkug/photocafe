@@ -28,10 +28,15 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
-      forbidNonWhitelisted: true,
+      forbidNonWhitelisted: false, // 디버깅용으로 임시 비활성화
       transform: true,
       transformOptions: {
         enableImplicitConversion: true,
+      },
+      exceptionFactory: (errors) => {
+        console.error('=== Validation Errors ===', JSON.stringify(errors, null, 2));
+        const messages = errors.map(error => Object.values(error.constraints || {}).join(', '));
+        return new (require('@nestjs/common').BadRequestException)(messages);
       },
     }),
   );

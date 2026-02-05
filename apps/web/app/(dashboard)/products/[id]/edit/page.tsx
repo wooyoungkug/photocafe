@@ -39,7 +39,7 @@ import { useCategories } from '@/hooks/use-categories';
 import { useSpecifications } from '@/hooks/use-specifications';
 import { useHalfProducts } from '@/hooks/use-half-products';
 import { useProduct, useUpdateProduct } from '@/hooks/use-products';
-import { useProductionGroupTree, useProductionSettings, type ProductionGroup, type ProductionSetting, type OutputPriceSelection, type IndigoUpPrice, type InkjetSpecPrice } from '@/hooks/use-production';
+import { useProductionGroupTree, useProductionSettings, type ProductionGroup, type ProductionSetting, type OutputPriceSelection, type IndigoUpPrice, type InkjetSpecPrice, type PriceGroup } from '@/hooks/use-production';
 import { usePapers } from '@/hooks/use-paper';
 import { useFoilColors, type FoilColorItem } from '@/hooks/use-copper-plates';
 import { usePublicCopperPlates, useProductPublicCopperPlates, useLinkPublicCopperPlateToProduct, useUnlinkPublicCopperPlateFromProduct, type PublicCopperPlate } from '@/hooks/use-public-copper-plates';
@@ -375,8 +375,13 @@ export default function EditProductPage() {
         setPrintType((product as any).printType);
       }
       // 출력단가 설정 로드
+      console.log('=== 출력단가 설정 로드 ===');
+      console.log('product.outputPriceSettings:', (product as any).outputPriceSettings);
       if ((product as any).outputPriceSettings && Array.isArray((product as any).outputPriceSettings)) {
+        console.log('Setting outputPriceSelections:', (product as any).outputPriceSettings);
         setOutputPriceSelections((product as any).outputPriceSettings);
+      } else {
+        console.log('outputPriceSettings가 없거나 배열이 아님');
       }
     }
   }, [product, categories]);
@@ -501,6 +506,23 @@ export default function EditProductPage() {
     }
 
     try {
+      // outputPriceSelections를 DTO 형식에 맞게 변환
+      const outputPriceSettings = outputPriceSelections.length > 0
+        ? outputPriceSelections.map(sel => ({
+            id: sel.id,
+            outputMethod: sel.outputMethod,
+            productionSettingId: sel.productionSettingId,
+            productionSettingName: sel.productionSettingName,
+            deviceId: sel.deviceId,
+            deviceName: sel.deviceName,
+            colorType: sel.colorType,
+            specificationId: sel.specificationId,
+            specificationName: sel.specificationName,
+            selectedUpPrices: sel.selectedUpPrices,
+            selectedSpecPrice: sel.selectedSpecPrice,
+          }))
+        : undefined;
+
       const productData = {
         productCode,
         productName,
@@ -550,15 +572,15 @@ export default function EditProductPage() {
             const opt = FINISHING_OPTIONS.find(o => o.id === key);
             return { name: opt?.label || key, price: 0, isDefault: false, sortOrder: idx };
           }),
-        outputPriceSettings: outputPriceSelections.length > 0 ? outputPriceSelections : undefined,
+        outputPriceSettings,
       };
 
-      console.log('=== 상품 수정 데이터 ===');
-      console.log('Specifications:', productData.specifications);
-      console.log('Bindings:', productData.bindings);
-      console.log('Papers:', productData.papers);
+      console.log('=== 상품 수정 요청 데이터 ===');
+      console.log('outputPriceSelections (현재 state):', JSON.stringify(outputPriceSelections, null, 2));
+      console.log('outputPriceSettings (전송할 데이터):', JSON.stringify(outputPriceSettings, null, 2));
 
-      await updateProduct.mutateAsync({ id: productId, data: productData });
+      const result = await updateProduct.mutateAsync({ id: productId, data: productData });
+      console.log('=== 상품 수정 응답 ===', result);
 
       // 공용동판 동기화
       const existingPlateIds = (productPublicPlates || []).map((pp: { publicCopperPlateId: string }) => pp.publicCopperPlateId);
@@ -1817,6 +1839,39 @@ function OutputPriceSelectionForm({
   const [localSelected, setLocalSelected] = useState<OutputPriceSelection[]>(selectedOutputPrices);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
+  // 규격 목록 로드 (규격명 표시용)
+  const { data: specificationsList } = useSpecifications();
+
+  // 규격명 찾기 헬퍼
+  const getSpecName = (specId: string): string => {
+    const spec = specificationsList?.find(s => s.id === specId);
+    return spec ? spec.name : specId;
+  };
+
+  // 잉크젯 규격 가격 가져오기 헬퍼 함수 (inkjetSpecPrices 또는 priceGroups.specPrices)
+  const getInkjetSpecPrices = (setting: ProductionSetting): InkjetSpecPrice[] => {
+    // 직접 inkjetSpecPrices가 있으면 사용
+    if (setting.inkjetSpecPrices && setting.inkjetSpecPrices.length > 0) {
+      return setting.inkjetSpecPrices;
+    }
+    // priceGroups에서 specPrices 추출
+    if (setting.priceGroups && setting.priceGroups.length > 0) {
+      const allSpecPrices: InkjetSpecPrice[] = [];
+      setting.priceGroups.forEach(group => {
+        if (group.specPrices && group.specPrices.length > 0) {
+          allSpecPrices.push(...group.specPrices);
+        }
+      });
+      return allSpecPrices;
+    }
+    return [];
+  };
+
+  // 설정에 잉크젯 규격이 있는지 확인
+  const hasInkjetSpecs = (setting: ProductionSetting): boolean => {
+    return getInkjetSpecPrices(setting).length > 0;
+  };
+
   // paper_output_spec 타입의 설정만 필터링
   const { data: productionSettings } = useProductionSettings({
     pricingType: 'paper_output_spec',
@@ -1829,7 +1884,7 @@ function OutputPriceSelectionForm({
     if (outputMethod === 'INDIGO') {
       return setting.printMethod === 'indigo' || setting.indigoUpPrices?.length;
     } else {
-      return setting.printMethod === 'inkjet' || setting.inkjetSpecPrices?.length;
+      return setting.printMethod === 'inkjet' || hasInkjetSpecs(setting);
     }
   }) || [];
 
@@ -1842,7 +1897,7 @@ function OutputPriceSelectionForm({
         if (outputMethod === 'INDIGO') {
           return s.printMethod === 'indigo' || (s.indigoUpPrices && s.indigoUpPrices.length > 0);
         } else if (outputMethod === 'INKJET') {
-          return s.printMethod === 'inkjet' || (s.inkjetSpecPrices && s.inkjetSpecPrices.length > 0);
+          return s.printMethod === 'inkjet' || hasInkjetSpecs(s);
         }
         return false;
       });
@@ -1900,8 +1955,9 @@ function OutputPriceSelectionForm({
       };
       setLocalSelected(prev => [...prev, selection4do, selection6do]);
     } else if (outputMethod === 'INKJET' && selectedSpecId) {
-      // 잉크젯 출력
-      const specPrice = selectedSetting.inkjetSpecPrices?.find(p => p.specificationId === selectedSpecId);
+      // 잉크젯 출력 - 헬퍼 함수를 사용해서 규격 가격 찾기
+      const inkjetSpecs = getInkjetSpecPrices(selectedSetting);
+      const specPrice = inkjetSpecs.find(p => p.specificationId === selectedSpecId);
       if (specPrice) {
         const newSelection: OutputPriceSelection = {
           id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -1938,7 +1994,7 @@ function OutputPriceSelectionForm({
         if (method === 'INDIGO') {
           return s.printMethod === 'indigo' || (s.indigoUpPrices && s.indigoUpPrices.length > 0);
         } else {
-          return s.printMethod === 'inkjet' || (s.inkjetSpecPrices && s.inkjetSpecPrices.length > 0);
+          return s.printMethod === 'inkjet' || hasInkjetSpecs(s);
         }
       }) || [];
 
@@ -1950,7 +2006,7 @@ function OutputPriceSelectionForm({
           if (method === 'INDIGO') {
             return s.printMethod === 'indigo' || (s.indigoUpPrices && s.indigoUpPrices.length > 0);
           } else {
-            return s.printMethod === 'inkjet' || (s.inkjetSpecPrices && s.inkjetSpecPrices.length > 0);
+            return s.printMethod === 'inkjet' || hasInkjetSpecs(s);
           }
         }) || [];
         return childSettings.length > 0 || (child.children && child.children.length > 0);
@@ -2063,7 +2119,7 @@ function OutputPriceSelectionForm({
                   if (outputMethod === 'INDIGO') {
                     return s.printMethod === 'indigo' || (s.indigoUpPrices && s.indigoUpPrices.length > 0);
                   } else if (outputMethod === 'INKJET') {
-                    return s.printMethod === 'inkjet' || (s.inkjetSpecPrices && s.inkjetSpecPrices.length > 0);
+                    return s.printMethod === 'inkjet' || hasInkjetSpecs(s);
                   }
                   return false;
                 })
@@ -2283,43 +2339,46 @@ function OutputPriceSelectionForm({
               {/* 규격 선택 */}
               <div className="mb-4">
                 <Label className="text-sm font-medium mb-2 block">규격 선택</Label>
-                {selectedSetting.inkjetSpecPrices && selectedSetting.inkjetSpecPrices.length > 0 ? (
-                  <div className="border rounded-lg overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-slate-50">
-                          <TableHead className="w-12">선택</TableHead>
-                          <TableHead>규격 ID</TableHead>
-                          <TableHead className="text-right">가격</TableHead>
-                          <TableHead className="text-center">기준규격</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {selectedSetting.inkjetSpecPrices.map((specPrice) => (
-                          <TableRow
-                            key={specPrice.specificationId}
-                            className={`cursor-pointer ${selectedSpecId === specPrice.specificationId ? 'bg-blue-50' : 'hover:bg-slate-50'}`}
-                            onClick={() => setSelectedSpecId(specPrice.specificationId)}
-                          >
-                            <TableCell>
-                              <Checkbox
-                                checked={selectedSpecId === specPrice.specificationId}
-                                onCheckedChange={() => setSelectedSpecId(specPrice.specificationId)}
-                              />
-                            </TableCell>
-                            <TableCell className="font-medium">{specPrice.specificationId}</TableCell>
-                            <TableCell className="text-right">{specPrice.singleSidedPrice.toLocaleString()}원</TableCell>
-                            <TableCell className="text-center">
-                              {specPrice.isBaseSpec && <Badge variant="secondary">기준</Badge>}
-                            </TableCell>
+                {(() => {
+                  const inkjetSpecs = getInkjetSpecPrices(selectedSetting);
+                  return inkjetSpecs.length > 0 ? (
+                    <div className="border rounded-lg overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-slate-50">
+                            <TableHead className="w-12">선택</TableHead>
+                            <TableHead>규격명</TableHead>
+                            <TableHead className="text-right">가격</TableHead>
+                            <TableHead className="text-center">기준규격</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                ) : (
-                  <p className="text-slate-400 text-sm">등록된 규격이 없습니다.</p>
-                )}
+                        </TableHeader>
+                        <TableBody>
+                          {inkjetSpecs.map((specPrice) => (
+                            <TableRow
+                              key={specPrice.specificationId}
+                              className={`cursor-pointer ${selectedSpecId === specPrice.specificationId ? 'bg-blue-50' : 'hover:bg-slate-50'}`}
+                              onClick={() => setSelectedSpecId(specPrice.specificationId)}
+                            >
+                              <TableCell>
+                                <Checkbox
+                                  checked={selectedSpecId === specPrice.specificationId}
+                                  onCheckedChange={() => setSelectedSpecId(specPrice.specificationId)}
+                                />
+                              </TableCell>
+                              <TableCell className="font-medium">{getSpecName(specPrice.specificationId)}</TableCell>
+                              <TableCell className="text-right">{specPrice.singleSidedPrice.toLocaleString()}원</TableCell>
+                              <TableCell className="text-center">
+                                {specPrice.isBaseSpec && <Badge variant="secondary">기준</Badge>}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <p className="text-slate-400 text-sm">등록된 규격이 없습니다.</p>
+                  );
+                })()}
               </div>
             </>
           )}
@@ -2356,7 +2415,7 @@ function OutputPriceSelectionForm({
                     <p className="text-xs text-slate-500">
                       {selection.outputMethod === 'INDIGO'
                         ? `인디고 ${selection.colorType}`
-                        : `잉크젯 - ${selection.specificationId || '규격 미선택'}`}
+                        : `잉크젯 - ${selection.specificationId ? getSpecName(selection.specificationId) : '규격 미선택'}`}
                     </p>
                   </div>
                 </div>

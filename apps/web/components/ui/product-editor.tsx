@@ -44,6 +44,7 @@ export function ProductEditor({
 }: ProductEditorProps) {
   const [editorType, setEditorType] = useState<EditorType>(defaultEditor);
 
+
   // 저장된 에디터 타입 불러오기
   useEffect(() => {
     const saved = localStorage.getItem(EDITOR_STORAGE_KEY) as EditorType | null;

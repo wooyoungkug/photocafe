@@ -250,14 +250,20 @@ export default function ProductPage() {
       price: 0,
     });
 
-    // 동판 정보 추가
-    if (selectedOptions.copperPlateType === 'public' && selectedOptions.publicCopperPlate) {
+    // 동판 정보 추가 (항상 표시)
+    if (selectedOptions.copperPlateType === 'none' || !selectedOptions.copperPlateType) {
+      options.push({
+        name: '동판',
+        value: '없음',
+        price: 0,
+      });
+    } else if (selectedOptions.copperPlateType === 'public' && selectedOptions.publicCopperPlate) {
       const plate = selectedOptions.publicCopperPlate.publicCopperPlate;
       const foilColorLabel = copperPlateLabels?.foilColors?.find(c => c.code === selectedOptions.foilColor)?.name || selectedOptions.foilColor;
       const foilPositionLabel = copperPlateLabels?.platePositions?.find(p => p.code === selectedOptions.foilPosition)?.name || selectedOptions.foilPosition;
       options.push({
         name: '동판',
-        value: `공용동판: ${plate.plateName}`,
+        value: `공용동판 - ${plate.plateName}`,
         price: 0,
       });
       if (selectedOptions.foilColor) {
@@ -284,7 +290,7 @@ export default function ProductPage() {
         || copperPlateLabels?.platePositions?.find(p => p.code === plate.foilPosition)?.name;
       options.push({
         name: '동판',
-        value: `보유동판: ${plate.plateName}`,
+        value: `보유동판 - ${plate.plateName}`,
         price: 0,
       });
       if (foilColorLabel) {
@@ -1497,13 +1503,16 @@ export default function ProductPage() {
               {selectedOptions.printSide && (
                 <p className="text-gray-600">출력: {selectedOptions.printSide === 'single' ? '단면' : '양면'}</p>
               )}
+              {/* 동판 정보 - 항상 표시 */}
+              <p className="text-gray-600">
+                동판: {selectedOptions.copperPlateType === 'none'
+                  ? '없음'
+                  : selectedOptions.copperPlateType === 'public'
+                    ? `공용동판 - ${selectedOptions.publicCopperPlate?.publicCopperPlate?.plateName || ''}`
+                    : `보유동판 - ${selectedOptions.ownedCopperPlate?.plateName || ''}`}
+              </p>
               {selectedOptions.copperPlateType !== 'none' && (
                 <>
-                  <p className="text-gray-600">
-                    동판: {selectedOptions.copperPlateType === 'owned'
-                      ? selectedOptions.ownedCopperPlate?.plateName
-                      : selectedOptions.publicCopperPlate?.publicCopperPlate?.plateName}
-                  </p>
                   {selectedOptions.foilColor && (
                     <p className="text-gray-600">
                       박 컬러: {copperPlateLabels?.foilColors?.find(c => c.code === selectedOptions.foilColor)?.name || selectedOptions.foilColor}

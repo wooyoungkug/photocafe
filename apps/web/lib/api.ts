@@ -88,7 +88,9 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
       throw new Error('Unauthorized');
     }
     const error = await response.json().catch(() => ({ message: 'Network error' }));
-    throw new Error(error.message || `HTTP error ${response.status}`);
+    console.error('[API Error]', response.status, error);
+    const message = Array.isArray(error.message) ? error.message.join(', ') : (error.message || `HTTP error ${response.status}`);
+    throw new Error(message);
   }
 
   // 204 No Content 또는 빈 응답 처리

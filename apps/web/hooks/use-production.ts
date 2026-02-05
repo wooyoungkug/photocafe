@@ -61,6 +61,14 @@ export interface InkjetSpecPrice {
   isBaseSpec?: boolean; // 기준규격 여부
 }
 
+// 단가 그룹 타입 (priceGroups JSON 필드)
+export interface PriceGroup {
+  id: string;
+  color?: string;
+  upPrices?: IndigoUpPrice[];    // 인디고용
+  specPrices?: InkjetSpecPrice[]; // 잉크젯용
+}
+
 // 출력 단가 선택 인터페이스 (상품 가격 설정용)
 export interface OutputPriceSelection {
   id: string;                                    // 고유 ID
@@ -104,6 +112,8 @@ export interface ProductionSetting {
   indigoUpPrices?: IndigoUpPrice[];
   // 잉크젯 규격별 가격 (paper_output_spec 잉크젯용)
   inkjetSpecPrices?: InkjetSpecPrice[];
+  // 단가 그룹 (priceGroups JSON 필드에서 로드)
+  priceGroups?: PriceGroup[];
   sortOrder: number;
   isActive: boolean;
   createdAt: string;
