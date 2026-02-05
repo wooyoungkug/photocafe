@@ -543,17 +543,42 @@ export default function OrderPage() {
       paymentMethod,
       isUrgent: false,
       customerMemo: memo || undefined,
-      items: items.map(item => ({
-        productId: item.productId || 'default-product',
-        productName: item.name,
-        size: item.options.find(o => o.name === '규격')?.value || 'A4',
-        pages: parseInt(item.options.find(o => o.name === '페이지')?.value || '20'),
-        printMethod: item.options.find(o => o.name === '인쇄방식')?.value || '디지털인쇄',
-        paper: item.options.find(o => o.name === '용지')?.value || '스노우화이트',
-        bindingType: item.options.find(o => o.name === '제본')?.value || '무선제본',
-        quantity: item.quantity,
-        unitPrice: item.basePrice,
-      })),
+      items: items.map(item => {
+        // 앨범 주문인 경우 추가 정보 포함
+        if (item.productType === 'album-order' && item.albumOrderInfo) {
+          const albumInfo = item.albumOrderInfo;
+          return {
+            productId: item.productId || 'default-product',
+            productName: item.name,
+            size: albumInfo.specificationName || item.options.find(o => o.name === '규격')?.value || 'A4',
+            pages: albumInfo.pageCount || parseInt(item.options.find(o => o.name === '페이지수')?.value || '20'),
+            printMethod: albumInfo.printMethod === 'indigo' ? '인디고' : '잉크젯',
+            paper: item.options.find(o => o.name === '용지')?.value || '스노우화이트',
+            bindingType: item.options.find(o => o.name === '제본')?.value || '무선제본',
+            quantity: item.quantity,
+            unitPrice: item.basePrice,
+            // 앨범 주문 추가 필드
+            colorMode: albumInfo.colorMode,
+            pageLayout: albumInfo.pageLayout,
+            bindingDirection: albumInfo.bindingDirection,
+            folderName: albumInfo.folderName,
+            fileCount: albumInfo.fileCount,
+          };
+        }
+
+        // 일반 상품
+        return {
+          productId: item.productId || 'default-product',
+          productName: item.name,
+          size: item.options.find(o => o.name === '규격')?.value || 'A4',
+          pages: parseInt(item.options.find(o => o.name === '페이지')?.value || '20'),
+          printMethod: item.options.find(o => o.name === '인쇄방식')?.value || '디지털인쇄',
+          paper: item.options.find(o => o.name === '용지')?.value || '스노우화이트',
+          bindingType: item.options.find(o => o.name === '제본')?.value || '무선제본',
+          quantity: item.quantity,
+          unitPrice: item.basePrice,
+        };
+      }),
       shipping: shippingInfo,
     };
 

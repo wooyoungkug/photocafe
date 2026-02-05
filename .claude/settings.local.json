@@ -234,7 +234,8 @@
       "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\":*)",
       "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -c \"SELECT \"\"staffId\"\", password FROM staff LIMIT 1;\")",
       "Bash(pushd:*)",
-      "Bash(popd:*)"
+      "Bash(popd:*)",
+      "Bash(TASKKILL:*)"
     ]
   }
 }

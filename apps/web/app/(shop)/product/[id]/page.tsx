@@ -2,8 +2,8 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRight, Minus, Plus, ShoppingCart, Heart, Share2, Check, Eye, FileText, Image as ImageIcon, Calendar, MapPin, Star, FolderHeart, Loader2 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { ChevronRight, Minus, Plus, ShoppingCart, Heart, Share2, Check, Eye, FileText, Image as ImageIcon, Calendar, MapPin, Star, FolderHeart, Loader2, Upload, BookOpen } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
 import { useProduct } from '@/hooks/use-products';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,6 +29,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { AlbumOrderWizard } from '@/components/album-order/album-order-wizard';
+import { useAlbumOrderStore } from '@/stores/album-order-store';
+import { calculateFolderQuotation, formatPrice } from '@/lib/album-pricing';
 
 // 이미지 URL 정규화 함수
 const normalizeImageUrl = (url: string | null | undefined): string => {
@@ -80,6 +83,18 @@ const getDefaultPrintSideByBinding = (bindingName: string): 'single' | 'double' 
   return 'double'; // 기본값: 양면출력
 };
 
+// 화보/앨범 상품인지 확인 (위자드 모드 필요한 상품)
+const isAlbumProduct = (bindings?: ProductBinding[]): boolean => {
+  if (!bindings || bindings.length === 0) return false;
+  return bindings.some(binding => {
+    const name = binding.name.toLowerCase();
+    return name.includes('화보') ||
+           name.includes('포토북') ||
+           name.includes('스타화보') ||
+           name.includes('핀화보');
+  });
+};
+
 export default function ProductPage() {
   const params = useParams();
   const router = useRouter();
@@ -109,6 +124,15 @@ export default function ProductPage() {
   const [showSaveMyProductModal, setShowSaveMyProductModal] = useState(false);
   const [showLoadMyProductModal, setShowLoadMyProductModal] = useState(false);
   const [myProductName, setMyProductName] = useState('');
+
+  // 화보앨범 위자드 상태
+  const [showAlbumWizard, setShowAlbumWizard] = useState(false);
+  const albumOrderStore = useAlbumOrderStore();
+
+  // 화보/앨범 상품인지 확인
+  const isAlbum = useMemo(() => {
+    return isAlbumProduct(product?.bindings);
+  }, [product?.bindings]);
 
   // Set default options when product loads
   useEffect(() => {
@@ -389,6 +413,162 @@ export default function ProductPage() {
         variant: 'destructive',
       });
     }
+  };
+
+  // 화보앨범 위자드 열기
+  const handleOpenAlbumWizard = () => {
+    if (!product) return;
+    albumOrderStore.reset();
+    albumOrderStore.setProductInfo(product.id, product.productName);
+    if (selectedOptions.binding) {
+      albumOrderStore.setBindingInfo(selectedOptions.binding.id, selectedOptions.binding.name);
+    }
+    setShowAlbumWizard(true);
+  };
+
+  // 화보앨범 위자드 완료 핸들러
+  const handleAlbumWizardComplete = () => {
+    const state = albumOrderStore;
+
+    // 장바구니에 추가할 옵션 구성
+    const options: CartItemOption[] = [];
+
+    // 출력기종
+    options.push({
+      name: '출력기종',
+      value: state.printMethod === 'indigo' ? '인디고' : '잉크젯',
+      price: 0,
+    });
+
+    // 도수
+    options.push({
+      name: '도수',
+      value: state.colorMode === '4c' ? '4도(CMYK)' : '6도(CMYK+OV)',
+      price: 0,
+    });
+
+    // 페이지 레이아웃
+    options.push({
+      name: '레이아웃',
+      value: state.pageLayout === 'single' ? '낱장' : '펼침면',
+      price: 0,
+    });
+
+    // 제본방향
+    const directionLabels: Record<string, string> = {
+      'ltr-rend': '좌시작→우끝',
+      'ltr-lend': '좌시작→좌끝',
+      'rtl-lend': '우시작→좌끝',
+      'rtl-rend': '우시작→우끝',
+    };
+    options.push({
+      name: '제본방향',
+      value: directionLabels[state.bindingDirection] || state.bindingDirection,
+      price: 0,
+    });
+
+    // 규격
+    if (state.selectedSpecificationName) {
+      options.push({
+        name: '규격',
+        value: state.selectedSpecificationName,
+        price: 0,
+      });
+    }
+
+    // 제본방법
+    if (state.bindingName) {
+      options.push({
+        name: '제본',
+        value: state.bindingName,
+        price: selectedOptions.binding?.price || 0,
+      });
+    }
+
+    // 용지 (기존 선택 옵션 사용)
+    if (selectedOptions.paper) {
+      options.push({
+        name: '용지',
+        value: selectedOptions.paper.name,
+        price: selectedOptions.paper.price,
+      });
+    }
+
+    // 규격명 추출
+    const specName = state.selectedSpecificationName || '12x12';
+
+    // 각 폴더별로 장바구니 아이템 추가
+    state.folders.forEach((folder, index) => {
+      // 견적 계산
+      const quotation = calculateFolderQuotation(folder, {
+        albumType: 'premium-photo',
+        coverType: 'hard-standard',
+        printMethod: state.printMethod,
+        colorMode: state.colorMode,
+        pageLayout: state.pageLayout,
+        specName,
+      });
+
+      const folderOptions = [...options];
+
+      // 폴더별 파일 정보
+      folderOptions.push({
+        name: '폴더',
+        value: folder.folderName,
+        price: 0,
+      });
+      folderOptions.push({
+        name: '파일수',
+        value: `${folder.fileCount}개`,
+        price: 0,
+      });
+      folderOptions.push({
+        name: '페이지수',
+        value: `${folder.pageCount}p`,
+        price: 0,
+      });
+
+      // 대표 규격 정보
+      if (folder.representativeSpec) {
+        folderOptions.push({
+          name: '원본규격',
+          value: `${folder.representativeSpec.widthInch}x${folder.representativeSpec.heightInch}"`,
+          price: 0,
+        });
+      }
+
+      addItem({
+        productId: product?.id || '',
+        productType: 'album-order',
+        name: `${product?.productName} - ${folder.folderName}`,
+        thumbnailUrl: product?.thumbnailUrl || undefined,
+        basePrice: quotation.unitPrice,
+        quantity: folder.quantity,
+        options: folderOptions,
+        totalPrice: quotation.totalPrice,
+        // 앨범 주문 추가 정보
+        albumOrderInfo: {
+          folderId: folder.id,
+          folderName: folder.folderName,
+          fileCount: folder.fileCount,
+          pageCount: folder.pageCount,
+          printMethod: state.printMethod,
+          colorMode: state.colorMode,
+          pageLayout: state.pageLayout,
+          bindingDirection: state.bindingDirection,
+          specificationId: state.selectedSpecificationId,
+          specificationName: state.selectedSpecificationName,
+        },
+      });
+    });
+
+    toast({
+      title: '장바구니에 담았습니다',
+      description: `${state.folders.length}개 앨범이 장바구니에 추가되었습니다.`,
+    });
+
+    setShowAlbumWizard(false);
+    albumOrderStore.reset();
   };
 
   // 마이상품 불러오기
@@ -1159,15 +1339,48 @@ export default function ProductPage() {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-3 pt-4 border-t">
-              <Button variant="outline" size="lg" className="flex-1" onClick={handleAddToCart}>
-                <ShoppingCart className="h-5 w-5 mr-2" />
-                장바구니
-              </Button>
-              <Button size="lg" className="flex-1" onClick={handleBuyNow}>
-                바로 주문
-              </Button>
+            <div className="flex flex-col gap-3 pt-4 border-t">
+              {/* 화보앨범 상품인 경우 데이터 업로드 주문 버튼 표시 */}
+              {isAlbum && (
+                <Button
+                  size="lg"
+                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                  onClick={handleOpenAlbumWizard}
+                >
+                  <Upload className="h-5 w-5 mr-2" />
+                  데이터 업로드 주문
+                  <Badge variant="secondary" className="ml-2 bg-white/20 text-white">
+                    추천
+                  </Badge>
+                </Button>
+              )}
+
+              <div className="flex gap-3">
+                <Button variant="outline" size="lg" className="flex-1" onClick={handleAddToCart}>
+                  <ShoppingCart className="h-5 w-5 mr-2" />
+                  장바구니
+                </Button>
+                <Button size="lg" className="flex-1" onClick={handleBuyNow}>
+                  바로 주문
+                </Button>
+              </div>
             </div>
+
+            {/* 화보앨범 안내 */}
+            {isAlbum && (
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <BookOpen className="h-5 w-5 text-purple-600 mt-0.5" />
+                  <div>
+                    <h4 className="font-medium text-purple-900">화보/앨범 주문 안내</h4>
+                    <p className="text-sm text-purple-700 mt-1">
+                      &quot;데이터 업로드 주문&quot; 버튼을 클릭하면 폴더별로 파일을 업로드하고
+                      규격을 자동으로 분석하여 주문할 수 있습니다.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* 마이상품 & Share & Wishlist */}
             <div className="flex flex-wrap gap-2 pt-2">
@@ -1399,6 +1612,23 @@ export default function ProductPage() {
               닫기
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 화보앨범 주문 위자드 모달 */}
+      <Dialog open={showAlbumWizard} onOpenChange={setShowAlbumWizard}>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto p-0">
+          <AlbumOrderWizard
+            productId={product.id}
+            productName={product.productName}
+            bindingId={selectedOptions.binding?.id}
+            bindingName={selectedOptions.binding?.name}
+            onComplete={handleAlbumWizardComplete}
+            onCancel={() => {
+              setShowAlbumWizard(false);
+              albumOrderStore.reset();
+            }}
+          />
         </DialogContent>
       </Dialog>
     </div>

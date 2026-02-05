@@ -23,10 +23,25 @@ export interface CopperPlateCartInfo {
   selectedFoilPositionName: string;// 선택한 박위치 이름
 }
 
+// 앨범/화보 주문 정보
+export interface AlbumOrderCartInfo {
+  folderId: string;                // 폴더 ID
+  folderName: string;              // 폴더명
+  fileCount: number;               // 파일 수
+  pageCount: number;               // 페이지 수
+  printMethod: 'indigo' | 'inkjet'; // 출력기종
+  colorMode: '4c' | '6c';          // 도수
+  pageLayout: 'single' | 'spread'; // 페이지 레이아웃
+  bindingDirection: string;        // 제본방향
+  specificationId: string;         // 규격 ID
+  specificationName: string;       // 규격명
+  totalSize?: number;              // 총 용량 (bytes)
+}
+
 export interface CartItem {
   id: string;
   productId: string;
-  productType: 'product' | 'half_product';
+  productType: 'product' | 'half_product' | 'album-order';
   name: string;
   thumbnailUrl?: string;
   basePrice: number;
@@ -38,6 +53,7 @@ export interface CartItem {
     url: string;
   }>;
   copperPlateInfo?: CopperPlateCartInfo; // 동판 정보 (변경 감지용)
+  albumOrderInfo?: AlbumOrderCartInfo;   // 앨범/화보 주문 정보
 }
 
 interface CartState {

@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Trash2, Minus, Plus, ShoppingBag, ArrowLeft, ChevronRight } from 'lucide-react';
+import { Trash2, Minus, Plus, ShoppingBag, ArrowLeft, ChevronRight, BookOpen, Package } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { useCartStore } from '@/stores/cart-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { Button } from '@/components/ui/button';
@@ -162,12 +163,38 @@ export default function CartPage() {
                   <div className="flex-1 p-4">
                     <div className="flex justify-between">
                       <div className="flex-1">
-                        <Link
-                          href={`/product/${item.productId}`}
-                          className="font-medium hover:text-primary transition-colors"
-                        >
-                          {item.name}
-                        </Link>
+                        <div className="flex items-center gap-2">
+                          <Link
+                            href={`/product/${item.productId}`}
+                            className="font-medium hover:text-primary transition-colors"
+                          >
+                            {item.name}
+                          </Link>
+                          {/* 상품 타입 배지 */}
+                          {item.productType === 'album-order' && (
+                            <Badge className="bg-purple-100 text-purple-700 text-xs">
+                              <BookOpen className="w-3 h-3 mr-1" />
+                              앨범
+                            </Badge>
+                          )}
+                          {item.productType === 'half_product' && (
+                            <Badge className="bg-orange-100 text-orange-700 text-xs">
+                              <Package className="w-3 h-3 mr-1" />
+                              반제품
+                            </Badge>
+                          )}
+                        </div>
+
+                        {/* 앨범 주문 상세 정보 */}
+                        {item.albumOrderInfo && (
+                          <div className="mt-1 text-xs text-purple-600 bg-purple-50 rounded px-2 py-1 inline-flex items-center gap-2">
+                            <span>{item.albumOrderInfo.printMethod === 'indigo' ? '인디고' : '잉크젯'}</span>
+                            <span>•</span>
+                            <span>{item.albumOrderInfo.colorMode === '4c' ? '4도' : '6도'}</span>
+                            <span>•</span>
+                            <span>{item.albumOrderInfo.pageCount}p</span>
+                          </div>
+                        )}
 
                         {/* Options */}
                         {item.options.length > 0 && (

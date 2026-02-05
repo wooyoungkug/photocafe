@@ -163,7 +163,7 @@ export class ProductService {
   }
 
   async create(dto: CreateProductDto) {
-    const { specifications, bindings, papers, covers, foils, finishings, ...productData } = dto;
+    const { specifications, bindings, papers, covers, foils, finishings, outputPriceSettings, ...productData } = dto;
 
     // Check for duplicate productCode
     const existing = await this.prisma.product.findUnique({
@@ -221,7 +221,7 @@ export class ProductService {
   async update(id: string, dto: UpdateProductDto) {
     await this.findOne(id);
 
-    const { specifications, bindings, papers, covers, foils, finishings, ...productData } = dto;
+    const { specifications, bindings, papers, covers, foils, finishings, outputPriceSettings, categoryId, ...productData } = dto;
 
     console.log('=== Product Update Debug ===');
     console.log('Product ID:', id);
@@ -259,6 +259,7 @@ export class ProductService {
         where: { id },
         data: {
           ...productData,
+          ...(categoryId && { category: { connect: { id: categoryId } } }),
           specifications: specifications !== undefined && specifications.length > 0
             ? { create: specifications }
             : undefined,
@@ -289,9 +290,7 @@ export class ProductService {
         },
       });
 
-      console.log('Update successful! Specs count:', result.specifications.length);
-      console.log('Papers count:', result.papers.length);
-      console.log('Bindings count:', result.bindings.length);
+      console.log('Update successful!');
       return result;
     } catch (error) {
       console.error('=== Product Update Error ===');
