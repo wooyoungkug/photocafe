@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRight, Minus, Plus, ShoppingCart, Heart, Share2, Check } from 'lucide-react';
+import { ChevronRight, Minus, Plus, ShoppingCart, Heart, Share2, Check, Eye, FileText, Image as ImageIcon, Calendar, MapPin } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useProduct } from '@/hooks/use-products';
 import { Button } from '@/components/ui/button';
@@ -817,6 +817,130 @@ export default function ProductPage() {
                             ))}
                           </div>
                         </div>
+
+                        {/* 선택된 보유동판 상세 정보 카드 */}
+                        {selectedOptions.ownedCopperPlate && (
+                          <div className="border-2 border-primary/30 rounded-lg p-4 bg-blue-50/50">
+                            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-primary/20">
+                              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                <FileText className="h-4 w-4 text-primary" />
+                              </div>
+                              <div>
+                                <h4 className="font-semibold text-sm text-primary">선택된 동판 정보</h4>
+                                <p className="text-xs text-gray-500">{selectedOptions.ownedCopperPlate.plateName}</p>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                              {/* 동판 이미지 */}
+                              {selectedOptions.ownedCopperPlate.imageUrl && (
+                                <div className="col-span-2 sm:col-span-1">
+                                  <Label className="text-xs text-gray-600 mb-1 flex items-center gap-1">
+                                    <ImageIcon className="h-3 w-3" />
+                                    동판 이미지
+                                  </Label>
+                                  <a
+                                    href={normalizeImageUrl(selectedOptions.ownedCopperPlate.imageUrl)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block"
+                                  >
+                                    <img
+                                      src={normalizeImageUrl(selectedOptions.ownedCopperPlate.imageUrl)}
+                                      alt="동판 이미지"
+                                      className="w-full h-24 object-contain rounded border bg-white hover:border-primary transition-colors"
+                                    />
+                                  </a>
+                                </div>
+                              )}
+
+                              {/* 앨범 이미지 */}
+                              {selectedOptions.ownedCopperPlate.albumPhotoUrl && (
+                                <div className="col-span-2 sm:col-span-1">
+                                  <Label className="text-xs text-gray-600 mb-1 flex items-center gap-1">
+                                    <ImageIcon className="h-3 w-3" />
+                                    앨범 이미지
+                                  </Label>
+                                  <a
+                                    href={normalizeImageUrl(selectedOptions.ownedCopperPlate.albumPhotoUrl)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block"
+                                  >
+                                    <img
+                                      src={normalizeImageUrl(selectedOptions.ownedCopperPlate.albumPhotoUrl)}
+                                      alt="앨범 이미지"
+                                      className="w-full h-24 object-contain rounded border bg-white hover:border-primary transition-colors"
+                                    />
+                                  </a>
+                                </div>
+                              )}
+
+                              {/* 기본 정보 */}
+                              <div className="col-span-2 grid grid-cols-2 gap-2 text-sm">
+                                <div className="flex items-center gap-2 bg-white rounded px-2 py-1.5 border">
+                                  <span className="text-gray-500 text-xs">박 컬러:</span>
+                                  <span className="font-medium text-xs">
+                                    {copperPlateLabels?.foilColors?.find(c => c.code === selectedOptions.ownedCopperPlate?.foilColor)?.name
+                                      || selectedOptions.ownedCopperPlate.foilColorName
+                                      || '-'}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 bg-white rounded px-2 py-1.5 border">
+                                  <span className="text-gray-500 text-xs">박 위치:</span>
+                                  <span className="font-medium text-xs">
+                                    {copperPlateLabels?.platePositions?.find(p => p.code === selectedOptions.ownedCopperPlate?.foilPosition)?.name
+                                      || selectedOptions.ownedCopperPlate.foilPosition
+                                      || '-'}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 bg-white rounded px-2 py-1.5 border">
+                                  <span className="text-gray-500 text-xs">종류:</span>
+                                  <span className="font-medium text-xs">
+                                    {selectedOptions.ownedCopperPlate.plateType === 'copper' ? '동판' : '연판'}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 bg-white rounded px-2 py-1.5 border">
+                                  <Calendar className="h-3 w-3 text-gray-400" />
+                                  <span className="font-medium text-xs">
+                                    {selectedOptions.ownedCopperPlate.registeredAt
+                                      ? new Date(selectedOptions.ownedCopperPlate.registeredAt).toLocaleDateString('ko-KR')
+                                      : '-'}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* AI 파일 */}
+                              {selectedOptions.ownedCopperPlate.aiFileUrl && (
+                                <div className="col-span-2">
+                                  <Label className="text-xs text-gray-600 mb-1 flex items-center gap-1">
+                                    <FileText className="h-3 w-3" />
+                                    AI 파일
+                                  </Label>
+                                  <a
+                                    href={normalizeImageUrl(selectedOptions.ownedCopperPlate.aiFileUrl)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-2 px-3 py-2 bg-white rounded border hover:border-primary hover:bg-primary/5 transition-colors text-xs"
+                                  >
+                                    <Eye className="h-3.5 w-3.5 text-primary" />
+                                    <span className="truncate flex-1">{selectedOptions.ownedCopperPlate.aiFileUrl.split('/').pop()}</span>
+                                  </a>
+                                </div>
+                              )}
+
+                              {/* 메모 */}
+                              {selectedOptions.ownedCopperPlate.notes && (
+                                <div className="col-span-2">
+                                  <Label className="text-xs text-gray-600 mb-1">메모</Label>
+                                  <div className="px-3 py-2 bg-white rounded border text-xs text-gray-700">
+                                    {selectedOptions.ownedCopperPlate.notes}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
 
                         {/* 보유동판 선택 시 박 색상/위치 수정 가능 */}
                         {selectedOptions.ownedCopperPlate && (

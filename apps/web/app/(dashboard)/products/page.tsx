@@ -72,6 +72,7 @@ import {
   Package,
   Image as ImageIcon,
   Copy,
+  ExternalLink,
 } from 'lucide-react';
 
 export default function ProductsPage() {
@@ -288,22 +289,39 @@ export default function ProductsPage() {
                       <TableRow key={product.id}>
                         <TableCell className="text-center">
                           <div className="flex justify-center">
-                            {product.thumbnailUrl ? (
-                              <img
-                                src={normalizeImageUrl(product.thumbnailUrl)}
-                                alt={product.productName}
-                                className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded"
-                              />
-                            ) : (
-                              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 rounded flex items-center justify-center">
-                                <ImageIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
-                              </div>
-                            )}
+                            <a
+                              href={`/product/${product.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="cursor-pointer hover:opacity-80 transition-opacity"
+                              title="주문 페이지로 이동"
+                            >
+                              {product.thumbnailUrl ? (
+                                <img
+                                  src={normalizeImageUrl(product.thumbnailUrl)}
+                                  alt={product.productName}
+                                  className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded border-2 border-transparent hover:border-primary"
+                                />
+                              ) : (
+                                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 rounded flex items-center justify-center border-2 border-transparent hover:border-primary">
+                                  <ImageIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
+                                </div>
+                              )}
+                            </a>
                           </div>
                         </TableCell>
                         <TableCell className="text-center font-medium">
                           <div className="flex flex-col items-center">
-                            <span className="truncate max-w-[120px] sm:max-w-none">{product.productName}</span>
+                            <a
+                              href={`/product/${product.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="truncate max-w-[120px] sm:max-w-none text-primary hover:underline cursor-pointer flex items-center gap-1"
+                              title="주문 페이지로 이동"
+                            >
+                              {product.productName}
+                              <ExternalLink className="h-3 w-3 opacity-50" />
+                            </a>
                             <span className="md:hidden text-xs text-muted-foreground">{product.category?.name}</span>
                           </div>
                         </TableCell>
