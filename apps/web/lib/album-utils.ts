@@ -454,3 +454,244 @@ export function inchesToMm(inches: number): number {
 export function mmToInches(mm: number): number {
   return mm / 25.4;
 }
+
+// ===== 화보 주문 전용 유틸리티 =====
+
+/**
+ * 정규화된 비율 계산 (긴변/짧은변, 항상 >= 1)
+ * 예: 12x12 → 1.0, 15x10 → 1.5, 10x15 → 1.5
+ */
+export function calculateNormalizedRatio(width: number, height: number): number {
+  if (width === 0 || height === 0) return 0;
+  const long = Math.max(width, height);
+  const short = Math.min(width, height);
+  return Number((long / short).toFixed(4));
+}
+
+/**
+ * 두 규격의 정규화된 비율이 일치하는지 확인
+ * @param tolerance 허용 오차 (기본 1% = 0.01, 인쇄물 특성상 1% 이내 허용)
+ */
+export function isSameNormalizedRatio(
+  w1: number, h1: number,
+  w2: number, h2: number,
+  tolerance: number = 0.01
+): boolean {
+  const ratio1 = calculateNormalizedRatio(w1, h1);
+  const ratio2 = calculateNormalizedRatio(w2, h2);
+  return Math.abs(ratio1 - ratio2) <= tolerance;
+}
+
+/**
+ * 최대공약수 계산 (비율 라벨용)
+ */
+function gcd(a: number, b: number): number {
+  a = Math.abs(Math.round(a));
+  b = Math.abs(Math.round(b));
+  return b === 0 ? a : gcd(b, a % b);
+}
+
+/**
+ * 비율을 읽기 쉬운 라벨로 변환
+ * 예: 12x12 → "1:1", 15x10 → "3:2", 12x9 → "4:3"
+ */
+export function getRatioLabel(width: number, height: number): string {
+  if (width === 0 || height === 0) return '0:0';
+
+  const g = gcd(Math.round(width), Math.round(height));
+  const w = Math.round(width) / g;
+  const h = Math.round(height) / g;
+
+  // 큰 값을 앞에 배치 (예: 3:2, 4:3, 5:4)
+  return w >= h ? `${w}:${h}` : `${h}:${w}`;
+}
+
+/**
+ * 파일 검증 상태 타입
+ */
+export type SizeMatchStatus = 'EXACT' | 'RATIO_MATCH' | 'RATIO_MISMATCH' | 'PENDING';
+
+/**
+ * 파일 검증 결과 인터페이스
+ */
+export interface FileValidationResult {
+  fileId: string;
+  fileName: string;
+  widthInch: number;
+  heightInch: number;
+  dpi: number;
+  ratio: number;
+  status: SizeMatchStatus;
+  message: string;
+}
+
+/**
+ * 폴더 검증 결과 인터페이스
+ */
+export interface FolderValidationResult {
+  overallStatus: 'PASS' | 'APPROVED' | 'REJECTED' | 'PENDING';
+  files: FileValidationResult[];
+  summary: {
+    totalFiles: number;
+    exactMatch: number;
+    ratioMatch: number;
+    ratioMismatch: number;
+  };
+}
+
+/**
+ * 단일 파일의 규격 검증 (3단계)
+ * - EXACT: 규격 완전 일치
+ * - RATIO_MATCH: 비율은 같지만 크기 다름 (리사이즈 가능)
+ * - RATIO_MISMATCH: 비율 불일치 (주문 불가)
+ */
+export function validateFileSize(
+  fileWidthInch: number,
+  fileHeightInch: number,
+  targetWidthInch: number,
+  targetHeightInch: number,
+  tolerance: number = 0.01
+): { status: SizeMatchStatus; message: string } {
+  // 규격 완전 일치 체크 (5% 허용)
+  const widthMatch = Math.abs(fileWidthInch - targetWidthInch) / targetWidthInch <= 0.05;
+  const heightMatch = Math.abs(fileHeightInch - targetHeightInch) / targetHeightInch <= 0.05;
+
+  if (widthMatch && heightMatch) {
+    return { status: 'EXACT', message: '규격 일치' };
+  }
+
+  // 비율 일치 체크
+  if (isSameNormalizedRatio(fileWidthInch, fileHeightInch, targetWidthInch, targetHeightInch, tolerance)) {
+    return {
+      status: 'RATIO_MATCH',
+      message: `비율 일치 (${fileWidthInch.toFixed(1)}x${fileHeightInch.toFixed(1)}" → ${targetWidthInch}x${targetHeightInch}")`
+    };
+  }
+
+  // 비율 불일치
+  const fileRatio = calculateNormalizedRatio(fileWidthInch, fileHeightInch);
+  const targetRatio = calculateNormalizedRatio(targetWidthInch, targetHeightInch);
+  return {
+    status: 'RATIO_MISMATCH',
+    message: `비율 불일치 (${fileRatio.toFixed(2)} ≠ ${targetRatio.toFixed(2)})`
+  };
+}
+
+/**
+ * 폴더 전체 파일 검증
+ */
+export function validateFolderFiles(
+  files: Array<{ id: string; fileName: string; widthInch: number; heightInch: number; dpi: number }>,
+  targetWidthInch: number,
+  targetHeightInch: number,
+  tolerance: number = 0.01
+): FolderValidationResult {
+  const results: FileValidationResult[] = [];
+  let exactMatch = 0;
+  let ratioMatch = 0;
+  let ratioMismatch = 0;
+
+  files.forEach((file) => {
+    const { status, message } = validateFileSize(
+      file.widthInch, file.heightInch,
+      targetWidthInch, targetHeightInch,
+      tolerance
+    );
+
+    const ratio = calculateNormalizedRatio(file.widthInch, file.heightInch);
+
+    results.push({
+      fileId: file.id,
+      fileName: file.fileName,
+      widthInch: file.widthInch,
+      heightInch: file.heightInch,
+      dpi: file.dpi,
+      ratio,
+      status,
+      message,
+    });
+
+    if (status === 'EXACT') exactMatch++;
+    else if (status === 'RATIO_MATCH') ratioMatch++;
+    else if (status === 'RATIO_MISMATCH') ratioMismatch++;
+  });
+
+  // 전체 상태 결정
+  let overallStatus: 'PASS' | 'APPROVED' | 'REJECTED' | 'PENDING';
+  if (ratioMismatch > 0) {
+    overallStatus = 'REJECTED';
+  } else if (ratioMatch > 0) {
+    overallStatus = 'PENDING'; // 승인 필요
+  } else {
+    overallStatus = 'PASS';
+  }
+
+  return {
+    overallStatus,
+    files: results,
+    summary: {
+      totalFiles: files.length,
+      exactMatch,
+      ratioMatch,
+      ratioMismatch,
+    },
+  };
+}
+
+/**
+ * 같은 비율의 표준 규격 필터링
+ */
+export interface StandardSize {
+  id: string;
+  name: string;
+  widthInch: number;
+  heightInch: number;
+  ratio: number;
+  ratioLabel: string;
+}
+
+export function filterSameRatioSizes(
+  currentWidthInch: number,
+  currentHeightInch: number,
+  allSizes: StandardSize[],
+  tolerance: number = 0.01
+): StandardSize[] {
+  return allSizes.filter((size) =>
+    isSameNormalizedRatio(
+      currentWidthInch, currentHeightInch,
+      size.widthInch, size.heightInch,
+      tolerance
+    ) &&
+    // 현재 규격은 제외
+    !(Math.abs(size.widthInch - currentWidthInch) < 0.1 &&
+      Math.abs(size.heightInch - currentHeightInch) < 0.1)
+  );
+}
+
+/**
+ * 편집 스타일에 따른 페이지 수 계산
+ * - SINGLE (낱장): 파일 수 = 페이지 수
+ * - SPREAD (펼침면): 파일 수 × 2 = 페이지 수
+ */
+export function calculatePageCount(
+  fileCount: number,
+  editStyle: 'SINGLE' | 'SPREAD'
+): number {
+  return editStyle === 'SPREAD' ? fileCount * 2 : fileCount;
+}
+
+/**
+ * 화보 주문 정보 포맷팅
+ * 형식: 폴더명 / 규격_인치x인치(dpi) / 페이지수 / 부수 / 용량
+ */
+export function formatPhotobookOrderInfo(
+  folderName: string,
+  widthInch: number,
+  heightInch: number,
+  dpi: number,
+  pageCount: number,
+  quantity: number,
+  totalSize: number
+): string {
+  return `${folderName} / ${widthInch}x${heightInch}inch(${dpi}dpi) / ${pageCount}p / ${quantity}부 / ${formatFileSize(totalSize)}`;
+}

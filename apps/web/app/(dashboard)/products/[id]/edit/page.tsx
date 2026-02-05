@@ -237,6 +237,8 @@ export default function EditProductPage() {
     foilColor: string;
     foilColorName: string;
     engravingText: string;
+    widthMm?: number | null;
+    heightMm?: number | null;
   }[]>([]);
 
   // 후가공정보
@@ -417,13 +419,15 @@ export default function EditProductPage() {
   // 공용동판 로드
   useEffect(() => {
     if (productPublicPlates && Array.isArray(productPublicPlates)) {
-      setSelectedPublicPlates(productPublicPlates.map((pp: { id: string; publicCopperPlateId: string; publicCopperPlate: { plateName: string; plateType: string }; engravingText?: string | null }) => ({
+      setSelectedPublicPlates(productPublicPlates.map((pp: { id: string; publicCopperPlateId: string; publicCopperPlate: { plateName: string; plateType: string; widthMm?: number | null; heightMm?: number | null }; engravingText?: string | null }) => ({
         id: pp.id,
         plateId: pp.publicCopperPlateId,
         plateName: pp.publicCopperPlate.plateName,
         foilColor: pp.publicCopperPlate.plateType || '',
         foilColorName: pp.publicCopperPlate.plateType || '기본',
         engravingText: pp.engravingText || '',
+        widthMm: pp.publicCopperPlate.widthMm,
+        heightMm: pp.publicCopperPlate.heightMm,
       })));
     }
   }, [productPublicPlates]);
@@ -809,15 +813,13 @@ export default function EditProductPage() {
                     onClick={() => setSpecType(tab.key as typeof specType)}
                   >
                     {tab.label}
-                    {tabSelectedCount > 0 && (
-                      <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                        specType === tab.key
-                          ? 'bg-white/20 text-white'
-                          : 'bg-indigo-100 text-indigo-600'
-                      }`}>
-                        {tabSelectedCount}
-                      </span>
-                    )}
+                    <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                      specType === tab.key
+                        ? 'bg-white/20 text-white'
+                        : tabSelectedCount > 0 ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-200 text-slate-500'
+                    }`}>
+                      {tabSelectedCount}/{tabSpecs.length}
+                    </span>
                   </Button>
                 );
               })}
@@ -853,20 +855,6 @@ export default function EditProductPage() {
                     >
                       {allSelected ? '전체 해제' : '전체 선택'}
                     </Button>
-                    {filteredSelectedSpecs.length > 0 && (
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={() => {
-                          const filteredIds = filteredSpecs.map(s => s.id);
-                          setSelectedSpecs(prev => prev.filter(id => !filteredIds.includes(id)));
-                        }}
-                      >
-                        선택 삭제 ({filteredSelectedSpecs.length})
-                      </Button>
-                    )}
                     <span className="text-xs text-slate-500">
                       {filteredSelectedSpecs.length} / {filteredSpecs.length}개 선택
                     </span>
@@ -879,7 +867,10 @@ export default function EditProductPage() {
                         const spec = specifications?.find(s => s.id === specId);
                         return spec ? (
                           <div key={specId} className="flex items-center justify-between py-1.5 px-2 bg-white border rounded text-sm">
-                            <span className="font-medium text-slate-900 truncate">{spec.name}</span>
+                            <span className="font-medium text-slate-900 truncate">
+                              {spec.name}
+                              {spec.nup && <span className="ml-1 text-xs text-blue-600">({spec.nup})</span>}
+                            </span>
                             <button
                               type="button"
                               className="ml-1 hover:bg-red-100 rounded-full p-0.5 flex-shrink-0"
@@ -1059,6 +1050,11 @@ export default function EditProductPage() {
                         <div className="flex items-center gap-2 mb-1">
                           <span className="font-medium text-sm">{plate.plateName}</span>
                           <Badge variant="outline" className="text-xs">{plate.foilColorName}</Badge>
+                          {(plate.widthMm || plate.heightMm) && (
+                            <Badge variant="secondary" className="text-xs">
+                              {plate.widthMm || '-'} x {plate.heightMm || '-'} mm
+                            </Badge>
+                          )}
                         </div>
                         {plate.engravingText && (
                           <p className="text-xs text-slate-500">각인문구: {plate.engravingText}</p>
@@ -3038,6 +3034,8 @@ function PublicCopperPlateSelectionForm({
     foilColor: string;
     foilColorName: string;
     engravingText: string;
+    widthMm?: number | null;
+    heightMm?: number | null;
   }[];
   onSelect: (plates: {
     id: string;
@@ -3046,6 +3044,8 @@ function PublicCopperPlateSelectionForm({
     foilColor: string;
     foilColorName: string;
     engravingText: string;
+    widthMm?: number | null;
+    heightMm?: number | null;
   }[]) => void;
   onCancel: () => void;
 }) {
@@ -3085,6 +3085,8 @@ function PublicCopperPlateSelectionForm({
           foilColor: plate.plateType || '',
           foilColorName: FOIL_COLORS[plate.plateType]?.name || plate.plateType || '기본',
           engravingText: plate.defaultEngravingText || '',
+          widthMm: plate.widthMm,
+          heightMm: plate.heightMm,
         }];
       }
     });
@@ -3116,6 +3118,8 @@ function PublicCopperPlateSelectionForm({
           foilColor: plate.plateType || '',
           foilColorName: FOIL_COLORS[plate.plateType]?.name || plate.plateType || '기본',
           engravingText: plate.defaultEngravingText || '',
+          widthMm: plate.widthMm,
+          heightMm: plate.heightMm,
         }));
       setLocalSelected(prev => [...prev, ...newPlates]);
     }

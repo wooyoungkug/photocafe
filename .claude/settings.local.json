@@ -240,7 +240,8 @@
       "Bash(\"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -f \"E:/printing_erp_backup_20260205.sql\")",
       "Bash(cmd //c \"taskkill /F /PID 21668\")",
       "Bash(cmd //c:*)",
-      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql.exe\":*)"
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql.exe\":*)",
+      "Bash(more:*)"
     ]
   }
 }

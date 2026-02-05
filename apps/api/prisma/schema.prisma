@@ -368,6 +368,7 @@ model Client {
   healthScore  CustomerHealthScore?
   copperPlates CopperPlate[]
   productionSettingPrices ClientProductionSettingPrice[]
+  photobookOrders PhotobookOrder[]
 
   @@unique([oauthProvider, oauthId])
   @@index([groupId])
@@ -2352,6 +2353,9 @@ model Fabric {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
+  // Relations
+  photobookOrders PhotobookOrder[]
+
   @@index([supplierId])
   @@index([category])
   @@index([material])
@@ -2383,9 +2387,119 @@ model Coating {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
+  // Relations
+  photobookOrders PhotobookOrder[]
+
   @@index([type])
   @@index([isActive])
   @@map("coatings")
+}
+
+// ==================== 화보/포토북 주문 ====================
+
+// 표준 규격
+model StandardSize {
+  id          String   @id @default(cuid())
+  name        String   @unique              // "12x12", "15x10"
+  widthInch   Float                         // 가로 (inch)
+  heightInch  Float                         // 세로 (inch)
+  ratio       Float                         // 비율 (긴변/짧은변, >= 1)
+  ratioLabel  String                        // "1:1", "3:2", "5:4"
+
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([ratio])
+  @@index([isActive])
+  @@map("standard_sizes")
+}
+
+// 화보 주문
+model PhotobookOrder {
+  id                String   @id @default(cuid())
+
+  // 주문 기본정보
+  orderNumber       String   @unique           // 주문번호 자동생성
+  orderTitle        String                     // 주문 제목 (폴더명)
+  status            String   @default("DRAFT") // DRAFT, PENDING, RECEIVED, IN_PRODUCTION, COMPLETED, CANCELLED
+
+  // STEP 1: 편집 옵션
+  editStyle         String   @default("SINGLE")  // SINGLE(낱장), SPREAD(펼침면)
+  bindingDirection  String   @default("LEFT_START_RIGHT_END") // 제본순서
+
+  // STEP 2: 마감재
+  fabricId          String?
+  fabric            Fabric?   @relation(fields: [fabricId], references: [id])
+  coatingId         String?
+  coating           Coating?  @relation(fields: [coatingId], references: [id])
+
+  // STEP 3: 수량
+  quantity          Int      @default(1)       // 부수
+
+  // STEP 4: 파일 정보
+  specWidth         Float?                     // 규격 가로 (inch)
+  specHeight        Float?                     // 규격 세로 (inch)
+  specRatio         Float?                     // 비율 (긴변/짧은변)
+  dpi               Int?                       // 해상도
+  pageCount         Int?                       // 페이지 수
+  totalFileSize     BigInt?                    // 총 용량 (bytes)
+  validationStatus  String   @default("PENDING") // PENDING, PASS, APPROVED, REJECTED
+
+  // 가격
+  unitPrice         Decimal  @db.Decimal(10, 2) @default(0)
+  totalPrice        Decimal  @db.Decimal(10, 2) @default(0)
+
+  // 관계
+  files             PhotobookFile[]
+  clientId          String?
+  client            Client?   @relation(fields: [clientId], references: [id])
+
+  // 시스템
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  createdBy         String?
+  approvedAt        DateTime?
+  approvedBy        String?
+
+  @@index([clientId])
+  @@index([status])
+  @@index([validationStatus])
+  @@map("photobook_orders")
+}
+
+// 화보 파일
+model PhotobookFile {
+  id                String   @id @default(cuid())
+  orderId           String
+  order             PhotobookOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  // 파일 정보
+  fileName          String
+  originalName      String
+  filePath          String                     // S3/NAS 경로
+  fileSize          BigInt                     // bytes
+  pageNumber        Int                        // 페이지 번호 (정렬용)
+
+  // 이미지 메타
+  widthPx           Int
+  heightPx          Int
+  dpi               Int      @default(300)
+  widthInch         Float                      // widthPx / dpi
+  heightInch        Float                      // heightPx / dpi
+  colorSpace        String?                    // sRGB, AdobeRGB, CMYK
+
+  // 검증
+  sizeMatchStatus   String   @default("PENDING") // EXACT, RATIO_MATCH, RATIO_MISMATCH, PENDING
+  ratio             Float?                     // 긴변/짧은변
+
+  createdAt         DateTime @default(now())
+
+  @@index([orderId])
+  @@index([sizeMatchStatus])
+  @@map("photobook_files")
 }
 
 // ==================== 상담 메시지 ====================

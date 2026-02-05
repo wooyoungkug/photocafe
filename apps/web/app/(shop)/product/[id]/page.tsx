@@ -32,6 +32,8 @@ import { Input } from '@/components/ui/input';
 import { AlbumOrderWizard } from '@/components/album-order/album-order-wizard';
 import { useAlbumOrderStore } from '@/stores/album-order-store';
 import { calculateFolderQuotation, formatPrice } from '@/lib/album-pricing';
+import { PhotobookOrderWizard } from '@/components/photobook-order';
+import { usePhotobookOrderStore } from '@/stores/photobook-order-store';
 
 // 이미지 URL 정규화 함수
 const normalizeImageUrl = (url: string | null | undefined): string => {
@@ -59,6 +61,9 @@ interface SelectedOptions {
   foil?: ProductFoil;
   finishings: ProductFinishing[];
   printSide?: 'single' | 'double';  // 단면/양면
+  // 페이지 편집 방식 및 제본 순서
+  pageEditMode?: 'single' | 'spread';  // 낱장 / 펼침면
+  bindingDirection?: string;  // 좌시작→우끝, 좌시작→좌끝, 우시작→좌끝, 우시작→우끝
   // 동판 관련
   copperPlateType?: 'none' | 'public' | 'owned';  // 동판 선택 타입
   publicCopperPlate?: ProductPublicCopperPlate;   // 공용동판
@@ -91,7 +96,8 @@ const isAlbumProduct = (bindings?: ProductBinding[]): boolean => {
     return name.includes('화보') ||
            name.includes('포토북') ||
            name.includes('스타화보') ||
-           name.includes('핀화보');
+           name.includes('핀화보') ||
+           name.includes('스타제본');  // 스타제본 추가
   });
 };
 
@@ -128,6 +134,10 @@ export default function ProductPage() {
   // 화보앨범 위자드 상태
   const [showAlbumWizard, setShowAlbumWizard] = useState(false);
   const albumOrderStore = useAlbumOrderStore();
+
+  // 새로운 화보 위자드 상태
+  const [showPhotobookWizard, setShowPhotobookWizard] = useState(false);
+  const photobookOrderStore = usePhotobookOrderStore();
 
   // 화보/앨범 상품인지 확인
   const isAlbum = useMemo(() => {
@@ -421,7 +431,7 @@ export default function ProductPage() {
     }
   };
 
-  // 화보앨범 위자드 열기
+  // 화보앨범 위자드 열기 (기존)
   const handleOpenAlbumWizard = () => {
     if (!product) return;
     albumOrderStore.reset();
@@ -430,6 +440,13 @@ export default function ProductPage() {
       albumOrderStore.setBindingInfo(selectedOptions.binding.id, selectedOptions.binding.name);
     }
     setShowAlbumWizard(true);
+  };
+
+  // 새 화보 위자드 열기
+  const handleOpenPhotobookWizard = () => {
+    if (!product) return;
+    photobookOrderStore.reset();
+    setShowPhotobookWizard(true);
   };
 
   // 화보앨범 위자드 완료 핸들러
@@ -723,6 +740,86 @@ export default function ProductPage() {
 
             {/* Options */}
             <div className="space-y-6">
+              {/* 페이지 편집 방식 */}
+              <OptionSection title="페이지 편집 방식">
+                <RadioGroup
+                  value={selectedOptions.pageEditMode || 'single'}
+                  onValueChange={(value) => setSelectedOptions(prev => ({ ...prev, pageEditMode: value as 'single' | 'spread' }))}
+                  className="grid grid-cols-2 gap-2"
+                >
+                  <Label className={cn(
+                    "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors",
+                    (selectedOptions.pageEditMode || 'single') === 'single' ? "border-primary bg-primary/5" : "hover:border-gray-400"
+                  )}>
+                    <RadioGroupItem value="single" />
+                    <div className="flex flex-col">
+                      <span className="font-medium">낱장</span>
+                      <span className="text-xs text-gray-500">1파일 = 1페이지</span>
+                    </div>
+                  </Label>
+                  <Label className={cn(
+                    "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors",
+                    selectedOptions.pageEditMode === 'spread' ? "border-primary bg-primary/5" : "hover:border-gray-400"
+                  )}>
+                    <RadioGroupItem value="spread" />
+                    <div className="flex flex-col">
+                      <span className="font-medium">펼침면</span>
+                      <span className="text-xs text-gray-500">1파일 = 2페이지</span>
+                    </div>
+                  </Label>
+                </RadioGroup>
+              </OptionSection>
+
+              {/* 제본 순서 */}
+              <OptionSection title="제본 순서">
+                <RadioGroup
+                  value={selectedOptions.bindingDirection || 'left-to-right'}
+                  onValueChange={(value) => setSelectedOptions(prev => ({ ...prev, bindingDirection: value }))}
+                  className="grid grid-cols-2 gap-2"
+                >
+                  <Label className={cn(
+                    "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors",
+                    (selectedOptions.bindingDirection || 'left-to-right') === 'left-to-right' ? "border-primary bg-primary/5" : "hover:border-gray-400"
+                  )}>
+                    <RadioGroupItem value="left-to-right" />
+                    <div className="flex flex-col">
+                      <span className="font-medium">좌시작→우끝</span>
+                      <span className="text-xs text-gray-500">일반적인 좌철 (한국어 기본)</span>
+                    </div>
+                  </Label>
+                  <Label className={cn(
+                    "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors",
+                    selectedOptions.bindingDirection === 'left-to-left' ? "border-primary bg-primary/5" : "hover:border-gray-400"
+                  )}>
+                    <RadioGroupItem value="left-to-left" />
+                    <div className="flex flex-col">
+                      <span className="font-medium">좌시작→좌끝</span>
+                      <span className="text-xs text-gray-500">좌철 인데 마지막도 왼쪽</span>
+                    </div>
+                  </Label>
+                  <Label className={cn(
+                    "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors",
+                    selectedOptions.bindingDirection === 'right-to-left' ? "border-primary bg-primary/5" : "hover:border-gray-400"
+                  )}>
+                    <RadioGroupItem value="right-to-left" />
+                    <div className="flex flex-col">
+                      <span className="font-medium">우시작→좌끝</span>
+                      <span className="text-xs text-gray-500">우철 (일본어/아랍어)</span>
+                    </div>
+                  </Label>
+                  <Label className={cn(
+                    "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors",
+                    selectedOptions.bindingDirection === 'right-to-right' ? "border-primary bg-primary/5" : "hover:border-gray-400"
+                  )}>
+                    <RadioGroupItem value="right-to-right" />
+                    <div className="flex flex-col">
+                      <span className="font-medium">우시작→우끝</span>
+                      <span className="text-xs text-gray-500">우철 인데 마지막도 오른쪽</span>
+                    </div>
+                  </Label>
+                </RadioGroup>
+              </OptionSection>
+
               {/* Specification */}
               {product.specifications && product.specifications.length > 0 && (
                 <OptionSection title="규격" count={product.specifications.length}>
@@ -795,43 +892,65 @@ export default function ProductPage() {
                 </OptionSection>
               )}
 
-              {/* Paper */}
-              {product.papers && product.papers.length > 0 && (
-                <OptionSection title="용지" count={product.papers.length}>
-                  <div className="max-h-[200px] overflow-y-auto pr-1">
-                    <RadioGroup
-                      value={selectedOptions.paper?.id}
-                      onValueChange={(value) => {
-                        const paper = product.papers?.find(p => p.id === value);
-                        setSelectedOptions(prev => ({ ...prev, paper }));
-                      }}
-                      className="grid grid-cols-2 gap-1.5"
-                    >
-                      {product.papers.map((paper) => (
-                        <Label
-                          key={paper.id}
-                          className={cn(
-                            "flex items-center gap-1.5 px-2.5 py-2 border rounded-md cursor-pointer transition-colors text-sm",
-                            selectedOptions.paper?.id === paper.id
-                              ? "border-primary bg-primary/5 font-medium"
-                              : "hover:border-gray-400"
-                          )}
-                        >
-                          <RadioGroupItem value={paper.id} className="h-3.5 w-3.5 flex-shrink-0" />
-                          <span className="truncate flex-1">
-                            {paper.name}
-                            {paper.grammage && <span className="text-gray-500 ml-1">{paper.grammage}g</span>}
-                          </span>
-                          <div className="flex items-center gap-1 text-xs text-gray-500 flex-shrink-0">
-                            {paper.frontCoating && <Badge variant="outline" className="text-[10px] px-1 py-0">{paper.frontCoating}</Badge>}
-                            {paper.grade && <Badge variant="secondary" className="text-[10px] px-1 py-0">G{paper.grade}</Badge>}
+              {/* Paper - 종류별 그룹화 */}
+              {product.papers && product.papers.length > 0 && (() => {
+                // 용지 이름에서 종류 추출 (숫자와 g 제외)
+                const getPaperType = (name: string) => {
+                  return name.replace(/\s*\d+g?$/i, '').replace(/\s+\d+$/,'').trim();
+                };
+                // 용지를 종류별로 그룹화
+                const paperGroups = product.papers.reduce((groups, paper) => {
+                  const type = getPaperType(paper.name);
+                  if (!groups[type]) groups[type] = [];
+                  groups[type].push(paper);
+                  return groups;
+                }, {} as Record<string, typeof product.papers>);
+                const groupEntries = Object.entries(paperGroups);
+
+                return (
+                  <OptionSection title="용지" count={product.papers.length}>
+                    <div className="max-h-[280px] overflow-y-auto pr-1 space-y-3">
+                      <RadioGroup
+                        value={selectedOptions.paper?.id}
+                        onValueChange={(value) => {
+                          const paper = product.papers?.find(p => p.id === value);
+                          setSelectedOptions(prev => ({ ...prev, paper }));
+                        }}
+                      >
+                        {groupEntries.map(([type, papers]) => (
+                          <div key={type} className="space-y-1.5">
+                            <div className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded sticky top-0">
+                              {type} <span className="text-gray-400">({papers.length})</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-1.5 pl-1">
+                              {papers.map((paper) => (
+                                <Label
+                                  key={paper.id}
+                                  className={cn(
+                                    "flex items-center gap-1.5 px-2.5 py-2 border rounded-md cursor-pointer transition-colors text-sm",
+                                    selectedOptions.paper?.id === paper.id
+                                      ? "border-primary bg-primary/5 font-medium"
+                                      : "hover:border-gray-400"
+                                  )}
+                                >
+                                  <RadioGroupItem value={paper.id} className="h-3.5 w-3.5 flex-shrink-0" />
+                                  <span className="truncate flex-1">
+                                    {paper.grammage ? `${paper.grammage}g` : paper.name}
+                                  </span>
+                                  <div className="flex items-center gap-1 text-xs text-gray-500 flex-shrink-0">
+                                    {paper.frontCoating && <Badge variant="outline" className="text-[10px] px-1 py-0">{paper.frontCoating}</Badge>}
+                                    {paper.grade && <Badge variant="secondary" className="text-[10px] px-1 py-0">G{paper.grade}</Badge>}
+                                  </div>
+                                </Label>
+                              ))}
+                            </div>
                           </div>
-                        </Label>
-                      ))}
-                    </RadioGroup>
-                  </div>
-                </OptionSection>
-              )}
+                        ))}
+                      </RadioGroup>
+                    </div>
+                  </OptionSection>
+                );
+              })()}
 
               {/* Finishings */}
               {product.finishings && product.finishings.length > 0 && (
@@ -1019,7 +1138,14 @@ export default function ProductPage() {
                                 />
                               )}
                               <div className="flex-1">
-                                <div className="font-medium text-sm">{pcp.publicCopperPlate.plateName}</div>
+                                <div className="font-medium text-sm">
+                                  {pcp.publicCopperPlate.plateName}
+                                  {(pcp.publicCopperPlate.widthMm || pcp.publicCopperPlate.heightMm) && (
+                                    <span className="ml-1 text-xs text-blue-600">
+                                      ({pcp.publicCopperPlate.widthMm}x{pcp.publicCopperPlate.heightMm}mm)
+                                    </span>
+                                  )}
+                                </div>
                                 {pcp.engravingText && (
                                   <div className="text-xs text-gray-500">각인: {pcp.engravingText}</div>
                                 )}
@@ -1351,12 +1477,12 @@ export default function ProductPage() {
                 <Button
                   size="lg"
                   className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                  onClick={handleOpenAlbumWizard}
+                  onClick={handleOpenPhotobookWizard}
                 >
                   <Upload className="h-5 w-5 mr-2" />
-                  데이터 업로드 주문
+                  화보 주문
                   <Badge variant="secondary" className="ml-2 bg-white/20 text-white">
-                    추천
+                    6단계
                   </Badge>
                 </Button>
               )}
@@ -1624,7 +1750,7 @@ export default function ProductPage() {
         </DialogContent>
       </Dialog>
 
-      {/* 화보앨범 주문 위자드 모달 */}
+      {/* 화보앨범 주문 위자드 모달 (기존) */}
       <Dialog open={showAlbumWizard} onOpenChange={setShowAlbumWizard}>
         <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto p-0">
           <AlbumOrderWizard
@@ -1640,6 +1766,14 @@ export default function ProductPage() {
           />
         </DialogContent>
       </Dialog>
+
+      {/* 새 화보 주문 위자드 (6단계) */}
+      <PhotobookOrderWizard
+        open={showPhotobookWizard}
+        onClose={() => setShowPhotobookWizard(false)}
+        productId={product.id}
+        productName={product.productName}
+      />
     </div>
   );
 }
