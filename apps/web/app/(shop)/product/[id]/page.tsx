@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRight, Minus, Plus, ShoppingCart, Heart, Share2, Check, Eye, FileText, Image as ImageIcon, Calendar, MapPin } from 'lucide-react';
+import { ChevronRight, Minus, Plus, ShoppingCart, Heart, Share2, Check, Eye, FileText, Image as ImageIcon, Calendar, MapPin, Star, FolderHeart, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useProduct } from '@/hooks/use-products';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,16 @@ import { API_URL, API_BASE_URL } from '@/lib/api';
 import type { Product, ProductSpecification, ProductBinding, ProductPaper, ProductCover, ProductFoil, ProductFinishing, ProductPublicCopperPlate } from '@/lib/types';
 import { useAuthStore } from '@/stores/auth-store';
 import { useCopperPlatesByClient, useCopperPlateLabels, type CopperPlate } from '@/hooks/use-copper-plates';
+import { useMyProductsByClient, useCreateMyProduct, type MyProduct, type MyProductOptions } from '@/hooks/use-my-products';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 
 // 이미지 URL 정규화 함수
 const normalizeImageUrl = (url: string | null | undefined): string => {
@@ -85,11 +95,20 @@ export default function ProductPage() {
   // 박 색상/위치 라벨 조회
   const { data: copperPlateLabels } = useCopperPlateLabels();
 
+  // 마이상품 조회 및 저장
+  const { data: myProducts } = useMyProductsByClient(isAuthenticated ? user?.id : undefined);
+  const createMyProduct = useCreateMyProduct();
+
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedOptions, setSelectedOptions] = useState<SelectedOptions>({
     finishings: [],
   });
+
+  // 마이상품 모달 상태
+  const [showSaveMyProductModal, setShowSaveMyProductModal] = useState(false);
+  const [showLoadMyProductModal, setShowLoadMyProductModal] = useState(false);
+  const [myProductName, setMyProductName] = useState('');
 
   // Set default options when product loads
   useEffect(() => {
@@ -305,6 +324,117 @@ export default function ProductPage() {
   const handleBuyNow = () => {
     handleAddToCart();
     router.push('/cart');
+  };
+
+  // 마이상품 저장
+  const handleSaveMyProduct = async () => {
+    if (!isAuthenticated || !user?.id || !product) {
+      toast({
+        title: '로그인이 필요합니다',
+        description: '마이상품 저장은 로그인 후 이용 가능합니다.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const options: MyProductOptions = {
+      specificationId: selectedOptions.specification?.id,
+      specificationName: selectedOptions.specification?.name,
+      bindingId: selectedOptions.binding?.id,
+      bindingName: selectedOptions.binding?.name,
+      paperId: selectedOptions.paper?.id,
+      paperName: selectedOptions.paper?.name,
+      coverId: selectedOptions.cover?.id,
+      coverName: selectedOptions.cover?.name,
+      printSide: selectedOptions.printSide,
+      copperPlateType: selectedOptions.copperPlateType,
+      copperPlateId: selectedOptions.copperPlateType === 'owned'
+        ? selectedOptions.ownedCopperPlate?.id
+        : selectedOptions.copperPlateType === 'public'
+          ? selectedOptions.publicCopperPlate?.id
+          : undefined,
+      copperPlateName: selectedOptions.copperPlateType === 'owned'
+        ? selectedOptions.ownedCopperPlate?.plateName
+        : selectedOptions.copperPlateType === 'public'
+          ? selectedOptions.publicCopperPlate?.publicCopperPlate?.plateName
+          : undefined,
+      foilColor: selectedOptions.foilColor,
+      foilColorName: copperPlateLabels?.foilColors?.find(c => c.code === selectedOptions.foilColor)?.name,
+      foilPosition: selectedOptions.foilPosition,
+      foilPositionName: copperPlateLabels?.platePositions?.find(p => p.code === selectedOptions.foilPosition)?.name,
+      finishingIds: selectedOptions.finishings.map(f => f.id),
+      finishingNames: selectedOptions.finishings.map(f => f.name),
+    };
+
+    try {
+      await createMyProduct.mutateAsync({
+        clientId: user.id,
+        productId: product.id,
+        name: myProductName || `${product.productName} ${selectedOptions.specification?.name || ''}`.trim(),
+        thumbnailUrl: product.thumbnailUrl || undefined,
+        options,
+        defaultQuantity: quantity,
+      });
+
+      toast({
+        title: '마이상품 저장 완료',
+        description: '선택한 옵션이 마이상품으로 저장되었습니다.',
+      });
+      setShowSaveMyProductModal(false);
+      setMyProductName('');
+    } catch {
+      toast({
+        title: '저장 실패',
+        description: '마이상품 저장 중 오류가 발생했습니다.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // 마이상품 불러오기
+  const handleLoadMyProduct = (myProduct: MyProduct) => {
+    const opts = myProduct.options;
+
+    // 규격 찾기
+    const spec = product?.specifications?.find(s => s.id === opts.specificationId);
+    // 제본방법 찾기
+    const binding = product?.bindings?.find(b => b.id === opts.bindingId);
+    // 용지 찾기
+    const paper = product?.papers?.find(p => p.id === opts.paperId);
+    // 커버 찾기
+    const cover = product?.covers?.find(c => c.id === opts.coverId);
+    // 후가공 찾기
+    const finishings = product?.finishings?.filter(f => opts.finishingIds?.includes(f.id)) || [];
+    // 보유동판 찾기
+    const ownedPlate = opts.copperPlateType === 'owned'
+      ? ownedCopperPlates?.find(cp => cp.id === opts.copperPlateId)
+      : undefined;
+    // 공용동판 찾기
+    const publicPlate = opts.copperPlateType === 'public'
+      ? product?.publicCopperPlates?.find(p => p.id === opts.copperPlateId)
+      : undefined;
+
+    setSelectedOptions({
+      specification: spec,
+      binding,
+      paper,
+      cover,
+      finishings,
+      printSide: opts.printSide,
+      copperPlateType: opts.copperPlateType,
+      ownedCopperPlate: ownedPlate,
+      publicCopperPlate: publicPlate,
+      foilColor: opts.foilColor,
+      foilPosition: opts.foilPosition,
+    });
+
+    setQuantity(myProduct.defaultQuantity);
+    setShowLoadMyProductModal(false);
+
+    toast({
+      title: '마이상품 불러오기 완료',
+      description: `"${myProduct.name}" 옵션이 적용되었습니다.`,
+    });
   };
 
   const images = product.thumbnailUrl
@@ -1039,8 +1169,35 @@ export default function ProductPage() {
               </Button>
             </div>
 
-            {/* Share & Wishlist */}
-            <div className="flex gap-3 pt-2">
+            {/* 마이상품 & Share & Wishlist */}
+            <div className="flex flex-wrap gap-2 pt-2">
+              {isAuthenticated && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setMyProductName(`${product.productName} ${selectedOptions.specification?.name || ''}`.trim());
+                      setShowSaveMyProductModal(true);
+                    }}
+                    className="text-primary border-primary hover:bg-primary/10"
+                  >
+                    <Star className="h-4 w-4 mr-1" />
+                    마이상품 저장
+                  </Button>
+                  {myProducts && myProducts.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowLoadMyProductModal(true)}
+                      className="text-orange-600 border-orange-600 hover:bg-orange-50"
+                    >
+                      <FolderHeart className="h-4 w-4 mr-1" />
+                      마이상품 불러오기 ({myProducts.filter(mp => mp.productId === product.id).length})
+                    </Button>
+                  )}
+                </>
+              )}
               <Button variant="ghost" size="sm" className="text-gray-500">
                 <Heart className="h-4 w-4 mr-1" />
                 찜하기
@@ -1087,6 +1244,145 @@ export default function ProductPage() {
           </Card>
         </div>
       </div>
+
+      {/* 마이상품 저장 모달 */}
+      <Dialog open={showSaveMyProductModal} onOpenChange={setShowSaveMyProductModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Star className="h-5 w-5 text-primary" />
+              마이상품으로 저장
+            </DialogTitle>
+            <DialogDescription>
+              현재 선택한 옵션을 마이상품으로 저장하면 다음 주문 시 빠르게 불러올 수 있습니다.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="myProductName">마이상품 이름</Label>
+              <Input
+                id="myProductName"
+                value={myProductName}
+                onChange={(e) => setMyProductName(e.target.value)}
+                placeholder="예: 우리학교 졸업앨범"
+              />
+            </div>
+
+            {/* 선택된 옵션 요약 */}
+            <div className="bg-gray-50 rounded-lg p-3 space-y-1 text-sm">
+              <p className="font-medium text-gray-700 mb-2">선택된 옵션</p>
+              {selectedOptions.specification && (
+                <p className="text-gray-600">규격: {selectedOptions.specification.name}</p>
+              )}
+              {selectedOptions.binding && (
+                <p className="text-gray-600">제본: {selectedOptions.binding.name}</p>
+              )}
+              {selectedOptions.paper && (
+                <p className="text-gray-600">용지: {selectedOptions.paper.name}</p>
+              )}
+              {selectedOptions.printSide && (
+                <p className="text-gray-600">출력: {selectedOptions.printSide === 'single' ? '단면' : '양면'}</p>
+              )}
+              {selectedOptions.copperPlateType !== 'none' && (
+                <p className="text-gray-600">
+                  동판: {selectedOptions.copperPlateType === 'owned'
+                    ? selectedOptions.ownedCopperPlate?.plateName
+                    : selectedOptions.publicCopperPlate?.publicCopperPlate?.plateName}
+                </p>
+              )}
+              {selectedOptions.finishings.length > 0 && (
+                <p className="text-gray-600">후가공: {selectedOptions.finishings.map(f => f.name).join(', ')}</p>
+              )}
+              <p className="text-gray-600">수량: {quantity}개</p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSaveMyProductModal(false)}>
+              취소
+            </Button>
+            <Button onClick={handleSaveMyProduct} disabled={createMyProduct.isPending}>
+              {createMyProduct.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              저장하기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 마이상품 불러오기 모달 */}
+      <Dialog open={showLoadMyProductModal} onOpenChange={setShowLoadMyProductModal}>
+        <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FolderHeart className="h-5 w-5 text-orange-600" />
+              마이상품 불러오기
+            </DialogTitle>
+            <DialogDescription>
+              저장된 마이상품을 선택하면 해당 옵션이 자동으로 적용됩니다.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto py-4 space-y-2">
+            {myProducts?.filter(mp => mp.productId === product.id).map((myProduct) => (
+              <button
+                key={myProduct.id}
+                onClick={() => handleLoadMyProduct(myProduct)}
+                className="w-full text-left p-3 border rounded-lg hover:border-primary hover:bg-primary/5 transition-colors"
+              >
+                <div className="flex items-start gap-3">
+                  {myProduct.thumbnailUrl ? (
+                    <img
+                      src={normalizeImageUrl(myProduct.thumbnailUrl)}
+                      alt={myProduct.name}
+                      className="w-12 h-12 object-cover rounded"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center">
+                      <ImageIcon className="h-5 w-5 text-gray-400" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{myProduct.name}</p>
+                    <div className="text-xs text-gray-500 space-y-0.5">
+                      {myProduct.options.specificationName && (
+                        <p>규격: {myProduct.options.specificationName}</p>
+                      )}
+                      {myProduct.options.bindingName && (
+                        <p>제본: {myProduct.options.bindingName}</p>
+                      )}
+                      {myProduct.options.paperName && (
+                        <p>용지: {myProduct.options.paperName}</p>
+                      )}
+                      {myProduct.options.copperPlateName && (
+                        <p>동판: {myProduct.options.copperPlateName}</p>
+                      )}
+                      <p>수량: {myProduct.defaultQuantity}개</p>
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    {myProduct.usageCount > 0 && <p>{myProduct.usageCount}회 사용</p>}
+                  </div>
+                </div>
+              </button>
+            ))}
+
+            {myProducts?.filter(mp => mp.productId === product.id).length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                <FolderHeart className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                <p>이 상품에 저장된 마이상품이 없습니다.</p>
+                <p className="text-sm">옵션을 선택한 후 마이상품으로 저장해보세요.</p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowLoadMyProductModal(false)}>
+              닫기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
