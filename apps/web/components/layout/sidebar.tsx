@@ -504,18 +504,18 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
                   <div className="flex items-center group/nav">
                     <Link
                       href={item.href}
-                      prefetch={false}
+                      prefetch={true}
                       onClick={handleNavigation}
                       className={cn(
-                        "flex-1 flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-colors duration-100 relative overflow-hidden",
+                        "flex-1 flex items-center gap-3 px-3 py-2.5 text-sm font-medium relative overflow-hidden",
                         isActive
                           ? "bg-indigo-600 text-white shadow-md shadow-indigo-900/20"
                           : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-100",
                                               )}
                     >
                       <item.icon className={cn(
-                        "h-5 w-5 transition-colors duration-100",
-                        isActive ? "text-white" : "text-slate-500 group-hover/nav:text-slate-300"
+                        "h-5 w-5",
+                        isActive ? "text-white" : "text-slate-500"
                       )} />
                       <span className="relative z-10">{item.name}</span>
                     </Link>
@@ -543,18 +543,18 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
                       <button
                         onClick={() => toggleMenu(item.name)}
                         className={cn(
-                          "flex-1 flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-all duration-200 hover:bg-slate-800/50",
+                          "flex-1 flex items-center gap-3 px-3 py-2.5 text-sm font-medium hover:bg-slate-800/50",
                           isOpen ? "text-slate-200" : "text-slate-400"
                         )}
                       >
                         <item.icon className={cn(
-                          "h-5 w-5 transition-colors duration-200",
-                          isOpen ? "text-indigo-400" : "text-slate-500 group-hover/nav:text-slate-300"
+                          "h-5 w-5",
+                          isOpen ? "text-indigo-400" : "text-slate-500"
                         )} />
                         <span className="flex-1 text-left">{item.name}</span>
                         <ChevronRight
                           className={cn(
-                            "h-4 w-4 text-slate-600 transition-transform duration-300",
+                            "h-4 w-4 text-slate-600",
                             isOpen ? "rotate-90 text-slate-400" : ""
                           )}
                         />
@@ -580,8 +580,8 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
 
                     <div
                       className={cn(
-                        "grid transition-all duration-150 ease-out",
-                        isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                        "grid",
+                        isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr] hidden"
                       )}
                     >
                       <div className="overflow-hidden">
@@ -593,10 +593,10 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
                               <div key={child.href} className="flex items-center group/child">
                                 <Link
                                   href={child.href}
-                                  prefetch={false}
+                                  prefetch={true}
                                   onClick={handleNavigation}
                                   className={cn(
-                                    "flex-1 flex items-center justify-between px-3 py-2 text-sm transition-colors duration-100",
+                                    "flex-1 flex items-center justify-between px-3 py-2 text-sm",
                                     isChildActive
                                       ? "bg-slate-800 text-indigo-400 font-medium translate-x-1"
                                       : "text-slate-500 hover:text-slate-300 hover:bg-slate-800/30",

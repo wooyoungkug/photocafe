@@ -796,40 +796,109 @@ export default function EditProductPage() {
                 { key: 'album', label: '앨범' },
                 { key: 'frame', label: '액자' },
                 { key: 'booklet', label: '책자' },
-              ].map(tab => (
-                <Button
-                  key={tab.key}
-                  type="button"
-                  variant={specType === tab.key ? 'default' : 'ghost'}
-                  size="sm"
-                  className={`h-8 px-3 text-xs ${specType === tab.key ? 'shadow-sm' : ''}`}
-                  onClick={() => setSpecType(tab.key as typeof specType)}
-                >
-                  {tab.label}
-                </Button>
-              ))}
+              ].map(tab => {
+                const tabSpecs = getFilteredSpecs(tab.key as typeof specType);
+                const tabSelectedCount = selectedSpecs.filter(specId => tabSpecs.some(s => s.id === specId)).length;
+                return (
+                  <Button
+                    key={tab.key}
+                    type="button"
+                    variant={specType === tab.key ? 'default' : 'ghost'}
+                    size="sm"
+                    className={`h-8 px-3 text-xs ${specType === tab.key ? 'shadow-sm' : ''}`}
+                    onClick={() => setSpecType(tab.key as typeof specType)}
+                  >
+                    {tab.label}
+                    {tabSelectedCount > 0 && (
+                      <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                        specType === tab.key
+                          ? 'bg-white/20 text-white'
+                          : 'bg-indigo-100 text-indigo-600'
+                      }`}>
+                        {tabSelectedCount}
+                      </span>
+                    )}
+                  </Button>
+                );
+              })}
             </div>
 
-            {/* 선택된 규격 */}
-            {selectedSpecs.length > 0 && (
-              <div className="grid grid-cols-6 gap-2 p-3 bg-slate-50 rounded-lg border">
-                {selectedSpecs.map(specId => {
-                  const spec = specifications?.find(s => s.id === specId);
-                  return spec ? (
-                    <div key={specId} className="flex items-center justify-between py-1.5 px-2 bg-white border rounded text-sm">
-                      <span className="font-medium text-slate-900 truncate">{spec.name}</span>
-                      <button
+            {/* 선택된 규격 - 탭별로 필터링 */}
+            {(() => {
+              const filteredSpecs = getFilteredSpecs(specType);
+              const filteredSelectedSpecs = selectedSpecs.filter(specId =>
+                filteredSpecs.some(s => s.id === specId)
+              );
+              const allSelected = filteredSpecs.length > 0 && filteredSpecs.every(s => selectedSpecs.includes(s.id));
+
+              return (
+                <div className="space-y-2">
+                  {/* 전체 선택/삭제 버튼 */}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => {
+                        const filteredIds = filteredSpecs.map(s => s.id);
+                        if (allSelected) {
+                          // 전체 해제
+                          setSelectedSpecs(prev => prev.filter(id => !filteredIds.includes(id)));
+                        } else {
+                          // 전체 선택
+                          setSelectedSpecs(prev => [...new Set([...prev, ...filteredIds])]);
+                        }
+                      }}
+                    >
+                      {allSelected ? '전체 해제' : '전체 선택'}
+                    </Button>
+                    {filteredSelectedSpecs.length > 0 && (
+                      <Button
                         type="button"
-                        className="ml-1 hover:bg-red-100 rounded-full p-0.5 flex-shrink-0"
-                        onClick={() => setSelectedSpecs(prev => prev.filter(id => id !== specId))}
+                        variant="destructive"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => {
+                          const filteredIds = filteredSpecs.map(s => s.id);
+                          setSelectedSpecs(prev => prev.filter(id => !filteredIds.includes(id)));
+                        }}
                       >
-                        <X className="h-3 w-3 text-slate-400 hover:text-red-500" />
-                      </button>
+                        선택 삭제 ({filteredSelectedSpecs.length})
+                      </Button>
+                    )}
+                    <span className="text-xs text-slate-500">
+                      {filteredSelectedSpecs.length} / {filteredSpecs.length}개 선택
+                    </span>
+                  </div>
+
+                  {/* 규격 목록 */}
+                  {filteredSelectedSpecs.length > 0 ? (
+                    <div className="grid grid-cols-6 gap-2 p-3 bg-slate-50 rounded-lg border">
+                      {filteredSelectedSpecs.map(specId => {
+                        const spec = specifications?.find(s => s.id === specId);
+                        return spec ? (
+                          <div key={specId} className="flex items-center justify-between py-1.5 px-2 bg-white border rounded text-sm">
+                            <span className="font-medium text-slate-900 truncate">{spec.name}</span>
+                            <button
+                              type="button"
+                              className="ml-1 hover:bg-red-100 rounded-full p-0.5 flex-shrink-0"
+                              onClick={() => setSelectedSpecs(prev => prev.filter(id => id !== specId))}
+                            >
+                              <X className="h-3 w-3 text-slate-400 hover:text-red-500" />
+                            </button>
+                          </div>
+                        ) : null;
+                      })}
                     </div>
-                  ) : null;
-                })}
-              </div>
-            )}
+                  ) : (
+                    <div className="p-4 text-center text-sm text-slate-400 bg-slate-50 rounded-lg border border-dashed">
+                      선택된 규격이 없습니다. 규격선택 버튼을 클릭하세요.
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           <Separator />
@@ -1937,37 +2006,62 @@ function OutputPriceSelectionForm({
 
     if (outputMethod === 'INDIGO') {
       // 인디고 출력: 4도와 6도 둘 다 자동 추가 (고객이 선택)
-      const selection4do: OutputPriceSelection = {
-        id: `${Date.now()}-4do-${Math.random().toString(36).substr(2, 9)}`,
-        outputMethod,
-        productionSettingId: selectedSetting.id,
-        productionSettingName: selectedSetting.settingName || selectedSetting.codeName || '단가설정',
-        colorType: '4도',
-        selectedUpPrices: selectedSetting.indigoUpPrices,
-      };
-      const selection6do: OutputPriceSelection = {
-        id: `${Date.now()}-6do-${Math.random().toString(36).substr(2, 9)}`,
-        outputMethod,
-        productionSettingId: selectedSetting.id,
-        productionSettingName: selectedSetting.settingName || selectedSetting.codeName || '단가설정',
-        colorType: '6도',
-        selectedUpPrices: selectedSetting.indigoUpPrices,
-      };
-      setLocalSelected(prev => [...prev, selection4do, selection6do]);
-    } else if (outputMethod === 'INKJET' && selectedSpecId) {
-      // 잉크젯 출력 - 헬퍼 함수를 사용해서 규격 가격 찾기
-      const inkjetSpecs = getInkjetSpecPrices(selectedSetting);
-      const specPrice = inkjetSpecs.find(p => p.specificationId === selectedSpecId);
-      if (specPrice) {
-        const newSelection: OutputPriceSelection = {
-          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      // 중복 체크: 같은 productionSettingId + colorType 조합이 있으면 추가하지 않음
+      const exists4do = localSelected.some(
+        s => s.productionSettingId === selectedSetting.id && s.colorType === '4도'
+      );
+      const exists6do = localSelected.some(
+        s => s.productionSettingId === selectedSetting.id && s.colorType === '6도'
+      );
+
+      const newSelections: OutputPriceSelection[] = [];
+
+      if (!exists4do) {
+        newSelections.push({
+          id: `${Date.now()}-4do-${Math.random().toString(36).substr(2, 9)}`,
           outputMethod,
           productionSettingId: selectedSetting.id,
           productionSettingName: selectedSetting.settingName || selectedSetting.codeName || '단가설정',
-          specificationId: selectedSpecId,
-          selectedSpecPrice: specPrice,
-        };
-        setLocalSelected(prev => [...prev, newSelection]);
+          colorType: '4도',
+          selectedUpPrices: selectedSetting.indigoUpPrices,
+        });
+      }
+
+      if (!exists6do) {
+        newSelections.push({
+          id: `${Date.now()}-6do-${Math.random().toString(36).substr(2, 9)}`,
+          outputMethod,
+          productionSettingId: selectedSetting.id,
+          productionSettingName: selectedSetting.settingName || selectedSetting.codeName || '단가설정',
+          colorType: '6도',
+          selectedUpPrices: selectedSetting.indigoUpPrices,
+        });
+      }
+
+      if (newSelections.length > 0) {
+        setLocalSelected(prev => [...prev, ...newSelections]);
+      }
+    } else if (outputMethod === 'INKJET' && selectedSpecId) {
+      // 잉크젯 출력 - 헬퍼 함수를 사용해서 규격 가격 찾기
+      // 중복 체크: 같은 productionSettingId + specificationId 조합이 있으면 추가하지 않음
+      const existsInkjet = localSelected.some(
+        s => s.productionSettingId === selectedSetting.id && s.specificationId === selectedSpecId
+      );
+
+      if (!existsInkjet) {
+        const inkjetSpecs = getInkjetSpecPrices(selectedSetting);
+        const specPrice = inkjetSpecs.find(p => p.specificationId === selectedSpecId);
+        if (specPrice) {
+          const newSelection: OutputPriceSelection = {
+            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            outputMethod,
+            productionSettingId: selectedSetting.id,
+            productionSettingName: selectedSetting.settingName || selectedSetting.codeName || '단가설정',
+            specificationId: selectedSpecId,
+            selectedSpecPrice: specPrice,
+          };
+          setLocalSelected(prev => [...prev, newSelection]);
+        }
       }
     }
 

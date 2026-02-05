@@ -78,7 +78,7 @@ export default function DashboardLayout({
   }, [sidebarOpen]);
 
   return (
-    <AuthGuard>
+    <AuthGuard requireAdmin={true}>
       <div className="flex h-screen overflow-hidden">
         {/* 모바일 오버레이 */}
         {sidebarOpen && isMobile && (

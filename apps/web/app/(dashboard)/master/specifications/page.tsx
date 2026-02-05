@@ -581,7 +581,7 @@ export default function SpecificationsPage() {
               <Input
                 placeholder="규격명 검색... (예: 3x5)"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value.replace(/[^0-9]/g, "x").replace(/x+/g, "x"))}
+                onChange={(e) => setSearchQuery(e.target.value.replace(/[^0-9x.]/gi, "").replace(/x+/gi, "x"))}
                 className="pl-9 h-9"
               />
             </div>
@@ -723,8 +723,8 @@ export default function SpecificationsPage() {
                 onChange={(e) => {
                   // 에러 초기화
                   setValidationError("");
-                  // 숫자가 아닌 모든 문자를 x로 변환하고, 연속된 x는 하나로 합침
-                  const value = e.target.value.replace(/[^0-9]/g, "x").replace(/x+/g, "x");
+                  // 숫자, x, 점 외의 문자를 제거하고, 연속된 x는 하나로 합침
+                  const value = e.target.value.replace(/[^0-9x.]/gi, "").replace(/x+/gi, "x");
                   setForm({ ...form, name: value });
 
                   // "x"로 구분된 숫자 패턴 감지 (예: "3x5", "8x10")
