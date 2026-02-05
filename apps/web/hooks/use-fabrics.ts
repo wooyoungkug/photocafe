@@ -276,6 +276,10 @@ export function useFabrics(params?: {
   material?: string;
   supplierId?: string;
   includeInactive?: boolean;
+  isActive?: boolean;
+  forAlbumCover?: boolean;
+  forBoxCover?: boolean;
+  forFrameCover?: boolean;
   page?: number;
   limit?: number;
 }) {

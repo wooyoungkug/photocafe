@@ -27,6 +27,7 @@ export function useClients(params?: {
   return useQuery({
     queryKey: [CLIENTS_KEY, params],
     queryFn: () => api.get<PaginatedResponse<Client>>('/clients', params),
+    staleTime: 30 * 1000, // 30초
   });
 }
 
@@ -38,10 +39,12 @@ export function useClient(id: string) {
   });
 }
 
-export function useNextClientCode() {
+export function useNextClientCode(enabled = false) {
   return useQuery({
     queryKey: [CLIENTS_KEY, 'next-code'],
     queryFn: () => api.get<{ code: string }>('/clients/next-code'),
+    enabled,
+    staleTime: 0, // 항상 최신값 필요
   });
 }
 
@@ -102,6 +105,7 @@ export function useClientGroups(params?: {
   return useQuery({
     queryKey: [CLIENT_GROUPS_KEY, params],
     queryFn: () => api.get<PaginatedResponse<ClientGroup>>('/client-groups', params),
+    staleTime: 5 * 60 * 1000, // 5분 (그룹은 자주 변하지 않음)
   });
 }
 

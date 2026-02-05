@@ -1009,6 +1009,55 @@ export default function EditProductPage() {
               </div>
             </div>
 
+            {/* 용지 선택 */}
+            <div className="space-y-3 col-span-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-blue-600" />
+                  용지 선택
+                  {selectedPapers.length > 0 && (
+                    <Badge variant="secondary" className="text-xs">{selectedPapers.length}개</Badge>
+                  )}
+                </Label>
+                <Button type="button" variant="outline" size="sm" onClick={() => setPaperDialogOpen(true)} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  용지선택
+                </Button>
+              </div>
+              {selectedPapers.length > 0 && (
+                <div className="space-y-2 p-3 bg-blue-50 rounded-lg border border-blue-200 max-h-[200px] overflow-y-auto">
+                  {Object.entries(
+                    selectedPapers.reduce((acc, paper) => {
+                      const method = paper.printMethod || 'etc';
+                      if (!acc[method]) acc[method] = [];
+                      acc[method].push(paper);
+                      return acc;
+                    }, {} as Record<string, typeof selectedPapers>)
+                  ).map(([method, papers]) => (
+                    <div key={method} className="space-y-1">
+                      <p className="text-xs font-medium text-blue-700">
+                        {method === 'indigo' ? '인디고' : method === 'inkjet' ? '잉크젯' : '기타'} ({papers.length}개)
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {papers.map((p, idx) => (
+                          <Badge key={idx} variant="outline" className="bg-white text-xs gap-1">
+                            {p.name} {p.grammage && `${p.grammage}g`}
+                            <button
+                              type="button"
+                              className="hover:text-red-500"
+                              onClick={() => setSelectedPapers(prev => prev.filter(paper => paper.id !== p.id))}
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* 커버 선택 */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -1583,6 +1632,27 @@ export default function EditProductPage() {
           />
         </DialogContent>
       </Dialog>
+
+      {/* 용지 선택 다이얼로그 */}
+      <Dialog open={paperDialogOpen} onOpenChange={setPaperDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-blue-600" />
+              용지 선택
+            </DialogTitle>
+          </DialogHeader>
+          <PaperSelectionForm
+            selectedPapers={selectedPapers}
+            selectedOutputMethods={outputPriceSelections.map(s => s.outputMethod.toLowerCase())}
+            onSelect={(papers) => {
+              setSelectedPapers(papers);
+              setPaperDialogOpen(false);
+            }}
+            onCancel={() => setPaperDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1590,15 +1660,23 @@ export default function EditProductPage() {
 // 용지 선택 폼 컴포넌트
 function PaperSelectionForm({
   selectedPapers,
+  selectedOutputMethods = [],
   onSelect,
   onCancel,
 }: {
   selectedPapers: { id: string; name: string; type: string; price: number; grammage?: number; printMethod?: string }[];
+  selectedOutputMethods?: string[];
   onSelect: (papers: { id: string; name: string; type: string; price: number; grammage?: number; printMethod?: string }[]) => void;
   onCancel: () => void;
 }) {
   const [localSelected, setLocalSelected] = useState<{ id: string; name: string; type: string; price: number; grammage?: number; printMethod?: string }[]>(selectedPapers);
-  const [printMethodFilter, setPrintMethodFilter] = useState<string>('indigo');
+
+  // 선택된 출력방식이 있으면 그것만 표시, 없으면 전체 표시
+  const availablePrintMethods = selectedOutputMethods.length > 0
+    ? [...new Set(selectedOutputMethods)]
+    : ['indigo', 'inkjet', 'offset'];
+
+  const [printMethodFilter, setPrintMethodFilter] = useState<string>(availablePrintMethods[0] || 'indigo');
   const [searchTerm, setSearchTerm] = useState('');
 
   const { data: papersData, isLoading } = usePapers({
@@ -1697,31 +1775,39 @@ function PaperSelectionForm({
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
-      <div className="text-sm text-slate-500 mb-3">
-        인쇄방식을 먼저 선택한 후 용지를 선택합니다.
-      </div>
+      {selectedOutputMethods.length === 0 && (
+        <div className="text-sm text-orange-600 bg-orange-50 p-2 rounded mb-3">
+          ⚠️ 출력단가를 먼저 선택해주세요. 출력단가에 연결된 출력방식의 용지만 표시됩니다.
+        </div>
+      )}
 
-      {/* 인쇄방식 선택 탭 */}
+      {/* 인쇄방식 선택 탭 - 선택된 출력방식만 표시 */}
       <div className="flex gap-1 p-1 bg-slate-100 rounded-lg mb-4">
         {[
           { key: 'indigo', label: '인디고', icon: '🖨️' },
           { key: 'inkjet', label: '잉크젯', icon: '💧' },
           { key: 'offset', label: '오프셋', icon: '📰' },
-          { key: 'all', label: '전체', icon: '📋' },
-        ].map(tab => (
-          <Button
-            key={tab.key}
-            type="button"
-            variant={printMethodFilter === tab.key ? 'default' : 'ghost'}
-            size="sm"
-            className={`flex-1 h-9 gap-1.5 ${printMethodFilter === tab.key ? 'shadow-sm' : ''}`}
-            onClick={() => setPrintMethodFilter(tab.key)}
-          >
-            <span>{tab.icon}</span>
-            {tab.label}
-          </Button>
-        ))}
+        ]
+          .filter(tab => availablePrintMethods.includes(tab.key))
+          .map(tab => (
+            <Button
+              key={tab.key}
+              type="button"
+              variant={printMethodFilter === tab.key ? 'default' : 'ghost'}
+              size="sm"
+              className={`flex-1 h-9 gap-1.5 ${printMethodFilter === tab.key ? 'shadow-sm' : ''}`}
+              onClick={() => setPrintMethodFilter(tab.key)}
+            >
+              <span>{tab.icon}</span>
+              {tab.label}
+            </Button>
+          ))}
       </div>
+      {selectedOutputMethods.length > 0 && (
+        <p className="text-xs text-slate-500 -mt-2 mb-3">
+          ※ 출력단가에서 선택한 출력방식({availablePrintMethods.map(m => m === 'indigo' ? '인디고' : m === 'inkjet' ? '잉크젯' : '오프셋').join(', ')})의 용지만 표시됩니다.
+        </p>
+      )}
 
       {/* 검색 */}
       <div className="mb-4">

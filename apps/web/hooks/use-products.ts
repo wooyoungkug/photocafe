@@ -10,6 +10,8 @@ export function useProducts(params?: ProductQueryParams) {
   return useQuery({
     queryKey: [PRODUCTS_KEY, params],
     queryFn: () => api.get<ProductListResponse>('/products', params as Record<string, string | number | boolean | undefined>),
+    staleTime: 2 * 60 * 1000, // 2분간 캐시 유지
+    gcTime: 5 * 60 * 1000,
   });
 }
 
@@ -18,6 +20,8 @@ export function useProduct(id: string) {
     queryKey: [PRODUCTS_KEY, id],
     queryFn: () => api.get<Product>(`/products/${id}`),
     enabled: !!id,
+    staleTime: 2 * 60 * 1000, // 2분간 캐시 유지 (페이지 이동 시 재요청 방지)
+    gcTime: 5 * 60 * 1000,
   });
 }
 
@@ -30,6 +34,8 @@ export function useCategoryProducts(categoryId: string, params?: Omit<ProductQue
   return useQuery({
     queryKey: [PRODUCTS_KEY, 'category', categoryId || 'all', params],
     queryFn: () => api.get<ProductListResponse>('/products', queryParams as Record<string, string | number | boolean | undefined>),
+    staleTime: 2 * 60 * 1000, // 2분간 캐시 유지
+    gcTime: 5 * 60 * 1000,
   });
 }
 

@@ -2653,7 +2653,7 @@ export default function ProductionSettingPage() {
                                     {/* 할당된 용지 미리보기 */}
                                     {assignedPapers.length > 0 && (
                                       <div className="text-xs text-gray-500 truncate">
-                                        {assignedPapers.map((p: any) => p?.name).join(", ")}
+                                        {assignedPapers.map((p: any) => `${p?.name}${p?.grammage ? ` ${p.grammage}g` : ''}`).join(", ")}
                                       </div>
                                     )}
 
@@ -3084,7 +3084,7 @@ export default function ProductionSettingPage() {
 
                                     {assignedPapers.length > 0 && (
                                       <div className="text-[9px] text-gray-500 mb-1 truncate">
-                                        {assignedPapers.map(p => `${p?.name}`).join(', ')}
+                                        {assignedPapers.map(p => `${p?.name}${p?.grammage ? ` ${p.grammage}g` : ''}`).join(', ')}
                                       </div>
                                     )}
 

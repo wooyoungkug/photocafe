@@ -95,7 +95,7 @@ export default function MembersPage() {
 
   const { data: groupsData } = useClientGroups({ limit: 100 });
   const { data: consultations } = useClientConsultations(editingMember?.id || '', 5);
-  const { data: nextCodeData, refetch: refetchNextCode } = useNextClientCode();
+  const { refetch: refetchNextCode } = useNextClientCode(false);
   const createMember = useCreateClient();
   const updateMember = useUpdateClient();
   const deleteMember = useDeleteClient();

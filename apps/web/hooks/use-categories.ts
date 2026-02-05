@@ -31,6 +31,8 @@ export function useTopMenuCategories() {
   return useQuery({
     queryKey: [CATEGORIES_KEY, 'top-menu'],
     queryFn: () => api.get<Category[]>('/categories/top-menu'),
+    staleTime: 5 * 60 * 1000, // 5분간 캐시 유지 (페이지 이동 시 재요청 방지)
+    gcTime: 10 * 60 * 1000, // 10분간 캐시 보관
   });
 }
 

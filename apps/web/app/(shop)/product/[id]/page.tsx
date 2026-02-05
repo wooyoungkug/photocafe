@@ -2,8 +2,9 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { ChevronRight, Minus, Plus, ShoppingCart, Heart, Share2, Check, Eye, FileText, Image as ImageIcon, Calendar, MapPin, Star, FolderHeart, Loader2, Upload, BookOpen } from 'lucide-react';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useTransition } from 'react';
 import { useProduct } from '@/hooks/use-products';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,11 +30,19 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { AlbumOrderWizard } from '@/components/album-order/album-order-wizard';
 import { useAlbumOrderStore } from '@/stores/album-order-store';
 import { calculateFolderQuotation, formatPrice } from '@/lib/album-pricing';
-import { PhotobookOrderWizard } from '@/components/photobook-order';
 import { usePhotobookOrderStore } from '@/stores/photobook-order-store';
+
+// 위자드 컴포넌트 lazy loading - 모달 열 때만 로드
+const AlbumOrderWizard = dynamic(
+  () => import('@/components/album-order/album-order-wizard').then(mod => ({ default: mod.AlbumOrderWizard })),
+  { loading: () => <div className="p-8 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto" /></div> }
+);
+const PhotobookOrderWizard = dynamic(
+  () => import('@/components/photobook-order').then(mod => ({ default: mod.PhotobookOrderWizard })),
+  { loading: () => <div className="p-8 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto" /></div> }
+);
 
 // 이미지 URL 정규화 함수
 const normalizeImageUrl = (url: string | null | undefined): string => {
@@ -138,6 +147,9 @@ export default function ProductPage() {
   // 새로운 화보 위자드 상태
   const [showPhotobookWizard, setShowPhotobookWizard] = useState(false);
   const photobookOrderStore = usePhotobookOrderStore();
+
+  // 페이지 전환 최적화
+  const [isPending, startTransition] = useTransition();
 
   // 화보/앨범 상품인지 확인
   const isAlbum = useMemo(() => {
@@ -363,7 +375,9 @@ export default function ProductPage() {
 
   const handleBuyNow = () => {
     handleAddToCart();
-    router.push('/cart');
+    startTransition(() => {
+      router.push('/cart');
+    });
   };
 
   // 마이상품 저장
@@ -669,12 +683,12 @@ export default function ProductPage() {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid lg:grid-cols-2 gap-8">
-          {/* Product Images */}
-          <div className="space-y-4">
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Product Images - 고정 너비 */}
+          <div className="w-full lg:w-[400px] flex-shrink-0 space-y-3">
             {/* Main Image */}
-            <div className="aspect-square bg-white rounded-lg border overflow-hidden">
+            <div className="aspect-square bg-white rounded-lg border overflow-hidden shadow-sm">
               {images.length > 0 ? (
                 <img
                   src={images[selectedImage]}
@@ -682,7 +696,7 @@ export default function ProductPage() {
                   className="w-full h-full object-contain"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-8xl">
+                <div className="w-full h-full flex items-center justify-center text-6xl">
                   📦
                 </div>
               )}
@@ -696,8 +710,8 @@ export default function ProductPage() {
                     key={idx}
                     onClick={() => setSelectedImage(idx)}
                     className={cn(
-                      "w-20 h-20 flex-shrink-0 rounded-lg border-2 overflow-hidden",
-                      selectedImage === idx ? "border-primary" : "border-transparent"
+                      "w-16 h-16 flex-shrink-0 rounded-lg border-2 overflow-hidden transition-all",
+                      selectedImage === idx ? "border-primary ring-2 ring-primary/20" : "border-gray-200 hover:border-gray-300"
                     )}
                   >
                     <img src={img} alt="" className="w-full h-full object-cover" />
@@ -707,8 +721,8 @@ export default function ProductPage() {
             )}
           </div>
 
-          {/* Product Info */}
-          <div className="space-y-6">
+          {/* Product Info - 나머지 공간 사용 */}
+          <div className="flex-1 space-y-5">
             {/* Header */}
             <div>
               <div className="flex items-center gap-2 mb-2">
@@ -922,7 +936,7 @@ export default function ProductPage() {
                             <div className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded sticky top-0">
                               {type} <span className="text-gray-400">({papers.length})</span>
                             </div>
-                            <div className="grid grid-cols-2 gap-1.5 pl-1">
+                            <div className="grid grid-cols-3 gap-1.5 pl-1">
                               {papers.map((paper) => (
                                 <Label
                                   key={paper.id}
@@ -1118,7 +1132,7 @@ export default function ProductPage() {
                     {/* 공용동판 목록 (선택 시 표시) */}
                     {selectedOptions.copperPlateType === 'public' && product.publicCopperPlates && product.publicCopperPlates.length > 0 && (
                       <div className="space-y-2">
-                        <div className="grid grid-cols-1 gap-2">
+                        <div className="grid grid-cols-2 gap-2">
                           {product.publicCopperPlates.map((pcp) => (
                             <Label
                               key={pcp.id}
