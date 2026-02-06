@@ -42,8 +42,6 @@ import { useProduct, useUpdateProduct } from '@/hooks/use-products';
 import { useProductionGroupTree, useProductionSettings, type ProductionGroup, type ProductionSetting, type OutputPriceSelection, type IndigoUpPrice, type InkjetSpecPrice, type PriceGroup } from '@/hooks/use-production';
 import { usePapers } from '@/hooks/use-paper';
 import { useFoilColors, type FoilColorItem } from '@/hooks/use-copper-plates';
-import { usePublicCopperPlates, useProductPublicCopperPlates, useLinkPublicCopperPlateToProduct, useUnlinkPublicCopperPlateFromProduct, type PublicCopperPlate } from '@/hooks/use-public-copper-plates';
-import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import { API_URL, API_BASE_URL } from '@/lib/api';
@@ -200,7 +198,6 @@ export default function EditProductPage() {
   const { data: product, isLoading: isProductLoading, refetch: refetchProduct } = useProduct(productId);
   const { data: productionGroupTree } = useProductionGroupTree();
   const updateProduct = useUpdateProduct();
-  const { data: productPublicPlates } = useProductPublicCopperPlates(productId);
 
   // 카테고리 분류
   const [largeCategoryId, setLargeCategoryId] = useState('');
@@ -223,23 +220,12 @@ export default function EditProductPage() {
   const [selectedHalfProductId, setSelectedHalfProductId] = useState('');
   const [selectedBindings, setSelectedBindings] = useState<{ id: string; name: string; price: number; productionSettingId?: string; pricingType?: string }[]>([]);
   const [bindingDirection, setBindingDirection] = useState('left');
-  const [selectedPapers, setSelectedPapers] = useState<{ id: string; name: string; type: string; price: number; grammage?: number; printMethod?: string }[]>([]);
   // 출력단가 선택 (새로운 방식)
   const [outputPriceSelections, setOutputPriceSelections] = useState<OutputPriceSelection[]>([]);
   const [outputPriceDialogOpen, setOutputPriceDialogOpen] = useState(false);
   const [printType, setPrintType] = useState('double');
   const [selectedCovers, setSelectedCovers] = useState<{ id: string; name: string; price: number }[]>([]);
   const [selectedFoils, setSelectedFoils] = useState<{ id: string; name: string; color: string; price: number }[]>([]);
-  const [selectedPublicPlates, setSelectedPublicPlates] = useState<{
-    id: string;
-    plateId: string;
-    plateName: string;
-    foilColor: string;
-    foilColorName: string;
-    engravingText: string;
-    widthMm?: number | null;
-    heightMm?: number | null;
-  }[]>([]);
 
   // 후가공정보
   const [finishingOptions, setFinishingOptions] = useState<Record<string, boolean>>({});
@@ -260,10 +246,8 @@ export default function EditProductPage() {
   const [specDialogOpen, setSpecDialogOpen] = useState(false);
   const [halfProductDialogOpen, setHalfProductDialogOpen] = useState(false);
   const [bindingDialogOpen, setBindingDialogOpen] = useState(false);
-  const [paperDialogOpen, setPaperDialogOpen] = useState(false);
   const [coverDialogOpen, setCoverDialogOpen] = useState(false);
   const [foilDialogOpen, setFoilDialogOpen] = useState(false);
-  const [publicPlateDialogOpen, setPublicPlateDialogOpen] = useState(false);
 
   // 규격 타입 선택
   const [specType, setSpecType] = useState<'indigo' | 'inkjet' | 'album' | 'frame' | 'booklet'>('album');
@@ -342,12 +326,6 @@ export default function EditProductPage() {
         })));
       }
 
-      if (product.papers && Array.isArray(product.papers)) {
-        setSelectedPapers(product.papers.map((p: { id: string; name: string; type: string; price: number; grammage?: number; printMethod?: string }) => ({
-          id: p.id, name: p.name, type: p.type, price: Number(p.price), grammage: p.grammage, printMethod: p.printMethod,
-        })));
-      }
-
       if (product.covers && Array.isArray(product.covers)) {
         setSelectedCovers(product.covers.map((c: { id: string; name: string; price: number }) => ({
           id: c.id, name: c.name, price: Number(c.price),
@@ -415,22 +393,6 @@ export default function EditProductPage() {
       setPrintType(autoPrintType);
     }
   }, [selectedBindings]);
-
-  // 공용동판 로드
-  useEffect(() => {
-    if (productPublicPlates && Array.isArray(productPublicPlates)) {
-      setSelectedPublicPlates(productPublicPlates.map((pp: { id: string; publicCopperPlateId: string; publicCopperPlate: { plateName: string; plateType: string; widthMm?: number | null; heightMm?: number | null }; engravingText?: string | null }) => ({
-        id: pp.id,
-        plateId: pp.publicCopperPlateId,
-        plateName: pp.publicCopperPlate.plateName,
-        foilColor: pp.publicCopperPlate.plateType || '',
-        foilColorName: pp.publicCopperPlate.plateType || '기본',
-        engravingText: pp.engravingText || '',
-        widthMm: pp.publicCopperPlate.widthMm,
-        heightMm: pp.publicCopperPlate.heightMm,
-      })));
-    }
-  }, [productPublicPlates]);
 
   const handleImageUpload = async (file: File, index: number) => {
     const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
@@ -561,9 +523,6 @@ export default function EditProductPage() {
           productionSettingId: b.productionSettingId,
           pricingType: b.pricingType,
         })),
-        papers: selectedPapers.map((p, idx) => ({
-          name: p.name, type: p.type, printMethod: p.printMethod, grammage: p.grammage, price: p.price, isDefault: idx === 0, sortOrder: idx,
-        })),
         covers: selectedCovers.map((c, idx) => ({
           name: c.name, price: c.price, isDefault: idx === 0, sortOrder: idx,
         })),
@@ -585,31 +544,6 @@ export default function EditProductPage() {
 
       const result = await updateProduct.mutateAsync({ id: productId, data: productData });
       console.log('=== 상품 수정 응답 ===', result);
-
-      // 공용동판 동기화
-      const existingPlateIds = (productPublicPlates || []).map((pp: { publicCopperPlateId: string }) => pp.publicCopperPlateId);
-      const newPlateIds = selectedPublicPlates.map(p => p.plateId);
-
-      // 삭제된 동판 연결 해제
-      const platesToUnlink = existingPlateIds.filter((id: string) => !newPlateIds.includes(id));
-      for (const plateId of platesToUnlink) {
-        try {
-          await api.delete(`/public-copper-plates/product/${productId}/unlink/${plateId}`);
-        } catch (e) {
-          console.error('공용동판 연결 해제 실패:', e);
-        }
-      }
-
-      // 새로 추가된 동판 연결
-      for (const plate of selectedPublicPlates) {
-        try {
-          await api.post(`/public-copper-plates/product/${productId}/link/${plate.plateId}`, {
-            engravingText: plate.engravingText || '',
-          });
-        } catch (e) {
-          console.error('공용동판 연결 실패:', e);
-        }
-      }
 
       toast({ variant: 'success', title: '상품이 수정되었습니다.' });
       router.push('/products');
@@ -1009,55 +943,6 @@ export default function EditProductPage() {
               </div>
             </div>
 
-            {/* 용지 선택 */}
-            <div className="space-y-3 col-span-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-blue-600" />
-                  용지 선택
-                  {selectedPapers.length > 0 && (
-                    <Badge variant="secondary" className="text-xs">{selectedPapers.length}개</Badge>
-                  )}
-                </Label>
-                <Button type="button" variant="outline" size="sm" onClick={() => setPaperDialogOpen(true)} className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  용지선택
-                </Button>
-              </div>
-              {selectedPapers.length > 0 && (
-                <div className="space-y-2 p-3 bg-blue-50 rounded-lg border border-blue-200 max-h-[200px] overflow-y-auto">
-                  {Object.entries(
-                    selectedPapers.reduce((acc, paper) => {
-                      const method = paper.printMethod || 'etc';
-                      if (!acc[method]) acc[method] = [];
-                      acc[method].push(paper);
-                      return acc;
-                    }, {} as Record<string, typeof selectedPapers>)
-                  ).map(([method, papers]) => (
-                    <div key={method} className="space-y-1">
-                      <p className="text-xs font-medium text-blue-700">
-                        {method === 'indigo' ? '인디고' : method === 'inkjet' ? '잉크젯' : '기타'} ({papers.length}개)
-                      </p>
-                      <div className="flex flex-wrap gap-1">
-                        {papers.map((p, idx) => (
-                          <Badge key={idx} variant="outline" className="bg-white text-xs gap-1">
-                            {p.name} {p.grammage && `${p.grammage}g`}
-                            <button
-                              type="button"
-                              className="hover:text-red-500"
-                              onClick={() => setSelectedPapers(prev => prev.filter(paper => paper.id !== p.id))}
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
             {/* 커버 선택 */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -1074,50 +959,6 @@ export default function EditProductPage() {
                 <div className="flex flex-wrap gap-2">
                   {selectedCovers.map((c, idx) => (
                     <Badge key={idx} variant="outline" className="bg-white">{c.name}</Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* 공용동판 선택 */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-emerald-600" />
-                  공용동판 (박 각인)
-                </Label>
-                <Button type="button" variant="outline" size="sm" onClick={() => setPublicPlateDialogOpen(true)} className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  공용동판선택
-                </Button>
-              </div>
-              {selectedPublicPlates.length > 0 && (
-                <div className="space-y-2 p-3 bg-amber-50 rounded-lg border border-amber-200">
-                  {selectedPublicPlates.map((plate, idx) => (
-                    <div key={idx} className="flex items-start gap-3 p-2 bg-white rounded border">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium text-sm">{plate.plateName}</span>
-                          <Badge variant="outline" className="text-xs">{plate.foilColorName}</Badge>
-                          {(plate.widthMm || plate.heightMm) && (
-                            <Badge variant="secondary" className="text-xs">
-                              {plate.widthMm || '-'} x {plate.heightMm || '-'} mm
-                            </Badge>
-                          )}
-                        </div>
-                        {plate.engravingText && (
-                          <p className="text-xs text-slate-500">각인문구: {plate.engravingText}</p>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        title="제거"
-                        className="hover:bg-red-100 rounded-full p-1"
-                        onClick={() => setSelectedPublicPlates(prev => prev.filter((_, i) => i !== idx))}
-                      >
-                        <X className="h-4 w-4 text-red-500" />
-                      </button>
-                    </div>
                   ))}
                 </div>
               )}
@@ -1612,351 +1453,6 @@ export default function EditProductPage() {
           />
         </DialogContent>
       </Dialog>
-
-      {/* 공용동판 선택 다이얼로그 */}
-      <Dialog open={publicPlateDialogOpen} onOpenChange={setPublicPlateDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-amber-600" />
-              공용동판 선택 (박 각인용)
-            </DialogTitle>
-          </DialogHeader>
-          <PublicCopperPlateSelectionForm
-            selectedPlates={selectedPublicPlates}
-            onSelect={(plates) => {
-              setSelectedPublicPlates(plates);
-              setPublicPlateDialogOpen(false);
-            }}
-            onCancel={() => setPublicPlateDialogOpen(false)}
-          />
-        </DialogContent>
-      </Dialog>
-
-      {/* 용지 선택 다이얼로그 */}
-      <Dialog open={paperDialogOpen} onOpenChange={setPaperDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-blue-600" />
-              용지 선택
-            </DialogTitle>
-          </DialogHeader>
-          <PaperSelectionForm
-            selectedPapers={selectedPapers}
-            selectedOutputMethods={outputPriceSelections.map(s => s.outputMethod.toLowerCase())}
-            onSelect={(papers) => {
-              setSelectedPapers(papers);
-              setPaperDialogOpen(false);
-            }}
-            onCancel={() => setPaperDialogOpen(false)}
-          />
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-// 용지 선택 폼 컴포넌트
-function PaperSelectionForm({
-  selectedPapers,
-  selectedOutputMethods = [],
-  onSelect,
-  onCancel,
-}: {
-  selectedPapers: { id: string; name: string; type: string; price: number; grammage?: number; printMethod?: string }[];
-  selectedOutputMethods?: string[];
-  onSelect: (papers: { id: string; name: string; type: string; price: number; grammage?: number; printMethod?: string }[]) => void;
-  onCancel: () => void;
-}) {
-  const [localSelected, setLocalSelected] = useState<{ id: string; name: string; type: string; price: number; grammage?: number; printMethod?: string }[]>(selectedPapers);
-
-  // 선택된 출력방식이 있으면 그것만 표시, 없으면 전체 표시
-  const availablePrintMethods = selectedOutputMethods.length > 0
-    ? [...new Set(selectedOutputMethods)]
-    : ['indigo', 'inkjet', 'offset'];
-
-  const [printMethodFilter, setPrintMethodFilter] = useState<string>(availablePrintMethods[0] || 'indigo');
-  const [searchTerm, setSearchTerm] = useState('');
-
-  const { data: papersData, isLoading } = usePapers({
-    limit: 100,
-    isActive: true,
-    printMethod: printMethodFilter === 'all' ? undefined : printMethodFilter,
-    search: searchTerm || undefined,
-  });
-
-  const papers = papersData?.data || [];
-
-  const togglePaper = (paper: any) => {
-    setLocalSelected(prev => {
-      const exists = prev.find(p => p.id === paper.id);
-      if (exists) {
-        return prev.filter(p => p.id !== paper.id);
-      } else {
-        // 현재 필터에서 선택된 인쇄방식 저장
-        const selectedPrintMethod = printMethodFilter === 'all'
-          ? (paper.printMethods?.[0] || 'indigo')
-          : printMethodFilter;
-        return [...prev, {
-          id: paper.id,
-          name: paper.name,
-          type: paper.paperType || 'sheet',
-          price: Number(paper.basePrice) || 0,
-          grammage: paper.grammage,
-          printMethod: selectedPrintMethod,
-        }];
-      }
-    });
-  };
-
-  // 전체 선택/해제
-  const isAllSelected = papers.length > 0 && papers.every((paper: any) => localSelected.some(p => p.id === paper.id));
-  const isSomeSelected = papers.some((paper: any) => localSelected.some(p => p.id === paper.id));
-
-  const toggleSelectAll = () => {
-    if (isAllSelected) {
-      // 현재 필터된 용지들만 선택 해제
-      const paperIds = papers.map((p: any) => p.id);
-      setLocalSelected(prev => prev.filter(p => !paperIds.includes(p.id)));
-    } else {
-      // 현재 필터된 용지들 모두 선택 (기존 선택 유지)
-      const selectedPrintMethod = printMethodFilter === 'all' ? 'indigo' : printMethodFilter;
-      const newPapers = papers
-        .filter((paper: any) => !localSelected.some(p => p.id === paper.id))
-        .map((paper: any) => ({
-          id: paper.id,
-          name: paper.name,
-          type: paper.paperType || 'sheet',
-          price: Number(paper.basePrice) || 0,
-          grammage: paper.grammage,
-          printMethod: printMethodFilter === 'all' ? (paper.printMethods?.[0] || 'indigo') : selectedPrintMethod,
-        }));
-      setLocalSelected(prev => [...prev, ...newPapers]);
-    }
-  };
-
-  // 선택된 용지를 인쇄방식별로 그룹화
-  const groupedSelected = {
-    indigo: localSelected.filter(p => p.printMethod === 'indigo'),
-    inkjet: localSelected.filter(p => p.printMethod === 'inkjet'),
-    offset: localSelected.filter(p => p.printMethod === 'offset'),
-    other: localSelected.filter(p => !p.printMethod || !['indigo', 'inkjet', 'offset'].includes(p.printMethod)),
-  };
-
-  const printMethodLabels: Record<string, string> = {
-    indigo: '🖨️ 인디고',
-    inkjet: '💧 잉크젯',
-    offset: '📰 오프셋',
-    other: '📋 기타',
-  };
-
-  const getFinishLabel = (finish: string) => {
-    const finishMap: Record<string, string> = {
-      glossy: '광택',
-      matte: '무광',
-      lustre: '반광',
-      canvas: '캔버스',
-      satin: '새틴',
-      silk: '실크',
-    };
-    return finishMap[finish] || finish;
-  };
-
-  const getPrintMethodLabel = (methods: string[]) => {
-    const methodMap: Record<string, string> = {
-      indigo: '인디고',
-      inkjet: '잉크젯',
-      offset: '오프셋',
-      both: '모두',
-    };
-    return methods?.map(m => methodMap[m] || m).join(', ') || '-';
-  };
-
-  return (
-    <div className="flex flex-col flex-1 overflow-hidden">
-      {selectedOutputMethods.length === 0 && (
-        <div className="text-sm text-orange-600 bg-orange-50 p-2 rounded mb-3">
-          ⚠️ 출력단가를 먼저 선택해주세요. 출력단가에 연결된 출력방식의 용지만 표시됩니다.
-        </div>
-      )}
-
-      {/* 인쇄방식 선택 탭 - 선택된 출력방식만 표시 */}
-      <div className="flex gap-1 p-1 bg-slate-100 rounded-lg mb-4">
-        {[
-          { key: 'indigo', label: '인디고', icon: '🖨️' },
-          { key: 'inkjet', label: '잉크젯', icon: '💧' },
-          { key: 'offset', label: '오프셋', icon: '📰' },
-        ]
-          .filter(tab => availablePrintMethods.includes(tab.key))
-          .map(tab => (
-            <Button
-              key={tab.key}
-              type="button"
-              variant={printMethodFilter === tab.key ? 'default' : 'ghost'}
-              size="sm"
-              className={`flex-1 h-9 gap-1.5 ${printMethodFilter === tab.key ? 'shadow-sm' : ''}`}
-              onClick={() => setPrintMethodFilter(tab.key)}
-            >
-              <span>{tab.icon}</span>
-              {tab.label}
-            </Button>
-          ))}
-      </div>
-      {selectedOutputMethods.length > 0 && (
-        <p className="text-xs text-slate-500 -mt-2 mb-3">
-          ※ 출력단가에서 선택한 출력방식({availablePrintMethods.map(m => m === 'indigo' ? '인디고' : m === 'inkjet' ? '잉크젯' : '오프셋').join(', ')})의 용지만 표시됩니다.
-        </p>
-      )}
-
-      {/* 검색 */}
-      <div className="mb-4">
-        <Input
-          placeholder="용지명 검색..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="h-9"
-        />
-      </div>
-
-      {isLoading ? (
-        <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-        </div>
-      ) : papers.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center text-slate-400">
-          <div className="text-center">
-            <FileText className="h-12 w-12 mx-auto mb-2 opacity-30" />
-            <p>등록된 용지가 없습니다.</p>
-            <p className="text-sm mt-1">용지관리 메뉴에서 용지를 먼저 등록해주세요.</p>
-          </div>
-        </div>
-      ) : (
-        <div className="flex-1 overflow-y-auto border rounded-lg">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-slate-50">
-                <TableHead className="w-12">
-                  <Checkbox
-                    checked={isAllSelected}
-                    ref={(el) => {
-                      if (el) {
-                        (el as any).indeterminate = !isAllSelected && isSomeSelected;
-                      }
-                    }}
-                    onCheckedChange={toggleSelectAll}
-                    className="data-[state=checked]:bg-emerald-600"
-                    title="전체 선택"
-                  />
-                </TableHead>
-                <TableHead>용지명</TableHead>
-                <TableHead>타입</TableHead>
-                <TableHead>규격</TableHead>
-                <TableHead>평량</TableHead>
-                <TableHead>질감</TableHead>
-                <TableHead>출력방식</TableHead>
-                <TableHead className="text-right">기본가</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {papers.map((paper: any) => {
-                const isSelected = localSelected.some(p => p.id === paper.id);
-                return (
-                  <TableRow
-                    key={paper.id}
-                    className={`cursor-pointer ${isSelected ? 'bg-emerald-50' : 'hover:bg-slate-50'}`}
-                    onClick={() => togglePaper(paper)}
-                  >
-                    <TableCell>
-                      <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={() => togglePaper(paper)}
-                        className="data-[state=checked]:bg-emerald-600"
-                      />
-                    </TableCell>
-                    <TableCell className="font-medium">{paper.name}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-xs">
-                        {paper.paperType === 'roll' ? '롤지' : '시트지'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-slate-600">
-                      {paper.paperType === 'roll'
-                        ? `${paper.rollWidth || '-'} × ${paper.rollLength || '-'}`
-                        : paper.sheetSize || `${paper.sheetWidthMm || '-'} × ${paper.sheetHeightMm || '-'}mm`
-                      }
-                    </TableCell>
-                    <TableCell className="text-sm">{paper.grammageDisplay || (paper.grammage ? `${paper.grammage}g/m²` : '-')}</TableCell>
-                    <TableCell className="text-sm">{paper.finish ? getFinishLabel(paper.finish) : '-'}</TableCell>
-                    <TableCell className="text-sm">{getPrintMethodLabel(paper.printMethods)}</TableCell>
-                    <TableCell className="text-right text-sm font-medium">
-                      {Number(paper.basePrice).toLocaleString()}원
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
-      )}
-
-      {/* 전체 선택 버튼 */}
-      {papers.length > 0 && (
-        <div className="mt-2 flex gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={toggleSelectAll}
-            className="text-xs"
-          >
-            {isAllSelected ? `현재 목록 전체 해제 (${papers.length}개)` : `현재 목록 전체 선택 (${papers.length}개)`}
-          </Button>
-        </div>
-      )}
-
-      {localSelected.length > 0 && (
-        <div className="mt-4 p-3 bg-emerald-50 rounded-lg">
-          <p className="text-sm font-medium mb-3">선택된 용지 ({localSelected.length}개)</p>
-          <div className="space-y-3">
-            {(['indigo', 'inkjet', 'offset', 'other'] as const).map(method => {
-              const papers = groupedSelected[method];
-              if (papers.length === 0) return null;
-              return (
-                <div key={method} className="space-y-1">
-                  <p className="text-xs font-medium text-slate-600">{printMethodLabels[method]} ({papers.length}개)</p>
-                  <div className="flex flex-wrap gap-2">
-                    {papers.map((paper) => (
-                      <Badge key={paper.id} variant="secondary" className="flex items-center gap-1 bg-white">
-                        {paper.name}{paper.grammage ? ` ${paper.grammage}g` : ''}
-                        <button
-                          type="button"
-                          title="제거"
-                          className="ml-1 hover:bg-red-100 rounded-full p-0.5"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setLocalSelected(prev => prev.filter(p => p.id !== paper.id));
-                          }}
-                        >
-                          <X className="h-3 w-3 text-red-500" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      <DialogFooter className="mt-4">
-        <Button variant="outline" onClick={() => setLocalSelected([])}>전체 해제</Button>
-        <Button variant="outline" onClick={onCancel}>취소</Button>
-        <Button onClick={() => onSelect(localSelected)} className="bg-emerald-600 hover:bg-emerald-700">
-          선택 완료
-        </Button>
-      </DialogFooter>
     </div>
   );
 }
@@ -3100,283 +2596,6 @@ function FoilSelectionForm({
         <Button variant="outline" onClick={() => setLocalSelected([])}>전체 해제</Button>
         <Button variant="outline" onClick={onCancel}>취소</Button>
         <Button onClick={() => onSelect(localSelected)} className="bg-emerald-600 hover:bg-emerald-700">
-          선택 완료
-        </Button>
-      </DialogFooter>
-    </div>
-  );
-}
-
-// 공용동판 선택 폼 컴포넌트
-function PublicCopperPlateSelectionForm({
-  selectedPlates,
-  onSelect,
-  onCancel,
-}: {
-  selectedPlates: {
-    id: string;
-    plateId: string;
-    plateName: string;
-    foilColor: string;
-    foilColorName: string;
-    engravingText: string;
-    widthMm?: number | null;
-    heightMm?: number | null;
-  }[];
-  onSelect: (plates: {
-    id: string;
-    plateId: string;
-    plateName: string;
-    foilColor: string;
-    foilColorName: string;
-    engravingText: string;
-    widthMm?: number | null;
-    heightMm?: number | null;
-  }[]) => void;
-  onCancel: () => void;
-}) {
-  const [localSelected, setLocalSelected] = useState(selectedPlates);
-  const [searchTerm, setSearchTerm] = useState('');
-
-  const { data: platesData, isLoading } = usePublicCopperPlates({
-    limit: 100,
-    status: 'active',
-    search: searchTerm || undefined,
-  });
-
-  const plates = platesData?.data || [];
-
-  // 박색상 이름 매핑
-  const FOIL_COLORS: Record<string, { name: string; color: string }> = {
-    gold_glossy: { name: '금박(유광)', color: '#FFD700' },
-    gold_matte: { name: '금박(무광)', color: '#DAA520' },
-    silver_glossy: { name: '은박(유광)', color: '#C0C0C0' },
-    silver_matte: { name: '은박(무광)', color: '#A9A9A9' },
-    brown: { name: '밤박(브라운)', color: '#8B4513' },
-    black: { name: '먹박(블랙)', color: '#000000' },
-    white: { name: '백박(화이트)', color: '#FFFFFF' },
-    rose_gold: { name: '로즈골드', color: '#B76E79' },
-  };
-
-  const togglePlate = (plate: PublicCopperPlate) => {
-    setLocalSelected(prev => {
-      const exists = prev.find(p => p.plateId === plate.id);
-      if (exists) {
-        return prev.filter(p => p.plateId !== plate.id);
-      } else {
-        return [...prev, {
-          id: Date.now().toString(),
-          plateId: plate.id,
-          plateName: plate.plateName,
-          foilColor: plate.plateType || '',
-          foilColorName: FOIL_COLORS[plate.plateType]?.name || plate.plateType || '기본',
-          engravingText: plate.defaultEngravingText || '',
-          widthMm: plate.widthMm,
-          heightMm: plate.heightMm,
-        }];
-      }
-    });
-  };
-
-  const updateEngravingText = (plateId: string, text: string) => {
-    setLocalSelected(prev => prev.map(p =>
-      p.plateId === plateId ? { ...p, engravingText: text } : p
-    ));
-  };
-
-  // 전체 선택 관련
-  const isAllSelected = plates.length > 0 && plates.every((plate) => localSelected.some(p => p.plateId === plate.id));
-  const isSomeSelected = plates.some((plate) => localSelected.some(p => p.plateId === plate.id));
-
-  const toggleSelectAll = () => {
-    if (isAllSelected) {
-      // 현재 필터된 동판들만 선택 해제
-      const plateIds = plates.map((p) => p.id);
-      setLocalSelected(prev => prev.filter(p => !plateIds.includes(p.plateId)));
-    } else {
-      // 현재 필터된 동판들 모두 선택 (기존 선택 유지)
-      const newPlates = plates
-        .filter((plate) => !localSelected.some(p => p.plateId === plate.id))
-        .map((plate) => ({
-          id: Date.now().toString() + plate.id,
-          plateId: plate.id,
-          plateName: plate.plateName,
-          foilColor: plate.plateType || '',
-          foilColorName: FOIL_COLORS[plate.plateType]?.name || plate.plateType || '기본',
-          engravingText: plate.defaultEngravingText || '',
-          widthMm: plate.widthMm,
-          heightMm: plate.heightMm,
-        }));
-      setLocalSelected(prev => [...prev, ...newPlates]);
-    }
-  };
-
-  return (
-    <div className="flex flex-col h-full max-h-[60vh]">
-      <div className="text-sm text-slate-500 mb-3 flex-shrink-0">
-        기초정보 &gt; 공용동판관리에서 등록된 공용동판을 선택합니다. 상품별 각인문구를 설정할 수 있습니다.
-      </div>
-
-      {/* 검색 */}
-      <div className="mb-4 flex-shrink-0">
-        <Input
-          placeholder="동판명 검색..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="h-9"
-        />
-      </div>
-
-      {/* 스크롤 가능한 콘텐츠 영역 */}
-      <div className="flex-1 overflow-y-auto min-h-0">
-        {isLoading ? (
-          <div className="h-40 flex items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-          </div>
-        ) : plates.length === 0 ? (
-          <div className="h-40 flex items-center justify-center text-slate-400">
-            <div className="text-center">
-              <Sparkles className="h-12 w-12 mx-auto mb-2 opacity-30" />
-              <p>등록된 공용동판이 없습니다.</p>
-              <p className="text-sm mt-1">기초정보 &gt; 공용동판관리에서 먼저 등록해주세요.</p>
-            </div>
-          </div>
-        ) : (
-          <div className="border rounded-lg">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-slate-50">
-                <TableHead className="w-12">
-                  <Checkbox
-                    checked={isAllSelected}
-                    ref={(el) => {
-                      if (el) {
-                        (el as unknown as HTMLInputElement).indeterminate = !isAllSelected && isSomeSelected;
-                      }
-                    }}
-                    onCheckedChange={toggleSelectAll}
-                    className="data-[state=checked]:bg-amber-600"
-                    title="전체 선택"
-                  />
-                </TableHead>
-                <TableHead>동판명</TableHead>
-                <TableHead>박색상</TableHead>
-                <TableHead>기본 각인문구</TableHead>
-                <TableHead>크기</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {plates.map((plate) => {
-                const isSelected = localSelected.some(p => p.plateId === plate.id);
-                const foilInfo = FOIL_COLORS[plate.plateType];
-                return (
-                  <TableRow
-                    key={plate.id}
-                    className={`cursor-pointer ${isSelected ? 'bg-amber-50' : 'hover:bg-slate-50'}`}
-                    onClick={() => togglePlate(plate)}
-                  >
-                    <TableCell>
-                      <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={() => togglePlate(plate)}
-                        className="data-[state=checked]:bg-amber-600"
-                      />
-                    </TableCell>
-                    <TableCell className="font-medium">{plate.plateName}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        className="gap-1.5"
-                        style={{
-                          borderColor: foilInfo?.color || '#ccc',
-                          backgroundColor: foilInfo ? `${foilInfo.color}20` : '#f5f5f5',
-                        }}
-                      >
-                        {foilInfo && (
-                          <span
-                            className="w-3 h-3 rounded-full border"
-                            style={{ backgroundColor: foilInfo.color }}
-                          />
-                        )}
-                        {foilInfo?.name || plate.plateType || '기본'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-slate-500 max-w-[200px] truncate">
-                      {plate.defaultEngravingText || '-'}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {plate.widthMm && plate.heightMm
-                        ? `${plate.widthMm}×${plate.heightMm}mm`
-                        : '-'}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
-        )}
-
-        {/* 전체 선택 버튼 */}
-        {plates.length > 0 && (
-          <div className="mt-2 flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={toggleSelectAll}
-              className="text-xs"
-            >
-              {isAllSelected ? `현재 목록 전체 해제 (${plates.length}개)` : `현재 목록 전체 선택 (${plates.length}개)`}
-            </Button>
-          </div>
-        )}
-
-        {localSelected.length > 0 && (
-          <div className="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
-            <p className="text-sm font-medium mb-3">선택된 공용동판 ({localSelected.length}개) - 각인문구 설정</p>
-            <div className="space-y-3 max-h-[200px] overflow-y-auto">
-              {localSelected.map((plate) => (
-                <div key={plate.plateId} className="flex items-start gap-3 p-3 bg-white rounded-lg border">
-                  <div className="flex-shrink-0">
-                    <Badge variant="outline" className="text-xs">{plate.foilColorName}</Badge>
-                  </div>
-                  <div className="flex-1 space-y-2">
-                    <div className="font-medium text-sm">{plate.plateName}</div>
-                    <div className="flex items-center gap-2">
-                      <Label className="text-xs text-slate-500 whitespace-nowrap">각인문구:</Label>
-                      <Input
-                        value={plate.engravingText}
-                        onChange={(e) => updateEngravingText(plate.plateId, e.target.value)}
-                        placeholder="각인문구 입력 (선택)"
-                        className="h-8 text-sm"
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    title="제거"
-                    className="hover:bg-red-100 rounded-full p-1"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setLocalSelected(prev => prev.filter(p => p.plateId !== plate.plateId));
-                    }}
-                  >
-                    <X className="h-4 w-4 text-red-500" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* 하단 버튼 - 항상 표시 */}
-      <DialogFooter className="mt-4 flex-shrink-0 border-t pt-4">
-        <Button variant="outline" onClick={() => setLocalSelected([])}>전체 해제</Button>
-        <Button variant="outline" onClick={onCancel}>취소</Button>
-        <Button onClick={() => onSelect(localSelected)} className="bg-amber-600 hover:bg-amber-700">
           선택 완료
         </Button>
       </DialogFooter>
