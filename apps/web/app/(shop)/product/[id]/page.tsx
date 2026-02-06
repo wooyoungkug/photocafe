@@ -157,6 +157,9 @@ export default function ProductPage() {
   const [showPhotobookWizard, setShowPhotobookWizard] = useState(false);
   const photobookOrderStore = usePhotobookOrderStore();
 
+  // 데이터 업로드 스토어에서 편집스타일/제본순서 가져오기
+  const { defaultPageLayout, defaultBindingDirection } = useMultiFolderUploadStore();
+
   // 페이지 전환 최적화
   const [isPending, startTransition] = useTransition();
 
@@ -749,101 +752,23 @@ export default function ProductPage() {
               )}
             </div>
 
-            {/* Price */}
-            <div className="bg-gray-50 rounded-lg p-4">
-              <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-bold text-primary">
-                  {calculatePrice().toLocaleString()}
-                </span>
-                <span className="text-lg">원</span>
+            {/* Price - 화보 상품은 데이터 업로드 후 폴더별로 계산하므로 숨김 */}
+            {!isAlbum && (
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-bold text-primary">
+                    {calculatePrice().toLocaleString()}
+                  </span>
+                  <span className="text-lg">원</span>
+                </div>
+                <p className="text-sm text-gray-500 mt-1">
+                  기본가 {product.basePrice.toLocaleString()}원 + 옵션가
+                </p>
               </div>
-              <p className="text-sm text-gray-500 mt-1">
-                기본가 {product.basePrice.toLocaleString()}원 + 옵션가
-              </p>
-            </div>
+            )}
 
             {/* Options */}
             <div className="space-y-6">
-              {/* 페이지 편집 방식 */}
-              <OptionSection title="페이지 편집 방식">
-                <RadioGroup
-                  value={selectedOptions.pageEditMode || 'single'}
-                  onValueChange={(value) => setSelectedOptions(prev => ({ ...prev, pageEditMode: value as 'single' | 'spread' }))}
-                  className="grid grid-cols-2 gap-2"
-                >
-                  <Label className={cn(
-                    "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors",
-                    (selectedOptions.pageEditMode || 'single') === 'single' ? "border-primary bg-primary/5" : "hover:border-gray-400"
-                  )}>
-                    <RadioGroupItem value="single" />
-                    <div className="flex flex-col">
-                      <span className="font-medium">낱장</span>
-                      <span className="text-xs text-gray-500">1파일 = 1페이지</span>
-                    </div>
-                  </Label>
-                  <Label className={cn(
-                    "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors",
-                    selectedOptions.pageEditMode === 'spread' ? "border-primary bg-primary/5" : "hover:border-gray-400"
-                  )}>
-                    <RadioGroupItem value="spread" />
-                    <div className="flex flex-col">
-                      <span className="font-medium">펼침면</span>
-                      <span className="text-xs text-gray-500">1파일 = 2페이지</span>
-                    </div>
-                  </Label>
-                </RadioGroup>
-              </OptionSection>
-
-              {/* 제본 순서 */}
-              <OptionSection title="제본 순서">
-                <RadioGroup
-                  value={selectedOptions.bindingDirection || 'left-to-right'}
-                  onValueChange={(value) => setSelectedOptions(prev => ({ ...prev, bindingDirection: value }))}
-                  className="grid grid-cols-2 gap-2"
-                >
-                  <Label className={cn(
-                    "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors",
-                    (selectedOptions.bindingDirection || 'left-to-right') === 'left-to-right' ? "border-primary bg-primary/5" : "hover:border-gray-400"
-                  )}>
-                    <RadioGroupItem value="left-to-right" />
-                    <div className="flex flex-col">
-                      <span className="font-medium">좌시작→우끝</span>
-                      <span className="text-xs text-gray-500">일반적인 좌철 (한국어 기본)</span>
-                    </div>
-                  </Label>
-                  <Label className={cn(
-                    "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors",
-                    selectedOptions.bindingDirection === 'left-to-left' ? "border-primary bg-primary/5" : "hover:border-gray-400"
-                  )}>
-                    <RadioGroupItem value="left-to-left" />
-                    <div className="flex flex-col">
-                      <span className="font-medium">좌시작→좌끝</span>
-                      <span className="text-xs text-gray-500">좌철 인데 마지막도 왼쪽</span>
-                    </div>
-                  </Label>
-                  <Label className={cn(
-                    "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors",
-                    selectedOptions.bindingDirection === 'right-to-left' ? "border-primary bg-primary/5" : "hover:border-gray-400"
-                  )}>
-                    <RadioGroupItem value="right-to-left" />
-                    <div className="flex flex-col">
-                      <span className="font-medium">우시작→좌끝</span>
-                      <span className="text-xs text-gray-500">우철 (일본어/아랍어)</span>
-                    </div>
-                  </Label>
-                  <Label className={cn(
-                    "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors",
-                    selectedOptions.bindingDirection === 'right-to-right' ? "border-primary bg-primary/5" : "hover:border-gray-400"
-                  )}>
-                    <RadioGroupItem value="right-to-right" />
-                    <div className="flex flex-col">
-                      <span className="font-medium">우시작→우끝</span>
-                      <span className="text-xs text-gray-500">우철 인데 마지막도 오른쪽</span>
-                    </div>
-                  </Label>
-                </RadioGroup>
-              </OptionSection>
-
               {/* Specification - 접을 수 있는 섹션 */}
               {product.specifications && product.specifications.length > 0 && (
                 <div>
@@ -1218,12 +1143,23 @@ export default function ProductPage() {
                                   type="button"
                                   onClick={() => setSelectedOptions(prev => ({ ...prev, foilColor: color.code }))}
                                   className={cn(
-                                    "px-2 py-1 text-xs rounded-md border transition-colors",
+                                    "flex items-center gap-1.5 px-2 py-1 text-xs rounded-md border transition-colors",
                                     selectedOptions.foilColor === color.code
-                                      ? "border-primary bg-primary text-white"
+                                      ? "border-primary bg-primary/10 ring-2 ring-primary"
                                       : "border-gray-300 hover:border-gray-400"
                                   )}
                                 >
+                                  <span
+                                    className={cn(
+                                      "w-4 h-4 rounded-sm border",
+                                      color.code === 'hologram' && "bg-gradient-to-r from-pink-300 via-purple-300 to-cyan-300",
+                                      color.colorHex === '#FFFFFF' && "border-gray-400"
+                                    )}
+                                    style={{
+                                      backgroundColor: color.code !== 'hologram' ? color.colorHex : undefined,
+                                      borderColor: color.colorHex === '#FFFFFF' ? '#9ca3af' : color.colorHex
+                                    }}
+                                  />
                                   {color.name}
                                 </button>
                               ))}
@@ -1447,12 +1383,23 @@ export default function ProductPage() {
                                       type="button"
                                       onClick={() => setSelectedOptions(prev => ({ ...prev, foilColor: color.code }))}
                                       className={cn(
-                                        "px-2 py-1 text-xs rounded-md border transition-colors",
+                                        "flex items-center gap-1.5 px-2 py-1 text-xs rounded-md border transition-colors",
                                         selectedOptions.foilColor === color.code
-                                          ? "border-primary bg-primary text-white"
+                                          ? "border-primary bg-primary/10 ring-2 ring-primary"
                                           : "border-gray-300 hover:border-gray-400"
                                       )}
                                     >
+                                      <span
+                                        className={cn(
+                                          "w-4 h-4 rounded-sm border",
+                                          color.code === 'hologram' && "bg-gradient-to-r from-pink-300 via-purple-300 to-cyan-300",
+                                          color.colorHex === '#FFFFFF' && "border-gray-400"
+                                        )}
+                                        style={{
+                                          backgroundColor: color.code !== 'hologram' ? color.colorHex : undefined,
+                                          borderColor: color.colorHex === '#FFFFFF' ? '#9ca3af' : color.colorHex
+                                        }}
+                                      />
                                       {color.name}
                                     </button>
                                   ))}
@@ -1525,8 +1472,8 @@ export default function ProductPage() {
                             pageCount: folder.pageCount,
                             printMethod: 'indigo',
                             colorMode: '4c',
-                            pageLayout: 'single',
-                            bindingDirection: 'LEFT_START_RIGHT_END',
+                            pageLayout: defaultPageLayout || 'single',
+                            bindingDirection: defaultBindingDirection || 'LEFT_START_RIGHT_END',
                             specificationId: '',
                             specificationName: folder.specLabel,
                           },
@@ -1554,8 +1501,8 @@ export default function ProductPage() {
                               pageCount: folder.pageCount,
                               printMethod: 'indigo',
                               colorMode: '4c',
-                              pageLayout: 'single',
-                              bindingDirection: 'LEFT_START_RIGHT_END',
+                              pageLayout: defaultPageLayout || 'single',
+                              bindingDirection: defaultBindingDirection || 'LEFT_START_RIGHT_END',
                               specificationId: '',
                               specificationName: additional.specLabel,
                             },

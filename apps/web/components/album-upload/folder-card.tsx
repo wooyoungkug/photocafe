@@ -52,6 +52,7 @@ import {
   type FolderValidationStatus,
   useMultiFolderUploadStore,
   STANDARD_SIZES,
+  calculateUploadedFolderPrice,
 } from '@/stores/multi-folder-upload-store';
 import { formatFileSize } from '@/lib/album-utils';
 
@@ -185,6 +186,9 @@ export function FolderCard({ folder }: FolderCardProps) {
   const canSelect =
     folder.validationStatus === 'EXACT_MATCH' ||
     (folder.validationStatus === 'RATIO_MATCH' && folder.isApproved);
+
+  // 가격 계산
+  const folderPrice = useMemo(() => calculateUploadedFolderPrice(folder), [folder]);
 
   const handleSaveTitle = () => {
     setFolderTitle(folder.id, editTitle);
@@ -320,6 +324,19 @@ export function FolderCard({ folder }: FolderCardProps) {
           <div className="mt-2">
             <p className="text-[10px] text-gray-400 mb-1">페이지 순서:</p>
             {getPageOrderDisplay()}
+          </div>
+        </div>
+
+        {/* 가격 표시 */}
+        <div className="text-right flex-shrink-0">
+          <div className="text-lg font-bold text-primary">
+            {folderPrice.totalPrice.toLocaleString()}원
+          </div>
+          <div className="text-[10px] text-gray-400">
+            (단가 {folderPrice.unitPrice.toLocaleString()}원 × {folder.quantity}부)
+          </div>
+          <div className="text-[10px] text-gray-400">
+            VAT 포함
           </div>
         </div>
 

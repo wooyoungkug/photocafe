@@ -183,9 +183,9 @@ interface MultiFolderUploadState {
   isUploading: boolean;
   uploadProgress: number;
 
-  // 기본 주문 유형
-  defaultPageLayout: PageLayoutType;
-  defaultBindingDirection: BindingDirection;
+  // 기본 주문 유형 (null = 미선택)
+  defaultPageLayout: PageLayoutType | null;
+  defaultBindingDirection: BindingDirection | null;
 
   // 설정
   targetSpecWidth: number;
@@ -205,8 +205,8 @@ interface MultiFolderUploadState {
 
   // 주문 유형 변경
   setFolderPageLayout: (folderId: string, layout: PageLayoutType) => void;
-  setDefaultPageLayout: (layout: PageLayoutType) => void;
-  setDefaultBindingDirection: (direction: BindingDirection) => void;
+  setDefaultPageLayout: (layout: PageLayoutType | null) => void;
+  setDefaultBindingDirection: (direction: BindingDirection | null) => void;
 
   // 추가 주문
   addAdditionalOrder: (folderId: string, spec: { width: number; height: number; label: string }) => void;
@@ -234,8 +234,8 @@ const initialState = {
   folders: [] as UploadedFolder[],
   isUploading: false,
   uploadProgress: 0,
-  defaultPageLayout: 'spread' as PageLayoutType,
-  defaultBindingDirection: 'LEFT_START_RIGHT_END' as BindingDirection,
+  defaultPageLayout: null as PageLayoutType | null,  // 미선택 상태로 시작
+  defaultBindingDirection: null as BindingDirection | null,  // 미선택 상태로 시작
   targetSpecWidth: 12,
   targetSpecHeight: 12,
   targetSpecRatio: 1,
@@ -728,3 +728,92 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
 
 // 유틸리티 함수들 export
 export { checkRatioMatch, findAvailableSizes, getSpecLabel, findClosestStandardSize, RATIO_TOLERANCE };
+
+// ==================== 견적 계산 ====================
+
+// 인디고 출력 단가 (규격별, 면당) - 기본 4도
+const INDIGO_PRINT_PRICES: Record<string, { single: number; spread: number }> = {
+  '6x6': { single: 250, spread: 450 },
+  '8x8': { single: 300, spread: 500 },
+  '10x10': { single: 350, spread: 600 },
+  '11x11': { single: 400, spread: 700 },
+  '12x12': { single: 400, spread: 700 },
+  '14x14': { single: 500, spread: 850 },
+  '16x16': { single: 600, spread: 1000 },
+  '12x8': { single: 350, spread: 600 },
+  '15x10': { single: 450, spread: 750 },
+  '14x11': { single: 450, spread: 750 },
+  default: { single: 400, spread: 700 },
+};
+
+// 표지 단가
+const COVER_PRICE = 5000;
+
+// 규격 키 추출
+function getSpecKey(width: number, height: number): string {
+  return `${Math.round(width)}x${Math.round(height)}`;
+}
+
+/**
+ * 폴더(주문건) 견적 계산
+ */
+export function calculateUploadedFolderPrice(folder: UploadedFolder): {
+  printPrice: number;
+  coverPrice: number;
+  unitPrice: number;
+  quantity: number;
+  subtotal: number;
+  tax: number;
+  totalPrice: number;
+} {
+  const specKey = getSpecKey(folder.albumWidth, folder.albumHeight);
+  const prices = INDIGO_PRINT_PRICES[specKey] || INDIGO_PRINT_PRICES.default;
+  const pricePerPage = folder.pageLayout === 'spread' ? prices.spread : prices.single;
+
+  const printPrice = pricePerPage * folder.pageCount;
+  const coverPrice = COVER_PRICE;
+  const unitPrice = printPrice + coverPrice;
+  const quantity = folder.quantity;
+  const subtotal = unitPrice * quantity;
+  const tax = Math.round(subtotal * 0.1);
+  const totalPrice = subtotal + tax;
+
+  return {
+    printPrice,
+    coverPrice,
+    unitPrice,
+    quantity,
+    subtotal,
+    tax,
+    totalPrice,
+  };
+}
+
+/**
+ * 여러 폴더 총 견적 계산
+ */
+export function calculateTotalUploadedPrice(folders: UploadedFolder[]): {
+  folderPrices: Array<{ folderId: string; price: ReturnType<typeof calculateUploadedFolderPrice> }>;
+  totalQuantity: number;
+  subtotal: number;
+  tax: number;
+  totalPrice: number;
+} {
+  const folderPrices = folders.map(folder => ({
+    folderId: folder.id,
+    price: calculateUploadedFolderPrice(folder),
+  }));
+
+  const totalQuantity = folderPrices.reduce((sum, fp) => sum + fp.price.quantity, 0);
+  const subtotal = folderPrices.reduce((sum, fp) => sum + fp.price.subtotal, 0);
+  const tax = Math.round(subtotal * 0.1);
+  const totalPrice = subtotal + tax;
+
+  return {
+    folderPrices,
+    totalQuantity,
+    subtotal,
+    tax,
+    totalPrice,
+  };
+}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import {
@@ -27,17 +27,18 @@ import {
   sortPagesByPosition,
   findClosestStandardSize,
   STANDARD_SIZES,
+  calculateTotalUploadedPrice,
 } from '@/stores/multi-folder-upload-store';
 
 // 편집스타일 아이콘 컴포넌트
 function PageLayoutIcon({ type, isSelected }: { type: 'single' | 'spread'; isSelected: boolean }) {
-  const baseClass = 'w-12 h-16 border-2 rounded transition-all flex items-center justify-center';
+  const baseClass = 'w-14 h-11 border-2 rounded transition-all flex items-center justify-center';
   const selectedClass = isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white hover:border-gray-400';
 
   if (type === 'single') {
     return (
       <div className={cn(baseClass, selectedClass)}>
-        <div className="w-8 h-12 border border-gray-400 bg-white" />
+        <div className="w-6 h-8 border border-gray-400 bg-white" />
       </div>
     );
   }
@@ -45,8 +46,8 @@ function PageLayoutIcon({ type, isSelected }: { type: 'single' | 'spread'; isSel
   return (
     <div className={cn(baseClass, selectedClass)}>
       <div className="flex">
-        <div className="w-4 h-12 border border-gray-400 bg-white border-r-0" />
-        <div className="w-4 h-12 border border-gray-400 bg-white" />
+        <div className="w-5 h-8 border border-gray-400 bg-white border-r-0" />
+        <div className="w-5 h-8 border border-gray-400 bg-white" />
       </div>
     </div>
   );
@@ -54,7 +55,7 @@ function PageLayoutIcon({ type, isSelected }: { type: 'single' | 'spread'; isSel
 
 // 제본 방향 아이콘 컴포넌트
 function BindingDirectionIcon({ direction, isSelected }: { direction: BindingDirection; isSelected: boolean }) {
-  const baseClass = 'w-16 h-14 border-2 rounded transition-all p-1';
+  const baseClass = 'w-[72px] h-10 border-2 rounded transition-all p-1';
   const selectedClass = isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white hover:border-gray-400';
 
   // 페이지 색상: 첫페이지(시작), 마지막페이지(끝)
@@ -79,18 +80,18 @@ function BindingDirectionIcon({ direction, isSelected }: { direction: BindingDir
         {/* 왼쪽 페이지 그룹 */}
         <div className="flex gap-px">
           <div className={cn(
-            'w-3 h-full rounded-sm border',
+            'w-4 h-full rounded-sm border',
             colors.leftFirst ? 'bg-blue-500 border-blue-600' : colors.leftLast ? 'bg-purple-500 border-purple-600' : 'bg-gray-100 border-gray-300'
           )} />
-          <div className="w-2 h-full rounded-sm bg-gray-100 border border-gray-300" />
+          <div className="w-3 h-full rounded-sm bg-gray-100 border border-gray-300" />
         </div>
         {/* 중앙 구분선 */}
-        <div className="w-px h-full bg-gray-400 mx-0.5" />
+        <div className="w-px h-full bg-gray-400 mx-1" />
         {/* 오른쪽 페이지 그룹 */}
         <div className="flex gap-px">
-          <div className="w-2 h-full rounded-sm bg-gray-100 border border-gray-300" />
+          <div className="w-3 h-full rounded-sm bg-gray-100 border border-gray-300" />
           <div className={cn(
-            'w-3 h-full rounded-sm border',
+            'w-4 h-full rounded-sm border',
             colors.rightFirst ? 'bg-blue-500 border-blue-600' : colors.rightLast ? 'bg-purple-500 border-purple-600' : 'bg-gray-100 border-gray-300'
           )} />
         </div>
@@ -279,6 +280,152 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       });
     },
     []
+  );
+
+  // 반폭 표지 확장 함수 (Canvas 기반)
+  // - 첫장: [빈영역 | 원본이미지] 로 확장
+  // - 막장: [원본이미지 | 빈영역] 로 확장
+  const extendHalfWidthCover = useCallback(
+    async (
+      uploadedFile: UploadedFile,
+      targetWidthPx: number,  // 확장할 목표 가로 픽셀
+      targetWidthInch: number // 확장할 목표 가로 인치
+    ): Promise<UploadedFile> => {
+      // File 객체가 없으면 메타데이터만 변경
+      if (!uploadedFile.file) {
+        return {
+          ...uploadedFile,
+          widthPx: targetWidthPx,
+          widthInch: targetWidthInch,
+          isExtended: true,
+          extendPosition: uploadedFile.coverType === 'FRONT_COVER' ? 'left' : 'right',
+          originalWidthPx: uploadedFile.widthPx,
+          originalWidthInch: uploadedFile.widthInch,
+          status: 'EXACT',
+        };
+      }
+
+      return new Promise((resolve) => {
+        const img = new Image();
+        const url = URL.createObjectURL(uploadedFile.file!);
+
+        img.onload = () => {
+          URL.revokeObjectURL(url);
+
+          const originalWidthPx = uploadedFile.widthPx;
+          const heightPx = uploadedFile.heightPx;
+          const blankWidthPx = targetWidthPx - originalWidthPx;
+
+          // 빈 페이지 생성 (흰색)
+          const blankCanvas = document.createElement('canvas');
+          blankCanvas.width = blankWidthPx;
+          blankCanvas.height = heightPx;
+          const blankCtx = blankCanvas.getContext('2d')!;
+          blankCtx.fillStyle = '#FFFFFF';
+          blankCtx.fillRect(0, 0, blankWidthPx, heightPx);
+
+          // 확장된 이미지 생성
+          const extendedCanvas = document.createElement('canvas');
+          extendedCanvas.width = targetWidthPx;
+          extendedCanvas.height = heightPx;
+          const extendedCtx = extendedCanvas.getContext('2d')!;
+
+          if (uploadedFile.coverType === 'FRONT_COVER') {
+            // 첫장: [빈영역 | 원본이미지]
+            extendedCtx.drawImage(blankCanvas, 0, 0);
+            extendedCtx.drawImage(img, blankWidthPx, 0);
+          } else {
+            // 막장: [원본이미지 | 빈영역]
+            extendedCtx.drawImage(img, 0, 0);
+            extendedCtx.drawImage(blankCanvas, originalWidthPx, 0);
+          }
+
+          const ratio = calculateNormalizedRatio(targetWidthInch, uploadedFile.heightInch);
+
+          resolve({
+            ...uploadedFile,
+            widthPx: targetWidthPx,
+            widthInch: targetWidthInch,
+            ratio,
+            isExtended: true,
+            extendPosition: uploadedFile.coverType === 'FRONT_COVER' ? 'left' : 'right',
+            originalWidthPx: uploadedFile.widthPx,
+            originalWidthInch: uploadedFile.widthInch,
+            canvasDataUrl: extendedCanvas.toDataURL('image/jpeg', 0.95),
+            status: 'EXACT',
+            message: uploadedFile.coverType === 'FRONT_COVER'
+              ? '첫장 확장 (왼쪽 빈영역 추가)'
+              : '막장 확장 (오른쪽 빈영역 추가)',
+          });
+        };
+
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          // 에러 시 메타데이터만 변경
+          resolve({
+            ...uploadedFile,
+            widthPx: targetWidthPx,
+            widthInch: targetWidthInch,
+            isExtended: true,
+            extendPosition: uploadedFile.coverType === 'FRONT_COVER' ? 'left' : 'right',
+            originalWidthPx: uploadedFile.widthPx,
+            originalWidthInch: uploadedFile.widthInch,
+            status: 'EXACT',
+          });
+        };
+
+        img.src = url;
+      });
+    },
+    []
+  );
+
+  // 반폭 표지 확장 처리 (폴더 내 모든 파일 처리)
+  const processHalfWidthCoversWithCanvas = useCallback(
+    async (
+      files: UploadedFile[],
+      pageLayout: PageLayoutType
+    ): Promise<UploadedFile[]> => {
+      if (pageLayout !== 'spread') return files;
+
+      // 대표 규격 찾기 (가장 많은 비율의 내지 기준)
+      const innerPages = files.filter(f => f.coverType === 'INNER_PAGE');
+      if (innerPages.length === 0) return files;
+
+      // 내지의 평균 가로 크기를 대표 규격으로 사용
+      const avgWidthPx = innerPages.reduce((sum, f) => sum + f.widthPx, 0) / innerPages.length;
+      const avgWidthInch = innerPages.reduce((sum, f) => sum + f.widthInch, 0) / innerPages.length;
+      const avgHeightPx = innerPages.reduce((sum, f) => sum + f.heightPx, 0) / innerPages.length;
+
+      const halfWidthPx = avgWidthPx / 2;
+      const halfWidthInch = avgWidthInch / 2;
+
+      // 각 파일을 처리
+      const processedFiles: UploadedFile[] = [];
+
+      for (const file of files) {
+        // 표지가 반폭인지 확인
+        const isHalfWidth =
+          (file.coverType === 'FRONT_COVER' || file.coverType === 'BACK_COVER') &&
+          Math.abs(file.widthPx - halfWidthPx) < 100 && // 반폭 가로 오차 100px 이내
+          Math.abs(file.heightPx - avgHeightPx) < 100;  // 세로는 같아야 함
+
+        if (isHalfWidth) {
+          // 반폭 표지를 전폭으로 확장
+          const extendedFile = await extendHalfWidthCover(
+            file,
+            Math.round(avgWidthPx),
+            Math.round(avgWidthInch * 10) / 10
+          );
+          processedFiles.push(extendedFile);
+        } else {
+          processedFiles.push(file);
+        }
+      }
+
+      return processedFiles;
+    },
+    [extendHalfWidthCover]
   );
 
   // 파일 메타데이터 추출 (표지 타입 감지 포함)
@@ -472,8 +619,12 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         setUploadProgress(Math.round(((i + 1) / files.length) * 100));
       }
 
+      // 반폭 표지 확장 처리 (Canvas로 실제 이미지 생성)
+      setProcessingMessage(`"${fullPath}" 표지 처리 중...`);
+      const extendedFiles = await processHalfWidthCoversWithCanvas(processedFiles, pageLayout);
+
       // 페이지 정렬 (첫장 → 내지 → 막장)
-      const sortedFiles = sortPagesByPosition(processedFiles);
+      const sortedFiles = sortPagesByPosition(extendedFiles);
 
       // 첫 파일 기준 규격 결정
       const firstFile = sortedFiles[0];
@@ -527,7 +678,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
 
       return folder;
     },
-    [readDirectoryFiles, extractFileMetadata, setUploadProgress]
+    [readDirectoryFiles, extractFileMetadata, setUploadProgress, processHalfWidthCoversWithCanvas]
   );
 
   // 드롭 핸들러
@@ -632,7 +783,10 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
 
         if (processedFiles.length === 0) continue;
 
-        const sortedFiles = sortPagesByPosition(processedFiles);
+        // 반폭 표지 확장 처리 (Canvas로 실제 이미지 생성)
+        const extendedFiles = await processHalfWidthCoversWithCanvas(processedFiles, defaultPageLayout);
+
+        const sortedFiles = sortPagesByPosition(extendedFiles);
         const firstFile = sortedFiles[0];
 
         const fileSpecWidth = firstFile.widthInch;
@@ -684,7 +838,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       setProcessingMessage('');
       e.target.value = '';
     },
-    [addFolder, extractFileMetadata, setUploading, setUploadProgress, defaultPageLayout]
+    [addFolder, extractFileMetadata, setUploading, setUploadProgress, defaultPageLayout, processHalfWidthCoversWithCanvas]
   );
 
   const handleAddToCart = () => {
@@ -705,13 +859,31 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
     selected: folders.filter(f => f.isSelected).length,
   };
 
+  // 선택된 폴더들의 총 견적
+  const selectedFolders = folders.filter(f => f.isSelected);
+  const totalPriceInfo = useMemo(
+    () => calculateTotalUploadedPrice(selectedFolders),
+    [selectedFolders]
+  );
+
+  // 편집스타일과 제본순서가 모두 선택되어야 업로드 가능
+  const canUpload = defaultPageLayout !== null && defaultBindingDirection !== null;
+
   return (
     <div className="space-y-4">
       {/* 편집스타일 & 제본순서 선택 */}
-      <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+      <div className={cn(
+        "grid grid-cols-2 gap-4 p-4 rounded-lg border-2 transition-colors",
+        canUpload ? "bg-gray-50 border-transparent" : "bg-amber-50 border-amber-300"
+      )}>
         {/* 편집스타일 */}
         <div>
-          <span className="text-sm font-medium text-gray-700 mb-2 block">편집스타일</span>
+          <span className={cn(
+            "text-sm font-medium mb-2 block",
+            defaultPageLayout === null ? "text-amber-700" : "text-gray-700"
+          )}>
+            편집스타일 {defaultPageLayout === null && <span className="text-red-500">*</span>}
+          </span>
           <div className="flex gap-3">
             <button
               type="button"
@@ -744,7 +916,12 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
 
         {/* 제본시작/끝 */}
         <div>
-          <span className="text-sm font-medium text-gray-700 mb-2 block">제본시작 / 끝</span>
+          <span className={cn(
+            "text-sm font-medium mb-2 block",
+            defaultBindingDirection === null ? "text-amber-700" : "text-gray-700"
+          )}>
+            제본시작 / 끝 {defaultBindingDirection === null && <span className="text-red-500">*</span>}
+          </span>
           <div className="flex gap-2 flex-wrap">
             {([
               { value: 'LEFT_START_RIGHT_END', label: '좌 시작 → 우측 끝' },
@@ -788,21 +965,36 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       <div
         className={cn(
           'border-2 border-dashed rounded-lg p-8 text-center transition-colors',
-          isDragging
-            ? 'border-blue-500 bg-blue-50'
-            : 'border-gray-300 hover:border-gray-400'
+          !canUpload
+            ? 'border-gray-200 bg-gray-100 cursor-not-allowed'
+            : isDragging
+              ? 'border-blue-500 bg-blue-50'
+              : 'border-gray-300 hover:border-gray-400'
         )}
         onDragOver={(e) => {
           e.preventDefault();
-          setIsDragging(true);
+          if (canUpload) setIsDragging(true);
         }}
         onDragLeave={(e) => {
           e.preventDefault();
           setIsDragging(false);
         }}
-        onDrop={handleDrop}
+        onDrop={(e) => {
+          if (canUpload) {
+            handleDrop(e);
+          } else {
+            e.preventDefault();
+            setIsDragging(false);
+          }
+        }}
       >
-        {isUploading ? (
+        {!canUpload ? (
+          <div className="flex flex-col items-center gap-3 text-gray-400">
+            <AlertCircle className="w-12 h-12" />
+            <p className="text-sm font-medium">먼저 편집스타일과 제본순서를 선택해주세요</p>
+            <p className="text-xs">위의 옵션을 모두 선택해야 데이터를 업로드할 수 있습니다.</p>
+          </div>
+        ) : isUploading ? (
           <div className="flex flex-col items-center gap-3">
             <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
             <span className="text-sm text-gray-600">{processingMessage}</span>
@@ -865,6 +1057,25 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
               <FolderCard key={folder.id} folder={folder} />
             ))}
           </div>
+
+          {/* 총 금액 표시 */}
+          {stats.selected > 0 && (
+            <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-sm text-gray-600">선택 주문 ({stats.selected}건, {totalPriceInfo.totalQuantity}부)</span>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-primary">
+                    {totalPriceInfo.totalPrice.toLocaleString()}원
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    공급가 {totalPriceInfo.subtotal.toLocaleString()}원 + VAT {totalPriceInfo.tax.toLocaleString()}원
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="flex items-center justify-between pt-4 border-t">
             <div className="text-sm text-gray-600">
