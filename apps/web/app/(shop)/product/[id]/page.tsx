@@ -1438,87 +1438,6 @@ export default function ProductPage() {
                 </OptionSection>
               ) : null}
 
-              {/* 데이터 업로드 섹션 - 화보 상품만 */}
-              {isAlbum && (
-                <div className="border rounded-lg p-4 bg-white">
-                  <h3 className="font-medium mb-3 flex items-center gap-2">
-                    <Upload className="h-4 w-4" />
-                    데이터 업로드
-                  </h3>
-                  <MultiFolderUpload
-                    onAddToCart={(folders) => {
-                      // 선택된 폴더들을 장바구니에 추가
-                      folders.forEach((folder) => {
-                        const options: CartItemOption[] = [
-                          { name: '규격', value: folder.specLabel, price: 0 },
-                          { name: '페이지', value: `${folder.pageCount}p`, price: 0 },
-                          { name: '파일수', value: `${folder.files.length}개`, price: 0 },
-                        ];
-
-                        // 메인 주문
-                        addItem({
-                          productId: product.id,
-                          productType: 'album-order',
-                          name: `${product.productName} - ${folder.orderTitle}`,
-                          thumbnailUrl: product.thumbnailUrl,
-                          basePrice: 0,
-                          quantity: folder.quantity,
-                          options,
-                          totalPrice: 0,
-                          albumOrderInfo: {
-                            folderId: folder.id,
-                            folderName: folder.orderTitle,
-                            fileCount: folder.files.length,
-                            pageCount: folder.pageCount,
-                            printMethod: 'indigo',
-                            colorMode: '4c',
-                            pageLayout: defaultPageLayout || 'single',
-                            bindingDirection: defaultBindingDirection || 'LEFT_START_RIGHT_END',
-                            specificationId: '',
-                            specificationName: folder.specLabel,
-                          },
-                        });
-
-                        // 추가 주문들
-                        folder.additionalOrders.forEach((additional) => {
-                          addItem({
-                            productId: product.id,
-                            productType: 'album-order',
-                            name: `${product.productName} - ${folder.orderTitle} (${additional.specLabel})`,
-                            thumbnailUrl: product.thumbnailUrl,
-                            basePrice: 0,
-                            quantity: additional.quantity,
-                            options: [
-                              { name: '규격', value: additional.specLabel, price: 0 },
-                              { name: '페이지', value: `${folder.pageCount}p`, price: 0 },
-                              { name: '파일수', value: `${folder.files.length}개`, price: 0 },
-                            ],
-                            totalPrice: 0,
-                            albumOrderInfo: {
-                              folderId: folder.id,
-                              folderName: folder.orderTitle,
-                              fileCount: folder.files.length,
-                              pageCount: folder.pageCount,
-                              printMethod: 'indigo',
-                              colorMode: '4c',
-                              pageLayout: defaultPageLayout || 'single',
-                              bindingDirection: defaultBindingDirection || 'LEFT_START_RIGHT_END',
-                              specificationId: '',
-                              specificationName: additional.specLabel,
-                            },
-                          });
-                        });
-                      });
-
-                      toast({
-                        title: '장바구니에 담았습니다',
-                        description: `${folders.length}건의 화보 주문이 장바구니에 추가되었습니다.`,
-                      });
-                    }}
-                  />
-                </div>
-              )}
-
               {/* Quantity */}
               <OptionSection title="수량">
                 <div className="flex items-center gap-4">
@@ -1616,6 +1535,87 @@ export default function ProductPage() {
             </div>
           </div>
         </div>
+
+        {/* 데이터 업로드 섹션 - 화보 상품만 (전체 너비 사용) */}
+        {isAlbum && (
+          <div className="mt-6 border rounded-lg p-4 bg-white">
+            <h3 className="font-medium mb-3 flex items-center gap-2">
+              <Upload className="h-4 w-4" />
+              데이터 업로드
+            </h3>
+            <MultiFolderUpload
+              onAddToCart={(folders) => {
+                // 선택된 폴더들을 장바구니에 추가
+                folders.forEach((folder) => {
+                  const options: CartItemOption[] = [
+                    { name: '규격', value: folder.specLabel, price: 0 },
+                    { name: '페이지', value: `${folder.pageCount}p`, price: 0 },
+                    { name: '파일수', value: `${folder.files.length}개`, price: 0 },
+                  ];
+
+                  // 메인 주문
+                  addItem({
+                    productId: product.id,
+                    productType: 'album-order',
+                    name: `${product.productName} - ${folder.orderTitle}`,
+                    thumbnailUrl: product.thumbnailUrl,
+                    basePrice: 0,
+                    quantity: folder.quantity,
+                    options,
+                    totalPrice: 0,
+                    albumOrderInfo: {
+                      folderId: folder.id,
+                      folderName: folder.orderTitle,
+                      fileCount: folder.files.length,
+                      pageCount: folder.pageCount,
+                      printMethod: 'indigo',
+                      colorMode: '4c',
+                      pageLayout: defaultPageLayout || 'single',
+                      bindingDirection: defaultBindingDirection || 'LEFT_START_RIGHT_END',
+                      specificationId: '',
+                      specificationName: folder.specLabel,
+                    },
+                  });
+
+                  // 추가 주문들
+                  folder.additionalOrders.forEach((additional) => {
+                    addItem({
+                      productId: product.id,
+                      productType: 'album-order',
+                      name: `${product.productName} - ${folder.orderTitle} (${additional.specLabel})`,
+                      thumbnailUrl: product.thumbnailUrl,
+                      basePrice: 0,
+                      quantity: additional.quantity,
+                      options: [
+                        { name: '규격', value: additional.specLabel, price: 0 },
+                        { name: '페이지', value: `${folder.pageCount}p`, price: 0 },
+                        { name: '파일수', value: `${folder.files.length}개`, price: 0 },
+                      ],
+                      totalPrice: 0,
+                      albumOrderInfo: {
+                        folderId: folder.id,
+                        folderName: folder.orderTitle,
+                        fileCount: folder.files.length,
+                        pageCount: folder.pageCount,
+                        printMethod: 'indigo',
+                        colorMode: '4c',
+                        pageLayout: defaultPageLayout || 'single',
+                        bindingDirection: defaultBindingDirection || 'LEFT_START_RIGHT_END',
+                        specificationId: '',
+                        specificationName: additional.specLabel,
+                      },
+                    });
+                  });
+                });
+
+                toast({
+                  title: '장바구니에 담았습니다',
+                  description: `${folders.length}건의 화보 주문이 장바구니에 추가되었습니다.`,
+                });
+              }}
+            />
+          </div>
+        )}
 
         {/* Product Detail Tabs */}
         <div className="mt-12">
