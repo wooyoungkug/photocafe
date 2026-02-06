@@ -26,6 +26,7 @@ import {
   calculateAlbumSize,
   sortPagesByPosition,
   findClosestStandardSize,
+  calculatePageCount,
   STANDARD_SIZES,
   calculateTotalUploadedPrice,
 } from '@/stores/multi-folder-upload-store';
@@ -581,7 +582,8 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       entry: FileSystemDirectoryEntry,
       fullPath: string,
       depth: number,
-      pageLayout: PageLayoutType
+      pageLayout: PageLayoutType,
+      bindingDirection: BindingDirection | null
     ) => {
       setProcessingMessage(`"${fullPath}" 폴더 분석 중...`);
 
@@ -612,7 +614,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
             frontCover: result.frontCover,
             backCover: result.backCover,
           });
-        } else {
+        } else if (!('split' in result)) {
           processedFiles.push(result);
         }
 
@@ -640,6 +642,10 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       // 가장 가까운 표준 앨범규격
       const closestStandard = findClosestStandardSize(albumWidth, albumHeight);
 
+      // 페이지 수 계산 (파일수 + 편집스타일 + 제본방향 기반)
+      const fileCount = sortedFiles.length;
+      const pageCount = calculatePageCount(fileCount, pageLayout, bindingDirection);
+
       const folder: UploadedFolder = {
         id: `folder-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         folderName: entry.name,
@@ -648,8 +654,9 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         depth,
         files: sortedFiles,
         totalFileSize: processedFiles.reduce((sum, f) => sum + f.fileSize, 0),
-        pageCount: sortedFiles.length,
+        pageCount,
         pageLayout,
+        bindingDirection,
         fileSpecWidth,
         fileSpecHeight,
         fileSpecLabel: getSpecLabel(fileSpecWidth, fileSpecHeight),
@@ -709,7 +716,8 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       for (let i = 0; i < allFolders.length; i++) {
         const { entry, fullPath, depth } = allFolders[i];
         setProcessingMessage(`폴더 처리 중... (${i + 1}/${allFolders.length}) - ${fullPath}`);
-        const folder = await processFolder(entry, fullPath, depth, defaultPageLayout);
+        // canUpload 체크로 null이 아님이 보장됨
+        const folder = await processFolder(entry, fullPath, depth, defaultPageLayout!, defaultBindingDirection);
         if (folder) {
           addFolder(folder);
         }
@@ -718,7 +726,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       setUploading(false);
       setProcessingMessage('');
     },
-    [collectAllFolders, processFolder, addFolder, setUploading, setUploadProgress, defaultPageLayout]
+    [collectAllFolders, processFolder, addFolder, setUploading, setUploadProgress, defaultPageLayout, defaultBindingDirection]
   );
 
   // 파일 선택 핸들러
@@ -762,9 +770,10 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         const processedFiles: UploadedFile[] = [];
         const splitCoverResults: SplitCoverResult[] = [];
 
+        // canUpload 체크로 defaultPageLayout이 null이 아님이 보장됨
         for (let j = 0; j < folderFiles.length; j++) {
           const file = folderFiles[j];
-          const result = await extractFileMetadata(file, j + 1, folderPath, defaultPageLayout);
+          const result = await extractFileMetadata(file, j + 1, folderPath, defaultPageLayout!);
 
           if ('split' in result && result.split) {
             processedFiles.push(result.frontCover);
@@ -774,7 +783,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
               frontCover: result.frontCover,
               backCover: result.backCover,
             });
-          } else {
+          } else if (!('split' in result)) {
             processedFiles.push(result);
           }
 
@@ -784,16 +793,20 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         if (processedFiles.length === 0) continue;
 
         // 반폭 표지 확장 처리 (Canvas로 실제 이미지 생성)
-        const extendedFiles = await processHalfWidthCoversWithCanvas(processedFiles, defaultPageLayout);
+        const extendedFiles = await processHalfWidthCoversWithCanvas(processedFiles, defaultPageLayout!);
 
         const sortedFiles = sortPagesByPosition(extendedFiles);
         const firstFile = sortedFiles[0];
 
         const fileSpecWidth = firstFile.widthInch;
         const fileSpecHeight = firstFile.heightInch;
-        const { albumWidth, albumHeight } = calculateAlbumSize(fileSpecWidth, fileSpecHeight, defaultPageLayout);
+        const { albumWidth, albumHeight } = calculateAlbumSize(fileSpecWidth, fileSpecHeight, defaultPageLayout!);
         const albumRatio = calculateNormalizedRatio(albumWidth, albumHeight);
         const closestStandard = findClosestStandardSize(albumWidth, albumHeight);
+
+        // 페이지 수 계산 (파일수 + 편집스타일 + 제본방향 기반)
+        const fileCount = sortedFiles.length;
+        const pageCount = calculatePageCount(fileCount, defaultPageLayout!, defaultBindingDirection);
 
         const folder: UploadedFolder = {
           id: `folder-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -803,8 +816,9 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
           depth,
           files: sortedFiles,
           totalFileSize: processedFiles.reduce((sum, f) => sum + f.fileSize, 0),
-          pageCount: sortedFiles.length,
-          pageLayout: defaultPageLayout,
+          pageCount,
+          pageLayout: defaultPageLayout!,
+          bindingDirection: defaultBindingDirection,
           fileSpecWidth,
           fileSpecHeight,
           fileSpecLabel: getSpecLabel(fileSpecWidth, fileSpecHeight),
@@ -838,7 +852,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       setProcessingMessage('');
       e.target.value = '';
     },
-    [addFolder, extractFileMetadata, setUploading, setUploadProgress, defaultPageLayout, processHalfWidthCoversWithCanvas]
+    [addFolder, extractFileMetadata, setUploading, setUploadProgress, defaultPageLayout, defaultBindingDirection, processHalfWidthCoversWithCanvas]
   );
 
   const handleAddToCart = () => {

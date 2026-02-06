@@ -50,6 +50,8 @@ import { cn } from '@/lib/utils';
 import {
   type UploadedFolder,
   type FolderValidationStatus,
+  type PageLayoutType,
+  type BindingDirection,
   useMultiFolderUploadStore,
   STANDARD_SIZES,
   calculateUploadedFolderPrice,
@@ -174,8 +176,10 @@ export function FolderCard({ folder }: FolderCardProps) {
     addAdditionalOrder,
     removeAdditionalOrder,
     updateAdditionalOrderQuantity,
+    updateAdditionalOrderSpec,
     changeFolderSpec,
     setFolderPageLayout,
+    setFolderBindingDirection,
   } = useMultiFolderUploadStore();
 
   const config = STATUS_CONFIG[folder.validationStatus];
@@ -305,24 +309,94 @@ export function FolderCard({ folder }: FolderCardProps) {
             <span>{folder.fileSpecLabel}</span>
             <ArrowRight className="w-3 h-3 text-gray-400" />
             <span className="font-medium">앨범규격:</span>
-            <span className="text-blue-600 font-medium">{folder.albumLabel}</span>
-            <Badge variant="outline" className="text-[10px] px-1 py-0">
-              {folder.pageLayout === 'spread' ? (
-                <><BookOpen className="w-2.5 h-2.5 mr-0.5" />펼친면</>
-              ) : (
-                <><FileText className="w-2.5 h-2.5 mr-0.5" />낱장</>
-              )}
-            </Badge>
+            {folder.availableSizes.length > 1 ? (
+              <select
+                value={`${folder.albumWidth}x${folder.albumHeight}`}
+                onChange={(e) => {
+                  const [w, h] = e.target.value.split('x').map(Number);
+                  const selectedSize = folder.availableSizes.find(
+                    (s) => s.width === w && s.height === h
+                  );
+                  if (selectedSize) {
+                    changeFolderSpec(folder.id, selectedSize);
+                  }
+                }}
+                className="text-xs border rounded px-2 py-0.5 bg-white text-blue-600 font-medium"
+                aria-label="앨범규격 선택"
+              >
+                {folder.availableSizes.map((size) => (
+                  <option key={size.label} value={`${size.width}x${size.height}`}>
+                    {size.label}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="text-blue-600 font-medium">{folder.albumLabel}</span>
+            )}
+          </div>
+
+          {/* 편집스타일 & 제본방향 수정 */}
+          <div className="flex items-center gap-3 my-2">
+            {/* 편집스타일 */}
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-gray-500">편집:</span>
+              <div className="flex border rounded overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setFolderPageLayout(folder.id, 'single')}
+                  className={cn(
+                    'px-2 py-0.5 text-[10px] flex items-center gap-0.5 transition-colors',
+                    folder.pageLayout === 'single'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                  )}
+                >
+                  <FileText className="w-2.5 h-2.5" />낱장
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFolderPageLayout(folder.id, 'spread')}
+                  className={cn(
+                    'px-2 py-0.5 text-[10px] flex items-center gap-0.5 transition-colors',
+                    folder.pageLayout === 'spread'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                  )}
+                >
+                  <BookOpen className="w-2.5 h-2.5" />펼침면
+                </button>
+              </div>
+            </div>
+
+            {/* 제본방향 (펼침면일 때만) */}
+            {folder.pageLayout === 'spread' && (
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] text-gray-500">제본:</span>
+                <select
+                  value={folder.bindingDirection || 'LEFT_START_RIGHT_END'}
+                  onChange={(e) => setFolderBindingDirection(folder.id, e.target.value as BindingDirection)}
+                  className="text-[10px] border rounded px-1 py-0.5 bg-white"
+                  aria-label="제본방향 선택"
+                >
+                  <option value="LEFT_START_RIGHT_END">좌→우</option>
+                  <option value="LEFT_START_LEFT_END">좌→좌</option>
+                  <option value="RIGHT_START_LEFT_END">우→좌</option>
+                  <option value="RIGHT_START_RIGHT_END">우→우</option>
+                </select>
+              </div>
+            )}
           </div>
 
           {/* 상세 정보 행 */}
           <p className="text-xs text-gray-500">
-            {folder.dpi}dpi / {folder.pageCount}p{folder.hasCombinedCover && ` (첫막장분리+${folder.splitCoverResults.length * 2 - folder.splitCoverResults.length})`} / {folder.quantity}부 / {formatFileSize(folder.totalFileSize)}
+            {folder.dpi}dpi / 파일 {folder.files.length}장 → <span className="font-medium text-blue-600">{folder.pageCount}p</span>{folder.hasCombinedCover && ` (첫막장분리)`} / {folder.quantity}부 / {formatFileSize(folder.totalFileSize)}
           </p>
 
-          {/* 페이지 순서 미리보기 */}
+          {/* 페이지 순서 미리보기 (첫장/막장 강조) */}
           <div className="mt-2">
-            <p className="text-[10px] text-gray-400 mb-1">페이지 순서:</p>
+            <p className="text-[10px] text-gray-400 mb-1">
+              페이지 순서: <span className="text-blue-500">■ 첫장</span> / <span className="text-purple-500">■ 막장</span>
+            </p>
             {getPageOrderDisplay()}
           </div>
         </div>
@@ -633,14 +707,13 @@ export function FolderCard({ folder }: FolderCardProps) {
               size="sm"
               className="h-8 text-xs"
               onClick={() => {
-                const otherSize = folder.availableSizes.find(
-                  s => s.width !== folder.albumWidth || s.height !== folder.albumHeight
-                );
-                if (otherSize) {
-                  addAdditionalOrder(folder.id, otherSize);
-                }
+                // 현재 폴더와 같은 사이즈로 복제
+                addAdditionalOrder(folder.id, {
+                  width: folder.albumWidth,
+                  height: folder.albumHeight,
+                  label: folder.albumLabel,
+                });
               }}
-              disabled={folder.availableSizes.length <= 1}
             >
               <Plus className="h-3 w-3 mr-1" />
               추가 주문
@@ -650,11 +723,33 @@ export function FolderCard({ folder }: FolderCardProps) {
           {/* 추가 주문 목록 */}
           {folder.additionalOrders.length > 0 && (
             <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-              <p className="text-xs font-medium text-blue-700 mb-2">추가 주문</p>
+              <p className="text-xs font-medium text-blue-700 mb-2">추가 주문 (같은 파일, 다른 규격)</p>
               <div className="space-y-2">
                 {folder.additionalOrders.map((order) => (
                   <div key={order.id} className="flex items-center justify-between bg-white rounded px-2 py-1.5">
-                    <span className="text-sm">{order.albumLabel}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500">규격:</span>
+                      <select
+                        value={`${order.albumWidth}x${order.albumHeight}`}
+                        onChange={(e) => {
+                          const [w, h] = e.target.value.split('x').map(Number);
+                          const selectedSize = folder.availableSizes.find(
+                            (s) => s.width === w && s.height === h
+                          );
+                          if (selectedSize) {
+                            updateAdditionalOrderSpec(folder.id, order.id, selectedSize);
+                          }
+                        }}
+                        className="text-sm border rounded px-2 py-0.5 bg-white font-medium"
+                        aria-label="추가 주문 규격 선택"
+                      >
+                        {folder.availableSizes.map((size) => (
+                          <option key={size.label} value={`${size.width}x${size.height}`}>
+                            {size.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                     <div className="flex items-center gap-2">
                       <Select
                         value={order.quantity.toString()}
