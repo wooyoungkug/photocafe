@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCartStore } from '@/stores/cart-store';
 import { useAuthStore } from '@/stores/auth-store';
+import { LocaleSwitcher } from '@/components/locale-switcher';
+import { useLocale } from 'next-intl';
 
 export function ShopHeader() {
   const router = useRouter();
@@ -15,6 +17,7 @@ export function ShopHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { items } = useCartStore();
   const { user, isAuthenticated, logout } = useAuthStore();
+  const locale = useLocale();
 
   const cartItemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -35,6 +38,7 @@ export function ShopHeader() {
             <Link href="/notice" className="hover:text-gray-300">공지사항</Link>
             <Link href="/guide" className="hover:text-gray-300">이용안내</Link>
             <Link href="/support" className="hover:text-gray-300">고객센터</Link>
+            <LocaleSwitcher currentLocale={locale} />
           </div>
         </div>
       </div>

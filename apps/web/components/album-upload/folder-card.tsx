@@ -46,6 +46,7 @@ import {
   ChevronRight as ChevronRightIcon,
   Image as ImageIcon,
   Truck,
+  Clock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -119,6 +120,45 @@ const COVER_TYPE_BADGE: Record<string, { label: string; className: string }> = {
   INNER_PAGE: { label: '내지', className: 'bg-gray-200 text-gray-700' },
   COMBINED_COVER: { label: '첫막장', className: 'bg-pink-500 text-white' },
 };
+
+// 펼침면에서 각 파일의 좌/우 실제 페이지 번호 계산
+function getSpreadPageNumbers(
+  fileIndex: number,
+  totalFiles: number,
+  direction: BindingDirection | null
+): { left: number | null; right: number | null } {
+  const dir = direction || 'LEFT_START_RIGHT_END';
+
+  switch (dir) {
+    case 'LEFT_START_RIGHT_END':
+      // 좌시작→우끝: 모든 페이지 채워짐
+      return { left: fileIndex * 2 + 1, right: fileIndex * 2 + 2 };
+
+    case 'LEFT_START_LEFT_END':
+      // 좌시작→좌끝: 마지막 이미지 오른쪽이 빈페이지
+      if (fileIndex === totalFiles - 1) {
+        return { left: fileIndex * 2 + 1, right: null };
+      }
+      return { left: fileIndex * 2 + 1, right: fileIndex * 2 + 2 };
+
+    case 'RIGHT_START_LEFT_END':
+      // 우시작→좌끝: 첫 이미지 왼쪽 빈, 마지막 이미지 오른쪽 빈
+      if (fileIndex === 0) {
+        return { left: null, right: 1 };
+      }
+      if (fileIndex === totalFiles - 1 && totalFiles > 1) {
+        return { left: fileIndex * 2, right: null };
+      }
+      return { left: fileIndex * 2, right: fileIndex * 2 + 1 };
+
+    case 'RIGHT_START_RIGHT_END':
+      // 우시작→우끝: 첫 이미지 왼쪽이 빈페이지
+      if (fileIndex === 0) {
+        return { left: null, right: 1 };
+      }
+      return { left: fileIndex * 2, right: fileIndex * 2 + 1 };
+  }
+}
 
 export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: FolderCardProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -204,6 +244,10 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
     setIsDragging(false);
   };
 
+  // 드래그 앤 드롭 상태
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
+
   const {
     setFolderTitle,
     setFolderQuantity,
@@ -218,6 +262,7 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
     setFolderPageLayout,
     setFolderBindingDirection,
     setFolderShipping,
+    reorderFolderFiles,
   } = useMultiFolderUploadStore();
 
   const config = STATUS_CONFIG[folder.validationStatus];
@@ -332,8 +377,19 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
               </>
             )}
 
+            {/* 업로드 시각 */}
+            {folder.uploadedAt && (
+              <span className="ml-auto flex items-center gap-1 text-[10px] text-gray-400">
+                <Clock className="h-3 w-3" />
+                {new Date(folder.uploadedAt).toLocaleString('ko-KR', {
+                  month: '2-digit', day: '2-digit',
+                  hour: '2-digit', minute: '2-digit',
+                })}
+              </span>
+            )}
+
             {/* 상태 배지 */}
-            <Badge className={cn('ml-auto', actualStatus.badgeColor)}>
+            <Badge className={cn(folder.uploadedAt ? '' : 'ml-auto', actualStatus.badgeColor)}>
               {actualStatus.icon}
               <span className="ml-1">
                 {folder.isApproved && folder.validationStatus === 'RATIO_MATCH' ? '정상주문' : actualStatus.label}
@@ -580,10 +636,49 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
                 return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
               })();
               return (
-                <div key={file.id} className="flex flex-col">
+                <div
+                  key={file.id}
+                  className={cn(
+                    'flex flex-col transition-all',
+                    dragIndex === index && 'opacity-40 scale-95',
+                    dropIndex === index && dragIndex !== null && dragIndex !== index && 'ring-2 ring-blue-400 rounded-md'
+                  )}
+                  draggable
+                  onDragStart={(e) => {
+                    setDragIndex(index);
+                    e.dataTransfer.effectAllowed = 'move';
+                    // 드래그 이미지를 썸네일로 설정
+                    const target = e.currentTarget;
+                    if (target) {
+                      e.dataTransfer.setDragImage(target, target.offsetWidth / 2, 20);
+                    }
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    if (dragIndex !== null && dragIndex !== index) {
+                      setDropIndex(index);
+                    }
+                  }}
+                  onDragLeave={() => {
+                    setDropIndex(null);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (dragIndex !== null && dragIndex !== index) {
+                      reorderFolderFiles(folder.id, dragIndex, index);
+                    }
+                    setDragIndex(null);
+                    setDropIndex(null);
+                  }}
+                  onDragEnd={() => {
+                    setDragIndex(null);
+                    setDropIndex(null);
+                  }}
+                >
                   <div
                     className={cn(
-                      'relative rounded-t-md overflow-hidden border-2 cursor-pointer group',
+                      'relative rounded-t-md overflow-hidden border-2 cursor-grab group',
                       'hover:border-blue-400 hover:shadow-md transition-all',
                       file.status === 'RATIO_MISMATCH' ? 'border-red-500 border-[3px]' :
                       file.coverType === 'FRONT_COVER' ? 'border-blue-400' :
@@ -616,10 +711,30 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
                         <FileImage className="w-6 h-6 text-gray-400" />
                       </div>
                     )}
-                    {/* 페이지 번호 */}
-                    <div className="absolute top-1 left-1 bg-black/60 text-white text-[10px] px-1 rounded">
-                      {file.pageNumber}
-                    </div>
+                    {/* 페이지 번호 (펼침면: 좌/우 페이지 번호, 낱장: 단일 번호) */}
+                    {folder.pageLayout === 'spread' ? (() => {
+                      const pages = getSpreadPageNumbers(index, folder.files.length, folder.bindingDirection);
+                      return (
+                        <>
+                          <div className={cn(
+                            'absolute top-1 left-1 text-white text-[10px] px-1 rounded',
+                            pages.left !== null ? 'bg-black/60' : 'bg-yellow-500'
+                          )}>
+                            {pages.left !== null ? pages.left : '빈'}
+                          </div>
+                          <div className={cn(
+                            'absolute top-1 right-1 text-white text-[10px] px-1 rounded',
+                            pages.right !== null ? 'bg-black/60' : 'bg-yellow-500'
+                          )}>
+                            {pages.right !== null ? pages.right : '빈'}
+                          </div>
+                        </>
+                      );
+                    })() : (
+                      <div className="absolute top-1 left-1 bg-black/60 text-white text-[10px] px-1 rounded">
+                        {file.pageNumber}
+                      </div>
+                    )}
                     {/* 표지 타입 배지 */}
                     {file.coverType !== 'INNER_PAGE' && (
                       <div className={cn(
@@ -628,12 +743,6 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
                       )}>
                         {coverBadge.label}
                         {file.isSplit && <Scissors className="inline w-2 h-2 ml-0.5" />}
-                      </div>
-                    )}
-                    {/* 빈페이지 표시 */}
-                    {file.isBlankPage && (
-                      <div className="absolute top-1 right-1 bg-yellow-500 text-white text-[8px] px-1 py-0.5 rounded font-medium">
-                        빈페이지
                       </div>
                     )}
                     {/* 호버 시 확대 아이콘 */}

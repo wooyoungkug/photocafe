@@ -1,20 +1,19 @@
 import type { NextConfig } from "next";
 import { join } from "path";
+import createNextIntlPlugin from "next-intl/plugin";
+
+const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const nextConfig: NextConfig = {
   output: "standalone",
   reactStrictMode: true,
 
   // Performance optimizations
-  // `swcMinify` is no longer a valid top-level Next config key in newer Next versions
-  // (Next uses the SWC toolchain by default). Remove the option to avoid invalid-config warnings.
   compress: true, // Enable gzip compression
   poweredByHeader: false, // Remove X-Powered-By header
   generateEtags: true, // Generate ETags for better caching
 
   // When Next.js infers a workspace root (monorepo), it may warn about multiple lockfiles.
-  // Set `outputFileTracingRoot` to the repository root to silence the warning and ensure
-  // standalone output traces are resolved from the workspace root.
   outputFileTracingRoot: join(__dirname, "..", ".."),
 
   // Image optimization
@@ -39,10 +38,10 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/api/:path*",
-        destination: "http://localhost:3001/:path*",
+        destination: "http://localhost:3001/api/:path*",
       },
     ];
   },
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);

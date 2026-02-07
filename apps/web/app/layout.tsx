@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Noto_Sans_KR } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
 
 const inter = Inter({
   subsets: ["latin", "latin-ext"],
@@ -38,18 +40,26 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const locale = await getLocale();
+  const messages = await getMessages();
+
   return (
-    <html lang="ko" translate="no" className="notranslate" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
       </head>
-      <body className={`${inter.variable} ${notoSansKR.variable} font-sans`} suppressHydrationWarning>
-        <Providers>{children}</Providers>
+      <body
+        className={`${inter.variable} ${notoSansKR.variable} font-sans`}
+        suppressHydrationWarning
+      >
+        <NextIntlClientProvider messages={messages}>
+          <Providers>{children}</Providers>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

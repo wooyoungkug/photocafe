@@ -212,6 +212,9 @@ export interface UploadedFolder {
 
   // 배송 정보
   shippingInfo?: FolderShippingInfo;
+
+  // 업로드 시각
+  uploadedAt: number; // Date.now()
 }
 
 interface MultiFolderUploadState {
@@ -269,6 +272,9 @@ interface MultiFolderUploadState {
 
   // 설정
   setTargetSpec: (width: number, height: number) => void;
+
+  // 파일 순서 변경 (드래그 앤 드롭)
+  reorderFolderFiles: (folderId: string, fromIndex: number, toIndex: number) => void;
 
   // 배송 정보
   setFolderShipping: (folderId: string, shipping: FolderShippingInfo) => void;
@@ -584,9 +590,9 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
       return { added: false, reason: `"${folder.folderName}" 폴더의 모든 파일이 이미 업로드되어 있습니다.` };
     }
 
-    const validated = get().validateFolder(folder);
+    const validated = get().validateFolder({ ...folder, uploadedAt: Date.now() });
     set(state => ({
-      folders: [...state.folders, validated],
+      folders: [validated, ...state.folders],
     }));
 
     if (duplicateFiles.length > 0) {
@@ -949,6 +955,59 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
       isSelected: false,
       isApproved: validationStatus === 'EXACT_MATCH',
     };
+  },
+
+  // 파일 순서 변경 (드래그 앤 드롭)
+  reorderFolderFiles: (folderId: string, fromIndex: number, toIndex: number) => {
+    set(state => ({
+      folders: state.folders.map(f => {
+        if (f.id !== folderId) return f;
+        const files = [...f.files];
+        const [moved] = files.splice(fromIndex, 1);
+        files.splice(toIndex, 0, moved);
+
+        // 페이지 번호 및 순번 파일명 재할당
+        const totalCount = files.length;
+        const reindexed = files.map((file, idx) => ({
+          ...file,
+          pageNumber: idx + 1,
+          newFileName: generateSequentialFileName(idx, file.fileName, totalCount),
+        }));
+
+        // 빈페이지 위치 변경에 따라 제본방향 재계산
+        const firstPageBlank = reindexed[0]?.isBlankPage === true;
+        const lastPageBlank = reindexed[reindexed.length - 1]?.isBlankPage === true;
+        let bindingDirection = f.bindingDirection;
+        let autoBindingDetected = false;
+
+        if (firstPageBlank || lastPageBlank) {
+          // 빈페이지가 첫/끝에 있으면 자동감지
+          if (firstPageBlank && lastPageBlank) {
+            bindingDirection = 'RIGHT_START_LEFT_END';
+          } else if (firstPageBlank) {
+            bindingDirection = 'RIGHT_START_RIGHT_END';
+          } else {
+            bindingDirection = 'LEFT_START_LEFT_END';
+          }
+          autoBindingDetected = true;
+        } else {
+          // 빈페이지가 첫/끝에 없으면 기본 좌시작→우끝
+          bindingDirection = 'LEFT_START_RIGHT_END';
+        }
+
+        const pageCount = calculatePageCount(reindexed.length, f.pageLayout, bindingDirection);
+
+        return {
+          ...f,
+          files: reindexed,
+          firstPageBlank,
+          lastPageBlank,
+          autoBindingDetected,
+          bindingDirection,
+          pageCount,
+        };
+      }),
+    }));
   },
 
   // 배송 정보

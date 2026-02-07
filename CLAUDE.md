@@ -82,3 +82,17 @@ npx prisma db push --force-reset && npm run db:seed
 
 - 백엔드: `/volume1/docker/printing114/`
 - 프론트엔드: `/volume1/docker/printing114-web/apps/web/`
+
+## 개발 요구사항
+
+### 다국어 (i18n)
+- **라이브러리**: next-intl
+- **지원 언어**: ko(기본), en, ja, zh
+- **자동감지**: Accept-Language 헤더 기반 국가별 자동인식, 현지 언어로 표시
+- **라우팅**: `app/[locale]/` 기반 locale 프리픽스 라우팅
+- **번역 파일**: `apps/web/messages/{locale}.json`
+
+### 크로스플랫폼
+- PC(Windows), macOS, Android에서 접속·운영·업로드 가능
+- 모바일(Android): webkitdirectory 미지원 → 다중파일 선택 모드 제공
+- 데스크톱: 기존 폴더 업로드 유지

@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import {
   Folder,
@@ -159,6 +160,16 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
   const [processingMessage, setProcessingMessage] = useState('');
   const [showBatchShipping, setShowBatchShipping] = useState(false);
   const [batchShippingInfo, setBatchShippingInfo] = useState<FolderShippingInfo | null>(null);
+
+  // 모바일 감지 (Android/iOS에서 webkitdirectory 미지원)
+  const [isMobile, setIsMobile] = useState(false);
+  const [showMobileFolderNameDialog, setShowMobileFolderNameDialog] = useState(false);
+  const [mobileFolderName, setMobileFolderName] = useState('');
+  const [pendingMobileFiles, setPendingMobileFiles] = useState<File[]>([]);
+
+  useEffect(() => {
+    setIsMobile(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+  }, []);
 
   // 빈페이지 감지 (먹색/백색 판별)
   // region: 'full'=전체, 'left'=왼쪽반, 'right'=오른쪽반
@@ -923,6 +934,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         firstPageBlank,
         lastPageBlank,
         autoBindingDetected,
+        uploadedAt: Date.now(),
       };
 
       return folder;
@@ -1096,10 +1108,15 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         let effectiveBindingDirection: BindingDirection = bindingDirection ?? 'LEFT_START_RIGHT_END';
 
         if (sortedFiles.length > 0) {
+          // 펼침면: 첫장은 왼쪽반만, 막장은 오른쪽반만 검사
+          // 낱장: 전체 이미지 검사
+          const firstRegion = pageLayout === 'spread' ? 'left' as const : 'full' as const;
+          const lastRegion = pageLayout === 'spread' ? 'right' as const : 'full' as const;
+
           const firstFileForBlank = sortedFiles[0];
           const firstSource = firstFileForBlank.file || firstFileForBlank.canvasDataUrl;
           if (firstSource) {
-            firstPageBlank = await detectBlankPage(firstSource);
+            firstPageBlank = await detectBlankPage(firstSource, firstRegion);
             if (firstPageBlank) {
               sortedFiles[0] = { ...sortedFiles[0], isBlankPage: true };
             }
@@ -1109,7 +1126,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
             const lastFile = sortedFiles[sortedFiles.length - 1];
             const lastSource = lastFile.file || lastFile.canvasDataUrl;
             if (lastSource) {
-              lastPageBlank = await detectBlankPage(lastSource);
+              lastPageBlank = await detectBlankPage(lastSource, lastRegion);
               if (lastPageBlank) {
                 sortedFiles[sortedFiles.length - 1] = { ...sortedFiles[sortedFiles.length - 1], isBlankPage: true };
               }
@@ -1179,6 +1196,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
           firstPageBlank,
           lastPageBlank,
           autoBindingDetected,
+          uploadedAt: Date.now(),
         };
 
         const result = addFolder(folder);
@@ -1200,6 +1218,197 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       setUploading(false);
       setProcessingMessage('');
       e.target.value = '';
+    },
+    [addFolder, extractFileMetadata, setUploading, setUploadProgress, defaultPageLayout, defaultBindingDirection, processHalfWidthCoversWithCanvas, indigoSpecs, probeFileDimensions, detectBlankPage, autoDetectBindingDirection]
+  );
+
+  // 모바일 파일 선택 핸들러 (webkitdirectory 없이 다중 파일 선택)
+  const handleMobileFileSelect = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (!files || files.length === 0) return;
+
+      const imageFiles = Array.from(files).filter(file => {
+        const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+        return ACCEPTED_EXTENSIONS.includes(ext);
+      });
+
+      if (imageFiles.length === 0) {
+        toast({ title: '이미지 파일이 없습니다', description: 'JPG, PNG, TIFF 파일을 선택해주세요.', variant: 'destructive' });
+        return;
+      }
+
+      // 파일을 임시 저장하고 폴더명 입력 다이얼로그 표시
+      setPendingMobileFiles(imageFiles);
+      const now = new Date();
+      setMobileFolderName(`업로드_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`);
+      setShowMobileFolderNameDialog(true);
+      e.target.value = '';
+    },
+    []
+  );
+
+  // 모바일 파일 처리 (폴더명 확정 후 실행)
+  const processMobileFiles = useCallback(
+    async (files: File[], folderName: string) => {
+      setUploading(true);
+      setUploadProgress(0);
+      setShowMobileFolderNameDialog(false);
+
+      const folderPath = folderName;
+      files.sort((a, b) => a.name.localeCompare(b.name, 'ko', { numeric: true }));
+
+      // 편집스타일 자동감지
+      let pageLayout: PageLayoutType;
+      let isAutoDetected = false;
+      if (defaultPageLayout !== null) {
+        pageLayout = defaultPageLayout;
+      } else {
+        const dims = await probeFileDimensions(files);
+        if (dims && indigoSpecs.length > 0) {
+          pageLayout = autoDetectPageLayout(dims.widthInch, dims.heightInch, indigoSpecs);
+        } else {
+          pageLayout = 'spread';
+        }
+        isAutoDetected = true;
+      }
+      const bindingDirection = defaultBindingDirection;
+
+      setProcessingMessage(`"${folderName}" 처리 중...`);
+
+      const processedFiles: UploadedFile[] = [];
+      const splitCoverResults: SplitCoverResult[] = [];
+
+      for (let j = 0; j < files.length; j++) {
+        const file = files[j];
+        const result = await extractFileMetadata(file, j + 1, folderPath, pageLayout);
+
+        if ('split' in result && result.split) {
+          processedFiles.push(result.frontCover);
+          processedFiles.push(result.backCover);
+          splitCoverResults.push({
+            originalFileName: file.name,
+            frontCover: result.frontCover,
+            backCover: result.backCover,
+          });
+        } else if (!('split' in result)) {
+          processedFiles.push(result);
+        }
+
+        setUploadProgress(Math.round(((j + 1) / files.length) * 100));
+      }
+
+      if (processedFiles.length === 0) {
+        setUploading(false);
+        setProcessingMessage('');
+        return;
+      }
+
+      const extendedFiles = await processHalfWidthCoversWithCanvas(processedFiles, pageLayout);
+      const sortedFiles = sortPagesByPosition(extendedFiles);
+
+      // 빈페이지 자동감지
+      setProcessingMessage(`"${folderName}" 빈페이지 감지 중...`);
+      let firstPageBlank = false;
+      let lastPageBlank = false;
+      let autoBindingDetected = false;
+      let effectiveBindingDirection: BindingDirection = bindingDirection ?? 'LEFT_START_RIGHT_END';
+
+      if (sortedFiles.length > 0) {
+        const firstRegion = pageLayout === 'spread' ? 'left' as const : 'full' as const;
+        const lastRegion = pageLayout === 'spread' ? 'right' as const : 'full' as const;
+
+        const firstFileForBlank = sortedFiles[0];
+        const firstSource = firstFileForBlank.file || firstFileForBlank.canvasDataUrl;
+        if (firstSource) {
+          firstPageBlank = await detectBlankPage(firstSource, firstRegion);
+          if (firstPageBlank) {
+            sortedFiles[0] = { ...sortedFiles[0], isBlankPage: true };
+          }
+        }
+
+        if (sortedFiles.length > 1) {
+          const lastFile = sortedFiles[sortedFiles.length - 1];
+          const lastSource = lastFile.file || lastFile.canvasDataUrl;
+          if (lastSource) {
+            lastPageBlank = await detectBlankPage(lastSource, lastRegion);
+            if (lastPageBlank) {
+              sortedFiles[sortedFiles.length - 1] = { ...sortedFiles[sortedFiles.length - 1], isBlankPage: true };
+            }
+          }
+        }
+
+        if ((firstPageBlank || lastPageBlank) && bindingDirection === null) {
+          effectiveBindingDirection = autoDetectBindingDirection(firstPageBlank, lastPageBlank);
+          autoBindingDetected = true;
+        }
+      }
+
+      const firstFile = sortedFiles[0];
+      const fileSpecWidth = firstFile.widthInch;
+      const fileSpecHeight = firstFile.heightInch;
+      const { albumWidth: rawAlbumWidth, albumHeight: rawAlbumHeight } = calculateAlbumSize(fileSpecWidth, fileSpecHeight, pageLayout);
+      const closestStandard = findClosestStandardSize(indigoSpecs, rawAlbumWidth, rawAlbumHeight);
+
+      const albumWidth = closestStandard && Math.abs(rawAlbumWidth - closestStandard.width) < 0.5 && Math.abs(rawAlbumHeight - closestStandard.height) < 0.5
+        ? closestStandard.width : rawAlbumWidth;
+      const albumHeight = closestStandard && Math.abs(rawAlbumWidth - closestStandard.width) < 0.5 && Math.abs(rawAlbumHeight - closestStandard.height) < 0.5
+        ? closestStandard.height : rawAlbumHeight;
+      const albumRatio = calculateNormalizedRatio(albumWidth, albumHeight);
+
+      const fileCount = sortedFiles.length;
+      const pageCount = calculatePageCount(fileCount, pageLayout, effectiveBindingDirection);
+
+      const folder: UploadedFolder = {
+        id: `folder-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        folderName,
+        orderTitle: folderPath,
+        folderPath,
+        depth: 0,
+        files: sortedFiles,
+        totalFileSize: processedFiles.reduce((sum, f) => sum + f.fileSize, 0),
+        pageCount,
+        pageLayout,
+        bindingDirection: effectiveBindingDirection,
+        fileSpecWidth,
+        fileSpecHeight,
+        fileSpecLabel: `${fileSpecWidth}×${fileSpecHeight}인치`,
+        albumWidth,
+        albumHeight,
+        albumRatio,
+        albumLabel: closestStandard ? closestStandard.label : `${albumWidth}×${albumHeight}인치`,
+        dpi: firstFile.dpi,
+        specWidth: closestStandard?.width ?? albumWidth,
+        specHeight: closestStandard?.height ?? albumHeight,
+        specRatio: closestStandard ? calculateNormalizedRatio(closestStandard.width, closestStandard.height) : albumRatio,
+        specLabel: closestStandard?.label ?? `${albumWidth}×${albumHeight}인치`,
+        validationStatus: 'PENDING',
+        isApproved: false,
+        isSelected: false,
+        exactMatchCount: 0,
+        ratioMatchCount: 0,
+        ratioMismatchCount: 0,
+        mismatchFiles: [],
+        splitCoverResults,
+        hasCombinedCover: splitCoverResults.length > 0,
+        quantity: 1,
+        availableSizes: [],
+        additionalOrders: [],
+        isAutoDetected,
+        firstPageBlank,
+        lastPageBlank,
+        autoBindingDetected,
+        uploadedAt: Date.now(),
+      };
+
+      const result = addFolder(folder);
+      if (!result.added) {
+        toast({ title: '중복 폴더', description: result.reason || `"${folder.folderName}" 중복`, variant: 'destructive' });
+      }
+
+      setUploading(false);
+      setProcessingMessage('');
+      setPendingMobileFiles([]);
     },
     [addFolder, extractFileMetadata, setUploading, setUploadProgress, defaultPageLayout, defaultBindingDirection, processHalfWidthCoversWithCanvas, indigoSpecs, probeFileDimensions, detectBlankPage, autoDetectBindingDirection]
   );
@@ -1355,6 +1564,38 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         </span>
       </div>
 
+      {/* 모바일 폴더명 입력 다이얼로그 */}
+      {showMobileFolderNameDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowMobileFolderNameDialog(false)}>
+          <div className="bg-white rounded-lg p-6 mx-4 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-2">폴더명 입력</h3>
+            <p className="text-sm text-gray-500 mb-4">선택한 {pendingMobileFiles.length}개 파일의 폴더명을 입력하세요.</p>
+            <Input
+              value={mobileFolderName}
+              onChange={(e) => setMobileFolderName(e.target.value)}
+              placeholder="폴더명"
+              className="mb-4"
+              autoFocus
+            />
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => {
+                setShowMobileFolderNameDialog(false);
+                setPendingMobileFiles([]);
+              }}>
+                취소
+              </Button>
+              <Button onClick={() => {
+                if (mobileFolderName.trim()) {
+                  processMobileFiles(pendingMobileFiles, mobileFolderName.trim());
+                }
+              }}>
+                확인
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 업로드 영역 */}
       <div
         className={cn(
@@ -1363,15 +1604,11 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
             ? 'border-blue-500 bg-blue-50'
             : 'border-gray-300 hover:border-gray-400'
         )}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setIsDragging(true);
-        }}
-        onDragLeave={(e) => {
-          e.preventDefault();
-          setIsDragging(false);
-        }}
-        onDrop={handleDrop}
+        {...(!isMobile ? {
+          onDragOver: (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); },
+          onDragLeave: (e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); },
+          onDrop: handleDrop,
+        } : {})}
       >
         {isUploading ? (
           <div className="flex flex-col items-center gap-3">
@@ -1380,7 +1617,36 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
             <Progress value={uploadProgress} className="w-48 h-2" />
             <span className="text-xs text-gray-500">{uploadProgress}%</span>
           </div>
+        ) : isMobile ? (
+          /* 모바일: 다중 파일 선택 (webkitdirectory 미지원) */
+          <>
+            <div className="flex justify-center gap-4 mb-3">
+              <FileImage className="w-12 h-12 text-gray-400" />
+            </div>
+            <p className="text-gray-600 mb-3">
+              이미지 파일을 선택해주세요
+            </p>
+            <label className="inline-block">
+              <input
+                type="file"
+                multiple
+                accept="image/jpeg,image/png,image/tiff"
+                onChange={handleMobileFileSelect}
+                className="sr-only"
+              />
+              <Button variant="outline" asChild>
+                <span>
+                  <Upload className="w-4 h-4 mr-2" />
+                  파일 선택
+                </span>
+              </Button>
+            </label>
+            <p className="text-xs text-gray-400 mt-3">
+              JPG, PNG, TIFF 지원 | 첫장/막장 자동 감지 | 편집스타일 자동감지
+            </p>
+          </>
         ) : (
+          /* 데스크톱: 폴더 드래그 & 드롭 + 폴더 선택 */
           <>
             <div className="flex justify-center gap-4 mb-3">
               <Folder className="w-12 h-12 text-gray-400" />
