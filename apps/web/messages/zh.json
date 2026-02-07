@@ -347,8 +347,6 @@
     "confirmAndApprove": "确认并批准",
     "copiesLabel": "份数：",
     "zoomOriginal": "原始",
-    "zoom150": "150%",
-    "zoom200": "200%",
     "shippingNotSet": "未设置配送信息",
     "unitPriceInfo": "(单价 {price}韩元 × {qty}份)",
     "vatIncluded": "含VAT",

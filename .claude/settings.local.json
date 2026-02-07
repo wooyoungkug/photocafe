@@ -255,7 +255,8 @@
       "Bash(do echo -n \"$f: \")",
       "Bash(done)",
       "Bash(cmd /c \"taskkill /PID 25868 /F & taskkill /PID 32196 /F\")",
-      "Bash(for f in c:/dev/printing114/apps/web/messages/*.json)"
+      "Bash(for f in c:/dev/printing114/apps/web/messages/*.json)",
+      "Bash(grep:*)"
     ]
   }
 }

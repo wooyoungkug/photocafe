@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -159,11 +159,10 @@ function getSpreadPageNumbers(
         return { left: null, right: 1 };
       }
       return { left: fileIndex * 2, right: fileIndex * 2 + 1 };
-      return { left: fileIndex * 2, right: fileIndex * 2 + 1 };
   }
 }
 
-const ZOOM_SCALES = [1, 1.5, 2, 3];
+const ZOOM_SCALES = [1, 2, 3, 4];
 
 export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: FolderCardProps) {
   const t = useTranslations('folder');
@@ -195,7 +194,8 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 }); // 드래그 시작 시 화면 좌표 (Threshold 체크용)
-  const [hasDragged, setHasDragged] = useState(false); // 드래그 여부 체크용
+  const hasDraggedRef = useRef(false); // 드래그 여부 체크용 (ref로 관리하여 React 배칭 이슈 방지)
+  const [focusPoint, setFocusPoint] = useState({ x: 0.5, y: 0.5 }); // 이미지 내 포커스 좌표 (0~1)
   const isZoomed = zoomLevel > 0;
   const [fullSizeUrls, setFullSizeUrls] = useState<Map<string, string>>(new Map());
   const imageRef = useRef<HTMLImageElement>(null);
@@ -217,6 +217,7 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
   const resetZoom = () => {
     setZoomLevel(0);
     setZoomPos({ x: 0, y: 0 });
+    setFocusPoint({ x: 0.5, y: 0.5 });
   };
 
   // 풀사이즈 URL을 가져오거나 생성
@@ -263,7 +264,7 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
     if (isZoomed) {
       e.preventDefault();
       setIsDragging(true);
-      setHasDragged(false);
+      hasDraggedRef.current = false;
       setDragStart({ x: e.clientX - zoomPos.x, y: e.clientY - zoomPos.y });
       setDragStartPos({ x: e.clientX, y: e.clientY });
     }
@@ -275,7 +276,7 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
     // 드래그 거리 체크 (5px 이상 움직여야 드래그로 인정)
     const distance = Math.hypot(e.clientX - dragStartPos.x, e.clientY - dragStartPos.y);
     if (distance > 5) {
-      setHasDragged(true);
+      hasDraggedRef.current = true;
     }
 
     setZoomPos({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
@@ -285,11 +286,10 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
     setIsDragging(false);
   };
 
-  // 커서 중심 줌 기능
+  // 커서 중심 줌 기능 (focusPoint + zoomLevel만 설정, 실제 위치는 useLayoutEffect에서 계산)
   const handleZoom = (clientX: number, clientY: number, direction: 'in' | 'out') => {
     if (!imageRef.current) return;
 
-    const currentScale = ZOOM_SCALES[zoomLevel];
     let newLevel = zoomLevel + (direction === 'in' ? 1 : -1);
 
     // 범위 체크
@@ -298,58 +298,69 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
 
     if (newLevel === zoomLevel) return;
 
-    const newScale = ZOOM_SCALES[newLevel];
-
     if (newLevel === 0) {
       setZoomLevel(0);
       setZoomPos({ x: 0, y: 0 });
+      setFocusPoint({ x: 0.5, y: 0.5 });
       return;
     }
 
     const rect = imageRef.current.getBoundingClientRect();
 
-    // 이미지 내 클릭 위치 (현재 스케일 기준)
-    // zoomPos는 transform translate 값이므로, 실제 이미지의 좌상단은 rect.left가 아니라 calculations 필요
-    // 하지만 getBoundingClientRect()는 transform이 적용된 최종 위치를 반환함.
-
     // 클릭 위치의 이미지 내 상대 좌표 (0~1) 계산
-    const offsetX = clientX - rect.left;
-    const offsetY = clientY - rect.top;
+    const percentX = (clientX - rect.left) / rect.width;
+    const percentY = (clientY - rect.top) / rect.height;
 
-    const percentX = offsetX / rect.width;
-    const percentY = offsetY / rect.height;
-
-    // 줌 레벨 변경
+    // focusPoint + zoomLevel 설정 → useLayoutEffect가 zoomPos 계산
+    setFocusPoint({ x: percentX, y: percentY });
     setZoomLevel(newLevel);
+  };
 
-    // CSS에서 width를 부모 컨테이너의 %로 설정하므로, 
-    // 정확한 이동 좌표 계산을 위해 부모 컨테이너 너비 기준으로 새 크기를 계산해야 함
-    // (Level 0일 때 rect.width가 컨테이너보다 작을 수 있음)
+  // 줌 버튼 클릭 핸들러 (focusPoint + zoomLevel만 설정, 실제 위치는 useLayoutEffect에서 계산)
+  const handleZoomButtonClick = (level: number) => {
+    if (level === 0) {
+      setZoomLevel(0);
+      setZoomPos({ x: 0, y: 0 });
+      setFocusPoint({ x: 0.5, y: 0.5 });
+      return;
+    }
+
+    // 이미 줌 상태: 현재 뷰포트 중심을 focusPoint로 역산
+    if (zoomLevel > 0 && imageRef.current) {
+      const container = imageRef.current.parentElement;
+      const containerWidth = container?.clientWidth || 0;
+      const ratio = imageRef.current.naturalWidth / imageRef.current.naturalHeight;
+      const curWidth = containerWidth * ZOOM_SCALES[zoomLevel];
+      const curHeight = curWidth / ratio;
+      setFocusPoint({
+        x: 0.5 - zoomPos.x / curWidth,
+        y: 0.5 - zoomPos.y / curHeight,
+      });
+    }
+    // else: 원본에서 줌 → 기존 focusPoint 사용 (기본값 0.5, 0.5)
+
+    setZoomLevel(level);
+  };
+
+  // 다이얼로그 리사이즈 후 실제 컨테이너 크기 기반으로 zoomPos 계산
+  useLayoutEffect(() => {
+    if (zoomLevel === 0 || !imageRef.current) return;
+
     const container = imageRef.current.parentElement;
-    const containerWidth = container ? container.clientWidth : rect.width;
+    if (!container) return;
 
-    const newWidth = containerWidth * newScale;
-    const ratio = rect.width / rect.height;
-    const newHeight = newWidth / ratio;
+    const containerWidth = container.clientWidth;
+    const ratio = imageRef.current.naturalWidth / imageRef.current.naturalHeight;
+    if (!ratio || !containerWidth) return;
 
-    // 이전 translate (zoomPos)
-    // 목표: 클릭한 지점(percent)이 화면상 동일 위치(clientX, clientY)에 오도록 translate 조정
-    // Flex 중앙 정렬이므로 (percent - 0.5) * Diff 만큼 이동해야 함.
-
-    // 클릭한 지점(percent)을 화면 중앙으로 이동
-    const centerX = newWidth * (percentX - 0.5);
-    const centerY = newHeight * (percentY - 0.5);
-
-    // transform translate는 (0,0)이 이미지 중앙인 상태에서 이동량
-    // 따라서 -centerX, -centerY로 설정하면 해당 지점이 중앙에 옴
-    // (예: percentX=0.5 -> centerX=0 -> translate(0,0))
-    // (예: percentX=1.0 -> centerX=width/2 -> translate(-width/2, 0) -> 우측 끝이 중앙에 옴)
+    const curWidth = containerWidth * ZOOM_SCALES[zoomLevel];
+    const curHeight = curWidth / ratio;
 
     setZoomPos({
-      x: -centerX,
-      y: -centerY
+      x: -(curWidth * (focusPoint.x - 0.5)),
+      y: -(curHeight * (focusPoint.y - 0.5)),
     });
-  };
+  }, [zoomLevel, focusPoint.x, focusPoint.y]);
 
   // 드래그 앤 드롭 상태
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -942,21 +953,37 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
             </div>
 
             {/* 추가 주문 버튼 */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 text-xs"
-              onClick={() => {
-                addAdditionalOrder(folder.id, {
-                  width: folder.albumWidth,
-                  height: folder.albumHeight,
-                  label: folder.albumLabel,
-                });
-              }}
-            >
-              <Plus className="h-3 w-3 mr-1" />
-              {t('additionalOrder')}
-            </Button>
+            {(() => {
+              // 메인 주문 규격 + 이미 추가된 규격 제외
+              const usedKeys = new Set([
+                `${folder.albumWidth}x${folder.albumHeight}`,
+                ...folder.additionalOrders.map(o => `${o.albumWidth}x${o.albumHeight}`),
+              ]);
+              const remainingSizes = folder.availableSizes.filter(
+                s => !usedKeys.has(`${s.width}x${s.height}`)
+              );
+              const nextSize = remainingSizes[0];
+              return (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs"
+                  disabled={!nextSize}
+                  onClick={() => {
+                    if (nextSize) {
+                      addAdditionalOrder(folder.id, {
+                        width: nextSize.width,
+                        height: nextSize.height,
+                        label: nextSize.label,
+                      });
+                    }
+                  }}
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  {t('additionalOrder')}
+                </Button>
+              );
+            })()}
           </div>
 
           {/* 추가 주문 목록 */}
@@ -966,6 +993,16 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
               <div className="space-y-2">
                 {folder.additionalOrders.map((order) => {
                   const orderPrice = calculateAdditionalOrderPrice(order, folder);
+                  // 메인 규격 + 다른 추가주문 규격 제외 (자기 자신은 포함)
+                  const usedByOthers = new Set([
+                    `${folder.albumWidth}x${folder.albumHeight}`,
+                    ...folder.additionalOrders
+                      .filter(o => o.id !== order.id)
+                      .map(o => `${o.albumWidth}x${o.albumHeight}`),
+                  ]);
+                  const selectableSizes = folder.availableSizes.filter(
+                    s => !usedByOthers.has(`${s.width}x${s.height}`)
+                  );
                   return (
                     <div key={order.id} className="bg-white rounded border border-blue-100 px-3 py-2">
                       {/* 폴더명 + 가격 */}
@@ -1015,7 +1052,7 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
                             className="text-xs border rounded px-2 py-0.5 bg-white font-medium"
                             aria-label={t('additionalOrderSpec')}
                           >
-                            {folder.availableSizes.map((size) => (
+                            {selectableSizes.map((size) => (
                               <option key={size.label} value={`${size.width}x${size.height}`}>
                                 {size.label}
                               </option>
@@ -1059,29 +1096,27 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
       )}
 
       {/* 배송 정보 섹션 */}
-      {companyInfo && clientInfo && pricingMap && (
-        <Collapsible open={isShippingOpen} onOpenChange={setIsShippingOpen}>
-          <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 border-t bg-gray-50/50 hover:bg-gray-100/50 transition-colors">
-            <div className="flex items-center gap-2 text-sm">
-              <Truck className="h-3.5 w-3.5 text-gray-500" />
-              <span className="font-medium">{t('shippingInfo')}</span>
-              <span className="text-xs text-gray-500">
-                {getShippingSummary(folder.shippingInfo)}
-              </span>
-            </div>
-            {isShippingOpen ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
-          </CollapsibleTrigger>
-          <CollapsibleContent className="px-3 py-3 border-t">
-            <FolderShippingSection
-              shippingInfo={folder.shippingInfo}
-              companyInfo={companyInfo}
-              clientInfo={clientInfo}
-              pricingMap={pricingMap}
-              onChange={(shipping) => setFolderShipping(folder.id, shipping)}
-            />
-          </CollapsibleContent>
-        </Collapsible>
-      )}
+      <Collapsible open={isShippingOpen} onOpenChange={setIsShippingOpen}>
+        <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 border-t bg-gray-50/50 hover:bg-gray-100/50 transition-colors">
+          <div className="flex items-center gap-2 text-sm">
+            <Truck className="h-3.5 w-3.5 text-gray-500" />
+            <span className="font-medium">{t('shippingInfo')}</span>
+            <span className="text-xs text-gray-500">
+              {getShippingSummary(folder.shippingInfo)}
+            </span>
+          </div>
+          {isShippingOpen ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
+        </CollapsibleTrigger>
+        <CollapsibleContent className="px-3 py-3 border-t">
+          <FolderShippingSection
+            shippingInfo={folder.shippingInfo}
+            companyInfo={companyInfo ?? null}
+            clientInfo={clientInfo ?? null}
+            pricingMap={pricingMap ?? {}}
+            onChange={(shipping) => setFolderShipping(folder.id, shipping)}
+          />
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* 이미지 미리보기 모달 */}
       <Dialog open={!!previewImage} onOpenChange={(open) => { if (!open) { setPreviewImage(null); resetZoom(); } }}>
@@ -1108,13 +1143,13 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
                   <div className="ml-auto flex gap-1">
                     {[
                       { level: 0, label: t('zoomOriginal') },
-                      { level: 1, label: t('zoom150') },
-                      { level: 2, label: t('zoom200') },
-                      { level: 3, label: t('zoom300') },
+                      { level: 1, label: '200%' },
+                      { level: 2, label: '300%' },
+                      { level: 3, label: '400%' },
                     ].map(({ level, label }) => (
                       <button
                         key={level}
-                        onClick={() => { setZoomLevel(level); if (level === 0) setZoomPos({ x: 0, y: 0 }); }}
+                        onClick={() => handleZoomButtonClick(level)}
                         className={cn(
                           'px-2 py-0.5 rounded text-[10px] font-medium transition-colors',
                           zoomLevel === level ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
@@ -1170,7 +1205,7 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
                   transition: 'all 0.6s ease-out'
                 }}
                 onClick={(e) => {
-                  if (hasDragged) return; // 드래그였다면 클릭 무시
+                  if (hasDraggedRef.current) return; // 드래그였다면 클릭 무시
                   handleZoom(e.clientX, e.clientY, 'in');
                 }}
                 onContextMenu={(e) => {

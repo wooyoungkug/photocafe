@@ -347,8 +347,6 @@
     "confirmAndApprove": "확인 및 승인",
     "copiesLabel": "부수:",
     "zoomOriginal": "원본",
-    "zoom150": "150%",
-    "zoom200": "200%",
     "shippingNotSet": "배송정보 미설정",
     "unitPriceInfo": "(단가 {price}원 × {qty}부)",
     "vatIncluded": "VAT 포함",

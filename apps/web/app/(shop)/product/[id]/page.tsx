@@ -701,12 +701,6 @@ export default function ProductPage() {
                 <span className="text-sm text-gray-500">{product.productCode}</span>
               </div>
               <h1 className="text-2xl md:text-3xl font-bold mb-2">{product.productName}</h1>
-              {product.description && (
-                <div
-                  className="text-gray-600 prose prose-sm max-w-none"
-                  dangerouslySetInnerHTML={{ __html: product.description }}
-                />
-              )}
             </div>
 
             {/* Price - 화보 상품은 데이터 업로드 후 폴더별로 계산하므로 숨김 */}

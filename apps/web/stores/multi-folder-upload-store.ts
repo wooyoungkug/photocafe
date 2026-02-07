@@ -4,6 +4,31 @@ import { calculateNormalizedRatio, type SizeMatchStatus } from '@/lib/album-util
 // 비율 허용 오차
 const RATIO_TOLERANCE = 0.01;
 
+// 같은 비율로 취급하는 규격 쌍 정의 (비즈니스 규칙)
+// 수학적 비율이 약간 다르더라도 인쇄 비즈니스에서 같은 비율로 취급하는 규격들
+// [가로1, 세로1, 가로2, 세로2]
+const RATIO_EQUIVALENCES: Array<[number, number, number, number]> = [
+  [11, 15, 8, 11],       // 11x15 ↔ 8x11 (1.3636 ↔ 1.375)
+  [14, 11, 11, 8.6],     // 14x11 ↔ 11x8.6 (1.2727 ↔ 1.2791)
+];
+
+// 두 비율이 같은 비율로 취급되는지 확인 (기본 tolerance + 등가 그룹)
+function isRatioEquivalent(ratio1: number, ratio2: number): boolean {
+  if (Math.abs(ratio1 - ratio2) < RATIO_TOLERANCE) return true;
+
+  for (const [w1, h1, w2, h2] of RATIO_EQUIVALENCES) {
+    const r1 = calculateNormalizedRatio(w1, h1);
+    const r2 = calculateNormalizedRatio(w2, h2);
+    // ratio1과 ratio2가 같은 등가 그룹에 속하는지 확인
+    if ((Math.abs(ratio1 - r1) < RATIO_TOLERANCE || Math.abs(ratio1 - r2) < RATIO_TOLERANCE) &&
+        (Math.abs(ratio2 - r1) < RATIO_TOLERANCE || Math.abs(ratio2 - r2) < RATIO_TOLERANCE)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 // 표준 규격 타입 (DB 인디고 규격에서 변환)
 export interface StandardSize {
   width: number;
@@ -425,22 +450,22 @@ function checkRatioMatch(
     return 'EXACT';
   }
 
-  // 비율 일치 (허용 오차 내)
-  if (Math.abs(targetRatio - fileRatio) < RATIO_TOLERANCE) {
+  // 비율 일치 (허용 오차 내 + 등가 그룹)
+  if (isRatioEquivalent(targetRatio, fileRatio)) {
     return 'RATIO_MATCH';
   }
 
   return 'RATIO_MISMATCH';
 }
 
-// 같은 비율의 앨범규격 찾기 (방향도 일치해야 함)
+// 같은 비율의 앨범규격 찾기 (방향도 일치해야 함, 면적 크기순 정렬)
 function findAvailableSizes(sizes: StandardSize[], ratio: number, isLandscape: boolean) {
   return sizes.filter(size => {
     const sizeRatio = calculateNormalizedRatio(size.width, size.height);
     const sizeIsLandscape = size.width >= size.height; // 가로형 여부
-    // 비율이 일치하고, 방향도 일치해야 함
-    return Math.abs(sizeRatio - ratio) < RATIO_TOLERANCE && sizeIsLandscape === isLandscape;
-  });
+    // 비율이 일치하고(등가 그룹 포함), 방향도 일치해야 함
+    return isRatioEquivalent(sizeRatio, ratio) && sizeIsLandscape === isLandscape;
+  }).sort((a, b) => (a.width * a.height) - (b.width * b.height));
 }
 
 // 규격 라벨 생성
@@ -538,11 +563,11 @@ function findClosestStandardSize(sizes: StandardSize[], albumWidth: number, albu
   );
   if (exactMatch) return exactMatch;
 
-  // 2. 비율이 일치하는 규격 중 크기가 가장 가까운 것 찾기
+  // 2. 비율이 일치하는 규격 중 크기가 가장 가까운 것 찾기 (등가 그룹 포함)
   const albumRatio = calculateNormalizedRatio(albumWidth, albumHeight);
   const ratioMatchSizes = sizes.filter(size => {
     const sizeRatio = calculateNormalizedRatio(size.width, size.height);
-    return Math.abs(sizeRatio - albumRatio) < RATIO_TOLERANCE;
+    return isRatioEquivalent(sizeRatio, albumRatio);
   });
 
   if (ratioMatchSizes.length > 0) {
@@ -898,8 +923,8 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
         // 크기가 거의 같음 (정확히 일치)
         status = 'EXACT';
         exactCount++;
-      } else if (ratioDiff < RATIO_TOLERANCE) {
-        // 비율은 같지만 크기가 다름 (비율 일치 - 노랑)
+      } else if (isRatioEquivalent(file.ratio, representativeRatio)) {
+        // 비율은 같지만 크기가 다름 (비율 일치 - 노랑, 등가 그룹 포함)
         status = 'RATIO_MATCH';
         ratioMatchCount++;
       } else {
@@ -1045,7 +1070,7 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
 }));
 
 // 유틸리티 함수들 export
-export { checkRatioMatch, findAvailableSizes, getSpecLabel, findClosestStandardSize, RATIO_TOLERANCE };
+export { checkRatioMatch, findAvailableSizes, getSpecLabel, findClosestStandardSize, RATIO_TOLERANCE, isRatioEquivalent };
 
 // ==================== 견적 계산 ====================
 
