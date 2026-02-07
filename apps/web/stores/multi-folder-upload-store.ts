@@ -452,7 +452,8 @@ export function sortPagesByPosition(files: UploadedFile[]): UploadedFile[] {
 
 // 순번 파일명 생성 (01_파일명 또는 001_파일명)
 export function generateSequentialFileName(index: number, originalName: string, totalCount: number): string {
-  const padLength = totalCount >= 100 ? 3 : 2;
+  // 100개 미만: 2자리 (01, 02...), 100개 이상: 3자리 (001, 002...) (1000개 이상: 4자리 자동 대응)
+  const padLength = totalCount >= 100 ? String(totalCount).length : 2;
   const seq = String(index + 1).padStart(padLength, '0');
   return `${seq}_${originalName}`;
 }
