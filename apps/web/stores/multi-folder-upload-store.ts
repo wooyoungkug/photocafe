@@ -48,9 +48,16 @@ export function detectCoverType(filename: string): CoverType {
     }
   }
 
-  if (COVER_PATTERNS.COMBINED.test(name)) return 'COMBINED_COVER';
-  if (COVER_PATTERNS.FRONT.test(name)) return 'FRONT_COVER';
-  if (COVER_PATTERNS.BACK.test(name)) return 'BACK_COVER';
+  // 한글 처리 (자소 분리 방지) 및 공백 제거
+  const normalizedName = name.normalize('NFC').trim();
+
+  // 명시적 파일명 체크 (엄격하게) - 정규식보다 우선
+  if (normalizedName === '첫장' || normalizedName === '표지' || normalizedName === 'front' || normalizedName === 'cover') return 'FRONT_COVER';
+  if (normalizedName === '막장' || normalizedName === '뒷표지' || normalizedName === 'back' || normalizedName === 'rear') return 'BACK_COVER';
+
+  if (COVER_PATTERNS.COMBINED.test(normalizedName)) return 'COMBINED_COVER';
+  if (COVER_PATTERNS.FRONT.test(normalizedName)) return 'FRONT_COVER';
+  if (COVER_PATTERNS.BACK.test(normalizedName)) return 'BACK_COVER';
   return 'INNER_PAGE';
 }
 

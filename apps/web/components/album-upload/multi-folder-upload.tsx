@@ -28,6 +28,7 @@ import {
   getSpecLabel,
   detectCoverType,
   calculateAlbumSize,
+  generateSequentialFileName, // Added import
   sortPagesByPosition,
   findClosestStandardSize,
   calculatePageCount,
@@ -664,21 +665,22 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         let targetCoverType: CoverType | null = null;
 
         if (isHalfWidth) {
-          if (isFirst) {
+          // 명시적으로 커버타입이 지정된 경우 우선 (위치보다 우선)
+          if (file.coverType === 'FRONT_COVER') {
+            shouldExtend = true;
+            targetCoverType = 'FRONT_COVER';
+          } else if (file.coverType === 'BACK_COVER') {
+            shouldExtend = true;
+            targetCoverType = 'BACK_COVER';
+          } else if (isFirst) {
             // 첫장이고 반폭이면 → 첫장(FRONT_COVER)으로 인식하고 왼쪽 빈페이지 추가
             shouldExtend = true;
             targetCoverType = 'FRONT_COVER';
             // 첫장이 반폭이면 우측 페이지 1페이지가 됨 -> 우철 (Right Start)
-            // 여기서 detectedBindingDirection을 설정할 수는 없지만, 
-            // 호출부에서 첫장이 반폭으로 확장되었는지(isExtended + FRONT_COVER) 확인하여 설정 가능
           } else if (isLast) {
             // 막장이고 반폭이면 → 막장(BACK_COVER)으로 인식하고 오른쪽 빈페이지 추가
             shouldExtend = true;
             targetCoverType = 'BACK_COVER';
-          } else if (file.coverType === 'FRONT_COVER' || file.coverType === 'BACK_COVER') {
-            // 순서는 중간이지만 명시적으로 커버타입이 지정된 경우 (기존 로직 유지)
-            shouldExtend = true;
-            targetCoverType = file.coverType;
           }
         }
 
@@ -909,7 +911,14 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       }
 
       // 페이지 정렬 (첫장 → 내지 → 막장)
-      const sortedFiles = sortPagesByPosition(extendedFiles);
+      const sortedFilesBase = sortPagesByPosition(extendedFiles);
+
+      // 파일명 순차적 재정의 (001_파일명 등)
+      const sortedFiles = sortedFilesBase.map((file, idx) => ({
+        ...file,
+        newFileName: generateSequentialFileName(idx, file.fileName, sortedFilesBase.length),
+        pageNumber: idx + 1,
+      }));
 
       // 첫장/막장 빈페이지 자동감지 (먹색/백색)
       setProcessingMessage(tu('detectingBlankPage', { name: fullPath }));
@@ -1036,6 +1045,9 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       setUploading(true);
       setUploadProgress(0);
 
+      // 업로드 전 폴더 개수 저장
+      const initialFolderCount = useMultiFolderUploadStore.getState().folders.length;
+
       const items = e.dataTransfer.items;
       const folderEntries: FileSystemDirectoryEntry[] = [];
 
@@ -1098,6 +1110,9 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
 
       setUploading(false);
       setProcessingMessage('');
+
+      // 새 폴더로 스크롤
+      scrollToNewFolder(initialFolderCount);
     },
     [collectAllFolders, processFolder, addFolder, setUploading, setUploadProgress, defaultPageLayout, defaultBindingDirection, readDirectoryFiles, probeFileDimensions, indigoSpecs]
   );
@@ -1110,6 +1125,9 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
 
       setUploading(true);
       setUploadProgress(0);
+
+      // 업로드 전 폴더 개수 저장
+      const initialFolderCount = useMultiFolderUploadStore.getState().folders.length;
 
       const folderMap = new Map<string, { files: File[]; depth: number; folderName: string }>();
 
@@ -1189,7 +1207,14 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
           pageLayout = 'spread';
         }
 
-        const sortedFiles = sortPagesByPosition(extendedFiles);
+        const sortedFilesBase = sortPagesByPosition(extendedFiles);
+
+        // 파일명 순차적 재정의 (001_파일명 등)
+        const sortedFiles = sortedFilesBase.map((file, idx) => ({
+          ...file,
+          newFileName: generateSequentialFileName(idx, file.fileName, sortedFilesBase.length),
+          pageNumber: idx + 1,
+        }));
 
         // 첫장/막장 빈페이지 자동감지 (먹색/백색)
         setProcessingMessage(tu('detectingBlankPage', { name: folderPath }));
@@ -1318,6 +1343,9 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       setUploading(false);
       setProcessingMessage('');
       e.target.value = '';
+
+      // 새 폴더로 스크롤
+      scrollToNewFolder(initialFolderCount);
     },
     [addFolder, extractFileMetadata, setUploading, setUploadProgress, defaultPageLayout, defaultBindingDirection, processHalfWidthCoversWithCanvas, indigoSpecs, probeFileDimensions, detectBlankPage, autoDetectBindingDirection]
   );
@@ -1354,6 +1382,9 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       setUploading(true);
       setUploadProgress(0);
       setShowMobileFolderNameDialog(false);
+
+      // 업로드 전 폴더 개수 저장
+      const initialFolderCount = useMultiFolderUploadStore.getState().folders.length;
 
       const folderPath = folderName;
       files.sort((a, b) => a.name.localeCompare(b.name, 'ko', { numeric: true }));
@@ -1411,7 +1442,14 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         pageLayout = 'spread';
       }
 
-      const sortedFiles = sortPagesByPosition(extendedFiles);
+      const sortedFilesBase = sortPagesByPosition(extendedFiles);
+
+      // 파일명 순차적 재정의 (001_파일명 등)
+      const sortedFiles = sortedFilesBase.map((file, idx) => ({
+        ...file,
+        newFileName: generateSequentialFileName(idx, file.fileName, sortedFilesBase.length),
+        pageNumber: idx + 1,
+      }));
 
       // 빈페이지 자동감지
       setProcessingMessage(tu('detectingBlankPage', { name: folderName }));
@@ -1524,9 +1562,34 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       setUploading(false);
       setProcessingMessage('');
       setPendingMobileFiles([]);
+
+      // 새 폴더로 스크롤
+      scrollToNewFolder(initialFolderCount);
     },
     [addFolder, extractFileMetadata, setUploading, setUploadProgress, defaultPageLayout, defaultBindingDirection, processHalfWidthCoversWithCanvas, indigoSpecs, probeFileDimensions, detectBlankPage, autoDetectBindingDirection]
   );
+
+  // 새 폴더로 스크롤 이동 헬퍼
+  const scrollToNewFolder = (startIndex: number) => {
+    // DOM 렌더링 대기
+    setTimeout(() => {
+      const currentFolders = useMultiFolderUploadStore.getState().folders;
+      if (startIndex < currentFolders.length) {
+        const targetFolder = currentFolders[startIndex];
+        const element = document.getElementById(`folder-card-${targetFolder.id}`);
+        if (element) {
+          const headerOffset = 280; // 헤더 + 여백 더 넉넉하게 (제목이 잘리지 않도록)
+          const elementPosition = element.getBoundingClientRect().top;
+          const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+          window.scrollTo({
+            top: offsetPosition,
+            behavior: "smooth"
+          });
+        }
+      }
+    }, 100);
+  };
 
   const handleAddToCart = () => {
     const selected = getSelectedFolders();
@@ -1856,13 +1919,18 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
 
           <div className="space-y-3">
             {folders.map((folder) => (
-              <FolderCard
+              <div
                 key={folder.id}
-                folder={folder}
-                companyInfo={companyInfo}
-                clientInfo={clientInfo}
-                pricingMap={pricingMap}
-              />
+                id={`folder-card-${folder.id}`}
+                className="scroll-mt-24" // 헤더 높이 고려하여 여백 추가
+              >
+                <FolderCard
+                  folder={folder}
+                  companyInfo={companyInfo}
+                  clientInfo={clientInfo}
+                  pricingMap={pricingMap}
+                />
+              </div>
             ))}
           </div>
 

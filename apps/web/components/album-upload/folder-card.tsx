@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -159,8 +159,11 @@ function getSpreadPageNumbers(
         return { left: null, right: 1 };
       }
       return { left: fileIndex * 2, right: fileIndex * 2 + 1 };
+      return { left: fileIndex * 2, right: fileIndex * 2 + 1 };
   }
 }
+
+const ZOOM_SCALES = [1, 1.5, 2, 3];
 
 export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: FolderCardProps) {
   const t = useTranslations('folder');
@@ -187,12 +190,15 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
   const [isThumbnailOpen, setIsThumbnailOpen] = useState(true);
   const [isShippingOpen, setIsShippingOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState<{ url: string; fileName: string; index: number } | null>(null);
-  const [zoomLevel, setZoomLevel] = useState(0); // 0=기본, 1=150%, 2=200%
+  const [zoomLevel, setZoomLevel] = useState(0); // Index of ZOOM_SCALES
   const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 }); // 드래그 시작 시 화면 좌표 (Threshold 체크용)
+  const [hasDragged, setHasDragged] = useState(false); // 드래그 여부 체크용
   const isZoomed = zoomLevel > 0;
   const [fullSizeUrls, setFullSizeUrls] = useState<Map<string, string>>(new Map());
+  const imageRef = useRef<HTMLImageElement>(null);
 
   // 풀사이즈 URL 생성 (미리보기 모달 열 때만 lazy 로드)
   const getFullSizeUrl = useCallback((file: typeof folder.files[0]): string | undefined => {
@@ -250,19 +256,99 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
 
   // 줌 이미지 드래그 핸들러
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (!isZoomed) return;
-    e.preventDefault();
-    setIsDragging(true);
-    setDragStart({ x: e.clientX - zoomPos.x, y: e.clientY - zoomPos.y });
+    if (!previewImage) return;
+    // 우클릭은 드래그 시작 안함 (줌아웃용)
+    if (e.button === 2) return;
+
+    if (isZoomed) {
+      e.preventDefault();
+      setIsDragging(true);
+      setHasDragged(false);
+      setDragStart({ x: e.clientX - zoomPos.x, y: e.clientY - zoomPos.y });
+      setDragStartPos({ x: e.clientX, y: e.clientY });
+    }
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDragging || !isZoomed) return;
+
+    // 드래그 거리 체크 (5px 이상 움직여야 드래그로 인정)
+    const distance = Math.hypot(e.clientX - dragStartPos.x, e.clientY - dragStartPos.y);
+    if (distance > 5) {
+      setHasDragged(true);
+    }
+
     setZoomPos({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
   };
 
   const handleMouseUp = () => {
     setIsDragging(false);
+  };
+
+  // 커서 중심 줌 기능
+  const handleZoom = (clientX: number, clientY: number, direction: 'in' | 'out') => {
+    if (!imageRef.current) return;
+
+    const currentScale = ZOOM_SCALES[zoomLevel];
+    let newLevel = zoomLevel + (direction === 'in' ? 1 : -1);
+
+    // 범위 체크
+    if (newLevel < 0) newLevel = 0;
+    if (newLevel >= ZOOM_SCALES.length) newLevel = ZOOM_SCALES.length - 1;
+
+    if (newLevel === zoomLevel) return;
+
+    const newScale = ZOOM_SCALES[newLevel];
+
+    if (newLevel === 0) {
+      setZoomLevel(0);
+      setZoomPos({ x: 0, y: 0 });
+      return;
+    }
+
+    const rect = imageRef.current.getBoundingClientRect();
+
+    // 이미지 내 클릭 위치 (현재 스케일 기준)
+    // zoomPos는 transform translate 값이므로, 실제 이미지의 좌상단은 rect.left가 아니라 calculations 필요
+    // 하지만 getBoundingClientRect()는 transform이 적용된 최종 위치를 반환함.
+
+    // 클릭 위치의 이미지 내 상대 좌표 (0~1) 계산
+    const offsetX = clientX - rect.left;
+    const offsetY = clientY - rect.top;
+
+    const percentX = offsetX / rect.width;
+    const percentY = offsetY / rect.height;
+
+    // 줌 레벨 변경
+    setZoomLevel(newLevel);
+
+    // CSS에서 width를 부모 컨테이너의 %로 설정하므로, 
+    // 정확한 이동 좌표 계산을 위해 부모 컨테이너 너비 기준으로 새 크기를 계산해야 함
+    // (Level 0일 때 rect.width가 컨테이너보다 작을 수 있음)
+    const container = imageRef.current.parentElement;
+    const containerWidth = container ? container.clientWidth : rect.width;
+
+    const newWidth = containerWidth * newScale;
+    const ratio = rect.width / rect.height;
+    const newHeight = newWidth / ratio;
+
+    // 이전 translate (zoomPos)
+    // 목표: 클릭한 지점(percent)이 화면상 동일 위치(clientX, clientY)에 오도록 translate 조정
+    // Flex 중앙 정렬이므로 (percent - 0.5) * Diff 만큼 이동해야 함.
+
+    // 클릭한 지점(percent)을 화면 중앙으로 이동
+    const centerX = newWidth * (percentX - 0.5);
+    const centerY = newHeight * (percentY - 0.5);
+
+    // transform translate는 (0,0)이 이미지 중앙인 상태에서 이동량
+    // 따라서 -centerX, -centerY로 설정하면 해당 지점이 중앙에 옴
+    // (예: percentX=0.5 -> centerX=0 -> translate(0,0))
+    // (예: percentX=1.0 -> centerX=width/2 -> translate(-width/2, 0) -> 우측 끝이 중앙에 옴)
+
+    setZoomPos({
+      x: -centerX,
+      y: -centerY
+    });
   };
 
   // 드래그 앤 드롭 상태
@@ -600,7 +686,7 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
           <div className="bg-white rounded border border-red-200 text-xs max-h-32 overflow-y-auto">
             {folder.mismatchFiles.slice(0, 10).map((file, idx) => (
               <div key={file.id} className="px-2 py-1 border-b last:border-b-0 flex justify-between">
-                <span className="truncate">{file.fileName}</span>
+                <span className="truncate">{file.newFileName || file.fileName}</span>
                 <span className="text-gray-500 ml-2">
                   {file.widthPx}×{file.heightPx} ({file.widthInch}×{file.heightInch}{tc('inch')}) {file.dpi}dpi
                 </span>
@@ -654,7 +740,10 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
           </Button>
         </CollapsibleTrigger>
         <CollapsibleContent className="mt-2">
-          <div className="grid grid-cols-4 gap-2 p-2 bg-gray-50 rounded-lg border">
+          <div className={cn(
+            "grid gap-2 p-2 bg-gray-50 rounded-lg border",
+            folder.pageLayout === 'single' ? "grid-cols-8" : "grid-cols-4"
+          )}>
             {folder.files.map((file, index) => {
               const thumbUrl = file.thumbnailUrl;
               const coverBadge = COVER_TYPE_BADGE[file.coverType];
@@ -714,10 +803,10 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
                       'relative rounded-t-md overflow-hidden border-2 cursor-grab group',
                       'hover:border-blue-400 hover:shadow-md transition-all',
                       file.status === 'RATIO_MISMATCH' ? 'border-red-500 border-[3px]' :
-                      file.coverType === 'FRONT_COVER' ? 'border-blue-400' :
-                      file.coverType === 'BACK_COVER' ? 'border-purple-400' :
-                      file.coverType === 'COMBINED_COVER' ? 'border-pink-400' :
-                      'border-gray-200'
+                        file.coverType === 'FRONT_COVER' ? 'border-blue-400' :
+                          file.coverType === 'BACK_COVER' ? 'border-purple-400' :
+                            file.coverType === 'COMBINED_COVER' ? 'border-pink-400' :
+                              'border-gray-200'
                     )}
                     style={{ paddingTop: `${aspectRatio}%` }}
                     onClick={() => {
@@ -788,15 +877,15 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
                     'text-[9px] leading-tight p-1 border border-t-0 rounded-b-md',
                     file.status === 'RATIO_MISMATCH' ? 'bg-red-50 border-red-300' : 'bg-white border-gray-200'
                   )}>
-                    <div className="truncate font-medium" title={file.fileName}>{file.fileName}</div>
+                    <div className="truncate font-medium" title={file.newFileName || file.fileName}>{file.newFileName || file.fileName}</div>
                     <div className="text-gray-500">{file.widthPx}×{file.heightPx}px ({file.dpi}dpi)</div>
                     <div className="text-gray-500">{fileSizeStr} | {file.widthInch}×{file.heightInch}"</div>
                     <div className="mt-0.5">
                       <span className={cn(
                         'inline-block px-1 py-0 rounded text-[8px] font-medium',
                         file.status === 'EXACT' ? 'bg-green-100 text-green-700' :
-                        file.status === 'RATIO_MATCH' ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-red-100 text-red-700'
+                          file.status === 'RATIO_MATCH' ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-red-100 text-red-700'
                       )}>
                         {file.status === 'EXACT' ? t('exact') : file.status === 'RATIO_MATCH' ? t('ratioMatch') : t('mismatch')}
                       </span>
@@ -1021,6 +1110,7 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
                       { level: 0, label: t('zoomOriginal') },
                       { level: 1, label: t('zoom150') },
                       { level: 2, label: t('zoom200') },
+                      { level: 3, label: t('zoom300') },
                     ].map(({ level, label }) => (
                       <button
                         key={level}
@@ -1065,19 +1155,27 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
               <img
                 src={previewImage.url}
                 alt={previewImage.fileName}
+                ref={imageRef}
                 className={cn(
-                  'object-contain select-none transition-transform',
+                  'object-contain select-none',
                   isZoomed ? 'max-w-none max-h-none' : 'max-w-full max-h-[70vh]'
                 )}
                 style={isZoomed ? {
                   transform: `translate(${zoomPos.x}px, ${zoomPos.y}px)`,
-                  width: zoomLevel === 2 ? '200%' : '150%',
-                } : undefined}
+                  width: `${ZOOM_SCALES[zoomLevel] * 100}%`,
+                  cursor: isDragging ? 'grabbing' : 'zoom-in', // 항상 돋보기 (드래그 중엔 grabbing)
+                  transition: isDragging ? 'none' : 'all 0.6s ease-out'
+                } : {
+                  cursor: 'zoom-in',
+                  transition: 'all 0.6s ease-out'
+                }}
                 onClick={(e) => {
-                  if (!isZoomed) {
-                    e.stopPropagation();
-                    setZoomLevel(1);
-                  }
+                  if (hasDragged) return; // 드래그였다면 클릭 무시
+                  handleZoom(e.clientX, e.clientY, 'in');
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  handleZoom(e.clientX, e.clientY, 'out');
                 }}
                 draggable={false}
               />

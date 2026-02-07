@@ -243,6 +243,7 @@ export default function EditProductPage() {
 
   // 상세정보
   const [description, setDescription] = useState('');
+  const [isFormReady, setIsFormReady] = useState(false);
 
   // 선택 다이얼로그
   const [specDialogOpen, setSpecDialogOpen] = useState(false);
@@ -374,6 +375,7 @@ export default function EditProductPage() {
       } else {
         console.log('outputPriceSettings가 없거나 배열이 아님');
       }
+      setIsFormReady(true);
     }
   }, [product, categories]);
 
@@ -385,8 +387,8 @@ export default function EditProductPage() {
         .map((productSpec) => {
           const matchedSpec = specifications.find(
             (s) => s.name === productSpec.name &&
-                   Number(s.widthMm) === Number(productSpec.widthMm) &&
-                   Number(s.heightMm) === Number(productSpec.heightMm)
+              Number(s.widthMm) === Number(productSpec.widthMm) &&
+              Number(s.heightMm) === Number(productSpec.heightMm)
           );
           return matchedSpec?.id;
         })
@@ -486,18 +488,18 @@ export default function EditProductPage() {
       // outputPriceSelections를 DTO 형식에 맞게 변환
       const outputPriceSettings = outputPriceSelections.length > 0
         ? outputPriceSelections.map(sel => ({
-            id: sel.id,
-            outputMethod: sel.outputMethod,
-            productionSettingId: sel.productionSettingId,
-            productionSettingName: sel.productionSettingName,
-            deviceId: sel.deviceId,
-            deviceName: sel.deviceName,
-            colorType: sel.colorType,
-            specificationId: sel.specificationId,
-            specificationName: sel.specificationName,
-            selectedUpPrices: sel.selectedUpPrices,
-            selectedSpecPrice: sel.selectedSpecPrice,
-          }))
+          id: sel.id,
+          outputMethod: sel.outputMethod,
+          productionSettingId: sel.productionSettingId,
+          productionSettingName: sel.productionSettingName,
+          deviceId: sel.deviceId,
+          deviceName: sel.deviceName,
+          colorType: sel.colorType,
+          specificationId: sel.specificationId,
+          specificationName: sel.specificationName,
+          selectedUpPrices: sel.selectedUpPrices,
+          selectedSpecPrice: sel.selectedSpecPrice,
+        }))
         : undefined;
 
       const productData = {
@@ -770,11 +772,10 @@ export default function EditProductPage() {
                     onClick={() => setSpecType(tab.key as typeof specType)}
                   >
                     {tab.label}
-                    <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                      specType === tab.key
-                        ? 'bg-white/20 text-white'
-                        : tabSelectedCount > 0 ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-200 text-slate-500'
-                    }`}>
+                    <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${specType === tab.key
+                      ? 'bg-white/20 text-white'
+                      : tabSelectedCount > 0 ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-200 text-slate-500'
+                      }`}>
                       {tabSelectedCount}/{tabSpecs.length}
                     </span>
                   </Button>
@@ -1311,30 +1312,36 @@ export default function EditProductPage() {
           gradient="text-slate-600"
         />
         <CardContent className="p-6">
-          <ProductEditor
-            key={product?.id || 'new'}
-            value={description}
-            onChange={setDescription}
-            placeholder="상품 상세 설명을 입력하세요."
-            onImageUpload={async (file: File) => {
-              const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
-              if (!token) throw new Error('로그인이 필요합니다.');
+          {isFormReady ? (
+            <ProductEditor
+              key={product?.id || 'new'}
+              value={description}
+              onChange={setDescription}
+              placeholder="상품 상세 설명을 입력하세요."
+              onImageUpload={async (file: File) => {
+                const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+                if (!token) throw new Error('로그인이 필요합니다.');
 
-              const formData = new FormData();
-              formData.append('file', file);
+                const formData = new FormData();
+                formData.append('file', file);
 
-              const response = await fetch(`${API_URL}/upload/category-icon`, {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${token}` },
-                body: formData,
-              });
+                const response = await fetch(`${API_URL}/upload/category-icon`, {
+                  method: 'POST',
+                  headers: { Authorization: `Bearer ${token}` },
+                  body: formData,
+                });
 
-              if (!response.ok) throw new Error('업로드 실패');
+                if (!response.ok) throw new Error('업로드 실패');
 
-              const result = await response.json();
-              return normalizeImageUrl(result.url);
-            }}
-          />
+                const result = await response.json();
+                return normalizeImageUrl(result.url);
+              }}
+            />
+          ) : (
+            <div className="h-[300px] bg-slate-50 animate-pulse rounded-lg flex items-center justify-center text-slate-400">
+              데이터 로딩 중...
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -1855,11 +1862,10 @@ function OutputPriceSelectionForm({
               {filteredGroupSettings.map(setting => (
                 <div
                   key={setting.id}
-                  className={`flex items-center gap-1.5 py-1.5 px-2 rounded cursor-pointer text-xs transition-all ${
-                    selectedSettingId === setting.id
-                      ? 'bg-emerald-100 border border-emerald-400 font-medium'
-                      : 'bg-white border border-slate-200 hover:bg-emerald-50 hover:border-emerald-300'
-                  }`}
+                  className={`flex items-center gap-1.5 py-1.5 px-2 rounded cursor-pointer text-xs transition-all ${selectedSettingId === setting.id
+                    ? 'bg-emerald-100 border border-emerald-400 font-medium'
+                    : 'bg-white border border-slate-200 hover:bg-emerald-50 hover:border-emerald-300'
+                    }`}
                   onClick={() => {
                     setSelectedSettingId(setting.id);
                     setSelectedSetting(setting);
@@ -1892,9 +1898,8 @@ function OutputPriceSelectionForm({
       return (
         <div key={group.id} style={{ marginLeft: depth * 16 }}>
           <div
-            className={`flex items-center gap-2 py-2 px-3 rounded-lg cursor-pointer hover:bg-slate-100 ${
-              selectedGroupId === group.id ? 'bg-blue-50' : ''
-            }`}
+            className={`flex items-center gap-2 py-2 px-3 rounded-lg cursor-pointer hover:bg-slate-100 ${selectedGroupId === group.id ? 'bg-blue-50' : ''
+              }`}
             onClick={() => {
               if (hasChildren) {
                 toggleGroup(group.id);
@@ -1936,9 +1941,8 @@ function OutputPriceSelectionForm({
                 .map(setting => (
                   <div
                     key={setting.id}
-                    className={`flex items-center gap-2 py-2 px-3 rounded-lg cursor-pointer hover:bg-emerald-50 ${
-                      selectedSettingId === setting.id ? 'bg-emerald-100 border border-emerald-300' : 'bg-white border border-slate-200'
-                    }`}
+                    className={`flex items-center gap-2 py-2 px-3 rounded-lg cursor-pointer hover:bg-emerald-50 ${selectedSettingId === setting.id ? 'bg-emerald-100 border border-emerald-300' : 'bg-white border border-slate-200'
+                      }`}
                     onClick={() => handleSelectSetting(setting)}
                   >
                     <Settings className="h-4 w-4 text-emerald-600" />
@@ -1970,11 +1974,10 @@ function OutputPriceSelectionForm({
         ].map((s, idx) => (
           <div key={s.num} className="flex items-center">
             <div
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${
-                step >= s.num
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-slate-100 text-slate-400'
-              }`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${step >= s.num
+                ? 'bg-emerald-600 text-white'
+                : 'bg-slate-100 text-slate-400'
+                }`}
             >
               <span>{s.num}</span>
               <span>{s.label}</span>
@@ -1994,11 +1997,10 @@ function OutputPriceSelectionForm({
             <div className="space-y-3">
               <button
                 type="button"
-                className={`w-full p-6 rounded-xl border-2 transition-all ${
-                  outputMethod === 'INDIGO'
-                    ? 'border-emerald-500 bg-emerald-50'
-                    : 'border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50'
-                }`}
+                className={`w-full p-6 rounded-xl border-2 transition-all ${outputMethod === 'INDIGO'
+                  ? 'border-emerald-500 bg-emerald-50'
+                  : 'border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50'
+                  }`}
                 onClick={() => {
                   setOutputMethod(outputMethod === 'INDIGO' ? null : 'INDIGO');
                   setSelectedSetting(null);
@@ -2027,13 +2029,12 @@ function OutputPriceSelectionForm({
               <button
                 type="button"
                 disabled={isHwaboBinding}
-                className={`w-full p-6 rounded-xl border-2 transition-all ${
-                  isHwaboBinding
-                    ? 'border-slate-200 bg-slate-100 opacity-50 cursor-not-allowed'
-                    : outputMethod === 'INKJET'
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-slate-200 hover:border-blue-300 hover:bg-blue-50/50'
-                }`}
+                className={`w-full p-6 rounded-xl border-2 transition-all ${isHwaboBinding
+                  ? 'border-slate-200 bg-slate-100 opacity-50 cursor-not-allowed'
+                  : outputMethod === 'INKJET'
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-slate-200 hover:border-blue-300 hover:bg-blue-50/50'
+                  }`}
                 onClick={() => {
                   if (isHwaboBinding) return;
                   setOutputMethod(outputMethod === 'INKJET' ? null : 'INKJET');
