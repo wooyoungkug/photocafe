@@ -2,32 +2,18 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Trash2, Minus, Plus, ShoppingBag, ArrowLeft, ChevronRight, BookOpen, Package, Clock, MapPin, Truck, Check } from 'lucide-react';
+import { Trash2, Minus, Plus, ShoppingBag, ArrowLeft, ChevronRight, BookOpen, Package, Clock, Truck, ChevronDown, ChevronUp, Copy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useCartStore, type CartShippingInfo } from '@/stores/cart-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
 import { useState } from 'react';
 import { API_URL, API_BASE_URL } from '@/lib/api';
-import { AddressSearch } from '@/components/address-search';
+import { FolderShippingSection } from '@/components/album-upload/folder-shipping-section';
+import { useShippingData } from '@/hooks/use-shipping-data';
+import type { FolderShippingInfo } from '@/stores/multi-folder-upload-store';
 
 // 이미지 URL 정규화 함수
 const normalizeImageUrl = (url: string | null | undefined): string => {
@@ -65,22 +51,14 @@ const isShippingComplete = (info?: CartShippingInfo): boolean => {
   return !!(info.recipientName && info.recipientPhone && info.recipientPostalCode && info.recipientAddress);
 };
 
-interface ShippingFormState {
-  recipientName: string;
-  recipientPhone: string;
-  recipientPostalCode: string;
-  recipientAddress: string;
-  recipientAddressDetail: string;
-  deliveryMethod: string;
-}
-
-const emptyShippingForm: ShippingFormState = {
-  recipientName: '',
-  recipientPhone: '',
-  recipientPostalCode: '',
-  recipientAddress: '',
-  recipientAddressDetail: '',
-  deliveryMethod: 'parcel',
+// 배송 정보 요약 텍스트
+const getCartShippingSummary = (info: CartShippingInfo): string => {
+  const methodLabel = getDeliveryMethodLabel(info.deliveryMethod);
+  if (info.deliveryMethod === 'pickup') return methodLabel;
+  const senderLabel = info.senderType === 'company' ? '회사' : '주문자';
+  const receiverLabel = info.receiverType === 'orderer' ? '스튜디오' : '고객직배송';
+  const feeLabel = info.deliveryFee === 0 ? '무료' : `${info.deliveryFee.toLocaleString()}원`;
+  return `${methodLabel} · ${senderLabel}→${receiverLabel} · ${feeLabel}`;
 };
 
 export default function CartPage() {
@@ -88,12 +66,10 @@ export default function CartPage() {
   const { items, removeItem, updateQuantity, clearCart, updateItemShipping, updateAllItemsShipping } = useCartStore();
   const { isAuthenticated } = useAuthStore();
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [expandedShipping, setExpandedShipping] = useState<string | null>(null);
 
-  // 배송지 모달 상태
-  const [shippingModalOpen, setShippingModalOpen] = useState(false);
-  const [shippingModalMode, setShippingModalMode] = useState<'single' | 'all'>('single');
-  const [shippingTargetItemId, setShippingTargetItemId] = useState<string | null>(null);
-  const [shippingForm, setShippingForm] = useState<ShippingFormState>(emptyShippingForm);
+  // 배송 데이터 로드 (회사정보, 거래처정보, 배송비 단가)
+  const { companyInfo, clientInfo, pricingMap } = useShippingData();
 
   // 배송지 입력 여부로 선택 가능 판단
   const canSelectItem = (itemId: string) => {
@@ -126,95 +102,60 @@ export default function CartPage() {
     setSelectedItems([]);
   };
 
-  // 개별 배송지 설정 모달
-  const openSingleShippingModal = (itemId: string) => {
-    const item = items.find(i => i.id === itemId);
-    const existing = item?.shippingInfo;
-    setShippingModalMode('single');
-    setShippingTargetItemId(itemId);
-    setShippingForm(existing && isShippingComplete(existing) ? {
-      recipientName: existing.recipientName,
-      recipientPhone: existing.recipientPhone,
-      recipientPostalCode: existing.recipientPostalCode,
-      recipientAddress: existing.recipientAddress,
-      recipientAddressDetail: existing.recipientAddressDetail,
-      deliveryMethod: existing.deliveryMethod,
-    } : { ...emptyShippingForm });
-    setShippingModalOpen(true);
+  // 배송 섹션 토글
+  const toggleShipping = (itemId: string) => {
+    setExpandedShipping(prev => prev === itemId ? null : itemId);
   };
 
-  // 전체 배송지 설정 모달
-  const openAllShippingModal = () => {
-    const firstWithShipping = items.find(i => i.shippingInfo && isShippingComplete(i.shippingInfo));
-    const existing = firstWithShipping?.shippingInfo;
-    setShippingModalMode('all');
-    setShippingTargetItemId(null);
-    setShippingForm(existing ? {
-      recipientName: existing.recipientName,
-      recipientPhone: existing.recipientPhone,
-      recipientPostalCode: existing.recipientPostalCode,
-      recipientAddress: existing.recipientAddress,
-      recipientAddressDetail: existing.recipientAddressDetail,
-      deliveryMethod: existing.deliveryMethod,
-    } : { ...emptyShippingForm });
-    setShippingModalOpen(true);
-  };
-
-  // 배송지 저장
-  const handleSaveShipping = () => {
-    const shippingInfo: CartShippingInfo = {
-      senderType: '',
-      senderName: '',
-      senderPhone: '',
-      senderPostalCode: '',
-      senderAddress: '',
-      senderAddressDetail: '',
-      receiverType: 'direct_customer',
-      recipientName: shippingForm.recipientName,
-      recipientPhone: shippingForm.recipientPhone,
-      recipientPostalCode: shippingForm.recipientPostalCode,
-      recipientAddress: shippingForm.recipientAddress,
-      recipientAddressDetail: shippingForm.recipientAddressDetail,
-      deliveryMethod: shippingForm.deliveryMethod,
-      deliveryFee: 0,
-      deliveryFeeType: 'standard',
+  // 배송 정보 변경 핸들러
+  const handleShippingChange = (itemId: string, shipping: FolderShippingInfo) => {
+    const cartShipping: CartShippingInfo = {
+      senderType: shipping.senderType,
+      senderName: shipping.senderName,
+      senderPhone: shipping.senderPhone,
+      senderPostalCode: shipping.senderPostalCode,
+      senderAddress: shipping.senderAddress,
+      senderAddressDetail: shipping.senderAddressDetail,
+      receiverType: shipping.receiverType,
+      recipientName: shipping.recipientName,
+      recipientPhone: shipping.recipientPhone,
+      recipientPostalCode: shipping.recipientPostalCode,
+      recipientAddress: shipping.recipientAddress,
+      recipientAddressDetail: shipping.recipientAddressDetail,
+      deliveryMethod: shipping.deliveryMethod,
+      deliveryFee: shipping.deliveryFee,
+      deliveryFeeType: shipping.deliveryFeeType,
     };
+    updateItemShipping(itemId, cartShipping);
 
-    if (shippingModalMode === 'all') {
-      updateAllItemsShipping(shippingInfo);
-      // 전체 적용 후 모든 항목 자동 선택
-      setSelectedItems(items.map(item => item.id));
-    } else if (shippingTargetItemId) {
-      updateItemShipping(shippingTargetItemId, shippingInfo);
-      // 개별 적용 후 해당 항목 자동 선택
-      if (!selectedItems.includes(shippingTargetItemId)) {
-        setSelectedItems(prev => [...prev, shippingTargetItemId]);
-      }
+    // 배송 완료 시 자동 선택
+    if (isShippingComplete(cartShipping) && !selectedItems.includes(itemId)) {
+      setSelectedItems(prev => [...prev, itemId]);
     }
-
-    setShippingModalOpen(false);
   };
 
-  const isFormValid = shippingForm.deliveryMethod === 'pickup' ||
-    !!(shippingForm.recipientName && shippingForm.recipientPhone && shippingForm.recipientPostalCode && shippingForm.recipientAddress);
+  // 전체 상품에 동일 배송 적용
+  const handleApplyToAll = (itemId: string) => {
+    const item = items.find(i => i.id === itemId);
+    if (item?.shippingInfo) {
+      updateAllItemsShipping(item.shippingInfo);
+      setSelectedItems(items.map(i => i.id));
+    }
+  };
 
   const selectedCartItems = items.filter(item => selectedItems.includes(item.id));
   const selectedTotal = selectedCartItems.reduce((sum, item) => sum + item.totalPrice, 0);
 
-  // 배송비 계산
-  const itemShippingFees = selectedCartItems.reduce((sum, item) => {
+  // 배송비 계산 (실제 설정된 배송비 기준)
+  const totalShippingFee = selectedCartItems.reduce((sum, item) => {
     if (item.albumOrderInfo?.shippingInfo) {
       return sum + (item.albumOrderInfo.shippingInfo.deliveryFee || 0);
     }
+    if (item.shippingInfo) {
+      return sum + (item.shippingInfo.deliveryFee || 0);
+    }
     return sum;
   }, 0);
-  const hasItemsWithoutAlbumShipping = selectedCartItems.some(
-    item => !item.albumOrderInfo?.shippingInfo
-  );
-  const generalShippingFee = hasItemsWithoutAlbumShipping
-    ? (selectedTotal > 50000 ? 0 : 3000)
-    : 0;
-  const totalShippingFee = itemShippingFees + generalShippingFee;
 
   const handleCheckout = () => {
     if (!isAuthenticated) {
@@ -271,14 +212,6 @@ export default function CartPage() {
               </label>
               <div className="flex gap-2">
                 <Button
-                  variant="default"
-                  size="sm"
-                  onClick={openAllShippingModal}
-                >
-                  <MapPin className="h-3.5 w-3.5 mr-1" />
-                  전체 배송지 설정
-                </Button>
-                <Button
                   variant="outline"
                   size="sm"
                   onClick={handleRemoveSelected}
@@ -301,6 +234,7 @@ export default function CartPage() {
               const hasShipping = canSelectItem(item.id);
               const hasAlbumShipping = !!item.albumOrderInfo?.shippingInfo;
               const itemShipping = item.shippingInfo;
+              const isExpanded = expandedShipping === item.id;
 
               return (
                 <Card key={item.id} className={`overflow-hidden ${!hasShipping ? 'border-orange-200 bg-orange-50/30' : ''}`}>
@@ -316,7 +250,7 @@ export default function CartPage() {
                         <div className="relative group">
                           <Checkbox disabled checked={false} />
                           <div className="absolute left-6 top-0 hidden group-hover:block z-10 bg-gray-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap">
-                            배송지를 입력해주세요
+                            배송정보를 설정해주세요
                           </div>
                         </div>
                       )}
@@ -402,51 +336,13 @@ export default function CartPage() {
                             </div>
                           )}
 
-                          {/* 배송지 정보 표시 */}
-                          {!hasAlbumShipping && (
-                            <div className="mt-2">
-                              {isShippingComplete(itemShipping) ? (
-                                <div className="flex items-center gap-2">
-                                  <div className="text-xs text-blue-600 bg-blue-50 rounded px-2 py-1 inline-flex items-center gap-1">
-                                    <Truck className="h-3 w-3" />
-                                    <span>{getDeliveryMethodLabel(itemShipping!.deliveryMethod)}</span>
-                                    {itemShipping!.deliveryMethod !== 'pickup' && (
-                                      <>
-                                        <span>•</span>
-                                        <span>{itemShipping!.recipientName}</span>
-                                        <span>•</span>
-                                        <span className="max-w-[150px] truncate">{itemShipping!.recipientAddress}</span>
-                                      </>
-                                    )}
-                                  </div>
-                                  <button
-                                    onClick={() => openSingleShippingModal(item.id)}
-                                    className="text-xs text-blue-600 hover:text-blue-800 underline"
-                                  >
-                                    변경
-                                  </button>
-                                </div>
-                              ) : (
-                                <button
-                                  onClick={() => openSingleShippingModal(item.id)}
-                                  className="text-xs text-orange-600 bg-orange-50 rounded px-2 py-1 inline-flex items-center gap-1 hover:bg-orange-100 transition-colors border border-orange-200"
-                                >
-                                  <MapPin className="h-3 w-3" />
-                                  배송지 입력 필요
-                                </button>
-                              )}
-                            </div>
-                          )}
-
-                          {/* 앨범 배송지 표시 */}
+                          {/* 앨범 배송 정보 표시 (앨범 주문은 업로드 시 설정됨) */}
                           {hasAlbumShipping && item.albumOrderInfo?.shippingInfo && (
                             <div className="mt-2">
                               <div className="text-xs text-blue-600 bg-blue-50 rounded px-2 py-1 inline-flex items-center gap-1">
                                 <Package className="h-3 w-3" />
                                 <span>
-                                  {item.albumOrderInfo.shippingInfo.deliveryMethod === 'parcel' ? '택배' :
-                                   item.albumOrderInfo.shippingInfo.deliveryMethod === 'freight' ? '화물' :
-                                   item.albumOrderInfo.shippingInfo.deliveryMethod === 'motorcycle' ? '오토바이퀵' : '방문수령'}
+                                  {getDeliveryMethodLabel(item.albumOrderInfo.shippingInfo.deliveryMethod)}
                                 </span>
                                 <span>•</span>
                                 <span>{item.albumOrderInfo.shippingInfo.receiverType === 'orderer' ? '스튜디오' : '고객직배송'}</span>
@@ -491,6 +387,64 @@ export default function CartPage() {
                       </div>
                     </div>
                   </div>
+
+                  {/* 배송 정보 섹션 (일반 상품 - 앨범 제외) */}
+                  {!hasAlbumShipping && (
+                    <div className="border-t">
+                      {/* 요약 / 토글 헤더 */}
+                      <button
+                        onClick={() => toggleShipping(item.id)}
+                        className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Truck className="h-4 w-4 text-gray-400" />
+                          {isShippingComplete(itemShipping) ? (
+                            <span className="text-sm text-gray-700">
+                              {getCartShippingSummary(itemShipping!)}
+                            </span>
+                          ) : (
+                            <span className="text-sm text-orange-600 font-medium">
+                              배송정보를 설정해주세요
+                            </span>
+                          )}
+                        </div>
+                        {isExpanded ? (
+                          <ChevronUp className="h-4 w-4 text-gray-400" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4 text-gray-400" />
+                        )}
+                      </button>
+
+                      {/* 확장된 배송 설정 */}
+                      {isExpanded && (
+                        <div className="px-4 pb-4">
+                          <div className="p-4 bg-gray-50 rounded-lg space-y-4">
+                            <FolderShippingSection
+                              shippingInfo={itemShipping as unknown as FolderShippingInfo | undefined}
+                              companyInfo={companyInfo}
+                              clientInfo={clientInfo}
+                              pricingMap={pricingMap}
+                              onChange={(shipping) => handleShippingChange(item.id, shipping)}
+                            />
+                            {/* 전체 적용 버튼 (2개 이상 일반 상품일 때) */}
+                            {items.filter(i => !i.albumOrderInfo?.shippingInfo).length > 1 && isShippingComplete(itemShipping) && (
+                              <div className="pt-3 border-t border-gray-200">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleApplyToAll(item.id)}
+                                  className="w-full"
+                                >
+                                  <Copy className="h-3.5 w-3.5 mr-1" />
+                                  모든 상품에 동일 배송 적용
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </Card>
               );
             })}
@@ -531,29 +485,15 @@ export default function CartPage() {
                       {(selectedTotal + totalShippingFee).toLocaleString()}원
                     </span>
                   </div>
-                  {hasItemsWithoutAlbumShipping && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      * 5만원 이상 구매시 일반상품 무료배송
-                    </p>
-                  )}
                 </div>
 
-                {/* 배송지 미입력 안내 */}
+                {/* 배송정보 미설정 안내 */}
                 {items.some(item => !canSelectItem(item.id)) && (
                   <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
                     <p className="text-xs text-orange-700">
-                      배송지 정보가 입력되지 않은 상품이 있습니다.
-                      배송지를 입력해야 선택할 수 있습니다.
+                      배송정보가 설정되지 않은 상품이 있습니다.
+                      각 상품의 배송정보를 설정해야 선택할 수 있습니다.
                     </p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="mt-2 w-full text-orange-700 border-orange-300 hover:bg-orange-100"
-                      onClick={openAllShippingModal}
-                    >
-                      <MapPin className="h-3.5 w-3.5 mr-1" />
-                      전체 배송지 한번에 설정
-                    </Button>
                   </div>
                 )}
 
@@ -595,123 +535,6 @@ export default function CartPage() {
           </div>
         </div>
       </div>
-
-      {/* 배송지 입력 모달 */}
-      <Dialog open={shippingModalOpen} onOpenChange={setShippingModalOpen}>
-        <DialogContent className="sm:max-w-[480px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <MapPin className="h-5 w-5 text-blue-600" />
-              {shippingModalMode === 'all' ? '전체 배송지 설정' : '배송지 설정'}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 py-2">
-            {shippingModalMode === 'all' && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-700">
-                모든 상품에 동일한 배송지 정보가 적용됩니다.
-              </div>
-            )}
-
-            {/* 배송 방법 */}
-            <div>
-              <Label className="text-sm font-medium">배송 방법</Label>
-              <Select
-                value={shippingForm.deliveryMethod}
-                onValueChange={(v) => setShippingForm(prev => ({ ...prev, deliveryMethod: v }))}
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {DELIVERY_METHODS.map((m) => (
-                    <SelectItem key={m.value} value={m.value}>
-                      {m.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {shippingForm.deliveryMethod !== 'pickup' ? (
-              <>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-sm">수령인 <span className="text-red-500">*</span></Label>
-                    <Input
-                      value={shippingForm.recipientName}
-                      onChange={(e) => setShippingForm(prev => ({ ...prev, recipientName: e.target.value }))}
-                      placeholder="이름"
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-sm">연락처 <span className="text-red-500">*</span></Label>
-                    <Input
-                      value={shippingForm.recipientPhone}
-                      onChange={(e) => setShippingForm(prev => ({ ...prev, recipientPhone: e.target.value }))}
-                      placeholder="010-0000-0000"
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label className="text-sm">주소 <span className="text-red-500">*</span></Label>
-                  <div className="flex gap-2 mt-1">
-                    <Input
-                      value={shippingForm.recipientPostalCode}
-                      readOnly
-                      placeholder="우편번호"
-                      className="w-28"
-                    />
-                    <AddressSearch
-                      size="sm"
-                      onComplete={(data) => {
-                        setShippingForm(prev => ({
-                          ...prev,
-                          recipientPostalCode: data.postalCode,
-                          recipientAddress: data.address,
-                        }));
-                      }}
-                    />
-                  </div>
-                  <Input
-                    value={shippingForm.recipientAddress}
-                    readOnly
-                    placeholder="주소"
-                    className="mt-1"
-                  />
-                  <Input
-                    value={shippingForm.recipientAddressDetail}
-                    onChange={(e) => setShippingForm(prev => ({ ...prev, recipientAddressDetail: e.target.value }))}
-                    placeholder="상세주소 (동/호수)"
-                    className="mt-1"
-                  />
-                </div>
-              </>
-            ) : (
-              <div className="p-4 bg-gray-50 rounded-lg text-sm text-gray-600">
-                <div className="flex items-center gap-2 font-medium mb-1">
-                  <Truck className="h-4 w-4" />
-                  방문수령 안내
-                </div>
-                <p>제작 완료 후 안내 문자가 발송됩니다. 영업시간 내 방문하여 수령해 주세요.</p>
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShippingModalOpen(false)}>
-              취소
-            </Button>
-            <Button onClick={handleSaveShipping} disabled={!isFormValid}>
-              <Check className="h-4 w-4 mr-1" />
-              {shippingModalMode === 'all' ? '전체 적용' : '저장'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
