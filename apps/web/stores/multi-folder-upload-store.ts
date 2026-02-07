@@ -36,6 +36,18 @@ const COVER_PATTERNS = {
 export function detectCoverType(filename: string): CoverType {
   const name = filename.replace(/\.[^.]+$/, ''); // 확장자 제거
 
+  // 숫자만 있는 경우 (예: 0122 -> 01, 22 -> 첫장, 막장 합본)
+  if (/^\d{4,}$/.test(name) && name.length % 2 === 0) {
+    const mid = name.length / 2;
+    const left = parseInt(name.slice(0, mid), 10);
+    const right = parseInt(name.slice(mid), 10);
+
+    // 왼쪽이 1이고 오른쪽이 2보다 크면 (즉, 1페이지와 마지막페이지가 붙은 경우)
+    if (left === 1 && right > 2) {
+      return 'COMBINED_COVER';
+    }
+  }
+
   if (COVER_PATTERNS.COMBINED.test(name)) return 'COMBINED_COVER';
   if (COVER_PATTERNS.FRONT.test(name)) return 'FRONT_COVER';
   if (COVER_PATTERNS.BACK.test(name)) return 'BACK_COVER';
