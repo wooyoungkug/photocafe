@@ -49,7 +49,83 @@ description: 배송 관리. 배송 준비, 출고, 택배 연동, 배송 추적 
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-## 배송 방법
+## 주문 시 배송정보 입력 (파일업로드)
+
+파일업로드(앨범주문) 시 폴더(원판)별로 배송정보를 입력한다.
+
+### 배송정보 구조
+
+배송정보는 **발송지**와 **배송지**를 구분하여 입력한다.
+
+| 구분 | 선택지 | 설명 |
+|------|--------|------|
+| **발송지** | 포토미(제작회사) | 회사 기초정보에서 자동 로드 |
+| | 회원정보(스튜디오) | 로그인한 거래처(주문자) 정보 |
+| **배송지** | 회원정보(스튜디오) | 로그인한 거래처(주문자) 주소 |
+| | 앨범고객(신랑/신부) | 직접 입력 (수령인, 연락처, 주소) |
+
+### 권수별 개별배송
+
+- 원판이 N권(부수)인 경우, 권수만큼 배송정보를 추가 입력할 수 있다
+- 예: 2부 주문 → 1부는 스튜디오, 1부는 신랑 집으로 각각 배송
+- 추가 배송정보는 폴더카드 내에서 [+배송추가] 버튼으로 추가
+
+### 배송 방법 (4가지)
+
+| 방법 | 코드 | 설명 | 배송비 |
+|------|------|------|--------|
+| **택배** | parcel | CJ대한통운, 롯데택배 등 | 기초정보설정 > 배송비 기준 |
+| **오토바이퀵** | motorcycle | 오토바이 퀵서비스 | 기초정보설정 > 배송비 기준 |
+| **화물** | freight | 화물 배송 | 기초정보설정 > 배송비 기준 |
+| **방문수령** | pickup | 고객 직접 방문 수령 | 무료 |
+
+### 배송비 산출 기준
+
+- 배송금액은 **기초정보설정(시스템설정) > 배송비** 에 등록된 금액을 기준으로 고객에게 청구
+- 배송방법별 기본요금을 `DeliveryPricing` 테이블에서 조회
+- 방문수령은 항상 무료
+- 거래처별 배송비 정책(무료배송, 조건부무료, 착불 등) 적용 가능
+
+### 프론트엔드 구현 파일
+
+| 파일 | 설명 |
+|------|------|
+| `components/album-upload/folder-card.tsx` | 폴더카드 - 배송정보 Collapsible 섹션 |
+| `components/album-upload/folder-shipping-section.tsx` | 발송지/배송지/배송방법 입력 UI |
+| `components/album-upload/multi-folder-upload.tsx` | 일괄 배송설정 패널 |
+| `components/address-search.tsx` | 다음 주소검색 (인라인 embed 지원) |
+| `hooks/use-shipping-data.ts` | 회사정보/거래처정보/배송비 로드 |
+| `hooks/use-delivery-pricing.ts` | 배송비 단가 조회 |
+| `stores/multi-folder-upload-store.ts` | FolderShippingInfo 상태관리 |
+
+### 배송정보 데이터 구조 (FolderShippingInfo)
+
+```typescript
+interface FolderShippingInfo {
+  // 발송지
+  senderType: 'company' | 'orderer';       // 포토미(회사) / 주문자(스튜디오)
+  senderName: string;
+  senderPhone: string;
+  senderPostalCode: string;
+  senderAddress: string;
+  senderAddressDetail: string;
+
+  // 배송지
+  receiverType: 'orderer' | 'direct_customer'; // 스튜디오 / 앨범고객(신랑/신부)
+  recipientName: string;
+  recipientPhone: string;
+  recipientPostalCode: string;
+  recipientAddress: string;
+  recipientAddressDetail: string;
+
+  // 배송방법
+  deliveryMethod: 'parcel' | 'motorcycle' | 'freight' | 'pickup';
+  deliveryFee: number;
+  deliveryFeeType: string;
+}
+```
+
+## 배송 방법 (출고/운영)
 
 | 방법 | 설명 | 비용 부담 |
 |------|------|-----------|

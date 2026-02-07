@@ -46,9 +46,13 @@ import {
   ChevronRight as ChevronRightIcon,
   Image as ImageIcon,
   Clock,
+  Truck,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
+import { FolderShippingSection, getShippingSummary } from './folder-shipping-section';
+import type { CompanyShippingInfo, OrdererShippingInfo } from '@/hooks/use-shipping-data';
+import type { DeliveryPricing } from '@/hooks/use-delivery-pricing';
 import {
   type UploadedFolder,
   type FolderValidationStatus,
@@ -63,6 +67,9 @@ import { formatFileSize } from '@/lib/album-utils';
 
 interface FolderCardProps {
   folder: UploadedFolder;
+  companyInfo?: CompanyShippingInfo | null;
+  clientInfo?: OrdererShippingInfo | null;
+  pricingMap?: Record<string, DeliveryPricing>;
 }
 
 // 상태별 스타일 및 메시지
@@ -157,7 +164,7 @@ function getSpreadPageNumbers(
 
 const ZOOM_SCALES = [1, 2, 3, 4];
 
-export function FolderCard({ folder }: FolderCardProps) {
+export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: FolderCardProps) {
   const t = useTranslations('folder');
   const tc = useTranslations('common');
 
@@ -177,6 +184,7 @@ export function FolderCard({ folder }: FolderCardProps) {
     COMBINED_COVER: t('combinedCover'),
   };
 
+  const [isShippingOpen, setIsShippingOpen] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitle, setEditTitle] = useState(folder.orderTitle);
   const [isThumbnailOpen, setIsThumbnailOpen] = useState(true);
@@ -372,6 +380,7 @@ export function FolderCard({ folder }: FolderCardProps) {
     setFolderPageLayout,
     setFolderBindingDirection,
     reorderFolderFiles,
+    setFolderShipping,
   } = useMultiFolderUploadStore();
 
   const config = STATUS_CONFIG[folder.validationStatus];
@@ -889,6 +898,29 @@ export function FolderCard({ folder }: FolderCardProps) {
         </CollapsibleContent>
       </Collapsible>
 
+
+      {/* 배송 정보 섹션 */}
+      <Collapsible open={isShippingOpen} onOpenChange={setIsShippingOpen}>
+        <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 border-t bg-gray-50/50 hover:bg-gray-100/50 transition-colors">
+          <div className="flex items-center gap-2 text-sm">
+            <Truck className="h-3.5 w-3.5 text-gray-500" />
+            <span className="font-medium">{t('shippingInfo')}</span>
+            <span className="text-xs text-gray-500">
+              {getShippingSummary(folder.shippingInfo)}
+            </span>
+          </div>
+          {isShippingOpen ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
+        </CollapsibleTrigger>
+        <CollapsibleContent className="px-3 py-3 border-t">
+          <FolderShippingSection
+            shippingInfo={folder.shippingInfo}
+            companyInfo={companyInfo ?? null}
+            clientInfo={clientInfo ?? null}
+            pricingMap={pricingMap ?? {}}
+            onChange={(shipping) => setFolderShipping(folder.id, shipping)}
+          />
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* 정상/승인 완료 시 - 규격 옵션 및 수량 */}
       {canSelect && (

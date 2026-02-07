@@ -295,6 +295,7 @@ export function FolderShippingSection({
                 />
                 <AddressSearch
                   size="sm"
+                  inline
                   onComplete={(data) => {
                     setDirectPostalCode(data.postalCode);
                     setDirectAddress(data.address);
