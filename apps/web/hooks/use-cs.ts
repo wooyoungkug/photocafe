@@ -176,7 +176,7 @@ export function useAddFollowUp() {
 
   return useMutation({
     mutationFn: ({ consultationId, data }: { consultationId: string; data: CreateFollowUpDto }) =>
-      api.post(`/consultations/${consultationId}/follow-ups`, data),
+      api.post(`/consultations/${consultationId}/follow-up`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [CONSULTATIONS_KEY] });
     },
