@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { useCartStore } from '@/stores/cart-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { LocaleSwitcher } from '@/components/locale-switcher';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 export function ShopHeader() {
   const router = useRouter();
@@ -18,6 +18,9 @@ export function ShopHeader() {
   const { items } = useCartStore();
   const { user, isAuthenticated, logout } = useAuthStore();
   const locale = useLocale();
+  const t = useTranslations();
+  const th = useTranslations('header');
+  const tc = useTranslations('common');
 
   const cartItemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -33,11 +36,11 @@ export function ShopHeader() {
       {/* Top Bar */}
       <div className="bg-gray-900 text-white text-sm">
         <div className="container mx-auto px-4 py-2 flex justify-between items-center">
-          <span>포토카페 - 고품질 인쇄 서비스</span>
+          <span>{th('slogan')}</span>
           <div className="hidden md:flex items-center gap-4">
-            <Link href="/notice" className="hover:text-gray-300">공지사항</Link>
-            <Link href="/guide" className="hover:text-gray-300">이용안내</Link>
-            <Link href="/support" className="hover:text-gray-300">고객센터</Link>
+            <Link href="/notice" className="hover:text-gray-300">{th('notice')}</Link>
+            <Link href="/guide" className="hover:text-gray-300">{th('guide')}</Link>
+            <Link href="/support" className="hover:text-gray-300">{th('support')}</Link>
             <LocaleSwitcher currentLocale={locale} />
           </div>
         </div>
@@ -69,7 +72,7 @@ export function ShopHeader() {
             <div className="relative w-full">
               <Input
                 type="search"
-                placeholder="상품명, 카테고리 검색..."
+                placeholder={th('searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-4 pr-12 h-11 rounded-full border-gray-300 focus:border-primary"
@@ -101,19 +104,19 @@ export function ShopHeader() {
               <div className="hidden md:flex items-center gap-3">
                 <Link href="/mypage" className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded-lg">
                   <User className="h-5 w-5" />
-                  <span className="font-medium text-sm">{user?.name}님</span>
+                  <span className="font-medium text-sm">{user?.name}{th('honorific')}</span>
                 </Link>
                 <Button variant="ghost" size="sm" onClick={logout}>
-                  로그아웃
+                  {tc('logout')}
                 </Button>
               </div>
             ) : (
               <div className="hidden md:flex items-center gap-2">
                 <Link href="/login">
-                  <Button variant="ghost" size="sm">로그인</Button>
+                  <Button variant="ghost" size="sm">{tc('login')}</Button>
                 </Link>
                 <Link href="/register">
-                  <Button size="sm">회원가입</Button>
+                  <Button size="sm">{tc('register')}</Button>
                 </Link>
               </div>
             )}
@@ -125,7 +128,7 @@ export function ShopHeader() {
           <div className="relative w-full">
             <Input
               type="search"
-              placeholder="검색..."
+              placeholder={th('searchPlaceholderMobile')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-4 pr-12 h-10 rounded-full"
@@ -149,13 +152,13 @@ export function ShopHeader() {
               <>
                 <div className="flex items-center gap-2 pb-2 border-b">
                   <User className="h-5 w-5" />
-                  <span className="font-medium">{user?.name}님</span>
+                  <span className="font-medium">{user?.name}{th('honorific')}</span>
                 </div>
                 <Link href="/mypage" className="block py-2" onClick={() => setMobileMenuOpen(false)}>
-                  마이페이지
+                  {th('mypage')}
                 </Link>
                 <Link href="/orders" className="block py-2" onClick={() => setMobileMenuOpen(false)}>
-                  주문내역
+                  {th('orderHistory')}
                 </Link>
                 <button
                   className="block py-2 text-red-600"
@@ -164,28 +167,28 @@ export function ShopHeader() {
                     setMobileMenuOpen(false);
                   }}
                 >
-                  로그아웃
+                  {tc('logout')}
                 </button>
               </>
             ) : (
               <div className="flex gap-2">
                 <Link href="/login" className="flex-1" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="outline" className="w-full">로그인</Button>
+                  <Button variant="outline" className="w-full">{tc('login')}</Button>
                 </Link>
                 <Link href="/register" className="flex-1" onClick={() => setMobileMenuOpen(false)}>
-                  <Button className="w-full">회원가입</Button>
+                  <Button className="w-full">{tc('register')}</Button>
                 </Link>
               </div>
             )}
             <div className="border-t pt-4 space-y-2">
               <Link href="/notice" className="block py-2" onClick={() => setMobileMenuOpen(false)}>
-                공지사항
+                {th('notice')}
               </Link>
               <Link href="/guide" className="block py-2" onClick={() => setMobileMenuOpen(false)}>
-                이용안내
+                {th('guide')}
               </Link>
               <Link href="/support" className="block py-2" onClick={() => setMobileMenuOpen(false)}>
-                고객센터
+                {th('support')}
               </Link>
             </div>
           </div>

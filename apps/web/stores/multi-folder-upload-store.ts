@@ -1060,6 +1060,8 @@ function getSpecKey(width: number, height: number): string {
  * 폴더(주문건) 견적 계산
  */
 export function calculateUploadedFolderPrice(folder: UploadedFolder): {
+  pricePerPage: number;
+  pageCount: number;
   printPrice: number;
   coverPrice: number;
   unitPrice: number;
@@ -1081,6 +1083,8 @@ export function calculateUploadedFolderPrice(folder: UploadedFolder): {
   const totalPrice = subtotal + tax;
 
   return {
+    pricePerPage,
+    pageCount: folder.pageCount,
     printPrice,
     coverPrice,
     unitPrice,
@@ -1089,6 +1093,38 @@ export function calculateUploadedFolderPrice(folder: UploadedFolder): {
     tax,
     totalPrice,
   };
+}
+
+/**
+ * 추가 주문 건 견적 계산
+ */
+export function calculateAdditionalOrderPrice(
+  order: AdditionalOrder,
+  folder: UploadedFolder
+): {
+  pricePerPage: number;
+  pageCount: number;
+  printPrice: number;
+  coverPrice: number;
+  unitPrice: number;
+  quantity: number;
+  subtotal: number;
+  tax: number;
+  totalPrice: number;
+} {
+  const specKey = getSpecKey(order.albumWidth, order.albumHeight);
+  const prices = INDIGO_PRINT_PRICES[specKey] || INDIGO_PRINT_PRICES.default;
+  const pricePerPage = folder.pageLayout === 'spread' ? prices.spread : prices.single;
+
+  const printPrice = pricePerPage * folder.pageCount;
+  const coverPrice = COVER_PRICE;
+  const unitPrice = printPrice + coverPrice;
+  const quantity = order.quantity;
+  const subtotal = unitPrice * quantity;
+  const tax = Math.round(subtotal * 0.1);
+  const totalPrice = subtotal + tax;
+
+  return { pricePerPage, pageCount: folder.pageCount, printPrice, coverPrice, unitPrice, quantity, subtotal, tax, totalPrice };
 }
 
 /**

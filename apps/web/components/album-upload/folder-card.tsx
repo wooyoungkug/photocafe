@@ -48,6 +48,7 @@ import {
   Truck,
   Clock,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import {
   type UploadedFolder,
@@ -57,6 +58,7 @@ import {
   type FolderShippingInfo,
   useMultiFolderUploadStore,
   calculateUploadedFolderPrice,
+  calculateAdditionalOrderPrice,
 } from '@/stores/multi-folder-upload-store';
 import { formatFileSize } from '@/lib/album-utils';
 import { FolderShippingSection, getShippingSummary } from './folder-shipping-section';
@@ -161,6 +163,25 @@ function getSpreadPageNumbers(
 }
 
 export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: FolderCardProps) {
+  const t = useTranslations('folder');
+  const tc = useTranslations('common');
+
+  // Status labels (translated)
+  const statusLabels: Record<FolderValidationStatus, string> = {
+    PENDING: tc('analyzing'),
+    EXACT_MATCH: tc('normal'),
+    RATIO_MATCH: t('ratioMatch'),
+    RATIO_MISMATCH: t('ratioMismatch'),
+  };
+
+  // Cover type labels (translated)
+  const coverLabels: Record<string, string> = {
+    FRONT_COVER: t('frontCover'),
+    BACK_COVER: t('backCover'),
+    INNER_PAGE: t('innerPage'),
+    COMBINED_COVER: t('combinedCover'),
+  };
+
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitle, setEditTitle] = useState(folder.orderTitle);
   const [isThumbnailOpen, setIsThumbnailOpen] = useState(true);
@@ -302,7 +323,7 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
               )}
               title={file.fileName}
             >
-              {isCover ? coverBadge.label : String(file.pageNumber).padStart(2, '0')}
+              {isCover ? coverLabels[file.coverType] : String(file.pageNumber).padStart(2, '0')}
               {file.isSplit && <Scissors className="w-2.5 h-2.5 ml-0.5" />}
             </span>
           );
@@ -381,7 +402,7 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
             {folder.uploadedAt && (
               <span className="ml-auto flex items-center gap-1 text-[10px] text-gray-400">
                 <Clock className="h-3 w-3" />
-                {new Date(folder.uploadedAt).toLocaleString('ko-KR', {
+                {new Date(folder.uploadedAt).toLocaleString(undefined, {
                   month: '2-digit', day: '2-digit',
                   hour: '2-digit', minute: '2-digit',
                 })}
@@ -392,7 +413,7 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
             <Badge className={cn(folder.uploadedAt ? '' : 'ml-auto', actualStatus.badgeColor)}>
               {actualStatus.icon}
               <span className="ml-1">
-                {folder.isApproved && folder.validationStatus === 'RATIO_MATCH' ? '정상주문' : actualStatus.label}
+                {folder.isApproved && folder.validationStatus === 'RATIO_MATCH' ? t('normalOrder') : statusLabels[folder.validationStatus]}
               </span>
             </Badge>
           </div>
@@ -414,7 +435,7 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
                   }
                 }}
                 className="text-xs border rounded px-2 py-0.5 bg-white text-blue-600 font-medium"
-                aria-label="앨범규격 선택"
+                aria-label={t('albumSpecSelect')}
               >
                 {folder.availableSizes.map((size) => (
                   <option key={size.label} value={`${size.width}x${size.height}`}>
@@ -427,7 +448,7 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
             )}
             <span className="text-gray-300">|</span>
             {folder.isAutoDetected && (
-              <span className="text-[9px] text-blue-500 bg-blue-50 px-1 rounded">자동</span>
+              <span className="text-[9px] text-blue-500 bg-blue-50 px-1 rounded">{tc('auto')}</span>
             )}
             <div className="flex border rounded overflow-hidden">
               <button
@@ -440,7 +461,7 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
                     : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                 )}
               >
-                <FileText className="w-2.5 h-2.5" />낱장
+                <FileText className="w-2.5 h-2.5" />{t('single')}
               </button>
               <button
                 type="button"
@@ -452,7 +473,7 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
                     : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                 )}
               >
-                <BookOpen className="w-2.5 h-2.5" />펼침면
+                <BookOpen className="w-2.5 h-2.5" />{t('spread')}
               </button>
             </div>
             {folder.pageLayout === 'spread' && (
@@ -462,16 +483,16 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
                   value={folder.bindingDirection || 'LEFT_START_RIGHT_END'}
                   onChange={(e) => setFolderBindingDirection(folder.id, e.target.value as BindingDirection)}
                   className="text-[10px] border rounded px-1 py-0.5 bg-white"
-                  aria-label="제본방향 선택"
+                  aria-label={t('bindingSelect')}
                 >
-                  <option value="LEFT_START_RIGHT_END">좌→우</option>
-                  <option value="LEFT_START_LEFT_END">좌→좌</option>
-                  <option value="RIGHT_START_LEFT_END">우→좌</option>
-                  <option value="RIGHT_START_RIGHT_END">우→우</option>
+                  <option value="LEFT_START_RIGHT_END">{t('bindingLeftRight')}</option>
+                  <option value="LEFT_START_LEFT_END">{t('bindingLeftLeft')}</option>
+                  <option value="RIGHT_START_LEFT_END">{t('bindingRightLeft')}</option>
+                  <option value="RIGHT_START_RIGHT_END">{t('bindingRightRight')}</option>
                 </select>
                 {folder.autoBindingDetected && (
-                  <span className="text-[9px] text-green-600 bg-green-50 px-1 rounded" title={`첫장 ${folder.firstPageBlank ? '빈페이지' : '정상'} / 막장 ${folder.lastPageBlank ? '빈페이지' : '정상'}`}>
-                    자동감지
+                  <span className="text-[9px] text-green-600 bg-green-50 px-1 rounded" title={`${t('firstPage')} ${folder.firstPageBlank ? t('blankPageLabel') : t('normalPageLabel')} / ${t('lastPage')} ${folder.lastPageBlank ? t('blankPageLabel') : t('normalPageLabel')}`}>
+                    {t('autoDetected')}
                   </span>
                 )}
               </>
@@ -482,8 +503,8 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
           <div className="flex items-center gap-1.5 flex-wrap text-xs text-gray-500">
             <span>{folder.dpi}dpi</span>
             <span className="text-gray-300">/</span>
-            <span>{folder.files.length}장→<span className="font-medium text-blue-600">{folder.pageCount}p</span></span>
-            {folder.hasCombinedCover && <span className="text-pink-500 text-[10px]">(첫막장분리)</span>}
+            <span>{t('pageCount', { count: folder.files.length })}→<span className="font-medium text-blue-600">{t('pages', { count: folder.pageCount })}</span></span>
+            {folder.hasCombinedCover && <span className="text-pink-500 text-[10px]">({t('combinedCoverSplit')})</span>}
             <span className="text-gray-300">/</span>
             <span>{formatFileSize(folder.totalFileSize)}</span>
             <span className="text-gray-300 ml-1">|</span>
@@ -496,13 +517,25 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
         {/* 가격 표시 */}
         <div className="text-right flex-shrink-0">
           <div className="text-lg font-bold text-primary">
-            {folderPrice.totalPrice.toLocaleString()}원
+            {t('priceWon', { price: folderPrice.totalPrice.toLocaleString() })}
           </div>
           <div className="text-[10px] text-gray-400">
-            (단가 {folderPrice.unitPrice.toLocaleString()}원 × {folder.quantity}부)
+            {t('priceFormulaUnit', {
+              perPage: folderPrice.pricePerPage.toLocaleString(),
+              pages: folderPrice.pageCount,
+              printPrice: folderPrice.printPrice.toLocaleString(),
+              cover: folderPrice.coverPrice.toLocaleString(),
+              unitPrice: folderPrice.unitPrice.toLocaleString(),
+            })}
           </div>
           <div className="text-[10px] text-gray-400">
-            VAT 포함
+            {t('priceFormulaTotal', {
+              unitPrice: folderPrice.unitPrice.toLocaleString(),
+              qty: folder.quantity,
+              subtotal: folderPrice.subtotal.toLocaleString(),
+              tax: folderPrice.tax.toLocaleString(),
+              total: folderPrice.totalPrice.toLocaleString(),
+            })}
           </div>
         </div>
 
@@ -522,20 +555,20 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
         <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
           <div className="flex items-center gap-2 text-blue-700 text-sm font-medium mb-2">
             <Scissors className="h-4 w-4" />
-            첫막장 자동 분리 완료
+            {t('combinedCoverSplitComplete')}
           </div>
           {folder.splitCoverResults.map((result, idx) => (
             <div key={idx} className="bg-white rounded border border-blue-100 p-2 text-xs">
-              <div className="text-gray-600 mb-1">원본: {result.originalFileName}</div>
+              <div className="text-gray-600 mb-1">{t('originalFile')} {result.originalFileName}</div>
               <div className="flex items-center gap-2">
                 <div className="flex-1 p-1.5 bg-blue-50 rounded text-center">
-                  <Badge className="bg-blue-500 text-white text-[10px] mb-1">첫장 → 1번</Badge>
-                  <div className="text-gray-500">[빈페이지|왼쪽반]</div>
+                  <Badge className="bg-blue-500 text-white text-[10px] mb-1">{t('frontCoverPosition')}</Badge>
+                  <div className="text-gray-500">{t('frontCoverDetail')}</div>
                 </div>
                 <ArrowRight className="w-4 h-4 text-gray-300" />
                 <div className="flex-1 p-1.5 bg-purple-50 rounded text-center">
-                  <Badge className="bg-purple-500 text-white text-[10px] mb-1">막장 → 마지막</Badge>
-                  <div className="text-gray-500">[오른쪽반|빈페이지]</div>
+                  <Badge className="bg-purple-500 text-white text-[10px] mb-1">{t('backCoverPosition')}</Badge>
+                  <div className="text-gray-500">{t('backCoverDetail')}</div>
                 </div>
               </div>
             </div>
@@ -548,11 +581,11 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
         <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
           <div className="flex items-center gap-2 text-green-700 text-sm font-medium">
             <CheckCircle className="h-4 w-4" />
-            빈페이지 감지 → 제본방향 자동 설정
+            {t('blankPageDetected')}
           </div>
           <div className="mt-1 text-xs text-green-600">
-            {folder.firstPageBlank && <span className="mr-3">첫장: 빈페이지 (먹/백색) → 우시작</span>}
-            {folder.lastPageBlank && <span>막장: 빈페이지 (먹/백색) → 좌끝</span>}
+            {folder.firstPageBlank && <span className="mr-3">{t('blankPageFirstDetected')}</span>}
+            {folder.lastPageBlank && <span>{t('blankPageLastDetected')}</span>}
           </div>
         </div>
       )}
@@ -562,25 +595,25 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
         <div className="mt-3 p-3 bg-red-100 rounded-lg">
           <div className="flex items-center gap-2 text-red-700 text-sm font-medium mb-2">
             <XCircle className="h-4 w-4" />
-            접수불가 — 규격이 맞지 않는 파일 {folder.ratioMismatchCount}개
+            {t('rejectMismatchFiles', { count: folder.ratioMismatchCount })}
           </div>
           <div className="bg-white rounded border border-red-200 text-xs max-h-32 overflow-y-auto">
             {folder.mismatchFiles.slice(0, 10).map((file, idx) => (
               <div key={file.id} className="px-2 py-1 border-b last:border-b-0 flex justify-between">
                 <span className="truncate">{file.fileName}</span>
                 <span className="text-gray-500 ml-2">
-                  {file.widthPx}×{file.heightPx} ({file.widthInch}×{file.heightInch}인치) {file.dpi}dpi
+                  {file.widthPx}×{file.heightPx} ({file.widthInch}×{file.heightInch}{tc('inch')}) {file.dpi}dpi
                 </span>
               </div>
             ))}
             {folder.mismatchFiles.length > 10 && (
               <div className="px-2 py-1 text-gray-500 text-center">
-                외 {folder.mismatchFiles.length - 10}개 더...
+                {t('andMoreItems', { count: folder.mismatchFiles.length - 10 })}
               </div>
             )}
           </div>
           <p className="text-xs text-red-600 mt-2">
-            파일 규격을 수정 후 다시 업로드해주세요.
+            {t('rejectGuide')}
           </p>
         </div>
       )}
@@ -592,10 +625,10 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
             <div>
               <div className="flex items-center gap-2 text-amber-700 text-sm font-medium">
                 <AlertTriangle className="h-4 w-4" />
-                비율은 일치하나 규격이 다릅니다
+                {t('ratioMatchButDifferent')}
               </div>
               <p className="text-xs text-amber-600 mt-1">
-                현재 앨범규격 {folder.albumLabel} → 표준규격 {folder.specLabel}로 자동 조정됩니다.
+                {t('ratioMatchAutoAdjust', { current: folder.albumLabel, standard: folder.specLabel })}
               </p>
             </div>
             <Button
@@ -603,7 +636,7 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
               onClick={() => approveFolder(folder.id)}
               className="bg-amber-600 hover:bg-amber-700"
             >
-              확인 및 승인
+              {t('confirmAndApprove')}
             </Button>
           </div>
         </div>
@@ -615,7 +648,7 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
           <Button variant="ghost" size="sm" className="w-full justify-between h-8 text-xs">
             <span className="flex items-center gap-1">
               <ImageIcon className="h-3 w-3" />
-              썸네일 미리보기 ({folder.files.length}개)
+              {t('thumbnailPreviewCount', { count: folder.files.length })}
             </span>
             {isThumbnailOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
           </Button>
@@ -720,13 +753,13 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
                             'absolute top-1 left-1 text-white text-[10px] px-1 rounded',
                             pages.left !== null ? 'bg-black/60' : 'bg-yellow-500'
                           )}>
-                            {pages.left !== null ? pages.left : '빈'}
+                            {pages.left !== null ? pages.left : t('blank')}
                           </div>
                           <div className={cn(
                             'absolute top-1 right-1 text-white text-[10px] px-1 rounded',
                             pages.right !== null ? 'bg-black/60' : 'bg-yellow-500'
                           )}>
-                            {pages.right !== null ? pages.right : '빈'}
+                            {pages.right !== null ? pages.right : t('blank')}
                           </div>
                         </>
                       );
@@ -741,7 +774,7 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
                         'absolute bottom-1 left-1 right-1 text-center text-[9px] px-1 py-0.5 rounded',
                         coverBadge.className
                       )}>
-                        {coverBadge.label}
+                        {coverLabels[file.coverType]}
                         {file.isSplit && <Scissors className="inline w-2 h-2 ml-0.5" />}
                       </div>
                     )}
@@ -765,7 +798,7 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
                         file.status === 'RATIO_MATCH' ? 'bg-yellow-100 text-yellow-700' :
                         'bg-red-100 text-red-700'
                       )}>
-                        {file.status === 'EXACT' ? 'OK' : file.status === 'RATIO_MATCH' ? '비율일치' : '불일치'}
+                        {file.status === 'EXACT' ? t('exact') : file.status === 'RATIO_MATCH' ? t('ratioMatch') : t('mismatch')}
                       </span>
                     </div>
                   </div>
@@ -783,7 +816,7 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
           {/* 같은 비율 앨범규격 */}
           {folder.availableSizes.length > 1 && (
             <div className="mb-3">
-              <p className="text-xs text-gray-500 mb-2">같은 비율로 제작 가능한 앨범규격:</p>
+              <p className="text-xs text-gray-500 mb-2">{t('availableSizes')}</p>
               <div className="flex flex-wrap gap-1">
                 {folder.availableSizes.map((size) => (
                   <Button
@@ -803,7 +836,7 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
           {/* 수량 */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-sm">부수:</span>
+              <span className="text-sm">{t('copiesLabel')}</span>
               <Select
                 value={folder.quantity.toString()}
                 onValueChange={(val) => setFolderQuantity(folder.id, parseInt(val))}
@@ -813,7 +846,7 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
                 </SelectTrigger>
                 <SelectContent>
                   {[1, 2, 3, 4, 5, 10, 20, 30, 50, 100].map((num) => (
-                    <SelectItem key={num} value={num.toString()}>{num}부</SelectItem>
+                    <SelectItem key={num} value={num.toString()}>{t('copies', { count: num })}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -825,7 +858,6 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
               size="sm"
               className="h-8 text-xs"
               onClick={() => {
-                // 현재 폴더와 같은 사이즈로 복제
                 addAdditionalOrder(folder.id, {
                   width: folder.albumWidth,
                   height: folder.albumHeight,
@@ -834,65 +866,103 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
               }}
             >
               <Plus className="h-3 w-3 mr-1" />
-              추가 주문
+              {t('additionalOrder')}
             </Button>
           </div>
 
           {/* 추가 주문 목록 */}
           {folder.additionalOrders.length > 0 && (
             <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-              <p className="text-xs font-medium text-blue-700 mb-2">추가 주문 (같은 파일, 다른 규격)</p>
+              <p className="text-xs font-medium text-blue-700 mb-2">{t('additionalOrderDescription')}</p>
               <div className="space-y-2">
-                {folder.additionalOrders.map((order) => (
-                  <div key={order.id} className="flex items-center justify-between bg-white rounded px-2 py-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500">규격:</span>
-                      <select
-                        value={`${order.albumWidth}x${order.albumHeight}`}
-                        onChange={(e) => {
-                          const [w, h] = e.target.value.split('x').map(Number);
-                          const selectedSize = folder.availableSizes.find(
-                            (s) => s.width === w && s.height === h
-                          );
-                          if (selectedSize) {
-                            updateAdditionalOrderSpec(folder.id, order.id, selectedSize);
-                          }
-                        }}
-                        className="text-sm border rounded px-2 py-0.5 bg-white font-medium"
-                        aria-label="추가 주문 규격 선택"
-                      >
-                        {folder.availableSizes.map((size) => (
-                          <option key={size.label} value={`${size.width}x${size.height}`}>
-                            {size.label}
-                          </option>
-                        ))}
-                      </select>
+                {folder.additionalOrders.map((order) => {
+                  const orderPrice = calculateAdditionalOrderPrice(order, folder);
+                  return (
+                    <div key={order.id} className="bg-white rounded border border-blue-100 px-3 py-2">
+                      {/* 폴더명 + 가격 */}
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <Folder className="h-3 w-3 text-orange-500" />
+                          <span className="text-[10px] font-bold text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded">{t('additionalSetOrder')}</span>
+                          <span className="text-xs font-medium text-gray-700 truncate">{folder.orderTitle}</span>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <span className="text-sm font-bold text-primary">{t('priceWon', { price: orderPrice.totalPrice.toLocaleString() })}</span>
+                          <div className="text-[10px] text-gray-400">
+                            {t('priceFormulaUnit', {
+                              perPage: orderPrice.pricePerPage.toLocaleString(),
+                              pages: orderPrice.pageCount,
+                              printPrice: orderPrice.printPrice.toLocaleString(),
+                              cover: orderPrice.coverPrice.toLocaleString(),
+                              unitPrice: orderPrice.unitPrice.toLocaleString(),
+                            })}
+                          </div>
+                          <div className="text-[10px] text-gray-400">
+                            {t('priceFormulaTotal', {
+                              unitPrice: orderPrice.unitPrice.toLocaleString(),
+                              qty: order.quantity,
+                              subtotal: orderPrice.subtotal.toLocaleString(),
+                              tax: orderPrice.tax.toLocaleString(),
+                              total: orderPrice.totalPrice.toLocaleString(),
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                      {/* 규격 · 페이지 · 부수 */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[10px] text-gray-400">{t('specLabelShort')}</span>
+                          <select
+                            value={`${order.albumWidth}x${order.albumHeight}`}
+                            onChange={(e) => {
+                              const [w, h] = e.target.value.split('x').map(Number);
+                              const selectedSize = folder.availableSizes.find(
+                                (s) => s.width === w && s.height === h
+                              );
+                              if (selectedSize) {
+                                updateAdditionalOrderSpec(folder.id, order.id, selectedSize);
+                              }
+                            }}
+                            className="text-xs border rounded px-2 py-0.5 bg-white font-medium"
+                            aria-label={t('additionalOrderSpec')}
+                          >
+                            {folder.availableSizes.map((size) => (
+                              <option key={size.label} value={`${size.width}x${size.height}`}>
+                                {size.label}
+                              </option>
+                            ))}
+                          </select>
+                          <span className="text-gray-300">|</span>
+                          <span className="text-[10px] text-gray-400">{t('pageLabelShort')}</span>
+                          <span className="text-xs font-medium text-blue-600">{folder.pageCount}p</span>
+                          <span className="text-gray-300">|</span>
+                          <span className="text-[10px] text-gray-400">{t('copiesLabelShort')}</span>
+                          <Select
+                            value={order.quantity.toString()}
+                            onValueChange={(val) => updateAdditionalOrderQuantity(folder.id, order.id, parseInt(val))}
+                          >
+                            <SelectTrigger className="w-18 h-7 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {[1, 2, 3, 4, 5, 10, 20, 30, 50, 100].map((num) => (
+                                <SelectItem key={num} value={num.toString()}>{t('copies', { count: num })}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-red-500 flex-shrink-0"
+                          onClick={() => removeAdditionalOrder(folder.id, order.id)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Select
-                        value={order.quantity.toString()}
-                        onValueChange={(val) => updateAdditionalOrderQuantity(folder.id, order.id, parseInt(val))}
-                      >
-                        <SelectTrigger className="w-20 h-7 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[1, 2, 3, 4, 5, 10, 20, 30, 50, 100].map((num) => (
-                            <SelectItem key={num} value={num.toString()}>{num}부</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-7 w-7 text-red-500"
-                        onClick={() => removeAdditionalOrder(folder.id, order.id)}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -905,7 +975,7 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
           <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 border-t bg-gray-50/50 hover:bg-gray-100/50 transition-colors">
             <div className="flex items-center gap-2 text-sm">
               <Truck className="h-3.5 w-3.5 text-gray-500" />
-              <span className="font-medium">배송정보</span>
+              <span className="font-medium">{t('shippingInfo')}</span>
               <span className="text-xs text-gray-500">
                 {getShippingSummary(folder.shippingInfo)}
               </span>
@@ -943,14 +1013,14 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
                       'text-[10px]',
                       COVER_TYPE_BADGE[folder.files[previewImage.index]?.coverType]?.className
                     )}>
-                      {COVER_TYPE_BADGE[folder.files[previewImage.index]?.coverType]?.label}
+                      {coverLabels[folder.files[previewImage.index]?.coverType]}
                     </Badge>
                   )}
                   <div className="ml-auto flex gap-1">
                     {[
-                      { level: 0, label: '원본' },
-                      { level: 1, label: '150%' },
-                      { level: 2, label: '200%' },
+                      { level: 0, label: t('zoomOriginal') },
+                      { level: 1, label: t('zoom150') },
+                      { level: 2, label: t('zoom200') },
                     ].map(({ level, label }) => (
                       <button
                         key={level}
@@ -1038,7 +1108,7 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
                     <span>|</span>
                     <span className="flex items-center gap-1 text-pink-500">
                       <Scissors className="w-3 h-3" />
-                      분리됨 ({folder.files[previewImage.index].splitSide})
+                      {t('splitInfo', { side: folder.files[previewImage.index].splitSide ?? '' })}
                     </span>
                   </>
                 )}

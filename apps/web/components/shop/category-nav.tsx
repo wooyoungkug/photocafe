@@ -8,11 +8,13 @@ import { useTopMenuCategories } from '@/hooks/use-categories';
 import { cn } from '@/lib/utils';
 import { API_BASE_URL } from '@/lib/api';
 import type { Category } from '@/lib/types/category';
+import { useTranslations } from 'next-intl';
 
 export function CategoryNav() {
   const pathname = usePathname();
   const { data: topCategories = [], isLoading } = useTopMenuCategories();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const t = useTranslations('category');
 
   if (isLoading) {
     return (
@@ -44,7 +46,7 @@ export function CategoryNav() {
                 pathname === "/" ? "bg-primary text-white" : "hover:bg-gray-100"
               )}
             >
-              전체상품
+              {t('allProducts')}
             </Link>
           </li>
           {sortedCategories.map((category) => (
@@ -107,7 +109,7 @@ export function CategoryNav() {
                   pathname === "/" ? "bg-primary text-white" : "bg-gray-100 hover:bg-gray-200"
                 )}
               >
-                전체
+                {t('allShort')}
               </Link>
             </li>
             {sortedCategories.map((category) => (

@@ -8,9 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Category } from '@/lib/types/category';
+import { useTranslations } from 'next-intl';
 
 export default function HomePage() {
   const { data: categories, isLoading } = useCategoryTree();
+  const t = useTranslations('home');
+  const tc = useTranslations('common');
+  const tcat = useTranslations('category');
 
   const topCategories = categories?.filter(c => c.isTopMenu && c.isVisible) || [];
 
@@ -21,21 +25,20 @@ export default function HomePage() {
         <div className="container mx-auto px-4 py-16 md:py-24">
           <div className="max-w-2xl">
             <h1 className="text-3xl md:text-5xl font-bold mb-4">
-              고품질 인쇄 서비스
+              {t('heroTitle')}
             </h1>
-            <p className="text-lg md:text-xl opacity-90 mb-8">
-              포토북, 앨범, 출력물 전문 인쇄업체<br />
-              최상의 품질과 빠른 배송으로 고객님께 감동을 드립니다.
+            <p className="text-lg md:text-xl opacity-90 mb-8 whitespace-pre-line">
+              {t('heroDescription')}
             </p>
             <div className="flex flex-wrap gap-3">
               <Link href="/category/all">
                 <Button size="lg" variant="secondary" className="font-semibold">
-                  전체 상품 보기
+                  {t('viewAllProducts')}
                 </Button>
               </Link>
               <Link href="/guide">
                 <Button size="lg" variant="outline" className="text-white border-white hover:bg-white/10">
-                  이용 안내
+                  {t('usageGuide')}
                 </Button>
               </Link>
             </div>
@@ -52,8 +55,8 @@ export default function HomePage() {
                 <Sparkles className="h-6 w-6 text-blue-600" />
               </div>
               <div>
-                <p className="font-semibold">최상의 품질</p>
-                <p className="text-sm text-gray-500">프리미엄 인쇄</p>
+                <p className="font-semibold">{t('featureQuality')}</p>
+                <p className="text-sm text-gray-500">{t('featureQualityDesc')}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -61,8 +64,8 @@ export default function HomePage() {
                 <Truck className="h-6 w-6 text-green-600" />
               </div>
               <div>
-                <p className="font-semibold">빠른 배송</p>
-                <p className="text-sm text-gray-500">전국 당일발송</p>
+                <p className="font-semibold">{t('featureDelivery')}</p>
+                <p className="text-sm text-gray-500">{t('featureDeliveryDesc')}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -70,8 +73,8 @@ export default function HomePage() {
                 <Shield className="h-6 w-6 text-purple-600" />
               </div>
               <div>
-                <p className="font-semibold">품질 보증</p>
-                <p className="text-sm text-gray-500">100% 만족보장</p>
+                <p className="font-semibold">{t('featureGuarantee')}</p>
+                <p className="text-sm text-gray-500">{t('featureGuaranteeDesc')}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -79,8 +82,8 @@ export default function HomePage() {
                 <Clock className="h-6 w-6 text-orange-600" />
               </div>
               <div>
-                <p className="font-semibold">24시간 접수</p>
-                <p className="text-sm text-gray-500">온라인 주문</p>
+                <p className="font-semibold">{t('featureOnline')}</p>
+                <p className="text-sm text-gray-500">{t('featureOnlineDesc')}</p>
               </div>
             </div>
           </div>
@@ -90,9 +93,9 @@ export default function HomePage() {
       {/* Category Showcase */}
       <section className="container mx-auto px-4 py-12">
         <div className="flex items-center justify-between mb-8">
-          <h2 className="text-2xl font-bold">카테고리별 상품</h2>
+          <h2 className="text-2xl font-bold">{t('categoryProducts')}</h2>
           <Link href="/category/all" className="text-primary hover:underline flex items-center gap-1">
-            전체보기 <ChevronRight className="h-4 w-4" />
+            {tc('viewAll')} <ChevronRight className="h-4 w-4" />
           </Link>
         </div>
 
@@ -127,7 +130,7 @@ export default function HomePage() {
                 href={`/category/${category.id}`}
                 className="text-primary hover:underline flex items-center gap-1 text-sm"
               >
-                더보기 <ChevronRight className="h-4 w-4" />
+                {tc('more')} <ChevronRight className="h-4 w-4" />
               </Link>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
@@ -148,7 +151,7 @@ export default function HomePage() {
                     <p className="font-medium text-sm">{child.name}</p>
                     {child._count && (
                       <p className="text-xs text-gray-500 mt-1">
-                        {child._count.products + child._count.halfProducts}개 상품
+                        {tcat('productCount', { count: child._count.products + child._count.halfProducts })}
                       </p>
                     )}
                   </Link>
@@ -162,21 +165,20 @@ export default function HomePage() {
       <section className="bg-gray-900 text-white">
         <div className="container mx-auto px-4 py-16 text-center">
           <h2 className="text-2xl md:text-3xl font-bold mb-4">
-            지금 바로 시작하세요
+            {t('ctaTitle')}
           </h2>
           <p className="text-gray-400 mb-8 max-w-lg mx-auto">
-            회원가입 후 다양한 혜택과 할인을 받으실 수 있습니다.
-            지금 가입하시면 첫 주문 10% 할인!
+            {t('ctaDescription')}
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <Link href="/register">
               <Button size="lg" className="font-semibold">
-                무료 회원가입
+                {t('freeRegister')}
               </Button>
             </Link>
             <Link href="/login">
               <Button size="lg" variant="outline" className="text-white border-white hover:bg-white/10">
-                로그인
+                {tc('login')}
               </Button>
             </Link>
           </div>
@@ -190,6 +192,7 @@ function CategoryCard({ category }: { category: Category }) {
   const productCount = category._count
     ? category._count.products + category._count.halfProducts
     : 0;
+  const tcat = useTranslations('category');
 
   return (
     <Link href={`/category/${category.id}`}>
@@ -200,7 +203,7 @@ function CategoryCard({ category }: { category: Category }) {
           </span>
           {category.children && category.children.length > 0 && (
             <span className="absolute top-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
-              {category.children.length}개 하위 카테고리
+              {tcat('subcategories', { count: category.children.length })}
             </span>
           )}
         </div>
@@ -209,7 +212,7 @@ function CategoryCard({ category }: { category: Category }) {
             {category.name}
           </h3>
           <p className="text-sm text-gray-500 mt-1">
-            {productCount > 0 ? `${productCount}개 상품` : '상품 준비중'}
+            {productCount > 0 ? tcat('productCount', { count: productCount }) : tcat('preparingProducts')}
           </p>
         </CardContent>
       </Card>
