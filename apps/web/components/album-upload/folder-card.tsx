@@ -898,6 +898,20 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
         </CollapsibleContent>
       </Collapsible>
 
+      {/* 썸네일 검토 완료 버튼 */}
+      {isThumbnailOpen && (
+        <div className="mt-2 flex justify-center">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsThumbnailOpen(false)}
+            className="text-xs"
+          >
+            <Check className="h-3 w-3 mr-1" />
+            {t('approve')} • {tc('close')}
+          </Button>
+        </div>
+      )}
 
       {/* 배송 정보 섹션 */}
       <Collapsible open={isShippingOpen} onOpenChange={setIsShippingOpen}>

@@ -8,6 +8,9 @@ interface User {
   email: string;
   name: string;
   role: string;
+  clientName?: string;
+  mobile?: string;
+  businessNumber?: string;
 }
 
 interface AuthState {
@@ -18,6 +21,7 @@ interface AuthState {
   rememberMe: boolean;
 
   setAuth: (data: { user: User; accessToken: string; refreshToken: string; rememberMe?: boolean }) => void;
+  updateUser: (user: Partial<User>) => void;
   logout: () => void;
 }
 
@@ -92,6 +96,12 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: true,
           rememberMe,
         });
+      },
+
+      updateUser: (userData) => {
+        set((state) => ({
+          user: state.user ? { ...state.user, ...userData } : null,
+        }));
       },
 
       logout: () => {

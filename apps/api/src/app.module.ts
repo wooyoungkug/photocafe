@@ -22,6 +22,7 @@ import { PublicCopperPlateModule } from './modules/public-copper-plate/public-co
 import { MyProductModule } from './modules/my-product/my-product.module';
 // import { NotionModule } from './modules/notion/notion.module';  // TODO: npm install @notionhq/client
 import { PrismaModule } from './common/prisma/prisma.module';
+import { HealthModule } from './health/health.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -32,6 +33,7 @@ import { AppController } from './app.controller';
       envFilePath: '.env',
     }),
     PrismaModule,
+    HealthModule,
     AuthModule,
     CompanyModule,
     ProductModule,

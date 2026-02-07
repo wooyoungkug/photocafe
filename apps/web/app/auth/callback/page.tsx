@@ -22,7 +22,7 @@ function AuthCallbackContent() {
                 const userParam = searchParams.get('user');
                 const isImpersonated = searchParams.get('impersonated') === 'true';
 
-                // 대리 로그인 시 URL 파라미터에서 사용자 정보 가져오기
+                // URL 파라미터에서 사용자 정보 가져오기
                 const userId = searchParams.get('userId') || '';
                 const userName = searchParams.get('userName') || '';
                 const userEmail = searchParams.get('userEmail') || '';
@@ -31,6 +31,12 @@ function AuthCallbackContent() {
                     setError('토큰이 없습니다');
                     return;
                 }
+
+                console.log('🔐 OAuth Callback - Token:', token);
+                console.log('🔐 OAuth Callback - User ID:', userId);
+                console.log('🔐 OAuth Callback - User Name:', userName);
+                console.log('🔐 OAuth Callback - User Email:', userEmail);
+                console.log('🔐 OAuth Callback - Is Impersonated:', isImpersonated);
 
                 // Store token in localStorage
                 localStorage.setItem('accessToken', token);
@@ -47,7 +53,18 @@ function AuthCallbackContent() {
                         role: 'client',
                     };
                     setStatus('회원으로 로그인 중...');
+                } else if (userId && userEmail) {
+                    // OAuth 로그인 (네이버, 카카오): URL 파라미터 사용
+                    userData = {
+                        id: userId,
+                        email: userEmail,
+                        name: userName || '회원',
+                        role: 'client',
+                    };
+                    localStorage.setItem('user', JSON.stringify(userData));
+                    setStatus('로그인 성공! 쇼핑몰로 이동합니다...');
                 } else if (userParam) {
+                    // 기존 방식 (JSON 파라미터)
                     try {
                         userData = JSON.parse(userParam);
                         localStorage.setItem('user', JSON.stringify(userData));
@@ -55,6 +72,9 @@ function AuthCallbackContent() {
                     } catch {
                         setStatus('사용자 정보 파싱 실패, 대시보드로 이동합니다...');
                     }
+                } else {
+                    // 사용자 정보 없음
+                    console.warn('⚠️ No user information found in URL params');
                 }
 
                 const refreshToken = searchParams.get('refreshToken') || '';
@@ -78,9 +98,15 @@ function AuthCallbackContent() {
                 localStorage.setItem('auth-storage', JSON.stringify(authStorageData));
                 localStorage.setItem('refreshToken', refreshToken);
 
-                // 대리 로그인이면 쇼핑몰로, 아니면 대시보드로 이동
-                const redirectUrl = isImpersonated ? '/' : '/dashboard';
-                setStatus(isImpersonated ? '쇼핑몰로 이동합니다...' : '대시보드로 이동합니다...');
+                console.log('✅ Auth storage saved:', authStorageData);
+
+                // 리다이렉트 URL 결정
+                // 1. 대리 로그인 → 쇼핑몰(/)
+                // 2. OAuth 로그인 (role: client) → 쇼핑몰(/)
+                // 3. 관리자 로그인 → 대시보드(/dashboard)
+                const isClient = userData.role === 'client';
+                const redirectUrl = (isImpersonated || isClient) ? '/' : '/dashboard';
+                setStatus((isImpersonated || isClient) ? '쇼핑몰로 이동합니다...' : '대시보드로 이동합니다...');
 
                 setTimeout(() => {
                     window.location.href = redirectUrl;

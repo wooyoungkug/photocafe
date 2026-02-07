@@ -1,12 +1,20 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
 async function bootstrap() {
+  const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
+
+  // Global Exception Filter
+  app.useGlobalFilters(new AllExceptionsFilter());
+
+  // Enable shutdown hooks for graceful shutdown
+  app.enableShutdownHooks();
 
   // Global prefix
   app.setGlobalPrefix('api/v1');
@@ -122,8 +130,45 @@ async function bootstrap() {
   const port = process.env.PORT || process.env.API_PORT || 3001;
   await app.listen(port, '0.0.0.0');
 
-  console.log(`🚀 API Server running on http://localhost:${port}`);
-  console.log(`📚 Swagger docs: http://localhost:${port}/api/docs`);
+  logger.log(`🚀 API Server running on http://localhost:${port}`);
+  logger.log(`📚 Swagger docs: http://localhost:${port}/api/docs`);
+  logger.log(`💚 Health Check: http://localhost:${port}/health`);
+  logger.log(`🔍 DB Health: http://localhost:${port}/health/db`);
+
+  // Graceful Shutdown 처리
+  const gracefulShutdown = async (signal: string) => {
+    logger.warn(`⚠️  ${signal} received, starting graceful shutdown...`);
+
+    try {
+      await app.close();
+      logger.log('✅ Application closed gracefully');
+      process.exit(0);
+    } catch (error) {
+      logger.error('❌ Error during shutdown:', error);
+      process.exit(1);
+    }
+  };
+
+  // 시그널 핸들러 등록
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+  // Uncaught Exception 처리 (프로세스 종료 방지)
+  process.on('uncaughtException', (error) => {
+    logger.error('❌ Uncaught Exception:', error);
+    // 심각한 에러이므로 재시작 필요
+    gracefulShutdown('uncaughtException');
+  });
+
+  // Unhandled Promise Rejection 처리
+  process.on('unhandledRejection', (reason, promise) => {
+    logger.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+    // Promise rejection은 앱을 종료하지 않음
+  });
 }
 
-bootstrap();
+bootstrap().catch((error) => {
+  const logger = new Logger('Bootstrap');
+  logger.error('❌ Failed to start application:', error);
+  process.exit(1);
+});

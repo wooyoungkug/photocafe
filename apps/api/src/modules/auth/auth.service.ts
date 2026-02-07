@@ -234,6 +234,32 @@ export class AuthService {
     return { success: true, message: '비밀번호가 변경되었습니다' };
   }
 
+  // 관리자용: 회원 비밀번호 초기화 (123456으로 초기화)
+  async resetClientPassword(clientId: string) {
+    const client = await this.prisma.client.findUnique({
+      where: { id: clientId },
+    });
+
+    if (!client) {
+      throw new BadRequestException('회원을 찾을 수 없습니다');
+    }
+
+    // 비밀번호를 123456으로 초기화
+    const defaultPassword = '123456';
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
+    await this.prisma.client.update({
+      where: { id: clientId },
+      data: { password: hashedPassword },
+    });
+
+    return {
+      success: true,
+      message: '비밀번호가 123456으로 초기화되었습니다',
+      defaultPassword: '123456'
+    };
+  }
+
   // ========== 고객 회원가입 ==========
 
   // 다음 클라이언트 코드 생성

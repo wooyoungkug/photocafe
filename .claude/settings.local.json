@@ -272,7 +272,10 @@
       "Bash(powershell.exe -Command \"Get-Content ''C:\\\\Users\\\\WOO\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--dev-printing114\\\\tasks\\\\bcf55ff.output'' | Select-String ''WEB'' | Select-Object -Last 20\")",
       "Bash(powershell.exe:*)",
       "Bash(PGPASSWORD=postgres psql:*)",
-      "Bash(\"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -h localhost -U postgres -d printing_erp -c \"SELECT id, \"\"productName\"\", \"\"isActive\"\", \"\"categoryId\"\" FROM products LIMIT 20;\")"
+      "Bash(\"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -h localhost -U postgres -d printing_erp -c \"SELECT id, \"\"productName\"\", \"\"isActive\"\", \"\"categoryId\"\" FROM products LIMIT 20;\")",
+      "Bash(NODE_OPTIONS=\"--trace-warnings\" npx next dev:*)",
+      "Bash(if exist .next rmdir /s /q .next)",
+      "Bash(cmp:*)"
     ]
   }
 }

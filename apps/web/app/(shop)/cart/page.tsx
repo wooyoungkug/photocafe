@@ -408,7 +408,11 @@ export default function CartPage() {
                             </span>
                           )}
                         </div>
-                        {isExpanded ? (
+                        {isShippingComplete(itemShipping) && !isExpanded ? (
+                          <span className="text-xs text-blue-600 font-medium px-3 py-1 bg-blue-50 rounded-md">
+                            배송지 수정
+                          </span>
+                        ) : isExpanded ? (
                           <ChevronUp className="h-4 w-4 text-gray-400" />
                         ) : (
                           <ChevronDown className="h-4 w-4 text-gray-400" />
@@ -426,6 +430,22 @@ export default function CartPage() {
                               pricingMap={pricingMap}
                               onChange={(shipping) => handleShippingChange(item.id, shipping)}
                             />
+
+                            {/* 확인 및 접기 버튼 */}
+                            {isShippingComplete(itemShipping) && (
+                              <div className="flex justify-center pt-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => toggleShipping(item.id)}
+                                  className="text-xs"
+                                >
+                                  <ChevronUp className="h-3 w-3 mr-1" />
+                                  확인 및 접기
+                                </Button>
+                              </div>
+                            )}
+
                             {/* 전체 적용 버튼 (2개 이상 일반 상품일 때) */}
                             {items.filter(i => !i.albumOrderInfo?.shippingInfo).length > 1 && isShippingComplete(itemShipping) && (
                               <div className="pt-3 border-t border-gray-200">

@@ -67,6 +67,7 @@ import {
   Palette,
   DollarSign,
   ExternalLink,
+  Key,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -258,6 +259,26 @@ export default function MembersPage() {
     }
   };
 
+  const handleResetPassword = async (member: Client) => {
+    if (!confirm(`${member.clientName}님의 비밀번호를 1111로 초기화하시겠습니까?`)) {
+      return;
+    }
+
+    try {
+      await api.patch(`/auth/reset-client-password/${member.id}`);
+      toast({
+        title: '비밀번호가 초기화되었습니다',
+        description: '새 비밀번호: 1111',
+      });
+    } catch (err: any) {
+      toast({
+        title: '비밀번호 초기화에 실패했습니다',
+        description: err.message || '오류가 발생했습니다',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -413,14 +434,25 @@ export default function MembersPage() {
                                 size="sm"
                                 onClick={() => handleOpenDialog(member)}
                                 className="hover:bg-blue-50 h-7 w-7 p-0"
+                                title="회원 정보 수정"
                               >
                                 <Edit className="h-3.5 w-3.5" />
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                onClick={() => handleResetPassword(member)}
+                                className="hover:bg-amber-50 h-7 w-7 p-0"
+                                title="비밀번호 초기화 (1111)"
+                              >
+                                <Key className="h-3.5 w-3.5 text-amber-600" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 onClick={() => setDeleteConfirm(member)}
                                 className="hover:bg-red-50 h-7 w-7 p-0"
+                                title="회원 삭제"
                               >
                                 <Trash2 className="h-3.5 w-3.5 text-destructive" />
                               </Button>

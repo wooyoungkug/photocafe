@@ -361,6 +361,7 @@ model Client {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
+  addresses    ClientAddress[]
   orders       Order[]
   myProducts   MyProduct[]
   assignedStaff StaffClient[]
@@ -380,6 +381,30 @@ model Client {
   @@map("clients")
 }
 
+// ==================== 배송지 정보 ====================
+
+model ClientAddress {
+  id             String   @id @default(cuid())
+  clientId       String
+  client         Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  addressName    String?  // 별칭 (예: "집", "본점", "사무실")
+  recipientName  String   // 수령인 이름
+  phone          String   // 연락처
+
+  postalCode     String   // 우편번호
+  address        String   // 주소
+  addressDetail  String?  // 상세주소
+
+  isDefault      Boolean  @default(false)  // 기본 배송지 여부
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([clientId, isDefault])
+  @@map("client_addresses")
+}
 
 // ==================== 규격정보 ====================
 

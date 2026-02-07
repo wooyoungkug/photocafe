@@ -32,8 +32,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV TZ=Asia/Seoul
 
-# Install OpenSSL for Prisma
-RUN apk add --no-cache libc6-compat openssl
+# Install OpenSSL for Prisma and curl for health checks
+RUN apk add --no-cache libc6-compat openssl curl
 
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs && \
@@ -51,6 +51,10 @@ RUN chown -R nestjs:nodejs /app
 USER nestjs
 
 EXPOSE 3001
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost:3001/health || exit 1
 
 # Run prisma db push on startup, then start server
 CMD ["sh", "-c", "npx prisma db push --skip-generate && node dist/main.js"]

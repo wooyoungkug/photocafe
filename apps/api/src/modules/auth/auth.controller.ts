@@ -77,6 +77,18 @@ export class AuthController {
     );
   }
 
+  @Patch('reset-client-password/:clientId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '관리자용: 회원 비밀번호 초기화 (123456으로 초기화)' })
+  async resetClientPassword(@Param('clientId') clientId: string, @Request() req: any) {
+    // 관리자 권한 확인
+    if (req.user.type !== 'staff' && req.user.role !== 'admin') {
+      throw new UnauthorizedException('관리자 권한이 필요합니다');
+    }
+    return this.authService.resetClientPassword(clientId);
+  }
+
   // ========== 고객 회원가입/로그인 ==========
 
   @Post('client/register/individual')

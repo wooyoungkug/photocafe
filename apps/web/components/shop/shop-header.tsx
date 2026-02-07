@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCartStore } from '@/stores/cart-store';
 import { useAuthStore } from '@/stores/auth-store';
-import { LocaleSwitcher } from '@/components/locale-switcher';
 import { useLocale, useTranslations } from 'next-intl';
 
 export function ShopHeader() {
@@ -18,7 +17,6 @@ export function ShopHeader() {
   const { items } = useCartStore();
   const { user, isAuthenticated, logout } = useAuthStore();
   const locale = useLocale();
-  const t = useTranslations();
   const th = useTranslations('header');
   const tc = useTranslations('common');
 
@@ -41,7 +39,7 @@ export function ShopHeader() {
             <Link href="/notice" className="hover:text-gray-300">{th('notice')}</Link>
             <Link href="/guide" className="hover:text-gray-300">{th('guide')}</Link>
             <Link href="/support" className="hover:text-gray-300">{th('support')}</Link>
-            <LocaleSwitcher currentLocale={locale} />
+            {/* <LocaleSwitcher currentLocale={locale} /> */}
           </div>
         </div>
       </div>
@@ -102,7 +100,7 @@ export function ShopHeader() {
             {/* User */}
             {isAuthenticated ? (
               <div className="hidden md:flex items-center gap-3">
-                <Link href="/mypage" className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded-lg">
+                <Link href="/mypage/orders" className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded-lg">
                   <User className="h-5 w-5" />
                   <span className="font-medium text-sm">{user?.name}{th('honorific')}</span>
                 </Link>
@@ -154,10 +152,7 @@ export function ShopHeader() {
                   <User className="h-5 w-5" />
                   <span className="font-medium">{user?.name}{th('honorific')}</span>
                 </div>
-                <Link href="/mypage" className="block py-2" onClick={() => setMobileMenuOpen(false)}>
-                  {th('mypage')}
-                </Link>
-                <Link href="/orders" className="block py-2" onClick={() => setMobileMenuOpen(false)}>
+                <Link href="/mypage/orders" className="block py-2" onClick={() => setMobileMenuOpen(false)}>
                   {th('orderHistory')}
                 </Link>
                 <button

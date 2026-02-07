@@ -8,12 +8,22 @@
     "packages/*"
   ],
   "scripts": {
+    "predev": "npm run clean:cache && npm run clean:ports",
     "dev": "concurrently -n \"API,WEB\" -c \"blue,green\" --restart-tries -1 --restart-after 3000 \"npm run dev:api\" \"npm run dev:web\"",
     "dev:api": "npm -w apps/api run start:dev",
     "dev:web": "npm -w apps/web run dev",
+    "dev:clean": "npm run clean:all && npm run dev",
+    "clean:ports": "kill-port --port 3001,3002 || echo Ports cleared",
+    "clean:cache": "npm -w apps/web run clean",
+    "clean:api": "npm -w apps/api run clean",
+    "clean:web": "npm -w apps/web run clean",
+    "clean:all": "npm run clean:api && npm run clean:web",
+    "clean:full": "npm run clean:all && rimraf node_modules apps/*/node_modules",
+    "stop": "npm run clean:ports",
     "build": "npm run build:api && npm run build:web",
     "build:api": "npm -w apps/api run build",
     "build:web": "npm -w apps/web run build",
+    "build:clean": "npm run clean:all && npm run build",
     "db:generate": "npm -w apps/api run db:generate",
     "db:push": "npm -w apps/api run db:push",
     "db:migrate": "npm -w apps/api run db:migrate",
@@ -23,7 +33,10 @@
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "kill-port": "^2.0.1",
     "prettier": "^3.2.0",
+    "rimraf": "^6.1.2",
     "typescript": "^5.7.2"
   },
   "engines": {

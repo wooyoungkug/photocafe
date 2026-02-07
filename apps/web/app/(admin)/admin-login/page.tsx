@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
@@ -35,6 +35,19 @@ export default function AdminLoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // 컴포넌트 마운트 시 저장된 로그인 정보 불러오기
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedStaffId = localStorage.getItem('savedStaffId');
+      const savedRememberMe = localStorage.getItem('savedRememberMe') === 'true';
+
+      if (savedRememberMe && savedStaffId) {
+        setStaffId(savedStaffId);
+        setRememberMe(true);
+      }
+    }
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -45,6 +58,17 @@ export default function AdminLoginPage() {
         staffId,
         password,
       });
+
+      // 로그인 정보 저장 (rememberMe가 true일 때만)
+      if (typeof window !== 'undefined') {
+        if (rememberMe) {
+          localStorage.setItem('savedStaffId', staffId);
+          localStorage.setItem('savedRememberMe', 'true');
+        } else {
+          localStorage.removeItem('savedStaffId');
+          localStorage.removeItem('savedRememberMe');
+        }
+      }
 
       setAuth({
         user: {
