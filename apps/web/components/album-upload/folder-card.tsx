@@ -119,6 +119,10 @@ export function FolderCard({ folder }: FolderCardProps) {
   const [editTitle, setEditTitle] = useState(folder.orderTitle);
   const [isThumbnailOpen, setIsThumbnailOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState<{ url: string; fileName: string; index: number } | null>(null);
+  const [isZoomed, setIsZoomed] = useState(false);
+  const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [thumbnailUrls, setThumbnailUrls] = useState<Map<string, string>>(new Map());
 
   // 썸네일 URL 생성
@@ -147,8 +151,14 @@ export function FolderCard({ folder }: FolderCardProps) {
   }, [folder.files]);
 
   // 이미지 네비게이션
+  const resetZoom = () => {
+    setIsZoomed(false);
+    setZoomPos({ x: 0, y: 0 });
+  };
+
   const handlePrevImage = () => {
     if (!previewImage) return;
+    resetZoom();
     const newIndex = previewImage.index > 0 ? previewImage.index - 1 : folder.files.length - 1;
     const file = folder.files[newIndex];
     const url = thumbnailUrls.get(file.id);
@@ -159,12 +169,30 @@ export function FolderCard({ folder }: FolderCardProps) {
 
   const handleNextImage = () => {
     if (!previewImage) return;
+    resetZoom();
     const newIndex = previewImage.index < folder.files.length - 1 ? previewImage.index + 1 : 0;
     const file = folder.files[newIndex];
     const url = thumbnailUrls.get(file.id);
     if (url) {
       setPreviewImage({ url, fileName: file.fileName, index: newIndex });
     }
+  };
+
+  // 줌 이미지 드래그 핸들러
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!isZoomed) return;
+    e.preventDefault();
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - zoomPos.x, y: e.clientY - zoomPos.y });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !isZoomed) return;
+    setZoomPos({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
   };
 
   const {
@@ -303,12 +331,10 @@ export function FolderCard({ folder }: FolderCardProps) {
             </Badge>
           </div>
 
-          {/* 주문규격 → 앨범규격 표시 */}
-          <div className="flex items-center gap-2 text-xs text-gray-600 mb-1">
-            <span className="font-medium">주문규격:</span>
+          {/* 규격 · 편집 · 제본 (한 줄) */}
+          <div className="flex items-center gap-2 text-xs text-gray-600 mb-1 flex-wrap">
             <span>{folder.fileSpecLabel}</span>
             <ArrowRight className="w-3 h-3 text-gray-400" />
-            <span className="font-medium">앨범규격:</span>
             {folder.availableSizes.length > 1 ? (
               <select
                 value={`${folder.albumWidth}x${folder.albumHeight}`}
@@ -333,45 +359,36 @@ export function FolderCard({ folder }: FolderCardProps) {
             ) : (
               <span className="text-blue-600 font-medium">{folder.albumLabel}</span>
             )}
-          </div>
-
-          {/* 편집스타일 & 제본방향 수정 */}
-          <div className="flex items-center gap-3 my-2">
-            {/* 편집스타일 */}
-            <div className="flex items-center gap-1">
-              <span className="text-[10px] text-gray-500">편집:</span>
-              <div className="flex border rounded overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setFolderPageLayout(folder.id, 'single')}
-                  className={cn(
-                    'px-2 py-0.5 text-[10px] flex items-center gap-0.5 transition-colors',
-                    folder.pageLayout === 'single'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                  )}
-                >
-                  <FileText className="w-2.5 h-2.5" />낱장
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFolderPageLayout(folder.id, 'spread')}
-                  className={cn(
-                    'px-2 py-0.5 text-[10px] flex items-center gap-0.5 transition-colors',
-                    folder.pageLayout === 'spread'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                  )}
-                >
-                  <BookOpen className="w-2.5 h-2.5" />펼침면
-                </button>
-              </div>
+            <span className="text-gray-300">|</span>
+            <div className="flex border rounded overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setFolderPageLayout(folder.id, 'single')}
+                className={cn(
+                  'px-1.5 py-0.5 text-[10px] flex items-center gap-0.5 transition-colors',
+                  folder.pageLayout === 'single'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                )}
+              >
+                <FileText className="w-2.5 h-2.5" />낱장
+              </button>
+              <button
+                type="button"
+                onClick={() => setFolderPageLayout(folder.id, 'spread')}
+                className={cn(
+                  'px-1.5 py-0.5 text-[10px] flex items-center gap-0.5 transition-colors',
+                  folder.pageLayout === 'spread'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                )}
+              >
+                <BookOpen className="w-2.5 h-2.5" />펼침면
+              </button>
             </div>
-
-            {/* 제본방향 (펼침면일 때만) */}
             {folder.pageLayout === 'spread' && (
-              <div className="flex items-center gap-1">
-                <span className="text-[10px] text-gray-500">제본:</span>
+              <>
+                <span className="text-gray-300">|</span>
                 <select
                   value={folder.bindingDirection || 'LEFT_START_RIGHT_END'}
                   onChange={(e) => setFolderBindingDirection(folder.id, e.target.value as BindingDirection)}
@@ -383,20 +400,21 @@ export function FolderCard({ folder }: FolderCardProps) {
                   <option value="RIGHT_START_LEFT_END">우→좌</option>
                   <option value="RIGHT_START_RIGHT_END">우→우</option>
                 </select>
-              </div>
+              </>
             )}
           </div>
 
-          {/* 상세 정보 행 */}
-          <p className="text-xs text-gray-500">
-            {folder.dpi}dpi / 파일 {folder.files.length}장 → <span className="font-medium text-blue-600">{folder.pageCount}p</span>{folder.hasCombinedCover && ` (첫막장분리)`} / {folder.quantity}부 / {formatFileSize(folder.totalFileSize)}
-          </p>
-
-          {/* 페이지 순서 미리보기 (첫장/막장 강조) */}
-          <div className="mt-2">
-            <p className="text-[10px] text-gray-400 mb-1">
-              페이지 순서: <span className="text-blue-500">■ 첫장</span> / <span className="text-purple-500">■ 막장</span>
-            </p>
+          {/* 파일정보 · 페이지순서 (한 줄) */}
+          <div className="flex items-center gap-1.5 flex-wrap text-xs text-gray-500">
+            <span>{folder.dpi}dpi</span>
+            <span className="text-gray-300">/</span>
+            <span>{folder.files.length}장→<span className="font-medium text-blue-600">{folder.pageCount}p</span></span>
+            {folder.hasCombinedCover && <span className="text-pink-500 text-[10px]">(첫막장분리)</span>}
+            <span className="text-gray-300">/</span>
+            <span>{formatFileSize(folder.totalFileSize)}</span>
+            <span className="text-gray-300 ml-1">|</span>
+            <span className="text-[10px] text-blue-500">■</span>
+            <span className="text-[10px] text-purple-500">■</span>
             {getPageOrderDisplay()}
           </div>
         </div>
@@ -515,7 +533,7 @@ export function FolderCard({ folder }: FolderCardProps) {
           </Button>
         </CollapsibleTrigger>
         <CollapsibleContent className="mt-2">
-          <div className="grid grid-cols-6 gap-2 p-2 bg-gray-50 rounded-lg border">
+          <div className="grid grid-cols-4 gap-2 p-2 bg-gray-50 rounded-lg border">
             {folder.files.map((file, index) => {
               const url = thumbnailUrls.get(file.id);
               const coverBadge = COVER_TYPE_BADGE[file.coverType];
@@ -782,8 +800,11 @@ export function FolderCard({ folder }: FolderCardProps) {
       )}
 
       {/* 이미지 미리보기 모달 */}
-      <Dialog open={!!previewImage} onOpenChange={(open) => !open && setPreviewImage(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden">
+      <Dialog open={!!previewImage} onOpenChange={(open) => { if (!open) { setPreviewImage(null); resetZoom(); } }}>
+        <DialogContent className={cn(
+          'p-0 overflow-hidden transition-all',
+          isZoomed ? 'max-w-[95vw] max-h-[95vh]' : 'max-w-4xl max-h-[90vh]'
+        )}>
           <DialogHeader className="p-3 border-b bg-white">
             <DialogTitle className="text-sm flex items-center gap-2">
               {previewImage && (
@@ -800,19 +821,38 @@ export function FolderCard({ folder }: FolderCardProps) {
                       {COVER_TYPE_BADGE[folder.files[previewImage.index]?.coverType]?.label}
                     </Badge>
                   )}
+                  <button
+                    onClick={() => { if (isZoomed) resetZoom(); else setIsZoomed(true); }}
+                    className={cn(
+                      'ml-auto px-2 py-0.5 rounded text-[10px] font-medium transition-colors',
+                      isZoomed ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                    )}
+                  >
+                    {isZoomed ? '축소' : '확대'}
+                  </button>
                 </>
               )}
             </DialogTitle>
           </DialogHeader>
 
           {previewImage && (
-            <div className="relative flex items-center justify-center bg-gray-100 min-h-[400px]">
+            <div
+              className={cn(
+                'relative flex items-center justify-center bg-gray-100',
+                isZoomed ? 'min-h-[80vh] overflow-hidden cursor-grab' : 'min-h-[400px] cursor-zoom-in',
+                isDragging && 'cursor-grabbing'
+              )}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+            >
               {/* 이전 버튼 */}
               <Button
                 variant="ghost"
                 size="icon"
                 className="absolute left-2 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full bg-white/80 hover:bg-white shadow-md z-10"
-                onClick={handlePrevImage}
+                onClick={(e) => { e.stopPropagation(); handlePrevImage(); }}
               >
                 <ChevronLeft className="h-8 w-8" />
               </Button>
@@ -821,7 +861,21 @@ export function FolderCard({ folder }: FolderCardProps) {
               <img
                 src={previewImage.url}
                 alt={previewImage.fileName}
-                className="max-w-full max-h-[70vh] object-contain"
+                className={cn(
+                  'object-contain select-none transition-transform',
+                  isZoomed ? 'max-w-none max-h-none' : 'max-w-full max-h-[70vh]'
+                )}
+                style={isZoomed ? {
+                  transform: `translate(${zoomPos.x}px, ${zoomPos.y}px)`,
+                  width: '150%',
+                } : undefined}
+                onClick={(e) => {
+                  if (!isZoomed) {
+                    e.stopPropagation();
+                    setIsZoomed(true);
+                  }
+                }}
+                draggable={false}
               />
 
               {/* 다음 버튼 */}
@@ -829,7 +883,7 @@ export function FolderCard({ folder }: FolderCardProps) {
                 variant="ghost"
                 size="icon"
                 className="absolute right-2 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full bg-white/80 hover:bg-white shadow-md z-10"
-                onClick={handleNextImage}
+                onClick={(e) => { e.stopPropagation(); handleNextImage(); }}
               >
                 <ChevronRightIcon className="h-8 w-8" />
               </Button>
