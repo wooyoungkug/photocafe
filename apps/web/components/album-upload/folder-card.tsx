@@ -53,7 +53,6 @@ import {
   type PageLayoutType,
   type BindingDirection,
   useMultiFolderUploadStore,
-  STANDARD_SIZES,
   calculateUploadedFolderPrice,
 } from '@/stores/multi-folder-upload-store';
 import { formatFileSize } from '@/lib/album-utils';

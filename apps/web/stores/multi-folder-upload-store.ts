@@ -4,6 +4,14 @@ import { calculateNormalizedRatio, type SizeMatchStatus } from '@/lib/album-util
 // 비율 허용 오차
 const RATIO_TOLERANCE = 0.01;
 
+// 표준 규격 타입 (DB 인디고 규격에서 변환)
+export interface StandardSize {
+  width: number;
+  height: number;
+  label: string;
+  ratio: number;
+}
+
 // 주문 유형: 펼친면 vs 낱장
 export type PageLayoutType = 'spread' | 'single';
 
@@ -34,68 +42,7 @@ export function detectCoverType(filename: string): CoverType {
   return 'INNER_PAGE';
 }
 
-// 표준 규격 목록 (앨범규격 기준) - 상품 등록 페이지 인디고 규격과 동기화
-export const STANDARD_SIZES = [
-  // 정사각형 (1:1)
-  { width: 6, height: 6, label: '6×6인치', ratio: 1 },
-  { width: 8, height: 8, label: '8×8인치', ratio: 1 },
-  { width: 10, height: 10, label: '10×10인치', ratio: 1 },
-  { width: 11, height: 11, label: '11×11인치', ratio: 1 },
-  { width: 12, height: 12, label: '12×12인치', ratio: 1 },
-  { width: 14, height: 14, label: '14×14인치', ratio: 1 },
-  { width: 16, height: 16, label: '16×16인치', ratio: 1 },
-  // 6:4 비율 (3:2)
-  { width: 6, height: 4, label: '6×4인치', ratio: 1.5 },
-  { width: 12, height: 8, label: '12×8인치', ratio: 1.5 },
-  { width: 15, height: 10, label: '15×10인치', ratio: 1.5 },
-  // 4:6 비율 (2:3)
-  { width: 4, height: 6, label: '4×6인치', ratio: 4 / 6 },
-  { width: 8, height: 12, label: '8×12인치', ratio: 8 / 12 },
-  // 5:7 비율
-  { width: 5, height: 7, label: '5×7인치', ratio: 5 / 7 },
-  { width: 10, height: 14, label: '10×14인치', ratio: 10 / 14 },
-  // 7:5 비율
-  { width: 7, height: 5, label: '7×5인치', ratio: 7 / 5 },
-  { width: 14, height: 10, label: '14×10인치', ratio: 14 / 10 },
-  // 7:5.5 비율 (= 14:11)
-  { width: 7, height: 5.5, label: '7×5.5인치', ratio: 7 / 5.5 },
-  // 6:8 비율 (3:4)
-  { width: 6, height: 8, label: '6×8인치', ratio: 6 / 8 },
-  // 8:6 비율 (4:3)
-  { width: 8, height: 6, label: '8×6인치', ratio: 8 / 6 },
-  // 8:10 비율 (4:5)
-  { width: 8, height: 10, label: '8×10인치', ratio: 8 / 10 },
-  // 10:8 비율 (5:4)
-  { width: 10, height: 8, label: '10×8인치', ratio: 10 / 8 },
-  // A4 규격 (8.27x11.69)
-  { width: 8.27, height: 11.69, label: 'A4_세로', ratio: 8.27 / 11.69 },
-  { width: 11.69, height: 8.27, label: 'A4_가로', ratio: 11.69 / 8.27 },
-  // 11:8.8 비율
-  { width: 11, height: 8.8, label: '11×8.8인치', ratio: 11 / 8.8 },
-  { width: 8.8, height: 11, label: '8.8×11인치', ratio: 8.8 / 11 },
-  // 8.6:11 비율
-  { width: 8.6, height: 11, label: '8.6×11인치', ratio: 8.6 / 11 },
-  { width: 11, height: 8.6, label: '11×8.6인치', ratio: 11 / 8.6 },
-  // 13:10 비율
-  { width: 13, height: 10, label: '13×10인치', ratio: 13 / 10 },
-  { width: 10, height: 13, label: '10×13인치', ratio: 10 / 13 },
-  // 14:11 비율
-  { width: 14, height: 11, label: '14×11인치', ratio: 14 / 11 },
-  { width: 11, height: 14, label: '11×14인치', ratio: 11 / 14 },
-  // 11:8.5 비율
-  { width: 11, height: 8.5, label: '11×8.5인치', ratio: 11 / 8.5 },
-  // 11:15 비율
-  { width: 11, height: 15, label: '11×15인치', ratio: 11 / 15 },
-  { width: 15, height: 11, label: '15×11인치', ratio: 15 / 11 },
-  // 11:16 비율
-  { width: 11, height: 16, label: '11×16인치', ratio: 11 / 16 },
-  { width: 16, height: 11, label: '16×11인치', ratio: 16 / 11 },
-  // 12:15 비율 (4:5)
-  { width: 12, height: 15, label: '12×15인치', ratio: 12 / 15 },
-  { width: 15, height: 12, label: '15×12인치', ratio: 15 / 12 },
-  // 28:11 비율 (파노라마)
-  { width: 28, height: 11, label: '28×11인치', ratio: 28 / 11 },
-];
+// 표준 규격 목록은 DB 인디고출력 규격에서 동적으로 로드됨
 
 // 폴더 검증 상태
 export type FolderValidationStatus = 'PENDING' | 'EXACT_MATCH' | 'RATIO_MATCH' | 'RATIO_MISMATCH';
@@ -211,7 +158,7 @@ export interface UploadedFolder {
   quantity: number;
 
   // 같은 비율의 가능 규격 (앨범규격 기준)
-  availableSizes: typeof STANDARD_SIZES;
+  availableSizes: StandardSize[];
 
   // 추가 주문
   additionalOrders: AdditionalOrder[];
@@ -233,6 +180,12 @@ interface MultiFolderUploadState {
   targetSpecWidth: number;
   targetSpecHeight: number;
   targetSpecRatio: number;
+
+  // DB 인디고출력 규격 리스트
+  indigoSpecs: StandardSize[];
+
+  // 인디고 규격 설정
+  setIndigoSpecs: (specs: StandardSize[]) => void;
 
   // 액션
   addFolder: (folder: UploadedFolder) => void;
@@ -283,6 +236,7 @@ const initialState = {
   targetSpecWidth: 12,
   targetSpecHeight: 12,
   targetSpecRatio: 1,
+  indigoSpecs: [] as StandardSize[],
 };
 
 // 페이지 수 계산 (파일 수 + 편집스타일 + 제본방향 기반)
@@ -367,8 +321,8 @@ function checkRatioMatch(
 }
 
 // 같은 비율의 앨범규격 찾기 (방향도 일치해야 함)
-function findAvailableSizes(ratio: number, isLandscape: boolean) {
-  return STANDARD_SIZES.filter(size => {
+function findAvailableSizes(sizes: StandardSize[], ratio: number, isLandscape: boolean) {
+  return sizes.filter(size => {
     const sizeRatio = calculateNormalizedRatio(size.width, size.height);
     const sizeIsLandscape = size.width >= size.height; // 가로형 여부
     // 비율이 일치하고, 방향도 일치해야 함
@@ -377,8 +331,8 @@ function findAvailableSizes(ratio: number, isLandscape: boolean) {
 }
 
 // 규격 라벨 생성
-function getSpecLabel(width: number, height: number): string {
-  const found = STANDARD_SIZES.find(s => s.width === width && s.height === height);
+function getSpecLabel(sizes: StandardSize[], width: number, height: number): string {
+  const found = sizes.find(s => Math.abs(s.width - width) < 0.15 && Math.abs(s.height - height) < 0.15);
   if (found) return found.label;
   return `${width}×${height}인치`;
 }
@@ -461,16 +415,18 @@ export function processHalfWidthCovers(
 // 가장 가까운 표준 앨범규격 찾기
 // 1. 정확히 일치하는 규격이 있으면 그것을 반환
 // 2. 없으면 비율이 맞는 것 중 크기가 가장 가까운 규격 반환
-function findClosestStandardSize(albumWidth: number, albumHeight: number) {
-  // 1. 정확히 일치하는 규격 찾기
-  const exactMatch = STANDARD_SIZES.find(
-    size => Math.abs(size.width - albumWidth) < 0.1 && Math.abs(size.height - albumHeight) < 0.1
+function findClosestStandardSize(sizes: StandardSize[], albumWidth: number, albumHeight: number): StandardSize | null {
+  if (sizes.length === 0) return null;
+
+  // 1. 정확히 일치하는 규격 찾기 (허용 오차 0.15)
+  const exactMatch = sizes.find(
+    size => Math.abs(size.width - albumWidth) < 0.15 && Math.abs(size.height - albumHeight) < 0.15
   );
   if (exactMatch) return exactMatch;
 
   // 2. 비율이 일치하는 규격 중 크기가 가장 가까운 것 찾기
   const albumRatio = calculateNormalizedRatio(albumWidth, albumHeight);
-  const ratioMatchSizes = STANDARD_SIZES.filter(size => {
+  const ratioMatchSizes = sizes.filter(size => {
     const sizeRatio = calculateNormalizedRatio(size.width, size.height);
     return Math.abs(sizeRatio - albumRatio) < RATIO_TOLERANCE;
   });
@@ -491,10 +447,10 @@ function findClosestStandardSize(albumWidth: number, albumHeight: number) {
   }
 
   // 3. 비율이 맞는 것이 없으면 비율이 가장 가까운 것 반환
-  let closestSize = STANDARD_SIZES[0];
+  let closestSize = sizes[0];
   let minDiff = Infinity;
 
-  for (const size of STANDARD_SIZES) {
+  for (const size of sizes) {
     const sizeRatio = calculateNormalizedRatio(size.width, size.height);
     const diff = Math.abs(sizeRatio - albumRatio);
     if (diff < minDiff) {
@@ -508,6 +464,8 @@ function findClosestStandardSize(albumWidth: number, albumHeight: number) {
 
 export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, get) => ({
   ...initialState,
+
+  setIndigoSpecs: (specs) => set({ indigoSpecs: specs }),
 
   addFolder: (folder) => {
     const validated = get().validateFolder(folder);
@@ -567,19 +525,26 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
   },
 
   setFolderPageLayout: (folderId, layout) => {
+    const specs = get().indigoSpecs;
     set(state => ({
       folders: state.folders.map(f => {
         if (f.id !== folderId) return f;
         // 주문 유형 변경 시 앨범규격 재계산
-        const { albumWidth, albumHeight } = calculateAlbumSize(
+        const { albumWidth: rawAlbumWidth, albumHeight: rawAlbumHeight } = calculateAlbumSize(
           f.fileSpecWidth,
           f.fileSpecHeight,
           layout
         );
-        const albumRatio = calculateNormalizedRatio(albumWidth, albumHeight);
-        const closestSize = findClosestStandardSize(albumWidth, albumHeight);
-        const isLandscape = albumWidth >= albumHeight; // 가로형 여부
-        const availableSizes = findAvailableSizes(albumRatio, isLandscape);
+        const albumRatio = calculateNormalizedRatio(rawAlbumWidth, rawAlbumHeight);
+        const closestSize = findClosestStandardSize(specs, rawAlbumWidth, rawAlbumHeight);
+        const isLandscape = rawAlbumWidth >= rawAlbumHeight; // 가로형 여부
+        const availableSizes = findAvailableSizes(specs, albumRatio, isLandscape);
+
+        // 앨범 크기를 가장 가까운 표준 규격으로 스냅
+        const albumWidth = closestSize && Math.abs(rawAlbumWidth - closestSize.width) < 0.5 && Math.abs(rawAlbumHeight - closestSize.height) < 0.5
+          ? closestSize.width : rawAlbumWidth;
+        const albumHeight = closestSize && Math.abs(rawAlbumWidth - closestSize.width) < 0.5 && Math.abs(rawAlbumHeight - closestSize.height) < 0.5
+          ? closestSize.height : rawAlbumHeight;
 
         // 페이지 수 재계산
         const fileCount = f.files.length;
@@ -592,11 +557,11 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
           albumWidth,
           albumHeight,
           albumRatio,
-          albumLabel: getSpecLabel(albumWidth, albumHeight),
-          specWidth: closestSize.width,
-          specHeight: closestSize.height,
-          specRatio: calculateNormalizedRatio(closestSize.width, closestSize.height),
-          specLabel: closestSize.label,
+          albumLabel: closestSize ? closestSize.label : getSpecLabel(specs, albumWidth, albumHeight),
+          specWidth: closestSize?.width ?? albumWidth,
+          specHeight: closestSize?.height ?? albumHeight,
+          specRatio: closestSize ? calculateNormalizedRatio(closestSize.width, closestSize.height) : albumRatio,
+          specLabel: closestSize?.label ?? getSpecLabel(specs, albumWidth, albumHeight),
           availableSizes,
         };
       }),
@@ -723,6 +688,8 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
   },
 
   validateFolder: (folder) => {
+    const specs = get().indigoSpecs;
+
     // 1. 파일별 앨범규격 계산
     const filesWithAlbum = folder.files.map(file => {
       const fileAlbum = calculateAlbumSize(file.widthInch, file.heightInch, folder.pageLayout);
@@ -761,8 +728,15 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
       }
     }
 
-    // 대표규격에 맞는 표준 규격 찾기
-    const closestSize = findClosestStandardSize(representativeWidth, representativeHeight);
+    // 대표규격에 맞는 표준 규격 찾기 (DB 인디고 규격 기반)
+    const closestSize = findClosestStandardSize(specs, representativeWidth, representativeHeight);
+
+    // 앨범 크기를 가장 가까운 표준 규격으로 스냅 (소수점 오차 보정)
+    const albumWidth = closestSize && Math.abs(representativeWidth - closestSize.width) < 0.5 && Math.abs(representativeHeight - closestSize.height) < 0.5
+      ? closestSize.width : representativeWidth;
+    const albumHeight = closestSize && Math.abs(representativeWidth - closestSize.width) < 0.5 && Math.abs(representativeHeight - closestSize.height) < 0.5
+      ? closestSize.height : representativeHeight;
+    const albumRatio = calculateNormalizedRatio(albumWidth, albumHeight);
 
     // 3. 파일별 대표규격 대비 검증
     let exactCount = 0;
@@ -822,9 +796,9 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
       validationStatus = 'EXACT_MATCH';
     }
 
-    // 같은 비율의 가능 앨범규격 찾기 (방향도 일치해야 함)
-    const isLandscape = representativeWidth >= representativeHeight; // 가로형 여부
-    const availableSizes = findAvailableSizes(representativeRatio, isLandscape);
+    // 같은 비율의 가능 앨범규격 찾기 (DB 인디고 규격 기반, 방향도 일치해야 함)
+    const isLandscape = albumWidth >= albumHeight; // 가로형 여부
+    const availableSizes = findAvailableSizes(specs, albumRatio, isLandscape);
 
     // 페이지 수 계산 (파일수 + 편집스타일 + 제본방향 기반)
     const fileCount = renamedFiles.length;
@@ -840,15 +814,15 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
       ratioMismatchCount: mismatchCount,
       mismatchFiles,
       availableSizes,
-      // 대표규격 기준으로 표준 규격 설정
-      albumWidth: representativeWidth,
-      albumHeight: representativeHeight,
-      albumRatio: representativeRatio,
-      albumLabel: getSpecLabel(representativeWidth, representativeHeight),
-      specWidth: closestSize.width,
-      specHeight: closestSize.height,
-      specRatio: calculateNormalizedRatio(closestSize.width, closestSize.height),
-      specLabel: closestSize.label,
+      // 대표규격 기준으로 표준 규격 설정 (스냅된 앨범 크기 사용)
+      albumWidth,
+      albumHeight,
+      albumRatio,
+      albumLabel: closestSize ? closestSize.label : getSpecLabel(specs, albumWidth, albumHeight),
+      specWidth: closestSize?.width ?? albumWidth,
+      specHeight: closestSize?.height ?? albumHeight,
+      specRatio: closestSize ? calculateNormalizedRatio(closestSize.width, closestSize.height) : albumRatio,
+      specLabel: closestSize?.label ?? getSpecLabel(specs, albumWidth, albumHeight),
       // 정확히 일치하는 경우만 자동 선택 가능
       isSelected: false,
       isApproved: validationStatus === 'EXACT_MATCH',

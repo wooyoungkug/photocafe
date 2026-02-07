@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import {
@@ -21,15 +21,16 @@ import {
   type BindingDirection,
   type CoverType,
   type SplitCoverResult,
+  type StandardSize,
   getSpecLabel,
   detectCoverType,
   calculateAlbumSize,
   sortPagesByPosition,
   findClosestStandardSize,
   calculatePageCount,
-  STANDARD_SIZES,
   calculateTotalUploadedPrice,
 } from '@/stores/multi-folder-upload-store';
+import { useIndigoSpecifications } from '@/hooks/use-specifications';
 
 // 편집스타일 아이콘 컴포넌트
 function PageLayoutIcon({ type, isSelected }: { type: 'single' | 'spread'; isSelected: boolean }) {
@@ -117,14 +118,32 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
     uploadProgress,
     defaultPageLayout,
     defaultBindingDirection,
+    indigoSpecs,
     addFolder,
     clearFolders,
     setUploading,
     setUploadProgress,
     setDefaultPageLayout,
     setDefaultBindingDirection,
+    setIndigoSpecs,
     getSelectedFolders,
   } = useMultiFolderUploadStore();
+
+  // DB에서 인디고출력 규격 가져오기
+  const { data: indigoSpecsRaw } = useIndigoSpecifications();
+
+  // 인디고 규격을 StandardSize 형태로 변환하여 스토어에 저장
+  useEffect(() => {
+    if (indigoSpecsRaw && indigoSpecsRaw.length > 0) {
+      const converted: StandardSize[] = indigoSpecsRaw.map(spec => ({
+        width: Number(spec.widthInch),
+        height: Number(spec.heightInch),
+        label: `${spec.widthInch}×${spec.heightInch}인치`,
+        ratio: Number(spec.widthInch) / Number(spec.heightInch),
+      }));
+      setIndigoSpecs(converted);
+    }
+  }, [indigoSpecsRaw, setIndigoSpecs]);
 
   const [isDragging, setIsDragging] = useState(false);
   const [processingMessage, setProcessingMessage] = useState('');
@@ -636,11 +655,15 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       const fileSpecHeight = firstFile.heightInch;
 
       // 앨범규격 계산
-      const { albumWidth, albumHeight } = calculateAlbumSize(fileSpecWidth, fileSpecHeight, pageLayout);
-      const albumRatio = calculateNormalizedRatio(albumWidth, albumHeight);
+      const { albumWidth: rawAlbumWidth, albumHeight: rawAlbumHeight } = calculateAlbumSize(fileSpecWidth, fileSpecHeight, pageLayout);
+      const closestStandard = findClosestStandardSize(indigoSpecs, rawAlbumWidth, rawAlbumHeight);
 
-      // 가장 가까운 표준 앨범규격
-      const closestStandard = findClosestStandardSize(albumWidth, albumHeight);
+      // 앨범 크기를 가장 가까운 표준 규격으로 스냅
+      const albumWidth = closestStandard && Math.abs(rawAlbumWidth - closestStandard.width) < 0.5 && Math.abs(rawAlbumHeight - closestStandard.height) < 0.5
+        ? closestStandard.width : rawAlbumWidth;
+      const albumHeight = closestStandard && Math.abs(rawAlbumWidth - closestStandard.width) < 0.5 && Math.abs(rawAlbumHeight - closestStandard.height) < 0.5
+        ? closestStandard.height : rawAlbumHeight;
+      const albumRatio = calculateNormalizedRatio(albumWidth, albumHeight);
 
       // 페이지 수 계산 (파일수 + 편집스타일 + 제본방향 기반)
       const fileCount = sortedFiles.length;
@@ -659,16 +682,16 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         bindingDirection,
         fileSpecWidth,
         fileSpecHeight,
-        fileSpecLabel: getSpecLabel(fileSpecWidth, fileSpecHeight),
+        fileSpecLabel: `${fileSpecWidth}×${fileSpecHeight}인치`,
         albumWidth,
         albumHeight,
         albumRatio,
-        albumLabel: getSpecLabel(albumWidth, albumHeight),
+        albumLabel: closestStandard ? closestStandard.label : `${albumWidth}×${albumHeight}인치`,
         dpi: firstFile.dpi,
-        specWidth: closestStandard.width,
-        specHeight: closestStandard.height,
-        specRatio: calculateNormalizedRatio(closestStandard.width, closestStandard.height),
-        specLabel: closestStandard.label,
+        specWidth: closestStandard?.width ?? albumWidth,
+        specHeight: closestStandard?.height ?? albumHeight,
+        specRatio: closestStandard ? calculateNormalizedRatio(closestStandard.width, closestStandard.height) : albumRatio,
+        specLabel: closestStandard?.label ?? `${albumWidth}×${albumHeight}인치`,
         validationStatus: 'PENDING',
         isApproved: false,
         isSelected: false,
@@ -685,7 +708,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
 
       return folder;
     },
-    [readDirectoryFiles, extractFileMetadata, setUploadProgress, processHalfWidthCoversWithCanvas]
+    [readDirectoryFiles, extractFileMetadata, setUploadProgress, processHalfWidthCoversWithCanvas, indigoSpecs]
   );
 
   // 드롭 핸들러
@@ -800,9 +823,15 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
 
         const fileSpecWidth = firstFile.widthInch;
         const fileSpecHeight = firstFile.heightInch;
-        const { albumWidth, albumHeight } = calculateAlbumSize(fileSpecWidth, fileSpecHeight, defaultPageLayout!);
+        const { albumWidth: rawAlbumWidth, albumHeight: rawAlbumHeight } = calculateAlbumSize(fileSpecWidth, fileSpecHeight, defaultPageLayout!);
+        const closestStandard = findClosestStandardSize(indigoSpecs, rawAlbumWidth, rawAlbumHeight);
+
+        // 앨범 크기를 가장 가까운 표준 규격으로 스냅
+        const albumWidth = closestStandard && Math.abs(rawAlbumWidth - closestStandard.width) < 0.5 && Math.abs(rawAlbumHeight - closestStandard.height) < 0.5
+          ? closestStandard.width : rawAlbumWidth;
+        const albumHeight = closestStandard && Math.abs(rawAlbumWidth - closestStandard.width) < 0.5 && Math.abs(rawAlbumHeight - closestStandard.height) < 0.5
+          ? closestStandard.height : rawAlbumHeight;
         const albumRatio = calculateNormalizedRatio(albumWidth, albumHeight);
-        const closestStandard = findClosestStandardSize(albumWidth, albumHeight);
 
         // 페이지 수 계산 (파일수 + 편집스타일 + 제본방향 기반)
         const fileCount = sortedFiles.length;
@@ -821,16 +850,16 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
           bindingDirection: defaultBindingDirection,
           fileSpecWidth,
           fileSpecHeight,
-          fileSpecLabel: getSpecLabel(fileSpecWidth, fileSpecHeight),
+          fileSpecLabel: `${fileSpecWidth}×${fileSpecHeight}인치`,
           albumWidth,
           albumHeight,
           albumRatio,
-          albumLabel: getSpecLabel(albumWidth, albumHeight),
+          albumLabel: closestStandard ? closestStandard.label : `${albumWidth}×${albumHeight}인치`,
           dpi: firstFile.dpi,
-          specWidth: closestStandard.width,
-          specHeight: closestStandard.height,
-          specRatio: calculateNormalizedRatio(closestStandard.width, closestStandard.height),
-          specLabel: closestStandard.label,
+          specWidth: closestStandard?.width ?? albumWidth,
+          specHeight: closestStandard?.height ?? albumHeight,
+          specRatio: closestStandard ? calculateNormalizedRatio(closestStandard.width, closestStandard.height) : albumRatio,
+          specLabel: closestStandard?.label ?? `${albumWidth}×${albumHeight}인치`,
           validationStatus: 'PENDING',
           isApproved: false,
           isSelected: false,
@@ -852,7 +881,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       setProcessingMessage('');
       e.target.value = '';
     },
-    [addFolder, extractFileMetadata, setUploading, setUploadProgress, defaultPageLayout, defaultBindingDirection, processHalfWidthCoversWithCanvas]
+    [addFolder, extractFileMetadata, setUploading, setUploadProgress, defaultPageLayout, defaultBindingDirection, processHalfWidthCoversWithCanvas, indigoSpecs]
   );
 
   const handleAddToCart = () => {
