@@ -8,13 +8,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Category } from '@/lib/types/category';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
+import { getLocalizedName } from '@/lib/utils';
 
 export default function HomePage() {
   const { data: categories, isLoading } = useCategoryTree();
   const t = useTranslations('home');
   const tc = useTranslations('common');
   const tcat = useTranslations('category');
+  const locale = useLocale();
 
   const topCategories = categories?.filter(c => c.isTopMenu && c.isVisible) || [];
 
@@ -125,7 +127,7 @@ export default function HomePage() {
         category.children && category.children.length > 0 && (
           <section key={category.id} className="container mx-auto px-4 py-8">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold">{category.name}</h3>
+              <h3 className="text-xl font-bold">{getLocalizedName(category, locale)}</h3>
               <Link
                 href={`/category/${category.id}`}
                 className="text-primary hover:underline flex items-center gap-1 text-sm"
@@ -148,7 +150,7 @@ export default function HomePage() {
                         {getCategoryEmoji(child.categoryType)}
                       </span>
                     </div>
-                    <p className="font-medium text-sm">{child.name}</p>
+                    <p className="font-medium text-sm">{getLocalizedName(child, locale)}</p>
                     {child._count && (
                       <p className="text-xs text-gray-500 mt-1">
                         {tcat('productCount', { count: child._count.products + child._count.halfProducts })}
@@ -193,6 +195,7 @@ function CategoryCard({ category }: { category: Category }) {
     ? category._count.products + category._count.halfProducts
     : 0;
   const tcat = useTranslations('category');
+  const locale = useLocale();
 
   return (
     <Link href={`/category/${category.id}`}>
@@ -209,7 +212,7 @@ function CategoryCard({ category }: { category: Category }) {
         </div>
         <CardContent className="p-4">
           <h3 className="font-semibold text-lg group-hover:text-primary transition-colors">
-            {category.name}
+            {getLocalizedName(category, locale)}
           </h3>
           <p className="text-sm text-gray-500 mt-1">
             {productCount > 0 ? tcat('productCount', { count: productCount }) : tcat('preparingProducts')}

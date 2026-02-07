@@ -521,6 +521,9 @@ model Category {
   id              String     @id @default(cuid())
   code            String?    @unique    // 8자리 코드: 65000000
   name            String
+  nameEn          String?    // 영문 이름
+  nameJa          String?    // 일본어 이름
+  nameZh          String?    // 중국어 이름
   level           String     // large, medium, small
   depth           Int        @default(1) // 1: 대분류, 2: 중분류, 3: 소분류
 

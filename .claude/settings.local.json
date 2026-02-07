@@ -257,7 +257,21 @@
       "Bash(cmd /c \"taskkill /PID 25868 /F & taskkill /PID 32196 /F\")",
       "Bash(for f in c:/dev/printing114/apps/web/messages/*.json)",
       "Bash(grep:*)",
-      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/pg_dump.exe\":*)"
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/pg_dump.exe\":*)",
+      "Bash(set PATH=%CD%node_modules.bin)",
+      "Bash(%PATH%)",
+      "Bash(c:\\\\\\\\dev\\\\\\\\printing114\\\\\\\\node_modules\\\\\\\\.bin\\\\\\\\next.cmd:*)",
+      "Bash(powershell.exe -Command \"cd c:\\\\dev\\\\printing114; npm run dev\")",
+      "Bash(cmd /c \"dir D:\\\\ /b\")",
+      "Bash(powershell.exe -Command \"netstat -ano | Select-String '':3001 |:3002 ''\")",
+      "Bash(cmd /c \"dir D:\\\\ /b /s *.sql 2>nul\")",
+      "Bash(powershell.exe -Command \"Stop-Process -Id 3240 -Force; Stop-Process -Id 23184 -Force -ErrorAction SilentlyContinue\")",
+      "Bash(cmd /c \"dir E:\\\\*.sql /b /s 2>nul & dir E:\\\\*.dump /b /s 2>nul & dir E:\\\\*.bak /b /s 2>nul\")",
+      "Bash(powershell.exe -Command \"cd c:\\\\dev\\\\printing114\\\\apps\\\\api; npx prisma generate\")",
+      "Bash(cmd /c \"set PGPASSWORD=postgres&& \"\"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\"\" -U postgres -d printing_erp -f \"\"E:\\\\printing_erp_backup_20260207.sql\"\" 2>&1\")",
+      "Bash(powershell.exe -Command \"Get-Content ''C:\\\\Users\\\\WOO\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--dev-printing114\\\\tasks\\\\bcf55ff.output'' | Select-String ''WEB'' | Select-Object -Last 20\")",
+      "Bash(powershell.exe:*)",
+      "Bash(PGPASSWORD=postgres psql:*)"
     ]
   }
 }

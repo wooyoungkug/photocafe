@@ -9,6 +9,9 @@ export interface Category {
   id: string;
   code: string | null;
   name: string;
+  nameEn: string | null;
+  nameJa: string | null;
+  nameZh: string | null;
   level: CategoryLevel;
   depth: number;
   parentId: string | null;

@@ -45,7 +45,6 @@ import {
   ChevronLeft,
   ChevronRight as ChevronRightIcon,
   Image as ImageIcon,
-  Truck,
   Clock,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -61,15 +60,9 @@ import {
   calculateAdditionalOrderPrice,
 } from '@/stores/multi-folder-upload-store';
 import { formatFileSize } from '@/lib/album-utils';
-import { FolderShippingSection, getShippingSummary } from './folder-shipping-section';
-import type { CompanyShippingInfo, OrdererShippingInfo } from '@/hooks/use-shipping-data';
-import type { DeliveryPricing } from '@/hooks/use-delivery-pricing';
 
 interface FolderCardProps {
   folder: UploadedFolder;
-  companyInfo?: CompanyShippingInfo | null;
-  clientInfo?: OrdererShippingInfo | null;
-  pricingMap?: Record<string, DeliveryPricing>;
 }
 
 // 상태별 스타일 및 메시지
@@ -164,7 +157,7 @@ function getSpreadPageNumbers(
 
 const ZOOM_SCALES = [1, 2, 3, 4];
 
-export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: FolderCardProps) {
+export function FolderCard({ folder }: FolderCardProps) {
   const t = useTranslations('folder');
   const tc = useTranslations('common');
 
@@ -187,7 +180,6 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitle, setEditTitle] = useState(folder.orderTitle);
   const [isThumbnailOpen, setIsThumbnailOpen] = useState(true);
-  const [isShippingOpen, setIsShippingOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState<{ url: string; fileName: string; index: number } | null>(null);
   const [zoomLevel, setZoomLevel] = useState(0); // Index of ZOOM_SCALES
   const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 });
@@ -379,7 +371,6 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
     changeFolderSpec,
     setFolderPageLayout,
     setFolderBindingDirection,
-    setFolderShipping,
     reorderFolderFiles,
   } = useMultiFolderUploadStore();
 
@@ -840,8 +831,8 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
                         loading="lazy"
                       />
                     ) : (
-                      <div className="absolute inset-0 w-full h-full bg-gray-200 flex items-center justify-center">
-                        <FileImage className="w-6 h-6 text-gray-400" />
+                      <div className="absolute inset-0 w-full h-full bg-gray-100 flex items-center justify-center">
+                        <span className="text-6xl font-black text-gray-300">X</span>
                       </div>
                     )}
                     {/* 페이지 번호 (펼침면: 좌/우 페이지 번호, 낱장: 단일 번호) */}
@@ -850,32 +841,22 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
                       return (
                         <>
                           <div className={cn(
-                            'absolute top-1 left-1 text-white text-[10px] px-1 rounded',
-                            pages.left !== null ? 'bg-black/60' : 'bg-yellow-500'
+                            'absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium',
+                            pages.left !== null ? 'bg-red-600' : 'bg-yellow-500'
                           )}>
                             {pages.left !== null ? pages.left : t('blank')}
                           </div>
                           <div className={cn(
-                            'absolute top-1 right-1 text-white text-[10px] px-1 rounded',
-                            pages.right !== null ? 'bg-black/60' : 'bg-yellow-500'
+                            'absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium',
+                            pages.right !== null ? 'bg-red-600' : 'bg-yellow-500'
                           )}>
                             {pages.right !== null ? pages.right : t('blank')}
                           </div>
                         </>
                       );
                     })() : (
-                      <div className="absolute top-1 left-1 bg-black/60 text-white text-[10px] px-1 rounded">
+                      <div className="absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center bg-red-600 text-white text-[10px] font-medium">
                         {file.pageNumber}
-                      </div>
-                    )}
-                    {/* 표지 타입 배지 */}
-                    {file.coverType !== 'INNER_PAGE' && (
-                      <div className={cn(
-                        'absolute bottom-1 left-1 right-1 text-center text-[9px] px-1 py-0.5 rounded',
-                        coverBadge.className
-                      )}>
-                        {coverLabels[file.coverType]}
-                        {file.isSplit && <Scissors className="inline w-2 h-2 ml-0.5" />}
                       </div>
                     )}
                     {/* 호버 시 확대 아이콘 */}
@@ -889,11 +870,10 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
                     file.status === 'RATIO_MISMATCH' ? 'bg-red-50 border-red-300' : 'bg-white border-gray-200'
                   )}>
                     <div className="truncate font-medium" title={file.newFileName || file.fileName}>{file.newFileName || file.fileName}</div>
-                    <div className="text-gray-500">{file.widthPx}×{file.heightPx}px ({file.dpi}dpi)</div>
-                    <div className="text-gray-500">{fileSizeStr} | {file.widthInch}×{file.heightInch}"</div>
-                    <div className="mt-0.5">
+                    <div className="text-gray-500 flex items-center gap-0.5">
+                      <span>{fileSizeStr} | {file.widthInch}×{file.heightInch}" | {file.dpi}dpi</span>
                       <span className={cn(
-                        'inline-block px-1 py-0 rounded text-[8px] font-medium',
+                        'inline-block px-1 py-0 rounded text-[8px] font-medium ml-auto',
                         file.status === 'EXACT' ? 'bg-green-100 text-green-700' :
                           file.status === 'RATIO_MATCH' ? 'bg-yellow-100 text-yellow-700' :
                             'bg-red-100 text-red-700'
@@ -1094,29 +1074,6 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
           )}
         </div>
       )}
-
-      {/* 배송 정보 섹션 */}
-      <Collapsible open={isShippingOpen} onOpenChange={setIsShippingOpen}>
-        <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 border-t bg-gray-50/50 hover:bg-gray-100/50 transition-colors">
-          <div className="flex items-center gap-2 text-sm">
-            <Truck className="h-3.5 w-3.5 text-gray-500" />
-            <span className="font-medium">{t('shippingInfo')}</span>
-            <span className="text-xs text-gray-500">
-              {getShippingSummary(folder.shippingInfo)}
-            </span>
-          </div>
-          {isShippingOpen ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
-        </CollapsibleTrigger>
-        <CollapsibleContent className="px-3 py-3 border-t">
-          <FolderShippingSection
-            shippingInfo={folder.shippingInfo}
-            companyInfo={companyInfo ?? null}
-            clientInfo={clientInfo ?? null}
-            pricingMap={pricingMap ?? {}}
-            onChange={(shipping) => setFolderShipping(folder.id, shipping)}
-          />
-        </CollapsibleContent>
-      </Collapsible>
 
       {/* 이미지 미리보기 모달 */}
       <Dialog open={!!previewImage} onOpenChange={(open) => { if (!open) { setPreviewImage(null); resetZoom(); } }}>

@@ -163,7 +163,7 @@ export default function ProductPage() {
   const photobookOrderStore = usePhotobookOrderStore();
 
   // 데이터 업로드 스토어에서 편집스타일/제본순서 가져오기
-  const { defaultPageLayout, defaultBindingDirection } = useMultiFolderUploadStore();
+  const { defaultPageLayout, defaultBindingDirection, clearFolders } = useMultiFolderUploadStore();
 
   // 페이지 전환 최적화
   const [isPending, startTransition] = useTransition();
@@ -1692,10 +1692,9 @@ export default function ProductPage() {
                   });
                 });
 
-                toast({
-                  title: t('addedToCart'),
-                  description: t('albumAddedToCart', { count: folders.length }),
-                });
+                // 장바구니에 담은 폴더 초기화 후 장바구니로 이동
+                clearFolders();
+                router.push('/cart');
               }}
             />
           </div>

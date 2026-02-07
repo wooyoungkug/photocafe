@@ -8,13 +8,15 @@ import { useTopMenuCategories } from '@/hooks/use-categories';
 import { cn } from '@/lib/utils';
 import { API_BASE_URL } from '@/lib/api';
 import type { Category } from '@/lib/types/category';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
+import { getLocalizedName } from '@/lib/utils';
 
 export function CategoryNav() {
   const pathname = usePathname();
   const { data: topCategories = [], isLoading } = useTopMenuCategories();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const t = useTranslations('category');
+  const locale = useLocale();
 
   if (isLoading) {
     return (
@@ -77,7 +79,7 @@ export function CategoryNav() {
                     }}
                   />
                 )}
-                {category.name}
+                {getLocalizedName(category, locale)}
                 {category.children && category.children.length > 0 && (
                   <ChevronDown className="h-4 w-4" />
                 )}
@@ -135,7 +137,7 @@ export function CategoryNav() {
                       }}
                     />
                   )}
-                  {category.name}
+                  {getLocalizedName(category, locale)}
                 </Link>
               </li>
             ))}
@@ -149,6 +151,7 @@ export function CategoryNav() {
 function CategoryMenuItem({ category, level }: { category: Category; level: number }) {
   const [isOpen, setIsOpen] = useState(false);
   const hasChildren = category.children && category.children.length > 0;
+  const locale = useLocale();
 
   return (
     <div className="relative">
@@ -175,7 +178,7 @@ function CategoryMenuItem({ category, level }: { category: Category; level: numb
               }}
             />
           )}
-          {category.name}
+          {getLocalizedName(category, locale)}
         </span>
         {hasChildren && <ChevronRight className="h-4 w-4" />}
       </Link>

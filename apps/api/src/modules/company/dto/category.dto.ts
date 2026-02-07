@@ -38,6 +38,21 @@ export class CreateCategoryDto {
   @IsString()
   name: string;
 
+  @ApiPropertyOptional({ description: '영문 카테고리명' })
+  @IsOptional()
+  @IsString()
+  nameEn?: string;
+
+  @ApiPropertyOptional({ description: '일본어 카테고리명' })
+  @IsOptional()
+  @IsString()
+  nameJa?: string;
+
+  @ApiPropertyOptional({ description: '중국어 카테고리명' })
+  @IsOptional()
+  @IsString()
+  nameZh?: string;
+
   @ApiProperty({ description: '분류 레벨', enum: ['large', 'medium', 'small'] })
   @IsIn(['large', 'medium', 'small'])
   level: string;

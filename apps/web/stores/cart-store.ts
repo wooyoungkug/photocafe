@@ -68,21 +68,25 @@ export interface CartItem {
   quantity: number;
   options: CartItemOption[];
   totalPrice: number;
+  addedAt: string; // 장바구니 저장 날짜 (ISO string)
   files?: Array<{
     name: string;
     url: string;
   }>;
   copperPlateInfo?: CopperPlateCartInfo; // 동판 정보 (변경 감지용)
   albumOrderInfo?: AlbumOrderCartInfo;   // 앨범/화보 주문 정보
+  shippingInfo?: CartShippingInfo;       // 장바구니 배송지 정보
 }
 
 interface CartState {
   items: CartItem[];
 
-  addItem: (item: Omit<CartItem, 'id'>) => void;
+  addItem: (item: Omit<CartItem, 'id' | 'addedAt'>) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   updateOptions: (id: string, options: CartItemOption[]) => void;
+  updateItemShipping: (id: string, shippingInfo: CartShippingInfo) => void;
+  updateAllItemsShipping: (shippingInfo: CartShippingInfo) => void;
   clearCart: () => void;
   getTotal: () => number;
   getItemCount: () => number;
@@ -103,10 +107,40 @@ export const useCartStore = create<CartState>()(
       items: [],
 
       addItem: (item) => {
+        const { items } = get();
+
+        // 같은 상품 + 같은 옵션 조합이면 수량만 증가
+        const optionsKey = (opts: CartItemOption[]) =>
+          opts.map(o => `${o.name}:${o.value}`).sort().join('|');
+
+        const existing = items.find(
+          (i) =>
+            i.productId === item.productId &&
+            i.productType === item.productType &&
+            optionsKey(i.options) === optionsKey(item.options)
+        );
+
+        if (existing) {
+          const newQty = existing.quantity + item.quantity;
+          set((state) => ({
+            items: state.items.map((i) =>
+              i.id === existing.id
+                ? {
+                    ...i,
+                    quantity: newQty,
+                    totalPrice: calculateItemTotal(i.basePrice, newQty, i.options),
+                  }
+                : i
+            ),
+          }));
+          return;
+        }
+
         const newItem: CartItem = {
           ...item,
           id: generateId(),
           totalPrice: calculateItemTotal(item.basePrice, item.quantity, item.options),
+          addedAt: new Date().toISOString(),
         };
         set((state) => ({
           items: [...state.items, newItem],
@@ -145,6 +179,22 @@ export const useCartStore = create<CartState>()(
                 }
               : item
           ),
+        }));
+      },
+
+      updateItemShipping: (id, shippingInfo) => {
+        set((state) => ({
+          items: state.items.map((item) =>
+            item.id === id
+              ? { ...item, shippingInfo }
+              : item
+          ),
+        }));
+      },
+
+      updateAllItemsShipping: (shippingInfo) => {
+        set((state) => ({
+          items: state.items.map((item) => ({ ...item, shippingInfo })),
         }));
       },
 

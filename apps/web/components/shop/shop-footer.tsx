@@ -72,7 +72,7 @@ export function ShopFooter() {
             <h4 className="text-white font-semibold mb-4">{t('customerService')}</h4>
             <div className="space-y-2 text-sm">
               <p className="text-2xl font-bold text-white">{companyInfo.company_cs_phone || '1588-0000'}</p>
-              <p>{companyInfo.company_cs_hours || t('weekdayHours')}</p>
+              <p>{isKorean ? (companyInfo.company_cs_hours || t('weekdayHours')) : t('weekdayHours')}</p>
               <p>{t('lunchTime')}</p>
               <p>{t('holidayClosed')}</p>
               <p className="mt-2">

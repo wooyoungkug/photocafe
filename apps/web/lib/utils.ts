@@ -1,6 +1,20 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
+// 다국어 카테고리명 반환
+export function getLocalizedName(
+  item: { name: string; nameEn?: string | null; nameJa?: string | null; nameZh?: string | null } | null | undefined,
+  locale: string
+): string {
+  if (!item) return '';
+  switch (locale) {
+    case 'en': return item.nameEn || item.name;
+    case 'ja': return item.nameJa || item.name;
+    case 'zh': return item.nameZh || item.name;
+    default: return item.name;
+  }
+}
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }

@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCartStore } from '@/stores/cart-store';
-import { cn } from '@/lib/utils';
+import { cn, getLocalizedName } from '@/lib/utils';
 import { API_URL, API_BASE_URL } from '@/lib/api';
 
 // 이미지 URL 정규화 함수
@@ -33,6 +33,7 @@ const normalizeImageUrl = (url: string | null | undefined): string => {
   return url;
 };
 import type { Product } from '@/lib/types';
+import { useLocale } from 'next-intl';
 
 export default function CategoryPage() {
   return (
@@ -52,6 +53,7 @@ function CategoryPageContent() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const page = parseInt(searchParams.get('page') || '1');
   const sortBy = searchParams.get('sort') || 'sortOrder';
+  const locale = useLocale();
 
   const { data: category, isLoading: categoryLoading } = useCategory(isAllProducts ? '' : categoryId);
   const { data: productsData, isLoading: productsLoading } = useCategoryProducts(isAllProducts ? '' : categoryId, {
@@ -103,13 +105,13 @@ function CategoryPageContent() {
               {!isAllProducts && category?.parent && (
                 <>
                   <Link href={`/category/${category.parent.id}`} className="hover:text-primary">
-                    {category.parent.name}
+                    {getLocalizedName(category.parent, locale)}
                   </Link>
                   <ChevronRight className="h-4 w-4" />
                 </>
               )}
               <span className="text-gray-900 font-medium">
-                {isAllProducts ? '전체 상품' : category?.name}
+                {isAllProducts ? '전체 상품' : getLocalizedName(category, locale)}
               </span>
             </nav>
           )}
@@ -127,7 +129,7 @@ function CategoryPageContent() {
           ) : (
             <>
               <h1 className="text-3xl font-bold mb-2">
-                {isAllProducts ? '전체 상품' : category?.name}
+                {isAllProducts ? '전체 상품' : getLocalizedName(category, locale)}
               </h1>
               {isAllProducts ? (
                 <p className="text-gray-600 max-w-2xl">모든 상품을 한눈에 확인하세요</p>
@@ -161,7 +163,7 @@ function CategoryPageContent() {
                     href={`/category/${child.id}`}
                     className="px-4 py-2 rounded-full bg-gray-100 hover:bg-gray-200 text-sm font-medium transition-colors"
                   >
-                    {child.name}
+                    {getLocalizedName(child, locale)}
                   </Link>
                 ))}
             </div>
@@ -275,6 +277,7 @@ function CategoryPageContent() {
 function ProductCard({ product }: { product: Product }) {
   const { addItem } = useCartStore();
   const [imageError, setImageError] = useState(false);
+  const locale = useLocale();
 
   const handleQuickAdd = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -327,7 +330,7 @@ function ProductCard({ product }: { product: Product }) {
           </button>
         </div>
         <CardContent className="p-3">
-          <p className="text-xs text-gray-500 mb-1">{product.category?.name}</p>
+          <p className="text-xs text-gray-500 mb-1">{getLocalizedName(product.category, locale)}</p>
           <h3 className="font-medium text-sm line-clamp-2 mb-1 group-hover:text-primary transition-colors">
             {product.productName}
           </h3>
@@ -348,6 +351,7 @@ function ProductCard({ product }: { product: Product }) {
 function ProductListItem({ product }: { product: Product }) {
   const { addItem } = useCartStore();
   const [imageError, setImageError] = useState(false);
+  const locale = useLocale();
 
   const handleQuickAdd = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -396,7 +400,7 @@ function ProductListItem({ product }: { product: Product }) {
           </div>
           <div className="flex-1 p-4 flex flex-col justify-between">
             <div>
-              <p className="text-xs text-gray-500 mb-1">{product.category?.name}</p>
+              <p className="text-xs text-gray-500 mb-1">{getLocalizedName(product.category, locale)}</p>
               <h3 className="font-medium mb-2 hover:text-primary transition-colors">
                 {product.productName}
               </h3>

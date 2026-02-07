@@ -1926,9 +1926,6 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
               >
                 <FolderCard
                   folder={folder}
-                  companyInfo={companyInfo}
-                  clientInfo={clientInfo}
-                  pricingMap={pricingMap}
                 />
               </div>
             ))}
