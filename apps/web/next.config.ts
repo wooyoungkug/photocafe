@@ -4,14 +4,25 @@ import createNextIntlPlugin from "next-intl/plugin";
 
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
+const isDev = process.env.NODE_ENV === "development";
+
 const nextConfig: NextConfig = {
   output: "standalone",
   reactStrictMode: true,
+
+  // Cache directory
+  distDir: ".next",
 
   // Performance optimizations
   compress: true, // Enable gzip compression
   poweredByHeader: false, // Remove X-Powered-By header
   generateEtags: true, // Generate ETags for better caching
+
+  // Development mode optimizations
+  onDemandEntries: {
+    maxInactiveAge: 25 * 1000,
+    pagesBufferLength: 2,
+  },
 
   // When Next.js infers a workspace root (monorepo), it may warn about multiple lockfiles.
   outputFileTracingRoot: join(__dirname, "..", ".."),
@@ -32,6 +43,20 @@ const nextConfig: NextConfig = {
             exclude: ["error", "warn"],
           }
         : false,
+  },
+
+  // Webpack configuration for cache optimization
+  webpack: (config, { dev, isServer }) => {
+    if (dev) {
+      // Optimize filesystem cache for Windows
+      config.cache = {
+        type: "filesystem",
+        cacheDirectory: join(__dirname, ".next/cache/webpack"),
+        // Use fixed version to prevent unnecessary restarts
+        version: process.env.NODE_ENV || "development",
+      };
+    }
+    return config;
   },
 
   async rewrites() {
