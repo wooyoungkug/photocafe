@@ -23,6 +23,25 @@ export interface CopperPlateCartInfo {
   selectedFoilPositionName: string;// 선택한 박위치 이름
 }
 
+// 폴더별 배송 정보 (cart 전달용)
+export interface CartShippingInfo {
+  senderType: string;
+  senderName: string;
+  senderPhone: string;
+  senderPostalCode: string;
+  senderAddress: string;
+  senderAddressDetail: string;
+  receiverType: string;
+  recipientName: string;
+  recipientPhone: string;
+  recipientPostalCode: string;
+  recipientAddress: string;
+  recipientAddressDetail: string;
+  deliveryMethod: string;
+  deliveryFee: number;
+  deliveryFeeType: string;
+}
+
 // 앨범/화보 주문 정보
 export interface AlbumOrderCartInfo {
   folderId: string;                // 폴더 ID
@@ -36,6 +55,7 @@ export interface AlbumOrderCartInfo {
   specificationId: string;         // 규격 ID
   specificationName: string;       // 규격명
   totalSize?: number;              // 총 용량 (bytes)
+  shippingInfo?: CartShippingInfo; // 배송 정보
 }
 
 export interface CartItem {

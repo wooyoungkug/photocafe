@@ -226,6 +226,8 @@ export default function EditProductPage() {
   const [printType, setPrintType] = useState('double');
   const [selectedCovers, setSelectedCovers] = useState<{ id: string; name: string; price: number }[]>([]);
   const [selectedFoils, setSelectedFoils] = useState<{ id: string; name: string; color: string; price: number }[]>([]);
+  // 용지 사용 여부 관리
+  const [paperActiveMap, setPaperActiveMap] = useState<Record<string, boolean>>({});
 
   // 후가공정보
   const [finishingOptions, setFinishingOptions] = useState<Record<string, boolean>>({});
@@ -336,6 +338,15 @@ export default function EditProductPage() {
         setSelectedFoils(product.foils.map((f: { id: string; name: string; color?: string; price: number }) => ({
           id: f.id, name: f.name, color: f.color || '', price: Number(f.price),
         })));
+      }
+
+      // 용지 사용 여부 로드
+      if (product.papers && Array.isArray(product.papers)) {
+        const activeMap: Record<string, boolean> = {};
+        product.papers.forEach((p: { id: string; isActive?: boolean }) => {
+          activeMap[p.id] = p.isActive !== false; // 기본값 true
+        });
+        setPaperActiveMap(activeMap);
       }
 
       if (product.finishings && Array.isArray(product.finishings)) {
@@ -522,6 +533,18 @@ export default function EditProductPage() {
           sortOrder: idx,
           productionSettingId: b.productionSettingId,
           pricingType: b.pricingType,
+        })),
+        papers: product?.papers?.map((p: any, idx: number) => ({
+          name: p.name,
+          type: p.type || 'normal',
+          printMethod: p.printMethod,
+          grammage: p.grammage,
+          frontCoating: p.frontCoating,
+          grade: p.grade,
+          price: Number(p.price) || 0,
+          isDefault: p.isDefault || idx === 0,
+          isActive: paperActiveMap[p.id] !== false,
+          sortOrder: p.sortOrder ?? idx,
         })),
         covers: selectedCovers.map((c, idx) => ({
           name: c.name, price: c.price, isDefault: idx === 0, sortOrder: idx,
@@ -964,6 +987,121 @@ export default function EditProductPage() {
               )}
             </div>
           </div>
+
+          {/* 용지 사용 여부 */}
+          {product?.papers && product.papers.length > 0 && (
+            <div className="space-y-3">
+              <Label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                <FileText className="h-4 w-4 text-emerald-600" />
+                용지 사용 여부
+                <Badge variant="secondary" className="text-xs">{product.papers.length}개</Badge>
+                <span className="text-xs text-slate-400 font-normal ml-1">
+                  (체크 해제 시 주문 페이지에 표시되지 않습니다)
+                </span>
+              </Label>
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-slate-50">
+                      <TableHead className="w-16 text-center">사용</TableHead>
+                      <TableHead>용지명</TableHead>
+                      <TableHead className="w-24">평량</TableHead>
+                      <TableHead className="w-24">코팅</TableHead>
+                      <TableHead className="w-24 text-right">가격</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(() => {
+                      // 용지 이름에서 종류 추출 (숫자와 g 제외)
+                      const getPaperType = (name: string) => {
+                        return name.replace(/\s*\d+g?$/i, '').replace(/\s+\d+$/, '').trim();
+                      };
+                      // 용지를 종류별로 그룹화
+                      const paperGroups = (product.papers as any[]).reduce((groups: Record<string, any[]>, paper: any) => {
+                        const type = getPaperType(paper.name);
+                        if (!groups[type]) groups[type] = [];
+                        groups[type].push(paper);
+                        return groups;
+                      }, {} as Record<string, any[]>);
+                      const groupEntries = Object.entries(paperGroups);
+
+                      return groupEntries.map(([type, papers]) => (
+                        papers.map((paper: any, pIdx: number) => (
+                          <TableRow
+                            key={paper.id}
+                            className={paperActiveMap[paper.id] === false ? 'opacity-50 bg-slate-50' : ''}
+                          >
+                            <TableCell className="text-center">
+                              <Checkbox
+                                checked={paperActiveMap[paper.id] !== false}
+                                onCheckedChange={(checked) => {
+                                  setPaperActiveMap(prev => ({
+                                    ...prev,
+                                    [paper.id]: !!checked,
+                                  }));
+                                }}
+                                className="data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                {pIdx === 0 && (
+                                  <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                    {type}
+                                  </Badge>
+                                )}
+                                <span className={`text-sm ${paperActiveMap[paper.id] === false ? 'line-through text-slate-400' : 'font-medium'}`}>
+                                  {paper.name}
+                                </span>
+                                {paper.isDefault && (
+                                  <Badge variant="secondary" className="text-[10px]">기본</Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-sm text-slate-600">
+                              {paper.grammage ? `${paper.grammage}g` : '-'}
+                            </TableCell>
+                            <TableCell className="text-sm text-slate-600">
+                              {paper.frontCoating || '-'}
+                            </TableCell>
+                            <TableCell className="text-sm text-right text-slate-600">
+                              {Number(paper.price) > 0 ? `+${Number(paper.price).toLocaleString()}원` : '-'}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ));
+                    })()}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const allActive: Record<string, boolean> = {};
+                    (product.papers as any[]).forEach((p: any) => { allActive[p.id] = true; });
+                    setPaperActiveMap(allActive);
+                  }}
+                >
+                  전체 선택
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const allInactive: Record<string, boolean> = {};
+                    (product.papers as any[]).forEach((p: any) => { allInactive[p.id] = false; });
+                    setPaperActiveMap(allInactive);
+                  }}
+                >
+                  전체 해제
+                </Button>
+              </div>
+            </div>
+          )}
 
           <Separator />
 

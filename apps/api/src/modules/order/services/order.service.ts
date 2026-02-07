@@ -121,6 +121,7 @@ export class OrderService {
         items: {
           include: {
             files: { orderBy: { sortOrder: 'asc' } },
+            shipping: true,
           },
         },
         processHistory: {
@@ -155,9 +156,16 @@ export class OrderService {
 
       // 가격 계산
       let productPrice = 0;
+      let totalShippingFee = 0;
+
       const orderItems = items.map((item, index) => {
         const totalPrice = item.unitPrice * item.quantity;
         productPrice += totalPrice;
+
+        // 항목별 배송비 합산
+        if (item.shipping) {
+          totalShippingFee += item.shipping.deliveryFee || 0;
+        }
 
         return {
           productionNumber: this.generateProductionNumber(orderNumber, index),
@@ -175,6 +183,28 @@ export class OrderService {
           quantity: item.quantity,
           unitPrice: item.unitPrice,
           totalPrice,
+          // 항목별 배송 정보가 있으면 함께 생성
+          ...(item.shipping ? {
+            shipping: {
+              create: {
+                senderType: item.shipping.senderType,
+                senderName: item.shipping.senderName,
+                senderPhone: item.shipping.senderPhone,
+                senderPostalCode: item.shipping.senderPostalCode,
+                senderAddress: item.shipping.senderAddress,
+                senderAddressDetail: item.shipping.senderAddressDetail,
+                receiverType: item.shipping.receiverType,
+                recipientName: item.shipping.recipientName,
+                phone: item.shipping.phone,
+                postalCode: item.shipping.postalCode,
+                address: item.shipping.address,
+                addressDetail: item.shipping.addressDetail,
+                deliveryMethod: item.shipping.deliveryMethod,
+                deliveryFee: item.shipping.deliveryFee,
+                deliveryFeeType: item.shipping.deliveryFeeType,
+              },
+            },
+          } : {}),
         };
       });
 
@@ -187,9 +217,10 @@ export class OrderService {
           barcode,
           clientId: dto.clientId,
           productPrice,
+          shippingFee: totalShippingFee,
           tax,
-          totalAmount,
-          finalAmount: totalAmount,
+          totalAmount: totalAmount + totalShippingFee,
+          finalAmount: totalAmount + totalShippingFee,
           paymentMethod: dto.paymentMethod || 'postpaid',
           isUrgent: dto.isUrgent || false,
           requestedDeliveryDate: dto.requestedDeliveryDate,
@@ -211,7 +242,10 @@ export class OrderService {
           client: true,
           shipping: true,
           items: {
-            include: { files: true },
+            include: {
+              files: true,
+              shipping: true,
+            },
           },
         },
       });

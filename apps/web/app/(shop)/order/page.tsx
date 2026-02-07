@@ -563,6 +563,26 @@ export default function OrderPage() {
             bindingDirection: albumInfo.bindingDirection,
             folderName: albumInfo.folderName,
             fileCount: albumInfo.fileCount,
+            // 항목별 배송 정보
+            ...(albumInfo.shippingInfo ? {
+              shipping: {
+                senderType: albumInfo.shippingInfo.senderType,
+                senderName: albumInfo.shippingInfo.senderName,
+                senderPhone: albumInfo.shippingInfo.senderPhone,
+                senderPostalCode: albumInfo.shippingInfo.senderPostalCode,
+                senderAddress: albumInfo.shippingInfo.senderAddress,
+                senderAddressDetail: albumInfo.shippingInfo.senderAddressDetail,
+                receiverType: albumInfo.shippingInfo.receiverType,
+                recipientName: albumInfo.shippingInfo.recipientName,
+                phone: albumInfo.shippingInfo.recipientPhone,
+                postalCode: albumInfo.shippingInfo.recipientPostalCode,
+                address: albumInfo.shippingInfo.recipientAddress,
+                addressDetail: albumInfo.shippingInfo.recipientAddressDetail,
+                deliveryMethod: albumInfo.shippingInfo.deliveryMethod,
+                deliveryFee: albumInfo.shippingInfo.deliveryFee,
+                deliveryFeeType: albumInfo.shippingInfo.deliveryFeeType,
+              },
+            } : {}),
           };
         }
 

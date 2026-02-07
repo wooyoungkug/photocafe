@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -45,6 +45,7 @@ import {
   ChevronLeft,
   ChevronRight as ChevronRightIcon,
   Image as ImageIcon,
+  Truck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -52,13 +53,20 @@ import {
   type FolderValidationStatus,
   type PageLayoutType,
   type BindingDirection,
+  type FolderShippingInfo,
   useMultiFolderUploadStore,
   calculateUploadedFolderPrice,
 } from '@/stores/multi-folder-upload-store';
 import { formatFileSize } from '@/lib/album-utils';
+import { FolderShippingSection, getShippingSummary } from './folder-shipping-section';
+import type { CompanyShippingInfo, OrdererShippingInfo } from '@/hooks/use-shipping-data';
+import type { DeliveryPricing } from '@/hooks/use-delivery-pricing';
 
 interface FolderCardProps {
   folder: UploadedFolder;
+  companyInfo?: CompanyShippingInfo | null;
+  clientInfo?: OrdererShippingInfo | null;
+  pricingMap?: Record<string, DeliveryPricing>;
 }
 
 // 상태별 스타일 및 메시지
@@ -112,55 +120,57 @@ const COVER_TYPE_BADGE: Record<string, { label: string; className: string }> = {
   COMBINED_COVER: { label: '첫막장', className: 'bg-pink-500 text-white' },
 };
 
-export function FolderCard({ folder }: FolderCardProps) {
-  const [isFileListOpen, setIsFileListOpen] = useState(false);
+export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: FolderCardProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitle, setEditTitle] = useState(folder.orderTitle);
-  const [isThumbnailOpen, setIsThumbnailOpen] = useState(false);
+  const [isThumbnailOpen, setIsThumbnailOpen] = useState(true);
+  const [isShippingOpen, setIsShippingOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState<{ url: string; fileName: string; index: number } | null>(null);
-  const [isZoomed, setIsZoomed] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(0); // 0=기본, 1=150%, 2=200%
   const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [thumbnailUrls, setThumbnailUrls] = useState<Map<string, string>>(new Map());
+  const isZoomed = zoomLevel > 0;
+  const [fullSizeUrls, setFullSizeUrls] = useState<Map<string, string>>(new Map());
 
-  // 썸네일 URL 생성
+  // 풀사이즈 URL 생성 (미리보기 모달 열 때만 lazy 로드)
+  const getFullSizeUrl = useCallback((file: typeof folder.files[0]): string | undefined => {
+    if (file.canvasDataUrl) return file.canvasDataUrl;
+    return fullSizeUrls.get(file.id);
+  }, [fullSizeUrls]);
+
+  // Cleanup 풀사이즈 URL
   useEffect(() => {
-    const urls = new Map<string, string>();
-    const objectUrls: string[] = [];
-
-    folder.files.forEach((file) => {
-      if (file.canvasDataUrl) {
-        // 분리된 이미지는 canvasDataUrl 사용
-        urls.set(file.id, file.canvasDataUrl);
-      } else if (file.file) {
-        // File 객체가 있으면 ObjectURL 생성
-        const url = URL.createObjectURL(file.file);
-        urls.set(file.id, url);
-        objectUrls.push(url);
-      }
-    });
-
-    setThumbnailUrls(urls);
-
-    // Cleanup
     return () => {
-      objectUrls.forEach((url) => URL.revokeObjectURL(url));
+      fullSizeUrls.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [folder.files]);
+  }, []);
 
   // 이미지 네비게이션
   const resetZoom = () => {
-    setIsZoomed(false);
+    setZoomLevel(0);
     setZoomPos({ x: 0, y: 0 });
   };
+
+  // 풀사이즈 URL을 가져오거나 생성
+  const getOrCreateFullSizeUrl = useCallback((file: typeof folder.files[0]): string | null => {
+    if (file.canvasDataUrl) return file.canvasDataUrl;
+    const existing = fullSizeUrls.get(file.id);
+    if (existing) return existing;
+    if (file.file) {
+      const url = URL.createObjectURL(file.file);
+      setFullSizeUrls(prev => new Map(prev).set(file.id, url));
+      return url;
+    }
+    return null;
+  }, [fullSizeUrls]);
 
   const handlePrevImage = () => {
     if (!previewImage) return;
     resetZoom();
     const newIndex = previewImage.index > 0 ? previewImage.index - 1 : folder.files.length - 1;
     const file = folder.files[newIndex];
-    const url = thumbnailUrls.get(file.id);
+    const url = getOrCreateFullSizeUrl(file);
     if (url) {
       setPreviewImage({ url, fileName: file.fileName, index: newIndex });
     }
@@ -171,7 +181,7 @@ export function FolderCard({ folder }: FolderCardProps) {
     resetZoom();
     const newIndex = previewImage.index < folder.files.length - 1 ? previewImage.index + 1 : 0;
     const file = folder.files[newIndex];
-    const url = thumbnailUrls.get(file.id);
+    const url = getOrCreateFullSizeUrl(file);
     if (url) {
       setPreviewImage({ url, fileName: file.fileName, index: newIndex });
     }
@@ -207,6 +217,7 @@ export function FolderCard({ folder }: FolderCardProps) {
     changeFolderSpec,
     setFolderPageLayout,
     setFolderBindingDirection,
+    setFolderShipping,
   } = useMultiFolderUploadStore();
 
   const config = STATUS_CONFIG[folder.validationStatus];
@@ -359,6 +370,9 @@ export function FolderCard({ folder }: FolderCardProps) {
               <span className="text-blue-600 font-medium">{folder.albumLabel}</span>
             )}
             <span className="text-gray-300">|</span>
+            {folder.isAutoDetected && (
+              <span className="text-[9px] text-blue-500 bg-blue-50 px-1 rounded">자동</span>
+            )}
             <div className="flex border rounded overflow-hidden">
               <button
                 type="button"
@@ -399,6 +413,11 @@ export function FolderCard({ folder }: FolderCardProps) {
                   <option value="RIGHT_START_LEFT_END">우→좌</option>
                   <option value="RIGHT_START_RIGHT_END">우→우</option>
                 </select>
+                {folder.autoBindingDetected && (
+                  <span className="text-[9px] text-green-600 bg-green-50 px-1 rounded" title={`첫장 ${folder.firstPageBlank ? '빈페이지' : '정상'} / 막장 ${folder.lastPageBlank ? '빈페이지' : '정상'}`}>
+                    자동감지
+                  </span>
+                )}
               </>
             )}
           </div>
@@ -468,6 +487,20 @@ export function FolderCard({ folder }: FolderCardProps) {
         </div>
       )}
 
+      {/* 빈페이지 자동감지 결과 */}
+      {folder.autoBindingDetected && (folder.firstPageBlank || folder.lastPageBlank) && (
+        <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
+          <div className="flex items-center gap-2 text-green-700 text-sm font-medium">
+            <CheckCircle className="h-4 w-4" />
+            빈페이지 감지 → 제본방향 자동 설정
+          </div>
+          <div className="mt-1 text-xs text-green-600">
+            {folder.firstPageBlank && <span className="mr-3">첫장: 빈페이지 (먹/백색) → 우시작</span>}
+            {folder.lastPageBlank && <span>막장: 빈페이지 (먹/백색) → 좌끝</span>}
+          </div>
+        </div>
+      )}
+
       {/* 비율 불일치 경고 */}
       {folder.validationStatus === 'RATIO_MISMATCH' && (
         <div className="mt-3 p-3 bg-red-100 rounded-lg">
@@ -480,7 +513,7 @@ export function FolderCard({ folder }: FolderCardProps) {
               <div key={file.id} className="px-2 py-1 border-b last:border-b-0 flex justify-between">
                 <span className="truncate">{file.fileName}</span>
                 <span className="text-gray-500 ml-2">
-                  {file.widthPx}×{file.heightPx} ({file.widthInch}×{file.heightInch}인치)
+                  {file.widthPx}×{file.heightPx} ({file.widthInch}×{file.heightInch}인치) {file.dpi}dpi
                 </span>
               </div>
             ))}
@@ -534,58 +567,98 @@ export function FolderCard({ folder }: FolderCardProps) {
         <CollapsibleContent className="mt-2">
           <div className="grid grid-cols-4 gap-2 p-2 bg-gray-50 rounded-lg border">
             {folder.files.map((file, index) => {
-              const url = thumbnailUrls.get(file.id);
+              const thumbUrl = file.thumbnailUrl;
               const coverBadge = COVER_TYPE_BADGE[file.coverType];
               // 이미지 비율 계산 (세로/가로 * 100 = 패딩%)
               const aspectRatio = file.widthPx > 0 && file.heightPx > 0
                 ? (file.heightPx / file.widthPx) * 100
                 : 133; // 기본값 4:3
+              const fileSizeStr = (() => {
+                const bytes = file.fileSize;
+                if (bytes < 1024) return `${bytes}B`;
+                if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+                return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+              })();
               return (
-                <div
-                  key={file.id}
-                  className={cn(
-                    'relative rounded-md overflow-hidden border-2 cursor-pointer group',
-                    'hover:border-blue-400 hover:shadow-md transition-all',
-                    file.coverType === 'FRONT_COVER' && 'border-blue-400',
-                    file.coverType === 'BACK_COVER' && 'border-purple-400',
-                    file.coverType === 'COMBINED_COVER' && 'border-pink-400',
-                    file.coverType === 'INNER_PAGE' && 'border-gray-200'
-                  )}
-                  style={{ paddingTop: `${aspectRatio}%` }}
-                  onClick={() => {
-                    if (url) {
-                      setPreviewImage({ url, fileName: file.fileName, index });
-                    }
-                  }}
-                >
-                  {url ? (
-                    <img
-                      src={url}
-                      alt={file.fileName}
-                      className="absolute inset-0 w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 w-full h-full bg-gray-200 flex items-center justify-center">
-                      <FileImage className="w-6 h-6 text-gray-400" />
+                <div key={file.id} className="flex flex-col">
+                  <div
+                    className={cn(
+                      'relative rounded-t-md overflow-hidden border-2 cursor-pointer group',
+                      'hover:border-blue-400 hover:shadow-md transition-all',
+                      file.status === 'RATIO_MISMATCH' ? 'border-red-500 border-[3px]' :
+                      file.coverType === 'FRONT_COVER' ? 'border-blue-400' :
+                      file.coverType === 'BACK_COVER' ? 'border-purple-400' :
+                      file.coverType === 'COMBINED_COVER' ? 'border-pink-400' :
+                      'border-gray-200'
+                    )}
+                    style={{ paddingTop: `${aspectRatio}%` }}
+                    onClick={() => {
+                      // 모달용 풀사이즈 URL 생성
+                      const fullUrl = getFullSizeUrl(file);
+                      if (fullUrl) {
+                        setPreviewImage({ url: fullUrl, fileName: file.fileName, index });
+                      } else if (file.file) {
+                        const url = URL.createObjectURL(file.file);
+                        setFullSizeUrls(prev => new Map(prev).set(file.id, url));
+                        setPreviewImage({ url, fileName: file.fileName, index });
+                      }
+                    }}
+                  >
+                    {thumbUrl ? (
+                      <img
+                        src={thumbUrl}
+                        alt={file.fileName}
+                        className="absolute inset-0 w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 w-full h-full bg-gray-200 flex items-center justify-center">
+                        <FileImage className="w-6 h-6 text-gray-400" />
+                      </div>
+                    )}
+                    {/* 페이지 번호 */}
+                    <div className="absolute top-1 left-1 bg-black/60 text-white text-[10px] px-1 rounded">
+                      {file.pageNumber}
                     </div>
-                  )}
-                  {/* 페이지 번호 */}
-                  <div className="absolute top-1 left-1 bg-black/60 text-white text-[10px] px-1 rounded">
-                    {file.pageNumber}
+                    {/* 표지 타입 배지 */}
+                    {file.coverType !== 'INNER_PAGE' && (
+                      <div className={cn(
+                        'absolute bottom-1 left-1 right-1 text-center text-[9px] px-1 py-0.5 rounded',
+                        coverBadge.className
+                      )}>
+                        {coverBadge.label}
+                        {file.isSplit && <Scissors className="inline w-2 h-2 ml-0.5" />}
+                      </div>
+                    )}
+                    {/* 빈페이지 표시 */}
+                    {file.isBlankPage && (
+                      <div className="absolute top-1 right-1 bg-yellow-500 text-white text-[8px] px-1 py-0.5 rounded font-medium">
+                        빈페이지
+                      </div>
+                    )}
+                    {/* 호버 시 확대 아이콘 */}
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <ZoomIn className="w-6 h-6 text-white" />
+                    </div>
                   </div>
-                  {/* 표지 타입 배지 */}
-                  {file.coverType !== 'INNER_PAGE' && (
-                    <div className={cn(
-                      'absolute bottom-1 left-1 right-1 text-center text-[9px] px-1 py-0.5 rounded',
-                      coverBadge.className
-                    )}>
-                      {coverBadge.label}
-                      {file.isSplit && <Scissors className="inline w-2 h-2 ml-0.5" />}
+                  {/* 사진 정보 */}
+                  <div className={cn(
+                    'text-[9px] leading-tight p-1 border border-t-0 rounded-b-md',
+                    file.status === 'RATIO_MISMATCH' ? 'bg-red-50 border-red-300' : 'bg-white border-gray-200'
+                  )}>
+                    <div className="truncate font-medium" title={file.fileName}>{file.fileName}</div>
+                    <div className="text-gray-500">{file.widthPx}×{file.heightPx}px ({file.dpi}dpi)</div>
+                    <div className="text-gray-500">{fileSizeStr} | {file.widthInch}×{file.heightInch}"</div>
+                    <div className="mt-0.5">
+                      <span className={cn(
+                        'inline-block px-1 py-0 rounded text-[8px] font-medium',
+                        file.status === 'EXACT' ? 'bg-green-100 text-green-700' :
+                        file.status === 'RATIO_MATCH' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-red-100 text-red-700'
+                      )}>
+                        {file.status === 'EXACT' ? 'OK' : file.status === 'RATIO_MATCH' ? '비율일치' : '불일치'}
+                      </span>
                     </div>
-                  )}
-                  {/* 호버 시 확대 아이콘 */}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <ZoomIn className="w-6 h-6 text-white" />
                   </div>
                 </div>
               );
@@ -594,87 +667,6 @@ export function FolderCard({ folder }: FolderCardProps) {
         </CollapsibleContent>
       </Collapsible>
 
-      {/* 파일 목록 (접기/펼치기) */}
-      <Collapsible open={isFileListOpen} onOpenChange={setIsFileListOpen} className="mt-3">
-        <CollapsibleTrigger asChild>
-          <Button variant="ghost" size="sm" className="w-full justify-between h-8 text-xs">
-            <span className="flex items-center gap-1">
-              <FileImage className="h-3 w-3" />
-              파일 목록 ({folder.files.length}개)
-            </span>
-            {isFileListOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-          </Button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="mt-2">
-          <div className="border rounded-lg overflow-hidden bg-white">
-            <div className="bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-500 grid grid-cols-12 gap-2">
-              <span className="col-span-1 text-center">#</span>
-              <span className="col-span-3">파일명</span>
-              <span className="col-span-2 text-center">크기(px)</span>
-              <span className="col-span-1 text-center">용량</span>
-              <span className="col-span-2 text-center">규격(인치)</span>
-              <span className="col-span-2 text-center">타입</span>
-              <span className="col-span-1 text-center">상태</span>
-            </div>
-            <div className="max-h-48 overflow-y-auto divide-y">
-              {folder.files.map((file, index) => {
-                const coverBadge = COVER_TYPE_BADGE[file.coverType];
-                const formatFileSize = (bytes: number) => {
-                  if (bytes < 1024) return `${bytes}B`;
-                  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
-                  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
-                };
-                return (
-                  <div
-                    key={file.id}
-                    className={cn(
-                      'px-3 py-1.5 text-xs grid grid-cols-12 gap-2 items-center',
-                      file.status === 'RATIO_MISMATCH' && 'bg-red-50 border-l-2 border-red-500',
-                      file.status === 'RATIO_MATCH' && 'bg-yellow-50 border-l-2 border-yellow-500',
-                      file.coverType === 'FRONT_COVER' && 'bg-blue-50/50',
-                      file.coverType === 'BACK_COVER' && 'bg-purple-50/50'
-                    )}
-                  >
-                    <span className="col-span-1 text-center text-gray-500">{file.pageNumber}</span>
-                    <span className="col-span-3 truncate flex items-center gap-1" title={file.newFileName || file.fileName}>
-                      {file.isSplit && <Scissors className="w-3 h-3 text-pink-500" />}
-                      {file.isExtended && <Expand className="w-3 h-3 text-blue-500" />}
-                      {file.newFileName || file.fileName}
-                    </span>
-                    <span className="col-span-2 text-center text-gray-500">
-                      {file.widthPx}×{file.heightPx}
-                      {file.isExtended && file.originalWidthPx && (
-                        <span className="text-blue-500 text-[9px] ml-0.5">({file.originalWidthPx}→)</span>
-                      )}
-                    </span>
-                    <span className="col-span-1 text-center text-gray-500">{formatFileSize(file.fileSize)}</span>
-                    <span className="col-span-2 text-center">{file.widthInch}×{file.heightInch}"</span>
-                    <span className="col-span-2 flex justify-center">
-                      <Badge
-                        className={cn('text-[10px] px-1 py-0', coverBadge.className)}
-                      >
-                        {coverBadge.label}
-                      </Badge>
-                    </span>
-                    <span className="col-span-1 flex justify-center">
-                      <Badge
-                        variant={
-                          file.status === 'EXACT' ? 'default' :
-                          file.status === 'RATIO_MATCH' ? 'secondary' : 'destructive'
-                        }
-                        className="text-[10px] px-1 py-0"
-                      >
-                        {file.status === 'EXACT' ? 'OK' :
-                         file.status === 'RATIO_MATCH' ? '비율' : 'NG'}
-                      </Badge>
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
 
       {/* 정상/승인 완료 시 - 규격 옵션 및 수량 */}
       {canSelect && (
@@ -798,6 +790,31 @@ export function FolderCard({ folder }: FolderCardProps) {
         </div>
       )}
 
+      {/* 배송 정보 섹션 */}
+      {companyInfo && clientInfo && pricingMap && (
+        <Collapsible open={isShippingOpen} onOpenChange={setIsShippingOpen}>
+          <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 border-t bg-gray-50/50 hover:bg-gray-100/50 transition-colors">
+            <div className="flex items-center gap-2 text-sm">
+              <Truck className="h-3.5 w-3.5 text-gray-500" />
+              <span className="font-medium">배송정보</span>
+              <span className="text-xs text-gray-500">
+                {getShippingSummary(folder.shippingInfo)}
+              </span>
+            </div>
+            {isShippingOpen ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
+          </CollapsibleTrigger>
+          <CollapsibleContent className="px-3 py-3 border-t">
+            <FolderShippingSection
+              shippingInfo={folder.shippingInfo}
+              companyInfo={companyInfo}
+              clientInfo={clientInfo}
+              pricingMap={pricingMap}
+              onChange={(shipping) => setFolderShipping(folder.id, shipping)}
+            />
+          </CollapsibleContent>
+        </Collapsible>
+      )}
+
       {/* 이미지 미리보기 모달 */}
       <Dialog open={!!previewImage} onOpenChange={(open) => { if (!open) { setPreviewImage(null); resetZoom(); } }}>
         <DialogContent className={cn(
@@ -820,15 +837,24 @@ export function FolderCard({ folder }: FolderCardProps) {
                       {COVER_TYPE_BADGE[folder.files[previewImage.index]?.coverType]?.label}
                     </Badge>
                   )}
-                  <button
-                    onClick={() => { if (isZoomed) resetZoom(); else setIsZoomed(true); }}
-                    className={cn(
-                      'ml-auto px-2 py-0.5 rounded text-[10px] font-medium transition-colors',
-                      isZoomed ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-                    )}
-                  >
-                    {isZoomed ? '축소' : '확대'}
-                  </button>
+                  <div className="ml-auto flex gap-1">
+                    {[
+                      { level: 0, label: '원본' },
+                      { level: 1, label: '150%' },
+                      { level: 2, label: '200%' },
+                    ].map(({ level, label }) => (
+                      <button
+                        key={level}
+                        onClick={() => { setZoomLevel(level); if (level === 0) setZoomPos({ x: 0, y: 0 }); }}
+                        className={cn(
+                          'px-2 py-0.5 rounded text-[10px] font-medium transition-colors',
+                          zoomLevel === level ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                        )}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </>
               )}
             </DialogTitle>
@@ -866,12 +892,12 @@ export function FolderCard({ folder }: FolderCardProps) {
                 )}
                 style={isZoomed ? {
                   transform: `translate(${zoomPos.x}px, ${zoomPos.y}px)`,
-                  width: '150%',
+                  width: zoomLevel === 2 ? '200%' : '150%',
                 } : undefined}
                 onClick={(e) => {
                   if (!isZoomed) {
                     e.stopPropagation();
-                    setIsZoomed(true);
+                    setZoomLevel(1);
                   }
                 }}
                 draggable={false}

@@ -352,6 +352,129 @@ export function estimateDpi(
   return 300;
 }
 
+/**
+ * JPEG/PNG 파일에서 실제 DPI 메타데이터를 읽어옴
+ * - JPEG: JFIF APP0 또는 EXIF APP1의 XResolution 태그
+ * - PNG: pHYs 청크
+ * - 읽기 실패 시 300dpi 폴백
+ */
+export async function readImageDpi(file: File): Promise<number> {
+  const DEFAULT_DPI = 300;
+  try {
+    const buffer = await file.slice(0, 65536).arrayBuffer(); // 첫 64KB만 읽기
+    const view = new DataView(buffer);
+
+    // JPEG 감지 (FF D8)
+    if (view.getUint8(0) === 0xFF && view.getUint8(1) === 0xD8) {
+      return readJpegDpi(view) || DEFAULT_DPI;
+    }
+
+    // PNG 감지 (89 50 4E 47)
+    if (view.getUint8(0) === 0x89 && view.getUint8(1) === 0x50 &&
+        view.getUint8(2) === 0x4E && view.getUint8(3) === 0x47) {
+      return readPngDpi(view) || DEFAULT_DPI;
+    }
+
+    return DEFAULT_DPI;
+  } catch {
+    return DEFAULT_DPI;
+  }
+}
+
+function readJpegDpi(view: DataView): number | null {
+  let offset = 2; // SOI 이후
+  const len = view.byteLength;
+
+  while (offset < len - 4) {
+    if (view.getUint8(offset) !== 0xFF) break;
+    const marker = view.getUint8(offset + 1);
+    const segLen = view.getUint16(offset + 2);
+
+    // JFIF APP0 (FF E0)
+    // 구조: [FF E0][len 2B][JFIF\0 5B][ver_major 1B][ver_minor 1B][units 1B][xDensity 2B][yDensity 2B]
+    if (marker === 0xE0 && segLen >= 14) {
+      const units = view.getUint8(offset + 11);
+      const xDensity = view.getUint16(offset + 12);
+      if (units === 1 && xDensity > 0) return xDensity; // DPI
+      if (units === 2 && xDensity > 0) return Math.round(xDensity * 2.54); // DPCM → DPI
+    }
+
+    // EXIF APP1 (FF E1)
+    if (marker === 0xE1) {
+      const dpi = readExifDpi(view, offset + 4, segLen - 2);
+      if (dpi) return dpi;
+    }
+
+    offset += 2 + segLen;
+  }
+  return null;
+}
+
+function readExifDpi(view: DataView, exifStart: number, exifLen: number): number | null {
+  const len = view.byteLength;
+  if (exifStart + 6 > len) return null;
+
+  // "Exif\0\0" 확인
+  if (view.getUint8(exifStart) !== 0x45 || view.getUint8(exifStart + 1) !== 0x78) return null;
+
+  const tiffStart = exifStart + 6;
+  if (tiffStart + 8 > len) return null;
+
+  // 바이트 오더: "II" (리틀엔디안) 또는 "MM" (빅엔디안)
+  const bo = view.getUint16(tiffStart);
+  const le = bo === 0x4949;
+
+  const getU16 = (off: number) => view.getUint16(off, le);
+  const getU32 = (off: number) => view.getUint32(off, le);
+
+  // IFD0 오프셋
+  const ifdOffset = getU32(tiffStart + 4);
+  const ifd0 = tiffStart + ifdOffset;
+  if (ifd0 + 2 > len) return null;
+
+  const entries = getU16(ifd0);
+
+  for (let i = 0; i < entries; i++) {
+    const entryOff = ifd0 + 2 + i * 12;
+    if (entryOff + 12 > len) break;
+
+    const tag = getU16(entryOff);
+    // XResolution = 0x011A
+    if (tag === 0x011A) {
+      const valOffset = getU32(entryOff + 8);
+      const rationalOff = tiffStart + valOffset;
+      if (rationalOff + 8 > len) break;
+      const num = getU32(rationalOff);
+      const den = getU32(rationalOff + 4);
+      if (den > 0) return Math.round(num / den);
+    }
+  }
+  return null;
+}
+
+function readPngDpi(view: DataView): number | null {
+  let offset = 8; // PNG 시그니처 이후
+  const len = view.byteLength;
+
+  while (offset + 12 < len) {
+    const chunkLen = view.getUint32(offset);
+    const type = String.fromCharCode(
+      view.getUint8(offset + 4), view.getUint8(offset + 5),
+      view.getUint8(offset + 6), view.getUint8(offset + 7)
+    );
+
+    if (type === 'pHYs' && chunkLen === 9) {
+      const xPPU = view.getUint32(offset + 8);
+      const unit = view.getUint8(offset + 16); // 1 = meter
+      if (unit === 1 && xPPU > 0) return Math.round(xPPU / 39.3701); // PPM → DPI
+    }
+
+    if (type === 'IDAT') break; // 데이터 청크에 도달하면 중단
+    offset += 12 + chunkLen;
+  }
+  return null;
+}
+
 // ===== 폴더 분석 유틸리티 =====
 
 /**

@@ -87,6 +87,74 @@ export class OrderFileDto {
   sortOrder?: number;
 }
 
+// ==================== 주문 항목별 배송 정보 DTO ====================
+export class OrderItemShippingDto {
+  @ApiProperty({ description: '발송지 유형', enum: ['company', 'orderer'] })
+  @IsString()
+  senderType: string;
+
+  @ApiProperty({ description: '발송인명' })
+  @IsString()
+  senderName: string;
+
+  @ApiProperty({ description: '발송인 연락처' })
+  @IsString()
+  senderPhone: string;
+
+  @ApiPropertyOptional({ description: '발송지 우편번호' })
+  @IsOptional()
+  @IsString()
+  senderPostalCode?: string;
+
+  @ApiPropertyOptional({ description: '발송지 주소' })
+  @IsOptional()
+  @IsString()
+  senderAddress?: string;
+
+  @ApiPropertyOptional({ description: '발송지 상세주소' })
+  @IsOptional()
+  @IsString()
+  senderAddressDetail?: string;
+
+  @ApiProperty({ description: '배송지 유형', enum: ['orderer', 'direct_customer'] })
+  @IsString()
+  receiverType: string;
+
+  @ApiProperty({ description: '수령인명' })
+  @IsString()
+  recipientName: string;
+
+  @ApiProperty({ description: '수령인 연락처' })
+  @IsString()
+  phone: string;
+
+  @ApiProperty({ description: '배송지 우편번호' })
+  @IsString()
+  postalCode: string;
+
+  @ApiProperty({ description: '배송지 주소' })
+  @IsString()
+  address: string;
+
+  @ApiPropertyOptional({ description: '배송지 상세주소' })
+  @IsOptional()
+  @IsString()
+  addressDetail?: string;
+
+  @ApiProperty({ description: '배송 방법', enum: ['parcel', 'motorcycle', 'freight', 'pickup'] })
+  @IsString()
+  deliveryMethod: string;
+
+  @ApiProperty({ description: '배송비' })
+  @IsNumber()
+  deliveryFee: number;
+
+  @ApiPropertyOptional({ description: '배송비 유형', enum: ['free', 'conditional', 'standard'] })
+  @IsOptional()
+  @IsString()
+  deliveryFeeType?: string;
+}
+
 // ==================== 주문 항목 DTO ====================
 export class CreateOrderItemDto {
   @ApiProperty({ description: '상품 ID' })
@@ -155,6 +223,12 @@ export class CreateOrderItemDto {
   @ValidateNested({ each: true })
   @Type(() => OrderFileDto)
   files?: OrderFileDto[];
+
+  @ApiPropertyOptional({ description: '항목별 배송 정보' })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => OrderItemShippingDto)
+  shipping?: OrderItemShippingDto;
 }
 
 // ==================== 배송 정보 DTO ====================

@@ -76,15 +76,54 @@ export interface UploadedFile {
   // Canvas 데이터 (분리된 이미지)
   canvasDataUrl?: string;
 
+  // 썸네일 (리사이즈된 작은 이미지)
+  thumbnailUrl?: string;
+
   // 반폭 표지 확장 정보 (빈영역 추가)
   isExtended?: boolean; // 확장 여부
   extendPosition?: 'left' | 'right'; // 빈영역 위치 (left: 첫장, right: 막장)
   originalWidthPx?: number; // 원본 가로 픽셀
   originalWidthInch?: number; // 원본 가로 인치
 
+  // 빈페이지 감지 (먹/백색)
+  isBlankPage?: boolean;
+
   // 검증 결과
   status: SizeMatchStatus;
   message?: string;
+}
+
+// 발송지 유형
+export type SenderType = 'company' | 'orderer';
+
+// 배송지 유형
+export type ReceiverType = 'orderer' | 'direct_customer';
+
+// 배송 방법
+export type FolderDeliveryMethod = 'parcel' | 'motorcycle' | 'freight' | 'pickup';
+
+// 폴더별 배송 정보
+export interface FolderShippingInfo {
+  // 발송지
+  senderType: SenderType;
+  senderName: string;
+  senderPhone: string;
+  senderPostalCode: string;
+  senderAddress: string;
+  senderAddressDetail: string;
+
+  // 배송지
+  receiverType: ReceiverType;
+  recipientName: string;
+  recipientPhone: string;
+  recipientPostalCode: string;
+  recipientAddress: string;
+  recipientAddressDetail: string;
+
+  // 배송 방법 및 요금
+  deliveryMethod: FolderDeliveryMethod;
+  deliveryFee: number;
+  deliveryFeeType: string; // 'free' | 'conditional' | 'standard'
 }
 
 // 추가 주문 정보
@@ -162,6 +201,17 @@ export interface UploadedFolder {
 
   // 추가 주문
   additionalOrders: AdditionalOrder[];
+
+  // 자동감지 여부
+  isAutoDetected?: boolean;
+
+  // 빈페이지 자동감지 결과
+  firstPageBlank?: boolean;  // 첫장이 먹/백색 빈페이지
+  lastPageBlank?: boolean;   // 막장이 먹/백색 빈페이지
+  autoBindingDetected?: boolean; // 빈페이지 기반 제본방향 자동 결정됨
+
+  // 배송 정보
+  shippingInfo?: FolderShippingInfo;
 }
 
 interface MultiFolderUploadState {
@@ -188,7 +238,7 @@ interface MultiFolderUploadState {
   setIndigoSpecs: (specs: StandardSize[]) => void;
 
   // 액션
-  addFolder: (folder: UploadedFolder) => void;
+  addFolder: (folder: UploadedFolder) => { added: boolean; reason?: string };
   updateFolder: (folderId: string, updates: Partial<UploadedFolder>) => void;
   removeFolder: (folderId: string) => void;
   clearFolders: () => void;
@@ -219,6 +269,10 @@ interface MultiFolderUploadState {
 
   // 설정
   setTargetSpec: (width: number, height: number) => void;
+
+  // 배송 정보
+  setFolderShipping: (folderId: string, shipping: FolderShippingInfo) => void;
+  applyShippingToAll: (shipping: FolderShippingInfo) => void;
 
   // 유틸리티
   getSelectedFolders: () => UploadedFolder[];
@@ -295,6 +349,40 @@ export function calculateAlbumSize(
       albumHeight: fileHeight,
     };
   }
+}
+
+// 편집스타일 자동감지: 파일 치수를 표준규격과 비교하여 single/spread 판별
+export function autoDetectPageLayout(
+  widthInch: number,
+  heightInch: number,
+  specs: StandardSize[]
+): PageLayoutType {
+  if (specs.length === 0) return 'spread'; // 규격 미로드 시 폴백
+
+  // single/spread 두 모드로 앨범 크기 계산
+  const singleAlbum = calculateAlbumSize(widthInch, heightInch, 'single');
+  const spreadAlbum = calculateAlbumSize(widthInch, heightInch, 'spread');
+
+  // 각 모드에서 가장 가까운 표준규격 찾기
+  const singleMatch = findClosestStandardSize(specs, singleAlbum.albumWidth, singleAlbum.albumHeight);
+  const spreadMatch = findClosestStandardSize(specs, spreadAlbum.albumWidth, spreadAlbum.albumHeight);
+
+  if (!singleMatch && !spreadMatch) return 'spread';
+  if (!singleMatch) return 'spread';
+  if (!spreadMatch) return 'single';
+
+  // 비율 차이 비교
+  const singleRatio = calculateNormalizedRatio(singleAlbum.albumWidth, singleAlbum.albumHeight);
+  const spreadRatio = calculateNormalizedRatio(spreadAlbum.albumWidth, spreadAlbum.albumHeight);
+  const singleMatchRatio = calculateNormalizedRatio(singleMatch.width, singleMatch.height);
+  const spreadMatchRatio = calculateNormalizedRatio(spreadMatch.width, spreadMatch.height);
+
+  const singleDiff = Math.abs(singleRatio - singleMatchRatio);
+  const spreadDiff = Math.abs(spreadRatio - spreadMatchRatio);
+
+  // 차이가 작은 모드 선택 (동점 시 spread 우선)
+  if (singleDiff < spreadDiff) return 'single';
+  return 'spread';
 }
 
 // 비율 체크 함수 (앨범규격 기준)
@@ -468,10 +556,44 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
   setIndigoSpecs: (specs) => set({ indigoSpecs: specs }),
 
   addFolder: (folder) => {
+    const { folders } = get();
+
+    // 중복 감지 1: 같은 폴더명 + 같은 파일 수 + 같은 총 파일 크기
+    const duplicate = folders.find(existing =>
+      existing.folderName === folder.folderName &&
+      existing.files.length === folder.files.length &&
+      existing.totalFileSize === folder.totalFileSize
+    );
+
+    if (duplicate) {
+      return { added: false, reason: `"${folder.folderName}" 폴더가 이미 업로드되어 있습니다.` };
+    }
+
+    // 중복 감지 2: 파일명 + 파일크기 기준으로 개별 파일 중복 체크
+    const existingFileKeys = new Set<string>();
+    for (const f of folders) {
+      for (const file of f.files) {
+        existingFileKeys.add(`${file.fileName}:${file.fileSize}`);
+      }
+    }
+    const duplicateFiles = folder.files.filter(file =>
+      existingFileKeys.has(`${file.fileName}:${file.fileSize}`)
+    );
+
+    if (duplicateFiles.length === folder.files.length) {
+      return { added: false, reason: `"${folder.folderName}" 폴더의 모든 파일이 이미 업로드되어 있습니다.` };
+    }
+
     const validated = get().validateFolder(folder);
     set(state => ({
       folders: [...state.folders, validated],
     }));
+
+    if (duplicateFiles.length > 0) {
+      return { added: true, reason: `${duplicateFiles.length}개 파일이 다른 폴더에 이미 존재합니다.` };
+    }
+
+    return { added: true };
   },
 
   updateFolder: (folderId, updates) => {
@@ -827,6 +949,21 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
       isSelected: false,
       isApproved: validationStatus === 'EXACT_MATCH',
     };
+  },
+
+  // 배송 정보
+  setFolderShipping: (folderId: string, shipping: FolderShippingInfo) => {
+    set((state) => ({
+      folders: state.folders.map((f) =>
+        f.id === folderId ? { ...f, shippingInfo: shipping } : f
+      ),
+    }));
+  },
+
+  applyShippingToAll: (shipping: FolderShippingInfo) => {
+    set((state) => ({
+      folders: state.folders.map((f) => ({ ...f, shippingInfo: shipping })),
+    }));
   },
 
   reset: () => set(initialState),

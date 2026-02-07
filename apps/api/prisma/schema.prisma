@@ -663,6 +663,7 @@ model ProductPaper {
   grade        Int?    // 등급 (1-5)
   price        Decimal @db.Decimal(10, 2) @default(0)
   isDefault    Boolean @default(false)
+  isActive     Boolean @default(true)  // 주문 시 사용 여부
   sortOrder    Int     @default(0)
 
   @@index([productId])
@@ -989,12 +990,48 @@ model OrderItem {
   jdfBindingType      String?               // 제본 유형
   jdfBindingSide      String?               // 제본 위치
 
-  files OrderFile[]
+  files    OrderFile[]
+  shipping OrderItemShipping?
 
   @@index([orderId])
   @@index([colorIntentId])
   @@index([bindingIntentId])
   @@map("order_items")
+}
+
+model OrderItemShipping {
+  id                  String    @id @default(cuid())
+  orderItemId         String    @unique
+  orderItem           OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  // 발송지 정보
+  senderType          String    // 'company' | 'orderer'
+  senderName          String
+  senderPhone         String
+  senderPostalCode    String?
+  senderAddress       String?
+  senderAddressDetail String?
+
+  // 배송지 정보
+  receiverType        String    // 'orderer' | 'direct_customer'
+  recipientName       String
+  phone               String
+  postalCode          String
+  address             String
+  addressDetail       String?
+
+  // 배송 방법 및 요금
+  deliveryMethod      String    // 'parcel' | 'motorcycle' | 'freight' | 'pickup'
+  deliveryFee         Decimal   @db.Decimal(10, 2) @default(0)
+  deliveryFeeType     String?   // 'free' | 'conditional' | 'standard'
+
+  // 운송장 (관리자 입력)
+  courierCode         String?
+  trackingNumber      String?
+  shippedAt           DateTime?
+  deliveredAt         DateTime?
+
+  @@map("order_item_shippings")
 }
 
 model OrderFile {

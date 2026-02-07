@@ -57,9 +57,26 @@ export default function CartPage() {
     setSelectedItems([]);
   };
 
-  const selectedTotal = items
-    .filter(item => selectedItems.includes(item.id))
-    .reduce((sum, item) => sum + item.totalPrice, 0);
+  const selectedCartItems = items.filter(item => selectedItems.includes(item.id));
+  const selectedTotal = selectedCartItems.reduce((sum, item) => sum + item.totalPrice, 0);
+
+  // 항목별 배송비 합산 (앨범 주문에 배송정보가 있는 경우)
+  const itemShippingFees = selectedCartItems.reduce((sum, item) => {
+    if (item.albumOrderInfo?.shippingInfo) {
+      return sum + (item.albumOrderInfo.shippingInfo.deliveryFee || 0);
+    }
+    return sum;
+  }, 0);
+
+  // 배송정보가 없는 일반 항목의 배송비 (기본 로직)
+  const hasItemsWithoutShipping = selectedCartItems.some(
+    item => !item.albumOrderInfo?.shippingInfo
+  );
+  const generalShippingFee = hasItemsWithoutShipping
+    ? (selectedTotal > 50000 ? 0 : 3000)
+    : 0;
+
+  const totalShippingFee = itemShippingFees + generalShippingFee;
 
   const handleCheckout = () => {
     if (!isAuthenticated) {
@@ -187,12 +204,28 @@ export default function CartPage() {
 
                         {/* 앨범 주문 상세 정보 */}
                         {item.albumOrderInfo && (
-                          <div className="mt-1 text-xs text-purple-600 bg-purple-50 rounded px-2 py-1 inline-flex items-center gap-2">
-                            <span>{item.albumOrderInfo.printMethod === 'indigo' ? '인디고' : '잉크젯'}</span>
-                            <span>•</span>
-                            <span>{item.albumOrderInfo.colorMode === '4c' ? '4도' : '6도'}</span>
-                            <span>•</span>
-                            <span>{item.albumOrderInfo.pageCount}p</span>
+                          <div className="mt-1 space-y-1">
+                            <div className="text-xs text-purple-600 bg-purple-50 rounded px-2 py-1 inline-flex items-center gap-2">
+                              <span>{item.albumOrderInfo.printMethod === 'indigo' ? '인디고' : '잉크젯'}</span>
+                              <span>•</span>
+                              <span>{item.albumOrderInfo.colorMode === '4c' ? '4도' : '6도'}</span>
+                              <span>•</span>
+                              <span>{item.albumOrderInfo.pageCount}p</span>
+                            </div>
+                            {item.albumOrderInfo.shippingInfo && (
+                              <div className="text-xs text-blue-600 bg-blue-50 rounded px-2 py-1 inline-flex items-center gap-1">
+                                <Package className="h-3 w-3" />
+                                <span>
+                                  {item.albumOrderInfo.shippingInfo.deliveryMethod === 'parcel' ? '택배' :
+                                   item.albumOrderInfo.shippingInfo.deliveryMethod === 'freight' ? '화물' :
+                                   item.albumOrderInfo.shippingInfo.deliveryMethod === 'motorcycle' ? '오토바이퀵' : '방문수령'}
+                                </span>
+                                <span>•</span>
+                                <span>{item.albumOrderInfo.shippingInfo.receiverType === 'orderer' ? '스튜디오' : '고객직배송'}</span>
+                                <span>•</span>
+                                <span>{item.albumOrderInfo.shippingInfo.deliveryFee === 0 ? '무료' : `${item.albumOrderInfo.shippingInfo.deliveryFee.toLocaleString()}원`}</span>
+                              </div>
+                            )}
                           </div>
                         )}
 
@@ -275,7 +308,7 @@ export default function CartPage() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">배송비</span>
-                    <span>{selectedTotal > 50000 ? '무료' : '3,000원'}</span>
+                    <span>{totalShippingFee === 0 ? '무료' : `${totalShippingFee.toLocaleString()}원`}</span>
                   </div>
                 </div>
 
@@ -283,12 +316,14 @@ export default function CartPage() {
                   <div className="flex justify-between text-lg font-bold">
                     <span>결제예정금액</span>
                     <span className="text-primary">
-                      {(selectedTotal + (selectedTotal > 50000 ? 0 : 3000)).toLocaleString()}원
+                      {(selectedTotal + totalShippingFee).toLocaleString()}원
                     </span>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    * 5만원 이상 구매시 무료배송
-                  </p>
+                  {hasItemsWithoutShipping && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      * 5만원 이상 구매시 일반상품 무료배송
+                    </p>
+                  )}
                 </div>
 
                 <Button

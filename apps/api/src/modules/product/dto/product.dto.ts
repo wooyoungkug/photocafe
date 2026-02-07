@@ -106,6 +106,11 @@ export class ProductPaperDto {
   @IsBoolean()
   isDefault?: boolean;
 
+  @ApiPropertyOptional({ description: '주문 시 사용 여부' })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+
   @ApiPropertyOptional({ description: '정렬 순서' })
   @IsOptional()
   @IsNumber()

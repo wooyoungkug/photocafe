@@ -37,6 +37,7 @@ export interface Client {
   groupId?: string;
   group?: ClientGroup;
   memberType?: 'individual' | 'business';
+  shippingType?: 'conditional' | 'free' | 'prepaid' | 'cod';
   creditGrade?: 'A' | 'B' | 'C' | 'D';
   paymentTerms?: number;
   status: 'active' | 'inactive' | 'suspended';

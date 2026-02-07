@@ -25,6 +25,7 @@ export interface ProductPaper {
   grade?: number;
   price: number;
   isDefault: boolean;
+  isActive: boolean;
   sortOrder: number;
 }
 
@@ -69,18 +70,21 @@ export interface CustomOption {
 export interface PublicCopperPlate {
   id: string;
   plateName: string;
-  plateCode?: string;
-  plateType: 'copper' | 'soft';
-  widthMm?: number;
-  heightMm?: number;
-  storageLocation?: string;
-  imageUrl?: string;
-  aiFileUrl?: string;
-  designFileUrl?: string;
-  description?: string;
-  defaultEngravingText?: string;
+  plateCode: string | null;
+  plateType: string;
+  widthMm: number | null;
+  heightMm: number | null;
+  storageLocation: string | null;
+  imageUrl: string | null;
+  aiFileUrl: string | null;
+  designFileUrl: string | null;
+  description: string | null;
+  defaultEngravingText: string | null;
   status: string;
   sortOrder: number;
+  usageCount: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // 상품-공용동판 연결
@@ -185,6 +189,7 @@ export interface CreateProductPaperDto {
   type: string;
   price?: number;
   isDefault?: boolean;
+  isActive?: boolean;
   sortOrder?: number;
 }
 
