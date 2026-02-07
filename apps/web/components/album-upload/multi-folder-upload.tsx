@@ -595,34 +595,86 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       files: UploadedFile[],
       pageLayout: PageLayoutType
     ): Promise<UploadedFile[]> => {
-      if (pageLayout !== 'spread') return files;
+      if (pageLayout !== 'spread' || files.length === 0) return files;
 
-      // 대표 규격 찾기 (가장 많은 비율의 내지 기준)
-      const innerPages = files.filter(f => f.coverType === 'INNER_PAGE');
-      if (innerPages.length === 0) return files;
+      // 1. 대표 규격(Dominant Width) 계산 - 가장 많이 등장하는 너비 사용
+      // (단순 평균보다 이상치 영향을 덜 받음)
+      const widthCounts = new Map<number, { count: number; sumPx: number; sumInch: number; sumHeightPx: number; files: UploadedFile[] }>();
+      
+      files.forEach(f => {
+        // 100px 단위로 근사하여 그룹화 (미세한 픽셀 차이 무시)
+        const approxWidth = Math.round(f.widthPx / 100) * 100;
+        
+        if (!widthCounts.has(approxWidth)) {
+          widthCounts.set(approxWidth, { count: 0, sumPx: 0, sumInch: 0, sumHeightPx: 0, files: [] });
+        }
+        const group = widthCounts.get(approxWidth)!;
+        group.count++;
+        group.sumPx += f.widthPx;
+        group.sumInch += f.widthInch;
+        group.sumHeightPx += f.heightPx;
+        group.files.push(f);
+      });
 
-      // 내지의 평균 가로 크기를 대표 규격으로 사용
-      const avgWidthPx = innerPages.reduce((sum, f) => sum + f.widthPx, 0) / innerPages.length;
-      const avgWidthInch = innerPages.reduce((sum, f) => sum + f.widthInch, 0) / innerPages.length;
-      const avgHeightPx = innerPages.reduce((sum, f) => sum + f.heightPx, 0) / innerPages.length;
+      // 가장 빈도가 높은 그룹 찾기
+      let dominantGroup = Array.from(widthCounts.values()).sort((a, b) => b.count - a.count)[0];
+      
+      // 만약 내지(INNER_PAGE)가 있는 그룹이 있다면 우선순위 부여
+      const innerPageGroup = Array.from(widthCounts.values())
+        .filter(g => g.files.some(f => f.coverType === 'INNER_PAGE'))
+        .sort((a, b) => b.count - a.count)[0];
+        
+      if (innerPageGroup) {
+        dominantGroup = innerPageGroup;
+      }
+
+      if (!dominantGroup) return files;
+
+      // 대표 규격 평균 계산
+      const avgWidthPx = dominantGroup.sumPx / dominantGroup.count;
+      const avgWidthInch = dominantGroup.sumInch / dominantGroup.count;
+      const avgHeightPx = dominantGroup.sumHeightPx / dominantGroup.count;
 
       const halfWidthPx = avgWidthPx / 2;
-      const halfWidthInch = avgWidthInch / 2;
 
-      // 각 파일을 처리
+      // 2. 각 파일 처리
       const processedFiles: UploadedFile[] = [];
 
-      for (const file of files) {
-        // 표지가 반폭인지 확인
-        const isHalfWidth =
-          (file.coverType === 'FRONT_COVER' || file.coverType === 'BACK_COVER') &&
-          Math.abs(file.widthPx - halfWidthPx) < 100 && // 반폭 가로 오차 100px 이내
-          Math.abs(file.heightPx - avgHeightPx) < 100;  // 세로는 같아야 함
+      for (let i = 0; i < files.length; i++) {
+        let file = files[i];
+        const isFirst = i === 0; // 숫자가 제일 작은 파일 (파일명 정렬된 상태임)
+        const isLast = i === files.length - 1; // 숫자가 제일 큰 파일
+
+        // 반폭인지 확인 (가로가 절반에 가깝고, 세로는 비슷해야 함)
+        const isHalfWidth = 
+          Math.abs(file.widthPx - halfWidthPx) < 100 && // 오차 100px 이내
+          Math.abs(file.heightPx - avgHeightPx) < 100;
+
+        let shouldExtend = false;
+        let targetCoverType: CoverType | null = null;
 
         if (isHalfWidth) {
-          // 반폭 표지를 전폭으로 확장
+          if (isFirst) {
+            // 첫장이고 반폭이면 → 첫장(FRONT_COVER)으로 인식하고 왼쪽 빈페이지 추가
+            shouldExtend = true;
+            targetCoverType = 'FRONT_COVER';
+          } else if (isLast) {
+            // 막장이고 반폭이면 → 막장(BACK_COVER)으로 인식하고 오른쪽 빈페이지 추가
+            shouldExtend = true;
+            targetCoverType = 'BACK_COVER';
+          } else if (file.coverType === 'FRONT_COVER' || file.coverType === 'BACK_COVER') {
+            // 순서는 중간이지만 명시적으로 커버타입이 지정된 경우 (기존 로직 유지)
+            shouldExtend = true;
+            targetCoverType = file.coverType;
+          }
+        }
+
+        if (shouldExtend && targetCoverType) {
+          // 커버 타입 강제 지정 (확장 함수가 coverType을 보고 방향을 결정함)
+          const fileToExtend = { ...file, coverType: targetCoverType };
+          
           const extendedFile = await extendHalfWidthCover(
-            file,
+            fileToExtend,
             Math.round(avgWidthPx),
             Math.round(avgWidthInch * 10) / 10
           );
