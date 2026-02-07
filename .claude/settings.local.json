@@ -256,7 +256,8 @@
       "Bash(done)",
       "Bash(cmd /c \"taskkill /PID 25868 /F & taskkill /PID 32196 /F\")",
       "Bash(for f in c:/dev/printing114/apps/web/messages/*.json)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/pg_dump.exe\":*)"
     ]
   }
 }
