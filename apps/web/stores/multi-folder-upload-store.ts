@@ -477,7 +477,7 @@ export function processHalfWidthCovers(
     const fileAlbum = calculateAlbumSize(file.widthInch, file.heightInch, pageLayout);
     // 반폭인지 확인 (대표규격의 절반 가로 && 같은 세로)
     const isHalfWidth = Math.abs(fileAlbum.albumWidth - halfWidth) < 0.2 &&
-                        Math.abs(fileAlbum.albumHeight - representativeHeight) < 0.2;
+      Math.abs(fileAlbum.albumHeight - representativeHeight) < 0.2;
 
     if (isHalfWidth && (file.coverType === 'FRONT_COVER' || file.coverType === 'BACK_COVER')) {
       // 반폭 표지를 전폭으로 확장 표시
@@ -564,15 +564,11 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
   addFolder: (folder) => {
     const { folders } = get();
 
-    // 중복 감지 1: 같은 폴더명 + 같은 파일 수 + 같은 총 파일 크기
-    const duplicate = folders.find(existing =>
-      existing.folderName === folder.folderName &&
-      existing.files.length === folder.files.length &&
-      existing.totalFileSize === folder.totalFileSize
-    );
+    // 중복 감지: 같은 폴더명이 이미 존재하는지 확인
+    const duplicate = folders.find(existing => existing.folderName === folder.folderName);
 
     if (duplicate) {
-      return { added: false, reason: `"${folder.folderName}" 폴더가 이미 업로드되어 있습니다.` };
+      return { added: false, reason: `"${folder.folderName}" 폴더가 이미 목록에 있습니다.` };
     }
 
     // 중복 감지 2: 파일명 + 파일크기 기준으로 개별 파일 중복 체크
@@ -752,11 +748,11 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
       folders: state.folders.map(f =>
         f.id === folderId
           ? {
-              ...f,
-              additionalOrders: f.additionalOrders.map(o =>
-                o.id === orderId ? { ...o, quantity: Math.max(1, quantity) } : o
-              ),
-            }
+            ...f,
+            additionalOrders: f.additionalOrders.map(o =>
+              o.id === orderId ? { ...o, quantity: Math.max(1, quantity) } : o
+            ),
+          }
           : f
       ),
     }));
@@ -767,13 +763,13 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
       folders: state.folders.map(f =>
         f.id === folderId
           ? {
-              ...f,
-              additionalOrders: f.additionalOrders.map(o =>
-                o.id === orderId
-                  ? { ...o, albumWidth: spec.width, albumHeight: spec.height, albumLabel: spec.label }
-                  : o
-              ),
-            }
+            ...f,
+            additionalOrders: f.additionalOrders.map(o =>
+              o.id === orderId
+                ? { ...o, albumWidth: spec.width, albumHeight: spec.height, albumLabel: spec.label }
+                : o
+            ),
+          }
           : f
       ),
     }));
@@ -811,7 +807,7 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
     return get().folders.filter(f =>
       f.isSelected &&
       (f.validationStatus === 'EXACT_MATCH' ||
-       (f.validationStatus === 'RATIO_MATCH' && f.isApproved))
+        (f.validationStatus === 'RATIO_MATCH' && f.isApproved))
     );
   },
 

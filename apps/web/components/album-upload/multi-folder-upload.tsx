@@ -595,16 +595,17 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       files: UploadedFile[],
       pageLayout: PageLayoutType
     ): Promise<UploadedFile[]> => {
-      if (pageLayout !== 'spread' || files.length === 0) return files;
+      // pageLayout check removed to allow auto-detection correction
+      if (files.length === 0) return files;
 
       // 1. 대표 규격(Dominant Width) 계산 - 가장 많이 등장하는 너비 사용
       // (단순 평균보다 이상치 영향을 덜 받음)
       const widthCounts = new Map<number, { count: number; sumPx: number; sumInch: number; sumHeightPx: number; files: UploadedFile[] }>();
-      
+
       files.forEach(f => {
         // 100px 단위로 근사하여 그룹화 (미세한 픽셀 차이 무시)
         const approxWidth = Math.round(f.widthPx / 100) * 100;
-        
+
         if (!widthCounts.has(approxWidth)) {
           widthCounts.set(approxWidth, { count: 0, sumPx: 0, sumInch: 0, sumHeightPx: 0, files: [] });
         }
@@ -618,14 +619,23 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
 
       // 가장 빈도가 높은 그룹 찾기
       let dominantGroup = Array.from(widthCounts.values()).sort((a, b) => b.count - a.count)[0];
-      
+
       // 만약 내지(INNER_PAGE)가 있는 그룹이 있다면 우선순위 부여
       const innerPageGroup = Array.from(widthCounts.values())
         .filter(g => g.files.some(f => f.coverType === 'INNER_PAGE'))
-        .sort((a, b) => b.count - a.count)[0];
-        
+        .sort((a, b) => {
+          if (b.count !== a.count) return b.count - a.count;
+          return b.sumPx - a.sumPx; // 개수가 같으면 더 넓은 쪽(펼침면) 우선
+        })[0];
+
       if (innerPageGroup) {
         dominantGroup = innerPageGroup;
+      } else {
+        // 내지가 없으면 전체 중에서 선택
+        dominantGroup = Array.from(widthCounts.values()).sort((a, b) => {
+          if (b.count !== a.count) return b.count - a.count;
+          return b.sumPx - a.sumPx; // 개수가 같으면 더 넓은 쪽(펼침면) 우선
+        })[0];
       }
 
       if (!dominantGroup) return files;
@@ -646,7 +656,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         const isLast = i === files.length - 1; // 숫자가 제일 큰 파일
 
         // 반폭인지 확인 (가로가 절반에 가깝고, 세로는 비슷해야 함)
-        const isHalfWidth = 
+        const isHalfWidth =
           Math.abs(file.widthPx - halfWidthPx) < 100 && // 오차 100px 이내
           Math.abs(file.heightPx - avgHeightPx) < 100;
 
@@ -658,6 +668,9 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
             // 첫장이고 반폭이면 → 첫장(FRONT_COVER)으로 인식하고 왼쪽 빈페이지 추가
             shouldExtend = true;
             targetCoverType = 'FRONT_COVER';
+            // 첫장이 반폭이면 우측 페이지 1페이지가 됨 -> 우철 (Right Start)
+            // 여기서 detectedBindingDirection을 설정할 수는 없지만, 
+            // 호출부에서 첫장이 반폭으로 확장되었는지(isExtended + FRONT_COVER) 확인하여 설정 가능
           } else if (isLast) {
             // 막장이고 반폭이면 → 막장(BACK_COVER)으로 인식하고 오른쪽 빈페이지 추가
             shouldExtend = true;
@@ -671,8 +684,8 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
 
         if (shouldExtend && targetCoverType) {
           // 커버 타입 강제 지정 (확장 함수가 coverType을 보고 방향을 결정함)
-          const fileToExtend = { ...file, coverType: targetCoverType };
-          
+          const fileToExtend = { ...file, coverType: targetCoverType! }; // Type assertion since checks pass
+
           const extendedFile = await extendHalfWidthCover(
             fileToExtend,
             Math.round(avgWidthPx),
@@ -889,6 +902,12 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       setProcessingMessage(tu('processingCover', { name: fullPath }));
       const extendedFiles = await processHalfWidthCoversWithCanvas(processedFiles, pageLayout);
 
+      // 확장된 파일이 있다면(첫장/막장 확장 등), 편집스타일을 'spread'로 강제 변경
+      // (자동감지가 'single'로 잘못된 경우 보정)
+      if (extendedFiles.some(f => f.isExtended)) {
+        pageLayout = 'spread';
+      }
+
       // 페이지 정렬 (첫장 → 내지 → 막장)
       const sortedFiles = sortPagesByPosition(extendedFiles);
 
@@ -898,6 +917,15 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       let lastPageBlank = false;
       let autoBindingDetected = false;
       let effectiveBindingDirection: BindingDirection = bindingDirection ?? 'LEFT_START_RIGHT_END';
+
+      // 첫장이 반폭 확장된 경우 (Front Cover) -> 우철 (Right Start) 자동 적용
+      if (sortedFiles.length > 0 &&
+        sortedFiles[0].coverType === 'FRONT_COVER' &&
+        sortedFiles[0].isExtended &&
+        bindingDirection === null) {
+        effectiveBindingDirection = 'RIGHT_START_LEFT_END';
+        autoBindingDetected = true;
+      }
 
       if (sortedFiles.length > 0) {
         // 펼침면: 첫장은 왼쪽반만, 막장은 오른쪽반만 검사
@@ -1156,6 +1184,11 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         // 반폭 표지 확장 처리 (Canvas로 실제 이미지 생성)
         const extendedFiles = await processHalfWidthCoversWithCanvas(processedFiles, pageLayout);
 
+        // 확장된 파일이 있다면 편집스타일을 'spread'로 강제 변경
+        if (extendedFiles.some(f => f.isExtended)) {
+          pageLayout = 'spread';
+        }
+
         const sortedFiles = sortPagesByPosition(extendedFiles);
 
         // 첫장/막장 빈페이지 자동감지 (먹색/백색)
@@ -1164,6 +1197,15 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         let lastPageBlank = false;
         let autoBindingDetected = false;
         let effectiveBindingDirection: BindingDirection = bindingDirection ?? 'LEFT_START_RIGHT_END';
+
+        // 첫장이 반폭 확장된 경우 (Front Cover) -> 우철 (Right Start) 자동 적용
+        if (sortedFiles.length > 0 &&
+          sortedFiles[0].coverType === 'FRONT_COVER' &&
+          sortedFiles[0].isExtended &&
+          bindingDirection === null) {
+          effectiveBindingDirection = 'RIGHT_START_LEFT_END';
+          autoBindingDetected = true;
+        }
 
         if (sortedFiles.length > 0) {
           // 펼침면: 첫장은 왼쪽반만, 막장은 오른쪽반만 검사
@@ -1363,6 +1405,12 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       }
 
       const extendedFiles = await processHalfWidthCoversWithCanvas(processedFiles, pageLayout);
+
+      // 확장된 파일이 있다면 편집스타일을 'spread'로 강제 변경
+      if (extendedFiles.some(f => f.isExtended)) {
+        pageLayout = 'spread';
+      }
+
       const sortedFiles = sortPagesByPosition(extendedFiles);
 
       // 빈페이지 자동감지
@@ -1371,6 +1419,15 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       let lastPageBlank = false;
       let autoBindingDetected = false;
       let effectiveBindingDirection: BindingDirection = bindingDirection ?? 'LEFT_START_RIGHT_END';
+
+      // 첫장이 반폭 확장된 경우 (Front Cover) -> 우철 (Right Start) 자동 적용
+      if (sortedFiles.length > 0 &&
+        sortedFiles[0].coverType === 'FRONT_COVER' &&
+        sortedFiles[0].isExtended &&
+        bindingDirection === null) {
+        effectiveBindingDirection = 'RIGHT_START_LEFT_END';
+        autoBindingDetected = true;
+      }
 
       if (sortedFiles.length > 0) {
         const firstRegion = pageLayout === 'spread' ? 'left' as const : 'full' as const;
