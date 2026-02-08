@@ -94,16 +94,11 @@ interface Order {
   items?: {
     id: string;
     productName: string;
+    size: string;
+    pages: number;
     quantity: number;
     unitPrice: number;
     totalPrice: number;
-    albumOrderInfo?: {
-      pageCount?: number;
-      specification?: {
-        size?: string;
-        binding?: string;
-      };
-    };
   }[];
 }
 
@@ -239,10 +234,10 @@ export default function MyOrdersPage() {
                           {productName}
                         </TableCell>
                         <TableCell className="text-sm text-gray-600">
-                          {firstItem?.albumOrderInfo?.specification?.size || '-'}
+                          {firstItem?.size || '-'}
                         </TableCell>
                         <TableCell className="text-center text-sm">
-                          {firstItem?.albumOrderInfo?.pageCount ? `${firstItem.albumOrderInfo.pageCount}p` : '-'}
+                          {firstItem?.pages ? `${firstItem.pages}p` : '-'}
                         </TableCell>
                         <TableCell className="text-center text-sm">
                           {firstItem?.quantity || '-'}

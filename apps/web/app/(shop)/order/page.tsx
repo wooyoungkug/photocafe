@@ -218,12 +218,24 @@ export default function OrderPage() {
     return allChanges;
   }, [items]);
 
+  // 상담 카테고리 조회 (캐싱하여 중복 호출 방지)
+  const getSystemCategoryId = async (): Promise<string | null> => {
+    try {
+      const categories = await api.get<{ data: { id: string; name: string }[] }>('/consultation-categories');
+      const systemCategory = categories.data?.find(
+        (cat) => cat.name.includes('시스템') || cat.name.includes('정보변경') || cat.name.includes('기타')
+      );
+      return systemCategory?.id || null;
+    } catch {
+      return null;
+    }
+  };
+
   // 회원정보 업데이트 및 상담이력 기록
-  const updateClientInfoAndLog = async (changes: ShippingChanges[]) => {
+  const updateClientInfoAndLog = async (changes: ShippingChanges[], categoryId: string | null) => {
     if (!clientInfo) return;
 
     try {
-      // 1. 회원정보 업데이트
       const updateData: Record<string, string> = {};
       changes.forEach((change) => {
         if (change.field === 'phone') {
@@ -235,25 +247,11 @@ export default function OrderPage() {
 
       await api.put(`/clients/${clientInfo.id}`, updateData);
 
-      // 2. 상담이력에 변경 내용 기록
-      const changeDetails = changes
-        .map((c) => `• ${c.label}: ${c.oldValue} → ${c.newValue}`)
-        .join('\n');
-
-      // 상담 분류 조회 (시스템/정보변경 카테고리)
-      let categoryId: string | null = null;
-      try {
-        const categories = await api.get<{ data: { id: string; name: string }[] }>('/consultation-categories');
-        const systemCategory = categories.data?.find(
-          (cat) => cat.name.includes('시스템') || cat.name.includes('정보변경') || cat.name.includes('기타')
-        );
-        categoryId = systemCategory?.id || null;
-      } catch {
-        // 카테고리 조회 실패 시 무시
-      }
-
-      // 상담이력 생성 (카테고리가 있는 경우에만)
       if (categoryId) {
+        const changeDetails = changes
+          .map((c) => `• ${c.label}: ${c.oldValue} → ${c.newValue}`)
+          .join('\n');
+
         await api.post('/consultations', {
           clientId: clientInfo.id,
           categoryId,
@@ -273,51 +271,31 @@ export default function OrderPage() {
       });
     } catch (error) {
       console.error('Failed to update client info:', error);
-      // 회원정보 업데이트 실패해도 주문은 진행
     }
   };
 
   // 동판 정보 업데이트 및 상담이력 기록
-  const updateCopperPlateInfoAndLog = async (cpChanges: CopperPlateChanges[]) => {
+  const updateCopperPlateInfoAndLog = async (cpChanges: CopperPlateChanges[], categoryId: string | null) => {
     if (!clientInfo || cpChanges.length === 0) return;
 
     try {
-      for (const cpChange of cpChanges) {
-        // 1. 동판 정보 업데이트
+      await Promise.all(cpChanges.map(cpChange => {
         const updateData: Record<string, string> = {};
-        if (cpChange.selectedFoilColor) {
-          updateData.foilColor = cpChange.selectedFoilColor;
-        }
-        if (cpChange.selectedFoilPosition) {
-          updateData.foilPosition = cpChange.selectedFoilPosition;
-        }
-
-        await api.put(`/copper-plates/${cpChange.copperPlateId}`, updateData);
-      }
-
-      // 2. 상담이력에 변경 내용 기록
-      const changeDetails = cpChanges
-        .map(cp => {
-          const changes = cp.changes
-            .map(c => `  • ${c.label}: ${c.oldValue} → ${c.newValue}`)
-            .join('\n');
-          return `[${cp.plateName}] (${cp.itemName})\n${changes}`;
-        })
-        .join('\n\n');
-
-      // 상담 분류 조회
-      let categoryId: string | null = null;
-      try {
-        const categories = await api.get<{ data: { id: string; name: string }[] }>('/consultation-categories');
-        const systemCategory = categories.data?.find(
-          (cat) => cat.name.includes('시스템') || cat.name.includes('정보변경') || cat.name.includes('기타')
-        );
-        categoryId = systemCategory?.id || null;
-      } catch {
-        // 카테고리 조회 실패 시 무시
-      }
+        if (cpChange.selectedFoilColor) updateData.foilColor = cpChange.selectedFoilColor;
+        if (cpChange.selectedFoilPosition) updateData.foilPosition = cpChange.selectedFoilPosition;
+        return api.put(`/copper-plates/${cpChange.copperPlateId}`, updateData);
+      }));
 
       if (categoryId) {
+        const changeDetails = cpChanges
+          .map(cp => {
+            const changes = cp.changes
+              .map(c => `  • ${c.label}: ${c.oldValue} → ${c.newValue}`)
+              .join('\n');
+            return `[${cp.plateName}] (${cp.itemName})\n${changes}`;
+          })
+          .join('\n\n');
+
         await api.post('/consultations', {
           clientId: clientInfo.id,
           categoryId,
@@ -337,42 +315,29 @@ export default function OrderPage() {
       });
     } catch (error) {
       console.error('Failed to update copper plate info:', error);
-      // 동판 정보 업데이트 실패해도 주문은 진행
     }
   };
 
-  // 동판 정보 변경 이력만 상담에 기록 (업데이트 거부 시)
-  const logCopperPlateChangesOnly = async (cpChanges: CopperPlateChanges[]) => {
-    if (!clientInfo || cpChanges.length === 0) return;
-
+  // 상담이력만 기록 (업데이트 거부 시)
+  const logChangesOnly = async (
+    categoryId: string | null,
+    title: string,
+    content: string,
+    internalMemo: string
+  ) => {
+    if (!clientInfo || !categoryId) return;
     try {
-      const changeDetails = cpChanges
-        .map(cp => {
-          const changes = cp.changes
-            .map(c => `  • ${c.label}: ${c.oldValue} → ${c.newValue}`)
-            .join('\n');
-          return `[${cp.plateName}] (${cp.itemName})\n${changes}`;
-        })
-        .join('\n\n');
-
-      const categories = await api.get<{ data: { id: string; name: string }[] }>('/consultation-categories');
-      const systemCategory = categories.data?.find(
-        (cat) => cat.name.includes('시스템') || cat.name.includes('정보변경') || cat.name.includes('기타')
-      );
-
-      if (systemCategory?.id) {
-        await api.post('/consultations', {
-          clientId: clientInfo.id,
-          categoryId: systemCategory.id,
-          title: '[자동] 주문 시 동판 정보 변경 (동판 정보 미수정)',
-          content: `고객이 주문 과정에서 동판(박 각인) 정보와 다른 설정으로 주문했습니다.\n(동판 정보 수정 거부)\n\n변경 내역:\n${changeDetails}`,
-          counselorId: 'SYSTEM',
-          counselorName: '시스템',
-          status: 'closed',
-          priority: 'low',
-          internalMemo: '주문 페이지에서 자동 생성된 상담 기록 - 동판 정보 수정 거부',
-        });
-      }
+      await api.post('/consultations', {
+        clientId: clientInfo.id,
+        categoryId,
+        title,
+        content,
+        counselorId: 'SYSTEM',
+        counselorName: '시스템',
+        status: 'closed',
+        priority: 'low',
+        internalMemo,
+      });
     } catch {
       // 상담이력 기록 실패 시 무시
     }
@@ -389,45 +354,48 @@ export default function OrderPage() {
     try {
       await api.post('/orders', orderData);
 
-      // 회원정보 업데이트가 선택된 경우
-      if (shouldUpdateMemberInfo && changes.length > 0) {
-        await updateClientInfoAndLog(changes);
-      } else if (changes.length > 0 && clientInfo) {
-        // 회원정보 업데이트 거부한 경우에도 상담이력에 기록
-        const changeDetails = changes
-          .map((c) => `• ${c.label}: ${c.oldValue} → ${c.newValue}`)
-          .join('\n');
+      // 후처리가 필요한 경우에만 카테고리 1번 조회 후 병렬 실행
+      const hasChanges = changes.length > 0 || cpChanges.length > 0;
+      if (hasChanges) {
+        const categoryId = await getSystemCategoryId();
 
-        try {
-          const categories = await api.get<{ data: { id: string; name: string }[] }>('/consultation-categories');
-          const systemCategory = categories.data?.find(
-            (cat) => cat.name.includes('시스템') || cat.name.includes('정보변경') || cat.name.includes('기타')
-          );
+        const tasks: Promise<void>[] = [];
 
-          if (systemCategory?.id) {
-            await api.post('/consultations', {
-              clientId: clientInfo.id,
-              categoryId: systemCategory.id,
-              title: '[자동] 주문 시 배송정보 변경 (회원정보 미수정)',
-              content: `고객이 주문 과정에서 회원정보와 다른 배송정보로 주문했습니다.\n(회원정보 수정 거부)\n\n배송정보 변경 내역:\n${changeDetails}`,
-              counselorId: 'SYSTEM',
-              counselorName: '시스템',
-              status: 'closed',
-              priority: 'low',
-              internalMemo: '주문 페이지에서 자동 생성된 상담 기록 - 회원정보 수정 거부',
-            });
-          }
-        } catch {
-          // 상담이력 기록 실패 시 무시
+        // 회원정보 처리
+        if (shouldUpdateMemberInfo && changes.length > 0) {
+          tasks.push(updateClientInfoAndLog(changes, categoryId));
+        } else if (changes.length > 0 && clientInfo) {
+          const changeDetails = changes
+            .map((c) => `• ${c.label}: ${c.oldValue} → ${c.newValue}`)
+            .join('\n');
+          tasks.push(logChangesOnly(
+            categoryId,
+            '[자동] 주문 시 배송정보 변경 (회원정보 미수정)',
+            `고객이 주문 과정에서 회원정보와 다른 배송정보로 주문했습니다.\n(회원정보 수정 거부)\n\n배송정보 변경 내역:\n${changeDetails}`,
+            '주문 페이지에서 자동 생성된 상담 기록 - 회원정보 수정 거부'
+          ));
         }
-      }
 
-      // 동판 정보 업데이트가 선택된 경우
-      if (shouldUpdateCopperPlate && cpChanges.length > 0) {
-        await updateCopperPlateInfoAndLog(cpChanges);
-      } else if (cpChanges.length > 0) {
-        // 동판 정보 업데이트 거부한 경우에도 상담이력에 기록
-        await logCopperPlateChangesOnly(cpChanges);
+        // 동판 정보 처리
+        if (shouldUpdateCopperPlate && cpChanges.length > 0) {
+          tasks.push(updateCopperPlateInfoAndLog(cpChanges, categoryId));
+        } else if (cpChanges.length > 0) {
+          const changeDetails = cpChanges
+            .map(cp => {
+              const ch = cp.changes.map(c => `  • ${c.label}: ${c.oldValue} → ${c.newValue}`).join('\n');
+              return `[${cp.plateName}] (${cp.itemName})\n${ch}`;
+            })
+            .join('\n\n');
+          tasks.push(logChangesOnly(
+            categoryId,
+            '[자동] 주문 시 동판 정보 변경 (동판 정보 미수정)',
+            `고객이 주문 과정에서 동판(박 각인) 정보와 다른 설정으로 주문했습니다.\n(동판 정보 수정 거부)\n\n변경 내역:\n${changeDetails}`,
+            '주문 페이지에서 자동 생성된 상담 기록 - 동판 정보 수정 거부'
+          ));
+        }
+
+        // 모든 후처리 병렬 실행
+        await Promise.all(tasks);
       }
 
       toast({
@@ -557,6 +525,8 @@ export default function OrderPage() {
             bindingType: item.options.find(o => o.name === '제본')?.value || '무선제본',
             quantity: item.quantity,
             unitPrice: item.basePrice,
+            thumbnailUrl: item.thumbnailUrl || item.thumbnailUrls?.[0] || undefined,
+            totalFileSize: albumInfo.totalSize || 0,
             // 앨범 주문 추가 필드
             colorMode: albumInfo.colorMode,
             pageLayout: albumInfo.pageLayout,
@@ -597,6 +567,8 @@ export default function OrderPage() {
           bindingType: item.options.find(o => o.name === '제본')?.value || '무선제본',
           quantity: item.quantity,
           unitPrice: item.basePrice,
+          thumbnailUrl: item.thumbnailUrl || item.thumbnailUrls?.[0] || undefined,
+          totalFileSize: 0,
         };
       }),
       shipping: shippingInfo,

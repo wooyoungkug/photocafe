@@ -55,6 +55,8 @@ export interface OrderItem {
   foilName?: string;
   foilColor?: string;
   finishingOptions: string[];
+  thumbnailUrl?: string;
+  totalFileSize?: number;
   quantity: number;
   unitPrice: number;
   totalPrice: number;

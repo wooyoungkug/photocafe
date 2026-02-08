@@ -13,6 +13,7 @@ import {
   AlertCircle,
   CheckCircle,
   Truck,
+  ChevronsUpDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
@@ -166,6 +167,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
   const [processingMessage, setProcessingMessage] = useState('');
   const [showBatchShipping, setShowBatchShipping] = useState(false);
   const [batchShippingInfo, setBatchShippingInfo] = useState<FolderShippingInfo | null>(null);
+  const [allThumbnailsCollapsed, setAllThumbnailsCollapsed] = useState<boolean | undefined>(undefined);
 
   // 모바일 감지 (Android/iOS에서 webkitdirectory 미지원)
   const [isMobile, setIsMobile] = useState(false);
@@ -1880,6 +1882,15 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
                   {tu('batchShipping')}
                 </Button>
               )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setAllThumbnailsCollapsed(prev => prev === undefined ? true : !prev)}
+                className="gap-1"
+              >
+                <ChevronsUpDown className="h-3.5 w-3.5" />
+                {allThumbnailsCollapsed ? '썸네일 펼치기' : '썸네일 접기'}
+              </Button>
               <Button variant="ghost" size="sm" onClick={clearFolders}>
                 {tc('deleteAll')}
               </Button>
@@ -1929,10 +1940,26 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
                   companyInfo={companyInfo}
                   clientInfo={clientInfo}
                   pricingMap={pricingMap}
+                  thumbnailCollapsed={allThumbnailsCollapsed}
                 />
               </div>
             ))}
           </div>
+
+          {/* 하단 썸네일 일괄 접기/펼치기 */}
+          {folders.length > 1 && (
+            <div className="flex justify-center">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setAllThumbnailsCollapsed(prev => prev === undefined ? true : !prev)}
+                className="gap-1"
+              >
+                <ChevronsUpDown className="h-3.5 w-3.5" />
+                {allThumbnailsCollapsed ? '썸네일 전체 펼치기' : '썸네일 전체 접기'}
+              </Button>
+            </div>
+          )}
 
           {/* 총 금액 표시 */}
           {stats.selected > 0 && (

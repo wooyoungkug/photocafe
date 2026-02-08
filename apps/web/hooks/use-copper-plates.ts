@@ -192,6 +192,9 @@ export function useCopperPlatesByClient(clientId: string | undefined) {
       return result;
     },
     enabled: !!clientId,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 }
 

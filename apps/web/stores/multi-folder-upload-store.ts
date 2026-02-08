@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { calculateNormalizedRatio, type SizeMatchStatus } from '@/lib/album-utils';
+import { useCartStore } from '@/stores/cart-store';
 
 // 비율 허용 오차
 const RATIO_TOLERANCE = 0.01;
@@ -609,11 +610,20 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
   addFolder: (folder) => {
     const { folders } = get();
 
-    // 중복 감지: 같은 폴더명이 이미 존재하는지 확인
+    // 중복 감지 1: 같은 폴더명이 업로드 목록에 이미 존재하는지 확인
     const duplicate = folders.find(existing => existing.folderName === folder.folderName);
 
     if (duplicate) {
       return { added: false, reason: `"${folder.folderName}" 폴더가 이미 목록에 있습니다.` };
+    }
+
+    // 중복 감지 1-1: 같은 폴더명이 장바구니에 이미 존재하는지 확인
+    const cartItems = useCartStore.getState().items;
+    const cartDuplicate = cartItems.find(
+      ci => ci.productType === 'album-order' && ci.albumOrderInfo?.folderName === folder.folderName
+    );
+    if (cartDuplicate) {
+      return { added: false, reason: `"${folder.folderName}" 폴더가 이미 장바구니에 있습니다.` };
     }
 
     // 중복 감지 2: 파일명 + 파일크기 기준으로 개별 파일 중복 체크

@@ -207,6 +207,16 @@ export class CreateOrderItemDto {
   @IsString({ each: true })
   finishingOptions?: string[];
 
+  @ApiPropertyOptional({ description: '대표 썸네일 URL' })
+  @IsOptional()
+  @IsString()
+  thumbnailUrl?: string;
+
+  @ApiPropertyOptional({ description: '총 파일 용량 (bytes)' })
+  @IsOptional()
+  @IsNumber()
+  totalFileSize?: number;
+
   @ApiProperty({ description: '수량' })
   @IsNumber()
   @Min(1)

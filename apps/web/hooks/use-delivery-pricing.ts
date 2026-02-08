@@ -81,6 +81,9 @@ export function useDeliveryPricings() {
   return useQuery<DeliveryPricing[]>({
     queryKey: ['delivery-pricings'],
     queryFn: () => api.get<DeliveryPricing[]>('/delivery-pricing'),
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 }
 

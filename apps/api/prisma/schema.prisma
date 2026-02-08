@@ -997,6 +997,8 @@ model OrderItem {
   foilName         String?
   foilColor        String?
   finishingOptions String[] @default([])
+  thumbnailUrl     String?              // 대표 썸네일 URL
+  totalFileSize    BigInt   @default(0)  // 총 파일 용량 (bytes)
 
   quantity         Int
   unitPrice        Decimal  @db.Decimal(10, 2)

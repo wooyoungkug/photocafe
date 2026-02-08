@@ -6,6 +6,11 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
+// BigInt JSON 직렬화 지원 (Prisma BigInt 필드)
+(BigInt.prototype as any).toJSON = function () {
+  return Number(this);
+};
+
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);

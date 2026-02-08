@@ -73,6 +73,9 @@ export function usePublicCopperPlates(params?: PublicCopperPlateQueryParams) {
   return useQuery({
     queryKey: [PUBLIC_COPPER_PLATES_KEY, params],
     queryFn: () => api.get<PublicCopperPlateListResponse>('/public-copper-plates', params as Record<string, string | number | boolean | undefined>),
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -124,6 +127,8 @@ export function useProductPublicCopperPlates(productId: string) {
     queryKey: [PUBLIC_COPPER_PLATES_KEY, 'product', productId],
     queryFn: () => api.get<ProductPublicCopperPlate[]>(`/public-copper-plates/product/${productId}`),
     enabled: !!productId,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
 }
 

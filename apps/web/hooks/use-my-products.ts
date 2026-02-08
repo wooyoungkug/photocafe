@@ -79,6 +79,9 @@ export function useMyProductsByClient(clientId: string | undefined) {
       return api.get<MyProduct[]>(`/my-products/client/${clientId}`);
     },
     enabled: !!clientId,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 }
 

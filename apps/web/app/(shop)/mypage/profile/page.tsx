@@ -50,9 +50,8 @@ export default function ProfilePage() {
         throw new Error('User ID가 없습니다');
       }
 
-      const response = await api.get(`/clients/${user.id}`);
-      console.log('✅ Profile Response:', response.data);
-      const data = response.data;
+      const data = await api.get<any>(`/clients/${user.id}`);
+      console.log('✅ Profile Response:', data);
 
       // 조회된 데이터로 상태 업데이트
       setProfileData({
@@ -79,14 +78,14 @@ export default function ProfilePage() {
   // 프로필 수정 mutation
   const updateProfileMutation = useMutation({
     mutationFn: async (data: typeof profileData) => {
-      const response = await api.put(`/clients/${user?.id}`, data);
-      return response;
+      const result = await api.put<any>(`/clients/${user?.id}`, data);
+      return result;
     },
-    onSuccess: (response) => {
+    onSuccess: (data) => {
       setSuccess('회원정보가 성공적으로 수정되었습니다.');
       setError('');
-      if (response.data) {
-        updateUser(response.data);
+      if (data) {
+        updateUser(data);
       }
       setIsEditMode(false);
       queryClient.invalidateQueries({ queryKey: ['profile', user?.id] });

@@ -70,6 +70,7 @@ interface FolderCardProps {
   companyInfo?: CompanyShippingInfo | null;
   clientInfo?: OrdererShippingInfo | null;
   pricingMap?: Record<string, DeliveryPricing>;
+  thumbnailCollapsed?: boolean; // 외부에서 일괄 제어
 }
 
 // 상태별 스타일 및 메시지
@@ -164,7 +165,7 @@ function getSpreadPageNumbers(
 
 const ZOOM_SCALES = [1, 2, 3, 4];
 
-export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: FolderCardProps) {
+export function FolderCard({ folder, companyInfo, clientInfo, pricingMap, thumbnailCollapsed }: FolderCardProps) {
   const t = useTranslations('folder');
   const tc = useTranslations('common');
 
@@ -188,6 +189,13 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap }: Fold
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitle, setEditTitle] = useState(folder.orderTitle);
   const [isThumbnailOpen, setIsThumbnailOpen] = useState(true);
+
+  // 외부 일괄 접기/펼치기 반영
+  useEffect(() => {
+    if (thumbnailCollapsed !== undefined) {
+      setIsThumbnailOpen(!thumbnailCollapsed);
+    }
+  }, [thumbnailCollapsed]);
   const [previewImage, setPreviewImage] = useState<{ url: string; fileName: string; index: number } | null>(null);
   const [zoomLevel, setZoomLevel] = useState(0); // Index of ZOOM_SCALES
   const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 });

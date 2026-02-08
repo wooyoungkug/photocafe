@@ -94,6 +94,9 @@ export function useSystemSettings(category?: string) {
       const response = await api.get<SystemSetting[]>(url);
       return response;
     },
+    staleTime: 15 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 }
 

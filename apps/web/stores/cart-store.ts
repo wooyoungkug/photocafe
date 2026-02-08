@@ -64,6 +64,7 @@ export interface CartItem {
   productType: 'product' | 'half_product' | 'album-order';
   name: string;
   thumbnailUrl?: string;
+  thumbnailUrls?: string[];             // 전체 파일 썸네일 목록
   basePrice: number;
   quantity: number;
   options: CartItemOption[];
@@ -110,16 +111,19 @@ export const useCartStore = create<CartState>()(
       addItem: (item) => {
         const { items } = get();
 
-        // 같은 상품 + 같은 옵션 조합이면 수량만 증가
+        // album-order는 각 폴더가 고유한 주문이므로 절대 병합하지 않음
+        // 같은 상품 + 같은 옵션 조합이면 수량만 증가 (일반 상품만)
         const optionsKey = (opts: CartItemOption[]) =>
           opts.map(o => `${o.name}:${o.value}`).sort().join('|');
 
-        const existing = items.find(
-          (i) =>
-            i.productId === item.productId &&
-            i.productType === item.productType &&
-            optionsKey(i.options) === optionsKey(item.options)
-        );
+        const existing = item.productType !== 'album-order'
+          ? items.find(
+              (i) =>
+                i.productId === item.productId &&
+                i.productType === item.productType &&
+                optionsKey(i.options) === optionsKey(item.options)
+            )
+          : undefined;
 
         if (existing) {
           const newQty = existing.quantity + item.quantity;
@@ -140,7 +144,9 @@ export const useCartStore = create<CartState>()(
         const newItem: CartItem = {
           ...item,
           id: generateId(),
-          totalPrice: calculateItemTotal(item.basePrice, item.quantity, item.options),
+          totalPrice: item.productType === 'album-order' && item.totalPrice > 0
+            ? item.totalPrice
+            : calculateItemTotal(item.basePrice, item.quantity, item.options),
           addedAt: new Date().toISOString(),
         };
         set((state) => ({
