@@ -87,6 +87,7 @@ interface CartState {
   updateOptions: (id: string, options: CartItemOption[]) => void;
   updateItemShipping: (id: string, shippingInfo: CartShippingInfo) => void;
   updateAllItemsShipping: (shippingInfo: CartShippingInfo) => void;
+  reorderItems: (items: CartItem[]) => void;
   clearCart: () => void;
   getTotal: () => number;
   getItemCount: () => number;
@@ -196,6 +197,10 @@ export const useCartStore = create<CartState>()(
         set((state) => ({
           items: state.items.map((item) => ({ ...item, shippingInfo })),
         }));
+      },
+
+      reorderItems: (items) => {
+        set({ items });
       },
 
       clearCart: () => {

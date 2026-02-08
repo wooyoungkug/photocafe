@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Trash2, Minus, Plus, ShoppingBag, ArrowLeft, ChevronRight, BookOpen, Package, Clock, Truck, ChevronDown, ChevronUp, Copy } from 'lucide-react';
+import { Trash2, Minus, Plus, ShoppingBag, ArrowLeft, ChevronRight, BookOpen, Package, Clock, Truck, ChevronDown, ChevronUp, Copy, GripVertical } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useCartStore, type CartShippingInfo } from '@/stores/cart-store';
 import { useAuthStore } from '@/stores/auth-store';
@@ -14,6 +14,23 @@ import { API_URL, API_BASE_URL } from '@/lib/api';
 import { FolderShippingSection } from '@/components/album-upload/folder-shipping-section';
 import { useShippingData } from '@/hooks/use-shipping-data';
 import type { FolderShippingInfo } from '@/stores/multi-folder-upload-store';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 // 이미지 URL 정규화 함수
 const normalizeImageUrl = (url: string | null | undefined): string => {
@@ -61,15 +78,330 @@ const getCartShippingSummary = (info: CartShippingInfo): string => {
   return `${methodLabel} · ${senderLabel}→${receiverLabel} · ${feeLabel}`;
 };
 
+// Sortable Cart Item Component
+interface SortableCartItemProps {
+  item: any;
+  canSelectItem: (id: string) => boolean;
+  selectedItems: string[];
+  expandedShipping: string | null;
+  handleSelectItem: (id: string, checked: boolean) => void;
+  removeItem: (id: string) => void;
+  updateQuantity: (id: string, quantity: number) => void;
+  toggleShipping: (id: string) => void;
+  handleShippingChange: (id: string, shipping: FolderShippingInfo) => void;
+  handleApplyToAll: (id: string) => void;
+  itemsCount: number;
+  companyInfo: any;
+  clientInfo: any;
+  pricingMap: any;
+}
+
+function SortableCartItem({
+  item,
+  canSelectItem,
+  selectedItems,
+  expandedShipping,
+  handleSelectItem,
+  removeItem,
+  updateQuantity,
+  toggleShipping,
+  handleShippingChange,
+  handleApplyToAll,
+  itemsCount,
+  companyInfo,
+  clientInfo,
+  pricingMap,
+}: SortableCartItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const hasShipping = canSelectItem(item.id);
+  const hasAlbumShipping = !!item.albumOrderInfo?.shippingInfo;
+  const itemShipping = item.shippingInfo;
+  const isExpanded = expandedShipping === item.id;
+
+  return (
+    <Card
+      ref={setNodeRef}
+      style={style}
+      className={`overflow-hidden ${!hasShipping ? 'border-orange-200 bg-orange-50/30' : ''}`}
+    >
+      <div className="flex">
+        {/* Drag Handle */}
+        <div
+          {...attributes}
+          {...listeners}
+          className="flex items-center px-2 cursor-move hover:bg-gray-100 transition-colors border-r"
+        >
+          <GripVertical className="h-5 w-5 text-gray-400" />
+        </div>
+
+        {/* Checkbox */}
+        <div className="flex items-start p-4 border-r">
+          {hasShipping ? (
+            <Checkbox
+              checked={selectedItems.includes(item.id)}
+              onCheckedChange={(checked) => handleSelectItem(item.id, checked as boolean)}
+            />
+          ) : (
+            <div className="relative group">
+              <Checkbox disabled checked={false} />
+              <div className="absolute left-6 top-0 hidden group-hover:block z-10 bg-gray-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap">
+                배송정보를 설정해주세요
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Product Image */}
+        <div className="w-24 h-24 md:w-32 md:h-32 bg-gray-100 flex-shrink-0">
+          {item.thumbnailUrl ? (
+            <img
+              src={normalizeImageUrl(item.thumbnailUrl)}
+              alt={item.name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-3xl">
+              📦
+            </div>
+          )}
+        </div>
+
+        {/* Product Info */}
+        <div className="flex-1 p-4">
+          <div className="flex justify-between">
+            <div className="flex-1">
+              <div>
+                <Link
+                  href={`/product/${item.productId}`}
+                  className="font-medium hover:text-primary transition-colors"
+                >
+                  {item.name}
+                </Link>
+              </div>
+
+              <div className="flex items-center gap-2 mt-1.5">
+                {item.productType === 'album-order' && (
+                  <Badge className="bg-purple-100 text-purple-700 text-xs">
+                    <BookOpen className="w-3 h-3 mr-1" />
+                    앨범
+                  </Badge>
+                )}
+                {item.productType === 'half_product' && (
+                  <Badge className="bg-orange-100 text-orange-700 text-xs">
+                    <Package className="w-3 h-3 mr-1" />
+                    반제품
+                  </Badge>
+                )}
+                {item.addedAt && (
+                  <span className="text-xs text-gray-400 flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    마감 {new Date(item.addedAt).toLocaleDateString('ko-KR', {
+                      month: '2-digit',
+                      day: '2-digit',
+                    }).replace(/\. /g, '.')} {new Date(item.addedAt).toLocaleTimeString('ko-KR', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: false,
+                    })}
+                  </span>
+                )}
+              </div>
+
+              {item.albumOrderInfo && (
+                <div className="mt-1 space-y-1">
+                  <div className="text-xs text-purple-600 bg-purple-50 rounded px-2 py-1 inline-flex items-center gap-2">
+                    <span>{item.albumOrderInfo.printMethod === 'indigo' ? '인디고' : '잉크젯'}</span>
+                    <span>•</span>
+                    <span>{item.albumOrderInfo.colorMode === '4c' ? '4도' : '6도'}</span>
+                    <span>•</span>
+                    <span>{item.albumOrderInfo.pageCount}p</span>
+                  </div>
+                </div>
+              )}
+
+              {item.options.length > 0 && (
+                <div className="mt-2 text-sm text-gray-500 space-y-1">
+                  {item.options.map((option: any, idx: number) => (
+                    <div key={idx}>
+                      {option.name}: {option.value}
+                      {option.price > 0 && (
+                        <span className="text-primary ml-1">
+                          (+{option.price.toLocaleString()}원)
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {hasAlbumShipping && item.albumOrderInfo?.shippingInfo && (
+                <div className="mt-2">
+                  <div className="text-xs text-blue-600 bg-blue-50 rounded px-2 py-1 inline-flex items-center gap-1">
+                    <Package className="h-3 w-3" />
+                    <span>
+                      {getDeliveryMethodLabel(item.albumOrderInfo.shippingInfo.deliveryMethod)}
+                    </span>
+                    <span>•</span>
+                    <span>{item.albumOrderInfo.shippingInfo.receiverType === 'orderer' ? '스튜디오' : '고객직배송'}</span>
+                    <span>•</span>
+                    <span>{item.albumOrderInfo.shippingInfo.deliveryFee === 0 ? '무료' : `${item.albumOrderInfo.shippingInfo.deliveryFee.toLocaleString()}원`}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => removeItem(item.id)}
+              className="text-gray-400 hover:text-red-500 transition-colors"
+            >
+              <Trash2 className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between mt-4">
+            <div className="flex items-center border rounded-lg">
+              <button
+                onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                className="p-2 hover:bg-gray-100 transition-colors"
+                disabled={item.quantity <= 1}
+              >
+                <Minus className="h-4 w-4" />
+              </button>
+              <span className="w-12 text-center font-medium">{item.quantity}</span>
+              <button
+                onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                className="p-2 hover:bg-gray-100 transition-colors"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
+
+            <p className="font-bold text-lg">
+              {item.totalPrice.toLocaleString()}원
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {!hasAlbumShipping && (
+        <div className="border-t">
+          <button
+            onClick={() => toggleShipping(item.id)}
+            className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Truck className="h-4 w-4 text-gray-400" />
+              {isShippingComplete(itemShipping) ? (
+                <span className="text-sm text-gray-700">
+                  {getCartShippingSummary(itemShipping!)}
+                </span>
+              ) : (
+                <span className="text-sm text-orange-600 font-medium">
+                  배송정보를 설정해주세요
+                </span>
+              )}
+            </div>
+            {isShippingComplete(itemShipping) && !isExpanded ? (
+              <span className="text-xs text-blue-600 font-medium px-3 py-1 bg-blue-50 rounded-md">
+                배송지 수정
+              </span>
+            ) : isExpanded ? (
+              <ChevronUp className="h-4 w-4 text-gray-400" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-gray-400" />
+            )}
+          </button>
+
+          {isExpanded && (
+            <div className="px-4 pb-4">
+              <div className="p-4 bg-gray-50 rounded-lg space-y-4">
+                <FolderShippingSection
+                  shippingInfo={itemShipping as unknown as FolderShippingInfo | undefined}
+                  companyInfo={companyInfo}
+                  clientInfo={clientInfo}
+                  pricingMap={pricingMap}
+                  onChange={(shipping) => handleShippingChange(item.id, shipping)}
+                />
+
+                {isShippingComplete(itemShipping) && (
+                  <div className="flex justify-center pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toggleShipping(item.id)}
+                      className="text-xs"
+                    >
+                      <ChevronUp className="h-3 w-3 mr-1" />
+                      확인 및 접기
+                    </Button>
+                  </div>
+                )}
+
+                {itemsCount > 1 && isShippingComplete(itemShipping) && (
+                  <div className="pt-3 border-t border-gray-200">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleApplyToAll(item.id)}
+                      className="w-full"
+                    >
+                      <Copy className="h-3.5 w-3.5 mr-1" />
+                      모든 상품에 동일 배송 적용
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export default function CartPage() {
   const router = useRouter();
-  const { items, removeItem, updateQuantity, clearCart, updateItemShipping, updateAllItemsShipping } = useCartStore();
+  const { items, removeItem, updateQuantity, clearCart, updateItemShipping, updateAllItemsShipping, reorderItems } = useCartStore();
   const { isAuthenticated } = useAuthStore();
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [expandedShipping, setExpandedShipping] = useState<string | null>(null);
 
+  // Drag & Drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
   // 배송 데이터 로드 (회사정보, 거래처정보, 배송비 단가)
   const { companyInfo, clientInfo, pricingMap } = useShippingData();
+
+  // Drag end handler
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = items.findIndex((item) => item.id === active.id);
+      const newIndex = items.findIndex((item) => item.id === over.id);
+      const newItems = arrayMove(items, oldIndex, newIndex);
+      reorderItems(newItems);
+    }
+  };
 
   // 배송지 입력 여부로 선택 가능 판단
   const canSelectItem = (itemId: string) => {
@@ -275,13 +607,18 @@ export default function CartPage() {
                     <div className="flex-1 p-4">
                       <div className="flex justify-between">
                         <div className="flex-1">
-                          <div className="flex items-center gap-2">
+                          {/* 상품명 */}
+                          <div>
                             <Link
                               href={`/product/${item.productId}`}
                               className="font-medium hover:text-primary transition-colors"
                             >
                               {item.name}
                             </Link>
+                          </div>
+
+                          {/* 뱃지 및 날짜 정보 */}
+                          <div className="flex items-center gap-2 mt-1.5">
                             {item.productType === 'album-order' && (
                               <Badge className="bg-purple-100 text-purple-700 text-xs">
                                 <BookOpen className="w-3 h-3 mr-1" />
@@ -295,13 +632,15 @@ export default function CartPage() {
                               </Badge>
                             )}
                             {item.addedAt && (
-                              <span className="ml-auto text-xs text-gray-400 flex items-center gap-1">
+                              <span className="text-xs text-gray-400 flex items-center gap-1">
                                 <Clock className="w-3 h-3" />
-                                {new Date(item.addedAt).toLocaleDateString('ko-KR', {
+                                마감 {new Date(item.addedAt).toLocaleDateString('ko-KR', {
                                   month: '2-digit',
                                   day: '2-digit',
+                                }).replace(/\. /g, '.')} {new Date(item.addedAt).toLocaleTimeString('ko-KR', {
                                   hour: '2-digit',
                                   minute: '2-digit',
+                                  hour12: false,
                                 })}
                               </span>
                             )}
