@@ -70,7 +70,7 @@ const createCustomStorage = (): StateStorage => {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       accessToken: null,
       refreshToken: null,
@@ -133,6 +133,24 @@ export const useAuthStore = create<AuthState>()(
         isAuthenticated: state.isAuthenticated,
         rememberMe: state.rememberMe,
       }),
+      onRehydrateStorage: () => (state) => {
+        // Rehydrate 완료 후 토큰 동기화 검증
+        if (typeof window !== 'undefined' && state?.isAuthenticated) {
+          const hasToken =
+            localStorage.getItem('accessToken') ||
+            sessionStorage.getItem('accessToken');
+
+          // 토큰이 없으면 인증 상태 초기화
+          if (!hasToken) {
+            console.warn('[Auth Store] Rehydrate: 토큰이 없어서 인증 상태를 초기화합니다.');
+            state.user = null;
+            state.accessToken = null;
+            state.refreshToken = null;
+            state.isAuthenticated = false;
+            state.rememberMe = false;
+          }
+        }
+      },
     }
   )
 );

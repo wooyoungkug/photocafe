@@ -46,9 +46,29 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
   const queryClient = getQueryClient();
 
-  // Zustand persist 수동 하이드레이션 (SSR 호환)
+  // Zustand persist 수동 하이드레이션 및 토큰 검증 (SSR 호환)
   useEffect(() => {
     useAuthStore.persist.rehydrate();
+
+    // 토큰 유효성 검증
+    const checkTokenValidity = () => {
+      const { isAuthenticated, logout } = useAuthStore.getState();
+
+      if (isAuthenticated) {
+        // localStorage 또는 sessionStorage에 토큰이 있는지 확인
+        const hasToken =
+          localStorage.getItem('accessToken') ||
+          sessionStorage.getItem('accessToken');
+
+        // 인증 상태는 true인데 토큰이 없으면 로그아웃 처리
+        if (!hasToken) {
+          console.warn('[Auth] 토큰이 없어서 자동 로그아웃 처리합니다.');
+          logout();
+        }
+      }
+    };
+
+    checkTokenValidity();
     setMounted(true);
   }, []);
 

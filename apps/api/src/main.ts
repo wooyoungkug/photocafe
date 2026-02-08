@@ -156,8 +156,9 @@ async function bootstrap() {
   // Uncaught Exception 처리 (프로세스 종료 방지)
   process.on('uncaughtException', (error) => {
     logger.error('❌ Uncaught Exception:', error);
-    // 심각한 에러이므로 재시작 필요
-    gracefulShutdown('uncaughtException');
+    logger.error('Stack:', error.stack);
+    // ⚡ 프로세스 종료하지 않음 - Docker가 재시작할 수 있도록 로그만 남김
+    // 심각한 메모리 오염이 아니면 계속 실행
   });
 
   // Unhandled Promise Rejection 처리

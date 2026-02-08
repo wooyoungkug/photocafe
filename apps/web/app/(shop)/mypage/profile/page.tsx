@@ -232,6 +232,8 @@ export default function ProfilePage() {
               <div>User Email: {user?.email || '❌ 없음'}</div>
               <div>User Name: {user?.name || '❌ 없음'}</div>
               <div>Is Authenticated: {isAuthenticated ? '✅' : '❌'}</div>
+              <div>Access Token (localStorage): {typeof window !== 'undefined' && localStorage.getItem('accessToken') ? '✅ 있음' : '❌ 없음'}</div>
+              <div>Access Token (sessionStorage): {typeof window !== 'undefined' && sessionStorage.getItem('accessToken') ? '✅ 있음' : '❌ 없음'}</div>
               <div>Profile Data: {profile ? '✅ 로드됨' : '❌ 없음'}</div>
               {profileError && <div className="text-red-600">Error: {String(profileError)}</div>}
             </div>

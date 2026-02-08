@@ -2416,7 +2416,21 @@ export default function ProductionSettingPage() {
                               </p>
                             ) : (
                               <div className="grid grid-cols-3 gap-1.5">
-                                {papersForPricing.map((paper) => {
+                                {papersForPricing
+                                  .slice()
+                                  .sort((a, b) => {
+                                    // 면당 가격 계산 (4절 기준)
+                                    const getPricePerSide = (paper: any) => {
+                                      if (paper.unitType === 'ream') {
+                                        return paper.basePrice / 4000;
+                                      } else if (paper.unitType === 'sheet') {
+                                        return (paper.basePrice * 500) / 4000;
+                                      }
+                                      return paper.basePrice;
+                                    };
+                                    return getPricePerSide(b) - getPricePerSide(a); // 내림차순
+                                  })
+                                  .map((paper) => {
                                   const assignedGroupId = settingForm.paperPriceGroupMap[paper.id];
                                   const assignedGroup = settingForm.priceGroups.find(g => g.id === assignedGroupId);
                                   const style = assignedGroup
@@ -2432,7 +2446,7 @@ export default function ProductionSettingPage() {
                                         assignedGroup ? style.border : "border-gray-200"
                                       )}
                                     >
-                                      <div className="flex items-center gap-2">
+                                      <div className="flex items-center gap-2 flex-1 min-w-0">
                                         <Checkbox
                                           checked={settingForm.paperIds.includes(paper.id)}
                                           onCheckedChange={(checked) => {
@@ -2444,12 +2458,24 @@ export default function ProductionSettingPage() {
                                             }));
                                           }}
                                         />
-                                        <span className={cn("text-sm", assignedGroup ? style.text : "text-gray-500")}>
-                                          {paper.name}
-                                          {paper.grammage && (
-                                            <span className="text-xs text-gray-400 ml-1">({paper.grammage}g)</span>
+                                        <div className="flex flex-col gap-0.5 min-w-0">
+                                          <span className={cn("text-sm truncate", assignedGroup ? style.text : "text-gray-500")}>
+                                            {paper.name}
+                                            {paper.grammage && (
+                                              <span className="text-xs text-gray-400 ml-1">({paper.grammage}g)</span>
+                                            )}
+                                          </span>
+                                          {paper.basePrice > 0 && (
+                                            <span className="text-[10px] text-gray-400 truncate">
+                                              {paper.unitType === 'ream'
+                                                ? `₩${formatNumber(Math.round(paper.basePrice / 4000))}/면 (4절)`
+                                                : paper.unitType === 'sheet'
+                                                ? `₩${formatNumber(Math.round(paper.basePrice * 500 / 4000))}/면 (4절)`
+                                                : `₩${formatNumber(paper.basePrice)}/${paper.unitType === 'roll' ? '롤' : '㎡'}`
+                                              }
+                                            </span>
                                           )}
-                                        </span>
+                                        </div>
                                       </div>
                                       <Select
                                         value={assignedGroupId || "none"}
@@ -2513,7 +2539,7 @@ export default function ProductionSettingPage() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                disabled={settingForm.priceGroups.length >= 5}
+                                disabled={settingForm.priceGroups.length >= 10}
                                 onClick={() => {
                                   const usedColors = settingForm.priceGroups.map(g => g.color);
                                   const nextColor = getNextAvailableColor(usedColors);
@@ -2802,7 +2828,21 @@ export default function ProductionSettingPage() {
                               </p>
                             ) : (
                               <div className="grid grid-cols-3 gap-1.5">
-                                {papersForPricing.map((paper) => {
+                                {papersForPricing
+                                  .slice()
+                                  .sort((a, b) => {
+                                    // 면당 가격 계산 (4절 기준)
+                                    const getPricePerSide = (paper: any) => {
+                                      if (paper.unitType === 'ream') {
+                                        return paper.basePrice / 4000;
+                                      } else if (paper.unitType === 'sheet') {
+                                        return (paper.basePrice * 500) / 4000;
+                                      }
+                                      return paper.basePrice;
+                                    };
+                                    return getPricePerSide(b) - getPricePerSide(a); // 내림차순
+                                  })
+                                  .map((paper) => {
                                   const assignedGroupId = settingForm.paperPriceGroupMap[paper.id];
                                   const assignedGroup = settingForm.priceGroups.find(g => g.id === assignedGroupId);
                                   const style = assignedGroup
@@ -2818,7 +2858,7 @@ export default function ProductionSettingPage() {
                                         assignedGroup ? style.border : "border-gray-200"
                                       )}
                                     >
-                                      <div className="flex items-center gap-2">
+                                      <div className="flex items-center gap-2 flex-1 min-w-0">
                                         <Checkbox
                                           checked={settingForm.paperIds.includes(paper.id)}
                                           onCheckedChange={(checked) => {
@@ -2830,12 +2870,24 @@ export default function ProductionSettingPage() {
                                             }));
                                           }}
                                         />
-                                        <span className={cn("text-sm", assignedGroup ? style.text : "text-gray-500")}>
-                                          {paper.name}
-                                          {paper.grammage && (
-                                            <span className="text-xs text-gray-400 ml-1">({paper.grammage}g)</span>
+                                        <div className="flex flex-col gap-0.5 min-w-0">
+                                          <span className={cn("text-sm truncate", assignedGroup ? style.text : "text-gray-500")}>
+                                            {paper.name}
+                                            {paper.grammage && (
+                                              <span className="text-xs text-gray-400 ml-1">({paper.grammage}g)</span>
+                                            )}
+                                          </span>
+                                          {paper.basePrice > 0 && (
+                                            <span className="text-[10px] text-gray-400 truncate">
+                                              {paper.unitType === 'ream'
+                                                ? `₩${formatNumber(Math.round(paper.basePrice / 4000))}/면 (4절)`
+                                                : paper.unitType === 'sheet'
+                                                ? `₩${formatNumber(Math.round(paper.basePrice * 500 / 4000))}/면 (4절)`
+                                                : `₩${formatNumber(paper.basePrice)}/${paper.unitType === 'roll' ? '롤' : '㎡'}`
+                                              }
+                                            </span>
                                           )}
-                                        </span>
+                                        </div>
                                       </div>
                                       <Select
                                         value={assignedGroupId || "none"}
@@ -2981,7 +3033,7 @@ export default function ProductionSettingPage() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                disabled={settingForm.priceGroups.length >= 5}
+                                disabled={settingForm.priceGroups.length >= 10}
                                 onClick={() => {
                                   const usedColors = settingForm.priceGroups.map(g => g.color);
                                   const nextColor = getNextAvailableColor(usedColors);

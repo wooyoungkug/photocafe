@@ -7,7 +7,7 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: photocafe-db
-    restart: unless-stopped
+    restart: always  # ⚡ unless-stopped → always 변경
     ports:
       - "${DB_PORT:-5432}:5432"
     environment:
@@ -34,7 +34,7 @@ services:
       dockerfile: apps/api/Dockerfile
     image: photocafe-api:latest
     container_name: photocafe-api
-    restart: unless-stopped
+    restart: always  # ⚡ unless-stopped → always 변경 (크래시 시 무조건 재시작)
     ports:
       - "${API_PORT:-3001}:3001"
     environment:
@@ -54,6 +54,20 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    # ⚡ 메모리 제한 추가 (OOM Killer 방지)
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          memory: 512M
+    # ⚡ 로그 관리 추가 (디스크 가득 차는 것 방지)
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
     networks:
       - photocafe-network
 
@@ -68,7 +82,7 @@ services:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://api:3001}
     image: photocafe-web:latest
     container_name: photocafe-web
-    restart: unless-stopped
+    restart: always  # ⚡ unless-stopped → always 변경
     ports:
       - "${WEB_PORT:-3000}:3000"
     environment:
@@ -84,6 +98,20 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+    # ⚡ 메모리 제한 추가
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          memory: 512M
+    # ⚡ 로그 관리 추가
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
     networks:
       - photocafe-network
 

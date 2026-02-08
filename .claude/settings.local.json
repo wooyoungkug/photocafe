@@ -275,7 +275,9 @@
       "Bash(\"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -h localhost -U postgres -d printing_erp -c \"SELECT id, \"\"productName\"\", \"\"isActive\"\", \"\"categoryId\"\" FROM products LIMIT 20;\")",
       "Bash(NODE_OPTIONS=\"--trace-warnings\" npx next dev:*)",
       "Bash(if exist .next rmdir /s /q .next)",
-      "Bash(cmp:*)"
+      "Bash(cmp:*)",
+      "Bash(rimraf:*)",
+      "Bash(concurrently:*)"
     ]
   }
 }

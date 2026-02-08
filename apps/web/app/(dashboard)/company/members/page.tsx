@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useCallback, useEffect, memo } from 'react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -76,8 +76,111 @@ import { CopperPlateTab } from '@/components/members/copper-plate-tab';
 import { IndividualPricingTab } from '@/components/members/individual-pricing-tab';
 import { api } from '@/lib/api';
 
+// 테이블 행 컴포넌트 메모이제이션
+const MemberTableRow = memo(({
+  member,
+  onEdit,
+  onResetPassword,
+  onDelete,
+  onImpersonate,
+  getStatusBadge,
+  getCreditBadge
+}: {
+  member: Client;
+  onEdit: (member: Client) => void;
+  onResetPassword: (member: Client) => void;
+  onDelete: (member: Client) => void;
+  onImpersonate: (member: Client) => void;
+  getStatusBadge: (status: string) => JSX.Element;
+  getCreditBadge: (grade?: string) => JSX.Element | null;
+}) => {
+  return (
+    <TableRow className="hover:bg-slate-50/50 transition-colors">
+      <TableCell className="text-center">
+        <button
+          type="button"
+          onClick={() => onImpersonate(member)}
+          className="group text-left hover:bg-blue-50 rounded-md px-2 py-1 -mx-2 -my-1 transition-colors"
+          title="클릭하여 해당 회원으로 쇼핑몰 접속"
+        >
+          <div className="font-semibold text-blue-600 group-hover:text-blue-800 flex items-center gap-1">
+            {member.clientName}
+            <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
+          {member.representative && (
+            <div className="text-xs text-muted-foreground">{member.representative}</div>
+          )}
+        </button>
+      </TableCell>
+      <TableCell className="text-sm text-muted-foreground text-center">
+        {member.email || '-'}
+      </TableCell>
+      <TableCell className="text-sm text-muted-foreground text-center">
+        {member.mobile || member.phone || '-'}
+      </TableCell>
+      <TableCell className="text-center">
+        {member.group ? (
+          <span className="text-sm text-blue-600">{member.group.groupName}</span>
+        ) : (
+          <span className="text-muted-foreground text-sm">-</span>
+        )}
+      </TableCell>
+      <TableCell className="text-center text-sm text-muted-foreground">
+        {format(new Date(member.createdAt), 'yy.MM.dd')}
+      </TableCell>
+      <TableCell className="text-center">
+        <span className="text-sm font-medium">{member._count?.consultations ?? 0}</span>
+      </TableCell>
+      <TableCell className="text-center">
+        {(member._count?.openConsultations ?? 0) > 0 ? (
+          <Badge variant="destructive" className="text-xs px-2">
+            {member._count?.openConsultations}
+          </Badge>
+        ) : (
+          <span className="text-sm text-muted-foreground">0</span>
+        )}
+      </TableCell>
+      <TableCell className="text-center">{getCreditBadge(member.creditGrade)}</TableCell>
+      <TableCell className="text-center">{getStatusBadge(member.status)}</TableCell>
+      <TableCell className="text-center">
+        <div className="flex justify-center gap-0.5">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onEdit(member)}
+            className="hover:bg-blue-50 h-7 w-7 p-0"
+            title="회원 정보 수정"
+          >
+            <Edit className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onResetPassword(member)}
+            className="hover:bg-amber-50 h-7 w-7 p-0"
+            title="비밀번호 초기화 (1111)"
+          >
+            <Key className="h-3.5 w-3.5 text-amber-600" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onDelete(member)}
+            className="hover:bg-red-50 h-7 w-7 p-0"
+            title="회원 삭제"
+          >
+            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+});
+MemberTableRow.displayName = 'MemberTableRow';
+
 export default function MembersPage() {
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [groupFilter, setGroupFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
@@ -86,16 +189,30 @@ export default function MembersPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<Client | null>(null);
   const [activeTab, setActiveTab] = useState('basic');
 
+  // 검색어 디바운스 처리 (500ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1); // 검색 시 첫 페이지로
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   const { data: membersData, isLoading, error } = useClients({
     page,
     limit: 20,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
     status: statusFilter !== 'all' ? statusFilter : undefined,
     groupId: groupFilter !== 'all' ? groupFilter : undefined,
   });
 
   const { data: groupsData } = useClientGroups({ limit: 100 });
-  const { data: consultations } = useClientConsultations(editingMember?.id || '', 5);
+  // 다이얼로그가 열리고 editingMember가 있을 때만 상담 이력 조회
+  const { data: consultations } = useClientConsultations(
+    editingMember?.id || '',
+    5,
+    { enabled: isDialogOpen && !!editingMember?.id }
+  );
   const { refetch: refetchNextCode } = useNextClientCode(false);
   const createMember = useCreateClient();
   const updateMember = useUpdateClient();
@@ -380,85 +497,16 @@ export default function MembersPage() {
                       </TableRow>
                     ) : (
                       membersData?.data?.map((member) => (
-                        <TableRow key={member.id} className="hover:bg-slate-50/50 transition-colors">
-                          <TableCell className="text-center">
-                            <button
-                              type="button"
-                              onClick={() => handleImpersonate(member)}
-                              className="group text-left hover:bg-blue-50 rounded-md px-2 py-1 -mx-2 -my-1 transition-colors"
-                              title="클릭하여 해당 회원으로 쇼핑몰 접속"
-                            >
-                              <div className="font-semibold text-blue-600 group-hover:text-blue-800 flex items-center gap-1">
-                                {member.clientName}
-                                <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                              </div>
-                              {member.representative && (
-                                <div className="text-xs text-muted-foreground">{member.representative}</div>
-                              )}
-                            </button>
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground text-center">
-                            {member.email || '-'}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground text-center">
-                            {member.mobile || member.phone || '-'}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {member.group ? (
-                              <span className="text-sm text-blue-600">{member.group.groupName}</span>
-                            ) : (
-                              <span className="text-muted-foreground text-sm">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-center text-sm text-muted-foreground">
-                            {format(new Date(member.createdAt), 'yy.MM.dd')}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <span className="text-sm font-medium">{member._count?.consultations ?? 0}</span>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {(member._count?.openConsultations ?? 0) > 0 ? (
-                              <Badge variant="destructive" className="text-xs px-2">
-                                {member._count?.openConsultations}
-                              </Badge>
-                            ) : (
-                              <span className="text-sm text-muted-foreground">0</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-center">{getCreditBadge(member.creditGrade)}</TableCell>
-                          <TableCell className="text-center">{getStatusBadge(member.status)}</TableCell>
-                          <TableCell className="text-center">
-                            <div className="flex justify-center gap-0.5">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleOpenDialog(member)}
-                                className="hover:bg-blue-50 h-7 w-7 p-0"
-                                title="회원 정보 수정"
-                              >
-                                <Edit className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleResetPassword(member)}
-                                className="hover:bg-amber-50 h-7 w-7 p-0"
-                                title="비밀번호 초기화 (1111)"
-                              >
-                                <Key className="h-3.5 w-3.5 text-amber-600" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setDeleteConfirm(member)}
-                                className="hover:bg-red-50 h-7 w-7 p-0"
-                                title="회원 삭제"
-                              >
-                                <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
+                        <MemberTableRow
+                          key={member.id}
+                          member={member}
+                          onEdit={handleOpenDialog}
+                          onResetPassword={handleResetPassword}
+                          onDelete={setDeleteConfirm}
+                          onImpersonate={handleImpersonate}
+                          getStatusBadge={getStatusBadge}
+                          getCreditBadge={getCreditBadge}
+                        />
                       ))
                     )}
                   </TableBody>
