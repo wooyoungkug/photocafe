@@ -407,7 +407,7 @@ function SortableCartItem({
           {thumbnailsExpanded && (
             <div className="px-4 pb-3">
               <div className={`grid gap-1.5 p-2 bg-gray-50 rounded-lg border ${item.albumOrderInfo?.pageLayout === 'spread' ? 'grid-cols-4' : 'grid-cols-8'}`}>
-                {item.thumbnailUrls.map((url, idx) => (
+                {item.thumbnailUrls.map((url: string, idx: number) => (
                   <div key={idx} className="relative aspect-[3/4] rounded overflow-hidden border border-gray-200 bg-white">
                     <img
                       src={url}

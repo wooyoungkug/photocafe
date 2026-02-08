@@ -117,8 +117,7 @@ export default function OrderDetailPage() {
   const { data: order, isLoading } = useQuery({
     queryKey: ['order', orderId],
     queryFn: async () => {
-      const response = await api.get(`/orders/${orderId}`);
-      return response.data as OrderDetail;
+      return api.get<OrderDetail>(`/orders/${orderId}`);
     },
     enabled: isAuthenticated && !!orderId,
   });

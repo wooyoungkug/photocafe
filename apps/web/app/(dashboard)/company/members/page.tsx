@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect, memo } from 'react';
+import { useState, useMemo, useCallback, useEffect, memo, type ReactNode } from 'react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -91,8 +91,8 @@ const MemberTableRow = memo(({
   onResetPassword: (member: Client) => void;
   onDelete: (member: Client) => void;
   onImpersonate: (member: Client) => void;
-  getStatusBadge: (status: string) => JSX.Element;
-  getCreditBadge: (grade?: string) => JSX.Element | null;
+  getStatusBadge: (status: string) => ReactNode;
+  getCreditBadge: (grade?: string) => ReactNode;
 }) => {
   return (
     <TableRow className="hover:bg-slate-50/50 transition-colors">

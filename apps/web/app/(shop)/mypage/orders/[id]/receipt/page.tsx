@@ -50,12 +50,9 @@ export default function OrderReceiptPage() {
   const orderId = params?.id as string;
   const { isAuthenticated } = useAuthStore();
 
-  const { data: order, isLoading } = useQuery({
+  const { data: order, isLoading } = useQuery<OrderDetail>({
     queryKey: ['order', orderId],
-    queryFn: async () => {
-      const response = await api.get(`/orders/${orderId}`);
-      return (response as any).data ?? response as OrderDetail;
-    },
+    queryFn: () => api.get<OrderDetail>(`/orders/${orderId}`),
     enabled: isAuthenticated && !!orderId,
   });
 

@@ -42,11 +42,11 @@ export function useConsultation(id: string) {
   });
 }
 
-export function useClientConsultations(clientId: string, limit = 10) {
+export function useClientConsultations(clientId: string, limit = 10, options?: { enabled?: boolean }) {
   return useQuery<Consultation[]>({
     queryKey: ['clientConsultations', clientId, limit],
     queryFn: () => api.get<Consultation[]>(`/consultations/client/${clientId}`, { limit }),
-    enabled: !!clientId,
+    enabled: options?.enabled ?? !!clientId,
   });
 }
 

@@ -182,7 +182,7 @@ export class AuthController {
     if (!staff) {
       throw new UnauthorizedException('직원 ID 또는 비밀번호가 일치하지 않습니다');
     }
-    return this.authService.loginStaff(staff);
+    return this.authService.loginStaff(staff, dto.rememberMe ?? false);
   }
 
   // ========== 관리자 대리 로그인 ==========

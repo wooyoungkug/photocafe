@@ -57,6 +57,7 @@ export default function AdminLoginPage() {
       const response = await api.post<StaffLoginResponse>('/auth/admin/login', {
         staffId,
         password,
+        rememberMe,
       });
 
       // 로그인 정보 저장 (rememberMe가 true일 때만)

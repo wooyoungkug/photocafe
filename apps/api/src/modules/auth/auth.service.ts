@@ -67,6 +67,66 @@ export class AuthService {
   async refreshToken(refreshToken: string) {
     try {
       const payload = this.jwtService.verify(refreshToken);
+
+      // Staff(관리자) 토큰인 경우
+      if (payload.type === 'staff') {
+        const staff = await this.prisma.staff.findUnique({
+          where: { id: payload.sub },
+          include: { branch: true, department: true },
+        });
+
+        if (!staff || !staff.isActive) {
+          throw new UnauthorizedException('Invalid refresh token');
+        }
+
+        const newPayload = {
+          sub: staff.id,
+          staffId: staff.staffId,
+          name: staff.name,
+          role: 'admin',
+          type: 'staff',
+          branchId: staff.branchId,
+          departmentId: staff.departmentId,
+        };
+
+        const newRefreshToken = this.jwtService.sign(newPayload, {
+          expiresIn: '30d',
+        });
+
+        return {
+          accessToken: this.jwtService.sign(newPayload),
+          refreshToken: newRefreshToken,
+        };
+      }
+
+      // Client(고객) 토큰인 경우
+      if (payload.type === 'client') {
+        const client = await this.prisma.client.findUnique({
+          where: { id: payload.sub },
+        });
+
+        if (!client) {
+          throw new UnauthorizedException('Invalid refresh token');
+        }
+
+        const newPayload = {
+          sub: client.id,
+          email: client.email,
+          role: 'client',
+          type: 'client',
+        };
+
+        const newRefreshToken = this.jwtService.sign(newPayload, {
+          expiresIn: '30d',
+        });
+
+        return {
+          accessToken: this.jwtService.sign(newPayload),
+          refreshToken: newRefreshToken,
+        };
+      }
+
+      // 기존 User 토큰 (레거시)
       const user = await this.prisma.user.findUnique({
         where: { id: payload.sub },
       });
@@ -445,7 +505,7 @@ export class AuthService {
   }
 
   // 직원 로그인 처리
-  async loginStaff(staff: any) {
+  async loginStaff(staff: any, rememberMe: boolean = false) {
     const payload = {
       sub: staff.id,
       staffId: staff.staffId,
@@ -458,7 +518,7 @@ export class AuthService {
 
     const accessToken = this.jwtService.sign(payload);
     const refreshToken = this.jwtService.sign(payload, {
-      expiresIn: '7d' as const,
+      expiresIn: rememberMe ? '30d' : '7d',
     });
 
     return {
