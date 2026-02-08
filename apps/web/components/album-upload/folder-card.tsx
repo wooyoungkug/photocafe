@@ -912,7 +912,12 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap, thumbn
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setIsThumbnailOpen(false)}
+            onClick={() => {
+              setIsThumbnailOpen(false);
+              if (canSelect && !folder.isSelected) {
+                setFolderSelected(folder.id, true);
+              }
+            }}
             className="text-xs"
           >
             <Check className="h-3 w-3 mr-1" />

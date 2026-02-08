@@ -281,7 +281,8 @@
       "Bash(start \"\" \"C:\\\\Program Files\\\\Docker\\\\Docker\\\\Docker Desktop.exe\")",
       "Bash(chmod:*)",
       "Bash(cmd /c \"rmdir /s /q c:\\\\dev\\\\printing114\\\\apps\\\\web\\\\.next\")",
-      "Bash(cmd /c \"if exist c:\\\\dev\\\\printing114\\\\apps\\\\web\\\\.next echo STILL EXISTS || echo REMOVED\")"
+      "Bash(cmd /c \"if exist c:\\\\dev\\\\printing114\\\\apps\\\\web\\\\.next echo STILL EXISTS || echo REMOVED\")",
+      "Bash(del:*)"
     ]
   }
 }

@@ -55,7 +55,7 @@ export type CoverType = 'FRONT_COVER' | 'BACK_COVER' | 'COMBINED_COVER' | 'INNER
 const COVER_PATTERNS = {
   FRONT: /첫장|표지(?!뒷)|front|cover(?!.*back)|^첫$/i,
   BACK: /막장|뒷표지|back|rear|끝|^막$/i,
-  COMBINED: /첫장막장|첫막장|표지뒷표지|첫장_막장|frontback/i,
+  COMBINED: /첫장막장|첫막장|첫장\s+막장|표지뒷표지|첫장_막장|frontback/i,
 };
 
 // 표지 타입 감지 함수

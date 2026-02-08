@@ -20,6 +20,11 @@ import {
   UpdateOrderStatusDto,
   UpdateShippingDto,
   OrderQueryDto,
+  BulkOrderIdsDto,
+  BulkUpdateStatusDto,
+  BulkCancelDto,
+  BulkUpdateReceiptDateDto,
+  BulkDataCleanupDto,
 } from '../dto';
 
 @ApiTags('주문')
@@ -42,6 +47,49 @@ export class OrderController {
   @ApiOperation({ summary: '주문 상태별 건수' })
   async getStatusCounts() {
     return this.orderService.getStatusCounts();
+  }
+
+  // ==================== 벌크 작업 (반드시 :id 라우트 위에 배치) ====================
+  @Post('bulk/update-status')
+  @ApiOperation({ summary: '주문 일괄 상태 변경' })
+  async bulkUpdateStatus(@Body() dto: BulkUpdateStatusDto, @Request() req: any) {
+    return this.orderService.bulkUpdateStatus(dto, req.user.id);
+  }
+
+  @Post('bulk/cancel')
+  @ApiOperation({ summary: '주문 일괄 취소' })
+  async bulkCancel(@Body() dto: BulkCancelDto, @Request() req: any) {
+    return this.orderService.bulkCancel(dto, req.user.id);
+  }
+
+  @Post('bulk/delete')
+  @ApiOperation({ summary: '주문 일괄 삭제' })
+  async bulkDelete(@Body() dto: BulkOrderIdsDto) {
+    return this.orderService.bulkDelete(dto.orderIds);
+  }
+
+  @Post('bulk/duplicate')
+  @ApiOperation({ summary: '주문 일괄 복제' })
+  async bulkDuplicate(@Body() dto: BulkOrderIdsDto, @Request() req: any) {
+    return this.orderService.bulkDuplicate(dto.orderIds, req.user.id);
+  }
+
+  @Post('bulk/reset-amount')
+  @ApiOperation({ summary: '주문 금액 일괄 0원 처리' })
+  async bulkResetAmount(@Body() dto: BulkOrderIdsDto, @Request() req: any) {
+    return this.orderService.bulkResetAmount(dto.orderIds, req.user.id);
+  }
+
+  @Post('bulk/update-receipt-date')
+  @ApiOperation({ summary: '접수일 일괄 변경' })
+  async bulkUpdateReceiptDate(@Body() dto: BulkUpdateReceiptDateDto, @Request() req: any) {
+    return this.orderService.bulkUpdateReceiptDate(dto, req.user.id);
+  }
+
+  @Post('bulk/data-cleanup')
+  @ApiOperation({ summary: '기간별 데이터 정리' })
+  async dataCleanup(@Body() dto: BulkDataCleanupDto) {
+    return this.orderService.dataCleanup(dto);
   }
 
   @Get(':id')
@@ -92,6 +140,12 @@ export class OrderController {
     @Request() req: any,
   ) {
     return this.orderService.cancel(id, req.user.id, reason);
+  }
+
+  @Delete(':id/items/:itemId')
+  @ApiOperation({ summary: '주문항목 개별 삭제' })
+  async deleteItem(@Param('id') id: string, @Param('itemId') itemId: string) {
+    return this.orderService.deleteItem(id, itemId);
   }
 
   @Delete(':id')

@@ -392,3 +392,53 @@ export class OrderQueryDto {
   @IsBoolean()
   isUrgent?: boolean;
 }
+
+// ==================== 벌크 작업 DTO ====================
+export class BulkOrderIdsDto {
+  @ApiProperty({ description: '주문 ID 배열' })
+  @IsArray()
+  @IsString({ each: true })
+  orderIds: string[];
+}
+
+export class BulkUpdateStatusDto extends BulkOrderIdsDto {
+  @ApiProperty({ description: '변경할 상태' })
+  @IsString()
+  status: string;
+
+  @ApiPropertyOptional({ description: '메모' })
+  @IsOptional()
+  @IsString()
+  note?: string;
+}
+
+export class BulkUpdateReceiptDateDto extends BulkOrderIdsDto {
+  @ApiProperty({ description: '변경할 접수일' })
+  @Type(() => Date)
+  @IsDate()
+  receiptDate: Date;
+}
+
+export class BulkCancelDto extends BulkOrderIdsDto {
+  @ApiPropertyOptional({ description: '취소 사유' })
+  @IsOptional()
+  @IsString()
+  reason?: string;
+}
+
+export class BulkDataCleanupDto {
+  @ApiProperty({ description: '시작일' })
+  @Type(() => Date)
+  @IsDate()
+  startDate: Date;
+
+  @ApiProperty({ description: '종료일' })
+  @Type(() => Date)
+  @IsDate()
+  endDate: Date;
+
+  @ApiPropertyOptional({ description: '썸네일도 삭제 여부' })
+  @IsOptional()
+  @IsBoolean()
+  deleteThumbnails?: boolean;
+}

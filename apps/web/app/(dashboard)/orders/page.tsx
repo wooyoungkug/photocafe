@@ -1,20 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import {
   Package,
-  Clock,
-  CheckCircle,
-  Truck,
-  XCircle,
   Search,
   FileText,
   ImageIcon,
-  ClipboardCheck,
-  Printer,
-  PackageCheck,
   Eye,
   Receipt,
   ChevronLeft,
@@ -24,6 +16,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -32,21 +32,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useOrders, useOrderStatusCounts, ORDER_STATUS, ORDER_STATUS_LABELS } from '@/hooks/use-orders';
+import { useOrders, ORDER_STATUS_LABELS } from '@/hooks/use-orders';
+import { BulkActionToolbar } from './components/bulk-action-toolbar';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-
-// 진행단계별 아이콘 상태 설정
-const STAGE_ITEMS = [
-  { key: 'all', label: '전체', icon: FileText, color: 'text-gray-600', bg: 'bg-gray-50', activeBg: 'bg-gray-100', border: 'border-gray-300' },
-  { key: 'pending_receipt', label: '접수대기', icon: Clock, color: 'text-orange-600', bg: 'bg-orange-50', activeBg: 'bg-orange-100', border: 'border-orange-400' },
-  { key: 'receipt_completed', label: '접수완료', icon: ClipboardCheck, color: 'text-blue-600', bg: 'bg-blue-50', activeBg: 'bg-blue-100', border: 'border-blue-400' },
-  { key: 'in_production', label: '생산진행', icon: Printer, color: 'text-purple-600', bg: 'bg-purple-50', activeBg: 'bg-purple-100', border: 'border-purple-400' },
-  { key: 'ready_for_shipping', label: '배송준비', icon: PackageCheck, color: 'text-indigo-600', bg: 'bg-indigo-50', activeBg: 'bg-indigo-100', border: 'border-indigo-400' },
-  { key: 'shipped', label: '배송완료', icon: Truck, color: 'text-green-600', bg: 'bg-green-50', activeBg: 'bg-green-100', border: 'border-green-400' },
-  { key: 'cancelled', label: '취소', icon: XCircle, color: 'text-gray-400', bg: 'bg-gray-50', activeBg: 'bg-gray-100', border: 'border-gray-300' },
-];
 
 // 진행상황 뱃지 스타일
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
@@ -57,6 +47,17 @@ const STATUS_BADGE: Record<string, { label: string; className: string }> = {
   shipped: { label: '배송완료', className: 'bg-green-100 text-green-700' },
   cancelled: { label: '취소', className: 'bg-gray-100 text-gray-500' },
 };
+
+// 상태 필터 옵션
+const STATUS_FILTER_OPTIONS = [
+  { value: 'all', label: '전체' },
+  { value: 'pending_receipt', label: '접수대기' },
+  { value: 'receipt_completed', label: '접수완료' },
+  { value: 'in_production', label: '생산진행' },
+  { value: 'ready_for_shipping', label: '배송준비' },
+  { value: 'shipped', label: '배송완료' },
+  { value: 'cancelled', label: '취소' },
+];
 
 // 파일 사이즈 포맷
 function formatFileSize(bytes?: number): string {
@@ -73,6 +74,9 @@ export default function OrderListPage() {
   const [page, setPage] = useState(1);
   const limit = 10;
 
+  // 체크박스 선택 상태
+  const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
+
   // 주문 목록 조회
   const { data: ordersData, isLoading } = useOrders({
     page,
@@ -81,105 +85,75 @@ export default function OrderListPage() {
     status: statusFilter !== 'all' ? statusFilter : undefined,
   });
 
-  // 상태별 카운트
-  const { data: statusCounts } = useOrderStatusCounts();
-
   const orders = ordersData?.data ?? [];
   const meta = ordersData?.meta;
 
-  const totalCount = statusCounts
-    ? Object.values(statusCounts).reduce((sum: number, count: number) => sum + count, 0)
-    : 0;
+  // 필터/페이지 변경 시 선택 초기화
+  useEffect(() => {
+    setSelectedOrderIds(new Set());
+  }, [statusFilter, search, page]);
 
-  const getCount = (key: string) => {
-    if (key === 'all') return totalCount;
-    return statusCounts?.[key] || 0;
+  // 선택 헬퍼
+  const toggleOrder = (orderId: string) => {
+    setSelectedOrderIds(prev => {
+      const next = new Set(prev);
+      if (next.has(orderId)) next.delete(orderId);
+      else next.add(orderId);
+      return next;
+    });
   };
+
+  const toggleAll = () => {
+    if (selectedOrderIds.size === orders.length && orders.length > 0) {
+      setSelectedOrderIds(new Set());
+    } else {
+      setSelectedOrderIds(new Set(orders.map(o => o.id)));
+    }
+  };
+
+  const clearSelection = () => setSelectedOrderIds(new Set());
+
+  const isAllSelected = orders.length > 0 && selectedOrderIds.size === orders.length;
 
   return (
     <div className="space-y-4">
-      {/* 헤더 */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold flex items-center gap-2">
+      {/* 헤더: 제목 + 상태필터 + 검색 */}
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-xl font-bold flex items-center gap-2 shrink-0">
           <FileText className="h-5 w-5" />
           주문목록
         </h1>
-        <div className="relative w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="주문번호, 주문자 검색..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="pl-9 h-9"
-          />
+        <div className="flex items-center gap-2">
+          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+            <SelectTrigger className="w-[130px] h-9 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {STATUS_FILTER_OPTIONS.map(opt => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="relative w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="주문번호, 주문자 검색..."
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              className="pl-9 h-9"
+            />
+          </div>
         </div>
       </div>
 
-      {/* 진행단계 아이콘 네비게이션 (참고: 성원애드피아 스타일) */}
-      <Card>
-        <CardContent className="py-4 px-2">
-          <div className="flex items-center justify-around">
-            {STAGE_ITEMS.map((stage) => {
-              const Icon = stage.icon;
-              const count = getCount(stage.key);
-              const isActive = statusFilter === stage.key;
-
-              return (
-                <button
-                  type="button"
-                  key={stage.key}
-                  onClick={() => { setStatusFilter(stage.key); setPage(1); }}
-                  className={cn(
-                    'flex flex-col items-center gap-1.5 px-3 py-2 rounded-lg transition-all min-w-[72px]',
-                    isActive
-                      ? `${stage.activeBg} ${stage.border} border-2 shadow-sm`
-                      : 'border-2 border-transparent hover:bg-muted'
-                  )}
-                >
-                  <div className={cn(
-                    'w-10 h-10 rounded-full flex items-center justify-center',
-                    isActive ? stage.activeBg : stage.bg,
-                  )}>
-                    <Icon className={cn('h-5 w-5', stage.color)} />
-                  </div>
-                  <span className={cn(
-                    'text-xs font-medium',
-                    isActive ? stage.color : 'text-muted-foreground'
-                  )}>
-                    {stage.label}
-                  </span>
-                  <span className={cn(
-                    'text-sm font-bold',
-                    isActive ? stage.color : 'text-foreground',
-                    count > 0 ? '' : 'text-muted-foreground'
-                  )}>
-                    ({count})
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 조회결과 + 페이지 설정 */}
+      {/* 조회결과 */}
       <div className="flex items-center justify-between text-sm">
         <span className="text-muted-foreground">
           조회결과 : <b className="text-foreground">{meta?.total || 0}</b> 건
+          {selectedOrderIds.size > 0 && (
+            <span className="ml-2 text-blue-600 font-medium">({selectedOrderIds.size}건 선택됨)</span>
+          )}
         </span>
-        <div className="flex items-center gap-2">
-          <span className="text-muted-foreground text-xs">진행 사항이고</span>
-          <select
-            value={limit}
-            className="h-8 text-xs border rounded px-2"
-            aria-label="페이지당 표시 건수"
-            disabled
-          >
-            <option value={10}>10개씩</option>
-            <option value={20}>20개씩</option>
-            <option value={50}>50개씩</option>
-          </select>
-        </div>
       </div>
 
       {/* 주문 테이블 */}
@@ -196,6 +170,13 @@ export default function OrderListPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/60">
+                    <TableHead className="text-center w-[40px]">
+                      <Checkbox
+                        checked={isAllSelected}
+                        onCheckedChange={toggleAll}
+                        aria-label="전체 선택"
+                      />
+                    </TableHead>
                     <TableHead className="text-center w-[130px] text-xs">
                       주문일<br />(주문번호)
                     </TableHead>
@@ -214,16 +195,32 @@ export default function OrderListPage() {
                   {orders.map((order) => {
                     const items = order.items || [];
                     const statusBadge = STATUS_BADGE[order.status] || STATUS_BADGE.pending_receipt;
+                    const isSelected = selectedOrderIds.has(order.id);
 
                     return items.map((item, idx) => (
                       <TableRow
                         key={item.id}
+                        data-state={isSelected ? 'selected' : undefined}
                         className={cn(
                           'hover:bg-muted/30',
                           idx > 0 ? 'border-t border-dashed' : '',
                           order.isUrgent ? 'bg-red-50/30' : ''
                         )}
                       >
+                        {/* 체크박스 - 첫 번째 항목에만 표시 */}
+                        {idx === 0 && (
+                          <TableCell
+                            className="text-center align-top pt-3"
+                            rowSpan={items.length}
+                          >
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={() => toggleOrder(order.id)}
+                              aria-label={`주문 ${order.orderNumber} 선택`}
+                            />
+                          </TableCell>
+                        )}
+
                         {/* 주문일(주문번호) - 첫 번째 항목에만 표시 */}
                         {idx === 0 && (
                           <TableCell
@@ -257,19 +254,22 @@ export default function OrderListPage() {
 
                         {/* 썸네일 */}
                         <TableCell className="text-center">
-                          <div className="w-10 h-10 mx-auto bg-gray-100 rounded overflow-hidden flex items-center justify-center">
-                            {item.thumbnailUrl ? (
-                              <Image
-                                src={item.thumbnailUrl}
-                                alt={item.productName}
-                                width={40}
-                                height={40}
-                                className="object-cover w-full h-full"
-                              />
-                            ) : (
-                              <ImageIcon className="h-4 w-4 text-gray-300" />
-                            )}
-                          </div>
+                          {(() => {
+                            const thumbUrl = item.thumbnailUrl || item.files?.[0]?.thumbnailUrl || item.files?.[0]?.fileUrl;
+                            return (
+                              <div className="w-10 h-10 mx-auto bg-gray-100 rounded overflow-hidden flex items-center justify-center">
+                                {thumbUrl ? (
+                                  <img
+                                    src={thumbUrl}
+                                    alt={item.productName}
+                                    className="object-cover w-full h-full"
+                                  />
+                                ) : (
+                                  <ImageIcon className="h-4 w-4 text-gray-300" />
+                                )}
+                              </div>
+                            );
+                          })()}
                         </TableCell>
 
                         {/* 상품명 / 주문제목 / 재질 및 규격 */}
@@ -362,6 +362,15 @@ export default function OrderListPage() {
               </Table>
             </div>
           </Card>
+
+          {/* 벌크 액션 툴바 */}
+          {selectedOrderIds.size > 0 && (
+            <BulkActionToolbar
+              selectedIds={selectedOrderIds}
+              onClearSelection={clearSelection}
+              onActionComplete={clearSelection}
+            />
+          )}
 
           {/* 페이지네이션 */}
           {meta && meta.totalPages > 1 && (

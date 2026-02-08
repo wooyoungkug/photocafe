@@ -6,6 +6,10 @@ import {
   UpdateOrderDto,
   UpdateOrderStatusDto,
   UpdateShippingDto,
+  BulkUpdateStatusDto,
+  BulkCancelDto,
+  BulkUpdateReceiptDateDto,
+  BulkDataCleanupDto,
   ORDER_STATUS,
 } from '../dto';
 
@@ -110,6 +114,14 @@ export class OrderService {
               quantity: true,
               unitPrice: true,
               totalPrice: true,
+              files: {
+                select: {
+                  thumbnailUrl: true,
+                  fileUrl: true,
+                },
+                orderBy: { sortOrder: 'asc' },
+                take: 1,
+              },
             },
           },
           _count: {
@@ -413,6 +425,46 @@ export class OrderService {
     });
   }
 
+  // ==================== 주문항목 개별 삭제 ====================
+  async deleteItem(orderId: string, itemId: string) {
+    const order = await this.findOne(orderId);
+
+    if (order.status !== ORDER_STATUS.PENDING_RECEIPT && order.status !== ORDER_STATUS.CANCELLED) {
+      throw new BadRequestException('접수대기 또는 취소 상태의 주문만 수정할 수 있습니다');
+    }
+
+    const item = order.items.find(i => i.id === itemId);
+    if (!item) {
+      throw new NotFoundException('주문항목을 찾을 수 없습니다');
+    }
+
+    if (order.items.length <= 1) {
+      throw new BadRequestException('주문에는 최소 1개의 항목이 있어야 합니다. 주문 자체를 삭제해주세요.');
+    }
+
+    // 항목 삭제 후 주문 금액 재계산
+    const remainingItems = order.items.filter(i => i.id !== itemId);
+    const productPrice = remainingItems.reduce((sum, i) => sum + Number(i.totalPrice), 0);
+    const tax = Math.round(productPrice * 0.1);
+    const shippingFee = Number(order.shippingFee);
+    const totalAmount = productPrice + tax + shippingFee;
+
+    await this.prisma.$transaction([
+      this.prisma.orderItem.delete({ where: { id: itemId } }),
+      this.prisma.order.update({
+        where: { id: orderId },
+        data: {
+          productPrice,
+          tax,
+          totalAmount,
+          finalAmount: totalAmount,
+        },
+      }),
+    ]);
+
+    return { message: '주문항목이 삭제되었습니다', deletedItemId: itemId };
+  }
+
   // ==================== 주문 삭제 ====================
   async delete(id: string) {
     const order = await this.findOne(id);
@@ -424,6 +476,294 @@ export class OrderService {
     return this.prisma.order.delete({
       where: { id },
     });
+  }
+
+  // ==================== 벌크: 상태 일괄 변경 ====================
+  async bulkUpdateStatus(dto: BulkUpdateStatusDto, userId: string) {
+    const results = { success: 0, failed: [] as string[] };
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const orderId of dto.orderIds) {
+        try {
+          const order = await tx.order.findUnique({ where: { id: orderId } });
+          if (!order) { results.failed.push(orderId); continue; }
+
+          await tx.order.update({
+            where: { id: orderId },
+            data: {
+              status: dto.status,
+              processHistory: {
+                create: {
+                  fromStatus: order.status,
+                  toStatus: dto.status,
+                  processType: 'bulk_status_change',
+                  note: dto.note,
+                  processedBy: userId,
+                },
+              },
+            },
+          });
+          results.success++;
+        } catch { results.failed.push(orderId); }
+      }
+    });
+
+    return results;
+  }
+
+  // ==================== 벌크: 일괄 취소 ====================
+  async bulkCancel(dto: BulkCancelDto, userId: string) {
+    const results = { success: 0, failed: [] as string[], skipped: [] as string[] };
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const orderId of dto.orderIds) {
+        try {
+          const order = await tx.order.findUnique({ where: { id: orderId } });
+          if (!order) { results.failed.push(orderId); continue; }
+          if (order.status === ORDER_STATUS.SHIPPED) { results.skipped.push(orderId); continue; }
+
+          await tx.order.update({
+            where: { id: orderId },
+            data: {
+              status: ORDER_STATUS.CANCELLED,
+              processHistory: {
+                create: {
+                  fromStatus: order.status,
+                  toStatus: ORDER_STATUS.CANCELLED,
+                  processType: 'bulk_order_cancelled',
+                  note: dto.reason,
+                  processedBy: userId,
+                },
+              },
+            },
+          });
+          results.success++;
+        } catch { results.failed.push(orderId); }
+      }
+    });
+
+    return results;
+  }
+
+  // ==================== 벌크: 일괄 삭제 ====================
+  async bulkDelete(orderIds: string[]) {
+    const results = { success: 0, failed: [] as string[], skipped: [] as string[] };
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const orderId of orderIds) {
+        try {
+          const order = await tx.order.findUnique({ where: { id: orderId } });
+          if (!order) { results.failed.push(orderId); continue; }
+          if (order.status !== ORDER_STATUS.PENDING_RECEIPT && order.status !== ORDER_STATUS.CANCELLED) {
+            results.skipped.push(orderId);
+            continue;
+          }
+
+          await tx.order.delete({ where: { id: orderId } });
+          results.success++;
+        } catch { results.failed.push(orderId); }
+      }
+    });
+
+    return results;
+  }
+
+  // ==================== 벌크: 일괄 복제 ====================
+  async bulkDuplicate(orderIds: string[], userId: string) {
+    const results = { success: 0, failed: [] as string[], newOrderIds: [] as string[] };
+
+    for (const orderId of orderIds) {
+      try {
+        const order = await this.prisma.order.findUnique({
+          where: { id: orderId },
+          include: {
+            items: { include: { shipping: true } },
+            shipping: true,
+          },
+        });
+        if (!order) { results.failed.push(orderId); continue; }
+
+        const newOrderNumber = await this.generateOrderNumber();
+        const newBarcode = await this.generateBarcode();
+
+        const newOrder = await this.prisma.order.create({
+          data: {
+            orderNumber: newOrderNumber,
+            barcode: newBarcode,
+            clientId: order.clientId,
+            productPrice: order.productPrice,
+            shippingFee: order.shippingFee,
+            tax: order.tax,
+            adjustmentAmount: 0,
+            totalAmount: order.totalAmount,
+            finalAmount: order.finalAmount,
+            paymentMethod: order.paymentMethod,
+            isUrgent: false,
+            customerMemo: order.customerMemo,
+            productMemo: order.productMemo,
+            status: ORDER_STATUS.PENDING_RECEIPT,
+            currentProcess: 'receipt_pending',
+            items: {
+              create: order.items.map((item, idx) => ({
+                productionNumber: this.generateProductionNumber(newOrderNumber, idx),
+                productId: item.productId,
+                productName: item.productName,
+                size: item.size,
+                pages: item.pages,
+                printMethod: item.printMethod,
+                paper: item.paper,
+                bindingType: item.bindingType,
+                coverMaterial: item.coverMaterial,
+                foilName: item.foilName,
+                foilColor: item.foilColor,
+                finishingOptions: item.finishingOptions,
+                thumbnailUrl: item.thumbnailUrl,
+                totalFileSize: item.totalFileSize,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                totalPrice: item.totalPrice,
+                ...(item.shipping ? {
+                  shipping: {
+                    create: {
+                      senderType: item.shipping.senderType,
+                      senderName: item.shipping.senderName,
+                      senderPhone: item.shipping.senderPhone,
+                      senderPostalCode: item.shipping.senderPostalCode,
+                      senderAddress: item.shipping.senderAddress,
+                      senderAddressDetail: item.shipping.senderAddressDetail,
+                      receiverType: item.shipping.receiverType,
+                      recipientName: item.shipping.recipientName,
+                      phone: item.shipping.phone,
+                      postalCode: item.shipping.postalCode,
+                      address: item.shipping.address,
+                      addressDetail: item.shipping.addressDetail,
+                      deliveryMethod: item.shipping.deliveryMethod,
+                      deliveryFee: item.shipping.deliveryFee,
+                      deliveryFeeType: item.shipping.deliveryFeeType,
+                    },
+                  },
+                } : {}),
+              })),
+            },
+            ...(order.shipping ? {
+              shipping: {
+                create: {
+                  recipientName: order.shipping.recipientName,
+                  phone: order.shipping.phone,
+                  postalCode: order.shipping.postalCode,
+                  address: order.shipping.address,
+                  addressDetail: order.shipping.addressDetail,
+                },
+              },
+            } : {}),
+            processHistory: {
+              create: {
+                toStatus: ORDER_STATUS.PENDING_RECEIPT,
+                processType: 'order_duplicated',
+                note: `원본: ${order.orderNumber}`,
+                processedBy: userId,
+              },
+            },
+          },
+        });
+        results.success++;
+        results.newOrderIds.push(newOrder.id);
+      } catch { results.failed.push(orderId); }
+    }
+
+    return results;
+  }
+
+  // ==================== 벌크: 금액 0원 처리 ====================
+  async bulkResetAmount(orderIds: string[], userId: string) {
+    const results = { success: 0, failed: [] as string[] };
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const orderId of orderIds) {
+        try {
+          const order = await tx.order.findUnique({ where: { id: orderId } });
+          if (!order) { results.failed.push(orderId); continue; }
+
+          await tx.order.update({
+            where: { id: orderId },
+            data: {
+              productPrice: 0,
+              shippingFee: 0,
+              tax: 0,
+              adjustmentAmount: 0,
+              totalAmount: 0,
+              finalAmount: 0,
+              processHistory: {
+                create: {
+                  fromStatus: order.status,
+                  toStatus: order.status,
+                  processType: 'bulk_amount_reset',
+                  note: '금액 0원 처리',
+                  processedBy: userId,
+                },
+              },
+            },
+          });
+          results.success++;
+        } catch { results.failed.push(orderId); }
+      }
+    });
+
+    return results;
+  }
+
+  // ==================== 벌크: 접수일 일괄 변경 ====================
+  async bulkUpdateReceiptDate(dto: BulkUpdateReceiptDateDto, userId: string) {
+    const results = { success: 0, failed: [] as string[] };
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const orderId of dto.orderIds) {
+        try {
+          const order = await tx.order.findUnique({ where: { id: orderId } });
+          if (!order) { results.failed.push(orderId); continue; }
+
+          await tx.order.update({
+            where: { id: orderId },
+            data: {
+              orderedAt: dto.receiptDate,
+              processHistory: {
+                create: {
+                  fromStatus: order.status,
+                  toStatus: order.status,
+                  processType: 'bulk_receipt_date_change',
+                  note: `접수일 변경: ${dto.receiptDate.toISOString().slice(0, 10)}`,
+                  processedBy: userId,
+                },
+              },
+            },
+          });
+          results.success++;
+        } catch { results.failed.push(orderId); }
+      }
+    });
+
+    return results;
+  }
+
+  // ==================== 벌크: 기간별 데이터 정리 ====================
+  async dataCleanup(dto: BulkDataCleanupDto) {
+    const where: Prisma.OrderWhereInput = {
+      orderedAt: {
+        gte: dto.startDate,
+        lte: dto.endDate,
+      },
+    };
+
+    if (dto.deleteThumbnails) {
+      await this.prisma.orderItem.updateMany({
+        where: { order: where },
+        data: { thumbnailUrl: null },
+      });
+    }
+
+    const deleted = await this.prisma.order.deleteMany({ where });
+
+    return { success: deleted.count, deleted: deleted.count };
   }
 
   // ==================== 통계 조회 ====================

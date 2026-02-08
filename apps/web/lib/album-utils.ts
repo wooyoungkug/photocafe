@@ -113,8 +113,8 @@ export function detectCoverPageType(filename: string): 'first' | 'last' | 'first
   const lowerName = filename.toLowerCase();
   const koreanName = filename;
 
-  // 첫막장 (좌우 분리 대상)
-  if (koreanName.includes('첫막장') || lowerName.includes('firstlast')) {
+  // 첫막장 (좌우 분리 대상) - 공백 포함 변형도 체크
+  if (koreanName.includes('첫막장') || /첫장\s*막장/.test(koreanName) || lowerName.includes('firstlast')) {
     return 'firstlast';
   }
 
