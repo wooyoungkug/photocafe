@@ -42,3 +42,6 @@ coverage/
 .turbo/
 nul
 .mcp.json
+
+# Claude Code
+.claude/settings.local.json
