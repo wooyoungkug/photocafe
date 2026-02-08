@@ -278,7 +278,8 @@
       "Bash(cmp:*)",
       "Bash(rimraf:*)",
       "Bash(concurrently:*)",
-      "Bash(start \"\" \"C:\\\\Program Files\\\\Docker\\\\Docker\\\\Docker Desktop.exe\")"
+      "Bash(start \"\" \"C:\\\\Program Files\\\\Docker\\\\Docker\\\\Docker Desktop.exe\")",
+      "Bash(chmod:*)"
     ]
   }
 }
