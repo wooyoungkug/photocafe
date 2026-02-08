@@ -215,6 +215,7 @@ export class OrderService {
           finishingOptions: item.finishingOptions || [],
           thumbnailUrl: item.thumbnailUrl,
           totalFileSize: item.totalFileSize ? BigInt(item.totalFileSize) : BigInt(0),
+          folderName: item.folderName,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
           totalPrice,
@@ -566,6 +567,29 @@ export class OrderService {
     });
 
     return results;
+  }
+
+  // ==================== 중복 주문 체크 (3개월 이내) ====================
+  async checkDuplicateOrders(clientId: string, folderNames: string[]) {
+    if (!folderNames.length) return { duplicates: [] };
+
+    const threeMonthsAgo = new Date();
+    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+
+    const duplicates = await this.prisma.$queryRaw<
+      { folderName: string; orderNumber: string; orderedAt: Date; status: string }[]
+    >`
+      SELECT oi."folderName", o."orderNumber", o."orderedAt", o.status
+      FROM order_items oi
+      JOIN orders o ON o.id = oi."orderId"
+      WHERE o."clientId" = ${clientId}
+        AND oi."folderName" IN (${Prisma.join(folderNames)})
+        AND o."orderedAt" >= ${threeMonthsAgo}
+        AND o.status != 'cancelled'
+      ORDER BY o."orderedAt" DESC
+    `;
+
+    return { duplicates };
   }
 
   // ==================== 벌크: 일괄 복제 ====================

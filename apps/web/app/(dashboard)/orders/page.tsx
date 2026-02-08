@@ -275,16 +275,14 @@ export default function OrderListPage() {
                         {/* 상품명 / 주문제목 / 재질 및 규격 */}
                         <TableCell>
                           <div className="space-y-1">
+                            <div className="text-xs text-muted-foreground leading-tight">
+                              {item.size} / {item.printMethod} / {item.paper}
+                              {item.bindingType && <> / {item.bindingType}</>}
+                            </div>
                             <p className="text-sm font-medium leading-tight line-clamp-1">
                               {item.productName}
                             </p>
-                            <div className="text-xs text-muted-foreground leading-tight">
-                              {item.size} / {item.printMethod} / {item.paper}
-                            </div>
                             <div className="flex flex-wrap gap-1">
-                              {item.bindingType && (
-                                <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">{item.bindingType}</Badge>
-                              )}
                               {item.coverMaterial && (
                                 <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">{item.coverMaterial}</Badge>
                               )}

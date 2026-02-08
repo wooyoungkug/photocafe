@@ -105,6 +105,7 @@ interface SortableCartItemProps {
   toggleShipping: (id: string) => void;
   handleShippingChange: (id: string, shipping: FolderShippingInfo) => void;
   handleApplyToAll: (id: string) => void;
+  handleCopyFromPrevious: (() => void) | null;
   itemsCount: number;
   companyInfo: any;
   clientInfo: any;
@@ -122,6 +123,7 @@ function SortableCartItem({
   toggleShipping,
   handleShippingChange,
   handleApplyToAll,
+  handleCopyFromPrevious,
   itemsCount,
   companyInfo,
   clientInfo,
@@ -372,6 +374,20 @@ function SortableCartItem({
                   </div>
                 )}
 
+                {handleCopyFromPrevious && !isShippingComplete(itemShipping) && (
+                  <div className="pt-3 border-t border-gray-200">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCopyFromPrevious}
+                      className="w-full"
+                    >
+                      <ChevronUp className="h-3.5 w-3.5 mr-1" />
+                      이전 배송정보 복사
+                    </Button>
+                  </div>
+                )}
+
                 {itemsCount > 1 && isShippingComplete(itemShipping) && (
                   <div className="pt-3 border-t border-gray-200">
                     <Button
@@ -435,6 +451,7 @@ export default function CartPage() {
   const { isAuthenticated } = useAuthStore();
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [expandedShipping, setExpandedShipping] = useState<string | null>(null);
+  const [globalShippingExpanded, setGlobalShippingExpanded] = useState(false);
 
   // Drag & Drop sensors
   const sensors = useSensors(
@@ -531,6 +548,65 @@ export default function CartPage() {
     }
   };
 
+  // 이전 배송정보 복사
+  const handleCopyFromPrevious = (itemId: string) => {
+    const idx = items.findIndex(i => i.id === itemId);
+    if (idx <= 0) return;
+    // 이전 아이템 중 배송정보가 있는 가장 가까운 것 찾기
+    for (let i = idx - 1; i >= 0; i--) {
+      const prevItem = items[i];
+      const prevShipping = prevItem.albumOrderInfo?.shippingInfo || prevItem.shippingInfo;
+      if (prevShipping && isShippingComplete(prevShipping)) {
+        const cartShipping: CartShippingInfo = {
+          senderType: prevShipping.senderType,
+          senderName: prevShipping.senderName,
+          senderPhone: prevShipping.senderPhone,
+          senderPostalCode: prevShipping.senderPostalCode,
+          senderAddress: prevShipping.senderAddress,
+          senderAddressDetail: prevShipping.senderAddressDetail,
+          receiverType: prevShipping.receiverType,
+          recipientName: prevShipping.recipientName,
+          recipientPhone: prevShipping.recipientPhone,
+          recipientPostalCode: prevShipping.recipientPostalCode,
+          recipientAddress: prevShipping.recipientAddress,
+          recipientAddressDetail: prevShipping.recipientAddressDetail,
+          deliveryMethod: prevShipping.deliveryMethod,
+          deliveryFee: prevShipping.deliveryFee,
+          deliveryFeeType: prevShipping.deliveryFeeType,
+        };
+        updateItemShipping(itemId, cartShipping);
+        if (!selectedItems.includes(itemId)) {
+          setSelectedItems(prev => [...prev, itemId]);
+        }
+        break;
+      }
+    }
+  };
+
+  // 전체 배송 일괄 설정 핸들러
+  const handleGlobalShippingChange = (shipping: FolderShippingInfo) => {
+    const cartShipping: CartShippingInfo = {
+      senderType: shipping.senderType,
+      senderName: shipping.senderName,
+      senderPhone: shipping.senderPhone,
+      senderPostalCode: shipping.senderPostalCode,
+      senderAddress: shipping.senderAddress,
+      senderAddressDetail: shipping.senderAddressDetail,
+      receiverType: shipping.receiverType,
+      recipientName: shipping.recipientName,
+      recipientPhone: shipping.recipientPhone,
+      recipientPostalCode: shipping.recipientPostalCode,
+      recipientAddress: shipping.recipientAddress,
+      recipientAddressDetail: shipping.recipientAddressDetail,
+      deliveryMethod: shipping.deliveryMethod,
+      deliveryFee: shipping.deliveryFee,
+      deliveryFeeType: shipping.deliveryFeeType,
+    };
+    updateAllItemsShipping(cartShipping);
+    setSelectedItems(items.map(i => i.id));
+    setGlobalShippingExpanded(false);
+  };
+
   const selectedCartItems = items.filter(item => selectedItems.includes(item.id));
   const selectedTotal = selectedCartItems.reduce((sum, item) => sum + item.totalPrice, 0);
 
@@ -617,6 +693,40 @@ export default function CartPage() {
               </div>
             </div>
 
+            {/* 전체 배송 일괄 설정 */}
+            {items.filter(i => !i.albumOrderInfo?.shippingInfo).length > 1 && (
+              <Card>
+                <button
+                  onClick={() => setGlobalShippingExpanded(!globalShippingExpanded)}
+                  className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Truck className="h-4 w-4 text-blue-500" />
+                    <span className="text-sm font-medium text-blue-700">전체 배송 일괄 설정</span>
+                    <span className="text-xs text-gray-500">모든 상품에 동일한 배송정보를 한번에 적용</span>
+                  </div>
+                  {globalShippingExpanded ? (
+                    <ChevronUp className="h-4 w-4 text-gray-400" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-gray-400" />
+                  )}
+                </button>
+                {globalShippingExpanded && (
+                  <div className="px-4 pb-4">
+                    <div className="p-4 bg-blue-50/50 rounded-lg border border-blue-100">
+                      <FolderShippingSection
+                        shippingInfo={undefined}
+                        companyInfo={companyInfo}
+                        clientInfo={clientInfo}
+                        pricingMap={pricingMap}
+                        onChange={handleGlobalShippingChange}
+                      />
+                    </div>
+                  </div>
+                )}
+              </Card>
+            )}
+
             {/* Items List */}
             <DndContext
               sensors={sensors}
@@ -627,25 +737,40 @@ export default function CartPage() {
                 items={items.map(item => item.id)}
                 strategy={verticalListSortingStrategy}
               >
-                {items.map((item) => (
-                  <SortableCartItem
-                    key={item.id}
-                    item={item}
-                    canSelectItem={canSelectItem}
-                    selectedItems={selectedItems}
-                    expandedShipping={expandedShipping}
-                    handleSelectItem={handleSelectItem}
-                    removeItem={removeItem}
-                    updateQuantity={updateQuantity}
-                    toggleShipping={toggleShipping}
-                    handleShippingChange={handleShippingChange}
-                    handleApplyToAll={handleApplyToAll}
-                    itemsCount={items.filter(i => !i.albumOrderInfo?.shippingInfo).length}
-                    companyInfo={companyInfo}
-                    clientInfo={clientInfo}
-                    pricingMap={pricingMap}
-                  />
-                ))}
+                {items.map((item, idx) => {
+                  // 이전 아이템 중 배송정보가 있는 것 찾기
+                  let hasPrevShipping = false;
+                  if (!item.albumOrderInfo?.shippingInfo) {
+                    for (let i = idx - 1; i >= 0; i--) {
+                      const prev = items[i];
+                      const prevShipping = prev.albumOrderInfo?.shippingInfo || prev.shippingInfo;
+                      if (prevShipping && isShippingComplete(prevShipping)) {
+                        hasPrevShipping = true;
+                        break;
+                      }
+                    }
+                  }
+                  return (
+                    <SortableCartItem
+                      key={item.id}
+                      item={item}
+                      canSelectItem={canSelectItem}
+                      selectedItems={selectedItems}
+                      expandedShipping={expandedShipping}
+                      handleSelectItem={handleSelectItem}
+                      removeItem={removeItem}
+                      updateQuantity={updateQuantity}
+                      toggleShipping={toggleShipping}
+                      handleShippingChange={handleShippingChange}
+                      handleApplyToAll={handleApplyToAll}
+                      handleCopyFromPrevious={hasPrevShipping ? () => handleCopyFromPrevious(item.id) : null}
+                      itemsCount={items.filter(i => !i.albumOrderInfo?.shippingInfo).length}
+                      companyInfo={companyInfo}
+                      clientInfo={clientInfo}
+                      pricingMap={pricingMap}
+                    />
+                  );
+                })}
               </SortableContext>
             </DndContext>
 

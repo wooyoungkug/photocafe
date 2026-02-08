@@ -343,16 +343,19 @@ export default function OrderPage() {
     }
   };
 
-  // 주문 실행 (모달 확인 후)
+  // 주문 실행 (모달 확인 후) - 아이템별 개별 주문 생성
   const executeOrder = async (
-    orderData: any,
+    orderDataList: any[],
     shouldUpdateMemberInfo: boolean,
     changes: ShippingChanges[],
     shouldUpdateCopperPlate: boolean,
     cpChanges: CopperPlateChanges[]
   ) => {
     try {
-      await api.post('/orders', orderData);
+      // 각 아이템별 개별 주문 순차 생성
+      for (const orderData of orderDataList) {
+        await api.post('/orders', orderData);
+      }
 
       // 후처리가 필요한 경우에만 카테고리 1번 조회 후 병렬 실행
       const hasChanges = changes.length > 0 || cpChanges.length > 0;
@@ -505,59 +508,53 @@ export default function OrderPage() {
       return;
     }
 
-    // 주문 데이터 준비
-    const orderData = {
-      clientId,
-      paymentMethod,
-      isUrgent: false,
-      customerMemo: memo || undefined,
-      items: items.map(item => {
-        // 앨범 주문인 경우 추가 정보 포함
-        if (item.productType === 'album-order' && item.albumOrderInfo) {
-          const albumInfo = item.albumOrderInfo;
-          return {
-            productId: item.productId || 'default-product',
-            productName: item.name,
-            size: albumInfo.specificationName || item.options.find(o => o.name === '규격')?.value || 'A4',
-            pages: albumInfo.pageCount || parseInt(item.options.find(o => o.name === '페이지수')?.value || '20'),
-            printMethod: albumInfo.printMethod === 'indigo' ? '인디고' : '잉크젯',
-            paper: item.options.find(o => o.name === '용지')?.value || '스노우화이트',
-            bindingType: item.options.find(o => o.name === '제본')?.value || '무선제본',
-            quantity: item.quantity,
-            unitPrice: item.basePrice,
-            thumbnailUrl: item.thumbnailUrl || item.thumbnailUrls?.[0] || undefined,
-            totalFileSize: albumInfo.totalSize || 0,
-            // 앨범 주문 추가 필드
-            colorMode: albumInfo.colorMode,
-            pageLayout: albumInfo.pageLayout,
-            bindingDirection: albumInfo.bindingDirection,
-            folderName: albumInfo.folderName,
-            fileCount: albumInfo.fileCount,
-            // 항목별 배송 정보
-            ...(albumInfo.shippingInfo ? {
-              shipping: {
-                senderType: albumInfo.shippingInfo.senderType,
-                senderName: albumInfo.shippingInfo.senderName,
-                senderPhone: albumInfo.shippingInfo.senderPhone,
-                senderPostalCode: albumInfo.shippingInfo.senderPostalCode,
-                senderAddress: albumInfo.shippingInfo.senderAddress,
-                senderAddressDetail: albumInfo.shippingInfo.senderAddressDetail,
-                receiverType: albumInfo.shippingInfo.receiverType,
-                recipientName: albumInfo.shippingInfo.recipientName,
-                phone: albumInfo.shippingInfo.recipientPhone,
-                postalCode: albumInfo.shippingInfo.recipientPostalCode,
-                address: albumInfo.shippingInfo.recipientAddress,
-                addressDetail: albumInfo.shippingInfo.recipientAddressDetail,
-                deliveryMethod: albumInfo.shippingInfo.deliveryMethod,
-                deliveryFee: albumInfo.shippingInfo.deliveryFee,
-                deliveryFeeType: albumInfo.shippingInfo.deliveryFeeType,
-              },
-            } : {}),
-          };
-        }
+    // 주문 데이터 준비 - 아이템별 개별 주문 생성
+    const orderDataList = items.map(item => {
+      let orderItem: any;
 
+      // 앨범 주문인 경우 추가 정보 포함
+      if (item.productType === 'album-order' && item.albumOrderInfo) {
+        const albumInfo = item.albumOrderInfo;
+        orderItem = {
+          productId: item.productId || 'default-product',
+          productName: item.name,
+          size: albumInfo.specificationName || item.options.find(o => o.name === '규격')?.value || 'A4',
+          pages: albumInfo.pageCount || parseInt(item.options.find(o => o.name === '페이지수')?.value || '20'),
+          printMethod: albumInfo.printMethod === 'indigo' ? '인디고' : '잉크젯',
+          paper: item.options.find(o => o.name === '용지')?.value || '스노우화이트',
+          bindingType: item.options.find(o => o.name === '제본')?.value || '무선제본',
+          quantity: item.quantity,
+          unitPrice: item.basePrice,
+          thumbnailUrl: item.thumbnailUrl || item.thumbnailUrls?.[0] || undefined,
+          totalFileSize: albumInfo.totalSize || 0,
+          colorMode: albumInfo.colorMode,
+          pageLayout: albumInfo.pageLayout,
+          bindingDirection: albumInfo.bindingDirection,
+          folderName: albumInfo.folderName,
+          fileCount: albumInfo.fileCount,
+          ...(albumInfo.shippingInfo ? {
+            shipping: {
+              senderType: albumInfo.shippingInfo.senderType,
+              senderName: albumInfo.shippingInfo.senderName,
+              senderPhone: albumInfo.shippingInfo.senderPhone,
+              senderPostalCode: albumInfo.shippingInfo.senderPostalCode,
+              senderAddress: albumInfo.shippingInfo.senderAddress,
+              senderAddressDetail: albumInfo.shippingInfo.senderAddressDetail,
+              receiverType: albumInfo.shippingInfo.receiverType,
+              recipientName: albumInfo.shippingInfo.recipientName,
+              phone: albumInfo.shippingInfo.recipientPhone,
+              postalCode: albumInfo.shippingInfo.recipientPostalCode,
+              address: albumInfo.shippingInfo.recipientAddress,
+              addressDetail: albumInfo.shippingInfo.recipientAddressDetail,
+              deliveryMethod: albumInfo.shippingInfo.deliveryMethod,
+              deliveryFee: albumInfo.shippingInfo.deliveryFee,
+              deliveryFeeType: albumInfo.shippingInfo.deliveryFeeType,
+            },
+          } : {}),
+        };
+      } else {
         // 일반 상품
-        return {
+        orderItem = {
           productId: item.productId || 'default-product',
           productName: item.name,
           size: item.options.find(o => o.name === '규격')?.value || 'A4',
@@ -570,9 +567,18 @@ export default function OrderPage() {
           thumbnailUrl: item.thumbnailUrl || item.thumbnailUrls?.[0] || undefined,
           totalFileSize: 0,
         };
-      }),
-      shipping: shippingInfo,
-    };
+      }
+
+      // 개별 주문 데이터 (1 아이템 = 1 주문)
+      return {
+        clientId,
+        paymentMethod,
+        isUrgent: false,
+        customerMemo: memo || undefined,
+        items: [orderItem],
+        shipping: shippingInfo,
+      };
+    });
 
     // 배송정보 변경사항 확인
     const changes = detectShippingChanges();
@@ -583,7 +589,7 @@ export default function OrderPage() {
       // 변경사항이 있으면 확인 모달 표시
       setShippingChanges(changes);
       setCopperPlateChanges(cpChanges);
-      setPendingOrderData(orderData);
+      setPendingOrderData(orderDataList);
       setUpdateMemberInfo(true);
       setUpdateCopperPlateInfo(true);
       setShowChangeConfirmModal(true);
@@ -593,7 +599,7 @@ export default function OrderPage() {
     // 변경사항이 없으면 바로 주문 진행
     setIsSubmitting(true);
     try {
-      await executeOrder(orderData, false, [], false, []);
+      await executeOrder(orderDataList, false, [], false, []);
     } finally {
       setIsSubmitting(false);
     }
@@ -993,6 +999,31 @@ export default function OrderPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* 주문 처리 중 로딩 오버레이 */}
+      {isSubmitting && (
+        <div className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 mx-4 max-w-sm w-full text-center">
+            <div className="relative w-16 h-16 mx-auto mb-5">
+              <div className="absolute inset-0 rounded-full border-4 border-gray-200" />
+              <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+              <CreditCard className="absolute inset-0 m-auto h-6 w-6 text-primary" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">
+              주문을 접수하고 있습니다
+            </h3>
+            <p className="text-sm text-gray-500 leading-relaxed">
+              서버로 주문 데이터를 전송 중입니다.<br />
+              페이지를 닫지 마시고 잠시만 기다려 주세요.
+            </p>
+            <div className="mt-4 flex justify-center gap-1">
+              <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

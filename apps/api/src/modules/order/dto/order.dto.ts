@@ -234,11 +234,28 @@ export class CreateOrderItemDto {
   @Type(() => OrderFileDto)
   files?: OrderFileDto[];
 
+  @ApiPropertyOptional({ description: '앨범 주문 폴더명' })
+  @IsOptional()
+  @IsString()
+  folderName?: string;
+
   @ApiPropertyOptional({ description: '항목별 배송 정보' })
   @IsOptional()
   @ValidateNested()
   @Type(() => OrderItemShippingDto)
   shipping?: OrderItemShippingDto;
+}
+
+// ==================== 중복 주문 체크 DTO ====================
+export class CheckDuplicateOrderDto {
+  @ApiProperty({ description: '거래처 ID' })
+  @IsString()
+  clientId: string;
+
+  @ApiProperty({ description: '폴더명 목록' })
+  @IsArray()
+  @IsString({ each: true })
+  folderNames: string[];
 }
 
 // ==================== 배송 정보 DTO ====================

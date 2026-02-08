@@ -185,6 +185,7 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap, thumbn
     COMBINED_COVER: t('combinedCover'),
   };
 
+  const cardRef = useRef<HTMLDivElement>(null);
   const [isShippingOpen, setIsShippingOpen] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitle, setEditTitle] = useState(folder.orderTitle);
@@ -442,6 +443,7 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap, thumbn
 
   return (
     <div
+      ref={cardRef}
       className={cn(
         'rounded-lg border-2 p-4 transition-all',
         actualStatus.borderColor,
@@ -917,6 +919,9 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap, thumbn
               if (canSelect && !folder.isSelected) {
                 setFolderSelected(folder.id, true);
               }
+              setTimeout(() => {
+                cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }, 100);
             }}
             className="text-xs"
           >

@@ -9,9 +9,9 @@
     "build:clean": "npm run clean && next build",
     "start": "next start",
     "lint": "next lint",
-    "clean": "rimraf .next",
-    "clean:cache": "rimraf .next node_modules/.cache",
-    "clean:full": "rimraf .next node_modules"
+    "clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\"",
+    "clean:cache": "node -e \"['.\\/\\.next','.\\/node_modules/.cache'].forEach(d=>require('fs').rmSync(d,{recursive:true,force:true}))\"",
+    "clean:full": "node -e \"['.\\/\\.next','.\\/node_modules'].forEach(d=>require('fs').rmSync(d,{recursive:true,force:true}))\""
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

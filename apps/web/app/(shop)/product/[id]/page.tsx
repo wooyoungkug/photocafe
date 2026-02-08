@@ -162,6 +162,9 @@ export default function ProductPage() {
   const [showPhotobookWizard, setShowPhotobookWizard] = useState(false);
   const photobookOrderStore = usePhotobookOrderStore();
 
+  // 장바구니 담기 로딩 상태
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+
   // 데이터 업로드 스토어에서 편집스타일/제본순서 가져오기
   const { defaultPageLayout, defaultBindingDirection, clearFolders } = useMultiFolderUploadStore();
 
@@ -1595,103 +1598,118 @@ export default function ProductPage() {
             </h3>
             <MultiFolderUpload
               onAddToCart={(folders) => {
-                // 선택된 폴더들을 장바구니에 추가
-                folders.forEach((folder) => {
-                  const options: CartItemOption[] = [
-                    { name: t('spec'), value: folder.specLabel, price: 0 },
-                    { name: tc('page'), value: `${folder.pageCount}p`, price: 0 },
-                    { name: t('fileCountLabel'), value: t('countUnit', { count: folder.files.length }), price: 0 },
-                  ];
+                setIsAddingToCart(true);
 
-                  // 전체 썸네일 URL 수집
-                  const allThumbnailUrls = folder.files
-                    .map(f => f.thumbnailUrl)
-                    .filter((url): url is string => !!url);
-
-                  // 앨범 가격 계산
-                  const folderPrice = calculateUploadedFolderPrice(folder);
-
-                  const shippingInfoData = folder.shippingInfo ? {
-                    senderType: folder.shippingInfo.senderType,
-                    senderName: folder.shippingInfo.senderName,
-                    senderPhone: folder.shippingInfo.senderPhone,
-                    senderPostalCode: folder.shippingInfo.senderPostalCode,
-                    senderAddress: folder.shippingInfo.senderAddress,
-                    senderAddressDetail: folder.shippingInfo.senderAddressDetail,
-                    receiverType: folder.shippingInfo.receiverType,
-                    recipientName: folder.shippingInfo.recipientName,
-                    recipientPhone: folder.shippingInfo.recipientPhone,
-                    recipientPostalCode: folder.shippingInfo.recipientPostalCode,
-                    recipientAddress: folder.shippingInfo.recipientAddress,
-                    recipientAddressDetail: folder.shippingInfo.recipientAddressDetail,
-                    deliveryMethod: folder.shippingInfo.deliveryMethod,
-                    deliveryFee: folder.shippingInfo.deliveryFee,
-                    deliveryFeeType: folder.shippingInfo.deliveryFeeType,
-                  } : undefined;
-
-                  // 메인 주문
-                  addItem({
-                    productId: product.id,
-                    productType: 'album-order',
-                    name: `${product.productName} - ${folder.orderTitle}`,
-                    thumbnailUrl: folder.files[0]?.thumbnailUrl || product.thumbnailUrl,
-                    thumbnailUrls: allThumbnailUrls,
-                    basePrice: folderPrice.unitPrice,
-                    quantity: folder.quantity,
-                    options,
-                    totalPrice: folderPrice.totalPrice,
-                    albumOrderInfo: {
-                      folderId: folder.id,
-                      folderName: folder.orderTitle,
-                      fileCount: folder.files.length,
-                      pageCount: folder.pageCount,
-                      printMethod: 'indigo',
-                      colorMode: '4c',
-                      pageLayout: defaultPageLayout || 'single',
-                      bindingDirection: defaultBindingDirection || 'LEFT_START_RIGHT_END',
-                      specificationId: '',
-                      specificationName: folder.specLabel,
-                      shippingInfo: shippingInfoData,
-                    },
-                  });
-
-                  // 추가 주문들
-                  folder.additionalOrders.forEach((additional) => {
-                    const additionalPrice = calculateAdditionalOrderPrice(additional, folder);
-                    addItem({
-                      productId: product.id,
-                      productType: 'album-order',
-                      name: `${product.productName} - ${folder.orderTitle} (${additional.albumLabel})`,
-                      thumbnailUrl: folder.files[0]?.thumbnailUrl || product.thumbnailUrl,
-                      thumbnailUrls: allThumbnailUrls,
-                      basePrice: additionalPrice.unitPrice,
-                      quantity: additional.quantity,
-                      options: [
-                        { name: t('spec'), value: additional.albumLabel, price: 0 },
+                // 오버레이가 화면에 렌더링된 후 처리 시작
+                setTimeout(() => {
+                  try {
+                    // 선택된 폴더들을 장바구니에 추가
+                    folders.forEach((folder) => {
+                      const options: CartItemOption[] = [
+                        { name: t('spec'), value: folder.specLabel, price: 0 },
                         { name: tc('page'), value: `${folder.pageCount}p`, price: 0 },
                         { name: t('fileCountLabel'), value: t('countUnit', { count: folder.files.length }), price: 0 },
-                      ],
-                      totalPrice: additionalPrice.totalPrice,
-                      albumOrderInfo: {
-                        folderId: folder.id,
-                        folderName: folder.orderTitle,
-                        fileCount: folder.files.length,
-                        pageCount: folder.pageCount,
-                        printMethod: 'indigo',
-                        colorMode: '4c',
-                        pageLayout: defaultPageLayout || 'single',
-                        bindingDirection: defaultBindingDirection || 'LEFT_START_RIGHT_END',
-                        specificationId: '',
-                        specificationName: additional.albumLabel,
-                        shippingInfo: shippingInfoData,
-                      },
-                    });
-                  });
-                });
+                      ];
 
-                // 장바구니로 이동
-                clearFolders();
-                router.push('/cart');
+                      // 전체 썸네일 URL 수집
+                      const allThumbnailUrls = folder.files
+                        .map(f => f.thumbnailUrl)
+                        .filter((url): url is string => !!url);
+
+                      // 앨범 가격 계산
+                      const folderPrice = calculateUploadedFolderPrice(folder);
+
+                      const shippingInfoData = folder.shippingInfo ? {
+                        senderType: folder.shippingInfo.senderType,
+                        senderName: folder.shippingInfo.senderName,
+                        senderPhone: folder.shippingInfo.senderPhone,
+                        senderPostalCode: folder.shippingInfo.senderPostalCode,
+                        senderAddress: folder.shippingInfo.senderAddress,
+                        senderAddressDetail: folder.shippingInfo.senderAddressDetail,
+                        receiverType: folder.shippingInfo.receiverType,
+                        recipientName: folder.shippingInfo.recipientName,
+                        recipientPhone: folder.shippingInfo.recipientPhone,
+                        recipientPostalCode: folder.shippingInfo.recipientPostalCode,
+                        recipientAddress: folder.shippingInfo.recipientAddress,
+                        recipientAddressDetail: folder.shippingInfo.recipientAddressDetail,
+                        deliveryMethod: folder.shippingInfo.deliveryMethod,
+                        deliveryFee: folder.shippingInfo.deliveryFee,
+                        deliveryFeeType: folder.shippingInfo.deliveryFeeType,
+                      } : undefined;
+
+                      // 메인 주문
+                      addItem({
+                        productId: product.id,
+                        productType: 'album-order',
+                        name: `${product.productName} - ${folder.orderTitle}`,
+                        thumbnailUrl: folder.files[0]?.thumbnailUrl || product.thumbnailUrl,
+                        thumbnailUrls: allThumbnailUrls,
+                        basePrice: folderPrice.unitPrice,
+                        quantity: folder.quantity,
+                        options,
+                        totalPrice: folderPrice.totalPrice,
+                        albumOrderInfo: {
+                          folderId: folder.id,
+                          folderName: folder.orderTitle,
+                          fileCount: folder.files.length,
+                          pageCount: folder.pageCount,
+                          printMethod: 'indigo',
+                          colorMode: '4c',
+                          pageLayout: defaultPageLayout || 'single',
+                          bindingDirection: defaultBindingDirection || 'LEFT_START_RIGHT_END',
+                          specificationId: '',
+                          specificationName: folder.specLabel,
+                          shippingInfo: shippingInfoData,
+                        },
+                      });
+
+                      // 추가 주문들
+                      folder.additionalOrders.forEach((additional) => {
+                        const additionalPrice = calculateAdditionalOrderPrice(additional, folder);
+                        addItem({
+                          productId: product.id,
+                          productType: 'album-order',
+                          name: `${product.productName} - ${folder.orderTitle} (${additional.albumLabel})`,
+                          thumbnailUrl: folder.files[0]?.thumbnailUrl || product.thumbnailUrl,
+                          thumbnailUrls: allThumbnailUrls,
+                          basePrice: additionalPrice.unitPrice,
+                          quantity: additional.quantity,
+                          options: [
+                            { name: t('spec'), value: additional.albumLabel, price: 0 },
+                            { name: tc('page'), value: `${folder.pageCount}p`, price: 0 },
+                            { name: t('fileCountLabel'), value: t('countUnit', { count: folder.files.length }), price: 0 },
+                          ],
+                          totalPrice: additionalPrice.totalPrice,
+                          albumOrderInfo: {
+                            folderId: folder.id,
+                            folderName: folder.orderTitle,
+                            fileCount: folder.files.length,
+                            pageCount: folder.pageCount,
+                            printMethod: 'indigo',
+                            colorMode: '4c',
+                            pageLayout: defaultPageLayout || 'single',
+                            bindingDirection: defaultBindingDirection || 'LEFT_START_RIGHT_END',
+                            specificationId: '',
+                            specificationName: additional.albumLabel,
+                            shippingInfo: shippingInfoData,
+                          },
+                        });
+                      });
+                    });
+
+                    // 장바구니로 이동
+                    clearFolders();
+                    router.push('/cart');
+                  } catch (error) {
+                    console.error('장바구니 담기 오류:', error);
+                    setIsAddingToCart(false);
+                    toast({
+                      title: '오류 발생',
+                      description: '장바구니에 담는 중 문제가 발생했습니다. 다시 시도해주세요.',
+                      variant: 'destructive',
+                    });
+                  }
+                }, 50);
               }}
             />
           </div>
@@ -1915,6 +1933,31 @@ export default function ProductPage() {
         productId={product.id}
         productName={product.productName}
       />
+
+      {/* 장바구니 담기 로딩 오버레이 */}
+      {isAddingToCart && (
+        <div className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 mx-4 max-w-sm w-full text-center">
+            <div className="relative w-16 h-16 mx-auto mb-5">
+              <div className="absolute inset-0 rounded-full border-4 border-gray-200" />
+              <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+              <ShoppingCart className="absolute inset-0 m-auto h-6 w-6 text-primary" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">
+              장바구니에 담는 중...
+            </h3>
+            <p className="text-sm text-gray-500 leading-relaxed">
+              주문 데이터를 준비하고 있습니다.<br />
+              잠시만 기다려 주세요.
+            </p>
+            <div className="mt-4 flex justify-center gap-1">
+              <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

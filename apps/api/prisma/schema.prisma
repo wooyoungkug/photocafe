@@ -999,6 +999,7 @@ model OrderItem {
   finishingOptions String[] @default([])
   thumbnailUrl     String?              // 대표 썸네일 URL
   totalFileSize    BigInt   @default(0)  // 총 파일 용량 (bytes)
+  folderName       String?              // 앨범 주문 폴더명 (중복주문 체크용)
 
   quantity         Int
   unitPrice        Decimal  @db.Decimal(10, 2)

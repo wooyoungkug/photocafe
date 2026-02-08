@@ -25,6 +25,7 @@ import {
   BulkCancelDto,
   BulkUpdateReceiptDateDto,
   BulkDataCleanupDto,
+  CheckDuplicateOrderDto,
 } from '../dto';
 
 @ApiTags('주문')
@@ -90,6 +91,12 @@ export class OrderController {
   @ApiOperation({ summary: '기간별 데이터 정리' })
   async dataCleanup(@Body() dto: BulkDataCleanupDto) {
     return this.orderService.dataCleanup(dto);
+  }
+
+  @Post('check-duplicates')
+  @ApiOperation({ summary: '중복 주문 체크 (3개월 이내)' })
+  async checkDuplicates(@Body() dto: CheckDuplicateOrderDto) {
+    return this.orderService.checkDuplicateOrders(dto.clientId, dto.folderNames);
   }
 
   @Get(':id')

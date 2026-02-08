@@ -284,7 +284,8 @@
       "Bash(cmd /c \"if exist c:\\\\dev\\\\printing114\\\\apps\\\\web\\\\.next echo STILL EXISTS || echo REMOVED\")",
       "Bash(del:*)",
       "Bash(cmd /c \"taskkill /PID 22108 /F\")",
-      "Bash(cmd /c \"taskkill /F /PID 22108\")"
+      "Bash(cmd /c \"taskkill /F /PID 22108\")",
+      "Bash(\"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -c \"SELECT count\\(*\\) as total, state, wait_event_type FROM pg_stat_activity WHERE datname=''printing_erp'' GROUP BY state, wait_event_type;\")"
     ]
   }
 }
