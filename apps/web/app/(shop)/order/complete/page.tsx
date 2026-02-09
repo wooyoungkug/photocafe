@@ -1,9 +1,21 @@
 'use client';
 
 import Link from 'next/link';
-import { CheckCircle2, Home, FileText, ArrowRight } from 'lucide-react';
+import { CheckCircle2, Home, FileText, ArrowRight, Search, Printer, Scissors, BookOpen, PackageCheck, Package, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
+
+const processSteps = [
+  { label: '주문접수', icon: CheckCircle2, status: 'completed' as const },
+  { label: '파일검수', icon: Search, status: 'current' as const },
+  { label: '인쇄', icon: Printer, status: 'pending' as const },
+  { label: '후가공', icon: Scissors, status: 'pending' as const },
+  { label: '제본', icon: BookOpen, status: 'pending' as const },
+  { label: '검수', icon: PackageCheck, status: 'pending' as const },
+  { label: '포장', icon: Package, status: 'pending' as const },
+  { label: '배송', icon: Truck, status: 'pending' as const },
+];
 
 export default function OrderCompletePage() {
   return (
@@ -17,10 +29,42 @@ export default function OrderCompletePage() {
 
           {/* Title */}
           <h1 className="text-2xl font-bold mb-2">주문이 완료되었습니다</h1>
-          <p className="text-gray-500 mb-8">
+          <p className="text-gray-500 mb-6">
             주문해주셔서 감사합니다.<br />
             주문 내역은 마이페이지에서 확인하실 수 있습니다.
           </p>
+
+          {/* 공정별 진행표시 */}
+          <div className="mb-6 px-2">
+            <div className="flex items-center justify-between relative">
+              {/* 연결선 */}
+              <div className="absolute top-4 left-4 right-4 h-0.5 bg-gray-200" />
+              <div className="absolute top-4 left-4 h-0.5 bg-green-500 transition-all w-[14.3%]" />
+              {processSteps.map((step, idx) => {
+                const Icon = step.icon;
+                return (
+                  <div key={step.label} className="flex flex-col items-center relative z-10">
+                    <div className={cn(
+                      'w-8 h-8 rounded-full flex items-center justify-center transition-colors',
+                      step.status === 'completed' && 'bg-green-500 text-white',
+                      step.status === 'current' && 'bg-blue-500 text-white ring-2 ring-blue-200',
+                      step.status === 'pending' && 'bg-gray-200 text-gray-400',
+                    )}>
+                      <Icon className="h-3.5 w-3.5" />
+                    </div>
+                    <span className={cn(
+                      'text-[10px] mt-1 whitespace-nowrap',
+                      step.status === 'completed' && 'text-green-600 font-medium',
+                      step.status === 'current' && 'text-blue-600 font-medium',
+                      step.status === 'pending' && 'text-gray-400',
+                    )}>
+                      {step.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
 
           {/* Order Info */}
           <div className="bg-gray-50 rounded-lg p-4 mb-8 text-left">

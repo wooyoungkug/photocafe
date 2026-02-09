@@ -273,7 +273,7 @@
     "batchShippingTitle": "Batch Shipping Settings",
     "applyToAll": "Apply to All Folders",
     "selectFoldersToOrder": "Please select folders to order",
-    "addToCartSelected": "Add Selected to Cart ({count})",
+    "addToCartSelected": "Add Selected to Cart ({count}, {qty} copies)",
     "noSelectableFolders": "No selectable folders",
     "normalOrder": "Normal Order",
     "selectedOrder": "Selected Order ({count}, {qty} copies)",
@@ -364,7 +364,9 @@
     "normalOrder": "Normal Order",
     "rejectMismatchFiles": "Rejected — {count} files with mismatched specs",
     "blankPageLabel": "Blank page",
-    "normalPageLabel": "Normal"
+    "normalPageLabel": "Normal",
+    "bindingStartLeft": "Left start",
+    "bindingStartRight": "Right start"
   },
   "shipping": {
     "sender": "Sender",

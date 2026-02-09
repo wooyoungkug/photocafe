@@ -273,7 +273,7 @@
     "batchShippingTitle": "一括配送情報設定",
     "applyToAll": "全フォルダに適用",
     "selectFoldersToOrder": "注文するフォルダを選択してください",
-    "addToCartSelected": "選択商品をカートに入れる ({count}件)",
+    "addToCartSelected": "選択商品をカートに入れる ({count}件{qty}部)",
     "noSelectableFolders": "選択可能なフォルダがありません",
     "normalOrder": "通常注文",
     "selectedOrder": "選択注文 ({count}件, {qty}部)",
@@ -364,7 +364,9 @@
     "normalOrder": "正常注文",
     "rejectMismatchFiles": "受付不可 — 仕様が合わないファイル {count}個",
     "blankPageLabel": "白紙ページ",
-    "normalPageLabel": "正常"
+    "normalPageLabel": "正常",
+    "bindingStartLeft": "左開始",
+    "bindingStartRight": "右開始"
   },
   "shipping": {
     "sender": "発送元",

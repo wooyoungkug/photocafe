@@ -128,12 +128,13 @@ export default function MyOrdersPage() {
   const [page, setPage] = useState(1);
   const [startDate, setStartDate] = useState(() => format(subMonths(new Date(), 3), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
-  const [searchType, setSearchType] = useState<'orderNumber' | 'productName' | 'spec'>('orderNumber');
+  const [searchType, setSearchType] = useState<'orderNumber' | 'productName' | 'orderTitle' | 'spec'>('orderNumber');
   const [searchKeyword, setSearchKeyword] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
+  const [appliedSearchType, setAppliedSearchType] = useState<string>('orderNumber');
   const [appliedStartDate, setAppliedStartDate] = useState(() => format(subMonths(new Date(), 3), 'yyyy-MM-dd'));
   const [appliedEndDate, setAppliedEndDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
-  const limit = 10;
+  const [limit, setLimit] = useState(30);
 
   // 체크박스 상태
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
@@ -145,14 +146,14 @@ export default function MyOrdersPage() {
 
   // 주문 목록 조회
   const { data: ordersResponse, isLoading } = useQuery({
-    queryKey: ['orders', user?.id, statusFilter, page, appliedSearch, appliedStartDate, appliedEndDate],
+    queryKey: ['orders', user?.id, statusFilter, page, limit, appliedSearch, appliedSearchType, appliedStartDate, appliedEndDate],
     queryFn: async () => {
       const params: Record<string, string> = {
         clientId: user?.id || '',
         page: String(page),
         limit: String(limit),
         ...(statusFilter !== 'all' && { status: statusFilter }),
-        ...(appliedSearch && { search: appliedSearch }),
+        ...(appliedSearch && { search: appliedSearch, searchType: appliedSearchType }),
         ...(appliedStartDate && { startDate: appliedStartDate }),
         ...(appliedEndDate && { endDate: appliedEndDate }),
       };
@@ -217,6 +218,7 @@ export default function MyOrdersPage() {
   // 조회 실행
   const handleSearch = () => {
     setAppliedSearch(searchKeyword);
+    setAppliedSearchType(searchType);
     setAppliedStartDate(startDate);
     setAppliedEndDate(endDate);
     setPage(1);
@@ -357,6 +359,10 @@ export default function MyOrdersPage() {
                 <Label htmlFor="st-productName" className="text-xs cursor-pointer">주문내용</Label>
               </div>
               <div className="flex items-center gap-1.5">
+                <RadioGroupItem value="orderTitle" id="st-orderTitle" />
+                <Label htmlFor="st-orderTitle" className="text-xs cursor-pointer">주문제목</Label>
+              </div>
+              <div className="flex items-center gap-1.5">
                 <RadioGroupItem value="spec" id="st-spec" />
                 <Label htmlFor="st-spec" className="text-xs cursor-pointer">재질 및 규격</Label>
               </div>
@@ -420,9 +426,16 @@ export default function MyOrdersPage() {
               선택 주문취소 ({cancellableSelected.length}건)
             </Button>
           )}
-          <select value={limit} className="h-8 text-xs border rounded px-2" aria-label="페이지당 표시 건수" disabled>
-            <option value={10}>10개씩</option>
+          <select
+            value={limit}
+            onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
+            className="h-8 text-xs border rounded px-2"
+            aria-label="페이지당 표시 건수"
+          >
             <option value={20}>20개씩</option>
+            <option value={30}>30개씩</option>
+            <option value={50}>50개씩</option>
+            <option value={100}>100개씩</option>
           </select>
         </div>
       </div>

@@ -273,7 +273,7 @@
     "batchShippingTitle": "일괄 배송정보 설정",
     "applyToAll": "전체 폴더에 적용",
     "selectFoldersToOrder": "주문할 폴더를 선택해주세요",
-    "addToCartSelected": "선택 항목 장바구니 담기 ({count}건)",
+    "addToCartSelected": "선택 항목 장바구니 담기 ({count}건{qty}부)",
     "noSelectableFolders": "선택 가능한 폴더가 없습니다",
     "normalOrder": "정상주문",
     "selectedOrder": "선택 주문 ({count}건, {qty}부)",
@@ -364,7 +364,9 @@
     "normalOrder": "정상주문",
     "rejectMismatchFiles": "접수불가 — 규격이 맞지 않는 파일 {count}개",
     "blankPageLabel": "빈페이지",
-    "normalPageLabel": "정상"
+    "normalPageLabel": "정상",
+    "bindingStartLeft": "좌시작",
+    "bindingStartRight": "우시작"
   },
   "shipping": {
     "sender": "발송지",

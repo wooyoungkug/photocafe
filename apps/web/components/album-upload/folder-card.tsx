@@ -444,213 +444,6 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
         actualStatus.bgColor
       )}
     >
-      {/* 헤더 */}
-      <div className="flex items-start gap-3">
-        {/* 체크박스 */}
-        <div className="pt-1">
-          <Checkbox
-            checked={folder.isSelected}
-            disabled={!canSelect}
-            onCheckedChange={(checked) => setFolderSelected(folder.id, !!checked)}
-            className={cn(
-              'h-5 w-5',
-              canSelect ? 'data-[state=checked]:bg-green-600' : 'opacity-50 cursor-not-allowed'
-            )}
-          />
-        </div>
-
-        {/* 폴더 아이콘 */}
-        <Folder className="h-5 w-5 text-gray-400 mt-1 flex-shrink-0" />
-
-        {/* 제목 및 정보 */}
-        <div className="flex-1 min-w-0">
-          {/* 제목 행 */}
-          <div className="flex items-center gap-2 mb-1">
-            {isEditingTitle ? (
-              <div className="flex items-center gap-1 flex-1">
-                <Input
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  className="h-7 text-sm"
-                  autoFocus
-                  onKeyDown={(e) => e.key === 'Enter' && handleSaveTitle()}
-                />
-                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={handleSaveTitle}>
-                  <Check className="h-4 w-4" />
-                </Button>
-                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setIsEditingTitle(false)}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ) : (
-              <>
-                <span className="font-medium truncate">{folder.orderTitle}</span>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-6 w-6"
-                  onClick={() => {
-                    setEditTitle(folder.orderTitle);
-                    setIsEditingTitle(true);
-                  }}
-                >
-                  <Edit2 className="h-3 w-3 text-gray-400" />
-                </Button>
-              </>
-            )}
-
-            {/* 업로드 시각 */}
-            {folder.uploadedAt && (
-              <span className="ml-auto flex items-center gap-1 text-[10px] text-gray-400">
-                <Clock className="h-3 w-3" />
-                {new Date(folder.uploadedAt).toLocaleString(undefined, {
-                  month: '2-digit', day: '2-digit',
-                  hour: '2-digit', minute: '2-digit',
-                })}
-              </span>
-            )}
-
-            {/* 상태 배지 */}
-            <Badge className={cn(folder.uploadedAt ? '' : 'ml-auto', actualStatus.badgeColor)}>
-              {actualStatus.icon}
-              <span className="ml-1">
-                {folder.isApproved && folder.validationStatus === 'RATIO_MATCH' ? t('normalOrder') : statusLabels[folder.validationStatus]}
-              </span>
-            </Badge>
-          </div>
-
-          {/* 규격 · 편집 · 제본 (한 줄) */}
-          <div className="flex items-center gap-2 text-xs text-gray-600 mb-1 flex-wrap">
-            <span>{folder.fileSpecLabel}</span>
-            <ArrowRight className="w-3 h-3 text-gray-400" />
-            {folder.availableSizes.length > 1 ? (
-              <select
-                value={`${folder.albumWidth}x${folder.albumHeight}`}
-                onChange={(e) => {
-                  const [w, h] = e.target.value.split('x').map(Number);
-                  const selectedSize = folder.availableSizes.find(
-                    (s) => s.width === w && s.height === h
-                  );
-                  if (selectedSize) {
-                    changeFolderSpec(folder.id, selectedSize);
-                  }
-                }}
-                className="text-xs border rounded px-2 py-0.5 bg-white text-blue-600 font-medium"
-                aria-label={t('albumSpecSelect')}
-              >
-                {folder.availableSizes.map((size) => (
-                  <option key={size.label} value={`${size.width}x${size.height}`}>
-                    {size.label}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <span className="text-blue-600 font-medium">{folder.albumLabel}</span>
-            )}
-            <span className="text-gray-300">|</span>
-            {folder.isAutoDetected && (
-              <span className="text-[9px] text-blue-500 bg-blue-50 px-1 rounded">{tc('auto')}</span>
-            )}
-            <div className="flex border rounded overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setFolderPageLayout(folder.id, 'single')}
-                className={cn(
-                  'px-1.5 py-0.5 text-[10px] flex items-center gap-0.5 transition-colors',
-                  folder.pageLayout === 'single'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                )}
-              >
-                <FileText className="w-2.5 h-2.5" />{t('single')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setFolderPageLayout(folder.id, 'spread')}
-                className={cn(
-                  'px-1.5 py-0.5 text-[10px] flex items-center gap-0.5 transition-colors',
-                  folder.pageLayout === 'spread'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                )}
-              >
-                <BookOpen className="w-2.5 h-2.5" />{t('spread')}
-              </button>
-            </div>
-            {folder.pageLayout === 'spread' && (
-              <>
-                <span className="text-gray-300">|</span>
-                <select
-                  value={folder.bindingDirection || 'LEFT_START_RIGHT_END'}
-                  onChange={(e) => setFolderBindingDirection(folder.id, e.target.value as BindingDirection)}
-                  className="text-[10px] border rounded px-1 py-0.5 bg-white"
-                  aria-label={t('bindingSelect')}
-                >
-                  <option value="LEFT_START_RIGHT_END">{t('bindingLeftRight')}</option>
-                  <option value="LEFT_START_LEFT_END">{t('bindingLeftLeft')}</option>
-                  <option value="RIGHT_START_LEFT_END">{t('bindingRightLeft')}</option>
-                  <option value="RIGHT_START_RIGHT_END">{t('bindingRightRight')}</option>
-                </select>
-                {folder.autoBindingDetected && (
-                  <span className="text-[9px] text-green-600 bg-green-50 px-1 rounded" title={`${t('firstPage')} ${folder.firstPageBlank ? t('blankPageLabel') : t('normalPageLabel')} / ${t('lastPage')} ${folder.lastPageBlank ? t('blankPageLabel') : t('normalPageLabel')}`}>
-                    {t('autoDetected')}
-                  </span>
-                )}
-              </>
-            )}
-          </div>
-
-          {/* 파일정보 · 페이지순서 (한 줄) */}
-          <div className="flex items-center gap-1.5 flex-wrap text-xs text-gray-500">
-            <span>{folder.dpi}dpi</span>
-            <span className="text-gray-300">/</span>
-            <span>{t('pageCount', { count: folder.files.length })}→<span className="font-medium text-blue-600">{t('pages', { count: folder.pageCount })}</span></span>
-            {folder.hasCombinedCover && <span className="text-pink-500 text-[10px]">({t('combinedCoverSplit')})</span>}
-            <span className="text-gray-300">/</span>
-            <span>{formatFileSize(folder.totalFileSize)}</span>
-            <span className="text-gray-300 ml-1">|</span>
-            <span className="text-[10px] text-blue-500">■</span>
-            <span className="text-[10px] text-purple-500">■</span>
-            {getPageOrderDisplay()}
-          </div>
-        </div>
-
-        {/* 가격 표시 */}
-        <div className="text-right flex-shrink-0">
-          <div className="text-lg font-bold text-primary">
-            {t('priceWon', { price: folderPrice.totalPrice.toLocaleString() })}
-          </div>
-          <div className="text-[10px] text-gray-400">
-            {t('priceFormulaUnit', {
-              perPage: folderPrice.pricePerPage.toLocaleString(),
-              pages: folderPrice.pageCount,
-              printPrice: folderPrice.printPrice.toLocaleString(),
-              cover: folderPrice.coverPrice.toLocaleString(),
-              unitPrice: folderPrice.unitPrice.toLocaleString(),
-            })}
-          </div>
-          <div className="text-[10px] text-gray-400">
-            {t('priceFormulaTotal', {
-              unitPrice: folderPrice.unitPrice.toLocaleString(),
-              qty: folder.quantity,
-              subtotal: folderPrice.subtotal.toLocaleString(),
-              tax: folderPrice.tax.toLocaleString(),
-              total: folderPrice.totalPrice.toLocaleString(),
-            })}
-          </div>
-        </div>
-
-        {/* 삭제 버튼 */}
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-8 w-8 text-gray-400 hover:text-red-500"
-          onClick={() => removeFolder(folder.id)}
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </div>
-
       {/* 첫막장 분리 결과 표시 */}
       {folder.hasCombinedCover && folder.splitCoverResults.length > 0 && (
         <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
@@ -917,47 +710,98 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
               );
             };
 
-            // 낱장: 2p씩 묶어서 외각박스 표시
+            // 낱장: 2p씩 묶어서 외각박스 + 가상 빈페이지 표시
             if (folder.pageLayout === 'single') {
               const dir = folder.bindingDirection || 'LEFT_START_RIGHT_END';
               const startsRight = dir.startsWith('RIGHT');
-              const pairs: number[][] = [];
+              const totalFiles = folder.files.length;
+              const isOdd = totalFiles % 2 === 1;
+              // Rule 4: 홀수+우시작→우끝, 홀수+좌시작→좌끝
+              // Rule 5: 짝수+우시작→좌끝, 짝수+좌시작→우끝
+              const endsLeft = startsRight ? !isOdd : isOdd;
+
+              // 기본 종횡비 (첫 파일 기준)
+              const defaultAspect = folder.files[0]
+                ? (folder.files[0].heightPx / folder.files[0].widthPx) * 100
+                : 133;
+
+              // 빈페이지 슬롯 렌더링
+              const renderBlankSlot = () => (
+                <div className="flex flex-col">
+                  <div
+                    className="relative rounded-md border-2 border-dashed border-blue-400 bg-blue-50/20"
+                    style={{ paddingTop: `${defaultAspect}%` }}
+                  />
+                </div>
+              );
+
+              // 스프레드(2p) 구성
+              type SpreadSlot = { type: 'page'; fileIndex: number } | { type: 'blank' };
+              const spreads: Array<{ left: SpreadSlot; right: SpreadSlot }> = [];
               let i = 0;
-              if (startsRight && folder.files.length > 0) {
-                pairs.push([0]); // 첫 페이지 단독 (우시작)
+
+              if (startsRight && totalFiles > 0) {
+                // Rule 1: 우시작 → 첫 페이지 왼쪽에 빈페이지
+                spreads.push({
+                  left: { type: 'blank' },
+                  right: { type: 'page', fileIndex: 0 },
+                });
                 i = 1;
               }
-              while (i < folder.files.length) {
-                if (i + 1 < folder.files.length) {
-                  pairs.push([i, i + 1]);
+
+              while (i < totalFiles) {
+                if (i + 1 < totalFiles) {
+                  spreads.push({
+                    left: { type: 'page', fileIndex: i },
+                    right: { type: 'page', fileIndex: i + 1 },
+                  });
                   i += 2;
                 } else {
-                  pairs.push([i]);
+                  // Rule 2: 왼쪽 끝 → 오른쪽에 빈페이지
+                  spreads.push({
+                    left: { type: 'page', fileIndex: i },
+                    right: { type: 'blank' },
+                  });
                   i++;
                 }
               }
 
               return (
                 <div className="grid grid-cols-4 gap-3 p-2 bg-gray-50 rounded-lg border">
-                  {pairs.map((pair, pairIdx) => (
-                    <div
-                      key={pairIdx}
-                      className={cn(
-                        'border-2 border-dashed rounded-lg p-1',
-                        pair.length === 1 ? 'border-yellow-400 bg-yellow-50/30' : 'border-orange-300 bg-orange-50/20'
-                      )}
-                    >
-                      <div className="text-[8px] text-center text-orange-500 mb-0.5 font-medium">
-                        {pair.length === 2
-                          ? `S${pairIdx + 1} (p${folder.files[pair[0]].pageNumber}-${folder.files[pair[1]].pageNumber})`
-                          : `p${folder.files[pair[0]].pageNumber}`
-                        }
+                  {spreads.map((spread, spreadIdx) => {
+                    const leftFile = spread.left.type === 'page' ? folder.files[spread.left.fileIndex] : null;
+                    const rightFile = spread.right.type === 'page' ? folder.files[spread.right.fileIndex] : null;
+                    const hasBoth = !!leftFile && !!rightFile;
+                    const label = hasBoth
+                      ? `S${spreadIdx + 1} (p${leftFile!.pageNumber}-${rightFile!.pageNumber})`
+                      : leftFile
+                        ? `p${leftFile.pageNumber}`
+                        : rightFile
+                          ? `p${rightFile.pageNumber}`
+                          : '';
+
+                    return (
+                      <div
+                        key={spreadIdx}
+                        className={cn(
+                          'border-2 border-dashed rounded-lg p-1',
+                          !hasBoth ? 'border-yellow-400 bg-yellow-50/30' : 'border-orange-300 bg-orange-50/20'
+                        )}
+                      >
+                        <div className="text-[8px] text-center text-orange-500 mb-0.5 font-medium">
+                          {label}
+                        </div>
+                        <div className="grid grid-cols-2 gap-1">
+                          {spread.left.type === 'page'
+                            ? renderThumbnail(folder.files[spread.left.fileIndex], spread.left.fileIndex)
+                            : renderBlankSlot()}
+                          {spread.right.type === 'page'
+                            ? renderThumbnail(folder.files[spread.right.fileIndex], spread.right.fileIndex)
+                            : renderBlankSlot()}
+                        </div>
                       </div>
-                      <div className={cn('grid gap-1', pair.length === 2 ? 'grid-cols-2' : 'grid-cols-1 max-w-[50%] mx-auto')}>
-                        {pair.map(fileIdx => renderThumbnail(folder.files[fileIdx], fileIdx))}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               );
             }
@@ -971,6 +815,237 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
           })()}
         </CollapsibleContent>
       </Collapsible>
+
+      {/* 헤더 (체크박스 + 제목 + 가격) */}
+      <div className="flex items-start gap-3 mt-3">
+        {/* 체크박스 */}
+        <div className="pt-1">
+          <Checkbox
+            checked={folder.isSelected}
+            disabled={!canSelect}
+            onCheckedChange={(checked) => setFolderSelected(folder.id, !!checked)}
+            className={cn(
+              'h-5 w-5',
+              canSelect ? 'data-[state=checked]:bg-green-600' : 'opacity-50 cursor-not-allowed'
+            )}
+          />
+        </div>
+
+        {/* 폴더 아이콘 */}
+        <Folder className="h-5 w-5 text-gray-400 mt-1 flex-shrink-0" />
+
+        {/* 제목 및 정보 */}
+        <div className="flex-1 min-w-0">
+          {/* 제목 행 */}
+          <div className="flex items-center gap-2 mb-1">
+            {isEditingTitle ? (
+              <div className="flex items-center gap-1 flex-1">
+                <Input
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="h-7 text-sm"
+                  autoFocus
+                  onKeyDown={(e) => e.key === 'Enter' && handleSaveTitle()}
+                />
+                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={handleSaveTitle}>
+                  <Check className="h-4 w-4" />
+                </Button>
+                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setIsEditingTitle(false)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <>
+                <span className="font-medium truncate">{folder.orderTitle}</span>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6"
+                  onClick={() => {
+                    setEditTitle(folder.orderTitle);
+                    setIsEditingTitle(true);
+                  }}
+                >
+                  <Edit2 className="h-3 w-3 text-gray-400" />
+                </Button>
+              </>
+            )}
+
+            {/* 업로드 시각 */}
+            {folder.uploadedAt && (
+              <span className="ml-auto flex items-center gap-1 text-[10px] text-gray-400">
+                <Clock className="h-3 w-3" />
+                {new Date(folder.uploadedAt).toLocaleString(undefined, {
+                  month: '2-digit', day: '2-digit',
+                  hour: '2-digit', minute: '2-digit',
+                })}
+              </span>
+            )}
+
+            {/* 상태 배지 */}
+            <Badge className={cn(folder.uploadedAt ? '' : 'ml-auto', actualStatus.badgeColor)}>
+              {actualStatus.icon}
+              <span className="ml-1">
+                {folder.isApproved && folder.validationStatus === 'RATIO_MATCH' ? t('normalOrder') : statusLabels[folder.validationStatus]}
+              </span>
+            </Badge>
+          </div>
+        </div>
+
+        {/* 가격 표시 */}
+        <div className="text-right flex-shrink-0">
+          <div className="text-lg font-bold text-primary">
+            {t('priceWon', { price: folderPrice.totalPrice.toLocaleString() })}
+          </div>
+          <div className="text-[10px] text-gray-400">
+            {t('priceFormulaUnit', {
+              perPage: folderPrice.pricePerPage.toLocaleString(),
+              pages: folderPrice.pageCount,
+              printPrice: folderPrice.printPrice.toLocaleString(),
+              cover: folderPrice.coverPrice.toLocaleString(),
+              unitPrice: folderPrice.unitPrice.toLocaleString(),
+            })}
+          </div>
+          <div className="text-[10px] text-gray-400">
+            {t('priceFormulaTotal', {
+              unitPrice: folderPrice.unitPrice.toLocaleString(),
+              qty: folder.quantity,
+              subtotal: folderPrice.subtotal.toLocaleString(),
+              tax: folderPrice.tax.toLocaleString(),
+              total: folderPrice.totalPrice.toLocaleString(),
+            })}
+          </div>
+        </div>
+
+        {/* 삭제 버튼 */}
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-8 w-8 text-gray-400 hover:text-red-500"
+          onClick={() => removeFolder(folder.id)}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {/* 규격 · 편집 · 제본 (한 줄) - 썸네일 아래 */}
+      <div className="flex items-center gap-2 text-xs text-gray-600 mt-3 mb-1 flex-wrap">
+        <span>{folder.fileSpecLabel}</span>
+        <ArrowRight className="w-3 h-3 text-gray-400" />
+        {folder.availableSizes.length > 1 ? (
+          <select
+            value={`${folder.albumWidth}x${folder.albumHeight}`}
+            onChange={(e) => {
+              const [w, h] = e.target.value.split('x').map(Number);
+              const selectedSize = folder.availableSizes.find(
+                (s) => s.width === w && s.height === h
+              );
+              if (selectedSize) {
+                changeFolderSpec(folder.id, selectedSize);
+              }
+            }}
+            className="text-xs border rounded px-2 py-0.5 bg-white text-blue-600 font-medium"
+            aria-label={t('albumSpecSelect')}
+          >
+            {folder.availableSizes.map((size) => (
+              <option key={size.label} value={`${size.width}x${size.height}`}>
+                {size.label}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <span className="text-blue-600 font-medium">{folder.albumLabel}</span>
+        )}
+        <span className="text-gray-300">|</span>
+        {folder.isAutoDetected && (
+          <span className="text-[9px] text-blue-500 bg-blue-50 px-1 rounded">{tc('auto')}</span>
+        )}
+        <div className="flex border rounded overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setFolderPageLayout(folder.id, 'single')}
+            className={cn(
+              'px-1.5 py-0.5 text-[10px] flex items-center gap-0.5 transition-colors',
+              folder.pageLayout === 'single'
+                ? 'bg-blue-500 text-white'
+                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+            )}
+          >
+            <FileText className="w-2.5 h-2.5" />{t('single')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setFolderPageLayout(folder.id, 'spread')}
+            className={cn(
+              'px-1.5 py-0.5 text-[10px] flex items-center gap-0.5 transition-colors',
+              folder.pageLayout === 'spread'
+                ? 'bg-blue-500 text-white'
+                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+            )}
+          >
+            <BookOpen className="w-2.5 h-2.5" />{t('spread')}
+          </button>
+        </div>
+        {folder.pageLayout === 'spread' && (
+          <>
+            <span className="text-gray-300">|</span>
+            <select
+              value={folder.bindingDirection || 'LEFT_START_RIGHT_END'}
+              onChange={(e) => setFolderBindingDirection(folder.id, e.target.value as BindingDirection)}
+              className="text-[10px] border rounded px-1 py-0.5 bg-white"
+              aria-label={t('bindingSelect')}
+            >
+              <option value="LEFT_START_RIGHT_END">{t('bindingLeftRight')}</option>
+              <option value="LEFT_START_LEFT_END">{t('bindingLeftLeft')}</option>
+              <option value="RIGHT_START_LEFT_END">{t('bindingRightLeft')}</option>
+              <option value="RIGHT_START_RIGHT_END">{t('bindingRightRight')}</option>
+            </select>
+            {folder.autoBindingDetected && (
+              <span className="text-[9px] text-green-600 bg-green-50 px-1 rounded" title={`${t('firstPage')} ${folder.firstPageBlank ? t('blankPageLabel') : t('normalPageLabel')} / ${t('lastPage')} ${folder.lastPageBlank ? t('blankPageLabel') : t('normalPageLabel')}`}>
+                {t('autoDetected')}
+              </span>
+            )}
+          </>
+        )}
+        {folder.pageLayout === 'single' && (
+          <>
+            <span className="text-gray-300">|</span>
+            <select
+              value={(folder.bindingDirection || 'LEFT_START_RIGHT_END').startsWith('RIGHT') ? 'RIGHT' : 'LEFT'}
+              onChange={(e) => {
+                const dir: BindingDirection = e.target.value === 'RIGHT'
+                  ? 'RIGHT_START_LEFT_END'
+                  : 'LEFT_START_RIGHT_END';
+                setFolderBindingDirection(folder.id, dir);
+              }}
+              className="text-[10px] border rounded px-1 py-0.5 bg-white"
+              aria-label={t('bindingSelect')}
+            >
+              <option value="LEFT">{t('bindingStartLeft')}</option>
+              <option value="RIGHT">{t('bindingStartRight')}</option>
+            </select>
+            {folder.autoBindingDetected && (
+              <span className="text-[9px] text-green-600 bg-green-50 px-1 rounded">
+                {t('autoDetected')}
+              </span>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* 파일정보 · 페이지순서 (한 줄) */}
+      <div className="flex items-center gap-1.5 flex-wrap text-xs text-gray-500">
+        <span>{folder.dpi}dpi</span>
+        <span className="text-gray-300">/</span>
+        <span>{t('pageCount', { count: folder.files.length })}→<span className="font-medium text-blue-600">{t('pages', { count: folder.pageCount })}</span></span>
+        {folder.hasCombinedCover && <span className="text-pink-500 text-[10px]">({t('combinedCoverSplit')})</span>}
+        <span className="text-gray-300">/</span>
+        <span>{formatFileSize(folder.totalFileSize)}</span>
+        <span className="text-gray-300 ml-1">|</span>
+        <span className="text-[10px] text-blue-500">■</span>
+        <span className="text-[10px] text-purple-500">■</span>
+        {getPageOrderDisplay()}
+      </div>
 
       {/* 정상/승인 완료 시 - 규격 옵션 및 수량 */}
       {canSelect && (
@@ -1093,10 +1168,25 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                       <div className="flex-1 min-w-0">
                         {/* 폴더명 + 가격 */}
                         <div className="flex items-center justify-between mb-1.5">
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <Folder className="h-3 w-3 text-orange-500" />
                             <span className="text-[10px] font-bold text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded">{t('additionalSetOrder')}</span>
                             <span className="text-xs font-medium text-gray-700 truncate">{folder.orderTitle}</span>
+                            <span className="text-gray-300">|</span>
+                            <span className="text-[10px] text-gray-500">
+                              {folder.pageLayout === 'single' ? t('single') : t('spread')}
+                            </span>
+                            {folder.pageLayout === 'spread' && folder.bindingDirection && (
+                              <>
+                                <span className="text-gray-300">|</span>
+                                <span className="text-[10px] text-gray-500">
+                                  {folder.bindingDirection === 'LEFT_START_RIGHT_END' ? t('bindingLeftRight') :
+                                   folder.bindingDirection === 'LEFT_START_LEFT_END' ? t('bindingLeftLeft') :
+                                   folder.bindingDirection === 'RIGHT_START_LEFT_END' ? t('bindingRightLeft') :
+                                   t('bindingRightRight')}
+                                </span>
+                              </>
+                            )}
                           </div>
                           <div className="text-right flex-shrink-0">
                             <span className="text-sm font-bold text-primary">{t('priceWon', { price: orderPrice.totalPrice.toLocaleString() })}</span>

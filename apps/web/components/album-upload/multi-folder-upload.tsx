@@ -2033,7 +2033,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
               className="bg-green-600 hover:bg-green-700"
             >
               <ShoppingCart className="w-4 h-4 mr-2" />
-              {tu('addToCartSelected', { count: totalPriceInfo.totalOrderCount })}
+              {tu('addToCartSelected', { count: totalPriceInfo.totalOrderCount, qty: totalPriceInfo.totalQuantity })}
             </Button>
           </div>
         </>

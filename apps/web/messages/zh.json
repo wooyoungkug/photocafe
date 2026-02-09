@@ -273,7 +273,7 @@
     "batchShippingTitle": "批量配送信息设置",
     "applyToAll": "应用到所有文件夹",
     "selectFoldersToOrder": "请选择要下单的文件夹",
-    "addToCartSelected": "将所选项加入购物车 ({count}项)",
+    "addToCartSelected": "将所选项加入购物车 ({count}项{qty}份)",
     "noSelectableFolders": "没有可选文件夹",
     "normalOrder": "正常订单",
     "selectedOrder": "已选订单 ({count}项, {qty}份)",
@@ -364,7 +364,9 @@
     "normalOrder": "正常订单",
     "rejectMismatchFiles": "拒绝受理 — {count}个规格不匹配的文件",
     "blankPageLabel": "空白页",
-    "normalPageLabel": "正常"
+    "normalPageLabel": "正常",
+    "bindingStartLeft": "左起",
+    "bindingStartRight": "右起"
   },
   "shipping": {
     "sender": "发货地",

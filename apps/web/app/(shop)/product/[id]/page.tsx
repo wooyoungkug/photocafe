@@ -146,8 +146,6 @@ export default function ProductPage() {
 
   // 제작가능규격 섹션 펼침 상태
   const [isSpecExpanded, setIsSpecExpanded] = useState(false);
-  // 제본방법 섹션 펼침 상태
-  const [isBindingExpanded, setIsBindingExpanded] = useState(false);
   // 동판 리스트 펼침 상태
   const [isCopperPlateListExpanded, setIsCopperPlateListExpanded] = useState(true);
 
@@ -722,64 +720,42 @@ export default function ProductPage() {
 
             {/* Options */}
             <div className="space-y-6">
-              {/* Binding - collapsible */}
+              {/* Binding */}
               {product.bindings && product.bindings.length > 0 && (
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => setIsBindingExpanded(!isBindingExpanded)}
-                    className="w-full flex items-center justify-between font-medium mb-2 hover:text-primary transition-colors"
-                  >
-                    <span className="flex items-center gap-2">
-                      {t('bindingMethod')}
-                      {selectedOptions.binding && (
-                        <Badge variant="secondary" className="text-xs font-normal">
-                          {selectedOptions.binding.name.split(' - ')[0]}
-                        </Badge>
-                      )}
-                    </span>
-                    {isBindingExpanded ? (
-                      <ChevronUp className="h-4 w-4 text-gray-500" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4 text-gray-500" />
-                    )}
-                  </button>
-
-                  {isBindingExpanded && (
-                    <div className="border rounded-lg p-3 bg-gray-50">
-                      <RadioGroup
-                        value={selectedOptions.binding?.id}
-                        onValueChange={(value) => {
-                          const binding = product.bindings?.find(b => b.id === value);
-                          setSelectedOptions(prev => ({
-                            ...prev,
-                            binding,
-                            printSide: binding ? getDefaultPrintSideByBinding(binding.name) : prev.printSide,
-                          }));
-                        }}
-                        className="grid grid-cols-2 gap-2"
-                      >
-                        {product.bindings.map((binding) => (
-                          <Label
-                            key={binding.id}
-                            className={cn(
-                              "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors bg-white",
-                              selectedOptions.binding?.id === binding.id
-                                ? "border-primary bg-primary/5"
-                                : "hover:border-gray-400"
-                            )}
-                          >
-                            <RadioGroupItem value={binding.id} />
-                            <span className="flex-1">{binding.name.split(' - ')[0]}</span>
-                            {binding.price > 0 && (
-                              <span className="text-sm text-primary">+{binding.price.toLocaleString()}</span>
-                            )}
-                          </Label>
-                        ))}
-                      </RadioGroup>
-                    </div>
-                  )}
-                </div>
+                <OptionSection title={t('bindingMethod')}>
+                  <div className="grid grid-cols-2 gap-2">
+                    <RadioGroup
+                      value={selectedOptions.binding?.id}
+                      onValueChange={(value) => {
+                        const binding = product.bindings?.find(b => b.id === value);
+                        setSelectedOptions(prev => ({
+                          ...prev,
+                          binding,
+                          printSide: binding ? getDefaultPrintSideByBinding(binding.name) : prev.printSide,
+                        }));
+                      }}
+                      className="grid grid-cols-2 gap-2 col-span-2"
+                    >
+                      {product.bindings.map((binding) => (
+                        <Label
+                          key={binding.id}
+                          className={cn(
+                            "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors bg-white",
+                            selectedOptions.binding?.id === binding.id
+                              ? "border-primary bg-primary/5"
+                              : "hover:border-gray-400"
+                          )}
+                        >
+                          <RadioGroupItem value={binding.id} />
+                          <span className="flex-1">{binding.name.split(' - ')[0]}</span>
+                          {binding.price > 0 && (
+                            <span className="text-sm text-primary">+{binding.price.toLocaleString()}</span>
+                          )}
+                        </Label>
+                      ))}
+                    </RadioGroup>
+                  </div>
+                </OptionSection>
               )}
 
               {/* Paper - 종류별 그룹화 (isActive인 용지만 표시) */}
@@ -1270,23 +1246,25 @@ export default function ProductPage() {
                       <button
                         type="button"
                         onClick={() => setIsCopperPlateListExpanded(true)}
-                        className="w-full flex items-center gap-3 p-2 border-2 border-primary rounded-md bg-primary/5 hover:bg-primary/10 transition-colors text-left"
+                        className="w-full flex items-center gap-2 p-2 border-2 border-primary rounded-md bg-primary/5 hover:bg-primary/10 transition-colors text-left"
                       >
                         {selectedOptions.ownedCopperPlate.imageUrl && (
                           <img
                             src={normalizeImageUrl(selectedOptions.ownedCopperPlate.imageUrl)}
                             alt={selectedOptions.ownedCopperPlate.plateName}
-                            className="w-12 h-12 object-cover rounded"
+                            className="w-8 h-8 object-cover rounded"
                           />
                         )}
-                        <div className="flex-1">
-                          <div className="font-medium text-sm">{selectedOptions.ownedCopperPlate.plateName}</div>
-                          <div className="text-xs text-gray-500">
-                            {selectedOptions.ownedCopperPlate.foilColorName && <span className="mr-2">{selectedOptions.ownedCopperPlate.foilColorName}</span>}
-                            {selectedOptions.ownedCopperPlate.plateType === 'copper' ? t('copperType') : t('leadType')}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1 text-xs text-primary">
+                        <span className="font-medium text-sm">{selectedOptions.ownedCopperPlate.plateName}</span>
+                        {selectedOptions.ownedCopperPlate.foilColorName && (
+                          <>
+                            <span className="text-gray-300">|</span>
+                            <span className="text-xs text-gray-500">{selectedOptions.ownedCopperPlate.foilColorName}</span>
+                          </>
+                        )}
+                        <span className="text-gray-300">|</span>
+                        <span className="text-xs text-gray-500">{selectedOptions.ownedCopperPlate.plateType === 'copper' ? t('copperType') : t('leadType')}</span>
+                        <div className="flex items-center gap-1 text-xs text-primary ml-auto">
                           <span>{t('change')}</span>
                           <ChevronDown className="h-3 w-3" />
                         </div>
@@ -1617,7 +1595,7 @@ export default function ProductPage() {
                   </button>
 
                   {isSpecExpanded && (
-                    <div className="max-h-[240px] overflow-y-auto pr-1 border rounded-lg p-3 bg-gray-50">
+                    <div className="border rounded-lg p-3 bg-gray-50">
                       <RadioGroup
                         value={selectedOptions.specification?.id}
                         onValueChange={(value) => {
