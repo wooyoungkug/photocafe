@@ -290,10 +290,10 @@ export const usePhotobookOrderStore = create<PhotobookOrderState>((set, get) => 
 // 헬퍼 함수
 function getBindingDirectionLabel(direction: BindingDirection): string {
   const labels: Record<BindingDirection, string> = {
-    LEFT_START_RIGHT_END: '좌시작→우끝',
-    LEFT_START_LEFT_END: '좌시작→좌끝',
-    RIGHT_START_LEFT_END: '우시작→좌끝',
-    RIGHT_START_RIGHT_END: '우시작→우끝',
+    LEFT_START_RIGHT_END: '좌시우끝',
+    LEFT_START_LEFT_END: '좌시좌끝',
+    RIGHT_START_LEFT_END: '우시좌끝',
+    RIGHT_START_RIGHT_END: '우시우끝',
   };
   return labels[direction];
 }

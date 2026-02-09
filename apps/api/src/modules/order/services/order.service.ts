@@ -62,6 +62,13 @@ export class OrderService {
   }) {
     const { skip = 0, take = 20, search, clientId, status, startDate, endDate, isUrgent } = params;
 
+    // endDate가 날짜만 있으면 해당일 끝(23:59:59.999)까지 포함
+    let adjustedEndDate = endDate;
+    if (endDate) {
+      adjustedEndDate = new Date(endDate);
+      adjustedEndDate.setHours(23, 59, 59, 999);
+    }
+
     const where: Prisma.OrderWhereInput = {
       ...(search && {
         OR: [
@@ -72,11 +79,11 @@ export class OrderService {
       ...(clientId && { clientId }),
       ...(status && { status }),
       ...(isUrgent !== undefined && { isUrgent }),
-      ...(startDate || endDate
+      ...(startDate || adjustedEndDate
         ? {
           orderedAt: {
             ...(startDate && { gte: startDate }),
-            ...(endDate && { lte: endDate }),
+            ...(adjustedEndDate && { lte: adjustedEndDate }),
           },
         }
         : {}),
@@ -95,6 +102,7 @@ export class OrderService {
               clientName: true,
             },
           },
+          shipping: true,
           items: {
             select: {
               id: true,
@@ -111,6 +119,8 @@ export class OrderService {
               finishingOptions: true,
               thumbnailUrl: true,
               totalFileSize: true,
+              pageLayout: true,
+              bindingDirection: true,
               quantity: true,
               unitPrice: true,
               totalPrice: true,
@@ -122,6 +132,7 @@ export class OrderService {
                 orderBy: { sortOrder: 'asc' },
                 take: 1,
               },
+              shipping: true,
             },
           },
           _count: {
@@ -216,6 +227,8 @@ export class OrderService {
           thumbnailUrl: item.thumbnailUrl,
           totalFileSize: item.totalFileSize ? BigInt(item.totalFileSize) : BigInt(0),
           folderName: item.folderName,
+          pageLayout: item.pageLayout,
+          bindingDirection: item.bindingDirection,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
           totalPrice,
@@ -243,6 +256,11 @@ export class OrderService {
           } : {}),
         };
       });
+
+      // 항목별 배송비가 없으면 주문 단위 배송비 사용
+      if (totalShippingFee === 0 && dto.shippingFee) {
+        totalShippingFee = dto.shippingFee;
+      }
 
       const tax = Math.round(productPrice * 0.1); // 부가세 10%
       const totalAmount = productPrice + tax;
@@ -643,6 +661,8 @@ export class OrderService {
                 finishingOptions: item.finishingOptions,
                 thumbnailUrl: item.thumbnailUrl,
                 totalFileSize: item.totalFileSize,
+                pageLayout: item.pageLayout,
+                bindingDirection: item.bindingDirection,
                 quantity: item.quantity,
                 unitPrice: item.unitPrice,
                 totalPrice: item.totalPrice,

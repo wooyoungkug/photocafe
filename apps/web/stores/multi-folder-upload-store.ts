@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { calculateNormalizedRatio, type SizeMatchStatus } from '@/lib/album-utils';
 import { useCartStore } from '@/stores/cart-store';
+import type { PhotoColorInfo, ColorGroup } from '@/lib/color-analysis';
+import { analyzeAndGroupPhotos } from '@/lib/color-analysis';
 
 // 비율 허용 오차
 const RATIO_TOLERANCE = 0.01;
@@ -136,6 +138,9 @@ export interface UploadedFile {
   // 검증 결과
   status: SizeMatchStatus;
   message?: string;
+
+  // 색상 분석 (의상 그룹핑용)
+  colorInfo?: PhotoColorInfo;
 }
 
 // 발송지 유형
@@ -258,6 +263,10 @@ export interface UploadedFolder {
   // 배송 정보
   shippingInfo?: FolderShippingInfo;
 
+  // 색상 그룹핑
+  colorGroups?: ColorGroup[];
+  colorGroupingEnabled?: boolean;
+
   // 업로드 시각
   uploadedAt: number; // Date.now()
 }
@@ -294,6 +303,7 @@ interface MultiFolderUploadState {
   setFolderTitle: (folderId: string, title: string) => void;
   setFolderQuantity: (folderId: string, quantity: number) => void;
   setFolderSelected: (folderId: string, selected: boolean) => void;
+  selectAllFolders: (selected: boolean) => void;
   approveFolder: (folderId: string) => void;
 
   // 주문 유형 변경
@@ -320,6 +330,11 @@ interface MultiFolderUploadState {
 
   // 파일 순서 변경 (드래그 앤 드롭)
   reorderFolderFiles: (folderId: string, fromIndex: number, toIndex: number) => void;
+
+  // 색상 그룹핑
+  setFileColorInfo: (folderId: string, fileId: string, colorInfo: PhotoColorInfo) => void;
+  computeColorGroups: (folderId: string) => void;
+  toggleColorGrouping: (folderId: string) => void;
 
   // 배송 정보
   setFolderShipping: (folderId: string, shipping: FolderShippingInfo) => void;
@@ -400,6 +415,21 @@ export function calculateAlbumSize(
       albumHeight: fileHeight,
     };
   }
+}
+
+/**
+ * 폴더명/파일명에서 제본 방향 키워드를 감지
+ * 좌시작, Left, 왼쪽, 우시작, Right, 오른쪽, 왼왼, LL, 우우, RR 등
+ */
+export function detectBindingFromName(name: string): BindingDirection | null {
+  const lower = name.toLowerCase();
+  // 양쪽 조합 먼저 체크 (왼왼, LL, 우우, RR)
+  if (/왼왼|좌좌|ll(?![a-z])/.test(lower)) return 'LEFT_START_LEFT_END';
+  if (/우우|rr(?![a-z])/.test(lower)) return 'RIGHT_START_RIGHT_END';
+  // 단방향 (좌시작 = Left start, 우시작 = Right start)
+  if (/좌시작|left|왼쪽/.test(lower)) return 'LEFT_START_RIGHT_END';
+  if (/우시작|right|오른쪽/.test(lower)) return 'RIGHT_START_LEFT_END';
+  return null;
 }
 
 // 편집스타일 자동감지: 파일 치수를 표준규격과 비교하여 single/spread 판별
@@ -690,6 +720,17 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
       folders: state.folders.map(f =>
         f.id === folderId ? { ...f, isSelected: selected } : f
       ),
+    }));
+  },
+
+  selectAllFolders: (selected) => {
+    set(state => ({
+      folders: state.folders.map(f => {
+        const canSelect =
+          f.validationStatus === 'EXACT_MATCH' ||
+          (f.validationStatus === 'RATIO_MATCH' && f.isApproved);
+        return canSelect ? { ...f, isSelected: selected } : f;
+      }),
     }));
   },
 
@@ -1061,6 +1102,58 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
     }));
   },
 
+  // 색상 그룹핑
+  setFileColorInfo: (folderId: string, fileId: string, colorInfo: PhotoColorInfo) => {
+    set(state => ({
+      folders: state.folders.map(f => {
+        if (f.id !== folderId) return f;
+        return {
+          ...f,
+          files: f.files.map(file =>
+            file.id === fileId ? { ...file, colorInfo } : file
+          ),
+        };
+      }),
+    }));
+  },
+
+  computeColorGroups: (folderId: string) => {
+    set(state => ({
+      folders: state.folders.map(f => {
+        if (f.id !== folderId) return f;
+        // 내지 페이지만 그룹핑 (표지 제외)
+        const innerFiles = f.files.filter(
+          file => file.coverType === 'INNER_PAGE' && file.colorInfo
+        );
+        const { groups, fileColorMap } = analyzeAndGroupPhotos(innerFiles);
+        // 각 파일의 colorBucket/Label 업데이트
+        const updatedFiles = f.files.map(file => {
+          const mapping = fileColorMap.get(file.id);
+          if (mapping && file.colorInfo) {
+            return {
+              ...file,
+              colorInfo: {
+                ...file.colorInfo,
+                colorBucket: mapping.colorBucket,
+                colorBucketLabel: mapping.colorBucketLabel,
+              },
+            };
+          }
+          return file;
+        });
+        return { ...f, files: updatedFiles, colorGroups: groups };
+      }),
+    }));
+  },
+
+  toggleColorGrouping: (folderId: string) => {
+    set(state => ({
+      folders: state.folders.map(f =>
+        f.id === folderId ? { ...f, colorGroupingEnabled: !f.colorGroupingEnabled } : f
+      ),
+    }));
+  },
+
   // 배송 정보
   setFolderShipping: (folderId: string, shipping: FolderShippingInfo) => {
     set((state) => ({
@@ -1183,6 +1276,7 @@ export function calculateAdditionalOrderPrice(
  */
 export function calculateTotalUploadedPrice(folders: UploadedFolder[]): {
   folderPrices: Array<{ folderId: string; price: ReturnType<typeof calculateUploadedFolderPrice> }>;
+  totalOrderCount: number;
   totalQuantity: number;
   subtotal: number;
   tax: number;
@@ -1193,13 +1287,27 @@ export function calculateTotalUploadedPrice(folders: UploadedFolder[]): {
     price: calculateUploadedFolderPrice(folder),
   }));
 
-  const totalQuantity = folderPrices.reduce((sum, fp) => sum + fp.price.quantity, 0);
-  const subtotal = folderPrices.reduce((sum, fp) => sum + fp.price.subtotal, 0);
+  // 메인 주문 합계
+  let totalQuantity = folderPrices.reduce((sum, fp) => sum + fp.price.quantity, 0);
+  let subtotal = folderPrices.reduce((sum, fp) => sum + fp.price.subtotal, 0);
+
+  // 추가 주문(additionalOrders) 합계 포함
+  let totalOrderCount = folders.length; // 메인 주문 건수
+  folders.forEach(folder => {
+    folder.additionalOrders.forEach(order => {
+      const additionalPrice = calculateAdditionalOrderPrice(order, folder);
+      totalOrderCount += 1;
+      totalQuantity += additionalPrice.quantity;
+      subtotal += additionalPrice.subtotal;
+    });
+  });
+
   const tax = Math.round(subtotal * 0.1);
   const totalPrice = subtotal + tax;
 
   return {
     folderPrices,
+    totalOrderCount,
     totalQuantity,
     subtotal,
     tax,

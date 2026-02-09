@@ -64,14 +64,14 @@ const getDeliveryMethodLabel = (method: string) => {
 // 제본방향 라벨
 const getBindingDirectionLabel = (direction: string): string => {
   const labels: Record<string, string> = {
-    'LEFT_START_RIGHT_END': '좌→우',
-    'LEFT_START_LEFT_END': '좌→좌',
-    'RIGHT_START_LEFT_END': '우→좌',
-    'RIGHT_START_RIGHT_END': '우→우',
-    'ltr-rend': '좌→우',
-    'ltr-lend': '좌→좌',
-    'rtl-lend': '우→좌',
-    'rtl-rend': '우→우',
+    'LEFT_START_RIGHT_END': '좌시우끝',
+    'LEFT_START_LEFT_END': '좌시좌끝',
+    'RIGHT_START_LEFT_END': '우시좌끝',
+    'RIGHT_START_RIGHT_END': '우시우끝',
+    'ltr-rend': '좌시우끝',
+    'ltr-lend': '좌시좌끝',
+    'rtl-lend': '우시좌끝',
+    'rtl-rend': '우시우끝',
   };
   return labels[direction] || direction;
 };

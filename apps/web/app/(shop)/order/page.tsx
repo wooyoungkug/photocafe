@@ -401,6 +401,17 @@ export default function OrderPage() {
         await Promise.all(tasks);
       }
 
+      // 앨범 주문이 있으면 거래처 선호 패턴 자동 갱신 (실패해도 주문 흐름 차단하지 않음)
+      const prefClientId = clientInfo?.id || user?.id;
+      const albumOrders = items.filter(item => item.productType === 'album-order' && item.albumOrderInfo);
+      if (albumOrders.length > 0 && prefClientId) {
+        const lastAlbum = albumOrders[albumOrders.length - 1].albumOrderInfo!;
+        api.put(`/clients/${prefClientId}/album-preference`, {
+          preferredEditStyle: lastAlbum.pageLayout || undefined,
+          preferredBinding: lastAlbum.bindingDirection || undefined,
+        }).catch(() => {});
+      }
+
       toast({
         title: '주문이 완료되었습니다',
         description: '주문내역은 마이페이지에서 확인하실 수 있습니다.',
@@ -569,12 +580,17 @@ export default function OrderPage() {
         };
       }
 
+      // 항목별 배송비가 없는 경우 주문 단위 배송비 적용
+      const itemHasShipping = !!orderItem.shipping;
+      const orderShippingFee = itemHasShipping ? 0 : shippingFee;
+
       // 개별 주문 데이터 (1 아이템 = 1 주문)
       return {
         clientId,
         paymentMethod,
         isUrgent: false,
         customerMemo: memo || undefined,
+        shippingFee: orderShippingFee,
         items: [orderItem],
         shipping: shippingInfo,
       };

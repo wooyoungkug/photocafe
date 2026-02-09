@@ -68,6 +68,24 @@ function formatFileSize(bytes?: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)}GB`;
 }
 
+// 편집스타일 라벨
+function getPageLayoutLabel(layout?: string): string {
+  if (!layout) return '-';
+  return layout === 'spread' ? '펼침면' : '낱장';
+}
+
+// 제본순서 라벨
+function getBindingDirectionLabel(direction?: string): string {
+  if (!direction) return '-';
+  const labels: Record<string, string> = {
+    LEFT_START_RIGHT_END: '좌시우끝',
+    LEFT_START_LEFT_END: '좌시좌끝',
+    RIGHT_START_LEFT_END: '우시좌끝',
+    RIGHT_START_RIGHT_END: '우시우끝',
+  };
+  return labels[direction] || direction;
+}
+
 export default function OrderListPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
@@ -180,9 +198,11 @@ export default function OrderListPage() {
                     <TableHead className="text-center w-[130px] text-xs">
                       주문일<br />(주문번호)
                     </TableHead>
-                    <TableHead className="text-center w-[70px] text-xs">순번</TableHead>
+                    <TableHead className="text-center w-[80px] text-xs">회원정보</TableHead>
                     <TableHead className="w-[50px] text-center text-xs">썸네일</TableHead>
-                    <TableHead className="text-xs">상품명 / 주문제목 / 재질 및 규격</TableHead>
+                    <TableHead className="text-xs w-[120px]">상품명</TableHead>
+                    <TableHead className="text-xs">주문제목 / 재질 및 규격</TableHead>
+                    <TableHead className="text-center w-[100px] text-xs">편집스타일<br />/ 제본순서</TableHead>
                     <TableHead className="text-center w-[60px] text-xs">페이지</TableHead>
                     <TableHead className="text-center w-[50px] text-xs">부수</TableHead>
                     <TableHead className="text-center w-[70px] text-xs">용량</TableHead>
@@ -240,17 +260,21 @@ export default function OrderListPage() {
                               {order.isUrgent && (
                                 <Badge variant="destructive" className="text-[10px] px-1 py-0">긴급</Badge>
                               )}
-                              <div className="text-[11px] text-muted-foreground mt-1">
-                                {order.client?.clientName}
-                              </div>
                             </div>
                           </TableCell>
                         )}
 
-                        {/* 순번 */}
-                        <TableCell className="text-center text-xs text-muted-foreground">
-                          {String(idx + 1).padStart(2, '0')}
-                        </TableCell>
+                        {/* 회원정보 - 첫 번째 항목에만 표시 */}
+                        {idx === 0 && (
+                          <TableCell
+                            className="text-center align-top pt-3"
+                            rowSpan={items.length}
+                          >
+                            <div className="text-xs font-medium">
+                              {order.client?.clientName}
+                            </div>
+                          </TableCell>
+                        )}
 
                         {/* 썸네일 */}
                         <TableCell className="text-center">
@@ -272,16 +296,20 @@ export default function OrderListPage() {
                           })()}
                         </TableCell>
 
-                        {/* 상품명 / 주문제목 / 재질 및 규격 */}
+                        {/* 상품명 */}
+                        <TableCell>
+                          <p className="text-xs font-medium leading-tight line-clamp-2">
+                            {item.productName}
+                          </p>
+                        </TableCell>
+
+                        {/* 주문제목 / 재질 및 규격 */}
                         <TableCell>
                           <div className="space-y-1">
                             <div className="text-xs text-muted-foreground leading-tight">
                               {item.size} / {item.printMethod} / {item.paper}
                               {item.bindingType && <> / {item.bindingType}</>}
                             </div>
-                            <p className="text-sm font-medium leading-tight line-clamp-1">
-                              {item.productName}
-                            </p>
                             <div className="flex flex-wrap gap-1">
                               {item.coverMaterial && (
                                 <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">{item.coverMaterial}</Badge>
@@ -292,6 +320,18 @@ export default function OrderListPage() {
                               {item.finishingOptions?.map((opt, i) => (
                                 <Badge key={i} variant="outline" className="text-[10px] px-1 py-0 h-4">{opt}</Badge>
                               ))}
+                            </div>
+                          </div>
+                        </TableCell>
+
+                        {/* 편집스타일 / 제본순서 */}
+                        <TableCell className="text-center">
+                          <div className="space-y-0.5">
+                            <div className="text-xs">
+                              {getPageLayoutLabel(item.pageLayout)}
+                            </div>
+                            <div className="text-[11px] text-muted-foreground">
+                              {getBindingDirectionLabel(item.bindingDirection)}
                             </div>
                           </div>
                         </TableCell>

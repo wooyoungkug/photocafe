@@ -12,8 +12,8 @@ import {
   ShoppingCart,
   AlertCircle,
   CheckCircle,
-  Truck,
   ChevronsUpDown,
+  CheckSquare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
@@ -35,9 +35,11 @@ import {
   calculatePageCount,
   calculateTotalUploadedPrice,
   autoDetectPageLayout,
+  detectBindingFromName,
 } from '@/stores/multi-folder-upload-store';
 import { useIndigoSpecifications } from '@/hooks/use-specifications';
 import { toast } from '@/hooks/use-toast';
+import { extractColorsFromImage, buildPhotoColorInfo } from '@/lib/color-analysis';
 
 // 편집스타일 아이콘 컴포넌트
 function PageLayoutIcon({ type, isSelected }: { type: 'single' | 'spread'; isSelected: boolean }) {
@@ -111,8 +113,9 @@ function BindingDirectionIcon({ direction, isSelected }: { direction: BindingDir
 import { FolderCard } from './folder-card';
 import { calculateNormalizedRatio, formatFileSize, readImageDpi } from '@/lib/album-utils';
 import { useShippingData } from '@/hooks/use-shipping-data';
-import { FolderShippingSection } from './folder-shipping-section';
-import type { FolderShippingInfo } from '@/stores/multi-folder-upload-store';
+import { ClientPreferenceCard } from './client-preference-card';
+import { useClientAlbumPreference } from '@/hooks/use-client-album-preference';
+import type { ClientAlbumPreference } from '@/lib/types/client';
 
 const ACCEPTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.tif', '.tiff'];
 const MAX_DEPTH = 4;
@@ -137,7 +140,8 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
     setDefaultBindingDirection,
     setIndigoSpecs,
     getSelectedFolders,
-    applyShippingToAll,
+    computeColorGroups,
+    selectAllFolders,
   } = useMultiFolderUploadStore();
 
   const tc = useTranslations('common');
@@ -145,7 +149,20 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
   const tf = useTranslations('folder');
 
   // 배송 데이터 로드
-  const { companyInfo, clientInfo, pricingMap } = useShippingData();
+  const { clientInfo } = useShippingData();
+
+  // 거래처 선호 설정 적용
+  const handleApplyPreference = useCallback((pref: ClientAlbumPreference) => {
+    if (pref.preferredEditStyle) {
+      const layout = pref.preferredEditStyle.toLowerCase() as 'single' | 'spread';
+      if (layout === 'single' || layout === 'spread') {
+        setDefaultPageLayout(layout);
+      }
+    }
+    if (pref.preferredBinding) {
+      setDefaultBindingDirection(pref.preferredBinding as any);
+    }
+  }, [setDefaultPageLayout, setDefaultBindingDirection]);
 
   // DB에서 인디고출력 규격 가져오기
   const { data: indigoSpecsRaw } = useIndigoSpecifications();
@@ -165,8 +182,6 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
 
   const [isDragging, setIsDragging] = useState(false);
   const [processingMessage, setProcessingMessage] = useState('');
-  const [showBatchShipping, setShowBatchShipping] = useState(false);
-  const [batchShippingInfo, setBatchShippingInfo] = useState<FolderShippingInfo | null>(null);
   const [allThumbnailsCollapsed, setAllThumbnailsCollapsed] = useState<boolean | undefined>(undefined);
 
   // 모바일 감지 (Android/iOS에서 webkitdirectory 미지원)
@@ -285,8 +300,13 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
     []
   );
 
-  // 썸네일 생성 유틸 (최대 500px, JPEG 80% → ~100KB)
-  const generateThumbnail = useCallback((source: HTMLImageElement | HTMLCanvasElement, srcWidth: number, srcHeight: number): string => {
+  // 썸네일 생성 + 색상 추출 유틸 (최대 500px, JPEG 80% → ~100KB)
+  const generateThumbnailAndColor = useCallback((
+    source: HTMLImageElement | HTMLCanvasElement,
+    srcWidth: number,
+    srcHeight: number,
+    coverType?: CoverType
+  ): { thumbnailUrl: string; colorInfo?: import('@/lib/color-analysis').PhotoColorInfo } => {
     const MAX_THUMB = 500;
     const scale = Math.min(MAX_THUMB / srcWidth, MAX_THUMB / srcHeight, 1);
     const tw = Math.round(srcWidth * scale);
@@ -296,8 +316,26 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
     c.height = th;
     const ctx = c.getContext('2d')!;
     ctx.drawImage(source, 0, 0, tw, th);
-    return c.toDataURL('image/jpeg', 0.8);
+    const thumbnailUrl = c.toDataURL('image/jpeg', 0.8);
+
+    // 내지 페이지만 색상 분석 (표지 제외)
+    let colorInfo: import('@/lib/color-analysis').PhotoColorInfo | undefined;
+    if (!coverType || coverType === 'INNER_PAGE') {
+      try {
+        const { colors, brightness } = extractColorsFromImage(source);
+        colorInfo = buildPhotoColorInfo(colors, brightness);
+      } catch {
+        // 색상 추출 실패 시 무시
+      }
+    }
+
+    return { thumbnailUrl, colorInfo };
   }, []);
+
+  // 하위 호환: 기존 generateThumbnail 호출용
+  const generateThumbnail = useCallback((source: HTMLImageElement | HTMLCanvasElement, srcWidth: number, srcHeight: number): string => {
+    return generateThumbnailAndColor(source, srcWidth, srcHeight).thumbnailUrl;
+  }, [generateThumbnailAndColor]);
 
   // 파일 치수 프로브 (자동감지용 - 내지 파일의 가로/세로 인치 측정)
   const probeFileDimensions = useCallback(
@@ -741,8 +779,8 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
             return;
           }
 
-          // 썸네일 생성
-          const thumbnailUrl = generateThumbnail(img, img.naturalWidth, img.naturalHeight);
+          // 썸네일 생성 + 색상 추출
+          const { thumbnailUrl, colorInfo } = generateThumbnailAndColor(img, img.naturalWidth, img.naturalHeight, coverType);
 
           resolve({
             id: `${Date.now()}-${pageNumber}-${Math.random().toString(36).substr(2, 9)}`,
@@ -759,6 +797,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
             ratio,
             coverType,
             thumbnailUrl,
+            colorInfo,
             status: 'PENDING',
           });
         };
@@ -1088,16 +1127,24 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
           }
           isAutoDetected = true;
         }
-        const bindingDirection = defaultBindingDirection; // null이면 빈페이지 기반 자동감지
+        const bindingDirection = defaultBindingDirection ?? detectBindingFromName(fullPath); // null이면 폴더명/빈페이지 기반 자동감지
 
         const folder = await processFolder(entry, fullPath, depth, pageLayout, bindingDirection);
         if (folder) {
           if (isAutoDetected) folder.isAutoDetected = true;
+          // 폴더명에서 제본방향 감지된 경우 표시
+          if (!defaultBindingDirection && detectBindingFromName(fullPath)) {
+            folder.autoBindingDetected = true;
+          }
           const result = addFolder(folder);
           if (!result.added) {
             duplicateMessages.push(result.reason || tu('duplicateName', { name: folder.folderName }));
-          } else if (result.reason) {
-            duplicateMessages.push(result.reason);
+          } else {
+            // 색상 그룹 계산
+            computeColorGroups(folder.id);
+            if (result.reason) {
+              duplicateMessages.push(result.reason);
+            }
           }
         }
       }
@@ -1175,7 +1222,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
           }
           isAutoDetected = true;
         }
-        const bindingDirection = defaultBindingDirection; // null이면 빈페이지 기반 자동감지
+        const bindingDirection = defaultBindingDirection ?? detectBindingFromName(folderName); // null이면 폴더명/빈페이지 기반 자동감지
 
         const processedFiles: UploadedFile[] = [];
         const splitCoverResults: SplitCoverResult[] = [];
@@ -1222,7 +1269,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         setProcessingMessage(tu('detectingBlankPage', { name: folderPath }));
         let firstPageBlank = false;
         let lastPageBlank = false;
-        let autoBindingDetected = false;
+        let autoBindingDetected = !!detectBindingFromName(folderName);
         let effectiveBindingDirection: BindingDirection = bindingDirection ?? 'LEFT_START_RIGHT_END';
 
         // 첫장이 반폭 확장된 경우 (Front Cover) -> 우철 (Right Start) 자동 적용
@@ -1329,8 +1376,11 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         const result = addFolder(folder);
         if (!result.added) {
           duplicateMessages.push(result.reason || tu('duplicateName', { name: folder.folderName }));
-        } else if (result.reason) {
-          duplicateMessages.push(result.reason);
+        } else {
+          computeColorGroups(folder.id);
+          if (result.reason) {
+            duplicateMessages.push(result.reason);
+          }
         }
       }
 
@@ -1405,7 +1455,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         }
         isAutoDetected = true;
       }
-      const bindingDirection = defaultBindingDirection;
+      const bindingDirection = defaultBindingDirection ?? detectBindingFromName(folderName);
 
       setProcessingMessage(tu('processingFolder', { name: folderName, current: '', total: '' }));
 
@@ -1559,6 +1609,8 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       const result = addFolder(folder);
       if (!result.added) {
         toast({ title: tu('duplicateFolderDetected'), description: result.reason || tu('duplicateName', { name: folder.folderName }), variant: 'destructive' });
+      } else {
+        computeColorGroups(folder.id);
       }
 
       setUploading(false);
@@ -1744,6 +1796,15 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         </span>
       </div>
 
+      {/* 거래처 선호 패턴 카드 */}
+      {clientInfo?.id && (
+        <ClientPreferenceCard
+          clientId={clientInfo.id}
+          clientName={clientInfo.clientName}
+          onApplyPreference={handleApplyPreference}
+        />
+      )}
+
       {/* 모바일 폴더명 입력 다이얼로그 */}
       {showMobileFolderNameDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowMobileFolderNameDialog(false)}>
@@ -1871,15 +1932,15 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-600">{tu('selectedCount', { count: stats.selected })}</span>
-              {companyInfo && clientInfo && (
+              {stats.selectable > 0 && (
                 <Button
-                  variant="outline"
+                  variant={stats.selected === stats.selectable ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setShowBatchShipping(!showBatchShipping)}
+                  onClick={() => selectAllFolders(stats.selected < stats.selectable)}
                   className="gap-1"
                 >
-                  <Truck className="h-3.5 w-3.5" />
-                  {tu('batchShipping')}
+                  <CheckSquare className="h-3.5 w-3.5" />
+                  {stats.selected === stats.selectable ? '전체해제' : '전체선택'}
                 </Button>
               )}
               <Button
@@ -1897,37 +1958,6 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
             </div>
           </div>
 
-          {/* 일괄 배송 설정 패널 */}
-          {showBatchShipping && companyInfo && clientInfo && (
-            <div className="border rounded-lg p-4 bg-blue-50/30 border-blue-200">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-medium flex items-center gap-1.5">
-                  <Truck className="h-4 w-4" />
-                  {tu('batchShippingTitle')}
-                </h4>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    if (batchShippingInfo) {
-                      applyShippingToAll(batchShippingInfo);
-                      setShowBatchShipping(false);
-                    }
-                  }}
-                  disabled={!batchShippingInfo}
-                >
-                  {tu('applyToAll')}
-                </Button>
-              </div>
-              <FolderShippingSection
-                shippingInfo={batchShippingInfo ?? undefined}
-                companyInfo={companyInfo}
-                clientInfo={clientInfo}
-                pricingMap={pricingMap}
-                onChange={(shipping) => setBatchShippingInfo(shipping)}
-              />
-            </div>
-          )}
-
           <div className="space-y-3">
             {folders.map((folder) => (
               <div
@@ -1937,9 +1967,6 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
               >
                 <FolderCard
                   folder={folder}
-                  companyInfo={companyInfo}
-                  clientInfo={clientInfo}
-                  pricingMap={pricingMap}
                   thumbnailCollapsed={allThumbnailsCollapsed}
                 />
               </div>
@@ -1966,7 +1993,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
             <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-sm text-gray-600">{tu('selectedOrder', { count: stats.selected, qty: totalPriceInfo.totalQuantity })}</span>
+                  <span className="text-sm text-gray-600">{tu('selectedOrder', { count: totalPriceInfo.totalOrderCount, qty: totalPriceInfo.totalQuantity })}</span>
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-bold text-primary">
@@ -2006,7 +2033,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
               className="bg-green-600 hover:bg-green-700"
             >
               <ShoppingCart className="w-4 h-4 mr-2" />
-              {tu('addToCartSelected', { count: stats.selected })}
+              {tu('addToCartSelected', { count: totalPriceInfo.totalOrderCount })}
             </Button>
           </div>
         </>

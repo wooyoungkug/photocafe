@@ -54,6 +54,10 @@ function redirectToLogin() {
     window.location.pathname.startsWith('/product') ||
     window.location.pathname.startsWith('/order') ||
     window.location.pathname.startsWith('/production') ||
+    window.location.pathname.startsWith('/pricing') ||
+    window.location.pathname.startsWith('/schedule') ||
+    window.location.pathname.startsWith('/master') ||
+    window.location.pathname.startsWith('/accounting') ||
     window.location.pathname.startsWith('/cs') ||
     window.location.pathname.startsWith('/settings') ||
     window.location.pathname.startsWith('/statistics');
@@ -165,9 +169,11 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
 
   if (!response.ok) {
     // 401 Unauthorized - 토큰 갱신 시도
-    if (response.status === 401 && typeof window !== 'undefined') {
+    // 로그인/인증 관련 엔드포인트는 리다이렉트하지 않고 에러만 던짐
+    const isAuthEndpoint = endpoint.startsWith('/auth/');
+    if (response.status === 401 && typeof window !== 'undefined' && !isAuthEndpoint) {
       // 재시도가 아닌 경우에만 refresh 시도
-      if (!_isRetry && !endpoint.includes('/auth/refresh')) {
+      if (!_isRetry) {
         const newToken = await refreshAccessToken();
         if (newToken) {
           // 새 토큰으로 원래 요청 재시도

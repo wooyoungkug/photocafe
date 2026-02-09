@@ -370,6 +370,7 @@ model Client {
   copperPlates CopperPlate[]
   productionSettingPrices ClientProductionSettingPrice[]
   photobookOrders PhotobookOrder[]
+  albumPreference ClientAlbumPreference?
 
   @@unique([oauthProvider, oauthId])
   @@index([groupId])
@@ -379,6 +380,43 @@ model Client {
   @@index([mainGenre])
   @@index([memberGrade])
   @@map("clients")
+}
+
+// ==================== 거래처 앨범 편집 선호 패턴 ====================
+
+model ClientAlbumPreference {
+  id                   String    @id @default(cuid())
+  clientId             String    @unique
+  client               Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // 편집 선호
+  preferredEditStyle   String?   // "SINGLE" | "SPREAD"
+  preferredBinding     String?   // BindingDirection 값
+  preferredAlbumSizes  Json?     // [{ width, height, label }]
+
+  // 사진 처리 선호
+  outfitGrouping       String?   // "by_outfit" | "chronological" | "none"
+  colorGroupEnabled    Boolean   @default(false)
+
+  // 마감 선호
+  preferredFabricId    String?
+  preferredCoatingId   String?
+
+  // 편집자 메모
+  editorNotes          String?   @db.Text
+  specialInstructions  String?   @db.Text
+
+  // 주문 이력 통계 (자동 갱신)
+  totalOrders          Int       @default(0)
+  lastOrderDate        DateTime?
+  mostUsedSize         String?   // "12x12" 등
+  averagePageCount     Int?
+
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([clientId])
+  @@map("client_album_preferences")
 }
 
 // ==================== 배송지 정보 ====================
@@ -1000,6 +1038,8 @@ model OrderItem {
   thumbnailUrl     String?              // 대표 썸네일 URL
   totalFileSize    BigInt   @default(0)  // 총 파일 용량 (bytes)
   folderName       String?              // 앨범 주문 폴더명 (중복주문 체크용)
+  pageLayout       String?              // single(낱장) / spread(펼침면)
+  bindingDirection String?              // 제본순서: LEFT_START_RIGHT_END 등
 
   quantity         Int
   unitPrice        Decimal  @db.Decimal(10, 2)

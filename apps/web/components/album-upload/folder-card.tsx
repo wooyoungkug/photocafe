@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, Fragment } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -46,13 +46,11 @@ import {
   ChevronRight as ChevronRightIcon,
   Image as ImageIcon,
   Clock,
-  Truck,
+  Palette,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
-import { FolderShippingSection, getShippingSummary } from './folder-shipping-section';
-import type { CompanyShippingInfo, OrdererShippingInfo } from '@/hooks/use-shipping-data';
-import type { DeliveryPricing } from '@/hooks/use-delivery-pricing';
+import { ColorGroupBadge, ColorGroupHeader } from './color-group-badge';
 import {
   type UploadedFolder,
   type FolderValidationStatus,
@@ -67,9 +65,6 @@ import { formatFileSize } from '@/lib/album-utils';
 
 interface FolderCardProps {
   folder: UploadedFolder;
-  companyInfo?: CompanyShippingInfo | null;
-  clientInfo?: OrdererShippingInfo | null;
-  pricingMap?: Record<string, DeliveryPricing>;
   thumbnailCollapsed?: boolean; // 외부에서 일괄 제어
 }
 
@@ -165,7 +160,7 @@ function getSpreadPageNumbers(
 
 const ZOOM_SCALES = [1, 2, 3, 4];
 
-export function FolderCard({ folder, companyInfo, clientInfo, pricingMap, thumbnailCollapsed }: FolderCardProps) {
+export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
   const t = useTranslations('folder');
   const tc = useTranslations('common');
 
@@ -186,7 +181,6 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap, thumbn
   };
 
   const cardRef = useRef<HTMLDivElement>(null);
-  const [isShippingOpen, setIsShippingOpen] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitle, setEditTitle] = useState(folder.orderTitle);
   const [isThumbnailOpen, setIsThumbnailOpen] = useState(true);
@@ -389,7 +383,7 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap, thumbn
     setFolderPageLayout,
     setFolderBindingDirection,
     reorderFolderFiles,
-    setFolderShipping,
+    toggleColorGrouping,
   } = useMultiFolderUploadStore();
 
   const config = STATUS_CONFIG[folder.validationStatus];
@@ -751,27 +745,59 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap, thumbn
 
       {/* 썸네일 미리보기 (접기/펼치기) */}
       <Collapsible open={isThumbnailOpen} onOpenChange={setIsThumbnailOpen} className="mt-3">
-        <CollapsibleTrigger asChild>
-          <Button variant="ghost" size="sm" className="w-full justify-between h-8 text-xs">
-            <span className="flex items-center gap-1">
-              <ImageIcon className="h-3 w-3" />
-              {t('thumbnailPreviewCount', { count: folder.files.length })}
-            </span>
-            {isThumbnailOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-          </Button>
-        </CollapsibleTrigger>
+        <div className="flex items-center gap-1">
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" size="sm" className="flex-1 justify-between h-8 text-xs">
+              <span className="flex items-center gap-1">
+                <ImageIcon className="h-3 w-3" />
+                {t('thumbnailPreviewCount', { count: folder.files.length })}
+              </span>
+              {isThumbnailOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            </Button>
+          </CollapsibleTrigger>
+          {/* 의상그룹 토글 */}
+          {folder.colorGroups && folder.colorGroups.length > 1 && (
+            <Button
+              variant={folder.colorGroupingEnabled ? 'default' : 'outline'}
+              size="sm"
+              className={cn('h-7 text-[10px] gap-1 px-2', folder.colorGroupingEnabled && 'bg-indigo-600 hover:bg-indigo-700')}
+              onClick={() => toggleColorGrouping(folder.id)}
+            >
+              <Palette className="h-3 w-3" />
+              의상그룹 {folder.colorGroups.length}
+            </Button>
+          )}
+        </div>
         <CollapsibleContent className="mt-2">
-          <div className={cn(
-            "grid gap-2 p-2 bg-gray-50 rounded-lg border",
-            folder.pageLayout === 'single' ? "grid-cols-8" : "grid-cols-4"
-          )}>
-            {folder.files.map((file, index) => {
+          {/* 색상 그룹 요약 범례 */}
+          {folder.colorGroupingEnabled && folder.colorGroups && folder.colorGroups.length > 1 && (
+            <div className="flex flex-wrap gap-2 mb-2 px-2">
+              {folder.colorGroups.map(group => (
+                <div key={group.groupIndex} className="flex items-center gap-1 text-[10px] text-gray-500">
+                  <div
+                    className="w-2.5 h-2.5 rounded-full border border-white shadow-sm"
+                    style={{ backgroundColor: group.representativeHex }}
+                  />
+                  <span>{group.groupLabel} {group.colorNameKo} ({group.fileCount})</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {(() => {
+            // 썸네일 1개 렌더링 함수
+            const renderThumbnail = (file: typeof folder.files[0], index: number) => {
+              const showGroupHeader = folder.colorGroupingEnabled &&
+                folder.colorGroups &&
+                folder.colorGroups.length > 1 &&
+                file.colorInfo &&
+                (index === 0 || file.colorInfo.colorBucket !== folder.files[index - 1]?.colorInfo?.colorBucket);
+              const currentGroup = showGroupHeader
+                ? folder.colorGroups?.find(g => g.groupIndex === file.colorInfo?.colorBucket)
+                : null;
               const thumbUrl = file.thumbnailUrl;
-              const coverBadge = COVER_TYPE_BADGE[file.coverType];
-              // 이미지 비율 계산 (세로/가로 * 100 = 패딩%)
               const aspectRatio = file.widthPx > 0 && file.heightPx > 0
                 ? (file.heightPx / file.widthPx) * 100
-                : 133; // 기본값 4:3
+                : 133;
               const fileSizeStr = (() => {
                 const bytes = file.fileSize;
                 if (bytes < 1024) return `${bytes}B`;
@@ -779,8 +805,9 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap, thumbn
                 return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
               })();
               return (
+                <Fragment key={file.id}>
+                {currentGroup && <ColorGroupHeader group={currentGroup} />}
                 <div
-                  key={file.id}
                   className={cn(
                     'flex flex-col transition-all',
                     dragIndex === index && 'opacity-40 scale-95',
@@ -790,7 +817,6 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap, thumbn
                   onDragStart={(e) => {
                     setDragIndex(index);
                     e.dataTransfer.effectAllowed = 'move';
-                    // 드래그 이미지를 썸네일로 설정
                     const target = e.currentTarget;
                     if (target) {
                       e.dataTransfer.setDragImage(target, target.offsetWidth / 2, 20);
@@ -803,9 +829,7 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap, thumbn
                       setDropIndex(index);
                     }
                   }}
-                  onDragLeave={() => {
-                    setDropIndex(null);
-                  }}
+                  onDragLeave={() => setDropIndex(null)}
                   onDrop={(e) => {
                     e.preventDefault();
                     if (dragIndex !== null && dragIndex !== index) {
@@ -814,10 +838,7 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap, thumbn
                     setDragIndex(null);
                     setDropIndex(null);
                   }}
-                  onDragEnd={() => {
-                    setDragIndex(null);
-                    setDropIndex(null);
-                  }}
+                  onDragEnd={() => { setDragIndex(null); setDropIndex(null); }}
                 >
                   <div
                     className={cn(
@@ -831,7 +852,6 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap, thumbn
                     )}
                     style={{ paddingTop: `${aspectRatio}%` }}
                     onClick={() => {
-                      // 모달용 풀사이즈 URL 생성
                       const fullUrl = getFullSizeUrl(file);
                       if (fullUrl) {
                         setPreviewImage({ url: fullUrl, fileName: file.fileName, index });
@@ -843,32 +863,20 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap, thumbn
                     }}
                   >
                     {thumbUrl ? (
-                      <img
-                        src={thumbUrl}
-                        alt={file.fileName}
-                        className="absolute inset-0 w-full h-full object-cover"
-                        loading="lazy"
-                      />
+                      <img src={thumbUrl} alt={file.fileName} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
                     ) : (
                       <div className="absolute inset-0 w-full h-full bg-gray-100 flex items-center justify-center">
                         <span className="text-6xl font-black text-gray-300">X</span>
                       </div>
                     )}
-                    {/* 페이지 번호 (펼침면: 좌/우 페이지 번호, 낱장: 단일 번호) */}
                     {folder.pageLayout === 'spread' ? (() => {
                       const pages = getSpreadPageNumbers(index, folder.files.length, folder.bindingDirection);
                       return (
                         <>
-                          <div className={cn(
-                            'absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium',
-                            pages.left !== null ? 'bg-red-600' : 'bg-yellow-500'
-                          )}>
+                          <div className={cn('absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium', pages.left !== null ? 'bg-red-600' : 'bg-yellow-500')}>
                             {pages.left !== null ? pages.left : t('blank')}
                           </div>
-                          <div className={cn(
-                            'absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium',
-                            pages.right !== null ? 'bg-red-600' : 'bg-yellow-500'
-                          )}>
+                          <div className={cn('absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium', pages.right !== null ? 'bg-red-600' : 'bg-yellow-500')}>
                             {pages.right !== null ? pages.right : t('blank')}
                           </div>
                         </>
@@ -878,12 +886,15 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap, thumbn
                         {file.pageNumber}
                       </div>
                     )}
-                    {/* 호버 시 확대 아이콘 */}
+                    {folder.colorGroupingEnabled && file.colorInfo && (
+                      <div className="absolute bottom-1 right-1">
+                        <ColorGroupBadge colorInfo={file.colorInfo} />
+                      </div>
+                    )}
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                       <ZoomIn className="w-6 h-6 text-white" />
                     </div>
                   </div>
-                  {/* 사진 정보 */}
                   <div className={cn(
                     'text-[9px] leading-tight p-1 border border-t-0 rounded-b-md',
                     file.status === 'RATIO_MISMATCH' ? 'bg-red-50 border-red-300' : 'bg-white border-gray-200'
@@ -902,55 +913,62 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap, thumbn
                     </div>
                   </div>
                 </div>
+                </Fragment>
               );
-            })}
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
+            };
 
-      {/* 썸네일 검토 완료 버튼 */}
-      {isThumbnailOpen && (
-        <div className="mt-2 flex justify-center">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setIsThumbnailOpen(false);
-              if (canSelect && !folder.isSelected) {
-                setFolderSelected(folder.id, true);
+            // 낱장: 2p씩 묶어서 외각박스 표시
+            if (folder.pageLayout === 'single') {
+              const dir = folder.bindingDirection || 'LEFT_START_RIGHT_END';
+              const startsRight = dir.startsWith('RIGHT');
+              const pairs: number[][] = [];
+              let i = 0;
+              if (startsRight && folder.files.length > 0) {
+                pairs.push([0]); // 첫 페이지 단독 (우시작)
+                i = 1;
               }
-              setTimeout(() => {
-                cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }, 100);
-            }}
-            className="text-xs"
-          >
-            <Check className="h-3 w-3 mr-1" />
-            {t('approve')} • {tc('close')}
-          </Button>
-        </div>
-      )}
+              while (i < folder.files.length) {
+                if (i + 1 < folder.files.length) {
+                  pairs.push([i, i + 1]);
+                  i += 2;
+                } else {
+                  pairs.push([i]);
+                  i++;
+                }
+              }
 
-      {/* 배송 정보 섹션 */}
-      <Collapsible open={isShippingOpen} onOpenChange={setIsShippingOpen}>
-        <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 border-t bg-gray-50/50 hover:bg-gray-100/50 transition-colors">
-          <div className="flex items-center gap-2 text-sm">
-            <Truck className="h-3.5 w-3.5 text-gray-500" />
-            <span className="font-medium">{t('shippingInfo')}</span>
-            <span className="text-xs text-gray-500">
-              {getShippingSummary(folder.shippingInfo)}
-            </span>
-          </div>
-          {isShippingOpen ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
-        </CollapsibleTrigger>
-        <CollapsibleContent className="px-3 py-3 border-t">
-          <FolderShippingSection
-            shippingInfo={folder.shippingInfo}
-            companyInfo={companyInfo ?? null}
-            clientInfo={clientInfo ?? null}
-            pricingMap={pricingMap ?? {}}
-            onChange={(shipping) => setFolderShipping(folder.id, shipping)}
-          />
+              return (
+                <div className="grid grid-cols-4 gap-3 p-2 bg-gray-50 rounded-lg border">
+                  {pairs.map((pair, pairIdx) => (
+                    <div
+                      key={pairIdx}
+                      className={cn(
+                        'border-2 border-dashed rounded-lg p-1',
+                        pair.length === 1 ? 'border-yellow-400 bg-yellow-50/30' : 'border-orange-300 bg-orange-50/20'
+                      )}
+                    >
+                      <div className="text-[8px] text-center text-orange-500 mb-0.5 font-medium">
+                        {pair.length === 2
+                          ? `S${pairIdx + 1} (p${folder.files[pair[0]].pageNumber}-${folder.files[pair[1]].pageNumber})`
+                          : `p${folder.files[pair[0]].pageNumber}`
+                        }
+                      </div>
+                      <div className={cn('grid gap-1', pair.length === 2 ? 'grid-cols-2' : 'grid-cols-1 max-w-[50%] mx-auto')}>
+                        {pair.map(fileIdx => renderThumbnail(folder.files[fileIdx], fileIdx))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            }
+
+            // 펼침면: 기존 그리드 레이아웃
+            return (
+              <div className="grid gap-2 p-2 bg-gray-50 rounded-lg border grid-cols-4">
+                {folder.files.map((file, index) => renderThumbnail(file, index))}
+              </div>
+            );
+          })()}
         </CollapsibleContent>
       </Collapsible>
 
@@ -977,9 +995,15 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap, thumbn
             </div>
           )}
 
-          {/* 수량 */}
+          {/* 규격 · 페이지 · 부수 */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] text-gray-400">{t('specLabelShort')}</span>
+              <span className="text-xs font-medium text-blue-600">{folder.albumLabel}</span>
+              <span className="text-gray-300">|</span>
+              <span className="text-[10px] text-gray-400">{t('pageLabelShort')}</span>
+              <span className="text-xs font-medium text-blue-600">{folder.pageCount}p</span>
+              <span className="text-gray-300">|</span>
               <span className="text-sm">{t('copiesLabel')}</span>
               <Select
                 value={folder.quantity.toString()}
@@ -1030,10 +1054,21 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap, thumbn
             })()}
           </div>
 
-          {/* 추가 주문 목록 */}
+          {/* 추가 주문 목록 (같은 파일, 다른 규격 - 한 건의 JOB으로 묶임) */}
           {folder.additionalOrders.length > 0 && (
-            <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-              <p className="text-xs font-medium text-blue-700 mb-2">{t('additionalOrderDescription')}</p>
+            <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-center gap-2 mb-2">
+                <Checkbox
+                  checked={folder.isSelected}
+                  disabled={!canSelect}
+                  onCheckedChange={(checked) => setFolderSelected(folder.id, !!checked)}
+                  className="h-4 w-4 data-[state=checked]:bg-blue-600"
+                />
+                <p className="text-xs font-medium text-blue-700">{t('additionalOrderDescription')}</p>
+                <Badge variant="outline" className="text-[10px] border-blue-300 text-blue-600 ml-auto">
+                  1 JOB · {1 + folder.additionalOrders.length}{t('specLabelShort')}
+                </Badge>
+              </div>
               <div className="space-y-2">
                 {folder.additionalOrders.map((order) => {
                   const orderPrice = calculateAdditionalOrderPrice(order, folder);
@@ -1048,87 +1083,95 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap, thumbn
                     s => !usedByOthers.has(`${s.width}x${s.height}`)
                   );
                   return (
-                    <div key={order.id} className="bg-white rounded border border-blue-100 px-3 py-2">
-                      {/* 폴더명 + 가격 */}
-                      <div className="flex items-center justify-between mb-1.5">
-                        <div className="flex items-center gap-1.5">
-                          <Folder className="h-3 w-3 text-orange-500" />
-                          <span className="text-[10px] font-bold text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded">{t('additionalSetOrder')}</span>
-                          <span className="text-xs font-medium text-gray-700 truncate">{folder.orderTitle}</span>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <span className="text-sm font-bold text-primary">{t('priceWon', { price: orderPrice.totalPrice.toLocaleString() })}</span>
-                          <div className="text-[10px] text-gray-400">
-                            {t('priceFormulaUnit', {
-                              perPage: orderPrice.pricePerPage.toLocaleString(),
-                              pages: orderPrice.pageCount,
-                              printPrice: orderPrice.printPrice.toLocaleString(),
-                              cover: orderPrice.coverPrice.toLocaleString(),
-                              unitPrice: orderPrice.unitPrice.toLocaleString(),
-                            })}
+                    <div key={order.id} className="flex items-center gap-2 bg-white rounded border border-blue-100 px-3 py-2">
+                      <Checkbox
+                        checked={folder.isSelected}
+                        disabled={!canSelect}
+                        onCheckedChange={(checked) => setFolderSelected(folder.id, !!checked)}
+                        className="h-4 w-4 data-[state=checked]:bg-blue-600 flex-shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        {/* 폴더명 + 가격 */}
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <Folder className="h-3 w-3 text-orange-500" />
+                            <span className="text-[10px] font-bold text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded">{t('additionalSetOrder')}</span>
+                            <span className="text-xs font-medium text-gray-700 truncate">{folder.orderTitle}</span>
                           </div>
-                          <div className="text-[10px] text-gray-400">
-                            {t('priceFormulaTotal', {
-                              unitPrice: orderPrice.unitPrice.toLocaleString(),
-                              qty: order.quantity,
-                              subtotal: orderPrice.subtotal.toLocaleString(),
-                              tax: orderPrice.tax.toLocaleString(),
-                              total: orderPrice.totalPrice.toLocaleString(),
-                            })}
+                          <div className="text-right flex-shrink-0">
+                            <span className="text-sm font-bold text-primary">{t('priceWon', { price: orderPrice.totalPrice.toLocaleString() })}</span>
+                            <div className="text-[10px] text-gray-400">
+                              {t('priceFormulaUnit', {
+                                perPage: orderPrice.pricePerPage.toLocaleString(),
+                                pages: orderPrice.pageCount,
+                                printPrice: orderPrice.printPrice.toLocaleString(),
+                                cover: orderPrice.coverPrice.toLocaleString(),
+                                unitPrice: orderPrice.unitPrice.toLocaleString(),
+                              })}
+                            </div>
+                            <div className="text-[10px] text-gray-400">
+                              {t('priceFormulaTotal', {
+                                unitPrice: orderPrice.unitPrice.toLocaleString(),
+                                qty: order.quantity,
+                                subtotal: orderPrice.subtotal.toLocaleString(),
+                                tax: orderPrice.tax.toLocaleString(),
+                                total: orderPrice.totalPrice.toLocaleString(),
+                              })}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      {/* 규격 · 페이지 · 부수 */}
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[10px] text-gray-400">{t('specLabelShort')}</span>
-                          <select
-                            value={`${order.albumWidth}x${order.albumHeight}`}
-                            onChange={(e) => {
-                              const [w, h] = e.target.value.split('x').map(Number);
-                              const selectedSize = folder.availableSizes.find(
-                                (s) => s.width === w && s.height === h
-                              );
-                              if (selectedSize) {
-                                updateAdditionalOrderSpec(folder.id, order.id, selectedSize);
-                              }
-                            }}
-                            className="text-xs border rounded px-2 py-0.5 bg-white font-medium"
-                            aria-label={t('additionalOrderSpec')}
-                          >
-                            {selectableSizes.map((size) => (
-                              <option key={size.label} value={`${size.width}x${size.height}`}>
-                                {size.label}
-                              </option>
-                            ))}
-                          </select>
-                          <span className="text-gray-300">|</span>
-                          <span className="text-[10px] text-gray-400">{t('pageLabelShort')}</span>
-                          <span className="text-xs font-medium text-blue-600">{folder.pageCount}p</span>
-                          <span className="text-gray-300">|</span>
-                          <span className="text-[10px] text-gray-400">{t('copiesLabelShort')}</span>
-                          <Select
-                            value={order.quantity.toString()}
-                            onValueChange={(val) => updateAdditionalOrderQuantity(folder.id, order.id, parseInt(val))}
-                          >
-                            <SelectTrigger className="w-18 h-7 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {[1, 2, 3, 4, 5, 10, 20, 30, 50, 100].map((num) => (
-                                <SelectItem key={num} value={num.toString()}>{t('copies', { count: num })}</SelectItem>
+                        {/* 규격 · 페이지 · 부수 */}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[10px] text-gray-400">{t('specLabelShort')}</span>
+                            <select
+                              value={`${order.albumWidth}x${order.albumHeight}`}
+                              onChange={(e) => {
+                                const [w, h] = e.target.value.split('x').map(Number);
+                                const selectedSize = folder.availableSizes.find(
+                                  (s) => s.width === w && s.height === h
+                                );
+                                if (selectedSize) {
+                                  updateAdditionalOrderSpec(folder.id, order.id, selectedSize);
+                                }
+                              }}
+                              className="text-xs border rounded px-2 py-0.5 bg-white font-medium"
+                              aria-label={t('additionalOrderSpec')}
+                            >
+                              {selectableSizes.map((size) => (
+                                <option key={size.label} value={`${size.width}x${size.height}`}>
+                                  {size.label}
+                                </option>
                               ))}
-                            </SelectContent>
-                          </Select>
+                            </select>
+                            <span className="text-gray-300">|</span>
+                            <span className="text-[10px] text-gray-400">{t('pageLabelShort')}</span>
+                            <span className="text-xs font-medium text-blue-600">{folder.pageCount}p</span>
+                            <span className="text-gray-300">|</span>
+                            <span className="text-[10px] text-gray-400">{t('copiesLabelShort')}</span>
+                            <Select
+                              value={order.quantity.toString()}
+                              onValueChange={(val) => updateAdditionalOrderQuantity(folder.id, order.id, parseInt(val))}
+                            >
+                              <SelectTrigger className="w-18 h-7 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {[1, 2, 3, 4, 5, 10, 20, 30, 50, 100].map((num) => (
+                                  <SelectItem key={num} value={num.toString()}>{t('copies', { count: num })}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-red-500 flex-shrink-0"
+                            onClick={() => removeAdditionalOrder(folder.id, order.id)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
                         </div>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 text-red-500 flex-shrink-0"
-                          onClick={() => removeAdditionalOrder(folder.id, order.id)}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
                       </div>
                     </div>
                   );
@@ -1136,6 +1179,29 @@ export function FolderCard({ folder, companyInfo, clientInfo, pricingMap, thumbn
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* 승인·닫기 버튼 (하단) */}
+      {isThumbnailOpen && (
+        <div className="mt-3 flex justify-center">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setIsThumbnailOpen(false);
+              if (canSelect && !folder.isSelected) {
+                setFolderSelected(folder.id, true);
+              }
+              setTimeout(() => {
+                cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }, 100);
+            }}
+            className="text-xs"
+          >
+            <Check className="h-3 w-3 mr-1" />
+            {t('approve')} • {tc('close')}
+          </Button>
         </div>
       )}
 

@@ -57,6 +57,8 @@ export interface OrderItem {
   finishingOptions: string[];
   thumbnailUrl?: string;
   totalFileSize?: number;
+  pageLayout?: string;
+  bindingDirection?: string;
   quantity: number;
   unitPrice: number;
   totalPrice: number;
@@ -100,6 +102,7 @@ export interface Order {
     clientName: string;
   };
   productPrice: number;
+  shippingFee: number;
   tax: number;
   totalAmount: number;
   finalAmount: number;

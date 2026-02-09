@@ -10,10 +10,10 @@ import {
 import { FileText, BookOpen, ArrowRight, ArrowLeft } from 'lucide-react';
 
 const BINDING_OPTIONS: { value: BindingDirection; label: string; desc: string }[] = [
-  { value: 'LEFT_START_RIGHT_END', label: '좌시작→우끝', desc: '일반적인 좌철 (한국어 기본)' },
-  { value: 'LEFT_START_LEFT_END', label: '좌시작→좌끝', desc: '좌철 인데 마지막도 왼쪽' },
-  { value: 'RIGHT_START_LEFT_END', label: '우시작→좌끝', desc: '우철 (일본어/아랍어)' },
-  { value: 'RIGHT_START_RIGHT_END', label: '우시작→우끝', desc: '우철 인데 마지막도 오른쪽' },
+  { value: 'LEFT_START_RIGHT_END', label: '좌시우끝', desc: '일반적인 좌철 (한국어 기본)' },
+  { value: 'LEFT_START_LEFT_END', label: '좌시좌끝', desc: '좌철 인데 마지막도 왼쪽' },
+  { value: 'RIGHT_START_LEFT_END', label: '우시좌끝', desc: '우철 (일본어/아랍어)' },
+  { value: 'RIGHT_START_RIGHT_END', label: '우시우끝', desc: '우철 인데 마지막도 오른쪽' },
 ];
 
 export function StepEditOptions() {

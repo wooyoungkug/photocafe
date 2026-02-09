@@ -146,6 +146,8 @@ export default function ProductPage() {
 
   // 제작가능규격 섹션 펼침 상태
   const [isSpecExpanded, setIsSpecExpanded] = useState(false);
+  // 제본방법 섹션 펼침 상태
+  const [isBindingExpanded, setIsBindingExpanded] = useState(false);
   // 동판 리스트 펼침 상태
   const [isCopperPlateListExpanded, setIsCopperPlateListExpanded] = useState(true);
 
@@ -393,9 +395,6 @@ export default function ProductPage() {
     router.push('/cart');
   };
 
-  const handleBuyNow = () => {
-    handleAddToCart();
-  };
 
   // 마이상품 저장
   const handleSaveMyProduct = async () => {
@@ -723,105 +722,64 @@ export default function ProductPage() {
 
             {/* Options */}
             <div className="space-y-6">
-              {/* Specification - 접을 수 있는 섹션 */}
-              {product.specifications && product.specifications.length > 0 && (
+              {/* Binding - collapsible */}
+              {product.bindings && product.bindings.length > 0 && (
                 <div>
                   <button
                     type="button"
-                    onClick={() => setIsSpecExpanded(!isSpecExpanded)}
+                    onClick={() => setIsBindingExpanded(!isBindingExpanded)}
                     className="w-full flex items-center justify-between font-medium mb-2 hover:text-primary transition-colors"
                   >
                     <span className="flex items-center gap-2">
-                      {t('availableSpecs')}
-                      <span className="text-xs text-gray-500 font-normal">({t('countUnit', { count: product.specifications.length })})</span>
-                      {selectedOptions.specification && (
+                      {t('bindingMethod')}
+                      {selectedOptions.binding && (
                         <Badge variant="secondary" className="text-xs font-normal">
-                          {selectedOptions.specification.name}
+                          {selectedOptions.binding.name.split(' - ')[0]}
                         </Badge>
                       )}
                     </span>
-                    {isSpecExpanded ? (
+                    {isBindingExpanded ? (
                       <ChevronUp className="h-4 w-4 text-gray-500" />
                     ) : (
                       <ChevronDown className="h-4 w-4 text-gray-500" />
                     )}
                   </button>
 
-                  {isSpecExpanded && (
-                    <div className="max-h-[240px] overflow-y-auto pr-1 border rounded-lg p-3 bg-gray-50">
+                  {isBindingExpanded && (
+                    <div className="border rounded-lg p-3 bg-gray-50">
                       <RadioGroup
-                        value={selectedOptions.specification?.id}
+                        value={selectedOptions.binding?.id}
                         onValueChange={(value) => {
-                          const spec = product.specifications?.find(s => s.id === value);
-                          setSelectedOptions(prev => ({ ...prev, specification: spec }));
+                          const binding = product.bindings?.find(b => b.id === value);
+                          setSelectedOptions(prev => ({
+                            ...prev,
+                            binding,
+                            printSide: binding ? getDefaultPrintSideByBinding(binding.name) : prev.printSide,
+                          }));
                         }}
-                        className="grid grid-cols-2 sm:grid-cols-4 gap-1.5"
+                        className="grid grid-cols-2 gap-2"
                       >
-                        {[...product.specifications]
-                          .sort((a, b) => {
-                            const areaA = (a.widthMm || 0) * (a.heightMm || 0);
-                            const areaB = (b.widthMm || 0) * (b.heightMm || 0);
-                            return areaA - areaB;
-                          })
-                          .map((spec) => (
+                        {product.bindings.map((binding) => (
                           <Label
-                            key={spec.id}
+                            key={binding.id}
                             className={cn(
-                              "flex items-center gap-1.5 px-2.5 py-2 border rounded-md cursor-pointer transition-colors text-sm bg-white",
-                              selectedOptions.specification?.id === spec.id
-                                ? "border-primary bg-primary/5 font-medium"
+                              "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors bg-white",
+                              selectedOptions.binding?.id === binding.id
+                                ? "border-primary bg-primary/5"
                                 : "hover:border-gray-400"
                             )}
                           >
-                            <RadioGroupItem value={spec.id} className="h-3.5 w-3.5 flex-shrink-0" />
-                            <div className="flex flex-col min-w-0">
-                              <span className="truncate font-medium">{spec.name}</span>
-                              {spec.widthMm && spec.heightMm && (
-                                <span className="text-xs text-gray-500">{spec.widthMm}x{spec.heightMm}mm</span>
-                              )}
-                            </div>
+                            <RadioGroupItem value={binding.id} />
+                            <span className="flex-1">{binding.name.split(' - ')[0]}</span>
+                            {binding.price > 0 && (
+                              <span className="text-sm text-primary">+{binding.price.toLocaleString()}</span>
+                            )}
                           </Label>
                         ))}
                       </RadioGroup>
                     </div>
                   )}
                 </div>
-              )}
-
-              {/* Binding */}
-              {product.bindings && product.bindings.length > 0 && (
-                <OptionSection title={t('bindingMethod')}>
-                  <RadioGroup
-                    value={selectedOptions.binding?.id}
-                    onValueChange={(value) => {
-                      const binding = product.bindings?.find(b => b.id === value);
-                      setSelectedOptions(prev => ({
-                        ...prev,
-                        binding,
-                        printSide: binding ? getDefaultPrintSideByBinding(binding.name) : prev.printSide,
-                      }));
-                    }}
-                    className="grid grid-cols-2 gap-2"
-                  >
-                    {product.bindings.map((binding) => (
-                      <Label
-                        key={binding.id}
-                        className={cn(
-                          "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors",
-                          selectedOptions.binding?.id === binding.id
-                            ? "border-primary bg-primary/5"
-                            : "hover:border-gray-400"
-                        )}
-                      >
-                        <RadioGroupItem value={binding.id} />
-                        <span className="flex-1">{binding.name.split(' - ')[0]}</span>
-                        {binding.price > 0 && (
-                          <span className="text-sm text-primary">+{binding.price.toLocaleString()}</span>
-                        )}
-                      </Label>
-                    ))}
-                  </RadioGroup>
-                </OptionSection>
               )}
 
               {/* Paper - 종류별 그룹화 (isActive인 용지만 표시) */}
@@ -979,7 +937,8 @@ export default function ProductPage() {
 
               {/* 동판 선택은 아래 전체 너비 영역으로 이동 */}
 
-              {/* Quantity */}
+              {/* Quantity - 화보 상품은 데이터 업로드 후 폴더별로 수량 결정 */}
+              {!isAlbum && (
               <OptionSection title={tc('quantity')}>
                 <div className="flex items-center gap-4">
                   <div className="flex items-center border rounded-lg">
@@ -1005,33 +964,16 @@ export default function ProductPage() {
                   </div>
                 </div>
               </OptionSection>
+              )}
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex flex-col gap-3 pt-4 border-t">
-              <div className="flex gap-3">
-                <Button variant="outline" size="lg" className="flex-1" onClick={handleAddToCart}>
+            {/* Action Buttons - 화보 상품이 아닌 경우만 여기에 표시 (화보는 업로드 섹션 하단에) */}
+            {!isAlbum && (
+              <div className="flex flex-col gap-3 pt-4 border-t">
+                <Button size="lg" className="w-full" onClick={handleAddToCart}>
                   <ShoppingCart className="h-5 w-5 mr-2" />
                   {t('addToCart')}
                 </Button>
-                <Button size="lg" className="flex-1" onClick={handleBuyNow}>
-                  {t('orderNow')}
-                </Button>
-              </div>
-            </div>
-
-            {/* 화보앨범 안내 */}
-            {isAlbum && (
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                <div className="flex items-start gap-3">
-                  <BookOpen className="h-5 w-5 text-purple-600 mt-0.5" />
-                  <div>
-                    <h4 className="font-medium text-purple-900">{t('albumOrderGuide')}</h4>
-                    <p className="text-sm text-purple-700 mt-1">
-                      {t('albumOrderDescription')}
-                    </p>
-                  </div>
-                </div>
               </div>
             )}
 
@@ -1402,122 +1344,41 @@ export default function ProductPage() {
                     </div>
                     )}
 
-                    {/* 선택된 보유동판 상세 정보 카드 */}
+                    {/* 선택된 보유동판 한줄 요약 */}
                     {selectedOptions.ownedCopperPlate && (
-                      <div className="border-2 border-primary/30 rounded-lg p-4 bg-blue-50/50">
-                        <div className="flex items-center gap-2 mb-3 pb-2 border-b border-primary/20">
-                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                            <FileText className="h-4 w-4 text-primary" />
-                          </div>
-                          <div>
-                            <h4 className="font-semibold text-sm text-primary">{t('selectedPlateInfo')}</h4>
-                            <p className="text-xs text-gray-500">{selectedOptions.ownedCopperPlate.plateName}</p>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                          {selectedOptions.ownedCopperPlate.imageUrl && (
-                            <div className="col-span-2 sm:col-span-1">
-                              <Label className="text-xs text-gray-600 mb-1 flex items-center gap-1">
-                                <ImageIcon className="h-3 w-3" />
-                                {t('copperPlateImage')}
-                              </Label>
-                              <a
-                                href={normalizeImageUrl(selectedOptions.ownedCopperPlate.imageUrl)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block"
-                              >
-                                <img
-                                  src={normalizeImageUrl(selectedOptions.ownedCopperPlate.imageUrl)}
-                                  alt={t('copperPlateImage')}
-                                  className="w-full h-24 object-contain rounded border bg-white hover:border-primary transition-colors"
-                                />
-                              </a>
-                            </div>
-                          )}
-
-                          {selectedOptions.ownedCopperPlate.albumPhotoUrl && (
-                            <div className="col-span-2 sm:col-span-1">
-                              <Label className="text-xs text-gray-600 mb-1 flex items-center gap-1">
-                                <ImageIcon className="h-3 w-3" />
-                                {t('albumImage')}
-                              </Label>
-                              <a
-                                href={normalizeImageUrl(selectedOptions.ownedCopperPlate.albumPhotoUrl)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block"
-                              >
-                                <img
-                                  src={normalizeImageUrl(selectedOptions.ownedCopperPlate.albumPhotoUrl)}
-                                  alt={t('albumImage')}
-                                  className="w-full h-24 object-contain rounded border bg-white hover:border-primary transition-colors"
-                                />
-                              </a>
-                            </div>
-                          )}
-
-                          <div className="col-span-2 grid grid-cols-2 gap-2 text-sm">
-                            <div className="flex items-center gap-2 bg-white rounded px-2 py-1.5 border">
-                              <span className="text-gray-500 text-xs">{t('foilColorColon')}</span>
-                              <span className="font-medium text-xs">
-                                {copperPlateLabels?.foilColors?.find(c => c.code === selectedOptions.ownedCopperPlate?.foilColor)?.name
-                                  || selectedOptions.ownedCopperPlate.foilColorName
-                                  || '-'}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2 bg-white rounded px-2 py-1.5 border">
-                              <span className="text-gray-500 text-xs">{t('foilPositionColon')}</span>
-                              <span className="font-medium text-xs">
-                                {copperPlateLabels?.platePositions?.find(p => p.code === selectedOptions.ownedCopperPlate?.foilPosition)?.name
-                                  || selectedOptions.ownedCopperPlate.foilPosition
-                                  || '-'}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2 bg-white rounded px-2 py-1.5 border">
-                              <span className="text-gray-500 text-xs">{t('typeColon')}</span>
-                              <span className="font-medium text-xs">
-                                {selectedOptions.ownedCopperPlate.plateType === 'copper' ? t('copperType') : t('leadType')}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2 bg-white rounded px-2 py-1.5 border">
-                              <Calendar className="h-3 w-3 text-gray-400" />
-                              <span className="font-medium text-xs">
-                                {selectedOptions.ownedCopperPlate.registeredAt
-                                  ? new Date(selectedOptions.ownedCopperPlate.registeredAt).toLocaleDateString('ko-KR')
-                                  : '-'}
-                              </span>
-                            </div>
-                          </div>
-
-                          {selectedOptions.ownedCopperPlate.aiFileUrl && (
-                            <div className="col-span-2">
-                              <Label className="text-xs text-gray-600 mb-1 flex items-center gap-1">
-                                <FileText className="h-3 w-3" />
-                                AI 파일
-                              </Label>
-                              <a
-                                href={normalizeImageUrl(selectedOptions.ownedCopperPlate.aiFileUrl)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-2 px-3 py-2 bg-white rounded border hover:border-primary hover:bg-primary/5 transition-colors text-xs"
-                              >
-                                <Eye className="h-3.5 w-3.5 text-primary" />
-                                <span className="truncate flex-1">{selectedOptions.ownedCopperPlate.aiFileUrl.split('/').pop()}</span>
-                              </a>
-                            </div>
-                          )}
-
-                          {selectedOptions.ownedCopperPlate.notes && (
-                            <div className="col-span-2">
-                              <Label className="text-xs text-gray-600 mb-1">{t('memo')}</Label>
-                              <div className="px-3 py-2 bg-white rounded border text-xs text-gray-700">
-                                {selectedOptions.ownedCopperPlate.notes}
-                              </div>
-                            </div>
-                          )}
-                        </div>
+                      <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-primary/30 rounded-lg text-xs">
+                        {selectedOptions.ownedCopperPlate.imageUrl && (
+                          <img
+                            src={normalizeImageUrl(selectedOptions.ownedCopperPlate.imageUrl)}
+                            alt={selectedOptions.ownedCopperPlate.plateName}
+                            className="w-8 h-8 object-cover rounded border"
+                          />
+                        )}
+                        <span className="font-medium text-primary">{selectedOptions.ownedCopperPlate.plateName}</span>
+                        <span className="text-gray-400">|</span>
+                        <span className="text-gray-600">
+                          {copperPlateLabels?.foilColors?.find(c => c.code === selectedOptions.ownedCopperPlate?.foilColor)?.name
+                            || selectedOptions.ownedCopperPlate.foilColorName
+                            || '-'}
+                        </span>
+                        <span className="text-gray-400">|</span>
+                        <span className="text-gray-600">
+                          {copperPlateLabels?.platePositions?.find(p => p.code === selectedOptions.ownedCopperPlate?.foilPosition)?.name
+                            || selectedOptions.ownedCopperPlate.foilPosition
+                            || '-'}
+                        </span>
+                        <span className="text-gray-400">|</span>
+                        <span className="text-gray-600">
+                          {selectedOptions.ownedCopperPlate.plateType === 'copper' ? t('copperType') : t('leadType')}
+                        </span>
+                        {selectedOptions.ownedCopperPlate.notes && (
+                          <>
+                            <span className="text-gray-400">|</span>
+                            <span className="text-gray-500 truncate max-w-[200px]" title={selectedOptions.ownedCopperPlate.notes}>
+                              {selectedOptions.ownedCopperPlate.notes}
+                            </span>
+                          </>
+                        )}
                       </div>
                     )}
 
@@ -1712,6 +1573,20 @@ export default function ProductPage() {
                 }, 50);
               }}
             />
+
+            {/* 화보/앨범 주문 안내 */}
+            <div className="bg-pink-50 border border-pink-200 rounded-lg p-4 mt-4">
+              <div className="flex items-start gap-3">
+                <BookOpen className="h-5 w-5 text-pink-600 mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-pink-900">{t('albumOrderGuide')}</h4>
+                  <p className="text-sm text-pink-700 mt-1">
+                    {t('albumOrderDescription')}
+                  </p>
+                </div>
+              </div>
+            </div>
+
           </div>
         )}
 
@@ -1722,6 +1597,65 @@ export default function ProductPage() {
               <CardTitle>{t('detailInfo')}</CardTitle>
             </CardHeader>
             <CardContent>
+              {/* 제작가능규격 */}
+              {product.specifications && product.specifications.length > 0 && (
+                <div className="mb-8">
+                  <button
+                    type="button"
+                    onClick={() => setIsSpecExpanded(!isSpecExpanded)}
+                    className="w-full flex items-center justify-between font-medium mb-2 hover:text-primary transition-colors"
+                  >
+                    <span className="flex items-center gap-2">
+                      {t('availableSpecs')}
+                      <span className="text-xs text-gray-500 font-normal">({t('countUnit', { count: product.specifications.length })})</span>
+                    </span>
+                    {isSpecExpanded ? (
+                      <ChevronUp className="h-4 w-4 text-gray-500" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 text-gray-500" />
+                    )}
+                  </button>
+
+                  {isSpecExpanded && (
+                    <div className="max-h-[240px] overflow-y-auto pr-1 border rounded-lg p-3 bg-gray-50">
+                      <RadioGroup
+                        value={selectedOptions.specification?.id}
+                        onValueChange={(value) => {
+                          const spec = product.specifications?.find(s => s.id === value);
+                          setSelectedOptions(prev => ({ ...prev, specification: spec }));
+                        }}
+                        className="grid grid-cols-2 sm:grid-cols-4 gap-1.5"
+                      >
+                        {[...product.specifications]
+                          .sort((a, b) => {
+                            const areaA = (a.widthMm || 0) * (a.heightMm || 0);
+                            const areaB = (b.widthMm || 0) * (b.heightMm || 0);
+                            return areaA - areaB;
+                          })
+                          .map((spec) => (
+                          <Label
+                            key={spec.id}
+                            className={cn(
+                              "flex items-center gap-1.5 px-2.5 py-2 border rounded-md cursor-pointer transition-colors text-sm bg-white",
+                              selectedOptions.specification?.id === spec.id
+                                ? "border-primary bg-primary/5 font-medium"
+                                : "hover:border-gray-400"
+                            )}
+                          >
+                            <RadioGroupItem value={spec.id} className="h-3.5 w-3.5 flex-shrink-0" />
+                            <div className="flex flex-col min-w-0">
+                              <span className="truncate font-medium">{spec.name}</span>
+                              {spec.widthMm && spec.heightMm && (
+                                <span className="text-xs text-gray-500">{spec.widthMm}x{spec.heightMm}mm</span>
+                              )}
+                            </div>
+                          </Label>
+                        ))}
+                      </RadioGroup>
+                    </div>
+                  )}
+                </div>
+              )}
               {product.description ? (
                 <div
                   className="prose max-w-none"

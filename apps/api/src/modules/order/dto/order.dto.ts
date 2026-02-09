@@ -239,6 +239,16 @@ export class CreateOrderItemDto {
   @IsString()
   folderName?: string;
 
+  @ApiPropertyOptional({ description: '편집스타일 (single/spread)' })
+  @IsOptional()
+  @IsString()
+  pageLayout?: string;
+
+  @ApiPropertyOptional({ description: '제본순서' })
+  @IsOptional()
+  @IsString()
+  bindingDirection?: string;
+
   @ApiPropertyOptional({ description: '항목별 배송 정보' })
   @IsOptional()
   @ValidateNested()
@@ -313,6 +323,12 @@ export class CreateOrderDto {
   @IsOptional()
   @IsString()
   productMemo?: string;
+
+  @ApiPropertyOptional({ description: '배송비 (항목별 배송비가 없는 경우)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  shippingFee?: number;
 
   @ApiProperty({ description: '주문 항목' })
   @IsArray()

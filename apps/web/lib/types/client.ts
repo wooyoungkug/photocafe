@@ -86,6 +86,39 @@ export interface CreateClientGroupDto {
 // 거래처 그룹 수정 DTO
 export type UpdateClientGroupDto = Partial<CreateClientGroupDto>;
 
+// 거래처 앨범 선호 설정
+export interface ClientAlbumPreference {
+  id: string;
+  clientId: string;
+  preferredEditStyle?: string;
+  preferredBinding?: string;
+  preferredAlbumSizes?: { width: number; height: number; label: string }[];
+  outfitGrouping?: string;
+  colorGroupEnabled: boolean;
+  preferredFabricId?: string;
+  preferredCoatingId?: string;
+  editorNotes?: string;
+  specialInstructions?: string;
+  totalOrders: number;
+  lastOrderDate?: string;
+  mostUsedSize?: string;
+  averagePageCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpsertClientAlbumPreferenceDto {
+  preferredEditStyle?: string;
+  preferredBinding?: string;
+  preferredAlbumSizes?: { width: number; height: number; label: string }[];
+  outfitGrouping?: string;
+  colorGroupEnabled?: boolean;
+  preferredFabricId?: string;
+  preferredCoatingId?: string;
+  editorNotes?: string;
+  specialInstructions?: string;
+}
+
 // 페이지네이션 응답
 export interface PaginatedResponse<T> {
   data: T[];
