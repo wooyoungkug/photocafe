@@ -80,7 +80,7 @@ const getBindingDirectionLabel = (direction: string): string => {
 const isShippingComplete = (info?: CartShippingInfo): boolean => {
   if (!info) return false;
   if (info.deliveryMethod === 'pickup') return true;
-  return !!(info.recipientName && info.recipientPhone && info.recipientPostalCode && info.recipientAddress);
+  return !!(info.recipientName && info.recipientPhone && info.recipientAddress);
 };
 
 // 배송 정보 요약 텍스트

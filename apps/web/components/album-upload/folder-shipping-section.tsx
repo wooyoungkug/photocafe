@@ -266,31 +266,31 @@ export function FolderShippingSection({
           <div className="space-y-2 border rounded-md p-3">
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label className="text-xs text-gray-500">수령인</Label>
+                <Label className="text-xs text-gray-500">수령인 <span className="text-red-500">*</span></Label>
                 <Input
                   placeholder="수령인명"
                   value={directRecipientName}
                   onChange={(e) => setDirectRecipientName(e.target.value)}
-                  className="h-8 text-sm"
+                  className={`h-8 text-sm ${!directRecipientName.trim() ? 'border-red-300 focus-visible:ring-red-400' : ''}`}
                 />
               </div>
               <div>
-                <Label className="text-xs text-gray-500">연락처</Label>
+                <Label className="text-xs text-gray-500">연락처 <span className="text-red-500">*</span></Label>
                 <Input
                   placeholder="010-0000-0000"
                   value={directPhone}
                   onChange={(e) => setDirectPhone(e.target.value)}
-                  className="h-8 text-sm"
+                  className={`h-8 text-sm ${!directPhone.trim() ? 'border-red-300 focus-visible:ring-red-400' : ''}`}
                 />
               </div>
             </div>
             <div>
-              <Label className="text-xs text-gray-500">주소</Label>
+              <Label className="text-xs text-gray-500">주소 <span className="text-red-500">*</span></Label>
               <div className="flex gap-2 mb-1">
                 <Input
                   placeholder="우편번호"
                   value={directPostalCode}
-                  readOnly
+                  onChange={(e) => setDirectPostalCode(e.target.value)}
                   className="h-8 text-sm w-28"
                 />
                 <AddressSearch
@@ -305,8 +305,8 @@ export function FolderShippingSection({
               <Input
                 placeholder="주소"
                 value={directAddress}
-                readOnly
-                className="h-8 text-sm mb-1"
+                onChange={(e) => setDirectAddress(e.target.value)}
+                className={`h-8 text-sm mb-1 ${!directAddress.trim() ? 'border-red-300 focus-visible:ring-red-400' : ''}`}
               />
               <Input
                 placeholder="상세주소"
@@ -315,6 +315,18 @@ export function FolderShippingSection({
                 className="h-8 text-sm"
               />
             </div>
+            {(!directRecipientName.trim() || !directPhone.trim() || !directAddress.trim()) && (
+              <div className="flex items-center gap-1.5 text-xs text-red-500 bg-red-50 rounded px-2.5 py-1.5">
+                <svg className="h-3.5 w-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.168 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg>
+                <span>
+                  {[
+                    !directRecipientName.trim() && '수령인',
+                    !directPhone.trim() && '연락처',
+                    !directAddress.trim() && '주소',
+                  ].filter(Boolean).join(', ')}를 입력해주세요
+                </span>
+              </div>
+            )}
           </div>
         ) : null}
       </div>

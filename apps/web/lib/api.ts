@@ -170,7 +170,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   if (!response.ok) {
     // 401 Unauthorized - 토큰 갱신 시도
     // 로그인/인증 관련 엔드포인트는 리다이렉트하지 않고 에러만 던짐
-    const isAuthEndpoint = endpoint.startsWith('/auth/');
+    const isAuthEndpoint = endpoint.startsWith('/auth/') && !endpoint.startsWith('/auth/impersonate');
     if (response.status === 401 && typeof window !== 'undefined' && !isAuthEndpoint) {
       // 재시도가 아닌 경우에만 refresh 시도
       if (!_isRetry) {
