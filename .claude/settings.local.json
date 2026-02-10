@@ -279,7 +279,12 @@
       "Bash(cmd /c \"if exist c:\\\\dev\\\\printing114\\\\apps\\\\web\\\\.next echo STILL EXISTS || echo REMOVED\")",
       "Bash(del:*)",
       "Bash(cmd /c \"taskkill /PID 22108 /F\")",
-      "Bash(cmd /c \"taskkill /F /PID 22108\")"
+      "Bash(cmd /c \"taskkill /F /PID 22108\")",
+      "WebFetch(domain:support.mindbridge.ai)",
+      "WebFetch(domain:www.saponlinetutorials.com)",
+      "WebFetch(domain:wehagohelp.zendesk.com)",
+      "WebFetch(domain:leanx.eu)",
+      "WebFetch(domain:www.douzoneon.com)"
     ]
   }
 }
