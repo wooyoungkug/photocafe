@@ -178,6 +178,7 @@ export default function ClientsPage() {
         creditGrade: client.creditGrade || 'B',
         paymentTerms: client.paymentTerms || 30,
         status: client.status || 'active',
+        duplicateCheckMonths: client.duplicateCheckMonths ?? undefined,
       });
     } else {
       setEditingClient(null);
@@ -725,6 +726,30 @@ export default function ClientsPage() {
                         <SelectItem value="suspended">정지</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                </div>
+              </div>
+              <div className="border rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-primary mb-4 flex items-center gap-2">
+                  주문 설정
+                </h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="duplicateCheckMonths">중복주문 체크 기간</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="duplicateCheckMonths"
+                        type="number"
+                        min={0}
+                        max={24}
+                        value={formData.duplicateCheckMonths ?? ''}
+                        onChange={(e) => setFormData({ ...formData, duplicateCheckMonths: e.target.value ? parseInt(e.target.value) : undefined })}
+                        placeholder="시스템 기본값"
+                        className="w-32"
+                      />
+                      <span className="text-sm text-muted-foreground">개월</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">비워두면 시스템 기본값 사용. 0이면 체크 안 함.</p>
                   </div>
                 </div>
               </div>

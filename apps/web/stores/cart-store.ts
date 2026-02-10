@@ -77,6 +77,7 @@ export interface CartItem {
   copperPlateInfo?: CopperPlateCartInfo; // 동판 정보 (변경 감지용)
   albumOrderInfo?: AlbumOrderCartInfo;   // 앨범/화보 주문 정보
   shippingInfo?: CartShippingInfo;       // 장바구니 배송지 정보
+  isDuplicateOverride?: boolean;         // 중복 경고 무시 여부
 }
 
 interface CartState {

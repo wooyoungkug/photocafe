@@ -2,9 +2,8 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import dynamic from 'next/dynamic';
-import { ChevronRight, ChevronDown, ChevronUp, Minus, Plus, ShoppingCart, Heart, Share2, Check, Eye, FileText, Image as ImageIcon, Calendar, MapPin, Star, FolderHeart, Loader2, Upload, BookOpen, Folder, Trash2, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
-import { useState, useEffect, useMemo, useTransition, useCallback } from 'react';
+import { ChevronRight, ChevronDown, ChevronUp, Minus, Plus, ShoppingCart, Heart, Share2, Eye, FileText, Image as ImageIcon, Calendar, Star, FolderHeart, Loader2, Upload, BookOpen, AlertTriangle } from 'lucide-react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useProduct } from '@/hooks/use-products';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,7 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useCartStore, type CartItemOption } from '@/stores/cart-store';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { API_URL, API_BASE_URL } from '@/lib/api';
+import { API_URL, API_BASE_URL, api } from '@/lib/api';
 import type { Product, ProductSpecification, ProductBinding, ProductPaper, ProductCover, ProductFoil, ProductFinishing, ProductPublicCopperPlate } from '@/lib/types';
 import { useAuthStore } from '@/stores/auth-store';
 import { useCopperPlatesByClient, useCopperPlateLabels, type CopperPlate } from '@/hooks/use-copper-plates';
@@ -31,23 +30,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { useAlbumOrderStore } from '@/stores/album-order-store';
-import { calculateFolderQuotation, formatPrice } from '@/lib/album-pricing';
-import { usePhotobookOrderStore, type PhotobookFile } from '@/stores/photobook-order-store';
-import { formatFileSize, calculateNormalizedRatio, formatPhotobookOrderInfo } from '@/lib/album-utils';
 import { MultiFolderUpload } from '@/components/album-upload';
 import { useMultiFolderUploadStore, type UploadedFolder, calculateUploadedFolderPrice, calculateAdditionalOrderPrice } from '@/stores/multi-folder-upload-store';
 import { useTranslations } from 'next-intl';
-
-// 위자드 컴포넌트 lazy loading - 모달 열 때만 로드
-const AlbumOrderWizard = dynamic(
-  () => import('@/components/album-order/album-order-wizard').then(mod => ({ default: mod.AlbumOrderWizard })),
-  { loading: () => <div className="p-8 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto" /></div> }
-);
-const PhotobookOrderWizard = dynamic(
-  () => import('@/components/photobook-order').then(mod => ({ default: mod.PhotobookOrderWizard })),
-  { loading: () => <div className="p-8 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto" /></div> }
-);
 
 // 이미지 URL 정규화 함수
 const normalizeImageUrl = (url: string | null | undefined): string => {
@@ -154,22 +139,125 @@ export default function ProductPage() {
   const [showLoadMyProductModal, setShowLoadMyProductModal] = useState(false);
   const [myProductName, setMyProductName] = useState('');
 
-  // 화보앨범 위자드 상태
-  const [showAlbumWizard, setShowAlbumWizard] = useState(false);
-  const albumOrderStore = useAlbumOrderStore();
-
-  // 새로운 화보 위자드 상태
-  const [showPhotobookWizard, setShowPhotobookWizard] = useState(false);
-  const photobookOrderStore = usePhotobookOrderStore();
+  // 데이터 업로드 스토어에서 편집스타일/제본순서 가져오기
+  const { defaultPageLayout, defaultBindingDirection, clearFolders } = useMultiFolderUploadStore();
 
   // 장바구니 담기 로딩 상태
   const [isAddingToCart, setIsAddingToCart] = useState(false);
 
-  // 데이터 업로드 스토어에서 편집스타일/제본순서 가져오기
-  const { defaultPageLayout, defaultBindingDirection, clearFolders } = useMultiFolderUploadStore();
+  // 중복 주문 체크 상태
+  const [duplicateCheckResult, setDuplicateCheckResult] = useState<{
+    duplicates: { folderName: string; orderNumber: string; orderedAt: string; status: string }[];
+    pendingFolders: UploadedFolder[];
+    months: number;
+  } | null>(null);
 
-  // 페이지 전환 최적화
-  const [isPending, startTransition] = useTransition();
+  // 폴더들을 장바구니에 추가하는 함수
+  const addFoldersToCart = useCallback((folders: UploadedFolder[], isDuplicateOverride = false) => {
+    if (!product) return;
+    setIsAddingToCart(true);
+    setTimeout(() => {
+      try {
+        folders.forEach((folder) => {
+          const options: CartItemOption[] = [
+            { name: '규격', value: folder.specLabel, price: 0 },
+            { name: '페이지', value: `${folder.pageCount}p`, price: 0 },
+            { name: '파일수', value: `${folder.files.length}건`, price: 0 },
+          ];
+          const allThumbnailUrls = folder.files
+            .map(f => f.thumbnailUrl)
+            .filter((url): url is string => !!url);
+          const folderPrice = calculateUploadedFolderPrice(folder);
+          const shippingInfoData = folder.shippingInfo ? {
+            senderType: folder.shippingInfo.senderType,
+            senderName: folder.shippingInfo.senderName,
+            senderPhone: folder.shippingInfo.senderPhone,
+            senderPostalCode: folder.shippingInfo.senderPostalCode,
+            senderAddress: folder.shippingInfo.senderAddress,
+            senderAddressDetail: folder.shippingInfo.senderAddressDetail,
+            receiverType: folder.shippingInfo.receiverType,
+            recipientName: folder.shippingInfo.recipientName,
+            recipientPhone: folder.shippingInfo.recipientPhone,
+            recipientPostalCode: folder.shippingInfo.recipientPostalCode,
+            recipientAddress: folder.shippingInfo.recipientAddress,
+            recipientAddressDetail: folder.shippingInfo.recipientAddressDetail,
+            deliveryMethod: folder.shippingInfo.deliveryMethod,
+            deliveryFee: folder.shippingInfo.deliveryFee,
+            deliveryFeeType: folder.shippingInfo.deliveryFeeType,
+          } : undefined;
+
+          addItem({
+            productId: product.id,
+            productType: 'album-order',
+            name: `${product.productName} - ${folder.orderTitle}`,
+            thumbnailUrl: folder.files[0]?.thumbnailUrl || product.thumbnailUrl,
+            thumbnailUrls: allThumbnailUrls,
+            basePrice: folderPrice.unitPrice,
+            quantity: folder.quantity,
+            options,
+            totalPrice: folderPrice.totalPrice,
+            albumOrderInfo: {
+              folderId: folder.id,
+              folderName: folder.orderTitle,
+              fileCount: folder.files.length,
+              pageCount: folder.pageCount,
+              printMethod: 'indigo',
+              colorMode: '4c',
+              pageLayout: defaultPageLayout || 'single',
+              bindingDirection: defaultBindingDirection || 'LEFT_START_RIGHT_END',
+              specificationId: '',
+              specificationName: folder.specLabel,
+              shippingInfo: shippingInfoData,
+            },
+            isDuplicateOverride,
+          });
+
+          folder.additionalOrders.forEach((additional) => {
+            const additionalPrice = calculateAdditionalOrderPrice(additional, folder);
+            addItem({
+              productId: product.id,
+              productType: 'album-order',
+              name: `${product.productName} - ${folder.orderTitle} (${additional.albumLabel})`,
+              thumbnailUrl: folder.files[0]?.thumbnailUrl || product.thumbnailUrl,
+              thumbnailUrls: allThumbnailUrls,
+              basePrice: additionalPrice.unitPrice,
+              quantity: additional.quantity,
+              options: [
+                { name: '규격', value: additional.albumLabel, price: 0 },
+                { name: '페이지', value: `${folder.pageCount}p`, price: 0 },
+                { name: '파일수', value: `${folder.files.length}건`, price: 0 },
+              ],
+              totalPrice: additionalPrice.totalPrice,
+              albumOrderInfo: {
+                folderId: folder.id,
+                folderName: folder.orderTitle,
+                fileCount: folder.files.length,
+                pageCount: folder.pageCount,
+                printMethod: 'indigo',
+                colorMode: '4c',
+                pageLayout: defaultPageLayout || 'single',
+                bindingDirection: defaultBindingDirection || 'LEFT_START_RIGHT_END',
+                specificationId: '',
+                specificationName: additional.albumLabel,
+                shippingInfo: shippingInfoData,
+              },
+              isDuplicateOverride,
+            });
+          });
+        });
+        clearFolders();
+        router.push('/cart');
+      } catch (error) {
+        console.error('장바구니 담기 오류:', error);
+        setIsAddingToCart(false);
+        toast({
+          title: '오류 발생',
+          description: '장바구니에 담는 중 문제가 발생했습니다. 다시 시도해주세요.',
+          variant: 'destructive',
+        });
+      }
+    }, 50);
+  }, [product, addItem, clearFolders, router, toast, defaultPageLayout, defaultBindingDirection]);
 
   // 화보/앨범 상품인지 확인
   const isAlbum = useMemo(() => {
@@ -216,30 +304,18 @@ export default function ProductPage() {
     );
   }
 
-  const calculatePrice = () => {
+  const totalPrice = useMemo(() => {
     let price = product.basePrice;
-
-    if (selectedOptions.specification) {
-      price += selectedOptions.specification.price;
-    }
-    if (selectedOptions.binding) {
-      price += selectedOptions.binding.price;
-    }
-    if (selectedOptions.paper) {
-      price += selectedOptions.paper.price;
-    }
-    if (selectedOptions.cover) {
-      price += selectedOptions.cover.price;
-    }
-    if (selectedOptions.foil) {
-      price += selectedOptions.foil.price;
-    }
+    if (selectedOptions.specification) price += selectedOptions.specification.price;
+    if (selectedOptions.binding) price += selectedOptions.binding.price;
+    if (selectedOptions.paper) price += selectedOptions.paper.price;
+    if (selectedOptions.cover) price += selectedOptions.cover.price;
+    if (selectedOptions.foil) price += selectedOptions.foil.price;
     for (const finishing of selectedOptions.finishings) {
       price += finishing.price;
     }
-
     return price * quantity;
-  };
+  }, [product.basePrice, selectedOptions, quantity]);
 
   const handleAddToCart = () => {
     const options: CartItemOption[] = [];
@@ -381,7 +457,7 @@ export default function ProductPage() {
       basePrice: product.basePrice,
       quantity,
       options,
-      totalPrice: calculatePrice(),
+      totalPrice: totalPrice,
       copperPlateInfo,
     });
 
@@ -459,161 +535,6 @@ export default function ProductPage() {
     }
   };
 
-  // 화보앨범 위자드 열기 (기존)
-  const handleOpenAlbumWizard = () => {
-    if (!product) return;
-    albumOrderStore.reset();
-    albumOrderStore.setProductInfo(product.id, product.productName);
-    if (selectedOptions.binding) {
-      albumOrderStore.setBindingInfo(selectedOptions.binding.id, selectedOptions.binding.name);
-    }
-    setShowAlbumWizard(true);
-  };
-
-  // 새 화보 위자드 열기
-  const handleOpenPhotobookWizard = () => {
-    if (!product) return;
-    photobookOrderStore.reset();
-    setShowPhotobookWizard(true);
-  };
-
-  // 화보앨범 위자드 완료 핸들러
-  const handleAlbumWizardComplete = () => {
-    const state = albumOrderStore;
-
-    // 장바구니에 추가할 옵션 구성
-    const options: CartItemOption[] = [];
-
-    options.push({
-      name: t('printMethod'),
-      value: state.printMethod === 'indigo' ? t('indigo') : t('inkjet'),
-      price: 0,
-    });
-
-    options.push({
-      name: t('colorMode'),
-      value: state.colorMode === '4c' ? t('fourColor') : t('sixColor'),
-      price: 0,
-    });
-
-    options.push({
-      name: t('pageLayout'),
-      value: state.pageLayout === 'single' ? t('singlePage') : t('spreadPage'),
-      price: 0,
-    });
-
-    const directionLabels: Record<string, string> = {
-      'ltr-rend': t('leftStartRightEnd'),
-      'ltr-lend': t('leftStartLeftEnd'),
-      'rtl-lend': t('rightStartLeftEnd'),
-      'rtl-rend': t('rightStartRightEnd'),
-    };
-    options.push({
-      name: t('bindingDirection'),
-      value: directionLabels[state.bindingDirection] || state.bindingDirection,
-      price: 0,
-    });
-
-    if (state.selectedSpecificationName) {
-      options.push({
-        name: t('spec'),
-        value: state.selectedSpecificationName,
-        price: 0,
-      });
-    }
-
-    if (state.bindingName) {
-      options.push({
-        name: t('binding'),
-        value: state.bindingName,
-        price: selectedOptions.binding?.price || 0,
-      });
-    }
-
-    if (selectedOptions.paper) {
-      options.push({
-        name: t('paper'),
-        value: selectedOptions.paper.name,
-        price: selectedOptions.paper.price,
-      });
-    }
-
-    // 규격명 추출
-    const specName = state.selectedSpecificationName || '12x12';
-
-    // 각 폴더별로 장바구니 아이템 추가
-    state.folders.forEach((folder, index) => {
-      // 견적 계산
-      const quotation = calculateFolderQuotation(folder, {
-        albumType: 'premium-photo',
-        coverType: 'hard-standard',
-        printMethod: state.printMethod,
-        colorMode: state.colorMode,
-        pageLayout: state.pageLayout,
-        specName,
-      });
-
-      const folderOptions = [...options];
-
-      folderOptions.push({
-        name: t('folderLabel'),
-        value: folder.folderName,
-        price: 0,
-      });
-      folderOptions.push({
-        name: t('fileCountLabel'),
-        value: t('countUnit', { count: folder.fileCount }),
-        price: 0,
-      });
-      folderOptions.push({
-        name: t('pageCountLabel'),
-        value: `${folder.pageCount}p`,
-        price: 0,
-      });
-
-      if (folder.representativeSpec) {
-        folderOptions.push({
-          name: t('originalSpec'),
-          value: `${folder.representativeSpec.widthInch}x${folder.representativeSpec.heightInch}"`,
-          price: 0,
-        });
-      }
-
-      addItem({
-        productId: product?.id || '',
-        productType: 'album-order',
-        name: `${product?.productName} - ${folder.folderName}`,
-        thumbnailUrl: folder.files[0]?.thumbnailUrl || product?.thumbnailUrl || undefined,
-        basePrice: quotation.unitPrice,
-        quantity: folder.quantity,
-        options: folderOptions,
-        totalPrice: quotation.totalPrice,
-        // 앨범 주문 추가 정보
-        albumOrderInfo: {
-          folderId: folder.id,
-          folderName: folder.folderName,
-          fileCount: folder.fileCount,
-          pageCount: folder.pageCount,
-          printMethod: state.printMethod,
-          colorMode: state.colorMode,
-          pageLayout: state.pageLayout,
-          bindingDirection: state.bindingDirection,
-          specificationId: state.selectedSpecificationId,
-          specificationName: state.selectedSpecificationName,
-        },
-      });
-    });
-
-    toast({
-      title: t('addedToCart'),
-      description: t('albumsAddedToCart', { count: state.folders.length }),
-    });
-
-    setShowAlbumWizard(false);
-    albumOrderStore.reset();
-    router.push('/cart');
-  };
-
   // 마이상품 불러오기
   const handleLoadMyProduct = (myProduct: MyProduct) => {
     const opts = myProduct.options;
@@ -660,11 +581,15 @@ export default function ProductPage() {
     });
   };
 
-  const images = product.thumbnailUrl
-    ? [normalizeImageUrl(product.thumbnailUrl), ...product.detailImages.map(img => normalizeImageUrl(img))]
-    : product.detailImages.length > 0
-      ? product.detailImages.map(img => normalizeImageUrl(img))
-      : [];
+  const images = useMemo(() => {
+    if (product.thumbnailUrl) {
+      return [normalizeImageUrl(product.thumbnailUrl), ...product.detailImages.map(img => normalizeImageUrl(img))];
+    }
+    if (product.detailImages.length > 0) {
+      return product.detailImages.map(img => normalizeImageUrl(img));
+    }
+    return [];
+  }, [product.thumbnailUrl, product.detailImages]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -708,7 +633,7 @@ export default function ProductPage() {
               <div className="bg-gray-50 rounded-lg p-4">
                 <div className="flex items-baseline gap-2">
                   <span className="text-3xl font-bold text-primary">
-                    {calculatePrice().toLocaleString()}
+                    {totalPrice.toLocaleString()}
                   </span>
                   <span className="text-lg">{tc('won')}</span>
                 </div>
@@ -1436,119 +1361,28 @@ export default function ProductPage() {
               {t('dataUpload')}
             </h3>
             <MultiFolderUpload
-              onAddToCart={(folders) => {
-                setIsAddingToCart(true);
-
-                // 오버레이가 화면에 렌더링된 후 처리 시작
-                setTimeout(() => {
+              onAddToCart={async (folders) => {
+                // 3개월 이내 중복 주문 체크
+                if (user?.clientId) {
                   try {
-                    // 선택된 폴더들을 장바구니에 추가
-                    folders.forEach((folder) => {
-                      const options: CartItemOption[] = [
-                        { name: t('spec'), value: folder.specLabel, price: 0 },
-                        { name: tc('page'), value: `${folder.pageCount}p`, price: 0 },
-                        { name: t('fileCountLabel'), value: t('countUnit', { count: folder.files.length }), price: 0 },
-                      ];
-
-                      // 전체 썸네일 URL 수집
-                      const allThumbnailUrls = folder.files
-                        .map(f => f.thumbnailUrl)
-                        .filter((url): url is string => !!url);
-
-                      // 앨범 가격 계산
-                      const folderPrice = calculateUploadedFolderPrice(folder);
-
-                      const shippingInfoData = folder.shippingInfo ? {
-                        senderType: folder.shippingInfo.senderType,
-                        senderName: folder.shippingInfo.senderName,
-                        senderPhone: folder.shippingInfo.senderPhone,
-                        senderPostalCode: folder.shippingInfo.senderPostalCode,
-                        senderAddress: folder.shippingInfo.senderAddress,
-                        senderAddressDetail: folder.shippingInfo.senderAddressDetail,
-                        receiverType: folder.shippingInfo.receiverType,
-                        recipientName: folder.shippingInfo.recipientName,
-                        recipientPhone: folder.shippingInfo.recipientPhone,
-                        recipientPostalCode: folder.shippingInfo.recipientPostalCode,
-                        recipientAddress: folder.shippingInfo.recipientAddress,
-                        recipientAddressDetail: folder.shippingInfo.recipientAddressDetail,
-                        deliveryMethod: folder.shippingInfo.deliveryMethod,
-                        deliveryFee: folder.shippingInfo.deliveryFee,
-                        deliveryFeeType: folder.shippingInfo.deliveryFeeType,
-                      } : undefined;
-
-                      // 메인 주문
-                      addItem({
-                        productId: product.id,
-                        productType: 'album-order',
-                        name: `${product.productName} - ${folder.orderTitle}`,
-                        thumbnailUrl: folder.files[0]?.thumbnailUrl || product.thumbnailUrl,
-                        thumbnailUrls: allThumbnailUrls,
-                        basePrice: folderPrice.unitPrice,
-                        quantity: folder.quantity,
-                        options,
-                        totalPrice: folderPrice.totalPrice,
-                        albumOrderInfo: {
-                          folderId: folder.id,
-                          folderName: folder.orderTitle,
-                          fileCount: folder.files.length,
-                          pageCount: folder.pageCount,
-                          printMethod: 'indigo',
-                          colorMode: '4c',
-                          pageLayout: defaultPageLayout || 'single',
-                          bindingDirection: defaultBindingDirection || 'LEFT_START_RIGHT_END',
-                          specificationId: '',
-                          specificationName: folder.specLabel,
-                          shippingInfo: shippingInfoData,
-                        },
-                      });
-
-                      // 추가 주문들
-                      folder.additionalOrders.forEach((additional) => {
-                        const additionalPrice = calculateAdditionalOrderPrice(additional, folder);
-                        addItem({
-                          productId: product.id,
-                          productType: 'album-order',
-                          name: `${product.productName} - ${folder.orderTitle} (${additional.albumLabel})`,
-                          thumbnailUrl: folder.files[0]?.thumbnailUrl || product.thumbnailUrl,
-                          thumbnailUrls: allThumbnailUrls,
-                          basePrice: additionalPrice.unitPrice,
-                          quantity: additional.quantity,
-                          options: [
-                            { name: t('spec'), value: additional.albumLabel, price: 0 },
-                            { name: tc('page'), value: `${folder.pageCount}p`, price: 0 },
-                            { name: t('fileCountLabel'), value: t('countUnit', { count: folder.files.length }), price: 0 },
-                          ],
-                          totalPrice: additionalPrice.totalPrice,
-                          albumOrderInfo: {
-                            folderId: folder.id,
-                            folderName: folder.orderTitle,
-                            fileCount: folder.files.length,
-                            pageCount: folder.pageCount,
-                            printMethod: 'indigo',
-                            colorMode: '4c',
-                            pageLayout: defaultPageLayout || 'single',
-                            bindingDirection: defaultBindingDirection || 'LEFT_START_RIGHT_END',
-                            specificationId: '',
-                            specificationName: additional.albumLabel,
-                            shippingInfo: shippingInfoData,
-                          },
-                        });
-                      });
-                    });
-
-                    // 장바구니로 이동
-                    clearFolders();
-                    router.push('/cart');
+                    const folderNames = folders.map(f => f.orderTitle);
+                    const result = await api.post<{ duplicates: { folderName: string; orderNumber: string; orderedAt: string; status: string }[]; months: number }>(
+                      '/orders/check-duplicates',
+                      { clientId: user.clientId, folderNames }
+                    );
+                    if (result.duplicates.length > 0) {
+                      // 중복 발견 - 경고 다이얼로그 표시
+                      setDuplicateCheckResult({ duplicates: result.duplicates, pendingFolders: folders, months: result.months });
+                      return;
+                    }
                   } catch (error) {
-                    console.error('장바구니 담기 오류:', error);
-                    setIsAddingToCart(false);
-                    toast({
-                      title: '오류 발생',
-                      description: '장바구니에 담는 중 문제가 발생했습니다. 다시 시도해주세요.',
-                      variant: 'destructive',
-                    });
+                    console.error('중복 체크 실패:', error);
+                    // 체크 실패 시 그냥 진행
                   }
-                }, 50);
+                }
+
+                // 중복 없으면 바로 장바구니 담기
+                addFoldersToCart(folders);
               }}
             />
 
@@ -1653,6 +1487,7 @@ export default function ProductPage() {
                       src={normalizeImageUrl(img)}
                       alt={`${product.productName} ${idx + 1}`}
                       className="w-full rounded-lg"
+                      loading="lazy"
                     />
                   ))}
                 </div>
@@ -1661,6 +1496,62 @@ export default function ProductPage() {
           </Card>
         </div>
       </div>
+
+      {/* 중복 주문 경고 다이얼로그 */}
+      <Dialog open={!!duplicateCheckResult} onOpenChange={(open) => { if (!open) setDuplicateCheckResult(null); }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <AlertTriangle className="h-5 w-5" />
+              중복 주문 경고
+            </DialogTitle>
+            <DialogDescription>
+              다음 폴더는 {duplicateCheckResult?.months || 3}개월 이내 주문 이력이 있습니다.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-60 overflow-y-auto space-y-2 py-2">
+            {duplicateCheckResult?.duplicates.map((dup, idx) => (
+              <div key={idx} className="flex items-start gap-2 p-2 bg-amber-50 rounded-md border border-amber-200 text-sm">
+                <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-medium">{dup.folderName}</p>
+                  <p className="text-muted-foreground text-xs">
+                    주문번호: {dup.orderNumber} / {new Date(dup.orderedAt).toLocaleDateString('ko-KR')}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setDuplicateCheckResult(null)}>
+              취소
+            </Button>
+            {duplicateCheckResult && duplicateCheckResult.pendingFolders.length > duplicateCheckResult.duplicates.length && (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  const dupNames = new Set(duplicateCheckResult.duplicates.map(d => d.folderName));
+                  const nonDupFolders = duplicateCheckResult.pendingFolders.filter(f => !dupNames.has(f.orderTitle));
+                  setDuplicateCheckResult(null);
+                  if (nonDupFolders.length > 0) addFoldersToCart(nonDupFolders);
+                }}
+              >
+                중복 제외하고 담기 ({(duplicateCheckResult?.pendingFolders.length || 0) - (duplicateCheckResult?.duplicates.length || 0)}건)
+              </Button>
+            )}
+            <Button
+              variant="default"
+              onClick={() => {
+                const folders = duplicateCheckResult!.pendingFolders;
+                setDuplicateCheckResult(null);
+                addFoldersToCart(folders, true);
+              }}
+            >
+              전체 담기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* 마이상품 저장 모달 */}
       <Dialog open={showSaveMyProductModal} onOpenChange={setShowSaveMyProductModal}>
@@ -1820,31 +1711,6 @@ export default function ProductPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* 화보앨범 주문 위자드 모달 (기존) */}
-      <Dialog open={showAlbumWizard} onOpenChange={setShowAlbumWizard}>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto p-0">
-          <AlbumOrderWizard
-            productId={product.id}
-            productName={product.productName}
-            bindingId={selectedOptions.binding?.id}
-            bindingName={selectedOptions.binding?.name}
-            onComplete={handleAlbumWizardComplete}
-            onCancel={() => {
-              setShowAlbumWizard(false);
-              albumOrderStore.reset();
-            }}
-          />
-        </DialogContent>
-      </Dialog>
-
-      {/* 새 화보 주문 위자드 (6단계) */}
-      <PhotobookOrderWizard
-        open={showPhotobookWizard}
-        onClose={() => setShowPhotobookWizard(false)}
-        productId={product.id}
-        productName={product.productName}
-      />
 
       {/* 장바구니 담기 로딩 오버레이 */}
       {isAddingToCart && (

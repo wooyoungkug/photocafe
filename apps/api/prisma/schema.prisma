@@ -357,6 +357,7 @@ model Client {
   totalClaims        Int       @default(0)       // 누적 클레임 건수
   isBlacklist        Boolean   @default(false)   // 블랙리스트 여부
   isWhitelist        Boolean   @default(false)   // 화이트리스트(우수고객) 여부
+  duplicateCheckMonths Int?                      // 중복주문 체크 기간(개월), null=시스템 기본값 사용
 
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
@@ -978,6 +979,7 @@ model Order {
   currentProcess        String    @default("receipt_pending")
 
   isUrgent              Boolean   @default(false)
+  isDuplicateOverride   Boolean   @default(false)  // 중복 경고 무시하고 주문
   requestedDeliveryDate DateTime?
 
   customerMemo          String?   @db.Text
