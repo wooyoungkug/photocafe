@@ -403,34 +403,29 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     setIsEditingTitle(false);
   };
 
-  // 페이지 순서 배지 표시
-  const getPageOrderDisplay = () => {
-    const pages = folder.files.slice(0, 8); // 처음 8개만 표시
-    const hasMore = folder.files.length > 8;
+  // 제본순서 시각화: 펼친면 2장, 시작/끝 위치 색칠
+  const getBindingDirectionVisual = () => {
+    const dir = folder.bindingDirection || 'LEFT_START_RIGHT_END';
+    const filled = 'w-3.5 h-5 bg-blue-500 rounded-sm';
+    const empty = 'w-3.5 h-5 bg-gray-200 rounded-sm';
+
+    // [좌|우] [좌|우] 형태의 펼친면 2장
+    // 시작=첫장 색칠 위치, 끝=둘째장 색칠 위치
+    const startLeft = dir.startsWith('LEFT_START');
+    const endRight = dir.endsWith('RIGHT_END');
 
     return (
-      <div className="flex flex-wrap gap-1 items-center">
-        {pages.map((file, idx) => {
-          const coverBadge = COVER_TYPE_BADGE[file.coverType];
-          const isCover = file.coverType !== 'INNER_PAGE';
-          return (
-            <span
-              key={file.id}
-              className={cn(
-                'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium',
-                isCover ? coverBadge.className : 'bg-gray-100 text-gray-600',
-                file.isSplit && 'ring-1 ring-pink-400'
-              )}
-              title={file.fileName}
-            >
-              {isCover ? coverLabels[file.coverType] : String(file.pageNumber).padStart(2, '0')}
-              {file.isSplit && <Scissors className="w-2.5 h-2.5 ml-0.5" />}
-            </span>
-          );
-        })}
-        {hasMore && (
-          <span className="text-xs text-gray-400">...+{folder.files.length - 8}</span>
-        )}
+      <div className="flex items-center gap-1">
+        {/* 첫장 */}
+        <div className="flex gap-px border border-gray-300 rounded p-px">
+          <div className={startLeft ? filled : empty} />
+          <div className={startLeft ? empty : filled} />
+        </div>
+        {/* 둘째장 */}
+        <div className="flex gap-px border border-gray-300 rounded p-px">
+          <div className={endRight ? empty : filled} />
+          <div className={endRight ? filled : empty} />
+        </div>
       </div>
     );
   };
@@ -1042,9 +1037,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
         <span className="text-gray-300">/</span>
         <span>{formatFileSize(folder.totalFileSize)}</span>
         <span className="text-gray-300 ml-1">|</span>
-        <span className="text-[10px] text-blue-500">■</span>
-        <span className="text-[10px] text-purple-500">■</span>
-        {getPageOrderDisplay()}
+        {getBindingDirectionVisual()}
       </div>
 
       {/* 정상/승인 완료 시 - 규격 옵션 및 수량 */}

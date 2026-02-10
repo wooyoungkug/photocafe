@@ -53,6 +53,9 @@ export type BindingDirection =
 // 표지 타입
 export type CoverType = 'FRONT_COVER' | 'BACK_COVER' | 'COMBINED_COVER' | 'INNER_PAGE';
 
+// 표지 소스 유형 (원단표지 / 디자인표지)
+export type CoverSourceType = 'fabric' | 'design';
+
 // 표지 감지 패턴
 const COVER_PATTERNS = {
   FRONT: /첫장|표지(?!뒷)|front|cover(?!.*back)|^첫$/i,
@@ -267,6 +270,14 @@ export interface UploadedFolder {
   colorGroups?: ColorGroup[];
   colorGroupingEnabled?: boolean;
 
+  // 표지 소스 선택
+  coverSourceType: CoverSourceType | null; // 'fabric' | 'design' | null(미선택)
+  selectedFabricId: string | null;
+  selectedFabricName: string | null;
+  selectedFabricThumbnail: string | null;
+  selectedFabricPrice: number;
+  coverAutoDetected: boolean; // 파일명 기반 자동 감지 여부
+
   // 업로드 시각
   uploadedAt: number; // Date.now()
 }
@@ -335,6 +346,12 @@ interface MultiFolderUploadState {
   setFileColorInfo: (folderId: string, fileId: string, colorInfo: PhotoColorInfo) => void;
   computeColorGroups: (folderId: string) => void;
   toggleColorGrouping: (folderId: string) => void;
+
+  // 표지 소스 선택
+  setFolderCoverSource: (folderId: string, source: CoverSourceType | null) => void;
+  setFolderFabric: (folderId: string, fabricId: string, fabricName: string, fabricThumbnail: string | null, fabricPrice: number) => void;
+  clearFolderFabric: (folderId: string) => void;
+  reclassifyCoverToInner: (folderId: string) => void;
 
   // 배송 정보
   setFolderShipping: (folderId: string, shipping: FolderShippingInfo) => void;
@@ -1154,6 +1171,76 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
     }));
   },
 
+  // 표지 소스 선택
+  setFolderCoverSource: (folderId: string, source: CoverSourceType | null) => {
+    set(state => ({
+      folders: state.folders.map(f => {
+        if (f.id !== folderId) return f;
+        if (source === 'fabric') {
+          // 원단표지 선택 시 자동감지 플래그 해제
+          return { ...f, coverSourceType: source, coverAutoDetected: false };
+        }
+        if (source === 'design') {
+          // 디자인표지 선택 시 원단 선택 초기화
+          return {
+            ...f,
+            coverSourceType: source,
+            selectedFabricId: null,
+            selectedFabricName: null,
+            selectedFabricThumbnail: null,
+            selectedFabricPrice: 0,
+          };
+        }
+        return { ...f, coverSourceType: source };
+      }),
+    }));
+  },
+
+  setFolderFabric: (folderId, fabricId, fabricName, fabricThumbnail, fabricPrice) => {
+    set(state => ({
+      folders: state.folders.map(f =>
+        f.id === folderId
+          ? { ...f, selectedFabricId: fabricId, selectedFabricName: fabricName, selectedFabricThumbnail: fabricThumbnail, selectedFabricPrice: fabricPrice }
+          : f
+      ),
+    }));
+  },
+
+  clearFolderFabric: (folderId) => {
+    set(state => ({
+      folders: state.folders.map(f =>
+        f.id === folderId
+          ? { ...f, selectedFabricId: null, selectedFabricName: null, selectedFabricThumbnail: null, selectedFabricPrice: 0 }
+          : f
+      ),
+    }));
+  },
+
+  reclassifyCoverToInner: (folderId) => {
+    set(state => ({
+      folders: state.folders.map(f => {
+        if (f.id !== folderId) return f;
+        const reclassified = f.files.map(file =>
+          file.coverType === 'FRONT_COVER' || file.coverType === 'BACK_COVER'
+            ? { ...file, coverType: 'INNER_PAGE' as CoverType }
+            : file
+        );
+        const sorted = sortPagesByPosition(reclassified);
+        const totalCount = sorted.length;
+        const renamed = sorted.map((file, idx) => ({
+          ...file,
+          newFileName: generateSequentialFileName(idx, file.fileName, totalCount),
+        }));
+        return {
+          ...f,
+          files: renamed,
+          hasCombinedCover: false,
+          splitCoverResults: [],
+        };
+      }),
+    }));
+  },
+
   // 배송 정보
   setFolderShipping: (folderId: string, shipping: FolderShippingInfo) => {
     set((state) => ({
@@ -1193,7 +1280,8 @@ const INDIGO_PRINT_PRICES: Record<string, { single: number; spread: number }> = 
 };
 
 // 표지 단가
-const COVER_PRICE = 5000;
+const COVER_PRICE = 5000; // 원단표지 기본 단가
+const DESIGN_COVER_PRICE = 3000; // 디자인표지 출력 단가
 
 // 규격 키 추출
 function getSpecKey(width: number, height: number): string {
