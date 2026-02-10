@@ -49,6 +49,7 @@ export default function CartPage() {
     clearCart,
     updateItemShipping,
     updateAllItemsShipping,
+    updateAlbumInfo,
     reorderItems,
   } = useCartStore();
   const { isAuthenticated } = useAuthStore();
@@ -315,6 +316,7 @@ export default function CartPage() {
                         onRemove={setDeleteTargetId}
                         onUpdateQuantity={updateQuantity}
                         onShippingChange={handleShippingChange}
+                        onAlbumInfoChange={updateAlbumInfo}
                         onApplyToAll={handleApplyToAll}
                         onCopyFromPrevious={
                           hasPrevShipping ? () => handleCopyFromPrevious(item.id) : null

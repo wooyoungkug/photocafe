@@ -84,6 +84,18 @@ export const getCartShippingSummary = (info: CartShippingInfo): string => {
   return `${methodLabel} · ${senderLabel}→${receiverLabel} · ${feeLabel}`;
 };
 
+const PAGE_LAYOUT_OPTIONS = [
+  { value: 'spread', label: '펼친면' },
+  { value: 'single', label: '낱장' },
+] as const;
+
+const BINDING_DIRECTION_OPTIONS = [
+  { value: 'LEFT_START_RIGHT_END', label: '좌시우끝' },
+  { value: 'LEFT_START_LEFT_END', label: '좌시좌끝' },
+  { value: 'RIGHT_START_LEFT_END', label: '우시좌끝' },
+  { value: 'RIGHT_START_RIGHT_END', label: '우시우끝' },
+] as const;
+
 export interface CartItemCardProps {
   item: CartItem;
   isSelected: boolean;
@@ -92,6 +104,7 @@ export interface CartItemCardProps {
   onRemove: (id: string) => void;
   onUpdateQuantity: (id: string, quantity: number) => void;
   onShippingChange: (id: string, shipping: FolderShippingInfo) => void;
+  onAlbumInfoChange?: (id: string, updates: Partial<import('@/stores/cart-store').AlbumOrderCartInfo>) => void;
   onApplyToAll: (id: string) => void;
   onCopyFromPrevious: (() => void) | null;
   itemsCount: number;
@@ -108,6 +121,7 @@ export function CartItemCard({
   onRemove,
   onUpdateQuantity,
   onShippingChange,
+  onAlbumInfoChange,
   onApplyToAll,
   onCopyFromPrevious,
   itemsCount,
@@ -292,13 +306,27 @@ export function CartItemCard({
                       <Separator orientation="vertical" className="h-3 bg-purple-200" />
                       <span>{item.albumOrderInfo.pageCount}p</span>
                       <Separator orientation="vertical" className="h-3 bg-purple-200" />
-                      <span>
-                        {item.albumOrderInfo.pageLayout === 'spread' ? '펼친면' : '낱장'}
-                      </span>
+                      <select
+                        title="편집스타일"
+                        value={item.albumOrderInfo.pageLayout}
+                        onChange={(e) => onAlbumInfoChange?.(item.id, { pageLayout: e.target.value as 'single' | 'spread' })}
+                        className="bg-transparent text-purple-600 text-[11px] font-medium border border-purple-300 rounded px-1 py-0 cursor-pointer hover:bg-purple-100 focus:outline-none focus:ring-1 focus:ring-purple-400"
+                      >
+                        {PAGE_LAYOUT_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
                       <Separator orientation="vertical" className="h-3 bg-purple-200" />
-                      <span>
-                        {getBindingDirectionLabel(item.albumOrderInfo.bindingDirection)}
-                      </span>
+                      <select
+                        title="제본순서"
+                        value={item.albumOrderInfo.bindingDirection}
+                        onChange={(e) => onAlbumInfoChange?.(item.id, { bindingDirection: e.target.value })}
+                        className="bg-transparent text-purple-600 text-[11px] font-medium border border-purple-300 rounded px-1 py-0 cursor-pointer hover:bg-purple-100 focus:outline-none focus:ring-1 focus:ring-purple-400"
+                      >
+                        {BINDING_DIRECTION_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 )}
@@ -473,6 +501,7 @@ export function CartItemCard({
           <CartThumbnailGallery
             thumbnailUrls={item.thumbnailUrls}
             pageLayout={item.albumOrderInfo?.pageLayout}
+            bindingDirection={item.albumOrderInfo?.bindingDirection}
           />
         )}
       </Card>

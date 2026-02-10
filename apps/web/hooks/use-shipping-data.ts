@@ -39,22 +39,28 @@ export function useShippingData() {
   // 1. 회사정보 (시스템설정)
   const { data: companySettings, isLoading: isLoadingCompany } = useSystemSettings('company');
 
-  // 2. 주문자(거래처) 정보
-  const { data: clientInfo, isLoading: isLoadingClient } = useQuery<OrdererShippingInfo>({
+  // 2. 주문자(거래처) 정보 - client 역할일 때만 조회
+  const isClient = user?.role === 'client';
+  const { data: clientInfo, isLoading: isLoadingClient } = useQuery<OrdererShippingInfo | null>({
     queryKey: ['client-shipping-info', user?.id],
     queryFn: async () => {
-      const response = await api.get<any>(`/clients/${user!.id}`);
-      return {
-        id: response.id,
-        clientName: response.clientName || user?.name || '',
-        phone: response.mobile || response.phone || '',
-        postalCode: response.postalCode || '',
-        address: response.address || '',
-        addressDetail: response.addressDetail || '',
-        shippingType: response.shippingType || 'conditional',
-      };
+      try {
+        const response = await api.get<any>(`/clients/${user!.id}`);
+        return {
+          id: response.id,
+          clientName: response.clientName || user?.name || '',
+          phone: response.mobile || response.phone || '',
+          postalCode: response.postalCode || '',
+          address: response.address || '',
+          addressDetail: response.addressDetail || '',
+          shippingType: response.shippingType || 'conditional',
+        };
+      } catch {
+        return null;
+      }
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && isClient,
+    retry: false,
   });
 
   // 3. 배송비 단가

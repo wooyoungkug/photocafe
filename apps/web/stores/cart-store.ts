@@ -88,6 +88,7 @@ interface CartState {
   updateOptions: (id: string, options: CartItemOption[]) => void;
   updateItemShipping: (id: string, shippingInfo: CartShippingInfo) => void;
   updateAllItemsShipping: (shippingInfo: CartShippingInfo) => void;
+  updateAlbumInfo: (id: string, updates: Partial<AlbumOrderCartInfo>) => void;
   reorderItems: (items: CartItem[]) => void;
   clearCart: () => void;
   getTotal: () => number;
@@ -202,6 +203,16 @@ export const useCartStore = create<CartState>()(
       updateAllItemsShipping: (shippingInfo) => {
         set((state) => ({
           items: state.items.map((item) => ({ ...item, shippingInfo })),
+        }));
+      },
+
+      updateAlbumInfo: (id, updates) => {
+        set((state) => ({
+          items: state.items.map((item) =>
+            item.id === id && item.albumOrderInfo
+              ? { ...item, albumOrderInfo: { ...item.albumOrderInfo, ...updates } }
+              : item
+          ),
         }));
       },
 

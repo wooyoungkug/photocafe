@@ -13,7 +13,7 @@ import type {
 } from '@/lib/types/accounting';
 
 // API 엔드포인트 기본 경로
-const ACCOUNTING_API = '/api/v1/accounting';
+const ACCOUNTING_API = '/accounting';
 
 // 샘플 데이터 (백엔드 API 연동 전까지 사용)
 const sampleTransactions: Transaction[] = [
@@ -225,20 +225,8 @@ export function useCreateTransaction() {
 }
 
 // ===== 매출 관리 =====
-export function useSalesTransactions(params?: {
-  startDate?: string;
-  endDate?: string;
-  clientId?: string;
-  status?: string;
-}) {
-  return useQuery({
-    queryKey: ['sales-transactions', params],
-    queryFn: async () => {
-      const filtered = sampleTransactions.filter((t) => t.type === 'income' && t.category === 'sales');
-      return { data: filtered, meta: { total: filtered.length } };
-    },
-  });
-}
+// 매출원장 시스템으로 이전됨 - use-sales-ledger.ts 사용
+// 기존 useSalesTransactions는 deprecated
 
 // ===== 매입 관리 =====
 export function usePurchaseTransactions(params?: {

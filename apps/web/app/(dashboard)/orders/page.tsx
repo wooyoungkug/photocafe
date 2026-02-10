@@ -249,13 +249,13 @@ export default function OrderListPage() {
                           >
                             <div className="space-y-1">
                               <div className="text-xs text-muted-foreground">
-                                {format(new Date(order.orderedAt), 'yyyy-MM-dd', { locale: ko })}
+                                {format(new Date(order.orderedAt), 'yyyy-MM-dd HH:mm', { locale: ko })}
                               </div>
                               <Link
                                 href={`/mypage/orders/${order.id}`}
                                 className="text-xs font-semibold text-primary hover:underline"
                               >
-                                {order.orderNumber}
+                                {order.orderNumber?.replace(/^ORD-\d{8}-/, '') || order.orderNumber}
                               </Link>
                               {order.isUrgent && (
                                 <Badge variant="destructive" className="text-[10px] px-1 py-0">긴급</Badge>
