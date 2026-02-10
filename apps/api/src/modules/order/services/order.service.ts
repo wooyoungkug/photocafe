@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { SystemSettingsService } from '@/modules/system-settings/system-settings.service';
 import { Prisma } from '@prisma/client';
@@ -13,12 +13,14 @@ import {
   BulkDataCleanupDto,
   ORDER_STATUS,
 } from '../dto';
+import { SalesLedgerService } from '../../accounting/services/sales-ledger.service';
 
 @Injectable()
 export class OrderService {
   constructor(
     private prisma: PrismaService,
     private systemSettings: SystemSettingsService,
+    private salesLedgerService: SalesLedgerService,
   ) { }
 
   // ==================== 주문번호 생성 ====================
@@ -104,6 +106,15 @@ export class OrderService {
               id: true,
               clientCode: true,
               clientName: true,
+              assignedStaff: {
+                where: { isPrimary: true },
+                select: {
+                  staff: {
+                    select: { id: true, name: true },
+                  },
+                },
+                take: 1,
+              },
             },
           },
           shipping: true,
@@ -319,6 +330,30 @@ export class OrderService {
           }).catch(() => { })
         )
       ).catch(() => { });
+
+      // 매출원장 자동 등록 (비동기, 에러 시 주문은 유지)
+      this.salesLedgerService.createFromOrder({
+        id: order.id,
+        orderNumber: order.orderNumber,
+        clientId: order.clientId,
+        productPrice: Number(order.productPrice),
+        shippingFee: Number(order.shippingFee),
+        tax: Number(order.tax),
+        totalAmount: Number(order.totalAmount),
+        finalAmount: Number(order.finalAmount),
+        paymentMethod: order.paymentMethod,
+        items: order.items.map(item => ({
+          id: item.id,
+          productId: item.productId,
+          productName: item.productName,
+          size: item.size,
+          quantity: item.quantity,
+          unitPrice: Number(item.unitPrice),
+          totalPrice: Number(item.totalPrice),
+        })),
+      }, userId).catch((err) => {
+        console.error('매출원장 자동등록 실패:', err.message);
+      });
 
       return order;
     } catch (error) {

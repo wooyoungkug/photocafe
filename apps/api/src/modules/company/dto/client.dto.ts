@@ -138,6 +138,10 @@ export class CreateClientDto {
   @Min(0)
   @Max(24)
   duplicateCheckMonths?: number;
+
+  @ApiPropertyOptional({ description: '영업담당자 (직원 ID)', nullable: true })
+  @IsOptional()
+  assignedManager?: string | null;
 }
 
 export class UpdateClientDto extends PartialType(CreateClientDto) { }

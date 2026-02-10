@@ -42,6 +42,7 @@ import {
   useNextClientCode,
 } from '@/hooks/use-clients';
 import { useClientConsultations } from '@/hooks/use-consultations';
+import { useStaffList } from '@/hooks/use-staff';
 import { Client, CreateClientDto } from '@/lib/types/client';
 import { CONSULTATION_CATEGORY_COLORS, CONSULTATION_STATUS_CONFIG } from '@/lib/types/consultation';
 import { AddressSearch } from '@/components/address-search';
@@ -68,6 +69,7 @@ import {
   DollarSign,
   ExternalLink,
   Key,
+  UserCheck,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -207,6 +209,7 @@ export default function MembersPage() {
   });
 
   const { data: groupsData } = useClientGroups({ limit: 100 });
+  const { data: staffData } = useStaffList({ limit: 100, isActive: true });
   // 다이얼로그가 열리고 editingMember가 있을 때만 상담 이력 조회
   const { data: consultations } = useClientConsultations(
     editingMember?.id || '',
@@ -234,6 +237,7 @@ export default function MembersPage() {
     creditGrade: 'B',
     paymentTerms: 30,
     status: 'active',
+    assignedManager: '',
   });
 
   const handleOpenDialog = (member?: Client) => {
@@ -255,6 +259,7 @@ export default function MembersPage() {
         creditGrade: member.creditGrade || 'B',
         paymentTerms: member.paymentTerms || 30,
         status: member.status || 'active',
+        assignedManager: member.assignedManager || '',
       });
     } else {
       setEditingMember(null);
@@ -276,6 +281,7 @@ export default function MembersPage() {
           creditGrade: 'B',
           paymentTerms: 30,
           status: 'active',
+          assignedManager: '',
         });
       });
     }
@@ -304,6 +310,7 @@ export default function MembersPage() {
       const submitData = {
         ...formData,
         groupId: formData.groupId || undefined,
+        assignedManager: formData.assignedManager || null,
       };
 
       if (editingMember) {
@@ -768,6 +775,36 @@ export default function MembersPage() {
                         {groupsData?.data?.map((group) => (
                           <SelectItem key={group.id} value={group.id}>
                             {group.groupName} (일반 {group.generalDiscount}%)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* 영업담당자 선택 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="assignedManager" className="text-sm font-medium">
+                      영업담당자
+                    </Label>
+                    <Select
+                      value={formData.assignedManager || 'none'}
+                      onValueChange={(v) => setFormData({ ...formData, assignedManager: v === 'none' ? '' : v })}
+                    >
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder="담당자 선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">
+                          <span className="text-muted-foreground">담당자 없음</span>
+                        </SelectItem>
+                        {staffData?.data?.map((staff) => (
+                          <SelectItem key={staff.id} value={staff.id}>
+                            <span className="flex items-center gap-2">
+                              {staff.name}
+                              {staff.department && (
+                                <span className="text-xs text-muted-foreground">({staff.department.name})</span>
+                              )}
+                            </span>
                           </SelectItem>
                         ))}
                       </SelectContent>

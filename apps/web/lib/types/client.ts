@@ -41,6 +41,7 @@ export interface Client {
   creditGrade?: 'A' | 'B' | 'C' | 'D';
   paymentTerms?: number;
   duplicateCheckMonths?: number;
+  assignedManager?: string;
   status: 'active' | 'inactive' | 'suspended';
   createdAt: string;
   updatedAt: string;
@@ -66,6 +67,7 @@ export interface CreateClientDto {
   memberType?: 'individual' | 'business';
   creditGrade?: 'A' | 'B' | 'C' | 'D';
   paymentTerms?: number;
+  assignedManager?: string | null;
   status?: 'active' | 'inactive' | 'suspended';
   duplicateCheckMonths?: number;
 }

@@ -30,7 +30,7 @@ import {
 } from '../dto/accounting.dto';
 
 @ApiTags('회계관리')
-@Controller('api/v1/accounting')
+@Controller('accounting')
 export class AccountingController {
   constructor(private readonly accountingService: AccountingService) {}
 

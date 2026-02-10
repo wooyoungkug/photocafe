@@ -372,6 +372,7 @@ model Client {
   productionSettingPrices ClientProductionSettingPrice[]
   photobookOrders PhotobookOrder[]
   albumPreference ClientAlbumPreference?
+  salesLedgers SalesLedger[] @relation("SalesLedgerClient")
 
   @@unique([oauthProvider, oauthId])
   @@index([groupId])
@@ -688,17 +689,21 @@ model Product {
 }
 
 model ProductSpecification {
-  id        String  @id @default(cuid())
-  productId String
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  name      String  // 규격명
-  widthMm   Float
-  heightMm  Float
-  price     Decimal @db.Decimal(10, 2) @default(0)
-  isDefault Boolean @default(false)
-  sortOrder Int     @default(0)
+  id              String         @id @default(cuid())
+  productId       String
+  product         Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  specificationId String?        // 마스터 규격 FK (자동 동기화용)
+  specification   Specification? @relation(fields: [specificationId], references: [id], onDelete: SetNull)
+  name            String         // 규격명
+  widthMm         Float
+  heightMm        Float
+  price           Decimal        @db.Decimal(10, 2) @default(0)
+  isDefault       Boolean        @default(false)
+  sortOrder       Int            @default(0)
 
+  @@unique([productId, specificationId])
   @@index([productId])
+  @@index([specificationId])
   @@map("product_specifications")
 }
 
@@ -2908,6 +2913,155 @@ model Settlement {
   @@index([periodStart])
   @@index([status])
   @@map("settlements")
+}
+
+// ==================== 매출원장 (Sales Ledger) ====================
+
+// 매출유형
+enum SalesType {
+  ALBUM         // 앨범
+  PRINT         // 출력물
+  FRAME         // 액자
+  GOODS         // 굿즈
+  BINDING       // 제본
+  DESIGN        // 디자인용역
+  SHIPPING      // 배송비
+  OTHER         // 기타
+}
+
+// 과세유형 (더존 벤치마킹: 11=과세, 12=영세, 13=면세)
+enum TaxType {
+  TAXABLE       // 과세 (부가세 10%)
+  ZERO_RATED    // 영세율
+  EXEMPT        // 면세
+}
+
+// 매출 인식 상태
+enum SalesStatus {
+  REGISTERED    // 접수등록 (주문접수 시)
+  CONFIRMED     // 매출확정 (배송완료/인도 시)
+  CANCELLED     // 취소
+}
+
+// 매출원장 (Sales Ledger Entry)
+model SalesLedger {
+  id                  String        @id @default(cuid())
+  ledgerNumber        String        @unique  // 매출전표번호 (SL-YYYYMMDD-NNN)
+  ledgerDate          DateTime               // 전표일자 (등록일)
+  salesDate           DateTime?              // 매출확정일 (배송완료일)
+
+  // 거래처 정보
+  clientId            String
+  client              Client        @relation("SalesLedgerClient", fields: [clientId], references: [id])
+  clientName          String                 // 거래처명 (스냅샷)
+  clientBizNo         String?                // 사업자등록번호 (세금계산서용)
+
+  // 주문 연동
+  orderId             String        @unique
+  orderNumber         String                 // 주문번호 (스냅샷)
+
+  // 매출 유형/과세
+  salesType           SalesType     @default(ALBUM)
+  taxType             TaxType       @default(TAXABLE)
+
+  // 금액 (더존/SAP 표준 필드)
+  supplyAmount        Decimal       @db.Decimal(12, 2)  // 공급가액
+  vatAmount           Decimal       @db.Decimal(10, 2)  // 부가세액
+  shippingFee         Decimal       @db.Decimal(10, 2) @default(0) // 배송비
+  adjustmentAmount    Decimal       @db.Decimal(10, 2) @default(0) // 조정액(할인 등)
+  totalAmount         Decimal       @db.Decimal(12, 2)  // 합계 (공급가액+부가세+배송비-조정)
+
+  // 수금 관리
+  receivedAmount      Decimal       @db.Decimal(12, 2) @default(0) // 수금 누계
+  outstandingAmount   Decimal       @db.Decimal(12, 2)  // 미수금 잔액
+
+  // 결제 정보
+  paymentMethod       String        @default("postpaid") // prepaid/postpaid/card/transfer
+  paymentStatus       String        @default("unpaid")   // unpaid/partial/paid/overdue
+
+  // 결제기한 (거래처 신용거래 설정 기반)
+  dueDate             DateTime?              // 결제기한
+
+  // 매출 인식 상태 (K-IFRS 1115)
+  salesStatus         SalesStatus   @default(REGISTERED)
+
+  // 적요/메모
+  description         String?                // 적요
+  adminMemo           String?                // 관리자 메모
+
+  // 감사 정보
+  createdBy           String                 // 작성자
+  confirmedBy         String?                // 확정자
+  confirmedAt         DateTime?              // 확정일시
+
+  // 관계
+  items               SalesLedgerItem[]
+  receipts            SalesReceipt[]
+
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  @@index([clientId])
+  @@index([ledgerDate])
+  @@index([salesStatus])
+  @@index([paymentStatus])
+  @@index([orderId])
+  @@map("sales_ledgers")
+}
+
+// 매출원장 라인아이템
+model SalesLedgerItem {
+  id                  String        @id @default(cuid())
+  salesLedgerId       String
+  salesLedger         SalesLedger   @relation(fields: [salesLedgerId], references: [id], onDelete: Cascade)
+
+  // 주문 아이템 연동
+  orderItemId         String?
+
+  // 품목 정보
+  itemName            String                 // 품명
+  specification       String?                // 규격 (12x12, A4 등)
+  quantity            Int                    // 수량
+  unitPrice           Decimal       @db.Decimal(10, 2)  // 단가
+  supplyAmount        Decimal       @db.Decimal(12, 2)  // 공급가액 (수량x단가)
+  vatAmount           Decimal       @db.Decimal(10, 2)  // 부가세
+  totalAmount         Decimal       @db.Decimal(12, 2)  // 합계
+
+  // 상품 분류
+  salesType           SalesType     @default(ALBUM)
+  productId           String?                // 상품 ID (참조)
+
+  sortOrder           Int           @default(0)
+  remark              String?                // 비고
+
+  @@index([salesLedgerId])
+  @@map("sales_ledger_items")
+}
+
+// 수금 이력 (매출원장 기반 수금 추적)
+model SalesReceipt {
+  id                  String        @id @default(cuid())
+  salesLedgerId       String
+  salesLedger         SalesLedger   @relation(fields: [salesLedgerId], references: [id], onDelete: Cascade)
+
+  receiptNumber       String        @unique  // 수금번호 (SR-YYYYMMDD-NNN)
+  receiptDate         DateTime               // 수금일자
+  amount              Decimal       @db.Decimal(12, 2)  // 수금금액
+
+  paymentMethod       String                 // cash/card/bank_transfer/check
+  bankName            String?                // 입금은행
+  depositorName       String?                // 입금자명
+
+  // 전표 연동 (복식부기)
+  journalId           String?                // 연결된 입금전표
+
+  note                String?                // 비고
+  createdBy           String                 // 처리자
+  createdAt           DateTime      @default(now())
+
+  @@index([salesLedgerId])
+  @@index([receiptDate])
+  @@map("sales_receipts")
 }
 
 // ==================== JDF (CIP4 Job Definition Format) ====================

@@ -6,7 +6,6 @@ import {
   Package,
   Search,
   FileText,
-  ImageIcon,
   Eye,
   Receipt,
   ChevronLeft,
@@ -199,12 +198,10 @@ export default function OrderListPage() {
                       주문일<br />(주문번호)
                     </TableHead>
                     <TableHead className="text-center w-[80px] text-xs">회원정보</TableHead>
-                    <TableHead className="w-[50px] text-center text-xs">썸네일</TableHead>
                     <TableHead className="text-xs w-[120px]">상품명</TableHead>
                     <TableHead className="text-xs">주문제목 / 재질 및 규격</TableHead>
                     <TableHead className="text-center w-[100px] text-xs">편집스타일<br />/ 제본순서</TableHead>
-                    <TableHead className="text-center w-[60px] text-xs">페이지</TableHead>
-                    <TableHead className="text-center w-[50px] text-xs">부수</TableHead>
+                    <TableHead className="text-center w-[80px] text-xs">페이지<br />/ 부수</TableHead>
                     <TableHead className="text-center w-[70px] text-xs">용량</TableHead>
                     <TableHead className="text-right w-[100px] text-xs">주문금액</TableHead>
                     <TableHead className="text-center w-[80px] text-xs">진행상황</TableHead>
@@ -249,13 +246,13 @@ export default function OrderListPage() {
                           >
                             <div className="space-y-1">
                               <div className="text-xs text-muted-foreground">
-                                {format(new Date(order.orderedAt), 'yyyy-MM-dd', { locale: ko })}
+                                {format(new Date(order.orderedAt), 'yyyy-MM-dd HH:mm', { locale: ko })}
                               </div>
                               <Link
                                 href={`/mypage/orders/${order.id}`}
                                 className="text-xs font-semibold text-primary hover:underline"
                               >
-                                {order.orderNumber}
+                                {order.orderNumber?.replace(/^ORD-\d{8}-/, '') || order.orderNumber}
                               </Link>
                               {order.isUrgent && (
                                 <Badge variant="destructive" className="text-[10px] px-1 py-0">긴급</Badge>
@@ -276,28 +273,13 @@ export default function OrderListPage() {
                             <div className="text-xs font-medium">
                               {order.client?.clientName}
                             </div>
+                            {order.client?.assignedStaff?.[0]?.staff?.name && (
+                              <div className="text-[11px] text-muted-foreground mt-0.5">
+                                {order.client.assignedStaff[0].staff.name}
+                              </div>
+                            )}
                           </TableCell>
                         )}
-
-                        {/* 썸네일 */}
-                        <TableCell className="text-center">
-                          {(() => {
-                            const thumbUrl = item.thumbnailUrl || item.files?.[0]?.thumbnailUrl || item.files?.[0]?.fileUrl;
-                            return (
-                              <div className="w-10 h-10 mx-auto bg-gray-100 rounded overflow-hidden flex items-center justify-center">
-                                {thumbUrl ? (
-                                  <img
-                                    src={thumbUrl}
-                                    alt={item.productName}
-                                    className="object-cover w-full h-full"
-                                  />
-                                ) : (
-                                  <ImageIcon className="h-4 w-4 text-gray-300" />
-                                )}
-                              </div>
-                            );
-                          })()}
-                        </TableCell>
 
                         {/* 상품명 */}
                         <TableCell>
@@ -308,21 +290,15 @@ export default function OrderListPage() {
 
                         {/* 주문제목 / 재질 및 규격 */}
                         <TableCell>
-                          <div className="space-y-1">
-                            <div className="text-xs text-muted-foreground leading-tight">
+                          <div className="space-y-0.5">
+                            <div className="text-xs font-medium truncate" title={item.folderName || item.productName}>
+                              {item.folderName || item.productName}
+                            </div>
+                            <div className="text-[11px] text-muted-foreground truncate" title={[item.size, item.printMethod, item.paper, item.bindingType, item.coverMaterial, item.foilColor ? `박:${item.foilColor}` : ''].filter(Boolean).join(' / ')}>
                               {item.size} / {item.printMethod} / {item.paper}
                               {item.bindingType && <> / {item.bindingType}</>}
-                            </div>
-                            <div className="flex flex-wrap gap-1">
-                              {item.coverMaterial && (
-                                <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">{item.coverMaterial}</Badge>
-                              )}
-                              {item.foilColor && (
-                                <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">박:{item.foilColor}</Badge>
-                              )}
-                              {item.finishingOptions?.map((opt, i) => (
-                                <Badge key={i} variant="outline" className="text-[10px] px-1 py-0 h-4">{opt}</Badge>
-                              ))}
+                              {item.coverMaterial && <> / {item.coverMaterial}</>}
+                              {item.foilColor && <> / 박:{item.foilColor}</>}
                             </div>
                           </div>
                         </TableCell>
@@ -339,14 +315,10 @@ export default function OrderListPage() {
                           </div>
                         </TableCell>
 
-                        {/* 페이지 */}
+                        {/* 페이지 / 부수 */}
                         <TableCell className="text-center text-xs">
-                          {item.pages}p
-                        </TableCell>
-
-                        {/* 부수 */}
-                        <TableCell className="text-center text-xs font-medium">
-                          {item.quantity}건
+                          <div>{item.pages}p</div>
+                          <div className="text-muted-foreground">{item.quantity}건</div>
                         </TableCell>
 
                         {/* 용량 */}

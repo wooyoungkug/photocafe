@@ -115,7 +115,6 @@
       "Bash(PGPASSWORD=postgres \"C:/Program Files/PostgreSQL/16/bin/pg_dump.exe\":*)",
       "Bash(cmd //c \"taskkill /PID 13384 /F\")",
       "Bash(cmd //c \"dir /ad C:\\\\Users\\\\WOO\\\\ 2>nul\")",
-      "Bash(cmd //c \"dir C:\\\\Users\\\\WOO\\\\SynologyDrive\"\")",
       "Bash(cmd //c \"taskkill /F /PID 12264\")",
       "Bash(cmd //c \"taskkill /F /PID 24256\")",
       "Bash(cmd //c \"taskkill /F /IM node.exe\")",
@@ -151,7 +150,6 @@
       "Bash(net start:*)",
       "Bash(sc query:*)",
       "Bash(Get-Service)",
-      "Bash(Where-Object {$_DisplayName -like \"*postgres*\" -or $_Name -like \"*postgres*\"})",
       "Bash(gh auth status:*)",
       "Bash(git config:*)",
       "Bash(where gh:*)",
@@ -167,11 +165,8 @@
       "Bash(DATABASE_URL=\"postgresql://postgres:iyOBPyVYNkdopJipYClZhBEmkNsbrUDC@turntable.proxy.rlwy.net:30238/railway\" npx prisma db push:*)",
       "Bash(git log:*)",
       "Bash(railway --version:*)",
-      "Bash(cmd /c \"robocopy c:\\\\dev\\\\printing114 D:\\\\printing114_backup_20260124 /E /XD node_modules .next .git dist /XF *.log\")",
       "Bash(cmd /c \"type C:\\\\Users\\\\WOO\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--dev-printing114\\\\tasks\\\\ba90638.output | more +950\")",
-      "Bash(\"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -f \"/e/printing114_backup_20260124/database_backup.sql\")",
       "Bash(PGPASSWORD=postgres \"C:/Program Files/PostgreSQL/16/bin/psql.exe\":*)",
-      "Bash(xcopy \"E:\\\\printing114_backup_20260124\\\\*\" \"C:\\\\dev\\\\printing114\"\" /E /Y /I /EXCLUDE:C:devprinting114.gitignore)",
       "Bash(cmd.exe /c \"taskkill /F /PID 31724\")",
       "Bash(cmd.exe /c \"netstat -ano | findstr :3002 | findstr LISTENING\")",
       "Bash(cmd //c \"taskkill /PID 34892 /F\")",
@@ -285,7 +280,17 @@
       "Bash(del:*)",
       "Bash(cmd /c \"taskkill /PID 22108 /F\")",
       "Bash(cmd /c \"taskkill /F /PID 22108\")",
-      "Bash(\"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -c \"SELECT count\\(*\\) as total, state, wait_event_type FROM pg_stat_activity WHERE datname=''printing_erp'' GROUP BY state, wait_event_type;\")"
+      "WebFetch(domain:support.mindbridge.ai)",
+      "WebFetch(domain:www.saponlinetutorials.com)",
+      "WebFetch(domain:wehagohelp.zendesk.com)",
+      "WebFetch(domain:leanx.eu)",
+      "WebFetch(domain:www.douzoneon.com)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbWw2M2NqOGQwMDA2MTBmYzUycnhkMXI4Iiwic3RhZmZJZCI6ImFkbWluIiwibmFtZSI6IuyasOyYgeq1rSIsInJvbGUiOiJhZG1pbiIsInR5cGUiOiJzdGFmZiIsImJyYW5jaElkIjoiY21rYWlxbnVqMDAwd2t6NW83NGVscGRiNiIsImRlcGFydG1lbnRJZCI6ImNtbDYzY2o2eDAwMDAxMGZjYTJ1ZmpmeG8iLCJpYXQiOjE3NzA3MDU5MzQsImV4cCI6MTc3MDc5MjMzNH0.YyjZdfi78c5nzoRGFwMbjcgqWZMDKgsgKccCNa8ymjk\")",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbWw2M2NqOGQwMDA2MTBmYzUycnhkMXI4Iiwic3RhZmZJZCI6ImFkbWluIiwibmFtZSI6IuyasOyYgeq1rSIsInJvbGUiOiJhZG1pbiIsInR5cGUiOiJzdGFmZiIsImJyYW5jaElkIjoiY21rYWlxbnVqMDAwd2t6NW83NGVscGRiNiIsImRlcGFydG1lbnRJZCI6ImNtbDYzY2o2eDAwMDAxMGZjYTJ1ZmpmeG8iLCJpYXQiOjE3NzA3MDY2MzEsImV4cCI6MTc3MDc5MzAzMX0.bt4Cg2YzDOGhrJB0edwj_Mn3CRmnEqfYfaAKBlgWC5I\")",
+      "Bash(admin \")",
+      "Bash(sed:*)",
+      "mcp__memory__create_entities",
+      "mcp__memory__create_relations"
     ]
   }
 }

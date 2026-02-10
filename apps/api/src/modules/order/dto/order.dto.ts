@@ -300,7 +300,7 @@ export class CreateOrderDto {
 
   @ApiPropertyOptional({ description: '결제 방식', enum: ['prepaid', 'postpaid', 'card', 'transfer'] })
   @IsOptional()
-  @IsIn(['prepaid', 'postpaid', 'card', 'transfer'])
+  @IsIn(['prepaid', 'postpaid', 'card', 'transfer', 'mobile'])
   paymentMethod?: string;
 
   @ApiPropertyOptional({ description: '긴급 여부' })

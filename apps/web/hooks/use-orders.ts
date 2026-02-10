@@ -55,6 +55,7 @@ export interface OrderItem {
   foilName?: string;
   foilColor?: string;
   finishingOptions: string[];
+  folderName?: string;
   thumbnailUrl?: string;
   totalFileSize?: number;
   pageLayout?: string;
@@ -100,6 +101,7 @@ export interface Order {
     id: string;
     clientCode: string;
     clientName: string;
+    assignedStaff?: { staff: { id: string; name: string } }[];
   };
   productPrice: number;
   shippingFee: number;

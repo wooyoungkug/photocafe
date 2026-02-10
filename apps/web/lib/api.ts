@@ -207,7 +207,7 @@ export const api = {
     request<T>(endpoint, { method: 'GET', params }),
 
   post: <T>(endpoint: string, data?: unknown) =>
-    request<T>(endpoint, { method: 'POST', body: JSON.stringify(data) }),
+    request<T>(endpoint, { method: 'POST', body: JSON.stringify(data), timeout: 30000 }),
 
   put: <T>(endpoint: string, data?: unknown) =>
     request<T>(endpoint, { method: 'PUT', body: JSON.stringify(data), timeout: 30000 }),

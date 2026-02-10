@@ -2,19 +2,15 @@
 
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { ko } from 'date-fns/locale';
 import {
-  Plus,
   Search,
-  Download,
-  FileText,
   TrendingUp,
-  Calendar,
-  Filter,
-  MoreHorizontal,
-  ArrowUpRight,
-  ArrowDownRight,
   Receipt,
+  FileText,
+  AlertTriangle,
+  Filter,
+  CreditCard,
+  CheckCircle,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -28,6 +24,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from '@/components/ui/table';
 import {
   Select,
@@ -42,108 +39,179 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
+
 import {
-  useSalesTransactions,
-  useAccountingSummary,
-  useCreateTransaction,
-} from '@/hooks/use-accounting';
+  useSalesLedgers,
+  useSalesLedgerSummary,
+  useAddSalesReceipt,
+  useConfirmSales,
+} from '@/hooks/use-sales-ledger';
 import {
-  PAYMENT_METHOD_OPTIONS,
-  TRANSACTION_STATUS_OPTIONS,
-  ACCOUNT_CODES,
-} from '@/lib/types/accounting';
+  SalesLedger,
+  SALES_STATUS_OPTIONS,
+  PAYMENT_STATUS_OPTIONS,
+  RECEIPT_METHOD_OPTIONS,
+} from '@/lib/types/sales-ledger';
 import { toast } from '@/hooks/use-toast';
 
-export default function SalesManagementPage() {
+export default function SalesLedgerPage() {
+  // ===== 필터 상태 =====
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [dateRange, setDateRange] = useState({ start: '', end: '' });
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-
-  const { data: salesData, isLoading } = useSalesTransactions();
-  const { data: summary } = useAccountingSummary();
-  const createTransaction = useCreateTransaction();
-
-  // 매출 계정과목
-  const salesAccounts = ACCOUNT_CODES.filter(
-    (acc) => acc.class === 'revenue' && acc.level >= 2
-  );
-
-  const [formData, setFormData] = useState({
-    accountCode: '401',
-    clientName: '',
-    amount: 0,
-    tax: 0,
-    description: '',
-    transactionDate: format(new Date(), 'yyyy-MM-dd'),
-    paymentMethod: 'bank_transfer',
-    orderId: '',
-    memo: '',
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState('all');
+  const [salesStatusFilter, setSalesStatusFilter] = useState('all');
+  const [dateRange, setDateRange] = useState({
+    start: format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd'),
+    end: format(new Date(), 'yyyy-MM-dd'),
   });
 
-  const handleSubmit = async () => {
-    if (!formData.clientName || formData.amount <= 0) {
-      toast({ title: '필수 항목을 입력해주세요.', variant: 'destructive' });
+  // ===== 상세 보기 Dialog =====
+  const [selectedLedger, setSelectedLedger] = useState<SalesLedger | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  // ===== 수금 처리 Dialog =====
+  const [isReceiptOpen, setIsReceiptOpen] = useState(false);
+  const [receiptTarget, setReceiptTarget] = useState<SalesLedger | null>(null);
+  const [receiptForm, setReceiptForm] = useState({
+    receiptDate: format(new Date(), 'yyyy-MM-dd'),
+    amount: 0,
+    paymentMethod: 'bank_transfer',
+    bankName: '',
+    depositorName: '',
+    note: '',
+  });
+
+  // ===== 데이터 조회 =====
+  const { data: ledgerData, isLoading } = useSalesLedgers({
+    search: searchTerm || undefined,
+    paymentStatus: paymentStatusFilter !== 'all' ? paymentStatusFilter : undefined,
+    salesStatus: salesStatusFilter !== 'all' ? salesStatusFilter : undefined,
+    startDate: dateRange.start || undefined,
+    endDate: dateRange.end || undefined,
+  });
+  const { data: summary } = useSalesLedgerSummary();
+
+  // ===== 뮤테이션 =====
+  const addReceipt = useAddSalesReceipt();
+  const confirmSales = useConfirmSales();
+
+  // ===== 상세 보기 =====
+  const handleRowClick = (ledger: SalesLedger) => {
+    setSelectedLedger(ledger);
+    setIsDetailOpen(true);
+  };
+
+  // ===== 수금 처리 Dialog 열기 =====
+  const openReceiptDialog = (ledger: SalesLedger) => {
+    setReceiptTarget(ledger);
+    setReceiptForm({
+      receiptDate: format(new Date(), 'yyyy-MM-dd'),
+      amount: ledger.outstandingAmount,
+      paymentMethod: 'bank_transfer',
+      bankName: '',
+      depositorName: '',
+      note: '',
+    });
+    setIsReceiptOpen(true);
+  };
+
+  // ===== 수금 처리 제출 =====
+  const handleReceiptSubmit = async () => {
+    if (!receiptTarget) return;
+
+    if (receiptForm.amount <= 0) {
+      toast({ title: '수금액을 입력해주세요.', variant: 'destructive' });
+      return;
+    }
+
+    if (receiptForm.amount > receiptTarget.outstandingAmount) {
+      toast({ title: '수금액이 미수금 잔액을 초과할 수 없습니다.', variant: 'destructive' });
       return;
     }
 
     try {
-      await createTransaction.mutateAsync({
-        type: 'income',
-        category: 'sales',
-        amount: formData.amount,
-        tax: formData.tax,
-        description: formData.description,
-        transactionDate: formData.transactionDate,
-        paymentMethod: formData.paymentMethod as any,
-        memo: formData.memo,
+      await addReceipt.mutateAsync({
+        salesLedgerId: receiptTarget.id,
+        data: {
+          receiptDate: receiptForm.receiptDate,
+          amount: receiptForm.amount,
+          paymentMethod: receiptForm.paymentMethod,
+          bankName: receiptForm.bankName || undefined,
+          depositorName: receiptForm.depositorName || undefined,
+          note: receiptForm.note || undefined,
+        },
       });
-      toast({ title: '매출이 등록되었습니다.' });
-      setIsDialogOpen(false);
+      toast({ title: '수금이 처리되었습니다.' });
+      setIsReceiptOpen(false);
+      setReceiptTarget(null);
     } catch {
-      toast({ title: '등록에 실패했습니다.', variant: 'destructive' });
+      toast({ title: '수금 처리에 실패했습니다.', variant: 'destructive' });
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    const config = TRANSACTION_STATUS_OPTIONS.find((s) => s.value === status);
+  // ===== 매출 확정 =====
+  const handleConfirmSales = async (ledgerId: string) => {
+    try {
+      await confirmSales.mutateAsync(ledgerId);
+      toast({ title: '매출이 확정되었습니다.' });
+      setIsDetailOpen(false);
+    } catch {
+      toast({ title: '매출 확정에 실패했습니다.', variant: 'destructive' });
+    }
+  };
+
+  // ===== 필터 초기화 =====
+  const resetFilters = () => {
+    setSearchTerm('');
+    setPaymentStatusFilter('all');
+    setSalesStatusFilter('all');
+    setDateRange({
+      start: format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd'),
+      end: format(new Date(), 'yyyy-MM-dd'),
+    });
+  };
+
+  // ===== Badge 렌더링 =====
+  const getPaymentStatusBadge = (status: string) => {
+    const config = PAYMENT_STATUS_OPTIONS.find((s) => s.value === status);
     return (
-      <Badge className={`${config?.color || 'bg-gray-100'} text-xs`}>
+      <Badge className={`${config?.color || 'bg-gray-100 text-gray-800'} text-xs`}>
         {config?.label || status}
       </Badge>
     );
   };
 
-  const getPaymentLabel = (method: string) => {
-    return PAYMENT_METHOD_OPTIONS.find((m) => m.value === method)?.label || method;
+  const getSalesStatusBadge = (status: string) => {
+    const config = SALES_STATUS_OPTIONS.find((s) => s.value === status);
+    return (
+      <Badge className={`${config?.color || 'bg-gray-100 text-gray-800'} text-xs`}>
+        {config?.label || status}
+      </Badge>
+    );
   };
+
+  const getReceiptMethodLabel = (method: string) => {
+    return RECEIPT_METHOD_OPTIONS.find((m) => m.value === method)?.label || method;
+  };
+
+  // ===== 목록 데이터 =====
+  const ledgers = ledgerData?.data || [];
 
   return (
     <div className="space-y-6">
       {/* 헤더 */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">매출 관리</h1>
-          <p className="text-muted-foreground">매출 내역을 조회하고 관리합니다.</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline">
-            <Download className="h-4 w-4 mr-2" />
-            엑셀 다운로드
-          </Button>
-          <Button onClick={() => setIsDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            매출 등록
-          </Button>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold">매출원장</h1>
+        <p className="text-muted-foreground">매출원장을 조회하고 수금 처리를 관리합니다.</p>
       </div>
 
-      {/* 요약 카드 */}
-      <div className="grid grid-cols-4 gap-4">
+      {/* 요약 카드 4개 */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* 당월 매출 */}
         <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -157,86 +225,104 @@ export default function SalesManagementPage() {
                 <TrendingUp className="h-6 w-6 text-white" />
               </div>
             </div>
-            <div className="mt-2 flex items-center text-xs text-blue-600">
-              <ArrowUpRight className="h-3 w-3 mr-1" />
-              전월 대비 +12.5%
-            </div>
+            <p className="mt-2 text-xs text-blue-600">
+              전표 {summary?.ledgerCount || 0}건 / 거래처 {summary?.clientCount || 0}곳
+            </p>
           </CardContent>
         </Card>
 
+        {/* 수금 완료 */}
         <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-green-600 font-medium">수금 완료</p>
                 <p className="text-2xl font-bold text-green-900">
-                  {(summary?.totalIncome || 0).toLocaleString()}원
+                  {(summary?.totalReceived || 0).toLocaleString()}원
                 </p>
               </div>
               <div className="h-12 w-12 bg-green-500 rounded-xl flex items-center justify-center">
                 <Receipt className="h-6 w-6 text-white" />
               </div>
             </div>
+            <p className="mt-2 text-xs text-green-600">
+              수금률{' '}
+              {summary?.totalSales
+                ? Math.round((summary.totalReceived / summary.totalSales) * 100)
+                : 0}
+              %
+            </p>
           </CardContent>
         </Card>
 
+        {/* 미수금 잔액 */}
         <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-orange-600 font-medium">미수금 잔액</p>
                 <p className="text-2xl font-bold text-orange-900">
-                  {(summary?.receivablesBalance || 0).toLocaleString()}원
+                  {(summary?.totalOutstanding || 0).toLocaleString()}원
                 </p>
               </div>
               <div className="h-12 w-12 bg-orange-500 rounded-xl flex items-center justify-center">
                 <FileText className="h-6 w-6 text-white" />
               </div>
             </div>
-            <div className="mt-2 text-xs text-orange-600">
-              미수 거래처 12건
-            </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+        {/* 연체 금액 */}
+        <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-purple-600 font-medium">세금계산서</p>
-                <p className="text-2xl font-bold text-purple-900">15건</p>
+                <p className="text-sm text-red-600 font-medium">연체 금액</p>
+                <p className="text-2xl font-bold text-red-900">
+                  {(summary?.totalOverdue || 0).toLocaleString()}원
+                </p>
               </div>
-              <div className="h-12 w-12 bg-purple-500 rounded-xl flex items-center justify-center">
-                <Calendar className="h-6 w-6 text-white" />
+              <div className="h-12 w-12 bg-red-500 rounded-xl flex items-center justify-center">
+                <AlertTriangle className="h-6 w-6 text-white" />
               </div>
-            </div>
-            <div className="mt-2 text-xs text-purple-600">
-              미발행 3건
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* 필터 및 검색 */}
+      {/* 필터 */}
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-wrap items-center gap-4">
             <div className="relative flex-1 min-w-[200px] max-w-sm">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="거래처명, 주문번호 검색..."
+                placeholder="주문번호, 거래처명 검색..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9"
               />
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
               <SelectTrigger className="w-[130px]">
-                <SelectValue placeholder="상태" />
+                <SelectValue placeholder="결제상태" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">전체 상태</SelectItem>
-                {TRANSACTION_STATUS_OPTIONS.map((opt) => (
+                <SelectItem value="all">전체 결제</SelectItem>
+                {PAYMENT_STATUS_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={salesStatusFilter} onValueChange={setSalesStatusFilter}>
+              <SelectTrigger className="w-[130px]">
+                <SelectValue placeholder="매출상태" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">전체 매출</SelectItem>
+                {SALES_STATUS_OPTIONS.map((opt) => (
                   <SelectItem key={opt.value} value={opt.value}>
                     {opt.label}
                   </SelectItem>
@@ -248,93 +334,114 @@ export default function SalesManagementPage() {
                 type="date"
                 value={dateRange.start}
                 onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
-                className="w-[140px]"
+                className="w-[150px]"
               />
               <span className="text-muted-foreground">~</span>
               <Input
                 type="date"
                 value={dateRange.end}
                 onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
-                className="w-[140px]"
+                className="w-[150px]"
               />
             </div>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={resetFilters}>
               <Filter className="h-4 w-4 mr-1" />
-              필터 초기화
+              초기화
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* 매출 목록 */}
+      {/* 매출원장 테이블 */}
       <Card>
         <CardHeader>
-          <CardTitle>매출 내역</CardTitle>
+          <CardTitle>매출원장 목록</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-50">
-                <TableHead className="w-[120px]">거래일자</TableHead>
-                <TableHead className="w-[120px]">거래번호</TableHead>
+                <TableHead className="w-[120px]">전표번호</TableHead>
+                <TableHead className="w-[100px]">전표일자</TableHead>
+                <TableHead className="w-[120px]">주문번호</TableHead>
                 <TableHead>거래처</TableHead>
-                <TableHead>품목</TableHead>
                 <TableHead className="text-right">공급가액</TableHead>
                 <TableHead className="text-right">부가세</TableHead>
                 <TableHead className="text-right">합계</TableHead>
-                <TableHead className="text-center">결제방법</TableHead>
-                <TableHead className="text-center">상태</TableHead>
-                <TableHead className="w-[80px]"></TableHead>
+                <TableHead className="text-right">수금액</TableHead>
+                <TableHead className="text-right">미수금</TableHead>
+                <TableHead className="text-center">결제상태</TableHead>
+                <TableHead className="text-center">매출상태</TableHead>
+                <TableHead className="w-[100px] text-center">수금처리</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-8">
+                  <TableCell colSpan={12} className="text-center py-8">
                     로딩 중...
                   </TableCell>
                 </TableRow>
-              ) : !salesData?.data?.length ? (
+              ) : !ledgers.length ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={12} className="text-center py-12 text-muted-foreground">
                     <FileText className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                    등록된 매출이 없습니다.
+                    매출원장 데이터가 없습니다.
                   </TableCell>
                 </TableRow>
               ) : (
-                salesData.data.map((item) => (
-                  <TableRow key={item.id} className="hover:bg-slate-50">
+                ledgers.map((ledger) => (
+                  <TableRow
+                    key={ledger.id}
+                    className="hover:bg-slate-50 cursor-pointer"
+                    onClick={() => handleRowClick(ledger)}
+                  >
+                    <TableCell className="font-mono text-sm text-blue-600 font-medium">
+                      {ledger.ledgerNumber}
+                    </TableCell>
                     <TableCell className="font-mono text-sm">
-                      {format(new Date(item.transactionDate), 'yyyy-MM-dd')}
+                      {format(new Date(ledger.ledgerDate), 'yyyy-MM-dd')}
                     </TableCell>
-                    <TableCell className="font-mono text-sm text-blue-600">
-                      {item.transactionCode}
+                    <TableCell className="font-mono text-sm">
+                      {ledger.orderNumber}
                     </TableCell>
-                    <TableCell className="font-medium">{item.clientName || '-'}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {item.description}
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {item.amount.toLocaleString()}
+                    <TableCell className="font-medium">{ledger.clientName}</TableCell>
+                    <TableCell className="text-right">
+                      {ledger.supplyAmount.toLocaleString()}원
                     </TableCell>
                     <TableCell className="text-right text-muted-foreground">
-                      {item.tax.toLocaleString()}
+                      {ledger.vatAmount.toLocaleString()}원
                     </TableCell>
                     <TableCell className="text-right font-bold text-blue-600">
-                      {item.totalAmount.toLocaleString()}
+                      {ledger.totalAmount.toLocaleString()}원
+                    </TableCell>
+                    <TableCell className="text-right text-green-600">
+                      {ledger.receivedAmount.toLocaleString()}원
+                    </TableCell>
+                    <TableCell className="text-right text-orange-600 font-medium">
+                      {ledger.outstandingAmount.toLocaleString()}원
                     </TableCell>
                     <TableCell className="text-center">
-                      <Badge variant="outline" className="text-xs">
-                        {getPaymentLabel(item.paymentMethod || '')}
-                      </Badge>
+                      {getPaymentStatusBadge(ledger.paymentStatus)}
                     </TableCell>
                     <TableCell className="text-center">
-                      {getStatusBadge(item.status)}
+                      {getSalesStatusBadge(ledger.salesStatus)}
                     </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
+                    <TableCell className="text-center">
+                      {ledger.outstandingAmount > 0 && ledger.salesStatus !== 'CANCELLED' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openReceiptDialog(ledger);
+                          }}
+                        >
+                          <CreditCard className="h-3 w-3 mr-1" />
+                          수금
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))
@@ -344,115 +451,297 @@ export default function SalesManagementPage() {
         </CardContent>
       </Card>
 
-      {/* 매출 등록 다이얼로그 */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl">
+      {/* ===== 상세 보기 Dialog ===== */}
+      <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>매출 등록</DialogTitle>
+            <DialogTitle>매출원장 상세</DialogTitle>
+            <DialogDescription>
+              {selectedLedger?.ledgerNumber} 전표 상세 정보
+            </DialogDescription>
           </DialogHeader>
-          <Tabs defaultValue="basic" className="mt-4">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="basic">기본정보</TabsTrigger>
-              <TabsTrigger value="detail">상세정보</TabsTrigger>
-            </TabsList>
 
-            <TabsContent value="basic" className="space-y-4 mt-4">
-              <div className="grid grid-cols-2 gap-4">
+          {selectedLedger && (
+            <div className="space-y-6 mt-2">
+              {/* 기본 정보 */}
+              <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="space-y-2">
-                  <Label>매출일자 *</Label>
-                  <Input
-                    type="date"
-                    value={formData.transactionDate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, transactionDate: e.target.value })
-                    }
-                  />
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">전표번호</span>
+                    <span className="font-mono font-medium">{selectedLedger.ledgerNumber}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">전표일자</span>
+                    <span>{format(new Date(selectedLedger.ledgerDate), 'yyyy-MM-dd')}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">주문번호</span>
+                    <span className="font-mono">{selectedLedger.orderNumber}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">거래처</span>
+                    <span className="font-medium">{selectedLedger.clientName}</span>
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>계정과목 *</Label>
-                  <Select
-                    value={formData.accountCode}
-                    onValueChange={(v) => setFormData({ ...formData, accountCode: v })}
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">결제상태</span>
+                    {getPaymentStatusBadge(selectedLedger.paymentStatus)}
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">매출상태</span>
+                    {getSalesStatusBadge(selectedLedger.salesStatus)}
+                  </div>
+                  {selectedLedger.dueDate && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">결제기한</span>
+                      <span>{format(new Date(selectedLedger.dueDate), 'yyyy-MM-dd')}</span>
+                    </div>
+                  )}
+                  {selectedLedger.description && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">비고</span>
+                      <span>{selectedLedger.description}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* 금액 정보 */}
+              <div>
+                <h4 className="font-semibold mb-3">금액 정보</h4>
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div className="bg-slate-50 p-3 rounded-lg text-center">
+                    <p className="text-muted-foreground">공급가액</p>
+                    <p className="text-lg font-bold">
+                      {selectedLedger.supplyAmount.toLocaleString()}원
+                    </p>
+                  </div>
+                  <div className="bg-slate-50 p-3 rounded-lg text-center">
+                    <p className="text-muted-foreground">부가세</p>
+                    <p className="text-lg font-bold">
+                      {selectedLedger.vatAmount.toLocaleString()}원
+                    </p>
+                  </div>
+                  <div className="bg-blue-50 p-3 rounded-lg text-center">
+                    <p className="text-blue-600">합계</p>
+                    <p className="text-lg font-bold text-blue-700">
+                      {selectedLedger.totalAmount.toLocaleString()}원
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4 mt-3 text-sm">
+                  <div className="bg-green-50 p-3 rounded-lg text-center">
+                    <p className="text-green-600">수금액</p>
+                    <p className="text-lg font-bold text-green-700">
+                      {selectedLedger.receivedAmount.toLocaleString()}원
+                    </p>
+                  </div>
+                  <div className="bg-orange-50 p-3 rounded-lg text-center">
+                    <p className="text-orange-600">미수금</p>
+                    <p className="text-lg font-bold text-orange-700">
+                      {selectedLedger.outstandingAmount.toLocaleString()}원
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 라인아이템 */}
+              {selectedLedger.items && selectedLedger.items.length > 0 && (
+                <>
+                  <Separator />
+                  <div>
+                    <h4 className="font-semibold mb-3">품목 내역</h4>
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-slate-50">
+                          <TableHead>품목명</TableHead>
+                          <TableHead className="text-right">수량</TableHead>
+                          <TableHead className="text-right">단가</TableHead>
+                          <TableHead className="text-right">공급가액</TableHead>
+                          <TableHead className="text-right">부가세</TableHead>
+                          <TableHead className="text-right">합계</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedLedger.items.map((item) => (
+                          <TableRow key={item.id}>
+                            <TableCell>
+                              <div>
+                                <span className="font-medium">{item.itemName}</span>
+                                {item.specification && (
+                                  <span className="text-xs text-muted-foreground ml-2">
+                                    ({item.specification})
+                                  </span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">{item.quantity}</TableCell>
+                            <TableCell className="text-right">
+                              {item.unitPrice.toLocaleString()}원
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {item.supplyAmount.toLocaleString()}원
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {item.vatAmount.toLocaleString()}원
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                              {item.totalAmount.toLocaleString()}원
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
+              )}
+
+              {/* 수금 이력 */}
+              {selectedLedger.receipts && selectedLedger.receipts.length > 0 && (
+                <>
+                  <Separator />
+                  <div>
+                    <h4 className="font-semibold mb-3">수금 이력</h4>
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-slate-50">
+                          <TableHead>수금번호</TableHead>
+                          <TableHead>수금일자</TableHead>
+                          <TableHead className="text-right">수금액</TableHead>
+                          <TableHead>결제수단</TableHead>
+                          <TableHead>입금은행</TableHead>
+                          <TableHead>입금자명</TableHead>
+                          <TableHead>비고</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedLedger.receipts.map((receipt) => (
+                          <TableRow key={receipt.id}>
+                            <TableCell className="font-mono text-sm">
+                              {receipt.receiptNumber}
+                            </TableCell>
+                            <TableCell>
+                              {format(new Date(receipt.receiptDate), 'yyyy-MM-dd')}
+                            </TableCell>
+                            <TableCell className="text-right font-medium text-green-600">
+                              {receipt.amount.toLocaleString()}원
+                            </TableCell>
+                            <TableCell>{getReceiptMethodLabel(receipt.paymentMethod)}</TableCell>
+                            <TableCell>{receipt.bankName || '-'}</TableCell>
+                            <TableCell>{receipt.depositorName || '-'}</TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {receipt.note || '-'}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
+              )}
+
+              {/* 하단 액션 버튼 */}
+              <DialogFooter className="gap-2">
+                {selectedLedger.outstandingAmount > 0 &&
+                  selectedLedger.salesStatus !== 'CANCELLED' && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setIsDetailOpen(false);
+                        openReceiptDialog(selectedLedger);
+                      }}
+                    >
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      수금 처리
+                    </Button>
+                  )}
+                {selectedLedger.salesStatus === 'REGISTERED' && (
+                  <Button
+                    onClick={() => handleConfirmSales(selectedLedger.id)}
+                    disabled={confirmSales.isPending}
                   >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {salesAccounts.map((acc) => (
-                        <SelectItem key={acc.code} value={acc.code}>
-                          [{acc.code}] {acc.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    매출 확정
+                  </Button>
+                )}
+                <Button variant="outline" onClick={() => setIsDetailOpen(false)}>
+                  닫기
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== 수금 처리 Dialog ===== */}
+      <Dialog open={isReceiptOpen} onOpenChange={setIsReceiptOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>수금 처리</DialogTitle>
+            <DialogDescription>
+              {receiptTarget?.ledgerNumber} - {receiptTarget?.clientName}
+            </DialogDescription>
+          </DialogHeader>
+
+          {receiptTarget && (
+            <div className="space-y-4 mt-2">
+              {/* 미수금 잔액 안내 */}
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-center">
+                <p className="text-sm text-orange-600">미수금 잔액</p>
+                <p className="text-xl font-bold text-orange-700">
+                  {receiptTarget.outstandingAmount.toLocaleString()}원
+                </p>
               </div>
 
+              {/* 수금일자 */}
               <div className="space-y-2">
-                <Label>거래처명 *</Label>
+                <Label>수금일자 *</Label>
                 <Input
-                  value={formData.clientName}
-                  onChange={(e) => setFormData({ ...formData, clientName: e.target.value })}
-                  placeholder="거래처를 입력하세요"
+                  type="date"
+                  value={receiptForm.receiptDate}
+                  onChange={(e) =>
+                    setReceiptForm({ ...receiptForm, receiptDate: e.target.value })
+                  }
                 />
               </div>
 
+              {/* 수금액 */}
               <div className="space-y-2">
-                <Label>품목/적요</Label>
+                <Label>수금액 *</Label>
                 <Input
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="포토북 인쇄 등"
+                  type="number"
+                  value={receiptForm.amount}
+                  onChange={(e) =>
+                    setReceiptForm({
+                      ...receiptForm,
+                      amount: Math.min(Number(e.target.value), receiptTarget.outstandingAmount),
+                    })
+                  }
+                  max={receiptTarget.outstandingAmount}
+                  placeholder="0"
                 />
+                <p className="text-xs text-muted-foreground">
+                  최대 {receiptTarget.outstandingAmount.toLocaleString()}원
+                </p>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>공급가액 *</Label>
-                  <Input
-                    type="number"
-                    value={formData.amount}
-                    onChange={(e) => {
-                      const amount = Number(e.target.value);
-                      setFormData({
-                        ...formData,
-                        amount,
-                        tax: Math.round(amount * 0.1),
-                      });
-                    }}
-                    placeholder="0"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>부가세 (10%)</Label>
-                  <Input
-                    type="number"
-                    value={formData.tax}
-                    onChange={(e) => setFormData({ ...formData, tax: Number(e.target.value) })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>합계금액</Label>
-                  <Input
-                    type="number"
-                    value={formData.amount + formData.tax}
-                    readOnly
-                    className="bg-slate-50 font-bold text-blue-600"
-                  />
-                </div>
-              </div>
-
+              {/* 결제수단 */}
               <div className="space-y-2">
-                <Label>결제방법</Label>
+                <Label>결제수단 *</Label>
                 <Select
-                  value={formData.paymentMethod}
-                  onValueChange={(v) => setFormData({ ...formData, paymentMethod: v })}
+                  value={receiptForm.paymentMethod}
+                  onValueChange={(v) =>
+                    setReceiptForm({ ...receiptForm, paymentMethod: v })
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {PAYMENT_METHOD_OPTIONS.map((opt) => (
+                    {RECEIPT_METHOD_OPTIONS.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value}>
                         {opt.label}
                       </SelectItem>
@@ -460,37 +749,54 @@ export default function SalesManagementPage() {
                   </SelectContent>
                 </Select>
               </div>
-            </TabsContent>
 
-            <TabsContent value="detail" className="space-y-4 mt-4">
+              {/* 입금은행 */}
               <div className="space-y-2">
-                <Label>주문번호 연결</Label>
+                <Label>입금은행</Label>
                 <Input
-                  value={formData.orderId}
-                  onChange={(e) => setFormData({ ...formData, orderId: e.target.value })}
-                  placeholder="ORD-2026-0001"
+                  value={receiptForm.bankName}
+                  onChange={(e) =>
+                    setReceiptForm({ ...receiptForm, bankName: e.target.value })
+                  }
+                  placeholder="예: 국민은행, 우리은행"
                 />
               </div>
+
+              {/* 입금자명 */}
               <div className="space-y-2">
-                <Label>메모</Label>
+                <Label>입금자명</Label>
+                <Input
+                  value={receiptForm.depositorName}
+                  onChange={(e) =>
+                    setReceiptForm({ ...receiptForm, depositorName: e.target.value })
+                  }
+                  placeholder="입금자명을 입력하세요"
+                />
+              </div>
+
+              {/* 비고 */}
+              <div className="space-y-2">
+                <Label>비고</Label>
                 <Textarea
-                  value={formData.memo}
-                  onChange={(e) => setFormData({ ...formData, memo: e.target.value })}
-                  rows={3}
+                  value={receiptForm.note}
+                  onChange={(e) =>
+                    setReceiptForm({ ...receiptForm, note: e.target.value })
+                  }
+                  rows={2}
                   placeholder="추가 메모를 입력하세요"
                 />
               </div>
-            </TabsContent>
-          </Tabs>
 
-          <DialogFooter className="mt-6">
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-              취소
-            </Button>
-            <Button onClick={handleSubmit} disabled={createTransaction.isPending}>
-              등록
-            </Button>
-          </DialogFooter>
+              <DialogFooter className="mt-4">
+                <Button variant="outline" onClick={() => setIsReceiptOpen(false)}>
+                  취소
+                </Button>
+                <Button onClick={handleReceiptSubmit} disabled={addReceipt.isPending}>
+                  {addReceipt.isPending ? '처리 중...' : '수금 처리'}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

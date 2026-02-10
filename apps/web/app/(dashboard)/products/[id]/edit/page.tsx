@@ -821,7 +821,15 @@ export default function EditProductPage() {
                   {/* 규격 목록 */}
                   {filteredSelectedSpecs.length > 0 ? (
                     <div className="grid grid-cols-6 gap-2 p-3 bg-slate-50 rounded-lg border">
-                      {filteredSelectedSpecs.map(specId => {
+                      {[...filteredSelectedSpecs]
+                        .sort((a, b) => {
+                          const specA = specifications?.find(s => s.id === a);
+                          const specB = specifications?.find(s => s.id === b);
+                          const areaA = (specA?.widthMm || 0) * (specA?.heightMm || 0);
+                          const areaB = (specB?.widthMm || 0) * (specB?.heightMm || 0);
+                          return areaA - areaB;
+                        })
+                        .map(specId => {
                         const spec = specifications?.find(s => s.id === specId);
                         return spec ? (
                           <div key={specId} className="flex items-center justify-between py-1.5 px-2 bg-white border rounded text-sm">

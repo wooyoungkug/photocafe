@@ -3,18 +3,17 @@
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, CreditCard, Wallet, Building2, Smartphone, Upload, X, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, CreditCard, Wallet, Building2, Smartphone, AlertTriangle, CheckCircle2, AlertCircle, Copy, Truck } from 'lucide-react';
 import { useCartStore } from '@/stores/cart-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { PhoneInput } from '@/components/ui/phone-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import {
@@ -25,14 +24,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-
-interface ShippingInfo {
-  recipientName: string;
-  phone: string;
-  postalCode: string;
-  address: string;
-  addressDetail: string;
-}
+import { FolderShippingSection } from '@/components/album-upload/folder-shipping-section';
+import { useShippingData } from '@/hooks/use-shipping-data';
+import { isShippingComplete, getCartShippingSummary } from '@/app/(shop)/cart/_components/cart-item-card';
+import type { CartShippingInfo } from '@/stores/cart-store';
+import type { FolderShippingInfo } from '@/stores/multi-folder-upload-store';
 
 interface ClientInfo {
   id: string;
@@ -42,13 +38,6 @@ interface ClientInfo {
   postalCode: string | null;
   address: string | null;
   addressDetail: string | null;
-}
-
-interface ShippingChanges {
-  field: string;
-  label: string;
-  oldValue: string;
-  newValue: string;
 }
 
 // 동판 정보 변경 감지용 인터페이스
@@ -69,6 +58,44 @@ interface CopperPlateChanges {
   changes: CopperPlateChangeItem[];
 }
 
+// FolderShippingInfo → CartShippingInfo 변환
+const folderToCartShipping = (s: FolderShippingInfo): CartShippingInfo => ({
+  senderType: s.senderType,
+  senderName: s.senderName,
+  senderPhone: s.senderPhone,
+  senderPostalCode: s.senderPostalCode,
+  senderAddress: s.senderAddress,
+  senderAddressDetail: s.senderAddressDetail,
+  receiverType: s.receiverType,
+  recipientName: s.recipientName,
+  recipientPhone: s.recipientPhone,
+  recipientPostalCode: s.recipientPostalCode,
+  recipientAddress: s.recipientAddress,
+  recipientAddressDetail: s.recipientAddressDetail,
+  deliveryMethod: s.deliveryMethod,
+  deliveryFee: s.deliveryFee,
+  deliveryFeeType: s.deliveryFeeType,
+});
+
+// CartShippingInfo → 백엔드 DTO 필드명 매핑
+const toShippingDto = (s: CartShippingInfo) => ({
+  senderType: s.senderType,
+  senderName: s.senderName,
+  senderPhone: s.senderPhone,
+  senderPostalCode: s.senderPostalCode,
+  senderAddress: s.senderAddress,
+  senderAddressDetail: s.senderAddressDetail,
+  receiverType: s.receiverType,
+  recipientName: s.recipientName,
+  phone: s.recipientPhone,
+  postalCode: s.recipientPostalCode,
+  address: s.recipientAddress,
+  addressDetail: s.recipientAddressDetail,
+  deliveryMethod: s.deliveryMethod,
+  deliveryFee: s.deliveryFee,
+  deliveryFeeType: s.deliveryFeeType,
+});
+
 export default function OrderPage() {
   const router = useRouter();
   const { toast } = useToast();
@@ -76,49 +103,52 @@ export default function OrderPage() {
   const { user, isAuthenticated } = useAuthStore();
 
   const [paymentMethod, setPaymentMethod] = useState('postpaid');
-  const [shippingInfo, setShippingInfo] = useState<ShippingInfo>({
-    recipientName: user?.name || '',
-    phone: '',
-    postalCode: '',
-    address: '',
-    addressDetail: '',
-  });
   const [memo, setMemo] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 회원정보 변경 감지 관련 상태
+  // 건별 배송 상태 (cart에서 가져온 기존값으로 초기화)
+  const [itemShippingMap, setItemShippingMap] = useState<Record<string, CartShippingInfo>>(() => {
+    const map: Record<string, CartShippingInfo> = {};
+    items.forEach(item => {
+      const existing = item.albumOrderInfo?.shippingInfo || item.shippingInfo;
+      if (existing) map[item.id] = existing;
+    });
+    return map;
+  });
+
+  // 배송 데이터 훅 (회사정보, 거래처정보, 배송비)
+  const { companyInfo, clientInfo: shippingClientInfo, pricingMap } = useShippingData();
+
+  // 회원정보 (동판 변경 감지용)
   const [clientInfo, setClientInfo] = useState<ClientInfo | null>(null);
   const [showChangeConfirmModal, setShowChangeConfirmModal] = useState(false);
-  const [shippingChanges, setShippingChanges] = useState<ShippingChanges[]>([]);
   const [pendingOrderData, setPendingOrderData] = useState<any>(null);
-  const [updateMemberInfo, setUpdateMemberInfo] = useState(true);
 
   // 동판 정보 변경 감지 관련 상태
   const [copperPlateChanges, setCopperPlateChanges] = useState<CopperPlateChanges[]>([]);
   const [updateCopperPlateInfo, setUpdateCopperPlateInfo] = useState(true);
 
-  // 회원정보 로드
+  // 회원정보 로드 (ID 직접 조회 → 실패 시 email로 검색)
   const loadClientInfo = useCallback(async () => {
     if (!user?.id) return;
-
     try {
       const response = await api.get<ClientInfo>(`/clients/${user.id}`);
       setClientInfo(response);
-
-      // 회원정보로 배송정보 초기화
-      setShippingInfo({
-        recipientName: response.clientName || user?.name || '',
-        phone: response.mobile || response.phone || '',
-        postalCode: response.postalCode || '',
-        address: response.address || '',
-        addressDetail: response.addressDetail || '',
-      });
-    } catch (error) {
-      console.error('Failed to load client info:', error);
-      // 회원정보 로드 실패 시 기본값 유지
+    } catch {
+      // ID로 못 찾으면 email로 검색 (관리자/staff 로그인 시)
+      if (user.email) {
+        try {
+          const searchResult = await api.get<{ data: ClientInfo[] }>('/clients', { search: user.email, limit: 1 });
+          if (searchResult.data?.[0]) {
+            setClientInfo(searchResult.data[0]);
+          }
+        } catch {
+          console.error('Failed to load client info by email');
+        }
+      }
     }
-  }, [user?.id, user?.name]);
+  }, [user?.id, user?.email]);
 
   useEffect(() => {
     if (isAuthenticated && user?.id) {
@@ -126,51 +156,43 @@ export default function OrderPage() {
     }
   }, [isAuthenticated, user?.id, loadClientInfo]);
 
-  // 배송정보 변경사항 비교
-  const detectShippingChanges = useCallback((): ShippingChanges[] => {
-    if (!clientInfo) return [];
+  // 건별 배송 핸들러
+  const handleItemShippingChange = (itemId: string, shipping: FolderShippingInfo) => {
+    setItemShippingMap(prev => ({ ...prev, [itemId]: folderToCartShipping(shipping) }));
+  };
 
-    const changes: ShippingChanges[] = [];
+  const handleApplyShippingToAll = (sourceItemId: string) => {
+    const sourceShipping = itemShippingMap[sourceItemId];
+    if (!sourceShipping) return;
+    const newMap: Record<string, CartShippingInfo> = {};
+    items.forEach(item => {
+      if (item.albumOrderInfo?.shippingInfo) {
+        newMap[item.id] = item.albumOrderInfo.shippingInfo;
+      } else {
+        newMap[item.id] = sourceShipping;
+      }
+    });
+    setItemShippingMap(newMap);
+    toast({ title: '모든 항목에 배송정보가 적용되었습니다' });
+  };
 
-    const savedPhone = clientInfo.mobile || clientInfo.phone || '';
-    if (shippingInfo.phone && shippingInfo.phone !== savedPhone) {
-      changes.push({
-        field: 'phone',
-        label: '연락처',
-        oldValue: savedPhone || '(없음)',
-        newValue: shippingInfo.phone,
-      });
+  const handleCopyFromPrevious = (itemId: string) => {
+    const idx = items.findIndex(i => i.id === itemId);
+    if (idx <= 0) return;
+    for (let i = idx - 1; i >= 0; i--) {
+      const prevShipping = itemShippingMap[items[i].id];
+      if (prevShipping && isShippingComplete(prevShipping)) {
+        setItemShippingMap(prev => ({ ...prev, [itemId]: prevShipping }));
+        toast({ title: '이전 항목 배송정보가 복사되었습니다' });
+        break;
+      }
     }
+  };
 
-    if (shippingInfo.postalCode && shippingInfo.postalCode !== (clientInfo.postalCode || '')) {
-      changes.push({
-        field: 'postalCode',
-        label: '우편번호',
-        oldValue: clientInfo.postalCode || '(없음)',
-        newValue: shippingInfo.postalCode,
-      });
-    }
-
-    if (shippingInfo.address && shippingInfo.address !== (clientInfo.address || '')) {
-      changes.push({
-        field: 'address',
-        label: '주소',
-        oldValue: clientInfo.address || '(없음)',
-        newValue: shippingInfo.address,
-      });
-    }
-
-    if (shippingInfo.addressDetail && shippingInfo.addressDetail !== (clientInfo.addressDetail || '')) {
-      changes.push({
-        field: 'addressDetail',
-        label: '상세주소',
-        oldValue: clientInfo.addressDetail || '(없음)',
-        newValue: shippingInfo.addressDetail,
-      });
-    }
-
-    return changes;
-  }, [clientInfo, shippingInfo]);
+  // 전체 배송 완료 여부
+  const allShippingComplete = items.every(item =>
+    item.albumOrderInfo?.shippingInfo ? true : isShippingComplete(itemShippingMap[item.id])
+  );
 
   // 동판 정보 변경사항 비교
   const detectCopperPlateChanges = useCallback((): CopperPlateChanges[] => {
@@ -182,7 +204,6 @@ export default function OrderPage() {
       const info = item.copperPlateInfo;
       const changes: CopperPlateChangeItem[] = [];
 
-      // 박색상 비교
       if (info.selectedFoilColor && info.selectedFoilColor !== info.originalFoilColor) {
         changes.push({
           field: 'foilColor',
@@ -192,7 +213,6 @@ export default function OrderPage() {
         });
       }
 
-      // 박위치 비교
       if (info.selectedFoilPosition && info.selectedFoilPosition !== info.originalFoilPosition) {
         changes.push({
           field: 'foilPosition',
@@ -218,7 +238,7 @@ export default function OrderPage() {
     return allChanges;
   }, [items]);
 
-  // 상담 카테고리 조회 (캐싱하여 중복 호출 방지)
+  // 상담 카테고리 조회
   const getSystemCategoryId = async (): Promise<string | null> => {
     try {
       const categories = await api.get<{ data: { id: string; name: string }[] }>('/consultation-categories');
@@ -228,49 +248,6 @@ export default function OrderPage() {
       return systemCategory?.id || null;
     } catch {
       return null;
-    }
-  };
-
-  // 회원정보 업데이트 및 상담이력 기록
-  const updateClientInfoAndLog = async (changes: ShippingChanges[], categoryId: string | null) => {
-    if (!clientInfo) return;
-
-    try {
-      const updateData: Record<string, string> = {};
-      changes.forEach((change) => {
-        if (change.field === 'phone') {
-          updateData.mobile = change.newValue;
-        } else {
-          updateData[change.field] = change.newValue;
-        }
-      });
-
-      await api.put(`/clients/${clientInfo.id}`, updateData);
-
-      if (categoryId) {
-        const changeDetails = changes
-          .map((c) => `• ${c.label}: ${c.oldValue} → ${c.newValue}`)
-          .join('\n');
-
-        await api.post('/consultations', {
-          clientId: clientInfo.id,
-          categoryId,
-          title: '[자동] 주문 시 회원정보 변경',
-          content: `고객이 주문 과정에서 배송정보를 변경하고 회원정보 수정에 동의했습니다.\n\n변경 내역:\n${changeDetails}`,
-          counselorId: 'SYSTEM',
-          counselorName: '시스템',
-          status: 'closed',
-          priority: 'low',
-          internalMemo: '주문 페이지에서 자동 생성된 상담 기록',
-        });
-      }
-
-      toast({
-        title: '회원정보가 업데이트되었습니다',
-        description: '변경된 배송정보가 회원정보에 저장되었습니다.',
-      });
-    } catch (error) {
-      console.error('Failed to update client info:', error);
     }
   };
 
@@ -343,65 +320,40 @@ export default function OrderPage() {
     }
   };
 
-  // 주문 실행 (모달 확인 후) - 아이템별 개별 주문 생성
+  // 주문 실행
   const executeOrder = async (
     orderDataList: any[],
-    shouldUpdateMemberInfo: boolean,
-    changes: ShippingChanges[],
     shouldUpdateCopperPlate: boolean,
     cpChanges: CopperPlateChanges[]
   ) => {
     try {
-      // 각 아이템별 개별 주문 순차 생성
-      for (const orderData of orderDataList) {
+      for (const [idx, orderData] of orderDataList.entries()) {
+        console.log(`[Order] Submitting item ${idx + 1}/${orderDataList.length}:`, { clientId: orderData.clientId, paymentMethod: orderData.paymentMethod, itemCount: orderData.items?.length });
         await api.post('/orders', orderData);
       }
 
-      // 후처리가 필요한 경우에만 카테고리 1번 조회 후 병렬 실행
-      const hasChanges = changes.length > 0 || cpChanges.length > 0;
-      if (hasChanges) {
+      if (cpChanges.length > 0) {
         const categoryId = await getSystemCategoryId();
 
-        const tasks: Promise<void>[] = [];
-
-        // 회원정보 처리
-        if (shouldUpdateMemberInfo && changes.length > 0) {
-          tasks.push(updateClientInfoAndLog(changes, categoryId));
-        } else if (changes.length > 0 && clientInfo) {
-          const changeDetails = changes
-            .map((c) => `• ${c.label}: ${c.oldValue} → ${c.newValue}`)
-            .join('\n');
-          tasks.push(logChangesOnly(
-            categoryId,
-            '[자동] 주문 시 배송정보 변경 (회원정보 미수정)',
-            `고객이 주문 과정에서 회원정보와 다른 배송정보로 주문했습니다.\n(회원정보 수정 거부)\n\n배송정보 변경 내역:\n${changeDetails}`,
-            '주문 페이지에서 자동 생성된 상담 기록 - 회원정보 수정 거부'
-          ));
-        }
-
-        // 동판 정보 처리
-        if (shouldUpdateCopperPlate && cpChanges.length > 0) {
-          tasks.push(updateCopperPlateInfoAndLog(cpChanges, categoryId));
-        } else if (cpChanges.length > 0) {
+        if (shouldUpdateCopperPlate) {
+          await updateCopperPlateInfoAndLog(cpChanges, categoryId);
+        } else {
           const changeDetails = cpChanges
             .map(cp => {
               const ch = cp.changes.map(c => `  • ${c.label}: ${c.oldValue} → ${c.newValue}`).join('\n');
               return `[${cp.plateName}] (${cp.itemName})\n${ch}`;
             })
             .join('\n\n');
-          tasks.push(logChangesOnly(
+          await logChangesOnly(
             categoryId,
             '[자동] 주문 시 동판 정보 변경 (동판 정보 미수정)',
             `고객이 주문 과정에서 동판(박 각인) 정보와 다른 설정으로 주문했습니다.\n(동판 정보 수정 거부)\n\n변경 내역:\n${changeDetails}`,
             '주문 페이지에서 자동 생성된 상담 기록 - 동판 정보 수정 거부'
-          ));
+          );
         }
-
-        // 모든 후처리 병렬 실행
-        await Promise.all(tasks);
       }
 
-      // 앨범 주문이 있으면 거래처 선호 패턴 자동 갱신 (실패해도 주문 흐름 차단하지 않음)
+      // 앨범 주문이 있으면 거래처 선호 패턴 자동 갱신
       const prefClientId = clientInfo?.id || user?.id;
       const albumOrders = items.filter(item => item.productType === 'album-order' && item.albumOrderInfo);
       if (albumOrders.length > 0 && prefClientId) {
@@ -435,11 +387,10 @@ export default function OrderPage() {
     setIsSubmitting(true);
 
     try {
-      await executeOrder(pendingOrderData, updateMemberInfo, shippingChanges, updateCopperPlateInfo, copperPlateChanges);
+      await executeOrder(pendingOrderData, updateCopperPlateInfo, copperPlateChanges);
     } finally {
       setIsSubmitting(false);
       setPendingOrderData(null);
-      setShippingChanges([]);
       setCopperPlateChanges([]);
     }
   };
@@ -448,7 +399,6 @@ export default function OrderPage() {
   const handleCancelModal = () => {
     setShowChangeConfirmModal(false);
     setPendingOrderData(null);
-    setShippingChanges([]);
     setCopperPlateChanges([]);
     setIsSubmitting(false);
   };
@@ -483,11 +433,15 @@ export default function OrderPage() {
   }
 
   const subtotal = getTotal();
-  const shippingFee = subtotal > 50000 ? 0 : 3000;
-  const total = subtotal + shippingFee;
+  const totalShippingFee = items.reduce((sum, item) => {
+    const shipping = item.albumOrderInfo?.shippingInfo || itemShippingMap[item.id];
+    return sum + (shipping?.deliveryFee || 0);
+  }, 0);
+  const total = subtotal + totalShippingFee;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('[Order] handleSubmit called', { agreeTerms, allShippingComplete, clientInfoId: clientInfo?.id, userId: user?.id, itemCount: items.length });
 
     if (!agreeTerms) {
       toast({
@@ -498,16 +452,15 @@ export default function OrderPage() {
       return;
     }
 
-    if (!shippingInfo.recipientName || !shippingInfo.phone || !shippingInfo.address) {
+    if (!allShippingComplete) {
       toast({
         title: '배송정보 입력 필요',
-        description: '배송에 필요한 정보를 모두 입력해주세요.',
+        description: '모든 항목의 배송정보를 입력해주세요.',
         variant: 'destructive',
       });
       return;
     }
 
-    // 로그인한 회원의 clientId 사용
     const clientId = clientInfo?.id || user?.id;
 
     if (!clientId) {
@@ -521,9 +474,12 @@ export default function OrderPage() {
 
     // 주문 데이터 준비 - 아이템별 개별 주문 생성
     const orderDataList = items.map(item => {
+      // 건별 배송정보 조회
+      const itemShipping = item.albumOrderInfo?.shippingInfo || itemShippingMap[item.id];
+      const shippingDto = itemShipping ? toShippingDto(itemShipping) : undefined;
+
       let orderItem: any;
 
-      // 앨범 주문인 경우 추가 정보 포함
       if (item.productType === 'album-order' && item.albumOrderInfo) {
         const albumInfo = item.albumOrderInfo;
         orderItem = {
@@ -543,28 +499,9 @@ export default function OrderPage() {
           bindingDirection: albumInfo.bindingDirection,
           folderName: albumInfo.folderName,
           fileCount: albumInfo.fileCount,
-          ...(albumInfo.shippingInfo ? {
-            shipping: {
-              senderType: albumInfo.shippingInfo.senderType,
-              senderName: albumInfo.shippingInfo.senderName,
-              senderPhone: albumInfo.shippingInfo.senderPhone,
-              senderPostalCode: albumInfo.shippingInfo.senderPostalCode,
-              senderAddress: albumInfo.shippingInfo.senderAddress,
-              senderAddressDetail: albumInfo.shippingInfo.senderAddressDetail,
-              receiverType: albumInfo.shippingInfo.receiverType,
-              recipientName: albumInfo.shippingInfo.recipientName,
-              phone: albumInfo.shippingInfo.recipientPhone,
-              postalCode: albumInfo.shippingInfo.recipientPostalCode,
-              address: albumInfo.shippingInfo.recipientAddress,
-              addressDetail: albumInfo.shippingInfo.recipientAddressDetail,
-              deliveryMethod: albumInfo.shippingInfo.deliveryMethod,
-              deliveryFee: albumInfo.shippingInfo.deliveryFee,
-              deliveryFeeType: albumInfo.shippingInfo.deliveryFeeType,
-            },
-          } : {}),
+          ...(shippingDto ? { shipping: shippingDto } : {}),
         };
       } else {
-        // 일반 상품
         orderItem = {
           productId: item.productId || 'default-product',
           productName: item.name,
@@ -577,37 +514,43 @@ export default function OrderPage() {
           unitPrice: item.basePrice,
           thumbnailUrl: item.thumbnailUrl || item.thumbnailUrls?.[0] || undefined,
           totalFileSize: 0,
+          ...(shippingDto ? { shipping: shippingDto } : {}),
         };
       }
 
-      // 항목별 배송비가 없는 경우 주문 단위 배송비 적용
-      const itemHasShipping = !!orderItem.shipping;
-      const orderShippingFee = itemHasShipping ? 0 : shippingFee;
+      // order-level shipping (백엔드 필수 필드) - 건별 배송의 수신자 정보로 채움
+      const orderLevelShipping = itemShipping ? {
+        recipientName: itemShipping.recipientName,
+        phone: itemShipping.recipientPhone,
+        postalCode: itemShipping.recipientPostalCode,
+        address: itemShipping.recipientAddress,
+        addressDetail: itemShipping.recipientAddressDetail,
+      } : {
+        recipientName: shippingClientInfo?.clientName || user?.name || '',
+        phone: shippingClientInfo?.phone || '',
+        postalCode: shippingClientInfo?.postalCode || '',
+        address: shippingClientInfo?.address || '',
+        addressDetail: shippingClientInfo?.addressDetail || '',
+      };
 
-      // 개별 주문 데이터 (1 아이템 = 1 주문)
       return {
         clientId,
         paymentMethod,
         isUrgent: false,
         isDuplicateOverride: item.isDuplicateOverride || false,
         customerMemo: memo || undefined,
-        shippingFee: orderShippingFee,
+        shippingFee: itemShipping?.deliveryFee || 0,
         items: [orderItem],
-        shipping: shippingInfo,
+        shipping: orderLevelShipping,
       };
     });
 
-    // 배송정보 변경사항 확인
-    const changes = detectShippingChanges();
     // 동판 정보 변경사항 확인
     const cpChanges = detectCopperPlateChanges();
 
-    if (changes.length > 0 || cpChanges.length > 0) {
-      // 변경사항이 있으면 확인 모달 표시
-      setShippingChanges(changes);
+    if (cpChanges.length > 0) {
       setCopperPlateChanges(cpChanges);
       setPendingOrderData(orderDataList);
-      setUpdateMemberInfo(true);
       setUpdateCopperPlateInfo(true);
       setShowChangeConfirmModal(true);
       return;
@@ -616,7 +559,7 @@ export default function OrderPage() {
     // 변경사항이 없으면 바로 주문 진행
     setIsSubmitting(true);
     try {
-      await executeOrder(orderDataList, false, [], false, []);
+      await executeOrder(orderDataList, false, []);
     } finally {
       setIsSubmitting(false);
     }
@@ -650,104 +593,151 @@ export default function OrderPage() {
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Order Form */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Order Items */}
+              {/* Order Items with Per-Item Shipping */}
               <Card>
                 <CardHeader>
-                  <CardTitle>주문 상품 ({items.length}개)</CardTitle>
+                  <CardTitle className="flex items-center justify-between">
+                    <span>주문 상품 ({items.length}개)</span>
+                    {!allShippingComplete && (
+                      <span className="text-xs font-normal text-orange-500 flex items-center gap-1">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        배송정보 미완료
+                      </span>
+                    )}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {items.map((item) => (
-                    <div key={item.id} className="flex gap-4 pb-4 border-b last:border-0 last:pb-0">
-                      <div className="w-20 h-20 bg-gray-100 rounded-lg flex-shrink-0">
-                        {item.thumbnailUrl ? (
-                          <img
-                            src={item.thumbnailUrl}
-                            alt={item.name}
-                            className="w-full h-full object-cover rounded-lg"
-                          />
+                  {items.map((item, idx) => {
+                    const hasAlbumShipping = !!item.albumOrderInfo?.shippingInfo;
+                    const currentShipping = itemShippingMap[item.id];
+                    const shippingComplete = hasAlbumShipping || isShippingComplete(currentShipping);
+
+                    // 이전 항목에 완료된 배송이 있는지
+                    let hasPrevShipping = false;
+                    if (!hasAlbumShipping) {
+                      for (let i = idx - 1; i >= 0; i--) {
+                        if (isShippingComplete(itemShippingMap[items[i].id])) {
+                          hasPrevShipping = true;
+                          break;
+                        }
+                      }
+                    }
+
+                    return (
+                      <div key={item.id} className="pb-4 border-b last:border-0 last:pb-0">
+                        {/* 상품 정보 */}
+                        <div className="flex gap-4">
+                          <div className="w-20 h-20 bg-gray-100 rounded-lg flex-shrink-0">
+                            {item.thumbnailUrl ? (
+                              <img
+                                src={item.thumbnailUrl}
+                                alt={item.name}
+                                className="w-full h-full object-cover rounded-lg"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-2xl">
+                                📦
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-medium">{item.name}</p>
+                            {item.options.length > 0 && (
+                              <p className="text-sm text-gray-500 mt-1">
+                                {item.options.map(o => o.value).join(' / ')}
+                              </p>
+                            )}
+                            <div className="flex justify-between items-center mt-2">
+                              <span className="text-sm text-gray-500">수량: {item.quantity}개</span>
+                              <span className="font-bold">{item.totalPrice.toLocaleString()}원</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 건별 배송 섹션 */}
+                        {hasAlbumShipping ? (
+                          // 앨범 주문: 업로드 시 설정한 배송 읽기 전용 요약
+                          <div className="mt-3 flex items-center gap-2 text-sm text-blue-600 bg-blue-50 rounded-md px-3 py-2">
+                            <Truck className="h-3.5 w-3.5 flex-shrink-0" />
+                            <span className="flex-1">
+                              {getCartShippingSummary(item.albumOrderInfo!.shippingInfo!)}
+                            </span>
+                            <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                          </div>
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-2xl">
-                            📦
+                          // 편집 가능한 배송 Accordion
+                          <div className="mt-3 border rounded-lg">
+                            <Accordion type="single" collapsible>
+                              <AccordionItem value={item.id} className="border-0">
+                                <AccordionTrigger className="px-3 py-2 hover:bg-gray-50/50 hover:no-underline">
+                                  <div className="flex items-center gap-2 flex-1">
+                                    <div className={cn(
+                                      'w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0',
+                                      shippingComplete ? 'bg-green-100' : 'bg-orange-100'
+                                    )}>
+                                      {shippingComplete ? (
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
+                                      ) : (
+                                        <AlertCircle className="w-3.5 h-3.5 text-orange-500" />
+                                      )}
+                                    </div>
+                                    {shippingComplete && currentShipping ? (
+                                      <span className="text-sm text-gray-700 text-left">
+                                        {getCartShippingSummary(currentShipping)}
+                                      </span>
+                                    ) : (
+                                      <span className="text-sm text-orange-600 font-medium">
+                                        배송정보 설정
+                                      </span>
+                                    )}
+                                  </div>
+                                </AccordionTrigger>
+                                <AccordionContent className="px-3 pb-3 pt-0">
+                                  <div className="p-3 bg-gray-50 rounded-lg space-y-3">
+                                    <FolderShippingSection
+                                      shippingInfo={currentShipping as unknown as FolderShippingInfo | undefined}
+                                      companyInfo={companyInfo}
+                                      clientInfo={shippingClientInfo}
+                                      pricingMap={pricingMap}
+                                      onChange={(shipping) => handleItemShippingChange(item.id, shipping)}
+                                    />
+
+                                    {/* 편의 버튼 */}
+                                    <div className="flex gap-2 pt-2 border-t border-gray-200">
+                                      {hasPrevShipping && !shippingComplete && (
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          type="button"
+                                          className="flex-1 text-xs"
+                                          onClick={() => handleCopyFromPrevious(item.id)}
+                                        >
+                                          <Copy className="h-3.5 w-3.5 mr-1" />
+                                          이전 항목에서 복사
+                                        </Button>
+                                      )}
+                                      {items.length > 1 && shippingComplete && (
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          type="button"
+                                          className="flex-1 text-xs"
+                                          onClick={() => handleApplyShippingToAll(item.id)}
+                                        >
+                                          <Copy className="h-3.5 w-3.5 mr-1" />
+                                          모든 항목에 적용
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </div>
+                                </AccordionContent>
+                              </AccordionItem>
+                            </Accordion>
                           </div>
                         )}
                       </div>
-                      <div className="flex-1">
-                        <p className="font-medium">{item.name}</p>
-                        {item.options.length > 0 && (
-                          <p className="text-sm text-gray-500 mt-1">
-                            {item.options.map(o => o.value).join(' / ')}
-                          </p>
-                        )}
-                        <div className="flex justify-between items-center mt-2">
-                          <span className="text-sm text-gray-500">수량: {item.quantity}개</span>
-                          <span className="font-bold">{item.totalPrice.toLocaleString()}원</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-
-              {/* Shipping Info */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>배송 정보</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="recipientName">받는분 *</Label>
-                      <Input
-                        id="recipientName"
-                        value={shippingInfo.recipientName}
-                        onChange={(e) => setShippingInfo(prev => ({ ...prev, recipientName: e.target.value }))}
-                        placeholder="이름"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">연락처 *</Label>
-                      <PhoneInput
-                        id="phone"
-                        value={shippingInfo.phone}
-                        onChange={(value) => setShippingInfo(prev => ({ ...prev, phone: value }))}
-                        placeholder="010-0000-0000"
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div className="grid md:grid-cols-4 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="postalCode">우편번호</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          id="postalCode"
-                          value={shippingInfo.postalCode}
-                          onChange={(e) => setShippingInfo(prev => ({ ...prev, postalCode: e.target.value }))}
-                          placeholder="00000"
-                        />
-                      </div>
-                    </div>
-                    <div className="md:col-span-3 space-y-2">
-                      <Label htmlFor="address">주소 *</Label>
-                      <Input
-                        id="address"
-                        value={shippingInfo.address}
-                        onChange={(e) => setShippingInfo(prev => ({ ...prev, address: e.target.value }))}
-                        placeholder="기본 주소"
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="addressDetail">상세주소</Label>
-                    <Input
-                      id="addressDetail"
-                      value={shippingInfo.addressDetail}
-                      onChange={(e) => setShippingInfo(prev => ({ ...prev, addressDetail: e.target.value }))}
-                      placeholder="상세 주소"
-                    />
-                  </div>
+                    );
+                  })}
                 </CardContent>
               </Card>
 
@@ -808,25 +798,6 @@ export default function OrderPage() {
                   />
                 </CardContent>
               </Card>
-
-              {/* File Upload */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>파일 업로드</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="border-2 border-dashed rounded-lg p-8 text-center">
-                    <Upload className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                    <p className="font-medium mb-2">인쇄용 파일을 업로드해주세요</p>
-                    <p className="text-sm text-gray-500 mb-4">
-                      PDF, AI, PSD, JPG 파일 지원 (최대 500MB)
-                    </p>
-                    <Button variant="outline" type="button">
-                      파일 선택
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
             </div>
 
             {/* Order Summary */}
@@ -843,7 +814,9 @@ export default function OrderPage() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">배송비</span>
-                      <span>{shippingFee > 0 ? `${shippingFee.toLocaleString()}원` : '무료'}</span>
+                      <span className={cn(totalShippingFee === 0 && 'text-green-600')}>
+                        {totalShippingFee > 0 ? `${totalShippingFee.toLocaleString()}원` : '무료'}
+                      </span>
                     </div>
                   </div>
 
@@ -876,10 +849,23 @@ export default function OrderPage() {
                     type="submit"
                     size="lg"
                     className="w-full"
-                    disabled={isSubmitting || !agreeTerms}
+                    disabled={isSubmitting || !agreeTerms || !allShippingComplete}
                   >
                     {isSubmitting ? '처리중...' : `${total.toLocaleString()}원 결제하기`}
                   </Button>
+
+                  {!agreeTerms && (
+                    <p className="text-xs text-orange-500 text-center flex items-center justify-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      약관에 동의해주세요
+                    </p>
+                  )}
+                  {agreeTerms && !allShippingComplete && (
+                    <p className="text-xs text-orange-500 text-center flex items-center justify-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      모든 항목의 배송정보를 설정해주세요
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -887,69 +873,21 @@ export default function OrderPage() {
         </div>
       </form>
 
-      {/* 정보 변경 확인 모달 */}
+      {/* 동판 정보 변경 확인 모달 */}
       <Dialog open={showChangeConfirmModal} onOpenChange={setShowChangeConfirmModal}>
         <DialogContent className="sm:max-w-[550px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-amber-600">
               <AlertTriangle className="h-5 w-5" />
-              정보가 변경되었습니다
+              동판 정보가 변경되었습니다
             </DialogTitle>
             <DialogDescription>
-              입력하신 정보가 기존 저장된 정보와 다릅니다.
+              입력하신 동판(박 각인) 정보가 기존 저장된 정보와 다릅니다.
               정보를 업데이트하시겠습니까?
             </DialogDescription>
           </DialogHeader>
 
           <div className="py-4 space-y-6">
-            {/* 배송정보 변경 섹션 */}
-            {shippingChanges.length > 0 && (
-              <div>
-                <h4 className="text-sm font-semibold text-gray-800 mb-2">배송정보 변경</h4>
-                <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-                  {shippingChanges.map((change, index) => (
-                    <div key={index} className="text-sm">
-                      <span className="font-medium">{change.label}:</span>
-                      <div className="ml-4 text-gray-600">
-                        <span className="line-through text-red-500">{change.oldValue}</span>
-                        <span className="mx-2">→</span>
-                        <span className="text-green-600 font-medium">{change.newValue}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-3 space-y-2">
-                  <label className="flex items-center gap-3 p-2 border rounded-lg cursor-pointer hover:bg-gray-50">
-                    <input
-                      type="radio"
-                      name="shippingUpdateOption"
-                      checked={updateMemberInfo}
-                      onChange={() => setUpdateMemberInfo(true)}
-                      className="w-4 h-4 text-primary"
-                    />
-                    <div className="text-sm">
-                      <p className="font-medium">회원정보 업데이트</p>
-                    </div>
-                  </label>
-
-                  <label className="flex items-center gap-3 p-2 border rounded-lg cursor-pointer hover:bg-gray-50">
-                    <input
-                      type="radio"
-                      name="shippingUpdateOption"
-                      checked={!updateMemberInfo}
-                      onChange={() => setUpdateMemberInfo(false)}
-                      className="w-4 h-4 text-primary"
-                    />
-                    <div className="text-sm">
-                      <p className="font-medium">이번 주문만 적용</p>
-                    </div>
-                  </label>
-                </div>
-              </div>
-            )}
-
-            {/* 동판 정보 변경 섹션 */}
             {copperPlateChanges.length > 0 && (
               <div>
                 <h4 className="text-sm font-semibold text-gray-800 mb-2">동판(박 각인) 정보 변경</h4>
