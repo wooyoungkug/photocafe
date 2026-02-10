@@ -129,16 +129,26 @@ export default function OrderPage() {
   const [copperPlateChanges, setCopperPlateChanges] = useState<CopperPlateChanges[]>([]);
   const [updateCopperPlateInfo, setUpdateCopperPlateInfo] = useState(true);
 
-  // 회원정보 로드
+  // 회원정보 로드 (ID 직접 조회 → 실패 시 email로 검색)
   const loadClientInfo = useCallback(async () => {
     if (!user?.id) return;
     try {
       const response = await api.get<ClientInfo>(`/clients/${user.id}`);
       setClientInfo(response);
-    } catch (error) {
-      console.error('Failed to load client info:', error);
+    } catch {
+      // ID로 못 찾으면 email로 검색 (관리자/staff 로그인 시)
+      if (user.email) {
+        try {
+          const searchResult = await api.get<{ data: ClientInfo[] }>('/clients', { search: user.email, limit: 1 });
+          if (searchResult.data?.[0]) {
+            setClientInfo(searchResult.data[0]);
+          }
+        } catch {
+          console.error('Failed to load client info by email');
+        }
+      }
     }
-  }, [user?.id]);
+  }, [user?.id, user?.email]);
 
   useEffect(() => {
     if (isAuthenticated && user?.id) {
@@ -317,7 +327,8 @@ export default function OrderPage() {
     cpChanges: CopperPlateChanges[]
   ) => {
     try {
-      for (const orderData of orderDataList) {
+      for (const [idx, orderData] of orderDataList.entries()) {
+        console.log(`[Order] Submitting item ${idx + 1}/${orderDataList.length}:`, { clientId: orderData.clientId, paymentMethod: orderData.paymentMethod, itemCount: orderData.items?.length });
         await api.post('/orders', orderData);
       }
 
@@ -430,6 +441,7 @@ export default function OrderPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('[Order] handleSubmit called', { agreeTerms, allShippingComplete, clientInfoId: clientInfo?.id, userId: user?.id, itemCount: items.length });
 
     if (!agreeTerms) {
       toast({
@@ -841,7 +853,13 @@ export default function OrderPage() {
                     {isSubmitting ? '처리중...' : `${total.toLocaleString()}원 결제하기`}
                   </Button>
 
-                  {!allShippingComplete && (
+                  {!agreeTerms && (
+                    <p className="text-xs text-orange-500 text-center flex items-center justify-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      약관에 동의해주세요
+                    </p>
+                  )}
+                  {agreeTerms && !allShippingComplete && (
                     <p className="text-xs text-orange-500 text-center flex items-center justify-center gap-1">
                       <AlertCircle className="w-3 h-3" />
                       모든 항목의 배송정보를 설정해주세요

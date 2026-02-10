@@ -1264,6 +1264,12 @@ export default function ProductPage() {
                         )}
                         <span className="text-gray-300">|</span>
                         <span className="text-xs text-gray-500">{selectedOptions.ownedCopperPlate.plateType === 'copper' ? t('copperType') : t('leadType')}</span>
+                        {selectedOptions.ownedCopperPlate.registeredAt && (
+                          <>
+                            <span className="text-gray-300">|</span>
+                            <span className="text-xs text-gray-400">{new Date(selectedOptions.ownedCopperPlate.registeredAt).toLocaleDateString('ko-KR')}</span>
+                          </>
+                        )}
                         <div className="flex items-center gap-1 text-xs text-primary ml-auto">
                           <span>{t('change')}</span>
                           <ChevronDown className="h-3 w-3" />
@@ -1274,12 +1280,14 @@ export default function ProductPage() {
                     {isCopperPlateListExpanded && (
                     <div className="max-h-[200px] overflow-y-auto">
                       <div className="grid grid-cols-1 gap-2">
-                        {ownedCopperPlates.filter(cp => cp.status === 'stored').map((cp) => (
+                        {ownedCopperPlates.filter(cp => cp.status === 'stored').map((cp) => {
+                          const isSelected = selectedOptions.ownedCopperPlate?.id === cp.id;
+                          return (
                           <Label
                             key={cp.id}
                             className={cn(
-                              "flex items-center gap-3 p-2 border rounded-md cursor-pointer transition-colors",
-                              selectedOptions.ownedCopperPlate?.id === cp.id
+                              "flex items-center gap-2 p-2 border rounded-md cursor-pointer transition-colors",
+                              isSelected
                                 ? "border-primary bg-primary/5"
                                 : "hover:border-gray-400"
                             )}
@@ -1297,67 +1305,55 @@ export default function ProductPage() {
                               <img
                                 src={normalizeImageUrl(cp.imageUrl)}
                                 alt={cp.plateName}
-                                className="w-12 h-12 object-cover rounded"
+                                className="w-8 h-8 object-cover rounded"
                               />
                             )}
-                            <div className="flex-1">
-                              <div className="font-medium text-sm">{cp.plateName}</div>
-                              <div className="text-xs text-gray-500">
-                                {cp.foilColorName && <span className="mr-2">{cp.foilColorName}</span>}
-                                {cp.foilPosition && (
-                                  <span className="mr-2">
-                                    {copperPlateLabels?.platePositions?.find(p => p.code === cp.foilPosition)?.name || cp.foilPosition}
-                                  </span>
+                            <span className="font-medium text-sm">{cp.plateName}</span>
+                            {isSelected ? (
+                              <>
+                                <span className="text-gray-300">|</span>
+                                <span className="text-xs text-gray-600">
+                                  {copperPlateLabels?.foilColors?.find(c => c.code === cp.foilColor)?.name || cp.foilColorName || '-'}
+                                </span>
+                                <span className="text-gray-300">|</span>
+                                <span className="text-xs text-gray-600">
+                                  {copperPlateLabels?.platePositions?.find(p => p.code === cp.foilPosition)?.name || cp.foilPosition || '-'}
+                                </span>
+                                <span className="text-gray-300">|</span>
+                                <span className="text-xs text-gray-600">
+                                  {cp.plateType === 'copper' ? t('copperType') : t('leadType')}
+                                </span>
+                                {cp.registeredAt && (
+                                  <>
+                                    <span className="text-gray-300">|</span>
+                                    <span className="text-xs text-gray-400">{new Date(cp.registeredAt).toLocaleDateString('ko-KR')}</span>
+                                  </>
                                 )}
+                                {cp.notes && (
+                                  <>
+                                    <span className="text-gray-300">|</span>
+                                    <span className="text-xs text-gray-500 truncate max-w-[200px]" title={cp.notes}>{cp.notes}</span>
+                                  </>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-xs text-gray-500">
+                                {cp.foilColorName && <span className="mr-1">{cp.foilColorName}</span>}
                                 {cp.plateType === 'copper' ? t('copperType') : t('leadType')}
-                              </div>
-                            </div>
+                                {cp.registeredAt && (
+                                  <span className="ml-1 text-gray-400">({new Date(cp.registeredAt).toLocaleDateString('ko-KR')})</span>
+                                )}
+                              </span>
+                            )}
                             <Checkbox
-                              checked={selectedOptions.ownedCopperPlate?.id === cp.id}
-                              className="pointer-events-none"
+                              checked={isSelected}
+                              className="pointer-events-none ml-auto"
                             />
                           </Label>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
-                    )}
-
-                    {/* 선택된 보유동판 한줄 요약 */}
-                    {selectedOptions.ownedCopperPlate && (
-                      <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-primary/30 rounded-lg text-xs">
-                        {selectedOptions.ownedCopperPlate.imageUrl && (
-                          <img
-                            src={normalizeImageUrl(selectedOptions.ownedCopperPlate.imageUrl)}
-                            alt={selectedOptions.ownedCopperPlate.plateName}
-                            className="w-8 h-8 object-cover rounded border"
-                          />
-                        )}
-                        <span className="font-medium text-primary">{selectedOptions.ownedCopperPlate.plateName}</span>
-                        <span className="text-gray-400">|</span>
-                        <span className="text-gray-600">
-                          {copperPlateLabels?.foilColors?.find(c => c.code === selectedOptions.ownedCopperPlate?.foilColor)?.name
-                            || selectedOptions.ownedCopperPlate.foilColorName
-                            || '-'}
-                        </span>
-                        <span className="text-gray-400">|</span>
-                        <span className="text-gray-600">
-                          {copperPlateLabels?.platePositions?.find(p => p.code === selectedOptions.ownedCopperPlate?.foilPosition)?.name
-                            || selectedOptions.ownedCopperPlate.foilPosition
-                            || '-'}
-                        </span>
-                        <span className="text-gray-400">|</span>
-                        <span className="text-gray-600">
-                          {selectedOptions.ownedCopperPlate.plateType === 'copper' ? t('copperType') : t('leadType')}
-                        </span>
-                        {selectedOptions.ownedCopperPlate.notes && (
-                          <>
-                            <span className="text-gray-400">|</span>
-                            <span className="text-gray-500 truncate max-w-[200px]" title={selectedOptions.ownedCopperPlate.notes}>
-                              {selectedOptions.ownedCopperPlate.notes}
-                            </span>
-                          </>
-                        )}
-                      </div>
                     )}
 
                     {/* 보유동판 선택 시 박 색상/위치 수정 가능 */}

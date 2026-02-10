@@ -39,11 +39,11 @@ export function useShippingData() {
   // 1. 회사정보 (시스템설정)
   const { data: companySettings, isLoading: isLoadingCompany } = useSystemSettings('company');
 
-  // 2. 주문자(거래처) 정보 - client 역할일 때만 조회
-  const isClient = user?.role === 'client';
+  // 2. 주문자(거래처) 정보 - 모든 로그인 사용자에 대해 조회
   const { data: clientInfo, isLoading: isLoadingClient } = useQuery<OrdererShippingInfo | null>({
-    queryKey: ['client-shipping-info', user?.id],
+    queryKey: ['client-shipping-info', user?.id, user?.email],
     queryFn: async () => {
+      // 1차: ID로 직접 조회
       try {
         const response = await api.get<any>(`/clients/${user!.id}`);
         return {
@@ -56,10 +56,28 @@ export function useShippingData() {
           shippingType: response.shippingType || 'conditional',
         };
       } catch {
+        // 2차: email로 검색 (관리자/staff 로그인 시)
+        if (user?.email) {
+          try {
+            const searchResult = await api.get<{ data: any[] }>('/clients', { search: user.email, limit: 1 });
+            const client = searchResult.data?.[0];
+            if (client) {
+              return {
+                id: client.id,
+                clientName: client.clientName || user?.name || '',
+                phone: client.mobile || client.phone || '',
+                postalCode: client.postalCode || '',
+                address: client.address || '',
+                addressDetail: client.addressDetail || '',
+                shippingType: client.shippingType || 'conditional',
+              };
+            }
+          } catch { /* ignore */ }
+        }
         return null;
       }
     },
-    enabled: !!user?.id && isClient,
+    enabled: !!user?.id,
     retry: false,
   });
 

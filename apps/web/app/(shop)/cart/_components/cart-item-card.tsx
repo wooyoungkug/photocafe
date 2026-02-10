@@ -373,10 +373,10 @@ export function CartItemCard({
                 )}
               </div>
 
-              {/* Delete button (desktop) */}
+              {/* Delete button */}
               <button
                 onClick={() => onRemove(item.id)}
-                className="hidden lg:flex p-2 -mr-1 text-gray-400 hover:text-red-500 active:text-red-600 transition-colors rounded-lg hover:bg-red-50 touch-target"
+                className="flex p-2 -mr-1 text-gray-400 hover:text-red-500 active:text-red-600 transition-colors rounded-lg hover:bg-red-50 touch-target"
                 aria-label="삭제"
               >
                 <Trash2 className="h-4 w-4 sm:h-5 sm:w-5" />

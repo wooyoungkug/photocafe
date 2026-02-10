@@ -104,6 +104,15 @@ export class OrderService {
               id: true,
               clientCode: true,
               clientName: true,
+              assignedStaff: {
+                where: { isPrimary: true },
+                select: {
+                  staff: {
+                    select: { id: true, name: true },
+                  },
+                },
+                take: 1,
+              },
             },
           },
           shipping: true,

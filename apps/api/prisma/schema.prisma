@@ -688,17 +688,21 @@ model Product {
 }
 
 model ProductSpecification {
-  id        String  @id @default(cuid())
-  productId String
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  name      String  // 규격명
-  widthMm   Float
-  heightMm  Float
-  price     Decimal @db.Decimal(10, 2) @default(0)
-  isDefault Boolean @default(false)
-  sortOrder Int     @default(0)
+  id              String         @id @default(cuid())
+  productId       String
+  product         Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  specificationId String?        // 마스터 규격 FK (자동 동기화용)
+  specification   Specification? @relation(fields: [specificationId], references: [id], onDelete: SetNull)
+  name            String         // 규격명
+  widthMm         Float
+  heightMm        Float
+  price           Decimal        @db.Decimal(10, 2) @default(0)
+  isDefault       Boolean        @default(false)
+  sortOrder       Int            @default(0)
 
+  @@unique([productId, specificationId])
   @@index([productId])
+  @@index([specificationId])
   @@map("product_specifications")
 }
 

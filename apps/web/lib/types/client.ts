@@ -40,6 +40,7 @@ export interface Client {
   shippingType?: 'conditional' | 'free' | 'prepaid' | 'cod';
   creditGrade?: 'A' | 'B' | 'C' | 'D';
   paymentTerms?: number;
+  assignedManager?: string;
   status: 'active' | 'inactive' | 'suspended';
   createdAt: string;
   updatedAt: string;
@@ -65,6 +66,7 @@ export interface CreateClientDto {
   memberType?: 'individual' | 'business';
   creditGrade?: 'A' | 'B' | 'C' | 'D';
   paymentTerms?: number;
+  assignedManager?: string | null;
   status?: 'active' | 'inactive' | 'suspended';
 }
 

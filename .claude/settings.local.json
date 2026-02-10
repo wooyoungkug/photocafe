@@ -284,7 +284,13 @@
       "WebFetch(domain:www.saponlinetutorials.com)",
       "WebFetch(domain:wehagohelp.zendesk.com)",
       "WebFetch(domain:leanx.eu)",
-      "WebFetch(domain:www.douzoneon.com)"
+      "WebFetch(domain:www.douzoneon.com)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbWw2M2NqOGQwMDA2MTBmYzUycnhkMXI4Iiwic3RhZmZJZCI6ImFkbWluIiwibmFtZSI6IuyasOyYgeq1rSIsInJvbGUiOiJhZG1pbiIsInR5cGUiOiJzdGFmZiIsImJyYW5jaElkIjoiY21rYWlxbnVqMDAwd2t6NW83NGVscGRiNiIsImRlcGFydG1lbnRJZCI6ImNtbDYzY2o2eDAwMDAxMGZjYTJ1ZmpmeG8iLCJpYXQiOjE3NzA3MDU5MzQsImV4cCI6MTc3MDc5MjMzNH0.YyjZdfi78c5nzoRGFwMbjcgqWZMDKgsgKccCNa8ymjk\")",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbWw2M2NqOGQwMDA2MTBmYzUycnhkMXI4Iiwic3RhZmZJZCI6ImFkbWluIiwibmFtZSI6IuyasOyYgeq1rSIsInJvbGUiOiJhZG1pbiIsInR5cGUiOiJzdGFmZiIsImJyYW5jaElkIjoiY21rYWlxbnVqMDAwd2t6NW83NGVscGRiNiIsImRlcGFydG1lbnRJZCI6ImNtbDYzY2o2eDAwMDAxMGZjYTJ1ZmpmeG8iLCJpYXQiOjE3NzA3MDY2MzEsImV4cCI6MTc3MDc5MzAzMX0.bt4Cg2YzDOGhrJB0edwj_Mn3CRmnEqfYfaAKBlgWC5I\")",
+      "Bash(admin \")",
+      "Bash(sed:*)",
+      "mcp__memory__create_entities",
+      "mcp__memory__create_relations"
     ]
   }
 }

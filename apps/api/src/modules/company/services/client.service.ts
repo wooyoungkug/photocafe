@@ -23,6 +23,7 @@ export class ClientService {
           { clientName: { contains: search } },
           { clientCode: { contains: search } },
           { businessNumber: { contains: search } },
+          { email: { contains: search } },
         ],
       }),
       ...(groupId && { groupId }),
