@@ -58,8 +58,8 @@ export type CoverSourceType = 'fabric' | 'design';
 
 // 표지 감지 패턴
 const COVER_PATTERNS = {
-  FRONT: /첫장|표지(?!뒷)|front|cover(?!.*back)|^첫$/i,
-  BACK: /막장|뒷표지|back|rear|끝|^막$/i,
+  FRONT: /첫장|표지(?!뒷)|커버(?!뒷)|front|cover(?!.*back)|^첫$/i,
+  BACK: /막장|뒷표지|뒷커버|back|rear|끝|^막$/i,
   COMBINED: /첫장막장|첫막장|첫장\s+막장|표지뒷표지|첫장_막장|frontback/i,
 };
 
@@ -83,13 +83,27 @@ export function detectCoverType(filename: string): CoverType {
   const normalizedName = name.normalize('NFC').trim();
 
   // 명시적 파일명 체크 (엄격하게) - 정규식보다 우선
-  if (normalizedName === '첫장' || normalizedName === '표지' || normalizedName === 'front' || normalizedName === 'cover') return 'FRONT_COVER';
-  if (normalizedName === '막장' || normalizedName === '뒷표지' || normalizedName === 'back' || normalizedName === 'rear') return 'BACK_COVER';
+  if (normalizedName === '첫장' || normalizedName === '표지' || normalizedName === '커버' || normalizedName === 'front' || normalizedName === 'cover') return 'FRONT_COVER';
+  if (normalizedName === '막장' || normalizedName === '뒷표지' || normalizedName === '뒷커버' || normalizedName === 'back' || normalizedName === 'rear') return 'BACK_COVER';
 
   if (COVER_PATTERNS.COMBINED.test(normalizedName)) return 'COMBINED_COVER';
   if (COVER_PATTERNS.FRONT.test(normalizedName)) return 'FRONT_COVER';
   if (COVER_PATTERNS.BACK.test(normalizedName)) return 'BACK_COVER';
   return 'INNER_PAGE';
+}
+
+// 디자인표지 파일명 감지 패턴
+const DESIGN_COVER_DETECT = /표지|커버|cover/i;
+
+/** 파일 목록에서 표지 파일이 있는지 확인 */
+export function hasDesignCoverFiles(files: UploadedFile[]): boolean {
+  return files.some(f => f.coverType !== 'INNER_PAGE');
+}
+
+/** 파일명이 표지 관련 키워드를 포함하는지 확인 */
+export function isDesignCoverFileName(fileName: string): boolean {
+  const name = fileName.replace(/\.[^.]+$/, '');
+  return DESIGN_COVER_DETECT.test(name);
 }
 
 // 표준 규격 목록은 DB 인디고출력 규격에서 동적으로 로드됨
@@ -1307,7 +1321,17 @@ export function calculateUploadedFolderPrice(folder: UploadedFolder): {
   const pricePerPage = folder.pageLayout === 'spread' ? prices.spread : prices.single;
 
   const printPrice = pricePerPage * folder.pageCount;
-  const coverPrice = COVER_PRICE;
+
+  // 표지 유형별 단가 분기
+  let coverPrice: number;
+  if (folder.coverSourceType === 'fabric' && folder.selectedFabricPrice > 0) {
+    coverPrice = folder.selectedFabricPrice;
+  } else if (folder.coverSourceType === 'design') {
+    coverPrice = DESIGN_COVER_PRICE;
+  } else {
+    coverPrice = COVER_PRICE; // 기본값 (하위 호환)
+  }
+
   const unitPrice = printPrice + coverPrice;
   const quantity = folder.quantity;
   const subtotal = unitPrice * quantity;
@@ -1349,7 +1373,16 @@ export function calculateAdditionalOrderPrice(
   const pricePerPage = folder.pageLayout === 'spread' ? prices.spread : prices.single;
 
   const printPrice = pricePerPage * folder.pageCount;
-  const coverPrice = COVER_PRICE;
+
+  // 추가 주문도 동일한 표지 유형 적용
+  let coverPrice: number;
+  if (folder.coverSourceType === 'fabric' && folder.selectedFabricPrice > 0) {
+    coverPrice = folder.selectedFabricPrice;
+  } else if (folder.coverSourceType === 'design') {
+    coverPrice = DESIGN_COVER_PRICE;
+  } else {
+    coverPrice = COVER_PRICE;
+  }
   const unitPrice = printPrice + coverPrice;
   const quantity = order.quantity;
   const subtotal = unitPrice * quantity;

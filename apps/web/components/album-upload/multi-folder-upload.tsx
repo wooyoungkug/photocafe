@@ -36,6 +36,7 @@ import {
   calculateTotalUploadedPrice,
   autoDetectPageLayout,
   detectBindingFromName,
+  hasDesignCoverFiles,
 } from '@/stores/multi-folder-upload-store';
 import { useIndigoSpecifications } from '@/hooks/use-specifications';
 import { toast } from '@/hooks/use-toast';
@@ -1071,6 +1072,12 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         lastPageBlank,
         autoBindingDetected,
         uploadedAt: Date.now(),
+        coverSourceType: hasDesignCoverFiles(sortedFiles) ? 'design' : null,
+        coverAutoDetected: hasDesignCoverFiles(sortedFiles),
+        selectedFabricId: null,
+        selectedFabricName: null,
+        selectedFabricThumbnail: null,
+        selectedFabricPrice: 0,
       };
 
       return folder;
@@ -1371,6 +1378,12 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
           lastPageBlank,
           autoBindingDetected,
           uploadedAt: Date.now(),
+          coverSourceType: hasDesignCoverFiles(sortedFiles) ? 'design' : null,
+          coverAutoDetected: hasDesignCoverFiles(sortedFiles),
+          selectedFabricId: null,
+          selectedFabricName: null,
+          selectedFabricThumbnail: null,
+          selectedFabricPrice: 0,
         };
 
         const result = addFolder(folder);
@@ -1604,6 +1617,12 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         lastPageBlank,
         autoBindingDetected,
         uploadedAt: Date.now(),
+        coverSourceType: hasDesignCoverFiles(sortedFiles) ? 'design' : null,
+        coverAutoDetected: hasDesignCoverFiles(sortedFiles),
+        selectedFabricId: null,
+        selectedFabricName: null,
+        selectedFabricThumbnail: null,
+        selectedFabricPrice: 0,
       };
 
       const result = addFolder(folder);

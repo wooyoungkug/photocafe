@@ -51,6 +51,7 @@ import {
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { ColorGroupBadge, ColorGroupHeader } from './color-group-badge';
+import { CoverTypeSelector } from './cover-type-selector';
 import {
   type UploadedFolder,
   type FolderValidationStatus,
@@ -403,32 +404,6 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     setIsEditingTitle(false);
   };
 
-  // 제본순서 시각화: 펼친면 2장, 시작/끝 위치 색칠
-  const getBindingDirectionVisual = () => {
-    const dir = folder.bindingDirection || 'LEFT_START_RIGHT_END';
-    const filled = 'w-3.5 h-5 bg-blue-500 rounded-sm';
-    const empty = 'w-3.5 h-5 bg-gray-200 rounded-sm';
-
-    // [좌|우] [좌|우] 형태의 펼친면 2장
-    // 시작=첫장 색칠 위치, 끝=둘째장 색칠 위치
-    const startLeft = dir.startsWith('LEFT_START');
-    const endRight = dir.endsWith('RIGHT_END');
-
-    return (
-      <div className="flex items-center gap-1">
-        {/* 첫장 */}
-        <div className="flex gap-px border border-gray-300 rounded p-px">
-          <div className={startLeft ? filled : empty} />
-          <div className={startLeft ? empty : filled} />
-        </div>
-        {/* 둘째장 */}
-        <div className="flex gap-px border border-gray-300 rounded p-px">
-          <div className={endRight ? empty : filled} />
-          <div className={endRight ? filled : empty} />
-        </div>
-      </div>
-    );
-  };
 
   return (
     <div
@@ -984,17 +959,37 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
         {folder.pageLayout === 'spread' && (
           <>
             <span className="text-gray-300">|</span>
-            <select
-              value={folder.bindingDirection || 'LEFT_START_RIGHT_END'}
-              onChange={(e) => setFolderBindingDirection(folder.id, e.target.value as BindingDirection)}
-              className="text-[10px] border rounded px-1 py-0.5 bg-white"
-              aria-label={t('bindingSelect')}
-            >
-              <option value="LEFT_START_RIGHT_END">{t('bindingLeftRight')}</option>
-              <option value="LEFT_START_LEFT_END">{t('bindingLeftLeft')}</option>
-              <option value="RIGHT_START_LEFT_END">{t('bindingRightLeft')}</option>
-              <option value="RIGHT_START_RIGHT_END">{t('bindingRightRight')}</option>
-            </select>
+            <div className="flex gap-1">
+              {(['LEFT_START_RIGHT_END', 'LEFT_START_LEFT_END', 'RIGHT_START_LEFT_END', 'RIGHT_START_RIGHT_END'] as BindingDirection[]).map((dir) => {
+                const isSelected = (folder.bindingDirection || 'LEFT_START_RIGHT_END') === dir;
+                const startLeft = dir.startsWith('LEFT_START');
+                const endRight = dir.endsWith('RIGHT_END');
+                const label = dir === 'LEFT_START_RIGHT_END' ? '좌→우' : dir === 'LEFT_START_LEFT_END' ? '좌→좌' : dir === 'RIGHT_START_LEFT_END' ? '우→좌' : '우→우';
+                return (
+                  <button
+                    key={dir}
+                    type="button"
+                    onClick={() => setFolderBindingDirection(folder.id, dir)}
+                    className={cn(
+                      'flex flex-col items-center gap-0.5 px-1 py-0.5 rounded border transition-colors',
+                      isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:bg-gray-50'
+                    )}
+                  >
+                    <span className="flex items-center gap-1">
+                      <span className="flex gap-px">
+                        <span className={cn('w-4 h-6 rounded-sm', startLeft ? 'bg-blue-500' : 'bg-gray-200')} />
+                        <span className={cn('w-4 h-6 rounded-sm', startLeft ? 'bg-gray-200' : 'bg-blue-500')} />
+                      </span>
+                      <span className="flex gap-px">
+                        <span className={cn('w-4 h-6 rounded-sm', endRight ? 'bg-gray-200' : 'bg-blue-500')} />
+                        <span className={cn('w-4 h-6 rounded-sm', endRight ? 'bg-blue-500' : 'bg-gray-200')} />
+                      </span>
+                    </span>
+                    <span className={cn('text-[8px] leading-none', isSelected ? 'text-blue-600 font-medium' : 'text-gray-400')}>{label}</span>
+                  </button>
+                );
+              })}
+            </div>
             {folder.autoBindingDetected && (
               <span className="text-[9px] text-green-600 bg-green-50 px-1 rounded" title={`${t('firstPage')} ${folder.firstPageBlank ? t('blankPageLabel') : t('normalPageLabel')} / ${t('lastPage')} ${folder.lastPageBlank ? t('blankPageLabel') : t('normalPageLabel')}`}>
                 {t('autoDetected')}
@@ -1005,20 +1000,33 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
         {folder.pageLayout === 'single' && (
           <>
             <span className="text-gray-300">|</span>
-            <select
-              value={(folder.bindingDirection || 'LEFT_START_RIGHT_END').startsWith('RIGHT') ? 'RIGHT' : 'LEFT'}
-              onChange={(e) => {
-                const dir: BindingDirection = e.target.value === 'RIGHT'
-                  ? 'RIGHT_START_LEFT_END'
-                  : 'LEFT_START_RIGHT_END';
-                setFolderBindingDirection(folder.id, dir);
-              }}
-              className="text-[10px] border rounded px-1 py-0.5 bg-white"
-              aria-label={t('bindingSelect')}
-            >
-              <option value="LEFT">{t('bindingStartLeft')}</option>
-              <option value="RIGHT">{t('bindingStartRight')}</option>
-            </select>
+            <div className="flex gap-1">
+              {(['LEFT', 'RIGHT'] as const).map((side) => {
+                const currentSide = (folder.bindingDirection || 'LEFT_START_RIGHT_END').startsWith('RIGHT') ? 'RIGHT' : 'LEFT';
+                const isSelected = currentSide === side;
+                const label = side === 'LEFT' ? '좌시작' : '우시작';
+                return (
+                  <button
+                    key={side}
+                    type="button"
+                    onClick={() => {
+                      const dir: BindingDirection = side === 'RIGHT' ? 'RIGHT_START_LEFT_END' : 'LEFT_START_RIGHT_END';
+                      setFolderBindingDirection(folder.id, dir);
+                    }}
+                    className={cn(
+                      'flex flex-col items-center gap-0.5 px-1 py-0.5 rounded border transition-colors',
+                      isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:bg-gray-50'
+                    )}
+                  >
+                    <span className="flex gap-px">
+                      <span className={cn('w-4 h-6 rounded-sm', side === 'LEFT' ? 'bg-blue-500' : 'bg-gray-200')} />
+                      <span className={cn('w-4 h-6 rounded-sm', side === 'RIGHT' ? 'bg-blue-500' : 'bg-gray-200')} />
+                    </span>
+                    <span className={cn('text-[8px] leading-none', isSelected ? 'text-blue-600 font-medium' : 'text-gray-400')}>{label}</span>
+                  </button>
+                );
+              })}
+            </div>
             {folder.autoBindingDetected && (
               <span className="text-[9px] text-green-600 bg-green-50 px-1 rounded">
                 {t('autoDetected')}
@@ -1036,9 +1044,10 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
         {folder.hasCombinedCover && <span className="text-pink-500 text-[10px]">({t('combinedCoverSplit')})</span>}
         <span className="text-gray-300">/</span>
         <span>{formatFileSize(folder.totalFileSize)}</span>
-        <span className="text-gray-300 ml-1">|</span>
-        {getBindingDirectionVisual()}
       </div>
+
+      {/* 표지 유형 선택 */}
+      <CoverTypeSelector folder={folder} />
 
       {/* 정상/승인 완료 시 - 규격 옵션 및 수량 */}
       {canSelect && (
