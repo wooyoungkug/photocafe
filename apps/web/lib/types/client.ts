@@ -40,6 +40,7 @@ export interface Client {
   shippingType?: 'conditional' | 'free' | 'prepaid' | 'cod';
   creditGrade?: 'A' | 'B' | 'C' | 'D';
   paymentTerms?: number;
+  duplicateCheckMonths?: number;
   assignedManager?: string;
   status: 'active' | 'inactive' | 'suspended';
   createdAt: string;
@@ -68,6 +69,7 @@ export interface CreateClientDto {
   paymentTerms?: number;
   assignedManager?: string | null;
   status?: 'active' | 'inactive' | 'suspended';
+  duplicateCheckMonths?: number;
 }
 
 // 거래처 수정 DTO

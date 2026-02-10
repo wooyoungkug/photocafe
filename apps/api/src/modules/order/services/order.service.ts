@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
+import { SystemSettingsService } from '@/modules/system-settings/system-settings.service';
 import { Prisma } from '@prisma/client';
 import {
   CreateOrderDto,
@@ -18,6 +19,7 @@ import { SalesLedgerService } from '../../accounting/services/sales-ledger.servi
 export class OrderService {
   constructor(
     private prisma: PrismaService,
+    private systemSettings: SystemSettingsService,
     private salesLedgerService: SalesLedgerService,
   ) { }
 
@@ -239,7 +241,7 @@ export class OrderService {
           finishingOptions: item.finishingOptions || [],
           thumbnailUrl: item.thumbnailUrl,
           totalFileSize: item.totalFileSize ? BigInt(item.totalFileSize) : BigInt(0),
-          folderName: item.folderName,
+          folderName: item.folderName?.trim().replace(/\s+/g, ' '),
           pageLayout: item.pageLayout,
           bindingDirection: item.bindingDirection,
           quantity: item.quantity,
@@ -290,6 +292,7 @@ export class OrderService {
           finalAmount: totalAmount + totalShippingFee,
           paymentMethod: dto.paymentMethod || 'postpaid',
           isUrgent: dto.isUrgent || false,
+          isDuplicateOverride: dto.isDuplicateOverride || false,
           requestedDeliveryDate: dto.requestedDeliveryDate,
           customerMemo: dto.customerMemo,
           productMemo: dto.productMemo,
@@ -624,12 +627,25 @@ export class OrderService {
     return results;
   }
 
-  // ==================== 중복 주문 체크 (3개월 이내) ====================
+  // ==================== 중복 주문 체크 (설정 기간 이내) ====================
   async checkDuplicateOrders(clientId: string, folderNames: string[]) {
-    if (!folderNames.length) return { duplicates: [] };
+    // 공백 정규화: trim + 연속 공백을 단일 공백으로
+    const normalized = folderNames
+      .map(n => n.trim().replace(/\s+/g, ' '))
+      .filter(n => n.length > 0);
+    if (!normalized.length) return { duplicates: [], months: 0 };
 
-    const threeMonthsAgo = new Date();
-    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+    // 거래처별 개별 설정 우선, 없으면 시스템 기본값
+    const client = await this.prisma.client.findUnique({
+      where: { id: clientId },
+      select: { duplicateCheckMonths: true },
+    });
+    const months = client?.duplicateCheckMonths
+      ?? await this.systemSettings.getNumericValue('order_duplicate_check_months', 3);
+    if (months <= 0) return { duplicates: [], months: 0 };
+
+    const cutoffDate = new Date();
+    cutoffDate.setMonth(cutoffDate.getMonth() - months);
 
     const duplicates = await this.prisma.$queryRaw<
       { folderName: string; orderNumber: string; orderedAt: Date; status: string }[]
@@ -638,13 +654,13 @@ export class OrderService {
       FROM order_items oi
       JOIN orders o ON o.id = oi."orderId"
       WHERE o."clientId" = ${clientId}
-        AND oi."folderName" IN (${Prisma.join(folderNames)})
-        AND o."orderedAt" >= ${threeMonthsAgo}
+        AND TRIM(REGEXP_REPLACE(oi."folderName", '\\s+', ' ', 'g')) IN (${Prisma.join(normalized)})
+        AND o."orderedAt" >= ${cutoffDate}
         AND o.status != 'cancelled'
       ORDER BY o."orderedAt" DESC
     `;
 
-    return { duplicates };
+    return { duplicates, months };
   }
 
   // ==================== 벌크: 일괄 복제 ====================

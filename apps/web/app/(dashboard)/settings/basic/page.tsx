@@ -51,6 +51,11 @@ export default function BasicSettingsPage() {
     indigo1ColorCost: 0,
   });
 
+  // 주문 설정 상태
+  const [orderSettings, setOrderSettings] = useState({
+    duplicateCheckMonths: 3,
+  });
+
   // 공정단계 상태
   const [enabledStages, setEnabledStages] = useState<string[]>([
     "reception_waiting",
@@ -99,6 +104,11 @@ export default function BasicSettingsPage() {
         indigo1ColorCost: getNumericValue(map, "printing_indigo_1color_cost", 0),
       });
 
+      // 주문 설정 로드
+      setOrderSettings({
+        duplicateCheckMonths: getNumericValue(map, "order_duplicate_check_months", 3),
+      });
+
       // 공정단계 로드
       if (map.process_enabled_stages) {
         try {
@@ -138,6 +148,7 @@ export default function BasicSettingsPage() {
   const savePrintingInfo = async () => {
     const settingsToSave = [
       { key: "printing_indigo_1color_cost", value: String(printingInfo.indigo1ColorCost), category: "printing", label: "인디고 1도 인쇄비" },
+      { key: "order_duplicate_check_months", value: String(orderSettings.duplicateCheckMonths), category: "order", label: "중복주문 체크 기간(개월)" },
     ];
     await bulkUpdate.mutateAsync(settingsToSave);
   };
@@ -452,8 +463,38 @@ export default function BasicSettingsPage() {
             </CardContent>
           </Card>
 
+          <Card>
+            <CardHeader>
+              <CardTitle>주문 설정</CardTitle>
+              <CardDescription>중복 주문 방지 등 주문 관련 설정입니다.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="duplicate_check_months">중복주문 체크 기간</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="duplicate_check_months"
+                      type="number"
+                      min={0}
+                      max={24}
+                      value={orderSettings.duplicateCheckMonths}
+                      onChange={(e) => setOrderSettings({ ...orderSettings, duplicateCheckMonths: Number(e.target.value) })}
+                      placeholder="3"
+                      className="w-24"
+                    />
+                    <span className="text-muted-foreground">개월</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    동일 폴더명으로 설정 기간 이내에 주문한 이력이 있으면 경고합니다. 0으로 설정하면 체크하지 않습니다.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setPrintingInfo({ indigo1ColorCost: 0 })}>
+            <Button variant="outline" onClick={() => { setPrintingInfo({ indigo1ColorCost: 0 }); setOrderSettings({ duplicateCheckMonths: 3 }); }}>
               <RotateCcw className="h-4 w-4 mr-2" />
               초기화
             </Button>

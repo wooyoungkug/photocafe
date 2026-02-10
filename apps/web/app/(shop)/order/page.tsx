@@ -537,6 +537,7 @@ export default function OrderPage() {
         clientId,
         paymentMethod,
         isUrgent: false,
+        isDuplicateOverride: item.isDuplicateOverride || false,
         customerMemo: memo || undefined,
         shippingFee: itemShipping?.deliveryFee || 0,
         items: [orderItem],

@@ -257,6 +257,9 @@ export default function OrderListPage() {
                               {order.isUrgent && (
                                 <Badge variant="destructive" className="text-[10px] px-1 py-0">긴급</Badge>
                               )}
+                              {order.isDuplicateOverride && (
+                                <Badge variant="outline" className="text-[10px] px-1 py-0 border-amber-400 text-amber-600 bg-amber-50">중복주의</Badge>
+                              )}
                             </div>
                           </TableCell>
                         )}

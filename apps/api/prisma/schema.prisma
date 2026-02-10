@@ -357,6 +357,7 @@ model Client {
   totalClaims        Int       @default(0)       // 누적 클레임 건수
   isBlacklist        Boolean   @default(false)   // 블랙리스트 여부
   isWhitelist        Boolean   @default(false)   // 화이트리스트(우수고객) 여부
+  duplicateCheckMonths Int?                      // 중복주문 체크 기간(개월), null=시스템 기본값 사용
 
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
@@ -372,6 +373,7 @@ model Client {
   photobookOrders PhotobookOrder[]
   albumPreference ClientAlbumPreference?
   salesLedgers SalesLedger[] @relation("SalesLedgerClient")
+  purchaseLedgers PurchaseLedger[] @relation("PurchaseLedgerSupplier")
 
   @@unique([oauthProvider, oauthId])
   @@index([groupId])
@@ -509,6 +511,7 @@ model Specification {
   // Relations
   prices              SpecificationPrice[]
   productionSettings  ProductionSettingSpecification[]
+  productSpecifications ProductSpecification[]
 
   @@index([isActive])
   @@index([forIndigo])
@@ -983,6 +986,7 @@ model Order {
   currentProcess        String    @default("receipt_pending")
 
   isUrgent              Boolean   @default(false)
+  isDuplicateOverride   Boolean   @default(false)  // 중복 경고 무시하고 주문
   requestedDeliveryDate DateTime?
 
   customerMemo          String?   @db.Text
@@ -2673,7 +2677,9 @@ model Account {
   id              String        @id @default(cuid())
   code            String        @unique  // 계정코드 (101, 201, 401 등)
   name            String                 // 계정명
+  nameEn          String?                // 영문 계정명
   type            AccountType            // 자산/부채/자본/수익/비용
+  level           Int           @default(1)  // 1:대분류, 2:중분류, 3:소분류
   parentId        String?                // 상위 계정 (계층 구조)
   parent          Account?      @relation("AccountHierarchy", fields: [parentId], references: [id])
   children        Account[]     @relation("AccountHierarchy")
@@ -2688,13 +2694,14 @@ model Account {
 
   @@index([type])
   @@index([isActive])
+  @@index([code])
   @@map("accounts")
 }
 
 // 분개장 (전표 헤더)
 model Journal {
   id              String        @id @default(cuid())
-  voucherNo       String        @unique  // 전표번호 (V-2026-000001)
+  voucherNo       String        @unique  // 전표번호 (JE-YYYYMM-0001)
   voucherType     VoucherType            // 전표 유형
   journalDate     DateTime               // 전표 일자
 
@@ -2709,6 +2716,10 @@ model Journal {
   orderId         String?
   orderNumber     String?                // 주문번호 (스냅샷)
 
+  // 원천 추적 (자동분개 시)
+  sourceType      String?                // SALES, PURCHASE, PAYROLL, MANUAL
+  sourceId        String?                // 원천 ID (SalesLedger.id 등)
+
   entries         JournalEntry[]
 
   createdBy       String
@@ -2718,6 +2729,7 @@ model Journal {
   @@index([journalDate])
   @@index([clientId])
   @@index([voucherType])
+  @@index([sourceType, sourceId])
   @@map("journals")
 }
 
@@ -3060,6 +3072,141 @@ model SalesReceipt {
   @@index([salesLedgerId])
   @@index([receiptDate])
   @@map("sales_receipts")
+}
+
+// ==================== 매입원장 (Purchase Ledger) ====================
+
+// 매입 유형
+enum PurchaseType {
+  RAW_MATERIAL   // 원재료 (용지, 잉크, 표지재)
+  MERCHANDISE    // 상품 (외부 구매 유통)
+  SUPPLIES       // 저장품/소모품
+  OUTSOURCING    // 외주가공 (디자인, 제본 등)
+  EQUIPMENT      // 설비/장비
+  SERVICE        // 용역 (수리, 유지보수)
+  OTHER          // 기타
+}
+
+// 매입 상태
+enum PurchaseStatus {
+  REGISTERED     // 접수등록
+  CONFIRMED      // 매입확정 (검수 완료)
+  CANCELLED      // 취소
+}
+
+// 매입원장
+model PurchaseLedger {
+  id                  String          @id @default(cuid())
+  ledgerNumber        String          @unique  // PL-YYYYMMDD-NNN
+  ledgerDate          DateTime                 // 전표일자
+  confirmDate         DateTime?                // 매입확정일
+
+  // 매입처 정보 (Client 모델 재사용 - 매입처도 거래처로 관리)
+  supplierId          String
+  supplier            Client          @relation("PurchaseLedgerSupplier", fields: [supplierId], references: [id])
+  supplierName        String                   // 매입처명 (스냅샷)
+  supplierBizNo       String?                  // 사업자등록번호 (세금계산서용)
+
+  // 매입 유형/과세
+  purchaseType        PurchaseType    @default(RAW_MATERIAL)
+  taxType             TaxType         @default(TAXABLE)
+
+  // 계정과목 (매입 시 차변 계정)
+  accountCode         String          @default("120") // 기본: 원재료
+
+  // 금액
+  supplyAmount        Decimal         @db.Decimal(12, 2)  // 공급가액
+  vatAmount           Decimal         @db.Decimal(10, 2)  // 부가세
+  adjustmentAmount    Decimal         @db.Decimal(10, 2) @default(0) // 조정액
+  totalAmount         Decimal         @db.Decimal(12, 2)  // 합계
+
+  // 지급 관리
+  paidAmount          Decimal         @db.Decimal(12, 2) @default(0)  // 지급 누계
+  outstandingAmount   Decimal         @db.Decimal(12, 2)              // 미지급 잔액
+
+  // 결제 정보
+  paymentMethod       String          @default("postpaid")
+  paymentStatus       String          @default("unpaid")  // unpaid/partial/paid/overdue
+
+  // 결제기한
+  dueDate             DateTime?
+
+  // 매입 상태
+  purchaseStatus      PurchaseStatus  @default(REGISTERED)
+
+  // 적요/메모
+  description         String?
+  adminMemo           String?
+
+  // 감사 정보
+  createdBy           String
+  confirmedBy         String?
+  confirmedAt         DateTime?
+
+  // 관계
+  items               PurchaseLedgerItem[]
+  payments            PurchasePayment[]
+
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  @@index([supplierId])
+  @@index([ledgerDate])
+  @@index([purchaseStatus])
+  @@index([paymentStatus])
+  @@map("purchase_ledgers")
+}
+
+// 매입원장 라인아이템
+model PurchaseLedgerItem {
+  id                  String          @id @default(cuid())
+  purchaseLedgerId    String
+  purchaseLedger      PurchaseLedger  @relation(fields: [purchaseLedgerId], references: [id], onDelete: Cascade)
+
+  // 품목 정보
+  itemName            String                   // 품명
+  specification       String?                  // 규격
+  quantity            Int                      // 수량
+  unit                String?                  // 단위 (ea, kg, m, box 등)
+  unitPrice           Decimal         @db.Decimal(10, 2)
+  supplyAmount        Decimal         @db.Decimal(12, 2)
+  vatAmount           Decimal         @db.Decimal(10, 2)
+  totalAmount         Decimal         @db.Decimal(12, 2)
+
+  // 분류
+  purchaseType        PurchaseType    @default(RAW_MATERIAL)
+  accountCode         String?                  // 계정코드 (품목별 다를 수 있음)
+
+  sortOrder           Int             @default(0)
+  remark              String?
+
+  @@index([purchaseLedgerId])
+  @@map("purchase_ledger_items")
+}
+
+// 지급 이력 (매입원장 기반)
+model PurchasePayment {
+  id                  String          @id @default(cuid())
+  purchaseLedgerId    String
+  purchaseLedger      PurchaseLedger  @relation(fields: [purchaseLedgerId], references: [id], onDelete: Cascade)
+
+  paymentNumber       String          @unique  // PP-YYYYMMDD-NNN
+  paymentDate         DateTime
+  amount              Decimal         @db.Decimal(12, 2)
+
+  paymentMethod       String                   // cash/card/bank_transfer/check
+  bankName            String?
+  accountNumber       String?                  // 지급 계좌
+
+  journalId           String?                  // 연결된 출금전표
+
+  note                String?
+  createdBy           String
+  createdAt           DateTime        @default(now())
+
+  @@index([purchaseLedgerId])
+  @@index([paymentDate])
+  @@map("purchase_payments")
 }
 
 // ==================== JDF (CIP4 Job Definition Format) ====================

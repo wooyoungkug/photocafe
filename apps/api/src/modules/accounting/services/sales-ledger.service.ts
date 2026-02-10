@@ -5,10 +5,14 @@ import {
   SalesLedgerQueryDto,
   CreateSalesReceiptDto,
 } from '../dto/sales-ledger.dto';
+import { JournalEngineService } from './journal-engine.service';
 
 @Injectable()
 export class SalesLedgerService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private journalEngine: JournalEngineService,
+  ) {}
 
   // ===== 매출전표번호 생성 =====
   // 형식: SL-YYYYMMDD-NNN (일별 순번)
@@ -158,6 +162,25 @@ export class SalesLedgerService {
       },
     });
 
+    // After salesLedger creation, create auto-journal
+    try {
+      await this.journalEngine.createSalesJournal({
+        salesLedgerId: salesLedger.id,
+        clientId: client.id,
+        clientName: client.clientName,
+        supplyAmount: Number(supplyAmount),
+        vatAmount: Number(vatAmount),
+        totalAmount: Number(totalAmount),
+        accountCode: '402', // 제품매출
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        description: `${order.orderNumber} 매출`,
+      });
+    } catch (err) {
+      // Journal creation failure should not block sales ledger creation
+      console.error('자동분개 생성 실패:', err);
+    }
+
     return salesLedger;
   }
 
@@ -287,6 +310,21 @@ export class SalesLedgerService {
         },
       }),
     ]);
+
+    // After receipt creation, create receipt journal
+    try {
+      await this.journalEngine.createReceiptJournal({
+        salesLedgerId,
+        clientId: ledger.clientId,
+        clientName: ledger.clientName,
+        amount: dto.amount,
+        paymentMethod: dto.paymentMethod,
+        bankName: dto.bankName,
+        description: `${ledger.ledgerNumber} 수금 (${dto.paymentMethod})`,
+      });
+    } catch (err) {
+      console.error('수금분개 생성 실패:', err);
+    }
 
     return this.findById(salesLedgerId);
   }

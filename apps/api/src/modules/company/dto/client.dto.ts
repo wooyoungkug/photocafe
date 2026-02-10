@@ -132,6 +132,13 @@ export class CreateClientDto {
   @IsIn(['active', 'inactive', 'suspended'])
   status?: string;
 
+  @ApiPropertyOptional({ description: '중복주문 체크 기간 (개월), null이면 시스템 기본값 사용' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(24)
+  duplicateCheckMonths?: number;
+
   @ApiPropertyOptional({ description: '영업담당자 (직원 ID)', nullable: true })
   @IsOptional()
   assignedManager?: string | null;

@@ -290,7 +290,15 @@
       "Bash(admin \")",
       "Bash(sed:*)",
       "mcp__memory__create_entities",
-      "mcp__memory__create_relations"
+      "mcp__memory__create_relations",
+      "Bash(git rm:*)",
+      "Bash(while IFS= read -r file)",
+      "Bash(do git checkout --ours -- \"$file\")",
+      "Bash(do git add -- \"$file\")",
+      "Bash(\"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -c \"SELECT 1;\")",
+      "WebFetch(domain:www.macworld.com)",
+      "WebFetch(domain:laptestpro.com)",
+      "Bash(cmd /c type \"C:\\\\Users\\\\WOO\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--dev-printing114\\\\tasks\\\\b4c6043.output\")"
     ]
   }
 }

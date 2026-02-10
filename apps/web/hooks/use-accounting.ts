@@ -521,6 +521,31 @@ export function useCreateJournal() {
   });
 }
 
+export function useJournalDetail(id: string | null) {
+  return useQuery({
+    queryKey: ['journal-detail', id],
+    queryFn: async () => {
+      if (!id) return null;
+      const data = await api.get<unknown>(`${ACCOUNTING_API}/journals/${id}`);
+      return data;
+    },
+    enabled: !!id,
+  });
+}
+
+export function useDeleteJournal() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`${ACCOUNTING_API}/journals/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['journals'] });
+      queryClient.invalidateQueries({ queryKey: ['accounting-summary'] });
+    },
+  });
+}
+
 // ===== 수금/지급 처리 =====
 export function useAddReceivablePayment() {
   const queryClient = useQueryClient();

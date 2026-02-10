@@ -297,7 +297,7 @@ export class ProductService {
 
   // ==================== 옵션 개별 관리 ====================
 
-  async addSpecification(productId: string, data: Prisma.ProductSpecificationCreateWithoutProductInput) {
+  async addSpecification(productId: string, data: Prisma.ProductSpecificationUncheckedCreateWithoutProductInput) {
     await this.findOne(productId);
     return this.prisma.productSpecification.create({
       data: { ...data, productId },

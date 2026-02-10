@@ -336,6 +336,11 @@ export class CreateOrderDto {
   @Type(() => CreateOrderItemDto)
   items: CreateOrderItemDto[];
 
+  @ApiPropertyOptional({ description: '중복 경고 무시 여부' })
+  @IsOptional()
+  @IsBoolean()
+  isDuplicateOverride?: boolean;
+
   @ApiProperty({ description: '배송 정보' })
   @ValidateNested()
   @Type(() => OrderShippingDto)

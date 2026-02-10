@@ -36,6 +36,12 @@ export class AccountingController {
 
   // ===== 계정과목 =====
 
+  @Post('accounts/seed')
+  @ApiOperation({ summary: '표준 계정과목 일괄 등록' })
+  async seedAccounts() {
+    return this.accountingService.seedStandardAccounts();
+  }
+
   @Get('accounts')
   @ApiOperation({ summary: '계정과목 목록 조회' })
   async getAccounts() {

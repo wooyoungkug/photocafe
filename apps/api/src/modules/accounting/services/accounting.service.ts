@@ -74,6 +74,118 @@ export class AccountingService {
     });
   }
 
+  async seedStandardAccounts(): Promise<{ created: number; updated: number; total: number }> {
+    const STANDARD_ACCOUNTS: Array<{
+      code: string;
+      name: string;
+      type: 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE';
+      sortOrder: number;
+    }> = [
+      // 자산 (ASSET)
+      { code: '101', name: '현금', type: 'ASSET', sortOrder: 1 },
+      { code: '102', name: '보통예금', type: 'ASSET', sortOrder: 2 },
+      { code: '103', name: '정기예금', type: 'ASSET', sortOrder: 3 },
+      { code: '108', name: '받을어음', type: 'ASSET', sortOrder: 4 },
+      { code: '110', name: '외상매출금', type: 'ASSET', sortOrder: 5 },
+      { code: '111', name: '미수금', type: 'ASSET', sortOrder: 6 },
+      { code: '112', name: '선급금', type: 'ASSET', sortOrder: 7 },
+      { code: '113', name: '선급비용', type: 'ASSET', sortOrder: 8 },
+      { code: '120', name: '원재료', type: 'ASSET', sortOrder: 9 },
+      { code: '121', name: '재공품', type: 'ASSET', sortOrder: 10 },
+      { code: '122', name: '제품', type: 'ASSET', sortOrder: 11 },
+      { code: '123', name: '상품', type: 'ASSET', sortOrder: 12 },
+      { code: '124', name: '저장품', type: 'ASSET', sortOrder: 13 },
+      { code: '130', name: '비품', type: 'ASSET', sortOrder: 14 },
+      { code: '131', name: '기계장치', type: 'ASSET', sortOrder: 15 },
+      { code: '132', name: '차량운반구', type: 'ASSET', sortOrder: 16 },
+      { code: '139', name: '감가상각누계액', type: 'ASSET', sortOrder: 17 },
+      // 부채 (LIABILITY)
+      { code: '201', name: '외상매입금', type: 'LIABILITY', sortOrder: 18 },
+      { code: '202', name: '미지급금', type: 'LIABILITY', sortOrder: 19 },
+      { code: '203', name: '선수금', type: 'LIABILITY', sortOrder: 20 },
+      { code: '204', name: '예수금', type: 'LIABILITY', sortOrder: 21 },
+      { code: '205', name: '미지급비용', type: 'LIABILITY', sortOrder: 22 },
+      { code: '208', name: '지급어음', type: 'LIABILITY', sortOrder: 23 },
+      { code: '210', name: '단기차입금', type: 'LIABILITY', sortOrder: 24 },
+      { code: '220', name: '장기차입금', type: 'LIABILITY', sortOrder: 25 },
+      // 자본 (EQUITY)
+      { code: '301', name: '자본금', type: 'EQUITY', sortOrder: 26 },
+      { code: '331', name: '이익잉여금', type: 'EQUITY', sortOrder: 27 },
+      // 수익 (REVENUE)
+      { code: '401', name: '상품매출', type: 'REVENUE', sortOrder: 28 },
+      { code: '402', name: '제품매출', type: 'REVENUE', sortOrder: 29 },
+      { code: '403', name: '출력매출', type: 'REVENUE', sortOrder: 30 },
+      { code: '404', name: '용역매출', type: 'REVENUE', sortOrder: 31 },
+      { code: '409', name: '매출할인', type: 'REVENUE', sortOrder: 32 },
+      { code: '410', name: '매출환입', type: 'REVENUE', sortOrder: 33 },
+      { code: '490', name: '잡이익', type: 'REVENUE', sortOrder: 34 },
+      // 비용 (EXPENSE)
+      { code: '501', name: '상품매출원가', type: 'EXPENSE', sortOrder: 35 },
+      { code: '510', name: '기초원재료재고', type: 'EXPENSE', sortOrder: 36 },
+      { code: '511', name: '원재료매입', type: 'EXPENSE', sortOrder: 37 },
+      { code: '512', name: '기말원재료재고', type: 'EXPENSE', sortOrder: 38 },
+      { code: '520', name: '직접노무비', type: 'EXPENSE', sortOrder: 39 },
+      { code: '530', name: '제조경비', type: 'EXPENSE', sortOrder: 40 },
+      { code: '540', name: '기초제품재고', type: 'EXPENSE', sortOrder: 41 },
+      { code: '541', name: '기말제품재고', type: 'EXPENSE', sortOrder: 42 },
+      { code: '601', name: '급여', type: 'EXPENSE', sortOrder: 43 },
+      { code: '602', name: '퇴직급여', type: 'EXPENSE', sortOrder: 44 },
+      { code: '603', name: '복리후생비', type: 'EXPENSE', sortOrder: 45 },
+      { code: '604', name: '여비교통비', type: 'EXPENSE', sortOrder: 46 },
+      { code: '605', name: '접대비', type: 'EXPENSE', sortOrder: 47 },
+      { code: '606', name: '통신비', type: 'EXPENSE', sortOrder: 48 },
+      { code: '607', name: '수도광열비', type: 'EXPENSE', sortOrder: 49 },
+      { code: '608', name: '세금과공과', type: 'EXPENSE', sortOrder: 50 },
+      { code: '609', name: '감가상각비', type: 'EXPENSE', sortOrder: 51 },
+      { code: '610', name: '지급임차료', type: 'EXPENSE', sortOrder: 52 },
+      { code: '611', name: '수선비', type: 'EXPENSE', sortOrder: 53 },
+      { code: '612', name: '보험료', type: 'EXPENSE', sortOrder: 54 },
+      { code: '613', name: '차량유지비', type: 'EXPENSE', sortOrder: 55 },
+      { code: '614', name: '운반비', type: 'EXPENSE', sortOrder: 56 },
+      { code: '615', name: '교육훈련비', type: 'EXPENSE', sortOrder: 57 },
+      { code: '616', name: '디자인외주비', type: 'EXPENSE', sortOrder: 58 },
+      { code: '617', name: '소모품비', type: 'EXPENSE', sortOrder: 59 },
+      { code: '618', name: '지급수수료', type: 'EXPENSE', sortOrder: 60 },
+      { code: '619', name: '광고선전비', type: 'EXPENSE', sortOrder: 61 },
+      { code: '620', name: '대손상각비', type: 'EXPENSE', sortOrder: 62 },
+      { code: '650', name: '잡손실', type: 'EXPENSE', sortOrder: 63 },
+    ];
+
+    let created = 0;
+    let updated = 0;
+
+    for (const account of STANDARD_ACCOUNTS) {
+      const existing = await this.prisma.account.findUnique({
+        where: { code: account.code },
+      });
+
+      await this.prisma.account.upsert({
+        where: { code: account.code },
+        create: {
+          code: account.code,
+          name: account.name,
+          type: account.type,
+          sortOrder: account.sortOrder,
+          isActive: true,
+        },
+        update: {
+          name: account.name,
+          type: account.type,
+          sortOrder: account.sortOrder,
+          isActive: true,
+        },
+      });
+
+      if (existing) {
+        updated++;
+      } else {
+        created++;
+      }
+    }
+
+    return { created, updated, total: STANDARD_ACCOUNTS.length };
+  }
+
   // ===== 전표 (Journal) =====
 
   async generateVoucherNo(): Promise<string> {
