@@ -290,7 +290,10 @@
       "Bash(admin \")",
       "Bash(sed:*)",
       "mcp__memory__create_entities",
-      "mcp__memory__create_relations"
+      "mcp__memory__create_relations",
+      "Bash(git rm:*)",
+      "Bash(while IFS= read -r file)",
+      "Bash(do git checkout --ours -- \"$file\")"
     ]
   }
 }
