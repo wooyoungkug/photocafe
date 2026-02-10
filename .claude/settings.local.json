@@ -293,7 +293,8 @@
       "mcp__memory__create_relations",
       "Bash(git rm:*)",
       "Bash(while IFS= read -r file)",
-      "Bash(do git checkout --ours -- \"$file\")"
+      "Bash(do git checkout --ours -- \"$file\")",
+      "Bash(do git add -- \"$file\")"
     ]
   }
 }
