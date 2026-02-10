@@ -134,6 +134,8 @@ const DEFAULT_NAVIGATION: NavItem[] = [
     name: "회계관리",
     icon: CreditCard,
     children: [
+      { name: "계정과목관리", href: "/accounting/accounts" },
+      { name: "전표관리", href: "/accounting/journals" },
       { name: "매출관리", href: "/accounting/sales" },
       { name: "매입관리", href: "/accounting/purchases" },
       { name: "미수금관리", href: "/accounting/receivables" },
