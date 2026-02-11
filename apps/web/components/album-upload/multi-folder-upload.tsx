@@ -1967,14 +1967,6 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
             </div>
           </div>
 
-          {/* 전체 표지유형 선택 */}
-          <GlobalCoverTypeSelector
-            currentSource={defaultCoverSourceType}
-            onSourceChange={(source) => applyGlobalCoverSource(source)}
-            folders={folders}
-            setFolderFabric={setFolderFabric}
-          />
-
           <div className="space-y-3">
             {folders.map((folder) => (
               <div

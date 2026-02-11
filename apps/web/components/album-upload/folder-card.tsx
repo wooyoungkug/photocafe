@@ -1036,6 +1036,9 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
         )}
       </div>
 
+      {/* 표지정보 (제본방향 아래) */}
+      <CoverTypeSelector folder={folder} />
+
       {/* 파일정보 · 페이지순서 (한 줄) */}
       <div className="flex items-center gap-1.5 flex-wrap text-xs text-gray-500">
         <span>{folder.dpi}dpi</span>

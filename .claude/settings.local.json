@@ -300,7 +300,9 @@
       "WebFetch(domain:laptestpro.com)",
       "Bash(cmd /c type \"C:\\\\Users\\\\WOO\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--dev-printing114\\\\tasks\\\\b4c6043.output\")",
       "Bash(cmd /c \"taskkill /PID 31272 /T /F\")",
-      "Bash(cmd /c \"taskkill /PID 30368 /T /F\")"
+      "Bash(cmd /c \"taskkill /PID 30368 /T /F\")",
+      "Bash(while read hash msg)",
+      "Bash(do echo \"=== $hash $msg ===\")"
     ]
   }
 }
