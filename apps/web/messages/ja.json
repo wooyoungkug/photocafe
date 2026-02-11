@@ -227,7 +227,18 @@
     "albumsAddedToCart": "{count}個のアルバムがカートに追加されました。",
     "myProductNameExample": "例：学校卒業アルバム",
     "loadMyProductDesc": "保存したマイ商品を選択すると、オプションが自動適用されます。",
-    "countUnit": "{count}個"
+    "countUnit": "{count}個",
+    "albumCover": "アルバム表紙",
+    "fabricCover": "生地表紙",
+    "designCover": "デザイン表紙",
+    "selectFabric": "生地選択",
+    "addFabric": "生地追加",
+    "fabricName": "生地名",
+    "fabricCode": "生地コード",
+    "fabricAdded": "生地が追加されました",
+    "fabricAddedDesc": "「{name}」生地が登録されました。",
+    "noFabricsForAlbum": "アルバムカバー用の生地がありません。",
+    "noFabricsForAlbumHint": "生地を追加してください。"
   },
   "upload": {
     "selectFolder": "フォルダ選択",

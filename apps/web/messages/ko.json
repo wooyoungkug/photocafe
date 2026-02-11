@@ -70,6 +70,7 @@
     "notice": "공지사항",
     "guide": "이용안내",
     "support": "고객센터",
+    "imageManagement": "이미지관리",
     "searchPlaceholder": "상품명, 카테고리 검색...",
     "searchPlaceholderMobile": "검색...",
     "mypage": "마이페이지",
@@ -227,7 +228,18 @@
     "albumsAddedToCart": "{count}개 앨범이 장바구니에 추가되었습니다.",
     "myProductNameExample": "예: 우리학교 졸업앨범",
     "loadMyProductDesc": "저장된 마이상품을 선택하면 해당 옵션이 자동으로 적용됩니다.",
-    "countUnit": "{count}개"
+    "countUnit": "{count}개",
+    "albumCover": "앨범표지",
+    "fabricCover": "원단표지",
+    "designCover": "디자인표지",
+    "selectFabric": "원단 선택",
+    "addFabric": "원단 추가",
+    "fabricName": "원단명",
+    "fabricCode": "원단코드",
+    "fabricAdded": "원단이 추가되었습니다",
+    "fabricAddedDesc": "\"{name}\" 원단이 등록되었습니다.",
+    "noFabricsForAlbum": "앨범 커버용 원단이 없습니다.",
+    "noFabricsForAlbumHint": "원단을 추가해주세요."
   },
   "upload": {
     "selectFolder": "폴더 선택",

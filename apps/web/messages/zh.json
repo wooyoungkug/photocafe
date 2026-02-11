@@ -227,7 +227,18 @@
     "albumsAddedToCart": "{count}个相册已加入购物车。",
     "myProductNameExample": "例：学校毕业相册",
     "loadMyProductDesc": "选择已保存的我的商品后，选项将自动应用。",
-    "countUnit": "{count}个"
+    "countUnit": "{count}个",
+    "albumCover": "相册封面",
+    "fabricCover": "布面封面",
+    "designCover": "设计封面",
+    "selectFabric": "选择布料",
+    "addFabric": "添加布料",
+    "fabricName": "布料名称",
+    "fabricCode": "布料代码",
+    "fabricAdded": "布料已添加",
+    "fabricAddedDesc": "\"{name}\" 布料已注册。",
+    "noFabricsForAlbum": "没有相册封面用布料。",
+    "noFabricsForAlbumHint": "请添加布料。"
   },
   "upload": {
     "selectFolder": "选择文件夹",

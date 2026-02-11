@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRight, ChevronDown, ChevronUp, Minus, Plus, ShoppingCart, Heart, Share2, Eye, FileText, Image as ImageIcon, Calendar, Star, FolderHeart, Loader2, Upload, BookOpen, AlertTriangle } from 'lucide-react';
+import { ChevronRight, ChevronDown, ChevronUp, Minus, Plus, ShoppingCart, Heart, Share2, Eye, FileText, Image as ImageIcon, Calendar, Star, FolderHeart, Loader2, Upload, BookOpen, AlertTriangle, Palette } from 'lucide-react';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useProduct } from '@/hooks/use-products';
 import { Button } from '@/components/ui/button';
@@ -31,7 +31,9 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { MultiFolderUpload } from '@/components/album-upload';
-import { useMultiFolderUploadStore, type UploadedFolder, calculateUploadedFolderPrice, calculateAdditionalOrderPrice } from '@/stores/multi-folder-upload-store';
+import { useMultiFolderUploadStore, type UploadedFolder, type CoverSourceType, calculateUploadedFolderPrice, calculateAdditionalOrderPrice } from '@/stores/multi-folder-upload-store';
+import { FabricPickerDialog } from '@/components/album-upload/fabric-picker-dialog';
+import type { Fabric } from '@/hooks/use-fabrics';
 import { useTranslations } from 'next-intl';
 
 // 이미지 URL 정규화 함수
@@ -139,8 +141,32 @@ export default function ProductPage() {
   const [showLoadMyProductModal, setShowLoadMyProductModal] = useState(false);
   const [myProductName, setMyProductName] = useState('');
 
-  // 데이터 업로드 스토어에서 편집스타일/제본순서 가져오기
-  const { defaultPageLayout, defaultBindingDirection, clearFolders } = useMultiFolderUploadStore();
+  // 데이터 업로드 스토어에서 편집스타일/제본순서/표지유형 가져오기
+  const {
+    defaultPageLayout,
+    defaultBindingDirection,
+    defaultCoverSourceType,
+    folders: uploadFolders,
+    clearFolders,
+    applyGlobalCoverSource,
+    setFolderFabric,
+  } = useMultiFolderUploadStore();
+
+  // 표지 원단 선택 다이얼로그
+  const [showCoverFabricDialog, setShowCoverFabricDialog] = useState(false);
+
+  // 현재 선택된 원단 (첫 번째 폴더 기준)
+  const selectedFabricInfo = uploadFolders.length > 0 ? {
+    id: uploadFolders[0].selectedFabricId,
+    name: uploadFolders[0].selectedFabricName,
+    thumbnail: uploadFolders[0].selectedFabricThumbnail,
+  } : null;
+
+  const handleCoverFabricSelect = (fabric: Fabric) => {
+    uploadFolders.forEach(f => {
+      setFolderFabric(f.id, fabric.id, `${fabric.code} ${fabric.name}`, fabric.thumbnailUrl || null, fabric.basePrice);
+    });
+  };
 
   // 장바구니 담기 로딩 상태
   const [isAddingToCart, setIsAddingToCart] = useState(false);
@@ -719,6 +745,77 @@ export default function ProductPage() {
                       ))}
                     </RadioGroup>
                   </div>
+                </OptionSection>
+              )}
+
+              {/* 앨범표지 - 화보/앨범 상품만 (제본방법 바로 아래) */}
+              {isAlbum && (
+                <OptionSection title={t('albumCover')}>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <div className="inline-flex rounded-lg border border-gray-200 p-0.5 bg-gray-50">
+                      <button
+                        type="button"
+                        onClick={() => applyGlobalCoverSource('fabric')}
+                        className={cn(
+                          'px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5',
+                          defaultCoverSourceType === 'fabric'
+                            ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
+                            : 'text-gray-500 hover:text-gray-700'
+                        )}
+                      >
+                        <Palette className="w-3.5 h-3.5" />
+                        {t('fabricCover')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => applyGlobalCoverSource('design')}
+                        className={cn(
+                          'px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5',
+                          defaultCoverSourceType === 'design'
+                            ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
+                            : 'text-gray-500 hover:text-gray-700'
+                        )}
+                      >
+                        <ImageIcon className="w-3.5 h-3.5" />
+                        {t('designCover')}
+                      </button>
+                    </div>
+
+                    {/* 원단표지 선택 시 원단 선택 버튼 */}
+                    {defaultCoverSourceType === 'fabric' && (
+                      <div className="flex items-center gap-2">
+                        {selectedFabricInfo?.id ? (
+                          <>
+                            {selectedFabricInfo.thumbnail && (
+                              <div
+                                className="w-8 h-8 rounded border border-amber-300 bg-cover bg-center flex-shrink-0"
+                                style={{ backgroundImage: `url(${selectedFabricInfo.thumbnail})` }}
+                              />
+                            )}
+                            <span className="text-xs text-gray-700 truncate max-w-[120px]">{selectedFabricInfo.name}</span>
+                            <Button variant="outline" size="sm" className="h-6 text-[10px] px-2" onClick={() => setShowCoverFabricDialog(true)}>
+                              {tc('change')}
+                            </Button>
+                          </>
+                        ) : (
+                          <Button
+                            size="sm"
+                            className="h-7 text-xs bg-amber-600 hover:bg-amber-700"
+                            onClick={() => setShowCoverFabricDialog(true)}
+                          >
+                            {t('selectFabric')}
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <FabricPickerDialog
+                    open={showCoverFabricDialog}
+                    onOpenChange={setShowCoverFabricDialog}
+                    selectedFabricId={selectedFabricInfo?.id || null}
+                    onSelect={handleCoverFabricSelect}
+                  />
                 </OptionSection>
               )}
 

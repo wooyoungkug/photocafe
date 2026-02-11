@@ -227,7 +227,18 @@
     "albumsAddedToCart": "{count} albums added to cart.",
     "myProductNameExample": "e.g. School Graduation Album",
     "loadMyProductDesc": "Select a saved My Product to auto-apply its options.",
-    "countUnit": "{count}"
+    "countUnit": "{count}",
+    "albumCover": "Album Cover",
+    "fabricCover": "Fabric Cover",
+    "designCover": "Design Cover",
+    "selectFabric": "Select Fabric",
+    "addFabric": "Add Fabric",
+    "fabricName": "Fabric Name",
+    "fabricCode": "Fabric Code",
+    "fabricAdded": "Fabric added",
+    "fabricAddedDesc": "Fabric \"{name}\" has been registered.",
+    "noFabricsForAlbum": "No fabrics for album cover.",
+    "noFabricsForAlbumHint": "Please add a fabric."
   },
   "upload": {
     "selectFolder": "Select Folder",

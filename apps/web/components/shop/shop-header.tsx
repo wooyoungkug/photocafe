@@ -39,6 +39,7 @@ export function ShopHeader() {
             <Link href="/notice" className="hover:text-gray-300">{th('notice')}</Link>
             <Link href="/guide" className="hover:text-gray-300">{th('guide')}</Link>
             <Link href="/support" className="hover:text-gray-300">{th('support')}</Link>
+            <Link href="/image-management/quality-analysis" className="hover:text-gray-300">{th('imageManagement')}</Link>
             {/* <LocaleSwitcher currentLocale={locale} /> */}
           </div>
         </div>
@@ -184,6 +185,9 @@ export function ShopHeader() {
               </Link>
               <Link href="/support" className="block py-2" onClick={() => setMobileMenuOpen(false)}>
                 {th('support')}
+              </Link>
+              <Link href="/image-management/quality-analysis" className="block py-2" onClick={() => setMobileMenuOpen(false)}>
+                {th('imageManagement')}
               </Link>
             </div>
           </div>
