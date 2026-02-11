@@ -2,62 +2,11 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { JournalEngineService } from './journal-engine.service';
-
-// ===== 매입원장 생성 DTO =====
-
-interface CreatePurchaseLedgerItemDto {
-  itemName: string;
-  specification?: string;
-  quantity: number;
-  unit?: string;
-  unitPrice: number;
-  supplyAmount: number;
-  vatAmount: number;
-  totalAmount: number;
-  purchaseType?: string;
-  accountCode?: string;
-  sortOrder?: number;
-  remark?: string;
-}
-
-interface CreatePurchaseLedgerDto {
-  supplierId: string;
-  purchaseType: string;
-  taxType?: string;
-  accountCode?: string;
-  supplyAmount: number;
-  vatAmount: number;
-  totalAmount: number;
-  paymentMethod?: string;
-  dueDate?: string;
-  description?: string;
-  items: CreatePurchaseLedgerItemDto[];
-}
-
-// ===== 지급 등록 DTO =====
-
-interface CreatePurchasePaymentDto {
-  paymentDate: string;
-  amount: number;
-  paymentMethod: string;
-  bankName?: string;
-  accountNumber?: string;
-  note?: string;
-}
-
-// ===== 매입원장 조회 DTO =====
-
-interface PurchaseLedgerQueryDto {
-  startDate?: string;
-  endDate?: string;
-  supplierId?: string;
-  purchaseType?: string;
-  paymentStatus?: string;
-  purchaseStatus?: string;
-  search?: string;
-  page?: number;
-  limit?: number;
-}
+import {
+  CreatePurchaseLedgerDto,
+  CreatePurchasePaymentDto,
+  PurchaseLedgerQueryDto,
+} from '../dto/purchase-ledger.dto';
 
 // ===== 매입처별 집계 조회 DTO =====
 

@@ -127,6 +127,11 @@ export class CreatePurchaseLedgerItemDto {
   @IsString()
   accountCode?: string;
 
+  @ApiPropertyOptional({ description: '정렬순서' })
+  @IsOptional()
+  @IsNumber()
+  sortOrder?: number;
+
   @ApiPropertyOptional({ description: '비고' })
   @IsOptional()
   @IsString()

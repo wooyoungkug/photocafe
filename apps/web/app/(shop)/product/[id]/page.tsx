@@ -155,18 +155,50 @@ export default function ProductPage() {
   // 표지 원단 선택 다이얼로그
   const [showCoverFabricDialog, setShowCoverFabricDialog] = useState(false);
 
-  // 현재 선택된 원단 (첫 번째 폴더 기준)
-  const selectedFabricInfo = uploadFolders.length > 0 ? {
-    id: uploadFolders[0].selectedFabricId,
-    name: uploadFolders[0].selectedFabricName,
-    thumbnail: uploadFolders[0].selectedFabricThumbnail,
-  } : null;
+  // 선택된 원단 로컬 상태 (폴더 유무와 무관하게 유지)
+  const [selectedFabric, setSelectedFabric] = useState<{
+    id: string;
+    name: string;
+    thumbnail: string | null;
+    price: number;
+  } | null>(null);
+
+  // 현재 선택된 원단 (로컬 상태 우선, 폴더 기준 fallback)
+  const selectedFabricInfo = selectedFabric
+    ? { id: selectedFabric.id, name: selectedFabric.name, thumbnail: selectedFabric.thumbnail }
+    : uploadFolders.length > 0 && uploadFolders[0].selectedFabricId
+      ? {
+          id: uploadFolders[0].selectedFabricId,
+          name: uploadFolders[0].selectedFabricName,
+          thumbnail: uploadFolders[0].selectedFabricThumbnail,
+        }
+      : null;
 
   const handleCoverFabricSelect = (fabric: Fabric) => {
+    const fabricName = fabric.name;
+    // 로컬 상태에 저장 (폴더 없어도 화면에 표시)
+    setSelectedFabric({
+      id: fabric.id,
+      name: fabricName,
+      thumbnail: fabric.thumbnailUrl || null,
+      price: fabric.basePrice,
+    });
+    // 기존 폴더에도 적용
     uploadFolders.forEach(f => {
-      setFolderFabric(f.id, fabric.id, `${fabric.code} ${fabric.name}`, fabric.thumbnailUrl || null, fabric.basePrice);
+      setFolderFabric(f.id, fabric.id, fabricName, fabric.thumbnailUrl || null, fabric.basePrice);
     });
   };
+
+  // 새 폴더가 추가되면 선택된 원단 자동 적용
+  useEffect(() => {
+    if (selectedFabric && uploadFolders.length > 0) {
+      uploadFolders.forEach(f => {
+        if (!f.selectedFabricId) {
+          setFolderFabric(f.id, selectedFabric.id, selectedFabric.name, selectedFabric.thumbnail, selectedFabric.price);
+        }
+      });
+    }
+  }, [uploadFolders.length, selectedFabric, setFolderFabric]);
 
   // 장바구니 담기 로딩 상태
   const [isAddingToCart, setIsAddingToCart] = useState(false);
@@ -754,7 +786,7 @@ export default function ProductPage() {
                         className={cn(
                           'px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5',
                           defaultCoverSourceType === 'fabric'
-                            ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
+                            ? 'bg-white text-gray-900 shadow-sm border-2 border-pink-400'
                             : 'text-gray-500 hover:text-gray-700'
                         )}
                       >
@@ -784,13 +816,13 @@ export default function ProductPage() {
                           className="h-7 text-xs bg-amber-600 hover:bg-amber-700 flex-shrink-0"
                           onClick={() => setShowCoverFabricDialog(true)}
                         >
-                          {selectedFabricInfo?.id ? tc('change') : t('selectFabric')}
+                          선택원단
                         </Button>
                         {selectedFabricInfo?.id && (
-                          <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-amber-200 bg-amber-50">
+                          <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-pink-300 bg-pink-50">
                             {selectedFabricInfo.thumbnail && (
                               <div
-                                className="w-12 h-12 rounded border border-amber-300 bg-cover bg-center flex-shrink-0"
+                                className="w-12 h-12 rounded border-2 border-pink-400 bg-cover bg-center flex-shrink-0"
                                 style={{ backgroundImage: `url(${selectedFabricInfo.thumbnail})` }}
                               />
                             )}
