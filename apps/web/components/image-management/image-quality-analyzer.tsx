@@ -5,8 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
-import { Play, Trash2, Settings2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Play, Trash2, Settings2, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { useImageAnalysisStore } from '@/stores/image-analysis-store';
 import { runAnalysisPipeline } from '@/lib/image-analysis/analysis-pipeline';
 import { ImageDropZone } from './image-drop-zone';
@@ -21,6 +20,7 @@ export function ImageQualityAnalyzer() {
     progress,
     thresholds,
     activeFilter,
+    loadProgress,
     addImages,
     clearAll,
     setThresholds,
@@ -176,7 +176,7 @@ export function ImageQualityAnalyzer() {
                 </div>
 
                 {showSettings && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-slate-50 rounded-lg">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4 bg-slate-50 rounded-lg">
                     <ThresholdSlider
                       label="블러 임계값"
                       description="낮을수록 민감 (선명도 기준)"
@@ -213,6 +213,33 @@ export function ImageQualityAnalyzer() {
                       step={0.01}
                       onChange={(v) => handleThresholdChange('earThreshold', v)}
                     />
+                    <ThresholdSlider
+                      label="찡그림 임계값"
+                      description="낮을수록 민감 (표정 점수 0-1)"
+                      value={thresholds.negativeExpressionThreshold}
+                      min={0.1}
+                      max={0.7}
+                      step={0.05}
+                      onChange={(v) => handleThresholdChange('negativeExpressionThreshold', v)}
+                    />
+                    <ThresholdSlider
+                      label="입벌림 임계값"
+                      description="낮을수록 민감 (입 개방 점수 0-1)"
+                      value={thresholds.mouthOpenThreshold}
+                      min={0.1}
+                      max={0.6}
+                      step={0.05}
+                      onChange={(v) => handleThresholdChange('mouthOpenThreshold', v)}
+                    />
+                    <ThresholdSlider
+                      label="시선이탈 임계값"
+                      description="낮을수록 민감 (시선 편차 0-0.5)"
+                      value={thresholds.gazeDeviationThreshold}
+                      min={0.1}
+                      max={0.45}
+                      step={0.05}
+                      onChange={(v) => handleThresholdChange('gazeDeviationThreshold', v)}
+                    />
                   </div>
                 )}
               </>
@@ -221,9 +248,36 @@ export function ImageQualityAnalyzer() {
         </Card>
       )}
 
-      {/* 진행률 패널 */}
+      {/* 로딩 진행률 (대량 파일 업로드 시) */}
+      {isLoading && loadProgress.total > 0 && (
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-slate-700">
+                  이미지 로드 중... {loadProgress.loaded} / {loadProgress.total}장
+                </p>
+                <div className="w-full bg-slate-200 rounded-full h-1.5 mt-1.5 overflow-hidden">
+                  <div
+                    className="h-full bg-blue-500 rounded-full transition-all duration-200"
+                    style={{ width: `${Math.round((loadProgress.loaded / loadProgress.total) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 진행률 패널 + 실시간 그래프 */}
       {isAnalyzing && (
-        <AnalysisProgressPanel progress={progress} onCancel={cancelAnalysis} />
+        <AnalysisProgressPanel
+          progress={progress}
+          results={results}
+          totalImages={images.length}
+          onCancel={cancelAnalysis}
+        />
       )}
 
       {/* 결과 테이블 */}

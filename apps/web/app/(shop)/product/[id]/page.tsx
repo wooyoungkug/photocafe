@@ -644,18 +644,8 @@ export default function ProductPage() {
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Product Info - 나머지 공간 사용 */}
           <div className="flex-1 space-y-5">
-            {/* Header */}
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                {product.isNew && <Badge className="bg-green-500">NEW</Badge>}
-                {product.isBest && <Badge className="bg-red-500">BEST</Badge>}
-                <span className="text-sm text-gray-500">{product.productCode}</span>
-              </div>
-              <h1 className="text-2xl md:text-3xl font-bold mb-2">{product.productName}</h1>
-            </div>
-
             {/* 마이상품 & Share & Wishlist */}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {isAuthenticated && (
                 <>
                   <Button
@@ -665,9 +655,9 @@ export default function ProductPage() {
                       setMyProductName(`${product.productName} ${selectedOptions.specification?.name || ''}`.trim());
                       setShowSaveMyProductModal(true);
                     }}
-                    className="text-primary border-primary hover:bg-primary/10"
+                    className="text-xs h-7 px-2 text-primary border-primary hover:bg-primary/10"
                   >
-                    <Star className="h-4 w-4 mr-1" />
+                    <Star className="h-3.5 w-3.5 mr-1" />
                     {t('saveMyProduct')}
                   </Button>
                   {myProducts && myProducts.length > 0 && (
@@ -675,22 +665,27 @@ export default function ProductPage() {
                       variant="outline"
                       size="sm"
                       onClick={() => setShowLoadMyProductModal(true)}
-                      className="text-orange-600 border-orange-600 hover:bg-orange-50"
+                      className="text-xs h-7 px-2 text-orange-600 border-orange-600 hover:bg-orange-50"
                     >
-                      <FolderHeart className="h-4 w-4 mr-1" />
+                      <FolderHeart className="h-3.5 w-3.5 mr-1" />
                       {t('loadMyProduct')} ({myProducts.filter(mp => mp.productId === product.id).length})
                     </Button>
                   )}
                 </>
               )}
-              <Button variant="ghost" size="sm" className="text-gray-500">
-                <Heart className="h-4 w-4 mr-1" />
+              <Button variant="ghost" size="sm" className="text-xs h-7 px-2 text-gray-500">
+                <Heart className="h-3.5 w-3.5 mr-1" />
                 {tc('wishlist')}
               </Button>
-              <Button variant="ghost" size="sm" className="text-gray-500">
-                <Share2 className="h-4 w-4 mr-1" />
+              <Button variant="ghost" size="sm" className="text-xs h-7 px-2 text-gray-500">
+                <Share2 className="h-3.5 w-3.5 mr-1" />
                 {tc('share')}
               </Button>
+            </div>
+
+            {/* Header */}
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold mb-2">{product.productName}</h1>
             </div>
 
             {/* Price - 화보 상품은 데이터 업로드 후 폴더별로 계산하므로 숨김 */}
@@ -737,9 +732,9 @@ export default function ProductPage() {
                           )}
                         >
                           <RadioGroupItem value={binding.id} />
-                          <span className="flex-1">{binding.name.split(' - ')[0]}</span>
+                          <span className="flex-1 text-xs">{binding.name.split(' - ')[0]}</span>
                           {binding.price > 0 && (
-                            <span className="text-sm text-primary">+{binding.price.toLocaleString()}</span>
+                            <span className="text-xs text-primary">+{binding.price.toLocaleString()}</span>
                           )}
                         </Label>
                       ))}
@@ -783,28 +778,24 @@ export default function ProductPage() {
 
                     {/* 원단표지 선택 시 원단 선택 버튼 */}
                     {defaultCoverSourceType === 'fabric' && (
-                      <div className="flex items-center gap-2">
-                        {selectedFabricInfo?.id ? (
-                          <>
+                      <div className="flex items-center gap-3">
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs bg-amber-600 hover:bg-amber-700 flex-shrink-0"
+                          onClick={() => setShowCoverFabricDialog(true)}
+                        >
+                          {selectedFabricInfo?.id ? tc('change') : t('selectFabric')}
+                        </Button>
+                        {selectedFabricInfo?.id && (
+                          <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-amber-200 bg-amber-50">
                             {selectedFabricInfo.thumbnail && (
                               <div
-                                className="w-8 h-8 rounded border border-amber-300 bg-cover bg-center flex-shrink-0"
+                                className="w-12 h-12 rounded border border-amber-300 bg-cover bg-center flex-shrink-0"
                                 style={{ backgroundImage: `url(${selectedFabricInfo.thumbnail})` }}
                               />
                             )}
-                            <span className="text-xs text-gray-700 truncate max-w-[120px]">{selectedFabricInfo.name}</span>
-                            <Button variant="outline" size="sm" className="h-6 text-[10px] px-2" onClick={() => setShowCoverFabricDialog(true)}>
-                              {tc('change')}
-                            </Button>
-                          </>
-                        ) : (
-                          <Button
-                            size="sm"
-                            className="h-7 text-xs bg-amber-600 hover:bg-amber-700"
-                            onClick={() => setShowCoverFabricDialog(true)}
-                          >
-                            {t('selectFabric')}
-                          </Button>
+                            <span className="text-sm font-medium text-gray-800">{selectedFabricInfo.name}</span>
+                          </div>
                         )}
                       </div>
                     )}
@@ -848,14 +839,14 @@ export default function ProductPage() {
                       >
                         {groupEntries.map(([type, papers]) => (
                           <div key={type} className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-medium text-gray-700 min-w-[60px]">
+                            <span className="text-xs font-medium text-gray-700 min-w-[60px]">
                               {type}
                             </span>
                             {papers.map((paper) => (
                               <Label
                                 key={paper.id}
                                 className={cn(
-                                  "flex items-center gap-1.5 px-3 py-1.5 border rounded-md cursor-pointer transition-colors text-sm",
+                                  "flex items-center gap-1.5 px-3 py-1.5 border rounded-md cursor-pointer transition-colors text-xs",
                                   selectedOptions.paper?.id === paper.id
                                     ? "border-primary bg-primary/5 font-medium"
                                     : "hover:border-gray-400"
@@ -935,7 +926,7 @@ export default function ProductPage() {
                         </div>
                       )}
                     </div>
-                    <span className="flex-1">{t('singleSided')}</span>
+                    <span className="flex-1 text-xs">{t('singleSided')}</span>
                   </div>
                   <div
                     className={cn(
@@ -957,7 +948,7 @@ export default function ProductPage() {
                         </div>
                       )}
                     </div>
-                    <span className="flex-1">{t('doubleSided')}</span>
+                    <span className="flex-1 text-xs">{t('doubleSided')}</span>
                   </div>
                 </div>
                 <p className="text-xs text-gray-500 mt-2">
@@ -1085,7 +1076,7 @@ export default function ProductPage() {
                     )}
                   >
                     <RadioGroupItem value="none" />
-                    <span>{t('noCopperPlate')}</span>
+                    <span className="text-xs">{t('noCopperPlate')}</span>
                   </Label>
 
                   {allPublicCopperPlates?.data && allPublicCopperPlates.data.length > 0 && (
@@ -1098,7 +1089,7 @@ export default function ProductPage() {
                       )}
                     >
                       <RadioGroupItem value="public" />
-                      <span>{t('publicCopperPlate')}</span>
+                      <span className="text-xs">{t('publicCopperPlate')}</span>
                     </Label>
                   )}
 
@@ -1112,7 +1103,7 @@ export default function ProductPage() {
                       )}
                     >
                       <RadioGroupItem value="owned" />
-                      <span>{t('ownedCopperPlate')}</span>
+                      <span className="text-xs">{t('ownedCopperPlate')}</span>
                       <Badge variant="secondary" className="ml-auto text-xs">{t('countUnit', { count: ownedCopperPlates.length })}</Badge>
                     </Label>
                   )}
@@ -1873,7 +1864,7 @@ export default function ProductPage() {
 function OptionSection({ title, count, children }: { title: string; count?: number; children: React.ReactNode }) {
   return (
     <div>
-      <h3 className="font-medium mb-2 flex items-center gap-2">
+      <h3 className="font-bold text-sm mb-2 flex items-center gap-2">
         {title}
         {count !== undefined && count > 0 && (
           <span className="text-xs text-gray-500 font-normal">({count})</span>

@@ -238,7 +238,7 @@ export default function EditProductPage() {
 
   // 이미지
   const [thumbnailUrl, setThumbnailUrl] = useState('');
-  const [detailImages, setDetailImages] = useState<string[]>(['', '', '', '']);
+  const [detailImages, setDetailImages] = useState<string[]>(['', '', '', '', '', '']);
   const [dragOver, setDragOver] = useState<number | null>(null);
 
   // 상세정보
@@ -315,8 +315,8 @@ export default function EditProductPage() {
 
       if (product.detailImages && Array.isArray(product.detailImages)) {
         const images = [...product.detailImages];
-        while (images.length < 4) images.push('');
-        setDetailImages(images.slice(0, 4));
+        while (images.length < 6) images.push('');
+        setDetailImages(images.slice(0, 6));
       }
 
       if (product.bindings && Array.isArray(product.bindings)) {

@@ -11,7 +11,7 @@ import type {
   WorkerInput,
   WorkerOutput,
 } from './types';
-import { detectEyesClosed, initFaceLandmarker, disposeFaceLandmarker } from './eye-detection';
+import { detectFaceIssues, initFaceLandmarker, disposeFaceLandmarker } from './eye-detection';
 
 type ProgressCallback = (phase: 'blur_lighting' | 'face_detection', completed: number, total: number, current: string) => void;
 type ResultCallback = (result: AnalysisResult) => void;
@@ -199,15 +199,23 @@ async function runPhase2(
         img.src = objectUrl;
       });
 
-      // 눈감음 감지
-      const eyeResult = await detectEyesClosed(img, thresholds.earThreshold);
+      // 얼굴 분석 (눈감음 + 찡그림 + 입벌림 + 시선이탈)
+      const faceResult = await detectFaceIssues(img, {
+        earThreshold: thresholds.earThreshold,
+        negativeExpressionThreshold: thresholds.negativeExpressionThreshold,
+        mouthOpenThreshold: thresholds.mouthOpenThreshold,
+        gazeDeviationThreshold: thresholds.gazeDeviationThreshold,
+      });
       URL.revokeObjectURL(objectUrl);
 
       // 최종 결과 조합
       const issues: IssueType[] = [];
       if (p1?.isBlurry) issues.push('blurry');
       if (p1?.lightingIssue !== 'ok') issues.push('poor_lighting');
-      if (eyeResult.eyesClosed) issues.push('eyes_closed');
+      if (faceResult.eyesClosed) issues.push('eyes_closed');
+      if (faceResult.negativeExpression.hasNegativeExpression) issues.push('negative_expression');
+      if (faceResult.mouthOpen.isMouthOpen) issues.push('mouth_open');
+      if (faceResult.gazeAway.isLookingAway) issues.push('gaze_away');
 
       const result: AnalysisResult = {
         imageId: image.id,
@@ -219,9 +227,18 @@ async function runPhase2(
         meanBrightness: p1?.meanBrightness ?? 128,
         brightnessStdDev: p1?.brightnessStdDev ?? 50,
         lightingIssue: (p1?.lightingIssue as AnalysisResult['lightingIssue']) ?? 'ok',
-        facesDetected: eyeResult.facesDetected,
-        eyesClosed: eyeResult.eyesClosed,
-        eyeAspectRatios: eyeResult.eyeAspectRatios,
+        facesDetected: faceResult.facesDetected,
+        eyesClosed: faceResult.eyesClosed,
+        eyeAspectRatios: faceResult.eyeAspectRatios,
+        negativeExpression: faceResult.negativeExpression.hasNegativeExpression,
+        negativeExpressionScore: faceResult.negativeExpression.compositeScore,
+        negativeExpressionScores: faceResult.negativeExpression.perFaceScores,
+        mouthOpen: faceResult.mouthOpen.isMouthOpen,
+        mouthOpenScore: faceResult.mouthOpen.maxScore,
+        mouthOpenScores: faceResult.mouthOpen.perFaceScores,
+        gazeAway: faceResult.gazeAway.isLookingAway,
+        gazeDeviationScore: faceResult.gazeAway.maxDeviation,
+        gazeDeviationScores: faceResult.gazeAway.perFaceDeviations,
       };
 
       onResult(result);
@@ -244,6 +261,15 @@ async function runPhase2(
         facesDetected: 0,
         eyesClosed: false,
         eyeAspectRatios: [],
+        negativeExpression: false,
+        negativeExpressionScore: 0,
+        negativeExpressionScores: [],
+        mouthOpen: false,
+        mouthOpenScore: 0,
+        mouthOpenScores: [],
+        gazeAway: false,
+        gazeDeviationScore: 0,
+        gazeDeviationScores: [],
       });
     }
 

@@ -32,15 +32,58 @@ export function ImageDropZone({ onFilesSelected, isLoading }: ImageDropZoneProps
     [onFilesSelected],
   );
 
+  const readEntryAsFile = (entry: FileSystemFileEntry): Promise<File> =>
+    new Promise((resolve, reject) => entry.file(resolve, reject));
+
+  const readDirectory = async (dirEntry: FileSystemDirectoryEntry): Promise<File[]> => {
+    const reader = dirEntry.createReader();
+    const allFiles: File[] = [];
+
+    const readBatch = (): Promise<FileSystemEntry[]> =>
+      new Promise((resolve, reject) => reader.readEntries(resolve, reject));
+
+    let batch = await readBatch();
+    while (batch.length > 0) {
+      for (const entry of batch) {
+        if (entry.isFile) {
+          const file = await readEntryAsFile(entry as FileSystemFileEntry);
+          if (file.type.startsWith('image/')) allFiles.push(file);
+        } else if (entry.isDirectory) {
+          const subFiles = await readDirectory(entry as FileSystemDirectoryEntry);
+          allFiles.push(...subFiles);
+        }
+      }
+      batch = await readBatch();
+    }
+    return allFiles;
+  };
+
   const handleDrop = useCallback(
-    (e: React.DragEvent) => {
+    async (e: React.DragEvent) => {
       e.preventDefault();
       setIsDragOver(false);
-      if (e.dataTransfer.files.length > 0) {
-        handleFiles(e.dataTransfer.files);
+
+      const items = e.dataTransfer.items;
+      if (!items || items.length === 0) return;
+
+      const allFiles: File[] = [];
+
+      for (let i = 0; i < items.length; i++) {
+        const entry = items[i].webkitGetAsEntry?.();
+        if (!entry) continue;
+
+        if (entry.isDirectory) {
+          const dirFiles = await readDirectory(entry as FileSystemDirectoryEntry);
+          allFiles.push(...dirFiles);
+        } else if (entry.isFile) {
+          const file = await readEntryAsFile(entry as FileSystemFileEntry);
+          if (file.type.startsWith('image/')) allFiles.push(file);
+        }
       }
+
+      if (allFiles.length > 0) onFilesSelected(allFiles);
     },
-    [handleFiles],
+    [onFilesSelected],
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {

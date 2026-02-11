@@ -159,7 +159,7 @@ export default function NewProductPage() {
 
   // 이미지
   const [thumbnailUrl, setThumbnailUrl] = useState('');
-  const [detailImages, setDetailImages] = useState<string[]>(['', '', '', '']);
+  const [detailImages, setDetailImages] = useState<string[]>(['', '', '', '', '', '']);
 
   // 상세정보
   const [description, setDescription] = useState('');
