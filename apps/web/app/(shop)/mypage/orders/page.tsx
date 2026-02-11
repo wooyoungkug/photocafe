@@ -462,11 +462,9 @@ export default function MyOrdersPage() {
                       />
                     </TableHead>
                     <TableHead className="text-center w-[120px] text-xs">주문일<br />(주문번호)</TableHead>
-                    <TableHead className="text-center w-[50px] text-xs">순번</TableHead>
                     <TableHead className="w-[50px] text-center text-xs">썸네일</TableHead>
                     <TableHead className="text-xs">상품명 / 주문제목 / 재질 및 규격</TableHead>
-                    <TableHead className="text-center w-[55px] text-xs">페이지</TableHead>
-                    <TableHead className="text-center w-[45px] text-xs">부수</TableHead>
+                    <TableHead className="text-center w-[70px] text-xs">페이지<br />/ 부수</TableHead>
                     <TableHead className="text-center w-[65px] text-xs">용량</TableHead>
                     <TableHead className="text-right w-[90px] text-xs">주문금액</TableHead>
                     <TableHead className="text-center w-[70px] text-xs">진행상황</TableHead>
@@ -519,10 +517,6 @@ export default function MyOrdersPage() {
                           </TableCell>
                         )}
 
-                        <TableCell className="text-center text-xs text-muted-foreground">
-                          {String(idx + 1).padStart(2, '0')}
-                        </TableCell>
-
                         <TableCell className="text-center">
                           <div
                             className={cn(
@@ -556,8 +550,7 @@ export default function MyOrdersPage() {
                           </div>
                         </TableCell>
 
-                        <TableCell className="text-center text-xs">{item.pages}p</TableCell>
-                        <TableCell className="text-center text-xs font-medium">{item.quantity}건</TableCell>
+                        <TableCell className="text-center text-xs">{item.pages}p / {item.quantity}건</TableCell>
                         <TableCell className="text-center text-xs text-muted-foreground">{formatFileSize(Number(item.totalFileSize))}</TableCell>
 
                         {idx === 0 && (

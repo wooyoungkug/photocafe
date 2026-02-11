@@ -10,10 +10,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Search, Palette, Plus, ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
-import { useFabrics, useCreateFabric, type Fabric } from '@/hooks/use-fabrics';
+import { useFabrics, useFabricSuppliers, useCreateFabric, type Fabric } from '@/hooks/use-fabrics';
 import { useToast } from '@/hooks/use-toast';
 
 interface FabricPickerDialogProps {
@@ -22,6 +29,14 @@ interface FabricPickerDialogProps {
   selectedFabricId: string | null;
   onSelect: (fabric: Fabric) => void;
 }
+
+// 원단코드 자동 생성
+const generateFabricCode = (): string => {
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+  const rand = String(Math.floor(Math.random() * 1000)).padStart(3, '0');
+  return `FA-${dateStr}-${rand}`;
+};
 
 export function FabricPickerDialog({
   open,
@@ -38,9 +53,9 @@ export function FabricPickerDialog({
 
   // 원단 추가 모드
   const [isAddMode, setIsAddMode] = useState(false);
-  const [newFabricCode, setNewFabricCode] = useState('');
   const [newFabricName, setNewFabricName] = useState('');
   const [newFabricColor, setNewFabricColor] = useState('');
+  const [newFabricSupplierId, setNewFabricSupplierId] = useState('');
 
   // 앨범 커버용 원단만 조회
   const { data: fabricData, isLoading } = useFabrics({
@@ -48,6 +63,9 @@ export function FabricPickerDialog({
     forAlbumCover: true,
     limit: 100,
   });
+
+  // 원단 매입처 조회
+  const { data: suppliers } = useFabricSuppliers();
 
   const createFabric = useCreateFabric();
 
@@ -73,13 +91,15 @@ export function FabricPickerDialog({
 
   // 원단 추가 제출
   const handleAddFabric = async () => {
-    if (!newFabricCode.trim() || !newFabricName.trim()) return;
+    if (!newFabricName.trim()) return;
 
     try {
+      const autoCode = generateFabricCode();
       await createFabric.mutateAsync({
-        code: newFabricCode.trim(),
+        code: autoCode,
         name: newFabricName.trim(),
         colorName: newFabricColor.trim() || undefined,
+        supplierId: newFabricSupplierId || undefined,
         category: 'cloth',
         material: 'cotton',
         forAlbumCover: true,
@@ -92,9 +112,9 @@ export function FabricPickerDialog({
         description: tp('fabricAddedDesc', { name: newFabricName.trim() }),
       });
       // 초기화 & 목록으로 돌아가기
-      setNewFabricCode('');
       setNewFabricName('');
       setNewFabricColor('');
+      setNewFabricSupplierId('');
       setIsAddMode(false);
     } catch (error: any) {
       toast({
@@ -137,22 +157,13 @@ export function FabricPickerDialog({
           /* 원단 추가 폼 */
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="fabricCode">{tp('fabricCode')} *</Label>
-              <Input
-                id="fabricCode"
-                placeholder="예: FA-NEW-001"
-                value={newFabricCode}
-                onChange={(e) => setNewFabricCode(e.target.value)}
-                autoFocus
-              />
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="fabricName">{tp('fabricName')} *</Label>
               <Input
                 id="fabricName"
                 placeholder="예: 이탈리아 가죽 블랙"
                 value={newFabricName}
                 onChange={(e) => setNewFabricName(e.target.value)}
+                autoFocus
               />
             </div>
             <div className="space-y-2">
@@ -164,6 +175,19 @@ export function FabricPickerDialog({
                 onChange={(e) => setNewFabricColor(e.target.value)}
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="fabricSupplier">원단매입처</Label>
+              <Select value={newFabricSupplierId} onValueChange={setNewFabricSupplierId}>
+                <SelectTrigger id="fabricSupplier">
+                  <SelectValue placeholder="매입처 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  {suppliers?.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
             <div className="flex justify-end gap-2 pt-2 border-t">
               <Button variant="outline" size="sm" onClick={() => setIsAddMode(false)}>
@@ -171,7 +195,7 @@ export function FabricPickerDialog({
               </Button>
               <Button
                 size="sm"
-                disabled={!newFabricCode.trim() || !newFabricName.trim() || createFabric.isPending}
+                disabled={!newFabricName.trim() || createFabric.isPending}
                 className="bg-amber-600 hover:bg-amber-700"
                 onClick={handleAddFabric}
               >

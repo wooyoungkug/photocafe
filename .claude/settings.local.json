@@ -302,7 +302,11 @@
       "Bash(cmd /c \"taskkill /PID 31272 /T /F\")",
       "Bash(cmd /c \"taskkill /PID 30368 /T /F\")",
       "Bash(while read hash msg)",
-      "Bash(do echo \"=== $hash $msg ===\")"
+      "Bash(do echo \"=== $hash $msg ===\")",
+      "WebFetch(domain:www.queensberry.com)",
+      "Bash(\"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\pg_dump.exe\" -U postgres -d printing_erp -F c -f \"c:\\\\dev\\\\printing114\\\\backup_for_synology.dump\")",
+      "Bash(set:*)",
+      "Bash(\"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\pg_restore.exe\" -U postgres -h 192.168.0.67 -p 5433 -d postgres --clean --if-exists --no-owner --no-privileges -F c \"c:\\\\dev\\\\printing114\\\\backup_for_synology.dump\")"
     ]
   }
 }

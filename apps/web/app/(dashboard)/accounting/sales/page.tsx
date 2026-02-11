@@ -361,18 +361,18 @@ export default function SalesLedgerPage() {
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-50">
-                <TableHead className="w-[120px]">전표번호</TableHead>
-                <TableHead className="w-[100px]">전표일자</TableHead>
-                <TableHead className="w-[120px]">주문번호</TableHead>
-                <TableHead>거래처</TableHead>
-                <TableHead className="text-right">공급가액</TableHead>
-                <TableHead className="text-right">부가세</TableHead>
-                <TableHead className="text-right">합계</TableHead>
-                <TableHead className="text-right">수금액</TableHead>
-                <TableHead className="text-right">미수금</TableHead>
-                <TableHead className="text-center">결제상태</TableHead>
-                <TableHead className="text-center">매출상태</TableHead>
-                <TableHead className="w-[100px] text-center">수금처리</TableHead>
+                <TableHead className="w-[110px]">전표번호</TableHead>
+                <TableHead className="w-[90px]">전표일자</TableHead>
+                <TableHead className="w-[110px]">주문번호</TableHead>
+                <TableHead className="w-[90px]">거래처</TableHead>
+                <TableHead className="text-right w-[90px]">공급가액</TableHead>
+                <TableHead className="text-right w-[80px]">부가세</TableHead>
+                <TableHead className="text-right w-[90px]">합계</TableHead>
+                <TableHead className="text-right w-[80px]">수금액</TableHead>
+                <TableHead className="text-right w-[90px]">미수금</TableHead>
+                <TableHead className="text-center w-[80px]">결제상태</TableHead>
+                <TableHead className="text-center w-[80px]">매출상태</TableHead>
+                <TableHead className="w-[80px] text-center">수금처리</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -419,7 +419,7 @@ export default function SalesLedgerPage() {
                       {ledger.receivedAmount.toLocaleString()}원
                     </TableCell>
                     <TableCell className="text-right text-orange-600 font-medium">
-                      {ledger.outstandingAmount.toLocaleString()}원
+                      {ledger.outstandingAmount > 0 ? `-${ledger.outstandingAmount.toLocaleString()}` : '0'}원
                     </TableCell>
                     <TableCell className="text-center">
                       {getPaymentStatusBadge(ledger.paymentStatus)}
@@ -447,6 +447,32 @@ export default function SalesLedgerPage() {
                 ))
               )}
             </TableBody>
+            {ledgers.length > 0 && (
+              <TableFooter>
+                <TableRow className="bg-slate-100 font-bold">
+                  <TableCell colSpan={4} className="text-right text-sm">합계</TableCell>
+                  <TableCell className="text-right text-sm">
+                    {ledgers.reduce((sum, l) => sum + l.supplyAmount, 0).toLocaleString()}원
+                  </TableCell>
+                  <TableCell className="text-right text-sm">
+                    {ledgers.reduce((sum, l) => sum + l.vatAmount, 0).toLocaleString()}원
+                  </TableCell>
+                  <TableCell className="text-right text-sm text-blue-600">
+                    {ledgers.reduce((sum, l) => sum + l.totalAmount, 0).toLocaleString()}원
+                  </TableCell>
+                  <TableCell className="text-right text-sm text-green-600">
+                    {ledgers.reduce((sum, l) => sum + l.receivedAmount, 0).toLocaleString()}원
+                  </TableCell>
+                  <TableCell className="text-right text-sm text-orange-600">
+                    {(() => {
+                      const total = ledgers.reduce((sum, l) => sum + l.outstandingAmount, 0);
+                      return total > 0 ? `-${total.toLocaleString()}` : '0';
+                    })()}원
+                  </TableCell>
+                  <TableCell colSpan={3} />
+                </TableRow>
+              </TableFooter>
+            )}
           </Table>
         </CardContent>
       </Card>

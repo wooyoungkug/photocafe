@@ -317,8 +317,7 @@ export default function OrderListPage() {
 
                         {/* 페이지 / 부수 */}
                         <TableCell className="text-center text-xs">
-                          <div>{item.pages}p</div>
-                          <div className="text-muted-foreground">{item.quantity}건</div>
+                          {item.pages}p / {item.quantity}건
                         </TableCell>
 
                         {/* 용량 */}

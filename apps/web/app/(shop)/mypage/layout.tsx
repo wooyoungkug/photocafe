@@ -9,6 +9,7 @@ import {
   Wallet,
   User,
   MapPin,
+  Star,
   ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,11 @@ const MENU_ITEMS = [
     icon: MapPin,
     label: '배송지 관리',
     href: '/mypage/addresses',
+  },
+  {
+    icon: Star,
+    label: '마이상품',
+    href: '/mypage/my-products',
   },
   {
     icon: ShoppingBag,

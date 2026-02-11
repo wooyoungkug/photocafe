@@ -676,45 +676,6 @@ export default function ProductPage() {
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Product Info - 나머지 공간 사용 */}
           <div className="flex-1 space-y-5">
-            {/* 마이상품 & Share & Wishlist */}
-            <div className="flex flex-wrap gap-1.5">
-              {isAuthenticated && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setMyProductName(`${product.productName} ${selectedOptions.specification?.name || ''}`.trim());
-                      setShowSaveMyProductModal(true);
-                    }}
-                    className="text-xs h-7 px-2 text-primary border-primary hover:bg-primary/10"
-                  >
-                    <Star className="h-3.5 w-3.5 mr-1" />
-                    {t('saveMyProduct')}
-                  </Button>
-                  {myProducts && myProducts.length > 0 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowLoadMyProductModal(true)}
-                      className="text-xs h-7 px-2 text-orange-600 border-orange-600 hover:bg-orange-50"
-                    >
-                      <FolderHeart className="h-3.5 w-3.5 mr-1" />
-                      {t('loadMyProduct')} ({myProducts.filter(mp => mp.productId === product.id).length})
-                    </Button>
-                  )}
-                </>
-              )}
-              <Button variant="ghost" size="sm" className="text-xs h-7 px-2 text-gray-500">
-                <Heart className="h-3.5 w-3.5 mr-1" />
-                {tc('wishlist')}
-              </Button>
-              <Button variant="ghost" size="sm" className="text-xs h-7 px-2 text-gray-500">
-                <Share2 className="h-3.5 w-3.5 mr-1" />
-                {tc('share')}
-              </Button>
-            </div>
-
             {/* Header */}
             <div>
               <h1 className="text-2xl md:text-3xl font-bold mb-2">{product.productName}</h1>
@@ -786,7 +747,7 @@ export default function ProductPage() {
                         className={cn(
                           'px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5',
                           defaultCoverSourceType === 'fabric'
-                            ? 'bg-white text-gray-900 shadow-sm border-2 border-pink-400'
+                            ? 'bg-white text-gray-900 shadow-sm border-2 border-primary'
                             : 'text-gray-500 hover:text-gray-700'
                         )}
                       >
@@ -813,16 +774,16 @@ export default function ProductPage() {
                       <div className="flex items-center gap-3">
                         <Button
                           size="sm"
-                          className="h-7 text-xs bg-amber-600 hover:bg-amber-700 flex-shrink-0"
+                          className="h-7 text-xs bg-primary hover:bg-primary/90 flex-shrink-0"
                           onClick={() => setShowCoverFabricDialog(true)}
                         >
                           선택원단
                         </Button>
                         {selectedFabricInfo?.id && (
-                          <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-pink-300 bg-pink-50">
+                          <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-primary/40 bg-primary/5">
                             {selectedFabricInfo.thumbnail && (
                               <div
-                                className="w-12 h-12 rounded border-2 border-pink-400 bg-cover bg-center flex-shrink-0"
+                                className="w-12 h-12 rounded border-2 border-primary bg-cover bg-center flex-shrink-0"
                                 style={{ backgroundImage: `url(${selectedFabricInfo.thumbnail})` }}
                               />
                             )}
@@ -937,17 +898,17 @@ export default function ProductPage() {
 
               {/* 출력구분 - 제본방법에 따라 자동 설정 (읽기 전용) */}
               <OptionSection title={t('printSection')}>
-                <div className="flex gap-6">
+                <div className="grid grid-cols-2 gap-2">
                   <div
                     className={cn(
-                      "flex items-center gap-2 py-1 transition-colors",
+                      "flex items-center gap-2 p-3 border rounded-lg transition-colors",
                       selectedOptions.printSide === 'single'
-                        ? ""
-                        : "text-gray-400"
+                        ? "border-primary bg-primary/5"
+                        : "text-gray-400 border-gray-200"
                     )}
                   >
                     <div className={cn(
-                      "w-4 h-4 rounded-full border-2",
+                      "w-4 h-4 rounded-full border-2 flex-shrink-0",
                       selectedOptions.printSide === 'single'
                         ? "border-primary bg-primary"
                         : "border-gray-300"
@@ -958,18 +919,18 @@ export default function ProductPage() {
                         </div>
                       )}
                     </div>
-                    <span className="flex-1 text-xs">{t('singleSided')}</span>
+                    <span className="text-xs">{t('singleSided')}</span>
                   </div>
                   <div
                     className={cn(
-                      "flex items-center gap-2 py-1 transition-colors",
+                      "flex items-center gap-2 p-3 border rounded-lg transition-colors",
                       selectedOptions.printSide === 'double'
-                        ? ""
-                        : "text-gray-400"
+                        ? "border-primary bg-primary/5"
+                        : "text-gray-400 border-gray-200"
                     )}
                   >
                     <div className={cn(
-                      "w-4 h-4 rounded-full border-2",
+                      "w-4 h-4 rounded-full border-2 flex-shrink-0",
                       selectedOptions.printSide === 'double'
                         ? "border-primary bg-primary"
                         : "border-gray-300"
@@ -980,7 +941,7 @@ export default function ProductPage() {
                         </div>
                       )}
                     </div>
-                    <span className="flex-1 text-xs">{t('doubleSided')}</span>
+                    <span className="text-xs">{t('doubleSided')}</span>
                   </div>
                 </div>
                 <p className="text-xs text-gray-500 mt-2">
@@ -1041,6 +1002,45 @@ export default function ProductPage() {
 
           {/* Product Images - 고정 너비 */}
           <div className="w-full lg:w-[400px] lg:sticky lg:top-4 lg:self-start flex-shrink-0 space-y-3">
+            {/* 마이상품 & 찜하기 & 공유하기 - 이미지 상단 */}
+            <div className="flex flex-wrap gap-1.5">
+              {isAuthenticated && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setMyProductName(`${product.productName} ${selectedOptions.specification?.name || ''}`.trim());
+                      setShowSaveMyProductModal(true);
+                    }}
+                    className="text-xs h-7 px-2 text-primary border-primary hover:bg-primary/10"
+                  >
+                    <Star className="h-3.5 w-3.5 mr-1" />
+                    {t('saveMyProduct')}
+                  </Button>
+                  {myProducts && myProducts.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowLoadMyProductModal(true)}
+                      className="text-xs h-7 px-2 text-orange-600 border-orange-600 hover:bg-orange-50"
+                    >
+                      <FolderHeart className="h-3.5 w-3.5 mr-1" />
+                      {t('loadMyProduct')} ({myProducts.filter(mp => mp.productId === product.id).length})
+                    </Button>
+                  )}
+                </>
+              )}
+              <Button variant="ghost" size="sm" className="text-xs h-7 px-2 text-gray-500">
+                <Heart className="h-3.5 w-3.5 mr-1" />
+                {tc('wishlist')}
+              </Button>
+              <Button variant="ghost" size="sm" className="text-xs h-7 px-2 text-gray-500">
+                <Share2 className="h-3.5 w-3.5 mr-1" />
+                {tc('share')}
+              </Button>
+            </div>
+
             {/* Main Image */}
             <div className="aspect-square bg-white rounded-lg border overflow-hidden shadow-sm">
               {images.length > 0 ? (
@@ -1540,12 +1540,12 @@ export default function ProductPage() {
             />
 
             {/* 화보/앨범 주문 안내 */}
-            <div className="bg-pink-50 border border-pink-200 rounded-lg p-4 mt-4">
+            <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 mt-4">
               <div className="flex items-start gap-3">
-                <BookOpen className="h-5 w-5 text-pink-600 mt-0.5" />
+                <BookOpen className="h-5 w-5 text-primary mt-0.5" />
                 <div>
-                  <h4 className="font-medium text-pink-900">{t('albumOrderGuide')}</h4>
-                  <p className="text-sm text-pink-700 mt-1">
+                  <h4 className="font-medium text-gray-900">{t('albumOrderGuide')}</h4>
+                  <p className="text-sm text-gray-600 mt-1">
                     {t('albumOrderDescription')}
                   </p>
                 </div>
@@ -1895,8 +1895,8 @@ export default function ProductPage() {
 
 function OptionSection({ title, count, children }: { title: string; count?: number; children: React.ReactNode }) {
   return (
-    <div>
-      <h3 className="font-bold text-sm mb-2 flex items-center gap-2">
+    <div className="border border-gray-200 rounded-lg bg-white p-4">
+      <h3 className="font-bold text-sm mb-3 flex items-center gap-2 text-gray-800">
         {title}
         {count !== undefined && count > 0 && (
           <span className="text-xs text-gray-500 font-normal">({count})</span>

@@ -106,6 +106,31 @@
     @apply bg-gradient-to-r from-[hsl(327,80%,47%)] to-[hsl(340,80%,40%)] bg-clip-text text-transparent;
   }
 
+  /* Shop premium utilities */
+  .shop-heading {
+    font-family: Georgia, Cambria, 'Times New Roman', Times, serif;
+  }
+
+  .text-gold {
+    color: #b8962e;
+  }
+
+  .bg-gold {
+    background-color: #b8962e;
+  }
+
+  .border-gold {
+    border-color: #b8962e;
+  }
+
+  .hover\:bg-gold:hover {
+    background-color: #a6841f;
+  }
+
+  .tracking-widest-xl {
+    letter-spacing: 0.25em;
+  }
+
   /* Custom Scrollbar */
   .custom-scrollbar::-webkit-scrollbar {
     width: 4px;
