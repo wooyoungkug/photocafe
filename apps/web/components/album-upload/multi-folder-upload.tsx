@@ -14,6 +14,8 @@ import {
   CheckCircle,
   ChevronsUpDown,
   CheckSquare,
+  Palette,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
@@ -37,8 +39,11 @@ import {
   autoDetectPageLayout,
   detectBindingFromName,
   hasDesignCoverFiles,
+  type CoverSourceType,
 } from '@/stores/multi-folder-upload-store';
 import { useIndigoSpecifications } from '@/hooks/use-specifications';
+import { FabricPickerDialog } from './fabric-picker-dialog';
+import type { Fabric } from '@/hooks/use-fabrics';
 import { toast } from '@/hooks/use-toast';
 import { extractColorsFromImage, buildPhotoColorInfo } from '@/lib/color-analysis';
 
@@ -121,6 +126,108 @@ import type { ClientAlbumPreference } from '@/lib/types/client';
 const ACCEPTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.tif', '.tiff'];
 const MAX_DEPTH = 4;
 
+// 전체 표지유형 선택 컴포넌트
+function GlobalCoverTypeSelector({
+  currentSource,
+  onSourceChange,
+  folders,
+  setFolderFabric,
+}: {
+  currentSource: CoverSourceType | null;
+  onSourceChange: (source: CoverSourceType) => void;
+  folders: UploadedFolder[];
+  setFolderFabric: (folderId: string, fabricId: string, fabricName: string, fabricThumbnail: string | null, fabricPrice: number) => void;
+}) {
+  const t = useTranslations('folder');
+  const tc = useTranslations('common');
+  const [showFabricDialog, setShowFabricDialog] = useState(false);
+
+  // 현재 선택된 원단 (첫 번째 폴더 기준)
+  const selectedFabric = folders.length > 0 ? {
+    id: folders[0].selectedFabricId,
+    name: folders[0].selectedFabricName,
+    thumbnail: folders[0].selectedFabricThumbnail,
+  } : null;
+
+  const handleFabricSelect = (fabric: Fabric) => {
+    // 모든 폴더에 원단 적용
+    folders.forEach(f => {
+      setFolderFabric(f.id, fabric.id, `${fabric.code} ${fabric.name}`, fabric.thumbnailUrl || null, fabric.basePrice);
+    });
+  };
+
+  return (
+    <div className="p-3 bg-white rounded-lg border">
+      <div className="flex items-center gap-3">
+        <span className="text-xs font-medium text-gray-600">{t('coverType')}</span>
+        <div className="inline-flex rounded-lg border border-gray-200 p-0.5 bg-gray-50">
+          <button
+            type="button"
+            onClick={() => onSourceChange('fabric')}
+            className={cn(
+              'px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5',
+              currentSource === 'fabric'
+                ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
+                : 'text-gray-500 hover:text-gray-700'
+            )}
+          >
+            <Palette className="w-3.5 h-3.5" />
+            {t('fabricCover')}
+          </button>
+          <button
+            type="button"
+            onClick={() => onSourceChange('design')}
+            className={cn(
+              'px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5',
+              currentSource === 'design'
+                ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
+                : 'text-gray-500 hover:text-gray-700'
+            )}
+          >
+            <ImageIcon className="w-3.5 h-3.5" />
+            {t('designCover')}
+          </button>
+        </div>
+
+        {/* 원단표지 선택 시 원단 선택 버튼 */}
+        {currentSource === 'fabric' && (
+          <div className="flex items-center gap-2 ml-2">
+            {selectedFabric?.id ? (
+              <>
+                {selectedFabric.thumbnail && (
+                  <div
+                    className="w-8 h-8 rounded border border-amber-300 bg-cover bg-center flex-shrink-0"
+                    style={{ backgroundImage: `url(${selectedFabric.thumbnail})` }}
+                  />
+                )}
+                <span className="text-xs text-gray-700 truncate max-w-[120px]">{selectedFabric.name}</span>
+                <Button variant="outline" size="sm" className="h-6 text-[10px] px-2" onClick={() => setShowFabricDialog(true)}>
+                  {tc('change')}
+                </Button>
+              </>
+            ) : (
+              <Button
+                size="sm"
+                className="h-7 text-xs bg-amber-600 hover:bg-amber-700"
+                onClick={() => setShowFabricDialog(true)}
+              >
+                {t('selectFabric')}
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+
+      <FabricPickerDialog
+        open={showFabricDialog}
+        onOpenChange={setShowFabricDialog}
+        selectedFabricId={selectedFabric?.id || null}
+        onSelect={handleFabricSelect}
+      />
+    </div>
+  );
+}
+
 interface MultiFolderUploadProps {
   onAddToCart?: (folders: UploadedFolder[]) => void;
 }
@@ -132,6 +239,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
     uploadProgress,
     defaultPageLayout,
     defaultBindingDirection,
+    defaultCoverSourceType,
     indigoSpecs,
     addFolder,
     clearFolders,
@@ -143,6 +251,9 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
     getSelectedFolders,
     computeColorGroups,
     selectAllFolders,
+    applyGlobalCoverSource,
+    setFolderFabric,
+    setFolderCoverSource,
   } = useMultiFolderUploadStore();
 
   const tc = useTranslations('common');
@@ -1072,7 +1183,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         lastPageBlank,
         autoBindingDetected,
         uploadedAt: Date.now(),
-        coverSourceType: hasDesignCoverFiles(sortedFiles) ? 'design' : null,
+        coverSourceType: defaultCoverSourceType ?? (hasDesignCoverFiles(sortedFiles) ? 'design' : null),
         coverAutoDetected: hasDesignCoverFiles(sortedFiles),
         selectedFabricId: null,
         selectedFabricName: null,
@@ -1378,7 +1489,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
           lastPageBlank,
           autoBindingDetected,
           uploadedAt: Date.now(),
-          coverSourceType: hasDesignCoverFiles(sortedFiles) ? 'design' : null,
+          coverSourceType: defaultCoverSourceType ?? (hasDesignCoverFiles(sortedFiles) ? 'design' : null),
           coverAutoDetected: hasDesignCoverFiles(sortedFiles),
           selectedFabricId: null,
           selectedFabricName: null,
@@ -1617,7 +1728,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         lastPageBlank,
         autoBindingDetected,
         uploadedAt: Date.now(),
-        coverSourceType: hasDesignCoverFiles(sortedFiles) ? 'design' : null,
+        coverSourceType: defaultCoverSourceType ?? (hasDesignCoverFiles(sortedFiles) ? 'design' : null),
         coverAutoDetected: hasDesignCoverFiles(sortedFiles),
         selectedFabricId: null,
         selectedFabricName: null,
@@ -1855,6 +1966,14 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
               </Button>
             </div>
           </div>
+
+          {/* 전체 표지유형 선택 */}
+          <GlobalCoverTypeSelector
+            currentSource={defaultCoverSourceType}
+            onSourceChange={(source) => applyGlobalCoverSource(source)}
+            folders={folders}
+            setFolderFabric={setFolderFabric}
+          />
 
           <div className="space-y-3">
             {folders.map((folder) => (

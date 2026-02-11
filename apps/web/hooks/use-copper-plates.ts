@@ -192,9 +192,9 @@ export function useCopperPlatesByClient(clientId: string | undefined) {
       return result;
     },
     enabled: !!clientId,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 15 * 60 * 1000,
-    refetchOnWindowFocus: false,
+    staleTime: 30 * 1000, // 30초 - 동판 데이터는 자주 변경될 수 있음
+    gcTime: 5 * 60 * 1000,
+    refetchOnMount: true, // 탭 전환 시 최신 데이터 보장
   });
 }
 

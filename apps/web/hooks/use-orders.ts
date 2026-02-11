@@ -110,6 +110,7 @@ export interface Order {
   finalAmount: number;
   paymentMethod: string;
   isUrgent: boolean;
+  isDuplicateOverride?: boolean;
   requestedDeliveryDate?: string;
   customerMemo?: string;
   productMemo?: string;

@@ -177,7 +177,6 @@ export class NaverMapService {
    */
   calculateDeliveryFee(
     distanceKm: number,
-    deliveryMethod: 'motorcycle' | 'damas' | 'freight',
     distanceRanges: { minDistance: number; maxDistance: number; price: number }[],
     extraPricePerKm: number = 0,
     maxBaseDistance: number = 20,

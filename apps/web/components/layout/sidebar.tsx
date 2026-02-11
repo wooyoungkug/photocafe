@@ -12,6 +12,7 @@ import {
   Cog,
   CreditCard,
   Headphones,
+  Image as ImageIcon,
   Layers,
   LayoutDashboard,
   CalendarDays,
@@ -127,6 +128,14 @@ const DEFAULT_NAVIGATION: NavItem[] = [
       { name: "편집대기", href: "/editing/pending" },
       { name: "편집진행", href: "/editing/progress" },
       { name: "편집완료", href: "/editing/completed" },
+    ],
+  },
+  {
+    id: "image-management",
+    name: "이미지관리",
+    icon: ImageIcon,
+    children: [
+      { name: "이미지 품질분석", href: "/image-management/quality-analysis" },
     ],
   },
   {

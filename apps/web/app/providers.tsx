@@ -19,7 +19,7 @@ function getQueryClient() {
           staleTime: 5 * 60 * 1000, // 5 minutes - 데이터가 5분간 fresh 상태 유지
           gcTime: 10 * 60 * 1000, // 10 minutes - 캐시 보관 시간 (구 cacheTime)
           refetchOnWindowFocus: false, // 윈도우 포커스 시 재요청 방지
-          refetchOnMount: false, // 마운트 시 자동 재요청 방지 (stale 상태일 때만)
+          refetchOnMount: true, // stale 데이터일 때 마운트 시 재요청 (기본값 복원)
           retry: 1, // 실패 시 재시도 횟수 감소 (기본 3 → 1)
         },
       },
@@ -33,7 +33,7 @@ function getQueryClient() {
           staleTime: 5 * 60 * 1000, // 5 minutes
           gcTime: 10 * 60 * 1000, // 10 minutes
           refetchOnWindowFocus: false,
-          refetchOnMount: false,
+          refetchOnMount: true, // stale 데이터일 때 마운트 시 재요청 (기본값 복원)
           retry: 1,
         },
       },

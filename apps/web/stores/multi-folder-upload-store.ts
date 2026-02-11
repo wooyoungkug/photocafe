@@ -307,6 +307,7 @@ interface MultiFolderUploadState {
   // 기본 주문 유형 (null = 미선택)
   defaultPageLayout: PageLayoutType | null;
   defaultBindingDirection: BindingDirection | null;
+  defaultCoverSourceType: CoverSourceType | null;
 
   // 설정
   targetSpecWidth: number;
@@ -336,6 +337,8 @@ interface MultiFolderUploadState {
   setFolderBindingDirection: (folderId: string, direction: BindingDirection) => void;
   setDefaultPageLayout: (layout: PageLayoutType | null) => void;
   setDefaultBindingDirection: (direction: BindingDirection | null) => void;
+  setDefaultCoverSourceType: (source: CoverSourceType | null) => void;
+  applyGlobalCoverSource: (source: CoverSourceType) => void;
 
   // 추가 주문
   addAdditionalOrder: (folderId: string, spec: { width: number; height: number; label: string }) => void;
@@ -384,6 +387,7 @@ const initialState = {
   uploadProgress: 0,
   defaultPageLayout: null as PageLayoutType | null,  // 미선택 상태로 시작
   defaultBindingDirection: null as BindingDirection | null,  // 미선택 상태로 시작
+  defaultCoverSourceType: null as CoverSourceType | null,  // 미선택 상태로 시작
   targetSpecWidth: 12,
   targetSpecHeight: 12,
   targetSpecRatio: 1,
@@ -840,6 +844,25 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
   setDefaultPageLayout: (layout) => set({ defaultPageLayout: layout }),
 
   setDefaultBindingDirection: (direction) => set({ defaultBindingDirection: direction }),
+
+  setDefaultCoverSourceType: (source) => set({ defaultCoverSourceType: source }),
+
+  applyGlobalCoverSource: (source) => {
+    set(state => ({
+      defaultCoverSourceType: source,
+      folders: state.folders.map(f => ({
+        ...f,
+        coverSourceType: source,
+        // fabric→design 전환 시 원단 선택 초기화
+        ...(source === 'design' ? {
+          selectedFabricId: null,
+          selectedFabricName: null,
+          selectedFabricThumbnail: null,
+          selectedFabricPrice: 0,
+        } : {}),
+      })),
+    }));
+  },
 
   addAdditionalOrder: (folderId, spec) => {
     set(state => ({

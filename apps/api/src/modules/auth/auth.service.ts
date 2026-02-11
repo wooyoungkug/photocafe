@@ -266,6 +266,7 @@ export class AuthService {
         email: client.email,
         name: client.clientName,
         role: 'client',
+        clientId: client.id,
         clientName: client.clientName,
         mobile: client.mobile,
         businessNumber: client.businessNumber,

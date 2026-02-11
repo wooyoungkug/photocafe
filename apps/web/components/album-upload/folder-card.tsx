@@ -1046,9 +1046,6 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
         <span>{formatFileSize(folder.totalFileSize)}</span>
       </div>
 
-      {/* 표지 유형 선택 */}
-      <CoverTypeSelector folder={folder} />
-
       {/* 정상/승인 완료 시 - 규격 옵션 및 수량 */}
       {canSelect && (
         <div className="mt-3 pt-3 border-t">

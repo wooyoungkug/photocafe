@@ -372,6 +372,14 @@ export default function EditProductPage() {
       if ((product as any).outputPriceSettings && Array.isArray((product as any).outputPriceSettings)) {
         console.log('Setting outputPriceSelections:', (product as any).outputPriceSettings);
         setOutputPriceSelections((product as any).outputPriceSettings);
+        // 출력단가 설정의 outputMethod에 따라 규격 탭 자동 선택
+        const hasIndigo = (product as any).outputPriceSettings.some((s: any) => s.outputMethod === 'INDIGO');
+        const hasInkjet = (product as any).outputPriceSettings.some((s: any) => s.outputMethod === 'INKJET');
+        if (hasIndigo && !hasInkjet) {
+          setSpecType('indigo');
+        } else if (hasInkjet && !hasIndigo) {
+          setSpecType('album');
+        }
       } else {
         console.log('outputPriceSettings가 없거나 배열이 아님');
       }
@@ -745,18 +753,14 @@ export default function EditProductPage() {
                 <Grid3X3 className="h-4 w-4 text-emerald-600" />
                 앨범 규격
               </Label>
-              <Button type="button" variant="outline" size="sm" onClick={() => setSpecDialogOpen(true)} className="gap-2">
-                <Plus className="h-4 w-4" />
-                규격선택
-              </Button>
             </div>
 
             {/* 규격 타입 탭 */}
             <div className="flex gap-1 p-1 bg-slate-100 rounded-lg w-fit">
               {[
-                { key: 'indigo', label: '인디고' },
+                { key: 'indigo', label: '인디고앨범' },
                 { key: 'inkjet', label: '잉크젯' },
-                { key: 'album', label: '앨범' },
+                { key: 'album', label: '잉크젯앨범' },
                 { key: 'frame', label: '액자' },
                 { key: 'booklet', label: '책자' },
               ].map(tab => {
@@ -1384,9 +1388,9 @@ export default function EditProductPage() {
           </DialogHeader>
           <div className="flex gap-1 p-1 bg-slate-100 rounded-lg w-fit">
             {[
-              { key: 'indigo', label: '인디고' },
+              { key: 'indigo', label: '인디고앨범' },
               { key: 'inkjet', label: '잉크젯' },
-              { key: 'album', label: '앨범' },
+              { key: 'album', label: '잉크젯앨범' },
               { key: 'frame', label: '액자' },
               { key: 'booklet', label: '책자' },
             ].map(tab => (
@@ -1648,6 +1652,28 @@ function OutputPriceSelectionForm({
     return spec ? spec.name : specId;
   };
 
+  // 인디고 Up별 가격 가져오기 헬퍼 함수 (indigoUpPrices 또는 priceGroups.upPrices)
+  const getIndigoUpPrices = (setting: ProductionSetting): IndigoUpPrice[] => {
+    if (setting.indigoUpPrices && setting.indigoUpPrices.length > 0) {
+      return setting.indigoUpPrices;
+    }
+    if (setting.priceGroups && setting.priceGroups.length > 0) {
+      const allUpPrices: IndigoUpPrice[] = [];
+      setting.priceGroups.forEach(group => {
+        if (group.upPrices && group.upPrices.length > 0) {
+          allUpPrices.push(...group.upPrices);
+        }
+      });
+      return allUpPrices;
+    }
+    return [];
+  };
+
+  // 설정에 인디고 Up별 가격이 있는지 확인
+  const hasIndigoUpPrices = (setting: ProductionSetting): boolean => {
+    return getIndigoUpPrices(setting).length > 0;
+  };
+
   // 잉크젯 규격 가격 가져오기 헬퍼 함수 (inkjetSpecPrices 또는 priceGroups.specPrices)
   const getInkjetSpecPrices = (setting: ProductionSetting): InkjetSpecPrice[] => {
     // 직접 inkjetSpecPrices가 있으면 사용
@@ -1682,7 +1708,7 @@ function OutputPriceSelectionForm({
   const filteredSettings = productionSettings?.filter(setting => {
     if (!outputMethod) return false;
     if (outputMethod === 'INDIGO') {
-      return setting.printMethod === 'indigo' || setting.indigoUpPrices?.length;
+      return setting.printMethod === 'indigo' || hasIndigoUpPrices(setting);
     } else {
       return setting.printMethod === 'inkjet' || hasInkjetSpecs(setting);
     }
@@ -1695,7 +1721,7 @@ function OutputPriceSelectionForm({
       const filtered = group.settings.filter(s => {
         if (s.pricingType !== 'paper_output_spec') return false;
         if (outputMethod === 'INDIGO') {
-          return s.printMethod === 'indigo' || (s.indigoUpPrices && s.indigoUpPrices.length > 0);
+          return s.printMethod === 'indigo' || hasIndigoUpPrices(s);
         } else if (outputMethod === 'INKJET') {
           return s.printMethod === 'inkjet' || hasInkjetSpecs(s);
         }
@@ -1754,7 +1780,7 @@ function OutputPriceSelectionForm({
           productionSettingId: selectedSetting.id,
           productionSettingName: selectedSetting.settingName || selectedSetting.codeName || '단가설정',
           colorType: '4도',
-          selectedUpPrices: selectedSetting.indigoUpPrices,
+          selectedUpPrices: getIndigoUpPrices(selectedSetting),
         });
       }
 
@@ -1765,7 +1791,7 @@ function OutputPriceSelectionForm({
           productionSettingId: selectedSetting.id,
           productionSettingName: selectedSetting.settingName || selectedSetting.codeName || '단가설정',
           colorType: '6도',
-          selectedUpPrices: selectedSetting.indigoUpPrices,
+          selectedUpPrices: getIndigoUpPrices(selectedSetting),
         });
       }
 
@@ -1817,7 +1843,7 @@ function OutputPriceSelectionForm({
       const filteredGroupSettings = group.settings?.filter(s => {
         if (s.pricingType !== 'paper_output_spec') return false;
         if (method === 'INDIGO') {
-          return s.printMethod === 'indigo' || (s.indigoUpPrices && s.indigoUpPrices.length > 0);
+          return s.printMethod === 'indigo' || hasIndigoUpPrices(s);
         } else {
           return s.printMethod === 'inkjet' || hasInkjetSpecs(s);
         }
@@ -1829,7 +1855,7 @@ function OutputPriceSelectionForm({
         const childSettings = child.settings?.filter(s => {
           if (s.pricingType !== 'paper_output_spec') return false;
           if (method === 'INDIGO') {
-            return s.printMethod === 'indigo' || (s.indigoUpPrices && s.indigoUpPrices.length > 0);
+            return s.printMethod === 'indigo' || hasIndigoUpPrices(s);
           } else {
             return s.printMethod === 'inkjet' || hasInkjetSpecs(s);
           }
@@ -1940,7 +1966,7 @@ function OutputPriceSelectionForm({
                 .filter(s => {
                   if (s.pricingType !== 'paper_output_spec') return false;
                   if (outputMethod === 'INDIGO') {
-                    return s.printMethod === 'indigo' || (s.indigoUpPrices && s.indigoUpPrices.length > 0);
+                    return s.printMethod === 'indigo' || hasIndigoUpPrices(s);
                   } else if (outputMethod === 'INKJET') {
                     return s.printMethod === 'inkjet' || hasInkjetSpecs(s);
                   }
@@ -1957,7 +1983,7 @@ function OutputPriceSelectionForm({
                     <span className="text-sm font-medium">{setting.settingName || setting.codeName}</span>
                     {setting.printMethod && (
                       <Badge variant="outline" className="ml-auto text-xs">
-                        {setting.printMethod === 'indigo' ? '인디고' : '잉크젯'}
+                        {setting.printMethod === 'indigo' ? '인디고앨범' : '잉크젯'}
                       </Badge>
                     )}
                   </div>
@@ -2080,7 +2106,7 @@ function OutputPriceSelectionForm({
         <div className="flex-1 overflow-y-auto p-2">
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm text-slate-500">
-              {outputMethod === 'INDIGO' ? '인디고' : '잉크젯'} 출력 단가설정을 선택해주세요.
+              {outputMethod === 'INDIGO' ? '인디고앨범' : '잉크젯'} 출력 단가설정을 선택해주세요.
             </p>
             <Button variant="ghost" size="sm" onClick={() => setStep(1)}>
               <ArrowLeft className="h-4 w-4 mr-1" /> 이전

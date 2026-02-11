@@ -2,7 +2,7 @@
  * 앨범/화보/포토북 주문 유틸리티 함수
  */
 
-import type { AlbumUploadedFile, PageLayout } from '@/stores/album-order-store';
+import type { AlbumUploadedFile } from '@/stores/album-order-store';
 
 // ===== 비율 계산 유틸리티 =====
 
@@ -131,190 +131,6 @@ export function detectCoverPageType(filename: string): 'first' | 'last' | 'first
   return 'normal';
 }
 
-// ===== 첫막장 처리 유틸리티 =====
-
-/**
- * 첫막장 파일을 좌우로 분리하여 처리
- * 왼쪽 = 첫장, 오른쪽 = 막장
- */
-export interface SplitCoverResult {
-  firstHalf: {
-    filename: string;
-    widthPx: number;
-    heightPx: number;
-    widthInch: number;
-    heightInch: number;
-    cropX: number;
-    cropWidth: number;
-  };
-  lastHalf: {
-    filename: string;
-    widthPx: number;
-    heightPx: number;
-    widthInch: number;
-    heightInch: number;
-    cropX: number;
-    cropWidth: number;
-  };
-}
-
-export function splitCoverPage(
-  file: AlbumUploadedFile
-): SplitCoverResult {
-  const halfWidth = Math.floor(file.widthPx / 2);
-  const halfWidthInch = file.widthInch / 2;
-
-  // 파일명에서 확장자 분리
-  const lastDotIndex = file.originalName.lastIndexOf('.');
-  const baseName = lastDotIndex !== -1
-    ? file.originalName.substring(0, lastDotIndex)
-    : file.originalName;
-  const ext = lastDotIndex !== -1
-    ? file.originalName.substring(lastDotIndex)
-    : '';
-
-  return {
-    firstHalf: {
-      filename: `${baseName}_첫장${ext}`,
-      widthPx: halfWidth,
-      heightPx: file.heightPx,
-      widthInch: halfWidthInch,
-      heightInch: file.heightInch,
-      cropX: 0,
-      cropWidth: halfWidth,
-    },
-    lastHalf: {
-      filename: `${baseName}_막장${ext}`,
-      widthPx: halfWidth,
-      heightPx: file.heightPx,
-      widthInch: halfWidthInch,
-      heightInch: file.heightInch,
-      cropX: halfWidth,
-      cropWidth: halfWidth,
-    },
-  };
-}
-
-// ===== 빈페이지 삽입 유틸리티 =====
-
-export interface BlankPage {
-  id: string;
-  isBlank: true;
-  filename: string;
-  widthPx: number;
-  heightPx: number;
-  position: 'before-first' | 'after-last';
-}
-
-/**
- * 펼침면 레이아웃에서 빈페이지 삽입 위치 계산
- * - 첫장 왼쪽에 빈페이지 삽입
- * - 막장 오른쪽에 빈페이지 삽입
- */
-export function calculateBlankPagePositions(
-  files: AlbumUploadedFile[],
-  pageLayout: PageLayout,
-  representativeSpec?: { widthPx: number; heightPx: number }
-): BlankPage[] {
-  if (pageLayout !== 'spread') {
-    return [];
-  }
-
-  const blankPages: BlankPage[] = [];
-  const defaultWidth = representativeSpec?.widthPx || 3000;
-  const defaultHeight = representativeSpec?.heightPx || 3000;
-
-  // 첫장 찾기
-  const hasFirstPage = files.some((f) => f.isFirst);
-  if (hasFirstPage) {
-    blankPages.push({
-      id: `blank-before-first-${Date.now()}`,
-      isBlank: true,
-      filename: 'blank_page.png',
-      widthPx: defaultWidth,
-      heightPx: defaultHeight,
-      position: 'before-first',
-    });
-  }
-
-  // 막장 찾기
-  const hasLastPage = files.some((f) => f.isLast);
-  if (hasLastPage) {
-    blankPages.push({
-      id: `blank-after-last-${Date.now() + 1}`,
-      isBlank: true,
-      filename: 'blank_page.png',
-      widthPx: defaultWidth,
-      heightPx: defaultHeight,
-      position: 'after-last',
-    });
-  }
-
-  return blankPages;
-}
-
-// ===== 파일 정렬 유틸리티 =====
-
-/**
- * 앨범 파일 정렬
- * 순서: 첫장 → 일반 파일 (sortOrder 순) → 막장
- */
-export function sortAlbumFiles(files: AlbumUploadedFile[]): AlbumUploadedFile[] {
-  return [...files].sort((a, b) => {
-    // 첫장은 가장 앞
-    if (a.isFirst && !b.isFirst) return -1;
-    if (!a.isFirst && b.isFirst) return 1;
-
-    // 막장은 가장 뒤
-    if (a.isLast && !b.isLast) return 1;
-    if (!a.isLast && b.isLast) return -1;
-
-    // 일반 파일은 sortOrder 순
-    return a.sortOrder - b.sortOrder;
-  });
-}
-
-/**
- * 파일 목록 처리 (첫막장 분리 + 정렬 + 순차 파일명 부여)
- */
-export function processAlbumFiles(
-  files: AlbumUploadedFile[],
-  pageLayout: PageLayout
-): AlbumUploadedFile[] {
-  // 1. 첫막장 파일 분리 처리
-  const processedFiles: AlbumUploadedFile[] = [];
-
-  files.forEach((file) => {
-    const coverType = detectCoverPageType(file.originalName);
-
-    if (coverType === 'firstlast' && file.isCoverPage) {
-      // 첫막장 파일을 분리하는 로직은 별도 처리 필요 (Canvas API 사용)
-      // 여기서는 메타데이터만 처리
-      processedFiles.push({
-        ...file,
-        isFirst: false,
-        isLast: false,
-        isCoverPage: true,
-      });
-    } else if (coverType === 'first') {
-      processedFiles.push({ ...file, isFirst: true, isLast: false });
-    } else if (coverType === 'last') {
-      processedFiles.push({ ...file, isFirst: false, isLast: true });
-    } else {
-      processedFiles.push(file);
-    }
-  });
-
-  // 2. 정렬
-  const sortedFiles = sortAlbumFiles(processedFiles);
-
-  // 3. 순차 파일명 부여
-  return sortedFiles.map((file, index) => ({
-    ...file,
-    sortOrder: index,
-    newName: generateSequentialFilename(file.originalName, index, sortedFiles.length),
-  }));
-}
 
 // ===== DPI/인치 계산 유틸리티 =====
 
@@ -323,13 +139,6 @@ export function processAlbumFiles(
  */
 export function pixelsToInches(pixels: number, dpi: number): number {
   return pixels / dpi;
-}
-
-/**
- * 인치 크기를 픽셀로 변환
- */
-export function inchesToPixels(inches: number, dpi: number): number {
-  return inches * dpi;
 }
 
 /**

@@ -222,7 +222,6 @@ export class DeliveryPricingController {
     const distanceRanges = (pricing.distanceRanges as any[]) || [];
     const feeResult = this.kakaoMapService.calculateDeliveryFee(
       distanceResult.distanceKm,
-      body.deliveryMethod,
       distanceRanges,
       Number(pricing.extraPricePerKm) || 0,
       Number(pricing.maxBaseDistance) || 20,

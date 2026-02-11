@@ -8,6 +8,7 @@ interface User {
   email: string;
   name: string;
   role: string;
+  clientId?: string;
   clientName?: string;
   mobile?: string;
   businessNumber?: string;

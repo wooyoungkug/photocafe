@@ -477,9 +477,9 @@ export default function NewProductPage() {
               {/* 규격 타입 탭 */}
               <div className="flex gap-1 border rounded-md p-1">
                 {[
-                  { key: 'indigo', label: '인디고' },
+                  { key: 'indigo', label: '인디고앨범' },
                   { key: 'inkjet', label: '잉크젯' },
-                  { key: 'album', label: '앨범' },
+                  { key: 'album', label: '잉크젯앨범' },
                   { key: 'frame', label: '액자' },
                   { key: 'booklet', label: '책자' },
                 ].map(tab => (
@@ -843,9 +843,9 @@ export default function NewProductPage() {
           {/* 규격 타입 탭 */}
           <div className="flex gap-1 border-b pb-2">
             {[
-              { key: 'indigo', label: '인디고' },
+              { key: 'indigo', label: '인디고앨범' },
               { key: 'inkjet', label: '잉크젯' },
-              { key: 'album', label: '앨범' },
+              { key: 'album', label: '잉크젯앨범' },
               { key: 'frame', label: '액자' },
               { key: 'booklet', label: '책자' },
             ].map(tab => (

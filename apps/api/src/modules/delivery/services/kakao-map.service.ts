@@ -227,7 +227,6 @@ export class KakaoMapService {
    */
   calculateDeliveryFee(
     distanceKm: number,
-    deliveryMethod: 'motorcycle' | 'damas' | 'freight',
     distanceRanges: Array<{ minDistance: number; maxDistance: number; price: number }>,
     extraPricePerKm: number,
     maxBaseDistance: number,

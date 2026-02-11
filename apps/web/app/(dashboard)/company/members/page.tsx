@@ -86,7 +86,8 @@ const MemberTableRow = memo(({
   onDelete,
   onImpersonate,
   getStatusBadge,
-  getCreditBadge
+  getCreditBadge,
+  managerName
 }: {
   member: Client;
   onEdit: (member: Client) => void;
@@ -95,6 +96,7 @@ const MemberTableRow = memo(({
   onImpersonate: (member: Client) => void;
   getStatusBadge: (status: string) => ReactNode;
   getCreditBadge: (grade?: string) => ReactNode;
+  managerName?: string;
 }) => {
   return (
     <TableRow className="hover:bg-slate-50/50 transition-colors">
@@ -141,6 +143,9 @@ const MemberTableRow = memo(({
         ) : (
           <span className="text-sm text-muted-foreground">0</span>
         )}
+      </TableCell>
+      <TableCell className="text-center text-sm text-muted-foreground">
+        {managerName || '-'}
       </TableCell>
       <TableCell className="text-center">{getCreditBadge(member.creditGrade)}</TableCell>
       <TableCell className="text-center">{getStatusBadge(member.status)}</TableCell>
@@ -210,6 +215,14 @@ export default function MembersPage() {
 
   const { data: groupsData } = useClientGroups({ limit: 100 });
   const { data: staffData } = useStaffList({ limit: 100, isActive: true });
+  // 영업담당자 ID → 이름 매핑
+  const staffMap = useMemo(() => {
+    const map = new Map<string, string>();
+    staffData?.data?.forEach((staff) => {
+      map.set(staff.id, staff.name);
+    });
+    return map;
+  }, [staffData]);
   // 다이얼로그가 열리고 editingMember가 있을 때만 상담 이력 조회
   const { data: consultations } = useClientConsultations(
     editingMember?.id || '',
@@ -486,10 +499,11 @@ export default function MembersPage() {
                       <TableHead className="w-[17%] text-center">이메일</TableHead>
                       <TableHead className="w-[10%] text-center">연락처</TableHead>
                       <TableHead className="w-[9%] text-center">그룹</TableHead>
-                      <TableHead className="w-[9%] text-center whitespace-nowrap">등록일</TableHead>
-                      <TableHead className="w-[6%] text-center whitespace-nowrap">상담</TableHead>
-                      <TableHead className="w-[6%] text-center whitespace-nowrap">미완료</TableHead>
-                      <TableHead className="w-[7%] text-center whitespace-nowrap">신용</TableHead>
+                      <TableHead className="w-[8%] text-center whitespace-nowrap">등록일</TableHead>
+                      <TableHead className="w-[5%] text-center whitespace-nowrap">상담</TableHead>
+                      <TableHead className="w-[5%] text-center whitespace-nowrap">미완료</TableHead>
+                      <TableHead className="w-[8%] text-center whitespace-nowrap">영업담당</TableHead>
+                      <TableHead className="w-[6%] text-center whitespace-nowrap">신용</TableHead>
                       <TableHead className="w-[6%] text-center whitespace-nowrap">상태</TableHead>
                       <TableHead className="w-[8%] text-center whitespace-nowrap">작업</TableHead>
                     </TableRow>
@@ -497,7 +511,7 @@ export default function MembersPage() {
                   <TableBody>
                     {membersData?.data?.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
+                        <TableCell colSpan={11} className="text-center py-12 text-muted-foreground">
                           <Users className="h-12 w-12 mx-auto mb-4 opacity-20" />
                           등록된 회원이 없습니다.
                         </TableCell>
@@ -513,6 +527,7 @@ export default function MembersPage() {
                           onImpersonate={handleImpersonate}
                           getStatusBadge={getStatusBadge}
                           getCreditBadge={getCreditBadge}
+                          managerName={member.assignedManager ? staffMap.get(member.assignedManager) : undefined}
                         />
                       ))
                     )}

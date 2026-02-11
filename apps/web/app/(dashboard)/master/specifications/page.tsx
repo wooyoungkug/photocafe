@@ -587,9 +587,9 @@ export default function SpecificationsPage() {
             </div>
             <div className="flex flex-wrap gap-1">
               {[
-                { key: "indigo", label: "인디고" },
+                { key: "indigo", label: "인디고앨범" },
                 { key: "inkjet", label: "잉크젯" },
-                { key: "album", label: "앨범" },
+                { key: "album", label: "잉크젯앨범" },
                 { key: "frame", label: "액자" },
                 { key: "booklet", label: "책자" },
               ].map((usage) => (

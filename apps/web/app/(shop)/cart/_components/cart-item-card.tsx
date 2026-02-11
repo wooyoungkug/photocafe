@@ -299,7 +299,7 @@ export function CartItemCard({
                   <div className="mt-1.5">
                     <div className="inline-flex items-center gap-1 text-[11px] text-purple-600 bg-purple-50 rounded-md px-2 py-1 flex-wrap">
                       <span>
-                        {item.albumOrderInfo.printMethod === 'indigo' ? '인디고' : '잉크젯'}
+                        {item.albumOrderInfo.printMethod === 'indigo' ? '인디고앨범' : '잉크젯'}
                       </span>
                       <Separator orientation="vertical" className="h-3 bg-purple-200" />
                       <span>{item.albumOrderInfo.colorMode === '4c' ? '4도' : '6도'}</span>

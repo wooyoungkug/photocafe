@@ -628,6 +628,45 @@ export default function ProductPage() {
               <h1 className="text-2xl md:text-3xl font-bold mb-2">{product.productName}</h1>
             </div>
 
+            {/* 마이상품 & Share & Wishlist */}
+            <div className="flex flex-wrap gap-2">
+              {isAuthenticated && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setMyProductName(`${product.productName} ${selectedOptions.specification?.name || ''}`.trim());
+                      setShowSaveMyProductModal(true);
+                    }}
+                    className="text-primary border-primary hover:bg-primary/10"
+                  >
+                    <Star className="h-4 w-4 mr-1" />
+                    {t('saveMyProduct')}
+                  </Button>
+                  {myProducts && myProducts.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowLoadMyProductModal(true)}
+                      className="text-orange-600 border-orange-600 hover:bg-orange-50"
+                    >
+                      <FolderHeart className="h-4 w-4 mr-1" />
+                      {t('loadMyProduct')} ({myProducts.filter(mp => mp.productId === product.id).length})
+                    </Button>
+                  )}
+                </>
+              )}
+              <Button variant="ghost" size="sm" className="text-gray-500">
+                <Heart className="h-4 w-4 mr-1" />
+                {tc('wishlist')}
+              </Button>
+              <Button variant="ghost" size="sm" className="text-gray-500">
+                <Share2 className="h-4 w-4 mr-1" />
+                {tc('share')}
+              </Button>
+            </div>
+
             {/* Price - 화보 상품은 데이터 업로드 후 폴더별로 계산하므로 숨김 */}
             {!isAlbum && (
               <div className="bg-gray-50 rounded-lg p-4">
@@ -878,44 +917,6 @@ export default function ProductPage() {
               </div>
             )}
 
-            {/* 마이상품 & Share & Wishlist */}
-            <div className="flex flex-wrap gap-2 pt-2">
-              {isAuthenticated && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setMyProductName(`${product.productName} ${selectedOptions.specification?.name || ''}`.trim());
-                      setShowSaveMyProductModal(true);
-                    }}
-                    className="text-primary border-primary hover:bg-primary/10"
-                  >
-                    <Star className="h-4 w-4 mr-1" />
-                    {t('saveMyProduct')}
-                  </Button>
-                  {myProducts && myProducts.length > 0 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowLoadMyProductModal(true)}
-                      className="text-orange-600 border-orange-600 hover:bg-orange-50"
-                    >
-                      <FolderHeart className="h-4 w-4 mr-1" />
-                      {t('loadMyProduct')} ({myProducts.filter(mp => mp.productId === product.id).length})
-                    </Button>
-                  )}
-                </>
-              )}
-              <Button variant="ghost" size="sm" className="text-gray-500">
-                <Heart className="h-4 w-4 mr-1" />
-                {tc('wishlist')}
-              </Button>
-              <Button variant="ghost" size="sm" className="text-gray-500">
-                <Share2 className="h-4 w-4 mr-1" />
-                {tc('share')}
-              </Button>
-            </div>
           </div>
 
           {/* Product Images - 고정 너비 */}
@@ -1031,11 +1032,20 @@ export default function ProductPage() {
                         className="w-full flex items-center gap-3 p-2 border-2 border-primary rounded-md bg-primary/5 hover:bg-primary/10 transition-colors text-left"
                       >
                         {selectedOptions.publicCopperPlate.imageUrl && (
-                          <img
-                            src={normalizeImageUrl(selectedOptions.publicCopperPlate.imageUrl)}
-                            alt={selectedOptions.publicCopperPlate.plateName}
-                            className="w-12 h-12 object-cover rounded"
-                          />
+                          <div className="relative group/logo shrink-0">
+                            <img
+                              src={normalizeImageUrl(selectedOptions.publicCopperPlate.imageUrl)}
+                              alt={selectedOptions.publicCopperPlate.plateName}
+                              className="w-12 h-12 object-cover rounded"
+                            />
+                            <div className="hidden group-hover/logo:block absolute z-50 left-full top-0 ml-2 p-1 bg-white border rounded-lg shadow-xl">
+                              <img
+                                src={normalizeImageUrl(selectedOptions.publicCopperPlate.imageUrl)}
+                                alt={selectedOptions.publicCopperPlate.plateName}
+                                className="w-48 h-48 object-contain rounded"
+                              />
+                            </div>
+                          </div>
                         )}
                         <div className="flex-1">
                           <div className="font-medium text-sm">
@@ -1074,11 +1084,20 @@ export default function ProductPage() {
                           }}
                         >
                           {plate.imageUrl && (
-                            <img
-                              src={normalizeImageUrl(plate.imageUrl)}
-                              alt={plate.plateName}
-                              className="w-12 h-12 object-cover rounded"
-                            />
+                            <div className="relative group/logo shrink-0">
+                              <img
+                                src={normalizeImageUrl(plate.imageUrl)}
+                                alt={plate.plateName}
+                                className="w-12 h-12 object-cover rounded"
+                              />
+                              <div className="hidden group-hover/logo:block absolute z-50 left-full top-0 ml-2 p-1 bg-white border rounded-lg shadow-xl">
+                                <img
+                                  src={normalizeImageUrl(plate.imageUrl)}
+                                  alt={plate.plateName}
+                                  className="w-48 h-48 object-contain rounded"
+                                />
+                              </div>
+                            </div>
                           )}
                           <div className="flex-1">
                             <div className="font-medium text-sm">
@@ -1174,11 +1193,20 @@ export default function ProductPage() {
                         className="w-full flex items-center gap-2 p-2 border-2 border-primary rounded-md bg-primary/5 hover:bg-primary/10 transition-colors text-left"
                       >
                         {selectedOptions.ownedCopperPlate.imageUrl && (
-                          <img
-                            src={normalizeImageUrl(selectedOptions.ownedCopperPlate.imageUrl)}
-                            alt={selectedOptions.ownedCopperPlate.plateName}
-                            className="w-8 h-8 object-cover rounded"
-                          />
+                          <div className="relative group/logo shrink-0">
+                            <img
+                              src={normalizeImageUrl(selectedOptions.ownedCopperPlate.imageUrl)}
+                              alt={selectedOptions.ownedCopperPlate.plateName}
+                              className="w-8 h-8 object-cover rounded"
+                            />
+                            <div className="hidden group-hover/logo:block absolute z-50 left-full top-0 ml-2 p-1 bg-white border rounded-lg shadow-xl">
+                              <img
+                                src={normalizeImageUrl(selectedOptions.ownedCopperPlate.imageUrl)}
+                                alt={selectedOptions.ownedCopperPlate.plateName}
+                                className="w-48 h-48 object-contain rounded"
+                              />
+                            </div>
+                          </div>
                         )}
                         <span className="font-medium text-sm">{selectedOptions.ownedCopperPlate.plateName}</span>
                         {selectedOptions.ownedCopperPlate.foilColorName && (
@@ -1227,11 +1255,20 @@ export default function ProductPage() {
                             }}
                           >
                             {cp.imageUrl && (
-                              <img
-                                src={normalizeImageUrl(cp.imageUrl)}
-                                alt={cp.plateName}
-                                className="w-8 h-8 object-cover rounded"
-                              />
+                              <div className="relative group/logo shrink-0">
+                                <img
+                                  src={normalizeImageUrl(cp.imageUrl)}
+                                  alt={cp.plateName}
+                                  className="w-8 h-8 object-cover rounded"
+                                />
+                                <div className="hidden group-hover/logo:block absolute z-50 left-full top-0 ml-2 p-1 bg-white border rounded-lg shadow-xl">
+                                  <img
+                                    src={normalizeImageUrl(cp.imageUrl)}
+                                    alt={cp.plateName}
+                                    className="w-48 h-48 object-contain rounded"
+                                  />
+                                </div>
+                              </div>
                             )}
                             <span className="font-medium text-sm">{cp.plateName}</span>
                             {isSelected ? (
