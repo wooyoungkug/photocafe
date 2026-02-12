@@ -48,7 +48,7 @@ export function ProcessHistoryDialog({
   open,
   onOpenChange,
 }: ProcessHistoryDialogProps) {
-  const { data: history, isLoading } = useOrderHistory(open ? orderId : null);
+  const { data: history, isLoading, isError, error } = useOrderHistory(open ? orderId : null);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -63,6 +63,10 @@ export function ProcessHistoryDialog({
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
+        ) : isError ? (
+          <p className="text-sm text-destructive text-center py-8">
+            이력 조회 실패: {error?.message || '서버 오류'}
+          </p>
         ) : !history?.length ? (
           <p className="text-sm text-muted-foreground text-center py-8">이력이 없습니다</p>
         ) : (

@@ -239,14 +239,47 @@ export class OrderService {
   async getProcessHistory(orderId: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
-      select: { id: true },
+      select: { id: true, status: true, clientId: true, orderedAt: true },
     });
     if (!order) throw new NotFoundException('주문을 찾을 수 없습니다');
 
-    const history = await this.prisma.processHistory.findMany({
+    let history = await this.prisma.processHistory.findMany({
       where: { orderId },
       orderBy: { processedAt: 'desc' },
     });
+
+    // 이력이 없는 기존 주문: 현재 상태 기반으로 초기 이력 자동 생성
+    if (history.length === 0) {
+      const initialHistory = await this.prisma.processHistory.create({
+        data: {
+          orderId,
+          toStatus: ORDER_STATUS.PENDING_RECEIPT,
+          processType: 'order_created',
+          processedBy: order.clientId,
+          processedAt: order.orderedAt,
+        },
+      });
+
+      // 현재 상태가 접수대기가 아닌 경우, 상태 변경 이력도 추가
+      if (order.status !== ORDER_STATUS.PENDING_RECEIPT) {
+        await this.prisma.processHistory.create({
+          data: {
+            orderId,
+            fromStatus: ORDER_STATUS.PENDING_RECEIPT,
+            toStatus: order.status,
+            processType: 'status_change',
+            note: '기존 주문 이력 자동 생성',
+            processedBy: order.clientId,
+            processedAt: order.orderedAt,
+          },
+        });
+      }
+
+      history = await this.prisma.processHistory.findMany({
+        where: { orderId },
+        orderBy: { processedAt: 'desc' },
+      });
+    }
 
     const processedByIds = history.map(h => h.processedBy).filter(Boolean);
     const nameMap = await this.resolveProcessedByNames(processedByIds);
