@@ -234,6 +234,11 @@ export class CreateOrderItemDto {
   @Type(() => OrderFileDto)
   files?: OrderFileDto[];
 
+  @ApiPropertyOptional({ description: '원단명' })
+  @IsOptional()
+  @IsString()
+  fabricName?: string;
+
   @ApiPropertyOptional({ description: '앨범 주문 폴더명' })
   @IsOptional()
   @IsString()
@@ -462,6 +467,60 @@ export class BulkCancelDto extends BulkOrderIdsDto {
   @IsOptional()
   @IsString()
   reason?: string;
+}
+
+// ==================== 관리자 금액 조정 DTO ====================
+export class AdjustOrderItemDto {
+  @ApiProperty({ description: '주문항목 ID' })
+  @IsString()
+  itemId: string;
+
+  @ApiPropertyOptional({ description: '변경할 수량' })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  quantity?: number;
+
+  @ApiPropertyOptional({ description: '변경할 단가' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  unitPrice?: number;
+
+  @ApiPropertyOptional({ description: '편집스타일 (single/spread)' })
+  @IsOptional()
+  @IsString()
+  pageLayout?: string;
+
+  @ApiPropertyOptional({ description: '제본순서' })
+  @IsOptional()
+  @IsString()
+  bindingDirection?: string;
+
+  @ApiPropertyOptional({ description: '원단명' })
+  @IsOptional()
+  @IsString()
+  fabricName?: string;
+}
+
+export class AdjustOrderDto {
+  @ApiPropertyOptional({ description: '할인금액' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  adjustmentAmount?: number;
+
+  @ApiPropertyOptional({ description: '할인/조정 사유' })
+  @IsOptional()
+  @IsString()
+  adjustmentReason?: string;
+
+  @ApiPropertyOptional({ description: '항목별 수정 내역' })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AdjustOrderItemDto)
+  itemUpdates?: AdjustOrderItemDto[];
 }
 
 export class BulkDataCleanupDto {

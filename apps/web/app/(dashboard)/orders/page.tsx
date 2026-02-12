@@ -10,6 +10,7 @@ import {
   Receipt,
   ChevronLeft,
   ChevronRight,
+  ExternalLink,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -31,11 +32,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useOrders, ORDER_STATUS_LABELS } from '@/hooks/use-orders';
+import { useOrders, Order, ORDER_STATUS_LABELS } from '@/hooks/use-orders';
 import { BulkActionToolbar } from './components/bulk-action-toolbar';
+import { OrderQuickEditDialog } from './components/order-quick-edit-dialog';
+import { ProcessHistoryDialog } from '@/components/order/process-history-dialog';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { api } from '@/lib/api';
+import { toast } from '@/hooks/use-toast';
 
 // 진행상황 뱃지 스타일
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
@@ -94,6 +99,15 @@ export default function OrderListPage() {
   // 체크박스 선택 상태
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
 
+  // 주문 상세 수정 다이얼로그
+  const [quickEditOrder, setQuickEditOrder] = useState<Order | null>(null);
+  const [isQuickEditOpen, setIsQuickEditOpen] = useState(false);
+
+  // 공정 이력 다이얼로그
+  const [historyOrderId, setHistoryOrderId] = useState<string | null>(null);
+  const [historyOrderNumber, setHistoryOrderNumber] = useState<string>('');
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+
   // 주문 목록 조회
   const { data: ordersData, isLoading } = useOrders({
     page,
@@ -131,6 +145,29 @@ export default function OrderListPage() {
   const clearSelection = () => setSelectedOrderIds(new Set());
 
   const isAllSelected = orders.length > 0 && selectedOrderIds.size === orders.length;
+
+  // 회원 임퍼스네이션: 해당 거래처로 쇼핑몰 로그인 (관리자 토큰 보존)
+  const handleImpersonate = async (clientId: string) => {
+    try {
+      const res = await api.post<{
+        accessToken: string;
+        refreshToken: string;
+        user: { id: string; email: string; name: string; role: string; clientId: string; clientName: string };
+      }>(`/auth/impersonate/${clientId}`);
+
+      // 별도 키에 대리로그인 데이터 저장 (관리자 토큰은 건드리지 않음)
+      localStorage.setItem('impersonate-data', JSON.stringify({
+        user: res.user,
+        accessToken: res.accessToken,
+        refreshToken: res.refreshToken,
+      }));
+
+      // 쇼핑몰 새 탭으로 열기
+      window.open('/', '_blank');
+    } catch {
+      toast({ title: '회원 로그인에 실패했습니다.', variant: 'destructive' });
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -197,14 +234,14 @@ export default function OrderListPage() {
                     <TableHead className="text-center w-[130px] text-xs">
                       주문일<br />(주문번호)
                     </TableHead>
-                    <TableHead className="text-center w-[80px] text-xs">회원정보</TableHead>
-                    <TableHead className="text-xs w-[120px]">상품명</TableHead>
+                    <TableHead className="text-center w-[100px] text-xs">회원정보<br />영업담당자</TableHead>
+                    <TableHead className="text-xs">상품명</TableHead>
                     <TableHead className="text-xs">주문제목 / 재질 및 규격</TableHead>
                     <TableHead className="text-center w-[100px] text-xs">편집스타일<br />/ 제본순서</TableHead>
                     <TableHead className="text-center w-[80px] text-xs">페이지<br />/ 부수</TableHead>
                     <TableHead className="text-center w-[70px] text-xs">용량</TableHead>
-                    <TableHead className="text-right w-[100px] text-xs">주문금액</TableHead>
-                    <TableHead className="text-center w-[80px] text-xs">진행상황</TableHead>
+                    <TableHead className="text-right w-[120px] text-xs">주문금액</TableHead>
+                    <TableHead className="text-center w-[120px] text-xs">진행상황</TableHead>
                     <TableHead className="text-center w-[100px] text-xs">확인</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -264,40 +301,47 @@ export default function OrderListPage() {
                           </TableCell>
                         )}
 
-                        {/* 회원정보 - 첫 번째 항목에만 표시 */}
+                        {/* 회원정보 + 영업담당자 - 클릭 시 회원 쇼핑몰로 이동 */}
                         {idx === 0 && (
                           <TableCell
-                            className="text-center align-top pt-3"
+                            className="text-center align-top pt-3 cursor-pointer hover:bg-blue-50/50"
                             rowSpan={items.length}
+                            onClick={() => handleImpersonate(order.clientId)}
                           >
-                            <div className="text-xs font-medium">
+                            <div className="text-xs font-medium text-blue-600 hover:underline flex items-center justify-center gap-0.5 whitespace-nowrap">
                               {order.client?.clientName}
+                              <ExternalLink className="h-2.5 w-2.5 shrink-0" />
                             </div>
-                            {order.client?.assignedStaff?.[0]?.staff?.name && (
-                              <div className="text-[11px] text-muted-foreground mt-0.5">
-                                {order.client.assignedStaff[0].staff.name}
-                              </div>
-                            )}
+                            <div className="text-[10px] text-muted-foreground mt-0.5">
+                              {order.client?.assignedStaff?.[0]?.staff?.name || '-'}
+                            </div>
                           </TableCell>
                         )}
 
                         {/* 상품명 */}
-                        <TableCell>
-                          <p className="text-xs font-medium leading-tight line-clamp-2">
-                            {item.productName}
+                        <TableCell className="whitespace-nowrap">
+                          <p className="text-xs font-medium leading-tight">
+                            {item.productName?.split(' - ')?.[0] || item.productName}
                           </p>
                         </TableCell>
 
-                        {/* 주문제목 / 재질 및 규격 */}
-                        <TableCell>
+                        {/* 주문제목 / 재질 및 규격 - 클릭 시 검증 다이얼로그 */}
+                        <TableCell
+                          className="cursor-pointer hover:bg-blue-50/30"
+                          onClick={() => {
+                            setQuickEditOrder(order);
+                            setIsQuickEditOpen(true);
+                          }}
+                        >
                           <div className="space-y-0.5">
-                            <div className="text-xs font-medium truncate" title={item.folderName || item.productName}>
+                            <div className="text-xs font-medium truncate text-blue-600 hover:underline" title={item.folderName || item.productName}>
                               {item.folderName || item.productName}
                             </div>
                             <div className="text-[11px] text-muted-foreground truncate" title={[item.size, item.printMethod, item.paper, item.bindingType, item.coverMaterial, item.foilColor ? `박:${item.foilColor}` : ''].filter(Boolean).join(' / ')}>
                               {item.size} / {item.printMethod} / {item.paper}
                               {item.bindingType && <> / {item.bindingType}</>}
                               {item.coverMaterial && <> / {item.coverMaterial}</>}
+                              {item.fabricName && <> / 원단:{item.fabricName}</>}
                               {item.foilColor && <> / 박:{item.foilColor}</>}
                             </div>
                           </div>
@@ -317,7 +361,8 @@ export default function OrderListPage() {
 
                         {/* 페이지 / 부수 */}
                         <TableCell className="text-center text-xs">
-                          {item.pages}p / {item.quantity}건
+                          <div>{item.pages}p</div>
+                          <div>{item.quantity}건</div>
                         </TableCell>
 
                         {/* 용량 */}
@@ -328,7 +373,7 @@ export default function OrderListPage() {
                         {/* 주문금액 - 첫 번째 항목에만 합계 표시 */}
                         {idx === 0 && (
                           <TableCell
-                            className="text-right align-top pt-3 font-bold text-sm"
+                            className="text-right align-top pt-3 font-bold text-sm whitespace-nowrap"
                             rowSpan={items.length}
                           >
                             {Number(order.finalAmount).toLocaleString()}원
@@ -341,9 +386,21 @@ export default function OrderListPage() {
                             className="text-center align-top pt-3"
                             rowSpan={items.length}
                           >
-                            <Badge className={cn('text-xs font-semibold', statusBadge.className)}>
-                              {statusBadge.label}
-                            </Badge>
+                            <div className="space-y-1">
+                              <Badge className={cn('text-xs font-semibold whitespace-nowrap', statusBadge.className)}>
+                                {statusBadge.label}
+                              </Badge>
+                              <div
+                                className="text-[11px] text-blue-600 hover:underline cursor-pointer"
+                                onClick={() => {
+                                  setHistoryOrderId(order.id);
+                                  setHistoryOrderNumber(order.orderNumber);
+                                  setIsHistoryOpen(true);
+                                }}
+                              >
+                                {order.processHistory?.[0]?.processedByName || '-'}
+                              </div>
+                            </div>
                           </TableCell>
                         )}
 
@@ -434,6 +491,21 @@ export default function OrderListPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* 주문 상세 수정 다이얼로그 */}
+      <OrderQuickEditDialog
+        order={quickEditOrder}
+        open={isQuickEditOpen}
+        onOpenChange={setIsQuickEditOpen}
+      />
+
+      {/* 공정 이력 다이얼로그 */}
+      <ProcessHistoryDialog
+        orderId={historyOrderId}
+        orderNumber={historyOrderNumber}
+        open={isHistoryOpen}
+        onOpenChange={setIsHistoryOpen}
+      />
     </div>
   );
 }

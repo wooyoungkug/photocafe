@@ -103,66 +103,59 @@ export class StatisticsService {
   async getSalesStatistics(query: StatisticsQueryDto) {
     const { startDate, endDate, groupBy = 'day' } = query;
 
-    const where: Prisma.OrderWhereInput = {
-      status: { not: 'cancelled' },
-      ...(startDate || endDate
-        ? {
-            orderedAt: {
-              ...(startDate && { gte: startDate }),
-              ...(endDate && { lte: endDate }),
-            },
-          }
-        : {}),
-    };
-
-    // 기간별 매출 집계
-    const orders = await this.prisma.order.findMany({
-      where,
-      select: {
-        orderedAt: true,
-        finalAmount: true,
-        productPrice: true,
-        tax: true,
-      },
-      orderBy: { orderedAt: 'asc' },
-    });
-
-    // 그룹화
-    const grouped = new Map<string, { revenue: number; count: number; tax: number }>();
-
-    for (const order of orders) {
-      const date = order.orderedAt;
-      let key: string;
-
-      switch (groupBy) {
-        case 'year':
-          key = date.getFullYear().toString();
-          break;
-        case 'month':
-          key = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-          break;
-        case 'week':
-          const weekStart = new Date(date);
-          weekStart.setDate(date.getDate() - date.getDay());
-          key = weekStart.toISOString().slice(0, 10);
-          break;
-        default:
-          key = date.toISOString().slice(0, 10);
-      }
-
-      const current = grouped.get(key) || { revenue: 0, count: 0, tax: 0 };
-      current.revenue += Number(order.finalAmount);
-      current.tax += Number(order.tax);
-      current.count += 1;
-      grouped.set(key, current);
+    // DB 수준 집계: DATE_TRUNC 사용
+    let truncExpr: string;
+    switch (groupBy) {
+      case 'year':
+        truncExpr = `TO_CHAR("orderedAt", 'YYYY')`;
+        break;
+      case 'month':
+        truncExpr = `TO_CHAR("orderedAt", 'YYYY-MM')`;
+        break;
+      case 'week':
+        truncExpr = `TO_CHAR(DATE_TRUNC('week', "orderedAt"), 'YYYY-MM-DD')`;
+        break;
+      default:
+        truncExpr = `TO_CHAR("orderedAt", 'YYYY-MM-DD')`;
     }
 
-    const data = Array.from(grouped.entries())
-      .map(([period, stats]) => ({
-        period,
-        ...stats,
-      }))
-      .sort((a, b) => a.period.localeCompare(b.period));
+    const conditions: string[] = [`status != 'cancelled'`];
+    const params: any[] = [];
+    let paramIdx = 1;
+
+    if (startDate) {
+      conditions.push(`"orderedAt" >= $${paramIdx}`);
+      params.push(startDate);
+      paramIdx++;
+    }
+    if (endDate) {
+      conditions.push(`"orderedAt" <= $${paramIdx}`);
+      params.push(endDate);
+      paramIdx++;
+    }
+
+    const whereClause = conditions.join(' AND ');
+
+    const rows = await this.prisma.$queryRawUnsafe<
+      { period: string; revenue: number; count: bigint; tax: number }[]
+    >(
+      `SELECT ${truncExpr} as period,
+              COALESCE(SUM("finalAmount"), 0)::float as revenue,
+              COUNT(id) as count,
+              COALESCE(SUM(tax), 0)::float as tax
+       FROM orders
+       WHERE ${whereClause}
+       GROUP BY period
+       ORDER BY period ASC`,
+      ...params,
+    );
+
+    const data = rows.map(r => ({
+      period: r.period,
+      revenue: Number(r.revenue),
+      count: Number(r.count),
+      tax: Number(r.tax),
+    }));
 
     const totals = data.reduce(
       (acc, curr) => ({
@@ -337,63 +330,48 @@ export class StatisticsService {
   async getCategoryStatistics(query: CategoryStatisticsQueryDto) {
     const { startDate, endDate, categoryId, level } = query;
 
-    const whereOrder: Prisma.OrderWhereInput = {
-      status: { not: 'cancelled' },
-      ...(startDate || endDate
-        ? {
-            orderedAt: {
-              ...(startDate && { gte: startDate }),
-              ...(endDate && { lte: endDate }),
-            },
-          }
-        : {}),
-    };
+    // DB 수준 JOIN + GROUP BY로 집계
+    const conditions: string[] = [`o.status != 'cancelled'`];
+    const params: any[] = [];
+    let paramIdx = 1;
 
-    // 주문 항목 조회
-    const orderItems = await this.prisma.orderItem.findMany({
-      where: {
-        order: whereOrder,
-      },
-      select: {
-        quantity: true,
-        totalPrice: true,
-        productId: true,
-      },
-    });
-
-    // Product ID로 Category 정보 조회
-    const productIds = [...new Set(orderItems.map((item: { productId: string }) => item.productId))];
-    const products = await this.prisma.product.findMany({
-      where: { id: { in: productIds } },
-      select: {
-        id: true,
-        categoryId: true,
-      },
-    });
-
-    const productCategoryMap = new Map(
-      products.map((p: { id: string; categoryId: string | null }) => [p.id, p.categoryId])
-    );
-
-    // 카테고리별로 집계
-    const categoryStats = new Map<string, { orderCount: number; quantity: number; revenue: number }>();
-
-    for (const item of orderItems) {
-      const catId = productCategoryMap.get(item.productId);
-      if (!catId) continue;
-
-      // categoryId 필터
-      if (categoryId && catId !== categoryId) continue;
-
-      const current = categoryStats.get(catId) || { orderCount: 0, quantity: 0, revenue: 0 };
-      current.orderCount += 1;
-      current.quantity += item.quantity;
-      current.revenue += Number(item.totalPrice);
-      categoryStats.set(catId, current);
+    if (startDate) {
+      conditions.push(`o."orderedAt" >= $${paramIdx}`);
+      params.push(startDate);
+      paramIdx++;
+    }
+    if (endDate) {
+      conditions.push(`o."orderedAt" <= $${paramIdx}`);
+      params.push(endDate);
+      paramIdx++;
+    }
+    if (categoryId) {
+      conditions.push(`p."categoryId" = $${paramIdx}`);
+      params.push(categoryId);
+      paramIdx++;
     }
 
+    const whereClause = conditions.join(' AND ');
+
+    const rows = await this.prisma.$queryRawUnsafe<
+      { categoryId: string; orderCount: bigint; quantity: bigint; revenue: number }[]
+    >(
+      `SELECT p."categoryId",
+              COUNT(oi.id) as "orderCount",
+              COALESCE(SUM(oi.quantity), 0) as quantity,
+              COALESCE(SUM(oi."totalPrice"), 0)::float as revenue
+       FROM order_items oi
+       JOIN orders o ON o.id = oi."orderId"
+       JOIN products p ON p.id = oi."productId"
+       WHERE ${whereClause} AND p."categoryId" IS NOT NULL
+       GROUP BY p."categoryId"
+       ORDER BY revenue DESC`,
+      ...params,
+    );
+
+    const categoryIds = rows.map(r => r.categoryId);
+
     // Category 정보 조회
-    const categoryIds = [...categoryStats.keys()];
     const categories = await this.prisma.category.findMany({
       where: {
         id: { in: categoryIds },
@@ -408,22 +386,22 @@ export class StatisticsService {
 
     const categoryMap = new Map(categories.map((c: any) => [c.id, c]));
 
-    // 결과 정리
-    const data = [...categoryStats.entries()]
-      .map(([id, stats]) => {
-        const category = categoryMap.get(id);
+    const data = rows
+      .map(row => {
+        const category = categoryMap.get(row.categoryId);
         if (!category) return null;
         return {
-          categoryId: id,
+          categoryId: row.categoryId,
           categoryCode: category.code,
           categoryName: category.name,
           level: category.level,
           parentName: category.parent?.name || null,
-          ...stats,
+          orderCount: Number(row.orderCount),
+          quantity: Number(row.quantity),
+          revenue: Number(row.revenue),
         };
       })
-      .filter(Boolean)
-      .sort((a, b) => b!.revenue - a!.revenue);
+      .filter(Boolean);
 
     return {
       data,
@@ -447,53 +425,47 @@ export class StatisticsService {
       orderBy: [{ sortOrder: 'asc' }],
     });
 
-    // 주문 데이터 집계
-    const whereOrder: Prisma.OrderWhereInput = {
-      status: { not: 'cancelled' },
-      ...(startDate || endDate
-        ? {
-            orderedAt: {
-              ...(startDate && { gte: startDate }),
-              ...(endDate && { lte: endDate }),
-            },
-          }
-        : {}),
-    };
+    // DB 수준 JOIN + GROUP BY로 카테고리별 집계
+    const conditions: string[] = [`o.status != 'cancelled'`];
+    const params: any[] = [];
+    let paramIdx = 1;
 
-    const orderItems = await this.prisma.orderItem.findMany({
-      where: { order: whereOrder },
-      select: {
-        quantity: true,
-        totalPrice: true,
-        productId: true,
-      },
-    });
+    if (startDate) {
+      conditions.push(`o."orderedAt" >= $${paramIdx}`);
+      params.push(startDate);
+      paramIdx++;
+    }
+    if (endDate) {
+      conditions.push(`o."orderedAt" <= $${paramIdx}`);
+      params.push(endDate);
+      paramIdx++;
+    }
 
-    // Product -> Category 매핑
-    const productIds = [...new Set(orderItems.map((item: { productId: string }) => item.productId))];
-    const products = await this.prisma.product.findMany({
-      where: { id: { in: productIds } },
-      select: {
-        id: true,
-        categoryId: true,
-      },
-    });
+    const whereClause = conditions.join(' AND ');
 
-    const productCategoryMap = new Map(
-      products.map((p: { id: string; categoryId: string | null }) => [p.id, p.categoryId])
+    const rows = await this.prisma.$queryRawUnsafe<
+      { categoryId: string; orderCount: bigint; quantity: bigint; revenue: number }[]
+    >(
+      `SELECT p."categoryId",
+              COUNT(oi.id) as "orderCount",
+              COALESCE(SUM(oi.quantity), 0) as quantity,
+              COALESCE(SUM(oi."totalPrice"), 0)::float as revenue
+       FROM order_items oi
+       JOIN orders o ON o.id = oi."orderId"
+       JOIN products p ON p.id = oi."productId"
+       WHERE ${whereClause} AND p."categoryId" IS NOT NULL
+       GROUP BY p."categoryId"`,
+      ...params,
     );
 
-    // 카테고리별 집계 (소분류 기준)
+    // 소분류별 집계 Map
     const stats = new Map<string, { orderCount: number; quantity: number; revenue: number }>();
-    for (const item of orderItems) {
-      const catId = productCategoryMap.get(item.productId);
-      if (!catId) continue;
-
-      const current = stats.get(catId) || { orderCount: 0, quantity: 0, revenue: 0 };
-      current.orderCount += 1;
-      current.quantity += item.quantity;
-      current.revenue += Number(item.totalPrice);
-      stats.set(catId, current);
+    for (const row of rows) {
+      stats.set(row.categoryId, {
+        orderCount: Number(row.orderCount),
+        quantity: Number(row.quantity),
+        revenue: Number(row.revenue),
+      });
     }
 
     // 중분류 합계 계산 (소분류 합산)
@@ -616,29 +588,27 @@ export class StatisticsService {
     startDate.setDate(1);
     startDate.setHours(0, 0, 0, 0);
 
-    const orders = await this.prisma.order.findMany({
-      where: {
-        status: { not: 'cancelled' },
-        orderedAt: { gte: startDate, lte: endDate },
-      },
-      select: {
-        orderedAt: true,
-        finalAmount: true,
-      },
-    });
+    // DB 수준 월별 집계
+    const rows = await this.prisma.$queryRawUnsafe<
+      { month: string; revenue: number; count: bigint }[]
+    >(
+      `SELECT TO_CHAR("orderedAt", 'YYYY-MM') as month,
+              COALESCE(SUM("finalAmount"), 0)::float as revenue,
+              COUNT(id) as count
+       FROM orders
+       WHERE status != 'cancelled'
+         AND "orderedAt" >= $1
+         AND "orderedAt" <= $2
+       GROUP BY month
+       ORDER BY month ASC`,
+      startDate,
+      endDate,
+    );
 
-    const monthly = new Map<string, { revenue: number; count: number }>();
-
-    for (const order of orders) {
-      const key = `${order.orderedAt.getFullYear()}-${(order.orderedAt.getMonth() + 1).toString().padStart(2, '0')}`;
-      const current = monthly.get(key) || { revenue: 0, count: 0 };
-      current.revenue += Number(order.finalAmount);
-      current.count += 1;
-      monthly.set(key, current);
-    }
-
-    return Array.from(monthly.entries())
-      .map(([month, stats]) => ({ month, ...stats }))
-      .sort((a, b) => a.month.localeCompare(b.month));
+    return rows.map(r => ({
+      month: r.month,
+      revenue: Number(r.revenue),
+      count: Number(r.count),
+    }));
   }
 }

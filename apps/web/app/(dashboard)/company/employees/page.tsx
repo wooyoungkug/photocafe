@@ -46,6 +46,8 @@ import {
   useBranches,
   useChangeStaffPassword,
 } from '@/hooks/use-staff';
+import { useImpersonateStaff } from '@/hooks/use-auth';
+import { useAuthStore } from '@/stores/auth-store';
 import { Staff, CreateStaffRequest, MENU_PERMISSIONS, CATEGORY_PERMISSIONS } from '@/lib/types/staff';
 import { AddressSearch } from '@/components/address-search';
 import { DepartmentSelect } from '@/components/department-select';
@@ -64,6 +66,7 @@ import {
   Check,
   X,
   Globe,
+  LogIn,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -75,6 +78,8 @@ const SETTLEMENT_GRADES = Array.from({ length: 16 }, (_, i) => ({
 
 export default function EmployeesPage() {
   const { toast } = useToast();
+  const currentUser = useAuthStore((state) => state.user);
+  const isSuperAdmin = currentUser?.isSuperAdmin === true;
   const [search, setSearch] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
@@ -82,6 +87,7 @@ export default function EmployeesPage() {
   const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Staff | null>(null);
   const [activeTab, setActiveTab] = useState('basic');
+  const [impersonateConfirm, setImpersonateConfirm] = useState<Staff | null>(null);
 
   // Queries
   const { data: staffData, isLoading, error } = useStaffList({
@@ -98,6 +104,7 @@ export default function EmployeesPage() {
   const updateStaff = useUpdateStaff();
   const deleteStaff = useDeleteStaff();
   const changePassword = useChangeStaffPassword();
+  const impersonateStaff = useImpersonateStaff();
 
   // 상세 정보 조회 (수정 시)
   const { data: staffDetail } = useStaff(editingStaff?.id || '');
@@ -118,6 +125,7 @@ export default function EmployeesPage() {
     addressDetail: '',
     settlementGrade: 1,
     allowedIps: [],
+    isSuperAdmin: false,
     canEditInManagerView: false,
     canLoginAsManager: false,
     canChangeDepositStage: false,
@@ -158,6 +166,7 @@ export default function EmployeesPage() {
         addressDetail: staff.addressDetail || '',
         settlementGrade: staff.settlementGrade,
         allowedIps: staff.allowedIps || [],
+        isSuperAdmin: staff.isSuperAdmin ?? false,
         canEditInManagerView: staff.canEditInManagerView,
         canLoginAsManager: staff.canLoginAsManager,
         canChangeDepositStage: staff.canChangeDepositStage,
@@ -193,6 +202,7 @@ export default function EmployeesPage() {
         addressDetail: '',
         settlementGrade: 1,
         allowedIps: [],
+        isSuperAdmin: false,
         canEditInManagerView: false,
         canLoginAsManager: false,
         canChangeDepositStage: false,
@@ -495,7 +505,21 @@ export default function EmployeesPage() {
                     staffData?.data?.map((staff) => (
                       <TableRow key={staff.id}>
                         <TableCell className="font-mono">{staff.staffId}</TableCell>
-                        <TableCell className="font-medium">{staff.name}</TableCell>
+                        <TableCell className="font-medium">
+                          {isSuperAdmin && staff.id !== currentUser?.id ? (
+                            <button
+                              type="button"
+                              className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer flex items-center gap-1"
+                              onClick={() => setImpersonateConfirm(staff)}
+                              title={`${staff.name}(으)로 로그인`}
+                            >
+                              {staff.name}
+                              <LogIn className="h-3 w-3" />
+                            </button>
+                          ) : (
+                            <span>{staff.name}</span>
+                          )}
+                        </TableCell>
                         <TableCell>
                           {staff.branch ? (
                             <span className="flex items-center gap-1">
@@ -867,6 +891,28 @@ export default function EmployeesPage() {
 
             {/* 권한설정 탭 */}
             <TabsContent value="permissions" className="space-y-4 mt-4">
+              {/* 최고관리자 권한 (최고관리자만 설정 가능) */}
+              {isSuperAdmin && (
+                <div className="p-4 border rounded-lg bg-red-50 dark:bg-red-950">
+                  <h3 className="font-semibold mb-4 flex items-center gap-2 text-red-700 dark:text-red-300">
+                    <Shield className="h-4 w-4" />
+                    최고관리자 권한
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="isSuperAdmin"
+                      checked={formData.isSuperAdmin}
+                      onCheckedChange={(checked) =>
+                        setFormData({ ...formData, isSuperAdmin: checked === true })
+                      }
+                    />
+                    <Label htmlFor="isSuperAdmin" className="text-sm">
+                      최고관리자로 지정 (다른 직원으로 대리 로그인, 권한 부여 가능)
+                    </Label>
+                  </div>
+                </div>
+              )}
+
               {/* 기본 권한 */}
               <div className="p-4 border rounded-lg">
                 <h3 className="font-semibold mb-4 flex items-center gap-2">
@@ -1199,6 +1245,55 @@ export default function EmployeesPage() {
             >
               {deleteStaff.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               삭제
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 대리 로그인 확인 다이얼로그 */}
+      <Dialog open={!!impersonateConfirm} onOpenChange={() => setImpersonateConfirm(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LogIn className="h-5 w-5" />
+              대리 로그인
+            </DialogTitle>
+            <DialogDescription>
+              &apos;{impersonateConfirm?.name}&apos; ({impersonateConfirm?.staffId}) 직원으로 로그인하시겠습니까?
+              <br />
+              현재 세션이 해당 직원의 권한으로 전환됩니다.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImpersonateConfirm(null)}>
+              취소
+            </Button>
+            <Button
+              onClick={() => {
+                if (impersonateConfirm) {
+                  impersonateStaff.mutate(impersonateConfirm.id, {
+                    onSuccess: () => {
+                      toast({
+                        title: '대리 로그인',
+                        description: `${impersonateConfirm.name} 직원으로 로그인되었습니다`,
+                      });
+                      setImpersonateConfirm(null);
+                    },
+                    onError: (error) => {
+                      toast({
+                        title: '오류',
+                        description: error instanceof Error ? error.message : '대리 로그인에 실패했습니다',
+                        variant: 'destructive',
+                      });
+                    },
+                  });
+                }
+              }}
+              disabled={impersonateStaff.isPending}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {impersonateStaff.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              로그인
             </Button>
           </DialogFooter>
         </DialogContent>

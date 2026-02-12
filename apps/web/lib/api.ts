@@ -13,12 +13,13 @@ let refreshPromise: Promise<string | null> | null = null;
 
 function getAccessToken(): string | null {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+  // sessionStorage 우선: 대리로그인 등 탭별 독립 세션 지원
+  return sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
 }
 
 function getRefreshToken(): string | null {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem('refreshToken') || sessionStorage.getItem('refreshToken');
+  return sessionStorage.getItem('refreshToken') || localStorage.getItem('refreshToken');
 }
 
 function isRememberMe(): boolean {

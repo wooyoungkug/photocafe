@@ -19,6 +19,7 @@ import {
   UpdateOrderDto,
   UpdateOrderStatusDto,
   UpdateShippingDto,
+  AdjustOrderDto,
   OrderQueryDto,
   BulkOrderIdsDto,
   BulkUpdateStatusDto,
@@ -99,6 +100,12 @@ export class OrderController {
     return this.orderService.checkDuplicateOrders(dto.clientId, dto.folderNames);
   }
 
+  @Get(':id/history')
+  @ApiOperation({ summary: '주문 공정 이력 조회' })
+  async getProcessHistory(@Param('id') id: string) {
+    return this.orderService.getProcessHistory(id);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: '주문 상세 조회' })
   async findOne(@Param('id') id: string) {
@@ -125,6 +132,16 @@ export class OrderController {
     @Request() req: any,
   ) {
     return this.orderService.updateStatus(id, dto, req.user.id);
+  }
+
+  @Patch(':id/adjust')
+  @ApiOperation({ summary: '관리자 금액/수량 조정' })
+  async adjustOrder(
+    @Param('id') id: string,
+    @Body() dto: AdjustOrderDto,
+    @Request() req: any,
+  ) {
+    return this.orderService.adjustOrder(id, dto, req.user.id);
   }
 
   @Patch(':id/shipping')

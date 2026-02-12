@@ -40,20 +40,24 @@ export default function HomePage() {
     <div className="min-h-screen bg-white">
       {/* Hero Section */}
       <section className="relative bg-neutral-900 text-white overflow-hidden">
-        {/* Decorative elements */}
-        <div className="absolute inset-0 opacity-[0.03]" style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-        }} />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-px h-20 bg-gradient-to-b from-transparent to-amber-600/40" />
+        {/* Background image */}
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-30"
+          style={{ backgroundImage: 'url(/images/image.png)' }}
+        />
+        {/* Dark gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-neutral-900/70 via-neutral-900/50 to-neutral-900/90" />
+        {/* Gold accent line top */}
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" />
 
-        <div className="relative container mx-auto px-4 py-20 md:py-32 lg:py-40 text-center">
+        <div className="relative container mx-auto px-4 py-24 md:py-36 lg:py-44 text-center">
           <p className="text-gold tracking-[0.3em] uppercase text-xs md:text-sm mb-6 font-medium">
             {t('heroSubtitle')}
           </p>
-          <h1 className="shop-heading text-4xl md:text-6xl lg:text-7xl font-light mb-6 leading-[1.1] tracking-tight">
+          <h1 className="shop-heading text-4xl md:text-6xl lg:text-7xl font-light mb-6 leading-[1.1] tracking-tight drop-shadow-lg">
             {t('heroTitle')}
           </h1>
-          <p className="text-neutral-400 text-base md:text-lg max-w-xl mx-auto mb-10 leading-relaxed whitespace-pre-line">
+          <p className="text-neutral-300 text-base md:text-lg max-w-xl mx-auto mb-10 leading-relaxed whitespace-pre-line">
             {t('heroDescription')}
           </p>
           <div className="flex flex-wrap justify-center gap-4">
@@ -71,7 +75,7 @@ export default function HomePage() {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="border-neutral-600 text-neutral-300 hover:bg-white/5 hover:text-white px-8 h-12 text-sm tracking-widest uppercase rounded-none font-medium"
+                  className="border-neutral-500 text-neutral-200 hover:bg-white/10 hover:text-white px-8 h-12 text-sm tracking-widest uppercase rounded-none font-medium"
                 >
                   {t('getStarted')}
                 </Button>
@@ -80,7 +84,8 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-px h-16 bg-gradient-to-b from-amber-600/40 to-transparent" />
+        {/* Gold accent line bottom */}
+        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" />
       </section>
 
       {/* Features Strip */}
@@ -247,7 +252,7 @@ export default function HomePage() {
 
       {/* CTA Section */}
       {!isAuthenticated && (
-        <section className="bg-neutral-900 text-white">
+        <section className="bg-gray-600 text-white">
           <div className="container mx-auto px-4 py-16 md:py-24 text-center">
             <p className="text-gold tracking-[0.2em] uppercase text-xs mb-4 font-medium">
               {t('ctaSubtitle')}

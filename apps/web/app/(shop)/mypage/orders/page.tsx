@@ -47,6 +47,7 @@ import {
 } from '@/components/ui/dialog';
 import { useAuthStore } from '@/stores/auth-store';
 import { useToast } from '@/hooks/use-toast';
+import { ProcessHistoryDialog } from '@/components/order/process-history-dialog';
 import { api } from '@/lib/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, subDays, subMonths, subYears, startOfDay, endOfDay } from 'date-fns';
@@ -97,6 +98,7 @@ interface OrderItem {
   coverMaterial?: string;
   foilName?: string;
   foilColor?: string;
+  fabricName?: string;
   finishingOptions: string[];
   thumbnailUrl?: string;
   totalFileSize?: number;
@@ -115,6 +117,7 @@ interface Order {
   client?: { clientName: string };
   _count?: { items: number };
   items?: OrderItem[];
+  processHistory?: { id: string; toStatus: string; processType: string; processedBy: string; processedByName?: string; processedAt: string }[];
 }
 
 export default function MyOrdersPage() {
@@ -143,6 +146,11 @@ export default function MyOrdersPage() {
 
   // 썸네일 미리보기
   const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null);
+
+  // 공정 이력 다이얼로그
+  const [historyOrderId, setHistoryOrderId] = useState<string | null>(null);
+  const [historyOrderNumber, setHistoryOrderNumber] = useState<string>('');
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   // 주문 목록 조회
   const { data: ordersResponse, isLoading } = useQuery({
@@ -542,6 +550,7 @@ export default function MyOrdersPage() {
                             <div className="flex flex-wrap gap-1">
                               {item.bindingType && <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">{item.bindingType}</Badge>}
                               {item.coverMaterial && <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">{item.coverMaterial}</Badge>}
+                              {item.fabricName && <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">원단:{item.fabricName}</Badge>}
                               {item.foilColor && <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">박:{item.foilColor}</Badge>}
                               {item.finishingOptions?.map((opt, i) => (
                                 <Badge key={i} variant="outline" className="text-[10px] px-1 py-0 h-4">{opt}</Badge>
@@ -550,7 +559,10 @@ export default function MyOrdersPage() {
                           </div>
                         </TableCell>
 
-                        <TableCell className="text-center text-xs">{item.pages}p / {item.quantity}건</TableCell>
+                        <TableCell className="text-center text-xs">
+                          <div>{item.pages}p</div>
+                          <div>{item.quantity}건</div>
+                        </TableCell>
                         <TableCell className="text-center text-xs text-muted-foreground">{formatFileSize(Number(item.totalFileSize))}</TableCell>
 
                         {idx === 0 && (
@@ -561,9 +573,21 @@ export default function MyOrdersPage() {
 
                         {idx === 0 && (
                           <TableCell className="text-center align-top pt-3" rowSpan={items.length}>
-                            <Badge className={cn('text-xs font-semibold', statusBadge.className)}>
-                              {statusBadge.label}
-                            </Badge>
+                            <div className="space-y-1">
+                              <Badge className={cn('text-xs font-semibold', statusBadge.className)}>
+                                {statusBadge.label}
+                              </Badge>
+                              <div
+                                className="text-[11px] text-blue-600 hover:underline cursor-pointer"
+                                onClick={() => {
+                                  setHistoryOrderId(order.id);
+                                  setHistoryOrderNumber(order.orderNumber);
+                                  setIsHistoryOpen(true);
+                                }}
+                              >
+                                {order.processHistory?.[0]?.processedByName || '-'}
+                              </div>
+                            </div>
                           </TableCell>
                         )}
 
@@ -681,6 +705,14 @@ export default function MyOrdersPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* 공정 이력 다이얼로그 */}
+      <ProcessHistoryDialog
+        orderId={historyOrderId}
+        orderNumber={historyOrderNumber}
+        open={isHistoryOpen}
+        onOpenChange={setIsHistoryOpen}
+      />
     </div>
   );
 }

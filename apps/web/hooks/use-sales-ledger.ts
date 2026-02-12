@@ -58,6 +58,7 @@ export function useSalesLedgerSummary() {
   return useQuery({
     queryKey: ['sales-ledger-summary'],
     queryFn: () => api.get<SalesLedgerSummary>(`${SALES_LEDGER_API}/summary`),
+    staleTime: 30_000,
   });
 }
 
@@ -74,6 +75,7 @@ export function useClientSalesSummary(params?: {
       if (params?.endDate) queryParams.endDate = params.endDate;
       return api.get<ClientSalesSummary[]>(`${SALES_LEDGER_API}/client-summary`, queryParams);
     },
+    staleTime: 30_000,
   });
 }
 
@@ -82,6 +84,7 @@ export function useMonthlyTrend(months: number = 12) {
   return useQuery({
     queryKey: ['sales-monthly-trend', months],
     queryFn: () => api.get<MonthlyTrend[]>(`${SALES_LEDGER_API}/monthly-trend`, { months }),
+    staleTime: 60_000,
   });
 }
 

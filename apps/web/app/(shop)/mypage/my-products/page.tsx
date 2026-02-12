@@ -108,6 +108,18 @@ export default function MyProductsPage() {
                       {mp.options.paperName && (
                         <Badge variant="outline" className="text-[10px] h-4 px-1">{mp.options.paperName}</Badge>
                       )}
+                      {mp.options.fabricName && (
+                        <Badge variant="outline" className="text-[10px] h-4 px-1">{mp.options.fabricName}</Badge>
+                      )}
+                      {mp.options.copperPlateName && (
+                        <Badge variant="outline" className="text-[10px] h-4 px-1">{mp.options.copperPlateName}</Badge>
+                      )}
+                      {mp.options.foilColorName && (
+                        <Badge variant="outline" className="text-[10px] h-4 px-1">{mp.options.foilColorName}</Badge>
+                      )}
+                      {mp.options.foilPositionName && (
+                        <Badge variant="outline" className="text-[10px] h-4 px-1">{mp.options.foilPositionName}</Badge>
+                      )}
                     </div>
                     <div className="flex items-center gap-1 mt-2">
                       <Link href={`/product/${mp.productId}`}>

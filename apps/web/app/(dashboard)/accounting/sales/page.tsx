@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
 import {
   Search,
@@ -15,7 +15,7 @@ import {
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   Table,
@@ -48,6 +48,7 @@ import { Separator } from '@/components/ui/separator';
 import {
   useSalesLedgers,
   useSalesLedgerSummary,
+  useClientSalesSummary,
   useAddSalesReceipt,
   useConfirmSales,
 } from '@/hooks/use-sales-ledger';
@@ -94,6 +95,10 @@ export default function SalesLedgerPage() {
     endDate: dateRange.end || undefined,
   });
   const { data: summary } = useSalesLedgerSummary();
+  const { data: clientSummary } = useClientSalesSummary({
+    startDate: dateRange.start || undefined,
+    endDate: dateRange.end || undefined,
+  });
 
   // ===== 뮤테이션 =====
   const addReceipt = useAddSalesReceipt();
@@ -198,34 +203,99 @@ export default function SalesLedgerPage() {
     return RECEIPT_METHOD_OPTIONS.find((m) => m.value === method)?.label || method;
   };
 
+  // ===== 거래처별 미수금 합계 맵 =====
+  const clientOutstandingMap = useMemo(() => {
+    const map = new Map<string, number>();
+    if (clientSummary) {
+      clientSummary.forEach((c) => map.set(c.clientId, c.outstanding));
+    }
+    return map;
+  }, [clientSummary]);
+
   // ===== 목록 데이터 =====
   const ledgers = ledgerData?.data || [];
 
   return (
-    <div className="space-y-6">
-      {/* 헤더 */}
-      <div>
-        <h1 className="text-2xl font-bold">매출원장</h1>
-        <p className="text-muted-foreground">매출원장을 조회하고 수금 처리를 관리합니다.</p>
+    <div className="space-y-4">
+      {/* 헤더: 제목 + 필터 인라인 */}
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-xl font-bold flex items-center gap-2 shrink-0">
+          <FileText className="h-5 w-5" />
+          매출원장
+        </h1>
+        <div className="flex items-center gap-2">
+          <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
+            <SelectTrigger className="w-[120px] h-9 text-xs">
+              <SelectValue placeholder="결제상태" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체 결제</SelectItem>
+              {PAYMENT_STATUS_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={salesStatusFilter} onValueChange={setSalesStatusFilter}>
+            <SelectTrigger className="w-[120px] h-9 text-xs">
+              <SelectValue placeholder="매출상태" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">매출확정</SelectItem>
+              {SALES_STATUS_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input
+            type="date"
+            value={dateRange.start}
+            onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+            className="w-[140px] h-9 text-xs"
+          />
+          <span className="text-muted-foreground text-sm">~</span>
+          <Input
+            type="date"
+            value={dateRange.end}
+            onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+            className="w-[140px] h-9 text-xs"
+          />
+          <div className="relative w-56">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="주문번호, 거래처명 검색..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 h-9 text-xs"
+            />
+          </div>
+          <Button variant="outline" size="sm" className="h-9 text-xs" onClick={resetFilters}>
+            <Filter className="h-3.5 w-3.5 mr-1" />
+            초기화
+          </Button>
+        </div>
       </div>
 
       {/* 요약 카드 4개 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* 당월 매출 */}
         <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-          <CardContent className="pt-6">
+          <CardContent className="py-4 px-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-blue-600 font-medium">당월 매출</p>
-                <p className="text-2xl font-bold text-blue-900">
+                <p className="text-xs text-blue-600 font-medium">당월 매출</p>
+                <p className="text-xl font-bold text-blue-900">
                   {(summary?.totalSales || 0).toLocaleString()}원
                 </p>
               </div>
-              <div className="h-12 w-12 bg-blue-500 rounded-xl flex items-center justify-center">
-                <TrendingUp className="h-6 w-6 text-white" />
+              <div className="h-10 w-10 bg-blue-500 rounded-xl flex items-center justify-center">
+                <TrendingUp className="h-5 w-5 text-white" />
               </div>
             </div>
-            <p className="mt-2 text-xs text-blue-600">
+            <p className="mt-1 text-[11px] text-blue-600">
               전표 {summary?.ledgerCount || 0}건 / 거래처 {summary?.clientCount || 0}곳
             </p>
           </CardContent>
@@ -233,19 +303,19 @@ export default function SalesLedgerPage() {
 
         {/* 수금 완료 */}
         <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-          <CardContent className="pt-6">
+          <CardContent className="py-4 px-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-green-600 font-medium">수금 완료</p>
-                <p className="text-2xl font-bold text-green-900">
+                <p className="text-xs text-green-600 font-medium">수금 완료</p>
+                <p className="text-xl font-bold text-green-900">
                   {(summary?.totalReceived || 0).toLocaleString()}원
                 </p>
               </div>
-              <div className="h-12 w-12 bg-green-500 rounded-xl flex items-center justify-center">
-                <Receipt className="h-6 w-6 text-white" />
+              <div className="h-10 w-10 bg-green-500 rounded-xl flex items-center justify-center">
+                <Receipt className="h-5 w-5 text-white" />
               </div>
             </div>
-            <p className="mt-2 text-xs text-green-600">
+            <p className="mt-1 text-[11px] text-green-600">
               수금률{' '}
               {summary?.totalSales
                 ? Math.round((summary.totalReceived / summary.totalSales) * 100)
@@ -257,16 +327,16 @@ export default function SalesLedgerPage() {
 
         {/* 미수금 잔액 */}
         <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
-          <CardContent className="pt-6">
+          <CardContent className="py-4 px-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-orange-600 font-medium">미수금 잔액</p>
-                <p className="text-2xl font-bold text-orange-900">
+                <p className="text-xs text-orange-600 font-medium">미수금 잔액</p>
+                <p className="text-xl font-bold text-orange-900">
                   {(summary?.totalOutstanding || 0).toLocaleString()}원
                 </p>
               </div>
-              <div className="h-12 w-12 bg-orange-500 rounded-xl flex items-center justify-center">
-                <FileText className="h-6 w-6 text-white" />
+              <div className="h-10 w-10 bg-orange-500 rounded-xl flex items-center justify-center">
+                <FileText className="h-5 w-5 text-white" />
               </div>
             </div>
           </CardContent>
@@ -274,165 +344,168 @@ export default function SalesLedgerPage() {
 
         {/* 연체 금액 */}
         <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
-          <CardContent className="pt-6">
+          <CardContent className="py-4 px-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-red-600 font-medium">연체 금액</p>
-                <p className="text-2xl font-bold text-red-900">
+                <p className="text-xs text-red-600 font-medium">연체 금액</p>
+                <p className="text-xl font-bold text-red-900">
                   {(summary?.totalOverdue || 0).toLocaleString()}원
                 </p>
               </div>
-              <div className="h-12 w-12 bg-red-500 rounded-xl flex items-center justify-center">
-                <AlertTriangle className="h-6 w-6 text-white" />
+              <div className="h-10 w-10 bg-red-500 rounded-xl flex items-center justify-center">
+                <AlertTriangle className="h-5 w-5 text-white" />
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* 필터 */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="relative flex-1 min-w-[200px] max-w-sm">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="주문번호, 거래처명 검색..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
+      {/* 거래처별 미수금 합계 */}
+      {clientSummary && clientSummary.filter((c) => c.outstanding > 0).length > 0 && (
+        <Card>
+          <CardContent className="py-3 px-4">
+            <h3 className="text-sm font-semibold mb-2">거래처별 미수금 합계</h3>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/60">
+                    <TableHead className="text-xs w-[100px]">거래처코드</TableHead>
+                    <TableHead className="text-xs">거래처명</TableHead>
+                    <TableHead className="text-right text-xs w-[80px]">건수</TableHead>
+                    <TableHead className="text-right text-xs w-[120px]">총 매출</TableHead>
+                    <TableHead className="text-right text-xs w-[120px]">수금액</TableHead>
+                    <TableHead className="text-right text-xs w-[120px]">미수금 잔액</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {clientSummary
+                    .filter((c) => c.outstanding > 0)
+                    .map((client) => (
+                      <TableRow key={client.clientId}>
+                        <TableCell className="font-mono text-xs">{client.clientCode}</TableCell>
+                        <TableCell className="text-xs font-medium">{client.clientName}</TableCell>
+                        <TableCell className="text-right text-xs">{client.orderCount}건</TableCell>
+                        <TableCell className="text-right text-xs">
+                          {client.totalSales.toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right text-xs text-green-600">
+                          {client.totalReceived.toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right text-xs text-orange-600 font-bold">
+                          {client.outstanding.toLocaleString()}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                </TableBody>
+                <TableFooter>
+                  <TableRow className="bg-muted/40 font-bold">
+                    <TableCell colSpan={3} className="text-right text-xs">합계</TableCell>
+                    <TableCell className="text-right text-xs">
+                      {clientSummary
+                        .filter((c) => c.outstanding > 0)
+                        .reduce((sum, c) => sum + c.totalSales, 0)
+                        .toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-right text-xs text-green-600">
+                      {clientSummary
+                        .filter((c) => c.outstanding > 0)
+                        .reduce((sum, c) => sum + c.totalReceived, 0)
+                        .toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-right text-xs text-orange-600">
+                      {clientSummary
+                        .filter((c) => c.outstanding > 0)
+                        .reduce((sum, c) => sum + c.outstanding, 0)
+                        .toLocaleString()}
+                    </TableCell>
+                  </TableRow>
+                </TableFooter>
+              </Table>
             </div>
-            <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
-              <SelectTrigger className="w-[130px]">
-                <SelectValue placeholder="결제상태" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">전체 결제</SelectItem>
-                {PAYMENT_STATUS_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={salesStatusFilter} onValueChange={setSalesStatusFilter}>
-              <SelectTrigger className="w-[130px]">
-                <SelectValue placeholder="매출상태" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">전체 매출</SelectItem>
-                {SALES_STATUS_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="flex items-center gap-2">
-              <Input
-                type="date"
-                value={dateRange.start}
-                onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
-                className="w-[150px]"
-              />
-              <span className="text-muted-foreground">~</span>
-              <Input
-                type="date"
-                value={dateRange.end}
-                onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
-                className="w-[150px]"
-              />
-            </div>
-            <Button variant="outline" size="sm" onClick={resetFilters}>
-              <Filter className="h-4 w-4 mr-1" />
-              초기화
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 조회결과 */}
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-muted-foreground">
+          조회결과 : <b className="text-foreground">{ledgers.length}</b> 건
+        </span>
+      </div>
 
       {/* 매출원장 테이블 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>매출원장 목록</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-slate-50">
-                <TableHead className="w-[110px]">전표번호</TableHead>
-                <TableHead className="w-[90px]">전표일자</TableHead>
-                <TableHead className="w-[110px]">주문번호</TableHead>
-                <TableHead className="w-[90px]">거래처</TableHead>
-                <TableHead className="text-right w-[90px]">공급가액</TableHead>
-                <TableHead className="text-right w-[80px]">부가세</TableHead>
-                <TableHead className="text-right w-[90px]">합계</TableHead>
-                <TableHead className="text-right w-[80px]">수금액</TableHead>
-                <TableHead className="text-right w-[90px]">미수금</TableHead>
-                <TableHead className="text-center w-[80px]">결제상태</TableHead>
-                <TableHead className="text-center w-[80px]">매출상태</TableHead>
-                <TableHead className="w-[80px] text-center">수금처리</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={12} className="text-center py-8">
-                    로딩 중...
-                  </TableCell>
+      {isLoading ? (
+        <div className="space-y-2">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-12 bg-gray-100 animate-pulse rounded" />
+          ))}
+        </div>
+      ) : ledgers.length > 0 ? (
+        <Card>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/60">
+                  <TableHead className="w-[140px] text-xs">전표번호</TableHead>
+                  <TableHead className="w-[90px] text-xs">전표일자</TableHead>
+                  <TableHead className="w-[140px] text-xs">주문번호</TableHead>
+                  <TableHead className="w-[80px] text-xs">거래처</TableHead>
+                  <TableHead className="text-right w-[90px] text-xs">공급가액</TableHead>
+                  <TableHead className="text-right w-[80px] text-xs">부가세</TableHead>
+                  <TableHead className="text-right w-[80px] text-xs">할인금액</TableHead>
+                  <TableHead className="text-right w-[100px] text-xs">합계금액</TableHead>
+                  <TableHead className="text-right w-[100px] text-xs">미수금액</TableHead>
+                  <TableHead className="text-right w-[100px] text-xs">거래처미수합계</TableHead>
+                  <TableHead className="text-center w-[70px] text-xs">결제상태</TableHead>
+                  <TableHead className="text-center w-[80px] text-xs">수금처리</TableHead>
                 </TableRow>
-              ) : !ledgers.length ? (
-                <TableRow>
-                  <TableCell colSpan={12} className="text-center py-12 text-muted-foreground">
-                    <FileText className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                    매출원장 데이터가 없습니다.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                ledgers.map((ledger) => (
+              </TableHeader>
+              <TableBody>
+                {ledgers.map((ledger) => (
                   <TableRow
                     key={ledger.id}
-                    className="hover:bg-slate-50 cursor-pointer"
+                    className="hover:bg-muted/30 cursor-pointer"
                     onClick={() => handleRowClick(ledger)}
                   >
-                    <TableCell className="font-mono text-sm text-blue-600 font-medium">
+                    <TableCell className="font-mono text-xs text-blue-600 font-medium py-2 whitespace-nowrap">
                       {ledger.ledgerNumber}
                     </TableCell>
-                    <TableCell className="font-mono text-sm">
+                    <TableCell className="font-mono text-xs py-2 whitespace-nowrap">
                       {format(new Date(ledger.ledgerDate), 'yyyy-MM-dd')}
                     </TableCell>
-                    <TableCell className="font-mono text-sm">
+                    <TableCell className="font-mono text-xs py-2 whitespace-nowrap">
                       {ledger.orderNumber}
                     </TableCell>
-                    <TableCell className="font-medium">{ledger.clientName}</TableCell>
-                    <TableCell className="text-right">
-                      {ledger.supplyAmount.toLocaleString()}원
+                    <TableCell className="text-xs font-medium py-2 whitespace-nowrap">{ledger.clientName}</TableCell>
+                    <TableCell className="text-right text-xs py-2 whitespace-nowrap">
+                      {Number(ledger.supplyAmount).toLocaleString()}
                     </TableCell>
-                    <TableCell className="text-right text-muted-foreground">
-                      {ledger.vatAmount.toLocaleString()}원
+                    <TableCell className="text-right text-xs py-2 whitespace-nowrap text-muted-foreground">
+                      {Number(ledger.vatAmount).toLocaleString()}
                     </TableCell>
-                    <TableCell className="text-right font-bold text-blue-600">
-                      {ledger.totalAmount.toLocaleString()}원
+                    <TableCell className="text-right text-xs py-2 whitespace-nowrap text-red-500">
+                      {Number(ledger.adjustmentAmount || 0) > 0
+                        ? `-${Number(ledger.adjustmentAmount || 0).toLocaleString()}`
+                        : '0'}
                     </TableCell>
-                    <TableCell className="text-right text-green-600">
-                      {ledger.receivedAmount.toLocaleString()}원
+                    <TableCell className="text-right text-xs py-2 whitespace-nowrap font-bold text-blue-600">
+                      {Number(ledger.totalAmount).toLocaleString()}
                     </TableCell>
-                    <TableCell className="text-right text-orange-600 font-medium">
-                      {ledger.outstandingAmount > 0 ? `-${ledger.outstandingAmount.toLocaleString()}` : '0'}원
+                    <TableCell className="text-right text-xs py-2 whitespace-nowrap text-orange-600 font-medium">
+                      {Number(ledger.outstandingAmount) > 0 ? Number(ledger.outstandingAmount).toLocaleString() : '0'}
                     </TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className="text-right text-xs py-2 whitespace-nowrap text-red-600 font-bold">
+                      {(clientOutstandingMap.get(ledger.clientId) || 0).toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-center py-2">
                       {getPaymentStatusBadge(ledger.paymentStatus)}
                     </TableCell>
-                    <TableCell className="text-center">
-                      {getSalesStatusBadge(ledger.salesStatus)}
-                    </TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className="text-center py-2">
                       {ledger.outstandingAmount > 0 && ledger.salesStatus !== 'CANCELLED' && (
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-7 text-xs"
+                          className="h-7 text-xs px-2"
                           onClick={(e) => {
                             e.stopPropagation();
                             openReceiptDialog(ledger);
@@ -444,38 +517,52 @@ export default function SalesLedgerPage() {
                       )}
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-            {ledgers.length > 0 && (
+                ))}
+              </TableBody>
               <TableFooter>
-                <TableRow className="bg-slate-100 font-bold">
-                  <TableCell colSpan={4} className="text-right text-sm">합계</TableCell>
-                  <TableCell className="text-right text-sm">
-                    {ledgers.reduce((sum, l) => sum + l.supplyAmount, 0).toLocaleString()}원
+                <TableRow className="bg-muted/40 font-bold">
+                  <TableCell colSpan={4} className="text-right text-xs">합계</TableCell>
+                  <TableCell className="text-right text-xs">
+                    {ledgers.reduce((sum, l) => sum + Number(l.supplyAmount), 0).toLocaleString()}
                   </TableCell>
-                  <TableCell className="text-right text-sm">
-                    {ledgers.reduce((sum, l) => sum + l.vatAmount, 0).toLocaleString()}원
+                  <TableCell className="text-right text-xs">
+                    {ledgers.reduce((sum, l) => sum + Number(l.vatAmount), 0).toLocaleString()}
                   </TableCell>
-                  <TableCell className="text-right text-sm text-blue-600">
-                    {ledgers.reduce((sum, l) => sum + l.totalAmount, 0).toLocaleString()}원
-                  </TableCell>
-                  <TableCell className="text-right text-sm text-green-600">
-                    {ledgers.reduce((sum, l) => sum + l.receivedAmount, 0).toLocaleString()}원
-                  </TableCell>
-                  <TableCell className="text-right text-sm text-orange-600">
+                  <TableCell className="text-right text-xs text-red-500">
                     {(() => {
-                      const total = ledgers.reduce((sum, l) => sum + l.outstandingAmount, 0);
+                      const total = ledgers.reduce((sum, l) => sum + Number(l.adjustmentAmount || 0), 0);
                       return total > 0 ? `-${total.toLocaleString()}` : '0';
-                    })()}원
+                    })()}
                   </TableCell>
-                  <TableCell colSpan={3} />
+                  <TableCell className="text-right text-xs text-blue-600">
+                    {ledgers.reduce((sum, l) => sum + Number(l.totalAmount), 0).toLocaleString()}
+                  </TableCell>
+                  <TableCell className="text-right text-xs text-orange-600">
+                    {(() => {
+                      const total = ledgers.reduce((sum, l) => sum + Number(l.outstandingAmount), 0);
+                      return total > 0 ? total.toLocaleString() : '0';
+                    })()}
+                  </TableCell>
+                  <TableCell />
+                  <TableCell colSpan={2} />
                 </TableRow>
               </TableFooter>
-            )}
-          </Table>
-        </CardContent>
-      </Card>
+            </Table>
+          </div>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="py-16 text-center">
+            <FileText className="h-16 w-16 mx-auto text-gray-300 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              매출원장 데이터가 없습니다
+            </h3>
+            <p className="text-gray-500 text-sm">
+              조건에 맞는 매출 데이터가 없습니다.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ===== 상세 보기 Dialog ===== */}
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
@@ -582,7 +669,7 @@ export default function SalesLedgerPage() {
                     <h4 className="font-semibold mb-3">품목 내역</h4>
                     <Table>
                       <TableHeader>
-                        <TableRow className="bg-slate-50">
+                        <TableRow className="bg-muted/60">
                           <TableHead>품목명</TableHead>
                           <TableHead className="text-right">수량</TableHead>
                           <TableHead className="text-right">단가</TableHead>
@@ -633,7 +720,7 @@ export default function SalesLedgerPage() {
                     <h4 className="font-semibold mb-3">수금 이력</h4>
                     <Table>
                       <TableHeader>
-                        <TableRow className="bg-slate-50">
+                        <TableRow className="bg-muted/60">
                           <TableHead>수금번호</TableHead>
                           <TableHead>수금일자</TableHead>
                           <TableHead className="text-right">수금액</TableHead>

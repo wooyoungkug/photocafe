@@ -20,6 +20,7 @@ interface StaffLoginResponse {
     name: string;
     role: string;
     email?: string;
+    isSuperAdmin?: boolean;
     branch?: { id: string; branchCode: string; branchName: string };
     department?: { id: string; code: string; name: string };
   };
@@ -77,6 +78,8 @@ export default function AdminLoginPage() {
           email: response.user.email || response.user.staffId,
           name: response.user.name,
           role: response.user.role,
+          staffId: response.user.staffId,
+          isSuperAdmin: response.user.isSuperAdmin ?? false,
         },
         accessToken: response.accessToken,
         refreshToken: response.refreshToken,

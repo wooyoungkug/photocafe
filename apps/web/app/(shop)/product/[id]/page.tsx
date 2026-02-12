@@ -265,6 +265,7 @@ export default function ProductPage() {
               bindingDirection: defaultBindingDirection || 'LEFT_START_RIGHT_END',
               specificationId: '',
               specificationName: folder.specLabel,
+              fabricName: folder.selectedFabricName || undefined,
               shippingInfo: shippingInfoData,
             },
             isDuplicateOverride,
@@ -297,6 +298,7 @@ export default function ProductPage() {
                 bindingDirection: defaultBindingDirection || 'LEFT_START_RIGHT_END',
                 specificationId: '',
                 specificationName: additional.albumLabel,
+                fabricName: folder.selectedFabricName || undefined,
                 shippingInfo: shippingInfoData,
               },
               isDuplicateOverride,
@@ -346,6 +348,31 @@ export default function ProductPage() {
     }
   }, [product, copperPlateLabels, allPublicCopperPlates]);
 
+  const totalPrice = useMemo(() => {
+    if (!product) return 0;
+    let price = product.basePrice;
+    if (selectedOptions.specification) price += selectedOptions.specification.price;
+    if (selectedOptions.binding) price += selectedOptions.binding.price;
+    if (selectedOptions.paper) price += selectedOptions.paper.price;
+    if (selectedOptions.cover) price += selectedOptions.cover.price;
+    if (selectedOptions.foil) price += selectedOptions.foil.price;
+    for (const finishing of selectedOptions.finishings) {
+      price += finishing.price;
+    }
+    return price * quantity;
+  }, [product, selectedOptions, quantity]);
+
+  const images = useMemo(() => {
+    if (!product) return [];
+    if (product.thumbnailUrl) {
+      return [normalizeImageUrl(product.thumbnailUrl), ...product.detailImages.map(img => normalizeImageUrl(img))];
+    }
+    if (product.detailImages.length > 0) {
+      return product.detailImages.map(img => normalizeImageUrl(img));
+    }
+    return [];
+  }, [product]);
+
   if (isLoading) {
     return <ProductPageSkeleton />;
   }
@@ -361,19 +388,6 @@ export default function ProductPage() {
       </div>
     );
   }
-
-  const totalPrice = useMemo(() => {
-    let price = product.basePrice;
-    if (selectedOptions.specification) price += selectedOptions.specification.price;
-    if (selectedOptions.binding) price += selectedOptions.binding.price;
-    if (selectedOptions.paper) price += selectedOptions.paper.price;
-    if (selectedOptions.cover) price += selectedOptions.cover.price;
-    if (selectedOptions.foil) price += selectedOptions.foil.price;
-    for (const finishing of selectedOptions.finishings) {
-      price += finishing.price;
-    }
-    return price * quantity;
-  }, [product.basePrice, selectedOptions, quantity]);
 
   const handleAddToCart = () => {
     const options: CartItemOption[] = [];
@@ -566,6 +580,11 @@ export default function ProductPage() {
       foilPositionName: copperPlateLabels?.platePositions?.find(p => p.code === selectedOptions.foilPosition)?.name,
       finishingIds: selectedOptions.finishings.map(f => f.id),
       finishingNames: selectedOptions.finishings.map(f => f.name),
+      // 원단 (앨범 표지)
+      coverSourceType: defaultCoverSourceType || undefined,
+      fabricId: selectedFabricInfo?.id || undefined,
+      fabricName: selectedFabricInfo?.name || undefined,
+      fabricThumbnail: selectedFabricInfo?.thumbnail || undefined,
     };
 
     try {
@@ -630,6 +649,23 @@ export default function ProductPage() {
       foilPosition: opts.foilPosition,
     });
 
+    // 원단 복원
+    if (opts.coverSourceType) {
+      applyGlobalCoverSource(opts.coverSourceType);
+    }
+    if (opts.fabricId && opts.fabricName) {
+      setSelectedFabric({
+        id: opts.fabricId,
+        name: opts.fabricName,
+        thumbnail: opts.fabricThumbnail || null,
+        price: 0,
+      });
+      // 기존 폴더에도 적용
+      uploadFolders.forEach(f => {
+        setFolderFabric(f.id, opts.fabricId!, opts.fabricName!, opts.fabricThumbnail || null, 0);
+      });
+    }
+
     setQuantity(myProduct.defaultQuantity);
     setShowLoadMyProductModal(false);
 
@@ -638,16 +674,6 @@ export default function ProductPage() {
       description: t('myProductLoadedDesc', { name: myProduct.name }),
     });
   };
-
-  const images = useMemo(() => {
-    if (product.thumbnailUrl) {
-      return [normalizeImageUrl(product.thumbnailUrl), ...product.detailImages.map(img => normalizeImageUrl(img))];
-    }
-    if (product.detailImages.length > 0) {
-      return product.detailImages.map(img => normalizeImageUrl(img));
-    }
-    return [];
-  }, [product.thumbnailUrl, product.detailImages]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -1766,6 +1792,9 @@ export default function ProductPage() {
                   )}
                 </>
               )}
+              {selectedFabricInfo?.name && (
+                <p className="text-gray-600">원단: {selectedFabricInfo.name}</p>
+              )}
               {selectedOptions.finishings.length > 0 && (
                 <p className="text-gray-600">{t('finishing')}: {selectedOptions.finishings.map(f => f.name).join(', ')}</p>
               )}
@@ -1837,6 +1866,9 @@ export default function ProductPage() {
                       )}
                       {myProduct.options.foilPositionName && (
                         <p>{t('foilPositionColon')} {myProduct.options.foilPositionName}</p>
+                      )}
+                      {myProduct.options.fabricName && (
+                        <p>원단: {myProduct.options.fabricName}</p>
                       )}
                       <p>{tc('quantity')}: {t('countUnit', { count: myProduct.defaultQuantity })}</p>
                     </div>

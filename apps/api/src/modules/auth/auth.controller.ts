@@ -177,15 +177,30 @@ export class AuthController {
 
   @Post('admin/login')
   @ApiOperation({ summary: '관리자(직원) 로그인' })
-  async adminLogin(@Body() dto: AdminLoginDto) {
+  async adminLogin(@Body() dto: AdminLoginDto, @Request() req: any) {
     const staff = await this.authService.validateStaff(dto.staffId, dto.password);
     if (!staff) {
       throw new UnauthorizedException('직원 ID 또는 비밀번호가 일치하지 않습니다');
     }
-    return this.authService.loginStaff(staff, dto.rememberMe ?? false);
+    const ip = req.headers['x-forwarded-for'] || req.ip;
+    return this.authService.loginStaff(staff, dto.rememberMe ?? false, ip);
   }
 
   // ========== 관리자 대리 로그인 ==========
+
+  @Post('impersonate-staff/:staffId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '최고관리자가 특정 직원으로 대리 로그인' })
+  async impersonateStaff(
+    @Param('staffId') staffId: string,
+    @Request() req: any,
+  ) {
+    if (req.user.type !== 'staff') {
+      throw new UnauthorizedException('직원 계정만 대리 로그인할 수 있습니다');
+    }
+    return this.authService.impersonateStaff(staffId, req.user.sub);
+  }
 
   @Post('impersonate/:clientId')
   @UseGuards(JwtAuthGuard)

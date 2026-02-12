@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
@@ -11,14 +8,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ==================== 사용자 및 인증 ====================
-
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
   password  String
   name      String
-  role      String   @default("staff") // admin, manager, staff
+  role      String   @default("staff")
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -26,13 +21,12 @@ model User {
   @@map("users")
 }
 
-// 시스템 설정 (무료배송 금액 등)
 model SystemSetting {
   id        String   @id @default(cuid())
-  key       String   @unique  // 설정 키 (예: free_shipping_threshold)
-  value     String            // 설정 값
-  category  String            // 카테고리 (shipping, payment, etc.)
-  label     String?           // 표시 라벨
+  key       String   @unique
+  value     String
+  category  String
+  label     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -40,60 +34,31 @@ model SystemSetting {
   @@map("system_settings")
 }
 
-// ==================== 배송비 설정 ====================
-
-// 배송방법: parcel(택배), motorcycle(오토바이/퀵), damas(다마스), freight(화물)
 model DeliveryPricing {
-  id              String   @id @default(cuid())
+  id                   String   @id @default(cuid())
+  deliveryMethod       String   @unique
+  name                 String
+  baseFee              Decimal  @default(0) @db.Decimal(10, 2)
+  distanceRanges       Json?
+  extraPricePerKm      Decimal? @db.Decimal(10, 2)
+  maxBaseDistance      Int?
+  nightSurchargeRate   Decimal? @db.Decimal(5, 2)
+  nightStartHour       Int?     @default(22)
+  nightEndHour         Int?     @default(6)
+  weekendSurchargeRate Decimal? @db.Decimal(5, 2)
+  sizeRanges           Json?
+  islandFee            Decimal? @db.Decimal(10, 2)
+  freeThreshold        Decimal? @db.Decimal(10, 2)
+  sortOrder            Int      @default(0)
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  packagingFee         Decimal? @db.Decimal(10, 2)
+  shippingFee          Decimal? @db.Decimal(10, 2)
 
-  // 배송방법
-  deliveryMethod  String   // parcel, motorcycle, damas, freight
-  name            String   // 표시명 (예: "퀵서비스", "택배", "다마스", "화물")
-
-  // 기본요금 설정
-  baseFee         Decimal  @db.Decimal(10, 2) @default(0)  // 기본요금 (포장비 + 배송비)
-  packagingFee    Decimal? @db.Decimal(10, 2)  // 포장비 (택배 전용)
-  shippingFee     Decimal? @db.Decimal(10, 2)  // 배송비 (택배 전용)
-
-  // 거리별 요금 (오토바이/다마스용)
-  // [{minDistance: 0, maxDistance: 5, price: 8000}, {minDistance: 5, maxDistance: 10, price: 12000}, ...]
-  distanceRanges  Json?    // 거리 구간별 단가 배열
-
-  // km당 추가요금 (최대거리 초과 시)
-  extraPricePerKm Decimal? @db.Decimal(10, 2)  // km당 추가요금
-  maxBaseDistance Int?     // 기본요금 적용 최대거리 (km)
-
-  // 할증 설정
-  nightSurchargeRate    Decimal? @db.Decimal(5, 2)  // 야간할증 비율 (예: 0.3 = 30%)
-  nightStartHour        Int?     @default(22)       // 야간 시작 시간
-  nightEndHour          Int?     @default(6)        // 야간 종료 시간
-  weekendSurchargeRate  Decimal? @db.Decimal(5, 2)  // 주말/공휴일 할증 비율
-
-  // 화물 크기별 추가요금 (화물용)
-  // [{name: "소형", maxWeight: 30, maxVolume: 0.1, price: 0}, ...]
-  sizeRanges      Json?    // 크기/무게별 추가요금
-
-  // 도서산간 추가요금 (택배용)
-  islandFee       Decimal? @db.Decimal(10, 2)  // 도서산간 추가요금
-
-  // 무료배송 기준 (택배용)
-  freeThreshold   Decimal? @db.Decimal(10, 2)  // 무료배송 기준금액
-
-  // 상태
-  sortOrder       Int      @default(0)
-  isActive        Boolean  @default(true)
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@unique([deliveryMethod])
   @@map("delivery_pricings")
 }
 
-
-// ==================== 직원관리 ====================
-
-// 부서
 model Department {
   id          String   @id @default(cuid())
   code        String   @unique
@@ -103,93 +68,54 @@ model Department {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
-  staff Staff[]
+  staff       Staff[]
 
   @@map("departments")
 }
 
-// 직원
 model Staff {
-  id            String   @id @default(cuid())
-  staffId       String   @unique  // 직원 ID (로그인용)
-  password      String            // 비밀번호 (해시)
-  name          String            // 실명
-
-  // 소속 정보
-  branchId      String?           // 소속 지점
-  branch        Branch?  @relation(fields: [branchId], references: [id])
-  departmentId  String?           // 부서
-  department    Department? @relation(fields: [departmentId], references: [id])
-  position      String?           // 직책
-
-  // 연락처 정보
-  phone         String?           // 전화번호
-  mobile        String?           // 휴대폰
-  email         String?           // 이메일
-
-  // 주소 정보
-  postalCode    String?
-  address       String?
-  addressDetail String?
-
-  // 정산 등급 (0등급은 정산이 되지 않는 등급)
-  settlementGrade Int      @default(1)  // 1~15등급
-
-  // 접근 IP 제한
-  allowedIps    String[] @default([])  // 허용된 IP 목록
-
-  // View 권한 설정
-  canEditInManagerView  Boolean  @default(false)  // 체크시 관리자 화면에서 수정가능
-
-  // 접근 권한 설정
-  canLoginAsManager     Boolean  @default(false)  // 체크시 관리자 로그인 허용
-
-  // 단계변경 권한
-  canChangeDepositStage     Boolean  @default(false)  // 입금대기 주문건에 대해 단계변경 가능
-  canChangeReceptionStage   Boolean  @default(false)  // 접수대기 주문건에 대해 단계변경 가능
-  canChangeCancelStage      Boolean  @default(false)  // 주문취소 주문건에 대해 단계변경 가능
-
-  // 버튼 노출 권한
-  canEditMemberInfo     Boolean  @default(false)  // 회원수정 버튼 노출
-  canViewSettlement     Boolean  @default(false)  // 정산마감 버튼 노출
-  canChangeOrderAmount  Boolean  @default(false)  // 주문금액변경 버튼 노출
-
-  // 담당 회원 조회 범위
-  memberViewScope       String   @default("own")   // own: 본인담당만, all: 전체
-
-  // 매출 조회 범위
-  salesViewScope        String   @default("own")   // own: 본인거래처만, all: 전체
-
-  // 직원 공개 범위 (일정 관리와 동일한 방식)
-  isPersonal            Boolean  @default(false)   // 개인: 본인만 볼 수 있음
-  isDepartment          Boolean  @default(true)    // 부서: 같은 부서 직원들이 볼 수 있음
-  isCompany             Boolean  @default(false)   // 전체: 모든 직원이 볼 수 있음
-
-  // 메뉴/카테고리별 접근 권한 (JSON)
-  menuPermissions       Json?    // 메뉴별 접근 권한
-  categoryPermissions   Json?    // 카테고리별 접근 권한
-
-  // 공정별 권한 (JSON 형태로 저장)
-  // { processCode: { view: true, edit: false, delete: false }, ... }
-  processPermissions    Json?
-
-  // 상태
-  isActive      Boolean  @default(true)
-  lastLoginAt   DateTime?
-  lastLoginIp   String?
-
-  // 메모
-  adminMemo     String?  @db.Text  // 최고 관리자 메모
-
-  // 입사일
-  joinDate      DateTime @default(now())
-
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  // 담당 회원 (거래처)
-  assignedClients StaffClient[]
+  id                      String        @id @default(cuid())
+  staffId                 String        @unique
+  password                String
+  name                    String
+  branchId                String?
+  departmentId            String?
+  position                String?
+  phone                   String?
+  mobile                  String?
+  email                   String?
+  postalCode              String?
+  address                 String?
+  addressDetail           String?
+  settlementGrade         Int           @default(1)
+  allowedIps              String[]      @default([])
+  canEditInManagerView    Boolean       @default(false)
+  isSuperAdmin            Boolean       @default(false)
+  canLoginAsManager       Boolean       @default(false)
+  canChangeDepositStage   Boolean       @default(false)
+  canChangeReceptionStage Boolean       @default(false)
+  canChangeCancelStage    Boolean       @default(false)
+  canEditMemberInfo       Boolean       @default(false)
+  canViewSettlement       Boolean       @default(false)
+  canChangeOrderAmount    Boolean       @default(false)
+  memberViewScope         String        @default("own")
+  salesViewScope          String        @default("own")
+  menuPermissions         Json?
+  categoryPermissions     Json?
+  processPermissions      Json?
+  isActive                Boolean       @default(true)
+  lastLoginAt             DateTime?
+  lastLoginIp             String?
+  adminMemo               String?
+  joinDate                DateTime      @default(now())
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+  isCompany               Boolean       @default(false)
+  isDepartment            Boolean       @default(true)
+  isPersonal              Boolean       @default(false)
+  branch                  Branch?       @relation(fields: [branchId], references: [id])
+  department              Department?   @relation(fields: [departmentId], references: [id])
+  assignedClients         StaffClient[]
 
   @@index([branchId])
   @@index([departmentId])
@@ -197,15 +123,14 @@ model Staff {
   @@map("staff")
 }
 
-// 직원-회원(거래처) 담당 매핑
 model StaffClient {
   id        String   @id @default(cuid())
   staffId   String
-  staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
   clientId  String
-  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  isPrimary Boolean  @default(false)  // 주담당자 여부
+  isPrimary Boolean  @default(false)
   createdAt DateTime @default(now())
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
 
   @@unique([staffId, clientId])
   @@index([staffId])
@@ -213,15 +138,11 @@ model StaffClient {
   @@map("staff_clients")
 }
 
-// 메뉴 권한 템플릿 (편의를 위한 권한 그룹)
 model PermissionTemplate {
   id          String   @id @default(cuid())
   name        String   @unique
   description String?
-
-  // 권한 설정 (JSON)
-  permissions Json     // { menus: [], categories: [], processes: [] }
-
+  permissions Json
   isDefault   Boolean  @default(false)
   sortOrder   Int      @default(0)
   isActive    Boolean  @default(true)
@@ -230,8 +151,6 @@ model PermissionTemplate {
 
   @@map("permission_templates")
 }
-
-// ==================== 회사정보 ====================
 
 model Branch {
   id             String        @id @default(cuid())
@@ -243,137 +162,102 @@ model Branch {
   isActive       Boolean       @default(true)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
-
-  clientGroups ClientGroup[]
-  staff        Staff[]
+  clientGroups   ClientGroup[]
+  staff          Staff[]
 
   @@map("branches")
 }
 
 model ClientGroup {
-  id               String   @id @default(cuid())
-  groupCode        String   @unique
-  groupName        String
-  branchId         String
-  branch           Branch   @relation(fields: [branchId], references: [id])
-
-  // 품목별 할인율 (100 = 정가)
-  generalDiscount  Int      @default(100)
-  premiumDiscount  Int      @default(100)
-  importedDiscount Int      @default(100)
-
-  description      String?  @db.Text
-  isActive         Boolean  @default(true)
-  sortOrder        Int      @default(0)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  clients                      Client[]
-  halfProductPrices            GroupHalfProductPrice[]
-  productPrices                GroupProductPrice[]
-  productionSettingPrices      GroupProductionSettingPrice[]
+  id                      String                        @id @default(cuid())
+  groupCode               String                        @unique
+  groupName               String
+  branchId                String
+  generalDiscount         Int                           @default(100)
+  premiumDiscount         Int                           @default(100)
+  importedDiscount        Int                           @default(100)
+  description             String?
+  isActive                Boolean                       @default(true)
+  sortOrder               Int                           @default(0)
+  createdAt               DateTime                      @default(now())
+  updatedAt               DateTime                      @updatedAt
+  branch                  Branch                        @relation(fields: [branchId], references: [id])
+  clients                 Client[]
+  halfProductPrices       GroupHalfProductPrice[]
+  productPrices           GroupProductPrice[]
+  productionSettingPrices GroupProductionSettingPrice[]
 
   @@index([branchId])
   @@map("client_groups")
 }
 
 model Client {
-  id              String       @id @default(cuid())
-  clientCode      String       @unique
-  clientName      String
-  businessNumber  String?
-  representative  String?
-
-  phone           String?
-  mobile          String?
-  email           String?
-  password        String?      // 일반 가입 시 비밀번호 (해시)
-
-  postalCode      String?
-  address         String?
-  addressDetail   String?
-
-  groupId         String?
-  group           ClientGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
-
-  // 회원 타입: individual(개인), business(사업자/스튜디오)
-  memberType      String       @default("individual")
-
-  // OAuth 정보
-  oauthProvider   String?      // google, naver, kakao
-  oauthId         String?      // OAuth 고유 ID
-
-  // 가격 적용: standard(표준단가-개인), group(그룹단가-사업자)
-  priceType       String       @default("standard")
-
-  // 결제 방식: order(주문시결제), credit(신용거래)
-  paymentType     String       @default("order")
-
-  // 신용거래 설정 (관리자만 수정 가능)
-  creditEnabled      Boolean   @default(false)  // 신용거래 허용 여부
-  creditPeriodDays   Int?                       // 신용거래 기간 (일)
-  creditPaymentDay   Int?                       // 결제일 (매월 N일)
-  creditBlocked      Boolean   @default(false)  // 미입금으로 인한 주문 차단
-  creditBlockedAt    DateTime?                  // 차단 시점
-  lastPaymentDate    DateTime?                  // 마지막 결제일
-
-  // 배송 설정 (관리자만 수정 가능): conditional(조건부), free(무료), prepaid(선불), cod(착불)
-  shippingType       String    @default("conditional")
-
-  creditGrade     String       @default("B") // A, B, C, D
-  paymentTerms    Int          @default(30)
-  status          String       @default("active") // active, inactive, suspended
-
-  // ========== B2B 스튜디오 전용 필드 ==========
-
-  // 사업자 정보
-  businessType       String?   // 업태 (예: 사진촬영업, 광고대행)
-  businessCategory   String?   // 종목 (예: 웨딩, 베이비)
-  taxInvoiceEmail    String?   // 세금계산서 수신 이메일
-  taxInvoiceMethod   String?   // 전자발행, 팩스, 우편
-
-  // 실무 담당자 정보
-  contactPerson      String?   // 실무 담당자명
-  contactPhone       String?   // 실무 담당자 연락처
-
-  // 스튜디오 특성 (영업 데이터)
-  mainGenre          String?   // 주력 촬영 장르: wedding, baby, profile, snap, family, etc.
-  monthlyOrderVolume String?   // 월 평균 주문량: under10, 10to50, over50
-  colorProfile       String?   // 색상 프로필: sRGB, AdobeRGB
-  acquisitionChannel String?   // 유입 경로: referral, search, exhibition, sns, etc.
-
-  // 제품 선호도
-  preferredSize      String?   // 선호 앨범 규격: 11x14, 12x12, etc.
-  preferredFinish    String?   // 선호 내지 재질: glossy, matte, luster, metallic
-  hasLogo            Boolean   @default(false)  // 로고/낙관 사용 여부
-  logoPath           String?   // 로고 파일 경로
-  deliveryNote       String?   // 배송 요청사항
-
-  // CS 및 내부 관리
-  memberGrade        String    @default("normal") // vip, gold, normal, bronze
-  assignedManager    String?   // 전담 영업 담당자 ID
-  sensitivityScore   Int       @default(3)       // 고객 민감도 점수 (1~5)
-  recentMemo         String?   // 최근 상담 메모
-  totalClaims        Int       @default(0)       // 누적 클레임 건수
-  isBlacklist        Boolean   @default(false)   // 블랙리스트 여부
-  isWhitelist        Boolean   @default(false)   // 화이트리스트(우수고객) 여부
-  duplicateCheckMonths Int?                      // 중복주문 체크 기간(개월), null=시스템 기본값 사용
-
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-
-  addresses    ClientAddress[]
-  orders       Order[]
-  myProducts   MyProduct[]
-  assignedStaff StaffClient[]
-  consultations Consultation[]
-  healthScore  CustomerHealthScore?
-  copperPlates CopperPlate[]
+  id                      String                         @id @default(cuid())
+  clientCode              String                         @unique
+  clientName              String
+  businessNumber          String?
+  representative          String?
+  phone                   String?
+  mobile                  String?
+  email                   String?
+  password                String?
+  postalCode              String?
+  address                 String?
+  addressDetail           String?
+  groupId                 String?
+  memberType              String                         @default("individual")
+  oauthProvider           String?
+  oauthId                 String?
+  priceType               String                         @default("standard")
+  paymentType             String                         @default("order")
+  creditEnabled           Boolean                        @default(false)
+  creditPeriodDays        Int?
+  creditPaymentDay        Int?
+  creditBlocked           Boolean                        @default(false)
+  creditBlockedAt         DateTime?
+  lastPaymentDate         DateTime?
+  shippingType            String                         @default("conditional")
+  creditGrade             String                         @default("B")
+  paymentTerms            Int                            @default(30)
+  status                  String                         @default("active")
+  createdAt               DateTime                       @default(now())
+  updatedAt               DateTime                       @updatedAt
+  acquisitionChannel      String?
+  assignedManager         String?
+  businessCategory        String?
+  businessType            String?
+  colorProfile            String?
+  contactPerson           String?
+  contactPhone            String?
+  deliveryNote            String?
+  hasLogo                 Boolean                        @default(false)
+  isBlacklist             Boolean                        @default(false)
+  isWhitelist             Boolean                        @default(false)
+  logoPath                String?
+  mainGenre               String?
+  memberGrade             String                         @default("normal")
+  monthlyOrderVolume      String?
+  preferredFinish         String?
+  preferredSize           String?
+  recentMemo              String?
+  sensitivityScore        Int                            @default(3)
+  taxInvoiceEmail         String?
+  taxInvoiceMethod        String?
+  totalClaims             Int                            @default(0)
+  duplicateCheckMonths    Int?
+  addresses               ClientAddress[]
+  albumPreference         ClientAlbumPreference?
   productionSettingPrices ClientProductionSettingPrice[]
-  photobookOrders PhotobookOrder[]
-  albumPreference ClientAlbumPreference?
-  salesLedgers SalesLedger[] @relation("SalesLedgerClient")
-  purchaseLedgers PurchaseLedger[] @relation("PurchaseLedgerSupplier")
+  group                   ClientGroup?                   @relation(fields: [groupId], references: [id])
+  consultations           Consultation[]
+  copperPlates            CopperPlate[]
+  healthScore             CustomerHealthScore?
+  myProducts              MyProduct[]
+  orders                  Order[]
+  photobookOrders         PhotobookOrder[]
+  purchaseLedgers         PurchaseLedger[]               @relation("PurchaseLedgerSupplier")
+  salesLedgers            SalesLedger[]                  @relation("SalesLedgerClient")
+  assignedStaff           StaffClient[]
 
   @@unique([oauthProvider, oauthId])
   @@index([groupId])
@@ -385,133 +269,88 @@ model Client {
   @@map("clients")
 }
 
-// ==================== 거래처 앨범 편집 선호 패턴 ====================
-
 model ClientAlbumPreference {
-  id                   String    @id @default(cuid())
-  clientId             String    @unique
-  client               Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  // 편집 선호
-  preferredEditStyle   String?   // "SINGLE" | "SPREAD"
-  preferredBinding     String?   // BindingDirection 값
-  preferredAlbumSizes  Json?     // [{ width, height, label }]
-
-  // 사진 처리 선호
-  outfitGrouping       String?   // "by_outfit" | "chronological" | "none"
-  colorGroupEnabled    Boolean   @default(false)
-
-  // 마감 선호
-  preferredFabricId    String?
-  preferredCoatingId   String?
-
-  // 편집자 메모
-  editorNotes          String?   @db.Text
-  specialInstructions  String?   @db.Text
-
-  // 주문 이력 통계 (자동 갱신)
-  totalOrders          Int       @default(0)
-  lastOrderDate        DateTime?
-  mostUsedSize         String?   // "12x12" 등
-  averagePageCount     Int?
-
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  id                  String    @id @default(cuid())
+  clientId            String    @unique
+  preferredEditStyle  String?
+  preferredBinding    String?
+  preferredAlbumSizes Json?
+  outfitGrouping      String?
+  colorGroupEnabled   Boolean   @default(false)
+  preferredFabricId   String?
+  preferredCoatingId  String?
+  editorNotes         String?
+  specialInstructions String?
+  totalOrders         Int       @default(0)
+  lastOrderDate       DateTime?
+  mostUsedSize        String?
+  averagePageCount    Int?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  client              Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([clientId])
   @@map("client_album_preferences")
 }
 
-// ==================== 배송지 정보 ====================
-
 model ClientAddress {
-  id             String   @id @default(cuid())
-  clientId       String
-  client         Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  addressName    String?  // 별칭 (예: "집", "본점", "사무실")
-  recipientName  String   // 수령인 이름
-  phone          String   // 연락처
-
-  postalCode     String   // 우편번호
-  address        String   // 주소
-  addressDetail  String?  // 상세주소
-
-  isDefault      Boolean  @default(false)  // 기본 배송지 여부
-
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id            String   @id @default(cuid())
+  clientId      String
+  addressName   String?
+  recipientName String
+  phone         String
+  postalCode    String
+  address       String
+  addressDetail String?
+  isDefault     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  client        Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([clientId])
   @@index([clientId, isDefault])
   @@map("client_addresses")
 }
 
-// ==================== 규격정보 ====================
-
 model Specification {
-  id          String   @id @default(cuid())
-  code        String   @unique     // 고유 코드 (자동 생성)
-  name        String               // 규격명 (예: "7x4.7", "22.5x30.5")
-
-  // 크기 정보
-  widthInch   Decimal  @db.Decimal(10, 4)  // 가로 (인치)
-  heightInch  Decimal  @db.Decimal(10, 4)  // 세로 (인치)
-  widthMm     Decimal  @db.Decimal(10, 2)  // 가로 (mm)
-  heightMm    Decimal  @db.Decimal(10, 2)  // 세로 (mm)
-
-  // 방향 (가로형/세로형/정방형)
-  orientation String   @default("landscape")  // landscape: 가로형, portrait: 세로형, square: 정방형
-  pairId      String?  // 쌍이 되는 규격의 ID (가로형 <-> 세로형)
-
-  // 용도 체크박스 (중첩 사용 가능)
-  forIndigo   Boolean  @default(false)  // 인디고출력전용
-  forInkjet   Boolean  @default(false)  // 잉크젯출력전용
-  forAlbum    Boolean  @default(false)  // 앨범전용
-  forFrame    Boolean  @default(false)  // 액자전용
-  forBooklet  Boolean  @default(false)  // 인쇄책자전용
-
-  // 추가 정보
-  squareMeters  Decimal?  @db.Decimal(10, 2)  // 평방미터 (㎡)
-  description   String?   // 설명
-
-  // Nup 설정 (앨범 전용)
-  nup           String?   // "1++up" | "1+up" | "1up" | "2up" | "4up" (앨범 체크시 자동계산)
-  nupSqInch     Decimal?  @db.Decimal(10, 2)  // 계산된 면적 (sq inch = widthInch * heightInch)
-
-  // 정렬 및 상태
-  sortOrder   Int      @default(0)
-  isActive    Boolean  @default(true)
-
-  // ========== JDF LayoutIntent 필드 ==========
-  // JDF: FinishedDimensions (완성 치수)
-  jdfFinishedWidth    Decimal?  @db.Decimal(10, 2)        // 재단 후 가로 (mm)
-  jdfFinishedHeight   Decimal?  @db.Decimal(10, 2)        // 재단 후 세로 (mm)
-  // JDF: Bleed (도련)
-  jdfBleedTop         Decimal?  @db.Decimal(10, 2) @default(3)  // mm
-  jdfBleedBottom      Decimal?  @db.Decimal(10, 2) @default(3)
-  jdfBleedLeft        Decimal?  @db.Decimal(10, 2) @default(3)
-  jdfBleedRight       Decimal?  @db.Decimal(10, 2) @default(3)
-  // JDF: TrimSize (재단 크기)
-  jdfTrimWidth        Decimal?  @db.Decimal(10, 2)
-  jdfTrimHeight       Decimal?  @db.Decimal(10, 2)
-  // JDF: PageOrder (페이지 순서)
-  jdfPageOrder        String?   @default("Booklet")       // Booklet, Sequential
-  // JDF: Sides (인쇄 면)
-  jdfSides            String?   @default("TwoSidedHeadToHead")  // OneSided, TwoSidedHeadToHead, TwoSidedHeadToFoot
-  // JDF: NumberUp (임포지션)
-  jdfNumberUpX        Int?      @default(1)               // 가로 배치 수
-  jdfNumberUpY        Int?      @default(1)               // 세로 배치 수
-  // JDF: SpreadType (스프레드 유형)
-  jdfSpreadType       String?   @default("Single")        // Single, Spread
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  prices              SpecificationPrice[]
-  productionSettings  ProductionSettingSpecification[]
+  id                    String                           @id @default(cuid())
+  code                  String                           @unique
+  name                  String
+  widthInch             Decimal                          @db.Decimal(10, 4)
+  heightInch            Decimal                          @db.Decimal(10, 4)
+  widthMm               Decimal                          @db.Decimal(10, 2)
+  heightMm              Decimal                          @db.Decimal(10, 2)
+  orientation           String                           @default("landscape")
+  pairId                String?
+  forIndigo             Boolean                          @default(false)
+  forInkjet             Boolean                          @default(false)
+  forAlbum              Boolean                          @default(false)
+  forFrame              Boolean                          @default(false)
+  forBooklet            Boolean                          @default(false)
+  squareMeters          Decimal?                         @db.Decimal(10, 2)
+  description           String?
+  nup                   String?
+  nupSqInch             Decimal?                         @db.Decimal(10, 2)
+  sortOrder             Int                              @default(0)
+  isActive              Boolean                          @default(true)
+  createdAt             DateTime                         @default(now())
+  updatedAt             DateTime                         @updatedAt
+  jdfBleedBottom        Decimal?                         @default(3) @db.Decimal(10, 2)
+  jdfBleedLeft          Decimal?                         @default(3) @db.Decimal(10, 2)
+  jdfBleedRight         Decimal?                         @default(3) @db.Decimal(10, 2)
+  jdfBleedTop           Decimal?                         @default(3) @db.Decimal(10, 2)
+  jdfFinishedHeight     Decimal?                         @db.Decimal(10, 2)
+  jdfFinishedWidth      Decimal?                         @db.Decimal(10, 2)
+  jdfNumberUpX          Int?                             @default(1)
+  jdfNumberUpY          Int?                             @default(1)
+  jdfPageOrder          String?                          @default("Booklet")
+  jdfSides              String?                          @default("TwoSidedHeadToHead")
+  jdfSpreadType         String?                          @default("Single")
+  jdfTrimHeight         Decimal?                         @db.Decimal(10, 2)
+  jdfTrimWidth          Decimal?                         @db.Decimal(10, 2)
   productSpecifications ProductSpecification[]
+  productionSettings    ProductionSettingSpecification[]
+  prices                SpecificationPrice[]
 
   @@index([isActive])
   @@index([forIndigo])
@@ -527,118 +366,79 @@ model Specification {
 model SpecificationPrice {
   id              String        @id @default(cuid())
   specificationId String
-  specification   Specification @relation(fields: [specificationId], references: [id], onDelete: Cascade)
-  
-  // 가격 타입 (예: 기본가, 그룹별 가격 등)
-  priceType       String        @default("base")  // base, group
-  groupId         String?       // 그룹 가격인 경우
-  
+  priceType       String        @default("base")
+  groupId         String?
   price           Decimal       @db.Decimal(12, 2)
-  
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
-  
+  specification   Specification @relation(fields: [specificationId], references: [id], onDelete: Cascade)
+
   @@unique([specificationId, priceType, groupId])
   @@map("specification_prices")
 }
 
-// ==================== 매출품목 분류 ====================
-
 model SalesCategoryOption {
-  id          String   @id @default(cuid())
-  code        String   @unique  // 고유 코드 (예: album, print, etc.)
-  name        String             // 표시 이름 (예: 앨범, 출력물, etc.)
-  sortOrder   Int      @default(0)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([isActive])
   @@map("sales_category_options")
 }
 
-// 매출품목분류 (2단계 계층)
 model SalesCategory {
-  id          String   @id @default(cuid())
-  code        String   @unique     // 고유 코드
-  name        String               // 분류명
-  depth       Int      @default(1) // 1: 대분류, 2: 소분류
-
-  // 계층 구조
+  id          String          @id @default(cuid())
+  code        String          @unique
+  name        String
+  depth       Int             @default(1)
   parentId    String?
+  sortOrder   Int             @default(0)
+  isActive    Boolean         @default(true)
+  description String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
   parent      SalesCategory?  @relation("SalesCategoryTree", fields: [parentId], references: [id])
   children    SalesCategory[] @relation("SalesCategoryTree")
-
-  // 정렬 및 상태
-  sortOrder   Int      @default(0)
-  isActive    Boolean  @default(true)
-  description String?
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
 
   @@index([parentId])
   @@index([isActive])
   @@map("sales_categories")
 }
 
-// ==================== 카테고리 ====================
-
 model Category {
-  id              String     @id @default(cuid())
-  code            String?    @unique    // 8자리 코드: 65000000
+  id              String        @id @default(cuid())
+  code            String?       @unique
   name            String
-  nameEn          String?    // 영문 이름
-  nameJa          String?    // 일본어 이름
-  nameZh          String?    // 중국어 이름
-  level           String     // large, medium, small
-  depth           Int        @default(1) // 1: 대분류, 2: 중분류, 3: 소분류
-
-  // 계층 구조
+  level           String
+  depth           Int           @default(1)
   parentId        String?
-  parent          Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
-  children        Category[] @relation("CategoryHierarchy")
-
-  // 노출 설정
-  isVisible       Boolean    @default(true)  // 노출/숨김
-  isTopMenu       Boolean    @default(false) // 상단메뉴 노출
-  loginVisibility String     @default("always") // always, logged_in, logged_out
-
-  // 카테고리 타입
-  categoryType    String     @default("HTML") // HTML, POD, EDITOR, HALF, production
-
-  // 생산 설정
-  productionForm  String?    // 생산폼 옵션 (digital_print, output_only, album_only, frame_only, goods_only)
-  isOutsourced    Boolean    @default(false) // 외주생산 여부
-
-  // 가격 적용 단위 (production 카테고리용)
-  pricingUnit     String?    // paper_based: 용지별출력단가, size_based: 규격별출력단가(page/장), per_item: 권당단가
-
-  // 설명
-  description     String?    // 카테고리 설명
-
-  // 이동경로 (링크)
-  linkUrl         String?    // 커스텀 링크 URL
-
-  // 콘텐츠
-  htmlContent     String?    @db.Text // HTML 내용
-
-  // 정렬 및 상태
-  sortOrder       Int        @default(0)
-  isActive        Boolean    @default(true)
-
-  // 카테고리 아이콘
-  iconUrl         String?    // 카테고리 앞에 표시되는 작은 이미지 URL
-  
-  // 매출품목 분류 ID
-  salesCategoryId String?    // SalesCategory 참조 ID
-
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
-
-  // Relations
-  products        Product[]
+  isVisible       Boolean       @default(true)
+  isTopMenu       Boolean       @default(false)
+  loginVisibility String        @default("always")
+  categoryType    String        @default("HTML")
+  productionForm  String?
+  isOutsourced    Boolean       @default(false)
+  pricingUnit     String?
+  description     String?
+  linkUrl         String?
+  htmlContent     String?
+  sortOrder       Int           @default(0)
+  isActive        Boolean       @default(true)
+  iconUrl         String?
+  salesCategoryId String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  nameEn          String?
+  nameJa          String?
+  nameZh          String?
+  parent          Category?     @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children        Category[]    @relation("CategoryHierarchy")
   halfProducts    HalfProduct[]
+  products        Product[]
 
   @@index([parentId])
   @@index([categoryType])
@@ -646,45 +446,39 @@ model Category {
   @@map("categories")
 }
 
-// ==================== 상품관리 ====================
-
 model Product {
-  id           String   @id @default(cuid())
-  productCode  String   @unique
-  productName  String
-  categoryId   String
-  category     Category @relation(fields: [categoryId], references: [id])
-
-  isActive     Boolean  @default(true)
-  isNew        Boolean  @default(false)
-  isBest       Boolean  @default(false)
-  memberType   String   @default("all") // all, member_only, specific_groups
-
-  basePrice        Decimal  @db.Decimal(12, 2)
-  thumbnailUrl     String?
-  detailImages     String[] @default([])
-  description      String?  @db.Text
-  bindingDirection String   @default("left") // left, right, customer
-  printType        String   @default("double") // single, double, customer
-  outputPriceSettings Json?  // 출력단가 설정 (JSON)
-
-  sortOrder    Int      @default(0)
-  viewCount    Int      @default(0)  // 조회수
-  orderCount   Int      @default(0)  // 주문수
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  specifications      ProductSpecification[]
-  bindings            ProductBinding[]
-  papers              ProductPaper[]
-  covers              ProductCover[]
-  foils               ProductFoil[]
-  finishings          ProductFinishing[]
+  id                  String                     @id @default(cuid())
+  productCode         String                     @unique
+  productName         String
+  categoryId          String
+  isActive            Boolean                    @default(true)
+  isNew               Boolean                    @default(false)
+  isBest              Boolean                    @default(false)
+  memberType          String                     @default("all")
+  basePrice           Decimal                    @db.Decimal(12, 2)
+  thumbnailUrl        String?
+  detailImages        String[]                   @default([])
+  description         String?
+  sortOrder           Int                        @default(0)
+  createdAt           DateTime                   @default(now())
+  updatedAt           DateTime                   @updatedAt
+  bindingDirection    String                     @default("left")
+  printType           String                     @default("double")
+  orderCount          Int                        @default(0)
+  viewCount           Int                        @default(0)
+  outputPriceSettings Json?
   customOptions       CustomOption[]
-  halfProducts        ProductHalfProduct[]
   groupPrices         GroupProductPrice[]
-  publicCopperPlates  ProductPublicCopperPlate[]
   myProducts          MyProduct[]
+  bindings            ProductBinding[]
+  covers              ProductCover[]
+  finishings          ProductFinishing[]
+  foils               ProductFoil[]
+  halfProducts        ProductHalfProduct[]
+  papers              ProductPaper[]
+  publicCopperPlates  ProductPublicCopperPlate[]
+  specifications      ProductSpecification[]
+  category            Category                   @relation(fields: [categoryId], references: [id])
 
   @@index([categoryId])
   @@map("products")
@@ -693,15 +487,15 @@ model Product {
 model ProductSpecification {
   id              String         @id @default(cuid())
   productId       String
-  product         Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
-  specificationId String?        // 마스터 규격 FK (자동 동기화용)
-  specification   Specification? @relation(fields: [specificationId], references: [id], onDelete: SetNull)
-  name            String         // 규격명
+  name            String
   widthMm         Float
   heightMm        Float
-  price           Decimal        @db.Decimal(10, 2) @default(0)
+  price           Decimal        @default(0) @db.Decimal(10, 2)
   isDefault       Boolean        @default(false)
   sortOrder       Int            @default(0)
+  specificationId String?
+  product         Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  specification   Specification? @relation(fields: [specificationId], references: [id])
 
   @@unique([productId, specificationId])
   @@index([productId])
@@ -710,15 +504,15 @@ model ProductSpecification {
 }
 
 model ProductBinding {
-  id                   String  @id @default(cuid())
-  productId            String
-  product              Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  name                 String  // 제본방법명
-  price                Decimal @db.Decimal(10, 2) @default(0)
-  isDefault            Boolean @default(false)
-  sortOrder            Int     @default(0)
-  productionSettingId  String? // 연결된 단가설정 ID
-  pricingType          String? // 단가 계산 방식
+  id                  String  @id @default(cuid())
+  productId           String
+  name                String
+  price               Decimal @default(0) @db.Decimal(10, 2)
+  isDefault           Boolean @default(false)
+  sortOrder           Int     @default(0)
+  pricingType         String?
+  productionSettingId String?
+  product             Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId])
   @@index([productionSettingId])
@@ -728,17 +522,17 @@ model ProductBinding {
 model ProductPaper {
   id           String  @id @default(cuid())
   productId    String
-  product      Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  name         String  // 용지명
-  type         String  // normal, premium, imported, sheet, roll
-  printMethod  String? // 출력방식 (indigo, inkjet, offset)
-  grammage     Int?    // 평량 (g/m²)
-  frontCoating String? // 전면 코팅 (HighGloss, Glossy, Matte, Satin)
-  grade        Int?    // 등급 (1-5)
-  price        Decimal @db.Decimal(10, 2) @default(0)
+  name         String
+  type         String
+  price        Decimal @default(0) @db.Decimal(10, 2)
   isDefault    Boolean @default(false)
-  isActive     Boolean @default(true)  // 주문 시 사용 여부
   sortOrder    Int     @default(0)
+  grammage     Int?
+  printMethod  String?
+  frontCoating String?
+  grade        Int?
+  isActive     Boolean @default(true)
+  product      Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId])
   @@map("product_papers")
@@ -747,13 +541,13 @@ model ProductPaper {
 model ProductCover {
   id           String  @id @default(cuid())
   productId    String
-  product      Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  name         String  // 커버명
+  name         String
   materialCode String?
-  price        Decimal @db.Decimal(10, 2) @default(0)
+  price        Decimal @default(0) @db.Decimal(10, 2)
   imageUrl     String?
   isDefault    Boolean @default(false)
   sortOrder    Int     @default(0)
+  product      Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId])
   @@map("product_covers")
@@ -762,12 +556,12 @@ model ProductCover {
 model ProductFoil {
   id        String  @id @default(cuid())
   productId String
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  name      String  // 박명
-  color     String? // 박색상
-  price     Decimal @db.Decimal(10, 2) @default(0)
+  name      String
+  color     String?
+  price     Decimal @default(0) @db.Decimal(10, 2)
   isDefault Boolean @default(false)
   sortOrder Int     @default(0)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId])
   @@map("product_foils")
@@ -776,26 +570,26 @@ model ProductFoil {
 model ProductFinishing {
   id        String  @id @default(cuid())
   productId String
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  name      String  // 후가공명
-  price     Decimal @db.Decimal(10, 2) @default(0)
+  name      String
+  price     Decimal @default(0) @db.Decimal(10, 2)
   isDefault Boolean @default(false)
   sortOrder Int     @default(0)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId])
   @@map("product_finishings")
 }
 
 model CustomOption {
-  id        String  @id @default(cuid())
-  productId String
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  name      String  // 옵션명
-  type      String  // select, checkbox, input
-  values    Json?   // 선택지 목록
-  price     Decimal @db.Decimal(10, 2) @default(0)
+  id         String  @id @default(cuid())
+  productId  String
+  name       String
+  type       String
+  values     Json?
+  price      Decimal @default(0) @db.Decimal(10, 2)
   isRequired Boolean @default(false)
-  sortOrder Int     @default(0)
+  sortOrder  Int     @default(0)
+  product    Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId])
   @@map("custom_options")
@@ -804,44 +598,37 @@ model CustomOption {
 model ProductHalfProduct {
   id            String      @id @default(cuid())
   productId     String
-  product       Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
   halfProductId String
-  halfProduct   HalfProduct @relation(fields: [halfProductId], references: [id], onDelete: Cascade)
   isRequired    Boolean     @default(false)
   sortOrder     Int         @default(0)
+  halfProduct   HalfProduct @relation(fields: [halfProductId], references: [id], onDelete: Cascade)
+  product       Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([productId, halfProductId])
   @@map("product_half_products")
 }
 
-// ==================== 반제품 ====================
-
 model HalfProduct {
-  id                String   @id @default(cuid())
-  code              String   @unique
+  id                String                     @id @default(cuid())
+  code              String                     @unique
   name              String
-
   categoryLargeId   String
-  categoryLarge     Category @relation(fields: [categoryLargeId], references: [id])
-
-  basePrice         Decimal  @db.Decimal(12, 2)
-  isPriceAdditive   Boolean  @default(true)
-  memberType        String   @default("all")
-  requiredFileCount Int      @default(0)
-
+  basePrice         Decimal                    @db.Decimal(12, 2)
+  isPriceAdditive   Boolean                    @default(true)
+  memberType        String                     @default("all")
+  requiredFileCount Int                        @default(0)
   thumbnailUrl      String?
-  detailImages      String[] @default([])
-
-  status            String   @default("active")
-  sortOrder         Int      @default(0)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  specifications HalfProductSpecification[]
-  priceTiers     HalfProductPriceTier[]
-  options        HalfProductOption[]
-  productLinks   ProductHalfProduct[]
-  groupPrices    GroupHalfProductPrice[]
+  detailImages      String[]                   @default([])
+  status            String                     @default("active")
+  sortOrder         Int                        @default(0)
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+  groupPrices       GroupHalfProductPrice[]
+  options           HalfProductOption[]
+  priceTiers        HalfProductPriceTier[]
+  specifications    HalfProductSpecification[]
+  categoryLarge     Category                   @relation(fields: [categoryLargeId], references: [id])
+  productLinks      ProductHalfProduct[]
 
   @@index([categoryLargeId])
   @@map("half_products")
@@ -850,13 +637,13 @@ model HalfProduct {
 model HalfProductSpecification {
   id            String      @id @default(cuid())
   halfProductId String
-  halfProduct   HalfProduct @relation(fields: [halfProductId], references: [id], onDelete: Cascade)
   name          String
   widthMm       Float
   heightMm      Float
-  price         Decimal     @db.Decimal(10, 2) @default(0)
+  price         Decimal     @default(0) @db.Decimal(10, 2)
   isDefault     Boolean     @default(false)
   sortOrder     Int         @default(0)
+  halfProduct   HalfProduct @relation(fields: [halfProductId], references: [id], onDelete: Cascade)
 
   @@index([halfProductId])
   @@map("half_product_specifications")
@@ -865,11 +652,11 @@ model HalfProductSpecification {
 model HalfProductPriceTier {
   id            String      @id @default(cuid())
   halfProductId String
-  halfProduct   HalfProduct @relation(fields: [halfProductId], references: [id], onDelete: Cascade)
   minQuantity   Int
   maxQuantity   Int?
-  discountRate  Float       // 할인율 (1.0 = 정가)
+  discountRate  Float
   sortOrder     Int         @default(0)
+  halfProduct   HalfProduct @relation(fields: [halfProductId], references: [id], onDelete: Cascade)
 
   @@index([halfProductId])
   @@map("half_product_price_tiers")
@@ -878,28 +665,26 @@ model HalfProductPriceTier {
 model HalfProductOption {
   id            String      @id @default(cuid())
   halfProductId String
-  halfProduct   HalfProduct @relation(fields: [halfProductId], references: [id], onDelete: Cascade)
   name          String
-  type          String      // select, checkbox
-  values        Json        // [{name, price, isDefault}]
-  quantityType  String      @default("auto") // auto, manual
+  type          String
+  values        Json
+  quantityType  String      @default("auto")
   sortOrder     Int         @default(0)
+  halfProduct   HalfProduct @relation(fields: [halfProductId], references: [id], onDelete: Cascade)
 
   @@index([halfProductId])
   @@map("half_product_options")
 }
 
-// ==================== 가격관리 ====================
-
 model GroupHalfProductPrice {
   id            String      @id @default(cuid())
   groupId       String
-  group         ClientGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
   halfProductId String
-  halfProduct   HalfProduct @relation(fields: [halfProductId], references: [id], onDelete: Cascade)
   price         Decimal     @db.Decimal(12, 2)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+  group         ClientGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  halfProduct   HalfProduct @relation(fields: [halfProductId], references: [id], onDelete: Cascade)
 
   @@unique([groupId, halfProductId])
   @@map("group_half_product_prices")
@@ -908,53 +693,33 @@ model GroupHalfProductPrice {
 model GroupProductPrice {
   id        String      @id @default(cuid())
   groupId   String
-  group     ClientGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
   productId String
-  product   Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
   price     Decimal     @db.Decimal(12, 2)
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
+  group     ClientGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  product   Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([groupId, productId])
   @@map("group_product_prices")
 }
 
-// ==================== 마이상품 (My Product) ====================
-// 고객이 자주 주문하는 상품 옵션을 저장
-
 model MyProduct {
-  id              String   @id @default(cuid())
-
-  // 고객 정보
+  id              String    @id @default(cuid())
   clientId        String
-  client          Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  // 원본 상품 정보
   productId       String
-  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  // 마이상품 정보
-  name            String   // 마이상품 이름 (예: "우리학교 졸업앨범 10x13")
-  thumbnailUrl    String?  // 썸네일 이미지 (상품 이미지 또는 커스텀)
-
-  // 저장된 옵션 (JSON)
-  options         Json
-
-  // 기본 수량
-  defaultQuantity Int      @default(1)
-
-  // 메모
-  memo            String?
-
-  // 정렬 순서
-  sortOrder       Int      @default(0)
-
-  // 사용 횟수 (인기 순 정렬용)
-  usageCount      Int      @default(0)
+  sortOrder       Int       @default(0)
+  usageCount      Int       @default(0)
   lastUsedAt      DateTime?
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  defaultQuantity Int       @default(1)
+  memo            String?
+  name            String
+  options         Json
+  thumbnailUrl    String?
+  client          Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  product         Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([clientId])
   @@index([productId])
@@ -962,154 +727,133 @@ model MyProduct {
   @@map("my_products")
 }
 
-// ==================== 주문관리 ====================
-
 model Order {
-  id                    String    @id @default(cuid())
-  orderNumber           String    @unique
-  barcode               String    @unique
-
+  id                    String           @id @default(cuid())
+  orderNumber           String           @unique
+  barcode               String           @unique
   clientId              String
-  client                Client    @relation(fields: [clientId], references: [id])
-
-  productPrice          Decimal   @db.Decimal(12, 2)
-  shippingFee           Decimal   @db.Decimal(10, 2) @default(0)
-  tax                   Decimal   @db.Decimal(10, 2) @default(0)
-  adjustmentAmount      Decimal   @db.Decimal(10, 2) @default(0)
-  totalAmount           Decimal   @db.Decimal(12, 2)
-  finalAmount           Decimal   @db.Decimal(12, 2)
-
-  paymentMethod         String    @default("postpaid") // prepaid, postpaid, card, transfer
-  paymentStatus         String    @default("pending") // pending, paid, partial, refunded
-
-  status                String    @default("pending_receipt")
-  currentProcess        String    @default("receipt_pending")
-
-  isUrgent              Boolean   @default(false)
-  isDuplicateOverride   Boolean   @default(false)  // 중복 경고 무시하고 주문
+  productPrice          Decimal          @db.Decimal(12, 2)
+  shippingFee           Decimal          @default(0) @db.Decimal(10, 2)
+  tax                   Decimal          @default(0) @db.Decimal(10, 2)
+  adjustmentAmount      Decimal          @default(0) @db.Decimal(10, 2)
+  totalAmount           Decimal          @db.Decimal(12, 2)
+  finalAmount           Decimal          @db.Decimal(12, 2)
+  paymentMethod         String           @default("postpaid")
+  paymentStatus         String           @default("pending")
+  status                String           @default("pending_receipt")
+  currentProcess        String           @default("receipt_pending")
+  isUrgent              Boolean          @default(false)
   requestedDeliveryDate DateTime?
-
-  customerMemo          String?   @db.Text
-  productMemo           String?   @db.Text
-  adminMemo             String?   @db.Text
-
-  orderedAt             DateTime  @default(now())
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-
-  shipping       OrderShipping?
-  items          OrderItem[]
-  processHistory ProcessHistory[]
+  customerMemo          String?
+  productMemo           String?
+  adminMemo             String?
+  orderedAt             DateTime         @default(now())
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+  isDuplicateOverride   Boolean          @default(false)
+  items                 OrderItem[]
+  shipping              OrderShipping?
+  client                Client           @relation(fields: [clientId], references: [id])
+  processHistory        ProcessHistory[]
 
   @@index([clientId])
   @@index([status])
   @@index([orderedAt])
+  @@index([clientId, orderedAt])
+  @@index([clientId, status])
+  @@index([status, orderedAt])
+  @@index([paymentStatus, orderedAt])
   @@map("orders")
 }
 
 model OrderShipping {
-  id            String  @id @default(cuid())
-  orderId       String  @unique
-  order         Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-
-  recipientName String
-  phone         String
-  postalCode    String
-  address       String
-  addressDetail String?
-
-  courierCode   String?
+  id             String    @id @default(cuid())
+  orderId        String    @unique
+  recipientName  String
+  phone          String
+  postalCode     String
+  address        String
+  addressDetail  String?
+  courierCode    String?
   trackingNumber String?
-  shippedAt     DateTime?
-  deliveredAt   DateTime?
+  shippedAt      DateTime?
+  deliveredAt    DateTime?
+  order          Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@map("order_shippings")
 }
 
 model OrderItem {
-  id               String  @id @default(cuid())
-  orderId          String
-  order            Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-
-  productionNumber String
-  productId        String
-  productName      String
-
-  size             String
-  pages            Int
-  printMethod      String
-  paper            String
-  bindingType      String
-  coverMaterial    String?
-  foilName         String?
-  foilColor        String?
-  finishingOptions String[] @default([])
-  thumbnailUrl     String?              // 대표 썸네일 URL
-  totalFileSize    BigInt   @default(0)  // 총 파일 용량 (bytes)
-  folderName       String?              // 앨범 주문 폴더명 (중복주문 체크용)
-  pageLayout       String?              // single(낱장) / spread(펼침면)
-  bindingDirection String?              // 제본순서: LEFT_START_RIGHT_END 등
-
-  quantity         Int
-  unitPrice        Decimal  @db.Decimal(10, 2)
-  totalPrice       Decimal  @db.Decimal(12, 2)
-
-  // ========== JDF Intent 참조 ==========
-  colorIntentId       String?               // ColorIntent ID
-  bindingIntentId     String?               // BindingIntent ID
-  foldingIntentId     String?               // FoldingIntent ID
-  proofingIntentId    String?               // ProofingIntent ID
-  fileSpecId          String?               // FileSpec ID
-  qualityControlId    String?               // QualityControl ID
-
-  // JDF Intent 스냅샷 (주문 시점의 정보 보존)
-  jdfNumColorsFront   Int?                  // 앞면 색상 수
-  jdfNumColorsBack    Int?                  // 뒷면 색상 수
-  jdfCoatingFront     String?               // 앞면 코팅
-  jdfCoatingBack      String?               // 뒷면 코팅
-  jdfBindingType      String?               // 제본 유형
-  jdfBindingSide      String?               // 제본 위치
-
-  files    OrderFile[]
-  shipping OrderItemShipping?
+  id                String             @id @default(cuid())
+  orderId           String
+  productionNumber  String
+  productId         String
+  productName       String
+  size              String
+  pages             Int
+  printMethod       String
+  paper             String
+  bindingType       String
+  coverMaterial     String?
+  foilName          String?
+  foilColor         String?
+  finishingOptions  String[]           @default([])
+  quantity          Int
+  unitPrice         Decimal            @db.Decimal(10, 2)
+  totalPrice        Decimal            @db.Decimal(12, 2)
+  bindingIntentId   String?
+  colorIntentId     String?
+  fileSpecId        String?
+  foldingIntentId   String?
+  jdfBindingSide    String?
+  jdfBindingType    String?
+  jdfCoatingBack    String?
+  jdfCoatingFront   String?
+  jdfNumColorsBack  Int?
+  jdfNumColorsFront Int?
+  proofingIntentId  String?
+  qualityControlId  String?
+  folderName        String?
+  thumbnailUrl      String?
+  totalFileSize     BigInt             @default(0)
+  fabricName        String?
+  bindingDirection  String?
+  pageLayout        String?
+  files             OrderFile[]
+  shipping          OrderItemShipping?
+  order             Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
   @@index([colorIntentId])
   @@index([bindingIntentId])
+  @@index([productId])
+  @@index([orderId, productId])
   @@map("order_items")
 }
 
 model OrderItemShipping {
   id                  String    @id @default(cuid())
   orderItemId         String    @unique
-  orderItem           OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
-
-  // 발송지 정보
-  senderType          String    // 'company' | 'orderer'
+  senderType          String
   senderName          String
   senderPhone         String
   senderPostalCode    String?
   senderAddress       String?
   senderAddressDetail String?
-
-  // 배송지 정보
-  receiverType        String    // 'orderer' | 'direct_customer'
+  receiverType        String
   recipientName       String
   phone               String
   postalCode          String
   address             String
   addressDetail       String?
-
-  // 배송 방법 및 요금
-  deliveryMethod      String    // 'parcel' | 'motorcycle' | 'freight' | 'pickup'
-  deliveryFee         Decimal   @db.Decimal(10, 2) @default(0)
-  deliveryFeeType     String?   // 'free' | 'conditional' | 'standard'
-
-  // 운송장 (관리자 입력)
+  deliveryMethod      String
+  deliveryFee         Decimal   @default(0) @db.Decimal(10, 2)
+  deliveryFeeType     String?
   courierCode         String?
   trackingNumber      String?
   shippedAt           DateTime?
   deliveredAt         DateTime?
+  orderItem           OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
 
   @@map("order_item_shippings")
 }
@@ -1117,28 +861,23 @@ model OrderItemShipping {
 model OrderFile {
   id               String    @id @default(cuid())
   orderItemId      String
-  orderItem        OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
-
   fileName         String
   fileUrl          String
   thumbnailUrl     String?
-
   pageRange        String
   pageStart        Int
   pageEnd          Int
-
   width            Int
   height           Int
   widthInch        Float
   heightInch       Float
   dpi              Int
   fileSize         Int
-
-  inspectionStatus String    @default("pending") // pending, passed, failed
+  inspectionStatus String    @default("pending")
   inspectionNote   String?
-
   sortOrder        Int       @default(0)
   uploadedAt       DateTime  @default(now())
+  orderItem        OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
 
   @@index([orderItemId])
   @@map("order_files")
@@ -1147,21 +886,18 @@ model OrderFile {
 model ProcessHistory {
   id          String   @id @default(cuid())
   orderId     String
-  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-
   fromStatus  String?
   toStatus    String
   processType String
-
   note        String?
   processedBy String
   processedAt DateTime @default(now())
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
+  @@index([orderId, processedAt])
   @@map("process_histories")
 }
-
-// ==================== 접수 마감 관리 ====================
 
 model ReceptionSchedule {
   id          String    @id @default(cuid())
@@ -1170,20 +906,15 @@ model ReceptionSchedule {
   month       Int
   day         Int
   dayOfWeek   Int
-
-  status      String    @default("open") // open, closed, early_close, holiday, limited
+  status      String    @default("open")
   openTime    String?
   closeTime   String?
-
   reason      String?
-  reasonType  String?   // regular_holiday, public_holiday, special, other
-
+  reasonType  String?
   isHoliday   Boolean   @default(false)
   holidayName String?
-
   modifiedBy  String?
   modifiedAt  DateTime?
-
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -1194,45 +925,33 @@ model ReceptionSchedule {
 }
 
 model RegularHolidaySetting {
-  id            String   @id @default(cuid())
-  type          String   // weekly, monthly, yearly
-  weeklyDays    Int[]    @default([]) // [0, 6] = 일요일, 토요일
-  monthlyDays   Int[]    @default([])
-  yearlyDates   String[] @default([]) // ['01-01', '12-25']
-
+  id            String    @id @default(cuid())
+  type          String
+  weeklyDays    Int[]     @default([])
+  monthlyDays   Int[]     @default([])
+  yearlyDates   String[]  @default([])
   effectiveFrom DateTime
   effectiveTo   DateTime?
   name          String
-  isActive      Boolean  @default(true)
-
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@map("regular_holiday_settings")
 }
 
-// ==================== 용지 관리 ====================
-
-// 용지 그룹 (Paper Group) - 컬러로 구분되는 용지 그룹, 그룹단가 설정
 model PaperGroup {
   id          String   @id @default(cuid())
-  code        String   @unique     // 고유 코드
-  name        String               // 그룹명 (예: 광택지, 무광지, 특수지)
-  color       String               // 그룹 구분 색상 (green, blue, yellow, red, purple 등)
-
-  // 그룹 기본 단가 (연당)
-  basePrice   Decimal  @db.Decimal(12, 2) @default(0)  // 그룹 기본 단가
-  unitType    String   @default("ream")                // sheet, roll, ream, sqm
-
-  description String?  @db.Text    // 설명
-
+  code        String   @unique
+  name        String
+  color       String
+  basePrice   Decimal  @default(0) @db.Decimal(12, 2)
+  unitType    String   @default("ream")
+  description String?
   sortOrder   Int      @default(0)
   isActive    Boolean  @default(true)
-
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
-  // Relations
   papers      Paper[]
 
   @@index([isActive])
@@ -1240,158 +959,100 @@ model PaperGroup {
   @@map("paper_groups")
 }
 
-// 용지대리점 (Paper Supplier/Dealer)
 model PaperSupplier {
-  id          String   @id @default(cuid())
-  code        String   @unique     // 고유 코드
-  name        String               // 대리점명
-  phone       String?              // 전화번호
-  mobile      String?              // 휴대폰
-  email       String?              // 이메일
-  fax         String?              // 팩스
-  postalCode  String?              // 우편번호
-  address     String?              // 주소
-  addressDetail String?            // 상세주소
-  representative String?           // 담당자명
-  website     String?              // 웹사이트
-  description String?  @db.Text    // 설명
-  memo        String?  @db.Text    // 관리자 메모
-
-  sortOrder   Int      @default(0)
-  isActive    Boolean  @default(true)
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  papers      Paper[]
+  id             String   @id @default(cuid())
+  code           String   @unique
+  name           String
+  phone          String?
+  mobile         String?
+  email          String?
+  fax            String?
+  postalCode     String?
+  address        String?
+  addressDetail  String?
+  representative String?
+  website        String?
+  description    String?
+  memo           String?
+  sortOrder      Int      @default(0)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  papers         Paper[]
 
   @@index([isActive])
   @@map("paper_suppliers")
 }
 
-// 제지사 (Paper Manufacturer)
 model PaperManufacturer {
   id          String   @id @default(cuid())
-  code        String   @unique     // 고유 코드
-  name        String               // 제지사명 (예: 신호제지, 한솔제지, 미래엔페이퍼)
-  country     String?              // 국가
-  website     String?              // 웹사이트
-  contactInfo String?              // 연락처 정보
-  description String?  @db.Text    // 설명
-
+  code        String   @unique
+  name        String
+  country     String?
+  website     String?
+  contactInfo String?
+  description String?
   sortOrder   Int      @default(0)
   isActive    Boolean  @default(true)
-
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
-  // Relations
   papers      Paper[]
 
   @@index([isActive])
   @@map("paper_manufacturers")
 }
 
-// 용지 (Paper)
 model Paper {
-  id              String            @id @default(cuid())
-  code            String            @unique     // 고유 코드
-  name            String                        // 용지명
-
-  // 용지 그룹 연결
-  paperGroupId    String?
-  paperGroup      PaperGroup?       @relation(fields: [paperGroupId], references: [id], onDelete: SetNull)
-
-  // 제지사 연결
-  manufacturerId  String?
-  manufacturer    PaperManufacturer? @relation(fields: [manufacturerId], references: [id], onDelete: SetNull)
-
-  // 용지대리점 연결
-  supplierId      String?
-  supplier        PaperSupplier?    @relation(fields: [supplierId], references: [id], onDelete: SetNull)
-
-  // 용지 구분
-  paperType       String            @default("sheet")  // roll: 롤지, sheet: 시트지
-
-  // 용지 규격 (시트지인 경우)
-  sheetSize       String?           // 국전지(788x1091), 46전지(788x545) 등
-  sheetWidthMm    Decimal?          @db.Decimal(10, 2)  // 낱장 가로 (mm)
-  sheetHeightMm   Decimal?          @db.Decimal(10, 2)  // 낱장 세로 (mm)
-  customSheetName String?           // 별사이즈 규격명 (custom 선택시)
-
-  // 롤 용지 규격 (롤지인 경우)
-  rollWidth       String?           // 17", 24", 32", 36", 44", 48" 등
-  rollWidthInch   Decimal?          @db.Decimal(10, 2)  // 롤 폭 (인치)
-  rollLength      String?           // 30m, 40m, 50m 등
-  rollLengthM     Decimal?          @db.Decimal(10, 2)  // 롤 길이 (미터)
-
-  // 용지 평량
-  grammage        Int?              // 평량 (g/m²) - 예: 210, 250
-  grammageDisplay String?           // 표시용 (예: "210g/m²")
-
-  // 표면 질감 (Finish)
-  finish          String?           @default("matte")  // glossy: 광택, matte: 무광, lustre: 반광, canvas: 캔버스, satin: 새틴
-  finishDisplay   String?           // 표시용 (예: "Glossy(광택)")
-
-  // 출력 방식 연결 (멀티 선택 가능)
-  printMethods    String[]          @default([])  // indigo: 인디고출력, inkjet: 잉크젯출력, offset: 오프셋
-
-  // 색상 정보
-  colorType       String?           // white: 백색, ivory: 아이보리, cream: 크림, etc.
-  colorGroup      String?           // 용지 그룹핑용 (예: "green", "blue", "yellow", "red")
-
-  // 두께 정보
-  thickness       Decimal?          @db.Decimal(10, 3)  // 두께 (mm)
-
-  // 가격 정보
-  basePrice       Decimal           @db.Decimal(12, 2) @default(0)  // 기본 단가
-  unitType        String            @default("sheet")  // sheet: 장당, roll: 롤당, sqm: 제곱미터당
-
-  // 할인 정보
-  discountRate    Decimal           @db.Decimal(5, 2) @default(0)   // 할인율 (%)
-  discountPrice   Decimal?          @db.Decimal(12, 2)              // 할인가
-
-  // 재고 관련
-  stockQuantity   Int               @default(0)        // 재고 수량
-  minStockLevel   Int               @default(0)        // 최소 재고 수준
-
-  // 추가 정보
-  description     String?           @db.Text           // 설명
-  memo            String?           @db.Text           // 관리자 메모
-
-  // nUP 정보 (1장당 출력 매수)
-  nUpIndigo       Int?              // 인디고 nUP (자동계산)
-  nUpInkjet       Int?              // 잉크젯 nUP (수동입력)
-
-  // 정렬 및 상태
-  sortOrder       Int               @default(0)
-  isActive        Boolean           @default(true)
-
-  // ========== JDF MediaIntent 필드 ==========
-  // JDF: MediaType (용지 매체 유형)
-  jdfMediaType        String?       @default("Paper")      // Paper, Transparency, Film, Plate
-  // JDF: MediaTypeDetails (용지 세부 유형)
-  jdfMediaTypeDetails String?                              // Photographic, Bond, Cardstock, Coated
-  // JDF: FrontCoatings / BackCoatings (코팅 정보)
-  jdfFrontCoating     String?                              // HighGloss, Glossy, Matte, Satin
-  jdfBackCoating      String?                              // 뒷면 코팅
-  // JDF: Opacity (불투명도)
-  jdfOpacity          String?       @default("Opaque")     // Opaque, Translucent, Transparent
-  // JDF: Texture (질감)
-  jdfTexture          String?                              // Smooth, Linen, Laid, Felt
-  // JDF: Grade (용지 등급)
-  jdfGrade            Int?          @default(1)            // 1-5 등급
-  // JDF: PrePrinted (사전 인쇄 여부)
-  jdfPrePrinted       Boolean       @default(false)
-  // JDF: HoleType (펀치 구멍)
-  jdfHoleType         String?                              // None, R2-generic, R3-generic
-
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-
-  // Relations
-  prices          PaperPrice[]
+  id                  String             @id @default(cuid())
+  code                String             @unique
+  name                String
+  paperGroupId        String?
+  manufacturerId      String?
+  supplierId          String?
+  paperType           String             @default("sheet")
+  sheetSize           String?
+  sheetWidthMm        Decimal?           @db.Decimal(10, 2)
+  sheetHeightMm       Decimal?           @db.Decimal(10, 2)
+  customSheetName     String?
+  rollWidth           String?
+  rollWidthInch       Decimal?           @db.Decimal(10, 2)
+  rollLength          String?
+  rollLengthM         Decimal?           @db.Decimal(10, 2)
+  grammage            Int?
+  grammageDisplay     String?
+  finish              String?            @default("matte")
+  finishDisplay       String?
+  printMethods        String[]           @default([])
+  colorType           String?
+  colorGroup          String?
+  thickness           Decimal?           @db.Decimal(10, 3)
+  basePrice           Decimal            @default(0) @db.Decimal(12, 2)
+  unitType            String             @default("sheet")
+  discountRate        Decimal            @default(0) @db.Decimal(5, 2)
+  discountPrice       Decimal?           @db.Decimal(12, 2)
+  stockQuantity       Int                @default(0)
+  minStockLevel       Int                @default(0)
+  description         String?
+  memo                String?
+  sortOrder           Int                @default(0)
+  isActive            Boolean            @default(true)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  nUpIndigo           Int?
+  nUpInkjet           Int?
+  jdfBackCoating      String?
+  jdfFrontCoating     String?
+  jdfGrade            Int?               @default(1)
+  jdfHoleType         String?
+  jdfMediaType        String?            @default("Paper")
+  jdfMediaTypeDetails String?
+  jdfOpacity          String?            @default("Opaque")
+  jdfPrePrinted       Boolean            @default(false)
+  jdfTexture          String?
+  prices              PaperPrice[]
+  manufacturer        PaperManufacturer? @relation(fields: [manufacturerId], references: [id])
+  paperGroup          PaperGroup?        @relation(fields: [paperGroupId], references: [id])
+  supplier            PaperSupplier?     @relation(fields: [supplierId], references: [id])
 
   @@index([paperGroupId])
   @@index([manufacturerId])
@@ -1401,249 +1062,154 @@ model Paper {
   @@map("papers")
 }
 
-// 용지 가격 (그룹별/수량별 가격)
 model PaperPrice {
   id          String   @id @default(cuid())
   paperId     String
-  paper       Paper    @relation(fields: [paperId], references: [id], onDelete: Cascade)
-
-  // 가격 타입
-  priceType   String   @default("base")  // base: 기본가, group: 그룹가, quantity: 수량별
-  groupId     String?                    // 그룹 가격인 경우
-
-  // 수량 조건
-  minQuantity Int?                       // 최소 수량
-  maxQuantity Int?                       // 최대 수량
-
-  // 가격
+  priceType   String   @default("base")
+  groupId     String?
+  minQuantity Int?
+  maxQuantity Int?
   price       Decimal  @db.Decimal(12, 2)
-
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  paper       Paper    @relation(fields: [paperId], references: [id], onDelete: Cascade)
 
   @@index([paperId])
   @@index([priceType])
   @@map("paper_prices")
 }
 
-// ==================== 카테고리별 생산설정 (표준단가) ====================
-
-// 생산설정 그룹 (2단계: 대분류 > 소분류)
 model ProductionGroup {
-  id          String   @id @default(cuid())
-  code        String   @unique     // 고유 코드 (예: 0101, 010106)
-  name        String               // 그룹명 (예: 출력전용, 포토북)
-  depth       Int      @default(1) // 1: 대분류, 2: 소분류
-
-  // 계층 구조
-  parentId    String?
-  parent      ProductionGroup?  @relation("ProductionGroupTree", fields: [parentId], references: [id])
-  children    ProductionGroup[] @relation("ProductionGroupTree")
-
-  // 정렬 및 상태
-  sortOrder   Int      @default(0)
-  isActive    Boolean  @default(true)
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  settings    ProductionSetting[]
+  id        String              @id @default(cuid())
+  code      String              @unique
+  name      String
+  depth     Int                 @default(1)
+  parentId  String?
+  sortOrder Int                 @default(0)
+  isActive  Boolean             @default(true)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  parent    ProductionGroup?    @relation("ProductionGroupTree", fields: [parentId], references: [id])
+  children  ProductionGroup[]   @relation("ProductionGroupTree")
+  settings  ProductionSetting[]
 
   @@index([parentId])
   @@index([isActive])
   @@map("production_groups")
 }
 
-// 카테고리별 생산설정 (소분류에만 연결)
 model ProductionSetting {
-  id              String          @id @default(cuid())
-  groupId         String
-  group           ProductionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-
-  // 코드명 (선택적)
-  codeName        String?
-
-  // 업체명 (본사, 외주 등)
-  vendorType      String          @default("in_house") // in_house: 본사, outsourced: 외주
-
-  // 가격 적용 단위
-  // paper_output_spec: [출력전용] 용지별출력단가/1p가격 (인쇄방식+규격)
-  // nup_page_range: [제본전용] 구간별 Nup/1p가격
-  pricingType     String          @default("paper_output_spec")
-
-  // 세팅명 (박Color 등 추가 설정명)
-  settingName     String?
-
-  // S코드 (추가 코드)
-  sCode           String?
-
-  // 잡세팅비 / 기본단가
-  settingFee      Decimal         @db.Decimal(12, 2) @default(0)  // 잡세팅비
-  basePrice       Decimal         @db.Decimal(12, 2) @default(0)  // 기본단가
-
-  // 작업시간 (일 단위, 소수점 1자리까지)
-  workDays        Decimal         @db.Decimal(5, 1)  @default(0)
-
-  // 가중치 구분 정보 (텍스트로 저장, 예: "1\n2\n3")
-  weightInfo      String?         @db.Text
-
-  // 용지별 출력단가 설정
-  printMethod     String?         // indigo, inkjet
-  paperIds        String[]        @default([]) // 선택된 용지 ID 목록
-
-  // 규격 용도 선택 (all, indigo, inkjet, album, frame, booklet)
-  specUsageType   String          @default("all")
-
-  // 양면/단면 가격
-  singleSidedPrice  Decimal?      @db.Decimal(12, 2) // 단면 단가
-  doubleSidedPrice  Decimal?      @db.Decimal(12, 2) // 양면 단가
-
-  // 잉크젯 기준규격 설정 (sq inch 가격 계산용)
-  baseSpecificationId String?     // 기준규격 ID
-  basePricePerSqInch  Decimal?    @db.Decimal(12, 6) // sq inch당 기준가격 (자동 계산됨)
-
-  // 용지 단가 그룹 설정 (인디고용)
-  // priceGroups: [{ id, color, upPrices: [{ up, weight, fourColorSinglePrice, ... }] }]
-  priceGroups         Json?       // 단가 그룹 배열 (최대 5개)
-  // paperPriceGroupMap: { paperId: priceGroupId | null }
-  paperPriceGroupMap  Json?       // 용지별 그룹 할당 맵
-
-  // 구간별 Nup+면당가격 페이지 구간 설정
-  pageRanges          Json?       // 페이지 구간 배열 (예: [30, 40, 50, 60])
-
-  // [후가공전용] 길이별단가 설정
-  lengthUnit          String?     @default("cm") // cm, mm
-  lengthPriceRanges   Json?       // 길이별 구간 단가 배열 [{minLength, maxLength, price}]
-
-  // [후가공전용] 면적별단가 설정 (가로×세로 규격 기준)
-  areaUnit            String?     @default("mm") // mm, cm, m (길이 단위)
-  areaPriceRanges     Json?       // 가로×세로 규격별 단가 배열 [{maxWidth, maxHeight, price}]
-
-  // [배송비 전용] 거리별 단가 설정
-  surchargeType       String?     @default("none") // 할증조건: night30_weekend20, night20_weekend10, free_condition, none
-  distancePriceRanges Json?       // 거리 구간별 단가 배열 [{minDistance, maxDistance, price}]
-  extraPricePerKm     Decimal?    @db.Decimal(10, 2) // km당 추가요금
-  maxBaseDistance     Int?        // 기본요금 적용 최대거리 (km)
-  freeThreshold       Decimal?    @db.Decimal(10, 2) // 무료배송 기준금액 (택배용)
-  islandFee           Decimal?    @db.Decimal(10, 2) // 도서산간 추가요금 (택배용)
-
-  // 정렬 및 상태
-  sortOrder       Int             @default(0)
-  isActive        Boolean         @default(true)
-
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-
-  // Relations
-  specifications  ProductionSettingSpecification[]
-  prices          ProductionSettingPrice[]
-  groupPrices     GroupProductionSettingPrice[]
-  clientPrices    ClientProductionSettingPrice[]
+  id                  String                           @id @default(cuid())
+  groupId             String
+  codeName            String?
+  vendorType          String                           @default("in_house")
+  pricingType         String                           @default("paper_output_spec")
+  settingName         String?
+  sCode               String?
+  settingFee          Decimal                          @default(0) @db.Decimal(12, 2)
+  basePrice           Decimal                          @default(0) @db.Decimal(12, 2)
+  workDays            Decimal                          @default(0) @db.Decimal(5, 1)
+  weightInfo          String?
+  printMethod         String?
+  paperIds            String[]                         @default([])
+  specUsageType       String                           @default("all")
+  singleSidedPrice    Decimal?                         @db.Decimal(12, 2)
+  doubleSidedPrice    Decimal?                         @db.Decimal(12, 2)
+  baseSpecificationId String?
+  basePricePerSqInch  Decimal?                         @db.Decimal(12, 6)
+  priceGroups         Json?
+  paperPriceGroupMap  Json?
+  pageRanges          Json?
+  lengthUnit          String?                          @default("cm")
+  lengthPriceRanges   Json?
+  sortOrder           Int                              @default(0)
+  isActive            Boolean                          @default(true)
+  createdAt           DateTime                         @default(now())
+  updatedAt           DateTime                         @updatedAt
+  areaPriceRanges     Json?
+  areaUnit            String?                          @default("mm")
+  distancePriceRanges Json?
+  extraPricePerKm     Decimal?                         @db.Decimal(10, 2)
+  freeThreshold       Decimal?                         @db.Decimal(10, 2)
+  islandFee           Decimal?                         @db.Decimal(10, 2)
+  maxBaseDistance     Int?
+  surchargeType       String?                          @default("none")
+  clientPrices        ClientProductionSettingPrice[]
+  groupPrices         GroupProductionSettingPrice[]
+  prices              ProductionSettingPrice[]
+  specifications      ProductionSettingSpecification[]
+  group               ProductionGroup                  @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@index([groupId])
   @@index([pricingType])
   @@map("production_settings")
 }
 
-// 생산설정-규격 연결 (선택된 규격들)
 model ProductionSettingSpecification {
   id                  String            @id @default(cuid())
   productionSettingId String
-  productionSetting   ProductionSetting @relation(fields: [productionSettingId], references: [id], onDelete: Cascade)
   specificationId     String
-  specification       Specification     @relation(fields: [specificationId], references: [id], onDelete: Cascade)
-
-  // 규격별 가격 (선택적 - 설정 안하면 기본가 사용)
   price               Decimal?          @db.Decimal(12, 2)
-
   sortOrder           Int               @default(0)
-
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
+  productionSetting   ProductionSetting @relation(fields: [productionSettingId], references: [id], onDelete: Cascade)
+  specification       Specification     @relation(fields: [specificationId], references: [id], onDelete: Cascade)
 
   @@unique([productionSettingId, specificationId])
   @@map("production_setting_specifications")
 }
 
-// 생산설정 가격표 (수량별/페이지별/Up별 가격)
 model ProductionSettingPrice {
-  id                  String            @id @default(cuid())
-  productionSettingId String
-  productionSetting   ProductionSetting @relation(fields: [productionSettingId], references: [id], onDelete: Cascade)
-
-  // 가격 조건
-  specificationId     String?           // 규격별 가격인 경우
-  minQuantity         Int?              // 최소 수량 (수량별 가격인 경우) / Up값 (인디고)
-  maxQuantity         Int?              // 최대 수량
-
-  // 가중치 (Up별 가격 계산용)
-  weight              Decimal?          @db.Decimal(5, 2)
-
-  // 가격 (단면/양면) - 기존 호환용
-  price               Decimal           @db.Decimal(12, 2) @default(0)  // 기존 호환용 (단면)
-  singleSidedPrice    Decimal?          @db.Decimal(12, 2) // 단면 단가 (기존 호환용)
-  doubleSidedPrice    Decimal?          @db.Decimal(12, 2) // 양면 단가 (기존 호환용)
-
-  // 인디고 4도칼라 가격
-  fourColorSinglePrice   Decimal?       @db.Decimal(12, 2) // 4도칼라 단면 단가
-  fourColorDoublePrice   Decimal?       @db.Decimal(12, 2) // 4도칼라 양면 단가
-
-  // 인디고 6도칼라 가격
-  sixColorSinglePrice    Decimal?       @db.Decimal(12, 2) // 6도칼라 단면 단가
-  sixColorDoublePrice    Decimal?       @db.Decimal(12, 2) // 6도칼라 양면 단가
-
-  // 구간별 Nup+면당가격 (nup_page_range용)
-  basePages              Int?            // 기본 페이지 수 (예: 30p)
-  basePrice              Decimal?        @db.Decimal(12, 2) // 기본 가격 (예: 10000원)
-  pricePerPage           Decimal?        @db.Decimal(12, 2) // 1p당 추가 가격 (예: 200원)
-  rangePrices            Json?           // 구간별 가격 (예: { "30": 20000, "40": 23000 })
-
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+  id                   String            @id @default(cuid())
+  productionSettingId  String
+  specificationId      String?
+  minQuantity          Int?
+  maxQuantity          Int?
+  weight               Decimal?          @db.Decimal(5, 2)
+  price                Decimal           @default(0) @db.Decimal(12, 2)
+  singleSidedPrice     Decimal?          @db.Decimal(12, 2)
+  doubleSidedPrice     Decimal?          @db.Decimal(12, 2)
+  fourColorSinglePrice Decimal?          @db.Decimal(12, 2)
+  fourColorDoublePrice Decimal?          @db.Decimal(12, 2)
+  sixColorSinglePrice  Decimal?          @db.Decimal(12, 2)
+  sixColorDoublePrice  Decimal?          @db.Decimal(12, 2)
+  basePages            Int?
+  basePrice            Decimal?          @db.Decimal(12, 2)
+  pricePerPage         Decimal?          @db.Decimal(12, 2)
+  rangePrices          Json?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  productionSetting    ProductionSetting @relation(fields: [productionSettingId], references: [id], onDelete: Cascade)
 
   @@index([productionSettingId])
   @@map("production_setting_prices")
 }
 
-// 그룹별 생산설정 가격 (거래처 그룹별 특별 단가)
 model GroupProductionSettingPrice {
-  id                  String            @id @default(cuid())
-  clientGroupId       String
-  clientGroup         ClientGroup       @relation(fields: [clientGroupId], references: [id], onDelete: Cascade)
-  productionSettingId String
-  productionSetting   ProductionSetting @relation(fields: [productionSettingId], references: [id], onDelete: Cascade)
-
-  // 가격 조건 (ProductionSettingPrice와 동일한 구조)
-  specificationId     String?           // 규격별 가격인 경우
-  priceGroupId        String?           // 단가 그룹 ID (인디고 priceGroups용)
-  minQuantity         Int?              // 최소 수량 (수량별 가격인 경우) / Up값 (인디고)
-  maxQuantity         Int?              // 최대 수량
-
-  // 가중치 (Up별 가격 계산용)
-  weight              Decimal?          @db.Decimal(5, 2)
-
-  // 가격 (단면/양면)
-  price               Decimal           @db.Decimal(12, 2) @default(0)
-  singleSidedPrice    Decimal?          @db.Decimal(12, 2)
-  doubleSidedPrice    Decimal?          @db.Decimal(12, 2)
-
-  // 인디고 4도칼라 가격
-  fourColorSinglePrice   Decimal?       @db.Decimal(12, 2)
-  fourColorDoublePrice   Decimal?       @db.Decimal(12, 2)
-
-  // 인디고 6도칼라 가격
-  sixColorSinglePrice    Decimal?       @db.Decimal(12, 2)
-  sixColorDoublePrice    Decimal?       @db.Decimal(12, 2)
-
-  // 구간별 Nup+면당가격 (nup_page_range용)
-  basePages              Int?
-  basePrice              Decimal?        @db.Decimal(12, 2)
-  pricePerPage           Decimal?        @db.Decimal(12, 2)
-  rangePrices            Json?
-
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+  id                   String            @id @default(cuid())
+  clientGroupId        String
+  productionSettingId  String
+  specificationId      String?
+  minQuantity          Int?
+  maxQuantity          Int?
+  weight               Decimal?          @db.Decimal(5, 2)
+  price                Decimal           @default(0) @db.Decimal(12, 2)
+  singleSidedPrice     Decimal?          @db.Decimal(12, 2)
+  doubleSidedPrice     Decimal?          @db.Decimal(12, 2)
+  fourColorSinglePrice Decimal?          @db.Decimal(12, 2)
+  fourColorDoublePrice Decimal?          @db.Decimal(12, 2)
+  sixColorSinglePrice  Decimal?          @db.Decimal(12, 2)
+  sixColorDoublePrice  Decimal?          @db.Decimal(12, 2)
+  basePages            Int?
+  basePrice            Decimal?          @db.Decimal(12, 2)
+  pricePerPage         Decimal?          @db.Decimal(12, 2)
+  rangePrices          Json?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  priceGroupId         String?
+  clientGroup          ClientGroup       @relation(fields: [clientGroupId], references: [id], onDelete: Cascade)
+  productionSetting    ProductionSetting @relation(fields: [productionSettingId], references: [id], onDelete: Cascade)
 
   @@unique([clientGroupId, productionSettingId, specificationId, priceGroupId, minQuantity])
   @@index([clientGroupId])
@@ -1652,44 +1218,30 @@ model GroupProductionSettingPrice {
   @@map("group_production_setting_prices")
 }
 
-// 거래처 개별 생산설정 단가 (GroupProductionSettingPrice와 동일 구조, clientId 사용)
 model ClientProductionSettingPrice {
-  id                  String            @id @default(cuid())
-  clientId            String
-  client              Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  productionSettingId String
-  productionSetting   ProductionSetting @relation(fields: [productionSettingId], references: [id], onDelete: Cascade)
-
-  // 가격 조건 (ProductionSettingPrice와 동일한 구조)
-  specificationId     String?           // 규격별 가격인 경우
-  priceGroupId        String?           // 단가 그룹 ID (인디고 priceGroups용)
-  minQuantity         Int?              // 최소 수량 (수량별 가격인 경우) / Up값 (인디고)
-  maxQuantity         Int?              // 최대 수량
-
-  // 가중치 (Up별 가격 계산용)
-  weight              Decimal?          @db.Decimal(5, 2)
-
-  // 가격 (단면/양면)
-  price               Decimal           @db.Decimal(12, 2) @default(0)
-  singleSidedPrice    Decimal?          @db.Decimal(12, 2)
-  doubleSidedPrice    Decimal?          @db.Decimal(12, 2)
-
-  // 인디고 4도칼라 가격
-  fourColorSinglePrice   Decimal?       @db.Decimal(12, 2)
-  fourColorDoublePrice   Decimal?       @db.Decimal(12, 2)
-
-  // 인디고 6도칼라 가격
-  sixColorSinglePrice    Decimal?       @db.Decimal(12, 2)
-  sixColorDoublePrice    Decimal?       @db.Decimal(12, 2)
-
-  // 구간별 Nup+면당가격 (nup_page_range용)
-  basePages              Int?
-  basePrice              Decimal?        @db.Decimal(12, 2)
-  pricePerPage           Decimal?        @db.Decimal(12, 2)
-  rangePrices            Json?
-
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+  id                   String            @id @default(cuid())
+  clientId             String
+  productionSettingId  String
+  specificationId      String?
+  priceGroupId         String?
+  minQuantity          Int?
+  maxQuantity          Int?
+  weight               Decimal?          @db.Decimal(5, 2)
+  price                Decimal           @default(0) @db.Decimal(12, 2)
+  singleSidedPrice     Decimal?          @db.Decimal(12, 2)
+  doubleSidedPrice     Decimal?          @db.Decimal(12, 2)
+  fourColorSinglePrice Decimal?          @db.Decimal(12, 2)
+  fourColorDoublePrice Decimal?          @db.Decimal(12, 2)
+  sixColorSinglePrice  Decimal?          @db.Decimal(12, 2)
+  sixColorDoublePrice  Decimal?          @db.Decimal(12, 2)
+  basePages            Int?
+  basePrice            Decimal?          @db.Decimal(12, 2)
+  pricePerPage         Decimal?          @db.Decimal(12, 2)
+  rangePrices          Json?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  client               Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  productionSetting    ProductionSetting @relation(fields: [productionSettingId], references: [id], onDelete: Cascade)
 
   @@unique([clientId, productionSettingId, specificationId, priceGroupId, minQuantity])
   @@index([clientId])
@@ -1698,91 +1250,59 @@ model ClientProductionSettingPrice {
   @@map("client_production_setting_prices")
 }
 
-// ==================== 고객 상담 관리 ====================
-
-// 상담 분류 코드
 model ConsultationCategory {
-  id          String   @id @default(cuid())
-  code        String   @unique  // claim_quality, claim_delivery, etc.
-  name        String             // 품질 클레임, 배송 클레임, etc.
-  description String?            // 분류 설명
-  colorCode   String?            // 분류별 색상 코드 (red, orange, yellow, etc.)
-  sortOrder   Int      @default(0)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
+  id            String         @id @default(cuid())
+  code          String         @unique
+  name          String
+  colorCode     String?
+  sortOrder     Int            @default(0)
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  description   String?
   consultations Consultation[]
 
   @@index([isActive])
   @@map("consultation_categories")
 }
 
-// 상담 내역
 model Consultation {
-  id              String   @id @default(cuid())
-  consultNumber   String   @unique          // 상담번호 (CS-20260120-0001)
-
-  // 고객 정보
-  clientId        String
-  client          Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  // 상담 분류
-  categoryId      String
-  category        ConsultationCategory @relation(fields: [categoryId], references: [id])
-
-  // 상담 내용
-  title           String                    // 상담 제목
-  content         String   @db.Text         // 상담 내용
-
-  // 관련 주문 (선택적)
-  orderId         String?
-  orderNumber     String?                   // 참조용 주문번호
-
-  // 상담자 정보
-  counselorId     String                    // 상담 담당 직원 ID
-  counselorName   String                    // 상담자명 (스냅샷)
-  consultedAt     DateTime @default(now())  // 상담 시간
-
-  // 처리 상태
-  status          String   @default("open") // open: 접수, in_progress: 처리중, resolved: 해결, closed: 종료
-  priority        String   @default("normal") // low, normal, high, urgent
-
-  // 상태 변경 이력
-  openedAt        DateTime @default(now())  // 접수 시간
-  openedBy        String?                   // 접수 담당자
-  inProgressAt    DateTime?                 // 처리중 변경 시간
-  inProgressBy    String?                   // 처리중 담당자
-  closedAt        DateTime?                 // 종료 시간
-  closedBy        String?                   // 종료 담당자
-
-  // 처리 내용
-  resolution      String?  @db.Text         // 처리 내용
-  resolvedAt      DateTime?                 // 해결 시간
-  resolvedBy      String?                   // 해결 담당자 ID
-
-  // 후속 조치
-  followUpDate    DateTime?                 // 후속 조치 예정일
-  followUpNote    String?  @db.Text         // 후속 조치 메모
-
-  // 카카오톡 예약전송 설정
-  kakaoScheduled  Boolean  @default(false)  // 카카오톡 예약 전송 여부
-  kakaoSendAt     DateTime?                 // 카카오톡 전송 예약 시간
-  kakaoSentAt     DateTime?                 // 실제 전송 시간
-  kakaoMessage    String?  @db.Text         // 전송 메시지 내용
-
-  // 첨부파일
-  attachments     Json?                     // 첨부파일 URL 배열
-
-  // 메모 (내부용)
-  internalMemo    String?  @db.Text
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  // Relations
-  followUps       ConsultationFollowUp[]
-  messages        ConsultationMessage[]
+  id             String                 @id @default(cuid())
+  consultNumber  String                 @unique
+  clientId       String
+  categoryId     String
+  title          String
+  content        String
+  orderId        String?
+  orderNumber    String?
+  counselorId    String
+  counselorName  String
+  consultedAt    DateTime               @default(now())
+  status         String                 @default("open")
+  priority       String                 @default("normal")
+  resolution     String?
+  resolvedAt     DateTime?
+  resolvedBy     String?
+  followUpDate   DateTime?
+  followUpNote   String?
+  kakaoScheduled Boolean                @default(false)
+  kakaoSendAt    DateTime?
+  kakaoSentAt    DateTime?
+  kakaoMessage   String?
+  attachments    Json?
+  internalMemo   String?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  closedAt       DateTime?
+  closedBy       String?
+  inProgressAt   DateTime?
+  inProgressBy   String?
+  openedAt       DateTime               @default(now())
+  openedBy       String?
+  followUps      ConsultationFollowUp[]
+  messages       ConsultationMessage[]
+  category       ConsultationCategory   @relation(fields: [categoryId], references: [id])
+  client         Client                 @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([clientId])
   @@index([categoryId])
@@ -1793,51 +1313,35 @@ model Consultation {
   @@map("consultations")
 }
 
-// 상담 후속 조치 기록
 model ConsultationFollowUp {
-  id              String       @id @default(cuid())
-  consultationId  String
-  consultation    Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
-
-  content         String       @db.Text     // 후속 조치 내용
-  actionType      String                    // phone: 전화, visit: 방문, email: 이메일, kakao: 카카오톡, other: 기타
-
-  staffId         String                    // 조치 담당자 ID
-  staffName       String                    // 담당자명 (스냅샷)
-
-  createdAt       DateTime     @default(now())
+  id             String       @id @default(cuid())
+  consultationId String
+  content        String
+  actionType     String
+  staffId        String
+  staffName      String
+  createdAt      DateTime     @default(now())
+  consultation   Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
 
   @@index([consultationId])
   @@map("consultation_follow_ups")
 }
 
-// ==================== CS 고도화 시스템 ====================
-
-// 고객 건강 점수 (Customer Health Score)
 model CustomerHealthScore {
-  id            String   @id @default(cuid())
-  clientId      String   @unique
-  client        Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  // 점수 구성요소 (0-100점 각각)
-  claimScore        Int      @default(100)   // 클레임 빈도 점수 (높을수록 좋음)
-  satisfactionScore Int      @default(100)   // 만족도 점수
-  loyaltyScore      Int      @default(100)   // 충성도 점수 (재주문율)
-  communicationScore Int     @default(100)   // 소통 점수 (응답률)
-
-  // 총합 점수 (자동 계산)
-  totalScore        Int      @default(100)   // 가중 평균 점수
-  grade             String   @default("A")   // A, B, C, D, F (점수 기반 등급)
-
-  // 위험 플래그
-  isAtRisk          Boolean  @default(false) // 이탈 위험 고객
-  riskReason        String?                  // 위험 사유
-
-  // 마지막 계산 시점
-  lastCalculatedAt  DateTime @default(now())
-
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  clientId           String   @unique
+  claimScore         Int      @default(100)
+  satisfactionScore  Int      @default(100)
+  loyaltyScore       Int      @default(100)
+  communicationScore Int      @default(100)
+  totalScore         Int      @default(100)
+  grade              String   @default("A")
+  isAtRisk           Boolean  @default(false)
+  riskReason         String?
+  lastCalculatedAt   DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  client             Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([totalScore])
   @@index([isAtRisk])
@@ -1845,21 +1349,18 @@ model CustomerHealthScore {
   @@map("customer_health_scores")
 }
 
-// 상담 태그 (Smart Tagging)
 model ConsultationTag {
-  id          String   @id @default(cuid())
-  code        String   @unique              // print_quality, binding_defect, color_issue 등
-  name        String                        // 인쇄 화질, 제본 불량, 색상 불만 등
-  colorCode   String?                       // 태그 색상
-  category    String   @default("claim")    // claim: 클레임, inquiry: 문의, sales: 영업
-  sortOrder   Int      @default(0)
-  isActive    Boolean  @default(true)
-  isAutoTag   Boolean  @default(false)      // AI 자동 태깅 대상 여부
-  keywords    String[] @default([])         // 자동 태깅용 키워드 목록
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
+  id            String                   @id @default(cuid())
+  code          String                   @unique
+  name          String
+  colorCode     String?
+  category      String                   @default("claim")
+  sortOrder     Int                      @default(0)
+  isActive      Boolean                  @default(true)
+  isAutoTag     Boolean                  @default(false)
+  keywords      String[]                 @default([])
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
   consultations ConsultationTagMapping[]
 
   @@index([category])
@@ -1867,17 +1368,14 @@ model ConsultationTag {
   @@map("consultation_tags")
 }
 
-// 상담-태그 매핑 (다대다)
 model ConsultationTagMapping {
-  id              String          @id @default(cuid())
-  consultationId  String
-  tagId           String
-  tag             ConsultationTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
-
-  isAutoTagged    Boolean  @default(false)  // AI 자동 태깅 여부
-  confidence      Decimal? @db.Decimal(3, 2) // AI 태깅 신뢰도 (0.00-1.00)
-
-  createdAt       DateTime @default(now())
+  id             String          @id @default(cuid())
+  consultationId String
+  tagId          String
+  isAutoTagged   Boolean         @default(false)
+  confidence     Decimal?        @db.Decimal(3, 2)
+  createdAt      DateTime        @default(now())
+  tag            ConsultationTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@unique([consultationId, tagId])
   @@index([consultationId])
@@ -1885,63 +1383,40 @@ model ConsultationTagMapping {
   @@map("consultation_tag_mappings")
 }
 
-// 상담 채널 기록 (옴니채널 통합)
 model ConsultationChannel {
-  id              String   @id @default(cuid())
-  consultationId  String
-
-  channel         String   // phone, kakao, web, email, visit, other
-  channelDetail   String?  // 세부 채널 정보
-
-  // 인바운드/아웃바운드 구분
-  direction       String   @default("inbound") // inbound: 고객→회사, outbound: 회사→고객
-
-  // 통화 시간 (phone 채널)
-  callDuration    Int?     // 통화 시간 (초)
-  callRecordUrl   String?  // 통화 녹음 URL
-
-  // 채널별 메타데이터
-  metadata        Json?    // 채널별 추가 정보
-
-  createdAt       DateTime @default(now())
+  id             String   @id @default(cuid())
+  consultationId String
+  channel        String
+  channelDetail  String?
+  direction      String   @default("inbound")
+  callDuration   Int?
+  callRecordUrl  String?
+  metadata       Json?
+  createdAt      DateTime @default(now())
 
   @@index([consultationId])
   @@index([channel])
   @@map("consultation_channels")
 }
 
-// 상담 알림 (Alert System)
 model ConsultationAlert {
-  id              String   @id @default(cuid())
-
-  // 대상
-  clientId        String?
-  consultationId  String?
-
-  // 알림 유형
-  alertType       String   // repeat_claim: 반복 클레임, urgent: 긴급, sla_breach: SLA 위반, at_risk: 이탈 위험
-  alertLevel      String   @default("warning") // info, warning, critical
-
-  // 알림 내용
-  title           String
-  message         String   @db.Text
-
-  // 조건 (트리거된 조건)
-  triggerCondition Json?   // { claimCount: 3, period: "30days" } 등
-
-  // 처리 상태
-  isRead          Boolean  @default(false)
-  readAt          DateTime?
-  readBy          String?
-
-  // 해결 여부
-  isResolved      Boolean  @default(false)
-  resolvedAt      DateTime?
-  resolvedBy      String?
-  resolution      String?  @db.Text
-
-  createdAt       DateTime @default(now())
-  expiresAt       DateTime?                // 알림 만료 시간
+  id               String    @id @default(cuid())
+  clientId         String?
+  consultationId   String?
+  alertType        String
+  alertLevel       String    @default("warning")
+  title            String
+  message          String
+  triggerCondition Json?
+  isRead           Boolean   @default(false)
+  readAt           DateTime?
+  readBy           String?
+  isResolved       Boolean   @default(false)
+  resolvedAt       DateTime?
+  resolvedBy       String?
+  resolution       String?
+  createdAt        DateTime  @default(now())
+  expiresAt        DateTime?
 
   @@index([clientId])
   @@index([consultationId])
@@ -1952,88 +1427,57 @@ model ConsultationAlert {
   @@map("consultation_alerts")
 }
 
-// 상담 SLA 설정 (Service Level Agreement)
 model ConsultationSLA {
-  id              String   @id @default(cuid())
-
-  name            String                    // SLA 규칙 이름
-  categoryId      String?                   // 특정 카테고리에만 적용 (null이면 전체)
-  priority        String?                   // 특정 우선순위에만 적용
-
-  // 응답 시간 목표 (분 단위)
-  firstResponseTarget   Int   @default(60)    // 최초 응답 목표 시간 (분)
-  resolutionTarget      Int   @default(1440)  // 해결 목표 시간 (분) - 24시간
-
-  // 에스컬레이션 설정
-  escalationTime        Int?                  // 에스컬레이션 시간 (분)
-  escalateTo            String?               // 에스컬레이션 대상 (직원 ID)
-
-  // 알림 설정
-  warningThreshold      Int   @default(80)    // 경고 임계값 (목표 시간의 %)
-  criticalThreshold     Int   @default(100)   // 위험 임계값 (목표 시간의 %)
-
-  sortOrder       Int      @default(0)
-  isActive        Boolean  @default(true)
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  name                String
+  categoryId          String?
+  priority            String?
+  firstResponseTarget Int      @default(60)
+  resolutionTarget    Int      @default(1440)
+  escalationTime      Int?
+  escalateTo          String?
+  warningThreshold    Int      @default(80)
+  criticalThreshold   Int      @default(100)
+  sortOrder           Int      @default(0)
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   @@map("consultation_slas")
 }
 
-// 상담 만족도 조사
 model ConsultationSurvey {
-  id              String   @id @default(cuid())
-  consultationId  String   @unique
-
-  // 점수 (1-5점)
-  satisfactionScore   Int              // 전체 만족도
-  responseSpeedScore  Int?             // 응답 속도
-  resolutionScore     Int?             // 문제 해결
-  friendlinessScore   Int?             // 친절도
-
-  // 추가 피드백
-  feedback        String?  @db.Text     // 고객 피드백
-  wouldRecommend  Boolean?              // 추천 의향
-
-  // 설문 메타데이터
-  surveyMethod    String   @default("email") // email, kakao, web, phone
-  surveyedAt      DateTime @default(now())
-
-  createdAt       DateTime @default(now())
+  id                 String   @id @default(cuid())
+  consultationId     String   @unique
+  satisfactionScore  Int
+  responseSpeedScore Int?
+  resolutionScore    Int?
+  friendlinessScore  Int?
+  feedback           String?
+  wouldRecommend     Boolean?
+  surveyMethod       String   @default("email")
+  surveyedAt         DateTime @default(now())
+  createdAt          DateTime @default(now())
 
   @@index([consultationId])
   @@index([satisfactionScore])
   @@map("consultation_surveys")
 }
 
-// 상담 대처 가이드 (Knowledge Base)
 model ConsultationGuide {
   id              String   @id @default(cuid())
-
-  // 분류
-  categoryId      String?                   // 관련 상담 분류
-  tagCodes        String[] @default([])     // 관련 태그 코드들
-
-  // 가이드 내용
+  categoryId      String?
+  tagCodes        String[] @default([])
   title           String
-  problem         String   @db.Text         // 문제 상황 설명
-  solution        String   @db.Text         // 해결 방법
-
-  // 스크립트
-  scripts         Json?                     // 상담 스크립트 배열
-
-  // 참조
-  relatedGuideIds String[] @default([])     // 관련 가이드 ID들
-  attachments     Json?                     // 첨부파일 URL 배열
-
-  // 통계
-  usageCount      Int      @default(0)      // 사용 횟수
-  helpfulCount    Int      @default(0)      // 도움됨 횟수
-
+  problem         String
+  solution        String
+  scripts         Json?
+  relatedGuideIds String[] @default([])
+  attachments     Json?
+  usageCount      Int      @default(0)
+  helpfulCount    Int      @default(0)
   sortOrder       Int      @default(0)
   isActive        Boolean  @default(true)
-
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -2041,48 +1485,26 @@ model ConsultationGuide {
   @@map("consultation_guides")
 }
 
-// 상담 통계 스냅샷 (일별/주별/월별)
 model ConsultationStatSnapshot {
-  id              String   @id @default(cuid())
-
-  // 기간
-  period          String   // daily, weekly, monthly
-  periodStart     DateTime
-  periodEnd       DateTime
-
-  // 주요 지표
-  totalCount          Int   @default(0)   // 총 상담 건수
-  claimCount          Int   @default(0)   // 클레임 건수
-  inquiryCount        Int   @default(0)   // 문의 건수
-  salesCount          Int   @default(0)   // 영업 상담 건수
-
-  // 처리 현황
-  resolvedCount       Int   @default(0)   // 해결된 건수
-  pendingCount        Int   @default(0)   // 미해결 건수
-
-  // 응답/해결 시간 (분)
-  avgFirstResponseTime  Decimal? @db.Decimal(10, 2)  // 평균 최초 응답 시간
-  avgResolutionTime     Decimal? @db.Decimal(10, 2)  // 평균 해결 시간
-
-  // SLA 달성률
-  slaComplianceRate   Decimal? @db.Decimal(5, 2)    // SLA 준수율 (%)
-
-  // 만족도
-  avgSatisfactionScore  Decimal? @db.Decimal(3, 2)  // 평균 만족도 점수
-
-  // 채널별 통계
-  channelStats        Json?    // { phone: 50, kakao: 30, web: 20 }
-
-  // 카테고리별 통계
-  categoryStats       Json?    // { claim_quality: 15, claim_delivery: 10 }
-
-  // 태그별 통계
-  tagStats            Json?    // { print_quality: 8, binding_defect: 5 }
-
-  // 담당자별 통계
-  counselorStats      Json?    // { staffId: { count: 10, avgTime: 30 } }
-
-  createdAt           DateTime @default(now())
+  id                   String   @id @default(cuid())
+  period               String
+  periodStart          DateTime
+  periodEnd            DateTime
+  totalCount           Int      @default(0)
+  claimCount           Int      @default(0)
+  inquiryCount         Int      @default(0)
+  salesCount           Int      @default(0)
+  resolvedCount        Int      @default(0)
+  pendingCount         Int      @default(0)
+  avgFirstResponseTime Decimal? @db.Decimal(10, 2)
+  avgResolutionTime    Decimal? @db.Decimal(10, 2)
+  slaComplianceRate    Decimal? @db.Decimal(5, 2)
+  avgSatisfactionScore Decimal? @db.Decimal(3, 2)
+  channelStats         Json?
+  categoryStats        Json?
+  tagStats             Json?
+  counselorStats       Json?
+  createdAt            DateTime @default(now())
 
   @@unique([period, periodStart])
   @@index([period])
@@ -2090,60 +1512,36 @@ model ConsultationStatSnapshot {
   @@map("consultation_stat_snapshots")
 }
 
-// ==================== 일정 및 Todo 관리 ====================
-
-// Todo (할일) 관리
 model Todo {
-  id              String   @id @default(cuid())
-
-  // 작성자 정보
-  creatorId       String               // 작성자 직원 ID
-  creatorName     String               // 작성자명 (스냅샷)
-  creatorDeptId   String?              // 작성자 부서 ID
-  creatorDeptName String?              // 작성자 부서명 (스냅샷)
-
-  // Todo 내용
-  title           String               // 할일 제목
-  content         String?  @db.Text    // 상세 내용
-  priority        String   @default("normal") // low, normal, high, urgent
-
-  // 일정 정보
-  startDate       DateTime?            // 시작일시
-  dueDate         DateTime?            // 마감일시
-  isAllDay        Boolean  @default(false) // 종일 일정 여부
-
-  // 상태
-  status          String   @default("pending") // pending: 대기, in_progress: 진행중, completed: 완료, cancelled: 취소
-  completedAt     DateTime?            // 완료 시간
-  completedBy     String?              // 완료 처리자
-
-  // 일정 범위 (여러 개 선택 가능)
-  isPersonal      Boolean  @default(true)   // 개인일정
-  isDepartment    Boolean  @default(false)  // 부서일정
-  isCompany       Boolean  @default(false)  // 전체일정
-
-  // 공개 부서 (isDepartment가 true인 경우)
-  sharedDeptIds   String[] @default([])     // 공유 대상 부서 ID 목록
-
-  // 알림 설정
-  reminderAt      DateTime?            // 알림 시간
-  isReminderSent  Boolean  @default(false)
-
-  // 반복 설정 (선택적)
-  isRecurring     Boolean  @default(false)
-  recurringType   String?              // daily, weekly, monthly, yearly
-  recurringEnd    DateTime?            // 반복 종료일
-
-  // 관련 정보 (선택적)
-  relatedType     String?              // order, client, consultation 등
-  relatedId       String?              // 관련 엔티티 ID
-
-  // 태그/색상
-  color           String?  @default("#3B82F6") // 일정 색상
-  tags            String[] @default([])        // 태그 목록
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id              String    @id @default(cuid())
+  creatorId       String
+  creatorName     String
+  creatorDeptId   String?
+  creatorDeptName String?
+  title           String
+  content         String?
+  priority        String    @default("normal")
+  startDate       DateTime?
+  dueDate         DateTime?
+  isAllDay        Boolean   @default(false)
+  status          String    @default("pending")
+  completedAt     DateTime?
+  completedBy     String?
+  isPersonal      Boolean   @default(true)
+  isDepartment    Boolean   @default(false)
+  isCompany       Boolean   @default(false)
+  sharedDeptIds   String[]  @default([])
+  reminderAt      DateTime?
+  isReminderSent  Boolean   @default(false)
+  isRecurring     Boolean   @default(false)
+  recurringType   String?
+  recurringEnd    DateTime?
+  relatedType     String?
+  relatedId       String?
+  color           String?   @default("#3B82F6")
+  tags            String[]  @default([])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@index([creatorId])
   @@index([creatorDeptId])
@@ -2155,63 +1553,37 @@ model Todo {
   @@map("todos")
 }
 
-// 일정 (Schedule/Calendar) 관리
 model Schedule {
-  id              String   @id @default(cuid())
-
-  // 작성자 정보
-  creatorId       String               // 작성자 직원 ID
-  creatorName     String               // 작성자명 (스냅샷)
-  creatorDeptId   String?              // 작성자 부서 ID
-  creatorDeptName String?              // 작성자 부서명 (스냅샷)
-
-  // 일정 내용
-  title           String               // 일정 제목
-  description     String?  @db.Text    // 상세 설명
-  location        String?              // 장소
-
-  // 일정 시간
-  startAt         DateTime             // 시작 일시
-  endAt           DateTime             // 종료 일시
-  isAllDay        Boolean  @default(false) // 종일 일정 여부
-
-  // 일정 범위 (여러 개 선택 가능)
-  isPersonal      Boolean  @default(true)   // 개인일정
-  isDepartment    Boolean  @default(false)  // 부서일정
-  isCompany       Boolean  @default(false)  // 전체일정
-
-  // 공개 부서 (isDepartment가 true인 경우)
-  sharedDeptIds   String[] @default([])     // 공유 대상 부서 ID 목록
-
-  // 일정 타입
-  scheduleType    String   @default("meeting") // meeting: 회의, event: 이벤트, task: 작업, reminder: 리마인더, holiday: 휴일
-
-  // 알림 설정
-  reminders       Json?                // 알림 설정 배열 [{ type: 'popup'|'email', minutes: 30 }]
-
-  // 반복 설정
-  isRecurring     Boolean  @default(false)
-  recurringRule   String?              // RRULE 형식 (RFC 5545)
-  recurringConfig Json?                // 반복 설정 (UI용 - 네이버 캘린더 스타일)
-  recurringEnd    DateTime?            // 반복 종료일
-  parentId        String?              // 반복 일정의 원본 ID
-
-  // 참석자 (선택적)
-  attendees       Json?                // 참석자 배열 [{ staffId, name, status: 'pending'|'accepted'|'declined' }]
-
-  // 태그/색상
-  color           String?  @default("#3B82F6") // 일정 색상
-  tags            String[] @default([])        // 태그 목록
-
-  // 관련 정보 (선택적)
-  relatedType     String?              // order, client, consultation 등
-  relatedId       String?              // 관련 엔티티 ID
-
-  // 상태
-  status          String   @default("confirmed") // confirmed, tentative, cancelled
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id              String    @id @default(cuid())
+  creatorId       String
+  creatorName     String
+  creatorDeptId   String?
+  creatorDeptName String?
+  title           String
+  description     String?
+  location        String?
+  startAt         DateTime
+  endAt           DateTime
+  isAllDay        Boolean   @default(false)
+  isPersonal      Boolean   @default(true)
+  isDepartment    Boolean   @default(false)
+  isCompany       Boolean   @default(false)
+  sharedDeptIds   String[]  @default([])
+  scheduleType    String    @default("meeting")
+  reminders       Json?
+  isRecurring     Boolean   @default(false)
+  recurringRule   String?
+  recurringEnd    DateTime?
+  parentId        String?
+  attendees       Json?
+  color           String?   @default("#3B82F6")
+  tags            String[]  @default([])
+  relatedType     String?
+  relatedId       String?
+  status          String    @default("confirmed")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  recurringConfig Json?
 
   @@index([creatorId])
   @@index([creatorDeptId])
@@ -2225,71 +1597,62 @@ model Schedule {
   @@map("schedules")
 }
 
-// ==================== 동판 관리 ====================
-
-// 박 컬러 (Foil Color) - 동적 관리
 model FoilColor {
-  id          String   @id @default(cuid())
-  code        String   @unique     // 코드 (예: gold_glossy)
-  name        String               // 이름 (예: 금박(유광))
-  colorHex    String?              // 대표 색상 (예: #FFD700)
-  sortOrder   Int      @default(0)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  colorHex  String?
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("foil_colors")
 }
 
-// 동판 위치 (Plate Position) - 동적 관리
 model PlatePosition {
-  id          String   @id @default(cuid())
-  code        String   @unique     // 코드 (예: center)
-  name        String               // 이름 (예: 정중앙)
-  sortOrder   Int      @default(0)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("plate_positions")
 }
 
 model CopperPlate {
-  id              String   @id @default(cuid())
-  clientId        String
-  client          Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  plateName       String               // 동판명
-  plateCode       String?              // 동판 코드
-  plateType       String   @default("copper") // copper: 동판, soft: 연판
-  foilColor       String               // 박색상 코드
-  foilColorName   String?              // 박색상 이름
-  foilPosition    String?              // 박위치 (center, top_center, right_center, right_bottom, bottom_center, left_bottom, left_center, top_left, top_right)
-  widthMm         Decimal? @db.Decimal(10, 2)  // 가로 (mm)
-  heightMm        Decimal? @db.Decimal(10, 2)  // 세로 (mm)
-  storageLocation String?              // 보관 위치
-  imageUrl        String?              // 동판 이미지 URL
-  aiFileUrl       String?              // AI 파일 URL
-  designFileUrl   String?              // 디자인 파일 URL
-  appliedAlbumName String?             // 적용 앨범명
-  albumPhotoUrl   String?              // 적용된 앨범 사진 URL
-  notes           String?  @db.Text    // 메모
-
-  registeredById  String?              // 등록자 ID
-  registeredBy    String?              // 등록자명
-  registeredAt    DateTime @default(now()) // 동판 등록일
-
-  status          String   @default("stored") // stored: 보관중, in_use: 사용중, returned: 반환됨, disposed: 폐기
-  sortOrder       Int      @default(0)
-  usageCount      Int      @default(0)        // 사용 횟수
-  firstUsedAt     DateTime?                   // 최초 사용일
-  lastUsedAt      DateTime?                   // 마지막 사용일
-  returnedAt      DateTime?                   // 반환일
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  histories       CopperPlateHistory[]
+  id               String               @id @default(cuid())
+  clientId         String
+  plateName        String
+  plateCode        String?
+  foilColor        String
+  foilColorName    String?
+  widthMm          Decimal?             @db.Decimal(10, 2)
+  heightMm         Decimal?             @db.Decimal(10, 2)
+  storageLocation  String?
+  imageUrl         String?
+  designFileUrl    String?
+  notes            String?
+  registeredById   String?
+  registeredBy     String?
+  status           String               @default("stored")
+  sortOrder        Int                  @default(0)
+  usageCount       Int                  @default(0)
+  firstUsedAt      DateTime?
+  lastUsedAt       DateTime?
+  returnedAt       DateTime?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  aiFileUrl        String?
+  albumPhotoUrl    String?
+  appliedAlbumName String?
+  foilPosition     String?
+  plateType        String               @default("copper")
+  registeredAt     DateTime             @default(now())
+  histories        CopperPlateHistory[]
+  client           Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([clientId])
   @@index([status])
@@ -2298,81 +1661,62 @@ model CopperPlate {
 }
 
 model CopperPlateHistory {
-  id              String      @id @default(cuid())
-  copperPlateId   String
-  copperPlate     CopperPlate @relation(fields: [copperPlateId], references: [id], onDelete: Cascade)
-
-  actionType      String               // registered, used, location_changed, status_changed
-  previousStatus  String?
-  newStatus       String?
+  id               String      @id @default(cuid())
+  copperPlateId    String
+  actionType       String
+  previousStatus   String?
+  newStatus        String?
   previousLocation String?
-  newLocation     String?
-  orderId         String?              // 관련 주문 ID
-  orderNumber     String?              // 관련 주문번호
-  description     String?  @db.Text    // 설명
-  actionById      String?              // 작업자 ID
-  actionBy        String?              // 작업자명
-
-  createdAt       DateTime @default(now())
+  newLocation      String?
+  orderId          String?
+  orderNumber      String?
+  description      String?
+  actionById       String?
+  actionBy         String?
+  createdAt        DateTime    @default(now())
+  copperPlate      CopperPlate @relation(fields: [copperPlateId], references: [id], onDelete: Cascade)
 
   @@index([copperPlateId])
   @@index([actionType])
   @@map("copper_plate_histories")
 }
 
-// ==================== 공용동판 관리 ====================
-
-// 공용동판 (회사 공용 로고 각인판)
-// 박색상과 박위치는 주문 시점에 고객이 선택
 model PublicCopperPlate {
-  id              String   @id @default(cuid())
-
-  plateName       String               // 동판명
-  plateCode       String?  @unique     // 동판 코드 (자동생성)
-  plateType       String   @default("copper") // copper: 동판, soft: 연판
-  widthMm         Decimal? @db.Decimal(10, 2)  // 가로 (mm)
-  heightMm        Decimal? @db.Decimal(10, 2)  // 세로 (mm)
-  storageLocation String?              // 보관 위치
-  imageUrl        String?              // 동판 이미지 URL
-  aiFileUrl       String?              // AI 파일 URL
-  designFileUrl   String?              // 디자인 파일 URL
-  description     String?  @db.Text    // 설명
-
-  // 기본 각인문구 (상품별로 덮어쓸 수 있음)
-  defaultEngravingText String?         // 기본 각인문구
-
-  status          String   @default("active") // active: 사용중, inactive: 미사용
-  sortOrder       Int      @default(0)
-  usageCount      Int      @default(0)        // 사용 횟수
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  // Relations
-  productPlates   ProductPublicCopperPlate[]
+  id                   String                     @id @default(cuid())
+  plateName            String
+  plateCode            String?                    @unique
+  plateType            String                     @default("copper")
+  widthMm              Decimal?                   @db.Decimal(10, 2)
+  heightMm             Decimal?                   @db.Decimal(10, 2)
+  storageLocation      String?
+  imageUrl             String?
+  aiFileUrl            String?
+  designFileUrl        String?
+  description          String?
+  defaultEngravingText String?
+  status               String                     @default("active")
+  sortOrder            Int                        @default(0)
+  usageCount           Int                        @default(0)
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
+  productPlates        ProductPublicCopperPlate[]
 
   @@index([status])
   @@index([plateType])
   @@map("public_copper_plates")
 }
 
-// 상품-공용동판 연결 (상품별 각인문구 설정)
-// 박색상과 박위치는 주문 시점에 고객이 선택
 model ProductPublicCopperPlate {
-  id                    String            @id @default(cuid())
-  productId             String
-  product               Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
-  publicCopperPlateId   String
-  publicCopperPlate     PublicCopperPlate @relation(fields: [publicCopperPlateId], references: [id], onDelete: Cascade)
-
-  // 상품별 각인문구 (공용동판 기본값 덮어쓰기)
-  engravingText         String?           // 각인문구 (null이면 공용동판 기본값 사용)
-
-  isDefault             Boolean           @default(false)
-  sortOrder             Int               @default(0)
-
-  createdAt             DateTime          @default(now())
-  updatedAt             DateTime          @updatedAt
+  id                  String            @id @default(cuid())
+  productId           String
+  publicCopperPlateId String
+  engravingText       String?
+  isDefault           Boolean           @default(false)
+  sortOrder           Int               @default(0)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  product             Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  publicCopperPlate   PublicCopperPlate @relation(fields: [publicCopperPlateId], references: [id], onDelete: Cascade)
 
   @@unique([productId, publicCopperPlateId])
   @@index([productId])
@@ -2380,97 +1724,62 @@ model ProductPublicCopperPlate {
   @@map("product_public_copper_plates")
 }
 
-// ==================== 원단 관리 ====================
-
-// 원단 공급업체 (Fabric Supplier)
 model FabricSupplier {
-  id          String   @id @default(cuid())
-  code        String   @unique     // 고유 코드
-  name        String               // 공급업체명
-  phone       String?              // 전화번호
-  mobile      String?              // 휴대폰
-  email       String?              // 이메일
-  fax         String?              // 팩스
-  postalCode  String?              // 우편번호
-  address     String?              // 주소
-  addressDetail String?            // 상세주소
-  representative String?           // 담당자명
-  website     String?              // 웹사이트
-  description String?  @db.Text    // 설명
-  memo        String?  @db.Text    // 관리자 메모
-
-  sortOrder   Int      @default(0)
-  isActive    Boolean  @default(true)
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  fabrics     Fabric[]
+  id             String   @id @default(cuid())
+  code           String   @unique
+  name           String
+  phone          String?
+  mobile         String?
+  email          String?
+  fax            String?
+  postalCode     String?
+  address        String?
+  addressDetail  String?
+  representative String?
+  website        String?
+  description    String?
+  memo           String?
+  sortOrder      Int      @default(0)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  fabrics        Fabric[]
 
   @@index([isActive])
   @@map("fabric_suppliers")
 }
 
-// 원단 (Fabric)
 model Fabric {
-  id              String          @id @default(cuid())
-  code            String          @unique     // 고유 코드
-  name            String                      // 원단명
-
-  // 원단 분류
-  category        String          @default("cloth")  // leather: 가죽, cloth: 천, velvet: 벨벳, silk: 실크, linen: 린넨, canvas: 캔버스, synthetic: 합성, other: 기타
-
-  // 재질
-  material        String          @default("cotton") // genuine_leather: 천연가죽, pu_leather: PU가죽, pvc_leather: PVC가죽, cotton: 면, polyester: 폴리에스터, nylon: 나일론, wool: 울, mixed: 혼방, other: 기타
-
-  // 색상 정보
-  colorCode       String?                     // 색상 코드
-  colorName       String?                     // 색상명
-
-  // 규격 정보
-  widthCm         Decimal?        @db.Decimal(10, 2)  // 폭 (cm)
-  thickness       Decimal?        @db.Decimal(10, 3)  // 두께 (mm)
-  weight          Decimal?        @db.Decimal(10, 2)  // 무게 (g/m²)
-
-  // 공급업체 연결
+  id              String           @id @default(cuid())
+  code            String           @unique
+  name            String
+  category        String           @default("cloth")
+  material        String           @default("cotton")
+  colorCode       String?
+  colorName       String?
+  widthCm         Decimal?         @db.Decimal(10, 2)
+  thickness       Decimal?         @db.Decimal(10, 3)
+  weight          Decimal?         @db.Decimal(10, 2)
   supplierId      String?
-  supplier        FabricSupplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
-
-  // 가격 정보
-  basePrice       Decimal         @db.Decimal(12, 2) @default(0)  // 기본 단가
-  unitType        String          @default("m")  // m: 미터당, roll: 롤당, yard: 야드당
-
-  // 할인 정보
-  discountRate    Decimal         @db.Decimal(5, 2) @default(0)   // 할인율 (%)
-  discountPrice   Decimal?        @db.Decimal(12, 2)              // 할인가
-
-  // 재고 관련
-  stockQuantity   Int             @default(0)        // 재고 수량
-  minStockLevel   Int             @default(0)        // 최소 재고 수준
-
-  // 용도 (앨범 커버용 등)
-  forAlbumCover   Boolean         @default(false)    // 앨범 커버용
-  forBoxCover     Boolean         @default(false)    // 박스 커버용
-  forFrameCover   Boolean         @default(false)    // 액자 커버용
-  forOther        Boolean         @default(false)    // 기타 용도
-
-  // 이미지
-  imageUrl        String?                            // 원단 이미지 URL
-  thumbnailUrl    String?                            // 썸네일 URL
-
-  // 추가 정보
-  description     String?         @db.Text           // 설명
-  memo            String?         @db.Text           // 관리자 메모
-
-  // 정렬 및 상태
-  sortOrder       Int             @default(0)
-  isActive        Boolean         @default(true)
-
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-
-  // Relations
+  basePrice       Decimal          @default(0) @db.Decimal(12, 2)
+  unitType        String           @default("m")
+  discountRate    Decimal          @default(0) @db.Decimal(5, 2)
+  discountPrice   Decimal?         @db.Decimal(12, 2)
+  stockQuantity   Int              @default(0)
+  minStockLevel   Int              @default(0)
+  forAlbumCover   Boolean          @default(false)
+  forBoxCover     Boolean          @default(false)
+  forFrameCover   Boolean          @default(false)
+  forOther        Boolean          @default(false)
+  imageUrl        String?
+  thumbnailUrl    String?
+  description     String?
+  memo            String?
+  sortOrder       Int              @default(0)
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  supplier        FabricSupplier?  @relation(fields: [supplierId], references: [id])
   photobookOrders PhotobookOrder[]
 
   @@index([supplierId])
@@ -2480,31 +1789,19 @@ model Fabric {
   @@map("fabrics")
 }
 
-// 코팅 (Coating) - 화보/포토북용 코팅 옵션
 model Coating {
-  id              String          @id @default(cuid())
-  code            String          @unique     // 고유 코드
-  name            String                      // 코팅명
-
-  // 코팅 타입
-  type            String          @default("glossy")  // glossy: 유광, matte: 무광, silk: 실크, velvet: 벨벳, none: 코팅없음
-
-  // 가격 정보
-  basePrice       Decimal         @db.Decimal(12, 2) @default(0)  // 기본 단가 (장당)
-  pricePerPage    Decimal         @db.Decimal(10, 2) @default(0)  // 페이지당 추가 단가
-
-  // 추가 정보
-  description     String?         @db.Text           // 설명
-  memo            String?         @db.Text           // 관리자 메모
-
-  // 정렬 및 상태
-  sortOrder       Int             @default(0)
-  isActive        Boolean         @default(true)
-
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-
-  // Relations
+  id              String           @id @default(cuid())
+  code            String           @unique
+  name            String
+  type            String           @default("glossy")
+  basePrice       Decimal          @default(0) @db.Decimal(12, 2)
+  pricePerPage    Decimal          @default(0) @db.Decimal(10, 2)
+  description     String?
+  memo            String?
+  sortOrder       Int              @default(0)
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   photobookOrders PhotobookOrder[]
 
   @@index([type])
@@ -2512,74 +1809,52 @@ model Coating {
   @@map("coatings")
 }
 
-// ==================== 화보/포토북 주문 ====================
-
-// 표준 규격
 model StandardSize {
-  id          String   @id @default(cuid())
-  name        String   @unique              // "12x12", "15x10"
-  widthInch   Float                         // 가로 (inch)
-  heightInch  Float                         // 세로 (inch)
-  ratio       Float                         // 비율 (긴변/짧은변, >= 1)
-  ratioLabel  String                        // "1:1", "3:2", "5:4"
-
-  sortOrder   Int      @default(0)
-  isActive    Boolean  @default(true)
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  name       String   @unique
+  widthInch  Float
+  heightInch Float
+  ratio      Float
+  ratioLabel String
+  sortOrder  Int      @default(0)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([ratio])
   @@index([isActive])
   @@map("standard_sizes")
 }
 
-// 화보 주문
 model PhotobookOrder {
-  id                String   @id @default(cuid())
-
-  // 주문 기본정보
-  orderNumber       String   @unique           // 주문번호 자동생성
-  orderTitle        String                     // 주문 제목 (폴더명)
-  status            String   @default("DRAFT") // DRAFT, PENDING, RECEIVED, IN_PRODUCTION, COMPLETED, CANCELLED
-
-  // STEP 1: 편집 옵션
-  editStyle         String   @default("SINGLE")  // SINGLE(낱장), SPREAD(펼침면)
-  bindingDirection  String   @default("LEFT_START_RIGHT_END") // 제본순서
-
-  // STEP 2: 마감재
-  fabricId          String?
-  fabric            Fabric?   @relation(fields: [fabricId], references: [id])
-  coatingId         String?
-  coating           Coating?  @relation(fields: [coatingId], references: [id])
-
-  // STEP 3: 수량
-  quantity          Int      @default(1)       // 부수
-
-  // STEP 4: 파일 정보
-  specWidth         Float?                     // 규격 가로 (inch)
-  specHeight        Float?                     // 규격 세로 (inch)
-  specRatio         Float?                     // 비율 (긴변/짧은변)
-  dpi               Int?                       // 해상도
-  pageCount         Int?                       // 페이지 수
-  totalFileSize     BigInt?                    // 총 용량 (bytes)
-  validationStatus  String   @default("PENDING") // PENDING, PASS, APPROVED, REJECTED
-
-  // 가격
-  unitPrice         Decimal  @db.Decimal(10, 2) @default(0)
-  totalPrice        Decimal  @db.Decimal(10, 2) @default(0)
-
-  // 관계
-  files             PhotobookFile[]
-  clientId          String?
-  client            Client?   @relation(fields: [clientId], references: [id])
-
-  // 시스템
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  createdBy         String?
-  approvedAt        DateTime?
-  approvedBy        String?
+  id               String          @id @default(cuid())
+  orderNumber      String          @unique
+  orderTitle       String
+  status           String          @default("DRAFT")
+  editStyle        String          @default("SINGLE")
+  bindingDirection String          @default("LEFT_START_RIGHT_END")
+  fabricId         String?
+  coatingId        String?
+  quantity         Int             @default(1)
+  specWidth        Float?
+  specHeight       Float?
+  specRatio        Float?
+  dpi              Int?
+  pageCount        Int?
+  totalFileSize    BigInt?
+  validationStatus String          @default("PENDING")
+  unitPrice        Decimal         @default(0) @db.Decimal(10, 2)
+  totalPrice       Decimal         @default(0) @db.Decimal(10, 2)
+  clientId         String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  createdBy        String?
+  approvedAt       DateTime?
+  approvedBy       String?
+  files            PhotobookFile[]
+  client           Client?         @relation(fields: [clientId], references: [id])
+  coating          Coating?        @relation(fields: [coatingId], references: [id])
+  fabric           Fabric?         @relation(fields: [fabricId], references: [id])
 
   @@index([clientId])
   @@index([status])
@@ -2587,60 +1862,46 @@ model PhotobookOrder {
   @@map("photobook_orders")
 }
 
-// 화보 파일
 model PhotobookFile {
-  id                String   @id @default(cuid())
-  orderId           String
-  order             PhotobookOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
-
-  // 파일 정보
-  fileName          String
-  originalName      String
-  filePath          String                     // S3/NAS 경로
-  fileSize          BigInt                     // bytes
-  pageNumber        Int                        // 페이지 번호 (정렬용)
-
-  // 이미지 메타
-  widthPx           Int
-  heightPx          Int
-  dpi               Int      @default(300)
-  widthInch         Float                      // widthPx / dpi
-  heightInch        Float                      // heightPx / dpi
-  colorSpace        String?                    // sRGB, AdobeRGB, CMYK
-
-  // 검증
-  sizeMatchStatus   String   @default("PENDING") // EXACT, RATIO_MATCH, RATIO_MISMATCH, PENDING
-  ratio             Float?                     // 긴변/짧은변
-
-  createdAt         DateTime @default(now())
+  id              String         @id @default(cuid())
+  orderId         String
+  fileName        String
+  originalName    String
+  filePath        String
+  fileSize        BigInt
+  pageNumber      Int
+  widthPx         Int
+  heightPx        Int
+  dpi             Int            @default(300)
+  widthInch       Float
+  heightInch      Float
+  colorSpace      String?
+  sizeMatchStatus String         @default("PENDING")
+  ratio           Float?
+  createdAt       DateTime       @default(now())
+  order           PhotobookOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
   @@index([sizeMatchStatus])
   @@map("photobook_files")
 }
 
-// ==================== 상담 메시지 ====================
-
 model ConsultationMessage {
-  id              String       @id @default(cuid())
-  consultationId  String
-  consultation    Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
-
-  direction       String               // inbound: 고객→회사, outbound: 회사→고객
-  channel         String   @default("kakao") // kakao, phone, email, web
-  content         String   @db.Text    // 메시지 내용
-  attachments     Json?                // 첨부파일 배열
-
-  senderName      String?              // 발신자명
-  senderType      String?              // customer, staff
-  staffId         String?              // 담당 직원 ID
-  staffName       String?              // 담당 직원명
-
-  messageAt       DateTime @default(now()) // 메시지 시간
-  isRead          Boolean  @default(false)
-  readAt          DateTime?
-
-  createdAt       DateTime @default(now())
+  id             String       @id @default(cuid())
+  consultationId String
+  direction      String
+  channel        String       @default("kakao")
+  content        String
+  attachments    Json?
+  senderName     String?
+  senderType     String?
+  staffId        String?
+  staffName      String?
+  messageAt      DateTime     @default(now())
+  isRead         Boolean      @default(false)
+  readAt         DateTime?
+  createdAt      DateTime     @default(now())
+  consultation   Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
 
   @@index([consultationId])
   @@index([direction])
@@ -2648,49 +1909,22 @@ model ConsultationMessage {
   @@map("consultation_messages")
 }
 
-// ==================== 회계관리 ====================
-
-// 계정과목 유형
-enum AccountType {
-  ASSET           // 자산
-  LIABILITY       // 부채
-  EQUITY          // 자본
-  REVENUE         // 수익
-  EXPENSE         // 비용
-}
-
-// 전표 유형
-enum VoucherType {
-  RECEIPT         // 입금전표
-  PAYMENT         // 출금전표
-  TRANSFER        // 대체전표
-}
-
-// 거래 유형 (차변/대변)
-enum TransactionType {
-  DEBIT           // 차변
-  CREDIT          // 대변
-}
-
-// 계정과목
 model Account {
-  id              String        @id @default(cuid())
-  code            String        @unique  // 계정코드 (101, 201, 401 등)
-  name            String                 // 계정명
-  nameEn          String?                // 영문 계정명
-  type            AccountType            // 자산/부채/자본/수익/비용
-  level           Int           @default(1)  // 1:대분류, 2:중분류, 3:소분류
-  parentId        String?                // 상위 계정 (계층 구조)
-  parent          Account?      @relation("AccountHierarchy", fields: [parentId], references: [id])
-  children        Account[]     @relation("AccountHierarchy")
-  description     String?
-  isActive        Boolean       @default(true)
-  sortOrder       Int           @default(0)
-
-  journalEntries  JournalEntry[]
-
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id             String         @id @default(cuid())
+  code           String         @unique
+  name           String
+  type           AccountType
+  parentId       String?
+  description    String?
+  isActive       Boolean        @default(true)
+  sortOrder      Int            @default(0)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  level          Int            @default(1)
+  nameEn         String?
+  parent         Account?       @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children       Account[]      @relation("AccountHierarchy")
+  journalEntries JournalEntry[]
 
   @@index([type])
   @@index([isActive])
@@ -2698,33 +1932,23 @@ model Account {
   @@map("accounts")
 }
 
-// 분개장 (전표 헤더)
 model Journal {
-  id              String        @id @default(cuid())
-  voucherNo       String        @unique  // 전표번호 (JE-YYYYMM-0001)
-  voucherType     VoucherType            // 전표 유형
-  journalDate     DateTime               // 전표 일자
-
-  // 거래처 (선택)
-  clientId        String?
-  clientName      String?                // 거래처명 (스냅샷)
-
-  description     String?                // 적요
-  totalAmount     Decimal       @db.Decimal(12, 2)
-
-  // 주문 연동 (선택)
-  orderId         String?
-  orderNumber     String?                // 주문번호 (스냅샷)
-
-  // 원천 추적 (자동분개 시)
-  sourceType      String?                // SALES, PURCHASE, PAYROLL, MANUAL
-  sourceId        String?                // 원천 ID (SalesLedger.id 등)
-
-  entries         JournalEntry[]
-
-  createdBy       String
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id          String         @id @default(cuid())
+  voucherNo   String         @unique
+  voucherType VoucherType
+  journalDate DateTime
+  clientId    String?
+  clientName  String?
+  description String?
+  totalAmount Decimal        @db.Decimal(12, 2)
+  orderId     String?
+  orderNumber String?
+  createdBy   String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  sourceId    String?
+  sourceType  String?
+  entries     JournalEntry[]
 
   @@index([journalDate])
   @@index([clientId])
@@ -2733,55 +1957,40 @@ model Journal {
   @@map("journals")
 }
 
-// 분개 상세 (전표 라인)
 model JournalEntry {
   id              String          @id @default(cuid())
   journalId       String
-  journal         Journal         @relation(fields: [journalId], references: [id], onDelete: Cascade)
-
   accountId       String
-  account         Account         @relation(fields: [accountId], references: [id])
-
-  transactionType TransactionType // 차변/대변
+  transactionType TransactionType
   amount          Decimal         @db.Decimal(12, 2)
-  description     String?         // 적요
-
+  description     String?
   sortOrder       Int             @default(0)
+  account         Account         @relation(fields: [accountId], references: [id])
+  journal         Journal         @relation(fields: [journalId], references: [id], onDelete: Cascade)
 
   @@index([journalId])
   @@index([accountId])
   @@map("journal_entries")
 }
 
-// 미수금 (Receivable)
 model Receivable {
-  id              String        @id @default(cuid())
-
-  clientId        String
-  clientName      String                          // 거래처명 (스냅샷)
-  clientCode      String?                         // 거래처코드 (스냅샷)
-
-  // 원천 (주문 또는 전표)
-  orderId         String?
-  orderNumber     String?                         // 주문번호 (스냅샷)
-  journalId       String?
-
-  originalAmount  Decimal       @db.Decimal(12, 2)  // 원금
-  paidAmount      Decimal       @default(0) @db.Decimal(12, 2)  // 수금액
-  balance         Decimal       @db.Decimal(12, 2)  // 잔액
-
-  issueDate       DateTime                          // 발생일
-  dueDate         DateTime?                         // 수금예정일
-
-  // 상태: outstanding(미수), partial(부분수금), paid(완납), overdue(연체)
-  status          String        @default("outstanding")
-
-  description     String?
-
-  payments        ReceivablePayment[]
-
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id             String              @id @default(cuid())
+  clientId       String
+  clientName     String
+  clientCode     String?
+  orderId        String?
+  orderNumber    String?
+  journalId      String?
+  originalAmount Decimal             @db.Decimal(12, 2)
+  paidAmount     Decimal             @default(0) @db.Decimal(12, 2)
+  balance        Decimal             @db.Decimal(12, 2)
+  issueDate      DateTime
+  dueDate        DateTime?
+  status         String              @default("outstanding")
+  description    String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  payments       ReceivablePayment[]
 
   @@index([clientId])
   @@index([dueDate])
@@ -2789,52 +1998,39 @@ model Receivable {
   @@map("receivables")
 }
 
-// 미수금 수금 이력
 model ReceivablePayment {
-  id              String        @id @default(cuid())
-  receivableId    String
-  receivable      Receivable    @relation(fields: [receivableId], references: [id], onDelete: Cascade)
-
-  amount          Decimal       @db.Decimal(12, 2)
-  paymentDate     DateTime
-  paymentMethod   String?       // cash, bank_transfer, card
-  description     String?
-  journalId       String?       // 연결된 입금전표
-
-  createdBy       String?
-  createdAt       DateTime      @default(now())
+  id            String     @id @default(cuid())
+  receivableId  String
+  amount        Decimal    @db.Decimal(12, 2)
+  paymentDate   DateTime
+  paymentMethod String?
+  description   String?
+  journalId     String?
+  createdBy     String?
+  createdAt     DateTime   @default(now())
+  receivable    Receivable @relation(fields: [receivableId], references: [id], onDelete: Cascade)
 
   @@index([receivableId])
   @@index([paymentDate])
   @@map("receivable_payments")
 }
 
-// 미지급금 (Payable)
 model Payable {
-  id              String        @id @default(cuid())
-
-  supplierId      String?                         // 매입처 ID
-  supplierName    String                          // 매입처명
-  supplierCode    String?                         // 매입처코드
-
-  journalId       String?
-
-  originalAmount  Decimal       @db.Decimal(12, 2)
-  paidAmount      Decimal       @default(0) @db.Decimal(12, 2)
-  balance         Decimal       @db.Decimal(12, 2)
-
-  issueDate       DateTime
-  dueDate         DateTime?                         // 지급예정일
-
-  // 상태: outstanding(미지급), partial(부분지급), paid(완납), overdue(연체)
-  status          String        @default("outstanding")
-
-  description     String?
-
-  payments        PayablePayment[]
-
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id             String           @id @default(cuid())
+  supplierId     String?
+  supplierName   String
+  supplierCode   String?
+  journalId      String?
+  originalAmount Decimal          @db.Decimal(12, 2)
+  paidAmount     Decimal          @default(0) @db.Decimal(12, 2)
+  balance        Decimal          @db.Decimal(12, 2)
+  issueDate      DateTime
+  dueDate        DateTime?
+  status         String           @default("outstanding")
+  description    String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  payments       PayablePayment[]
 
   @@index([supplierId])
   @@index([dueDate])
@@ -2842,81 +2038,58 @@ model Payable {
   @@map("payables")
 }
 
-// 미지급금 지급 이력
 model PayablePayment {
-  id              String        @id @default(cuid())
-  payableId       String
-  payable         Payable       @relation(fields: [payableId], references: [id], onDelete: Cascade)
-
-  amount          Decimal       @db.Decimal(12, 2)
-  paymentDate     DateTime
-  paymentMethod   String?
-  description     String?
-  journalId       String?       // 연결된 출금전표
-
-  createdBy       String?
-  createdAt       DateTime      @default(now())
+  id            String   @id @default(cuid())
+  payableId     String
+  amount        Decimal  @db.Decimal(12, 2)
+  paymentDate   DateTime
+  paymentMethod String?
+  description   String?
+  journalId     String?
+  createdBy     String?
+  createdAt     DateTime @default(now())
+  payable       Payable  @relation(fields: [payableId], references: [id], onDelete: Cascade)
 
   @@index([payableId])
   @@index([paymentDate])
   @@map("payable_payments")
 }
 
-// 은행계좌
 model BankAccount {
-  id              String        @id @default(cuid())
-  accountName     String                          // 계좌별칭 (기업은행 주거래)
-  bankName        String                          // 은행명
-  accountNumber   String                          // 계좌번호
-  accountHolder   String?                         // 예금주
-
-  balance         Decimal       @db.Decimal(14, 2) @default(0)  // 잔액
-
-  isDefault       Boolean       @default(false)   // 기본 계좌 여부
-  isActive        Boolean       @default(true)
-
-  description     String?
-
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id            String   @id @default(cuid())
+  accountName   String
+  bankName      String
+  accountNumber String
+  accountHolder String?
+  balance       Decimal  @default(0) @db.Decimal(14, 2)
+  isDefault     Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  description   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([isActive])
   @@map("bank_accounts")
 }
 
-// 정산 (Settlement) - 기간별 정산 스냅샷
 model Settlement {
-  id              String        @id @default(cuid())
-
-  // 정산 기간
-  periodType      String                          // daily, weekly, monthly
-  periodStart     DateTime
-  periodEnd       DateTime
-
-  // 매출/매입
-  totalSales      Decimal       @db.Decimal(14, 2) @default(0)
-  totalPurchases  Decimal       @db.Decimal(14, 2) @default(0)
-
-  // 입출금
-  totalIncome     Decimal       @db.Decimal(14, 2) @default(0)
-  totalExpense    Decimal       @db.Decimal(14, 2) @default(0)
-
-  // 미수/미지급 잔액
-  receivablesBalance  Decimal   @db.Decimal(14, 2) @default(0)
-  payablesBalance     Decimal   @db.Decimal(14, 2) @default(0)
-
-  // 순이익/순현금흐름
-  netProfit       Decimal       @db.Decimal(14, 2) @default(0)
-  netCashFlow     Decimal       @db.Decimal(14, 2) @default(0)
-
-  // 정산 상태
-  status          String        @default("draft") // draft, confirmed, closed
-
-  confirmedBy     String?
-  confirmedAt     DateTime?
-
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id                 String    @id @default(cuid())
+  periodType         String
+  periodStart        DateTime
+  periodEnd          DateTime
+  totalSales         Decimal   @default(0) @db.Decimal(14, 2)
+  totalPurchases     Decimal   @default(0) @db.Decimal(14, 2)
+  totalIncome        Decimal   @default(0) @db.Decimal(14, 2)
+  totalExpense       Decimal   @default(0) @db.Decimal(14, 2)
+  receivablesBalance Decimal   @default(0) @db.Decimal(14, 2)
+  payablesBalance    Decimal   @default(0) @db.Decimal(14, 2)
+  netProfit          Decimal   @default(0) @db.Decimal(14, 2)
+  netCashFlow        Decimal   @default(0) @db.Decimal(14, 2)
+  status             String    @default("draft")
+  confirmedBy        String?
+  confirmedAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   @@unique([periodType, periodStart])
   @@index([periodType])
@@ -2925,230 +2098,123 @@ model Settlement {
   @@map("settlements")
 }
 
-// ==================== 매출원장 (Sales Ledger) ====================
-
-// 매출유형
-enum SalesType {
-  ALBUM         // 앨범
-  PRINT         // 출력물
-  FRAME         // 액자
-  GOODS         // 굿즈
-  BINDING       // 제본
-  DESIGN        // 디자인용역
-  SHIPPING      // 배송비
-  OTHER         // 기타
-}
-
-// 과세유형 (더존 벤치마킹: 11=과세, 12=영세, 13=면세)
-enum TaxType {
-  TAXABLE       // 과세 (부가세 10%)
-  ZERO_RATED    // 영세율
-  EXEMPT        // 면세
-}
-
-// 매출 인식 상태
-enum SalesStatus {
-  REGISTERED    // 접수등록 (주문접수 시)
-  CONFIRMED     // 매출확정 (배송완료/인도 시)
-  CANCELLED     // 취소
-}
-
-// 매출원장 (Sales Ledger Entry)
 model SalesLedger {
-  id                  String        @id @default(cuid())
-  ledgerNumber        String        @unique  // 매출전표번호 (SL-YYYYMMDD-NNN)
-  ledgerDate          DateTime               // 전표일자 (등록일)
-  salesDate           DateTime?              // 매출확정일 (배송완료일)
-
-  // 거래처 정보
-  clientId            String
-  client              Client        @relation("SalesLedgerClient", fields: [clientId], references: [id])
-  clientName          String                 // 거래처명 (스냅샷)
-  clientBizNo         String?                // 사업자등록번호 (세금계산서용)
-
-  // 주문 연동
-  orderId             String        @unique
-  orderNumber         String                 // 주문번호 (스냅샷)
-
-  // 매출 유형/과세
-  salesType           SalesType     @default(ALBUM)
-  taxType             TaxType       @default(TAXABLE)
-
-  // 금액 (더존/SAP 표준 필드)
-  supplyAmount        Decimal       @db.Decimal(12, 2)  // 공급가액
-  vatAmount           Decimal       @db.Decimal(10, 2)  // 부가세액
-  shippingFee         Decimal       @db.Decimal(10, 2) @default(0) // 배송비
-  adjustmentAmount    Decimal       @db.Decimal(10, 2) @default(0) // 조정액(할인 등)
-  totalAmount         Decimal       @db.Decimal(12, 2)  // 합계 (공급가액+부가세+배송비-조정)
-
-  // 수금 관리
-  receivedAmount      Decimal       @db.Decimal(12, 2) @default(0) // 수금 누계
-  outstandingAmount   Decimal       @db.Decimal(12, 2)  // 미수금 잔액
-
-  // 결제 정보
-  paymentMethod       String        @default("postpaid") // prepaid/postpaid/card/transfer
-  paymentStatus       String        @default("unpaid")   // unpaid/partial/paid/overdue
-
-  // 결제기한 (거래처 신용거래 설정 기반)
-  dueDate             DateTime?              // 결제기한
-
-  // 매출 인식 상태 (K-IFRS 1115)
-  salesStatus         SalesStatus   @default(REGISTERED)
-
-  // 적요/메모
-  description         String?                // 적요
-  adminMemo           String?                // 관리자 메모
-
-  // 감사 정보
-  createdBy           String                 // 작성자
-  confirmedBy         String?                // 확정자
-  confirmedAt         DateTime?              // 확정일시
-
-  // 관계
-  items               SalesLedgerItem[]
-  receipts            SalesReceipt[]
-
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
+  id                String            @id @default(cuid())
+  ledgerNumber      String            @unique
+  ledgerDate        DateTime
+  salesDate         DateTime?
+  clientId          String
+  clientName        String
+  clientBizNo       String?
+  orderId           String            @unique
+  orderNumber       String
+  salesType         SalesType         @default(ALBUM)
+  taxType           TaxType           @default(TAXABLE)
+  supplyAmount      Decimal           @db.Decimal(12, 2)
+  vatAmount         Decimal           @db.Decimal(10, 2)
+  shippingFee       Decimal           @default(0) @db.Decimal(10, 2)
+  adjustmentAmount  Decimal           @default(0) @db.Decimal(10, 2)
+  totalAmount       Decimal           @db.Decimal(12, 2)
+  receivedAmount    Decimal           @default(0) @db.Decimal(12, 2)
+  outstandingAmount Decimal           @db.Decimal(12, 2)
+  paymentMethod     String            @default("postpaid")
+  paymentStatus     String            @default("unpaid")
+  dueDate           DateTime?
+  salesStatus       SalesStatus       @default(REGISTERED)
+  description       String?
+  adminMemo         String?
+  createdBy         String
+  confirmedBy       String?
+  confirmedAt       DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  items             SalesLedgerItem[]
+  client            Client            @relation("SalesLedgerClient", fields: [clientId], references: [id])
+  receipts          SalesReceipt[]
 
   @@index([clientId])
   @@index([ledgerDate])
   @@index([salesStatus])
   @@index([paymentStatus])
   @@index([orderId])
+  @@index([clientId, ledgerDate])
+  @@index([salesStatus, ledgerDate])
+  @@index([paymentStatus, ledgerDate])
   @@map("sales_ledgers")
 }
 
-// 매출원장 라인아이템
 model SalesLedgerItem {
-  id                  String        @id @default(cuid())
-  salesLedgerId       String
-  salesLedger         SalesLedger   @relation(fields: [salesLedgerId], references: [id], onDelete: Cascade)
-
-  // 주문 아이템 연동
-  orderItemId         String?
-
-  // 품목 정보
-  itemName            String                 // 품명
-  specification       String?                // 규격 (12x12, A4 등)
-  quantity            Int                    // 수량
-  unitPrice           Decimal       @db.Decimal(10, 2)  // 단가
-  supplyAmount        Decimal       @db.Decimal(12, 2)  // 공급가액 (수량x단가)
-  vatAmount           Decimal       @db.Decimal(10, 2)  // 부가세
-  totalAmount         Decimal       @db.Decimal(12, 2)  // 합계
-
-  // 상품 분류
-  salesType           SalesType     @default(ALBUM)
-  productId           String?                // 상품 ID (참조)
-
-  sortOrder           Int           @default(0)
-  remark              String?                // 비고
+  id            String      @id @default(cuid())
+  salesLedgerId String
+  orderItemId   String?
+  itemName      String
+  specification String?
+  quantity      Int
+  unitPrice     Decimal     @db.Decimal(10, 2)
+  supplyAmount  Decimal     @db.Decimal(12, 2)
+  vatAmount     Decimal     @db.Decimal(10, 2)
+  totalAmount   Decimal     @db.Decimal(12, 2)
+  salesType     SalesType   @default(ALBUM)
+  productId     String?
+  sortOrder     Int         @default(0)
+  remark        String?
+  salesLedger   SalesLedger @relation(fields: [salesLedgerId], references: [id], onDelete: Cascade)
 
   @@index([salesLedgerId])
   @@map("sales_ledger_items")
 }
 
-// 수금 이력 (매출원장 기반 수금 추적)
 model SalesReceipt {
-  id                  String        @id @default(cuid())
-  salesLedgerId       String
-  salesLedger         SalesLedger   @relation(fields: [salesLedgerId], references: [id], onDelete: Cascade)
-
-  receiptNumber       String        @unique  // 수금번호 (SR-YYYYMMDD-NNN)
-  receiptDate         DateTime               // 수금일자
-  amount              Decimal       @db.Decimal(12, 2)  // 수금금액
-
-  paymentMethod       String                 // cash/card/bank_transfer/check
-  bankName            String?                // 입금은행
-  depositorName       String?                // 입금자명
-
-  // 전표 연동 (복식부기)
-  journalId           String?                // 연결된 입금전표
-
-  note                String?                // 비고
-  createdBy           String                 // 처리자
-  createdAt           DateTime      @default(now())
+  id            String      @id @default(cuid())
+  salesLedgerId String
+  receiptNumber String      @unique
+  receiptDate   DateTime
+  amount        Decimal     @db.Decimal(12, 2)
+  paymentMethod String
+  bankName      String?
+  depositorName String?
+  journalId     String?
+  note          String?
+  createdBy     String
+  createdAt     DateTime    @default(now())
+  salesLedger   SalesLedger @relation(fields: [salesLedgerId], references: [id], onDelete: Cascade)
 
   @@index([salesLedgerId])
   @@index([receiptDate])
   @@map("sales_receipts")
 }
 
-// ==================== 매입원장 (Purchase Ledger) ====================
-
-// 매입 유형
-enum PurchaseType {
-  RAW_MATERIAL   // 원재료 (용지, 잉크, 표지재)
-  MERCHANDISE    // 상품 (외부 구매 유통)
-  SUPPLIES       // 저장품/소모품
-  OUTSOURCING    // 외주가공 (디자인, 제본 등)
-  EQUIPMENT      // 설비/장비
-  SERVICE        // 용역 (수리, 유지보수)
-  OTHER          // 기타
-}
-
-// 매입 상태
-enum PurchaseStatus {
-  REGISTERED     // 접수등록
-  CONFIRMED      // 매입확정 (검수 완료)
-  CANCELLED      // 취소
-}
-
-// 매입원장
 model PurchaseLedger {
-  id                  String          @id @default(cuid())
-  ledgerNumber        String          @unique  // PL-YYYYMMDD-NNN
-  ledgerDate          DateTime                 // 전표일자
-  confirmDate         DateTime?                // 매입확정일
-
-  // 매입처 정보 (Client 모델 재사용 - 매입처도 거래처로 관리)
-  supplierId          String
-  supplier            Client          @relation("PurchaseLedgerSupplier", fields: [supplierId], references: [id])
-  supplierName        String                   // 매입처명 (스냅샷)
-  supplierBizNo       String?                  // 사업자등록번호 (세금계산서용)
-
-  // 매입 유형/과세
-  purchaseType        PurchaseType    @default(RAW_MATERIAL)
-  taxType             TaxType         @default(TAXABLE)
-
-  // 계정과목 (매입 시 차변 계정)
-  accountCode         String          @default("120") // 기본: 원재료
-
-  // 금액
-  supplyAmount        Decimal         @db.Decimal(12, 2)  // 공급가액
-  vatAmount           Decimal         @db.Decimal(10, 2)  // 부가세
-  adjustmentAmount    Decimal         @db.Decimal(10, 2) @default(0) // 조정액
-  totalAmount         Decimal         @db.Decimal(12, 2)  // 합계
-
-  // 지급 관리
-  paidAmount          Decimal         @db.Decimal(12, 2) @default(0)  // 지급 누계
-  outstandingAmount   Decimal         @db.Decimal(12, 2)              // 미지급 잔액
-
-  // 결제 정보
-  paymentMethod       String          @default("postpaid")
-  paymentStatus       String          @default("unpaid")  // unpaid/partial/paid/overdue
-
-  // 결제기한
-  dueDate             DateTime?
-
-  // 매입 상태
-  purchaseStatus      PurchaseStatus  @default(REGISTERED)
-
-  // 적요/메모
-  description         String?
-  adminMemo           String?
-
-  // 감사 정보
-  createdBy           String
-  confirmedBy         String?
-  confirmedAt         DateTime?
-
-  // 관계
-  items               PurchaseLedgerItem[]
-  payments            PurchasePayment[]
-
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
+  id                String               @id @default(cuid())
+  ledgerNumber      String               @unique
+  ledgerDate        DateTime
+  confirmDate       DateTime?
+  supplierId        String
+  supplierName      String
+  supplierBizNo     String?
+  purchaseType      PurchaseType         @default(RAW_MATERIAL)
+  taxType           TaxType              @default(TAXABLE)
+  accountCode       String               @default("120")
+  supplyAmount      Decimal              @db.Decimal(12, 2)
+  vatAmount         Decimal              @db.Decimal(10, 2)
+  adjustmentAmount  Decimal              @default(0) @db.Decimal(10, 2)
+  totalAmount       Decimal              @db.Decimal(12, 2)
+  paidAmount        Decimal              @default(0) @db.Decimal(12, 2)
+  outstandingAmount Decimal              @db.Decimal(12, 2)
+  paymentMethod     String               @default("postpaid")
+  paymentStatus     String               @default("unpaid")
+  dueDate           DateTime?
+  purchaseStatus    PurchaseStatus       @default(REGISTERED)
+  description       String?
+  adminMemo         String?
+  createdBy         String
+  confirmedBy       String?
+  confirmedAt       DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  items             PurchaseLedgerItem[]
+  supplier          Client               @relation("PurchaseLedgerSupplier", fields: [supplierId], references: [id])
+  payments          PurchasePayment[]
 
   @@index([supplierId])
   @@index([ledgerDate])
@@ -3157,128 +2223,81 @@ model PurchaseLedger {
   @@map("purchase_ledgers")
 }
 
-// 매입원장 라인아이템
 model PurchaseLedgerItem {
-  id                  String          @id @default(cuid())
-  purchaseLedgerId    String
-  purchaseLedger      PurchaseLedger  @relation(fields: [purchaseLedgerId], references: [id], onDelete: Cascade)
-
-  // 품목 정보
-  itemName            String                   // 품명
-  specification       String?                  // 규격
-  quantity            Int                      // 수량
-  unit                String?                  // 단위 (ea, kg, m, box 등)
-  unitPrice           Decimal         @db.Decimal(10, 2)
-  supplyAmount        Decimal         @db.Decimal(12, 2)
-  vatAmount           Decimal         @db.Decimal(10, 2)
-  totalAmount         Decimal         @db.Decimal(12, 2)
-
-  // 분류
-  purchaseType        PurchaseType    @default(RAW_MATERIAL)
-  accountCode         String?                  // 계정코드 (품목별 다를 수 있음)
-
-  sortOrder           Int             @default(0)
-  remark              String?
+  id               String         @id @default(cuid())
+  purchaseLedgerId String
+  itemName         String
+  specification    String?
+  quantity         Int
+  unit             String?
+  unitPrice        Decimal        @db.Decimal(10, 2)
+  supplyAmount     Decimal        @db.Decimal(12, 2)
+  vatAmount        Decimal        @db.Decimal(10, 2)
+  totalAmount      Decimal        @db.Decimal(12, 2)
+  purchaseType     PurchaseType   @default(RAW_MATERIAL)
+  accountCode      String?
+  sortOrder        Int            @default(0)
+  remark           String?
+  purchaseLedger   PurchaseLedger @relation(fields: [purchaseLedgerId], references: [id], onDelete: Cascade)
 
   @@index([purchaseLedgerId])
   @@map("purchase_ledger_items")
 }
 
-// 지급 이력 (매입원장 기반)
 model PurchasePayment {
-  id                  String          @id @default(cuid())
-  purchaseLedgerId    String
-  purchaseLedger      PurchaseLedger  @relation(fields: [purchaseLedgerId], references: [id], onDelete: Cascade)
-
-  paymentNumber       String          @unique  // PP-YYYYMMDD-NNN
-  paymentDate         DateTime
-  amount              Decimal         @db.Decimal(12, 2)
-
-  paymentMethod       String                   // cash/card/bank_transfer/check
-  bankName            String?
-  accountNumber       String?                  // 지급 계좌
-
-  journalId           String?                  // 연결된 출금전표
-
-  note                String?
-  createdBy           String
-  createdAt           DateTime        @default(now())
+  id               String         @id @default(cuid())
+  purchaseLedgerId String
+  paymentNumber    String         @unique
+  paymentDate      DateTime
+  amount           Decimal        @db.Decimal(12, 2)
+  paymentMethod    String
+  bankName         String?
+  accountNumber    String?
+  journalId        String?
+  note             String?
+  createdBy        String
+  createdAt        DateTime       @default(now())
+  purchaseLedger   PurchaseLedger @relation(fields: [purchaseLedgerId], references: [id], onDelete: Cascade)
 
   @@index([purchaseLedgerId])
   @@index([paymentDate])
   @@map("purchase_payments")
 }
 
-// ==================== JDF (CIP4 Job Definition Format) ====================
-
-// JDF ColorIntent - 색상 의도 (인쇄 도수, 코팅)
 model ColorIntent {
-  id              String   @id @default(cuid())
-  code            String   @unique                    // CI-4C-1S, CI-6C-2S 등
-  name            String                              // "4도 단면", "6도 양면"
-
-  // JDF: NumColors (색상 수)
-  numColorsFront  Int      @default(4)                // 앞면 색상 수 (4=CMYK, 6=CMYKOV)
-  numColorsBack   Int      @default(0)                // 뒷면 색상 수 (0=단면, 4=양면)
-
-  // JDF: ColorType
-  colorType       String   @default("Process")        // Process, Spot, DeviceN
-
-  // JDF: ColorantOrder (색상 순서)
-  colorantOrder   String[] @default([])               // ["Cyan", "Magenta", "Yellow", "Black"]
-
-  // JDF: Coatings (코팅)
-  coatingFront    String?                             // UV, Laminate, Varnish, Matte, Glossy
-  coatingBack     String?
-
-  // JDF: ColorStandard
-  colorStandard   String?  @default("FOGRA39")        // FOGRA39, GRACoL, SWOP
-
-  // JDF: PrintingTechnology
-  printingTechnology String? @default("DigitalPrinting") // Offset, DigitalPrinting, Inkjet
-
-  // 한국어 표시용
-  displayNameKo   String?                             // "4도 풀컬러 양면 인쇄"
-
-  sortOrder       Int      @default(0)
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  code               String   @unique
+  name               String
+  numColorsFront     Int      @default(4)
+  numColorsBack      Int      @default(0)
+  colorType          String   @default("Process")
+  colorantOrder      String[] @default([])
+  coatingFront       String?
+  coatingBack        String?
+  colorStandard      String?  @default("FOGRA39")
+  printingTechnology String?  @default("DigitalPrinting")
+  displayNameKo      String?
+  sortOrder          Int      @default(0)
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   @@index([isActive])
   @@map("color_intents")
 }
 
-// JDF BindingIntent - 제본 의도
 model BindingIntent {
   id              String   @id @default(cuid())
-  code            String   @unique                    // BI-SOFT, BI-HARD 등
-  name            String                              // "무선제본", "양장제본"
-
-  // JDF: BindingType
-  jdfBindingType  String   @default("SoftCover")      // SoftCover, HardCover, Saddle, Ring, Wire, Perfect, Spiral
-
-  // JDF: BindingSide
-  jdfBindingSide  String   @default("Left")           // Left, Right, Top, Bottom
-
-  // JDF: BindingOrder
-  jdfBindingOrder String?  @default("Gathering")      // Collecting, Gathering
-
-  // JDF: EdgeGilding (금박)
-  edgeGilding     String?                             // None, Gold, Silver
-
-  // JDF: SpineThickness
-  spineThickness  String?  @default("Auto")           // Auto, Fixed
-
-  // JDF: CoverType
-  coverType       String?  @default("Separate")       // Separate, Integral
-
-  // 한국어 표시용
-  displayNameKo   String?                             // "양장 하드커버 제본"
-
-  // 가격 정보
-  basePrice       Decimal  @db.Decimal(12, 2) @default(0)
-
+  code            String   @unique
+  name            String
+  jdfBindingType  String   @default("SoftCover")
+  jdfBindingSide  String   @default("Left")
+  jdfBindingOrder String?  @default("Gathering")
+  edgeGilding     String?
+  spineThickness  String?  @default("Auto")
+  coverType       String?  @default("Separate")
+  displayNameKo   String?
+  basePrice       Decimal  @default(0) @db.Decimal(12, 2)
   sortOrder       Int      @default(0)
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
@@ -3288,62 +2307,36 @@ model BindingIntent {
   @@map("binding_intents")
 }
 
-// JDF FoldingIntent - 접지 의도
 model FoldingIntent {
-  id              String   @id @default(cuid())
-  code            String   @unique                    // FI-F2, FI-Z 등
-  name            String                              // "2단접지", "대문접지"
-
-  // JDF: FoldCatalog
-  jdfFoldCatalog  String                              // F2-1, F4-1, F6-1, Z, Gate, Roll, Letter
-
-  // JDF: FoldingDetails
-  foldCount       Int      @default(1)                // 접지 횟수
-  foldDirection   String?  @default("Parallel")       // Parallel, Perpendicular, Mixed
-
-  // 접지 도식 이미지
-  diagramUrl      String?
-
-  // 한국어 표시용
-  displayNameKo   String?                             // "병풍 6단 접지"
-
-  // 가격 정보
-  basePrice       Decimal  @db.Decimal(12, 2) @default(0)
-  pricePerFold    Decimal  @db.Decimal(10, 2) @default(0)  // 접지당 추가요금
-
-  sortOrder       Int      @default(0)
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String   @id @default(cuid())
+  code           String   @unique
+  name           String
+  jdfFoldCatalog String
+  foldCount      Int      @default(1)
+  foldDirection  String?  @default("Parallel")
+  diagramUrl     String?
+  displayNameKo  String?
+  basePrice      Decimal  @default(0) @db.Decimal(12, 2)
+  pricePerFold   Decimal  @default(0) @db.Decimal(10, 2)
+  sortOrder      Int      @default(0)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@index([isActive])
   @@map("folding_intents")
 }
 
-// JDF ProofingIntent - 교정 의도
 model ProofingIntent {
   id              String   @id @default(cuid())
-  code            String   @unique                    // PI-NONE, PI-DIGITAL 등
-  name            String                              // "교정없음", "디지털 교정"
-
-  // JDF: ProofType
-  jdfProofType    String   @default("None")           // None, Digital, Proof, Press
-
-  // JDF: ProofQuality
-  jdfProofQuality String?  @default("Standard")       // Draft, Standard, High
-
-  // JDF: ColorProof
-  isColorProof    Boolean  @default(false)            // 색상 교정 포함 여부
-
-  // JDF: ContractProof
-  isContractProof Boolean  @default(false)            // 계약용 교정 여부
-
-  // 한국어 표시용
-  displayNameKo   String?                             // "색상 확인용 디지털 프루프"
-
-  // 가격 정보
-  basePrice       Decimal  @db.Decimal(12, 2) @default(0)
-
+  code            String   @unique
+  name            String
+  jdfProofType    String   @default("None")
+  jdfProofQuality String?  @default("Standard")
+  isColorProof    Boolean  @default(false)
+  isContractProof Boolean  @default(false)
+  displayNameKo   String?
+  basePrice       Decimal  @default(0) @db.Decimal(12, 2)
   sortOrder       Int      @default(0)
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
@@ -3353,84 +2346,109 @@ model ProofingIntent {
   @@map("proofing_intents")
 }
 
-// JDF FileSpec - 파일 규격
 model FileSpec {
-  id              String   @id @default(cuid())
-  code            String   @unique                    // FS-INDIGO, FS-INKJET 등
-  name            String                              // "인디고 출력용", "잉크젯 출력용"
-
-  // JDF: MimeType
-  mimeType        String   @default("application/pdf") // application/pdf, image/tiff
-
-  // JDF: Resolution
-  resolutionX     Int      @default(300)              // DPI (가로)
-  resolutionY     Int      @default(300)              // DPI (세로)
-  minResolution   Int      @default(200)              // 최소 허용 해상도
-
-  // JDF: ColorSpace
-  colorSpace      String   @default("CMYK")           // CMYK, RGB, sRGB, AdobeRGB, Grayscale
-
-  // JDF: ColorProfile
-  colorProfile    String?                             // FOGRA39, Japan Color 2001 Coated
-
-  // JDF: Compression
-  compression     String?  @default("None")           // None, LZW, JPEG, ZIP
-
-  // JDF: ScreeningType
-  screeningType   String?  @default("AM")             // AM, FM, Hybrid
-  screenLPI       Int?     @default(175)              // 라인 스크린 (LPI)
-
-  // 파일 크기 제한
-  maxFileSizeMB   Int?     @default(500)              // 최대 파일 크기 (MB)
-
-  // 한국어 표시용
-  displayNameKo   String?                             // "인디고 CMYK 300dpi"
-
-  sortOrder       Int      @default(0)
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id            String   @id @default(cuid())
+  code          String   @unique
+  name          String
+  mimeType      String   @default("application/pdf")
+  resolutionX   Int      @default(300)
+  resolutionY   Int      @default(300)
+  minResolution Int      @default(200)
+  colorSpace    String   @default("CMYK")
+  colorProfile  String?
+  compression   String?  @default("None")
+  screeningType String?  @default("AM")
+  screenLPI     Int?     @default(175)
+  maxFileSizeMB Int?     @default(500)
+  displayNameKo String?
+  sortOrder     Int      @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([isActive])
   @@map("file_specs")
 }
 
-// JDF QualityControl - 품질 기준
 model QualityControl {
-  id              String   @id @default(cuid())
-  code            String   @unique                    // QC-STD, QC-PREMIUM 등
-  name            String                              // "표준품질", "프리미엄품질"
-
-  // 색상 정확도
-  deltaE          Decimal? @db.Decimal(5, 2)          // 허용 Delta E (색차)
-  colorTolerance  String?  @default("Standard")       // Tight, Standard, Loose
-
-  // 밀도 기준
-  densityCyan     Decimal? @db.Decimal(5, 2)
-  densityMagenta  Decimal? @db.Decimal(5, 2)
-  densityYellow   Decimal? @db.Decimal(5, 2)
-  densityBlack    Decimal? @db.Decimal(5, 2)
-
-  // 도트 게인
-  dotGainTarget   Int?     @default(15)               // 목표 도트 게인 (%)
-
-  // 허용 오차
-  trimTolerance   Decimal? @db.Decimal(5, 2) @default(0.5)  // 재단 허용오차 (mm)
-  foldTolerance   Decimal? @db.Decimal(5, 2) @default(1.0)  // 접지 허용오차 (mm)
-  bindingTolerance Decimal? @db.Decimal(5, 2) @default(2.0) // 제본 허용오차 (mm)
-
-  // 한국어 표시용
-  displayNameKo   String?                             // "프리미엄 품질 기준"
-
-  // 검수 체크리스트 (JSON)
-  checklistItems  Json?                               // 검수 항목 배열
-
-  sortOrder       Int      @default(0)
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id               String   @id @default(cuid())
+  code             String   @unique
+  name             String
+  deltaE           Decimal? @db.Decimal(5, 2)
+  colorTolerance   String?  @default("Standard")
+  densityCyan      Decimal? @db.Decimal(5, 2)
+  densityMagenta   Decimal? @db.Decimal(5, 2)
+  densityYellow    Decimal? @db.Decimal(5, 2)
+  densityBlack     Decimal? @db.Decimal(5, 2)
+  dotGainTarget    Int?     @default(15)
+  trimTolerance    Decimal? @default(0.5) @db.Decimal(5, 2)
+  foldTolerance    Decimal? @default(1.0) @db.Decimal(5, 2)
+  bindingTolerance Decimal? @default(2.0) @db.Decimal(5, 2)
+  displayNameKo    String?
+  checklistItems   Json?
+  sortOrder        Int      @default(0)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@index([isActive])
   @@map("quality_controls")
 }
 
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+enum VoucherType {
+  RECEIPT
+  PAYMENT
+  TRANSFER
+}
+
+enum TransactionType {
+  DEBIT
+  CREDIT
+}
+
+enum SalesType {
+  ALBUM
+  PRINT
+  FRAME
+  GOODS
+  BINDING
+  DESIGN
+  SHIPPING
+  OTHER
+}
+
+enum TaxType {
+  TAXABLE
+  ZERO_RATED
+  EXEMPT
+}
+
+enum SalesStatus {
+  REGISTERED
+  CONFIRMED
+  CANCELLED
+}
+
+enum PurchaseType {
+  RAW_MATERIAL
+  MERCHANDISE
+  SUPPLIES
+  OUTSOURCING
+  EQUIPMENT
+  SERVICE
+  OTHER
+}
+
+enum PurchaseStatus {
+  REGISTERED
+  CONFIRMED
+  CANCELLED
+}

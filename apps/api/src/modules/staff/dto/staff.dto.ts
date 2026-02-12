@@ -127,6 +127,11 @@ export class CreateStaffDto {
   @IsOptional()
   canEditInManagerView?: boolean;
 
+  @ApiPropertyOptional({ description: '최고관리자 여부', default: false })
+  @IsBoolean()
+  @IsOptional()
+  isSuperAdmin?: boolean;
+
   @ApiPropertyOptional({ description: '관리자 로그인 허용', default: false })
   @IsBoolean()
   @IsOptional()

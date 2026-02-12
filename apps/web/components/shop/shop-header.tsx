@@ -59,7 +59,7 @@ export function ShopHeader() {
             {/* Logo */}
             <Link href="/" className="flex items-center">
               <span className="shop-heading text-xl md:text-2xl font-light tracking-tight text-neutral-900">
-                Photo<span className="font-normal">Cafe</span>
+                printing<span className="font-normal">114</span>
               </span>
             </Link>
 

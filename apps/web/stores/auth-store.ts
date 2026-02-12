@@ -8,6 +8,8 @@ interface User {
   email: string;
   name: string;
   role: string;
+  staffId?: string;
+  isSuperAdmin?: boolean;
   clientId?: string;
   clientName?: string;
   mobile?: string;
@@ -38,11 +40,10 @@ const createCustomStorage = (): StateStorage => {
 
   return {
     getItem: (name: string) => {
-      // localStorage 먼저 확인 (로그인 상태 유지)
-      const localData = localStorage.getItem(name);
-      if (localData) return localData;
-      // sessionStorage 확인 (세션 로그인)
-      return sessionStorage.getItem(name);
+      // sessionStorage 우선: 대리로그인 등 탭별 독립 세션 지원
+      const sessionData = sessionStorage.getItem(name);
+      if (sessionData) return sessionData;
+      return localStorage.getItem(name);
     },
     setItem: (name: string, value: string) => {
       try {

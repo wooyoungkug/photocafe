@@ -83,3 +83,43 @@ export function useChangePassword() {
       api.patch<{ success: boolean; message: string }>('/auth/change-password', data),
   });
 }
+
+interface ImpersonateStaffResponse {
+  accessToken: string;
+  refreshToken: string;
+  user: {
+    id: string;
+    staffId: string;
+    name: string;
+    role: string;
+    email?: string;
+    isSuperAdmin?: boolean;
+  };
+  impersonated: boolean;
+}
+
+export function useImpersonateStaff() {
+  const router = useRouter();
+  const setAuth = useAuthStore((state) => state.setAuth);
+
+  return useMutation({
+    mutationFn: (staffId: string) =>
+      api.post<ImpersonateStaffResponse>(`/auth/impersonate-staff/${staffId}`),
+    onSuccess: (response) => {
+      setAuth({
+        user: {
+          id: response.user.id,
+          email: response.user.email || response.user.staffId,
+          name: response.user.name,
+          role: response.user.role,
+          staffId: response.user.staffId,
+          isSuperAdmin: response.user.isSuperAdmin ?? false,
+        },
+        accessToken: response.accessToken,
+        refreshToken: response.refreshToken,
+        rememberMe: false,
+      });
+      router.push('/dashboard');
+    },
+  });
+}

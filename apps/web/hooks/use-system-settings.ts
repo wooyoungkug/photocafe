@@ -28,9 +28,10 @@ export const SETTING_CATEGORIES = {
 export const PROCESS_STAGES = {
   // 접수 단계
   reception_waiting: { name: "접수대기", category: "reception", order: 1 },
-  payment_waiting: { name: "입금대기", category: "reception", order: 2 },
-  reception_hold: { name: "접수보류", category: "reception", order: 3 },
-  reception_complete: { name: "접수완료", category: "reception", order: 4 },
+  file_inspection: { name: "파일검수", category: "reception", order: 2 },
+  payment_waiting: { name: "입금대기", category: "reception", order: 3 },
+  reception_hold: { name: "접수보류", category: "reception", order: 4 },
+  reception_complete: { name: "접수완료", category: "reception", order: 5 },
 
   // 출력 단계
   print_waiting: { name: "출력대기", category: "print", order: 10 },

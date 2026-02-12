@@ -7,6 +7,7 @@ import {
   UpdateOrderDto,
   UpdateOrderStatusDto,
   UpdateShippingDto,
+  AdjustOrderDto,
   BulkUpdateStatusDto,
   BulkCancelDto,
   BulkUpdateReceiptDateDto,
@@ -53,6 +54,43 @@ export class OrderService {
 
   private generateProductionNumber(orderNumber: string, itemIndex: number): string {
     return `${orderNumber}-${(itemIndex + 1).toString().padStart(2, '0')}`;
+  }
+
+  // ==================== processedBy ID → 이름 변환 ====================
+  private async resolveProcessedByNames(ids: string[]): Promise<Record<string, string>> {
+    const uniqueIds = [...new Set(ids.filter(Boolean))];
+    if (!uniqueIds.length) return {};
+
+    const nameMap: Record<string, string> = {};
+
+    // Staff 테이블에서 조회 (관리자 작업이 대부분)
+    const staffRecords = await this.prisma.staff.findMany({
+      where: { id: { in: uniqueIds } },
+      select: { id: true, name: true },
+    });
+    staffRecords.forEach(s => { nameMap[s.id] = s.name; });
+
+    // 미해결 ID → User 테이블
+    const unresolvedIds = uniqueIds.filter(id => !nameMap[id]);
+    if (unresolvedIds.length) {
+      const userRecords = await this.prisma.user.findMany({
+        where: { id: { in: unresolvedIds } },
+        select: { id: true, name: true },
+      });
+      userRecords.forEach(u => { nameMap[u.id] = u.name; });
+    }
+
+    // 미해결 ID → Client 테이블
+    const stillUnresolved = uniqueIds.filter(id => !nameMap[id]);
+    if (stillUnresolved.length) {
+      const clientRecords = await this.prisma.client.findMany({
+        where: { id: { in: stillUnresolved } },
+        select: { id: true, clientName: true },
+      });
+      clientRecords.forEach(c => { nameMap[c.id] = c.clientName; });
+    }
+
+    return nameMap;
   }
 
   // ==================== 주문 목록 조회 ====================
@@ -132,6 +170,8 @@ export class OrderService {
               foilName: true,
               foilColor: true,
               finishingOptions: true,
+              fabricName: true,
+              folderName: true,
               thumbnailUrl: true,
               totalFileSize: true,
               pageLayout: true,
@@ -150,6 +190,17 @@ export class OrderService {
               shipping: true,
             },
           },
+          processHistory: {
+            take: 1,
+            orderBy: { processedAt: 'desc' },
+            select: {
+              id: true,
+              toStatus: true,
+              processType: true,
+              processedBy: true,
+              processedAt: true,
+            },
+          },
           _count: {
             select: { items: true },
           },
@@ -159,8 +210,22 @@ export class OrderService {
       this.prisma.order.count({ where }),
     ]);
 
+    // processedBy ID → 이름 변환
+    const processedByIds = data.flatMap(
+      order => order.processHistory?.map(h => h.processedBy) || [],
+    );
+    const nameMap = await this.resolveProcessedByNames(processedByIds);
+
+    const enrichedData = data.map(order => ({
+      ...order,
+      processHistory: order.processHistory?.map(h => ({
+        ...h,
+        processedByName: nameMap[h.processedBy] || '-',
+      })),
+    }));
+
     return {
-      data,
+      data: enrichedData,
       meta: {
         total,
         page: Math.floor(skip / take) + 1,
@@ -168,6 +233,28 @@ export class OrderService {
         totalPages: Math.ceil(total / take),
       },
     };
+  }
+
+  // ==================== 주문 공정 이력 조회 (이름 포함) ====================
+  async getProcessHistory(orderId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true },
+    });
+    if (!order) throw new NotFoundException('주문을 찾을 수 없습니다');
+
+    const history = await this.prisma.processHistory.findMany({
+      where: { orderId },
+      orderBy: { processedAt: 'desc' },
+    });
+
+    const processedByIds = history.map(h => h.processedBy).filter(Boolean);
+    const nameMap = await this.resolveProcessedByNames(processedByIds);
+
+    return history.map(h => ({
+      ...h,
+      processedByName: nameMap[h.processedBy] || '-',
+    }));
   }
 
   // ==================== 주문 상세 조회 ====================
@@ -179,12 +266,13 @@ export class OrderService {
         shipping: true,
         items: {
           include: {
-            files: { orderBy: { sortOrder: 'asc' } },
+            files: { orderBy: { sortOrder: 'asc' }, take: 200 },
             shipping: true,
           },
         },
         processHistory: {
           orderBy: { processedAt: 'desc' },
+          take: 50,
         },
       },
     });
@@ -239,6 +327,7 @@ export class OrderService {
           foilName: item.foilName,
           foilColor: item.foilColor,
           finishingOptions: item.finishingOptions || [],
+          fabricName: item.fabricName,
           thumbnailUrl: item.thumbnailUrl,
           totalFileSize: item.totalFileSize ? BigInt(item.totalFileSize) : BigInt(0),
           folderName: item.folderName?.trim().replace(/\s+/g, ' '),
@@ -247,6 +336,26 @@ export class OrderService {
           quantity: item.quantity,
           unitPrice: item.unitPrice,
           totalPrice,
+          // 파일 정보가 있으면 함께 생성
+          ...(item.files?.length ? {
+            files: {
+              create: item.files.map((f, fi) => ({
+                fileName: f.fileName,
+                fileUrl: f.fileUrl,
+                thumbnailUrl: f.thumbnailUrl,
+                pageRange: f.pageRange,
+                pageStart: f.pageStart,
+                pageEnd: f.pageEnd,
+                width: f.width || 0,
+                height: f.height || 0,
+                widthInch: f.widthInch || 0,
+                heightInch: f.heightInch || 0,
+                dpi: f.dpi || 0,
+                fileSize: f.fileSize || 0,
+                sortOrder: f.sortOrder ?? fi,
+              })),
+            },
+          } : {}),
           // 항목별 배송 정보가 있으면 함께 생성
           ...(item.shipping ? {
             shipping: {
@@ -537,6 +646,125 @@ export class OrderService {
     });
   }
 
+  // ==================== 관리자 금액/수량 조정 ====================
+  async adjustOrder(id: string, dto: AdjustOrderDto, userId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+      include: { items: true },
+    });
+
+    if (!order) {
+      throw new NotFoundException('주문을 찾을 수 없습니다');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1. 항목별 수량/단가 수정
+      if (dto.itemUpdates?.length) {
+        for (const update of dto.itemUpdates) {
+          const item = order.items.find(i => i.id === update.itemId);
+          if (!item) continue;
+
+          const newQuantity = update.quantity ?? item.quantity;
+          const newUnitPrice = update.unitPrice !== undefined
+            ? update.unitPrice
+            : Number(item.unitPrice);
+          const newTotalPrice = newUnitPrice * newQuantity;
+
+          await tx.orderItem.update({
+            where: { id: update.itemId },
+            data: {
+              quantity: newQuantity,
+              unitPrice: newUnitPrice,
+              totalPrice: newTotalPrice,
+              ...(update.pageLayout !== undefined && { pageLayout: update.pageLayout }),
+              ...(update.bindingDirection !== undefined && { bindingDirection: update.bindingDirection }),
+              ...(update.fabricName !== undefined && { fabricName: update.fabricName }),
+            },
+          });
+        }
+      }
+
+      // 2. 수정된 항목 기준으로 총액 재계산
+      const updatedItems = await tx.orderItem.findMany({
+        where: { orderId: id },
+      });
+      const productPrice = updatedItems.reduce(
+        (sum, item) => sum + Number(item.totalPrice), 0,
+      );
+      const tax = Math.round(productPrice * 0.1);
+      const shippingFee = Number(order.shippingFee);
+      const adjustmentAmount = dto.adjustmentAmount ?? Number(order.adjustmentAmount);
+      const totalAmount = productPrice + tax + shippingFee;
+      const finalAmount = totalAmount - adjustmentAmount;
+
+      // 3. 주문 금액 업데이트 + 이력 기록
+      const updatedOrder = await tx.order.update({
+        where: { id },
+        data: {
+          productPrice,
+          tax,
+          adjustmentAmount,
+          totalAmount,
+          finalAmount: Math.max(0, finalAmount),
+          processHistory: {
+            create: {
+              fromStatus: order.status,
+              toStatus: order.status,
+              processType: 'admin_adjustment',
+              note: dto.adjustmentReason || `금액조정: 할인 ${adjustmentAmount.toLocaleString()}원`,
+              processedBy: userId,
+            },
+          },
+        },
+        include: {
+          client: {
+            select: {
+              id: true,
+              clientCode: true,
+              clientName: true,
+              assignedStaff: {
+                where: { isPrimary: true },
+                select: { staff: { select: { id: true, name: true } } },
+                take: 1,
+              },
+            },
+          },
+          shipping: true,
+          items: {
+            include: { files: { orderBy: { sortOrder: 'asc' }, take: 1 }, shipping: true },
+          },
+        },
+      });
+
+      // 4. 매출원장도 연동 업데이트 (존재하는 경우)
+      try {
+        const ledger = await tx.salesLedger.findUnique({
+          where: { orderId: id },
+        });
+        if (ledger) {
+          const supplyAmount = productPrice;
+          const vatAmount = tax;
+          const ledgerTotal = supplyAmount + vatAmount + shippingFee - adjustmentAmount;
+          await tx.salesLedger.update({
+            where: { orderId: id },
+            data: {
+              supplyAmount,
+              vatAmount,
+              shippingFee,
+              adjustmentAmount,
+              totalAmount: Math.max(0, ledgerTotal),
+              outstandingAmount: Math.max(0, ledgerTotal - Number(ledger.receivedAmount)),
+            },
+          });
+        }
+      } catch (e) {
+        console.error('매출원장 연동 업데이트 실패:', e);
+      }
+
+      return updatedOrder;
+    });
+  }
+
   // ==================== 벌크: 상태 일괄 변경 ====================
   async bulkUpdateStatus(dto: BulkUpdateStatusDto, userId: string) {
     const results = { success: 0, failed: [] as string[] };
@@ -712,6 +940,7 @@ export class OrderService {
                 foilName: item.foilName,
                 foilColor: item.foilColor,
                 finishingOptions: item.finishingOptions,
+                fabricName: item.fabricName,
                 thumbnailUrl: item.thumbnailUrl,
                 totalFileSize: item.totalFileSize,
                 pageLayout: item.pageLayout,

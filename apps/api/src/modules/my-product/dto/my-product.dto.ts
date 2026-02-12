@@ -20,6 +20,11 @@ export interface MyProductOptions {
   foilPositionName?: string;
   finishingIds?: string[];
   finishingNames?: string[];
+  // 원단 (앨범 표지)
+  coverSourceType?: 'fabric' | 'design';
+  fabricId?: string;
+  fabricName?: string;
+  fabricThumbnail?: string;
 }
 
 export class CreateMyProductDto {

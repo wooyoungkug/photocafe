@@ -54,6 +54,7 @@ export interface AlbumOrderCartInfo {
   bindingDirection: string;        // 제본방향
   specificationId: string;         // 규격 ID
   specificationName: string;       // 규격명
+  fabricName?: string;             // 원단명
   totalSize?: number;              // 총 용량 (bytes)
   shippingInfo?: CartShippingInfo; // 배송 정보
 }

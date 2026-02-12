@@ -55,6 +55,7 @@ export interface OrderItem {
   foilName?: string;
   foilColor?: string;
   finishingOptions: string[];
+  fabricName?: string;
   folderName?: string;
   thumbnailUrl?: string;
   totalFileSize?: number;
@@ -88,6 +89,7 @@ export interface ProcessHistory {
   processType: string;
   note?: string;
   processedBy: string;
+  processedByName?: string;
   processedAt: string;
 }
 
@@ -261,10 +263,46 @@ export function useCancelOrder() {
   });
 }
 
+// 관리자 금액/수량 조정
+export interface AdjustOrderData {
+  adjustmentAmount?: number;
+  adjustmentReason?: string;
+  itemUpdates?: {
+    itemId: string;
+    quantity?: number;
+    unitPrice?: number;
+    pageLayout?: string;
+    bindingDirection?: string;
+    fabricName?: string;
+  }[];
+}
+
+export function useAdjustOrder() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: AdjustOrderData }) =>
+      api.patch<Order>(`/orders/${id}/adjust`, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY] });
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY, variables.id] });
+    },
+  });
+}
+
 // 주문 상태별 카운트
 export function useOrderStatusCounts() {
   return useQuery({
     queryKey: [ORDERS_KEY, 'status-counts'],
     queryFn: () => api.get<Record<string, number>>('/orders/status-counts'),
+  });
+}
+
+// 주문 공정 이력 조회 (이름 포함)
+export function useOrderHistory(orderId: string | null) {
+  return useQuery({
+    queryKey: [ORDERS_KEY, orderId, 'history'],
+    queryFn: () => api.get<ProcessHistory[]>(`/orders/${orderId}/history`),
+    enabled: !!orderId,
   });
 }

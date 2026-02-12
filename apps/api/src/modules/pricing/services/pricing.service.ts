@@ -366,64 +366,91 @@ export class PricingService {
   }
 
   /**
-   * 그룹별 생산설정 단가 설정 (upsert)
+   * 그룹별 생산설정 단가 설정 (upsert) - 트랜잭션 배치 처리
    */
   async setGroupProductionSettingPrices(dto: SetGroupProductionSettingPricesDto) {
-    const results = [];
-
-    for (const priceData of dto.prices) {
-      // 고유 키 구성 (priceGroupId 포함)
-      const uniqueKey = {
-        clientGroupId: dto.clientGroupId,
-        productionSettingId: dto.productionSettingId,
-        specificationId: priceData.specificationId || null,
-        priceGroupId: priceData.priceGroupId || null,
-        minQuantity: priceData.minQuantity || null,
-      };
-
-      const data = {
-        clientGroupId: dto.clientGroupId,
-        productionSettingId: dto.productionSettingId,
-        specificationId: priceData.specificationId,
-        priceGroupId: priceData.priceGroupId,
-        minQuantity: priceData.minQuantity,
-        maxQuantity: priceData.maxQuantity,
-        weight: priceData.weight,
-        price: priceData.price || 0,
-        singleSidedPrice: priceData.singleSidedPrice,
-        doubleSidedPrice: priceData.doubleSidedPrice,
-        fourColorSinglePrice: priceData.fourColorSinglePrice,
-        fourColorDoublePrice: priceData.fourColorDoublePrice,
-        sixColorSinglePrice: priceData.sixColorSinglePrice,
-        sixColorDoublePrice: priceData.sixColorDoublePrice,
-        basePages: priceData.basePages,
-        basePrice: priceData.basePrice,
-        pricePerPage: priceData.pricePerPage,
-        rangePrices: priceData.rangePrices,
-      };
-
-      // 기존 레코드 찾기
-      const existing = await this.prisma.groupProductionSettingPrice.findFirst({
-        where: uniqueKey,
+    return this.prisma.$transaction(async (tx) => {
+      // 1. 기존 레코드 한번에 조회
+      const existingRecords = await tx.groupProductionSettingPrice.findMany({
+        where: {
+          clientGroupId: dto.clientGroupId,
+          productionSettingId: dto.productionSettingId,
+        },
       });
 
-      if (existing) {
-        // 업데이트
-        const updated = await this.prisma.groupProductionSettingPrice.update({
-          where: { id: existing.id },
-          data,
-        });
-        results.push(updated);
-      } else {
-        // 생성
-        const created = await this.prisma.groupProductionSettingPrice.create({
-          data,
-        });
-        results.push(created);
-      }
-    }
+      // 기존 레코드를 복합키로 맵핑
+      const existingMap = new Map(
+        existingRecords.map(r => [
+          `${r.specificationId || ''}|${r.priceGroupId || ''}|${r.minQuantity ?? ''}`,
+          r,
+        ])
+      );
 
-    return results;
+      const results = [];
+
+      // 2. 생성/업데이트 분리
+      const toCreate: any[] = [];
+      const updateOps: Promise<any>[] = [];
+
+      for (const priceData of dto.prices) {
+        const key = `${priceData.specificationId || ''}|${priceData.priceGroupId || ''}|${priceData.minQuantity ?? ''}`;
+        const data = {
+          clientGroupId: dto.clientGroupId,
+          productionSettingId: dto.productionSettingId,
+          specificationId: priceData.specificationId,
+          priceGroupId: priceData.priceGroupId,
+          minQuantity: priceData.minQuantity,
+          maxQuantity: priceData.maxQuantity,
+          weight: priceData.weight,
+          price: priceData.price || 0,
+          singleSidedPrice: priceData.singleSidedPrice,
+          doubleSidedPrice: priceData.doubleSidedPrice,
+          fourColorSinglePrice: priceData.fourColorSinglePrice,
+          fourColorDoublePrice: priceData.fourColorDoublePrice,
+          sixColorSinglePrice: priceData.sixColorSinglePrice,
+          sixColorDoublePrice: priceData.sixColorDoublePrice,
+          basePages: priceData.basePages,
+          basePrice: priceData.basePrice,
+          pricePerPage: priceData.pricePerPage,
+          rangePrices: priceData.rangePrices,
+        };
+
+        const existing = existingMap.get(key);
+        if (existing) {
+          updateOps.push(
+            tx.groupProductionSettingPrice.update({
+              where: { id: existing.id },
+              data,
+            })
+          );
+        } else {
+          toCreate.push(data);
+        }
+      }
+
+      // 3. 업데이트 병렬 실행
+      if (updateOps.length > 0) {
+        const updated = await Promise.all(updateOps);
+        results.push(...updated);
+      }
+
+      // 4. 신규 건 배치 생성
+      if (toCreate.length > 0) {
+        await tx.groupProductionSettingPrice.createMany({ data: toCreate });
+        // createMany는 레코드를 반환하지 않으므로 다시 조회
+        const created = await tx.groupProductionSettingPrice.findMany({
+          where: {
+            clientGroupId: dto.clientGroupId,
+            productionSettingId: dto.productionSettingId,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: toCreate.length,
+        });
+        results.push(...created);
+      }
+
+      return results;
+    });
   }
 
   /**
@@ -486,64 +513,85 @@ export class PricingService {
   }
 
   /**
-   * 거래처별 개별 생산설정 단가 설정 (upsert)
+   * 거래처별 개별 생산설정 단가 설정 (upsert) - 트랜잭션 배치 처리
    */
   async setClientProductionSettingPrices(dto: SetClientProductionSettingPricesDto) {
-    const results = [];
-
-    for (const priceData of dto.prices) {
-      // 고유 키 구성 (priceGroupId 포함)
-      const uniqueKey = {
-        clientId: dto.clientId,
-        productionSettingId: dto.productionSettingId,
-        specificationId: priceData.specificationId || null,
-        priceGroupId: priceData.priceGroupId || null,
-        minQuantity: priceData.minQuantity || null,
-      };
-
-      const data = {
-        clientId: dto.clientId,
-        productionSettingId: dto.productionSettingId,
-        specificationId: priceData.specificationId,
-        priceGroupId: priceData.priceGroupId,
-        minQuantity: priceData.minQuantity,
-        maxQuantity: priceData.maxQuantity,
-        weight: priceData.weight,
-        price: priceData.price || 0,
-        singleSidedPrice: priceData.singleSidedPrice,
-        doubleSidedPrice: priceData.doubleSidedPrice,
-        fourColorSinglePrice: priceData.fourColorSinglePrice,
-        fourColorDoublePrice: priceData.fourColorDoublePrice,
-        sixColorSinglePrice: priceData.sixColorSinglePrice,
-        sixColorDoublePrice: priceData.sixColorDoublePrice,
-        basePages: priceData.basePages,
-        basePrice: priceData.basePrice,
-        pricePerPage: priceData.pricePerPage,
-        rangePrices: priceData.rangePrices,
-      };
-
-      // 기존 레코드 찾기
-      const existing = await this.prisma.clientProductionSettingPrice.findFirst({
-        where: uniqueKey,
+    return this.prisma.$transaction(async (tx) => {
+      // 1. 기존 레코드 한번에 조회
+      const existingRecords = await tx.clientProductionSettingPrice.findMany({
+        where: {
+          clientId: dto.clientId,
+          productionSettingId: dto.productionSettingId,
+        },
       });
 
-      if (existing) {
-        // 업데이트
-        const updated = await this.prisma.clientProductionSettingPrice.update({
-          where: { id: existing.id },
-          data,
-        });
-        results.push(updated);
-      } else {
-        // 생성
-        const created = await this.prisma.clientProductionSettingPrice.create({
-          data,
-        });
-        results.push(created);
-      }
-    }
+      const existingMap = new Map(
+        existingRecords.map(r => [
+          `${r.specificationId || ''}|${r.priceGroupId || ''}|${r.minQuantity ?? ''}`,
+          r,
+        ])
+      );
 
-    return results;
+      const results = [];
+      const toCreate: any[] = [];
+      const updateOps: Promise<any>[] = [];
+
+      for (const priceData of dto.prices) {
+        const key = `${priceData.specificationId || ''}|${priceData.priceGroupId || ''}|${priceData.minQuantity ?? ''}`;
+        const data = {
+          clientId: dto.clientId,
+          productionSettingId: dto.productionSettingId,
+          specificationId: priceData.specificationId,
+          priceGroupId: priceData.priceGroupId,
+          minQuantity: priceData.minQuantity,
+          maxQuantity: priceData.maxQuantity,
+          weight: priceData.weight,
+          price: priceData.price || 0,
+          singleSidedPrice: priceData.singleSidedPrice,
+          doubleSidedPrice: priceData.doubleSidedPrice,
+          fourColorSinglePrice: priceData.fourColorSinglePrice,
+          fourColorDoublePrice: priceData.fourColorDoublePrice,
+          sixColorSinglePrice: priceData.sixColorSinglePrice,
+          sixColorDoublePrice: priceData.sixColorDoublePrice,
+          basePages: priceData.basePages,
+          basePrice: priceData.basePrice,
+          pricePerPage: priceData.pricePerPage,
+          rangePrices: priceData.rangePrices,
+        };
+
+        const existing = existingMap.get(key);
+        if (existing) {
+          updateOps.push(
+            tx.clientProductionSettingPrice.update({
+              where: { id: existing.id },
+              data,
+            })
+          );
+        } else {
+          toCreate.push(data);
+        }
+      }
+
+      if (updateOps.length > 0) {
+        const updated = await Promise.all(updateOps);
+        results.push(...updated);
+      }
+
+      if (toCreate.length > 0) {
+        await tx.clientProductionSettingPrice.createMany({ data: toCreate });
+        const created = await tx.clientProductionSettingPrice.findMany({
+          where: {
+            clientId: dto.clientId,
+            productionSettingId: dto.productionSettingId,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: toCreate.length,
+        });
+        results.push(...created);
+      }
+
+      return results;
+    });
   }
 
   /**

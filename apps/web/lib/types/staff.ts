@@ -85,6 +85,9 @@ export interface Staff {
   // View 권한 설정
   canEditInManagerView: boolean;
 
+  // 최고관리자 여부
+  isSuperAdmin: boolean;
+
   // 접근 권한 설정
   canLoginAsManager: boolean;
 
@@ -150,6 +153,7 @@ export interface CreateStaffRequest {
   settlementGrade?: number;
   allowedIps?: string[];
   canEditInManagerView?: boolean;
+  isSuperAdmin?: boolean;
   canLoginAsManager?: boolean;
   canChangeDepositStage?: boolean;
   canChangeReceptionStage?: boolean;

@@ -59,6 +59,7 @@ export default function BasicSettingsPage() {
   // 공정단계 상태
   const [enabledStages, setEnabledStages] = useState<string[]>([
     "reception_waiting",
+    "file_inspection",
     "payment_waiting",
     "reception_complete",
     "print_waiting",
@@ -562,6 +563,7 @@ export default function BasicSettingsPage() {
               onClick={() =>
                 setEnabledStages([
                   "reception_waiting",
+                  "file_inspection",
                   "payment_waiting",
                   "reception_complete",
                   "print_waiting",

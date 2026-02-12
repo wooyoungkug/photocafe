@@ -459,6 +459,7 @@ export function useAccountingSummary() {
         };
       }
     },
+    staleTime: 30_000,
   });
 }
 

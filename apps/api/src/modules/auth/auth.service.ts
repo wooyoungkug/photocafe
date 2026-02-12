@@ -506,7 +506,16 @@ export class AuthService {
   }
 
   // 직원 로그인 처리
-  async loginStaff(staff: any, rememberMe: boolean = false) {
+  async loginStaff(staff: any, rememberMe: boolean = false, ip?: string) {
+    // 로그인 시각/IP 기록
+    await this.prisma.staff.update({
+      where: { id: staff.id },
+      data: {
+        lastLoginAt: new Date(),
+        ...(ip && { lastLoginIp: ip }),
+      },
+    });
+
     const payload = {
       sub: staff.id,
       staffId: staff.staffId,
@@ -531,6 +540,7 @@ export class AuthService {
         name: staff.name,
         role: 'admin',
         email: staff.email,
+        isSuperAdmin: staff.isSuperAdmin ?? false,
         branch: staff.branch,
         department: staff.department,
       },
@@ -538,6 +548,66 @@ export class AuthService {
   }
 
   // ========== 관리자 대리 로그인 (Impersonate) ==========
+
+  // 최고관리자가 특정 직원으로 대리 로그인
+  async impersonateStaff(targetStaffId: string, adminStaffId: string) {
+    // 요청한 직원이 최고관리자인지 확인
+    const adminStaff = await this.prisma.staff.findUnique({
+      where: { id: adminStaffId },
+    });
+
+    if (!adminStaff || !adminStaff.isSuperAdmin) {
+      throw new UnauthorizedException('최고관리자만 대리 로그인할 수 있습니다');
+    }
+
+    // 대상 직원 조회
+    const targetStaff = await this.prisma.staff.findUnique({
+      where: { id: targetStaffId },
+      include: { branch: true, department: true },
+    });
+
+    if (!targetStaff) {
+      throw new BadRequestException('직원을 찾을 수 없습니다');
+    }
+
+    if (!targetStaff.isActive) {
+      throw new BadRequestException('비활성 직원은 대리 로그인할 수 없습니다');
+    }
+
+    // 대리 로그인 토큰 발급
+    const payload = {
+      sub: targetStaff.id,
+      staffId: targetStaff.staffId,
+      name: targetStaff.name,
+      role: 'admin',
+      type: 'staff',
+      branchId: targetStaff.branchId,
+      departmentId: targetStaff.departmentId,
+      impersonatedBy: adminStaffId,
+    };
+
+    const accessToken = this.jwtService.sign(payload, {
+      expiresIn: '2h',
+    });
+    const refreshToken = this.jwtService.sign(payload, {
+      expiresIn: '2h',
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: targetStaff.id,
+        staffId: targetStaff.staffId,
+        name: targetStaff.name,
+        role: 'admin',
+        email: targetStaff.email,
+        branch: targetStaff.branch,
+        department: targetStaff.department,
+      },
+      impersonated: true,
+    };
+  }
 
   // 관리자가 특정 회원으로 대리 로그인
   async impersonateClient(clientId: string, adminId: string) {

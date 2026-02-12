@@ -427,70 +427,64 @@ export class SalesLedgerService {
 
   // ===== 거래처별 매출 집계 =====
   async getClientSummary(query: { startDate?: string; endDate?: string }) {
-    const where: Prisma.SalesLedgerWhereInput = {
-      salesStatus: { not: 'CANCELLED' },
-    };
+    // DB 수준 GROUP BY 집계
+    const conditions: string[] = [`sl."salesStatus" != 'CANCELLED'`];
+    const params: any[] = [];
+    let paramIdx = 1;
 
-    if (query.startDate || query.endDate) {
-      where.ledgerDate = {};
-      if (query.startDate) where.ledgerDate.gte = new Date(query.startDate);
-      if (query.endDate) {
-        const end = new Date(query.endDate);
-        end.setHours(23, 59, 59, 999);
-        where.ledgerDate.lte = end;
-      }
+    if (query.startDate) {
+      conditions.push(`sl."ledgerDate" >= $${paramIdx}`);
+      params.push(new Date(query.startDate));
+      paramIdx++;
+    }
+    if (query.endDate) {
+      const end = new Date(query.endDate);
+      end.setHours(23, 59, 59, 999);
+      conditions.push(`sl."ledgerDate" <= $${paramIdx}`);
+      params.push(end);
+      paramIdx++;
     }
 
-    const ledgers = await this.prisma.salesLedger.findMany({
-      where,
-      select: {
-        clientId: true,
-        clientName: true,
-        totalAmount: true,
-        receivedAmount: true,
-        outstandingAmount: true,
-        ledgerDate: true,
-        client: {
-          select: { clientCode: true },
-        },
-      },
-      orderBy: { ledgerDate: 'desc' },
-    });
+    const whereClause = conditions.join(' AND ');
 
-    // 거래처별 집계
-    const clientMap = new Map<string, {
-      clientId: string;
-      clientName: string;
-      clientCode: string;
-      totalSales: number;
-      totalReceived: number;
-      outstanding: number;
-      orderCount: number;
-      lastOrderDate: string;
-    }>();
+    const rows = await this.prisma.$queryRawUnsafe<
+      {
+        clientId: string;
+        clientName: string;
+        clientCode: string;
+        totalSales: number;
+        totalReceived: number;
+        outstanding: number;
+        orderCount: bigint;
+        lastOrderDate: Date;
+      }[]
+    >(
+      `SELECT sl."clientId",
+              sl."clientName",
+              c."clientCode",
+              COALESCE(SUM(sl."totalAmount"), 0)::float as "totalSales",
+              COALESCE(SUM(sl."receivedAmount"), 0)::float as "totalReceived",
+              COALESCE(SUM(sl."outstandingAmount"), 0)::float as outstanding,
+              COUNT(sl.id) as "orderCount",
+              MAX(sl."ledgerDate") as "lastOrderDate"
+       FROM sales_ledgers sl
+       JOIN clients c ON c.id = sl."clientId"
+       WHERE ${whereClause}
+       GROUP BY sl."clientId", sl."clientName", c."clientCode"
+       ORDER BY "totalSales" DESC`,
+      ...params,
+    );
 
-    for (const l of ledgers) {
-      const existing = clientMap.get(l.clientId);
-      if (existing) {
-        existing.totalSales += Number(l.totalAmount);
-        existing.totalReceived += Number(l.receivedAmount);
-        existing.outstanding += Number(l.outstandingAmount);
-        existing.orderCount += 1;
-      } else {
-        clientMap.set(l.clientId, {
-          clientId: l.clientId,
-          clientName: l.clientName,
-          clientCode: l.client.clientCode,
-          totalSales: Number(l.totalAmount),
-          totalReceived: Number(l.receivedAmount),
-          outstanding: Number(l.outstandingAmount),
-          orderCount: 1,
-          lastOrderDate: l.ledgerDate.toISOString(),
-        });
-      }
-    }
-
-    return Array.from(clientMap.values()).sort((a, b) => b.totalSales - a.totalSales);
+    return rows.map(r => ({
+      clientId: r.clientId,
+      clientName: r.clientName,
+      clientCode: r.clientCode,
+      totalSales: Number(r.totalSales),
+      totalReceived: Number(r.totalReceived),
+      outstanding: Number(r.outstanding),
+      orderCount: Number(r.orderCount),
+      lastOrderDate: r.lastOrderDate?.toISOString() || '',
+    }));
   }
 
   // ===== 연체 처리 (배치/수동) =====
@@ -509,67 +503,82 @@ export class SalesLedgerService {
 
   // ===== 기존 주문 매출원장 일괄 생성 (백필) =====
   async backfillFromOrders() {
-    // 이미 매출원장이 있는 주문 ID 조회
-    const existingLedgers = await this.prisma.salesLedger.findMany({
-      select: { orderId: true },
-    });
-    const existingOrderIds = new Set(existingLedgers.map(l => l.orderId));
-
-    // 매출원장이 없는 주문 조회 (취소 제외)
-    const orders = await this.prisma.order.findMany({
-      where: {
-        status: { not: 'cancelled' },
-      },
-      include: {
-        items: {
-          select: {
-            id: true,
-            productId: true,
-            productName: true,
-            size: true,
-            quantity: true,
-            unitPrice: true,
-            totalPrice: true,
-          },
-        },
-      },
-    });
-
-    const ordersToBackfill = orders.filter(o => !existingOrderIds.has(o.id));
-
+    const BATCH_SIZE = 100;
     let created = 0;
     let failed = 0;
+    let totalToProcess = 0;
+    let skip = 0;
 
-    for (const order of ordersToBackfill) {
-      try {
-        await this.createFromOrder({
-          id: order.id,
-          orderNumber: order.orderNumber,
-          clientId: order.clientId,
-          productPrice: Number(order.productPrice),
-          shippingFee: Number(order.shippingFee),
-          tax: Number(order.tax),
-          totalAmount: Number(order.totalAmount),
-          finalAmount: Number(order.finalAmount),
-          paymentMethod: order.paymentMethod,
-          items: order.items.map((item: any) => ({
-            id: item.id,
-            productId: item.productId,
-            productName: item.productName,
-            size: item.size,
-            quantity: item.quantity,
-            unitPrice: Number(item.unitPrice),
-            totalPrice: Number(item.totalPrice),
-          })),
-        }, 'system-backfill');
-        created++;
-      } catch (err: any) {
-        console.error(`백필 실패 (${order.orderNumber}):`, err.message);
-        failed++;
+    // 배치 단위로 처리하여 메모리 부담 방지
+    while (true) {
+      // 매출원장이 없는 주문만 NOT EXISTS로 조회 (배치 단위)
+      const orders = await this.prisma.$queryRawUnsafe<{ id: string }[]>(
+        `SELECT o.id FROM orders o
+         WHERE o.status != 'cancelled'
+           AND NOT EXISTS (SELECT 1 FROM sales_ledgers sl WHERE sl."orderId" = o.id)
+         ORDER BY o."orderedAt" ASC
+         LIMIT $1 OFFSET $2`,
+        BATCH_SIZE,
+        skip,
+      );
+
+      if (orders.length === 0) break;
+      totalToProcess += orders.length;
+
+      // 배치 내 주문 상세 조회
+      const orderIds = orders.map(o => o.id);
+      const fullOrders = await this.prisma.order.findMany({
+        where: { id: { in: orderIds } },
+        include: {
+          items: {
+            select: {
+              id: true,
+              productId: true,
+              productName: true,
+              size: true,
+              quantity: true,
+              unitPrice: true,
+              totalPrice: true,
+            },
+          },
+        },
+      });
+
+      for (const order of fullOrders) {
+        try {
+          await this.createFromOrder({
+            id: order.id,
+            orderNumber: order.orderNumber,
+            clientId: order.clientId,
+            productPrice: Number(order.productPrice),
+            shippingFee: Number(order.shippingFee),
+            tax: Number(order.tax),
+            totalAmount: Number(order.totalAmount),
+            finalAmount: Number(order.finalAmount),
+            paymentMethod: order.paymentMethod,
+            items: order.items.map((item: any) => ({
+              id: item.id,
+              productId: item.productId,
+              productName: item.productName,
+              size: item.size,
+              quantity: item.quantity,
+              unitPrice: Number(item.unitPrice),
+              totalPrice: Number(item.totalPrice),
+            })),
+          }, 'system-backfill');
+          created++;
+        } catch (err: any) {
+          console.error(`백필 실패 (${order.orderNumber}):`, err.message);
+          failed++;
+        }
       }
+
+      // 다음 배치 (생성 성공한 건은 NOT EXISTS에서 제외되므로 skip은 실패 건만큼만)
+      skip = failed;
+      if (orders.length < BATCH_SIZE) break;
     }
 
-    return { total: ordersToBackfill.length, created, failed };
+    return { total: totalToProcess, created, failed };
   }
 
   // ===== 월별 매출 추이 =====
@@ -577,43 +586,40 @@ export class SalesLedgerService {
     const now = new Date();
     const startDate = new Date(now.getFullYear(), now.getMonth() - months + 1, 1);
 
-    const ledgers = await this.prisma.salesLedger.findMany({
-      where: {
-        ledgerDate: { gte: startDate },
-        salesStatus: { not: 'CANCELLED' },
-      },
-      select: {
-        ledgerDate: true,
-        totalAmount: true,
-        receivedAmount: true,
-        outstandingAmount: true,
-      },
-      orderBy: { ledgerDate: 'asc' },
-    });
+    // DB 수준 월별 집계
+    const rows = await this.prisma.$queryRawUnsafe<
+      { month: string; sales: number; received: number; outstanding: number; count: bigint }[]
+    >(
+      `SELECT TO_CHAR("ledgerDate", 'YYYY-MM') as month,
+              COALESCE(SUM("totalAmount"), 0)::float as sales,
+              COALESCE(SUM("receivedAmount"), 0)::float as received,
+              COALESCE(SUM("outstandingAmount"), 0)::float as outstanding,
+              COUNT(id) as count
+       FROM sales_ledgers
+       WHERE "ledgerDate" >= $1
+         AND "salesStatus" != 'CANCELLED'
+       GROUP BY month
+       ORDER BY month ASC`,
+      startDate,
+    );
 
-    // 월별 집계
-    const monthlyData = new Map<string, { sales: number; received: number; outstanding: number; count: number }>();
+    const dbData = new Map(rows.map(r => [r.month, r]));
 
+    // 빈 월도 포함하여 반환
+    const result = [];
     for (let i = 0; i < months; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() - months + 1 + i, 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      monthlyData.set(key, { sales: 0, received: 0, outstanding: 0, count: 0 });
+      const entry = dbData.get(key);
+      result.push({
+        month: key,
+        sales: entry ? Number(entry.sales) : 0,
+        received: entry ? Number(entry.received) : 0,
+        outstanding: entry ? Number(entry.outstanding) : 0,
+        count: entry ? Number(entry.count) : 0,
+      });
     }
 
-    for (const l of ledgers) {
-      const key = `${l.ledgerDate.getFullYear()}-${String(l.ledgerDate.getMonth() + 1).padStart(2, '0')}`;
-      const entry = monthlyData.get(key);
-      if (entry) {
-        entry.sales += Number(l.totalAmount);
-        entry.received += Number(l.receivedAmount);
-        entry.outstanding += Number(l.outstandingAmount);
-        entry.count += 1;
-      }
-    }
-
-    return Array.from(monthlyData.entries()).map(([month, data]) => ({
-      month,
-      ...data,
-    }));
+    return result;
   }
 }
