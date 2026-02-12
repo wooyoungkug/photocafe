@@ -42,6 +42,11 @@ export class ProductSpecificationDto {
   @IsOptional()
   @IsNumber()
   sortOrder?: number;
+
+  @ApiPropertyOptional({ description: '글로벌 규격 ID' })
+  @IsOptional()
+  @IsString()
+  specificationId?: string;
 }
 
 // ==================== 제본 DTO ====================

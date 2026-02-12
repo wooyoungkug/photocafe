@@ -260,6 +260,8 @@ export default function EditProductPage() {
   const [selectedFoils, setSelectedFoils] = useState<{ id: string; name: string; color: string; price: number }[]>([]);
   // 용지 사용 여부 관리
   const [paperActiveMap, setPaperActiveMap] = useState<Record<string, boolean>>({});
+  // 기본 용지 ID
+  const [defaultPaperId, setDefaultPaperId] = useState<string>('');
 
   // 후가공정보
   const [finishingOptions, setFinishingOptions] = useState<Record<string, boolean>>({});
@@ -376,10 +378,13 @@ export default function EditProductPage() {
       // 용지 사용 여부 로드
       if (product.papers && Array.isArray(product.papers)) {
         const activeMap: Record<string, boolean> = {};
-        product.papers.forEach((p: { id: string; isActive?: boolean }) => {
+        let foundDefaultId = '';
+        product.papers.forEach((p: { id: string; isActive?: boolean; isDefault?: boolean }) => {
           activeMap[p.id] = p.isActive !== false; // 기본값 true
+          if (p.isDefault) foundDefaultId = p.id;
         });
         setPaperActiveMap(activeMap);
+        setDefaultPaperId(foundDefaultId || (product.papers[0] as any)?.id || '');
       }
 
       if (product.finishings && Array.isArray(product.finishings)) {
@@ -399,21 +404,18 @@ export default function EditProductPage() {
         setPrintType((product as any).printType);
       }
       // 출력단가 설정 로드
-      console.log('=== 출력단가 설정 로드 ===');
-      console.log('product.outputPriceSettings:', (product as any).outputPriceSettings);
       if ((product as any).outputPriceSettings && Array.isArray((product as any).outputPriceSettings)) {
-        console.log('Setting outputPriceSelections:', (product as any).outputPriceSettings);
         setOutputPriceSelections((product as any).outputPriceSettings);
-        // 출력단가 설정의 outputMethod에 따라 규격 탭 자동 선택
-        const hasIndigo = (product as any).outputPriceSettings.some((s: any) => s.outputMethod === 'INDIGO');
-        const hasInkjet = (product as any).outputPriceSettings.some((s: any) => s.outputMethod === 'INKJET');
-        if (hasIndigo && !hasInkjet) {
-          setSpecType('indigo');
-        } else if (hasInkjet && !hasIndigo) {
-          setSpecType('album');
+        // 규격이 없는 경우에만 outputMethod 기반 specType fallback
+        if (!product.specifications || product.specifications.length === 0) {
+          const hasIndigo = (product as any).outputPriceSettings.some((s: any) => s.outputMethod === 'INDIGO');
+          const hasInkjet = (product as any).outputPriceSettings.some((s: any) => s.outputMethod === 'INKJET');
+          if (hasIndigo && !hasInkjet) {
+            setSpecType('indigo');
+          } else if (hasInkjet && !hasIndigo) {
+            setSpecType('album');
+          }
         }
-      } else {
-        console.log('outputPriceSettings가 없거나 배열이 아님');
       }
       setIsFormReady(true);
     }
@@ -422,9 +424,15 @@ export default function EditProductPage() {
   // 규격 매칭 (specifications가 로드된 후 실행)
   useEffect(() => {
     if (product?.specifications && Array.isArray(product.specifications) && specifications && specifications.length > 0) {
-      const productSpecs = product.specifications as Array<{ name: string; widthMm: number; heightMm: number }>;
+      const productSpecs = product.specifications as Array<{ specificationId?: string; name: string; widthMm: number; heightMm: number }>;
       const matchedSpecIds = productSpecs
         .map((productSpec) => {
+          // specificationId가 있으면 우선 사용 (정확한 매칭)
+          if (productSpec.specificationId) {
+            const exists = specifications.find(s => s.id === productSpec.specificationId);
+            if (exists) return exists.id;
+          }
+          // fallback: name + dimensions 매칭
           const matchedSpec = specifications.find(
             (s) => s.name === productSpec.name &&
               Number(s.widthMm) === Number(productSpec.widthMm) &&
@@ -434,6 +442,25 @@ export default function EditProductPage() {
         })
         .filter((id): id is string => !!id);
       setSelectedSpecs(matchedSpecIds);
+
+      // 저장된 규격의 타입을 감지하여 specType 자동 설정
+      if (matchedSpecIds.length > 0) {
+        const matchedGlobalSpecs = matchedSpecIds
+          .map(id => specifications.find(s => s.id === id))
+          .filter((s): s is NonNullable<typeof s> => !!s);
+
+        const typeCounts = [
+          { key: 'indigo' as const, count: matchedGlobalSpecs.filter(s => s.forIndigo).length },
+          { key: 'inkjet' as const, count: matchedGlobalSpecs.filter(s => s.forInkjet).length },
+          { key: 'album' as const, count: matchedGlobalSpecs.filter(s => s.forAlbum).length },
+          { key: 'frame' as const, count: matchedGlobalSpecs.filter(s => s.forFrame).length },
+          { key: 'booklet' as const, count: matchedGlobalSpecs.filter(s => s.forBooklet).length },
+        ];
+        const bestMatch = typeCounts.reduce((max, curr) => curr.count > max.count ? curr : max);
+        if (bestMatch.count > 0) {
+          setSpecType(bestMatch.key);
+        }
+      }
     }
   }, [product?.specifications, specifications]);
 
@@ -560,6 +587,7 @@ export default function EditProductPage() {
         specifications: selectedSpecs.map((specId, idx) => {
           const spec = specifications?.find(s => s.id === specId);
           return {
+            specificationId: specId,
             name: spec?.name || '',
             widthMm: Number(spec?.widthMm) || 0,
             heightMm: Number(spec?.heightMm) || 0,
@@ -584,7 +612,7 @@ export default function EditProductPage() {
           frontCoating: p.frontCoating,
           grade: p.grade,
           price: Number(p.price) || 0,
-          isDefault: p.isDefault || idx === 0,
+          isDefault: p.id === defaultPaperId,
           isActive: paperActiveMap[p.id] !== false,
           sortOrder: p.sortOrder ?? idx,
         })),
@@ -1081,6 +1109,7 @@ export default function EditProductPage() {
                   <TableHeader>
                     <TableRow className="bg-slate-50">
                       <TableHead className="w-16 text-center">사용</TableHead>
+                      <TableHead className="w-16 text-center">기본</TableHead>
                       <TableHead>용지명</TableHead>
                       <TableHead className="w-24">평량</TableHead>
                       <TableHead className="w-24">코팅</TableHead>
@@ -1120,6 +1149,15 @@ export default function EditProductPage() {
                                 className="data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
                               />
                             </TableCell>
+                            <TableCell className="text-center">
+                              <input
+                                type="radio"
+                                name="defaultPaper"
+                                checked={defaultPaperId === paper.id}
+                                onChange={() => setDefaultPaperId(paper.id)}
+                                className="h-4 w-4 accent-blue-600 cursor-pointer"
+                              />
+                            </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
                                 {pIdx === 0 && (
@@ -1130,9 +1168,6 @@ export default function EditProductPage() {
                                 <span className={`text-sm ${paperActiveMap[paper.id] === false ? 'line-through text-slate-400' : 'font-medium'}`}>
                                   {paper.name}
                                 </span>
-                                {paper.isDefault && (
-                                  <Badge variant="secondary" className="text-[10px]">기본</Badge>
-                                )}
                               </div>
                             </TableCell>
                             <TableCell className="text-sm text-slate-600">

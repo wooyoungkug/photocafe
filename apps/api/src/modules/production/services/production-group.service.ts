@@ -10,6 +10,8 @@ import {
   ProductionSettingQueryDto,
   UpdateSpecificationsDto,
   UpdatePricesDto,
+  MoveProductionSettingDto,
+  MoveProductionGroupDto,
 } from '../dto';
 
 // 보호되는 그룹 이름 (삭제/수정 불가)
@@ -784,5 +786,182 @@ export class ProductionGroupService {
     ]);
 
     return this.findSettingById(id);
+  }
+
+  // ==================== 이동 ====================
+
+  // 생산설정을 다른 그룹으로 이동
+  async moveSettingToGroup(id: string, dto: MoveProductionSettingDto) {
+    const setting = await this.findSettingById(id);
+
+    // 같은 그룹 체크
+    if (setting.groupId === dto.targetGroupId) {
+      throw new BadRequestException('이미 같은 그룹에 속한 설정입니다.');
+    }
+
+    // 대상 그룹 존재 및 유효성 확인
+    const targetGroup = await this.prisma.productionGroup.findUnique({
+      where: { id: dto.targetGroupId },
+      include: { _count: { select: { children: true } } },
+    });
+    if (!targetGroup) {
+      throw new NotFoundException('이동할 대상 그룹을 찾을 수 없습니다.');
+    }
+
+    // leaf 그룹(하위 그룹 없는)에만 설정 이동 가능
+    if (targetGroup._count.children > 0) {
+      throw new BadRequestException('하위 그룹이 있는 그룹에는 설정을 이동할 수 없습니다.');
+    }
+
+    // sortOrder 자동 배치 (대상 그룹의 마지막+1)
+    const lastSetting = await this.prisma.productionSetting.findFirst({
+      where: { groupId: dto.targetGroupId },
+      orderBy: { sortOrder: 'desc' },
+    });
+    const newSortOrder = (lastSetting?.sortOrder ?? -1) + 1;
+
+    await this.prisma.productionSetting.update({
+      where: { id },
+      data: {
+        groupId: dto.targetGroupId,
+        sortOrder: newSortOrder,
+      },
+    });
+
+    return this.findSettingById(id);
+  }
+
+  // 생산그룹을 다른 부모로 이동
+  async moveGroupToParent(id: string, dto: MoveProductionGroupDto) {
+    const group = await this.findGroupById(id);
+
+    // 보호 그룹 체크
+    if (this.isProtectedGroup(group.name)) {
+      throw new BadRequestException(`'${group.name}' 그룹은 시스템 그룹이므로 이동할 수 없습니다.`);
+    }
+
+    // 자기자신으로 이동 불가
+    if (dto.newParentId === id) {
+      throw new BadRequestException('자기 자신으로 이동할 수 없습니다.');
+    }
+
+    // 같은 부모로 이동은 불필요
+    if ((dto.newParentId ?? null) === (group.parentId ?? null)) {
+      throw new BadRequestException('이미 같은 상위 그룹에 속해 있습니다.');
+    }
+
+    // 순환 참조 방지: 자기 하위로 이동 불가
+    if (dto.newParentId) {
+      const isDesc = await this.isDescendantOf(dto.newParentId, id);
+      if (isDesc) {
+        throw new BadRequestException('하위 그룹으로 이동할 수 없습니다. (순환 참조 방지)');
+      }
+    }
+
+    // 새 depth 계산
+    let newDepth = 1;
+    if (dto.newParentId) {
+      const newParent = await this.prisma.productionGroup.findUnique({
+        where: { id: dto.newParentId },
+      });
+      if (!newParent) {
+        throw new NotFoundException('이동할 대상 상위 그룹을 찾을 수 없습니다.');
+      }
+      newDepth = newParent.depth + 1;
+    }
+
+    // 서브트리 최대 깊이 확인 (3단계 초과 방지)
+    const subtreeMaxDepth = await this.getSubtreeMaxDepth(id);
+    const depthDifference = subtreeMaxDepth - group.depth;
+    if (newDepth + depthDifference > 3) {
+      throw new BadRequestException('이동 시 3단계를 초과하는 그룹 구조가 됩니다.');
+    }
+
+    // sortOrder: 대상 부모의 마지막+1
+    const lastSibling = await this.prisma.productionGroup.findFirst({
+      where: { parentId: dto.newParentId ?? null },
+      orderBy: { sortOrder: 'desc' },
+    });
+    const newSortOrder = (lastSibling?.sortOrder ?? -1) + 1;
+
+    // 새 코드 생성
+    const newCode = await this.generateNextCode(dto.newParentId || undefined);
+
+    // 트랜잭션으로 이동 실행
+    const depthOffset = newDepth - group.depth;
+    await this.prisma.$transaction(async (tx) => {
+      // 그룹 자체 업데이트
+      await tx.productionGroup.update({
+        where: { id },
+        data: {
+          parentId: dto.newParentId ?? null,
+          depth: newDepth,
+          sortOrder: newSortOrder,
+          code: newCode,
+        },
+      });
+
+      // 하위 그룹 depth 재귀 업데이트
+      if (depthOffset !== 0) {
+        await this.updateChildrenDepthRecursive(tx, id, depthOffset);
+      }
+    });
+
+    return this.findGroupById(id);
+  }
+
+  // targetId가 ancestorId의 하위인지 확인
+  private async isDescendantOf(targetId: string, ancestorId: string): Promise<boolean> {
+    let currentId: string | null = targetId;
+    while (currentId) {
+      if (currentId === ancestorId) return true;
+      const found: { parentId: string | null } | null = await this.prisma.productionGroup.findUnique({
+        where: { id: currentId },
+        select: { parentId: true },
+      });
+      currentId = found?.parentId ?? null;
+    }
+    return false;
+  }
+
+  // 서브트리의 최대 depth 계산
+  private async getSubtreeMaxDepth(groupId: string): Promise<number> {
+    const group = await this.prisma.productionGroup.findUnique({
+      where: { id: groupId },
+      select: { depth: true },
+    });
+    if (!group) return 0;
+
+    const children = await this.prisma.productionGroup.findMany({
+      where: { parentId: groupId },
+    });
+
+    if (children.length === 0) return group.depth;
+
+    let maxDepth = group.depth;
+    for (const child of children) {
+      const childMax = await this.getSubtreeMaxDepth(child.id);
+      maxDepth = Math.max(maxDepth, childMax);
+    }
+    return maxDepth;
+  }
+
+  // 하위 그룹 depth 재귀 업데이트
+  private async updateChildrenDepthRecursive(
+    tx: any,
+    parentId: string,
+    depthOffset: number,
+  ): Promise<void> {
+    const children = await tx.productionGroup.findMany({
+      where: { parentId },
+    });
+
+    for (const child of children) {
+      await tx.productionGroup.update({
+        where: { id: child.id },
+        data: { depth: child.depth + depthOffset },
+      });
+      await this.updateChildrenDepthRecursive(tx, child.id, depthOffset);
+    }
   }
 }

@@ -19,6 +19,8 @@ import {
   ProductionSettingQueryDto,
   UpdateSpecificationsDto,
   UpdatePricesDto,
+  MoveProductionSettingDto,
+  MoveProductionGroupDto,
   PRICING_TYPES,
   PRICING_TYPE_LABELS,
   DELIVERY_PRICING_TYPES,
@@ -81,6 +83,15 @@ export class ProductionGroupController {
   @ApiOperation({ summary: '생산그룹 아래로 이동' })
   async moveGroupDown(@Param('id') id: string) {
     return this.productionGroupService.moveGroupDown(id);
+  }
+
+  @Post('groups/:id/move-to')
+  @ApiOperation({ summary: '생산그룹 다른 부모로 이동' })
+  async moveGroupToParent(
+    @Param('id') id: string,
+    @Body() dto: MoveProductionGroupDto,
+  ) {
+    return this.productionGroupService.moveGroupToParent(id, dto);
   }
 
   // ==================== 생산설정 ====================
@@ -158,5 +169,14 @@ export class ProductionGroupController {
   @ApiOperation({ summary: '생산설정 아래로 이동' })
   async moveSettingDown(@Param('id') id: string) {
     return this.productionGroupService.moveSettingDown(id);
+  }
+
+  @Post('settings/:id/move-to')
+  @ApiOperation({ summary: '생산설정 다른 그룹으로 이동' })
+  async moveSettingToGroup(
+    @Param('id') id: string,
+    @Body() dto: MoveProductionSettingDto,
+  ) {
+    return this.productionGroupService.moveSettingToGroup(id, dto);
   }
 }

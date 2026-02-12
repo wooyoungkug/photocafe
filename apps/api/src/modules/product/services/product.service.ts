@@ -373,4 +373,113 @@ export class ProductService {
       },
     });
   }
+
+  // ==================== 규격 정리 ====================
+
+  /**
+   * 상품의 outputPriceSettings(출력방식)에 맞는 규격만 남기고 나머지 삭제
+   * - INDIGO 전용 상품 → forIndigo인 규격만 유지
+   * - INKJET 전용 상품 → forInkjet/forAlbum/forFrame/forBooklet인 규격만 유지
+   */
+  async cleanupProductSpecifications(productId?: string) {
+    const globalSpecs = await this.prisma.specification.findMany();
+
+    const where = productId ? { id: productId } : {};
+    const products = await this.prisma.product.findMany({
+      where,
+      include: { specifications: true },
+    });
+
+    const results: Array<{
+      productId: string;
+      productName: string;
+      before: number;
+      after: number;
+      deleted: number;
+      updatedIds: number;
+    }> = [];
+
+    for (const product of products) {
+      if (!product.specifications.length) continue;
+
+      const outputSettings = product.outputPriceSettings as any[];
+      if (!outputSettings || !Array.isArray(outputSettings) || outputSettings.length === 0) continue;
+
+      const hasIndigo = outputSettings.some((s: any) => s.outputMethod === 'INDIGO');
+      const hasInkjet = outputSettings.some((s: any) => s.outputMethod === 'INKJET');
+
+      // 출력방식이 혼합이면 건너뜀
+      if ((hasIndigo && hasInkjet) || (!hasIndigo && !hasInkjet)) continue;
+
+      const isRelevant = hasIndigo
+        ? (gs: any) => gs.forIndigo === true
+        : (gs: any) => gs.forInkjet === true || gs.forAlbum === true || gs.forFrame === true || gs.forBooklet === true;
+
+      const specsToDelete: string[] = [];
+      const specsToUpdateId: { id: string; specificationId: string }[] = [];
+
+      for (const productSpec of product.specifications) {
+        // 글로벌 규격 매칭
+        let globalSpec = productSpec.specificationId
+          ? globalSpecs.find(gs => gs.id === productSpec.specificationId)
+          : null;
+
+        if (!globalSpec) {
+          // name + dimensions으로 매칭
+          globalSpec = globalSpecs.find(gs =>
+            gs.name === productSpec.name &&
+            Math.abs(Number(gs.widthMm) - Number(productSpec.widthMm)) < 0.1 &&
+            Math.abs(Number(gs.heightMm) - Number(productSpec.heightMm)) < 0.1
+          ) || null;
+        }
+
+        if (!globalSpec) {
+          specsToDelete.push(productSpec.id);
+          continue;
+        }
+
+        // specificationId가 없으면 업데이트
+        if (!productSpec.specificationId) {
+          specsToUpdateId.push({ id: productSpec.id, specificationId: globalSpec.id });
+        }
+
+        // 출력방식에 맞지 않으면 삭제
+        if (!isRelevant(globalSpec)) {
+          specsToDelete.push(productSpec.id);
+        }
+      }
+
+      // specificationId 업데이트
+      for (const upd of specsToUpdateId) {
+        await this.prisma.productSpecification.update({
+          where: { id: upd.id },
+          data: { specificationId: upd.specificationId },
+        }).catch(() => { /* unique constraint 무시 */ });
+      }
+
+      // 불필요한 규격 삭제
+      if (specsToDelete.length > 0) {
+        await this.prisma.productSpecification.deleteMany({
+          where: { id: { in: specsToDelete } },
+        });
+      }
+
+      if (specsToDelete.length > 0 || specsToUpdateId.length > 0) {
+        results.push({
+          productId: product.id,
+          productName: product.productName,
+          before: product.specifications.length,
+          after: product.specifications.length - specsToDelete.length,
+          deleted: specsToDelete.length,
+          updatedIds: specsToUpdateId.length,
+        });
+      }
+    }
+
+    return {
+      totalProducts: products.length,
+      cleanedProducts: results.length,
+      details: results,
+    };
+  }
 }

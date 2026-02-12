@@ -189,4 +189,22 @@ export class ProductController {
   ) {
     return this.productService.unlinkHalfProduct(id, halfProductId);
   }
+
+  // ==================== 규격 정리 ====================
+
+  @Post('cleanup-specs')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: '전체 상품 규격 일괄 정리 (출력방식에 맞는 규격만 유지)' })
+  async cleanupAllSpecs() {
+    return this.productService.cleanupProductSpecifications();
+  }
+
+  @Post(':id/cleanup-specs')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: '개별 상품 규격 정리' })
+  async cleanupProductSpecs(@Param('id') id: string) {
+    return this.productService.cleanupProductSpecifications(id);
+  }
 }

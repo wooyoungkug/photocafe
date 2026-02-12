@@ -388,3 +388,29 @@ export function useMoveProductionSetting() {
     },
   });
 }
+
+// ==================== 카테고리 이동 ====================
+
+export function useMoveProductionGroupTo() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, newParentId }: { id: string; newParentId?: string | null }) =>
+      api.post<ProductionGroup>(`/production/groups/${id}/move-to`, { newParentId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [PRODUCTION_KEY, 'groups'] });
+    },
+  });
+}
+
+export function useMoveProductionSettingTo() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, targetGroupId }: { id: string; targetGroupId: string }) =>
+      api.post<ProductionSetting>(`/production/settings/${id}/move-to`, { targetGroupId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [PRODUCTION_KEY] });
+    },
+  });
+}

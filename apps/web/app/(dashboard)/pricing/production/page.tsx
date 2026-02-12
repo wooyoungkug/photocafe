@@ -17,6 +17,7 @@ import {
   Trash2,
   Ruler,
   Users,
+  FolderInput,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,8 @@ import {
   useUpdateProductionSetting,
   useDeleteProductionSetting,
   useMoveProductionSetting,
+  useMoveProductionGroupTo,
+  useMoveProductionSettingTo,
   usePricingTypes,
   type ProductionGroup,
   type ProductionSetting,
@@ -477,6 +480,7 @@ function TreeNode({
   selectedGroupId,
   onSelectGroup,
   onMoveGroup,
+  onMoveGroupTo,
   level = 0,
 }: {
   group: ProductionGroup;
@@ -485,6 +489,7 @@ function TreeNode({
   selectedGroupId: string | null;
   onSelectGroup: (group: ProductionGroup) => void;
   onMoveGroup: (id: string, direction: "up" | "down") => void;
+  onMoveGroupTo?: (group: ProductionGroup) => void;
   level?: number;
 }) {
   const isExpanded = expandedIds.has(group.id);
@@ -632,6 +637,23 @@ function TreeNode({
           >
             <ArrowDown className="w-3.5 h-3.5" />
           </button>
+          {onMoveGroupTo && !isProtectedGroup(group.name) && (
+            <button
+              className={cn(
+                "p-1 rounded-sm transition-colors",
+                depth === 1
+                  ? "hover:bg-orange-100 text-orange-400 hover:text-orange-600"
+                  : "hover:bg-orange-50 text-gray-400 hover:text-orange-500"
+              )}
+              onClick={(e) => {
+                e.stopPropagation();
+                onMoveGroupTo(group);
+              }}
+              title="다른 그룹으로 이동"
+            >
+              <FolderInput className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -648,6 +670,7 @@ function TreeNode({
               selectedGroupId={selectedGroupId}
               onSelectGroup={onSelectGroup}
               onMoveGroup={onMoveGroup}
+              onMoveGroupTo={onMoveGroupTo}
               level={level + 1}
             />
           ))}
@@ -657,17 +680,119 @@ function TreeNode({
   );
 }
 
+// 이동 대상 트리 컴포넌트
+function MoveTargetTree({
+  groups,
+  moveType,
+  movingItemId,
+  movingGroupDepth,
+  selectedTargetId,
+  onSelectTarget,
+}: {
+  groups: ProductionGroup[];
+  moveType: "group" | "setting";
+  movingItemId: string;
+  movingGroupDepth?: number;
+  selectedTargetId: string | null;
+  onSelectTarget: (id: string) => void;
+}) {
+  // 이동 중인 그룹의 모든 하위 ID 수집 (순환참조 방지)
+  const getDescendantIds = (group: ProductionGroup): Set<string> => {
+    const ids = new Set<string>();
+    ids.add(group.id);
+    group.children?.forEach((child) => {
+      getDescendantIds(child).forEach((id) => ids.add(id));
+    });
+    return ids;
+  };
+
+  // 이동 중인 그룹 찾기
+  const findGroup = (groups: ProductionGroup[], id: string): ProductionGroup | null => {
+    for (const g of groups) {
+      if (g.id === id) return g;
+      if (g.children) {
+        const found = findGroup(g.children, id);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  const movingGroup = moveType === "group" ? findGroup(groups, movingItemId) : null;
+  const excludeIds = movingGroup ? getDescendantIds(movingGroup) : new Set<string>();
+
+  const renderNode = (group: ProductionGroup, level: number = 0) => {
+    const isSelf = excludeIds.has(group.id);
+    const isCurrentParent = moveType === "setting" && group.id === movingItemId;
+    const isProtected = PROTECTED_GROUP_NAMES.includes(group.name);
+    const hasChildren = group.children && group.children.length > 0;
+
+    let isValidTarget = false;
+    if (moveType === "setting") {
+      // 설정: leaf 그룹(하위 없음)만 가능, 현재 소속 그룹 제외
+      isValidTarget = !hasChildren && !isCurrentParent && !isProtected;
+    } else {
+      // 그룹: 새 부모의 depth가 movingGroupDepth - 1 이어야 함
+      if (movingGroupDepth !== undefined) {
+        isValidTarget = group.depth === movingGroupDepth - 1 && !isSelf && !isProtected;
+      }
+    }
+
+    const isSelected = group.id === selectedTargetId;
+
+    return (
+      <div key={group.id}>
+        <div
+          className={cn(
+            "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+            isSelf && "opacity-40 cursor-not-allowed",
+            isCurrentParent && "opacity-40 cursor-not-allowed",
+            isSelected && "bg-indigo-100 border border-indigo-300 font-medium",
+            isValidTarget && !isSelected && "hover:bg-gray-100 cursor-pointer",
+            !isValidTarget && !isSelf && !isCurrentParent && "opacity-50 cursor-not-allowed",
+          )}
+          style={{ paddingLeft: level * 20 + 12 }}
+          onClick={() => {
+            if (isValidTarget) onSelectTarget(group.id);
+          }}
+        >
+          {hasChildren ? (
+            <FolderOpen className="w-4 h-4 text-gray-400 shrink-0" />
+          ) : (
+            <Folder className="w-4 h-4 text-gray-400 shrink-0" />
+          )}
+          <span className="truncate">{group.name}</span>
+          {group.code && (
+            <span className="text-xs text-gray-400 shrink-0">({group.code})</span>
+          )}
+          {isCurrentParent && (
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">현재</Badge>
+          )}
+          {isSelf && moveType === "group" && (
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">이동 대상</Badge>
+          )}
+        </div>
+        {group.children?.map((child) => renderNode(child, level + 1))}
+      </div>
+    );
+  };
+
+  return <div className="space-y-0.5">{groups.map((g) => renderNode(g, 0))}</div>;
+}
+
 // 설정 카드 컴포넌트
 const SettingCard = ({
   setting,
   onEdit,
   onDelete,
   onMove,
+  onMoveTo,
 }: {
   setting: ProductionSetting;
   onEdit: (setting: ProductionSetting) => void;
   onDelete: (setting: ProductionSetting) => void;
   onMove: (id: string, direction: "up" | "down") => void;
+  onMoveTo?: (setting: ProductionSetting) => void;
 }) => {
   // prices 배열에서 가격 정보 추출
   const prices = (setting as any).prices || [];
@@ -864,6 +989,17 @@ const SettingCard = ({
           >
             <ArrowDown className="h-4 w-4" />
           </Button>
+          {onMoveTo && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-gray-400 hover:text-orange-600"
+              onClick={() => onMoveTo(setting)}
+              title="다른 그룹으로 이동"
+            >
+              <FolderInput className="h-4 w-4" />
+            </Button>
+          )}
           <div className="w-px h-4 bg-gray-200 mx-1" />
           <Button
             variant="ghost"
@@ -905,6 +1041,14 @@ export default function ProductionSettingPage() {
   const [editingSetting, setEditingSetting] = useState<ProductionSetting | null>(null);
   const [deletingItem, setDeletingItem] = useState<{ type: "group" | "setting"; item: any } | null>(null);
   const [parentGroupId, setParentGroupId] = useState<string | null>(null);
+
+  // 이동 다이얼로그 상태
+  const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
+  const [moveTarget, setMoveTarget] = useState<{
+    type: "group" | "setting";
+    item: ProductionGroup | ProductionSetting;
+  } | null>(null);
+  const [selectedTargetGroupId, setSelectedTargetGroupId] = useState<string | null>(null);
 
   // 규격선택 펼치기 상태
   const [isSpecSelectorExpanded, setIsSpecSelectorExpanded] = useState(false);
@@ -1063,6 +1207,8 @@ export default function ProductionSettingPage() {
   const updateSettingMutation = useUpdateProductionSetting();
   const deleteSettingMutation = useDeleteProductionSetting();
   const moveSettingMutation = useMoveProductionSetting();
+  const moveGroupToMutation = useMoveProductionGroupTo();
+  const moveSettingToMutation = useMoveProductionSettingTo();
 
   // groupTree가 변경될 때 selectedGroup을 동기화 (삭제 후 최신 데이터 반영)
   useEffect(() => {
@@ -1816,6 +1962,52 @@ export default function ProductionSettingPage() {
     moveSettingMutation.mutate({ id, direction });
   };
 
+  // 이동 다이얼로그 열기 (그룹)
+  const handleOpenMoveGroupDialog = (group: ProductionGroup) => {
+    if (isProtectedGroup(group.name)) {
+      toast({ title: `'${group.name}' 그룹은 이동할 수 없습니다.`, variant: "destructive" });
+      return;
+    }
+    setMoveTarget({ type: "group", item: group });
+    setSelectedTargetGroupId(null);
+    setIsMoveDialogOpen(true);
+  };
+
+  // 이동 다이얼로그 열기 (설정)
+  const handleOpenMoveSettingDialog = (setting: ProductionSetting) => {
+    setMoveTarget({ type: "setting", item: setting });
+    setSelectedTargetGroupId(null);
+    setIsMoveDialogOpen(true);
+  };
+
+  // 이동 실행
+  const handleMoveToGroup = async () => {
+    if (!moveTarget || !selectedTargetGroupId) return;
+    try {
+      if (moveTarget.type === "group") {
+        await moveGroupToMutation.mutateAsync({
+          id: (moveTarget.item as ProductionGroup).id,
+          newParentId: selectedTargetGroupId,
+        });
+        toast({ title: "그룹이 이동되었습니다." });
+      } else {
+        await moveSettingToMutation.mutateAsync({
+          id: (moveTarget.item as ProductionSetting).id,
+          targetGroupId: selectedTargetGroupId,
+        });
+        toast({ title: "설정이 이동되었습니다." });
+      }
+      setIsMoveDialogOpen(false);
+      setMoveTarget(null);
+    } catch (error: any) {
+      toast({
+        title: "이동 실패",
+        description: error?.response?.data?.message || error?.message || "오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // 규격 선택 핸들러
   const handleToggleSpecification = (specId: string) => {
     setSettingForm((prev) => ({
@@ -1969,6 +2161,7 @@ export default function ProductionSettingPage() {
                     selectedGroupId={selectedGroup?.id || null}
                     onSelectGroup={handleSelectGroup}
                     onMoveGroup={handleMoveGroup}
+                    onMoveGroupTo={handleOpenMoveGroupDialog}
                   />
                 ))}
               </div>
@@ -2160,6 +2353,7 @@ export default function ProductionSettingPage() {
                         setIsDeleteDialogOpen(true);
                       }}
                       onMove={handleMoveSetting}
+                      onMoveTo={handleOpenMoveSettingDialog}
                     />
                   ))}
                 </div>
@@ -4429,6 +4623,54 @@ export default function ProductionSettingPage() {
             </Button>
             <Button variant="destructive" onClick={handleDelete}>
               삭제
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 이동 다이얼로그 */}
+      <Dialog open={isMoveDialogOpen} onOpenChange={setIsMoveDialogOpen}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>
+              {moveTarget?.type === "group" ? "그룹 이동" : "설정 이동"}
+            </DialogTitle>
+            <DialogDescription>
+              &quot;{moveTarget?.type === "group"
+                ? (moveTarget?.item as ProductionGroup)?.name
+                : (moveTarget?.item as ProductionSetting)?.settingName || (moveTarget?.item as ProductionSetting)?.codeName || "설정"
+              }&quot; 항목을 이동할 대상을 선택하세요.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto border rounded-lg p-3 bg-gray-50/50 max-h-[50vh]">
+            {groupTree && (
+              <MoveTargetTree
+                groups={groupTree}
+                moveType={moveTarget?.type || "setting"}
+                movingItemId={
+                  moveTarget?.type === "group"
+                    ? (moveTarget.item as ProductionGroup).id
+                    : (moveTarget?.item as ProductionSetting)?.groupId || ""
+                }
+                movingGroupDepth={
+                  moveTarget?.type === "group"
+                    ? (moveTarget.item as ProductionGroup).depth
+                    : undefined
+                }
+                selectedTargetId={selectedTargetGroupId}
+                onSelectTarget={setSelectedTargetGroupId}
+              />
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsMoveDialogOpen(false)}>
+              취소
+            </Button>
+            <Button
+              onClick={handleMoveToGroup}
+              disabled={!selectedTargetGroupId || moveGroupToMutation.isPending || moveSettingToMutation.isPending}
+            >
+              {(moveGroupToMutation.isPending || moveSettingToMutation.isPending) ? "이동 중..." : "이동"}
             </Button>
           </DialogFooter>
         </DialogContent>

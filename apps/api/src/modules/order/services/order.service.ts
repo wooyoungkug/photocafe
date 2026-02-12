@@ -1024,9 +1024,34 @@ export class OrderService {
               },
             },
           },
+          include: { items: true },
         });
         results.success++;
         results.newOrderIds.push(newOrder.id);
+
+        // 매출원장 자동 등록 (복제된 주문도 매출 연동)
+        this.salesLedgerService.createFromOrder({
+          id: newOrder.id,
+          orderNumber: newOrder.orderNumber,
+          clientId: newOrder.clientId,
+          productPrice: Number(newOrder.productPrice),
+          shippingFee: Number(newOrder.shippingFee),
+          tax: Number(newOrder.tax),
+          totalAmount: Number(newOrder.totalAmount),
+          finalAmount: Number(newOrder.finalAmount),
+          paymentMethod: newOrder.paymentMethod,
+          items: newOrder.items.map(item => ({
+            id: item.id,
+            productId: item.productId,
+            productName: item.productName,
+            size: item.size,
+            quantity: item.quantity,
+            unitPrice: Number(item.unitPrice),
+            totalPrice: Number(item.totalPrice),
+          })),
+        }, userId).catch((err) => {
+          console.error('복제 주문 매출원장 자동등록 실패:', err.message);
+        });
       } catch { results.failed.push(orderId); }
     }
 

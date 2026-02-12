@@ -10,7 +10,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2, Zap } from 'lucide-react';
+
+const isDev = process.env.NODE_ENV === 'development';
 
 function LoginForm() {
   const router = useRouter();
@@ -200,6 +202,46 @@ function LoginForm() {
             </svg>
             카카오로 로그인
           </Button>
+
+          {isDev && (
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full border-amber-500/50 bg-amber-50 text-amber-700 hover:bg-amber-100"
+              size="sm"
+              disabled={isLoading}
+              onClick={async () => {
+                setError(null);
+                setIsLoading(true);
+                try {
+                  const response = await api.post<{
+                    user: { id: string; email: string; name: string; role: string };
+                    accessToken: string;
+                    refreshToken: string;
+                  }>('/auth/client/login', {
+                    email: 'wooceo@gmail.com',
+                    password: 'color060',
+                  });
+                  setAuth({
+                    user: response.user,
+                    accessToken: response.accessToken,
+                    refreshToken: response.refreshToken,
+                    rememberMe: true,
+                  });
+                  const redirectTo = searchParams.get('redirect') || '/';
+                  router.push(redirectTo);
+                } catch (err: unknown) {
+                  const errorMessage = err instanceof Error ? err.message : '개발 로그인 실패';
+                  setError(errorMessage);
+                } finally {
+                  setIsLoading(false);
+                }
+              }}
+            >
+              <Zap className="mr-2 h-4 w-4" />
+              DEV 빠른 로그인
+            </Button>
+          )}
         </CardFooter>
       </form>
     </Card>

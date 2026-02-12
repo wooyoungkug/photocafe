@@ -628,3 +628,18 @@ export class UpdatePricesDto {
   @Type(() => ProductionSettingPriceDto)
   prices: ProductionSettingPriceDto[];
 }
+
+// ==================== 이동 DTO ====================
+
+export class MoveProductionSettingDto {
+  @ApiProperty({ description: '이동할 대상 그룹 ID' })
+  @IsString()
+  targetGroupId: string;
+}
+
+export class MoveProductionGroupDto {
+  @ApiPropertyOptional({ description: '새 부모 그룹 ID (null이면 최상위로 이동)' })
+  @IsOptional()
+  @IsString()
+  newParentId?: string | null;
+}

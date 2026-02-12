@@ -9,7 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { AlertCircle, Loader2, Shield } from 'lucide-react';
+import { AlertCircle, Loader2, Shield, Zap } from 'lucide-react';
+
+const isDev = process.env.NODE_ENV === 'development';
 
 interface StaffLoginResponse {
   accessToken: string;
@@ -186,6 +188,49 @@ export default function AdminLoginPage() {
             <p className="text-xs text-slate-500 text-center">
               직원 계정이 없으시면 관리자에게 문의하세요
             </p>
+
+            {isDev && (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full border-amber-600/50 bg-amber-900/20 text-amber-400 hover:bg-amber-900/40 hover:text-amber-300"
+                size="sm"
+                disabled={isLoading}
+                onClick={async () => {
+                  setError(null);
+                  setIsLoading(true);
+                  try {
+                    const response = await api.post<StaffLoginResponse>('/auth/admin/login', {
+                      staffId: 'admin',
+                      password: 'color060',
+                      rememberMe: true,
+                    });
+                    setAuth({
+                      user: {
+                        id: response.user.id,
+                        email: response.user.email || response.user.staffId,
+                        name: response.user.name,
+                        role: response.user.role,
+                        staffId: response.user.staffId,
+                        isSuperAdmin: response.user.isSuperAdmin ?? false,
+                      },
+                      accessToken: response.accessToken,
+                      refreshToken: response.refreshToken,
+                      rememberMe: true,
+                    });
+                    router.push('/dashboard');
+                  } catch (err: unknown) {
+                    const errorMessage = err instanceof Error ? err.message : '개발 로그인 실패';
+                    setError(errorMessage);
+                  } finally {
+                    setIsLoading(false);
+                  }
+                }}
+              >
+                <Zap className="mr-2 h-4 w-4" />
+                DEV 빠른 로그인 (admin)
+              </Button>
+            )}
           </CardFooter>
         </form>
       </Card>
