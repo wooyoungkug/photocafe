@@ -154,10 +154,10 @@ export default function MyOrdersPage() {
 
   // 주문 목록 조회
   const { data: ordersResponse, isLoading } = useQuery({
-    queryKey: ['orders', user?.id, statusFilter, page, limit, appliedSearch, appliedSearchType, appliedStartDate, appliedEndDate],
+    queryKey: ['orders', user?.clientId, statusFilter, page, limit, appliedSearch, appliedSearchType, appliedStartDate, appliedEndDate],
     queryFn: async () => {
       const params: Record<string, string> = {
-        clientId: user?.id || '',
+        clientId: user?.clientId || '',
         page: String(page),
         limit: String(limit),
         ...(statusFilter !== 'all' && { status: statusFilter }),
@@ -167,19 +167,19 @@ export default function MyOrdersPage() {
       };
       return api.get<{ data: Order[]; meta: { total: number; page: number; limit: number; totalPages: number } }>('/orders', params);
     },
-    enabled: isAuthenticated && !!user?.id,
+    enabled: isAuthenticated && !!user?.clientId,
   });
 
   // 상태별 카운트
   const { data: allOrders } = useQuery({
-    queryKey: ['orders', user?.id, 'counts'],
+    queryKey: ['orders', user?.clientId, 'counts'],
     queryFn: async () => {
       return api.get<{ data: Order[]; meta: any }>('/orders', {
-        clientId: user?.id || '',
+        clientId: user?.clientId || '',
         limit: '1000',
       });
     },
-    enabled: isAuthenticated && !!user?.id,
+    enabled: isAuthenticated && !!user?.clientId,
   });
 
   const orders = ordersResponse?.data ?? [];
