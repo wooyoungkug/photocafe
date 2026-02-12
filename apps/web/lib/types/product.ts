@@ -48,6 +48,17 @@ export interface ProductFoil {
   sortOrder: number;
 }
 
+export interface FinishingSetting {
+  id: string;
+  settingName: string | null;
+  codeName: string | null;
+  pricingType: string;
+  settingFee: number;
+  basePrice: number;
+  sortOrder: number;
+  isActive: boolean;
+}
+
 export interface ProductFinishing {
   id: string;
   name: string;
@@ -55,6 +66,11 @@ export interface ProductFinishing {
   price: number;
   isDefault: boolean;
   sortOrder: number;
+  productionGroup?: {
+    id: string;
+    name: string;
+    settings?: FinishingSetting[];
+  };
 }
 
 export interface CustomOption {

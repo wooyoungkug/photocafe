@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cmd /c \"taskkill /PID 15924 /F\")"
+      "Bash(cmd /c \"taskkill /PID 15924 /F\")",
+      "Bash(git diff:*)"
     ]
   }
 }

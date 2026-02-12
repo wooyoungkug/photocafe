@@ -308,7 +308,8 @@
       "Bash(set:*)",
       "Bash(\"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\pg_restore.exe\" -U postgres -h 192.168.0.67 -p 5433 -d postgres --clean --if-exists --no-owner --no-privileges -F c \"c:\\\\dev\\\\printing114\\\\backup_for_synology.dump\")",
       "Bash(\"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -c \"UPDATE staff_clients SET \"\"isPrimary\"\" = true WHERE \"\"staffId\"\" = ''cml63cj8d000610fc52rxd1r8''\")",
-      "Bash(\"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"SELECT COUNT\\(*\\) as total_history FROM process_histories;\")"
+      "Bash(\"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"SELECT COUNT\\(*\\) as total_history FROM process_histories;\")",
+      "Bash(git show:*)"
     ]
   }
 }

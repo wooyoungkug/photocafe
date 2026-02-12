@@ -132,7 +132,19 @@ export class ProductService {
         papers: { orderBy: { sortOrder: 'asc' } },
         covers: { orderBy: { sortOrder: 'asc' } },
         foils: { orderBy: { sortOrder: 'asc' } },
-        finishings: { orderBy: { sortOrder: 'asc' } },
+        finishings: {
+          orderBy: { sortOrder: 'asc' },
+          include: {
+            productionGroup: {
+              include: {
+                settings: {
+                  where: { isActive: true },
+                  orderBy: { sortOrder: 'asc' },
+                },
+              },
+            },
+          },
+        },
         customOptions: { orderBy: { sortOrder: 'asc' } },
         halfProducts: {
           include: {
@@ -347,8 +359,13 @@ export class ProductService {
 
   async addFinishing(productId: string, data: Prisma.ProductFinishingCreateWithoutProductInput) {
     await this.findOne(productId);
+    const { productionGroup, ...rest } = data as any;
     return this.prisma.productFinishing.create({
-      data: { ...data, productId },
+      data: {
+        ...rest,
+        productId,
+        ...(rest.productionGroupId ? { productionGroupId: rest.productionGroupId } : {}),
+      },
     });
   }
 
