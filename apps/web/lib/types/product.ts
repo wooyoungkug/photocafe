@@ -51,6 +51,7 @@ export interface ProductFoil {
 export interface ProductFinishing {
   id: string;
   name: string;
+  productionGroupId?: string;
   price: number;
   isDefault: boolean;
   sortOrder: number;
@@ -212,6 +213,7 @@ export interface CreateProductFoilDto {
 
 export interface CreateProductFinishingDto {
   name: string;
+  productionGroupId?: string;
   price?: number;
   isDefault?: boolean;
   sortOrder?: number;

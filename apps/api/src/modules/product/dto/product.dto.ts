@@ -187,6 +187,11 @@ export class ProductFinishingDto {
   @IsString()
   name: string;
 
+  @ApiPropertyOptional({ description: '생산그룹 ID' })
+  @IsOptional()
+  @IsString()
+  productionGroupId?: string;
+
   @ApiPropertyOptional({ description: '추가 가격' })
   @IsOptional()
   @IsNumber()

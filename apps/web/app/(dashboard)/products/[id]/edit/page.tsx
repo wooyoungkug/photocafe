@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
@@ -118,18 +118,6 @@ const getPrintTypeByBinding = (bindingName: string): 'single' | 'double' | 'cust
   return 'double'; // 기본값
 };
 
-// 후가공 옵션 목록
-const FINISHING_OPTIONS = [
-  { id: 'coating', label: '코팅선택', icon: '✨' },
-  { id: 'foilColor', label: '박Color선택', icon: '🎨' },
-  { id: 'coverSpine', label: '커버스프지선택', icon: '📚' },
-  { id: 'hardcover', label: '양장선택', icon: '📖' },
-  { id: 'coverPageFinish', label: '커버페이지처리금', icon: '💰' },
-  { id: 'outerTab', label: '겉타바선택', icon: '📑' },
-  { id: 'divider', label: '간지삽입선택', icon: '📄' },
-  { id: 'frameMount', label: '액자지선택', icon: '🖼️' },
-  { id: 'coverOi', label: '커버OI삽입', icon: '🏷️' },
-];
 
 interface ProductOption {
   id: string;
@@ -228,8 +216,19 @@ export default function EditProductPage() {
   const { data: specifications } = useSpecifications();
   const { data: halfProductsData } = useHalfProducts({ limit: 100 });
   const { data: product, isLoading: isProductLoading, refetch: refetchProduct } = useProduct(productId);
-  const { data: productionGroupTree } = useProductionGroupTree();
+  const { data: productionGroupTree, isLoading: isTreeLoading } = useProductionGroupTree();
   const updateProduct = useUpdateProduct();
+
+  // 후가공옵션 카테고리 (ProductionGroup 트리에서 동적 로딩)
+  const finishingGroup = useMemo(() => {
+    if (!productionGroupTree) return null;
+    return productionGroupTree.find(g => g.name === '후가공옵션' || g.name === '후가공') || null;
+  }, [productionGroupTree]);
+
+  const finishingChildren: ProductionGroup[] = useMemo(() => {
+    if (!finishingGroup?.children) return [];
+    return finishingGroup.children.filter(c => c.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
+  }, [finishingGroup]);
 
   // 카테고리 분류
   const [largeCategoryId, setLargeCategoryId] = useState('');
@@ -387,14 +386,7 @@ export default function EditProductPage() {
         setDefaultPaperId(foundDefaultId || (product.papers[0] as any)?.id || '');
       }
 
-      if (product.finishings && Array.isArray(product.finishings)) {
-        const opts: Record<string, boolean> = {};
-        product.finishings.forEach((f: { name: string }) => {
-          const opt = FINISHING_OPTIONS.find(o => o.label === f.name);
-          if (opt) opts[opt.id] = true;
-        });
-        setFinishingOptions(opts);
-      }
+      // 후가공 옵션은 별도 useEffect에서 처리 (productionGroupTree 로딩 타이밍 대응)
 
       // 제본 방향 및 출력 타입 로드
       if ((product as any).bindingDirection) {
@@ -420,6 +412,21 @@ export default function EditProductPage() {
       setIsFormReady(true);
     }
   }, [product, categories]);
+
+  // 후가공 옵션 로딩 (productionGroupTree 로딩 완료 후)
+  useEffect(() => {
+    if (!product?.finishings || !Array.isArray(product.finishings) || !finishingChildren.length) return;
+    const opts: Record<string, boolean> = {};
+    product.finishings.forEach((f: { name: string; productionGroupId?: string }) => {
+      if (f.productionGroupId) {
+        opts[f.productionGroupId] = true;
+      } else {
+        const group = finishingChildren.find(c => c.name === f.name);
+        if (group) opts[group.id] = true;
+      }
+    });
+    setFinishingOptions(opts);
+  }, [product?.finishings, finishingChildren]);
 
   // 규격 매칭 (specifications가 로드된 후 실행)
   useEffect(() => {
@@ -624,9 +631,9 @@ export default function EditProductPage() {
         })),
         finishings: Object.entries(finishingOptions)
           .filter(([, enabled]) => enabled)
-          .map(([key], idx) => {
-            const opt = FINISHING_OPTIONS.find(o => o.id === key);
-            return { name: opt?.label || key, price: 0, isDefault: false, sortOrder: idx };
+          .map(([groupId], idx) => {
+            const group = finishingChildren.find(c => c.id === groupId);
+            return { name: group?.name || groupId, productionGroupId: groupId, price: 0, isDefault: false, sortOrder: idx };
           }),
         outputPriceSettings,
       };
@@ -1224,27 +1231,37 @@ export default function EditProductPage() {
               후가공 옵션
             </Label>
             <div className="grid grid-cols-3 gap-2">
-              {FINISHING_OPTIONS.map(opt => (
-                <label
-                  key={opt.id}
-                  className={`
-                    flex items-center gap-2.5 px-3 py-2.5 rounded-lg border cursor-pointer transition-all
-                    ${finishingOptions[opt.id]
-                      ? 'border-emerald-300 bg-emerald-50/70 ring-1 ring-emerald-100'
-                      : 'border-slate-200 bg-white hover:bg-slate-50/80 hover:border-slate-300'
-                    }
-                  `}
-                >
-                  <Checkbox
-                    id={opt.id}
-                    checked={finishingOptions[opt.id] || false}
-                    onCheckedChange={(checked) => setFinishingOptions(prev => ({ ...prev, [opt.id]: !!checked }))}
-                    className="data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
-                  />
-                  <span className="text-sm">{opt.icon}</span>
-                  <span className="text-[13px] font-medium text-slate-700">{opt.label}</span>
-                </label>
-              ))}
+              {finishingChildren.length > 0 ? (
+                finishingChildren.map(group => (
+                  <label
+                    key={group.id}
+                    className={`
+                      flex items-center gap-2.5 px-3 py-2.5 rounded-lg border cursor-pointer transition-all
+                      ${finishingOptions[group.id]
+                        ? 'border-emerald-300 bg-emerald-50/70 ring-1 ring-emerald-100'
+                        : 'border-slate-200 bg-white hover:bg-slate-50/80 hover:border-slate-300'
+                      }
+                    `}
+                  >
+                    <Checkbox
+                      id={group.id}
+                      checked={finishingOptions[group.id] || false}
+                      onCheckedChange={(checked) => setFinishingOptions(prev => ({ ...prev, [group.id]: !!checked }))}
+                      className="data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
+                    />
+                    <span className="text-[13px] font-medium text-slate-700">{group.name}</span>
+                    {(group._count?.children ?? 0) > 0 && (
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 ml-auto">
+                        {group._count?.children}
+                      </Badge>
+                    )}
+                  </label>
+                ))
+              ) : (
+                <p className="text-xs text-slate-400 col-span-3 text-center py-4">
+                  {isTreeLoading ? '로딩 중...' : '후가공 옵션이 설정되지 않았습니다. 기초정보 > 가격관리에서 후가공옵션 그룹을 추가하세요.'}
+                </p>
+              )}
             </div>
           </div>
         </CardContent>
