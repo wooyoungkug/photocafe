@@ -2,12 +2,10 @@ import { z } from 'zod';
 
 export const paymentFormSchema = z.object({
   paymentDate: z.string().min(1, '입금일자를 선택하세요'),
-  amount: z
-    .number({ required_error: '입금액을 입력하세요' })
+  amount: z.coerce
+    .number()
     .positive('입금액은 0보다 커야 합니다'),
-  paymentMethod: z.enum(['bank_transfer', 'cash', 'card', 'check'], {
-    required_error: '입금 방법을 선택하세요',
-  }),
+  paymentMethod: z.enum(['bank_transfer', 'cash', 'card', 'check']),
   bankName: z.string().optional(),
   depositorName: z.string().optional(),
   note: z.string().max(200, '메모는 200자 이내로 입력하세요').optional(),

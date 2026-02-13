@@ -187,6 +187,12 @@ export default function ReceivablesPage() {
           <p className="text-muted-foreground">거래처별 미수금 현황을 관리합니다.</p>
         </div>
         <div className="flex gap-2">
+          <Link href="/accounting/receivables/payments">
+            <Button variant="default">
+              <Receipt className="h-4 w-4 mr-2" />
+              입금 처리
+            </Button>
+          </Link>
           <Link href="/accounting/receivables/by-staff">
             <Button variant="outline">
               <Users className="h-4 w-4 mr-2" />
