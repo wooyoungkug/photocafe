@@ -159,4 +159,44 @@ export class SalesLedgerController {
   async sendOverdueNotifications() {
     return this.salesLedgerService.sendOverdueNotifications();
   }
+
+  // ===== 영업담당자별 미수금 요약 =====
+  @Get('summary-by-staff')
+  @ApiOperation({ summary: '영업담당자별 미수금 요약' })
+  async getSummaryByStaff(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.salesLedgerService.getSummaryByStaff({ startDate, endDate });
+  }
+
+  // ===== 영업담당자별 수금 실적 =====
+  @Get('collection-by-staff')
+  @ApiOperation({ summary: '영업담당자별 수금 실적 (수금방법별 집계 포함)' })
+  async getCollectionByStaff(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.salesLedgerService.getCollectionByStaff({ startDate, endDate });
+  }
+
+  // ===== 영업담당자별 상세 매출원장 목록 =====
+  @Get('by-staff/:staffId')
+  @ApiOperation({ summary: '영업담당자별 상세 매출원장 목록' })
+  async getLedgersByStaff(
+    @Param('staffId') staffId: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('paymentStatus') paymentStatus?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.salesLedgerService.getLedgersByStaff(staffId, {
+      startDate,
+      endDate,
+      paymentStatus,
+      page: page ? parseInt(page) : 1,
+      limit: limit ? parseInt(limit) : 20,
+    });
+  }
 }

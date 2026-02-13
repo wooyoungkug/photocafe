@@ -863,7 +863,7 @@ export class SalesLedgerService {
 
     // 2. 전체 거래내역 및 수금내역 조회
     const ledgers = await this.prisma.salesLedger.findMany({
-      where: { clientId, salesStatus: 'confirmed' },
+      where: { clientId, salesStatus: 'CONFIRMED' },
       include: { receipts: true },
     });
 
@@ -901,8 +901,8 @@ export class SalesLedgerService {
       totalOutstanding += Number(ledger.outstandingAmount);
 
       // 정시 결제 판정: 수금일이 수금예정일 이하인 경우
-      if (ledger.paymentStatus === 'paid' && ledger.receipts.length > 0) {
-        const firstReceipt = ledger.receipts.sort((a, b) => a.receiptDate.getTime() - b.receiptDate.getTime())[0];
+      if (ledger.paymentStatus === 'paid' && ledger.receipts && ledger.receipts.length > 0) {
+        const firstReceipt = ledger.receipts.sort((a: any, b: any) => a.receiptDate.getTime() - b.receiptDate.getTime())[0];
         if (ledger.dueDate) {
           const daysDiff = differenceInDays(firstReceipt.receiptDate, ledger.dueDate);
           if (daysDiff <= 0) {
@@ -1034,7 +1034,7 @@ export class SalesLedgerService {
     const startDate = subDays(new Date(), months * 30);
 
     const where: any = {
-      salesStatus: 'confirmed',
+      salesStatus: 'CONFIRMED',
       ledgerDate: { gte: startDate },
       receipts: { some: {} }, // 수금이 있는 건만
     };
@@ -1196,6 +1196,212 @@ export class SalesLedgerService {
       totalOverdueAmount: overdueLedgers.reduce((sum, l) => sum + Number(l.outstandingAmount), 0),
       notifications,
       message: `${notifications.length}개 거래처에 대한 연체 알림이 생성되었습니다.`,
+    };
+  }
+
+  // ===== 영업담당자별 미수금 요약 =====
+  async getSummaryByStaff(query: { startDate?: string; endDate?: string }) {
+    const conditions: string[] = [`sl."salesStatus" != 'CANCELLED'`];
+    const params: any[] = [];
+    let paramIdx = 1;
+
+    if (query.startDate) {
+      conditions.push(`sl."ledgerDate" >= $${paramIdx}`);
+      params.push(new Date(query.startDate));
+      paramIdx++;
+    }
+    if (query.endDate) {
+      const end = new Date(query.endDate);
+      end.setHours(23, 59, 59, 999);
+      conditions.push(`sl."ledgerDate" <= $${paramIdx}`);
+      params.push(end);
+      paramIdx++;
+    }
+
+    const whereClause = conditions.join(' AND ');
+
+    // 영업담당자별 집계 (StaffClient 중간 테이블 활용)
+    const rows = await this.prisma.$queryRawUnsafe<
+      {
+        staffId: string;
+        staffName: string;
+        staffCode: string;
+        totalSales: number;
+        totalReceived: number;
+        outstanding: number;
+        clientCount: bigint;
+        ledgerCount: bigint;
+        collectionRate: number;
+      }[]
+    >(
+      `SELECT s."id" as "staffId",
+              s."name" as "staffName",
+              s."staffId" as "staffCode",
+              COALESCE(SUM(sl."totalAmount"), 0)::float as "totalSales",
+              COALESCE(SUM(sl."receivedAmount"), 0)::float as "totalReceived",
+              COALESCE(SUM(sl."outstandingAmount"), 0)::float as outstanding,
+              COUNT(DISTINCT sl."clientId") as "clientCount",
+              COUNT(sl.id) as "ledgerCount",
+              CASE
+                WHEN SUM(sl."totalAmount") > 0
+                THEN (SUM(sl."receivedAmount") / SUM(sl."totalAmount") * 100)::float
+                ELSE 0
+              END as "collectionRate"
+       FROM staff s
+       LEFT JOIN staff_clients sc ON sc."staffId" = s.id AND sc."isPrimary" = true
+       LEFT JOIN sales_ledgers sl ON sl."clientId" = sc."clientId" AND ${whereClause}
+       WHERE s."isActive" = true
+       GROUP BY s.id, s.name, s."staffId"
+       ORDER BY "totalSales" DESC`,
+      ...params,
+    );
+
+    return rows.map(r => ({
+      staffId: r.staffId,
+      staffName: r.staffName,
+      staffCode: r.staffCode,
+      totalSales: Number(r.totalSales),
+      totalReceived: Number(r.totalReceived),
+      outstanding: Number(r.outstanding),
+      clientCount: Number(r.clientCount),
+      ledgerCount: Number(r.ledgerCount),
+      collectionRate: Math.round(Number(r.collectionRate) * 10) / 10,
+    }));
+  }
+
+  // ===== 영업담당자별 수금 실적 =====
+  async getCollectionByStaff(query: { startDate?: string; endDate?: string }) {
+    const conditions: string[] = [];
+    const params: any[] = [];
+    let paramIdx = 1;
+
+    if (query.startDate) {
+      conditions.push(`sr."receiptDate" >= $${paramIdx}`);
+      params.push(new Date(query.startDate));
+      paramIdx++;
+    }
+    if (query.endDate) {
+      const end = new Date(query.endDate);
+      end.setHours(23, 59, 59, 999);
+      conditions.push(`sr."receiptDate" <= $${paramIdx}`);
+      params.push(end);
+      paramIdx++;
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    // 영업담당자별 수금 실적 (수금방법별 집계 포함)
+    const rows = await this.prisma.$queryRawUnsafe<
+      {
+        staffId: string;
+        staffName: string;
+        staffCode: string;
+        totalReceived: number;
+        receiptCount: bigint;
+        cashAmount: number;
+        bankTransferAmount: number;
+        cardAmount: number;
+        checkAmount: number;
+      }[]
+    >(
+      `SELECT s."id" as "staffId",
+              s."name" as "staffName",
+              s."staffId" as "staffCode",
+              COALESCE(SUM(sr.amount), 0)::float as "totalReceived",
+              COUNT(sr.id) as "receiptCount",
+              COALESCE(SUM(CASE WHEN sr."paymentMethod" = 'cash' THEN sr.amount ELSE 0 END), 0)::float as "cashAmount",
+              COALESCE(SUM(CASE WHEN sr."paymentMethod" = 'bank_transfer' THEN sr.amount ELSE 0 END), 0)::float as "bankTransferAmount",
+              COALESCE(SUM(CASE WHEN sr."paymentMethod" = 'card' THEN sr.amount ELSE 0 END), 0)::float as "cardAmount",
+              COALESCE(SUM(CASE WHEN sr."paymentMethod" = 'check' THEN sr.amount ELSE 0 END), 0)::float as "checkAmount"
+       FROM staff s
+       LEFT JOIN staff_clients sc ON sc."staffId" = s.id AND sc."isPrimary" = true
+       LEFT JOIN sales_ledgers sl ON sl."clientId" = sc."clientId"
+       LEFT JOIN sales_receipts sr ON sr."salesLedgerId" = sl.id
+       ${whereClause}
+       WHERE s."isActive" = true
+       GROUP BY s.id, s.name, s."staffId"
+       ORDER BY "totalReceived" DESC`,
+      ...params,
+    );
+
+    return rows.map(r => ({
+      staffId: r.staffId,
+      staffName: r.staffName,
+      staffCode: r.staffCode,
+      totalReceived: Number(r.totalReceived),
+      receiptCount: Number(r.receiptCount),
+      byMethod: {
+        cash: Number(r.cashAmount),
+        bankTransfer: Number(r.bankTransferAmount),
+        card: Number(r.cardAmount),
+        check: Number(r.checkAmount),
+      },
+    }));
+  }
+
+  // ===== 영업담당자별 상세 매출원장 목록 =====
+  async getLedgersByStaff(staffId: string, query: {
+    startDate?: string;
+    endDate?: string;
+    paymentStatus?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const { startDate, endDate, paymentStatus, page = 1, limit = 20 } = query;
+
+    // 해당 영업담당자가 담당하는 거래처 ID 조회
+    const staffClients = await this.prisma.staffClient.findMany({
+      where: { staffId, isPrimary: true },
+      select: { clientId: true },
+    });
+
+    const clientIds = staffClients.map(sc => sc.clientId);
+
+    if (clientIds.length === 0) {
+      return {
+        data: [],
+        meta: { total: 0, page, limit, totalPages: 0 },
+      };
+    }
+
+    const where: Prisma.SalesLedgerWhereInput = {
+      clientId: { in: clientIds },
+      salesStatus: { not: 'CANCELLED' },
+    };
+
+    // 기간 필터
+    if (startDate || endDate) {
+      where.ledgerDate = {};
+      if (startDate) where.ledgerDate.gte = new Date(startDate);
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        where.ledgerDate.lte = end;
+      }
+    }
+
+    if (paymentStatus) where.paymentStatus = paymentStatus;
+
+    const [data, total] = await Promise.all([
+      this.prisma.salesLedger.findMany({
+        where,
+        include: {
+          items: { orderBy: { sortOrder: 'asc' } },
+          receipts: { orderBy: { receiptDate: 'desc' } },
+          client: {
+            select: { id: true, clientCode: true, clientName: true },
+          },
+        },
+        orderBy: { ledgerDate: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.salesLedger.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
 }
