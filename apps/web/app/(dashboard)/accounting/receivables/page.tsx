@@ -46,7 +46,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { useReceivables, useReceivableSummary, useCreatePayment } from '@/hooks/use-accounting';
-import { useAgingAnalysis } from '@/hooks/use-sales-ledger';
+import { useAgingAnalysis, useClientSalesSummary, useSalesLedgers, useAddSalesReceipt } from '@/hooks/use-sales-ledger';
 import { toast } from '@/hooks/use-toast';
 import type { Receivable } from '@/lib/types/accounting';
 import { AgingChart } from './components/aging-chart';
@@ -58,12 +58,13 @@ export default function ReceivablesPage() {
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [selectedReceivable, setSelectedReceivable] = useState<any>(null);
 
-  const { data: receivablesData, isLoading } = useReceivables({
-    status: statusFilter === 'all' ? undefined : statusFilter,
-  });
+  // 거래처별 미수금 집계 데이터 사용
+  const { data: clientSummary, isLoading: isLoadingSummary } = useClientSalesSummary();
   const { data: summary } = useReceivableSummary();
   const { data: agingData } = useAgingAnalysis();
+  const { data: recentSales } = useSalesLedgers({ limit: 5, paymentStatus: 'unpaid' });
   const createPayment = useCreatePayment();
+  const addReceipt = useAddSalesReceipt();
 
   // Aging 비율 계산
   const agingTotal = agingData
@@ -101,6 +102,8 @@ export default function ReceivablesPage() {
     }
 
     try {
+      // 해당 거래처의 미수금 중 가장 오래된 건을 조회하여 수금 처리
+      // 간단한 구현: Payment 생성 (향후 매출원장과 연결 필요)
       await createPayment.mutateAsync({
         type: 'income',
         amount: paymentForm.amount,
@@ -112,7 +115,8 @@ export default function ReceivablesPage() {
       });
       toast({ title: '수금이 처리되었습니다.' });
       setIsPaymentDialogOpen(false);
-    } catch {
+    } catch (error) {
+      console.error('수금 처리 오류:', error);
       toast({ title: '수금 처리에 실패했습니다.', variant: 'destructive' });
     }
   };
@@ -319,13 +323,13 @@ export default function ReceivablesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? (
+              {isLoadingSummary ? (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-8">
                     로딩 중...
                   </TableCell>
                 </TableRow>
-              ) : !receivablesData?.data?.length ? (
+              ) : !clientSummary?.length ? (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                     <FileText className="h-12 w-12 mx-auto mb-4 opacity-20" />
@@ -333,58 +337,122 @@ export default function ReceivablesPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                receivablesData.data.map((item: Receivable) => {
-                  const rate = getCollectionRate(item.paidAmount, item.totalAmount);
-                  return (
-                    <TableRow key={item.id} className="hover:bg-slate-50">
-                      <TableCell>
-                        <Link href={`/accounting/receivables/${item.clientId}`}>
-                          <div className="cursor-pointer hover:text-primary">
-                            <div className="font-medium">{item.clientName}</div>
-                            <div className="text-xs text-muted-foreground">{item.clientCode}</div>
+                clientSummary
+                  .filter((item: any) => item.outstanding > 0)
+                  .filter((item: any) =>
+                    searchTerm ? item.clientName.toLowerCase().includes(searchTerm.toLowerCase()) : true
+                  )
+                  .map((item: any) => {
+                    const rate = getCollectionRate(item.totalReceived, item.totalSales);
+                    const status = item.outstanding === 0 ? 'paid' : (item.totalReceived > 0 ? 'partial' : 'outstanding');
+                    return (
+                      <TableRow key={item.clientId} className="hover:bg-slate-50">
+                        <TableCell>
+                          <Link href={`/accounting/receivables/${item.clientId}`}>
+                            <div className="cursor-pointer hover:text-primary">
+                              <div className="font-medium">{item.clientName}</div>
+                              <div className="text-xs text-muted-foreground">{item.clientCode}</div>
+                            </div>
+                          </Link>
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {item.totalSales.toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right text-green-600">
+                          {item.totalReceived.toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right font-bold text-orange-600">
+                          {item.outstanding.toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <Progress value={rate} className="w-16 h-2" />
+                            <span className="text-xs text-muted-foreground">{rate}%</span>
                           </div>
-                        </Link>
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {item.totalAmount.toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-right text-green-600">
-                        {item.paidAmount.toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-right font-bold text-orange-600">
-                        {item.remainingAmount.toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <Progress value={rate} className="w-16 h-2" />
-                          <span className="text-xs text-muted-foreground">{rate}%</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center font-mono text-sm">
-                        {item.dueDate ? format(new Date(item.dueDate), 'yyyy-MM-dd') : '-'}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {getStatusBadge(item.status)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleOpenPaymentDialog(item)}
-                            disabled={item.status === 'paid'}
-                          >
-                            <Receipt className="h-3 w-3 mr-1" />
-                            수금
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
+                        </TableCell>
+                        <TableCell className="text-center font-mono text-sm">
+                          {item.lastOrderDate ? format(new Date(item.lastOrderDate), 'yyyy-MM-dd') : '-'}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {getStatusBadge(status)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleOpenPaymentDialog({
+                                clientId: item.clientId,
+                                clientName: item.clientName,
+                                remainingAmount: item.outstanding,
+                              })}
+                              disabled={status === 'paid'}
+                            >
+                              <Receipt className="h-3 w-3 mr-1" />
+                              수금
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* 최근 매출 내역 */}
+      <Card>
+        <CardHeader>
+          <CardTitle>최근 미수 매출 (5건)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-slate-50">
+                <TableHead>전표번호</TableHead>
+                <TableHead>거래처</TableHead>
+                <TableHead>주문번호</TableHead>
+                <TableHead>매출일</TableHead>
+                <TableHead className="text-right">금액</TableHead>
+                <TableHead className="text-right">미수금</TableHead>
+                <TableHead className="text-center">결제상태</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {recentSales?.data?.map((sale: any) => (
+                <TableRow key={sale.id} className="hover:bg-slate-50">
+                  <TableCell className="font-mono text-sm">{sale.ledgerNumber}</TableCell>
+                  <TableCell>
+                    <div>
+                      <div className="font-medium">{sale.clientName}</div>
+                      <div className="text-xs text-muted-foreground">{sale.client?.clientCode}</div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="font-mono text-sm">{sale.orderNumber}</TableCell>
+                  <TableCell className="font-mono text-sm">
+                    {format(new Date(sale.ledgerDate), 'yyyy-MM-dd')}
+                  </TableCell>
+                  <TableCell className="text-right font-medium">
+                    {Number(sale.totalAmount).toLocaleString()}원
+                  </TableCell>
+                  <TableCell className="text-right font-bold text-orange-600">
+                    {Number(sale.outstandingAmount).toLocaleString()}원
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {getStatusBadge(sale.paymentStatus)}
+                  </TableCell>
+                </TableRow>
+              )) || (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    최근 미수 매출 내역이 없습니다.
+                  </TableCell>
+                </TableRow>
               )}
             </TableBody>
           </Table>
