@@ -51,6 +51,30 @@ export class SalesLedgerController {
     return this.salesLedgerService.getMonthlyTrend(months ? parseInt(months) : 12);
   }
 
+  // ===== Aging 분석 (실 데이터) =====
+  @Get('aging-analysis')
+  @ApiOperation({ summary: 'Aging 분석 (실 데이터 기반)' })
+  async getAgingAnalysis(@Query('clientId') clientId?: string) {
+    return this.salesLedgerService.getAgingAnalysis(clientId);
+  }
+
+  // ===== 거래처별 상세 분석 =====
+  @Get('client/:clientId/detail')
+  @ApiOperation({ summary: '거래처별 상세 분석 (월별 추이, 수금 패턴)' })
+  async getClientDetail(@Param('clientId') clientId: string) {
+    return this.salesLedgerService.getClientDetail(clientId);
+  }
+
+  // ===== 수금예정일별 집계 =====
+  @Get('due-date-summary')
+  @ApiOperation({ summary: '수금예정일별 집계 (오늘/이번주/이번달)' })
+  async getDueDateSummary(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.salesLedgerService.getDueDateSummary({ startDate, endDate });
+  }
+
   // ===== 매출원장 상세 조회 =====
   @Get(':id')
   @ApiOperation({ summary: '매출원장 상세 조회' })

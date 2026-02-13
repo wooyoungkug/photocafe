@@ -133,3 +133,94 @@ export function useCancelSales() {
     },
   });
 }
+
+// ===== Aging 분석 (실 데이터) =====
+export interface AgingAnalysis {
+  under30: number;
+  days30to60: number;
+  days60to90: number;
+  over90: number;
+  breakdown: Array<{
+    clientId: string;
+    clientName: string;
+    under30: number;
+    days30to60: number;
+    days60to90: number;
+    over90: number;
+  }>;
+}
+
+export function useAgingAnalysis(clientId?: string) {
+  return useQuery({
+    queryKey: ['aging-analysis', clientId],
+    queryFn: async () => {
+      const queryParams: Record<string, string | undefined> = {};
+      if (clientId) queryParams.clientId = clientId;
+      return api.get<AgingAnalysis>(`${SALES_LEDGER_API}/aging-analysis`, queryParams);
+    },
+    staleTime: 60_000, // 1분
+  });
+}
+
+// ===== 거래처별 상세 분석 =====
+export interface ClientDetail {
+  client: any;
+  summary: {
+    totalSales: number;
+    totalReceived: number;
+    outstanding: number;
+    avgPaymentDays: number;
+    onTimePaymentRate: number;
+    overdueCount: number;
+    lastPaymentDate: string | null;
+  };
+  monthlyTrend: Array<{
+    month: string;
+    sales: number;
+    received: number;
+    outstanding: number;
+    count: number;
+  }>;
+  transactions: any[];
+  paymentHistory: any[];
+}
+
+export function useClientDetail(clientId: string) {
+  return useQuery({
+    queryKey: ['client-detail', clientId],
+    queryFn: () => api.get<ClientDetail>(`${SALES_LEDGER_API}/client/${clientId}/detail`),
+    enabled: !!clientId,
+    staleTime: 60_000,
+  });
+}
+
+// ===== 수금예정일 집계 =====
+export interface DueDateSummary {
+  today: number;
+  thisWeek: number;
+  thisMonth: number;
+  overdue: number;
+  byDate: Array<{
+    dueDate: string;
+    count: number;
+    amount: number;
+    clients: Array<{
+      clientId: string;
+      clientName: string;
+      amount: number;
+    }>;
+  }>;
+}
+
+export function useDueDateSummary(params?: { startDate?: string; endDate?: string }) {
+  return useQuery({
+    queryKey: ['due-date-summary', params],
+    queryFn: async () => {
+      const queryParams: Record<string, string | undefined> = {};
+      if (params?.startDate) queryParams.startDate = params.startDate;
+      if (params?.endDate) queryParams.endDate = params.endDate;
+      return api.get<DueDateSummary>(`${SALES_LEDGER_API}/due-date-summary`, queryParams);
+    },
+    staleTime: 60_000,
+  });
+}

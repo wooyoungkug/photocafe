@@ -6,6 +6,7 @@ import {
   CreateSalesReceiptDto,
 } from '../dto/sales-ledger.dto';
 import { JournalEngineService } from './journal-engine.service';
+import { subDays, differenceInDays, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 
 @Injectable()
 export class SalesLedgerService {
@@ -621,5 +622,231 @@ export class SalesLedgerService {
     }
 
     return result;
+  }
+
+  // ===== Aging 분석 (실 데이터) =====
+  async getAgingAnalysis(clientId?: string) {
+    const now = new Date();
+    const date30 = subDays(now, 30);
+    const date60 = subDays(now, 60);
+    const date90 = subDays(now, 90);
+
+    const where: Prisma.SalesLedgerWhereInput = {
+      paymentStatus: { in: ['unpaid', 'partial', 'overdue'] },
+      salesStatus: { not: 'CANCELLED' },
+    };
+    if (clientId) where.clientId = clientId;
+
+    // Raw SQL로 날짜 범위별 집계
+    const whereClause = clientId
+      ? `sl."clientId" = $4 AND sl."paymentStatus" IN ('unpaid', 'partial', 'overdue') AND sl."salesStatus" != 'CANCELLED'`
+      : `sl."paymentStatus" IN ('unpaid', 'partial', 'overdue') AND sl."salesStatus" != 'CANCELLED'`;
+
+    const params = clientId ? [date30, date60, date90, clientId] : [date30, date60, date90];
+
+    const rows = await this.prisma.$queryRawUnsafe<
+      { clientId: string; clientName: string; under30: number; days30to60: number; days60to90: number; over90: number }[]
+    >(
+      `SELECT
+         sl."clientId",
+         sl."clientName",
+         SUM(CASE WHEN sl."ledgerDate" >= $1 THEN sl."outstandingAmount" ELSE 0 END)::float as under30,
+         SUM(CASE WHEN sl."ledgerDate" >= $2 AND sl."ledgerDate" < $1 THEN sl."outstandingAmount" ELSE 0 END)::float as days30to60,
+         SUM(CASE WHEN sl."ledgerDate" >= $3 AND sl."ledgerDate" < $2 THEN sl."outstandingAmount" ELSE 0 END)::float as days60to90,
+         SUM(CASE WHEN sl."ledgerDate" < $3 THEN sl."outstandingAmount" ELSE 0 END)::float as over90
+       FROM sales_ledgers sl
+       WHERE ${whereClause}
+       GROUP BY sl."clientId", sl."clientName"`,
+      ...params
+    );
+
+    return {
+      under30: rows.reduce((sum, r) => sum + Number(r.under30 || 0), 0),
+      days30to60: rows.reduce((sum, r) => sum + Number(r.days30to60 || 0), 0),
+      days60to90: rows.reduce((sum, r) => sum + Number(r.days60to90 || 0), 0),
+      over90: rows.reduce((sum, r) => sum + Number(r.over90 || 0), 0),
+      breakdown: rows.map(r => ({
+        clientId: r.clientId,
+        clientName: r.clientName,
+        under30: Number(r.under30 || 0),
+        days30to60: Number(r.days30to60 || 0),
+        days60to90: Number(r.days60to90 || 0),
+        over90: Number(r.over90 || 0),
+      })),
+    };
+  }
+
+  // ===== 거래처별 상세 분석 =====
+  async getClientDetail(clientId: string) {
+    // 1. 거래처 정보
+    const client = await this.prisma.client.findUnique({
+      where: { id: clientId },
+      include: { healthScore: true },
+    });
+
+    if (!client) {
+      throw new NotFoundException('거래처를 찾을 수 없습니다.');
+    }
+
+    // 2. 매출원장 목록
+    const ledgers = await this.prisma.salesLedger.findMany({
+      where: { clientId, salesStatus: { not: 'CANCELLED' } },
+      include: { receipts: true },
+      orderBy: { ledgerDate: 'desc' },
+    });
+
+    // 3. 평균 결제 소요일 계산
+    const paidLedgers = ledgers.filter(l => l.paymentStatus === 'paid' && l.dueDate);
+    const paymentDelays = paidLedgers.map(l => {
+      const lastReceipt = l.receipts.sort((a, b) => b.receiptDate.getTime() - a.receiptDate.getTime())[0];
+      if (!lastReceipt || !l.dueDate) return 0;
+      return differenceInDays(lastReceipt.receiptDate, l.dueDate);
+    });
+    const avgPaymentDays = paymentDelays.length > 0
+      ? Math.round(paymentDelays.reduce((sum, d) => sum + d, 0) / paymentDelays.length)
+      : 0;
+
+    // 4. 정시 결제 비율
+    const onTimeCount = paymentDelays.filter(d => d <= 0).length;
+    const onTimePaymentRate = paidLedgers.length > 0
+      ? Math.round((onTimeCount / paidLedgers.length) * 100)
+      : 0;
+
+    // 5. 월별 추이 (최근 12개월)
+    const monthlyTrend = await this.getClientMonthlyTrend(clientId, 12);
+
+    // 6. 수금 이력
+    const receipts = await this.prisma.salesReceipt.findMany({
+      where: { salesLedger: { clientId } },
+      orderBy: { receiptDate: 'desc' },
+      take: 50,
+    });
+
+    return {
+      client,
+      summary: {
+        totalSales: ledgers.reduce((sum, l) => sum + Number(l.totalAmount), 0),
+        totalReceived: ledgers.reduce((sum, l) => sum + Number(l.receivedAmount), 0),
+        outstanding: ledgers.reduce((sum, l) => sum + Number(l.outstandingAmount), 0),
+        avgPaymentDays,
+        onTimePaymentRate,
+        overdueCount: ledgers.filter(l => l.paymentStatus === 'overdue').length,
+        lastPaymentDate: receipts[0]?.receiptDate.toISOString() || null,
+      },
+      monthlyTrend,
+      transactions: ledgers.slice(0, 100), // 최근 100건
+      paymentHistory: receipts,
+    };
+  }
+
+  // ===== 거래처별 월별 추이 (내부 헬퍼) =====
+  private async getClientMonthlyTrend(clientId: string, months: number = 12) {
+    const now = new Date();
+    const startDate = new Date(now.getFullYear(), now.getMonth() - months + 1, 1);
+
+    const rows = await this.prisma.$queryRawUnsafe<
+      { month: string; sales: number; received: number; outstanding: number; count: bigint }[]
+    >(
+      `SELECT TO_CHAR("ledgerDate", 'YYYY-MM') as month,
+              COALESCE(SUM("totalAmount"), 0)::float as sales,
+              COALESCE(SUM("receivedAmount"), 0)::float as received,
+              COALESCE(SUM("outstandingAmount"), 0)::float as outstanding,
+              COUNT(id) as count
+       FROM sales_ledgers
+       WHERE "ledgerDate" >= $1
+         AND "salesStatus" != 'CANCELLED'
+         AND "clientId" = $2
+       GROUP BY month
+       ORDER BY month ASC`,
+      startDate,
+      clientId,
+    );
+
+    const dbData = new Map(rows.map(r => [r.month, r]));
+
+    // 빈 월도 포함하여 반환
+    const result = [];
+    for (let i = 0; i < months; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - months + 1 + i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const entry = dbData.get(key);
+      result.push({
+        month: key,
+        sales: entry ? Number(entry.sales) : 0,
+        received: entry ? Number(entry.received) : 0,
+        outstanding: entry ? Number(entry.outstanding) : 0,
+        count: entry ? Number(entry.count) : 0,
+      });
+    }
+
+    return result;
+  }
+
+  // ===== 수금예정일별 집계 =====
+  async getDueDateSummary(query: { startDate?: string; endDate?: string }) {
+    const now = new Date();
+    const today = startOfDay(now);
+    const weekEnd = endOfWeek(now);
+    const monthEnd = endOfMonth(now);
+
+    const where: Prisma.SalesLedgerWhereInput = {
+      paymentStatus: { in: ['unpaid', 'partial', 'overdue'] },
+      salesStatus: { not: 'CANCELLED' },
+    };
+
+    // 기간 필터
+    if (query.startDate || query.endDate) {
+      where.dueDate = {};
+      if (query.startDate) where.dueDate.gte = new Date(query.startDate);
+      if (query.endDate) {
+        const end = new Date(query.endDate);
+        end.setHours(23, 59, 59, 999);
+        where.dueDate.lte = end;
+      }
+    }
+
+    const ledgers = await this.prisma.salesLedger.findMany({
+      where,
+      include: { client: { select: { id: true, clientCode: true, clientName: true } } },
+      orderBy: { dueDate: 'asc' },
+    });
+
+    // 일자별 집계
+    const byDateMap = new Map<
+      string,
+      { dueDate: string; count: number; amount: number; clients: Array<{ clientId: string; clientName: string; amount: number }> }
+    >();
+
+    ledgers.forEach(ledger => {
+      if (!ledger.dueDate) return;
+      const dateKey = ledger.dueDate.toISOString().slice(0, 10);
+      if (!byDateMap.has(dateKey)) {
+        byDateMap.set(dateKey, { dueDate: dateKey, count: 0, amount: 0, clients: [] });
+      }
+      const entry = byDateMap.get(dateKey)!;
+      entry.count++;
+      entry.amount += Number(ledger.outstandingAmount);
+      entry.clients.push({
+        clientId: ledger.clientId,
+        clientName: ledger.clientName,
+        amount: Number(ledger.outstandingAmount),
+      });
+    });
+
+    return {
+      today: ledgers
+        .filter(l => l.dueDate && startOfDay(l.dueDate).getTime() === today.getTime())
+        .reduce((sum, l) => sum + Number(l.outstandingAmount), 0),
+      thisWeek: ledgers
+        .filter(l => l.dueDate && l.dueDate <= weekEnd && l.dueDate >= today)
+        .reduce((sum, l) => sum + Number(l.outstandingAmount), 0),
+      thisMonth: ledgers
+        .filter(l => l.dueDate && l.dueDate <= monthEnd && l.dueDate >= today)
+        .reduce((sum, l) => sum + Number(l.outstandingAmount), 0),
+      overdue: ledgers
+        .filter(l => l.dueDate && l.dueDate < today)
+        .reduce((sum, l) => sum + Number(l.outstandingAmount), 0),
+      byDate: Array.from(byDateMap.values()).sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
+    };
   }
 }

@@ -46,8 +46,11 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { useReceivables, useReceivableSummary, useCreatePayment } from '@/hooks/use-accounting';
+import { useAgingAnalysis } from '@/hooks/use-sales-ledger';
 import { toast } from '@/hooks/use-toast';
 import type { Receivable } from '@/lib/types/accounting';
+import { AgingChart } from './components/aging-chart';
+import Link from 'next/link';
 
 export default function ReceivablesPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -59,7 +62,19 @@ export default function ReceivablesPage() {
     status: statusFilter === 'all' ? undefined : statusFilter,
   });
   const { data: summary } = useReceivableSummary();
+  const { data: agingData } = useAgingAnalysis();
   const createPayment = useCreatePayment();
+
+  // Aging 비율 계산
+  const agingTotal = agingData
+    ? agingData.under30 + agingData.days30to60 + agingData.days60to90 + agingData.over90
+    : 0;
+  const agingPercent = {
+    under30: agingTotal > 0 ? (agingData!.under30 / agingTotal) * 100 : 0,
+    days30to60: agingTotal > 0 ? (agingData!.days30to60 / agingTotal) * 100 : 0,
+    days60to90: agingTotal > 0 ? (agingData!.days60to90 / agingTotal) * 100 : 0,
+    over90: agingTotal > 0 ? (agingData!.over90 / agingTotal) * 100 : 0,
+  };
 
   const [paymentForm, setPaymentForm] = useState({
     amount: 0,
@@ -218,35 +233,38 @@ export default function ReceivablesPage() {
           <div className="space-y-4">
             <div className="flex items-center gap-4">
               <div className="w-24 text-sm text-muted-foreground">30일 이내</div>
-              <Progress value={40} className="flex-1 h-3" />
+              <Progress value={agingPercent.under30} className="flex-1 h-3" />
               <div className="w-32 text-right text-sm font-medium">
-                {(summary?.aging?.under30 || 0).toLocaleString()}원
+                {(agingData?.under30 || 0).toLocaleString()}원
               </div>
             </div>
             <div className="flex items-center gap-4">
               <div className="w-24 text-sm text-muted-foreground">31~60일</div>
-              <Progress value={25} className="flex-1 h-3 [&>div]:bg-yellow-500" />
+              <Progress value={agingPercent.days30to60} className="flex-1 h-3 [&>div]:bg-yellow-500" />
               <div className="w-32 text-right text-sm font-medium">
-                {(summary?.aging?.days30to60 || 0).toLocaleString()}원
+                {(agingData?.days30to60 || 0).toLocaleString()}원
               </div>
             </div>
             <div className="flex items-center gap-4">
               <div className="w-24 text-sm text-muted-foreground">61~90일</div>
-              <Progress value={20} className="flex-1 h-3 [&>div]:bg-orange-500" />
+              <Progress value={agingPercent.days60to90} className="flex-1 h-3 [&>div]:bg-orange-500" />
               <div className="w-32 text-right text-sm font-medium">
-                {(summary?.aging?.days60to90 || 0).toLocaleString()}원
+                {(agingData?.days60to90 || 0).toLocaleString()}원
               </div>
             </div>
             <div className="flex items-center gap-4">
               <div className="w-24 text-sm text-muted-foreground">90일 초과</div>
-              <Progress value={15} className="flex-1 h-3 [&>div]:bg-red-500" />
+              <Progress value={agingPercent.over90} className="flex-1 h-3 [&>div]:bg-red-500" />
               <div className="w-32 text-right text-sm font-medium">
-                {(summary?.aging?.over90 || 0).toLocaleString()}원
+                {(agingData?.over90 || 0).toLocaleString()}원
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Aging 분석 차트 */}
+      {agingData && <AgingChart data={agingData} />}
 
       {/* 필터 및 검색 */}
       <Card>
@@ -320,10 +338,12 @@ export default function ReceivablesPage() {
                   return (
                     <TableRow key={item.id} className="hover:bg-slate-50">
                       <TableCell>
-                        <div>
-                          <div className="font-medium">{item.clientName}</div>
-                          <div className="text-xs text-muted-foreground">{item.clientCode}</div>
-                        </div>
+                        <Link href={`/accounting/receivables/${item.clientId}`}>
+                          <div className="cursor-pointer hover:text-primary">
+                            <div className="font-medium">{item.clientName}</div>
+                            <div className="text-xs text-muted-foreground">{item.clientCode}</div>
+                          </div>
+                        </Link>
                       </TableCell>
                       <TableCell className="text-right font-medium">
                         {item.totalAmount.toLocaleString()}
