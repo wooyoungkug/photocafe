@@ -13,8 +13,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { useClientDetail } from '@/hooks/use-sales-ledger';
+import { useClientDetail, useCalculateCreditScore, usePaymentPattern } from '@/hooks/use-sales-ledger';
 import { format } from 'date-fns';
+import { CreditScoreCard } from '../components/credit-score-card';
+import { MonthlyTrendChart } from '../components/monthly-trend-chart';
+import { PaymentPatternCard } from '../components/payment-pattern-card';
+import { useState } from 'react';
 
 export default function ClientDetailPage() {
   const params = useParams();
@@ -22,6 +26,14 @@ export default function ClientDetailPage() {
   const clientId = params.clientId as string;
 
   const { data, isLoading } = useClientDetail(clientId);
+  const { data: paymentPattern } = usePaymentPattern({ clientId });
+  const { mutate: calculateCreditScore, data: creditScore, isPending: isCalculating } = useCalculateCreditScore();
+  const [showAnalytics, setShowAnalytics] = useState(false);
+
+  const handleCalculateCreditScore = () => {
+    calculateCreditScore(clientId);
+    setShowAnalytics(true);
+  };
 
   if (isLoading) {
     return (
@@ -88,6 +100,36 @@ export default function ClientDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* 신용도 평가 및 분석 */}
+      {showAnalytics && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <CreditScoreCard
+            clientId={clientId}
+            clientName={data.client.clientName}
+            creditScore={creditScore}
+            isLoading={isCalculating}
+            onCalculate={handleCalculateCreditScore}
+          />
+          {paymentPattern && <PaymentPatternCard data={paymentPattern} />}
+        </div>
+      )}
+
+      {!showAnalytics && (
+        <Card>
+          <CardContent className="pt-6 text-center">
+            <p className="text-muted-foreground mb-4">
+              신용도 평가 및 수금 패턴 분석을 실행하여 상세 통계를 확인하세요.
+            </p>
+            <Button onClick={handleCalculateCreditScore} disabled={isCalculating}>
+              분석 실행
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 월별 추이 차트 */}
+      {data.monthlyTrend.length > 0 && <MonthlyTrendChart data={data.monthlyTrend} />}
 
       {/* 요약 통계 카드 4개 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

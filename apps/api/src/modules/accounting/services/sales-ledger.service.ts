@@ -849,4 +849,353 @@ export class SalesLedgerService {
       byDate: Array.from(byDateMap.values()).sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
     };
   }
+
+  // ===== 신용도 자동 평가 =====
+  async calculateCreditScore(clientId: string) {
+    // 1. 거래처 기본 정보
+    const client = await this.prisma.client.findUnique({
+      where: { id: clientId },
+    });
+
+    if (!client) {
+      throw new Error('거래처를 찾을 수 없습니다.');
+    }
+
+    // 2. 전체 거래내역 및 수금내역 조회
+    const ledgers = await this.prisma.salesLedger.findMany({
+      where: { clientId, salesStatus: 'confirmed' },
+      include: { receipts: true },
+    });
+
+    if (ledgers.length === 0) {
+      // 거래내역 없음 - 기본 B등급
+      await this.prisma.client.update({
+        where: { id: clientId },
+        data: { creditGrade: 'B' },
+      });
+      return {
+        clientId,
+        clientName: client.clientName,
+        score: 70,
+        grade: 'B',
+        creditLimit: 0,
+        riskLevel: 'medium',
+        metrics: {
+          paymentComplianceRate: 0,
+          receivablesTurnoverScore: 0,
+          overdueHistoryScore: 0,
+        },
+        recommendation: '거래내역이 없어 기본 B등급으로 설정되었습니다.',
+      };
+    }
+
+    // 3. 지표 계산
+    const now = new Date();
+    let onTimeCount = 0;
+    let overdueCount = 0;
+    let totalSales = 0;
+    let totalOutstanding = 0;
+
+    ledgers.forEach(ledger => {
+      totalSales += Number(ledger.totalAmount);
+      totalOutstanding += Number(ledger.outstandingAmount);
+
+      // 정시 결제 판정: 수금일이 수금예정일 이하인 경우
+      if (ledger.paymentStatus === 'paid' && ledger.receipts.length > 0) {
+        const firstReceipt = ledger.receipts.sort((a, b) => a.receiptDate.getTime() - b.receiptDate.getTime())[0];
+        if (ledger.dueDate) {
+          const daysDiff = differenceInDays(firstReceipt.receiptDate, ledger.dueDate);
+          if (daysDiff <= 0) {
+            onTimeCount++;
+          }
+        } else {
+          onTimeCount++; // dueDate 없으면 정시 결제로 간주
+        }
+      }
+
+      // 연체 건수: paymentStatus가 overdue인 경우
+      if (ledger.paymentStatus === 'overdue') {
+        overdueCount++;
+      }
+    });
+
+    const totalCount = ledgers.length;
+    const avgSales = totalSales / totalCount;
+    const avgOutstanding = totalOutstanding / totalCount;
+
+    // 3.1 결제 이행률 (40% 가중치): (정시 결제 건수 / 총 건수) × 100
+    const paymentComplianceRate = (onTimeCount / totalCount) * 100;
+    const paymentComplianceScore = paymentComplianceRate * 0.4;
+
+    // 3.2 미수금 회전율 (30% 가중치): 100 - (평균 미수금 / 평균 매출 × 100)
+    const receivableRatio = avgSales > 0 ? (avgOutstanding / avgSales) * 100 : 0;
+    const receivablesTurnoverScore = Math.max(0, 100 - receivableRatio) * 0.3;
+
+    // 3.3 연체 이력 (30% 가중치): 100 - (연체 건수 / 총 건수 × 200)
+    const overdueRatio = (overdueCount / totalCount) * 200;
+    const overdueHistoryScore = Math.max(0, 100 - overdueRatio) * 0.3;
+
+    // 4. 총점 계산 (0-100점)
+    const totalScore = Math.min(100, Math.round(paymentComplianceScore + receivablesTurnoverScore + overdueHistoryScore));
+
+    // 5. 등급 산정
+    let grade = 'D';
+    if (totalScore >= 80) grade = 'A';
+    else if (totalScore >= 60) grade = 'B';
+    else if (totalScore >= 40) grade = 'C';
+
+    // 6. 월평균 매출 계산 (최근 6개월)
+    const sixMonthsAgo = subDays(now, 180);
+    const recentLedgers = ledgers.filter(l => l.ledgerDate >= sixMonthsAgo);
+    const monthlyAvgSales = recentLedgers.length > 0 ? recentLedgers.reduce((sum, l) => sum + Number(l.totalAmount), 0) / 6 : 0;
+
+    // 7. 신용한도 계산
+    let creditLimit = 0;
+    if (grade === 'A') creditLimit = monthlyAvgSales * 3;
+    else if (grade === 'B') creditLimit = monthlyAvgSales * 2;
+    else if (grade === 'C') creditLimit = monthlyAvgSales * 1;
+    else if (grade === 'D') creditLimit = monthlyAvgSales * 0.5;
+
+    // 8. 리스크 판정
+    let riskLevel: 'low' | 'medium' | 'high' = 'low';
+    let riskReason: string | null = null;
+    if (grade === 'D' || overdueCount >= 3) {
+      riskLevel = 'high';
+      riskReason = `신용등급 ${grade}, 연체 ${overdueCount}건`;
+    } else if (grade === 'C') {
+      riskLevel = 'medium';
+    }
+
+    // 9. 권장사항
+    const recommendation = this.getRecommendation(grade, riskLevel, overdueCount);
+
+    // 10. Client 업데이트
+    await this.prisma.client.update({
+      where: { id: clientId },
+      data: { creditGrade: grade },
+    });
+
+    // 11. CustomerHealthScore 업데이트 (upsert)
+    await this.prisma.customerHealthScore.upsert({
+      where: { clientId },
+      create: {
+        clientId,
+        totalScore,
+        grade,
+        isAtRisk: riskLevel === 'high',
+        riskReason,
+        lastCalculatedAt: now,
+      },
+      update: {
+        totalScore,
+        grade,
+        isAtRisk: riskLevel === 'high',
+        riskReason,
+        lastCalculatedAt: now,
+      },
+    });
+
+    return {
+      clientId,
+      clientName: client.clientName,
+      score: totalScore,
+      grade,
+      creditLimit: Math.round(creditLimit),
+      riskLevel,
+      metrics: {
+        paymentComplianceRate: Math.round(paymentComplianceRate * 10) / 10,
+        receivablesTurnoverScore: Math.round(receivablesTurnoverScore * 10) / 10,
+        overdueHistoryScore: Math.round(overdueHistoryScore * 10) / 10,
+      },
+      overdueCount,
+      monthlyAvgSales: Math.round(monthlyAvgSales),
+      recommendation,
+    };
+  }
+
+  private getRecommendation(grade: string, riskLevel: string, overdueCount: number): string {
+    if (grade === 'A') {
+      return '우수 거래처입니다. 신용거래 한도를 확대하여 거래를 활성화하세요.';
+    } else if (grade === 'B') {
+      return '양호한 거래처입니다. 현재 신용한도를 유지하며 정기적으로 모니터링하세요.';
+    } else if (grade === 'C') {
+      return '주의가 필요한 거래처입니다. 신용한도를 축소하고 선입금 유도를 권장합니다.';
+    } else {
+      if (overdueCount >= 3) {
+        return '고위험 거래처입니다. 신용거래를 제한하고 기존 미수금 회수에 집중하세요.';
+      }
+      return '신용거래를 신중히 검토하세요. 선입금 또는 소액 거래로 제한하는 것을 권장합니다.';
+    }
+  }
+
+  // ===== 수금 패턴 분석 =====
+  async getPaymentPattern(query: { clientId?: string; months?: number }) {
+    const months = query.months || 12;
+    const startDate = subDays(new Date(), months * 30);
+
+    const where: any = {
+      salesStatus: 'confirmed',
+      ledgerDate: { gte: startDate },
+      receipts: { some: {} }, // 수금이 있는 건만
+    };
+
+    if (query.clientId) {
+      where.clientId = query.clientId;
+    }
+
+    const ledgers = await this.prisma.salesLedger.findMany({
+      where,
+      include: { receipts: true },
+      orderBy: { ledgerDate: 'asc' },
+    });
+
+    if (ledgers.length === 0) {
+      return {
+        avgPaymentDays: 0,
+        medianPaymentDays: 0,
+        onTimePaymentRate: 0,
+        delayedPaymentRate: 0,
+        seasonality: [],
+        weekdayPattern: [],
+      };
+    }
+
+    // 결제 소요일 계산
+    const paymentDaysArray: number[] = [];
+    ledgers.forEach(ledger => {
+      if (ledger.dueDate && ledger.receipts.length > 0) {
+        const firstReceipt = ledger.receipts.sort((a, b) => a.receiptDate.getTime() - b.receiptDate.getTime())[0];
+        const daysDiff = differenceInDays(firstReceipt.receiptDate, ledger.dueDate);
+        paymentDaysArray.push(daysDiff);
+      }
+    });
+
+    // 평균 결제 소요일
+    const avgPaymentDays = paymentDaysArray.length > 0 ? paymentDaysArray.reduce((a, b) => a + b, 0) / paymentDaysArray.length : 0;
+
+    // 중위값 결제 소요일
+    const sorted = [...paymentDaysArray].sort((a, b) => a - b);
+    const medianPaymentDays = sorted.length > 0 ? sorted[Math.floor(sorted.length / 2)] : 0;
+
+    // 정시 결제율 (≤ 0일)
+    const onTimeCount = paymentDaysArray.filter(d => d <= 0).length;
+    const onTimePaymentRate = paymentDaysArray.length > 0 ? (onTimeCount / paymentDaysArray.length) * 100 : 0;
+
+    // 지연 빈도 (> 0일)
+    const delayedPaymentRate = 100 - onTimePaymentRate;
+
+    // 계절성 분석 (월별 평균 결제일)
+    const monthlyMap = new Map<number, { total: number; count: number }>();
+    ledgers.forEach(ledger => {
+      if (ledger.dueDate && ledger.receipts.length > 0) {
+        const month = ledger.ledgerDate.getMonth() + 1; // 1-12
+        const firstReceipt = ledger.receipts.sort((a, b) => a.receiptDate.getTime() - b.receiptDate.getTime())[0];
+        const daysDiff = differenceInDays(firstReceipt.receiptDate, ledger.dueDate);
+        if (!monthlyMap.has(month)) {
+          monthlyMap.set(month, { total: 0, count: 0 });
+        }
+        const entry = monthlyMap.get(month)!;
+        entry.total += daysDiff;
+        entry.count++;
+      }
+    });
+
+    const seasonality = Array.from(monthlyMap.entries()).map(([month, data]) => ({
+      month,
+      avgPaymentDays: Math.round((data.total / data.count) * 10) / 10,
+    }));
+
+    // 요일별 패턴 (요일별 수금 건수, 평균 금액)
+    const weekdayMap = new Map<number, { count: number; totalAmount: number }>();
+    ledgers.forEach(ledger => {
+      ledger.receipts.forEach(receipt => {
+        const weekday = receipt.receiptDate.getDay(); // 0=일요일, 1=월요일, ...
+        if (!weekdayMap.has(weekday)) {
+          weekdayMap.set(weekday, { count: 0, totalAmount: 0 });
+        }
+        const entry = weekdayMap.get(weekday)!;
+        entry.count++;
+        entry.totalAmount += Number(receipt.amount);
+      });
+    });
+
+    const weekdayNames = ['일', '월', '화', '수', '목', '금', '토'];
+    const weekdayPattern = Array.from(weekdayMap.entries()).map(([weekday, data]) => ({
+      weekday: weekdayNames[weekday],
+      count: data.count,
+      avgAmount: Math.round(data.totalAmount / data.count),
+    }));
+
+    return {
+      avgPaymentDays: Math.round(avgPaymentDays * 10) / 10,
+      medianPaymentDays,
+      onTimePaymentRate: Math.round(onTimePaymentRate * 10) / 10,
+      delayedPaymentRate: Math.round(delayedPaymentRate * 10) / 10,
+      seasonality: seasonality.sort((a, b) => a.month - b.month),
+      weekdayPattern: weekdayPattern.sort((a, b) => {
+        const order = ['월', '화', '수', '목', '금', '토', '일'];
+        return order.indexOf(a.weekday) - order.indexOf(b.weekday);
+      }),
+    };
+  }
+
+  // ===== 연체 알림 배치 작업 =====
+  async sendOverdueNotifications() {
+    // 연체 상태인 매출원장 조회
+    const overdueLedgers = await this.prisma.salesLedger.findMany({
+      where: {
+        paymentStatus: 'overdue',
+        outstandingAmount: { gt: 0 },
+      },
+      include: {
+        client: {
+          select: {
+            id: true,
+            clientName: true,
+            email: true,
+            phone: true,
+            assignedManager: true,
+          },
+        },
+      },
+      orderBy: { dueDate: 'asc' },
+    });
+
+    // 거래처별로 그룹화
+    const clientMap = new Map<string, any[]>();
+    overdueLedgers.forEach(ledger => {
+      const clientId = ledger.clientId;
+      if (!clientMap.has(clientId)) {
+        clientMap.set(clientId, []);
+      }
+      clientMap.get(clientId)!.push(ledger);
+    });
+
+    const notifications = [];
+    for (const [clientId, ledgers] of clientMap.entries()) {
+      const totalOverdue = ledgers.reduce((sum, l) => sum + Number(l.outstandingAmount), 0);
+      const client = ledgers[0].client;
+
+      notifications.push({
+        clientId,
+        clientName: client.clientName,
+        email: client.email,
+        phone: client.phone,
+        assignedManager: client.assignedManager,
+        overdueCount: ledgers.length,
+        totalOverdue,
+        oldestDueDate: ledgers[0].dueDate,
+      });
+    }
+
+    // TODO: 실제 알림 발송 로직 (이메일, SMS, 시스템 알림 등)
+    // 현재는 로그만 반환
+    return {
+      totalClients: notifications.length,
+      totalOverdueLedgers: overdueLedgers.length,
+      totalOverdueAmount: overdueLedgers.reduce((sum, l) => sum + Number(l.outstandingAmount), 0),
+      notifications,
+      message: `${notifications.length}개 거래처에 대한 연체 알림이 생성되었습니다.`,
+    };
+  }
 }

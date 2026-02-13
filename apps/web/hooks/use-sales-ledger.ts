@@ -224,3 +224,64 @@ export function useDueDateSummary(params?: { startDate?: string; endDate?: strin
     staleTime: 60_000,
   });
 }
+
+// ===== 신용도 자동 평가 =====
+export interface CreditScoreResult {
+  clientId: string;
+  clientName: string;
+  score: number;
+  grade: string;
+  creditLimit: number;
+  riskLevel: 'low' | 'medium' | 'high';
+  metrics: {
+    paymentComplianceRate: number;
+    receivablesTurnoverScore: number;
+    overdueHistoryScore: number;
+  };
+  overdueCount: number;
+  monthlyAvgSales: number;
+  recommendation: string;
+}
+
+export function useCalculateCreditScore() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (clientId: string) => {
+      return api.post<CreditScoreResult>(`${SALES_LEDGER_API}/client/${clientId}/calculate-credit-score`, {});
+    },
+    onSuccess: (_, clientId) => {
+      queryClient.invalidateQueries({ queryKey: ['client-detail', clientId] });
+      queryClient.invalidateQueries({ queryKey: ['client-sales-summary'] });
+    },
+  });
+}
+
+// ===== 수금 패턴 분석 =====
+export interface PaymentPattern {
+  avgPaymentDays: number;
+  medianPaymentDays: number;
+  onTimePaymentRate: number;
+  delayedPaymentRate: number;
+  seasonality: Array<{
+    month: number;
+    avgPaymentDays: number;
+  }>;
+  weekdayPattern: Array<{
+    weekday: string;
+    count: number;
+    avgAmount: number;
+  }>;
+}
+
+export function usePaymentPattern(params?: { clientId?: string; months?: number }) {
+  return useQuery({
+    queryKey: ['payment-pattern', params],
+    queryFn: async () => {
+      const queryParams: Record<string, string | number | undefined> = {};
+      if (params?.clientId) queryParams.clientId = params.clientId;
+      if (params?.months) queryParams.months = params.months;
+      return api.get<PaymentPattern>(`${SALES_LEDGER_API}/payment-pattern`, queryParams);
+    },
+    staleTime: 60_000,
+  });
+}

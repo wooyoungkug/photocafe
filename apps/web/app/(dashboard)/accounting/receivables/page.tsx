@@ -142,6 +142,44 @@ export default function ReceivablesPage() {
     return total > 0 ? Math.round((paid / total) * 100) : 0;
   };
 
+  // CSV 다운로드 함수
+  const handleDownloadCSV = () => {
+    if (!clientSummary || clientSummary.length === 0) {
+      toast({ title: '다운로드할 데이터가 없습니다.', variant: 'destructive' });
+      return;
+    }
+
+    // CSV 헤더
+    const headers = ['거래처코드', '거래처명', '총매출', '수금액', '미수금', '수금률(%)', '거래건수'];
+
+    // CSV 데이터 행
+    const rows = clientSummary.map(item => [
+      item.clientCode || '',
+      item.clientName || '',
+      item.totalSales?.toString() || '0',
+      item.totalReceived?.toString() || '0',
+      item.outstanding?.toString() || '0',
+      getCollectionRate(item.totalReceived || 0, item.totalSales || 0).toString(),
+      item.ledgerCount?.toString() || '0',
+    ]);
+
+    // CSV 문자열 생성 (UTF-8 BOM 추가하여 한글 깨짐 방지)
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+
+    // Blob 생성 및 다운로드
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `미수금관리_${format(new Date(), 'yyyyMMdd')}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({ title: 'CSV 파일이 다운로드되었습니다.' });
+  };
+
   return (
     <div className="space-y-6">
       {/* 헤더 */}
@@ -151,9 +189,9 @@ export default function ReceivablesPage() {
           <p className="text-muted-foreground">거래처별 미수금 현황을 관리합니다.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleDownloadCSV}>
             <Download className="h-4 w-4 mr-2" />
-            엑셀 다운로드
+            CSV 다운로드
           </Button>
         </div>
       </div>

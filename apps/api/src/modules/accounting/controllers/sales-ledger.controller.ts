@@ -65,6 +65,15 @@ export class SalesLedgerController {
     return this.salesLedgerService.getClientDetail(clientId);
   }
 
+  // ===== 신용도 자동 평가 =====
+  @Post('client/:clientId/calculate-credit-score')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '신용도 자동 평가 및 등급 산정' })
+  async calculateCreditScore(@Param('clientId') clientId: string) {
+    return this.salesLedgerService.calculateCreditScore(clientId);
+  }
+
   // ===== 수금예정일별 집계 =====
   @Get('due-date-summary')
   @ApiOperation({ summary: '수금예정일별 집계 (오늘/이번주/이번달)' })
@@ -73,6 +82,19 @@ export class SalesLedgerController {
     @Query('endDate') endDate?: string,
   ) {
     return this.salesLedgerService.getDueDateSummary({ startDate, endDate });
+  }
+
+  // ===== 수금 패턴 분석 =====
+  @Get('payment-pattern')
+  @ApiOperation({ summary: '수금 패턴 분석 (평균 결제일, 정시 결제율, 계절성)' })
+  async getPaymentPattern(
+    @Query('clientId') clientId?: string,
+    @Query('months') months?: string,
+  ) {
+    return this.salesLedgerService.getPaymentPattern({
+      clientId,
+      months: months ? parseInt(months) : 12,
+    });
   }
 
   // ===== 매출원장 상세 조회 =====
@@ -127,5 +149,14 @@ export class SalesLedgerController {
   @ApiOperation({ summary: '연체 미수금 일괄 상태 변경' })
   async updateOverdueStatus() {
     return this.salesLedgerService.updateOverdueStatus();
+  }
+
+  // ===== 연체 알림 발송 =====
+  @Post('batch/send-overdue-notifications')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '연체 거래처 알림 발송' })
+  async sendOverdueNotifications() {
+    return this.salesLedgerService.sendOverdueNotifications();
   }
 }

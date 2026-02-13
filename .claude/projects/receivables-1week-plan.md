@@ -79,30 +79,40 @@
 
 ---
 
-## 📅 Day 2: 미수금 조회 + Aging 분석 API + Frontend 목록
+## 📅 Day 2: 미수금 조회 + Aging 분석 API + Frontend 목록 + 영업담당자별 집계
 
 ### 목표
 - 거래처별 미수금 현황 조회 API
 - Aging 분석 API (30/60/90일 기준)
 - Frontend 미수금 목록 페이지 구현
+- **영업담당자별 집계 및 수금 실적 분석** (추가)
 
 ### 작업 항목
 1. **Backend API (조회 기능 강화)**
    - `GET /api/v1/accounting/receivables/summary` - 거래처별 미수금 집계
    - `GET /api/v1/accounting/receivables/aging` - Aging 분석 (30/60/90일)
    - `GET /api/v1/accounting/receivables/stats` - 통계 (총 미수금, 평균 회수기간)
+   - **`GET /api/v1/accounting/receivables/summary-by-staff`** - 영업담당자별 미수금 요약
+   - **`GET /api/v1/accounting/receivables/collection-by-staff`** - 영업담당자별 수금 실적
+   - **`GET /api/v1/accounting/receivables/by-staff/:staffId`** - 담당자별 상세 목록
 
 2. **Frontend (apps/web/app/(dashboard)/accounting/receivables/)**
    - page.tsx - 미수금 목록 페이지
    - components/ReceivablesTable.tsx - 미수금 테이블
    - components/AgingChart.tsx - Aging 차트
    - hooks/use-receivables.ts - TanStack Query 훅
+   - **by-staff/page.tsx** - 영업담당자별 현황 페이지
+   - **by-staff/[staffId]/page.tsx** - 담당자별 상세 페이지
+   - **components/StaffSummaryTable.tsx** - 담당자별 요약 테이블
+   - **components/CollectionByStaffChart.tsx** - 수금 실적 차트
 
 3. **UI 컴포넌트**
    - 기간 필터 (DateRangePicker)
    - 거래처 필터 (Select)
    - 상태 필터 (전체/미수/완료)
    - 페이지네이션
+   - **영업담당자 필터** (Select)
+   - **수금률 Badge** (80% 이상 녹색, 미만 빨간색)
 
 ### 💬 Day 2 프롬프트
 
