@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { format, subMonths } from 'date-fns';
-import { Users, TrendingUp, DollarSign, BarChart3 } from 'lucide-react';
+import { Users, TrendingUp, DollarSign, BarChart3, Building2 } from 'lucide-react';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSummaryByStaff, useCollectionByStaff } from '@/hooks/use-receivables-by-staff';
@@ -36,9 +38,17 @@ export default function ReceivablesByStaffPage() {
   return (
     <div className="space-y-6">
       {/* 헤더 */}
-      <div>
-        <h1 className="text-2xl font-bold">영업담당자별 미수금 현황</h1>
-        <p className="text-muted-foreground">영업담당자별 매출 및 수금 실적을 관리합니다.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">영업담당자별 미수금 현황</h1>
+          <p className="text-muted-foreground">영업담당자별 매출 및 수금 실적을 관리합니다.</p>
+        </div>
+        <Link href="/accounting/receivables">
+          <Button variant="outline">
+            <Building2 className="h-4 w-4 mr-2" />
+            거래처별 보기
+          </Button>
+        </Link>
       </div>
 
       {/* 요약 카드 */}
@@ -122,6 +132,7 @@ export default function ReceivablesByStaffPage() {
           <StaffSummaryTable
             data={staffSummary || []}
             isLoading={isLoadingSummary}
+            dateRange={dateRange}
           />
         </TabsContent>
 

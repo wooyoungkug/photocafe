@@ -89,3 +89,32 @@ export function useLedgersByStaff(staffId: string, params?: {
     staleTime: 30_000,
   });
 }
+
+// ===== 영업담당자별 거래처 미수금 집계 =====
+export interface StaffClientSummary {
+  clientId: string;
+  clientName: string;
+  clientCode: string;
+  totalSales: number;
+  totalReceived: number;
+  outstanding: number;
+  ledgerCount: number;
+  lastLedgerDate: string;
+}
+
+export function useStaffClientsSummary(staffId: string, params?: {
+  startDate?: string;
+  endDate?: string;
+}) {
+  return useQuery({
+    queryKey: ['staff-clients-summary', staffId, params],
+    queryFn: async () => {
+      const queryParams: Record<string, string | undefined> = {};
+      if (params?.startDate) queryParams.startDate = params.startDate;
+      if (params?.endDate) queryParams.endDate = params.endDate;
+      return api.get<StaffClientSummary[]>(`${SALES_LEDGER_API}/by-staff/${staffId}/clients`, queryParams);
+    },
+    enabled: !!staffId,
+    staleTime: 30_000,
+  });
+}

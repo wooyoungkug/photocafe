@@ -31,51 +31,33 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useAuthStore } from '@/stores/auth-store';
-import { api } from '@/lib/api';
-import { useQuery } from '@tanstack/react-query';
+import { useSalesLedgers } from '@/hooks/use-sales-ledger';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns';
 import { ko } from 'date-fns/locale';
-
-interface LedgerEntry {
-  id: string;
-  date: string;
-  orderNumber: string;
-  orderId: string;
-  description: string;
-  debit: number; // 차변 (매출)
-  credit: number; // 대변 (입금)
-  balance: number; // 잔액
-  status: 'pending' | 'paid' | 'partial';
-  category?: string;
-}
+import type { PaymentStatus } from '@/lib/types/sales-ledger';
 
 export default function LedgerPage() {
   const { user, isAuthenticated } = useAuthStore();
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'paid' | 'partial'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | PaymentStatus>('all');
 
   const startDate = startOfMonth(selectedDate);
   const endDate = endOfMonth(selectedDate);
 
-  // 거래대장 조회
-  const { data: ledgerData, isLoading } = useQuery({
-    queryKey: ['ledger', user?.id, format(selectedDate, 'yyyy-MM'), filterStatus],
-    queryFn: async () => {
-      const response = await api.get<{ data: LedgerEntry[]; summary: any }>('/ledger', {
-        clientId: user?.id || '',
-        startDate: format(startDate, 'yyyy-MM-dd'),
-        endDate: format(endDate, 'yyyy-MM-dd'),
-        ...(filterStatus !== 'all' && { status: filterStatus }),
-      });
-      return response;
-    },
-    enabled: isAuthenticated && !!user?.id,
+  // 거래대장 조회 - useSalesLedgers 훅 사용
+  const { data: ledgerData, isLoading } = useSalesLedgers({
+    clientId: user?.id,
+    startDate: format(startDate, 'yyyy-MM-dd'),
+    endDate: format(endDate, 'yyyy-MM-dd'),
+    ...(filterStatus !== 'all' && { paymentStatus: filterStatus }),
   });
 
-  const entries = ledgerData?.data || [];
-  const totalDebit = entries.reduce((sum, entry) => sum + entry.debit, 0);
-  const totalCredit = entries.reduce((sum, entry) => sum + entry.credit, 0);
-  const totalBalance = totalDebit - totalCredit;
+  const ledgers = ledgerData?.data || [];
+
+  // 합계 계산
+  const totalDebit = ledgers.reduce((sum, ledger) => sum + Number(ledger.totalAmount), 0);
+  const totalCredit = ledgers.reduce((sum, ledger) => sum + Number(ledger.receivedAmount), 0);
+  const totalBalance = ledgers.reduce((sum, ledger) => sum + Number(ledger.outstandingAmount), 0);
 
   const handlePrevMonth = () => {
     setSelectedDate(subMonths(selectedDate, 1));
@@ -94,7 +76,7 @@ export default function LedgerPage() {
     alert('CSV 다운로드 기능은 추후 구현 예정입니다.');
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: PaymentStatus) => {
     switch (status) {
       case 'paid':
         return (
@@ -102,16 +84,49 @@ export default function LedgerPage() {
         );
       case 'partial':
         return (
-          <Badge className="bg-yellow-100 text-yellow-700">부분입금</Badge>
+          <Badge className="bg-yellow-100 text-yellow-700">부분결제</Badge>
         );
-      case 'pending':
+      case 'unpaid':
         return (
-          <Badge className="bg-orange-100 text-orange-700">미입금</Badge>
+          <Badge className="bg-orange-100 text-orange-700">미결제</Badge>
+        );
+      case 'overdue':
+        return (
+          <Badge className="bg-red-100 text-red-700">연체</Badge>
         );
       default:
         return null;
     }
   };
+
+  const getSalesTypeLabel = (salesType: string) => {
+    const typeMap: Record<string, string> = {
+      ALBUM: '앨범',
+      PRINT: '출력',
+      FRAME: '액자',
+      GOODS: '굿즈',
+      BINDING: '제본',
+      DESIGN: '디자인',
+      SHIPPING: '배송',
+      OTHER: '기타',
+    };
+    return typeMap[salesType] || salesType;
+  };
+
+  if (!isAuthenticated || !user) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-6 text-center">
+            <p className="text-gray-500">로그인이 필요합니다.</p>
+            <Link href="/auth/login">
+              <Button className="mt-4">로그인하기</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -153,9 +168,10 @@ export default function LedgerPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">전체</SelectItem>
-                <SelectItem value="pending">미입금</SelectItem>
-                <SelectItem value="partial">부분입금</SelectItem>
+                <SelectItem value="unpaid">미결제</SelectItem>
+                <SelectItem value="partial">부분결제</SelectItem>
                 <SelectItem value="paid">완납</SelectItem>
+                <SelectItem value="overdue">연체</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -166,7 +182,7 @@ export default function LedgerPage() {
       <div className="grid md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-6">
-            <p className="text-sm text-gray-500 mb-1">총 매출</p>
+            <p className="text-sm text-gray-500 mb-1">총 구매금액</p>
             <p className="text-2xl font-bold text-primary">
               {totalDebit.toLocaleString()}원
             </p>
@@ -174,7 +190,7 @@ export default function LedgerPage() {
         </Card>
         <Card>
           <CardContent className="p-6">
-            <p className="text-sm text-gray-500 mb-1">총 입금</p>
+            <p className="text-sm text-gray-500 mb-1">총 결제금액</p>
             <p className="text-2xl font-bold text-green-600">
               {totalCredit.toLocaleString()}원
             </p>
@@ -182,7 +198,7 @@ export default function LedgerPage() {
         </Card>
         <Card>
           <CardContent className="p-6">
-            <p className="text-sm text-gray-500 mb-1">미수금</p>
+            <p className="text-sm text-gray-500 mb-1">미결제금액</p>
             <p className="text-2xl font-bold text-orange-600">
               {totalBalance.toLocaleString()}원
             </p>
@@ -205,7 +221,7 @@ export default function LedgerPage() {
                 <div key={i} className="h-12 bg-gray-100 animate-pulse rounded"></div>
               ))}
             </div>
-          ) : entries.length > 0 ? (
+          ) : ledgers.length > 0 ? (
             <div className="border rounded-lg overflow-hidden">
               <Table>
                 <TableHeader>
@@ -214,40 +230,44 @@ export default function LedgerPage() {
                     <TableHead className="w-[120px]">주문번호</TableHead>
                     <TableHead>내역</TableHead>
                     <TableHead className="w-[80px]">분류</TableHead>
-                    <TableHead className="w-[120px] text-right">매출</TableHead>
-                    <TableHead className="w-[120px] text-right">입금</TableHead>
-                    <TableHead className="w-[120px] text-right">잔액</TableHead>
+                    <TableHead className="w-[120px] text-right">구매금액</TableHead>
+                    <TableHead className="w-[120px] text-right">결제금액</TableHead>
+                    <TableHead className="w-[120px] text-right">미결제금액</TableHead>
                     <TableHead className="w-[100px] text-center">상태</TableHead>
                     <TableHead className="w-[80px] text-center">상세</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {entries.map((entry) => (
-                    <TableRow key={entry.id}>
+                  {ledgers.map((ledger) => (
+                    <TableRow key={ledger.id}>
                       <TableCell className="text-sm">
-                        {format(new Date(entry.date), 'MM-dd', { locale: ko })}
+                        {format(new Date(ledger.ledgerDate), 'MM-dd', { locale: ko })}
                       </TableCell>
                       <TableCell className="text-sm font-medium">
-                        {entry.orderNumber}
+                        {ledger.orderNumber}
                       </TableCell>
-                      <TableCell className="text-sm">{entry.description}</TableCell>
+                      <TableCell className="text-sm">
+                        {ledger.description || `${ledger.orderNumber} 주문`}
+                      </TableCell>
                       <TableCell className="text-xs text-gray-600">
-                        {entry.category || '-'}
+                        {getSalesTypeLabel(ledger.salesType)}
                       </TableCell>
                       <TableCell className="text-right font-medium text-primary">
-                        {entry.debit > 0 ? `${entry.debit.toLocaleString()}원` : '-'}
+                        {Number(ledger.totalAmount).toLocaleString()}원
                       </TableCell>
                       <TableCell className="text-right font-medium text-green-600">
-                        {entry.credit > 0 ? `${entry.credit.toLocaleString()}원` : '-'}
+                        {Number(ledger.receivedAmount) > 0
+                          ? `${Number(ledger.receivedAmount).toLocaleString()}원`
+                          : '-'}
                       </TableCell>
                       <TableCell className="text-right font-bold">
-                        {entry.balance.toLocaleString()}원
+                        {Number(ledger.outstandingAmount).toLocaleString()}원
                       </TableCell>
                       <TableCell className="text-center">
-                        {getStatusBadge(entry.status)}
+                        {getStatusBadge(ledger.paymentStatus)}
                       </TableCell>
                       <TableCell className="text-center">
-                        <Link href={`/mypage/orders/${entry.orderId}`}>
+                        <Link href={`/mypage/orders/${ledger.orderId}`}>
                           <Button variant="ghost" size="sm">
                             <Eye className="h-4 w-4" />
                           </Button>

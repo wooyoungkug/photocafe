@@ -27,6 +27,7 @@ import {
   BulkUpdateReceiptDateDto,
   BulkDataCleanupDto,
   CheckDuplicateOrderDto,
+  MonthlySummaryQueryDto,
 } from '../dto';
 
 @ApiTags('주문')
@@ -49,6 +50,17 @@ export class OrderController {
   @ApiOperation({ summary: '주문 상태별 건수' })
   async getStatusCounts() {
     return this.orderService.getStatusCounts();
+  }
+
+  @Get('monthly-summary')
+  @ApiOperation({ summary: '월거래집계 조회' })
+  async getMonthlySummary(@Query() query: MonthlySummaryQueryDto) {
+    const summary = await this.orderService.getMonthlySummary(
+      query.clientId,
+      query.startDate,
+      query.endDate,
+    );
+    return { data: summary };
   }
 
   // ==================== 벌크 작업 (반드시 :id 라우트 위에 배치) ====================

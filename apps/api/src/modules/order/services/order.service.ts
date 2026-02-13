@@ -1165,4 +1165,87 @@ export class OrderService {
       {} as Record<string, number>,
     );
   }
+
+  // ==================== 월거래집계 조회 ====================
+  async getMonthlySummary(clientId: string, startDate: string, endDate: string) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999); // 종료일 끝까지 포함
+
+    // 해당 기간의 주문 조회
+    const orders = await this.prisma.order.findMany({
+      where: {
+        clientId,
+        orderedAt: {
+          gte: start,
+          lte: end,
+        },
+        status: { not: ORDER_STATUS.CANCELLED },
+      },
+      include: {
+        items: {
+          select: {
+            productName: true,
+            quantity: true,
+            unitPrice: true,
+          },
+        },
+      },
+    });
+
+    // 총 주문 건수 및 금액
+    const orderCount = orders.length;
+    const totalAmount = orders.reduce((sum, order) => sum + (Number(order.total) || 0), 0);
+
+    // 매출원장에서 입금완료 금액 조회 (해당 기간 주문에 대한 입금액)
+    const orderIds = orders.map(o => o.id);
+    let paidAmount = 0;
+    let unpaidAmount = 0;
+
+    if (orderIds.length > 0) {
+      // 매출원장 조회
+      const ledgers = await this.prisma.salesLedger.findMany({
+        where: {
+          orderId: { in: orderIds },
+        },
+        select: {
+          receivedAmount: true,
+          outstandingAmount: true,
+        },
+      });
+
+      paidAmount = ledgers.reduce((sum, ledger) => sum + (Number(ledger.receivedAmount) || 0), 0);
+      unpaidAmount = ledgers.reduce((sum, ledger) => sum + (Number(ledger.outstandingAmount) || 0), 0);
+    }
+
+    // 카테고리별 집계 (상품명 기준)
+    const categoryMap = new Map<string, { count: number; amount: number }>();
+
+    orders.forEach(order => {
+      order.items.forEach(item => {
+        const category = item.productName || '기타';
+        const existing = categoryMap.get(category) || { count: 0, amount: 0 };
+        categoryMap.set(category, {
+          count: existing.count + (item.quantity || 0),
+          amount: existing.amount + (Number(item.unitPrice) || 0) * (item.quantity || 0),
+        });
+      });
+    });
+
+    const categoryBreakdown = Array.from(categoryMap.entries()).map(([category, data]) => ({
+      category,
+      count: data.count,
+      amount: data.amount,
+    }));
+
+    return {
+      year: start.getFullYear(),
+      month: start.getMonth() + 1,
+      orderCount,
+      totalAmount,
+      paidAmount,
+      unpaidAmount,
+      categoryBreakdown,
+    };
+  }
 }

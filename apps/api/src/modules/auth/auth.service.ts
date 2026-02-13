@@ -649,6 +649,7 @@ export class AuthService {
         email: client.email,
         name: client.clientName,
         role: 'client',
+        clientId: client.id, // 주문 조회 등에 필요한 clientId 추가
         clientCode: client.clientCode,
         group: client.group,
       },

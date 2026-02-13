@@ -385,11 +385,11 @@ export default function MembersPage() {
       const result = await api.post<{
         accessToken: string;
         refreshToken: string;
-        user: { id: string; name: string; email: string };
+        user: { id: string; name: string; email: string; clientId?: string };
       }>(`/auth/impersonate/${member.id}`);
 
       // 새 창에서 쇼핑몰 열기 (토큰을 URL 파라미터로 전달)
-      const shopUrl = `/auth/callback?accessToken=${result.accessToken}&refreshToken=${result.refreshToken}&userId=${result.user.id}&userName=${encodeURIComponent(result.user.name)}&userEmail=${encodeURIComponent(result.user.email || '')}&impersonated=true`;
+      const shopUrl = `/auth/callback?accessToken=${result.accessToken}&refreshToken=${result.refreshToken}&userId=${result.user.id}&userName=${encodeURIComponent(result.user.name)}&userEmail=${encodeURIComponent(result.user.email || '')}&clientId=${result.user.clientId || result.user.id}&impersonated=true`;
       window.open(shopUrl, '_blank');
     } catch (err) {
       toast({ title: '대리 로그인에 실패했습니다.', variant: 'destructive' });

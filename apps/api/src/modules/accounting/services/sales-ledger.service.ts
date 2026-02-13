@@ -416,11 +416,23 @@ export class SalesLedgerService {
       distinct: ['clientId'],
     });
 
+    // 연체 거래처 수
+    const clientsWithOverdue = await this.prisma.salesLedger.findMany({
+      where: {
+        paymentStatus: { in: ['unpaid', 'partial'] },
+        dueDate: { lt: now },
+        salesStatus: { not: 'CANCELLED' },
+      },
+      select: { clientId: true },
+      distinct: ['clientId'],
+    });
+
     return {
       totalSales: Number(monthlySales._sum.totalAmount || 0),
       totalReceived: Number(monthlySales._sum.receivedAmount || 0),
       totalOutstanding: Number(totalOutstanding._sum.outstandingAmount || 0),
       totalOverdue: Number(overdueAmount._sum.outstandingAmount || 0),
+      overdueClientCount: clientsWithOverdue.length,
       ledgerCount: monthlySales._count.id,
       clientCount: clientsWithOutstanding.length,
     };
@@ -662,9 +674,13 @@ export class SalesLedgerService {
 
     return {
       under30: rows.reduce((sum, r) => sum + Number(r.under30 || 0), 0),
+      under30ClientCount: rows.filter(r => Number(r.under30 || 0) > 0).length,
       days30to60: rows.reduce((sum, r) => sum + Number(r.days30to60 || 0), 0),
+      days30to60ClientCount: rows.filter(r => Number(r.days30to60 || 0) > 0).length,
       days60to90: rows.reduce((sum, r) => sum + Number(r.days60to90 || 0), 0),
+      days60to90ClientCount: rows.filter(r => Number(r.days60to90 || 0) > 0).length,
       over90: rows.reduce((sum, r) => sum + Number(r.over90 || 0), 0),
+      over90ClientCount: rows.filter(r => Number(r.over90 || 0) > 0).length,
       breakdown: rows.map(r => ({
         clientId: r.clientId,
         clientName: r.clientName,
@@ -1403,5 +1419,68 @@ export class SalesLedgerService {
       data,
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
+  }
+
+  // ===== 영업담당자별 거래처 미수금 집계 =====
+  async getClientsByStaff(staffId: string, query: { startDate?: string; endDate?: string }) {
+    const conditions: string[] = [`sl."salesStatus" != 'CANCELLED'`];
+    const params: any[] = [staffId];
+    let paramIdx = 2;
+
+    if (query.startDate) {
+      conditions.push(`sl."ledgerDate" >= $${paramIdx}`);
+      params.push(new Date(query.startDate));
+      paramIdx++;
+    }
+    if (query.endDate) {
+      const end = new Date(query.endDate);
+      end.setHours(23, 59, 59, 999);
+      conditions.push(`sl."ledgerDate" <= $${paramIdx}`);
+      params.push(end);
+      paramIdx++;
+    }
+
+    const whereClause = conditions.join(' AND ');
+
+    // 담당자의 거래처별 미수금 집계
+    const rows = await this.prisma.$queryRawUnsafe<
+      {
+        clientId: string;
+        clientName: string;
+        clientCode: string;
+        totalSales: number;
+        totalReceived: number;
+        outstanding: number;
+        ledgerCount: bigint;
+        lastLedgerDate: Date;
+      }[]
+    >(
+      `SELECT sl."clientId",
+              sl."clientName",
+              c."clientCode",
+              COALESCE(SUM(sl."totalAmount"), 0)::float as "totalSales",
+              COALESCE(SUM(sl."receivedAmount"), 0)::float as "totalReceived",
+              COALESCE(SUM(sl."outstandingAmount"), 0)::float as outstanding,
+              COUNT(sl.id) as "ledgerCount",
+              MAX(sl."ledgerDate") as "lastLedgerDate"
+       FROM sales_ledgers sl
+       JOIN clients c ON c.id = sl."clientId"
+       JOIN staff_clients sc ON sc."clientId" = sl."clientId" AND sc."isPrimary" = true
+       WHERE sc."staffId" = $1 AND ${whereClause}
+       GROUP BY sl."clientId", sl."clientName", c."clientCode"
+       ORDER BY outstanding DESC`,
+      ...params,
+    );
+
+    return rows.map(r => ({
+      clientId: r.clientId,
+      clientName: r.clientName,
+      clientCode: r.clientCode,
+      totalSales: Number(r.totalSales),
+      totalReceived: Number(r.totalReceived),
+      outstanding: Number(r.outstanding),
+      ledgerCount: Number(r.ledgerCount),
+      lastLedgerDate: r.lastLedgerDate?.toISOString() || '',
+    }));
   }
 }

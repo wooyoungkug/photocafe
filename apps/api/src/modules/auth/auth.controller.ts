@@ -145,7 +145,7 @@ export class AuthController {
 
     // 프론트엔드로 토큰과 함께 리다이렉트
     const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3002';
-    const redirectUrl = `${frontendUrl}/auth/callback?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}&userId=${tokens.user.id}&userName=${encodeURIComponent(tokens.user.name)}&userEmail=${encodeURIComponent(tokens.user.email)}`;
+    const redirectUrl = `${frontendUrl}/auth/callback?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}&userId=${tokens.user.id}&userName=${encodeURIComponent(tokens.user.name)}&userEmail=${encodeURIComponent(tokens.user.email)}&clientId=${tokens.user.clientId || tokens.user.id}`;
 
     return res.redirect(redirectUrl);
   }
@@ -168,7 +168,7 @@ export class AuthController {
 
     // 프론트엔드로 토큰과 함께 리다이렉트
     const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3002';
-    const redirectUrl = `${frontendUrl}/auth/callback?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}&userId=${tokens.user.id}&userName=${encodeURIComponent(tokens.user.name)}&userEmail=${encodeURIComponent(tokens.user.email)}`;
+    const redirectUrl = `${frontendUrl}/auth/callback?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}&userId=${tokens.user.id}&userName=${encodeURIComponent(tokens.user.name)}&userEmail=${encodeURIComponent(tokens.user.email)}&clientId=${tokens.user.clientId || tokens.user.id}`;
 
     return res.redirect(redirectUrl);
   }

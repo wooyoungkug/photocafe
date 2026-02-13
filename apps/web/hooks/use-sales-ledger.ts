@@ -137,9 +137,13 @@ export function useCancelSales() {
 // ===== Aging 분석 (실 데이터) =====
 export interface AgingAnalysis {
   under30: number;
+  under30ClientCount: number;
   days30to60: number;
+  days30to60ClientCount: number;
   days60to90: number;
+  days60to90ClientCount: number;
   over90: number;
+  over90ClientCount: number;
   breakdown: Array<{
     clientId: string;
     clientName: string;

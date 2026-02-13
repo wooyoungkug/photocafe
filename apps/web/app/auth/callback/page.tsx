@@ -26,6 +26,7 @@ function AuthCallbackContent() {
                 const userId = searchParams.get('userId') || '';
                 const userName = searchParams.get('userName') || '';
                 const userEmail = searchParams.get('userEmail') || '';
+                const clientId = searchParams.get('clientId') || '';
 
                 if (!token) {
                     setError('토큰이 없습니다');
@@ -36,6 +37,7 @@ function AuthCallbackContent() {
                 console.log('🔐 OAuth Callback - User ID:', userId);
                 console.log('🔐 OAuth Callback - User Name:', userName);
                 console.log('🔐 OAuth Callback - User Email:', userEmail);
+                console.log('🔐 OAuth Callback - Client ID:', clientId);
                 console.log('🔐 OAuth Callback - Is Impersonated:', isImpersonated);
 
                 // Store token in localStorage
@@ -87,6 +89,7 @@ function AuthCallbackContent() {
                             email: userData.email || '',
                             name: userData.name || (isImpersonated ? '회원' : '관리자'),
                             role: userData.role || (isImpersonated ? 'client' : 'admin'),
+                            ...(clientId && { clientId }), // 대리 로그인 시 clientId 추가
                         },
                         accessToken: token,
                         refreshToken: refreshToken,

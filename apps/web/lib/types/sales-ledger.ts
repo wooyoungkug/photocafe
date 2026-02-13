@@ -108,6 +108,7 @@ export interface SalesLedgerSummary {
   totalReceived: number;
   totalOutstanding: number;
   totalOverdue: number;
+  overdueClientCount: number;
   ledgerCount: number;
   clientCount: number;
 }

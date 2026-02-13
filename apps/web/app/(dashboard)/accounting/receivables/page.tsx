@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import {
-  Plus,
   Search,
   Download,
   FileText,
@@ -45,12 +44,12 @@ import {
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
-import { useReceivables, useReceivableSummary, useCreatePayment } from '@/hooks/use-accounting';
-import { useAgingAnalysis, useClientSalesSummary, useSalesLedgers, useAddSalesReceipt } from '@/hooks/use-sales-ledger';
+import { useCreatePayment } from '@/hooks/use-accounting';
+import { useAgingAnalysis, useClientSalesSummary, useSalesLedgers, useSalesLedgerSummary } from '@/hooks/use-sales-ledger';
 import { toast } from '@/hooks/use-toast';
-import type { Receivable } from '@/lib/types/accounting';
 import { AgingChart } from './components/aging-chart';
 import Link from 'next/link';
+import { Users } from 'lucide-react';
 
 export default function ReceivablesPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -60,11 +59,10 @@ export default function ReceivablesPage() {
 
   // 거래처별 미수금 집계 데이터 사용
   const { data: clientSummary, isLoading: isLoadingSummary } = useClientSalesSummary();
-  const { data: summary } = useReceivableSummary();
+  const { data: summary } = useSalesLedgerSummary();
   const { data: agingData } = useAgingAnalysis();
   const { data: recentSales } = useSalesLedgers({ limit: 5, paymentStatus: 'unpaid' });
   const createPayment = useCreatePayment();
-  const addReceipt = useAddSalesReceipt();
 
   // Aging 비율 계산
   const agingTotal = agingData
@@ -160,7 +158,7 @@ export default function ReceivablesPage() {
       item.totalReceived?.toString() || '0',
       item.outstanding?.toString() || '0',
       getCollectionRate(item.totalReceived || 0, item.totalSales || 0).toString(),
-      item.ledgerCount?.toString() || '0',
+      item.orderCount?.toString() || '0',
     ]);
 
     // CSV 문자열 생성 (UTF-8 BOM 추가하여 한글 깨짐 방지)
@@ -189,6 +187,12 @@ export default function ReceivablesPage() {
           <p className="text-muted-foreground">거래처별 미수금 현황을 관리합니다.</p>
         </div>
         <div className="flex gap-2">
+          <Link href="/accounting/receivables/by-staff">
+            <Button variant="outline">
+              <Users className="h-4 w-4 mr-2" />
+              영업담당자별 보기
+            </Button>
+          </Link>
           <Button variant="outline" onClick={handleDownloadCSV}>
             <Download className="h-4 w-4 mr-2" />
             CSV 다운로드
@@ -204,7 +208,7 @@ export default function ReceivablesPage() {
               <div>
                 <p className="text-sm text-orange-600 font-medium">총 미수금</p>
                 <p className="text-2xl font-bold text-orange-900">
-                  {(summary?.totalReceivables || 0).toLocaleString()}원
+                  {(summary?.totalOutstanding || 0).toLocaleString()}원
                 </p>
               </div>
               <div className="h-12 w-12 bg-orange-500 rounded-xl flex items-center justify-center">
@@ -223,12 +227,15 @@ export default function ReceivablesPage() {
               <div>
                 <p className="text-sm text-red-600 font-medium">연체금액</p>
                 <p className="text-2xl font-bold text-red-900">
-                  {(summary?.overdueAmount || 0).toLocaleString()}원
+                  {(summary?.totalOverdue || 0).toLocaleString()}원
                 </p>
               </div>
               <div className="h-12 w-12 bg-red-500 rounded-xl flex items-center justify-center">
                 <AlertTriangle className="h-6 w-6 text-white" />
               </div>
+            </div>
+            <div className="mt-2 text-xs text-red-600">
+              {summary?.overdueClientCount || 0}개 거래처
             </div>
           </CardContent>
         </Card>
@@ -239,12 +246,15 @@ export default function ReceivablesPage() {
               <div>
                 <p className="text-sm text-blue-600 font-medium">30일 이내</p>
                 <p className="text-2xl font-bold text-blue-900">
-                  {(summary?.aging?.under30 || 0).toLocaleString()}원
+                  {(agingData?.under30 || 0).toLocaleString()}원
                 </p>
               </div>
               <div className="h-12 w-12 bg-blue-500 rounded-xl flex items-center justify-center">
                 <Clock className="h-6 w-6 text-white" />
               </div>
+            </div>
+            <div className="mt-2 text-xs text-blue-600">
+              {agingData?.under30ClientCount || 0}개 거래처
             </div>
           </CardContent>
         </Card>
@@ -255,12 +265,15 @@ export default function ReceivablesPage() {
               <div>
                 <p className="text-sm text-purple-600 font-medium">90일 초과</p>
                 <p className="text-2xl font-bold text-purple-900">
-                  {(summary?.aging?.over90 || 0).toLocaleString()}원
+                  {(agingData?.over90 || 0).toLocaleString()}원
                 </p>
               </div>
               <div className="h-12 w-12 bg-purple-500 rounded-xl flex items-center justify-center">
                 <AlertTriangle className="h-6 w-6 text-white" />
               </div>
+            </div>
+            <div className="mt-2 text-xs text-purple-600">
+              {agingData?.over90ClientCount || 0}개 거래처
             </div>
           </CardContent>
         </Card>

@@ -539,3 +539,18 @@ export class BulkDataCleanupDto {
   @IsBoolean()
   deleteThumbnails?: boolean;
 }
+
+// ==================== 월거래집계 조회 DTO ====================
+export class MonthlySummaryQueryDto {
+  @ApiProperty({ description: '거래처 ID' })
+  @IsString()
+  clientId: string;
+
+  @ApiProperty({ description: '시작일 (YYYY-MM-DD)' })
+  @IsString()
+  startDate: string;
+
+  @ApiProperty({ description: '종료일 (YYYY-MM-DD)' })
+  @IsString()
+  endDate: string;
+}

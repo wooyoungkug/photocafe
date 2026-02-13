@@ -188,9 +188,9 @@ export default function MonthlySummaryPage() {
                     return (
                       <TableRow key={index}>
                         <TableCell className="font-medium">{item.category}</TableCell>
-                        <TableCell className="text-center">{item.count}건</TableCell>
+                        <TableCell className="text-center">{item.count || 0}건</TableCell>
                         <TableCell className="text-right">
-                          {item.amount.toLocaleString()}원
+                          {(item.amount || 0).toLocaleString()}원
                         </TableCell>
                         <TableCell className="text-right text-gray-600">
                           {percentage}%
@@ -200,9 +200,9 @@ export default function MonthlySummaryPage() {
                   })}
                   <TableRow className="bg-gray-50 font-bold">
                     <TableCell>합계</TableCell>
-                    <TableCell className="text-center">{summary.orderCount}건</TableCell>
+                    <TableCell className="text-center">{summary.orderCount || 0}건</TableCell>
                     <TableCell className="text-right">
-                      {summary.totalAmount.toLocaleString()}원
+                      {(summary.totalAmount || 0).toLocaleString()}원
                     </TableCell>
                     <TableCell className="text-right">100%</TableCell>
                   </TableRow>
