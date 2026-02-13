@@ -1287,7 +1287,7 @@ export class SalesLedgerService {
 
   // ===== 영업담당자별 수금 실적 =====
   async getCollectionByStaff(query: { startDate?: string; endDate?: string }) {
-    const conditions: string[] = [];
+    const conditions: string[] = [`s."isActive" = true`];
     const params: any[] = [];
     let paramIdx = 1;
 
@@ -1304,7 +1304,7 @@ export class SalesLedgerService {
       paramIdx++;
     }
 
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const whereClause = `WHERE ${conditions.join(' AND ')}`;
 
     // 영업담당자별 수금 실적 (수금방법별 집계 포함)
     const rows = await this.prisma.$queryRawUnsafe<
@@ -1334,7 +1334,6 @@ export class SalesLedgerService {
        LEFT JOIN sales_ledgers sl ON sl."clientId" = sc."clientId"
        LEFT JOIN sales_receipts sr ON sr."salesLedgerId" = sl.id
        ${whereClause}
-       WHERE s."isActive" = true
        GROUP BY s.id, s.name, s."staffId"
        ORDER BY "totalReceived" DESC`,
       ...params,
