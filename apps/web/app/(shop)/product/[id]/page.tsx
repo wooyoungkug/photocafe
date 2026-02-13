@@ -16,7 +16,7 @@ import { useCartStore, type CartItemOption } from '@/stores/cart-store';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { API_URL, API_BASE_URL, api } from '@/lib/api';
-import type { Product, ProductSpecification, ProductBinding, ProductPaper, ProductCover, ProductFoil, ProductFinishing, FinishingSetting, ProductPublicCopperPlate } from '@/lib/types';
+import type { Product, ProductSpecification, ProductBinding, ProductPaper, ProductCover, ProductFoil, ProductFinishing, ProductPublicCopperPlate } from '@/lib/types';
 import { useAuthStore } from '@/stores/auth-store';
 import { useCopperPlatesByClient, useCopperPlateLabels, type CopperPlate } from '@/hooks/use-copper-plates';
 import { useMyProductsByClient, useCreateMyProduct, type MyProduct, type MyProductOptions } from '@/hooks/use-my-products';
@@ -61,7 +61,6 @@ interface SelectedOptions {
   cover?: ProductCover;
   foil?: ProductFoil;
   finishings: ProductFinishing[];
-  finishingSettings: Record<string, string>;  // finishingId -> settingId
   printSide?: 'single' | 'double';  // 단면/양면
   // 페이지 편집 방식 및 제본 순서
   pageEditMode?: 'single' | 'spread';  // 낱장 / 펼침면
@@ -130,10 +129,9 @@ export default function ProductPage() {
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedOptions, setSelectedOptions] = useState<SelectedOptions>({
     finishings: [],
-    finishingSettings: {},
   });
 
-  // 주문가능규격 섹션 펼침 상태
+  // 제작가능규격 섹션 펼침 상태
   const [isSpecExpanded, setIsSpecExpanded] = useState(false);
   // 동판 리스트 펼침 상태
   const [isCopperPlateListExpanded, setIsCopperPlateListExpanded] = useState(true);
@@ -157,50 +155,18 @@ export default function ProductPage() {
   // 표지 원단 선택 다이얼로그
   const [showCoverFabricDialog, setShowCoverFabricDialog] = useState(false);
 
-  // 선택된 원단 로컬 상태 (폴더 유무와 무관하게 유지)
-  const [selectedFabric, setSelectedFabric] = useState<{
-    id: string;
-    name: string;
-    thumbnail: string | null;
-    price: number;
-  } | null>(null);
-
-  // 현재 선택된 원단 (로컬 상태 우선, 폴더 기준 fallback)
-  const selectedFabricInfo = selectedFabric
-    ? { id: selectedFabric.id, name: selectedFabric.name, thumbnail: selectedFabric.thumbnail }
-    : uploadFolders.length > 0 && uploadFolders[0].selectedFabricId
-      ? {
-          id: uploadFolders[0].selectedFabricId,
-          name: uploadFolders[0].selectedFabricName,
-          thumbnail: uploadFolders[0].selectedFabricThumbnail,
-        }
-      : null;
+  // 현재 선택된 원단 (첫 번째 폴더 기준)
+  const selectedFabricInfo = uploadFolders.length > 0 ? {
+    id: uploadFolders[0].selectedFabricId,
+    name: uploadFolders[0].selectedFabricName,
+    thumbnail: uploadFolders[0].selectedFabricThumbnail,
+  } : null;
 
   const handleCoverFabricSelect = (fabric: Fabric) => {
-    const fabricName = fabric.name;
-    // 로컬 상태에 저장 (폴더 없어도 화면에 표시)
-    setSelectedFabric({
-      id: fabric.id,
-      name: fabricName,
-      thumbnail: fabric.thumbnailUrl || null,
-      price: fabric.basePrice,
-    });
-    // 기존 폴더에도 적용
     uploadFolders.forEach(f => {
-      setFolderFabric(f.id, fabric.id, fabricName, fabric.thumbnailUrl || null, fabric.basePrice);
+      setFolderFabric(f.id, fabric.id, `${fabric.code} ${fabric.name}`, fabric.thumbnailUrl || null, fabric.basePrice);
     });
   };
-
-  // 새 폴더가 추가되면 선택된 원단 자동 적용
-  useEffect(() => {
-    if (selectedFabric && uploadFolders.length > 0) {
-      uploadFolders.forEach(f => {
-        if (!f.selectedFabricId) {
-          setFolderFabric(f.id, selectedFabric.id, selectedFabric.name, selectedFabric.thumbnail, selectedFabric.price);
-        }
-      });
-    }
-  }, [uploadFolders.length, selectedFabric, setFolderFabric]);
 
   // 장바구니 담기 로딩 상태
   const [isAddingToCart, setIsAddingToCart] = useState(false);
@@ -267,7 +233,6 @@ export default function ProductPage() {
               bindingDirection: defaultBindingDirection || 'LEFT_START_RIGHT_END',
               specificationId: '',
               specificationName: folder.specLabel,
-              fabricName: folder.selectedFabricName || undefined,
               shippingInfo: shippingInfoData,
             },
             isDuplicateOverride,
@@ -300,7 +265,6 @@ export default function ProductPage() {
                 bindingDirection: defaultBindingDirection || 'LEFT_START_RIGHT_END',
                 specificationId: '',
                 specificationName: additional.albumLabel,
-                fabricName: folder.selectedFabricName || undefined,
                 shippingInfo: shippingInfoData,
               },
               isDuplicateOverride,
@@ -339,14 +303,6 @@ export default function ProductPage() {
         cover: product.covers?.find(c => c.isDefault) || product.covers?.[0],
         foil: product.foils?.find(f => f.isDefault) || product.foils?.[0],
         finishings: product.finishings?.filter(f => f.isDefault) || [],
-        finishingSettings: (() => {
-          const map: Record<string, string> = {};
-          product.finishings?.filter(f => f.isDefault).forEach(f => {
-            const firstSetting = f.productionGroup?.settings?.[0];
-            if (firstSetting) map[f.id] = firstSetting.id;
-          });
-          return map;
-        })(),
         printSide: defaultBinding ? getDefaultPrintSideByBinding(defaultBinding.name) : 'double',
         // 동판 기본값: 저장파일/즐겨찾기 불러오기가 아니면 '동판 없음'
         copperPlateType: 'none',
@@ -357,31 +313,6 @@ export default function ProductPage() {
       });
     }
   }, [product, copperPlateLabels, allPublicCopperPlates]);
-
-  const totalPrice = useMemo(() => {
-    if (!product) return 0;
-    let price = product.basePrice;
-    if (selectedOptions.specification) price += selectedOptions.specification.price;
-    if (selectedOptions.binding) price += selectedOptions.binding.price;
-    if (selectedOptions.paper) price += selectedOptions.paper.price;
-    if (selectedOptions.cover) price += selectedOptions.cover.price;
-    if (selectedOptions.foil) price += selectedOptions.foil.price;
-    for (const finishing of selectedOptions.finishings) {
-      price += finishing.price;
-    }
-    return price * quantity;
-  }, [product, selectedOptions, quantity]);
-
-  const images = useMemo(() => {
-    if (!product) return [];
-    if (product.thumbnailUrl) {
-      return [normalizeImageUrl(product.thumbnailUrl), ...product.detailImages.map(img => normalizeImageUrl(img))];
-    }
-    if (product.detailImages.length > 0) {
-      return product.detailImages.map(img => normalizeImageUrl(img));
-    }
-    return [];
-  }, [product]);
 
   if (isLoading) {
     return <ProductPageSkeleton />;
@@ -398,6 +329,19 @@ export default function ProductPage() {
       </div>
     );
   }
+
+  const totalPrice = useMemo(() => {
+    let price = product.basePrice;
+    if (selectedOptions.specification) price += selectedOptions.specification.price;
+    if (selectedOptions.binding) price += selectedOptions.binding.price;
+    if (selectedOptions.paper) price += selectedOptions.paper.price;
+    if (selectedOptions.cover) price += selectedOptions.cover.price;
+    if (selectedOptions.foil) price += selectedOptions.foil.price;
+    for (const finishing of selectedOptions.finishings) {
+      price += finishing.price;
+    }
+    return price * quantity;
+  }, [product.basePrice, selectedOptions, quantity]);
 
   const handleAddToCart = () => {
     const options: CartItemOption[] = [];
@@ -438,11 +382,9 @@ export default function ProductPage() {
       });
     }
     for (const finishing of selectedOptions.finishings) {
-      const settingId = selectedOptions.finishingSettings[finishing.id];
-      const setting = finishing.productionGroup?.settings?.find(s => s.id === settingId);
       options.push({
         name: t('finishing'),
-        value: setting ? `${finishing.name} - ${setting.settingName}` : finishing.name,
+        value: finishing.name,
         price: finishing.price,
       });
     }
@@ -591,19 +533,7 @@ export default function ProductPage() {
       foilPosition: selectedOptions.foilPosition,
       foilPositionName: copperPlateLabels?.platePositions?.find(p => p.code === selectedOptions.foilPosition)?.name,
       finishingIds: selectedOptions.finishings.map(f => f.id),
-      finishingNames: selectedOptions.finishings.map(f => {
-        const settingId = selectedOptions.finishingSettings[f.id];
-        const setting = f.productionGroup?.settings?.find(s => s.id === settingId);
-        return setting ? `${f.name} - ${setting.settingName}` : f.name;
-      }),
-      finishingSettingIds: Object.entries(selectedOptions.finishingSettings)
-        .filter(([fId]) => selectedOptions.finishings.some(f => f.id === fId))
-        .map(([, sId]) => sId),
-      // 원단 (앨범 표지)
-      coverSourceType: defaultCoverSourceType || undefined,
-      fabricId: selectedFabricInfo?.id || undefined,
-      fabricName: selectedFabricInfo?.name || undefined,
-      fabricThumbnail: selectedFabricInfo?.thumbnail || undefined,
+      finishingNames: selectedOptions.finishings.map(f => f.name),
     };
 
     try {
@@ -654,23 +584,12 @@ export default function ProductPage() {
       ? product?.publicCopperPlates?.find(p => p.id === opts.copperPlateId)?.publicCopperPlate
       : undefined;
 
-    // 세팅값 복원
-    const finishingSettings: Record<string, string> = {};
-    if (opts.finishingSettingIds) {
-      finishings.forEach((f, i) => {
-        if (opts.finishingSettingIds?.[i]) {
-          finishingSettings[f.id] = opts.finishingSettingIds[i];
-        }
-      });
-    }
-
     setSelectedOptions({
       specification: spec,
       binding,
       paper,
       cover,
       finishings,
-      finishingSettings,
       printSide: opts.printSide,
       copperPlateType: opts.copperPlateType,
       ownedCopperPlate: ownedPlate,
@@ -678,23 +597,6 @@ export default function ProductPage() {
       foilColor: opts.foilColor,
       foilPosition: opts.foilPosition,
     });
-
-    // 원단 복원
-    if (opts.coverSourceType) {
-      applyGlobalCoverSource(opts.coverSourceType);
-    }
-    if (opts.fabricId && opts.fabricName) {
-      setSelectedFabric({
-        id: opts.fabricId,
-        name: opts.fabricName,
-        thumbnail: opts.fabricThumbnail || null,
-        price: 0,
-      });
-      // 기존 폴더에도 적용
-      uploadFolders.forEach(f => {
-        setFolderFabric(f.id, opts.fabricId!, opts.fabricName!, opts.fabricThumbnail || null, 0);
-      });
-    }
 
     setQuantity(myProduct.defaultQuantity);
     setShowLoadMyProductModal(false);
@@ -705,71 +607,45 @@ export default function ProductPage() {
     });
   };
 
+  const images = useMemo(() => {
+    if (product.thumbnailUrl) {
+      return [normalizeImageUrl(product.thumbnailUrl), ...product.detailImages.map(img => normalizeImageUrl(img))];
+    }
+    if (product.detailImages.length > 0) {
+      return product.detailImages.map(img => normalizeImageUrl(img));
+    }
+    return [];
+  }, [product.thumbnailUrl, product.detailImages]);
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50">
+    <div className="min-h-screen bg-gray-50">
       {/* Breadcrumb */}
-      <div className="bg-white/80 backdrop-blur-sm border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 py-3">
-          <nav className="flex items-center gap-1.5 text-sm text-gray-400">
-            <Link href="/" className="hover:text-primary transition-colors">{tc('home')}</Link>
-            <ChevronRight className="h-3.5 w-3.5" />
+      <div className="bg-white border-b">
+        <div className="container mx-auto px-4 py-3">
+          <nav className="flex items-center gap-2 text-sm text-gray-500">
+            <Link href="/" className="hover:text-primary">{tc('home')}</Link>
+            <ChevronRight className="h-4 w-4" />
             {product.category && (
               <>
-                <Link href={`/category/${product.category.id}`} className="hover:text-primary transition-colors">
+                <Link href={`/category/${product.category.id}`} className="hover:text-primary">
                   {product.category.name}
                 </Link>
-                <ChevronRight className="h-3.5 w-3.5" />
+                <ChevronRight className="h-4 w-4" />
               </>
             )}
-            <span className="text-gray-700 font-medium truncate max-w-[200px]">
+            <span className="text-gray-900 font-medium truncate max-w-[200px]">
               {product.productName}
             </span>
           </nav>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="flex flex-col lg:flex-row gap-10">
-
-          {/* Product Images - LEFT side */}
-          <div className="w-full lg:w-[480px] lg:sticky lg:top-4 lg:self-start flex-shrink-0 space-y-4 animate-fade-in">
-            {/* Main Image */}
-            <div className="aspect-square bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm group relative">
-              {images.length > 0 ? (
-                <img
-                  src={images[selectedImage]}
-                  alt={product.productName}
-                  className="w-full h-full object-contain image-zoom"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
-                  <ImageIcon className="h-16 w-16 text-gray-300" />
-                </div>
-              )}
-            </div>
-
-            {/* Thumbnail Gallery */}
-            {images.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {images.map((img, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setSelectedImage(idx)}
-                    className={cn(
-                      "w-16 h-16 flex-shrink-0 rounded-xl border-2 overflow-hidden transition-all duration-200",
-                      selectedImage === idx
-                        ? "border-primary ring-2 ring-primary/20 scale-105"
-                        : "border-gray-200 hover:border-gray-300 opacity-70 hover:opacity-100"
-                    )}
-                  >
-                    <img src={img} alt="" className="w-full h-full object-cover" />
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Action buttons under image */}
-            <div className="flex flex-wrap gap-2">
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Product Info - 나머지 공간 사용 */}
+          <div className="flex-1 space-y-5">
+            {/* 마이상품 & Share & Wishlist */}
+            <div className="flex flex-wrap gap-1.5">
               {isAuthenticated && (
                 <>
                   <Button
@@ -779,9 +655,9 @@ export default function ProductPage() {
                       setMyProductName(`${product.productName} ${selectedOptions.specification?.name || ''}`.trim());
                       setShowSaveMyProductModal(true);
                     }}
-                    className="text-xs h-8 px-3 rounded-full text-primary border-primary/30 hover:bg-primary/5 transition-all"
+                    className="text-xs h-7 px-2 text-primary border-primary hover:bg-primary/10"
                   >
-                    <Star className="h-3.5 w-3.5 mr-1.5" />
+                    <Star className="h-3.5 w-3.5 mr-1" />
                     {t('saveMyProduct')}
                   </Button>
                   {myProducts && myProducts.length > 0 && (
@@ -789,90 +665,81 @@ export default function ProductPage() {
                       variant="outline"
                       size="sm"
                       onClick={() => setShowLoadMyProductModal(true)}
-                      className="text-xs h-8 px-3 rounded-full text-orange-600 border-orange-200 hover:bg-orange-50 transition-all"
+                      className="text-xs h-7 px-2 text-orange-600 border-orange-600 hover:bg-orange-50"
                     >
-                      <FolderHeart className="h-3.5 w-3.5 mr-1.5" />
+                      <FolderHeart className="h-3.5 w-3.5 mr-1" />
                       {t('loadMyProduct')} ({myProducts.filter(mp => mp.productId === product.id).length})
                     </Button>
                   )}
                 </>
               )}
-              <Button variant="ghost" size="sm" className="text-xs h-8 px-3 rounded-full text-gray-400 hover:text-red-400 transition-all">
-                <Heart className="h-3.5 w-3.5 mr-1.5" />
+              <Button variant="ghost" size="sm" className="text-xs h-7 px-2 text-gray-500">
+                <Heart className="h-3.5 w-3.5 mr-1" />
                 {tc('wishlist')}
               </Button>
-              <Button variant="ghost" size="sm" className="text-xs h-8 px-3 rounded-full text-gray-400 hover:text-blue-400 transition-all">
-                <Share2 className="h-3.5 w-3.5 mr-1.5" />
+              <Button variant="ghost" size="sm" className="text-xs h-7 px-2 text-gray-500">
+                <Share2 className="h-3.5 w-3.5 mr-1" />
                 {tc('share')}
               </Button>
             </div>
-          </div>
 
-          {/* Product Info - RIGHT side */}
-          <div className="flex-1 space-y-6 animate-fade-in-up">
             {/* Header */}
             <div>
-              {product.category && (
-                <span className="inline-block text-xs font-medium text-primary/80 tracking-wide uppercase mb-1.5">
-                  {product.category.name}
-                </span>
-              )}
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">{product.productName}</h1>
+              <h1 className="text-2xl md:text-3xl font-bold mb-2">{product.productName}</h1>
             </div>
 
             {/* Price - 화보 상품은 데이터 업로드 후 폴더별로 계산하므로 숨김 */}
             {!isAlbum && (
-              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-gray-900 to-gray-800 p-5 text-white">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-                <div className="relative">
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-3xl font-bold tracking-tight">
-                      {totalPrice.toLocaleString()}
-                    </span>
-                    <span className="text-lg text-gray-300">{tc('won')}</span>
-                  </div>
-                  <p className="text-sm text-gray-400 mt-1.5">
-                    {t('basePrice')} {product.basePrice.toLocaleString()}{tc('won')} + {t('optionPrice')}
-                  </p>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-bold text-primary">
+                    {totalPrice.toLocaleString()}
+                  </span>
+                  <span className="text-lg">{tc('won')}</span>
                 </div>
+                <p className="text-sm text-gray-500 mt-1">
+                  {t('basePrice')} {product.basePrice.toLocaleString()}{tc('won')} + {t('optionPrice')}
+                </p>
               </div>
             )}
 
             {/* Options */}
-            <div className="space-y-5 divide-y divide-gray-100/70 [&>*]:pt-5 [&>*:first-child]:pt-0">
+            <div className="space-y-6">
               {/* Binding */}
               {product.bindings && product.bindings.length > 0 && (
                 <OptionSection title={t('bindingMethod')}>
-                  <RadioGroup
-                    value={selectedOptions.binding?.id}
-                    onValueChange={(value) => {
-                      const binding = product.bindings?.find(b => b.id === value);
-                      setSelectedOptions(prev => ({
-                        ...prev,
-                        binding,
-                        printSide: binding ? getDefaultPrintSideByBinding(binding.name) : prev.printSide,
-                      }));
-                    }}
-                    className="flex flex-wrap gap-2"
-                  >
-                    {product.bindings.map((binding) => (
-                      <Label
-                        key={binding.id}
-                        className={cn(
-                          "option-pill inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm border cursor-pointer",
-                          selectedOptions.binding?.id === binding.id
-                            ? "border-primary bg-primary text-white shadow-md shadow-primary/20"
-                            : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
-                        )}
-                      >
-                        <RadioGroupItem value={binding.id} className="sr-only" />
-                        <span>{binding.name.split(' - ')[0]}</span>
-                        {binding.price > 0 && (
-                          <span className={cn("text-xs", selectedOptions.binding?.id === binding.id ? "text-white/70" : "text-primary font-medium")}>+{binding.price.toLocaleString()}</span>
-                        )}
-                      </Label>
-                    ))}
-                  </RadioGroup>
+                  <div className="grid grid-cols-2 gap-2">
+                    <RadioGroup
+                      value={selectedOptions.binding?.id}
+                      onValueChange={(value) => {
+                        const binding = product.bindings?.find(b => b.id === value);
+                        setSelectedOptions(prev => ({
+                          ...prev,
+                          binding,
+                          printSide: binding ? getDefaultPrintSideByBinding(binding.name) : prev.printSide,
+                        }));
+                      }}
+                      className="grid grid-cols-2 gap-2 col-span-2"
+                    >
+                      {product.bindings.map((binding) => (
+                        <Label
+                          key={binding.id}
+                          className={cn(
+                            "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors bg-white",
+                            selectedOptions.binding?.id === binding.id
+                              ? "border-primary bg-primary/5"
+                              : "hover:border-gray-400"
+                          )}
+                        >
+                          <RadioGroupItem value={binding.id} />
+                          <span className="flex-1 text-xs">{binding.name.split(' - ')[0]}</span>
+                          {binding.price > 0 && (
+                            <span className="text-xs text-primary">+{binding.price.toLocaleString()}</span>
+                          )}
+                        </Label>
+                      ))}
+                    </RadioGroup>
+                  </div>
                 </OptionSection>
               )}
 
@@ -880,14 +747,14 @@ export default function ProductPage() {
               {isAlbum && (
                 <OptionSection title={t('albumCover')}>
                   <div className="flex items-center gap-3 flex-wrap">
-                    <div className="inline-flex gap-1 bg-gray-100 rounded-xl p-0.5">
+                    <div className="inline-flex rounded-lg border border-gray-200 p-0.5 bg-gray-50">
                       <button
                         type="button"
                         onClick={() => applyGlobalCoverSource('fabric')}
                         className={cn(
-                          'px-3.5 py-2 text-xs font-medium rounded-lg transition-all flex items-center gap-1.5',
+                          'px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5',
                           defaultCoverSourceType === 'fabric'
-                            ? 'bg-white text-gray-900 shadow-sm'
+                            ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
                             : 'text-gray-500 hover:text-gray-700'
                         )}
                       >
@@ -898,9 +765,9 @@ export default function ProductPage() {
                         type="button"
                         onClick={() => applyGlobalCoverSource('design')}
                         className={cn(
-                          'px-3.5 py-2 text-xs font-medium rounded-lg transition-all flex items-center gap-1.5',
+                          'px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5',
                           defaultCoverSourceType === 'design'
-                            ? 'bg-white text-gray-900 shadow-sm'
+                            ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
                             : 'text-gray-500 hover:text-gray-700'
                         )}
                       >
@@ -914,16 +781,16 @@ export default function ProductPage() {
                       <div className="flex items-center gap-3">
                         <Button
                           size="sm"
-                          className="h-7 text-xs bg-primary hover:bg-primary/90 flex-shrink-0"
+                          className="h-7 text-xs bg-amber-600 hover:bg-amber-700 flex-shrink-0"
                           onClick={() => setShowCoverFabricDialog(true)}
                         >
-                          선택원단
+                          {selectedFabricInfo?.id ? tc('change') : t('selectFabric')}
                         </Button>
                         {selectedFabricInfo?.id && (
-                          <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-gray-200 bg-gray-50">
+                          <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-amber-200 bg-amber-50">
                             {selectedFabricInfo.thumbnail && (
                               <div
-                                className="w-12 h-12 rounded border border-gray-300 bg-cover bg-center flex-shrink-0"
+                                className="w-12 h-12 rounded border border-amber-300 bg-cover bg-center flex-shrink-0"
                                 style={{ backgroundImage: `url(${selectedFabricInfo.thumbnail})` }}
                               />
                             )}
@@ -972,25 +839,25 @@ export default function ProductPage() {
                       >
                         {groupEntries.map(([type, papers]) => (
                           <div key={type} className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs font-medium text-gray-400 min-w-[60px]">
+                            <span className="text-xs font-medium text-gray-700 min-w-[60px]">
                               {type}
                             </span>
                             {papers.map((paper) => (
                               <Label
                                 key={paper.id}
                                 className={cn(
-                                  "option-pill inline-flex items-center gap-1.5 px-3 py-1.5 border rounded-xl cursor-pointer text-xs",
+                                  "flex items-center gap-1.5 px-3 py-1.5 border rounded-md cursor-pointer transition-colors text-xs",
                                   selectedOptions.paper?.id === paper.id
-                                    ? "border-primary bg-primary text-white font-medium shadow-sm shadow-primary/20"
-                                    : "border-gray-200 text-gray-600 hover:border-gray-300"
+                                    ? "border-primary bg-primary/5 font-medium"
+                                    : "hover:border-gray-400"
                                 )}
                               >
-                                <RadioGroupItem value={paper.id} className="sr-only" />
+                                <RadioGroupItem value={paper.id} className="h-3.5 w-3.5 flex-shrink-0" />
                                 <span className="whitespace-nowrap">
                                   {paper.grammage ? `${paper.grammage}g` : paper.name}
                                 </span>
-                                {paper.frontCoating && <Badge variant="outline" className={cn("text-[10px] px-1 py-0 border-current rounded-md", selectedOptions.paper?.id === paper.id && "border-white/40 text-white/80")}>{paper.frontCoating}</Badge>}
-                                {paper.grade && <Badge variant="secondary" className={cn("text-[10px] px-1 py-0 rounded-md", selectedOptions.paper?.id === paper.id && "bg-white/20 text-white/80")}>G{paper.grade}</Badge>}
+                                {paper.frontCoating && <Badge variant="outline" className="text-[10px] px-1 py-0">{paper.frontCoating}</Badge>}
+                                {paper.grade && <Badge variant="secondary" className="text-[10px] px-1 py-0">G{paper.grade}</Badge>}
                               </Label>
                             ))}
                           </div>
@@ -1004,107 +871,84 @@ export default function ProductPage() {
               {/* Finishings */}
               {product.finishings && product.finishings.length > 0 && (
                 <OptionSection title={t('finishing')}>
-                  <div className="space-y-2">
-                    {product.finishings.map((finishing) => {
-                      const isChecked = selectedOptions.finishings.some(f => f.id === finishing.id);
-                      const settings = finishing.productionGroup?.settings || [];
-                      const selectedSettingId = selectedOptions.finishingSettings[finishing.id];
-
-                      return (
-                        <div key={finishing.id} className={cn(
-                          "rounded-xl border p-3 transition-all duration-200",
-                          isChecked
-                            ? "border-primary/30 bg-primary/5"
-                            : "border-gray-100 hover:border-gray-200"
-                        )}>
-                          <Label
-                            className="flex items-center gap-3 cursor-pointer"
-                          >
-                            <Checkbox
-                              checked={isChecked}
-                              onCheckedChange={(checked) => {
-                                setSelectedOptions(prev => {
-                                  const newFinishingSettings = { ...prev.finishingSettings };
-                                  if (checked) {
-                                    // 첫 번째 세팅을 기본 선택
-                                    if (settings.length > 0) {
-                                      newFinishingSettings[finishing.id] = settings[0].id;
-                                    }
-                                  } else {
-                                    delete newFinishingSettings[finishing.id];
-                                  }
-                                  return {
-                                    ...prev,
-                                    finishings: checked
-                                      ? [...prev.finishings, finishing]
-                                      : prev.finishings.filter(f => f.id !== finishing.id),
-                                    finishingSettings: newFinishingSettings,
-                                  };
-                                });
-                              }}
-                            />
-                            <span className="flex-1 text-sm">{finishing.name}</span>
-                            {settings.length > 0 && (
-                              <span className="text-xs text-gray-400">{settings.length}</span>
-                            )}
-                            {finishing.price > 0 && (
-                              <span className="text-xs text-gray-900">+{finishing.price.toLocaleString()}</span>
-                            )}
-                          </Label>
-                          {/* 세팅값 선택 - 체크 시 표시 */}
-                          {isChecked && settings.length > 0 && (
-                            <div className="ml-8 mt-2 flex flex-wrap gap-1.5">
-                              {settings.map((setting) => (
-                                <button
-                                  key={setting.id}
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedOptions(prev => ({
-                                      ...prev,
-                                      finishingSettings: { ...prev.finishingSettings, [finishing.id]: setting.id },
-                                    }));
-                                  }}
-                                  className={cn(
-                                    "option-pill px-3 py-1.5 text-xs border rounded-xl",
-                                    selectedSettingId === setting.id
-                                      ? "border-primary bg-primary text-white font-medium shadow-sm shadow-primary/20"
-                                      : "border-gray-200 hover:border-gray-300 text-gray-600"
-                                  )}
-                                >
-                                  {setting.settingName}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                  <div className="grid grid-cols-2 gap-2">
+                    {product.finishings.map((finishing) => (
+                      <Label
+                        key={finishing.id}
+                        className={cn(
+                          "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors",
+                          selectedOptions.finishings.some(f => f.id === finishing.id)
+                            ? "border-primary bg-primary/5"
+                            : "hover:border-gray-400"
+                        )}
+                      >
+                        <Checkbox
+                          checked={selectedOptions.finishings.some(f => f.id === finishing.id)}
+                          onCheckedChange={(checked) => {
+                            setSelectedOptions(prev => ({
+                              ...prev,
+                              finishings: checked
+                                ? [...prev.finishings, finishing]
+                                : prev.finishings.filter(f => f.id !== finishing.id),
+                            }));
+                          }}
+                        />
+                        <span className="flex-1">{finishing.name}</span>
+                        {finishing.price > 0 && (
+                          <span className="text-sm text-primary">+{finishing.price.toLocaleString()}</span>
+                        )}
+                      </Label>
+                    ))}
                   </div>
                 </OptionSection>
               )}
 
               {/* 출력구분 - 제본방법에 따라 자동 설정 (읽기 전용) */}
               <OptionSection title={t('printSection')}>
-                <div className="flex gap-2">
+                <div className="flex gap-6">
                   <div
                     className={cn(
-                      "px-4 py-2.5 rounded-xl text-sm border transition-all duration-200",
+                      "flex items-center gap-2 py-1 transition-colors",
                       selectedOptions.printSide === 'single'
-                        ? "border-primary bg-primary text-white shadow-sm shadow-primary/20"
-                        : "border-gray-200 text-gray-400"
+                        ? ""
+                        : "text-gray-400"
                     )}
                   >
-                    <span>{t('singleSided')}</span>
+                    <div className={cn(
+                      "w-4 h-4 rounded-full border-2",
+                      selectedOptions.printSide === 'single'
+                        ? "border-primary bg-primary"
+                        : "border-gray-300"
+                    )}>
+                      {selectedOptions.printSide === 'single' && (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <div className="w-2 h-2 rounded-full bg-white" />
+                        </div>
+                      )}
+                    </div>
+                    <span className="flex-1 text-xs">{t('singleSided')}</span>
                   </div>
                   <div
                     className={cn(
-                      "px-4 py-2.5 rounded-xl text-sm border transition-all duration-200",
+                      "flex items-center gap-2 py-1 transition-colors",
                       selectedOptions.printSide === 'double'
-                        ? "border-primary bg-primary text-white shadow-sm shadow-primary/20"
-                        : "border-gray-200 text-gray-400"
+                        ? ""
+                        : "text-gray-400"
                     )}
                   >
-                    <span>{t('doubleSided')}</span>
+                    <div className={cn(
+                      "w-4 h-4 rounded-full border-2",
+                      selectedOptions.printSide === 'double'
+                        ? "border-primary bg-primary"
+                        : "border-gray-300"
+                    )}>
+                      {selectedOptions.printSide === 'double' && (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <div className="w-2 h-2 rounded-full bg-white" />
+                        </div>
+                      )}
+                    </div>
+                    <span className="flex-1 text-xs">{t('doubleSided')}</span>
                   </div>
                 </div>
                 <p className="text-xs text-gray-500 mt-2">
@@ -1124,31 +968,26 @@ export default function ProductPage() {
               {/* Quantity - 화보 상품은 데이터 업로드 후 폴더별로 수량 결정 */}
               {!isAlbum && (
               <OptionSection title={tc('quantity')}>
-                <div className="flex items-center gap-3">
-                  <div className="inline-flex items-center gap-1">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center border rounded-lg">
                     <button
-                      type="button"
                       onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="w-8 h-8 rounded-full border border-gray-200 hover:bg-gray-100 transition-colors flex items-center justify-center"
-                      aria-label="Decrease quantity"
+                      className="p-3 hover:bg-gray-100 transition-colors"
                     >
-                      <Minus className="h-3.5 w-3.5" />
+                      <Minus className="h-4 w-4" />
                     </button>
                     <input
                       type="number"
                       value={quantity}
                       onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                      className="w-12 text-center text-sm font-medium py-1.5 border-0 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      className="w-16 text-center border-x py-2"
                       min="1"
-                      aria-label="Quantity"
                     />
                     <button
-                      type="button"
                       onClick={() => setQuantity(quantity + 1)}
-                      className="w-8 h-8 rounded-full border border-gray-200 hover:bg-gray-100 transition-colors flex items-center justify-center"
-                      aria-label="Increase quantity"
+                      className="p-3 hover:bg-gray-100 transition-colors"
                     >
-                      <Plus className="h-3.5 w-3.5" />
+                      <Plus className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
@@ -1170,45 +1009,6 @@ export default function ProductPage() {
 
           {/* Product Images - 고정 너비 */}
           <div className="w-full lg:w-[400px] lg:sticky lg:top-4 lg:self-start flex-shrink-0 space-y-3">
-            {/* 마이상품 & 찜하기 & 공유하기 - 이미지 상단 */}
-            <div className="flex flex-wrap gap-1.5">
-              {isAuthenticated && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setMyProductName(`${product.productName} ${selectedOptions.specification?.name || ''}`.trim());
-                      setShowSaveMyProductModal(true);
-                    }}
-                    className="text-xs h-7 px-2 text-primary border-primary hover:bg-primary/10"
-                  >
-                    <Star className="h-3.5 w-3.5 mr-1" />
-                    {t('saveMyProduct')}
-                  </Button>
-                  {myProducts && myProducts.length > 0 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowLoadMyProductModal(true)}
-                      className="text-xs h-7 px-2 text-orange-600 border-orange-600 hover:bg-orange-50"
-                    >
-                      <FolderHeart className="h-3.5 w-3.5 mr-1" />
-                      {t('loadMyProduct')} ({myProducts.filter(mp => mp.productId === product.id).length})
-                    </Button>
-                  )}
-                </>
-              )}
-              <Button variant="ghost" size="sm" className="text-xs h-7 px-2 text-gray-500">
-                <Heart className="h-3.5 w-3.5 mr-1" />
-                {tc('wishlist')}
-              </Button>
-              <Button variant="ghost" size="sm" className="text-xs h-7 px-2 text-gray-500">
-                <Share2 className="h-3.5 w-3.5 mr-1" />
-                {tc('share')}
-              </Button>
-            </div>
-
             {/* Main Image */}
             <div className="aspect-square bg-white rounded-lg border overflow-hidden shadow-sm">
               {images.length > 0 ? (
@@ -1266,45 +1066,45 @@ export default function ProductPage() {
                 className="space-y-3"
               >
                 {/* 동판 타입 가로 배치 */}
-                <div className="flex flex-wrap gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <Label
                     className={cn(
-                      "inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-sm border cursor-pointer transition-colors",
+                      "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors",
                       selectedOptions.copperPlateType === 'none'
-                        ? "border-gray-900 bg-gray-900 text-white"
-                        : "border-gray-200 bg-white text-gray-600 hover:border-gray-400"
+                        ? "border-primary bg-primary/5"
+                        : "hover:border-gray-400"
                     )}
                   >
-                    <RadioGroupItem value="none" className="sr-only" />
-                    <span>{t('noCopperPlate')}</span>
+                    <RadioGroupItem value="none" />
+                    <span className="text-xs">{t('noCopperPlate')}</span>
                   </Label>
 
                   {allPublicCopperPlates?.data && allPublicCopperPlates.data.length > 0 && (
                     <Label
                       className={cn(
-                        "inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-sm border cursor-pointer transition-colors",
+                        "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors",
                         selectedOptions.copperPlateType === 'public'
-                          ? "border-gray-900 bg-gray-900 text-white"
-                          : "border-gray-200 bg-white text-gray-600 hover:border-gray-400"
+                          ? "border-primary bg-primary/5"
+                          : "hover:border-gray-400"
                       )}
                     >
-                      <RadioGroupItem value="public" className="sr-only" />
-                      <span>{t('publicCopperPlate')}</span>
+                      <RadioGroupItem value="public" />
+                      <span className="text-xs">{t('publicCopperPlate')}</span>
                     </Label>
                   )}
 
                   {isAuthenticated && ownedCopperPlates && ownedCopperPlates.length > 0 && (
                     <Label
                       className={cn(
-                        "inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-sm border cursor-pointer transition-colors",
+                        "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors",
                         selectedOptions.copperPlateType === 'owned'
-                          ? "border-gray-900 bg-gray-900 text-white"
-                          : "border-gray-200 bg-white text-gray-600 hover:border-gray-400"
+                          ? "border-primary bg-primary/5"
+                          : "hover:border-gray-400"
                       )}
                     >
-                      <RadioGroupItem value="owned" className="sr-only" />
-                      <span>{t('ownedCopperPlate')}</span>
-                      <Badge variant="secondary" className={cn("text-xs", selectedOptions.copperPlateType === 'owned' && "bg-gray-700 text-gray-300")}>{t('countUnit', { count: ownedCopperPlates.length })}</Badge>
+                      <RadioGroupItem value="owned" />
+                      <span className="text-xs">{t('ownedCopperPlate')}</span>
+                      <Badge variant="secondary" className="ml-auto text-xs">{t('countUnit', { count: ownedCopperPlates.length })}</Badge>
                     </Label>
                   )}
                 </div>
@@ -1317,7 +1117,7 @@ export default function ProductPage() {
                       <button
                         type="button"
                         onClick={() => setIsCopperPlateListExpanded(true)}
-                        className="w-full flex items-center gap-3 p-2 border border-gray-900 rounded-md bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+                        className="w-full flex items-center gap-3 p-2 border-2 border-primary rounded-md bg-primary/5 hover:bg-primary/10 transition-colors text-left"
                       >
                         {selectedOptions.publicCopperPlate.imageUrl && (
                           <div className="relative group/logo shrink-0">
@@ -1339,7 +1139,7 @@ export default function ProductPage() {
                           <div className="font-medium text-sm">
                             {selectedOptions.publicCopperPlate.plateName}
                             {(selectedOptions.publicCopperPlate.widthMm || selectedOptions.publicCopperPlate.heightMm) && (
-                              <span className="ml-1 text-xs text-gray-500">
+                              <span className="ml-1 text-xs text-blue-600">
                                 ({selectedOptions.publicCopperPlate.widthMm}x{selectedOptions.publicCopperPlate.heightMm}mm)
                               </span>
                             )}
@@ -1348,7 +1148,7 @@ export default function ProductPage() {
                             <div className="text-xs text-gray-500">{t('engraving')} {selectedOptions.publicCopperPlate.defaultEngravingText}</div>
                           )}
                         </div>
-                        <div className="flex items-center gap-1 text-xs text-gray-500">
+                        <div className="flex items-center gap-1 text-xs text-primary">
                           <span>{t('change')}</span>
                           <ChevronDown className="h-3 w-3" />
                         </div>
@@ -1363,7 +1163,7 @@ export default function ProductPage() {
                           className={cn(
                             "flex items-center gap-3 p-2 border rounded-md cursor-pointer transition-colors",
                             selectedOptions.publicCopperPlate?.id === plate.id
-                              ? "border-gray-900 bg-gray-50"
+                              ? "border-primary bg-primary/5"
                               : "hover:border-gray-400"
                           )}
                           onClick={() => {
@@ -1391,7 +1191,7 @@ export default function ProductPage() {
                             <div className="font-medium text-sm">
                               {plate.plateName}
                               {(plate.widthMm || plate.heightMm) && (
-                                <span className="ml-1 text-xs text-gray-500">
+                                <span className="ml-1 text-xs text-blue-600">
                                   ({plate.widthMm}x{plate.heightMm}mm)
                                 </span>
                               )}
@@ -1422,7 +1222,7 @@ export default function ProductPage() {
                               className={cn(
                                 "flex items-center gap-1.5 px-2 py-1 text-xs rounded-md border transition-colors",
                                 selectedOptions.foilColor === color.code
-                                  ? "border-gray-900 bg-gray-100 ring-1 ring-gray-900"
+                                  ? "border-primary bg-primary/10 ring-2 ring-primary"
                                   : "border-gray-300 hover:border-gray-400"
                               )}
                             >
@@ -1457,7 +1257,7 @@ export default function ProductPage() {
                               className={cn(
                                 "px-2 py-1 text-xs rounded-md border transition-colors",
                                 selectedOptions.foilPosition === pos.code
-                                  ? "border-gray-900 bg-gray-900 text-white"
+                                  ? "border-primary bg-primary text-white"
                                   : "border-gray-300 hover:border-gray-400"
                               )}
                             >
@@ -1478,7 +1278,7 @@ export default function ProductPage() {
                       <button
                         type="button"
                         onClick={() => setIsCopperPlateListExpanded(true)}
-                        className="w-full flex items-center gap-2 p-2 border border-gray-900 rounded-md bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+                        className="w-full flex items-center gap-2 p-2 border-2 border-primary rounded-md bg-primary/5 hover:bg-primary/10 transition-colors text-left"
                       >
                         {selectedOptions.ownedCopperPlate.imageUrl && (
                           <div className="relative group/logo shrink-0">
@@ -1511,7 +1311,7 @@ export default function ProductPage() {
                             <span className="text-xs text-gray-400">{new Date(selectedOptions.ownedCopperPlate.registeredAt).toLocaleDateString('ko-KR')}</span>
                           </>
                         )}
-                        <div className="flex items-center gap-1 text-xs text-gray-500 ml-auto">
+                        <div className="flex items-center gap-1 text-xs text-primary ml-auto">
                           <span>{t('change')}</span>
                           <ChevronDown className="h-3 w-3" />
                         </div>
@@ -1529,7 +1329,7 @@ export default function ProductPage() {
                             className={cn(
                               "flex items-center gap-2 p-2 border rounded-md cursor-pointer transition-colors",
                               isSelected
-                                ? "border-gray-900 bg-gray-50"
+                                ? "border-primary bg-primary/5"
                                 : "hover:border-gray-400"
                             )}
                             onClick={() => {
@@ -1621,7 +1421,7 @@ export default function ProductPage() {
                                   className={cn(
                                     "flex items-center gap-1.5 px-2 py-1 text-xs rounded-md border transition-colors",
                                     selectedOptions.foilColor === color.code
-                                      ? "border-gray-900 bg-gray-100 ring-1 ring-gray-900"
+                                      ? "border-primary bg-primary/10 ring-2 ring-primary"
                                       : "border-gray-300 hover:border-gray-400"
                                   )}
                                 >
@@ -1655,7 +1455,7 @@ export default function ProductPage() {
                                   className={cn(
                                     "px-2 py-1 text-xs rounded-md border transition-colors",
                                     selectedOptions.foilPosition === pos.code
-                                      ? "border-gray-900 bg-gray-900 text-white"
+                                      ? "border-primary bg-primary text-white"
                                       : "border-gray-300 hover:border-gray-400"
                                   )}
                                 >
@@ -1708,12 +1508,12 @@ export default function ProductPage() {
             />
 
             {/* 화보/앨범 주문 안내 */}
-            <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 mt-4">
+            <div className="bg-pink-50 border border-pink-200 rounded-lg p-4 mt-4">
               <div className="flex items-start gap-3">
-                <BookOpen className="h-5 w-5 text-primary mt-0.5" />
+                <BookOpen className="h-5 w-5 text-pink-600 mt-0.5" />
                 <div>
-                  <h4 className="font-medium text-gray-900">{t('albumOrderGuide')}</h4>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <h4 className="font-medium text-pink-900">{t('albumOrderGuide')}</h4>
+                  <p className="text-sm text-pink-700 mt-1">
                     {t('albumOrderDescription')}
                   </p>
                 </div>
@@ -1730,7 +1530,7 @@ export default function ProductPage() {
               <CardTitle>{t('detailInfo')}</CardTitle>
             </CardHeader>
             <CardContent>
-              {/* 주문가능규격 */}
+              {/* 제작가능규격 */}
               {product.specifications && product.specifications.length > 0 && (
                 <div className="mb-8">
                   <button
@@ -1771,15 +1571,15 @@ export default function ProductPage() {
                             className={cn(
                               "flex items-center gap-1.5 px-2.5 py-2 border rounded-md cursor-pointer transition-colors text-sm bg-white",
                               selectedOptions.specification?.id === spec.id
-                                ? "border-gray-900 bg-gray-900 text-white font-medium"
+                                ? "border-primary bg-primary/5 font-medium"
                                 : "hover:border-gray-400"
                             )}
                           >
-                            <RadioGroupItem value={spec.id} className="sr-only" />
+                            <RadioGroupItem value={spec.id} className="h-3.5 w-3.5 flex-shrink-0" />
                             <div className="flex flex-col min-w-0">
                               <span className="truncate font-medium">{spec.name}</span>
                               {spec.widthMm && spec.heightMm && (
-                                <span className={cn("text-xs", selectedOptions.specification?.id === spec.id ? "text-gray-300" : "text-gray-500")}>{spec.widthMm}x{spec.heightMm}mm</span>
+                                <span className="text-xs text-gray-500">{spec.widthMm}x{spec.heightMm}mm</span>
                               )}
                             </div>
                           </Label>
@@ -1934,15 +1734,8 @@ export default function ProductPage() {
                   )}
                 </>
               )}
-              {selectedFabricInfo?.name && (
-                <p className="text-gray-600">원단: {selectedFabricInfo.name}</p>
-              )}
               {selectedOptions.finishings.length > 0 && (
-                <p className="text-gray-600">{t('finishing')}: {selectedOptions.finishings.map(f => {
-                  const settingId = selectedOptions.finishingSettings[f.id];
-                  const setting = f.productionGroup?.settings?.find(s => s.id === settingId);
-                  return setting ? `${f.name}(${setting.settingName})` : f.name;
-                }).join(', ')}</p>
+                <p className="text-gray-600">{t('finishing')}: {selectedOptions.finishings.map(f => f.name).join(', ')}</p>
               )}
               <p className="text-gray-600">{tc('quantity')}: {t('countUnit', { count: quantity })}</p>
             </div>
@@ -2013,9 +1806,6 @@ export default function ProductPage() {
                       {myProduct.options.foilPositionName && (
                         <p>{t('foilPositionColon')} {myProduct.options.foilPositionName}</p>
                       )}
-                      {myProduct.options.fabricName && (
-                        <p>원단: {myProduct.options.fabricName}</p>
-                      )}
                       <p>{tc('quantity')}: {t('countUnit', { count: myProduct.defaultQuantity })}</p>
                     </div>
                   </div>
@@ -2074,10 +1864,10 @@ export default function ProductPage() {
 function OptionSection({ title, count, children }: { title: string; count?: number; children: React.ReactNode }) {
   return (
     <div>
-      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+      <h3 className="font-bold text-sm mb-2 flex items-center gap-2">
         {title}
         {count !== undefined && count > 0 && (
-          <span className="text-xs text-gray-400 font-normal lowercase tracking-normal">({count})</span>
+          <span className="text-xs text-gray-500 font-normal">({count})</span>
         )}
       </h3>
       {children}
