@@ -159,7 +159,7 @@ function getSpreadPageNumbers(
   }
 }
 
-const ZOOM_SCALES = [1, 2, 3, 4];
+const ZOOM_SCALES = [1, 1.5, 2, 3];
 
 export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
   const t = useTranslations('folder');
@@ -569,113 +569,113 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
               })();
               return (
                 <Fragment key={file.id}>
-                {currentGroup && <ColorGroupHeader group={currentGroup} />}
-                <div
-                  className={cn(
-                    'flex flex-col transition-all',
-                    dragIndex === index && 'opacity-40 scale-95',
-                    dropIndex === index && dragIndex !== null && dragIndex !== index && 'ring-2 ring-blue-400 rounded-md'
-                  )}
-                  draggable
-                  onDragStart={(e) => {
-                    setDragIndex(index);
-                    e.dataTransfer.effectAllowed = 'move';
-                    const target = e.currentTarget;
-                    if (target) {
-                      e.dataTransfer.setDragImage(target, target.offsetWidth / 2, 20);
-                    }
-                  }}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = 'move';
-                    if (dragIndex !== null && dragIndex !== index) {
-                      setDropIndex(index);
-                    }
-                  }}
-                  onDragLeave={() => setDropIndex(null)}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    if (dragIndex !== null && dragIndex !== index) {
-                      reorderFolderFiles(folder.id, dragIndex, index);
-                    }
-                    setDragIndex(null);
-                    setDropIndex(null);
-                  }}
-                  onDragEnd={() => { setDragIndex(null); setDropIndex(null); }}
-                >
+                  {currentGroup && <ColorGroupHeader group={currentGroup} />}
                   <div
                     className={cn(
-                      'relative rounded-t-md overflow-hidden border-2 cursor-grab group',
-                      'hover:border-blue-400 hover:shadow-md transition-all',
-                      file.status === 'RATIO_MISMATCH' ? 'border-red-500 border-[3px]' :
-                        file.coverType === 'FRONT_COVER' ? 'border-blue-400' :
-                          file.coverType === 'BACK_COVER' ? 'border-purple-400' :
-                            file.coverType === 'COMBINED_COVER' ? 'border-pink-400' :
-                              'border-gray-200'
+                      'flex flex-col transition-all',
+                      dragIndex === index && 'opacity-40 scale-95',
+                      dropIndex === index && dragIndex !== null && dragIndex !== index && 'ring-2 ring-blue-400 rounded-md'
                     )}
-                    style={{ paddingTop: `${aspectRatio}%` }}
-                    onClick={() => {
-                      const fullUrl = getFullSizeUrl(file);
-                      if (fullUrl) {
-                        setPreviewImage({ url: fullUrl, fileName: file.fileName, index });
-                      } else if (file.file) {
-                        const url = URL.createObjectURL(file.file);
-                        setFullSizeUrls(prev => new Map(prev).set(file.id, url));
-                        setPreviewImage({ url, fileName: file.fileName, index });
+                    draggable
+                    onDragStart={(e) => {
+                      setDragIndex(index);
+                      e.dataTransfer.effectAllowed = 'move';
+                      const target = e.currentTarget;
+                      if (target) {
+                        e.dataTransfer.setDragImage(target, target.offsetWidth / 2, 20);
                       }
                     }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                      if (dragIndex !== null && dragIndex !== index) {
+                        setDropIndex(index);
+                      }
+                    }}
+                    onDragLeave={() => setDropIndex(null)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (dragIndex !== null && dragIndex !== index) {
+                        reorderFolderFiles(folder.id, dragIndex, index);
+                      }
+                      setDragIndex(null);
+                      setDropIndex(null);
+                    }}
+                    onDragEnd={() => { setDragIndex(null); setDropIndex(null); }}
                   >
-                    {thumbUrl ? (
-                      <img src={thumbUrl} alt={file.fileName} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
-                    ) : (
-                      <div className="absolute inset-0 w-full h-full bg-gray-100 flex items-center justify-center">
-                        <span className="text-6xl font-black text-gray-300">X</span>
+                    <div
+                      className={cn(
+                        'relative rounded-t-md overflow-hidden border-2 cursor-grab group',
+                        'hover:border-blue-400 hover:shadow-md transition-all',
+                        file.status === 'RATIO_MISMATCH' ? 'border-red-500 border-[3px]' :
+                          file.coverType === 'FRONT_COVER' ? 'border-blue-400' :
+                            file.coverType === 'BACK_COVER' ? 'border-purple-400' :
+                              file.coverType === 'COMBINED_COVER' ? 'border-pink-400' :
+                                'border-gray-200'
+                      )}
+                      style={{ paddingTop: `${aspectRatio}%` }}
+                      onClick={() => {
+                        const fullUrl = getFullSizeUrl(file);
+                        if (fullUrl) {
+                          setPreviewImage({ url: fullUrl, fileName: file.fileName, index });
+                        } else if (file.file) {
+                          const url = URL.createObjectURL(file.file);
+                          setFullSizeUrls(prev => new Map(prev).set(file.id, url));
+                          setPreviewImage({ url, fileName: file.fileName, index });
+                        }
+                      }}
+                    >
+                      {thumbUrl ? (
+                        <img src={thumbUrl} alt={file.fileName} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+                      ) : (
+                        <div className="absolute inset-0 w-full h-full bg-gray-100 flex items-center justify-center">
+                          <span className="text-6xl font-black text-gray-300">X</span>
+                        </div>
+                      )}
+                      {folder.pageLayout === 'spread' ? (() => {
+                        const pages = getSpreadPageNumbers(index, folder.files.length, folder.bindingDirection);
+                        return (
+                          <>
+                            <div className={cn('absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium', pages.left !== null ? 'bg-red-600' : 'bg-yellow-500')}>
+                              {pages.left !== null ? pages.left : t('blank')}
+                            </div>
+                            <div className={cn('absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium', pages.right !== null ? 'bg-red-600' : 'bg-yellow-500')}>
+                              {pages.right !== null ? pages.right : t('blank')}
+                            </div>
+                          </>
+                        );
+                      })() : (
+                        <div className="absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center bg-red-600 text-white text-[10px] font-medium">
+                          {file.pageNumber}
+                        </div>
+                      )}
+                      {folder.colorGroupingEnabled && file.colorInfo && (
+                        <div className="absolute bottom-1 right-1">
+                          <ColorGroupBadge colorInfo={file.colorInfo} />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <ZoomIn className="w-6 h-6 text-white" />
                       </div>
-                    )}
-                    {folder.pageLayout === 'spread' ? (() => {
-                      const pages = getSpreadPageNumbers(index, folder.files.length, folder.bindingDirection);
-                      return (
-                        <>
-                          <div className={cn('absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium', pages.left !== null ? 'bg-red-600' : 'bg-yellow-500')}>
-                            {pages.left !== null ? pages.left : t('blank')}
-                          </div>
-                          <div className={cn('absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium', pages.right !== null ? 'bg-red-600' : 'bg-yellow-500')}>
-                            {pages.right !== null ? pages.right : t('blank')}
-                          </div>
-                        </>
-                      );
-                    })() : (
-                      <div className="absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center bg-red-600 text-white text-[10px] font-medium">
-                        {file.pageNumber}
+                    </div>
+                    <div className={cn(
+                      'text-[9px] leading-tight p-1 border border-t-0 rounded-b-md',
+                      file.status === 'RATIO_MISMATCH' ? 'bg-red-50 border-red-300' : 'bg-white border-gray-200'
+                    )}>
+                      <div className="truncate font-medium" title={file.newFileName || file.fileName}>{file.newFileName || file.fileName}</div>
+                      <div className="text-gray-500 flex items-center gap-0.5">
+                        <span>{fileSizeStr} | {file.widthInch}×{file.heightInch}" | {file.dpi}dpi</span>
+                        <span className={cn(
+                          'inline-block px-1 py-0 rounded text-[8px] font-medium ml-auto',
+                          file.status === 'EXACT' ? 'bg-green-100 text-green-700' :
+                            file.status === 'RATIO_MATCH' ? 'bg-yellow-100 text-yellow-700' :
+                              'bg-red-100 text-red-700'
+                        )}>
+                          {file.status === 'EXACT' ? t('exact') : file.status === 'RATIO_MATCH' ? t('ratioMatch') : t('mismatch')}
+                        </span>
                       </div>
-                    )}
-                    {folder.colorGroupingEnabled && file.colorInfo && (
-                      <div className="absolute bottom-1 right-1">
-                        <ColorGroupBadge colorInfo={file.colorInfo} />
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <ZoomIn className="w-6 h-6 text-white" />
                     </div>
                   </div>
-                  <div className={cn(
-                    'text-[9px] leading-tight p-1 border border-t-0 rounded-b-md',
-                    file.status === 'RATIO_MISMATCH' ? 'bg-red-50 border-red-300' : 'bg-white border-gray-200'
-                  )}>
-                    <div className="truncate font-medium" title={file.newFileName || file.fileName}>{file.newFileName || file.fileName}</div>
-                    <div className="text-gray-500 flex items-center gap-0.5">
-                      <span>{fileSizeStr} | {file.widthInch}×{file.heightInch}" | {file.dpi}dpi</span>
-                      <span className={cn(
-                        'inline-block px-1 py-0 rounded text-[8px] font-medium ml-auto',
-                        file.status === 'EXACT' ? 'bg-green-100 text-green-700' :
-                          file.status === 'RATIO_MATCH' ? 'bg-yellow-100 text-yellow-700' :
-                            'bg-red-100 text-red-700'
-                      )}>
-                        {file.status === 'EXACT' ? t('exact') : file.status === 'RATIO_MATCH' ? t('ratioMatch') : t('mismatch')}
-                      </span>
-                    </div>
-                  </div>
-                </div>
                 </Fragment>
               );
             };
@@ -1180,9 +1180,9 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                                 <span className="text-gray-300">|</span>
                                 <span className="text-[10px] text-gray-500">
                                   {folder.bindingDirection === 'LEFT_START_RIGHT_END' ? t('bindingLeftRight') :
-                                   folder.bindingDirection === 'LEFT_START_LEFT_END' ? t('bindingLeftLeft') :
-                                   folder.bindingDirection === 'RIGHT_START_LEFT_END' ? t('bindingRightLeft') :
-                                   t('bindingRightRight')}
+                                    folder.bindingDirection === 'LEFT_START_LEFT_END' ? t('bindingLeftLeft') :
+                                      folder.bindingDirection === 'RIGHT_START_LEFT_END' ? t('bindingRightLeft') :
+                                        t('bindingRightRight')}
                                 </span>
                               </>
                             )}
@@ -1319,9 +1319,9 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                   <div className="ml-auto flex gap-1">
                     {[
                       { level: 0, label: t('zoomOriginal') },
-                      { level: 1, label: '200%' },
-                      { level: 2, label: '300%' },
-                      { level: 3, label: '400%' },
+                      { level: 1, label: '150%' },
+                      { level: 2, label: '200%' },
+                      { level: 3, label: '300%' },
                     ].map(({ level, label }) => (
                       <button
                         key={level}

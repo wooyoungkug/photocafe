@@ -135,7 +135,7 @@ export interface Product {
   description?: string;
   sortOrder: number;
   viewCount: number;
-  orderCount: number;
+  outputPriceSettings?: any[];
   createdAt: string;
   updatedAt: string;
 

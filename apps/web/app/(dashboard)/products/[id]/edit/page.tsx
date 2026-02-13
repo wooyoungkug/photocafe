@@ -316,100 +316,112 @@ export default function EditProductPage() {
     if (product && categories && !isInitialLoadDone.current) {
       isInitialLoadDone.current = true;
 
-      setProductCode(product.productCode);
-      setProductName(product.productName);
-      setIsActive(product.isActive);
-      setIsNew(product.isNew);
-      setIsBest(product.isBest);
-      setMemberType(product.memberType);
-      setSortOrder(product.sortOrder);
-      setBasePrice(Number(product.basePrice));
-      setThumbnailUrl(product.thumbnailUrl || '');
-      setDescription(product.description || '');
+      try {
+        setProductCode(product.productCode);
+        setProductName(product.productName);
+        setIsActive(product.isActive);
+        setIsNew(product.isNew);
+        setIsBest(product.isBest);
+        setMemberType(product.memberType);
+        setSortOrder(product.sortOrder);
+        setBasePrice(Number(product.basePrice));
+        setThumbnailUrl(product.thumbnailUrl || '');
+        setDescription(product.description || '');
 
-      const category = categories.find(c => c.id === product.categoryId);
-      if (category) {
-        if (category.level === 'small') {
-          setSmallCategoryId(category.id);
-          const mediumCat = categories.find(c => c.id === category.parentId);
-          if (mediumCat) {
-            setMediumCategoryId(mediumCat.id);
-            const largeCat = categories.find(c => c.id === mediumCat.parentId);
+        const category = categories.find(c => c.id === product.categoryId);
+        if (category) {
+          if (category.level === 'small') {
+            setSmallCategoryId(category.id);
+            const mediumCat = categories.find(c => c.id === category.parentId);
+            if (mediumCat) {
+              setMediumCategoryId(mediumCat.id);
+              const largeCat = categories.find(c => c.id === mediumCat.parentId);
+              if (largeCat) setLargeCategoryId(largeCat.id);
+            }
+          } else if (category.level === 'medium') {
+            setMediumCategoryId(category.id);
+            const largeCat = categories.find(c => c.id === category.parentId);
             if (largeCat) setLargeCategoryId(largeCat.id);
+          } else if (category.level === 'large') {
+            setLargeCategoryId(category.id);
           }
-        } else if (category.level === 'medium') {
-          setMediumCategoryId(category.id);
-          const largeCat = categories.find(c => c.id === category.parentId);
-          if (largeCat) setLargeCategoryId(largeCat.id);
-        } else if (category.level === 'large') {
-          setLargeCategoryId(category.id);
         }
-      }
 
-      if (product.detailImages && Array.isArray(product.detailImages)) {
-        const images = [...product.detailImages];
-        while (images.length < 5) images.push('');
-        setDetailImages(images.slice(0, 5));
-      }
+        if (product.detailImages && Array.isArray(product.detailImages)) {
+          const images = [...product.detailImages];
+          while (images.length < 5) images.push('');
+          setDetailImages(images.slice(0, 5));
+        }
 
-      if (product.bindings && Array.isArray(product.bindings)) {
-        setSelectedBindings(product.bindings.map((b: { id: string; name: string; price: number; productionSettingId?: string; pricingType?: string }) => ({
-          id: b.id,
-          name: b.name,
-          price: Number(b.price),
-          productionSettingId: b.productionSettingId,
-          pricingType: b.pricingType,
-        })));
-      }
+        if (product.bindings && Array.isArray(product.bindings)) {
+          setSelectedBindings(product.bindings.map((b: { id: string; name: string; price: number; productionSettingId?: string; pricingType?: string }) => ({
+            id: b.id,
+            name: b.name,
+            price: Number(b.price),
+            productionSettingId: b.productionSettingId,
+            pricingType: b.pricingType,
+          })));
+        }
 
-      if (product.covers && Array.isArray(product.covers)) {
-        setSelectedCovers(product.covers.map((c: { id: string; name: string; price: number }) => ({
-          id: c.id, name: c.name, price: Number(c.price),
-        })));
-      }
+        if (product.covers && Array.isArray(product.covers)) {
+          setSelectedCovers(product.covers.map((c: { id: string; name: string; price: number }) => ({
+            id: c.id, name: c.name, price: Number(c.price),
+          })));
+        }
 
-      if (product.foils && Array.isArray(product.foils)) {
-        setSelectedFoils(product.foils.map((f: { id: string; name: string; color?: string; price: number }) => ({
-          id: f.id, name: f.name, color: f.color || '', price: Number(f.price),
-        })));
-      }
+        if (product.foils && Array.isArray(product.foils)) {
+          setSelectedFoils(product.foils.map((f: { id: string; name: string; color?: string; price: number }) => ({
+            id: f.id, name: f.name, color: f.color || '', price: Number(f.price),
+          })));
+        }
 
-      // 용지 사용 여부 로드
-      if (product.papers && Array.isArray(product.papers)) {
-        const activeMap: Record<string, boolean> = {};
-        let foundDefaultId = '';
-        product.papers.forEach((p: { id: string; isActive?: boolean; isDefault?: boolean }) => {
-          activeMap[p.id] = p.isActive !== false; // 기본값 true
-          if (p.isDefault) foundDefaultId = p.id;
+        // 용지 사용 여부 로드
+        if (product.papers && Array.isArray(product.papers)) {
+          const activeMap: Record<string, boolean> = {};
+          let foundDefaultId = '';
+          product.papers.forEach((p: { id: string; isActive?: boolean; isDefault?: boolean }) => {
+            activeMap[p.id] = p.isActive !== false; // 기본값 true
+            if (p.isDefault) foundDefaultId = p.id;
+          });
+          setPaperActiveMap(activeMap);
+          setDefaultPaperId(foundDefaultId || (product.papers[0] as any)?.id || '');
+        }
+
+        // 후가공 옵션은 별도 useEffect에서 처리 (productionGroupTree 로딩 타이밍 대응)
+
+        // 제본 방향 및 출력 타입 로드
+        if ((product as any).bindingDirection) {
+          setBindingDirection((product as any).bindingDirection);
+        }
+        if ((product as any).printType) {
+          setPrintType((product as any).printType);
+        }
+        // 출력단가 설정 로드
+        if ((product as any).outputPriceSettings && Array.isArray((product as any).outputPriceSettings)) {
+          setOutputPriceSelections((product as any).outputPriceSettings);
+          // 규격이 없는 경우에만 outputMethod 기반 specType fallback
+          if (!product.specifications || product.specifications.length === 0) {
+            const hasIndigo = (product as any).outputPriceSettings.some((s: any) => s?.outputMethod === 'INDIGO');
+            const hasInkjet = (product as any).outputPriceSettings.some((s: any) => s?.outputMethod === 'INKJET');
+            if (hasIndigo && !hasInkjet) {
+              setSpecType('indigo');
+            } else if (hasInkjet && !hasIndigo) {
+              setSpecType('album');
+            }
+          }
+        }
+
+        setIsFormReady(true);
+      } catch (error) {
+        console.error('Failed to initialize product data:', error);
+        toast({
+          variant: 'destructive',
+          title: '데이터 로드 오류',
+          description: '상품 정보를 불러오는 중 오류가 발생했습니다. (일부 정보가 누락될 수 있습니다)',
         });
-        setPaperActiveMap(activeMap);
-        setDefaultPaperId(foundDefaultId || (product.papers[0] as any)?.id || '');
+        // 오류가 발생해도 폼은 보여주도록 함
+        setIsFormReady(true);
       }
-
-      // 후가공 옵션은 별도 useEffect에서 처리 (productionGroupTree 로딩 타이밍 대응)
-
-      // 제본 방향 및 출력 타입 로드
-      if ((product as any).bindingDirection) {
-        setBindingDirection((product as any).bindingDirection);
-      }
-      if ((product as any).printType) {
-        setPrintType((product as any).printType);
-      }
-      // 출력단가 설정 로드
-      if ((product as any).outputPriceSettings && Array.isArray((product as any).outputPriceSettings)) {
-        setOutputPriceSelections((product as any).outputPriceSettings);
-        // 규격이 없는 경우에만 outputMethod 기반 specType fallback
-        if (!product.specifications || product.specifications.length === 0) {
-          const hasIndigo = (product as any).outputPriceSettings.some((s: any) => s.outputMethod === 'INDIGO');
-          const hasInkjet = (product as any).outputPriceSettings.some((s: any) => s.outputMethod === 'INKJET');
-          if (hasIndigo && !hasInkjet) {
-            setSpecType('indigo');
-          } else if (hasInkjet && !hasIndigo) {
-            setSpecType('album');
-          }
-        }
-      }
-      setIsFormReady(true);
     }
   }, [product, categories]);
 
@@ -933,23 +945,23 @@ export default function EditProductPage() {
                           return areaA - areaB;
                         })
                         .map(specId => {
-                        const spec = specifications?.find(s => s.id === specId);
-                        return spec ? (
-                          <div key={specId} className="group flex items-center justify-between py-1 px-2 bg-white border border-slate-150 rounded-md text-[12px] hover:border-slate-300 transition-colors">
-                            <span className="font-medium text-slate-700 truncate">
-                              {spec.name}
-                              {spec.nup && <span className="ml-1 text-[10px] text-emerald-600 font-semibold">({spec.nup})</span>}
-                            </span>
-                            <button
-                              type="button"
-                              className="ml-1 opacity-0 group-hover:opacity-100 hover:bg-red-50 rounded p-0.5 flex-shrink-0 transition-opacity"
-                              onClick={() => setSelectedSpecs(prev => prev.filter(id => id !== specId))}
-                            >
-                              <X className="h-3 w-3 text-red-400" />
-                            </button>
-                          </div>
-                        ) : null;
-                      })}
+                          const spec = specifications?.find(s => s.id === specId);
+                          return spec ? (
+                            <div key={specId} className="group flex items-center justify-between py-1 px-2 bg-white border border-slate-150 rounded-md text-[12px] hover:border-slate-300 transition-colors">
+                              <span className="font-medium text-slate-700 truncate">
+                                {spec.name}
+                                {spec.nup && <span className="ml-1 text-[10px] text-emerald-600 font-semibold">({spec.nup})</span>}
+                              </span>
+                              <button
+                                type="button"
+                                className="ml-1 opacity-0 group-hover:opacity-100 hover:bg-red-50 rounded p-0.5 flex-shrink-0 transition-opacity"
+                                onClick={() => setSelectedSpecs(prev => prev.filter(id => id !== specId))}
+                              >
+                                <X className="h-3 w-3 text-red-400" />
+                              </button>
+                            </div>
+                          ) : null;
+                        })}
                     </div>
                   ) : (
                     <div className="py-6 text-center text-[13px] text-slate-400 bg-slate-50/40 rounded-lg border border-dashed border-slate-200">
