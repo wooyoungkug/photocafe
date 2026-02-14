@@ -40,7 +40,7 @@ export class FileStorageService implements OnModuleInit {
         const resolvedPath = (dbPath.startsWith('/') || /^[A-Z]:/i.test(dbPath))
           ? dbPath
           : join(process.cwd(), dbPath);
-        if (existsSync(resolvedPath) || this.tryCreateDir(resolvedPath)) {
+        if (existsSync(resolvedPath)) {
           this.basePath = resolvedPath;
           _sharedBasePath = resolvedPath;
           this.ensureDirectories();
@@ -53,15 +53,6 @@ export class FileStorageService implements OnModuleInit {
       }
     } catch (err) {
       this.logger.warn(`DB 설정 로드 실패, 기본값 사용: ${this.basePath}`);
-    }
-  }
-
-  private tryCreateDir(dirPath: string): boolean {
-    try {
-      mkdirSync(dirPath, { recursive: true });
-      return true;
-    } catch {
-      return false;
     }
   }
 
@@ -96,15 +87,15 @@ export class FileStorageService implements OnModuleInit {
     return dir;
   }
 
-  /** 정식 주문 경로 생성 */
-  getOrderDir(orderNumber: string, folderName: string): string {
+  /** 정식 주문 경로 생성: orders/{year}/{month}/{day}/{거래처명}/{주문번호}/ */
+  getOrderDir(orderNumber: string, companyName: string): string {
     const now = new Date();
     const year = now.getFullYear().toString();
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
     const day = now.getDate().toString().padStart(2, '0');
-    const safeFolderName = this.sanitizePath(folderName);
+    const safeCompanyName = this.sanitizePath(companyName || 'unknown');
 
-    const dir = join(this.basePath, 'orders', year, month, day, orderNumber, safeFolderName);
+    const dir = join(this.basePath, 'orders', year, month, day, safeCompanyName, orderNumber);
     const originals = join(dir, 'originals');
     const thumbnails = join(dir, 'thumbnails');
     const pdf = join(dir, 'pdf');
@@ -122,9 +113,9 @@ export class FileStorageService implements OnModuleInit {
   moveToOrderDir(
     tempFolderId: string,
     orderNumber: string,
-    folderName: string,
+    companyName: string,
   ): { orderDir: string; movedFiles: Array<{ original: string; thumbnail: string; fileName: string }> } {
-    const orderDir = this.getOrderDir(orderNumber, folderName);
+    const orderDir = this.getOrderDir(orderNumber, companyName);
     const tempOriginalsDir = join(this.basePath, 'temp', tempFolderId, 'originals');
     const tempThumbnailsDir = join(this.basePath, 'temp', tempFolderId, 'thumbnails');
     const movedFiles: Array<{ original: string; thumbnail: string; fileName: string }> = [];

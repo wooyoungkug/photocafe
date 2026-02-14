@@ -40,25 +40,8 @@ import { useHalfProducts } from '@/hooks/use-half-products';
 import { useCreateProduct } from '@/hooks/use-products';
 import { useProductionGroupTree, type ProductionGroup } from '@/hooks/use-production';
 import { useToast } from '@/hooks/use-toast';
-import { API_URL, API_BASE_URL } from '@/lib/api';
-
-// 이미지 URL 정규화 함수
-const normalizeImageUrl = (url: string | null | undefined): string => {
-  if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url.replace(/\/api\/v1\/api\/v1\//g, '/api/v1/');
-  }
-  if (url.startsWith('/api/v1/')) {
-    return `${API_BASE_URL}${url}`;
-  }
-  if (url.startsWith('/upload')) {
-    return `${API_URL}${url}`;
-  }
-  if (url.startsWith('/api/')) {
-    return `${API_BASE_URL}${url}`;
-  }
-  return url;
-};
+import { API_URL } from '@/lib/api';
+import { normalizeImageUrl } from '@/lib/utils';
 
 import {
   ArrowLeft,

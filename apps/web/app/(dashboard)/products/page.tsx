@@ -42,26 +42,8 @@ import {
   useDeleteProduct,
 } from '@/hooks/use-products';
 import { useCategories } from '@/hooks/use-categories';
-import { API_URL, API_BASE_URL } from '@/lib/api';
+import { normalizeImageUrl } from '@/lib/utils';
 import type { Product, CreateProductDto } from '@/lib/types';
-
-// 이미지 URL 정규화 함수
-const normalizeImageUrl = (url: string | null | undefined): string => {
-  if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url.replace(/\/api\/v1\/api\/v1\//g, '/api/v1/');
-  }
-  if (url.startsWith('/api/v1/')) {
-    return `${API_BASE_URL}${url}`;
-  }
-  if (url.startsWith('/upload')) {
-    return `${API_URL}${url}`;
-  }
-  if (url.startsWith('/api/')) {
-    return `${API_BASE_URL}${url}`;
-  }
-  return url;
-};
 import {
   Plus,
   Search,

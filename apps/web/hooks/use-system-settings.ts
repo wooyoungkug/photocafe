@@ -160,7 +160,7 @@ export function useBulkUpdateSettings() {
     ) => {
       const response = await api.post<SystemSetting[]>(
         "/system-settings/bulk",
-        settings
+        { settings }
       );
       return response;
     },

@@ -17,16 +17,7 @@ import {
 import { useAuthStore } from '@/stores/auth-store';
 import { useMyProductsByClient, useDeleteMyProduct, type MyProduct } from '@/hooks/use-my-products';
 import { useToast } from '@/hooks/use-toast';
-import { API_BASE_URL, API_URL } from '@/lib/api';
-
-const normalizeImageUrl = (url: string | null | undefined): string => {
-  if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  if (url.startsWith('/api/v1/')) return `${API_BASE_URL}${url}`;
-  if (url.startsWith('/upload')) return `${API_URL}${url}`;
-  if (url.startsWith('/api/')) return `${API_BASE_URL}${url}`;
-  return url;
-};
+import { normalizeImageUrl } from '@/lib/utils';
 
 export default function MyProductsPage() {
   const { toast } = useToast();
