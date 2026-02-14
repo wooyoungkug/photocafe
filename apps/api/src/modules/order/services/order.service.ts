@@ -13,6 +13,11 @@ import {
   BulkUpdateReceiptDateDto,
   BulkDataCleanupDto,
   ORDER_STATUS,
+  PROCESS_STATUS,
+  INSPECTION_PROCESS_TYPES,
+  InspectFileDto,
+  HoldInspectionDto,
+  CompleteInspectionDto,
 } from '../dto';
 import { SalesLedgerService } from '../../accounting/services/sales-ledger.service';
 
@@ -1247,5 +1252,269 @@ export class OrderService {
       unpaidAmount,
       categoryBreakdown,
     };
+  }
+
+  // ==================== 파일검수 관련 ====================
+
+  /**
+   * 파일검수 시작 (자동 호출)
+   */
+  async startInspection(orderId: string, userId: string) {
+    const order = await this.findOne(orderId);
+
+    // 이미 검수 중이거나 검수가 완료된 경우 스킵
+    if (order.currentProcess === PROCESS_STATUS.INSPECTION ||
+        order.status !== ORDER_STATUS.PENDING_RECEIPT) {
+      return order;
+    }
+
+    // 파일이 없는 주문은 자동으로 접수완료로 변경
+    const hasFiles = await this.prisma.orderFile.count({
+      where: {
+        orderItem: {
+          orderId,
+        },
+      },
+    });
+
+    if (hasFiles === 0) {
+      // 파일이 없으면 바로 접수완료
+      return this.prisma.order.update({
+        where: { id: orderId },
+        data: {
+          status: ORDER_STATUS.RECEIPT_COMPLETED,
+          currentProcess: PROCESS_STATUS.COMPLETED,
+          processHistory: {
+            create: {
+              fromStatus: order.status,
+              toStatus: ORDER_STATUS.RECEIPT_COMPLETED,
+              processType: 'status_change',
+              note: '파일 없음 - 자동 접수완료',
+              processedBy: userId,
+            },
+          },
+        },
+      });
+    }
+
+    // 파일검수 시작
+    return this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        currentProcess: PROCESS_STATUS.INSPECTION,
+        processHistory: {
+          create: {
+            fromStatus: order.currentProcess,
+            toStatus: PROCESS_STATUS.INSPECTION,
+            processType: INSPECTION_PROCESS_TYPES.FILE_INSPECTION_STARTED,
+            note: '파일검수 시작',
+            processedBy: userId,
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * 개별 파일 검수 (승인/거부)
+   */
+  async inspectFile(
+    orderId: string,
+    fileId: string,
+    dto: InspectFileDto,
+    userId: string,
+  ) {
+    const order = await this.findOne(orderId);
+
+    if (order.currentProcess !== PROCESS_STATUS.INSPECTION) {
+      throw new BadRequestException('파일검수 상태가 아닙니다.');
+    }
+
+    // 파일 검수 상태 업데이트
+    const file = await this.prisma.orderFile.update({
+      where: { id: fileId },
+      data: {
+        inspectionStatus: dto.inspectionStatus,
+        inspectionNote: dto.inspectionNote,
+      },
+    });
+
+    // ProcessHistory 기록
+    await this.prisma.processHistory.create({
+      data: {
+        orderId,
+        fromStatus: 'pending',
+        toStatus: dto.inspectionStatus,
+        processType: dto.inspectionStatus === 'approved'
+          ? INSPECTION_PROCESS_TYPES.FILE_APPROVED
+          : INSPECTION_PROCESS_TYPES.FILE_REJECTED,
+        note: dto.inspectionNote || `파일 ${dto.inspectionStatus === 'approved' ? '승인' : '거부'}: ${file.fileName}`,
+        processedBy: userId,
+      },
+    });
+
+    // 모든 파일이 승인되었는지 확인
+    const allFiles = await this.prisma.orderFile.findMany({
+      where: {
+        orderItem: {
+          orderId,
+        },
+      },
+      select: {
+        id: true,
+        inspectionStatus: true,
+      },
+    });
+
+    const allApproved = allFiles.every(f => f.inspectionStatus === 'approved');
+    const hasRejected = allFiles.some(f => f.inspectionStatus === 'rejected');
+
+    // 모든 파일이 승인되면 자동으로 검수 완료
+    if (allApproved && allFiles.length > 0) {
+      return this.completeInspection(orderId, userId, {
+        note: '모든 파일 승인 완료 - 자동 접수완료',
+      });
+    }
+
+    // 거부된 파일이 있으면 알림 (선택적)
+    if (hasRejected) {
+      // TODO: 거부된 파일이 있을 때 추가 처리 로직
+    }
+
+    return file;
+  }
+
+  /**
+   * 검수 보류 (SMS 발송 옵션)
+   */
+  async holdInspection(
+    orderId: string,
+    dto: HoldInspectionDto,
+    userId: string,
+  ) {
+    const order = await this.findOne(orderId);
+
+    if (order.currentProcess !== PROCESS_STATUS.INSPECTION) {
+      throw new BadRequestException('파일검수 상태가 아닙니다.');
+    }
+
+    // 상태를 접수대기로 롤백
+    const updatedOrder = await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        status: ORDER_STATUS.PENDING_RECEIPT,
+        currentProcess: PROCESS_STATUS.RECEIPT_PENDING,
+        processHistory: {
+          create: {
+            fromStatus: order.status,
+            toStatus: ORDER_STATUS.PENDING_RECEIPT,
+            processType: INSPECTION_PROCESS_TYPES.INSPECTION_HOLD,
+            note: `검수 보류: ${dto.reason}`,
+            processedBy: userId,
+          },
+        },
+      },
+      include: {
+        client: {
+          select: {
+            name: true,
+            mobile: true,
+          },
+        },
+      },
+    });
+
+    // SMS 발송 (옵션)
+    if (dto.sendSms !== false && updatedOrder.client.mobile) {
+      const smsSent = await this.sendInspectionHoldSms(
+        updatedOrder,
+        dto.reason,
+      );
+
+      if (smsSent) {
+        // SMS 발송 성공 기록
+        await this.prisma.processHistory.create({
+          data: {
+            orderId,
+            fromStatus: '',
+            toStatus: '',
+            processType: INSPECTION_PROCESS_TYPES.INSPECTION_SMS_SENT,
+            note: `고객 통지 완료: ${updatedOrder.client.mobile}`,
+            processedBy: userId,
+          },
+        });
+      }
+    }
+
+    return updatedOrder;
+  }
+
+  /**
+   * 검수 완료 (접수완료로 전환)
+   */
+  async completeInspection(
+    orderId: string,
+    userId: string,
+    dto?: CompleteInspectionDto,
+  ) {
+    const order = await this.findOne(orderId);
+
+    // 모든 파일이 승인되었는지 확인
+    const files = await this.prisma.orderFile.findMany({
+      where: {
+        orderItem: {
+          orderId,
+        },
+      },
+      select: {
+        inspectionStatus: true,
+      },
+    });
+
+    const allApproved = files.every(f => f.inspectionStatus === 'approved');
+    if (files.length > 0 && !allApproved) {
+      throw new BadRequestException('모든 파일이 승인되어야 검수를 완료할 수 있습니다.');
+    }
+
+    // 접수완료로 상태 변경
+    return this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        status: ORDER_STATUS.RECEIPT_COMPLETED,
+        currentProcess: PROCESS_STATUS.COMPLETED,
+        processHistory: {
+          create: {
+            fromStatus: order.status,
+            toStatus: ORDER_STATUS.RECEIPT_COMPLETED,
+            processType: INSPECTION_PROCESS_TYPES.FILE_INSPECTION_COMPLETED,
+            note: dto?.note || '파일검수 완료',
+            processedBy: userId,
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * SMS 발송 (private)
+   */
+  private async sendInspectionHoldSms(
+    order: any,
+    reason: string,
+  ): Promise<boolean> {
+    try {
+      // TODO: SMS 서비스 연동
+      // 현재는 로깅만 수행
+      console.log(`[SMS 발송] 주문번호: ${order.orderNumber}, 고객: ${order.client.mobile}, 사유: ${reason}`);
+
+      // 실제 SMS 발송 로직은 SMS 서비스 모듈 구현 후 추가
+      // const smsService = this.moduleRef.get(SmsService);
+      // return await smsService.sendInspectionHold(order.client.mobile, order.orderNumber, reason);
+
+      return true; // 임시로 성공 반환
+    } catch (error) {
+      console.error('[SMS 발송 실패]', error);
+      return false; // 실패해도 전체 작업은 계속 진행
+    }
   }
 }

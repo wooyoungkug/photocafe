@@ -69,17 +69,17 @@ export default function DepositsPage() {
 
   // 입금내역 조회
   const { data: depositsData, isLoading } = useQuery({
-    queryKey: ['deposits', user?.id, format(selectedDate, 'yyyy-MM'), filterMethod],
+    queryKey: ['deposits', user?.clientId, format(selectedDate, 'yyyy-MM'), filterMethod],
     queryFn: async () => {
       const response = await api.get<{ data: Deposit[]; summary: any }>('/api/v1/deposits', {
-        clientId: user?.id || '',
+        clientId: user?.clientId || '',
         startDate: format(startDate, 'yyyy-MM-dd'),
         endDate: format(endDate, 'yyyy-MM-dd'),
         ...(filterMethod !== 'all' && { paymentMethod: filterMethod }),
       });
       return response;
     },
-    enabled: isAuthenticated && !!user?.id,
+    enabled: isAuthenticated && !!user?.clientId,
   });
 
   const deposits = depositsData?.data || [];

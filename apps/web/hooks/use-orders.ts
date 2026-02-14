@@ -309,3 +309,77 @@ export function useOrderHistory(orderId: string | null) {
     enabled: !!orderId,
   });
 }
+
+// ==================== 파일검수 관련 ====================
+
+// 검수 시작
+export function useStartInspection() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (orderId: string) =>
+      api.post(`/api/v1/orders/${orderId}/start-inspection`, {}),
+    onSuccess: (_, orderId) => {
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY, orderId] });
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY] });
+    },
+  });
+}
+
+// 파일 검수 (승인/거부)
+export function useInspectFile() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      orderId,
+      fileId,
+      inspectionStatus,
+      inspectionNote,
+    }: {
+      orderId: string;
+      fileId: string;
+      inspectionStatus: 'approved' | 'rejected';
+      inspectionNote?: string;
+    }) =>
+      api.patch(`/api/v1/orders/${orderId}/files/${fileId}/inspect`, {
+        inspectionStatus,
+        inspectionNote,
+      }),
+    onSuccess: (_, { orderId }) => {
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY, orderId] });
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY] });
+    },
+  });
+}
+
+// 검수 보류
+export function useHoldInspection() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      orderId,
+      reason,
+      sendSms = true,
+    }: {
+      orderId: string;
+      reason: string;
+      sendSms?: boolean;
+    }) => api.post(`/api/v1/orders/${orderId}/hold-inspection`, { reason, sendSms }),
+    onSuccess: (_, { orderId }) => {
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY, orderId] });
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY] });
+    },
+  });
+}
+
+// 검수 완료
+export function useCompleteInspection() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orderId, note }: { orderId: string; note?: string }) =>
+      api.post(`/api/v1/orders/${orderId}/complete-inspection`, { note }),
+    onSuccess: (_, { orderId }) => {
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY, orderId] });
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY] });
+    },
+  });
+}

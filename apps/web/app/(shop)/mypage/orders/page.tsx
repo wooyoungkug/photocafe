@@ -407,8 +407,8 @@ export default function MyOrdersPage() {
                   <div className={cn('w-10 h-10 rounded-full flex items-center justify-center', isActive ? stage.activeBg : stage.bg)}>
                     <Icon className={cn('h-5 w-5', stage.color)} />
                   </div>
-                  <span className={cn('text-xs font-medium', isActive ? stage.color : 'text-muted-foreground')}>{stage.label}</span>
-                  <span className={cn('text-sm font-bold', isActive ? stage.color : 'text-foreground', count > 0 ? '' : 'text-muted-foreground')}>({count})</span>
+                  <span className={cn('text-xs', isActive ? stage.color : 'text-muted-foreground')}>{stage.label}</span>
+                  <span className={cn('text-sm', isActive ? stage.color : 'text-foreground', count > 0 ? '' : 'text-muted-foreground')}>({count})</span>
                 </button>
               );
             })}
@@ -419,7 +419,7 @@ export default function MyOrdersPage() {
       {/* 조회결과 + 선택취소 버튼 */}
       <div className="flex items-center justify-between text-sm">
         <span className="text-muted-foreground">
-          조회결과 : <b className="text-foreground">{meta?.total || 0}</b> 건
+          조회결과 : <span className="text-foreground">{meta?.total || 0}</span> 건
         </span>
         <div className="flex items-center gap-2">
           {cancellableSelected.length > 0 && (
@@ -517,7 +517,7 @@ export default function MyOrdersPage() {
                               <div className="text-xs text-muted-foreground">
                                 {format(new Date(order.orderedAt), 'yyyy-MM-dd', { locale: ko })}
                               </div>
-                              <Link href={`/mypage/orders/${order.id}`} className="text-xs font-semibold text-primary hover:underline">
+                              <Link href={`/mypage/orders/${order.id}`} className="text-xs text-primary hover:underline">
                                 {order.orderNumber}
                               </Link>
                               {order.isUrgent && <Badge variant="destructive" className="text-[10px] px-1 py-0">긴급</Badge>}
@@ -543,7 +543,7 @@ export default function MyOrdersPage() {
 
                         <TableCell>
                           <div className="space-y-1">
-                            <p className="text-sm font-medium leading-tight line-clamp-1">{item.productName}</p>
+                            <p className="text-sm leading-tight line-clamp-1">{item.productName}</p>
                             <div className="text-xs text-muted-foreground leading-tight">
                               {item.size} / {item.printMethod} / {item.paper}
                             </div>
@@ -566,7 +566,7 @@ export default function MyOrdersPage() {
                         <TableCell className="text-center text-xs text-muted-foreground">{formatFileSize(Number(item.totalFileSize))}</TableCell>
 
                         {idx === 0 && (
-                          <TableCell className="text-right align-top pt-3 font-bold text-sm" rowSpan={items.length}>
+                          <TableCell className="text-right align-top pt-3 text-sm" rowSpan={items.length}>
                             {Number(order.finalAmount).toLocaleString()}원
                           </TableCell>
                         )}
@@ -574,7 +574,7 @@ export default function MyOrdersPage() {
                         {idx === 0 && (
                           <TableCell className="text-center align-top pt-3" rowSpan={items.length}>
                             <div className="space-y-1">
-                              <Badge className={cn('text-xs font-semibold', statusBadge.className)}>
+                              <Badge className={cn('text-xs', statusBadge.className)}>
                                 {statusBadge.label}
                               </Badge>
                               <div

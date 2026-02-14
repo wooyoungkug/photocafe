@@ -248,7 +248,10 @@ export default function OrderListPage() {
                 <TableBody>
                   {orders.map((order) => {
                     const items = order.items || [];
-                    const statusBadge = STATUS_BADGE[order.status] || STATUS_BADGE.pending_receipt;
+                    // 파일검수 중 상태 처리
+                    const statusBadge = order.status === 'pending_receipt' && order.currentProcess === 'inspection'
+                      ? { label: '파일검수 중', className: 'bg-yellow-100 text-yellow-700' }
+                      : (STATUS_BADGE[order.status] || STATUS_BADGE.pending_receipt);
                     const isSelected = selectedOrderIds.has(order.id);
 
                     return items.map((item, idx) => (

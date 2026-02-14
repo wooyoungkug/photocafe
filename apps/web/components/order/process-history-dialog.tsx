@@ -33,6 +33,12 @@ const PROCESS_TYPE_LABELS: Record<string, string> = {
   bulk_amount_reset: '금액 초기화',
   bulk_receipt_date_change: '접수일 변경',
   order_duplicated: '주문 복제',
+  file_inspection_started: '파일검수 시작',
+  file_inspection_completed: '파일검수 완료',
+  file_approved: '파일 승인',
+  file_rejected: '파일 거부',
+  inspection_hold: '검수 보류',
+  inspection_sms_sent: 'SMS 발송',
 };
 
 interface ProcessHistoryDialogProps {

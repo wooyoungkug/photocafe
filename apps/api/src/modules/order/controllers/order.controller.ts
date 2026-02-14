@@ -28,6 +28,9 @@ import {
   BulkDataCleanupDto,
   CheckDuplicateOrderDto,
   MonthlySummaryQueryDto,
+  InspectFileDto,
+  HoldInspectionDto,
+  CompleteInspectionDto,
 } from '../dto';
 
 @ApiTags('주문')
@@ -188,5 +191,44 @@ export class OrderController {
   @ApiOperation({ summary: '주문 삭제' })
   async delete(@Param('id') id: string) {
     return this.orderService.delete(id);
+  }
+
+  // ==================== 파일검수 관련 ====================
+
+  @Post(':id/start-inspection')
+  @ApiOperation({ summary: '파일검수 시작 (자동 호출)' })
+  async startInspection(@Param('id') id: string, @Request() req: any) {
+    return this.orderService.startInspection(id, req.user.id);
+  }
+
+  @Patch(':id/files/:fileId/inspect')
+  @ApiOperation({ summary: '개별 파일 검수 승인/거부' })
+  async inspectFile(
+    @Param('id') id: string,
+    @Param('fileId') fileId: string,
+    @Body() dto: InspectFileDto,
+    @Request() req: any,
+  ) {
+    return this.orderService.inspectFile(id, fileId, dto, req.user.id);
+  }
+
+  @Post(':id/hold-inspection')
+  @ApiOperation({ summary: '검수 보류 (SMS 발송 옵션)' })
+  async holdInspection(
+    @Param('id') id: string,
+    @Body() dto: HoldInspectionDto,
+    @Request() req: any,
+  ) {
+    return this.orderService.holdInspection(id, dto, req.user.id);
+  }
+
+  @Post(':id/complete-inspection')
+  @ApiOperation({ summary: '파일검수 완료' })
+  async completeInspection(
+    @Param('id') id: string,
+    @Body() dto: CompleteInspectionDto,
+    @Request() req: any,
+  ) {
+    return this.orderService.completeInspection(id, req.user.id, dto);
   }
 }
