@@ -70,11 +70,20 @@ export class DepositResponseDto {
   @ApiProperty({ description: '거래처명' })
   clientName: string;
 
-  @ApiProperty({ description: '주문금액' })
+  @ApiProperty({ description: '주문금액 (총액)' })
   orderAmount: number;
 
-  @ApiProperty({ description: '입금금액' })
+  @ApiProperty({ description: '입금금액 (이 건)' })
   depositAmount: number;
+
+  @ApiProperty({ description: '총 수금액' })
+  receivedAmount: number;
+
+  @ApiProperty({ description: '미수금' })
+  outstandingAmount: number;
+
+  @ApiProperty({ description: '결제상태 (unpaid, partial, paid)' })
+  paymentStatus: string;
 
   @ApiProperty({ description: '결제방법', enum: PaymentMethodEnum })
   paymentMethod: string;

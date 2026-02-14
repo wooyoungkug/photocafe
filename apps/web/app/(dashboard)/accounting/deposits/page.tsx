@@ -58,9 +58,9 @@ export default function DepositsPage() {
 
   // 상태 관리
   const [viewMode, setViewMode] = useState<ViewMode>('daily');
-  const [filterMode, setFilterMode] = useState<'today' | 'month' | 'custom'>('month');
-  const [startDate, setStartDate] = useState(presets.thisMonth.startDate);
-  const [endDate, setEndDate] = useState(presets.thisMonth.endDate);
+  const [filterMode, setFilterMode] = useState<'today' | 'month' | 'custom'>('today');
+  const [startDate, setStartDate] = useState(presets.today.startDate);
+  const [endDate, setEndDate] = useState(presets.today.endDate);
   const [paymentMethod, setPaymentMethod] = useState<string>('all');
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
@@ -75,7 +75,6 @@ export default function DepositsPage() {
   const currentYear = format(new Date(), 'yyyy');
   const { data: monthlyData, isLoading: isMonthlyLoading } = useMonthlySummary({
     year: currentYear,
-    paymentMethod: paymentMethod === 'all' ? undefined : paymentMethod,
   });
 
   // 드릴다운 건별 조회 (초기 비활성화)
@@ -452,10 +451,11 @@ export default function DepositsPage() {
                                                 <TableRow>
                                                   <TableHead>수금번호</TableHead>
                                                   <TableHead>주문번호</TableHead>
-                                                  <TableHead>입금액</TableHead>
+                                                  <TableHead className="text-right">주문금액</TableHead>
+                                                  <TableHead className="text-right">결제금액</TableHead>
+                                                  <TableHead className="text-right">미수금</TableHead>
                                                   <TableHead>결제방법</TableHead>
-                                                  <TableHead>입금은행</TableHead>
-                                                  <TableHead>입금자</TableHead>
+                                                  <TableHead>상태</TableHead>
                                                 </TableRow>
                                               </TableHeader>
                                               <TableBody>
@@ -475,11 +475,24 @@ export default function DepositsPage() {
                                                       <TableCell>
                                                         {detail.orderNumber}
                                                       </TableCell>
-                                                      <TableCell className="text-emerald-600 font-bold">
+                                                      <TableCell className="text-right">
+                                                        {Math.round(
+                                                          detail.orderAmount
+                                                        ).toLocaleString()}
+                                                        원
+                                                      </TableCell>
+                                                      <TableCell className="text-right text-emerald-600 font-bold">
                                                         {Math.round(
                                                           detail.depositAmount
                                                         ).toLocaleString()}
                                                         원
+                                                      </TableCell>
+                                                      <TableCell className="text-right text-red-500 font-bold">
+                                                        {detail.outstandingAmount > 0
+                                                          ? Math.round(
+                                                              detail.outstandingAmount
+                                                            ).toLocaleString() + '원'
+                                                          : '-'}
                                                       </TableCell>
                                                       <TableCell>
                                                         {getPaymentMethodLabel(
@@ -487,11 +500,21 @@ export default function DepositsPage() {
                                                         )}
                                                       </TableCell>
                                                       <TableCell>
-                                                        {detail.bankName || '-'}
-                                                      </TableCell>
-                                                      <TableCell>
-                                                        {detail.depositorName ||
-                                                          '-'}
+                                                        <span
+                                                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                                            detail.paymentStatus === 'paid'
+                                                              ? 'bg-green-100 text-green-700'
+                                                              : detail.paymentStatus === 'partial'
+                                                              ? 'bg-yellow-100 text-yellow-700'
+                                                              : 'bg-red-100 text-red-700'
+                                                          }`}
+                                                        >
+                                                          {detail.paymentStatus === 'paid'
+                                                            ? '완납'
+                                                            : detail.paymentStatus === 'partial'
+                                                            ? '부분'
+                                                            : '미수'}
+                                                        </span>
                                                       </TableCell>
                                                     </TableRow>
                                                   ))}

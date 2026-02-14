@@ -239,6 +239,35 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: 'cart-storage',
+      // thumbnailUrls는 대용량이므로 localStorage 저장에서 제외 (메모리에만 유지)
+      partialize: (state) => ({
+        items: state.items.map(({ thumbnailUrls, files, ...rest }) => rest),
+      }),
+      storage: {
+        getItem: (name) => {
+          try {
+            const str = localStorage.getItem(name);
+            return str ? JSON.parse(str) : null;
+          } catch {
+            return null;
+          }
+        },
+        setItem: (name, value) => {
+          try {
+            localStorage.setItem(name, JSON.stringify(value));
+          } catch (e) {
+            // QuotaExceededError 방지 - 저장 실패해도 메모리 상태는 유지
+            console.warn('Cart storage quota exceeded, data kept in memory only');
+          }
+        },
+        removeItem: (name) => {
+          try {
+            localStorage.removeItem(name);
+          } catch {
+            // ignore
+          }
+        },
+      },
     }
   )
 );

@@ -39,11 +39,13 @@ export class DepositsService {
       paymentMethod,
     });
 
-    // WHERE 조건 구성 (SalesReceipt 기반)
+    // WHERE 조건 구성 (SalesReceipt 기반) - 날짜를 로컬 자정 기준으로 설정하여 timezone 이슈 방지
+    const startDateTime = new Date(startDate + 'T00:00:00');
+    const endDateTime = new Date(endDate + 'T23:59:59.999');
     const whereClause: any = {
       receiptDate: {
-        gte: new Date(startDate),
-        lte: new Date(endDate + 'T23:59:59.999Z'),
+        gte: startDateTime,
+        lte: endDateTime,
       },
     };
 
@@ -67,6 +69,9 @@ export class DepositsService {
             orderId: true,
             orderNumber: true,
             totalAmount: true,
+            receivedAmount: true,
+            outstandingAmount: true,
+            paymentStatus: true,
             clientId: true,
             clientName: true,
           },
@@ -91,6 +96,9 @@ export class DepositsService {
         clientName: receipt.salesLedger.clientName,
         orderAmount: parseFloat(receipt.salesLedger.totalAmount.toString()),
         depositAmount: parseFloat(receipt.amount.toString()),
+        receivedAmount: parseFloat(receipt.salesLedger.receivedAmount.toString()),
+        outstandingAmount: parseFloat(receipt.salesLedger.outstandingAmount.toString()),
+        paymentStatus: receipt.salesLedger.paymentStatus,
         paymentMethod: receipt.paymentMethod,
         bankName: receipt.bankName || undefined,
         depositorName: receipt.depositorName || undefined,
@@ -128,7 +136,7 @@ export class DepositsService {
       paymentMethod,
     });
 
-    // Raw SQL 집계 쿼리
+    // Raw SQL 집계 쿼리 (날짜 문자열을 직접 캐스팅하여 timezone 이슈 방지)
     const rawSummary = await this.prisma.$queryRaw<any[]>`
       SELECT
         DATE(sr."receiptDate") as date,
@@ -139,8 +147,8 @@ export class DepositsService {
         SUM(sl."totalAmount")::decimal as "totalOrderAmount"
       FROM sales_receipts sr
       INNER JOIN sales_ledgers sl ON sr."salesLedgerId" = sl.id
-      WHERE sr."receiptDate" >= ${new Date(startDate)}::timestamp
-        AND sr."receiptDate" <= ${new Date(endDate + 'T23:59:59.999Z')}::timestamp
+      WHERE sr."receiptDate" >= ${startDate}::date
+        AND sr."receiptDate" < (${endDate}::date + interval '1 day')
         ${clientId ? Prisma.sql`AND sl."clientId" = ${clientId}` : Prisma.empty}
         ${paymentMethod ? Prisma.sql`AND sr."paymentMethod" = ${paymentMethod}` : Prisma.empty}
       GROUP BY DATE(sr."receiptDate"), sl."clientId", sl."clientName"
@@ -193,7 +201,7 @@ export class DepositsService {
     const startDate = `${year}-01-01`;
     const endDate = `${year}-12-31`;
 
-    // Raw SQL 집계 쿼리
+    // Raw SQL 집계 쿼리 (날짜 문자열을 직접 캐스팅하여 timezone 이슈 방지)
     const rawSummary = await this.prisma.$queryRaw<any[]>`
       SELECT
         TO_CHAR(sr."receiptDate", 'YYYY-MM') as month,
@@ -204,8 +212,8 @@ export class DepositsService {
         SUM(sl."totalAmount")::decimal as "totalOrderAmount"
       FROM sales_receipts sr
       INNER JOIN sales_ledgers sl ON sr."salesLedgerId" = sl.id
-      WHERE sr."receiptDate" >= ${new Date(startDate)}::timestamp
-        AND sr."receiptDate" <= ${new Date(endDate + 'T23:59:59.999Z')}::timestamp
+      WHERE sr."receiptDate" >= ${startDate}::date
+        AND sr."receiptDate" < (${endDate}::date + interval '1 day')
         ${clientId ? Prisma.sql`AND sl."clientId" = ${clientId}` : Prisma.empty}
       GROUP BY TO_CHAR(sr."receiptDate", 'YYYY-MM'), sl."clientId", sl."clientName"
       ORDER BY month DESC, sl."clientName" ASC
@@ -254,11 +262,11 @@ export class DepositsService {
             orderId: true,
             orderNumber: true,
             totalAmount: true,
-            client: {
-              select: {
-                clientName: true,
-              },
-            },
+            receivedAmount: true,
+            outstandingAmount: true,
+            paymentStatus: true,
+            clientId: true,
+            clientName: true,
           },
         },
       },
@@ -274,8 +282,13 @@ export class DepositsService {
       receiptDate: receipt.receiptDate.toISOString(),
       orderNumber: receipt.salesLedger.orderNumber,
       orderId: receipt.salesLedger.orderId,
+      clientId: receipt.salesLedger.clientId,
+      clientName: receipt.salesLedger.clientName,
       orderAmount: parseFloat(receipt.salesLedger.totalAmount.toString()),
       depositAmount: parseFloat(receipt.amount.toString()),
+      receivedAmount: parseFloat(receipt.salesLedger.receivedAmount.toString()),
+      outstandingAmount: parseFloat(receipt.salesLedger.outstandingAmount.toString()),
+      paymentStatus: receipt.salesLedger.paymentStatus,
       paymentMethod: receipt.paymentMethod,
       bankName: receipt.bankName || undefined,
       depositorName: receipt.depositorName || undefined,

@@ -367,10 +367,11 @@ export default function DepositsPage() {
                                           <TableRow>
                                             <TableHead>수금번호</TableHead>
                                             <TableHead>주문번호</TableHead>
-                                            <TableHead>입금액</TableHead>
+                                            <TableHead className="text-right">주문금액</TableHead>
+                                            <TableHead className="text-right">결제금액</TableHead>
+                                            <TableHead className="text-right">미수금</TableHead>
                                             <TableHead>결제방법</TableHead>
-                                            <TableHead>입금은행</TableHead>
-                                            <TableHead>입금자</TableHead>
+                                            <TableHead>상태</TableHead>
                                             <TableHead className="text-center">
                                               상세
                                             </TableHead>
@@ -389,11 +390,24 @@ export default function DepositsPage() {
                                                 <TableCell className="font-medium">
                                                   {detail.orderNumber}
                                                 </TableCell>
-                                                <TableCell className="text-green-600 font-bold">
+                                                <TableCell className="text-right">
+                                                  {Math.round(
+                                                    detail.orderAmount
+                                                  ).toLocaleString()}
+                                                  원
+                                                </TableCell>
+                                                <TableCell className="text-right text-green-600 font-bold">
                                                   {Math.round(
                                                     detail.depositAmount
                                                   ).toLocaleString()}
                                                   원
+                                                </TableCell>
+                                                <TableCell className="text-right text-red-500 font-bold">
+                                                  {detail.outstandingAmount > 0
+                                                    ? Math.round(
+                                                        detail.outstandingAmount
+                                                      ).toLocaleString() + '원'
+                                                    : '-'}
                                                 </TableCell>
                                                 <TableCell>
                                                   {getPaymentMethodBadge(
@@ -401,10 +415,21 @@ export default function DepositsPage() {
                                                   )}
                                                 </TableCell>
                                                 <TableCell>
-                                                  {detail.bankName || '-'}
-                                                </TableCell>
-                                                <TableCell>
-                                                  {detail.depositorName || '-'}
+                                                  <span
+                                                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                                      detail.paymentStatus === 'paid'
+                                                        ? 'bg-green-100 text-green-700'
+                                                        : detail.paymentStatus === 'partial'
+                                                        ? 'bg-yellow-100 text-yellow-700'
+                                                        : 'bg-red-100 text-red-700'
+                                                    }`}
+                                                  >
+                                                    {detail.paymentStatus === 'paid'
+                                                      ? '완납'
+                                                      : detail.paymentStatus === 'partial'
+                                                      ? '부분'
+                                                      : '미수'}
+                                                  </span>
                                                 </TableCell>
                                                 <TableCell className="text-center">
                                                   <Link

@@ -138,6 +138,9 @@ export interface DepositDetail {
   clientName: string;
   orderAmount: number;
   depositAmount: number;
+  receivedAmount: number;
+  outstandingAmount: number;
+  paymentStatus: string;
   paymentMethod: string;
   bankName?: string;
   depositorName?: string;
