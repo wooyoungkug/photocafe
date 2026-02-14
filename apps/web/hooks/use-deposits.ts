@@ -355,7 +355,7 @@ export function useDepositDetails(params: DetailDepositsParams) {
 
       return api.get<DepositsDetailResponse>('/deposits', queryParams);
     },
-    enabled: false, // 수동 호출 (행 클릭 시)
+    enabled: !!params.startDate && !!params.endDate,
     staleTime: 30_000,
   });
 }

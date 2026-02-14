@@ -63,6 +63,7 @@ export default function DepositsPage() {
   const [endDate, setEndDate] = useState(presets.today.endDate);
   const [paymentMethod, setPaymentMethod] = useState<string>('all');
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [detailParams, setDetailParams] = useState<{ date: string; clientId: string } | null>(null);
 
   // 일자별 합계 조회
   const { data: dailyData, isLoading: isDailyLoading } = useDailySummary({
@@ -77,11 +78,12 @@ export default function DepositsPage() {
     year: currentYear,
   });
 
-  // 드릴다운 건별 조회 (초기 비활성화)
-  const { data: detailData, refetch: refetchDetails, isFetching: isDetailFetching } =
+  // 드릴다운 건별 조회 (detailParams가 설정되면 자동 활성화)
+  const { data: detailData, isFetching: isDetailFetching } =
     useDepositDetails({
-      startDate: '',
-      endDate: '',
+      startDate: detailParams?.date || '',
+      endDate: detailParams?.date || '',
+      clientId: detailParams?.clientId,
     });
 
   const currentData = viewMode === 'daily' ? dailyData : monthlyData;
@@ -97,34 +99,22 @@ export default function DepositsPage() {
       setStartDate(presets.thisMonth.startDate);
       setEndDate(presets.thisMonth.endDate);
     }
-    setExpandedRow(null); // 필터 변경 시 확장 초기화
+    setExpandedRow(null);
+    setDetailParams(null);
   };
 
   // 행 클릭 핸들러 (드릴다운)
-  const handleRowClick = async (date: string, clientId: string) => {
+  const handleRowClick = (date: string, clientId: string) => {
     const rowKey = `${date}-${clientId}`;
 
     if (expandedRow === rowKey) {
       setExpandedRow(null);
+      setDetailParams(null);
       return;
     }
 
     setExpandedRow(rowKey);
-
-    // 해당 일자+거래처의 건별 상세 조회
-    await refetchDetails({
-      cancelRefetch: true,
-      // @ts-ignore - TanStack Query refetch에서는 이렇게 사용
-      queryKey: [
-        'deposits',
-        'details',
-        {
-          startDate: date,
-          endDate: date,
-          clientId,
-        },
-      ],
-    });
+    setDetailParams({ date, clientId });
   };
 
   // CSV 다운로드 핸들러
@@ -311,6 +301,7 @@ export default function DepositsPage() {
                       onChange={(e) => {
                         setStartDate(e.target.value);
                         setExpandedRow(null);
+                        setDetailParams(null);
                       }}
                     />
                   </div>
@@ -322,6 +313,7 @@ export default function DepositsPage() {
                       onChange={(e) => {
                         setEndDate(e.target.value);
                         setExpandedRow(null);
+                        setDetailParams(null);
                       }}
                     />
                   </div>
@@ -332,6 +324,7 @@ export default function DepositsPage() {
                       onValueChange={(value) => {
                         setPaymentMethod(value);
                         setExpandedRow(null);
+                        setDetailParams(null);
                       }}
                     >
                       <SelectTrigger>
@@ -459,15 +452,7 @@ export default function DepositsPage() {
                                                 </TableRow>
                                               </TableHeader>
                                               <TableBody>
-                                                {detailData?.data
-                                                  ?.filter(
-                                                    (d) =>
-                                                      d.receiptDate.startsWith(
-                                                        row.date
-                                                      ) &&
-                                                      d.clientId === row.clientId
-                                                  )
-                                                  .map((detail) => (
+                                                {detailData?.data?.map((detail) => (
                                                     <TableRow key={detail.id}>
                                                       <TableCell className="font-mono">
                                                         {detail.receiptNumber}

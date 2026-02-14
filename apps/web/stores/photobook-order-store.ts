@@ -280,6 +280,7 @@ export const usePhotobookOrderStore = create<PhotobookOrderState>((set, get) => 
         bindingDirection: state.bindingDirection,
         specificationId: '',
         specificationName: `${state.specWidth}x${state.specHeight}`,
+        totalSize: state.totalFileSize || 0,
       },
     });
   },

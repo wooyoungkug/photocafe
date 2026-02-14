@@ -1,24 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import {
   Plus,
-  Search,
   Download,
-  FileText,
   TrendingUp,
   TrendingDown,
-  Calendar,
   Filter,
-  MoreHorizontal,
   CheckCircle,
   Clock,
   BarChart3,
   Wallet,
-  ArrowUpRight,
-  ArrowDownRight,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -53,28 +47,38 @@ import {
   useSettlements,
   useAccountingSummary,
   useDailySummary,
+  useCreateSettlement,
+  useConfirmSettlement,
 } from '@/hooks/use-accounting';
 import { toast } from '@/hooks/use-toast';
 
 export default function SettlementsPage() {
   const [periodType, setPeriodType] = useState('monthly');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [dailyDate, setDailyDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [newSettlement, setNewSettlement] = useState({
+    periodType: 'monthly',
+    periodStart: format(startOfMonth(new Date()), 'yyyy-MM-dd'),
+    periodEnd: format(endOfMonth(new Date()), 'yyyy-MM-dd'),
+  });
 
-  const { data: settlementsData, isLoading } = useSettlements({ periodType });
+  // 선택된 연도 기준 날짜 범위
+  const yearStart = `${selectedYear}-01-01`;
+  const yearEnd = `${selectedYear}-12-31`;
+
+  const { data: settlementsData, isLoading } = useSettlements({
+    periodType: periodType === 'yearly' ? undefined : periodType,
+    startDate: yearStart,
+    endDate: yearEnd,
+  });
   const { data: summary } = useAccountingSummary();
-  const { data: dailySummary } = useDailySummary();
+  const { data: dailySummary } = useDailySummary(dailyDate);
+  const createSettlement = useCreateSettlement();
+  const confirmSettlement = useConfirmSettlement();
 
-  // 월별 데이터 (샘플)
-  const monthlyData = [
-    { month: '2026-01', sales: 12500000, purchases: 4200000, profit: 8300000 },
-    { month: '2025-12', sales: 11800000, purchases: 3900000, profit: 7900000 },
-    { month: '2025-11', sales: 10500000, purchases: 3500000, profit: 7000000 },
-    { month: '2025-10', sales: 9800000, purchases: 3200000, profit: 6600000 },
-    { month: '2025-09', sales: 8900000, purchases: 2900000, profit: 6000000 },
-    { month: '2025-08', sales: 9200000, purchases: 3100000, profit: 6100000 },
-  ];
+  // API에서 받은 정산 데이터 (배열)
+  const settlements: any[] = Array.isArray(settlementsData) ? settlementsData : [];
 
   const getStatusBadge = (status: string) => {
     const configs: Record<string, { label: string; color: string; icon: any }> = {
@@ -94,10 +98,20 @@ export default function SettlementsPage() {
 
   const handleCreateSettlement = async () => {
     try {
+      await createSettlement.mutateAsync(newSettlement);
       toast({ title: '정산이 생성되었습니다.' });
       setIsDialogOpen(false);
     } catch {
       toast({ title: '정산 생성에 실패했습니다.', variant: 'destructive' });
+    }
+  };
+
+  const handleConfirmSettlement = async (id: string) => {
+    try {
+      await confirmSettlement.mutateAsync(id);
+      toast({ title: '정산이 확정되었습니다.' });
+    } catch {
+      toast({ title: '정산 확정에 실패했습니다.', variant: 'destructive' });
     }
   };
 
@@ -136,10 +150,6 @@ export default function SettlementsPage() {
                 <TrendingUp className="h-6 w-6 text-white" />
               </div>
             </div>
-            <div className="mt-2 flex items-center text-xs text-blue-600">
-              <ArrowUpRight className="h-3 w-3 mr-1" />
-              전월 대비 +5.9%
-            </div>
           </CardContent>
         </Card>
 
@@ -156,10 +166,6 @@ export default function SettlementsPage() {
                 <TrendingDown className="h-6 w-6 text-white" />
               </div>
             </div>
-            <div className="mt-2 flex items-center text-xs text-red-600">
-              <ArrowDownRight className="h-3 w-3 mr-1" />
-              전월 대비 -2.3%
-            </div>
           </CardContent>
         </Card>
 
@@ -175,10 +181,6 @@ export default function SettlementsPage() {
               <div className="h-12 w-12 bg-green-500 rounded-xl flex items-center justify-center">
                 <Wallet className="h-6 w-6 text-white" />
               </div>
-            </div>
-            <div className="mt-2 flex items-center text-xs text-green-600">
-              <ArrowUpRight className="h-3 w-3 mr-1" />
-              전월 대비 +8.1%
             </div>
           </CardContent>
         </Card>
@@ -218,12 +220,13 @@ export default function SettlementsPage() {
               <div className="flex items-center gap-4">
                 <Input
                   type="date"
-                  defaultValue={format(new Date(), 'yyyy-MM-dd')}
+                  value={dailyDate}
+                  onChange={(e) => setDailyDate(e.target.value)}
                   className="w-[160px]"
                 />
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={() => setDailyDate(format(new Date(), 'yyyy-MM-dd'))}>
                   <Filter className="h-4 w-4 mr-1" />
-                  조회
+                  오늘
                 </Button>
               </div>
             </CardContent>
@@ -307,38 +310,62 @@ export default function SettlementsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {monthlyData.map((item) => {
-                    const profitRate = item.sales > 0 ? Math.round((item.profit / item.sales) * 100) : 0;
-                    return (
-                      <TableRow key={item.month} className="hover:bg-slate-50">
-                        <TableCell className="font-medium">
-                          {format(new Date(item.month + '-01'), 'yyyy년 MM월', { locale: ko })}
-                        </TableCell>
-                        <TableCell className="text-right text-blue-600 font-medium">
-                          {item.sales.toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-right text-red-600">
-                          {item.purchases.toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-right font-bold text-green-600">
-                          {item.profit.toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant="outline" className="text-xs">
-                            {profitRate}%
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {getStatusBadge(item.month === '2026-01' ? 'draft' : 'confirmed')}
-                        </TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                        불러오는 중...
+                      </TableCell>
+                    </TableRow>
+                  ) : settlements.filter(s => s.periodType === 'monthly').length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                        정산 내역이 없습니다. '정산 생성' 버튼으로 새 정산을 생성해주세요.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    settlements.filter(s => s.periodType === 'monthly').map((item) => {
+                      const sales = Number(item.totalSales || 0);
+                      const purchases = Number(item.totalPurchases || 0);
+                      const profit = Number(item.netProfit || 0);
+                      const profitRate = sales > 0 ? Math.round((profit / sales) * 100) : 0;
+                      return (
+                        <TableRow key={item.id} className="hover:bg-slate-50">
+                          <TableCell className="font-medium">
+                            {format(new Date(item.periodStart), 'yyyy년 MM월', { locale: ko })}
+                          </TableCell>
+                          <TableCell className="text-right text-blue-600 font-medium">
+                            {sales.toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-right text-red-600">
+                            {purchases.toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-right font-bold text-green-600">
+                            {profit.toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="outline" className="text-xs">
+                              {profitRate}%
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {getStatusBadge(item.status)}
+                          </TableCell>
+                          <TableCell>
+                            {item.status === 'draft' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 text-xs"
+                                onClick={() => handleConfirmSettlement(item.id)}
+                              >
+                                확정
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -370,28 +397,33 @@ export default function SettlementsPage() {
               <CardTitle>연간 실적 요약</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                <div className="text-center p-6 bg-blue-50 rounded-xl">
-                  <p className="text-sm text-blue-600 mb-2">연간 매출</p>
-                  <p className="text-3xl font-bold text-blue-900">125,800,000</p>
-                  <p className="text-xs text-blue-500 mt-1">전년 대비 +15.2%</p>
-                </div>
-                <div className="text-center p-6 bg-red-50 rounded-xl">
-                  <p className="text-sm text-red-600 mb-2">연간 매입</p>
-                  <p className="text-3xl font-bold text-red-900">42,100,000</p>
-                  <p className="text-xs text-red-500 mt-1">전년 대비 +8.5%</p>
-                </div>
-                <div className="text-center p-6 bg-green-50 rounded-xl">
-                  <p className="text-sm text-green-600 mb-2">연간 순이익</p>
-                  <p className="text-3xl font-bold text-green-900">83,700,000</p>
-                  <p className="text-xs text-green-500 mt-1">전년 대비 +18.3%</p>
-                </div>
-                <div className="text-center p-6 bg-purple-50 rounded-xl">
-                  <p className="text-sm text-purple-600 mb-2">평균 이익률</p>
-                  <p className="text-3xl font-bold text-purple-900">66.5%</p>
-                  <p className="text-xs text-purple-500 mt-1">전년 대비 +2.1%p</p>
-                </div>
-              </div>
+              {(() => {
+                const yearSales = settlements.reduce((sum, s) => sum + Number(s.totalSales || 0), 0);
+                const yearPurchases = settlements.reduce((sum, s) => sum + Number(s.totalPurchases || 0), 0);
+                const yearProfit = settlements.reduce((sum, s) => sum + Number(s.netProfit || 0), 0);
+                const avgProfitRate = yearSales > 0 ? Math.round((yearProfit / yearSales) * 100 * 10) / 10 : 0;
+
+                return (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <div className="text-center p-6 bg-blue-50 rounded-xl">
+                      <p className="text-sm text-blue-600 mb-2">연간 매출</p>
+                      <p className="text-3xl font-bold text-blue-900">{yearSales.toLocaleString()}</p>
+                    </div>
+                    <div className="text-center p-6 bg-red-50 rounded-xl">
+                      <p className="text-sm text-red-600 mb-2">연간 매입</p>
+                      <p className="text-3xl font-bold text-red-900">{yearPurchases.toLocaleString()}</p>
+                    </div>
+                    <div className="text-center p-6 bg-green-50 rounded-xl">
+                      <p className="text-sm text-green-600 mb-2">연간 순이익</p>
+                      <p className="text-3xl font-bold text-green-900">{yearProfit.toLocaleString()}</p>
+                    </div>
+                    <div className="text-center p-6 bg-purple-50 rounded-xl">
+                      <p className="text-sm text-purple-600 mb-2">평균 이익률</p>
+                      <p className="text-3xl font-bold text-purple-900">{avgProfitRate}%</p>
+                    </div>
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
         </TabsContent>
@@ -406,7 +438,10 @@ export default function SettlementsPage() {
           <div className="space-y-4 mt-4">
             <div className="space-y-2">
               <Label>정산 유형</Label>
-              <Select defaultValue="monthly">
+              <Select
+                value={newSettlement.periodType}
+                onValueChange={(v) => setNewSettlement((prev) => ({ ...prev, periodType: v }))}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -423,14 +458,16 @@ export default function SettlementsPage() {
                 <Label>시작일</Label>
                 <Input
                   type="date"
-                  defaultValue={format(startOfMonth(new Date()), 'yyyy-MM-dd')}
+                  value={newSettlement.periodStart}
+                  onChange={(e) => setNewSettlement((prev) => ({ ...prev, periodStart: e.target.value }))}
                 />
               </div>
               <div className="space-y-2">
                 <Label>종료일</Label>
                 <Input
                   type="date"
-                  defaultValue={format(endOfMonth(new Date()), 'yyyy-MM-dd')}
+                  value={newSettlement.periodEnd}
+                  onChange={(e) => setNewSettlement((prev) => ({ ...prev, periodEnd: e.target.value }))}
                 />
               </div>
             </div>
