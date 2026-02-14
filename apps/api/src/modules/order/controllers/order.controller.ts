@@ -10,7 +10,9 @@ import {
   Query,
   UseGuards,
   Request,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 import { OrderService } from '../services/order.service';
@@ -109,6 +111,12 @@ export class OrderController {
     return this.orderService.dataCleanup(dto);
   }
 
+  @Post('bulk/delete-originals')
+  @ApiOperation({ summary: '원본 이미지 일괄 삭제 (배송완료 후)' })
+  async bulkDeleteOriginals(@Body() dto: BulkOrderIdsDto, @Request() req: any) {
+    return this.orderService.bulkDeleteOriginals(dto.orderIds, req.user.id);
+  }
+
   @Post('check-duplicates')
   @ApiOperation({ summary: '중복 주문 체크 (3개월 이내)' })
   async checkDuplicates(@Body() dto: CheckDuplicateOrderDto) {
@@ -119,6 +127,12 @@ export class OrderController {
   @ApiOperation({ summary: '주문 공정 이력 조회' })
   async getProcessHistory(@Param('id') id: string) {
     return this.orderService.getProcessHistory(id);
+  }
+
+  @Get(':id/download-originals')
+  @ApiOperation({ summary: '원본 이미지 다운로드 (ZIP)' })
+  async downloadOriginals(@Param('id') id: string, @Res() res: Response) {
+    return this.orderService.downloadOriginals(id, res);
   }
 
   @Get(':id')
@@ -236,6 +250,15 @@ export class OrderController {
   @ApiOperation({ summary: 'PDF 재생성 (실패 시 재시도)' })
   async regeneratePdf(@Param('id') id: string) {
     return this.orderService.regeneratePdf(id);
+  }
+
+  @Delete(':id/originals')
+  @ApiOperation({ summary: '주문 전체 원본 이미지 삭제 (배송완료 후)' })
+  async deleteOrderOriginals(
+    @Param('id') id: string,
+    @Request() req: any,
+  ) {
+    return this.orderService.deleteOrderOriginals(id, req.user.id);
   }
 
   @Delete(':id/items/:itemId/originals')

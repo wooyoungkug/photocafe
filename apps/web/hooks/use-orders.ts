@@ -62,6 +62,8 @@ export interface OrderItem {
   totalFileSize?: number;
   pageLayout?: string;
   bindingDirection?: string;
+  originalsDeleted?: boolean;
+  pdfStatus?: string;
   quantity: number;
   unitPrice: number;
   totalPrice: number;

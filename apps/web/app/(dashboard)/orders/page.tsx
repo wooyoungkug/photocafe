@@ -11,6 +11,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ExternalLink,
+  Download,
+  Trash2,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -35,7 +37,9 @@ import {
 import { useOrders, Order, ORDER_STATUS_LABELS } from '@/hooks/use-orders';
 import { BulkActionToolbar } from './components/bulk-action-toolbar';
 import { OrderQuickEditDialog } from './components/order-quick-edit-dialog';
+import { ConfirmActionDialog } from './components/confirm-action-dialog';
 import { ProcessHistoryDialog } from '@/components/order/process-history-dialog';
+import { useDeleteOrderOriginals } from '@/hooks/use-order-bulk-actions';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -108,6 +112,12 @@ export default function OrderListPage() {
   const [historyOrderNumber, setHistoryOrderNumber] = useState<string>('');
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
+  // 원본 이미지 다운로드/삭제
+  const [isDownloading, setIsDownloading] = useState<string | null>(null);
+  const [deleteOriginalsOrderId, setDeleteOriginalsOrderId] = useState<string | null>(null);
+  const [deleteOriginalsDialog, setDeleteOriginalsDialog] = useState(false);
+  const deleteOrderOriginals = useDeleteOrderOriginals();
+
   // 주문 목록 조회
   const { data: ordersData, isLoading } = useOrders({
     page,
@@ -145,6 +155,34 @@ export default function OrderListPage() {
   const clearSelection = () => setSelectedOrderIds(new Set());
 
   const isAllSelected = orders.length > 0 && selectedOrderIds.size === orders.length;
+
+  // 원본 이미지 다운로드
+  const handleDownloadOriginals = async (orderId: string, orderNumber: string) => {
+    try {
+      setIsDownloading(orderId);
+      await api.downloadBlob(`/orders/${orderId}/download-originals`, `${orderNumber}_originals.zip`);
+      toast({ title: '원본 이미지 다운로드 완료' });
+    } catch (err: any) {
+      toast({ title: err.message || '다운로드 실패', variant: 'destructive' });
+    } finally {
+      setIsDownloading(null);
+    }
+  };
+
+  // 원본 이미지 삭제
+  const handleDeleteOriginals = () => {
+    if (!deleteOriginalsOrderId) return;
+    deleteOrderOriginals.mutate(deleteOriginalsOrderId, {
+      onSuccess: (result: any) => {
+        toast({ title: `원본 삭제 완료: ${result.totalFreedMB || 0}MB 확보` });
+        setDeleteOriginalsDialog(false);
+        setDeleteOriginalsOrderId(null);
+      },
+      onError: (err: any) => {
+        toast({ title: err.message || '원본 삭제 실패', variant: 'destructive' });
+      },
+    });
+  };
 
   // 회원 임퍼스네이션: 해당 거래처로 쇼핑몰 로그인 (관리자 토큰 보존)
   const handleImpersonate = async (clientId: string) => {
@@ -370,7 +408,13 @@ export default function OrderListPage() {
 
                         {/* 용량 */}
                         <TableCell className="text-center text-xs text-muted-foreground">
-                          {formatFileSize(Number(item.totalFileSize))}
+                          {item.originalsDeleted ? (
+                            <Badge variant="outline" className="text-[10px] px-1 py-0 border-red-300 text-red-500">
+                              삭제됨
+                            </Badge>
+                          ) : (
+                            formatFileSize(Number(item.totalFileSize))
+                          )}
                         </TableCell>
 
                         {/* 주문금액 - 첫 번째 항목에만 합계 표시 */}
@@ -424,6 +468,32 @@ export default function OrderListPage() {
                                 <Receipt className="h-3 w-3 mr-1" />
                                 거래명세
                               </Button>
+                              {!items.every(i => i.originalsDeleted) && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="w-full text-xs h-7 text-blue-600"
+                                  onClick={() => handleDownloadOriginals(order.id, order.orderNumber)}
+                                  disabled={isDownloading === order.id}
+                                >
+                                  <Download className="h-3 w-3 mr-1" />
+                                  {isDownloading === order.id ? '다운로드중...' : '원본받기'}
+                                </Button>
+                              )}
+                              {order.status === 'shipped' && !items.every(i => i.originalsDeleted) && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="w-full text-xs h-7 text-red-500"
+                                  onClick={() => {
+                                    setDeleteOriginalsOrderId(order.id);
+                                    setDeleteOriginalsDialog(true);
+                                  }}
+                                >
+                                  <Trash2 className="h-3 w-3 mr-1" />
+                                  원본삭제
+                                </Button>
+                              )}
                             </div>
                           </TableCell>
                         )}
@@ -508,6 +578,18 @@ export default function OrderListPage() {
         orderNumber={historyOrderNumber}
         open={isHistoryOpen}
         onOpenChange={setIsHistoryOpen}
+      />
+
+      {/* 원본 이미지 삭제 확인 다이얼로그 */}
+      <ConfirmActionDialog
+        open={deleteOriginalsDialog}
+        onOpenChange={setDeleteOriginalsDialog}
+        title="원본 이미지 삭제"
+        description="이 주문의 원본 이미지를 영구 삭제합니다. PDF가 완성된 항목만 삭제됩니다. 이 작업은 되돌릴 수 없습니다."
+        confirmLabel="삭제 실행"
+        variant="destructive"
+        isLoading={deleteOrderOriginals.isPending}
+        onConfirm={handleDeleteOriginals}
       />
     </div>
   );

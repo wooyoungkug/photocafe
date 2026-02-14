@@ -190,6 +190,8 @@ export class OrderService {
               quantity: true,
               unitPrice: true,
               totalPrice: true,
+              originalsDeleted: true,
+              pdfStatus: true,
               files: {
                 select: {
                   thumbnailUrl: true,
@@ -1732,7 +1734,7 @@ export class OrderService {
       }),
       this.prisma.orderItem.update({
         where: { id: itemId },
-        data: { originalsDeleted: true },
+        data: { originalsDeleted: true, totalFileSize: 0 },
       }),
       this.prisma.processHistory.create({
         data: {
@@ -1752,5 +1754,148 @@ export class OrderService {
       freedBytes,
       freedMB: Math.round(freedBytes / 1024 / 1024),
     };
+  }
+
+  /**
+   * 원본 이미지 ZIP 다운로드
+   */
+  async downloadOriginals(orderId: string, res: any) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: {
+        orderNumber: true,
+        items: {
+          select: {
+            id: true,
+            folderName: true,
+            originalsDeleted: true,
+            files: {
+              select: {
+                originalPath: true,
+                fileName: true,
+                storageStatus: true,
+              },
+              orderBy: { sortOrder: 'asc' },
+            },
+          },
+        },
+      },
+    });
+
+    if (!order) throw new NotFoundException('주문을 찾을 수 없습니다');
+
+    const { existsSync } = require('fs');
+    const filesToZip: { path: string; name: string; folder: string }[] = [];
+
+    for (const item of order.items) {
+      if (item.originalsDeleted) continue;
+      for (const file of item.files) {
+        if (file.originalPath && file.storageStatus !== 'deleted') {
+          if (existsSync(file.originalPath)) {
+            filesToZip.push({
+              path: file.originalPath,
+              name: file.fileName,
+              folder: item.folderName || item.id,
+            });
+          }
+        }
+      }
+    }
+
+    if (filesToZip.length === 0) {
+      throw new BadRequestException('다운로드할 원본 파일이 없습니다.');
+    }
+
+    const zipFileName = `${order.orderNumber}_originals.zip`;
+    res.set({
+      'Content-Type': 'application/zip',
+      'Content-Disposition': `attachment; filename="${encodeURIComponent(zipFileName)}"`,
+    });
+
+    const archiver = require('archiver');
+    const archive = archiver('zip', { zlib: { level: 1 } });
+
+    archive.on('error', (err: any) => {
+      this.logger.error(`ZIP 생성 실패: ${orderId}`, err);
+      if (!res.headersSent) {
+        res.status(500).json({ message: 'ZIP 생성 중 오류가 발생했습니다.' });
+      }
+    });
+
+    archive.pipe(res);
+
+    for (const file of filesToZip) {
+      archive.file(file.path, { name: `${file.folder}/${file.name}` });
+    }
+
+    await archive.finalize();
+  }
+
+  /**
+   * 주문 단위 원본 이미지 삭제 (모든 항목)
+   */
+  async deleteOrderOriginals(orderId: string, userId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: {
+        status: true,
+        orderNumber: true,
+        items: {
+          select: {
+            id: true,
+            pdfStatus: true,
+            originalsDeleted: true,
+          },
+        },
+      },
+    });
+
+    if (!order) throw new NotFoundException('주문을 찾을 수 없습니다');
+    if (order.status !== ORDER_STATUS.SHIPPED) {
+      throw new BadRequestException('배송완료 상태의 주문만 원본을 삭제할 수 있습니다.');
+    }
+
+    let totalDeleted = 0;
+    let totalFreed = 0;
+
+    for (const item of order.items) {
+      if (item.originalsDeleted) continue;
+      if (item.pdfStatus !== 'completed') continue;
+
+      try {
+        const result = await this.deleteOriginals(orderId, item.id, userId);
+        totalDeleted += result.deletedCount;
+        totalFreed += result.freedBytes;
+      } catch (err) {
+        this.logger.warn(`원본 삭제 실패 (item: ${item.id}): ${err.message}`);
+      }
+    }
+
+    return {
+      message: '원본 이미지 삭제 완료',
+      totalDeletedCount: totalDeleted,
+      totalFreedBytes: totalFreed,
+      totalFreedMB: Math.round(totalFreed / 1024 / 1024),
+    };
+  }
+
+  /**
+   * 원본 이미지 일괄 삭제
+   */
+  async bulkDeleteOriginals(orderIds: string[], userId: string) {
+    let successCount = 0;
+    const failed: string[] = [];
+
+    for (const orderId of orderIds) {
+      try {
+        await this.deleteOrderOriginals(orderId, userId);
+        successCount++;
+      } catch (err) {
+        failed.push(orderId);
+        this.logger.warn(`원본 일괄 삭제 실패: ${orderId} - ${err.message}`);
+      }
+    }
+
+    return { success: successCount, failed };
   }
 }
