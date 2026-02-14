@@ -45,6 +45,10 @@ services:
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       TZ: Asia/Seoul
+      NODE_OPTIONS: "--max-old-space-size=1536"
+      UPLOAD_BASE_PATH: /app/uploads
+    volumes:
+      - /volume1/docker/printing114/uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -54,14 +58,14 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    # ⚡ 메모리 제한 추가 (OOM Killer 방지)
+    # ⚡ 메모리 제한 (PDF 생성용 2GB 증설)
     deploy:
       resources:
         limits:
           cpus: '2'
-          memory: 1G
+          memory: 2G
         reservations:
-          memory: 512M
+          memory: 1G
     # ⚡ 로그 관리 추가 (디스크 가득 차는 것 방지)
     logging:
       driver: "json-file"

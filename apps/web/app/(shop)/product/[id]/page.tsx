@@ -35,6 +35,7 @@ import { useMultiFolderUploadStore, type UploadedFolder, type CoverSourceType, c
 import { FabricPickerDialog } from '@/components/album-upload/fabric-picker-dialog';
 import type { Fabric } from '@/hooks/use-fabrics';
 import { useTranslations } from 'next-intl';
+import { startBackgroundUpload, type FolderUploadData } from '@/lib/background-upload';
 
 // 이미지 URL 정규화 함수
 const normalizeImageUrl = (url: string | null | undefined): string => {
@@ -184,6 +185,33 @@ export default function ProductPage() {
     setIsAddingToCart(true);
     setTimeout(() => {
       try {
+        // 1. 업로드 전 기존 장바구니 아이템 ID 스냅샷
+        const itemIdsBefore = new Set(useCartStore.getState().items.map(i => i.id));
+
+        // 2. 폴더별 파일 데이터 수집 (clearFolders 전에 File 참조 확보)
+        const folderUploadMap = new Map<string, FolderUploadData>();
+        folders.forEach((folder) => {
+          if (!folderUploadMap.has(folder.id)) {
+            folderUploadMap.set(folder.id, {
+              folderId: folder.id,
+              folderName: folder.orderTitle,
+              files: folder.files.map((f, idx) => ({
+                file: f.file,
+                canvasDataUrl: f.canvasDataUrl,
+                fileName: f.newFileName || f.fileName,
+                sortOrder: idx,
+                widthPx: f.widthPx,
+                heightPx: f.heightPx,
+                widthInch: f.widthInch,
+                heightInch: f.heightInch,
+                dpi: f.dpi,
+                fileSize: f.fileSize,
+              })),
+            });
+          }
+        });
+
+        // 3. 장바구니에 아이템 추가 (uploadStatus: 'pending')
         folders.forEach((folder) => {
           const options: CartItemOption[] = [
             { name: '규격', value: folder.specLabel, price: 0 },
@@ -240,6 +268,8 @@ export default function ProductPage() {
               foilPosition: folder.foilPosition || undefined,
               shippingInfo: shippingInfoData,
             },
+            uploadStatus: 'pending',
+            totalFileCount: folder.files.length,
             isDuplicateOverride,
           });
 
@@ -277,10 +307,31 @@ export default function ProductPage() {
                 foilPosition: folder.foilPosition || undefined,
                 shippingInfo: shippingInfoData,
               },
+              uploadStatus: 'pending',
+              totalFileCount: folder.files.length,
               isDuplicateOverride,
             });
           });
         });
+
+        // 4. 새로 추가된 카트 아이템 식별
+        const allItems = useCartStore.getState().items;
+        const newItems = allItems.filter((i) => !itemIdsBefore.has(i.id));
+
+        // 5. 폴더별로 백그라운드 업로드 시작
+        folderUploadMap.forEach((folderData, folderId) => {
+          const relatedCartItems = newItems.filter(
+            (item) => item.albumOrderInfo?.folderId === folderId
+          );
+          if (relatedCartItems.length > 0) {
+            startBackgroundUpload(
+              relatedCartItems.map((i) => i.id),
+              folderData,
+            );
+          }
+        });
+
+        // 6. 업로드 스토어 정리 및 장바구니 이동
         clearFolders();
         router.push('/cart');
       } catch (error) {

@@ -1,6 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef, Logger } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { SystemSettingsService } from '@/modules/system-settings/system-settings.service';
+import { FileStorageService } from '@/modules/upload/services/file-storage.service';
+import { PdfGeneratorService } from '@/modules/upload/services/pdf-generator.service';
 import { Prisma } from '@prisma/client';
 import {
   CreateOrderDto,
@@ -23,10 +25,14 @@ import { SalesLedgerService } from '../../accounting/services/sales-ledger.servi
 
 @Injectable()
 export class OrderService {
+  private readonly logger = new Logger(OrderService.name);
+
   constructor(
     private prisma: PrismaService,
     private systemSettings: SystemSettingsService,
     private salesLedgerService: SalesLedgerService,
+    private fileStorage: FileStorageService,
+    private pdfGenerator: PdfGeneratorService,
   ) { }
 
   // ==================== 주문번호 생성 ====================
@@ -477,6 +483,11 @@ export class OrderService {
           }).catch(() => { })
         )
       ).catch(() => { });
+
+      // 임시 파일 → 정식 경로 이동 (비동기, 에러 무시)
+      this.moveTemporaryFiles(order).catch((err) => {
+        this.logger.error('임시 파일 이동 실패:', err.message);
+      });
 
       // 매출원장 자동 등록 (비동기, 에러 시 주문은 유지)
       this.salesLedgerService.createFromOrder({
@@ -1476,6 +1487,11 @@ export class OrderService {
       throw new BadRequestException('모든 파일이 승인되어야 검수를 완료할 수 있습니다.');
     }
 
+    // 비동기 PDF 생성 트리거 (접수확정 응답을 차단하지 않음)
+    this.triggerPdfGeneration(orderId).catch(err => {
+      this.logger.error(`PDF 생성 실패 (주문 ${orderId}):`, err);
+    });
+
     // 접수완료로 상태 변경
     return this.prisma.order.update({
       where: { id: orderId },
@@ -1516,5 +1532,225 @@ export class OrderService {
       console.error('[SMS 발송 실패]', error);
       return false; // 실패해도 전체 작업은 계속 진행
     }
+  }
+
+  // ==================== 파일 관리 ====================
+
+  /**
+   * 임시 파일을 정식 주문 경로로 이동
+   */
+  private async moveTemporaryFiles(order: any) {
+    for (const item of order.items) {
+      if (!item.files?.length) continue;
+
+      // tempFolderId 추출: fileUrl이 /uploads/temp/{tempFolderId}/... 형태
+      const firstFile = item.files[0];
+      if (!firstFile.fileUrl || !firstFile.fileUrl.includes('/temp/')) continue;
+
+      const urlParts = firstFile.fileUrl.replace(/\\/g, '/').split('/temp/');
+      if (urlParts.length < 2) continue;
+      const tempFolderId = urlParts[1].split('/')[0];
+
+      const folderName = item.folderName || 'default';
+      const { orderDir, movedFiles } = this.fileStorage.moveToOrderDir(
+        tempFolderId,
+        order.orderNumber,
+        folderName,
+      );
+
+      // DB 경로 업데이트
+      for (const moved of movedFiles) {
+        const matchingFile = item.files.find(
+          (f: any) => f.fileUrl.includes(moved.fileName),
+        );
+        if (matchingFile) {
+          await this.prisma.orderFile.update({
+            where: { id: matchingFile.id },
+            data: {
+              fileUrl: this.fileStorage.toRelativeUrl(moved.original),
+              originalPath: moved.original,
+              thumbnailUrl: moved.thumbnail ? this.fileStorage.toRelativeUrl(moved.thumbnail) : matchingFile.thumbnailUrl,
+              thumbnailPath: moved.thumbnail || null,
+              storageStatus: 'uploaded',
+            },
+          });
+        }
+      }
+    }
+  }
+
+  /**
+   * 접수확정 시 PDF 생성 트리거 (비동기)
+   */
+  private async triggerPdfGeneration(orderId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { orderNumber: true },
+    });
+    if (!order) return;
+
+    const items = await this.prisma.orderItem.findMany({
+      where: { orderId },
+      include: {
+        files: {
+          where: { inspectionStatus: 'approved', storageStatus: 'uploaded' },
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
+    });
+
+    for (const item of items) {
+      if (item.files.length === 0) continue;
+
+      try {
+        await this.prisma.orderItem.update({
+          where: { id: item.id },
+          data: { pdfStatus: 'generating' },
+        });
+
+        // 원본 파일 경로에서 디렉토리 추출
+        const firstFilePath = item.files[0].originalPath;
+        if (!firstFilePath) {
+          this.logger.warn(`No original path for item ${item.id}, skipping PDF`);
+          await this.prisma.orderItem.update({
+            where: { id: item.id },
+            data: { pdfStatus: 'failed' },
+          });
+          continue;
+        }
+
+        const { join, dirname } = require('path');
+        const orderDir = dirname(dirname(firstFilePath)); // originals/ 상위
+
+        const pdfFiles = item.files
+          .filter(f => f.originalPath)
+          .map(f => ({
+            originalPath: f.originalPath!,
+            fileName: f.fileName,
+            widthInch: f.widthInch,
+            heightInch: f.heightInch,
+            sortOrder: f.sortOrder,
+          }));
+
+        const pdfPath = await this.pdfGenerator.generatePdf(
+          pdfFiles,
+          orderDir,
+          item.productionNumber,
+        );
+
+        await this.prisma.orderItem.update({
+          where: { id: item.id },
+          data: {
+            pdfPath,
+            pdfStatus: 'completed',
+            pdfGeneratedAt: new Date(),
+          },
+        });
+
+        this.logger.log(`PDF generated for item ${item.productionNumber}`);
+      } catch (err) {
+        this.logger.error(`PDF generation failed for item ${item.id}:`, err);
+        await this.prisma.orderItem.update({
+          where: { id: item.id },
+          data: { pdfStatus: 'failed' },
+        });
+      }
+    }
+  }
+
+  /**
+   * PDF 수동 재생성
+   */
+  async regeneratePdf(orderId: string) {
+    const failedItems = await this.prisma.orderItem.findMany({
+      where: { orderId, pdfStatus: 'failed' },
+    });
+
+    if (failedItems.length === 0) {
+      throw new BadRequestException('재생성할 PDF가 없습니다.');
+    }
+
+    // 비동기 실행
+    this.triggerPdfGeneration(orderId).catch(err => {
+      this.logger.error(`PDF 재생성 실패: ${orderId}`, err);
+    });
+
+    return { message: `${failedItems.length}건의 PDF 재생성을 시작합니다.` };
+  }
+
+  /**
+   * 원본 이미지 삭제 (배송완료 후 관리자 수동)
+   */
+  async deleteOriginals(orderId: string, itemId: string, userId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { status: true, orderNumber: true },
+    });
+    if (!order) throw new NotFoundException('주문을 찾을 수 없습니다');
+
+    if (order.status !== ORDER_STATUS.SHIPPED) {
+      throw new BadRequestException('배송완료 상태의 주문만 원본을 삭제할 수 있습니다.');
+    }
+
+    const item = await this.prisma.orderItem.findUnique({
+      where: { id: itemId },
+      include: { files: true },
+    });
+    if (!item || item.orderId !== orderId) {
+      throw new NotFoundException('주문항목을 찾을 수 없습니다');
+    }
+
+    if (item.pdfStatus !== 'completed') {
+      throw new BadRequestException('PDF 생성이 완료된 항목만 원본을 삭제할 수 있습니다.');
+    }
+
+    if (item.originalsDeleted) {
+      throw new BadRequestException('이미 원본이 삭제된 항목입니다.');
+    }
+
+    // 디스크에서 원본 파일 삭제
+    const firstFile = item.files.find(f => f.originalPath);
+    let deletedCount = 0;
+    let freedBytes = 0;
+
+    if (firstFile?.originalPath) {
+      const { dirname } = require('path');
+      const orderDir = dirname(dirname(firstFile.originalPath));
+      const result = this.fileStorage.deleteOriginals(orderDir);
+      deletedCount = result.deletedCount;
+      freedBytes = result.freedBytes;
+    }
+
+    // DB 업데이트
+    await this.prisma.$transaction([
+      this.prisma.orderFile.updateMany({
+        where: { orderItemId: itemId },
+        data: {
+          storageStatus: 'deleted',
+          deletedAt: new Date(),
+        },
+      }),
+      this.prisma.orderItem.update({
+        where: { id: itemId },
+        data: { originalsDeleted: true },
+      }),
+      this.prisma.processHistory.create({
+        data: {
+          orderId,
+          fromStatus: order.status,
+          toStatus: order.status,
+          processType: 'originals_deleted',
+          note: `원본 이미지 삭제: ${deletedCount}개 파일, ${Math.round(freedBytes / 1024 / 1024)}MB 확보`,
+          processedBy: userId,
+        },
+      }),
+    ]);
+
+    return {
+      message: '원본 이미지가 삭제되었습니다.',
+      deletedCount,
+      freedBytes,
+      freedMB: Math.round(freedBytes / 1024 / 1024),
+    };
   }
 }

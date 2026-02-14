@@ -27,6 +27,11 @@ async function bootstrap() {
   // Enable shutdown hooks for graceful shutdown
   app.enableShutdownHooks();
 
+  // Static file serving (uploads)
+  app.useStaticAssets(join(process.cwd(), process.env.UPLOAD_BASE_PATH || 'uploads'), {
+    prefix: '/uploads/',
+  });
+
   // Global prefix
   app.setGlobalPrefix('api/v1');
 

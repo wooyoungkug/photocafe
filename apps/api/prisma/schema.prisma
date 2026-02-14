@@ -824,6 +824,10 @@ model OrderItem {
   fabricName        String?
   bindingDirection  String?
   pageLayout        String?
+  pdfPath           String?
+  pdfGeneratedAt    DateTime?
+  pdfStatus         String?
+  originalsDeleted  Boolean            @default(false)
   files             OrderFile[]
   shipping          OrderItemShipping?
   order             Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
@@ -869,6 +873,10 @@ model OrderFile {
   fileName         String
   fileUrl          String
   thumbnailUrl     String?
+  originalPath     String?
+  thumbnailPath    String?
+  storageStatus    String    @default("pending")
+  deletedAt        DateTime?
   pageRange        String
   pageStart        Int
   pageEnd          Int

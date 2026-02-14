@@ -229,7 +229,29 @@ export default function CartPage() {
     return sum;
   }, 0);
 
+  // 업로드 진행 중인 아이템이 있는지 확인
+  const hasUploadInProgress = items.some(
+    (item) => item.uploadStatus === 'uploading' || item.uploadStatus === 'pending'
+  );
+  const hasUploadFailed = items.some((item) => item.uploadStatus === 'failed');
+
   const handleCheckout = () => {
+    if (hasUploadInProgress) {
+      toast({
+        title: '파일 업로드 진행 중',
+        description: '원본 파일 업로드가 완료된 후 주문할 수 있습니다.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (hasUploadFailed) {
+      toast({
+        title: '업로드 실패 항목 확인',
+        description: '업로드에 실패한 항목이 있습니다. 재시도하거나 삭제 후 주문해주세요.',
+        variant: 'destructive',
+      });
+      return;
+    }
     if (!isAuthenticated) {
       router.push('/login?redirect=/order');
       return;
@@ -360,6 +382,8 @@ export default function CartPage() {
               selectedTotal={selectedTotal}
               totalShippingFee={totalShippingFee}
               isAuthenticated={isAuthenticated}
+              hasUploadInProgress={hasUploadInProgress}
+              hasUploadFailed={hasUploadFailed}
               onCheckout={handleCheckout}
             />
           </div>
@@ -372,6 +396,8 @@ export default function CartPage() {
           selectedCount={selectedItems.length}
           selectedTotal={selectedTotal}
           totalShippingFee={totalShippingFee}
+          hasUploadInProgress={hasUploadInProgress}
+          hasUploadFailed={hasUploadFailed}
           onCheckout={handleCheckout}
         />
       </div>

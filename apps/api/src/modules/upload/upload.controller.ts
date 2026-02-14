@@ -1,4 +1,4 @@
-import { Controller, Post, UseInterceptors, UploadedFile, BadRequestException, Get, Param, Res } from '@nestjs/common';
+import { Controller, Post, UseInterceptors, UploadedFile, BadRequestException, Get, Param, Res, Body, Delete } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiConsumes, ApiBody, ApiOperation } from '@nestjs/swagger';
 import { diskStorage } from 'multer';
@@ -6,8 +6,10 @@ import { extname, join } from 'path';
 import { randomUUID } from 'crypto';
 import { existsSync, mkdirSync } from 'fs';
 import { Response } from 'express';
+import { FileStorageService } from './services/file-storage.service';
+import { ThumbnailService } from './services/thumbnail.service';
 
-const UPLOAD_DIR = join(process.cwd(), 'uploads');
+const UPLOAD_DIR = join(process.cwd(), process.env.UPLOAD_BASE_PATH || 'uploads');
 
 // uploads 디렉토리 생성
 if (!existsSync(UPLOAD_DIR)) {
@@ -34,6 +36,129 @@ const copperPlateAlbumDir = join(copperPlateDir, 'albums');
 @ApiTags('Upload')
 @Controller('upload')
 export class UploadController {
+    constructor(
+        private readonly fileStorage: FileStorageService,
+        private readonly thumbnailService: ThumbnailService,
+    ) {}
+
+    // ==================== 앨범 원본 파일 업로드 ====================
+
+    @Post('album-file')
+    @ApiOperation({ summary: '앨범 원본 파일 업로드 (장바구니 단계)' })
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                file: { type: 'string', format: 'binary' },
+                tempFolderId: { type: 'string' },
+                folderName: { type: 'string' },
+                sortOrder: { type: 'number' },
+                fileName: { type: 'string' },
+                width: { type: 'number' },
+                height: { type: 'number' },
+                widthInch: { type: 'number' },
+                heightInch: { type: 'number' },
+                dpi: { type: 'number' },
+                fileSize: { type: 'number' },
+            },
+        },
+    })
+    @UseInterceptors(
+        FileInterceptor('file', {
+            storage: diskStorage({
+                destination: (req: any, _file, cb) => {
+                    const tempFolderId = req.body?.tempFolderId;
+                    if (!tempFolderId) {
+                        return cb(new BadRequestException('tempFolderId가 필요합니다.'), '');
+                    }
+                    const envPath = process.env.UPLOAD_BASE_PATH;
+                    const basePath = envPath
+                        ? (envPath.startsWith('/') || /^[A-Z]:/i.test(envPath) ? envPath : join(process.cwd(), envPath))
+                        : join(process.cwd(), 'uploads');
+                    const dir = join(basePath, 'temp', tempFolderId, 'originals');
+                    if (!existsSync(dir)) {
+                        mkdirSync(dir, { recursive: true });
+                    }
+                    cb(null, dir);
+                },
+                filename: (req: any, file, cb) => {
+                    const sortOrder = parseInt(req.body?.sortOrder || '0', 10);
+                    const ext = extname(file.originalname).toLowerCase();
+                    const safeName = file.originalname
+                        .replace(/[<>:"/\\|?*]/g, '_')
+                        .replace(/\.\./g, '_')
+                        .trim();
+                    const base = safeName.slice(0, -ext.length).slice(0, 80);
+                    const prefix = sortOrder.toString().padStart(2, '0');
+                    cb(null, `${prefix}_${base}${ext}`);
+                },
+            }),
+            fileFilter: (_req, file, cb) => {
+                if (!file.mimetype.match(/^image\/(jpg|jpeg|png|tiff|webp)$/)) {
+                    return cb(new BadRequestException('이미지 파일만 업로드 가능합니다.'), false);
+                }
+                cb(null, true);
+            },
+            limits: {
+                fileSize: parseInt(process.env.UPLOAD_MAX_FILE_SIZE || '52428800', 10),
+            },
+        }),
+    )
+    async uploadAlbumFile(
+        @UploadedFile() file: Express.Multer.File,
+        @Body() body: {
+            tempFolderId: string;
+            folderName: string;
+            sortOrder: string;
+            fileName: string;
+            width: string;
+            height: string;
+            widthInch: string;
+            heightInch: string;
+            dpi: string;
+            fileSize: string;
+        },
+    ) {
+        if (!file) {
+            throw new BadRequestException('파일이 업로드되지 않았습니다.');
+        }
+
+        // 서버 사이드 썸네일 생성
+        const thumbDir = this.fileStorage.getTempThumbnailDir(body.tempFolderId);
+        let thumbnailUrl = '';
+        try {
+            const thumbPath = await this.thumbnailService.generateThumbnail(
+                file.path,
+                thumbDir,
+                file.filename,
+            );
+            thumbnailUrl = this.fileStorage.toRelativeUrl(thumbPath);
+        } catch {
+            // 썸네일 생성 실패해도 원본 업로드는 유지
+        }
+
+        const fileUrl = this.fileStorage.toRelativeUrl(file.path);
+
+        return {
+            tempFileId: `${body.tempFolderId}/${file.filename}`,
+            fileName: file.filename,
+            originalName: file.originalname,
+            size: file.size,
+            fileUrl,
+            thumbnailUrl,
+            sortOrder: parseInt(body.sortOrder || '0', 10),
+        };
+    }
+
+    @Delete('temp/:tempFolderId')
+    @ApiOperation({ summary: '임시 업로드 파일 삭제' })
+    deleteTempFolder(@Param('tempFolderId') tempFolderId: string) {
+        this.fileStorage.cleanupTempFolder(tempFolderId);
+        return { message: '임시 파일이 삭제되었습니다.' };
+    }
+
+    // ==================== 카테고리 아이콘 ====================
 
     @Post('category-icon')
     @ApiOperation({ summary: '카테고리 아이콘 업로드' })

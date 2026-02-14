@@ -82,6 +82,18 @@ export interface CartItem {
   albumOrderInfo?: AlbumOrderCartInfo;   // 앨범/화보 주문 정보
   shippingInfo?: CartShippingInfo;       // 장바구니 배송지 정보
   isDuplicateOverride?: boolean;         // 중복 경고 무시 여부
+  // 원본 파일 업로드 상태
+  uploadStatus?: 'pending' | 'uploading' | 'completed' | 'failed';
+  uploadProgress?: number;               // 0-100
+  uploadedFileCount?: number;
+  totalFileCount?: number;
+  serverFiles?: Array<{
+    tempFileId: string;
+    fileUrl: string;
+    thumbnailUrl: string;
+    sortOrder: number;
+  }>;
+  tempFolderId?: string;                 // 임시 폴더 ID
 }
 
 interface CartState {
@@ -94,6 +106,7 @@ interface CartState {
   updateItemShipping: (id: string, shippingInfo: CartShippingInfo) => void;
   updateAllItemsShipping: (shippingInfo: CartShippingInfo) => void;
   updateAlbumInfo: (id: string, updates: Partial<AlbumOrderCartInfo>) => void;
+  updateUploadStatus: (id: string, updates: Partial<Pick<CartItem, 'uploadStatus' | 'uploadProgress' | 'uploadedFileCount' | 'totalFileCount' | 'serverFiles' | 'tempFolderId'>>) => void;
   reorderItems: (items: CartItem[]) => void;
   clearCart: () => void;
   getTotal: () => number;
@@ -217,6 +230,14 @@ export const useCartStore = create<CartState>()(
             item.id === id && item.albumOrderInfo
               ? { ...item, albumOrderInfo: { ...item.albumOrderInfo, ...updates } }
               : item
+          ),
+        }));
+      },
+
+      updateUploadStatus: (id, updates) => {
+        set((state) => ({
+          items: state.items.map((item) =>
+            item.id === id ? { ...item, ...updates } : item
           ),
         }));
       },
