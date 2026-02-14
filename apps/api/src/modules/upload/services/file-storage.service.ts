@@ -1,19 +1,68 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { join, extname } from 'path';
 import { existsSync, mkdirSync, renameSync, unlinkSync, readdirSync, statSync, rmSync } from 'fs';
+import { PrismaService } from '../../../common/prisma/prisma.service';
+
+// 모듈 레벨 base path (multer 콜백에서 접근용)
+let _sharedBasePath: string = '';
+
+/** multer diskStorage 콜백 등에서 사용할 업로드 base path */
+export function getUploadBasePath(): string {
+  if (_sharedBasePath) return _sharedBasePath;
+  const envPath = process.env.UPLOAD_BASE_PATH;
+  return envPath
+    ? (envPath.startsWith('/') || /^[A-Z]:/i.test(envPath) ? envPath : join(process.cwd(), envPath))
+    : join(process.cwd(), 'uploads');
+}
 
 @Injectable()
-export class FileStorageService {
+export class FileStorageService implements OnModuleInit {
   private readonly logger = new Logger(FileStorageService.name);
-  private readonly basePath: string;
+  private basePath: string;
 
-  constructor() {
+  constructor(private readonly prisma: PrismaService) {
     const envPath = process.env.UPLOAD_BASE_PATH;
     // Resolve relative paths against cwd to ensure consistent absolute paths
     this.basePath = envPath
       ? (envPath.startsWith('/') || /^[A-Z]:/i.test(envPath) ? envPath : join(process.cwd(), envPath))
       : join(process.cwd(), 'uploads');
+    _sharedBasePath = this.basePath;
     this.ensureDirectories();
+  }
+
+  async onModuleInit() {
+    try {
+      const setting = await this.prisma.systemSetting.findUnique({
+        where: { key: 'server_upload_base_path' },
+      });
+      if (setting?.value) {
+        const dbPath = setting.value;
+        const resolvedPath = (dbPath.startsWith('/') || /^[A-Z]:/i.test(dbPath))
+          ? dbPath
+          : join(process.cwd(), dbPath);
+        if (existsSync(resolvedPath) || this.tryCreateDir(resolvedPath)) {
+          this.basePath = resolvedPath;
+          _sharedBasePath = resolvedPath;
+          this.ensureDirectories();
+          this.logger.log(`업로드 경로 (DB 설정): ${resolvedPath}`);
+        } else {
+          this.logger.warn(`DB 설정 경로 접근 불가, 기본값 사용: ${this.basePath}`);
+        }
+      } else {
+        this.logger.log(`업로드 경로 (ENV 기본값): ${this.basePath}`);
+      }
+    } catch (err) {
+      this.logger.warn(`DB 설정 로드 실패, 기본값 사용: ${this.basePath}`);
+    }
+  }
+
+  private tryCreateDir(dirPath: string): boolean {
+    try {
+      mkdirSync(dirPath, { recursive: true });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   private ensureDirectories() {
