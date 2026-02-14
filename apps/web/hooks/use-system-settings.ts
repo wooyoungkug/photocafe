@@ -21,6 +21,7 @@ export const SETTING_CATEGORIES = {
   shipping: "택배비",
   company: "회사정보",
   process: "공정단계",
+  server: "서버설정",
   system: "시스템",
 } as const;
 

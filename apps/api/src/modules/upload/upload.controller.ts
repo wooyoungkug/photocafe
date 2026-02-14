@@ -6,32 +6,24 @@ import { extname, join } from 'path';
 import { randomUUID } from 'crypto';
 import { existsSync, mkdirSync } from 'fs';
 import { Response } from 'express';
-import { FileStorageService } from './services/file-storage.service';
+import { FileStorageService, getUploadBasePath } from './services/file-storage.service';
 import { ThumbnailService } from './services/thumbnail.service';
 
-const UPLOAD_DIR = join(process.cwd(), process.env.UPLOAD_BASE_PATH || 'uploads');
-
-// uploads 디렉토리 생성
-if (!existsSync(UPLOAD_DIR)) {
-    mkdirSync(UPLOAD_DIR, { recursive: true });
-}
-
-const categoryIconsDir = join(UPLOAD_DIR, 'category-icons');
-if (!existsSync(categoryIconsDir)) {
-    mkdirSync(categoryIconsDir, { recursive: true });
-}
-
-// 동판 관련 디렉토리
-const copperPlateDir = join(UPLOAD_DIR, 'copper-plates');
-const copperPlateAiDir = join(copperPlateDir, 'ai');
-const copperPlateImageDir = join(copperPlateDir, 'images');
-const copperPlateAlbumDir = join(copperPlateDir, 'albums');
-
-[copperPlateDir, copperPlateAiDir, copperPlateImageDir, copperPlateAlbumDir].forEach(dir => {
+/** 동적 업로드 디렉토리 헬퍼 (DB 설정 반영) */
+function ensureDir(subPath: string): string {
+    const dir = join(getUploadBasePath(), subPath);
     if (!existsSync(dir)) {
         mkdirSync(dir, { recursive: true });
     }
-});
+    return dir;
+}
+
+// 초기 디렉토리 생성
+ensureDir('');
+ensureDir('category-icons');
+ensureDir('copper-plates/ai');
+ensureDir('copper-plates/images');
+ensureDir('copper-plates/albums');
 
 @ApiTags('Upload')
 @Controller('upload')
@@ -72,11 +64,7 @@ export class UploadController {
                     if (!tempFolderId) {
                         return cb(new BadRequestException('tempFolderId가 필요합니다.'), '');
                     }
-                    const envPath = process.env.UPLOAD_BASE_PATH;
-                    const basePath = envPath
-                        ? (envPath.startsWith('/') || /^[A-Z]:/i.test(envPath) ? envPath : join(process.cwd(), envPath))
-                        : join(process.cwd(), 'uploads');
-                    const dir = join(basePath, 'temp', tempFolderId, 'originals');
+                    const dir = join(getUploadBasePath(), 'temp', tempFolderId, 'originals');
                     if (!existsSync(dir)) {
                         mkdirSync(dir, { recursive: true });
                     }
@@ -177,7 +165,7 @@ export class UploadController {
     @UseInterceptors(
         FileInterceptor('file', {
             storage: diskStorage({
-                destination: categoryIconsDir,
+                destination: (_req, _file, cb) => cb(null, ensureDir('category-icons')),
                 filename: (req, file, callback) => {
                     const uniqueName = `${randomUUID()}${extname(file.originalname)}`;
                     callback(null, uniqueName);
@@ -210,7 +198,7 @@ export class UploadController {
     @Get('category-icons/:filename')
     @ApiOperation({ summary: '카테고리 아이콘 조회' })
     getCategoryIcon(@Param('filename') filename: string, @Res() res: Response) {
-        const filePath = join(categoryIconsDir, filename);
+        const filePath = join(getUploadBasePath(), 'category-icons', filename);
 
         if (!existsSync(filePath)) {
             return res.status(404).json({ message: '파일을 찾을 수 없습니다.' });
@@ -238,7 +226,7 @@ export class UploadController {
     @UseInterceptors(
         FileInterceptor('file', {
             storage: diskStorage({
-                destination: copperPlateAiDir,
+                destination: (_req, _file, cb) => cb(null, ensureDir('copper-plates/ai')),
                 filename: (req, file, callback) => {
                     const uniqueName = `${randomUUID()}${extname(file.originalname)}`;
                     callback(null, uniqueName);
@@ -273,7 +261,7 @@ export class UploadController {
     @Get('copper-plate/ai/:filename')
     @ApiOperation({ summary: '동판 AI 파일 조회' })
     getCopperPlateAi(@Param('filename') filename: string, @Res() res: Response) {
-        const filePath = join(copperPlateAiDir, filename);
+        const filePath = join(getUploadBasePath(), 'copper-plates/ai', filename);
 
         if (!existsSync(filePath)) {
             return res.status(404).json({ message: '파일을 찾을 수 없습니다.' });
@@ -299,7 +287,7 @@ export class UploadController {
     @UseInterceptors(
         FileInterceptor('file', {
             storage: diskStorage({
-                destination: copperPlateImageDir,
+                destination: (_req, _file, cb) => cb(null, ensureDir('copper-plates/images')),
                 filename: (req, file, callback) => {
                     const uniqueName = `${randomUUID()}${extname(file.originalname)}`;
                     callback(null, uniqueName);
@@ -332,7 +320,7 @@ export class UploadController {
     @Get('copper-plate/image/:filename')
     @ApiOperation({ summary: '동판 이미지 파일 조회' })
     getCopperPlateImage(@Param('filename') filename: string, @Res() res: Response) {
-        const filePath = join(copperPlateImageDir, filename);
+        const filePath = join(getUploadBasePath(), 'copper-plates/images', filename);
 
         if (!existsSync(filePath)) {
             return res.status(404).json({ message: '파일을 찾을 수 없습니다.' });
@@ -358,7 +346,7 @@ export class UploadController {
     @UseInterceptors(
         FileInterceptor('file', {
             storage: diskStorage({
-                destination: copperPlateAlbumDir,
+                destination: (_req, _file, cb) => cb(null, ensureDir('copper-plates/albums')),
                 filename: (req, file, callback) => {
                     const uniqueName = `${randomUUID()}${extname(file.originalname)}`;
                     callback(null, uniqueName);
@@ -391,7 +379,7 @@ export class UploadController {
     @Get('copper-plate/album/:filename')
     @ApiOperation({ summary: '동판 앨범 이미지 조회' })
     getCopperPlateAlbum(@Param('filename') filename: string, @Res() res: Response) {
-        const filePath = join(copperPlateAlbumDir, filename);
+        const filePath = join(getUploadBasePath(), 'copper-plates/albums', filename);
 
         if (!existsSync(filePath)) {
             return res.status(404).json({ message: '파일을 찾을 수 없습니다.' });
