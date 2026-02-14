@@ -41,6 +41,7 @@ import {
   useUpdateClient,
   useDeleteClient,
 } from '@/hooks/use-clients';
+import { useStaffList } from '@/hooks/use-staff';
 import {
   useCopperPlatesByClient,
   useCreateCopperPlate,
@@ -61,6 +62,7 @@ import {
 } from '@/hooks/use-copper-plates';
 import { Client, CreateClientDto } from '@/lib/types/client';
 import { useConsultations } from '@/hooks/use-cs';
+import { api } from '@/lib/api';
 import {
   Plus,
   Search,
@@ -101,6 +103,7 @@ export default function ClientsPage() {
   });
 
   const { data: groupsData } = useClientGroups({ limit: 100 });
+  const { data: staffData } = useStaffList({ limit: 1000, isActive: true });
   const createClient = useCreateClient();
   const updateClient = useUpdateClient();
   const deleteClient = useDeleteClient();
@@ -121,6 +124,10 @@ export default function ClientsPage() {
     paymentTerms: 30,
     status: 'active',
   });
+
+  // 영업담당자 상태
+  const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
+  const [primaryStaffId, setPrimaryStaffId] = useState<string>('');
 
   // 탭 상태
   const [activeTab, setActiveTab] = useState('basic');
@@ -180,6 +187,12 @@ export default function ClientsPage() {
         status: client.status || 'active',
         duplicateCheckMonths: client.duplicateCheckMonths ?? undefined,
       });
+
+      // 영업담당자 정보 불러오기
+      const assignedStaff = (client as any).assignedStaff || [];
+      setSelectedStaffIds(assignedStaff.map((a: any) => a.staffId));
+      const primary = assignedStaff.find((a: any) => a.isPrimary);
+      setPrimaryStaffId(primary?.staffId || '');
     } else {
       setEditingClient(null);
       setFormData({
@@ -198,6 +211,8 @@ export default function ClientsPage() {
         paymentTerms: 30,
         status: 'active',
       });
+      setSelectedStaffIds([]);
+      setPrimaryStaffId('');
     }
     setIsDialogOpen(true);
   };
@@ -278,11 +293,28 @@ export default function ClientsPage() {
       groupId: formData.groupId || undefined,
     };
 
+    let clientId: string;
+
     if (editingClient) {
       await updateClient.mutateAsync({ id: editingClient.id, data: submitData });
+      clientId = editingClient.id;
     } else {
-      await createClient.mutateAsync(submitData);
+      const newClient = await createClient.mutateAsync(submitData);
+      clientId = newClient.id;
     }
+
+    // 영업담당자 할당
+    if (selectedStaffIds.length > 0) {
+      try {
+        await api.patch(`/clients/${clientId}/staff`, {
+          staffIds: selectedStaffIds,
+          primaryStaffId: primaryStaffId || selectedStaffIds[0],
+        });
+      } catch (error) {
+        console.error('영업담당자 할당 실패:', error);
+      }
+    }
+
     setIsDialogOpen(false);
   };
 
@@ -400,6 +432,7 @@ export default function ClientsPage() {
                     <TableHead className="whitespace-nowrap">거래처명</TableHead>
                     <TableHead className="whitespace-nowrap">대표자</TableHead>
                     <TableHead className="whitespace-nowrap">연락처</TableHead>
+                    <TableHead className="whitespace-nowrap">영업담당자</TableHead>
                     <TableHead className="whitespace-nowrap">그룹</TableHead>
                     <TableHead className="whitespace-nowrap">신용등급</TableHead>
                     <TableHead className="whitespace-nowrap">상태</TableHead>
@@ -409,7 +442,7 @@ export default function ClientsPage() {
                 <TableBody>
                   {clientsData?.data?.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                         등록된 거래처가 없습니다.
                       </TableCell>
                     </TableRow>
@@ -434,6 +467,23 @@ export default function ClientsPage() {
                               </span>
                             )}
                           </div>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {client.assignedStaff && client.assignedStaff.length > 0 ? (
+                            <div className="flex flex-col gap-1 text-sm">
+                              {client.assignedStaff.map((assignment: any) => (
+                                <span key={assignment.id} className="flex items-center gap-1">
+                                  <User className="h-3 w-3 flex-shrink-0" />
+                                  {assignment.staff.name}
+                                  {assignment.isPrimary && (
+                                    <Badge variant="secondary" className="text-[10px] px-1 py-0">주</Badge>
+                                  )}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
                           {client.group ? (
@@ -635,6 +685,64 @@ export default function ClientsPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+                </div>
+
+                {/* 영업담당자 섹션 */}
+                <div className="border rounded-lg p-4 mt-4">
+                  <h3 className="text-sm font-semibold text-primary mb-4 flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    영업담당자
+                  </h3>
+                  <div className="space-y-3">
+                    {staffData?.data && staffData.data.length > 0 ? (
+                      staffData.data.map((staff) => {
+                        const isSelected = selectedStaffIds.includes(staff.id);
+                        return (
+                          <div key={staff.id} className="flex items-center gap-3">
+                            <input
+                              type="checkbox"
+                              id={`staff-${staff.id}`}
+                              checked={isSelected}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedStaffIds([...selectedStaffIds, staff.id]);
+                                  if (selectedStaffIds.length === 0) {
+                                    setPrimaryStaffId(staff.id);
+                                  }
+                                } else {
+                                  setSelectedStaffIds(selectedStaffIds.filter(id => id !== staff.id));
+                                  if (primaryStaffId === staff.id) {
+                                    setPrimaryStaffId('');
+                                  }
+                                }
+                              }}
+                              className="h-4 w-4 rounded border-gray-300"
+                            />
+                            <Label htmlFor={`staff-${staff.id}`} className="flex-1 cursor-pointer">
+                              {staff.name} {staff.position && `(${staff.position})`}
+                            </Label>
+                            {isSelected && (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="radio"
+                                  id={`primary-${staff.id}`}
+                                  name="primaryStaff"
+                                  checked={primaryStaffId === staff.id}
+                                  onChange={() => setPrimaryStaffId(staff.id)}
+                                  className="h-4 w-4"
+                                />
+                                <Label htmlFor={`primary-${staff.id}`} className="text-xs text-muted-foreground cursor-pointer">
+                                  주담당자
+                                </Label>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="text-sm text-muted-foreground">등록된 직원이 없습니다.</p>
+                    )}
                   </div>
                 </div>
               </div>

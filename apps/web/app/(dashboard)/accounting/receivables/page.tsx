@@ -214,7 +214,7 @@ export default function ReceivablesPage() {
               <div>
                 <p className="text-sm text-orange-600 font-medium">총 미수금</p>
                 <p className="text-2xl font-bold text-orange-900">
-                  {(summary?.totalOutstanding || 0).toLocaleString()}원
+                  {Math.round(summary?.totalOutstanding || 0).toLocaleString()}원
                 </p>
               </div>
               <div className="h-12 w-12 bg-orange-500 rounded-xl flex items-center justify-center">
@@ -233,7 +233,7 @@ export default function ReceivablesPage() {
               <div>
                 <p className="text-sm text-red-600 font-medium">연체금액</p>
                 <p className="text-2xl font-bold text-red-900">
-                  {(summary?.totalOverdue || 0).toLocaleString()}원
+                  {Math.round(summary?.totalOverdue || 0).toLocaleString()}원
                 </p>
               </div>
               <div className="h-12 w-12 bg-red-500 rounded-xl flex items-center justify-center">
@@ -252,7 +252,7 @@ export default function ReceivablesPage() {
               <div>
                 <p className="text-sm text-blue-600 font-medium">30일 이내</p>
                 <p className="text-2xl font-bold text-blue-900">
-                  {(agingData?.under30 || 0).toLocaleString()}원
+                  {Math.round(agingData?.under30 || 0).toLocaleString()}원
                 </p>
               </div>
               <div className="h-12 w-12 bg-blue-500 rounded-xl flex items-center justify-center">
@@ -271,7 +271,7 @@ export default function ReceivablesPage() {
               <div>
                 <p className="text-sm text-purple-600 font-medium">90일 초과</p>
                 <p className="text-2xl font-bold text-purple-900">
-                  {(agingData?.over90 || 0).toLocaleString()}원
+                  {Math.round(agingData?.over90 || 0).toLocaleString()}원
                 </p>
               </div>
               <div className="h-12 w-12 bg-purple-500 rounded-xl flex items-center justify-center">
@@ -296,28 +296,28 @@ export default function ReceivablesPage() {
               <div className="w-24 text-sm text-muted-foreground">30일 이내</div>
               <Progress value={agingPercent.under30} className="flex-1 h-3" />
               <div className="w-32 text-right text-sm font-medium">
-                {(agingData?.under30 || 0).toLocaleString()}원
+                {Math.round(agingData?.under30 || 0).toLocaleString()}원
               </div>
             </div>
             <div className="flex items-center gap-4">
               <div className="w-24 text-sm text-muted-foreground">31~60일</div>
               <Progress value={agingPercent.days30to60} className="flex-1 h-3 [&>div]:bg-yellow-500" />
               <div className="w-32 text-right text-sm font-medium">
-                {(agingData?.days30to60 || 0).toLocaleString()}원
+                {Math.round(agingData?.days30to60 || 0).toLocaleString()}원
               </div>
             </div>
             <div className="flex items-center gap-4">
               <div className="w-24 text-sm text-muted-foreground">61~90일</div>
               <Progress value={agingPercent.days60to90} className="flex-1 h-3 [&>div]:bg-orange-500" />
               <div className="w-32 text-right text-sm font-medium">
-                {(agingData?.days60to90 || 0).toLocaleString()}원
+                {Math.round(agingData?.days60to90 || 0).toLocaleString()}원
               </div>
             </div>
             <div className="flex items-center gap-4">
               <div className="w-24 text-sm text-muted-foreground">90일 초과</div>
               <Progress value={agingPercent.over90} className="flex-1 h-3 [&>div]:bg-red-500" />
               <div className="w-32 text-right text-sm font-medium">
-                {(agingData?.over90 || 0).toLocaleString()}원
+                {Math.round(agingData?.over90 || 0).toLocaleString()}원
               </div>
             </div>
           </div>
@@ -413,13 +413,13 @@ export default function ReceivablesPage() {
                           </Link>
                         </TableCell>
                         <TableCell className="text-right font-medium">
-                          {item.totalSales.toLocaleString()}
+                          {Math.round(item.totalSales).toLocaleString()}
                         </TableCell>
                         <TableCell className="text-right text-green-600">
-                          {item.totalReceived.toLocaleString()}
+                          {Math.round(item.totalReceived).toLocaleString()}
                         </TableCell>
                         <TableCell className="text-right font-bold text-orange-600">
-                          {item.outstanding.toLocaleString()}
+                          {Math.round(item.outstanding).toLocaleString()}
                         </TableCell>
                         <TableCell className="text-center">
                           <div className="flex items-center justify-center gap-2">

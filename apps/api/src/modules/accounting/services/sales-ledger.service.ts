@@ -137,6 +137,7 @@ export class SalesLedgerService {
         clientId: client.id,
         clientName: client.clientName,
         clientBizNo: client.businessNumber,
+        staffId: client.assignedManager, // 거래처 담당자 설정
         orderId: order.id,
         orderNumber: order.orderNumber,
         salesType: 'ALBUM',
@@ -1364,23 +1365,8 @@ export class SalesLedgerService {
   }) {
     const { startDate, endDate, paymentStatus, page = 1, limit = 20 } = query;
 
-    // 해당 영업담당자가 담당하는 거래처 ID 조회
-    const staffClients = await this.prisma.staffClient.findMany({
-      where: { staffId, isPrimary: true },
-      select: { clientId: true },
-    });
-
-    const clientIds = staffClients.map(sc => sc.clientId);
-
-    if (clientIds.length === 0) {
-      return {
-        data: [],
-        meta: { total: 0, page, limit, totalPages: 0 },
-      };
-    }
-
     const where: Prisma.SalesLedgerWhereInput = {
-      clientId: { in: clientIds },
+      staffId,
       salesStatus: { not: 'CANCELLED' },
     };
 
@@ -1464,8 +1450,7 @@ export class SalesLedgerService {
               MAX(sl."ledgerDate") as "lastLedgerDate"
        FROM sales_ledgers sl
        JOIN clients c ON c.id = sl."clientId"
-       JOIN staff_clients sc ON sc."clientId" = sl."clientId" AND sc."isPrimary" = true
-       WHERE sc."staffId" = $1 AND ${whereClause}
+       WHERE sl."staffId" = $1 AND ${whereClause}
        GROUP BY sl."clientId", sl."clientName", c."clientCode"
        ORDER BY outstanding DESC`,
       ...params,
@@ -1481,5 +1466,23 @@ export class SalesLedgerService {
       ledgerCount: Number(r.ledgerCount),
       lastLedgerDate: r.lastLedgerDate?.toISOString() || '',
     }));
+  }
+
+  // ===== 기존 매출원장 staffId 일괄 업데이트 =====
+  async updateStaffIdFromClients() {
+    // staffId가 null인 매출원장을 거래처의 assignedManager로 업데이트
+    const result = await this.prisma.$executeRaw`
+      UPDATE sales_ledgers sl
+      SET "staffId" = c."assignedManager"
+      FROM clients c
+      WHERE sl."clientId" = c.id
+        AND sl."staffId" IS NULL
+        AND c."assignedManager" IS NOT NULL
+    `;
+
+    return {
+      updatedCount: result,
+      message: `${result}건의 매출원장에 담당자가 설정되었습니다.`,
+    };
   }
 }

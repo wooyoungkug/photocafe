@@ -116,6 +116,7 @@ model Staff {
   branch                  Branch?       @relation(fields: [branchId], references: [id])
   department              Department?   @relation(fields: [departmentId], references: [id])
   assignedClients         StaffClient[]
+  salesLedgers            SalesLedger[] @relation("SalesLedgerStaff")
 
   @@index([branchId])
   @@index([departmentId])

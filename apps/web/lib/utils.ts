@@ -31,7 +31,8 @@ export function formatNumber(value: number | string | null | undefined): string 
   if (value === null || value === undefined || value === "") return "0";
   const num = typeof value === "string" ? parseFloat(value) : value;
   if (isNaN(num)) return "0";
-  return new Intl.NumberFormat("ko-KR").format(num);
+  // 정수로 변환하여 소수점 제거
+  return new Intl.NumberFormat("ko-KR").format(Math.round(num));
 }
 
 // 천 단위 구분 기호 포맷팅 (가격, ₩ 기호 포함)
@@ -39,7 +40,8 @@ export function formatPrice(value: number | string | null | undefined): string {
   if (value === null || value === undefined || value === "") return "₩0";
   const num = typeof value === "string" ? parseFloat(value) : value;
   if (isNaN(num)) return "₩0";
-  return `₩${new Intl.NumberFormat("ko-KR").format(num)}`;
+  // 정수로 변환하여 소수점 제거
+  return `₩${new Intl.NumberFormat("ko-KR").format(Math.round(num))}`;
 }
 
 export function formatDate(date: Date | string): string {

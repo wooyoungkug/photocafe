@@ -361,7 +361,7 @@
     "shippingNotSet": "未设置配送信息",
     "unitPriceInfo": "(单价 {price}韩元 × {qty}份)",
     "vatIncluded": "含VAT",
-    "priceFormulaUnit": "(@{perPage}×{pages}p={printPrice} + 封面{cover} = 单价 {unitPrice}韩元)",
+    "priceFormulaUnit": "(@{perPage}×{pages}p={printPrice} + 封面{cover} + 装订{binding} = 单价 {unitPrice}韩元)",
     "priceFormulaTotal": "({unitPrice}×{qty}份={subtotal} + VAT {tax} = {total}韩元)",
     "additionalSetOrder": "追加套装订单",
     "specLabelShort": "规格",

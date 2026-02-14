@@ -29,7 +29,7 @@ export default function ReceivablesKPI({ data }: ReceivablesKPIProps) {
             <div>
               <p className="text-sm text-orange-600 font-medium">총 미수금</p>
               <p className="text-2xl font-bold text-orange-900">
-                {summary.totalReceivables.toLocaleString()}원
+                {Math.round(summary.totalReceivables).toLocaleString()}원
               </p>
               <p className="text-xs text-orange-600 mt-1">
                 {summary.receivableCount}건 · {summary.clientCount}개 거래처
@@ -49,7 +49,7 @@ export default function ReceivablesKPI({ data }: ReceivablesKPIProps) {
             <div>
               <p className="text-sm text-red-600 font-medium">연체금액</p>
               <p className="text-2xl font-bold text-red-900">
-                {summary.overdueAmount.toLocaleString()}원
+                {Math.round(summary.overdueAmount).toLocaleString()}원
               </p>
               <p className="text-xs text-red-600 mt-1">{summary.overdueCount}건 연체</p>
             </div>
@@ -67,10 +67,10 @@ export default function ReceivablesKPI({ data }: ReceivablesKPIProps) {
             <div>
               <p className="text-sm text-blue-600 font-medium">당월 매출</p>
               <p className="text-2xl font-bold text-blue-900">
-                {summary.monthlySales.toLocaleString()}원
+                {Math.round(summary.monthlySales).toLocaleString()}원
               </p>
               <p className="text-xs text-green-600 mt-1">
-                수금 {summary.monthlyReceived.toLocaleString()}원 (
+                수금 {Math.round(summary.monthlyReceived).toLocaleString()}원 (
                 {summary.monthlySales > 0
                   ? Math.round((summary.monthlyReceived / summary.monthlySales) * 100)
                   : 0}
@@ -91,7 +91,7 @@ export default function ReceivablesKPI({ data }: ReceivablesKPIProps) {
             <div>
               <p className="text-sm text-purple-600 font-medium">당월 수금 예정</p>
               <p className="text-2xl font-bold text-purple-900">
-                {summary.dueThisMonth.toLocaleString()}원
+                {Math.round(summary.dueThisMonth).toLocaleString()}원
               </p>
               <p className="text-xs text-purple-600 mt-1">{summary.dueThisMonthCount}건</p>
             </div>

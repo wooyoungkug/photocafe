@@ -77,12 +77,12 @@ export function CartOrderSummary({
               <span className="text-gray-500">
                 {t('selectedAmount')} ({selectedCount})
               </span>
-              <span className="font-medium">{selectedTotal.toLocaleString()}원</span>
+              <span className="font-medium">{Math.round(selectedTotal).toLocaleString()}원</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">{t('shippingFee')}</span>
               <span className={cn('font-medium', totalShippingFee === 0 && 'text-green-600')}>
-                {totalShippingFee === 0 ? t('free') : `+${totalShippingFee.toLocaleString()}원`}
+                {totalShippingFee === 0 ? t('free') : `+${Math.round(totalShippingFee).toLocaleString()}원`}
               </span>
             </div>
           </div>
@@ -94,7 +94,7 @@ export function CartOrderSummary({
             <span className="text-base font-semibold">{t('totalPayment')}</span>
             <div className="text-right">
               <span className="text-2xl font-bold text-primary">
-                {(selectedTotal + totalShippingFee).toLocaleString()}
+                {Math.round(selectedTotal + totalShippingFee).toLocaleString()}
               </span>
               <span className="text-sm text-gray-500 ml-0.5">원</span>
             </div>

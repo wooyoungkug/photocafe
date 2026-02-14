@@ -213,4 +213,11 @@ export class SalesLedgerController {
   async sendOverdueNotifications() {
     return this.salesLedgerService.sendOverdueNotifications();
   }
+
+  // ===== 기존 매출원장 staffId 일괄 업데이트 =====
+  @Post('batch/update-staff-id')
+  @ApiOperation({ summary: '기존 매출원장의 담당자 일괄 업데이트' })
+  async updateStaffIdFromClients() {
+    return this.salesLedgerService.updateStaffIdFromClients();
+  }
 }

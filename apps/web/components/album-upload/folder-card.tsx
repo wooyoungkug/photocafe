@@ -893,15 +893,16 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
         {/* 가격 표시 */}
         <div className="text-right flex-shrink-0">
           <div className="text-lg font-bold text-primary">
-            {t('priceWon', { price: folderPrice.totalPrice.toLocaleString() })}
+            {t('priceWon', { price: Math.round(folderPrice.totalPrice).toLocaleString() })}
           </div>
           <div className="text-[10px] text-gray-400">
             {t('priceFormulaUnit', {
-              perPage: folderPrice.pricePerPage.toLocaleString(),
+              perPage: Math.round(folderPrice.pricePerPage).toLocaleString(),
               pages: folderPrice.pageCount,
-              printPrice: folderPrice.printPrice.toLocaleString(),
-              cover: folderPrice.coverPrice.toLocaleString(),
-              unitPrice: folderPrice.unitPrice.toLocaleString(),
+              printPrice: Math.round(folderPrice.printPrice).toLocaleString(),
+              cover: Math.round(folderPrice.coverPrice).toLocaleString(),
+              binding: Math.round(folderPrice.bindingPrice).toLocaleString(),
+              unitPrice: Math.round(folderPrice.unitPrice).toLocaleString(),
             })}
           </div>
           <div className="text-[10px] text-gray-400">
@@ -1223,6 +1224,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                                 pages: orderPrice.pageCount,
                                 printPrice: orderPrice.printPrice.toLocaleString(),
                                 cover: orderPrice.coverPrice.toLocaleString(),
+                                binding: orderPrice.bindingPrice.toLocaleString(),
                                 unitPrice: orderPrice.unitPrice.toLocaleString(),
                               })}
                             </div>
