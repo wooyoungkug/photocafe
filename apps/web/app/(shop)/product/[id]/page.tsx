@@ -314,6 +314,33 @@ export default function ProductPage() {
     }
   }, [product, copperPlateLabels, allPublicCopperPlates]);
 
+  // 가격 계산 (early return 위에 배치)
+  const totalPrice = useMemo(() => {
+    if (!product) return 0;
+    let price = product.basePrice;
+    if (selectedOptions.specification) price += selectedOptions.specification.price;
+    if (selectedOptions.binding) price += selectedOptions.binding.price;
+    if (selectedOptions.paper) price += selectedOptions.paper.price;
+    if (selectedOptions.cover) price += selectedOptions.cover.price;
+    if (selectedOptions.foil) price += selectedOptions.foil.price;
+    for (const finishing of selectedOptions.finishings) {
+      price += finishing.price;
+    }
+    return price * quantity;
+  }, [product, selectedOptions, quantity]);
+
+  // 이미지 목록 (early return 위에 배치)
+  const images = useMemo(() => {
+    if (!product) return [];
+    if (product.thumbnailUrl) {
+      return [normalizeImageUrl(product.thumbnailUrl), ...product.detailImages.map(img => normalizeImageUrl(img))];
+    }
+    if (product.detailImages.length > 0) {
+      return product.detailImages.map(img => normalizeImageUrl(img));
+    }
+    return [];
+  }, [product]);
+
   if (isLoading) {
     return <ProductPageSkeleton />;
   }
@@ -329,19 +356,6 @@ export default function ProductPage() {
       </div>
     );
   }
-
-  const totalPrice = useMemo(() => {
-    let price = product.basePrice;
-    if (selectedOptions.specification) price += selectedOptions.specification.price;
-    if (selectedOptions.binding) price += selectedOptions.binding.price;
-    if (selectedOptions.paper) price += selectedOptions.paper.price;
-    if (selectedOptions.cover) price += selectedOptions.cover.price;
-    if (selectedOptions.foil) price += selectedOptions.foil.price;
-    for (const finishing of selectedOptions.finishings) {
-      price += finishing.price;
-    }
-    return price * quantity;
-  }, [product.basePrice, selectedOptions, quantity]);
 
   const handleAddToCart = () => {
     const options: CartItemOption[] = [];
@@ -606,16 +620,6 @@ export default function ProductPage() {
       description: t('myProductLoadedDesc', { name: myProduct.name }),
     });
   };
-
-  const images = useMemo(() => {
-    if (product.thumbnailUrl) {
-      return [normalizeImageUrl(product.thumbnailUrl), ...product.detailImages.map(img => normalizeImageUrl(img))];
-    }
-    if (product.detailImages.length > 0) {
-      return product.detailImages.map(img => normalizeImageUrl(img));
-    }
-    return [];
-  }, [product.thumbnailUrl, product.detailImages]);
 
   return (
     <div className="min-h-screen bg-gray-50">

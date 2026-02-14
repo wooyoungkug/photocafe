@@ -362,7 +362,7 @@
     "shippingNotSet": "배송정보 미설정",
     "unitPriceInfo": "(단가 {price}원 × {qty}부)",
     "vatIncluded": "VAT 포함",
-    "priceFormulaUnit": "(@{perPage}×{pages}p={printPrice} + 표지{cover} = 단가 {unitPrice}원)",
+    "priceFormulaUnit": "(@{perPage}×{pages}p={printPrice} + 표지{cover} + 제본{binding} = 단가 {unitPrice}원)",
     "priceFormulaTotal": "({unitPrice}×{qty}부={subtotal} + VAT {tax} = {total}원)",
     "additionalSetOrder": "추가세트주문",
     "specLabelShort": "규격",

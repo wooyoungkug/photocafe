@@ -111,6 +111,9 @@ export function isDesignCoverFileName(fileName: string): boolean {
 // 폴더 검증 상태
 export type FolderValidationStatus = 'PENDING' | 'EXACT_MATCH' | 'RATIO_MATCH' | 'RATIO_MISMATCH';
 
+// 이미지 컬러 스페이스 타입
+export type ImageColorSpace = 'sRGB' | 'RGB' | 'CMYK' | 'Grayscale' | 'Unknown';
+
 // 개별 파일 정보
 export interface UploadedFile {
   id: string;
@@ -158,6 +161,9 @@ export interface UploadedFile {
 
   // 색상 분석 (의상 그룹핑용)
   colorInfo?: PhotoColorInfo;
+
+  // 이미지 컬러 스페이스 (RGB/CMYK 구분)
+  colorSpace?: ImageColorSpace;
 }
 
 // 발송지 유형
@@ -1320,6 +1326,9 @@ const INDIGO_PRINT_PRICES: Record<string, { single: number; spread: number }> = 
 const COVER_PRICE = 5000; // 원단표지 기본 단가
 const DESIGN_COVER_PRICE = 3000; // 디자인표지 출력 단가
 
+// 제본비
+const BINDING_PRICE = 2000; // 제본비 기본 단가
+
 // 규격 키 추출
 function getSpecKey(width: number, height: number): string {
   return `${Math.round(width)}x${Math.round(height)}`;
@@ -1333,6 +1342,7 @@ export function calculateUploadedFolderPrice(folder: UploadedFolder): {
   pageCount: number;
   printPrice: number;
   coverPrice: number;
+  bindingPrice: number;
   unitPrice: number;
   quantity: number;
   subtotal: number;
@@ -1355,7 +1365,10 @@ export function calculateUploadedFolderPrice(folder: UploadedFolder): {
     coverPrice = COVER_PRICE; // 기본값 (하위 호환)
   }
 
-  const unitPrice = printPrice + coverPrice;
+  // 제본비
+  const bindingPrice = BINDING_PRICE;
+
+  const unitPrice = printPrice + coverPrice + bindingPrice;
   const quantity = folder.quantity;
   const subtotal = unitPrice * quantity;
   const tax = Math.round(subtotal * 0.1);
@@ -1366,6 +1379,7 @@ export function calculateUploadedFolderPrice(folder: UploadedFolder): {
     pageCount: folder.pageCount,
     printPrice,
     coverPrice,
+    bindingPrice,
     unitPrice,
     quantity,
     subtotal,
@@ -1385,6 +1399,7 @@ export function calculateAdditionalOrderPrice(
   pageCount: number;
   printPrice: number;
   coverPrice: number;
+  bindingPrice: number;
   unitPrice: number;
   quantity: number;
   subtotal: number;
@@ -1406,13 +1421,17 @@ export function calculateAdditionalOrderPrice(
   } else {
     coverPrice = COVER_PRICE;
   }
-  const unitPrice = printPrice + coverPrice;
+
+  // 제본비
+  const bindingPrice = BINDING_PRICE;
+
+  const unitPrice = printPrice + coverPrice + bindingPrice;
   const quantity = order.quantity;
   const subtotal = unitPrice * quantity;
   const tax = Math.round(subtotal * 0.1);
   const totalPrice = subtotal + tax;
 
-  return { pricePerPage, pageCount: folder.pageCount, printPrice, coverPrice, unitPrice, quantity, subtotal, tax, totalPrice };
+  return { pricePerPage, pageCount: folder.pageCount, printPrice, coverPrice, bindingPrice, unitPrice, quantity, subtotal, tax, totalPrice };
 }
 
 /**

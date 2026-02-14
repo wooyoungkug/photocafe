@@ -901,6 +901,8 @@ export class SalesLedgerService {
           receivablesTurnoverScore: 0,
           overdueHistoryScore: 0,
         },
+        overdueCount: 0,
+        monthlyAvgSales: 0,
         recommendation: '거래내역이 없어 기본 B등급으로 설정되었습니다.',
       };
     }
@@ -1264,8 +1266,7 @@ export class SalesLedgerService {
                 ELSE 0
               END as "collectionRate"
        FROM staff s
-       LEFT JOIN staff_clients sc ON sc."staffId" = s.id AND sc."isPrimary" = true
-       LEFT JOIN sales_ledgers sl ON sl."clientId" = sc."clientId" AND ${whereClause}
+       LEFT JOIN sales_ledgers sl ON sl."staffId" = s.id AND ${whereClause}
        WHERE s."isActive" = true
        GROUP BY s.id, s.name, s."staffId"
        ORDER BY "totalSales" DESC`,
@@ -1330,8 +1331,7 @@ export class SalesLedgerService {
               COALESCE(SUM(CASE WHEN sr."paymentMethod" = 'card' THEN sr.amount ELSE 0 END), 0)::float as "cardAmount",
               COALESCE(SUM(CASE WHEN sr."paymentMethod" = 'check' THEN sr.amount ELSE 0 END), 0)::float as "checkAmount"
        FROM staff s
-       LEFT JOIN staff_clients sc ON sc."staffId" = s.id AND sc."isPrimary" = true
-       LEFT JOIN sales_ledgers sl ON sl."clientId" = sc."clientId"
+       LEFT JOIN sales_ledgers sl ON sl."staffId" = s.id
        LEFT JOIN sales_receipts sr ON sr."salesLedgerId" = sl.id
        ${whereClause}
        GROUP BY s.id, s.name, s."staffId"

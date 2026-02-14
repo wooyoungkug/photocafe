@@ -454,6 +454,24 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
         </div>
       )}
 
+      {/* CMYK 파일 경고 */}
+      {(() => {
+        const cmykFiles = folder.files.filter(f => f.colorSpace === 'CMYK');
+        if (cmykFiles.length === 0) return null;
+        return (
+          <div className="mt-3 p-3 bg-red-50 rounded-lg border border-red-200">
+            <div className="flex items-center gap-2 text-red-700 text-sm font-medium">
+              <AlertTriangle className="h-4 w-4" />
+              CMYK 컬러 모드 파일 감지 ({cmykFiles.length}개)
+            </div>
+            <div className="mt-1 text-xs text-red-600">
+              <p>인쇄용으로는 RGB 컬러 모드를 권장합니다. CMYK 파일은 색상이 다르게 출력될 수 있습니다.</p>
+              <p className="mt-1">CMYK 파일: {cmykFiles.map(f => f.fileName).join(', ')}</p>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* 비율 불일치 경고 */}
       {folder.validationStatus === 'RATIO_MISMATCH' && (
         <div className="mt-3 p-3 bg-red-100 rounded-lg">
@@ -665,6 +683,16 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                       <div className="truncate font-medium" title={file.newFileName || file.fileName}>{file.newFileName || file.fileName}</div>
                       <div className="text-gray-500 flex items-center gap-0.5">
                         <span>{fileSizeStr} | {file.widthInch}×{file.heightInch}" | {file.dpi}dpi</span>
+                        {file.colorSpace && (
+                          <span className={cn(
+                            'inline-block px-1 py-0 rounded text-[8px] font-medium',
+                            file.colorSpace === 'CMYK' ? 'bg-red-100 text-red-700 border border-red-300' :
+                              file.colorSpace === 'sRGB' || file.colorSpace === 'RGB' ? 'bg-blue-100 text-blue-700' :
+                                'bg-gray-100 text-gray-600'
+                          )}>
+                            {file.colorSpace}
+                          </span>
+                        )}
                         <span className={cn(
                           'inline-block px-1 py-0 rounded text-[8px] font-medium ml-auto',
                           file.status === 'EXACT' ? 'bg-green-100 text-green-700' :
