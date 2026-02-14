@@ -11,6 +11,7 @@ import {
   Copy,
   CircleDollarSign,
   Database,
+  HardDriveDownload,
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,7 @@ import {
   useBulkResetAmount,
   useBulkUpdateReceiptDate,
   useDataCleanup,
+  useBulkDeleteOriginals,
 } from '@/hooks/use-order-bulk-actions';
 import { ConfirmActionDialog } from './confirm-action-dialog';
 import { ChangeReceiptDateDialog } from './change-receipt-date-dialog';
@@ -61,6 +63,7 @@ export function BulkActionToolbar({
   const [resetAmountDialog, setResetAmountDialog] = useState(false);
   const [receiptDateDialog, setReceiptDateDialog] = useState(false);
   const [dataCleanupDialog, setDataCleanupDialog] = useState(false);
+  const [deleteOriginalsDialog, setDeleteOriginalsDialog] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
 
   const bulkUpdateStatus = useBulkUpdateStatus();
@@ -70,6 +73,7 @@ export function BulkActionToolbar({
   const bulkResetAmount = useBulkResetAmount();
   const bulkUpdateReceiptDate = useBulkUpdateReceiptDate();
   const dataCleanup = useDataCleanup();
+  const bulkDeleteOriginals = useBulkDeleteOriginals();
 
   const orderIds = Array.from(selectedIds);
   const count = selectedIds.size;
@@ -149,6 +153,15 @@ export function BulkActionToolbar({
     });
   };
 
+  const handleDeleteOriginals = () => {
+    bulkDeleteOriginals.mutate({ orderIds }, {
+      onSuccess: (result) => {
+        handleResult(result, '원본 이미지 삭제');
+        setDeleteOriginalsDialog(false);
+      },
+    });
+  };
+
   const handleDataCleanup = (data: { startDate: string; endDate: string; deleteThumbnails: boolean }) => {
     dataCleanup.mutate(data, {
       onSuccess: (result) => {
@@ -160,7 +173,8 @@ export function BulkActionToolbar({
   };
 
   const isAnyLoading = bulkUpdateStatus.isPending || bulkCancel.isPending || bulkDelete.isPending ||
-    bulkDuplicate.isPending || bulkResetAmount.isPending || bulkUpdateReceiptDate.isPending || dataCleanup.isPending;
+    bulkDuplicate.isPending || bulkResetAmount.isPending || bulkUpdateReceiptDate.isPending || dataCleanup.isPending ||
+    bulkDeleteOriginals.isPending;
 
   return (
     <>
@@ -243,6 +257,12 @@ export function BulkActionToolbar({
 
             <div className="w-px h-4 bg-gray-600 mx-1" />
 
+            <Button variant="ghost" size="sm" className="text-orange-400 hover:text-orange-300 hover:bg-gray-700 h-7 text-xs px-2"
+              onClick={() => setDeleteOriginalsDialog(true)} disabled={isAnyLoading}>
+              <HardDriveDownload className="h-3 w-3 mr-1" />
+              원본삭제
+            </Button>
+
             <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-300 hover:bg-gray-700 h-7 text-xs px-2"
               onClick={() => setDataCleanupDialog(true)} disabled={isAnyLoading}>
               <Database className="h-3 w-3 mr-1" />
@@ -313,6 +333,18 @@ export function BulkActionToolbar({
         selectedCount={count}
         isLoading={bulkUpdateReceiptDate.isPending}
         onConfirm={handleReceiptDateChange}
+      />
+
+      {/* 원본 이미지 일괄 삭제 다이얼로그 */}
+      <ConfirmActionDialog
+        open={deleteOriginalsDialog}
+        onOpenChange={setDeleteOriginalsDialog}
+        title="원본 이미지 일괄 삭제"
+        description={`선택한 ${count}건의 주문에서 원본 이미지를 삭제합니다. 배송완료 + PDF 완료 항목만 삭제됩니다.`}
+        confirmLabel="원본 삭제 실행"
+        variant="destructive"
+        isLoading={bulkDeleteOriginals.isPending}
+        onConfirm={handleDeleteOriginals}
       />
 
       {/* 데이터 삭제 다이얼로그 */}
