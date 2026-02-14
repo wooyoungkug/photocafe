@@ -231,4 +231,20 @@ export class OrderController {
   ) {
     return this.orderService.completeInspection(id, req.user.id, dto);
   }
+
+  @Post(':id/regenerate-pdf')
+  @ApiOperation({ summary: 'PDF 재생성 (실패 시 재시도)' })
+  async regeneratePdf(@Param('id') id: string) {
+    return this.orderService.regeneratePdf(id);
+  }
+
+  @Delete(':id/items/:itemId/originals')
+  @ApiOperation({ summary: '원본 이미지 삭제 (배송완료 후)' })
+  async deleteOriginals(
+    @Param('id') id: string,
+    @Param('itemId') itemId: string,
+    @Request() req: any,
+  ) {
+    return this.orderService.deleteOriginals(id, itemId, req.user.id);
+  }
 }

@@ -311,7 +311,9 @@
       "Bash(\"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"SELECT COUNT\\(*\\) as total_history FROM process_histories;\")",
       "Bash(git show:*)",
       "Bash(jq:*)",
-      "Bash(git check-ignore:*)"
+      "Bash(git check-ignore:*)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbWtzOHhhYTcwMDAwbjUzY3VkN3EzOGJsIiwiZW1haWwiOiJ3b29jZW9AZ21haWwuY29tIiwicm9sZSI6ImFkbWluIiwiaWF0IjoxNzcxMDUxOTk1LCJleHAiOjE3NzExMzgzOTV9.rEcZrYhiEJCOlPtYwsW6keVrOFTXa9BWBrxeTybMF98\")",
+      "Bash(python3:*)"
     ]
   }
 }

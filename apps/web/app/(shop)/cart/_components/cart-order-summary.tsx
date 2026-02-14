@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ShoppingBag, ChevronRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import { ShoppingBag, ChevronRight, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -16,6 +16,8 @@ interface CartOrderSummaryProps {
   selectedTotal: number;
   totalShippingFee: number;
   isAuthenticated: boolean;
+  hasUploadInProgress?: boolean;
+  hasUploadFailed?: boolean;
   onCheckout: () => void;
 }
 
@@ -26,6 +28,8 @@ export function CartOrderSummary({
   selectedTotal,
   totalShippingFee,
   isAuthenticated,
+  hasUploadInProgress,
+  hasUploadFailed,
   onCheckout,
 }: CartOrderSummaryProps) {
   const t = useTranslations('cart');
@@ -110,12 +114,32 @@ export function CartOrderSummary({
             </div>
           )}
 
+          {/* Warning for upload in progress */}
+          {hasUploadInProgress && (
+            <div className="bg-blue-50 border border-blue-200/50 rounded-lg p-3 flex items-start gap-2">
+              <Loader2 className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0 animate-spin" />
+              <p className="text-xs text-blue-700 leading-relaxed">
+                원본 파일 업로드가 진행 중입니다. 완료 후 주문할 수 있습니다.
+              </p>
+            </div>
+          )}
+
+          {/* Warning for upload failed */}
+          {hasUploadFailed && !hasUploadInProgress && (
+            <div className="bg-red-50 border border-red-200/50 rounded-lg p-3 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-red-700 leading-relaxed">
+                업로드에 실패한 항목이 있습니다. 재시도하거나 삭제해주세요.
+              </p>
+            </div>
+          )}
+
           {/* Checkout button */}
           <Button
             size="lg"
             className="w-full h-12 text-base font-semibold gradient-primary text-white shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all disabled:opacity-50 disabled:shadow-none"
             onClick={onCheckout}
-            disabled={selectedCount === 0}
+            disabled={selectedCount === 0 || hasUploadInProgress || hasUploadFailed}
           >
             <ShoppingBag className="h-5 w-5 mr-2" />
             {t('checkout')} ({selectedCount})

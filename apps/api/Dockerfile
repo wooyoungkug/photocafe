@@ -45,6 +45,9 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/node_modules ./node_modules
 
+# Create uploads directory
+RUN mkdir -p /app/uploads/temp /app/uploads/orders
+
 # Set ownership
 RUN chown -R nestjs:nodejs /app
 

@@ -14,11 +14,15 @@ import {
   GripVertical,
   CheckCircle2,
   AlertCircle,
+  Upload,
+  Loader2,
+  RefreshCw,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { FolderShippingSection } from '@/components/album-upload/folder-shipping-section';
@@ -32,6 +36,7 @@ import type { CompanyShippingInfo, OrdererShippingInfo } from '@/hooks/use-shipp
 import type { DeliveryPricing } from '@/hooks/use-delivery-pricing';
 import { API_URL, API_BASE_URL } from '@/lib/api';
 import { useTranslations } from 'next-intl';
+import { retryBackgroundUpload, canRetryUpload } from '@/lib/background-upload';
 
 // Image URL normalization
 const normalizeImageUrl = (url: string | null | undefined): string => {
@@ -278,6 +283,24 @@ export function CartItemCard({
                       {t('halfProduct')}
                     </Badge>
                   )}
+                  {item.uploadStatus === 'completed' && (
+                    <Badge className="bg-gradient-to-r from-green-100 to-green-50 text-green-700 text-[11px] px-2 py-0.5 font-medium border border-green-200/50 rounded-md">
+                      <CheckCircle2 className="w-3 h-3 mr-1" />
+                      업로드 완료
+                    </Badge>
+                  )}
+                  {item.uploadStatus === 'uploading' && (
+                    <Badge className="bg-gradient-to-r from-blue-100 to-blue-50 text-blue-700 text-[11px] px-2 py-0.5 font-medium border border-blue-200/50 rounded-md">
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      업로드 중 {item.uploadProgress || 0}%
+                    </Badge>
+                  )}
+                  {item.uploadStatus === 'failed' && (
+                    <Badge className="bg-gradient-to-r from-red-100 to-red-50 text-red-700 text-[11px] px-2 py-0.5 font-medium border border-red-200/50 rounded-md">
+                      <AlertCircle className="w-3 h-3 mr-1" />
+                      업로드 실패
+                    </Badge>
+                  )}
                   {item.addedAt && (
                     <span className="text-[11px] text-gray-400 flex items-center gap-1">
                       <Clock className="w-3 h-3" />
@@ -418,6 +441,53 @@ export function CartItemCard({
             </div>
           </div>
         </div>
+
+        {/* Upload progress section */}
+        {item.uploadStatus && item.uploadStatus !== 'completed' && (
+          <div className="border-t border-gray-100 px-4 py-2.5">
+            {item.uploadStatus === 'uploading' && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-1.5 text-blue-600">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span className="font-medium">원본 파일 업로드 중...</span>
+                  </div>
+                  <span className="text-gray-500 tabular-nums">
+                    {item.uploadedFileCount || 0}/{item.totalFileCount || 0}건 · {item.uploadProgress || 0}%
+                  </span>
+                </div>
+                <Progress value={item.uploadProgress || 0} className="h-1.5 rounded-full bg-blue-100" />
+              </div>
+            )}
+            {item.uploadStatus === 'pending' && (
+              <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                <Upload className="w-3.5 h-3.5" />
+                <span>업로드 대기 중...</span>
+              </div>
+            )}
+            {item.uploadStatus === 'failed' && (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs text-red-600">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  <span className="font-medium">
+                    업로드 실패 ({item.uploadedFileCount || 0}/{item.totalFileCount || 0}건 완료)
+                  </span>
+                </div>
+                {canRetryUpload(item.id) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                    onClick={() => retryBackgroundUpload(item.id)}
+                  >
+                    <RefreshCw className="w-3 h-3 mr-1" />
+                    재시도
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Shipping section (non-album items) */}
         {!hasAlbumShipping && (
