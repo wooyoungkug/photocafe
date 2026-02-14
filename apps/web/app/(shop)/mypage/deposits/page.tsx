@@ -71,7 +71,7 @@ export default function DepositsPage() {
   const { data: depositsData, isLoading } = useQuery({
     queryKey: ['deposits', user?.id, format(selectedDate, 'yyyy-MM'), filterMethod],
     queryFn: async () => {
-      const response = await api.get<{ data: Deposit[]; summary: any }>('/deposits', {
+      const response = await api.get<{ data: Deposit[]; summary: any }>('/api/v1/deposits', {
         clientId: user?.id || '',
         startDate: format(startDate, 'yyyy-MM-dd'),
         endDate: format(endDate, 'yyyy-MM-dd'),

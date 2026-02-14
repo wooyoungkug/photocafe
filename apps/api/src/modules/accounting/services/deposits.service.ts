@@ -20,12 +20,14 @@ export class DepositsService {
 
     // WHERE 조건 구성
     const whereClause: any = {
-      receivable: {
-        clientId,
-      },
-      paymentDate: {
+      clientId,
+      orderedAt: {
         gte: new Date(startDate),
         lte: new Date(endDate + 'T23:59:59.999Z'),
+      },
+      // 결제 완료된 주문만 조회 (입금 내역으로 간주)
+      paymentStatus: {
+        in: ['paid', 'partial'],
       },
     };
 
@@ -33,58 +35,39 @@ export class DepositsService {
       whereClause.paymentMethod = paymentMethod;
     }
 
-    // 입금내역 조회 (ReceivablePayment + Receivable 조인)
-    const payments = await this.prisma.receivablePayment.findMany({
-      where: whereClause,
-      include: {
-        receivable: true,
-      },
-      orderBy: {
-        paymentDate: 'desc',
-      },
-    });
-
-    // 주문 정보를 조회하기 위해 orderId 목록 추출
-    const orderIds = payments
-      .map((p) => p.receivable.orderId)
-      .filter((id): id is string => !!id);
-
-    // 주문 정보 조회
+    // 주문 정보 조회 (결제된 주문 = 입금 내역)
     const orders = await this.prisma.order.findMany({
-      where: {
-        id: {
-          in: orderIds,
-        },
-      },
+      where: whereClause,
       select: {
         id: true,
-        orderNo: true,
-        total: true,
+        orderNumber: true,
+        totalAmount: true,
+        finalAmount: true,
+        paymentMethod: true,
+        paymentStatus: true,
+        customerMemo: true,
+        orderedAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: {
+        orderedAt: 'desc',
       },
     });
 
-    // orderId를 키로 하는 Map 생성
-    const orderMap = new Map(orders.map((o) => [o.id, o]));
-
     // DepositResponseDto로 변환
-    const data: DepositResponseDto[] = payments.map((payment) => {
-      const order = payment.receivable.orderId
-        ? orderMap.get(payment.receivable.orderId)
-        : null;
-
+    const data: DepositResponseDto[] = orders.map((order) => {
       return {
-        id: payment.id,
-        depositDate: payment.paymentDate.toISOString(),
-        orderNumber: order?.orderNo || payment.receivable.orderNumber || '-',
-        orderId: payment.receivable.orderId || '',
-        orderAmount: order?.total
-          ? parseFloat(order.total.toString())
-          : parseFloat(payment.receivable.originalAmount.toString()),
-        depositAmount: parseFloat(payment.amount.toString()),
-        paymentMethod: payment.paymentMethod || 'other',
-        memo: payment.description || undefined,
-        confirmedAt: payment.createdAt.toISOString(),
-        confirmedBy: payment.createdBy || undefined,
+        id: order.id,
+        depositDate: order.orderedAt.toISOString(),
+        orderNumber: order.orderNumber,
+        orderId: order.id,
+        orderAmount: parseFloat(order.totalAmount.toString()),
+        depositAmount: parseFloat(order.finalAmount.toString()),
+        paymentMethod: order.paymentMethod || 'other',
+        memo: order.customerMemo || undefined,
+        confirmedAt: order.updatedAt.toISOString(),
+        confirmedBy: undefined, // 주문 정보에는 확인자 정보가 없음
       };
     });
 

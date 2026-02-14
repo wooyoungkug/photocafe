@@ -413,7 +413,10 @@ export function OrderQuickEditDialog({
         edit.unitPrice !== Number(item.unitPrice) ||
         edit.pageLayout !== (item.pageLayout || undefined) ||
         edit.bindingDirection !== (item.bindingDirection || undefined) ||
-        edit.fabricName !== (item.fabricName || undefined)
+        edit.fabricName !== (item.fabricName || undefined) ||
+        edit.foilName !== (item.foilName || undefined) ||
+        edit.foilColor !== (item.foilColor || undefined) ||
+        edit.foilPosition !== (item.foilPosition || undefined)
       );
     });
   };
@@ -430,7 +433,10 @@ export function OrderQuickEditDialog({
           edit.unitPrice !== Number(item.unitPrice) ||
           edit.pageLayout !== (item.pageLayout || undefined) ||
           edit.bindingDirection !== (item.bindingDirection || undefined) ||
-          edit.fabricName !== (item.fabricName || undefined)
+          edit.fabricName !== (item.fabricName || undefined) ||
+          edit.foilName !== (item.foilName || undefined) ||
+          edit.foilColor !== (item.foilColor || undefined) ||
+          edit.foilPosition !== (item.foilPosition || undefined)
         );
       })
       .map((item) => ({
@@ -440,6 +446,9 @@ export function OrderQuickEditDialog({
         pageLayout: itemEdits[item.id].pageLayout,
         bindingDirection: itemEdits[item.id].bindingDirection,
         fabricName: itemEdits[item.id].fabricName,
+        foilName: itemEdits[item.id].foilName,
+        foilColor: itemEdits[item.id].foilColor,
+        foilPosition: itemEdits[item.id].foilPosition,
       }));
 
     try {
@@ -764,6 +773,61 @@ export function OrderQuickEditDialog({
                           placeholder="원단명 입력"
                           className="w-48 h-8 text-sm"
                         />
+                      </div>
+
+                      {/* Foil information (동판 정보) */}
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">박 동판명</Label>
+                          <Input
+                            value={edit.foilName || ''}
+                            onChange={(e) =>
+                              setItemEdits((prev) => ({
+                                ...prev,
+                                [item.id]: {
+                                  ...prev[item.id],
+                                  foilName: e.target.value || undefined,
+                                },
+                              }))
+                            }
+                            placeholder="동판명 입력"
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">박 색상</Label>
+                          <Input
+                            value={edit.foilColor || ''}
+                            onChange={(e) =>
+                              setItemEdits((prev) => ({
+                                ...prev,
+                                [item.id]: {
+                                  ...prev[item.id],
+                                  foilColor: e.target.value || undefined,
+                                },
+                              }))
+                            }
+                            placeholder="박 색상"
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">박 위치</Label>
+                          <Input
+                            value={edit.foilPosition || ''}
+                            onChange={(e) =>
+                              setItemEdits((prev) => ({
+                                ...prev,
+                                [item.id]: {
+                                  ...prev[item.id],
+                                  foilPosition: e.target.value || undefined,
+                                },
+                              }))
+                            }
+                            placeholder="박 위치"
+                            className="h-8 text-sm"
+                          />
+                        </div>
                       </div>
 
                       {/* Quantity / Unit price / Subtotal */}

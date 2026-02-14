@@ -231,6 +231,19 @@ export class SalesLedgerService {
           client: {
             select: { id: true, clientCode: true, clientName: true, businessNumber: true },
           },
+          order: {
+            select: {
+              id: true,
+              orderNumber: true,
+              items: {
+                select: {
+                  id: true,
+                  bindingType: true,
+                },
+                take: 1,
+              },
+            },
+          },
         },
         orderBy: { ledgerDate: 'desc' },
         skip: (page - 1) * limit,

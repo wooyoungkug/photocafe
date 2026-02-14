@@ -310,7 +310,8 @@
       "Bash(\"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -c \"UPDATE staff_clients SET \"\"isPrimary\"\" = true WHERE \"\"staffId\"\" = ''cml63cj8d000610fc52rxd1r8''\")",
       "Bash(\"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"SELECT COUNT\\(*\\) as total_history FROM process_histories;\")",
       "Bash(git show:*)",
-      "Bash(jq:*)"
+      "Bash(jq:*)",
+      "Bash(git check-ignore:*)"
     ]
   }
 }

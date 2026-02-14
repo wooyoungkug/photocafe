@@ -80,19 +80,19 @@ export default function LedgerPage() {
     switch (status) {
       case 'paid':
         return (
-          <Badge className="bg-green-100 text-green-700">완납</Badge>
+          <Badge variant="outline" className="text-green-700 border-green-700">완납</Badge>
         );
       case 'partial':
         return (
-          <Badge className="bg-yellow-100 text-yellow-700">부분결제</Badge>
+          <Badge variant="outline" className="text-yellow-700 border-yellow-700">부분결제</Badge>
         );
       case 'unpaid':
         return (
-          <Badge className="bg-orange-100 text-orange-700">미결제</Badge>
+          <Badge variant="outline" className="text-orange-700 border-orange-700">미결제</Badge>
         );
       case 'overdue':
         return (
-          <Badge className="bg-red-100 text-red-700">연체</Badge>
+          <Badge variant="outline" className="text-red-700 border-red-700">연체</Badge>
         );
       default:
         return null;
@@ -111,6 +111,19 @@ export default function LedgerPage() {
       OTHER: '기타',
     };
     return typeMap[salesType] || salesType;
+  };
+
+  const getBindingTypeLabel = (bindingType: string | undefined) => {
+    if (!bindingType) return '-';
+    const typeMap: Record<string, string> = {
+      'wireless': '무선제본',
+      'hardcover': '하드커버',
+      'perfect': '양장제본',
+      'saddle': '중철제본',
+      'spiral': '스프링제본',
+      'ring': '링제본',
+    };
+    return typeMap[bindingType] || bindingType;
   };
 
   if (!isAuthenticated || !user) {
@@ -140,7 +153,7 @@ export default function LedgerPage() {
               </Button>
               <div className="flex items-center gap-2">
                 <Calendar className="h-5 w-5 text-primary" />
-                <h2 className="text-xl font-bold">
+                <h2 className="text-xl">
                   {format(selectedDate, 'yyyy년 MM월', { locale: ko })}
                 </h2>
               </div>
@@ -183,7 +196,7 @@ export default function LedgerPage() {
         <Card>
           <CardContent className="p-6">
             <p className="text-sm text-gray-500 mb-1">총 구매금액</p>
-            <p className="text-2xl font-bold text-primary">
+            <p className="text-2xl">
               {totalDebit.toLocaleString()}원
             </p>
           </CardContent>
@@ -191,7 +204,7 @@ export default function LedgerPage() {
         <Card>
           <CardContent className="p-6">
             <p className="text-sm text-gray-500 mb-1">총 결제금액</p>
-            <p className="text-2xl font-bold text-green-600">
+            <p className="text-2xl">
               {totalCredit.toLocaleString()}원
             </p>
           </CardContent>
@@ -199,7 +212,7 @@ export default function LedgerPage() {
         <Card>
           <CardContent className="p-6">
             <p className="text-sm text-gray-500 mb-1">미결제금액</p>
-            <p className="text-2xl font-bold text-orange-600">
+            <p className="text-2xl">
               {totalBalance.toLocaleString()}원
             </p>
           </CardContent>
@@ -226,45 +239,46 @@ export default function LedgerPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[100px]">날짜</TableHead>
-                    <TableHead className="w-[120px]">주문번호</TableHead>
-                    <TableHead>내역</TableHead>
-                    <TableHead className="w-[80px]">분류</TableHead>
-                    <TableHead className="w-[120px] text-right">구매금액</TableHead>
-                    <TableHead className="w-[120px] text-right">결제금액</TableHead>
-                    <TableHead className="w-[120px] text-right">미결제금액</TableHead>
-                    <TableHead className="w-[100px] text-center">상태</TableHead>
+                    <TableHead className="w-[100px] text-center">날짜</TableHead>
+                    <TableHead className="w-[120px] text-center">주문번호</TableHead>
+                    <TableHead className="text-center">내역</TableHead>
+                    <TableHead className="w-[80px] text-center">제본방식</TableHead>
+                    <TableHead className="w-[140px] text-center">구매금액<br/>상태</TableHead>
+                    <TableHead className="w-[120px] text-center">결제금액</TableHead>
+                    <TableHead className="w-[120px] text-center">미결제금액</TableHead>
                     <TableHead className="w-[80px] text-center">상세</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {ledgers.map((ledger) => (
                     <TableRow key={ledger.id}>
-                      <TableCell className="text-sm">
-                        {format(new Date(ledger.ledgerDate), 'MM-dd', { locale: ko })}
+                      <TableCell className="text-sm text-center">
+                        {format(new Date(ledger.ledgerDate), 'yy-MM-dd', { locale: ko })}
                       </TableCell>
-                      <TableCell className="text-sm font-medium">
+                      <TableCell className="text-sm text-center">
                         {ledger.orderNumber}
                       </TableCell>
-                      <TableCell className="text-sm">
+                      <TableCell className="text-sm text-center">
                         {ledger.description || `${ledger.orderNumber} 주문`}
                       </TableCell>
-                      <TableCell className="text-xs text-gray-600">
-                        {getSalesTypeLabel(ledger.salesType)}
+                      <TableCell className="text-xs text-gray-600 text-center">
+                        {getBindingTypeLabel(ledger.order?.items?.[0]?.bindingType)}
                       </TableCell>
-                      <TableCell className="text-right font-medium text-primary">
-                        {Number(ledger.totalAmount).toLocaleString()}원
+                      <TableCell className="text-center">
+                        <div className="font-medium">
+                          {Number(ledger.totalAmount).toLocaleString()}원
+                        </div>
+                        <div className="mt-1">
+                          {getStatusBadge(ledger.paymentStatus)}
+                        </div>
                       </TableCell>
-                      <TableCell className="text-right font-medium text-green-600">
+                      <TableCell className="text-center">
                         {Number(ledger.receivedAmount) > 0
                           ? `${Number(ledger.receivedAmount).toLocaleString()}원`
                           : '-'}
                       </TableCell>
-                      <TableCell className="text-right font-bold">
-                        {Number(ledger.outstandingAmount).toLocaleString()}원
-                      </TableCell>
                       <TableCell className="text-center">
-                        {getStatusBadge(ledger.paymentStatus)}
+                        {Number(ledger.outstandingAmount).toLocaleString()}원
                       </TableCell>
                       <TableCell className="text-center">
                         <Link href={`/mypage/orders/${ledger.orderId}`}>
@@ -277,18 +291,18 @@ export default function LedgerPage() {
                   ))}
                 </TableBody>
                 <TableFooter>
-                  <TableRow className="bg-gray-50 font-bold">
-                    <TableCell colSpan={4}>합계</TableCell>
-                    <TableCell className="text-right text-primary">
+                  <TableRow className="bg-gray-50">
+                    <TableCell colSpan={4} className="text-center">합계</TableCell>
+                    <TableCell className="text-center">
                       {totalDebit.toLocaleString()}원
                     </TableCell>
-                    <TableCell className="text-right text-green-600">
+                    <TableCell className="text-center">
                       {totalCredit.toLocaleString()}원
                     </TableCell>
-                    <TableCell className="text-right text-orange-600">
+                    <TableCell className="text-center">
                       {totalBalance.toLocaleString()}원
                     </TableCell>
-                    <TableCell colSpan={2}></TableCell>
+                    <TableCell></TableCell>
                   </TableRow>
                 </TableFooter>
               </Table>

@@ -759,6 +759,7 @@ model Order {
   shipping              OrderShipping?
   client                Client           @relation(fields: [clientId], references: [id])
   processHistory        ProcessHistory[]
+  salesLedger           SalesLedger?
 
   @@index([clientId])
   @@index([status])
@@ -2137,6 +2138,7 @@ model SalesLedger {
   items             SalesLedgerItem[]
   client            Client            @relation("SalesLedgerClient", fields: [clientId], references: [id])
   staff             Staff?            @relation("SalesLedgerStaff", fields: [staffId], references: [id])
+  order             Order             @relation(fields: [orderId], references: [id])
   receipts          SalesReceipt[]
 
   @@index([clientId])

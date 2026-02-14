@@ -69,6 +69,14 @@ export interface SalesLedger {
 
   orderId: string;
   orderNumber: string;
+  order?: {
+    id: string;
+    orderNumber: string;
+    items: Array<{
+      id: string;
+      bindingType: string;
+    }>;
+  };
 
   salesType: SalesType;
   taxType: TaxType;
