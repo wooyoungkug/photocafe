@@ -498,6 +498,9 @@ export default function OrderPage() {
           pageLayout: albumInfo.pageLayout,
           bindingDirection: albumInfo.bindingDirection,
           fabricName: albumInfo.fabricName || undefined,
+          foilName: albumInfo.foilName || undefined,
+          foilColor: albumInfo.foilColor || undefined,
+          foilPosition: albumInfo.foilPosition || undefined,
           folderName: albumInfo.folderName,
           fileCount: albumInfo.fileCount,
           files: (item.thumbnailUrls || []).map((url, idx) => ({

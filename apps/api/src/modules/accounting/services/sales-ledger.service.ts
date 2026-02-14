@@ -130,6 +130,11 @@ export class SalesLedgerService {
       };
     });
 
+    // 주문 제목 생성 (상품명 기반)
+    const orderTitle = order.items.length === 1
+      ? order.items[0].productName
+      : `${order.items[0].productName} 외 ${order.items.length - 1}건`;
+
     const salesLedger = await this.prisma.salesLedger.create({
       data: {
         ledgerNumber,
@@ -152,7 +157,7 @@ export class SalesLedgerService {
         paymentStatus,
         dueDate,
         salesStatus: 'REGISTERED',
-        description: `${order.orderNumber} 매출`,
+        description: orderTitle,
         createdBy,
         items: {
           create: ledgerItems,
@@ -176,7 +181,7 @@ export class SalesLedgerService {
         accountCode: '402', // 제품매출
         orderId: order.id,
         orderNumber: order.orderNumber,
-        description: `${order.orderNumber} 매출`,
+        description: orderTitle,
       });
     } catch (err) {
       // Journal creation failure should not block sales ledger creation

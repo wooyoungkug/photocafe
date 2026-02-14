@@ -54,6 +54,7 @@ export interface OrderItem {
   coverMaterial?: string;
   foilName?: string;
   foilColor?: string;
+  foilPosition?: string;
   finishingOptions: string[];
   fabricName?: string;
   folderName?: string;
@@ -144,6 +145,7 @@ export interface CreateOrderDto {
     coverMaterial?: string;
     foilName?: string;
     foilColor?: string;
+    foilPosition?: string;
     finishingOptions?: string[];
     quantity: number;
     unitPrice: number;
@@ -151,6 +153,7 @@ export interface CreateOrderDto {
     colorMode?: string;
     pageLayout?: string;
     bindingDirection?: string;
+    fabricName?: string;
     folderName?: string;
     fileCount?: number;
   }[];

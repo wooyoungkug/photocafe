@@ -94,6 +94,9 @@ interface ItemEdit {
   pageLayout?: string;
   bindingDirection?: string;
   fabricName?: string;
+  foilName?: string;
+  foilColor?: string;
+  foilPosition?: string;
 }
 
 // ==================== ThumbnailGrid 서브 컴포넌트 ====================
@@ -366,6 +369,9 @@ export function OrderQuickEditDialog({
           pageLayout: item.pageLayout || undefined,
           bindingDirection: item.bindingDirection || undefined,
           fabricName: item.fabricName || undefined,
+          foilName: item.foilName || undefined,
+          foilColor: item.foilColor || undefined,
+          foilPosition: item.foilPosition || undefined,
         };
       });
       setItemEdits(edits);
