@@ -10,25 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCartStore } from '@/stores/cart-store';
-import { cn, getLocalizedName } from '@/lib/utils';
-import { API_URL, API_BASE_URL } from '@/lib/api';
-
-const normalizeImageUrl = (url: string | null | undefined): string => {
-  if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url.replace(/\/api\/v1\/api\/v1\//g, '/api/v1/');
-  }
-  if (url.startsWith('/api/v1/')) {
-    return `${API_BASE_URL}${url}`;
-  }
-  if (url.startsWith('/upload')) {
-    return `${API_URL}${url}`;
-  }
-  if (url.startsWith('/api/')) {
-    return `${API_BASE_URL}${url}`;
-  }
-  return url;
-};
+import { cn, getLocalizedName, normalizeImageUrl } from '@/lib/utils';
 import type { Product } from '@/lib/types';
 import { useLocale } from 'next-intl';
 

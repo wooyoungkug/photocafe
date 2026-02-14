@@ -27,28 +27,15 @@ import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { FolderShippingSection } from '@/components/album-upload/folder-shipping-section';
 import { CartThumbnailGallery } from './cart-thumbnail-gallery';
-import { cn } from '@/lib/utils';
+import { cn, normalizeImageUrl } from '@/lib/utils';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { CartItem, CartShippingInfo } from '@/stores/cart-store';
 import type { FolderShippingInfo } from '@/stores/multi-folder-upload-store';
 import type { CompanyShippingInfo, OrdererShippingInfo } from '@/hooks/use-shipping-data';
 import type { DeliveryPricing } from '@/hooks/use-delivery-pricing';
-import { API_URL, API_BASE_URL } from '@/lib/api';
 import { useTranslations } from 'next-intl';
 import { retryBackgroundUpload, canRetryUpload } from '@/lib/background-upload';
-
-// Image URL normalization
-const normalizeImageUrl = (url: string | null | undefined): string => {
-  if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url.replace(/\/api\/v1\/api\/v1\//g, '/api/v1/');
-  }
-  if (url.startsWith('/api/v1/')) return `${API_BASE_URL}${url}`;
-  if (url.startsWith('/upload')) return `${API_URL}${url}`;
-  if (url.startsWith('/api/')) return `${API_BASE_URL}${url}`;
-  return url;
-};
 
 const DELIVERY_METHODS = [
   { value: 'parcel', label: '택배' },

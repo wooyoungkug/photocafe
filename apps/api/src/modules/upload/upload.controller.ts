@@ -71,9 +71,12 @@ export class UploadController {
                     cb(null, dir);
                 },
                 filename: (req: any, file, cb) => {
+                    // multer는 latin1로 파일명을 디코딩하므로 UTF-8로 재변환
+                    const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
+                    file.originalname = originalName;
                     const sortOrder = parseInt(req.body?.sortOrder || '0', 10);
-                    const ext = extname(file.originalname).toLowerCase();
-                    const safeName = file.originalname
+                    const ext = extname(originalName).toLowerCase();
+                    const safeName = originalName
                         .replace(/[<>:"/\\|?*]/g, '_')
                         .replace(/\.\./g, '_')
                         .trim();

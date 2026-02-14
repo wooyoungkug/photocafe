@@ -1551,11 +1551,11 @@ export class OrderService {
       if (urlParts.length < 2) continue;
       const tempFolderId = urlParts[1].split('/')[0];
 
-      const folderName = item.folderName || 'default';
+      const companyName = order.client?.name || 'unknown';
       const { orderDir, movedFiles } = this.fileStorage.moveToOrderDir(
         tempFolderId,
         order.orderNumber,
-        folderName,
+        companyName,
       );
 
       // DB 경로 업데이트

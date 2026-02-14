@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Put, Body, Param, Query } from '@nestjs/common';
 import { SystemSettingsService } from './system-settings.service';
-import { UpsertSettingDto } from './dto/system-settings.dto';
+import { UpsertSettingDto, BulkUpsertSettingsDto } from './dto/system-settings.dto';
 
 @Controller('system-settings')
 export class SystemSettingsController {
@@ -22,7 +22,7 @@ export class SystemSettingsController {
     }
 
     @Post('bulk')
-    bulkUpsert(@Body() settings: { key: string; value: string; category: string; label?: string }[]) {
-        return this.settingsService.bulkUpsert(settings);
+    bulkUpsert(@Body() dto: BulkUpsertSettingsDto) {
+        return this.settingsService.bulkUpsert(dto.settings);
     }
 }

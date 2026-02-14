@@ -1,5 +1,35 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { API_URL, API_BASE_URL } from "./api";
+
+/**
+ * 이미지 URL 정규화 (DB 저장 값 → 브라우저 접근 가능 URL)
+ * - /upload/... (컨트롤러 형식) → 정적 파일 서빙 /uploads/... 로 변환
+ * - /uploads/... (정적 파일 형식) → 그대로 사용
+ * - /api/v1/... → API base URL 붙임
+ * - http(s)://... → 중복 prefix 제거
+ */
+export function normalizeImageUrl(url: string | null | undefined): string {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url.replace(/\/api\/v1\/api\/v1\//g, '/api/v1/');
+  }
+  if (url.startsWith('/api/v1/')) {
+    return `${API_BASE_URL}${url}`;
+  }
+  // 정적 파일 서빙 경로 (/uploads/...)
+  if (url.startsWith('/uploads/')) {
+    return `${API_BASE_URL}${url}`;
+  }
+  // 컨트롤러 경로 (/upload/...) → 정적 파일 경로로 변환
+  if (url.startsWith('/upload/')) {
+    return `${API_BASE_URL}/uploads/${url.substring('/upload/'.length)}`;
+  }
+  if (url.startsWith('/api/')) {
+    return `${API_BASE_URL}${url}`;
+  }
+  return url;
+}
 
 // 다국어 카테고리명 반환
 export function getLocalizedName(

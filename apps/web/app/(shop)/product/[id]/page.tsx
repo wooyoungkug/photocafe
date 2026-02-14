@@ -14,8 +14,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useCartStore, type CartItemOption } from '@/stores/cart-store';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
-import { API_URL, API_BASE_URL, api } from '@/lib/api';
+import { cn, normalizeImageUrl } from '@/lib/utils';
+import { api } from '@/lib/api';
 import type { Product, ProductSpecification, ProductBinding, ProductPaper, ProductCover, ProductFoil, ProductFinishing, ProductPublicCopperPlate } from '@/lib/types';
 import { useAuthStore } from '@/stores/auth-store';
 import { useCopperPlatesByClient, useCopperPlateLabels, type CopperPlate } from '@/hooks/use-copper-plates';
@@ -36,24 +36,6 @@ import { FabricPickerDialog } from '@/components/album-upload/fabric-picker-dial
 import type { Fabric } from '@/hooks/use-fabrics';
 import { useTranslations } from 'next-intl';
 import { startBackgroundUpload, type FolderUploadData } from '@/lib/background-upload';
-
-// 이미지 URL 정규화 함수
-const normalizeImageUrl = (url: string | null | undefined): string => {
-  if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url.replace(/\/api\/v1\/api\/v1\//g, '/api/v1/');
-  }
-  if (url.startsWith('/api/v1/')) {
-    return `${API_BASE_URL}${url}`;
-  }
-  if (url.startsWith('/upload')) {
-    return `${API_URL}${url}`;
-  }
-  if (url.startsWith('/api/')) {
-    return `${API_BASE_URL}${url}`;
-  }
-  return url;
-};
 
 interface SelectedOptions {
   specification?: ProductSpecification;
