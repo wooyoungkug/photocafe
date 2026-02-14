@@ -50,11 +50,14 @@ export interface AlbumOrderCartInfo {
   pageCount: number;               // 페이지 수
   printMethod: 'indigo' | 'inkjet'; // 출력기종
   colorMode: '4c' | '6c';          // 도수
-  pageLayout: 'single' | 'spread'; // 페이지 레이아웃
+  pageLayout: 'single' | 'spread'; // 페이지 레이아웃 (편집스타일)
   bindingDirection: string;        // 제본방향
   specificationId: string;         // 규격 ID
   specificationName: string;       // 규격명
   fabricName?: string;             // 원단명
+  foilName?: string;               // 박 동판명
+  foilColor?: string;              // 박 색상
+  foilPosition?: string;           // 박 위치
   totalSize?: number;              // 총 용량 (bytes)
   shippingInfo?: CartShippingInfo; // 배송 정보
 }

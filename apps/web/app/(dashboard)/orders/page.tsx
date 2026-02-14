@@ -236,7 +236,7 @@ export default function OrderListPage() {
                     </TableHead>
                     <TableHead className="text-center w-[100px] text-xs">회원정보<br />영업담당자</TableHead>
                     <TableHead className="text-xs w-[150px]">상품명</TableHead>
-                    <TableHead className="text-xs w-[300px]">주문제목 / 재질 및 규격</TableHead>
+                    <TableHead className="text-xs w-[400px]">주문제목 / 재질 및 규격</TableHead>
                     <TableHead className="text-center w-[100px] text-xs">편집스타일<br />/ 제본순서</TableHead>
                     <TableHead className="text-center w-[80px] text-xs">페이지<br />/ 부수</TableHead>
                     <TableHead className="text-center w-[70px] text-xs">용량</TableHead>
@@ -327,7 +327,7 @@ export default function OrderListPage() {
 
                         {/* 주문제목 / 재질 및 규격 - 클릭 시 검증 다이얼로그 */}
                         <TableCell
-                          className="cursor-pointer hover:bg-blue-50/30 max-w-[300px]"
+                          className="cursor-pointer hover:bg-blue-50/30 max-w-[400px]"
                           onClick={() => {
                             setQuickEditOrder(order);
                             setIsQuickEditOpen(true);

@@ -298,6 +298,11 @@ export interface UploadedFolder {
   selectedFabricPrice: number;
   coverAutoDetected: boolean; // 파일명 기반 자동 감지 여부
 
+  // 동판 정보 (박 각인)
+  foilName?: string | null;     // 박 동판명
+  foilColor?: string | null;    // 박 색상
+  foilPosition?: string | null; // 박 위치
+
   // 업로드 시각
   uploadedAt: number; // Date.now()
 }
