@@ -524,5 +524,47 @@
     "pendingOrders": "待处理订单",
     "expandMenu": "展开菜单",
     "collapseMenu": "收起菜单"
+  },
+  "deposits": {
+    "title": "收款记录查询",
+    "description": "查询客户收款记录",
+    "todayDeposits": "今日收款额",
+    "monthlyDeposits": "本月收款额",
+    "totalCount": "总收款笔数",
+    "quickFilters": {
+      "today": "今日",
+      "thisMonth": "本月",
+      "custom": "自定义期间"
+    },
+    "table": {
+      "receiptNumber": "收款单号",
+      "receiptDate": "收款日期",
+      "clientName": "客户名称",
+      "amount": "金额",
+      "paymentMethod": "支付方式",
+      "bankName": "收款银行",
+      "depositorName": "付款人",
+      "note": "备注"
+    },
+    "paymentMethods": {
+      "all": "全部",
+      "cash": "现金",
+      "bank_transfer": "银行转账",
+      "card": "刷卡",
+      "check": "支票"
+    },
+    "filters": {
+      "startDate": "开始日期",
+      "endDate": "结束日期",
+      "paymentMethod": "支付方式"
+    },
+    "noData": "暂无收款记录",
+    "exportCSV": "下载CSV",
+    "exportSuccess": "CSV文件已下载",
+    "exportError": "没有可下载的数据",
+    "pagination": {
+      "prev": "上一页",
+      "next": "下一页"
+    }
   }
 }

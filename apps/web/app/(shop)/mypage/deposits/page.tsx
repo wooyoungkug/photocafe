@@ -41,15 +41,18 @@ import { ko } from 'date-fns/locale';
 
 interface Deposit {
   id: string;
-  depositDate: string;
+  receiptNumber: string;
+  receiptDate: string;
   orderNumber: string;
   orderId: string;
   orderAmount: number;
   depositAmount: number;
   paymentMethod: 'bank_transfer' | 'card' | 'cash' | 'other';
-  memo?: string;
-  confirmedAt?: string;
-  confirmedBy?: string;
+  bankName?: string;
+  depositorName?: string;
+  note?: string;
+  createdAt?: string;
+  createdBy?: string;
 }
 
 const PAYMENT_METHODS = {
@@ -68,15 +71,22 @@ export default function DepositsPage() {
   const endDate = endOfMonth(selectedDate);
 
   // 입금내역 조회
-  const { data: depositsData, isLoading } = useQuery({
+  const { data: depositsData, isLoading, error } = useQuery({
     queryKey: ['deposits', user?.clientId, format(selectedDate, 'yyyy-MM'), filterMethod],
     queryFn: async () => {
-      const response = await api.get<{ data: Deposit[]; summary: any }>('/api/v1/deposits', {
+      console.log('[Deposits] 요청 파라미터:', {
+        clientId: user?.clientId,
+        startDate: format(startDate, 'yyyy-MM-dd'),
+        endDate: format(endDate, 'yyyy-MM-dd'),
+        filterMethod,
+      });
+      const response = await api.get<{ data: Deposit[]; summary: any }>('/deposits', {
         clientId: user?.clientId || '',
         startDate: format(startDate, 'yyyy-MM-dd'),
         endDate: format(endDate, 'yyyy-MM-dd'),
         ...(filterMethod !== 'all' && { paymentMethod: filterMethod }),
       });
+      console.log('[Deposits] 응답:', response);
       return response;
     },
     enabled: isAuthenticated && !!user?.clientId,
@@ -214,7 +224,12 @@ export default function DepositsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
+          {error ? (
+            <div className="py-12 text-center">
+              <div className="text-red-500 mb-2">⚠️ 데이터 조회 중 오류가 발생했습니다</div>
+              <p className="text-sm text-gray-500">{(error as Error).message}</p>
+            </div>
+          ) : isLoading ? (
             <div className="space-y-2">
               {[...Array(5)].map((_, i) => (
                 <div key={i} className="h-12 bg-gray-100 animate-pulse rounded"></div>
@@ -225,21 +240,26 @@ export default function DepositsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[110px]">수금번호</TableHead>
                     <TableHead className="w-[110px]">입금일자</TableHead>
                     <TableHead className="w-[120px]">주문번호</TableHead>
                     <TableHead className="w-[120px] text-right">주문금액</TableHead>
                     <TableHead className="w-[120px] text-right">입금금액</TableHead>
                     <TableHead className="w-[120px]">결제방법</TableHead>
+                    <TableHead className="w-[100px]">입금은행</TableHead>
+                    <TableHead className="w-[100px]">입금자</TableHead>
                     <TableHead>메모</TableHead>
-                    <TableHead className="w-[110px]">확인일시</TableHead>
                     <TableHead className="w-[80px] text-center">상세</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {deposits.map((deposit) => (
                     <TableRow key={deposit.id}>
+                      <TableCell className="text-sm font-medium text-primary">
+                        {deposit.receiptNumber}
+                      </TableCell>
                       <TableCell className="text-sm">
-                        {format(new Date(deposit.depositDate), 'yyyy-MM-dd', { locale: ko })}
+                        {format(new Date(deposit.receiptDate), 'yyyy-MM-dd', { locale: ko })}
                       </TableCell>
                       <TableCell className="text-sm font-medium">
                         {deposit.orderNumber}
@@ -252,12 +272,13 @@ export default function DepositsPage() {
                       </TableCell>
                       <TableCell>{getPaymentMethodBadge(deposit.paymentMethod)}</TableCell>
                       <TableCell className="text-sm text-gray-600">
-                        {deposit.memo || '-'}
+                        {deposit.bankName || '-'}
                       </TableCell>
-                      <TableCell className="text-xs text-gray-500">
-                        {deposit.confirmedAt
-                          ? format(new Date(deposit.confirmedAt), 'MM-dd HH:mm', { locale: ko })
-                          : '-'}
+                      <TableCell className="text-sm text-gray-600">
+                        {deposit.depositorName || '-'}
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-600">
+                        {deposit.note || '-'}
                       </TableCell>
                       <TableCell className="text-center">
                         <Link href={`/mypage/orders/${deposit.orderId}`}>

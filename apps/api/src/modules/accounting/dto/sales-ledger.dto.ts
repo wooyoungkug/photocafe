@@ -134,3 +134,39 @@ export class ClientSalesSummaryDto {
   orderCount: number;
   lastOrderDate: string;
 }
+
+// ===== 입금내역 조회 DTO =====
+
+export class GetReceiptsQueryDto {
+  @ApiPropertyOptional({ description: '시작일 (YYYY-MM-DD)' })
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @ApiPropertyOptional({ description: '종료일 (YYYY-MM-DD)' })
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
+
+  @ApiPropertyOptional({ description: '거래처 ID' })
+  @IsOptional()
+  @IsString()
+  clientId?: string;
+
+  @ApiPropertyOptional({ description: '결제방법 (cash/bank_transfer/card/check)' })
+  @IsOptional()
+  @IsString()
+  paymentMethod?: string;
+
+  @ApiPropertyOptional({ description: '페이지 번호', default: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  page?: number;
+
+  @ApiPropertyOptional({ description: '페이지 크기', default: 50 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  limit?: number;
+}

@@ -13,6 +13,7 @@ import { SalesLedgerService } from '../services/sales-ledger.service';
 import {
   SalesLedgerQueryDto,
   CreateSalesReceiptDto,
+  GetReceiptsQueryDto,
 } from '../dto/sales-ledger.dto';
 
 @ApiTags('매출원장')
@@ -115,6 +116,13 @@ export class SalesLedgerController {
     @Query('endDate') endDate?: string,
   ) {
     return this.salesLedgerService.getCollectionByStaff({ startDate, endDate });
+  }
+
+  // ===== 입금내역 조회 (금일/당월/기간별) =====
+  @Get('receipts')
+  @ApiOperation({ summary: '입금내역 조회 (금일/당월/기간별)' })
+  async getReceipts(@Query() query: GetReceiptsQueryDto) {
+    return this.salesLedgerService.getReceipts(query);
   }
 
   // ===== 영업담당자별 상세 매출원장 목록 =====

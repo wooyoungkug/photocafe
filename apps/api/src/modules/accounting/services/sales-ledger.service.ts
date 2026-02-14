@@ -1503,4 +1503,83 @@ export class SalesLedgerService {
       message: `${result}건의 매출원장에 담당자가 설정되었습니다.`,
     };
   }
+
+  // ===== 입금내역 조회 (금일/당월/기간별) =====
+  async getReceipts(query: {
+    startDate?: string;
+    endDate?: string;
+    clientId?: string;
+    paymentMethod?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const { startDate, endDate, clientId, paymentMethod, page = 1, limit = 50 } = query;
+
+    const where: Prisma.SalesReceiptWhereInput = {};
+
+    // 날짜 범위 필터
+    if (startDate || endDate) {
+      where.receiptDate = {};
+      if (startDate) {
+        where.receiptDate.gte = new Date(startDate);
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        where.receiptDate.lte = end;
+      }
+    }
+
+    // 거래처 필터
+    if (clientId) {
+      where.salesLedger = { clientId };
+    }
+
+    // 결제방법 필터
+    if (paymentMethod) {
+      where.paymentMethod = paymentMethod;
+    }
+
+    // 데이터 조회 및 총 개수 조회 병렬 실행
+    const [data, total] = await Promise.all([
+      this.prisma.salesReceipt.findMany({
+        where,
+        include: {
+          salesLedger: {
+            select: {
+              clientId: true,
+              clientName: true,
+              ledgerNumber: true,
+              orderNumber: true,
+            },
+          },
+        },
+        orderBy: { receiptDate: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.salesReceipt.count({ where }),
+    ]);
+
+    // 총 입금액 및 건수 집계
+    const summary = await this.prisma.salesReceipt.aggregate({
+      where,
+      _sum: { amount: true },
+      _count: { id: true },
+    });
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+      summary: {
+        totalAmount: Number(summary._sum.amount || 0),
+        totalCount: summary._count.id,
+      },
+    };
+  }
 }

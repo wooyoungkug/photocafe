@@ -524,5 +524,47 @@
     "pendingOrders": "処理待ち",
     "expandMenu": "メニュー展開",
     "collapseMenu": "メニュー折りたたみ"
+  },
+  "deposits": {
+    "title": "入金履歴照会",
+    "description": "取引先の入金履歴を照会します",
+    "todayDeposits": "本日入金額",
+    "monthlyDeposits": "当月入金額",
+    "totalCount": "総入金件数",
+    "quickFilters": {
+      "today": "本日",
+      "thisMonth": "当月",
+      "custom": "期間設定"
+    },
+    "table": {
+      "receiptNumber": "入金番号",
+      "receiptDate": "入金日",
+      "clientName": "取引先名",
+      "amount": "金額",
+      "paymentMethod": "決済方法",
+      "bankName": "入金銀行",
+      "depositorName": "入金者",
+      "note": "備考"
+    },
+    "paymentMethods": {
+      "all": "全体",
+      "cash": "現金",
+      "bank_transfer": "銀行振込",
+      "card": "カード",
+      "check": "小切手"
+    },
+    "filters": {
+      "startDate": "開始日",
+      "endDate": "終了日",
+      "paymentMethod": "決済方法"
+    },
+    "noData": "入金履歴がありません",
+    "exportCSV": "CSVダウンロード",
+    "exportSuccess": "CSVファイルがダウンロードされました",
+    "exportError": "ダウンロードするデータがありません",
+    "pagination": {
+      "prev": "前へ",
+      "next": "次へ"
+    }
   }
 }

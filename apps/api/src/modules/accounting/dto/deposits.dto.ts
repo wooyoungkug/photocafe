@@ -1,5 +1,13 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, IsDateString, IsEnum } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsString,
+  IsOptional,
+  IsDateString,
+  IsEnum,
+  IsNumber,
+  Min,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 
 export enum PaymentMethodEnum {
   BANK_TRANSFER = 'bank_transfer',
@@ -44,8 +52,11 @@ export class DepositResponseDto {
   @ApiProperty({ description: '입금 ID' })
   id: string;
 
+  @ApiProperty({ description: '수금번호' })
+  receiptNumber: string;
+
   @ApiProperty({ description: '입금일자' })
-  depositDate: string;
+  receiptDate: string;
 
   @ApiProperty({ description: '주문번호' })
   orderNumber: string;
@@ -62,14 +73,20 @@ export class DepositResponseDto {
   @ApiProperty({ description: '결제방법', enum: PaymentMethodEnum })
   paymentMethod: string;
 
-  @ApiProperty({ description: '메모', required: false })
-  memo?: string;
+  @ApiPropertyOptional({ description: '입금은행' })
+  bankName?: string;
 
-  @ApiProperty({ description: '확인일시', required: false })
-  confirmedAt?: string;
+  @ApiPropertyOptional({ description: '입금자명' })
+  depositorName?: string;
 
-  @ApiProperty({ description: '확인자', required: false })
-  confirmedBy?: string;
+  @ApiPropertyOptional({ description: '메모' })
+  note?: string;
+
+  @ApiPropertyOptional({ description: '생성일시' })
+  createdAt?: string;
+
+  @ApiPropertyOptional({ description: '생성자' })
+  createdBy?: string;
 }
 
 export class DepositSummaryDto {
@@ -89,4 +106,73 @@ export class DepositsListResponseDto {
 
   @ApiProperty({ description: '요약 정보', type: DepositSummaryDto })
   summary: DepositSummaryDto;
+}
+
+export class CreateDepositDto {
+  @ApiProperty({ description: '매출원장 ID' })
+  @IsString()
+  salesLedgerId: string;
+
+  @ApiProperty({ description: '입금일자 (YYYY-MM-DD)' })
+  @IsDateString()
+  receiptDate: string;
+
+  @ApiProperty({ description: '입금액', minimum: 1 })
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  amount: number;
+
+  @ApiProperty({ description: '입금방법', enum: PaymentMethodEnum })
+  @IsEnum(PaymentMethodEnum)
+  paymentMethod: PaymentMethodEnum;
+
+  @ApiPropertyOptional({ description: '입금은행' })
+  @IsOptional()
+  @IsString()
+  bankName?: string;
+
+  @ApiPropertyOptional({ description: '입금자명' })
+  @IsOptional()
+  @IsString()
+  depositorName?: string;
+
+  @ApiPropertyOptional({ description: '메모' })
+  @IsOptional()
+  @IsString()
+  note?: string;
+}
+
+export class UpdateDepositDto {
+  @ApiPropertyOptional({ description: '입금일자 (YYYY-MM-DD)' })
+  @IsOptional()
+  @IsDateString()
+  receiptDate?: string;
+
+  @ApiPropertyOptional({ description: '입금액', minimum: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  amount?: number;
+
+  @ApiPropertyOptional({ description: '입금방법', enum: PaymentMethodEnum })
+  @IsOptional()
+  @IsEnum(PaymentMethodEnum)
+  paymentMethod?: PaymentMethodEnum;
+
+  @ApiPropertyOptional({ description: '입금은행' })
+  @IsOptional()
+  @IsString()
+  bankName?: string;
+
+  @ApiPropertyOptional({ description: '입금자명' })
+  @IsOptional()
+  @IsString()
+  depositorName?: string;
+
+  @ApiPropertyOptional({ description: '메모' })
+  @IsOptional()
+  @IsString()
+  note?: string;
 }

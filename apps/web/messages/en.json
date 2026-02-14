@@ -524,5 +524,47 @@
     "pendingOrders": "Pending Orders",
     "expandMenu": "Expand Menu",
     "collapseMenu": "Collapse Menu"
+  },
+  "deposits": {
+    "title": "Deposit Inquiry",
+    "description": "View client deposit history",
+    "todayDeposits": "Today's Deposits",
+    "monthlyDeposits": "Monthly Deposits",
+    "totalCount": "Total Deposits",
+    "quickFilters": {
+      "today": "Today",
+      "thisMonth": "This Month",
+      "custom": "Custom Range"
+    },
+    "table": {
+      "receiptNumber": "Receipt No.",
+      "receiptDate": "Receipt Date",
+      "clientName": "Client",
+      "amount": "Amount",
+      "paymentMethod": "Payment Method",
+      "bankName": "Bank",
+      "depositorName": "Depositor",
+      "note": "Note"
+    },
+    "paymentMethods": {
+      "all": "All",
+      "cash": "Cash",
+      "bank_transfer": "Bank Transfer",
+      "card": "Card",
+      "check": "Check"
+    },
+    "filters": {
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "paymentMethod": "Payment Method"
+    },
+    "noData": "No deposit records found",
+    "exportCSV": "Export CSV",
+    "exportSuccess": "CSV file downloaded successfully",
+    "exportError": "No data to download",
+    "pagination": {
+      "prev": "Previous",
+      "next": "Next"
+    }
   }
 }

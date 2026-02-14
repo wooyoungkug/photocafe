@@ -142,6 +142,7 @@ const DEFAULT_NAVIGATION: NavItem[] = [
       { name: "매입관리", href: "/accounting/purchases" },
       { name: "미수금관리", href: "/accounting/receivables" },
       { name: "입금 처리", href: "/accounting/receivables/payments" },
+      { name: "입금내역 조회", href: "/accounting/deposits" },
       { name: "미지급관리", href: "/accounting/payables" },
       { name: "정산관리", href: "/accounting/settlements" },
       { name: "세금계산서관리", href: "/accounting/tax-invoices" },
