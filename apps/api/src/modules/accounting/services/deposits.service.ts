@@ -3,6 +3,7 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import {
   DepositQueryDto,
@@ -10,6 +11,12 @@ import {
   DepositsListResponseDto,
   CreateDepositDto,
   UpdateDepositDto,
+  DailySummaryQueryDto,
+  DailySummaryResponseDto,
+  MonthlySummaryQueryDto,
+  MonthlySummaryResponseDto,
+  DailyDepositSummaryDto,
+  MonthlyDepositSummaryDto,
 } from '../dto/deposits.dto';
 
 @Injectable()
@@ -18,6 +25,7 @@ export class DepositsService {
 
   /**
    * 고객별 입금내역 조회 (SalesReceipt 기반)
+   * clientId optional로 변경 - 없으면 전체 조회
    */
   async findDepositsByClient(
     query: DepositQueryDto,
@@ -33,14 +41,16 @@ export class DepositsService {
 
     // WHERE 조건 구성 (SalesReceipt 기반)
     const whereClause: any = {
-      salesLedger: {
-        clientId,
-      },
       receiptDate: {
         gte: new Date(startDate),
         lte: new Date(endDate + 'T23:59:59.999Z'),
       },
     };
+
+    // clientId가 있으면 필터링, 없으면 전체 조회
+    if (clientId) {
+      whereClause.salesLedger = { clientId };
+    }
 
     if (paymentMethod) {
       whereClause.paymentMethod = paymentMethod;
@@ -57,11 +67,8 @@ export class DepositsService {
             orderId: true,
             orderNumber: true,
             totalAmount: true,
-            client: {
-              select: {
-                clientName: true,
-              },
-            },
+            clientId: true,
+            clientName: true,
           },
         },
       },
@@ -80,6 +87,8 @@ export class DepositsService {
         receiptDate: receipt.receiptDate.toISOString(),
         orderNumber: receipt.salesLedger.orderNumber,
         orderId: receipt.salesLedger.orderId,
+        clientId: receipt.salesLedger.clientId,
+        clientName: receipt.salesLedger.clientName,
         orderAmount: parseFloat(receipt.salesLedger.totalAmount.toString()),
         depositAmount: parseFloat(receipt.amount.toString()),
         paymentMethod: receipt.paymentMethod,
@@ -101,6 +110,135 @@ export class DepositsService {
     return {
       data,
       summary,
+    };
+  }
+
+  /**
+   * 일자별 합계 조회 (거래처별 일자별 집계)
+   */
+  async findDailySummary(
+    query: DailySummaryQueryDto,
+  ): Promise<DailySummaryResponseDto> {
+    const { startDate, endDate, clientId, paymentMethod } = query;
+
+    console.log('[Deposits] 일자별 합계 조회 요청:', {
+      startDate,
+      endDate,
+      clientId,
+      paymentMethod,
+    });
+
+    // Raw SQL 집계 쿼리
+    const rawSummary = await this.prisma.$queryRaw<any[]>`
+      SELECT
+        DATE(sr."receiptDate") as date,
+        sl."clientId",
+        sl."clientName",
+        COUNT(sr.id)::int as count,
+        SUM(sr.amount)::decimal as "totalDepositAmount",
+        SUM(sl."totalAmount")::decimal as "totalOrderAmount"
+      FROM sales_receipts sr
+      INNER JOIN sales_ledgers sl ON sr."salesLedgerId" = sl.id
+      WHERE sr."receiptDate" >= ${new Date(startDate)}::timestamp
+        AND sr."receiptDate" <= ${new Date(endDate + 'T23:59:59.999Z')}::timestamp
+        ${clientId ? Prisma.sql`AND sl."clientId" = ${clientId}` : Prisma.empty}
+        ${paymentMethod ? Prisma.sql`AND sr."paymentMethod" = ${paymentMethod}` : Prisma.empty}
+      GROUP BY DATE(sr."receiptDate"), sl."clientId", sl."clientName"
+      ORDER BY date DESC, sl."clientName" ASC
+    `;
+
+    console.log(`[Deposits] 일자별 집계 행 수: ${rawSummary.length}행`);
+
+    // DTO 변환
+    const data: DailyDepositSummaryDto[] = rawSummary.map((row) => ({
+      date: row.date.toISOString().slice(0, 10),
+      clientId: row.clientId,
+      clientName: row.clientName,
+      count: row.count,
+      totalDepositAmount: parseFloat(row.totalDepositAmount),
+      totalOrderAmount: parseFloat(row.totalOrderAmount),
+    }));
+
+    // 전체 요약 계산
+    const uniqueClients = new Set(data.map((d) => d.clientId)).size;
+    const uniqueDays = new Set(data.map((d) => d.date)).size;
+    const totalCount = data.reduce((sum, d) => sum + d.count, 0);
+    const totalDepositAmount = data.reduce((sum, d) => sum + d.totalDepositAmount, 0);
+    const totalOrderAmount = data.reduce((sum, d) => sum + d.totalOrderAmount, 0);
+    const averagePerDay = uniqueDays > 0 ? totalDepositAmount / uniqueDays : 0;
+
+    return {
+      data,
+      summary: {
+        totalClients: uniqueClients,
+        totalDays: uniqueDays,
+        totalCount,
+        totalDepositAmount,
+        totalOrderAmount,
+        averagePerDay,
+      },
+    };
+  }
+
+  /**
+   * 월별 합계 조회 (거래처별 월별 집계)
+   */
+  async findMonthlySummary(
+    query: MonthlySummaryQueryDto,
+  ): Promise<MonthlySummaryResponseDto> {
+    const { year, clientId } = query;
+
+    console.log('[Deposits] 월별 합계 조회 요청:', { year, clientId });
+
+    const startDate = `${year}-01-01`;
+    const endDate = `${year}-12-31`;
+
+    // Raw SQL 집계 쿼리
+    const rawSummary = await this.prisma.$queryRaw<any[]>`
+      SELECT
+        TO_CHAR(sr."receiptDate", 'YYYY-MM') as month,
+        sl."clientId",
+        sl."clientName",
+        COUNT(sr.id)::int as count,
+        SUM(sr.amount)::decimal as "totalDepositAmount",
+        SUM(sl."totalAmount")::decimal as "totalOrderAmount"
+      FROM sales_receipts sr
+      INNER JOIN sales_ledgers sl ON sr."salesLedgerId" = sl.id
+      WHERE sr."receiptDate" >= ${new Date(startDate)}::timestamp
+        AND sr."receiptDate" <= ${new Date(endDate + 'T23:59:59.999Z')}::timestamp
+        ${clientId ? Prisma.sql`AND sl."clientId" = ${clientId}` : Prisma.empty}
+      GROUP BY TO_CHAR(sr."receiptDate", 'YYYY-MM'), sl."clientId", sl."clientName"
+      ORDER BY month DESC, sl."clientName" ASC
+    `;
+
+    console.log(`[Deposits] 월별 집계 행 수: ${rawSummary.length}행`);
+
+    // DTO 변환
+    const data: MonthlyDepositSummaryDto[] = rawSummary.map((row) => ({
+      month: row.month,
+      clientId: row.clientId,
+      clientName: row.clientName,
+      count: row.count,
+      totalDepositAmount: parseFloat(row.totalDepositAmount),
+      totalOrderAmount: parseFloat(row.totalOrderAmount),
+    }));
+
+    // 전체 요약 계산
+    const uniqueClients = new Set(data.map((d) => d.clientId)).size;
+    const uniqueMonths = new Set(data.map((d) => d.month)).size;
+    const totalCount = data.reduce((sum, d) => sum + d.count, 0);
+    const totalDepositAmount = data.reduce((sum, d) => sum + d.totalDepositAmount, 0);
+    const totalOrderAmount = data.reduce((sum, d) => sum + d.totalOrderAmount, 0);
+
+    return {
+      data,
+      summary: {
+        totalClients: uniqueClients,
+        totalMonths: uniqueMonths,
+        totalCount,
+        totalDepositAmount,
+        totalOrderAmount,
+      },
     };
   }
 

@@ -65,6 +65,96 @@ export interface UpdateDepositDto {
   note?: string;
 }
 
+// ===== 일자별/월별 합계 Types =====
+
+export interface DailyDepositSummary {
+  date: string;
+  clientId: string;
+  clientName: string;
+  count: number;
+  totalDepositAmount: number;
+  totalOrderAmount: number;
+}
+
+export interface DailySummaryResponse {
+  data: DailyDepositSummary[];
+  summary: {
+    totalClients: number;
+    totalDays: number;
+    totalCount: number;
+    totalDepositAmount: number;
+    totalOrderAmount: number;
+    averagePerDay: number;
+  };
+}
+
+export interface DailySummaryParams {
+  startDate: string;
+  endDate: string;
+  clientId?: string;
+  paymentMethod?: string;
+}
+
+export interface MonthlyDepositSummary {
+  month: string;
+  clientId: string;
+  clientName: string;
+  count: number;
+  totalDepositAmount: number;
+  totalOrderAmount: number;
+}
+
+export interface MonthlySummaryResponse {
+  data: MonthlyDepositSummary[];
+  summary: {
+    totalClients: number;
+    totalMonths: number;
+    totalCount: number;
+    totalDepositAmount: number;
+    totalOrderAmount: number;
+  };
+}
+
+export interface MonthlySummaryParams {
+  year: string;
+  clientId?: string;
+}
+
+export interface DetailDepositsParams {
+  startDate: string;
+  endDate: string;
+  clientId?: string;
+  paymentMethod?: string;
+}
+
+// Backend DepositResponseDto와 매칭
+export interface DepositDetail {
+  id: string;
+  receiptNumber: string;
+  receiptDate: string;
+  orderNumber: string;
+  orderId: string;
+  clientId: string;
+  clientName: string;
+  orderAmount: number;
+  depositAmount: number;
+  paymentMethod: string;
+  bankName?: string;
+  depositorName?: string;
+  note?: string;
+  createdAt?: string;
+  createdBy?: string;
+}
+
+export interface DepositsDetailResponse {
+  data: DepositDetail[];
+  summary: {
+    totalCount: number;
+    totalAmount: number;
+    totalOrderAmount: number;
+  };
+}
+
 // ===== Query Key =====
 
 const DEPOSITS_KEY = 'deposits';
@@ -193,5 +283,76 @@ export function useDeleteDeposit() {
       queryClient.invalidateQueries({ queryKey: ['sales-ledgers'] });
       queryClient.invalidateQueries({ queryKey: ['sales-ledger-summary'] });
     },
+  });
+}
+
+// ===== 일자별/월별 합계 조회 Hooks =====
+
+/**
+ * 일자별 합계 조회 Hook (거래처별 일자별 집계)
+ * @param params 조회 파라미터 (startDate, endDate, clientId, paymentMethod)
+ * @returns TanStack Query 결과
+ */
+export function useDailySummary(params: DailySummaryParams) {
+  return useQuery({
+    queryKey: [DEPOSITS_KEY, 'daily-summary', params],
+    queryFn: async () => {
+      const queryParams: Record<string, string> = {
+        startDate: params.startDate,
+        endDate: params.endDate,
+      };
+
+      if (params.clientId) queryParams.clientId = params.clientId;
+      if (params.paymentMethod) queryParams.paymentMethod = params.paymentMethod;
+
+      return api.get<DailySummaryResponse>('/deposits/summary/daily', queryParams);
+    },
+    staleTime: 60_000, // 1분 캐시
+  });
+}
+
+/**
+ * 월별 합계 조회 Hook (거래처별 월별 집계)
+ * @param params 조회 파라미터 (year, clientId)
+ * @returns TanStack Query 결과
+ */
+export function useMonthlySummary(params: MonthlySummaryParams) {
+  return useQuery({
+    queryKey: [DEPOSITS_KEY, 'monthly-summary', params],
+    queryFn: async () => {
+      const queryParams: Record<string, string> = {
+        year: params.year,
+      };
+
+      if (params.clientId) queryParams.clientId = params.clientId;
+
+      return api.get<MonthlySummaryResponse>('/deposits/summary/monthly', queryParams);
+    },
+    staleTime: 60_000, // 1분 캐시
+  });
+}
+
+/**
+ * 건별 상세 조회 Hook (드릴다운용)
+ * enabled: false로 설정하여 수동 호출
+ * @param params 조회 파라미터 (startDate, endDate, clientId, paymentMethod)
+ * @returns TanStack Query 결과
+ */
+export function useDepositDetails(params: DetailDepositsParams) {
+  return useQuery({
+    queryKey: [DEPOSITS_KEY, 'details', params],
+    queryFn: async () => {
+      const queryParams: Record<string, string> = {
+        startDate: params.startDate,
+        endDate: params.endDate,
+      };
+
+      if (params.clientId) queryParams.clientId = params.clientId;
+      if (params.paymentMethod) queryParams.paymentMethod = params.paymentMethod;
+
+      return api.get<DepositsDetailResponse>('/deposits', queryParams);
+    },
+    enabled: false, // 수동 호출 (행 클릭 시)
+    staleTime: 30_000,
   });
 }

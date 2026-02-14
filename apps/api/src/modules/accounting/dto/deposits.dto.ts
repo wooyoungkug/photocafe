@@ -17,12 +17,12 @@ export enum PaymentMethodEnum {
 }
 
 export class DepositQueryDto {
-  @ApiProperty({
-    description: '고객 ID',
-    required: true,
+  @ApiPropertyOptional({
+    description: '고객 ID (특정 거래처만 조회, 미입력 시 전체 조회)',
   })
+  @IsOptional()
   @IsString()
-  clientId: string;
+  clientId?: string;
 
   @ApiProperty({
     description: '시작일 (YYYY-MM-DD)',
@@ -63,6 +63,12 @@ export class DepositResponseDto {
 
   @ApiProperty({ description: '주문 ID' })
   orderId: string;
+
+  @ApiProperty({ description: '거래처 ID' })
+  clientId: string;
+
+  @ApiProperty({ description: '거래처명' })
+  clientName: string;
 
   @ApiProperty({ description: '주문금액' })
   orderAmount: number;
@@ -175,4 +181,132 @@ export class UpdateDepositDto {
   @IsOptional()
   @IsString()
   note?: string;
+}
+
+// ===== 일자별 합계 조회 DTO =====
+
+export class DailySummaryQueryDto {
+  @ApiProperty({ description: '시작일 (YYYY-MM-DD)', required: true })
+  @IsDateString()
+  startDate: string;
+
+  @ApiProperty({ description: '종료일 (YYYY-MM-DD)', required: true })
+  @IsDateString()
+  endDate: string;
+
+  @ApiPropertyOptional({ description: '거래처 ID (특정 거래처만 조회)' })
+  @IsOptional()
+  @IsString()
+  clientId?: string;
+
+  @ApiPropertyOptional({
+    description: '결제방법 필터',
+    enum: PaymentMethodEnum,
+  })
+  @IsOptional()
+  @IsEnum(PaymentMethodEnum)
+  paymentMethod?: PaymentMethodEnum;
+}
+
+export class DailyDepositSummaryDto {
+  @ApiProperty({ description: '입금일자 (YYYY-MM-DD)' })
+  date: string;
+
+  @ApiProperty({ description: '거래처 ID' })
+  clientId: string;
+
+  @ApiProperty({ description: '거래처명' })
+  clientName: string;
+
+  @ApiProperty({ description: '입금 건수' })
+  count: number;
+
+  @ApiProperty({ description: '입금액 합계' })
+  totalDepositAmount: number;
+
+  @ApiProperty({ description: '주문액 합계' })
+  totalOrderAmount: number;
+}
+
+export class DailySummaryResponseDto {
+  @ApiProperty({ description: '일자별 합계 데이터', type: [DailyDepositSummaryDto] })
+  data: DailyDepositSummaryDto[];
+
+  @ApiProperty({
+    description: '전체 요약',
+    type: 'object',
+    properties: {
+      totalClients: { type: 'number', description: '거래처 수' },
+      totalDays: { type: 'number', description: '입금 일수' },
+      totalCount: { type: 'number', description: '총 건수' },
+      totalDepositAmount: { type: 'number', description: '총 입금액' },
+      totalOrderAmount: { type: 'number', description: '총 주문액' },
+      averagePerDay: { type: 'number', description: '일평균 입금액' },
+    },
+  })
+  summary: {
+    totalClients: number;
+    totalDays: number;
+    totalCount: number;
+    totalDepositAmount: number;
+    totalOrderAmount: number;
+    averagePerDay: number;
+  };
+}
+
+// ===== 월별 합계 조회 DTO =====
+
+export class MonthlySummaryQueryDto {
+  @ApiProperty({ description: '년도 (YYYY)', required: true })
+  @IsString()
+  year: string;
+
+  @ApiPropertyOptional({ description: '거래처 ID (특정 거래처만 조회)' })
+  @IsOptional()
+  @IsString()
+  clientId?: string;
+}
+
+export class MonthlyDepositSummaryDto {
+  @ApiProperty({ description: '년월 (YYYY-MM)' })
+  month: string;
+
+  @ApiProperty({ description: '거래처 ID' })
+  clientId: string;
+
+  @ApiProperty({ description: '거래처명' })
+  clientName: string;
+
+  @ApiProperty({ description: '입금 건수' })
+  count: number;
+
+  @ApiProperty({ description: '입금액 합계' })
+  totalDepositAmount: number;
+
+  @ApiProperty({ description: '주문액 합계' })
+  totalOrderAmount: number;
+}
+
+export class MonthlySummaryResponseDto {
+  @ApiProperty({ description: '월별 합계 데이터', type: [MonthlyDepositSummaryDto] })
+  data: MonthlyDepositSummaryDto[];
+
+  @ApiProperty({
+    description: '전체 요약',
+    type: 'object',
+    properties: {
+      totalClients: { type: 'number', description: '거래처 수' },
+      totalMonths: { type: 'number', description: '입금 월수' },
+      totalCount: { type: 'number', description: '총 건수' },
+      totalDepositAmount: { type: 'number', description: '총 입금액' },
+      totalOrderAmount: { type: 'number', description: '총 주문액' },
+    },
+  })
+  summary: {
+    totalClients: number;
+    totalMonths: number;
+    totalCount: number;
+    totalDepositAmount: number;
+    totalOrderAmount: number;
+  };
 }

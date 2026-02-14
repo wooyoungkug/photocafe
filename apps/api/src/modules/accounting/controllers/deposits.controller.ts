@@ -23,6 +23,10 @@ import {
   DepositResponseDto,
   CreateDepositDto,
   UpdateDepositDto,
+  DailySummaryQueryDto,
+  DailySummaryResponseDto,
+  MonthlySummaryQueryDto,
+  MonthlySummaryResponseDto,
 } from '../dto/deposits.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { DepositPermissionGuard } from '../guards/deposit-permission.guard';
@@ -32,8 +36,40 @@ import { DepositPermissionGuard } from '../guards/deposit-permission.guard';
 export class DepositsController {
   constructor(private readonly depositsService: DepositsService) {}
 
+  /**
+   * 일자별 합계 조회 (거래처별 일자별 집계)
+   */
+  @Get('summary/daily')
+  @ApiOperation({ summary: '거래처별 일자별 입금 합계 조회' })
+  @ApiResponse({
+    status: 200,
+    description: '일자별 합계 데이터',
+    type: DailySummaryResponseDto,
+  })
+  async getDailySummary(
+    @Query() query: DailySummaryQueryDto,
+  ): Promise<DailySummaryResponseDto> {
+    return this.depositsService.findDailySummary(query);
+  }
+
+  /**
+   * 월별 합계 조회 (거래처별 월별 집계)
+   */
+  @Get('summary/monthly')
+  @ApiOperation({ summary: '거래처별 월별 입금 합계 조회' })
+  @ApiResponse({
+    status: 200,
+    description: '월별 합계 데이터',
+    type: MonthlySummaryResponseDto,
+  })
+  async getMonthlySummary(
+    @Query() query: MonthlySummaryQueryDto,
+  ): Promise<MonthlySummaryResponseDto> {
+    return this.depositsService.findMonthlySummary(query);
+  }
+
   @Get()
-  @ApiOperation({ summary: '고객별 입금내역 조회' })
+  @ApiOperation({ summary: '고객별 입금내역 조회 (건별)' })
   @ApiResponse({
     status: 200,
     description: '입금내역 목록',
