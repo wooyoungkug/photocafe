@@ -63,7 +63,6 @@ export function SpecificationList({ productId }: SpecificationListProps) {
       setDeleteDialogOpen(false);
       setDeleteTarget(null);
     } catch (error) {
-      console.error('규격 삭제 실패:', error);
     }
   };
 

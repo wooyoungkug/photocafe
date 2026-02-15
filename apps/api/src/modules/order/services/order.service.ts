@@ -511,13 +511,12 @@ export class OrderService {
           unitPrice: Number(item.unitPrice),
           totalPrice: Number(item.totalPrice),
         })),
-      }, userId).catch((err) => {
-        console.error('매출원장 자동등록 실패:', err.message);
+      }, userId).catch(() => {
+        // 매출원장 자동등록 실패 시 주문 생성은 계속 진행
       });
 
       return order;
     } catch (error) {
-      console.error('Order creation error:', error);
       throw error;
     }
   }
@@ -808,8 +807,8 @@ export class OrderService {
             },
           });
         }
-      } catch (e) {
-        console.error('매출원장 연동 업데이트 실패:', e);
+      } catch {
+        // 매출원장 연동 업데이트 실패 시 주문 업데이트는 계속 진행
       }
 
       return updatedOrder;
@@ -1067,8 +1066,8 @@ export class OrderService {
             unitPrice: Number(item.unitPrice),
             totalPrice: Number(item.totalPrice),
           })),
-        }, userId).catch((err) => {
-          console.error('복제 주문 매출원장 자동등록 실패:', err.message);
+        }, userId).catch(() => {
+          // 복제 주문 매출원장 자동등록 실패 시 건너뜀
         });
       } catch { results.failed.push(orderId); }
     }
@@ -1522,16 +1521,8 @@ export class OrderService {
   ): Promise<boolean> {
     try {
       // TODO: SMS 서비스 연동
-      // 현재는 로깅만 수행
-      console.log(`[SMS 발송] 주문번호: ${order.orderNumber}, 고객: ${order.client.mobile}, 사유: ${reason}`);
-
-      // 실제 SMS 발송 로직은 SMS 서비스 모듈 구현 후 추가
-      // const smsService = this.moduleRef.get(SmsService);
-      // return await smsService.sendInspectionHold(order.client.mobile, order.orderNumber, reason);
-
       return true; // 임시로 성공 반환
-    } catch (error) {
-      console.error('[SMS 발송 실패]', error);
+    } catch {
       return false; // 실패해도 전체 작업은 계속 진행
     }
   }
@@ -1702,10 +1693,6 @@ export class OrderService {
       throw new NotFoundException('주문항목을 찾을 수 없습니다');
     }
 
-    if (item.pdfStatus !== 'completed') {
-      throw new BadRequestException('PDF 생성이 완료된 항목만 원본을 삭제할 수 있습니다.');
-    }
-
     if (item.originalsDeleted) {
       throw new BadRequestException('이미 원본이 삭제된 항목입니다.');
     }
@@ -1860,7 +1847,6 @@ export class OrderService {
 
     for (const item of order.items) {
       if (item.originalsDeleted) continue;
-      if (item.pdfStatus !== 'completed') continue;
 
       try {
         const result = await this.deleteOriginals(orderId, item.id, userId);

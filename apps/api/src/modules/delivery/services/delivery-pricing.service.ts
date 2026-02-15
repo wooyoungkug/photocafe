@@ -63,18 +63,11 @@ export class DeliveryPricingService {
   }
 
   async update(deliveryMethod: DeliveryMethod, dto: UpdateDeliveryPricingDto) {
-    console.log('[배송비 업데이트] deliveryMethod:', deliveryMethod);
-    console.log('[배송비 업데이트] dto:', JSON.stringify(dto, null, 2));
-
     const { distanceRanges, sizeRanges, ...data } = dto;
 
     // 유효하지 않은 distanceRanges/sizeRanges는 업데이트하지 않음
     const validDistanceRanges = this.isValidDistanceRanges(distanceRanges) ? distanceRanges : undefined;
     const validSizeRanges = this.isValidSizeRanges(sizeRanges) ? sizeRanges : undefined;
-
-    console.log('[배송비 업데이트] validDistanceRanges:', JSON.stringify(validDistanceRanges, null, 2));
-    console.log('[배송비 업데이트] validSizeRanges:', JSON.stringify(validSizeRanges, null, 2));
-    console.log('[배송비 업데이트] data:', JSON.stringify(data, null, 2));
 
     // upsert를 사용하여 없으면 생성, 있으면 업데이트
     return this.prisma.deliveryPricing.upsert({

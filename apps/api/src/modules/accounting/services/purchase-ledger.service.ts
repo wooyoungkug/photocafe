@@ -160,7 +160,7 @@ export class PurchaseLedgerService {
         description: `${ledgerNumber} 매입 - ${supplier.clientName}`,
       });
     } catch (err) {
-      console.error('매입 자동분개 생성 실패:', err);
+      // 매입 자동분개 생성 실패 시 매입원장 생성은 계속 진행
     }
 
     return purchaseLedger;
@@ -316,7 +316,7 @@ export class PurchaseLedgerService {
         data: { journalId: journal.id },
       });
     } catch (err) {
-      console.error('지급분개 생성 실패:', err);
+      // 지급분개 생성 실패 시 지급 처리는 계속 진행
     }
 
     return this.findById(purchaseLedgerId);

@@ -65,7 +65,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.redirect(url.toString());
   } catch (error) {
-    console.error("Naver login error:", error);
     return NextResponse.redirect("http://1.212.201.147:3000/login?error=server_error");
   }
 }

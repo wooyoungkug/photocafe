@@ -32,13 +32,6 @@ export class DepositsService {
   ): Promise<DepositsListResponseDto> {
     const { clientId, startDate, endDate, paymentMethod } = query;
 
-    console.log('[Deposits] 입금내역 조회 요청:', {
-      clientId,
-      startDate,
-      endDate,
-      paymentMethod,
-    });
-
     // WHERE 조건 구성 (SalesReceipt 기반) - 날짜를 로컬 자정 기준으로 설정하여 timezone 이슈 방지
     const startDateTime = new Date(startDate + 'T00:00:00');
     const endDateTime = new Date(endDate + 'T23:59:59.999');
@@ -57,8 +50,6 @@ export class DepositsService {
     if (paymentMethod) {
       whereClause.paymentMethod = paymentMethod;
     }
-
-    console.log('[Deposits] WHERE 조건:', JSON.stringify(whereClause, null, 2));
 
     // SalesReceipt 조회 (입금 기록 테이블)
     const receipts = await this.prisma.salesReceipt.findMany({
@@ -81,8 +72,6 @@ export class DepositsService {
         receiptDate: 'desc',
       },
     });
-
-    console.log(`[Deposits] 조회된 입금 수: ${receipts.length}건`);
 
     // DepositResponseDto로 변환
     const data: DepositResponseDto[] = receipts.map((receipt) => {
@@ -129,13 +118,6 @@ export class DepositsService {
   ): Promise<DailySummaryResponseDto> {
     const { startDate, endDate, clientId, paymentMethod } = query;
 
-    console.log('[Deposits] 일자별 합계 조회 요청:', {
-      startDate,
-      endDate,
-      clientId,
-      paymentMethod,
-    });
-
     // Raw SQL 집계 쿼리 (날짜 문자열을 직접 캐스팅하여 timezone 이슈 방지)
     const rawSummary = await this.prisma.$queryRaw<any[]>`
       SELECT
@@ -154,8 +136,6 @@ export class DepositsService {
       GROUP BY DATE(sr."receiptDate"), sl."clientId", sl."clientName"
       ORDER BY date DESC, sl."clientName" ASC
     `;
-
-    console.log(`[Deposits] 일자별 집계 행 수: ${rawSummary.length}행`);
 
     // DTO 변환
     const data: DailyDepositSummaryDto[] = rawSummary.map((row) => ({
@@ -196,8 +176,6 @@ export class DepositsService {
   ): Promise<MonthlySummaryResponseDto> {
     const { year, clientId } = query;
 
-    console.log('[Deposits] 월별 합계 조회 요청:', { year, clientId });
-
     const startDate = `${year}-01-01`;
     const endDate = `${year}-12-31`;
 
@@ -218,8 +196,6 @@ export class DepositsService {
       GROUP BY TO_CHAR(sr."receiptDate", 'YYYY-MM'), sl."clientId", sl."clientName"
       ORDER BY month DESC, sl."clientName" ASC
     `;
-
-    console.log(`[Deposits] 월별 집계 행 수: ${rawSummary.length}행`);
 
     // DTO 변환
     const data: MonthlyDepositSummaryDto[] = rawSummary.map((row) => ({

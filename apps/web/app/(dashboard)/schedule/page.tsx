@@ -397,7 +397,6 @@ export default function SchedulePage() {
       }
       setIsTodoDialogOpen(false);
     } catch (error) {
-      console.error('Todo 저장 에러:', error);
       const message = error instanceof Error ? error.message : '저장에 실패했습니다.';
       toast({ title: message, variant: 'destructive' });
     }
@@ -434,7 +433,6 @@ export default function SchedulePage() {
       }
       setIsScheduleDialogOpen(false);
     } catch (error) {
-      console.error('Schedule 저장 에러:', error);
       const message = error instanceof Error ? error.message : '저장에 실패했습니다.';
       toast({ title: message, variant: 'destructive' });
     }

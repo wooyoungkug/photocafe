@@ -19,7 +19,7 @@ function getQueryClient() {
           staleTime: 5 * 60 * 1000, // 5 minutes - 데이터가 5분간 fresh 상태 유지
           gcTime: 10 * 60 * 1000, // 10 minutes - 캐시 보관 시간 (구 cacheTime)
           refetchOnWindowFocus: false, // 윈도우 포커스 시 재요청 방지
-          refetchOnMount: true, // stale 데이터일 때 마운트 시 재요청 (기본값 복원)
+          refetchOnMount: 'always', // SSR: 항상 재요청
           retry: 1, // 실패 시 재시도 횟수 감소 (기본 3 → 1)
         },
       },
@@ -33,7 +33,7 @@ function getQueryClient() {
           staleTime: 5 * 60 * 1000, // 5 minutes
           gcTime: 10 * 60 * 1000, // 10 minutes
           refetchOnWindowFocus: false,
-          refetchOnMount: true, // stale 데이터일 때 마운트 시 재요청 (기본값 복원)
+          refetchOnMount: true, // stale 데이터일 때만 마운트 시 재요청 (v5 기본 동작)
           retry: 1,
         },
       },
@@ -62,7 +62,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
         // 인증 상태는 true인데 토큰이 없으면 로그아웃 처리
         if (!hasToken) {
-          console.warn('[Auth] 토큰이 없어서 자동 로그아웃 처리합니다.');
           logout();
         }
       }

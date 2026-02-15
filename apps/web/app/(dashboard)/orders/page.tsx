@@ -277,7 +277,7 @@ export default function OrderListPage() {
                     <TableHead className="text-xs w-[400px]">주문제목 / 재질 및 규격</TableHead>
                     <TableHead className="text-center w-[100px] text-xs">편집스타일<br />/ 제본순서</TableHead>
                     <TableHead className="text-center w-[80px] text-xs">페이지<br />/ 부수</TableHead>
-                    <TableHead className="text-center w-[70px] text-xs">용량</TableHead>
+                    <TableHead className="text-center w-[80px] text-xs">용량</TableHead>
                     <TableHead className="text-right w-[120px] text-xs">주문금액</TableHead>
                     <TableHead className="text-center w-[120px] text-xs">진행상황</TableHead>
                     <TableHead className="text-center w-[100px] text-xs">확인</TableHead>
@@ -406,14 +406,36 @@ export default function OrderListPage() {
                           <div>{item.quantity}건</div>
                         </TableCell>
 
-                        {/* 용량 */}
+                        {/* 용량 + 원본받기/삭제 */}
                         <TableCell className="text-center text-xs text-muted-foreground">
                           {item.originalsDeleted ? (
                             <Badge variant="outline" className="text-[10px] px-1 py-0 border-red-300 text-red-500">
                               삭제됨
                             </Badge>
                           ) : (
-                            formatFileSize(Number(item.totalFileSize))
+                            <div className="space-y-1">
+                              <div>{formatFileSize(Number(item.totalFileSize))}</div>
+                              <button
+                                className="flex items-center justify-center gap-0.5 text-[11px] text-blue-600 hover:underline mx-auto disabled:opacity-50"
+                                onClick={() => handleDownloadOriginals(order.id, order.orderNumber)}
+                                disabled={isDownloading === order.id}
+                              >
+                                <Download className="h-3 w-3" />
+                                {isDownloading === order.id ? '다운로드중...' : '원본받기'}
+                              </button>
+                              {order.status === 'shipped' && (
+                                <button
+                                  className="flex items-center justify-center gap-0.5 text-[11px] text-red-500 hover:underline mx-auto"
+                                  onClick={() => {
+                                    setDeleteOriginalsOrderId(order.id);
+                                    setDeleteOriginalsDialog(true);
+                                  }}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                  원본삭제
+                                </button>
+                              )}
+                            </div>
                           )}
                         </TableCell>
 
@@ -468,32 +490,6 @@ export default function OrderListPage() {
                                 <Receipt className="h-3 w-3 mr-1" />
                                 거래명세
                               </Button>
-                              {!items.every(i => i.originalsDeleted) && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="w-full text-xs h-7 text-blue-600"
-                                  onClick={() => handleDownloadOriginals(order.id, order.orderNumber)}
-                                  disabled={isDownloading === order.id}
-                                >
-                                  <Download className="h-3 w-3 mr-1" />
-                                  {isDownloading === order.id ? '다운로드중...' : '원본받기'}
-                                </Button>
-                              )}
-                              {order.status === 'shipped' && !items.every(i => i.originalsDeleted) && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="w-full text-xs h-7 text-red-500"
-                                  onClick={() => {
-                                    setDeleteOriginalsOrderId(order.id);
-                                    setDeleteOriginalsDialog(true);
-                                  }}
-                                >
-                                  <Trash2 className="h-3 w-3 mr-1" />
-                                  원본삭제
-                                </Button>
-                              )}
                             </div>
                           </TableCell>
                         )}

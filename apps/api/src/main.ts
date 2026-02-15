@@ -58,7 +58,6 @@ async function bootstrap() {
         enableImplicitConversion: true,
       },
       exceptionFactory: (errors) => {
-        console.error('=== Validation Errors ===', JSON.stringify(errors, null, 2));
         const messages = errors.map(error => Object.values(error.constraints || {}).join(', '));
         return new (require('@nestjs/common').BadRequestException)(messages);
       },

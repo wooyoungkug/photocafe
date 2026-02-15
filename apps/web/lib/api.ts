@@ -183,13 +183,11 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
       }
 
       // refresh 실패 → 로그인 페이지로 이동
-      console.log('[API] 토큰 갱신 실패 - 로그인 페이지로 이동');
       clearAllAuth();
       redirectToLogin();
       throw new Error('Unauthorized');
     }
     const error = await response.json().catch(() => ({ message: 'Network error' }));
-    console.error('[API Error]', response.status, error);
     const message = Array.isArray(error.message) ? error.message.join(', ') : (error.message || `HTTP error ${response.status}`);
     throw new Error(message);
   }

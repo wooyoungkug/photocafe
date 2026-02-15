@@ -894,7 +894,6 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       const results: { entry: FileSystemDirectoryEntry; fullPath: string; depth: number }[] = [];
 
       if (currentDepth > MAX_DEPTH) {
-        console.warn(`최대 깊이(${MAX_DEPTH}) 초과: ${parentPath}/${entry.name}`);
         return results;
       }
 
@@ -926,7 +925,6 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       const { files } = await readDirectoryFiles(entry);
 
       if (files.length === 0) {
-        console.warn(`폴더 "${fullPath}"에 이미지 파일이 없습니다.`);
         return null;
       }
 

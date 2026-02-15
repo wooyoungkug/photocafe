@@ -370,7 +370,6 @@ const calculateInkjetTotalCost = (papers: Paper[], spec: Specification): { paper
   const specAreaSqInch = widthInch * heightInch;
 
   if (specAreaSqInch <= 0) {
-    console.log('[원가계산] 규격 면적이 0:', { spec: spec.name, widthInch, heightInch });
     return null;
   }
 
@@ -432,21 +431,17 @@ const calculateInkjetTotalCost = (papers: Paper[], spec: Specification): { paper
       debugInfo = `ream: ${p.basePrice}/666150=${costPerSqInch.toFixed(6)}`;
     } else {
       debugInfo = `unknown type: ${effectiveType}`;
-      console.log('[원가계산] 알 수 없는 타입:', { paper: p.name, paperType: p.paperType, unitType: p.unitType, effectiveType });
       return { paper: 0, ink: 0, total: 0, debug: debugInfo };
     }
 
     const paperCost = specAreaSqInch * costPerSqInch;
     const inkCost = paperCost * 1.5; // 잉크 원가 = 용지 원가 × 1.5
 
-    console.log(`[원가계산] ${p.name}: ${debugInfo} → 용지=${paperCost.toFixed(0)}원, 잉크=${inkCost.toFixed(0)}원, 총=${(paperCost + inkCost).toFixed(0)}원`);
-
     return { paper: paperCost, ink: inkCost, total: paperCost + inkCost, debug: debugInfo };
   });
 
   const validCosts = costs.filter(c => c.total > 0);
   if (!validCosts.length) {
-    console.log('[원가계산] 유효한 원가 없음:', costs.map(c => c.debug).join(', '));
     return null;
   }
 
@@ -1243,10 +1238,6 @@ export default function ProductionSettingPage() {
     // 현재 ranges 스냅샷 저장
     const currentRanges = [...priceAdjustRanges];
 
-    console.log("=== 단가 조정 시작 ===");
-    console.log("현재 ranges:", currentRanges);
-    console.log("조정 대상:", priceAdjustTarget);
-
     // 범위 시작 가격 계산 함수
     const getMinPrice = (index: number): number => {
       if (index === 0) return 0;
@@ -1275,9 +1266,6 @@ export default function ProductionSettingPage() {
     setSettingForm((prev) => {
       let adjustedCount = 0;
 
-      console.log("indigoUpPrices 개수:", prev.indigoUpPrices.length);
-      console.log("inkjetSpecPrices 개수:", prev.inkjetSpecPrices.length);
-
       const adjustPrice = (price: number) => {
         const numPrice = Number(price);
         if (!numPrice || numPrice <= 0) return 0; // 0원 이하는 0원으로
@@ -1291,7 +1279,6 @@ export default function ProductionSettingPage() {
         const finalPrice = roundToUnit(numPrice, roundingUnit);
 
         if (finalPrice !== numPrice) {
-          console.log(`가격 조정: ${numPrice} → ${finalPrice} (${roundingUnit}원 단위)`);
         }
 
         return Math.max(0, finalPrice);
@@ -1305,7 +1292,6 @@ export default function ProductionSettingPage() {
         // 4도칼라 단면 조정
         const original4Single = Number(upPrice.fourColorSinglePrice) || 0;
         const adjusted4Single = adjustPrice(original4Single);
-        console.log(`[인디고 ${idx}] 4도 단면: ${original4Single} → ${adjusted4Single}`);
         if (adjusted4Single !== original4Single) {
           newUpPrice.fourColorSinglePrice = adjusted4Single;
           hasChange = true;
@@ -1314,7 +1300,6 @@ export default function ProductionSettingPage() {
         // 4도칼라 양면 조정
         const original4Double = Number(upPrice.fourColorDoublePrice) || 0;
         const adjusted4Double = adjustPrice(original4Double);
-        console.log(`[인디고 ${idx}] 4도 양면: ${original4Double} → ${adjusted4Double}`);
         if (adjusted4Double !== original4Double) {
           newUpPrice.fourColorDoublePrice = adjusted4Double;
           hasChange = true;
@@ -1323,7 +1308,6 @@ export default function ProductionSettingPage() {
         // 6도칼라 단면 조정
         const original6Single = Number(upPrice.sixColorSinglePrice) || 0;
         const adjusted6Single = adjustPrice(original6Single);
-        console.log(`[인디고 ${idx}] 6도 단면: ${original6Single} → ${adjusted6Single}`);
         if (adjusted6Single !== original6Single) {
           newUpPrice.sixColorSinglePrice = adjusted6Single;
           hasChange = true;
@@ -1332,7 +1316,6 @@ export default function ProductionSettingPage() {
         // 6도칼라 양면 조정
         const original6Double = Number(upPrice.sixColorDoublePrice) || 0;
         const adjusted6Double = adjustPrice(original6Double);
-        console.log(`[인디고 ${idx}] 6도 양면: ${original6Double} → ${adjusted6Double}`);
         if (adjusted6Double !== original6Double) {
           newUpPrice.sixColorDoublePrice = adjusted6Double;
           hasChange = true;
@@ -1563,7 +1546,6 @@ export default function ProductionSettingPage() {
 
       // prices 배열에서 인디고 Up별 가격 변환 (4도칼라/6도칼라 구분)
       const prices = (setting as any).prices || [];
-      console.log("Loading prices from DB:", JSON.stringify(prices, null, 2));
       const indigoUpPricesFromDB = INDIGO_UP_UNITS.map((up) => {
         const priceRecord = prices.find((p: any) => p.minQuantity === up);
         return {
@@ -1909,8 +1891,6 @@ export default function ProductionSettingPage() {
       }
 
       // 디버깅: API로 전송되는 데이터 확인
-      console.log("Saving setting with data:", JSON.stringify(apiData, null, 2));
-
       if (editingSetting) {
         await updateSettingMutation.mutateAsync({
           id: editingSetting.id,
@@ -3444,18 +3424,7 @@ export default function ProductionSettingPage() {
                                                 papersToUse = papersForPricing;
                                               }
 
-                                              // 디버그 로그
-                                              console.log('[기준규격 원가]', {
-                                                groupId: group.id,
-                                                inkjetBaseSpecId: group.inkjetBaseSpecId,
-                                                specPricesLen: specPrices.length,
-                                                specificationIdsLen: settingForm.specificationIds.length,
-                                                baseSpec: baseSpec?.name,
-                                                papersToUseLen: papersToUse.length,
-                                                assignedPapersLen: assignedPapers.length,
-                                              });
-
-                                              // 디버그: 조건 불충족 시 메시지 표시
+                                              // 조건 불충족 시 메시지 표시
                                               if (!baseSpec) {
                                                 return <span className="text-[10px] text-gray-400">(규격선택)</span>;
                                               }
@@ -3561,18 +3530,7 @@ export default function ProductionSettingPage() {
                                                 papersToUse = papersForPricing;
                                               }
 
-                                              // 디버그 로그
-                                              console.log('[sq" 원가]', {
-                                                groupId: group.id,
-                                                specPricesLen: specPrices.length,
-                                                specificationIdsLen: settingForm.specificationIds.length,
-                                                firstSpec: firstSpec?.name,
-                                                papersToUseLen: papersToUse.length,
-                                                assignedPapersLen: assignedPapers.length,
-                                                paperNames: papersToUse.map(p => p.name),
-                                              });
-
-                                              // 디버그: 조건 불충족 시 메시지 표시
+                                              // 조건 불충족 시 메시지 표시
                                               if (!firstSpec) {
                                                 return <span className="text-[10px] text-gray-400">(규격선택)</span>;
                                               }

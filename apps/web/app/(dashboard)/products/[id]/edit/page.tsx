@@ -396,7 +396,6 @@ export default function EditProductPage() {
 
         setIsFormReady(true);
       } catch (error) {
-        console.error('Failed to initialize product data:', error);
         toast({
           variant: 'destructive',
           title: '데이터 로드 오류',
@@ -633,13 +632,7 @@ export default function EditProductPage() {
         outputPriceSettings,
       };
 
-      console.log('=== 상품 수정 요청 데이터 ===');
-      console.log('outputPriceSelections (현재 state):', JSON.stringify(outputPriceSelections, null, 2));
-      console.log('outputPriceSettings (전송할 데이터):', JSON.stringify(outputPriceSettings, null, 2));
-
       const result = await updateProduct.mutateAsync({ id: productId, data: productData });
-      console.log('=== 상품 수정 응답 ===', result);
-
       toast({ variant: 'success', title: '상품이 수정되었습니다.' });
       router.push('/products');
     } catch (error) {

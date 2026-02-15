@@ -217,7 +217,6 @@ export default function CategoriesPage() {
       setIsFormOpen(false);
       resetForm();
     } catch (error) {
-      console.error('분류 저장 에러:', error);
       const message = error instanceof Error ? error.message : '저장에 실패했습니다.';
       toast({ title: message, variant: 'destructive' });
     }

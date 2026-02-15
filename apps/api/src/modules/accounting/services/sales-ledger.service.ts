@@ -185,7 +185,7 @@ export class SalesLedgerService {
       });
     } catch (err) {
       // Journal creation failure should not block sales ledger creation
-      console.error('자동분개 생성 실패:', err);
+      // 분개 생성 실패 시 매출원장 생성은 계속 진행
     }
 
     return salesLedger;
@@ -343,7 +343,7 @@ export class SalesLedgerService {
         description: `${ledger.ledgerNumber} 수금 (${dto.paymentMethod})`,
       });
     } catch (err) {
-      console.error('수금분개 생성 실패:', err);
+      // 수금분개 생성 실패 시 수금 처리는 계속 진행
     }
 
     return this.findById(salesLedgerId);
@@ -600,7 +600,7 @@ export class SalesLedgerService {
           }, 'system-backfill');
           created++;
         } catch (err: any) {
-          console.error(`백필 실패 (${order.orderNumber}):`, err.message);
+          // 백필 실패 시 건너뛰고 계속 진행
           failed++;
         }
       }

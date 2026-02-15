@@ -48,7 +48,6 @@ export function QuillEditor({
           quill.insertEmbed(range.index, 'image', url);
           quill.setSelection(range.index + 1);
         } catch (error) {
-          console.error('이미지 업로드 실패:', error);
         }
       } else {
         // Base64로 변환

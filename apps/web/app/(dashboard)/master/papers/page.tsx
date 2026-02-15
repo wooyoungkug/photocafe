@@ -508,24 +508,18 @@ export default function PapersPage() {
 
   // 용지 저장
   const handlePaperSubmit = async (data: PaperFormData) => {
-    console.log('폼 데이터:', data);
-
     // 백엔드로 전송할 데이터 준비 (nUpIndigo, nUpInkjet 제외)
     const { nUpIndigo, nUpInkjet, ...submitData } = data;
 
     try {
       if (editingPaper) {
-        console.log('수정 요청:', { id: editingPaper.id, ...submitData });
         await updatePaper.mutateAsync({ id: editingPaper.id, ...submitData } as CreatePaperDto & { id: string });
       } else {
-        console.log('등록 요청:', submitData);
         await createPaper.mutateAsync(submitData as CreatePaperDto);
       }
       setPaperDialogOpen(false);
       paperForm.reset();
     } catch (error: any) {
-      console.error('용지 저장 실패:', error);
-      console.error('에러 상세:', error.response?.data || error.message);
       alert(`저장 실패: ${error.response?.data?.message || error.message}`);
     }
   };
@@ -537,7 +531,6 @@ export default function PapersPage() {
       await deletePaper.mutateAsync(deletePaperId);
       setDeletePaperId(null);
     } catch (error) {
-      console.error('용지 삭제 실패:', error);
     }
   };
 
@@ -570,26 +563,18 @@ export default function PapersPage() {
 
   // 제지사 저장
   const handleManufacturerSubmit = async (data: ManufacturerFormData) => {
-    console.log('handleManufacturerSubmit called with:', data);
     try {
       if (editingManufacturer) {
-        console.log('Updating manufacturer:', editingManufacturer.id);
         await updateManufacturer.mutateAsync({ id: editingManufacturer.id, ...data });
       } else {
         // 코드 자동 생성: 제지사명 기반 + 타임스탬프
         const code = data.code || `MF${Date.now().toString(36).toUpperCase()}`;
-        console.log('Creating new manufacturer with code:', code);
         const payload = { ...data, code } as CreatePaperManufacturerDto;
-        console.log('Payload:', payload);
         const result = await createManufacturer.mutateAsync(payload);
-        console.log('Create result:', result);
       }
       setManufacturerDialogOpen(false);
       manufacturerForm.reset();
     } catch (error: any) {
-      console.error('제지사 저장 실패:', error);
-      console.error('Error message:', error.message);
-      console.error('Error response:', error.response?.data);
       alert(`제지사 저장 실패: ${error.response?.data?.message || error.message}`);
     }
   };
@@ -601,7 +586,6 @@ export default function PapersPage() {
       await deleteManufacturer.mutateAsync(deleteManufacturerId);
       setDeleteManufacturerId(null);
     } catch (error) {
-      console.error('제지사 삭제 실패:', error);
     }
   };
 
@@ -651,7 +635,6 @@ export default function PapersPage() {
       setSupplierDialogOpen(false);
       supplierForm.reset();
     } catch (error: any) {
-      console.error('용지대리점 저장 실패:', error);
       alert(`용지대리점 저장 실패: ${error.message}`);
     }
   };
@@ -663,7 +646,6 @@ export default function PapersPage() {
       await deleteSupplier.mutateAsync(deleteSupplierId);
       setDeleteSupplierId(null);
     } catch (error) {
-      console.error('용지대리점 삭제 실패:', error);
     }
   };
 
@@ -1078,7 +1060,6 @@ export default function PapersPage() {
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={paperForm.handleSubmit(handlePaperSubmit, (errors) => {
-            console.error('폼 검증 에러:', errors);
           })} className="px-8 py-6 space-y-8">
             {/* 용지 코드 숨김 - 자동 생성 */}
             <input type="hidden" {...paperForm.register('code')} />

@@ -42,17 +42,11 @@ export default function ProfilePage() {
   const { data: profile, isLoading: isLoadingProfile, error: profileError } = useQuery({
     queryKey: ['profile', user?.id],
     queryFn: async () => {
-      console.log('🔍 Profile Query - User ID:', user?.id);
-      console.log('🔍 Profile Query - User Object:', user);
-      console.log('🔍 Profile Query - isAuthenticated:', isAuthenticated);
-
       if (!user?.id) {
         throw new Error('User ID가 없습니다');
       }
 
       const data = await api.get<any>(`/clients/${user.id}`);
-      console.log('✅ Profile Response:', data);
-
       // 조회된 데이터로 상태 업데이트
       setProfileData({
         clientName: data.clientName || '',
@@ -72,7 +66,6 @@ export default function ProfilePage() {
 
   // 에러 로깅
   if (profileError) {
-    console.error('❌ Profile Error:', profileError);
   }
 
   // 프로필 수정 mutation

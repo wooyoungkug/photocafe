@@ -225,7 +225,6 @@ export function PaymentForm({ client, onBack, onComplete }: PaymentFormProps) {
       setSelectedLedgerIds([]);
       onComplete?.();
     } catch (error) {
-      console.error('입금 처리 오류:', error);
       toast({
         title: '입금 처리에 실패했습니다.',
         description: '다시 시도해주세요.',

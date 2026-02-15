@@ -1032,7 +1032,6 @@ export default function CategoriesPage() {
                                 token = parsed?.state?.accessToken;
                               }
                             } catch (e) {
-                              console.error('Failed to parse auth storage:', e);
                             }
                           }
                           if (!token) {
