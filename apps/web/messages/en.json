@@ -566,5 +566,69 @@
       "prev": "Previous",
       "next": "Next"
     }
+  },
+  "clientLedger": {
+    "title": "Client Ledger",
+    "description": "Manage transaction records for sales and purchase clients",
+    "stats": {
+      "salesClients": "Sales Clients",
+      "purchaseClients": "Purchase Clients",
+      "salesBalance": "Accounts Receivable",
+      "purchaseBalance": "Accounts Payable",
+      "currentMonthSales": "Monthly Sales",
+      "currentMonthPurchases": "Monthly Purchases",
+      "currentMonthReceived": "Monthly Collected",
+      "currentMonthPaid": "Monthly Paid"
+    },
+    "filter": {
+      "clientType": "Client Type",
+      "all": "All",
+      "salesClient": "Sales Client",
+      "purchaseClient": "Purchase Client",
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "search": "Search client name/code"
+    },
+    "table": {
+      "clientCode": "Client Code",
+      "clientName": "Client Name",
+      "totalSales": "Total Sales",
+      "totalReceived": "Total Received",
+      "salesBalance": "Receivable Balance",
+      "totalPurchases": "Total Purchases",
+      "totalPaid": "Total Paid",
+      "purchaseBalance": "Payable Balance",
+      "netBalance": "Net Balance",
+      "total": "Total"
+    },
+    "detail": {
+      "backToList": "List",
+      "clientInfo": "Client Info",
+      "bizNumber": "Biz Number",
+      "phone": "Phone",
+      "email": "Email",
+      "transactionTab": "Daily Transactions",
+      "summaryTab": "Period Summary",
+      "periodUnit": "Period Unit",
+      "daily": "Daily",
+      "monthly": "Monthly",
+      "quarterly": "Quarterly",
+      "yearly": "Yearly",
+      "date": "Date",
+      "type": "Type",
+      "description": "Description",
+      "referenceNo": "Reference No.",
+      "debit": "Debit",
+      "credit": "Credit",
+      "balance": "Balance",
+      "openingBalance": "Opening Balance",
+      "closingBalance": "Closing Balance",
+      "sales": "Sales",
+      "receipt": "Receipt",
+      "purchase": "Purchase",
+      "payment": "Payment",
+      "period": "Period",
+      "noData": "No transactions found"
+    }
   }
 }

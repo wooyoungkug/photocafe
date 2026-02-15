@@ -567,5 +567,69 @@
       "prev": "이전",
       "next": "다음"
     }
+  },
+  "clientLedger": {
+    "title": "거래처원장",
+    "description": "매출거래처와 매입거래처의 거래내역을 통합 관리합니다",
+    "stats": {
+      "salesClients": "매출거래처",
+      "purchaseClients": "매입거래처",
+      "salesBalance": "매출미수잔액",
+      "purchaseBalance": "매입미지급잔액",
+      "currentMonthSales": "당월 매출",
+      "currentMonthPurchases": "당월 매입",
+      "currentMonthReceived": "당월 수금",
+      "currentMonthPaid": "당월 지급"
+    },
+    "filter": {
+      "clientType": "거래처유형",
+      "all": "전체",
+      "salesClient": "매출거래처",
+      "purchaseClient": "매입거래처",
+      "startDate": "시작일",
+      "endDate": "종료일",
+      "search": "거래처명/코드 검색"
+    },
+    "table": {
+      "clientCode": "거래처코드",
+      "clientName": "거래처명",
+      "totalSales": "매출합계",
+      "totalReceived": "수금합계",
+      "salesBalance": "매출미수잔액",
+      "totalPurchases": "매입합계",
+      "totalPaid": "지급합계",
+      "purchaseBalance": "매입미지급잔액",
+      "netBalance": "순잔액",
+      "total": "합계"
+    },
+    "detail": {
+      "backToList": "목록",
+      "clientInfo": "거래처정보",
+      "bizNumber": "사업자번호",
+      "phone": "전화",
+      "email": "이메일",
+      "transactionTab": "일별 거래내역",
+      "summaryTab": "기간별 요약",
+      "periodUnit": "기간단위",
+      "daily": "일별",
+      "monthly": "월별",
+      "quarterly": "분기별",
+      "yearly": "연별",
+      "date": "날짜",
+      "type": "구분",
+      "description": "적요",
+      "referenceNo": "전표번호",
+      "debit": "차변",
+      "credit": "대변",
+      "balance": "잔액",
+      "openingBalance": "전기이월",
+      "closingBalance": "차기이월",
+      "sales": "매출",
+      "receipt": "수금",
+      "purchase": "매입",
+      "payment": "지급",
+      "period": "기간",
+      "noData": "거래 내역이 없습니다"
+    }
   }
 }

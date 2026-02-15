@@ -566,5 +566,69 @@
       "prev": "前へ",
       "next": "次へ"
     }
+  },
+  "clientLedger": {
+    "title": "取引先元帳",
+    "description": "売上取引先と仕入取引先の取引明細を統合管理します",
+    "stats": {
+      "salesClients": "売上取引先",
+      "purchaseClients": "仕入取引先",
+      "salesBalance": "売掛金残高",
+      "purchaseBalance": "買掛金残高",
+      "currentMonthSales": "当月売上",
+      "currentMonthPurchases": "当月仕入",
+      "currentMonthReceived": "当月回収",
+      "currentMonthPaid": "当月支払"
+    },
+    "filter": {
+      "clientType": "取引先種別",
+      "all": "全体",
+      "salesClient": "売上取引先",
+      "purchaseClient": "仕入取引先",
+      "startDate": "開始日",
+      "endDate": "終了日",
+      "search": "取引先名/コード検索"
+    },
+    "table": {
+      "clientCode": "取引先コード",
+      "clientName": "取引先名",
+      "totalSales": "売上合計",
+      "totalReceived": "回収合計",
+      "salesBalance": "売掛金残高",
+      "totalPurchases": "仕入合計",
+      "totalPaid": "支払合計",
+      "purchaseBalance": "買掛金残高",
+      "netBalance": "純残高",
+      "total": "合計"
+    },
+    "detail": {
+      "backToList": "一覧",
+      "clientInfo": "取引先情報",
+      "bizNumber": "事業者番号",
+      "phone": "電話",
+      "email": "メール",
+      "transactionTab": "日別取引明細",
+      "summaryTab": "期間別要約",
+      "periodUnit": "期間単位",
+      "daily": "日別",
+      "monthly": "月別",
+      "quarterly": "四半期別",
+      "yearly": "年別",
+      "date": "日付",
+      "type": "区分",
+      "description": "摘要",
+      "referenceNo": "伝票番号",
+      "debit": "借方",
+      "credit": "貸方",
+      "balance": "残高",
+      "openingBalance": "前期繰越",
+      "closingBalance": "次期繰越",
+      "sales": "売上",
+      "receipt": "回収",
+      "purchase": "仕入",
+      "payment": "支払",
+      "period": "期間",
+      "noData": "取引明細がありません"
+    }
   }
 }

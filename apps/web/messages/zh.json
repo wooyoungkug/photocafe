@@ -566,5 +566,69 @@
       "prev": "上一页",
       "next": "下一页"
     }
+  },
+  "clientLedger": {
+    "title": "客户台账",
+    "description": "统一管理销售客户和采购供应商的交易记录",
+    "stats": {
+      "salesClients": "销售客户",
+      "purchaseClients": "采购供应商",
+      "salesBalance": "应收账款余额",
+      "purchaseBalance": "应付账款余额",
+      "currentMonthSales": "本月销售",
+      "currentMonthPurchases": "本月采购",
+      "currentMonthReceived": "本月收款",
+      "currentMonthPaid": "本月付款"
+    },
+    "filter": {
+      "clientType": "客户类型",
+      "all": "全部",
+      "salesClient": "销售客户",
+      "purchaseClient": "采购供应商",
+      "startDate": "开始日期",
+      "endDate": "结束日期",
+      "search": "搜索客户名称/代码"
+    },
+    "table": {
+      "clientCode": "客户代码",
+      "clientName": "客户名称",
+      "totalSales": "销售总额",
+      "totalReceived": "收款总额",
+      "salesBalance": "应收余额",
+      "totalPurchases": "采购总额",
+      "totalPaid": "付款总额",
+      "purchaseBalance": "应付余额",
+      "netBalance": "净余额",
+      "total": "合计"
+    },
+    "detail": {
+      "backToList": "列表",
+      "clientInfo": "客户信息",
+      "bizNumber": "营业执照号",
+      "phone": "电话",
+      "email": "邮箱",
+      "transactionTab": "日交易明细",
+      "summaryTab": "期间汇总",
+      "periodUnit": "期间单位",
+      "daily": "按日",
+      "monthly": "按月",
+      "quarterly": "按季",
+      "yearly": "按年",
+      "date": "日期",
+      "type": "类型",
+      "description": "摘要",
+      "referenceNo": "凭证号",
+      "debit": "借方",
+      "credit": "贷方",
+      "balance": "余额",
+      "openingBalance": "期初余额",
+      "closingBalance": "期末余额",
+      "sales": "销售",
+      "receipt": "收款",
+      "purchase": "采购",
+      "payment": "付款",
+      "period": "期间",
+      "noData": "暂无交易记录"
+    }
   }
 }
