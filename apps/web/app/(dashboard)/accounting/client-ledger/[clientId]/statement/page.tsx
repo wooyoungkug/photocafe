@@ -130,10 +130,10 @@ export default function ClientLedgerStatementPage() {
                   적요
                 </th>
                 <th className="border border-gray-300 px-3 py-2 text-right w-28">
-                  차변(입금)
+                  매출
                 </th>
                 <th className="border border-gray-300 px-3 py-2 text-right w-28">
-                  대변(출금)
+                  입금
                 </th>
                 <th className="border border-gray-300 px-3 py-2 text-right w-28">
                   잔액

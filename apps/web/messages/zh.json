@@ -570,6 +570,18 @@
   "clientLedger": {
     "title": "客户台账",
     "description": "按客户查看销售/采购交易记录和余额",
+    "sales": {
+      "title": "销售客户台账",
+      "description": "按客户查看销售交易记录和应收账款",
+      "clientCount": "销售客户数",
+      "noData": "没有有销售交易记录的客户"
+    },
+    "purchase": {
+      "title": "采购客户台账",
+      "description": "按客户查看采购交易记录和应付账款",
+      "clientCount": "采购客户数",
+      "noData": "没有有采购交易记录的客户"
+    },
     "summary": {
       "clientCount": "客户数",
       "totalSales": "总销售额",

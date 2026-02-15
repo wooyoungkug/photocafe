@@ -188,8 +188,8 @@ export default function ClientLedgerDetailPage() {
       '유형',
       '주문번호',
       '적요',
-      '차변(입금)',
-      '대변(출금)',
+      '매출',
+      '입금',
       '잔액',
     ];
     const rows = transactions.map((t) => [
@@ -355,7 +355,7 @@ export default function ClientLedgerDetailPage() {
             <div className="flex justify-between text-sm">
               <span className="flex items-center gap-1 text-muted-foreground">
                 <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
-                차변 합계
+                매출 합계
               </span>
               <span className="font-medium">
                 {Math.round(totals?.totalDebit || 0).toLocaleString()}원
@@ -364,7 +364,7 @@ export default function ClientLedgerDetailPage() {
             <div className="flex justify-between text-sm">
               <span className="flex items-center gap-1 text-muted-foreground">
                 <TrendingDown className="h-3.5 w-3.5 text-red-500" />
-                대변 합계
+                입금 합계
               </span>
               <span className="font-medium">
                 {Math.round(totals?.totalCredit || 0).toLocaleString()}원
@@ -480,8 +480,8 @@ export default function ClientLedgerDetailPage() {
                       <TableHead className="w-[110px]">일자</TableHead>
                       <TableHead className="whitespace-nowrap">주문번호</TableHead>
                       <TableHead>적요</TableHead>
-                      <TableHead className="text-right">차변(입금)</TableHead>
-                      <TableHead className="text-right">대변(출금)</TableHead>
+                      <TableHead className="text-right">매출</TableHead>
+                      <TableHead className="text-right">입금</TableHead>
                       <TableHead className="text-right">잔액</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -612,8 +612,8 @@ export default function ClientLedgerDetailPage() {
                       <TableHead>기간</TableHead>
                       <TableHead>적요</TableHead>
                       <TableHead className="text-center">건수</TableHead>
-                      <TableHead className="text-right">차변(입금)</TableHead>
-                      <TableHead className="text-right">대변(출금)</TableHead>
+                      <TableHead className="text-right">매출</TableHead>
+                      <TableHead className="text-right">입금</TableHead>
                       <TableHead className="text-right">잔액</TableHead>
                     </TableRow>
                   </TableHeader>

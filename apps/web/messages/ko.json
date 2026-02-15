@@ -571,6 +571,18 @@
   "clientLedger": {
     "title": "거래처원장",
     "description": "거래처별 매출/매입 거래내역 및 잔액을 조회합니다",
+    "sales": {
+      "title": "매출거래처원장",
+      "description": "거래처별 매출 거래내역 및 미수금을 조회합니다",
+      "clientCount": "매출 거래처 수",
+      "noData": "매출 거래내역이 있는 거래처가 없습니다"
+    },
+    "purchase": {
+      "title": "매입거래처원장",
+      "description": "거래처별 매입 거래내역 및 미지급금을 조회합니다",
+      "clientCount": "매입 거래처 수",
+      "noData": "매입 거래내역이 있는 거래처가 없습니다"
+    },
     "summary": {
       "clientCount": "거래처 수",
       "totalSales": "총 매출액",
