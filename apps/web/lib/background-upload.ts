@@ -106,6 +106,13 @@ export function startBackgroundUpload(
       fileUrl: string;
       thumbnailUrl: string;
       sortOrder: number;
+      fileName: string;
+      widthPx: number;
+      heightPx: number;
+      widthInch: number;
+      heightInch: number;
+      dpi: number;
+      fileSize: number;
     }> = [];
 
     try {
@@ -133,6 +140,13 @@ export function startBackgroundUpload(
               fileUrl: result.fileUrl,
               thumbnailUrl: result.thumbnailUrl,
               sortOrder: result.sortOrder,
+              fileName: result.fileName || metadata.fileName,
+              widthPx: metadata.width,
+              heightPx: metadata.height,
+              widthInch: metadata.widthInch,
+              heightInch: metadata.heightInch,
+              dpi: metadata.dpi,
+              fileSize: metadata.fileSize,
             });
             lastError = null;
             break;

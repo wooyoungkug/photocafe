@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { join } from 'path';
 import { createWriteStream, existsSync, mkdirSync } from 'fs';
+import * as sharp from 'sharp';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PDFDocument = require('pdfkit');
 
@@ -12,9 +13,30 @@ interface PdfFileInput {
   sortOrder: number;
 }
 
+const DEFAULT_DPI = 300;
+
 @Injectable()
 export class PdfGeneratorService {
   private readonly logger = new Logger(PdfGeneratorService.name);
+
+  /**
+   * 이미지에서 실제 크기(inch) 읽기 - widthInch/heightInch가 0일 때 fallback
+   */
+  private async getImageSizeInch(filePath: string): Promise<{ widthInch: number; heightInch: number }> {
+    try {
+      const metadata = await sharp(filePath).metadata();
+      const width = metadata.width || 0;
+      const height = metadata.height || 0;
+      const dpi = metadata.density || DEFAULT_DPI;
+      return {
+        widthInch: width / dpi,
+        heightInch: height / dpi,
+      };
+    } catch (err) {
+      this.logger.warn(`Failed to read image metadata: ${filePath}, using A4 default`);
+      return { widthInch: 8.27, heightInch: 11.69 }; // A4 fallback
+    }
+  }
 
   /**
    * 주문항목의 승인된 이미지들을 PDF로 변환
@@ -46,6 +68,17 @@ export class PdfGeneratorService {
       throw new Error('No valid files to generate PDF');
     }
 
+    // widthInch/heightInch가 0인 파일의 실제 크기를 미리 조회
+    const fileSizes = await Promise.all(
+      validFiles.map(async (file) => {
+        if (file.widthInch > 0 && file.heightInch > 0) {
+          return { widthInch: file.widthInch, heightInch: file.heightInch };
+        }
+        this.logger.warn(`Missing dimensions for ${file.fileName}, reading from image`);
+        return this.getImageSizeInch(file.originalPath);
+      }),
+    );
+
     return new Promise((resolve, reject) => {
       try {
         const doc = new PDFDocument({ autoFirstPage: false });
@@ -63,10 +96,13 @@ export class PdfGeneratorService {
 
         doc.pipe(writeStream);
 
-        for (const file of validFiles) {
+        for (let i = 0; i < validFiles.length; i++) {
+          const file = validFiles[i];
+          const size = fileSizes[i];
+
           // 1 inch = 72 PDF points
-          const pageWidthPt = file.widthInch * 72;
-          const pageHeightPt = file.heightInch * 72;
+          const pageWidthPt = size.widthInch * 72;
+          const pageHeightPt = size.heightInch * 72;
 
           doc.addPage({
             size: [pageWidthPt, pageHeightPt],
