@@ -23,7 +23,7 @@ export function PaymentPatternCard({ data }: PaymentPatternCardProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>수금 패턴 분석</CardTitle>
+        <CardTitle>입금 패턴 분석</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* 평균 결제일 */}
@@ -31,12 +31,12 @@ export function PaymentPatternCard({ data }: PaymentPatternCardProps) {
           <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
             <div className="text-sm text-blue-600 mb-2">평균 결제일</div>
             <div className="text-3xl font-bold text-blue-900">{data.avgPaymentDays}일</div>
-            <div className="text-xs text-blue-600 mt-1">수금예정일 기준</div>
+            <div className="text-xs text-blue-600 mt-1">입금예정일 기준</div>
           </div>
           <div className="p-4 bg-slate-50 rounded-lg border">
             <div className="text-sm text-muted-foreground mb-2">중위값 결제일</div>
             <div className="text-3xl font-bold">{data.medianPaymentDays}일</div>
-            <div className="text-xs text-muted-foreground mt-1">수금예정일 기준</div>
+            <div className="text-xs text-muted-foreground mt-1">입금예정일 기준</div>
           </div>
         </div>
 
@@ -117,7 +117,7 @@ export function PaymentPatternCard({ data }: PaymentPatternCardProps) {
         {/* 요일별 패턴 */}
         {data.weekdayPattern.length > 0 && (
           <div>
-            <div className="text-sm font-medium mb-3">요일별 수금 패턴</div>
+            <div className="text-sm font-medium mb-3">요일별 입금 패턴</div>
             <div className="space-y-2">
               {data.weekdayPattern.map((item, index) => (
                 <div key={index} className="flex items-center justify-between p-2 bg-slate-50 rounded">

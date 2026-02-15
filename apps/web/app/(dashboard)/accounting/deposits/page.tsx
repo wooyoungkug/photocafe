@@ -442,11 +442,11 @@ export default function DepositsPage() {
                                             <Table className="text-sm">
                                               <TableHeader>
                                                 <TableRow>
-                                                  <TableHead>수금번호</TableHead>
+                                                  <TableHead>입금번호</TableHead>
                                                   <TableHead>주문번호</TableHead>
                                                   <TableHead className="text-right">주문금액</TableHead>
                                                   <TableHead className="text-right">결제금액</TableHead>
-                                                  <TableHead className="text-right">미수금</TableHead>
+                                                  <TableHead className="text-right">미입금</TableHead>
                                                   <TableHead>결제방법</TableHead>
                                                   <TableHead>상태</TableHead>
                                                 </TableRow>

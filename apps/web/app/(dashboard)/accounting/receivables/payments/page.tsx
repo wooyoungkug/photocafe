@@ -71,7 +71,7 @@ export default function PaymentProcessingPage() {
           <div>
             <h1 className="text-xl sm:text-2xl font-bold">입금 처리</h1>
             <p className="text-sm text-muted-foreground hidden sm:block">
-              거래처별 미수금 수금 처리
+              거래처별 미수금 입금 처리
             </p>
           </div>
         </div>
@@ -145,7 +145,7 @@ export default function PaymentProcessingPage() {
             <SheetHeader className="mb-4">
               <SheetTitle>입금 처리</SheetTitle>
               <SheetDescription>
-                {selectedClient?.clientName} 미수금 수금
+                {selectedClient?.clientName} 미수금 입금
               </SheetDescription>
             </SheetHeader>
             {selectedClient && (

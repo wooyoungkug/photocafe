@@ -8,7 +8,7 @@ import { useClientLedgerDetail } from '@/hooks/use-client-ledger';
 
 const typeLabels: Record<string, string> = {
   sales: '매출',
-  receipt: '수금',
+  receipt: '입금',
   purchase: '매입',
   payment: '지급',
 };

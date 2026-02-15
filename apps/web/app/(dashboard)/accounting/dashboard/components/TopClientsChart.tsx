@@ -23,13 +23,13 @@ export default function TopClientsChart({ data }: TopClientsChartProps) {
   const chartData = data.map(client => ({
     name: client.clientName.length > 8 ? client.clientName.substring(0, 8) + '...' : client.clientName,
     fullName: client.clientName,
-    미수금: client.outstanding,
+    미입금: client.outstanding,
   }));
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>상위 미수금 거래처 (Top 10)</CardTitle>
+        <CardTitle>상위 미입금 거래처 (Top 10)</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
@@ -40,13 +40,13 @@ export default function TopClientsChart({ data }: TopClientsChartProps) {
               <XAxis dataKey="name" />
               <YAxis />
               <Tooltip
-                formatter={(value: any) => [`${Number(value).toLocaleString()}원`, '미수금']}
+                formatter={(value: any) => [`${Number(value).toLocaleString()}원`, '미입금']}
                 labelFormatter={(label) => {
                   const item = chartData.find(d => d.name === label);
                   return item?.fullName || label;
                 }}
               />
-              <Bar dataKey="미수금" fill="#f97316" />
+              <Bar dataKey="미입금" fill="#f97316" />
             </BarChart>
           </ResponsiveContainer>
 

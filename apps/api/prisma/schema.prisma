@@ -2192,7 +2192,9 @@ model SalesReceipt {
   amount        Decimal     @db.Decimal(12, 2)
   paymentMethod String
   bankName      String?
+  accountNumber String?
   depositorName String?
+  proofFileUrl  String?
   journalId     String?
   note          String?
   createdBy     String
@@ -2273,6 +2275,8 @@ model PurchasePayment {
   paymentMethod    String
   bankName         String?
   accountNumber    String?
+  depositorName    String?
+  proofFileUrl     String?
   journalId        String?
   note             String?
   createdBy        String

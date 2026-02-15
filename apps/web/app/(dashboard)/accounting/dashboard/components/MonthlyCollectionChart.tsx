@@ -16,14 +16,14 @@ interface MonthlyCollectionChartProps {
 export default function MonthlyCollectionChart({ data }: MonthlyCollectionChartProps) {
   const chartData = data.map(item => ({
     month: item.month,
-    수금액: item.received,
+    입금액: item.received,
     건수: item.count,
   }));
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>월별 수금 추이 (최근 6개월)</CardTitle>
+        <CardTitle>월별 입금 추이 (최근 6개월)</CardTitle>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>
@@ -34,7 +34,7 @@ export default function MonthlyCollectionChart({ data }: MonthlyCollectionChartP
             <YAxis yAxisId="right" orientation="right" />
             <Tooltip
               formatter={(value: any, name: any) => {
-                if (name === '수금액') {
+                if (name === '입금액') {
                   return `${Number(value).toLocaleString()}원`;
                 }
                 return value;
@@ -44,7 +44,7 @@ export default function MonthlyCollectionChart({ data }: MonthlyCollectionChartP
             <Line
               yAxisId="left"
               type="monotone"
-              dataKey="수금액"
+              dataKey="입금액"
               stroke="#10b981"
               strokeWidth={2}
               dot={{ fill: '#10b981', r: 4 }}
@@ -63,7 +63,7 @@ export default function MonthlyCollectionChart({ data }: MonthlyCollectionChartP
         {/* 요약 */}
         <div className="mt-4 grid grid-cols-3 gap-4">
           <div className="text-center p-3 bg-green-50 rounded-lg">
-            <p className="text-sm text-muted-foreground">총 수금액</p>
+            <p className="text-sm text-muted-foreground">총 입금액</p>
             <p className="text-lg font-bold text-green-600">
               {data.reduce((sum, d) => sum + d.received, 0).toLocaleString()}원
             </p>
@@ -75,7 +75,7 @@ export default function MonthlyCollectionChart({ data }: MonthlyCollectionChartP
             </p>
           </div>
           <div className="text-center p-3 bg-purple-50 rounded-lg">
-            <p className="text-sm text-muted-foreground">평균 수금액</p>
+            <p className="text-sm text-muted-foreground">평균 입금액</p>
             <p className="text-lg font-bold text-purple-600">
               {data.length > 0
                 ? Math.round(data.reduce((sum, d) => sum + d.received, 0) / data.length).toLocaleString()

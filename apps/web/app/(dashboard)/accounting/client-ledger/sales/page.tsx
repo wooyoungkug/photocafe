@@ -62,7 +62,7 @@ export default function SalesClientLedgerPage() {
       '거래처명',
       '사업자번호',
       '매출액',
-      '수금액',
+      '입금액',
       '매출미수금',
       '매출건수',
     ];
@@ -223,7 +223,7 @@ export default function SalesClientLedgerPage() {
                       <TableHead className="w-[100px]">거래처코드</TableHead>
                       <TableHead>거래처명</TableHead>
                       <TableHead className="text-right">매출액</TableHead>
-                      <TableHead className="text-right">수금액</TableHead>
+                      <TableHead className="text-right">입금액</TableHead>
                       <TableHead className="text-right">매출미수금</TableHead>
                       <TableHead className="text-center">매출건수</TableHead>
                       <TableHead className="w-[60px]"></TableHead>

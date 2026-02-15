@@ -15,7 +15,7 @@ export default function AccountingDashboardPage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold">회계 대시보드</h1>
-          <p className="text-muted-foreground">미수금 현황을 한눈에 확인하세요.</p>
+          <p className="text-muted-foreground">미입금 현황을 한눈에 확인하세요.</p>
         </div>
         <div className="grid grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
@@ -43,7 +43,7 @@ export default function AccountingDashboardPage() {
       {/* 헤더 */}
       <div>
         <h1 className="text-2xl font-bold">회계 대시보드</h1>
-        <p className="text-muted-foreground">미수금 현황을 한눈에 확인하세요.</p>
+        <p className="text-muted-foreground">미입금 현황을 한눈에 확인하세요.</p>
       </div>
 
       {/* KPI 카드 */}

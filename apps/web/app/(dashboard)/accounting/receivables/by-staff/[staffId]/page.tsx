@@ -54,7 +54,7 @@ export default function StaffDetailPage() {
   const getStatusBadge = (status: string) => {
     const configs: Record<string, { label: string; color: string }> = {
       paid: { label: '완납', color: 'bg-green-100 text-green-700' },
-      partial: { label: '부분수금', color: 'bg-blue-100 text-blue-700' },
+      partial: { label: '부분입금', color: 'bg-blue-100 text-blue-700' },
       unpaid: { label: '미수', color: 'bg-orange-100 text-orange-700' },
       overdue: { label: '연체', color: 'bg-red-100 text-red-700' },
     };
@@ -101,7 +101,7 @@ export default function StaffDetailPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-green-600 font-medium">수금액</p>
+                <p className="text-sm text-green-600 font-medium">입금액</p>
                 <p className="text-2xl font-bold text-green-900">
                   {summary.totalReceived.toLocaleString()}원
                 </p>
@@ -117,7 +117,7 @@ export default function StaffDetailPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-orange-600 font-medium">미수금</p>
+                <p className="text-sm text-orange-600 font-medium">미입금</p>
                 <p className="text-2xl font-bold text-orange-900">
                   {summary.outstanding.toLocaleString()}원
                 </p>
@@ -141,7 +141,7 @@ export default function StaffDetailPage() {
               <SelectContent>
                 <SelectItem value="all">전체</SelectItem>
                 <SelectItem value="unpaid">미수</SelectItem>
-                <SelectItem value="partial">부분수금</SelectItem>
+                <SelectItem value="partial">부분입금</SelectItem>
                 <SelectItem value="paid">완납</SelectItem>
                 <SelectItem value="overdue">연체</SelectItem>
               </SelectContent>
@@ -164,8 +164,8 @@ export default function StaffDetailPage() {
                 <TableHead>주문번호</TableHead>
                 <TableHead>매출일</TableHead>
                 <TableHead className="text-right">총액</TableHead>
-                <TableHead className="text-right">수금액</TableHead>
-                <TableHead className="text-right">미수금</TableHead>
+                <TableHead className="text-right">입금액</TableHead>
+                <TableHead className="text-right">미입금</TableHead>
                 <TableHead className="text-center">결제상태</TableHead>
               </TableRow>
             </TableHeader>

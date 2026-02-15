@@ -125,7 +125,7 @@ export function LedgerAllocationList({
         </div>
         {selectedIds.length > 0 && (
           <span className="text-xs font-medium text-orange-600">
-            선택 미수금: {selectedTotal.toLocaleString()}원
+            선택 미입금: {selectedTotal.toLocaleString()}원
           </span>
         )}
       </div>

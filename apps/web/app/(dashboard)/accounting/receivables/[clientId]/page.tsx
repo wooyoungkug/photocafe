@@ -119,7 +119,7 @@ export default function ClientDetailPage() {
         <Card>
           <CardContent className="pt-6 text-center">
             <p className="text-muted-foreground mb-4">
-              신용도 평가 및 수금 패턴 분석을 실행하여 상세 통계를 확인하세요.
+              신용도 평가 및 입금 패턴 분석을 실행하여 상세 통계를 확인하세요.
             </p>
             <Button onClick={handleCalculateCreditScore} disabled={isCalculating}>
               분석 실행
@@ -153,7 +153,7 @@ export default function ClientDetailPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-green-600 font-medium">총 수금</p>
+                <p className="text-sm text-green-600 font-medium">총 입금</p>
                 <p className="text-2xl font-bold text-green-900">
                   {data.summary.totalReceived.toLocaleString()}원
                 </p>
@@ -169,7 +169,7 @@ export default function ClientDetailPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-orange-600 font-medium">미수금</p>
+                <p className="text-sm text-orange-600 font-medium">미입금</p>
                 <p className="text-2xl font-bold text-orange-900">
                   {data.summary.outstanding.toLocaleString()}원
                 </p>
@@ -213,7 +213,7 @@ export default function ClientDetailPage() {
                 <TableHead className="text-right">공급가액</TableHead>
                 <TableHead className="text-right">부가세</TableHead>
                 <TableHead className="text-right">합계</TableHead>
-                <TableHead className="text-right">미수금</TableHead>
+                <TableHead className="text-right">미입금</TableHead>
                 <TableHead className="text-center">상태</TableHead>
               </TableRow>
             </TableHeader>
@@ -252,7 +252,7 @@ export default function ClientDetailPage() {
                         {tx.paymentStatus === 'paid'
                           ? '완납'
                           : tx.paymentStatus === 'partial'
-                            ? '부분수금'
+                            ? '부분입금'
                             : tx.paymentStatus === 'overdue'
                               ? '연체'
                               : '미수'}
@@ -266,15 +266,15 @@ export default function ClientDetailPage() {
         </CardContent>
       </Card>
 
-      {/* 수금 이력 */}
+      {/* 입금 이력 */}
       <Card>
         <CardHeader>
-          <CardTitle>수금 이력 (최근 50건)</CardTitle>
+          <CardTitle>입금 이력 (최근 50건)</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {data.paymentHistory.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">수금 이력이 없습니다.</div>
+              <div className="text-center py-8 text-muted-foreground">입금 이력이 없습니다.</div>
             ) : (
               data.paymentHistory.map((receipt: any) => (
                 <div
