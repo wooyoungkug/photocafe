@@ -147,7 +147,7 @@ export default function ReceivablesPage() {
     }
 
     // CSV 헤더
-    const headers = ['거래처코드', '거래처명', '총매출', '수금액', '미수금', '수금률(%)', '거래건수'];
+    const headers = ['거래처코드', '거래처명', '총매출', '수금액', '미수금', '수금률(%)', '주문건수'];
 
     // CSV 데이터 행
     const rows = clientSummary.map(item => [

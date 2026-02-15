@@ -127,7 +127,14 @@ export class ProductService {
       where: { id },
       include: {
         category: true,
-        specifications: { orderBy: { sortOrder: 'asc' } },
+        specifications: {
+          include: {
+            specification: {
+              select: { id: true, isActive: true, forIndigo: true, forInkjet: true, forAlbum: true, forFrame: true, forBooklet: true },
+            },
+          },
+          orderBy: { sortOrder: 'asc' },
+        },
         bindings: { orderBy: { sortOrder: 'asc' } },
         papers: { orderBy: { sortOrder: 'asc' } },
         covers: { orderBy: { sortOrder: 'asc' } },
@@ -169,6 +176,30 @@ export class ProductService {
 
     if (!product) {
       throw new NotFoundException('상품을 찾을 수 없습니다');
+    }
+
+    // 상품 outputPriceSettings 기반으로 활성 규격만 필터링
+    const outputSettings = product.outputPriceSettings as any[];
+    if (outputSettings && Array.isArray(outputSettings) && outputSettings.length > 0) {
+      const hasIndigo = outputSettings.some((s: any) => s.outputMethod === 'INDIGO');
+      const hasInkjet = outputSettings.some((s: any) => s.outputMethod === 'INKJET');
+
+      (product as any).specifications = product.specifications
+        .filter((ps: any) => {
+          if (!ps.specification) return false;
+          if (!ps.specification.isActive) return false;
+          if (hasIndigo && !hasInkjet) return ps.specification.forIndigo;
+          if (hasInkjet && !hasIndigo) {
+            return ps.specification.forInkjet || ps.specification.forAlbum ||
+                   ps.specification.forFrame || ps.specification.forBooklet;
+          }
+          return true;
+        })
+        .map(({ specification, ...rest }: any) => rest);
+    } else {
+      (product as any).specifications = product.specifications
+        .filter((ps: any) => !ps.specification || ps.specification.isActive)
+        .map(({ specification, ...rest }: any) => rest);
     }
 
     return this.convertDecimalToNumber(product);
