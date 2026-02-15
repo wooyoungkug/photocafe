@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import {
   Dialog,
@@ -98,7 +98,6 @@ const toShippingDto = (s: CartShippingInfo) => ({
 
 export default function OrderPage() {
   const router = useRouter();
-  const { toast } = useToast();
   const { items, getTotal, clearCart } = useCartStore();
   const { user, isAuthenticated } = useAuthStore();
 
@@ -144,7 +143,6 @@ export default function OrderPage() {
             setClientInfo(searchResult.data[0]);
           }
         } catch {
-          console.error('Failed to load client info by email');
         }
       }
     }
@@ -173,7 +171,7 @@ export default function OrderPage() {
       }
     });
     setItemShippingMap(newMap);
-    toast({ title: '모든 항목에 배송정보가 적용되었습니다' });
+    toast.success('모든 항목에 배송정보가 적용되었습니다');
   };
 
   const handleCopyFromPrevious = (itemId: string) => {
@@ -183,7 +181,7 @@ export default function OrderPage() {
       const prevShipping = itemShippingMap[items[i].id];
       if (prevShipping && isShippingComplete(prevShipping)) {
         setItemShippingMap(prev => ({ ...prev, [itemId]: prevShipping }));
-        toast({ title: '이전 항목 배송정보가 복사되었습니다' });
+        toast.success('이전 항목 배송정보가 복사되었습니다');
         break;
       }
     }
@@ -286,12 +284,8 @@ export default function OrderPage() {
         });
       }
 
-      toast({
-        title: '동판 정보가 업데이트되었습니다',
-        description: '변경된 박색상/박위치가 동판 정보에 저장되었습니다.',
-      });
+      toast.success('동판 정보가 업데이트되었습니다', { description: '변경된 박색상/박위치가 동판 정보에 저장되었습니다.' });
     } catch (error) {
-      console.error('Failed to update copper plate info:', error);
     }
   };
 
@@ -328,7 +322,6 @@ export default function OrderPage() {
   ) => {
     try {
       for (const [idx, orderData] of orderDataList.entries()) {
-        console.log(`[Order] Submitting item ${idx + 1}/${orderDataList.length}:`, { clientId: orderData.clientId, paymentMethod: orderData.paymentMethod, itemCount: orderData.items?.length });
         await api.post('/orders', orderData);
       }
 
@@ -364,20 +357,12 @@ export default function OrderPage() {
         }).catch(() => {});
       }
 
-      toast({
-        title: '주문이 완료되었습니다',
-        description: '주문내역은 마이페이지에서 확인하실 수 있습니다.',
-      });
+      toast.success('주문이 완료되었습니다', { description: '주문내역은 마이페이지에서 확인하실 수 있습니다.' });
 
       clearCart();
       router.push('/order/complete');
     } catch (error) {
-      console.error('Order error:', error);
-      toast({
-        title: '주문 실패',
-        description: error instanceof Error ? error.message : '주문 처리 중 오류가 발생했습니다.',
-        variant: 'destructive',
-      });
+      toast.error('주문 실패', { description: error instanceof Error ? error.message : '주문 처리 중 오류가 발생했습니다.' });
     }
   };
 
@@ -441,34 +426,20 @@ export default function OrderPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('[Order] handleSubmit called', { agreeTerms, allShippingComplete, clientInfoId: clientInfo?.id, userId: user?.id, itemCount: items.length });
-
     if (!agreeTerms) {
-      toast({
-        title: '약관 동의 필요',
-        description: '주문을 진행하려면 약관에 동의해주세요.',
-        variant: 'destructive',
-      });
+      toast.error('약관 동의 필요', { description: '주문을 진행하려면 약관에 동의해주세요.' });
       return;
     }
 
     if (!allShippingComplete) {
-      toast({
-        title: '배송정보 입력 필요',
-        description: '모든 항목의 배송정보를 입력해주세요.',
-        variant: 'destructive',
-      });
+      toast.error('배송정보 입력 필요', { description: '모든 항목의 배송정보를 입력해주세요.' });
       return;
     }
 
     const clientId = clientInfo?.id || user?.id;
 
     if (!clientId) {
-      toast({
-        title: '회원 정보 오류',
-        description: '회원 정보를 불러올 수 없습니다. 다시 로그인해주세요.',
-        variant: 'destructive',
-      });
+      toast.error('회원 정보 오류', { description: '회원 정보를 불러올 수 없습니다. 다시 로그인해주세요.' });
       return;
     }
 
@@ -503,10 +474,10 @@ export default function OrderPage() {
           foilPosition: albumInfo.foilPosition || undefined,
           folderName: albumInfo.folderName,
           fileCount: albumInfo.fileCount,
-          files: (item.thumbnailUrls || []).map((url, idx) => ({
-            fileName: `page_${idx + 1}.jpg`,
-            fileUrl: url,
-            thumbnailUrl: url,
+          files: (item.serverFiles || []).map((sf, idx) => ({
+            fileName: sf.tempFileId?.split('/').pop() || `page_${idx + 1}.jpg`,
+            fileUrl: sf.fileUrl,
+            thumbnailUrl: sf.thumbnailUrl,
             pageRange: `${idx + 1}p`,
             pageStart: idx + 1,
             pageEnd: idx + 1,
@@ -516,7 +487,7 @@ export default function OrderPage() {
             heightInch: 0,
             dpi: 0,
             fileSize: 0,
-            sortOrder: idx,
+            sortOrder: sf.sortOrder ?? idx,
           })),
           ...(shippingDto ? { shipping: shippingDto } : {}),
         };

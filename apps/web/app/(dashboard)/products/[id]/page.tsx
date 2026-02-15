@@ -69,7 +69,6 @@ export default function ProductDetailPage() {
         },
       });
     } catch (error) {
-      console.error('제품 업데이트 실패:', error);
     }
   };
 
@@ -78,7 +77,6 @@ export default function ProductDetailPage() {
       await deleteProduct.mutateAsync(productId);
       router.push('/dashboard/products');
     } catch (error) {
-      console.error('제품 삭제 실패:', error);
     }
   };
 

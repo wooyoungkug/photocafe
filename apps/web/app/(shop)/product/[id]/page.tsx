@@ -317,7 +317,6 @@ export default function ProductPage() {
         clearFolders();
         router.push('/cart');
       } catch (error) {
-        console.error('장바구니 담기 오류:', error);
         setIsAddingToCart(false);
         toast({
           title: '오류 발생',
@@ -1544,7 +1543,6 @@ export default function ProductPage() {
                       return;
                     }
                   } catch (error) {
-                    console.error('중복 체크 실패:', error);
                     // 체크 실패 시 그냥 진행
                   }
                 }

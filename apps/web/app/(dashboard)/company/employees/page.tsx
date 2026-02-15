@@ -365,14 +365,6 @@ export default function EmployeesPage() {
         password: formData.password || undefined, // 비어있으면 제외
       };
 
-      console.log('=== 직원 정보 저장 데이터 ===');
-      console.log('submitData:', JSON.stringify(submitData, null, 2));
-      console.log('menuPermissions:', submitData.menuPermissions);
-      console.log('categoryPermissions:', submitData.categoryPermissions);
-      console.log('isPersonal:', submitData.isPersonal);
-      console.log('isDepartment:', submitData.isDepartment);
-      console.log('isCompany:', submitData.isCompany);
-
       if (editingStaff) {
         await updateStaff.mutateAsync({ id: editingStaff.id, data: submitData });
         toast({
@@ -388,7 +380,6 @@ export default function EmployeesPage() {
       }
       setIsDialogOpen(false);
     } catch (error) {
-      console.error('직원 정보 저장 오류:', error);
       toast({
         title: '오류',
         description: error instanceof Error ? error.message : '오류가 발생했습니다',

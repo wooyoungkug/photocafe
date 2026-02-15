@@ -58,7 +58,6 @@ const MenuBar = ({ editor, onImageUpload }: { editor: Editor | null; onImageUplo
         const url = await onImageUpload(file);
         editor.chain().focus().setImage({ src: url }).run();
       } catch (error) {
-        console.error('이미지 업로드 실패:', error);
       }
     } else {
       // 이미지를 base64로 변환 (기본 동작)

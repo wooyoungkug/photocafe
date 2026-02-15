@@ -140,6 +140,5 @@ export async function deleteTempFolder(
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) {
-    console.warn('Failed to delete temp folder:', tempFolderId);
   }
 }

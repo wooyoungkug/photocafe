@@ -311,7 +311,6 @@ export default function ClientsPage() {
           primaryStaffId: primaryStaffId || selectedStaffIds[0],
         });
       } catch (error) {
-        console.error('영업담당자 할당 실패:', error);
       }
     }
 

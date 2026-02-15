@@ -114,7 +114,6 @@ export default function ReceivablesPage() {
       toast({ title: '수금이 처리되었습니다.' });
       setIsPaymentDialogOpen(false);
     } catch (error) {
-      console.error('수금 처리 오류:', error);
       toast({ title: '수금 처리에 실패했습니다.', variant: 'destructive' });
     }
   };

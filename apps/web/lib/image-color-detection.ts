@@ -28,7 +28,6 @@ export async function detectImageColorSpace(file: File): Promise<ImageColorSpace
 
     return 'Unknown';
   } catch (error) {
-    console.error('컬러 스페이스 감지 실패:', error);
     return 'Unknown';
   }
 }

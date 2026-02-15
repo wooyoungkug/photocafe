@@ -20,7 +20,6 @@ import { AccountingModule } from './modules/accounting/accounting.module';
 import { JdfModule } from './modules/jdf/jdf.module';
 import { PublicCopperPlateModule } from './modules/public-copper-plate/public-copper-plate.module';
 import { MyProductModule } from './modules/my-product/my-product.module';
-// import { NotionModule } from './modules/notion/notion.module';  // TODO: npm install @notionhq/client
 import { PrismaModule } from './common/prisma/prisma.module';
 import { HealthModule } from './health/health.module';
 import { AppController } from './app.controller';
@@ -54,7 +53,6 @@ import { AppController } from './app.controller';
     JdfModule,
     PublicCopperPlateModule,
     MyProductModule,
-    // NotionModule,  // TODO: npm install @notionhq/client
   ],
 })
 export class AppModule { }

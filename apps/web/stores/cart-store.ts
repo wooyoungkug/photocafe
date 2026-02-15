@@ -278,7 +278,6 @@ export const useCartStore = create<CartState>()(
             localStorage.setItem(name, JSON.stringify(value));
           } catch (e) {
             // QuotaExceededError 방지 - 저장 실패해도 메모리 상태는 유지
-            console.warn('Cart storage quota exceeded, data kept in memory only');
           }
         },
         removeItem: (name) => {

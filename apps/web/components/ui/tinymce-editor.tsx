@@ -45,7 +45,6 @@ export function TinyMCEEditor({
         const url = await onImageUpload(file);
         return url;
       } catch (error) {
-        console.error('이미지 업로드 실패:', error);
         throw error;
       }
     } else {

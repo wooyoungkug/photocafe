@@ -158,7 +158,6 @@ export function startBackgroundUpload(
       });
       pendingFileRefs.delete(primaryId);
     } catch (error) {
-      console.error('Background upload failed:', error);
       updateAll({
         uploadStatus: 'failed',
         serverFiles: [...serverFiles],

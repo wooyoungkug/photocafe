@@ -33,13 +33,6 @@ function AuthCallbackContent() {
                     return;
                 }
 
-                console.log('🔐 OAuth Callback - Token:', token);
-                console.log('🔐 OAuth Callback - User ID:', userId);
-                console.log('🔐 OAuth Callback - User Name:', userName);
-                console.log('🔐 OAuth Callback - User Email:', userEmail);
-                console.log('🔐 OAuth Callback - Client ID:', clientId);
-                console.log('🔐 OAuth Callback - Is Impersonated:', isImpersonated);
-
                 // Store token in localStorage
                 localStorage.setItem('accessToken', token);
 
@@ -76,7 +69,7 @@ function AuthCallbackContent() {
                     }
                 } else {
                     // 사용자 정보 없음
-                    console.warn('⚠️ No user information found in URL params');
+                    // No user information found in URL params
                 }
 
                 const refreshToken = searchParams.get('refreshToken') || '';
@@ -101,8 +94,6 @@ function AuthCallbackContent() {
                 localStorage.setItem('auth-storage', JSON.stringify(authStorageData));
                 localStorage.setItem('refreshToken', refreshToken);
 
-                console.log('✅ Auth storage saved:', authStorageData);
-
                 // 리다이렉트 URL 결정
                 // 1. 대리 로그인 → 쇼핑몰(/)
                 // 2. OAuth 로그인 (role: client) → 쇼핑몰(/)
@@ -116,7 +107,6 @@ function AuthCallbackContent() {
                 }, 300);
 
             } catch (e) {
-                console.error('Auth callback error:', e);
                 setError(e instanceof Error ? e.message : '알 수 없는 오류가 발생했습니다.');
             }
         };
