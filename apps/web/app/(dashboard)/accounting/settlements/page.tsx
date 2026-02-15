@@ -199,7 +199,7 @@ export default function SettlementsPage() {
               </div>
             </div>
             <div className="mt-2 text-xs text-purple-600">
-              미수금 - 미지급금
+              미입금 - 미지급금
             </div>
           </CardContent>
         </Card>

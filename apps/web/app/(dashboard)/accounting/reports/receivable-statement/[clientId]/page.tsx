@@ -39,7 +39,7 @@ export default function ReceivableStatementPage() {
     if (!data) return;
 
     // CSV 헤더
-    const headers = ['전표번호', '매출일', '주문번호', '공급가액', '부가세', '합계', '수금액', '미수금', '결제상태'];
+    const headers = ['전표번호', '매출일', '주문번호', '공급가액', '부가세', '합계', '입금액', '미입금', '결제상태'];
 
     // CSV 데이터 행
     const rows = data.ledgers.map((ledger: any) => [
@@ -64,7 +64,7 @@ export default function ReceivableStatementPage() {
     link.setAttribute('href', url);
     link.setAttribute(
       'download',
-      `미수금명세서_${data.client.clientName}_${format(new Date(), 'yyyyMMdd')}.csv`
+      `미입금명세서_${data.client.clientName}_${format(new Date(), 'yyyyMMdd')}.csv`
     );
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
@@ -93,7 +93,7 @@ export default function ReceivableStatementPage() {
   const getStatusBadge = (status: string) => {
     const configs: Record<string, { label: string; color: string; icon: any }> = {
       paid: { label: '완납', color: 'bg-green-100 text-green-700', icon: CheckCircle },
-      partial: { label: '부분수금', color: 'bg-blue-100 text-blue-700', icon: DollarSign },
+      partial: { label: '부분입금', color: 'bg-blue-100 text-blue-700', icon: DollarSign },
       unpaid: { label: '미수', color: 'bg-orange-100 text-orange-700', icon: AlertCircle },
       overdue: { label: '연체', color: 'bg-red-100 text-red-700', icon: AlertCircle },
     };
@@ -116,7 +116,7 @@ export default function ReceivableStatementPage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">미수금 명세서</h1>
+            <h1 className="text-2xl font-bold">미입금 명세서</h1>
             <p className="text-muted-foreground">{data.client.clientName}</p>
           </div>
         </div>
@@ -190,7 +190,7 @@ export default function ReceivableStatementPage() {
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground mb-2">수금액</p>
+            <p className="text-sm text-muted-foreground mb-2">입금액</p>
             <p className="text-2xl font-bold text-green-600">
               {data.summary.totalReceived.toLocaleString()}원
             </p>
@@ -199,7 +199,7 @@ export default function ReceivableStatementPage() {
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground mb-2">미수금</p>
+            <p className="text-sm text-muted-foreground mb-2">미입금</p>
             <p className="text-2xl font-bold text-orange-600">
               {data.summary.totalOutstanding.toLocaleString()}원
             </p>
@@ -210,7 +210,7 @@ export default function ReceivableStatementPage() {
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground mb-2">수금률</p>
+            <p className="text-sm text-muted-foreground mb-2">입금률</p>
             <p className="text-2xl font-bold text-blue-600">
               {data.summary.totalSales > 0
                 ? Math.round((data.summary.totalReceived / data.summary.totalSales) * 100)
@@ -226,7 +226,7 @@ export default function ReceivableStatementPage() {
       <Tabs defaultValue="ledgers" className="space-y-4">
         <TabsList>
           <TabsTrigger value="ledgers">매출 내역</TabsTrigger>
-          <TabsTrigger value="receipts">수금 이력</TabsTrigger>
+          <TabsTrigger value="receipts">입금 이력</TabsTrigger>
         </TabsList>
 
         <TabsContent value="ledgers">
@@ -244,8 +244,8 @@ export default function ReceivableStatementPage() {
                     <TableHead className="text-right">공급가액</TableHead>
                     <TableHead className="text-right">부가세</TableHead>
                     <TableHead className="text-right">합계</TableHead>
-                    <TableHead className="text-right">수금액</TableHead>
-                    <TableHead className="text-right">미수금</TableHead>
+                    <TableHead className="text-right">입금액</TableHead>
+                    <TableHead className="text-right">미입금</TableHead>
                     <TableHead className="text-center">상태</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -286,14 +286,14 @@ export default function ReceivableStatementPage() {
         <TabsContent value="receipts">
           <Card>
             <CardHeader>
-              <CardTitle>수금 이력</CardTitle>
+              <CardTitle>입금 이력</CardTitle>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow className="bg-slate-50">
-                    <TableHead>수금번호</TableHead>
-                    <TableHead>수금일</TableHead>
+                    <TableHead>입금번호</TableHead>
+                    <TableHead>입금일</TableHead>
                     <TableHead>전표번호</TableHead>
                     <TableHead>주문번호</TableHead>
                     <TableHead className="text-right">금액</TableHead>
@@ -305,7 +305,7 @@ export default function ReceivableStatementPage() {
                   {data.receipts.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                        수금 이력이 없습니다.
+                        입금 이력이 없습니다.
                       </TableCell>
                     </TableRow>
                   ) : (

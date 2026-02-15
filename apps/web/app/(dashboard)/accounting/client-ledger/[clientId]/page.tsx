@@ -54,7 +54,7 @@ const periodTypeLabels: Record<string, string> = {
 
 const typeLabels: Record<string, { label: string; color: string }> = {
   sales: { label: '매출', color: 'bg-emerald-100 text-emerald-700' },
-  receipt: { label: '수금', color: 'bg-blue-100 text-blue-700' },
+  receipt: { label: '입금', color: 'bg-blue-100 text-blue-700' },
   purchase: { label: '매입', color: 'bg-orange-100 text-orange-700' },
   payment: { label: '지급', color: 'bg-purple-100 text-purple-700' },
 };
@@ -109,6 +109,7 @@ export default function ClientLedgerDetailPage() {
       debitSum: number;
       creditSum: number;
       lastBalance: number;
+      typeCounts: Record<string, number>;
     }[] = [];
 
     dateGroups.forEach((dailyTransactions, date) => {
@@ -127,8 +128,10 @@ export default function ClientLedgerDetailPage() {
       let debitSum = 0;
       let creditSum = 0;
       let lastBalance = 0;
+      const typeCounts: Record<string, number> = {};
 
       typeGroups.forEach((items, type) => {
+        typeCounts[type] = items.length; // 병합 전 원본 건수 기록
         if (type === 'sales' || items.length === 1) {
           // 매출이거나 1건이면 개별 추가
           items.forEach(item => {
@@ -138,7 +141,7 @@ export default function ClientLedgerDetailPage() {
             lastBalance = item.balance;
           });
         } else {
-          // 수금/매입/지급이고 여러 건이면 합계 생성
+          // 입금/매입/지급이고 여러 건이면 합계 생성
           const totalDebit = items.reduce((sum, item) => sum + item.debit, 0);
           const totalCredit = items.reduce((sum, item) => sum + item.credit, 0);
           const firstItem = items[0];
@@ -151,7 +154,7 @@ export default function ClientLedgerDetailPage() {
             debit: totalDebit,
             credit: totalCredit,
             balance: lastItem.balance,
-            description: `${typeLabel} ${items.length}건`,
+            description: `${typeLabel} - ${items.length}건 배분`,
             productName: '', // 합계이므로 상품명 제거
           });
 
@@ -167,6 +170,7 @@ export default function ClientLedgerDetailPage() {
         debitSum,
         creditSum,
         lastBalance,
+        typeCounts,
       });
     });
 
@@ -554,19 +558,29 @@ export default function ClientLedgerDetailPage() {
                                 {group.date}
                               </TableCell>
                               <TableCell colSpan={2} className="text-sm">
-                                일계 ({group.items.length}건)
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-medium text-muted-foreground">일계</span>
+                                  {Object.entries(group.typeCounts).map(([type, count]) => (
+                                    <span
+                                      key={type}
+                                      className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${typeLabels[type]?.color || 'bg-gray-100 text-gray-600'}`}
+                                    >
+                                      {typeLabels[type]?.label || type} {count}건
+                                    </span>
+                                  ))}
+                                </div>
                               </TableCell>
-                              <TableCell className="text-right">
+                              <TableCell className="text-right font-medium">
                                 {group.debitSum > 0
                                   ? Math.round(group.debitSum).toLocaleString()
                                   : ''}
                               </TableCell>
-                              <TableCell className="text-right">
+                              <TableCell className="text-right font-medium">
                                 {group.creditSum > 0
                                   ? Math.round(group.creditSum).toLocaleString()
                                   : ''}
                               </TableCell>
-                              <TableCell className="text-right">
+                              <TableCell className="text-right font-medium">
                                 {Math.round(group.lastBalance).toLocaleString()}
                               </TableCell>
                             </TableRow>

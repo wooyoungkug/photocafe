@@ -22,12 +22,12 @@ export default function ReceivablesKPI({ data }: ReceivablesKPIProps) {
 
   return (
     <div className="grid grid-cols-4 gap-4">
-      {/* 총 미수금 */}
+      {/* 총 미입금 */}
       <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
         <CardContent className="pt-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-orange-600 font-medium">총 미수금</p>
+              <p className="text-sm text-orange-600 font-medium">총 미입금</p>
               <p className="text-2xl font-bold text-orange-900">
                 {Math.round(summary.totalReceivables).toLocaleString()}원
               </p>
@@ -60,7 +60,7 @@ export default function ReceivablesKPI({ data }: ReceivablesKPIProps) {
         </CardContent>
       </Card>
 
-      {/* 당월 매출/수금 */}
+      {/* 당월 매출/입금 */}
       <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
         <CardContent className="pt-6">
           <div className="flex items-center justify-between">
@@ -70,7 +70,7 @@ export default function ReceivablesKPI({ data }: ReceivablesKPIProps) {
                 {Math.round(summary.monthlySales).toLocaleString()}원
               </p>
               <p className="text-xs text-green-600 mt-1">
-                수금 {Math.round(summary.monthlyReceived).toLocaleString()}원 (
+                입금 {Math.round(summary.monthlyReceived).toLocaleString()}원 (
                 {summary.monthlySales > 0
                   ? Math.round((summary.monthlyReceived / summary.monthlySales) * 100)
                   : 0}
@@ -84,12 +84,12 @@ export default function ReceivablesKPI({ data }: ReceivablesKPIProps) {
         </CardContent>
       </Card>
 
-      {/* 당월 수금 예정 */}
+      {/* 당월 입금 예정 */}
       <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
         <CardContent className="pt-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-purple-600 font-medium">당월 수금 예정</p>
+              <p className="text-sm text-purple-600 font-medium">당월 입금 예정</p>
               <p className="text-2xl font-bold text-purple-900">
                 {Math.round(summary.dueThisMonth).toLocaleString()}원
               </p>

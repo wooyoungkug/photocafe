@@ -131,7 +131,7 @@ export function CreditScoreCard({ clientId, clientName, creditScore, isLoading, 
           </div>
           <div>
             <div className="flex items-center justify-between text-sm mb-1">
-              <span>미수금 회전율 (30%)</span>
+              <span>미입금 회전율 (30%)</span>
               <span className="font-medium">{creditScore.metrics.receivablesTurnoverScore.toFixed(1)}</span>
             </div>
             <Progress value={creditScore.metrics.receivablesTurnoverScore} className="h-2" />
