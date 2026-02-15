@@ -83,6 +83,58 @@ npx prisma db push --force-reset && npm run db:seed
 - 백엔드: `/volume1/docker/printing114/`
 - 프론트엔드: `/volume1/docker/printing114-web/apps/web/`
 
+## CI/CD 자동 배포 (GitHub → Synology)
+
+### 배포 흐름
+
+```
+Claude Code / 개발자 → git push → GitHub (main) → GitHub Actions → SSH → Synology NAS
+```
+
+### GitHub Actions 자동 배포
+
+- **워크플로우**: `.github/workflows/deploy-synology.yml`
+- **트리거**: `main` 브랜치 push 또는 수동 실행 (workflow_dispatch)
+- **변경 감지**: API/Web 변경 파일 기반으로 해당 서비스만 선택적 재빌드
+- **수동 실행**: GitHub Actions 탭 > "Deploy to Synology NAS" > Run workflow > 대상 선택
+
+### GitHub Secrets 설정 (필수)
+
+| Secret | 값 | 설명 |
+|--------|-----|------|
+| SYNOLOGY_HOST | 1.212.201.147 | Synology NAS IP |
+| SYNOLOGY_USER | root | SSH 사용자 |
+| SYNOLOGY_SSH_KEY | (SSH 프라이빗 키) | ed25519 키 |
+| SYNOLOGY_PORT | 22 | SSH 포트 |
+
+SSH 키 설정: `bash scripts/setup-synology-ssh.sh`
+
+### Synology 직접 배포 스크립트
+
+```bash
+# 전체 배포
+./scripts/synology-deploy.sh all
+
+# API만 배포
+./scripts/synology-deploy.sh api
+
+# Web만 배포
+./scripts/synology-deploy.sh web
+
+# 자동 모드 (변경 있을 때만 배포, cron 등록용)
+./scripts/synology-deploy.sh auto
+```
+
+### 롤백
+
+```bash
+# 1개 전 커밋으로 롤백
+./scripts/synology-rollback.sh
+
+# 특정 커밋으로 롤백
+./scripts/synology-rollback.sh abc1234
+```
+
 ## 개발 요구사항
 
 ### 다국어 (i18n)

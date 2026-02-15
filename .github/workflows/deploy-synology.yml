@@ -1,0 +1,194 @@
+# ==========================================
+# Synology NAS 자동 배포 워크플로우
+# ==========================================
+# GitHub push → SSH → Synology NAS에서 git pull + Docker 재빌드
+#
+# 필요한 GitHub Secrets:
+#   SYNOLOGY_HOST     - Synology NAS IP (예: 1.212.201.147)
+#   SYNOLOGY_USER     - SSH 사용자 (예: root)
+#   SYNOLOGY_SSH_KEY  - SSH 프라이빗 키 (ed25519 or rsa)
+#   SYNOLOGY_PORT     - SSH 포트 (기본: 22)
+
+name: Deploy to Synology NAS
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      deploy_target:
+        description: '배포 대상'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - api
+          - web
+
+env:
+  PROJECT_DIR: /volume1/docker/printing114
+  COMPOSE_FILE: docker-compose.prod.yml
+
+jobs:
+  deploy:
+    name: Deploy to Synology
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # ── 1. 변경 파일 감지 ──
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect changes
+        id: changes
+        run: |
+          # workflow_dispatch인 경우 입력값 사용
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "deploy_target=${{ github.event.inputs.deploy_target }}" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # push 이벤트: 변경된 파일 기반으로 배포 대상 결정
+          CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "")
+
+          API_CHANGED=false
+          WEB_CHANGED=false
+          ROOT_CHANGED=false
+
+          echo "$CHANGED" | grep -q "^apps/api/" && API_CHANGED=true
+          echo "$CHANGED" | grep -q "^apps/web/" && WEB_CHANGED=true
+          echo "$CHANGED" | grep -q "^docker-compose" && ROOT_CHANGED=true
+          echo "$CHANGED" | grep -q "^package.json" && ROOT_CHANGED=true
+
+          if [ "$ROOT_CHANGED" = true ] || ([ "$API_CHANGED" = true ] && [ "$WEB_CHANGED" = true ]); then
+            echo "deploy_target=all" >> $GITHUB_OUTPUT
+          elif [ "$API_CHANGED" = true ]; then
+            echo "deploy_target=api" >> $GITHUB_OUTPUT
+          elif [ "$WEB_CHANGED" = true ]; then
+            echo "deploy_target=web" >> $GITHUB_OUTPUT
+          else
+            echo "deploy_target=none" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Skip if no relevant changes
+        if: steps.changes.outputs.deploy_target == 'none'
+        run: echo "No relevant changes detected. Skipping deployment."
+
+      # ── 2. Synology에 배포 ──
+      - name: Deploy to Synology NAS
+        if: steps.changes.outputs.deploy_target != 'none'
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SYNOLOGY_HOST }}
+          username: ${{ secrets.SYNOLOGY_USER }}
+          key: ${{ secrets.SYNOLOGY_SSH_KEY }}
+          port: ${{ secrets.SYNOLOGY_PORT || 22 }}
+          command_timeout: 10m
+          script: |
+            set -e
+            DEPLOY_TARGET="${{ steps.changes.outputs.deploy_target }}"
+            PROJECT_DIR="${{ env.PROJECT_DIR }}"
+            COMPOSE_FILE="${{ env.COMPOSE_FILE }}"
+            TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+
+            echo "==========================================="
+            echo " Printing114 배포 시작: $DEPLOY_TARGET"
+            echo " 시간: $(date '+%Y-%m-%d %H:%M:%S')"
+            echo "==========================================="
+
+            cd "$PROJECT_DIR"
+
+            # ── 현재 이미지 태그 백업 (롤백용) ──
+            echo "[1/6] 현재 상태 백업..."
+            if command -v docker &> /dev/null; then
+              docker images --format '{{.Repository}}:{{.Tag}}' | grep photocafe > "/tmp/deploy_backup_${TIMESTAMP}.txt" 2>/dev/null || true
+            fi
+
+            # ── Git Pull ──
+            echo "[2/6] 코드 업데이트 중..."
+            git fetch origin main
+            git reset --hard origin/main
+
+            # ── Docker 빌드 및 재시작 ──
+            echo "[3/6] Docker 컨테이너 빌드 및 재시작..."
+            case "$DEPLOY_TARGET" in
+              api)
+                echo "  -> API만 재빌드..."
+                docker compose -f "$COMPOSE_FILE" build --no-cache api
+                docker compose -f "$COMPOSE_FILE" up -d api
+                ;;
+              web)
+                echo "  -> Web만 재빌드..."
+                docker compose -f "$COMPOSE_FILE" build --no-cache web
+                docker compose -f "$COMPOSE_FILE" up -d web
+                ;;
+              all)
+                echo "  -> 전체 재빌드..."
+                docker compose -f "$COMPOSE_FILE" build --no-cache api web
+                docker compose -f "$COMPOSE_FILE" up -d
+                ;;
+            esac
+
+            # ── 시작 대기 ──
+            echo "[4/6] 서비스 시작 대기 (45초)..."
+            sleep 45
+
+            # ── Health Check ──
+            echo "[5/6] Health Check..."
+            API_OK=false
+            WEB_OK=false
+
+            for i in 1 2 3; do
+              if curl -sf http://localhost:3001/health > /dev/null 2>&1; then
+                API_OK=true
+                echo "  API: OK"
+                break
+              fi
+              echo "  API: 재시도 $i/3..."
+              sleep 10
+            done
+
+            for i in 1 2 3; do
+              if curl -sf http://localhost:3000 > /dev/null 2>&1; then
+                WEB_OK=true
+                echo "  Web: OK"
+                break
+              fi
+              echo "  Web: 재시도 $i/3..."
+              sleep 10
+            done
+
+            # ── 결과 보고 ──
+            echo "[6/6] 배포 결과"
+            echo "==========================================="
+            docker ps --filter 'name=photocafe' --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+            echo "==========================================="
+
+            if [ "$API_OK" = false ] || [ "$WEB_OK" = false ]; then
+              echo "WARNING: 일부 서비스가 응답하지 않습니다."
+              echo "  API: $API_OK / Web: $WEB_OK"
+              echo "로그 확인: docker logs photocafe-api --tail 50"
+              exit 1
+            fi
+
+            echo "배포 완료!"
+
+      # ── 3. 결과 알림 ──
+      - name: Deployment Success
+        if: success() && steps.changes.outputs.deploy_target != 'none'
+        run: |
+          echo "✅ Synology 배포 성공"
+          echo "  대상: ${{ steps.changes.outputs.deploy_target }}"
+          echo "  커밋: ${{ github.sha }}"
+          echo "  브랜치: ${{ github.ref_name }}"
+
+      - name: Deployment Failed
+        if: failure()
+        run: |
+          echo "❌ Synology 배포 실패"
+          echo "  커밋: ${{ github.sha }}"
+          echo "  로그를 확인하세요."
