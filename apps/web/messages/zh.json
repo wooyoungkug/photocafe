@@ -566,5 +566,83 @@
       "prev": "上一页",
       "next": "下一页"
     }
+  },
+  "clientLedger": {
+    "title": "客户台账",
+    "description": "按客户查看销售/采购交易记录和余额",
+    "summary": {
+      "clientCount": "客户数",
+      "totalSales": "总销售额",
+      "salesOutstanding": "应收账款",
+      "totalPurchases": "总采购额"
+    },
+    "filters": {
+      "search": "搜索客户",
+      "searchPlaceholder": "客户名称或代码",
+      "clientType": "客户类型",
+      "all": "全部",
+      "salesClient": "销售客户",
+      "purchaseClient": "采购客户",
+      "startDate": "开始日期",
+      "endDate": "结束日期",
+      "periodType": "查询周期",
+      "thisMonth": "本月",
+      "months3": "3个月",
+      "months6": "6个月",
+      "year1": "1年"
+    },
+    "table": {
+      "clientCode": "客户代码",
+      "clientName": "客户名称",
+      "salesAmount": "销售额",
+      "receivedAmount": "收款额",
+      "salesOutstanding": "应收款",
+      "salesCount": "销售笔数",
+      "purchaseAmount": "采购额",
+      "paidAmount": "付款额",
+      "purchaseOutstanding": "应付款",
+      "purchaseCount": "采购笔数"
+    },
+    "detail": {
+      "clientInfo": "客户信息",
+      "carryForward": "期初余额",
+      "salesBalance": "应收余额",
+      "purchaseBalance": "应付余额",
+      "netBalance": "净余额",
+      "periodTotal": "期间合计",
+      "totalDebit": "借方合计",
+      "totalCredit": "贷方合计",
+      "closingBalance": "期末余额",
+      "transactions": "交易明细",
+      "periodSummary": "期间汇总"
+    },
+    "transactionType": {
+      "sales": "销售",
+      "receipt": "收款",
+      "purchase": "采购",
+      "payment": "付款"
+    },
+    "periodType": {
+      "daily": "日报",
+      "monthly": "月报",
+      "quarterly": "季报",
+      "yearly": "年报"
+    },
+    "columns": {
+      "date": "日期",
+      "type": "类型",
+      "ledgerNumber": "凭证号",
+      "orderNumber": "订单号",
+      "description": "摘要",
+      "debit": "借方",
+      "credit": "贷方",
+      "balance": "余额",
+      "period": "期间",
+      "count": "笔数"
+    },
+    "noData": "没有有交易记录的客户",
+    "noTransactions": "所选期间没有交易记录",
+    "exportCSV": "下载CSV",
+    "total": "合计"
   }
 }

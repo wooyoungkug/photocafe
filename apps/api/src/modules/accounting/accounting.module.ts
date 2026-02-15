@@ -5,6 +5,7 @@ import { PurchaseLedgerController } from './controllers/purchase-ledger.controll
 import { DashboardController } from './controllers/dashboard.controller';
 import { ReportsController } from './controllers/reports.controller';
 import { DepositsController } from './controllers/deposits.controller';
+import { ClientLedgerController } from './controllers/client-ledger.controller';
 import { AccountingService } from './services/accounting.service';
 import { SalesLedgerService } from './services/sales-ledger.service';
 import { PurchaseLedgerService } from './services/purchase-ledger.service';
@@ -12,6 +13,7 @@ import { JournalEngineService } from './services/journal-engine.service';
 import { DashboardService } from './services/dashboard.service';
 import { ReportsService } from './services/reports.service';
 import { DepositsService } from './services/deposits.service';
+import { ClientLedgerService } from './services/client-ledger.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
 @Module({
@@ -22,6 +24,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
     DashboardController,
     ReportsController,
     DepositsController,
+    ClientLedgerController,
   ],
   providers: [
     AccountingService,
@@ -31,6 +34,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
     DashboardService,
     ReportsService,
     DepositsService,
+    ClientLedgerService,
     PrismaService,
   ],
   exports: [
@@ -41,6 +45,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
     DashboardService,
     ReportsService,
     DepositsService,
+    ClientLedgerService,
   ],
 })
 export class AccountingModule {}

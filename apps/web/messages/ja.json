@@ -566,5 +566,83 @@
       "prev": "前へ",
       "next": "次へ"
     }
+  },
+  "clientLedger": {
+    "title": "取引先元帳",
+    "description": "取引先別の売上/仕入取引履歴と残高を照会します",
+    "summary": {
+      "clientCount": "取引先数",
+      "totalSales": "総売上高",
+      "salesOutstanding": "売掛金残高",
+      "totalPurchases": "総仕入高"
+    },
+    "filters": {
+      "search": "取引先検索",
+      "searchPlaceholder": "取引先名またはコード",
+      "clientType": "取引先種類",
+      "all": "全て",
+      "salesClient": "売上先",
+      "purchaseClient": "仕入先",
+      "startDate": "開始日",
+      "endDate": "終了日",
+      "periodType": "照会単位",
+      "thisMonth": "当月",
+      "months3": "3ヶ月",
+      "months6": "6ヶ月",
+      "year1": "1年"
+    },
+    "table": {
+      "clientCode": "取引先コード",
+      "clientName": "取引先名",
+      "salesAmount": "売上高",
+      "receivedAmount": "入金額",
+      "salesOutstanding": "売掛金",
+      "salesCount": "売上件数",
+      "purchaseAmount": "仕入高",
+      "paidAmount": "支払額",
+      "purchaseOutstanding": "買掛金",
+      "purchaseCount": "仕入件数"
+    },
+    "detail": {
+      "clientInfo": "取引先情報",
+      "carryForward": "前期繰越残高",
+      "salesBalance": "売掛金残高",
+      "purchaseBalance": "買掛金残高",
+      "netBalance": "純残高",
+      "periodTotal": "期間合計",
+      "totalDebit": "借方合計",
+      "totalCredit": "貸方合計",
+      "closingBalance": "期末残高",
+      "transactions": "取引明細",
+      "periodSummary": "期間別集計"
+    },
+    "transactionType": {
+      "sales": "売上",
+      "receipt": "入金",
+      "purchase": "仕入",
+      "payment": "支払"
+    },
+    "periodType": {
+      "daily": "日別",
+      "monthly": "月別",
+      "quarterly": "四半期別",
+      "yearly": "年別"
+    },
+    "columns": {
+      "date": "日付",
+      "type": "種類",
+      "ledgerNumber": "伝票番号",
+      "orderNumber": "注文番号",
+      "description": "摘要",
+      "debit": "借方",
+      "credit": "貸方",
+      "balance": "残高",
+      "period": "期間",
+      "count": "件数"
+    },
+    "noData": "取引履歴のある取引先がありません",
+    "noTransactions": "該当期間の取引明細がありません",
+    "exportCSV": "CSVダウンロード",
+    "total": "合計"
   }
 }

@@ -566,5 +566,83 @@
       "prev": "Previous",
       "next": "Next"
     }
+  },
+  "clientLedger": {
+    "title": "Client Ledger",
+    "description": "View transaction history and balances by client",
+    "summary": {
+      "clientCount": "Clients",
+      "totalSales": "Total Sales",
+      "salesOutstanding": "Outstanding Receivables",
+      "totalPurchases": "Total Purchases"
+    },
+    "filters": {
+      "search": "Search Client",
+      "searchPlaceholder": "Client name or code",
+      "clientType": "Client Type",
+      "all": "All",
+      "salesClient": "Sales Client",
+      "purchaseClient": "Purchase Client",
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "periodType": "Period",
+      "thisMonth": "This Month",
+      "months3": "3 Months",
+      "months6": "6 Months",
+      "year1": "1 Year"
+    },
+    "table": {
+      "clientCode": "Client Code",
+      "clientName": "Client Name",
+      "salesAmount": "Sales",
+      "receivedAmount": "Received",
+      "salesOutstanding": "Outstanding",
+      "salesCount": "Sales Count",
+      "purchaseAmount": "Purchases",
+      "paidAmount": "Paid",
+      "purchaseOutstanding": "Payables",
+      "purchaseCount": "Purchase Count"
+    },
+    "detail": {
+      "clientInfo": "Client Info",
+      "carryForward": "Carry Forward Balance",
+      "salesBalance": "Receivable Balance",
+      "purchaseBalance": "Payable Balance",
+      "netBalance": "Net Balance",
+      "periodTotal": "Period Total",
+      "totalDebit": "Total Debit",
+      "totalCredit": "Total Credit",
+      "closingBalance": "Closing Balance",
+      "transactions": "Transactions",
+      "periodSummary": "Period Summary"
+    },
+    "transactionType": {
+      "sales": "Sales",
+      "receipt": "Receipt",
+      "purchase": "Purchase",
+      "payment": "Payment"
+    },
+    "periodType": {
+      "daily": "Daily",
+      "monthly": "Monthly",
+      "quarterly": "Quarterly",
+      "yearly": "Yearly"
+    },
+    "columns": {
+      "date": "Date",
+      "type": "Type",
+      "ledgerNumber": "Voucher No.",
+      "orderNumber": "Order No.",
+      "description": "Description",
+      "debit": "Debit",
+      "credit": "Credit",
+      "balance": "Balance",
+      "period": "Period",
+      "count": "Count"
+    },
+    "noData": "No clients with transaction history",
+    "noTransactions": "No transactions for the selected period",
+    "exportCSV": "Export CSV",
+    "total": "Total"
   }
 }
