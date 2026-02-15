@@ -62,7 +62,7 @@ export default function StaffSummaryTable({ data, isLoading, dateRange }: StaffS
               <TableHead className="text-right">수금액</TableHead>
               <TableHead className="text-right">미수금</TableHead>
               <TableHead className="text-center">수금률</TableHead>
-              <TableHead className="text-center">거래 건수</TableHead>
+              <TableHead className="text-center">주문 건수</TableHead>
               <TableHead className="w-[100px]"></TableHead>
             </TableRow>
           </TableHeader>
@@ -199,7 +199,7 @@ function StaffRow({ staff, isExpanded, onToggle, dateRange, getCollectionRateBad
                       <TableHead className="text-right">수금액</TableHead>
                       <TableHead className="text-right">미수금</TableHead>
                       <TableHead className="text-center">수금률</TableHead>
-                      <TableHead className="text-center">거래 건수</TableHead>
+                      <TableHead className="text-center">주문 건수</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
