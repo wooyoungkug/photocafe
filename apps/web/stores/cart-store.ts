@@ -92,6 +92,13 @@ export interface CartItem {
     fileUrl: string;
     thumbnailUrl: string;
     sortOrder: number;
+    fileName: string;
+    widthPx: number;
+    heightPx: number;
+    widthInch: number;
+    heightInch: number;
+    dpi: number;
+    fileSize: number;
   }>;
   tempFolderId?: string;                 // 임시 폴더 ID
 }
