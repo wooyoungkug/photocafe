@@ -570,6 +570,18 @@
   "clientLedger": {
     "title": "取引先元帳",
     "description": "取引先別の売上/仕入取引履歴と残高を照会します",
+    "sales": {
+      "title": "売上先元帳",
+      "description": "取引先別の売上取引履歴と売掛金を照会します",
+      "clientCount": "売上先数",
+      "noData": "売上取引履歴のある取引先がありません"
+    },
+    "purchase": {
+      "title": "仕入先元帳",
+      "description": "取引先別の仕入取引履歴と買掛金を照会します",
+      "clientCount": "仕入先数",
+      "noData": "仕入取引履歴のある取引先がありません"
+    },
     "summary": {
       "clientCount": "取引先数",
       "totalSales": "総売上高",

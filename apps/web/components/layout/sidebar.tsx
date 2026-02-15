@@ -138,7 +138,8 @@ const DEFAULT_NAVIGATION: NavItem[] = [
     children: [
       { name: "계정과목관리", href: "/accounting/accounts" },
       { name: "전표관리", href: "/accounting/journals" },
-      { name: "거래처원장", href: "/accounting/client-ledger" },
+      { name: "매출거래처원장", href: "/accounting/client-ledger/sales" },
+      { name: "매입거래처원장", href: "/accounting/client-ledger/purchases" },
       { name: "매출원장", href: "/accounting/sales" },
       { name: "매입관리", href: "/accounting/purchases" },
       { name: "미수금관리", href: "/accounting/receivables" },

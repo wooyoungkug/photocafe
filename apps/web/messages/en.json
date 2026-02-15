@@ -570,6 +570,18 @@
   "clientLedger": {
     "title": "Client Ledger",
     "description": "View transaction history and balances by client",
+    "sales": {
+      "title": "Sales Client Ledger",
+      "description": "View sales transactions and outstanding receivables by client",
+      "clientCount": "Sales Clients",
+      "noData": "No clients with sales transactions"
+    },
+    "purchase": {
+      "title": "Purchase Client Ledger",
+      "description": "View purchase transactions and outstanding payables by client",
+      "clientCount": "Purchase Clients",
+      "noData": "No clients with purchase transactions"
+    },
     "summary": {
       "clientCount": "Clients",
       "totalSales": "Total Sales",
