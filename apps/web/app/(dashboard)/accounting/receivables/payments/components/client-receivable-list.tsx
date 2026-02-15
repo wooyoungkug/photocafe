@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Search, Receipt, ArrowUpDown } from 'lucide-react';
+import { Search, ArrowUpDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -177,7 +177,6 @@ export function ClientReceivableList({
                   </button>
                 </TableHead>
                 <TableHead className="text-center w-[70px]">상태</TableHead>
-                <TableHead className="w-[60px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -196,15 +195,12 @@ export function ClientReceivableList({
                     <TableCell>
                       <Skeleton className="h-5 w-14 mx-auto" />
                     </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-7 w-12" />
-                    </TableCell>
                   </TableRow>
                 ))
               ) : filteredData.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={5}
+                    colSpan={4}
                     className="text-center py-12 text-muted-foreground"
                   >
                     {searchTerm
@@ -268,20 +264,6 @@ export function ClientReceivableList({
                         <Badge className={`text-[10px] px-1.5 py-0 ${status.className}`}>
                           {status.label}
                         </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSelect(item);
-                          }}
-                          aria-label={`${item.clientName} 수금 처리`}
-                        >
-                          <Receipt className="h-3.5 w-3.5" />
-                        </Button>
                       </TableCell>
                     </TableRow>
                   );
@@ -347,22 +329,10 @@ export function ClientReceivableList({
                       {status.label}
                     </Badge>
                   </div>
-                  <div className="mt-2 flex items-center justify-between">
+                  <div className="mt-2">
                     <span className="text-sm font-bold text-orange-600">
                       {item.outstanding.toLocaleString()}원
                     </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-xs"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelect(item);
-                      }}
-                    >
-                      <Receipt className="h-3 w-3 mr-1" />
-                      수금
-                    </Button>
                   </div>
                   <div className="mt-1.5 flex items-center gap-2">
                     <Progress value={rate} className="flex-1 h-1.5" />
