@@ -59,10 +59,12 @@ export function UploadProgressModal({
   );
 
   const aggregateProgress = useMemo(() => {
+    const totalFolders = primaryItems.length;
+    const completedFolders = primaryItems.filter((item) => item.uploadStatus === 'completed').length;
     const totalFiles = primaryItems.reduce((sum, item) => sum + (item.totalFileCount || 0), 0);
     const uploadedFiles = primaryItems.reduce((sum, item) => sum + (item.uploadedFileCount || 0), 0);
     const overallPercent = totalFiles > 0 ? Math.round((uploadedFiles / totalFiles) * 100) : 0;
-    return { totalFiles, uploadedFiles, overallPercent };
+    return { totalFolders, completedFolders, totalFiles, uploadedFiles, overallPercent };
   }, [primaryItems]);
 
   const allCompleted =
@@ -129,7 +131,7 @@ export function UploadProgressModal({
           <div className="flex items-center justify-between text-sm">
             <span className="text-gray-600">전체 진행률</span>
             <span className="font-medium tabular-nums">
-              {aggregateProgress.uploadedFiles}/{aggregateProgress.totalFiles}건 ({aggregateProgress.overallPercent}%)
+              {aggregateProgress.completedFolders}/{aggregateProgress.totalFolders}폴더 ({aggregateProgress.overallPercent}%)
             </span>
           </div>
           <Progress value={aggregateProgress.overallPercent} className="h-2.5" />
