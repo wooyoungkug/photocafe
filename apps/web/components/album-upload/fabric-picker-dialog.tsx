@@ -100,7 +100,7 @@ export function FabricPickerDialog({
         name: newFabricName.trim(),
         colorName: newFabricColor.trim() || undefined,
         supplierId: newFabricSupplierId || undefined,
-        category: 'cloth',
+        category: 'fabric',
         material: 'cotton',
         forAlbumCover: true,
         isActive: true,

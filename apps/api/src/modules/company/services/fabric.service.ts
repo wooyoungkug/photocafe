@@ -204,7 +204,7 @@ export class FabricService {
       data: {
         code: dto.code,
         name: dto.name,
-        category: dto.category || 'cloth',
+        category: dto.category || 'fabric',
         material: dto.material || 'cotton',
         colorCode: dto.colorCode,
         colorName: dto.colorName,
