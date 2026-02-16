@@ -372,11 +372,76 @@ const printMethodOptions = useMemo(() => {
 | 액자 | 규격, 프레임종류, 유리/아크릴 |
 | 굿즈 | 규격, 재질, 수량 |
 
+## 출력방식별 용지 자동 분류 패턴
+
+### 핵심 원리
+- `ProductPaper.printMethod` 필드로 각 용지의 출력방식을 구분 (`'indigo'` | `'inkjet'` | `'offset'`)
+- `Paper.printMethods` (마스터 용지) 배열로 지원 출력방식 관리 (`['indigo']`, `['inkjet']`, `['indigo','inkjet']`)
+- 출력방식 선택 → 해당 용지만 자동 필터링하여 표시
+
+### 쇼핑몰 상품상세 UI 패턴 (product/[id]/page.tsx)
+
+```typescript
+// 1. SelectedOptions에 printMethod 포함
+interface SelectedOptions {
+  printMethod?: 'indigo' | 'inkjet';
+  paper?: ProductPaper;
+  // ...
+}
+
+// 2. 기본값 설정: 인디고 용지가 있으면 인디고, 없으면 잉크젯
+const hasIndigo = activePapers.some(p => p.printMethod === 'indigo');
+const defaultPrintMethod = hasIndigo ? 'indigo' : 'inkjet';
+
+// 3. 선택된 출력방식에 맞는 용지만 필터링
+const filteredPapers = hasPrintMethodInfo
+  ? activePapers.filter(p => p.printMethod === currentPrintMethod)
+  : activePapers;
+
+// 4. 출력방식 전환 시 해당 방식의 기본 용지 자동 선택
+onClick={() => {
+  const inkjetPapers = activePapers.filter(p => p.printMethod === 'inkjet');
+  const defaultPaper = inkjetPapers.find(p => p.isDefault) || inkjetPapers[0];
+  setSelectedOptions(prev => ({ ...prev, printMethod: 'inkjet', paper: defaultPaper }));
+}}
+```
+
+### 관리자 상품편집 UI 패턴 (products/[id]/edit/page.tsx)
+
+```typescript
+// 출력방식별 1차 그룹화 → 용지종류별 2차 그룹화
+const printMethodGroups = {};
+papers.forEach(p => {
+  const method = p.printMethod || 'etc';
+  if (!printMethodGroups[method]) printMethodGroups[method] = [];
+  printMethodGroups[method].push(p);
+});
+
+// 출력방식 표시 순서 및 라벨
+const methodOrder = ['indigo', 'inkjet', 'offset', 'etc'];
+const methodLabels = {
+  indigo: '인디고출력용지',
+  inkjet: '잉크젯출력용지',
+  offset: '오프셋용지',
+  etc: '기타',
+};
+```
+
+### 관련 파일
+- 타입: `apps/web/lib/types/product.ts` → `ProductPaper.printMethod`
+- 쇼핑몰: `apps/web/app/(shop)/product/[id]/page.tsx` → 출력방식 탭 + 용지 필터링
+- 관리자: `apps/web/app/(dashboard)/products/[id]/edit/page.tsx` → 출력방식별 그룹화 테이블
+- API Hook: `apps/web/hooks/use-paper.ts` → `usePapersByPrintMethod(method)`
+- 백엔드: `GET /papers/print-method/:method` → 출력방식별 용지 조회
+- DB: `ProductPaper.printMethod` (String?), `Paper.printMethods` (String[])
+
 ## 체크리스트
 
 상품 관리 기능 구현 시 확인사항:
 
-- [ ] 출력방식 선택 UI (HP인디고/잉크젯)
+- [x] 출력방식 선택 UI (HP인디고/잉크젯)
+- [x] 출력방식별 용지 자동 필터링 (쇼핑몰)
+- [x] 출력방식별 용지 그룹화 표시 (관리자)
 - [ ] 앨범 종류별 출력방식 제한 로직
 - [ ] 카테고리 트리 컴포넌트 구현
 - [ ] 상품 목록 필터링 (유형, 출력방식, 카테고리)

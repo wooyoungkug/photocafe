@@ -94,3 +94,14 @@ export function useDeleteProduct() {
     },
   });
 }
+
+export function useSyncProductPapers() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (productId: string) => api.post(`/products/${productId}/sync-papers`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [PRODUCTS_KEY] });
+    },
+  });
+}

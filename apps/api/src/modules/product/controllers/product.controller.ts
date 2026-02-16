@@ -184,6 +184,24 @@ export class ProductController {
     return this.productService.unlinkHalfProduct(id, halfProductId);
   }
 
+  // ==================== 용지 마스터 동기화 ====================
+
+  @Post('sync-all-papers')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: '전체 상품 용지 마스터 일괄 동기화' })
+  async syncAllPapers() {
+    return this.productService.syncAllProductPapers();
+  }
+
+  @Post(':id/sync-papers')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: '개별 상품 용지 마스터 동기화' })
+  async syncPapers(@Param('id') id: string) {
+    return this.productService.syncProductPapers(id);
+  }
+
   // ==================== 규격 정리 ====================
 
   @Post('cleanup-specs')

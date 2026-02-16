@@ -54,8 +54,9 @@ export interface AlbumOrderCartInfo {
   bindingDirection: string;        // 제본방향
   specificationId: string;         // 규격 ID
   specificationName: string;       // 규격명
-  fabricName?: string;             // 원단명
-  fabricCategory?: string;         // 'leather' | 'canvas' | 'linen' | 'fabric'
+  bindingName?: string;            // 제본방법명
+  paperName?: string;              // 용지명
+  coverMaterial?: string;          // 커버 재질
   foilName?: string;               // 박 동판명
   foilColor?: string;              // 박 색상
   foilPosition?: string;           // 박 위치

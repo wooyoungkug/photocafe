@@ -1,8 +1,8 @@
 'use client';
 
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRight, ChevronDown, ChevronUp, Minus, Plus, ShoppingCart, Heart, Share2, Eye, FileText, Image as ImageIcon, Calendar, Star, FolderHeart, Loader2, Upload, BookOpen, AlertTriangle, Palette } from 'lucide-react';
+import { ChevronRight, ChevronDown, ChevronUp, Minus, Plus, ShoppingCart, Heart, Share2, Eye, FileText, Image as ImageIcon, Calendar, Star, FolderHeart, Loader2, Upload, BookOpen, AlertTriangle, Palette, Check } from 'lucide-react';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useProduct } from '@/hooks/use-products';
 import { Button } from '@/components/ui/button';
@@ -19,7 +19,7 @@ import { api } from '@/lib/api';
 import type { Product, ProductSpecification, ProductBinding, ProductPaper, ProductCover, ProductFoil, ProductFinishing, ProductPublicCopperPlate } from '@/lib/types';
 import { useAuthStore } from '@/stores/auth-store';
 import { useCopperPlatesByClient, useCopperPlateLabels, type CopperPlate } from '@/hooks/use-copper-plates';
-import { useMyProductsByClient, useCreateMyProduct, type MyProduct, type MyProductOptions } from '@/hooks/use-my-products';
+import { useMyProductsByClient, useMyProduct, useCreateMyProduct, useRecordMyProductUsage, type MyProduct, type MyProductOptions } from '@/hooks/use-my-products';
 import { usePublicCopperPlates, type PublicCopperPlate } from '@/hooks/use-public-copper-plates';
 import {
   Dialog,
@@ -32,7 +32,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { MultiFolderUpload } from '@/components/album-upload';
 import { useMultiFolderUploadStore, type UploadedFolder, type CoverSourceType, calculateUploadedFolderPrice, calculateAdditionalOrderPrice } from '@/stores/multi-folder-upload-store';
-import { useFabrics, FABRIC_CATEGORY_LABELS, FABRIC_CATEGORY_COLORS, type Fabric, type FabricCategory } from '@/hooks/use-fabrics';
 import { useTranslations } from 'next-intl';
 import { startBackgroundUpload, type FolderUploadData } from '@/lib/background-upload';
 import { UploadProgressModal } from './_components/upload-progress-modal';
@@ -45,6 +44,7 @@ interface SelectedOptions {
   foil?: ProductFoil;
   finishings: ProductFinishing[];
   printSide?: 'single' | 'double';  // 단면/양면
+  printMethod?: 'indigo' | 'inkjet';  // 출력방식 (인디고/잉크젯)
   // 페이지 편집 방식 및 제본 순서
   pageEditMode?: 'single' | 'spread';  // 낱장 / 펼침면
   bindingDirection?: string;  // 좌시작→우끝, 좌시작→좌끝, 우시작→좌끝, 우시작→우끝
@@ -88,7 +88,9 @@ const isAlbumProduct = (bindings?: ProductBinding[]): boolean => {
 export default function ProductPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const productId = params.id as string;
+  const myProductIdParam = searchParams.get('myProductId');
   const { toast } = useToast();
 
   const t = useTranslations('product');
@@ -106,7 +108,9 @@ export default function ProductPage() {
 
   // 마이상품 조회 및 저장
   const { data: myProducts } = useMyProductsByClient(isAuthenticated ? user?.id : undefined);
+  const { data: myProductFromParam } = useMyProduct(myProductIdParam || undefined);
   const createMyProduct = useCreateMyProduct();
+  const recordMyProductUsage = useRecordMyProductUsage();
 
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
@@ -132,33 +136,8 @@ export default function ProductPage() {
     folders: uploadFolders,
     clearFolders,
     applyGlobalCoverSource,
-    setFolderFabric,
     setAllFoldersFoil,
   } = useMultiFolderUploadStore();
-
-  // 표지 원단 카테고리 선택
-  const [selectedFabricCategory, setSelectedFabricCategory] = useState<FabricCategory | null>(null);
-
-  // 카테고리별 원단 목록 조회 (카테고리 선택 시에만)
-  const { data: categoryFabricsData } = useFabrics(
-    selectedFabricCategory
-      ? { category: selectedFabricCategory, forAlbumCover: true, isActive: true, limit: 100 }
-      : undefined
-  );
-  const categoryFabrics = selectedFabricCategory ? (categoryFabricsData?.data || []) : [];
-
-  // 현재 선택된 원단 (첫 번째 폴더 기준)
-  const selectedFabricInfo = uploadFolders.length > 0 ? {
-    id: uploadFolders[0].selectedFabricId,
-    name: uploadFolders[0].selectedFabricName,
-    thumbnail: uploadFolders[0].selectedFabricThumbnail,
-  } : null;
-
-  const handleCoverFabricSelect = (fabric: Fabric) => {
-    uploadFolders.forEach(f => {
-      setFolderFabric(f.id, fabric.id, fabric.name, fabric.thumbnailUrl || null, fabric.basePrice, fabric.category);
-    });
-  };
 
   // 업로드 진행 모달 상태
   const [uploadModalState, setUploadModalState] = useState<{
@@ -225,7 +204,6 @@ export default function ProductPage() {
           const options: CartItemOption[] = [
             { name: '규격', value: folder.specLabel, price: 0 },
             { name: '페이지', value: `${folder.pageCount}p`, price: 0 },
-            { name: '파일수', value: `${folder.files.length}건`, price: 0 },
           ];
           const allThumbnailUrls = folder.files
             .map(f => f.thumbnailUrl)
@@ -264,15 +242,16 @@ export default function ProductPage() {
               folderName: folder.orderTitle,
               fileCount: folder.files.length,
               pageCount: folder.pageCount,
-              printMethod: 'indigo',
+              printMethod: selectedOptions.printMethod || 'indigo',
               colorMode: '4c',
               pageLayout: folder.pageLayout || 'single',
               bindingDirection: folder.bindingDirection || 'LEFT_START_RIGHT_END',
               specificationId: '',
               specificationName: folder.specLabel,
+              bindingName: selectedOptions.binding?.name || undefined,
+              paperName: selectedOptions.paper?.name || undefined,
+              coverMaterial: selectedOptions.cover?.name || undefined,
               totalSize: folder.totalFileSize || 0,
-              fabricName: folder.selectedFabricName || undefined,
-              fabricCategory: folder.selectedFabricCategory || undefined,
               foilName: folder.foilName || undefined,
               foilColor: folder.foilColor || undefined,
               foilPosition: folder.foilPosition || undefined,
@@ -296,7 +275,6 @@ export default function ProductPage() {
               options: [
                 { name: '규격', value: additional.albumLabel, price: 0 },
                 { name: '페이지', value: `${folder.pageCount}p`, price: 0 },
-                { name: '파일수', value: `${folder.files.length}건`, price: 0 },
               ],
               totalPrice: additionalPrice.totalPrice,
               albumOrderInfo: {
@@ -304,15 +282,16 @@ export default function ProductPage() {
                 folderName: folder.orderTitle,
                 fileCount: folder.files.length,
                 pageCount: folder.pageCount,
-                printMethod: 'indigo',
+                printMethod: selectedOptions.printMethod || 'indigo',
                 colorMode: '4c',
                 pageLayout: folder.pageLayout || 'single',
                 bindingDirection: folder.bindingDirection || 'LEFT_START_RIGHT_END',
                 specificationId: '',
                 specificationName: additional.albumLabel,
+                bindingName: selectedOptions.binding?.name || undefined,
+                paperName: selectedOptions.paper?.name || undefined,
+                coverMaterial: selectedOptions.cover?.name || undefined,
                 totalSize: folder.totalFileSize || 0,
-                fabricName: folder.selectedFabricName || undefined,
-                fabricCategory: folder.selectedFabricCategory || undefined,
                 foilName: folder.foilName || undefined,
                 foilColor: folder.foilColor || undefined,
                 foilPosition: folder.foilPosition || undefined,
@@ -370,10 +349,21 @@ export default function ProductPage() {
       const defaultBinding = product.bindings?.find(b => b.isDefault) || product.bindings?.[0];
       const publicPlates = allPublicCopperPlates?.data || [];
       const defaultPublicCopperPlate = publicPlates[0];
+
+      // 출력방식 기본값 결정: 인디고 용지가 있으면 인디고, 아니면 잉크젯
+      const activePapers = product.papers?.filter(p => p.isActive !== false) || [];
+      const hasIndigo = activePapers.some(p => p.printMethod === 'indigo');
+      const defaultPrintMethod: 'indigo' | 'inkjet' = hasIndigo ? 'indigo' : 'inkjet';
+
+      // 해당 출력방식의 용지 중에서 기본값 선택
+      const filteredPapers = activePapers.filter(p => p.printMethod === defaultPrintMethod);
+      const defaultPaper = filteredPapers.find(p => p.isDefault) || filteredPapers[0] || activePapers.find(p => p.isDefault) || activePapers[0];
+
       setSelectedOptions({
         specification: product.specifications?.find(s => s.isDefault) || product.specifications?.[0],
         binding: defaultBinding,
-        paper: product.papers?.filter(p => p.isActive !== false).find(p => p.isDefault) || product.papers?.filter(p => p.isActive !== false)[0],
+        paper: defaultPaper,
+        printMethod: defaultPrintMethod,
         cover: product.covers?.find(c => c.isDefault) || product.covers?.[0],
         foil: product.foils?.find(f => f.isDefault) || product.foils?.[0],
         finishings: product.finishings?.filter(f => f.isDefault) || [],
@@ -387,6 +377,52 @@ export default function ProductPage() {
       });
     }
   }, [product, copperPlateLabels, allPublicCopperPlates]);
+
+  // 마이상품에서 진입 시 저장된 옵션 자동 적용
+  const [myProductApplied, setMyProductApplied] = useState(false);
+  useEffect(() => {
+    if (!myProductIdParam || !myProductFromParam || !product || myProductApplied) return;
+
+    const opts = myProductFromParam.options;
+    const spec = product.specifications?.find(s => s.id === opts.specificationId);
+    const binding = product.bindings?.find(b => b.id === opts.bindingId);
+    const paper = product.papers?.find(p => p.id === opts.paperId);
+    const cover = product.covers?.find(c => c.id === opts.coverId);
+    const finishings = product.finishings?.filter(f => opts.finishingIds?.includes(f.id)) || [];
+    const ownedPlate = opts.copperPlateType === 'owned'
+      ? ownedCopperPlates?.find(cp => cp.id === opts.copperPlateId)
+      : undefined;
+    const publicPlate = opts.copperPlateType === 'public'
+      ? product.publicCopperPlates?.find(p => p.id === opts.copperPlateId)?.publicCopperPlate
+      : undefined;
+
+    setSelectedOptions({
+      specification: spec,
+      binding,
+      paper,
+      cover,
+      finishings,
+      printSide: opts.printSide,
+      printMethod: paper?.printMethod || 'indigo',
+      copperPlateType: opts.copperPlateType,
+      ownedCopperPlate: ownedPlate,
+      publicCopperPlate: publicPlate,
+      foilColor: opts.foilColor,
+      foilPosition: opts.foilPosition,
+    });
+
+    if (myProductFromParam.defaultQuantity) {
+      setQuantity(myProductFromParam.defaultQuantity);
+    }
+
+    setMyProductApplied(true);
+    recordMyProductUsage.mutate(myProductFromParam.id);
+
+    toast({
+      title: t('myProductLoaded'),
+      description: t('myProductLoadedDesc', { name: myProductFromParam.name }),
+    });
+  }, [myProductIdParam, myProductFromParam, product, myProductApplied, ownedCopperPlates]);
 
   // 동판 옵션 변경 시 업로드된 폴더에 동기화
   useEffect(() => {
@@ -622,8 +658,6 @@ export default function ProductPage() {
     }
 
     const options: MyProductOptions = {
-      specificationId: selectedOptions.specification?.id,
-      specificationName: selectedOptions.specification?.name,
       bindingId: selectedOptions.binding?.id,
       bindingName: selectedOptions.binding?.name,
       paperId: selectedOptions.paper?.id,
@@ -713,6 +747,7 @@ export default function ProductPage() {
     });
 
     setQuantity(myProduct.defaultQuantity);
+
     setShowLoadMyProductModal(false);
 
     toast({
@@ -847,148 +882,115 @@ export default function ProductPage() {
                 </OptionSection>
               )}
 
-              {/* 앨범표지 - 화보/앨범 상품만 (제본방법 바로 아래) */}
-              {isAlbum && (
-                <OptionSection title={t('albumCover')}>
-                  {/* 선택된 원단 표시 */}
-                  {selectedFabricInfo?.id && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 mb-3 rounded-md border border-amber-200 bg-amber-50">
-                      {selectedFabricInfo.thumbnail && (
-                        <div
-                          className="w-10 h-10 rounded border border-amber-300 bg-cover bg-center flex-shrink-0"
-                          style={{ backgroundImage: `url(${normalizeImageUrl(selectedFabricInfo.thumbnail)})` }}
-                        />
-                      )}
-                      <span className="text-sm font-medium text-gray-800">{selectedFabricInfo.name}</span>
-                    </div>
-                  )}
 
-                  {/* 카테고리 버튼 4개 */}
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {(Object.keys(FABRIC_CATEGORY_LABELS) as FabricCategory[]).map((cat) => (
-                      <button
-                        key={cat}
-                        type="button"
-                        onClick={() => {
-                          setSelectedFabricCategory(prev => prev === cat ? null : cat);
-                          applyGlobalCoverSource('fabric');
-                        }}
-                        className={cn(
-                          'px-3 py-1.5 text-xs font-medium rounded-md border transition-all',
-                          selectedFabricCategory === cat
-                            ? FABRIC_CATEGORY_COLORS[cat]
-                            : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-                        )}
-                      >
-                        {FABRIC_CATEGORY_LABELS[cat]}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* 선택된 카테고리의 원단 목록 */}
-                  {selectedFabricCategory && (
-                    <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-[280px] overflow-y-auto pr-1">
-                      {categoryFabrics.length === 0 ? (
-                        <p className="col-span-full text-xs text-gray-400 py-4 text-center">
-                          {t('selectFabric')}
-                        </p>
-                      ) : (
-                        categoryFabrics.map((fabric) => (
-                          <button
-                            key={fabric.id}
-                            type="button"
-                            onClick={() => handleCoverFabricSelect(fabric)}
-                            className={cn(
-                              'flex flex-col items-center gap-1 p-2 rounded-lg border transition-all text-center',
-                              selectedFabricInfo?.id === fabric.id
-                                ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                            )}
-                          >
-                            {fabric.thumbnailUrl ? (
-                              <div
-                                className="w-12 h-12 rounded border bg-cover bg-center flex-shrink-0"
-                                style={{ backgroundImage: `url(${normalizeImageUrl(fabric.thumbnailUrl)})` }}
-                              />
-                            ) : fabric.colorCode ? (
-                              <div
-                                className="w-12 h-12 rounded border flex-shrink-0"
-                                style={{ backgroundColor: fabric.colorCode }}
-                              />
-                            ) : (
-                              <div className="w-12 h-12 rounded border bg-gray-100 flex items-center justify-center flex-shrink-0">
-                                <Palette className="w-5 h-5 text-gray-400" />
-                              </div>
-                            )}
-                            <span className="text-[10px] font-medium text-gray-800 leading-tight line-clamp-2">
-                              {fabric.name}
-                            </span>
-                            {fabric.colorName && (
-                              <span className="text-[10px] text-gray-500 leading-tight">
-                                {fabric.colorName}
-                              </span>
-                            )}
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  )}
-                </OptionSection>
-              )}
-
-              {/* Paper - 종류별 그룹화 (isActive인 용지만 표시) */}
+              {/* Paper - 출력방식별 필터링 + 종류별 그룹화 (isActive인 용지만 표시) */}
               {product.papers && product.papers.length > 0 && (() => {
                 const activePapers = product.papers.filter(p => p.isActive !== false);
                 if (activePapers.length === 0) return null;
+
+                // 출력방식별 용지 존재 여부 확인
+                const hasIndigoPapers = activePapers.some(p => p.printMethod === 'indigo');
+                const hasInkjetPapers = activePapers.some(p => p.printMethod === 'inkjet');
+                const hasPrintMethodInfo = hasIndigoPapers || hasInkjetPapers;
+                const currentPrintMethod = selectedOptions.printMethod || 'indigo';
+
+                // 출력방식에 따라 용지 필터링 (printMethod 정보가 없으면 전체 표시)
+                const filteredPapers = hasPrintMethodInfo
+                  ? activePapers.filter(p => p.printMethod === currentPrintMethod)
+                  : activePapers;
+
                 // 용지 이름에서 종류 추출 (숫자와 g 제외)
                 const getPaperType = (name: string) => {
                   return name.replace(/\s*\d+g?$/i, '').replace(/\s+\d+$/,'').trim();
                 };
                 // 용지를 종류별로 그룹화
-                const paperGroups = activePapers.reduce((groups, paper) => {
+                const paperGroups = filteredPapers.reduce((groups, paper) => {
                   const type = getPaperType(paper.name);
                   if (!groups[type]) groups[type] = [];
                   groups[type].push(paper);
                   return groups;
-                }, {} as Record<string, typeof activePapers>);
+                }, {} as Record<string, typeof filteredPapers>);
                 const groupEntries = Object.entries(paperGroups);
 
                 return (
-                  <OptionSection title={t('paper')} count={activePapers.length}>
+                  <OptionSection title={t('paper')} count={filteredPapers.length}>
+                    {/* 출력방식 탭 (인디고/잉크젯 용지가 모두 있을 때만 표시) */}
+                    {hasPrintMethodInfo && hasIndigoPapers && hasInkjetPapers && (
+                      <div className="flex gap-1 mb-3 p-1 bg-gray-100 rounded-lg">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const indigoPapers = activePapers.filter(p => p.printMethod === 'indigo');
+                            const defaultPaper = indigoPapers.find(p => p.isDefault) || indigoPapers[0];
+                            setSelectedOptions(prev => ({ ...prev, printMethod: 'indigo', paper: defaultPaper }));
+                          }}
+                          className={cn(
+                            "flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-all",
+                            currentPrintMethod === 'indigo'
+                              ? "bg-white text-primary shadow-sm"
+                              : "text-gray-500 hover:text-gray-700"
+                          )}
+                        >
+                          인디고출력
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const inkjetPapers = activePapers.filter(p => p.printMethod === 'inkjet');
+                            const defaultPaper = inkjetPapers.find(p => p.isDefault) || inkjetPapers[0];
+                            setSelectedOptions(prev => ({ ...prev, printMethod: 'inkjet', paper: defaultPaper }));
+                          }}
+                          className={cn(
+                            "flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-all",
+                            currentPrintMethod === 'inkjet'
+                              ? "bg-white text-primary shadow-sm"
+                              : "text-gray-500 hover:text-gray-700"
+                          )}
+                        >
+                          잉크젯출력
+                        </button>
+                      </div>
+                    )}
                     <div className="max-h-[280px] overflow-y-auto pr-1 space-y-3">
-                      <RadioGroup
-                        value={selectedOptions.paper?.id}
-                        onValueChange={(value) => {
-                          const paper = product.papers?.find(p => p.id === value);
-                          setSelectedOptions(prev => ({ ...prev, paper }));
-                        }}
-                      >
-                        {groupEntries.map(([type, papers]) => (
-                          <div key={type} className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs font-medium text-gray-700 min-w-[60px]">
-                              {type}
-                            </span>
-                            {papers.map((paper) => (
-                              <Label
-                                key={paper.id}
-                                className={cn(
-                                  "flex items-center gap-1.5 px-3 py-1.5 border rounded-md cursor-pointer transition-colors text-xs",
-                                  selectedOptions.paper?.id === paper.id
-                                    ? "border-primary bg-primary/5 font-medium"
-                                    : "hover:border-gray-400"
-                                )}
-                              >
-                                <RadioGroupItem value={paper.id} className="h-3.5 w-3.5 flex-shrink-0" />
-                                <span className="whitespace-nowrap">
-                                  {paper.grammage ? `${paper.grammage}g` : paper.name}
-                                </span>
-                                {paper.frontCoating && <Badge variant="outline" className="text-[10px] px-1 py-0">{paper.frontCoating}</Badge>}
-                                {paper.grade && <Badge variant="secondary" className="text-[10px] px-1 py-0">G{paper.grade}</Badge>}
-                              </Label>
-                            ))}
-                          </div>
-                        ))}
-                      </RadioGroup>
+                      {filteredPapers.length === 0 ? (
+                        <p className="text-xs text-gray-400 py-2 text-center">
+                          해당 출력방식의 용지가 없습니다
+                        </p>
+                      ) : (
+                        <RadioGroup
+                          value={selectedOptions.paper?.id}
+                          onValueChange={(value) => {
+                            const paper = product.papers?.find(p => p.id === value);
+                            setSelectedOptions(prev => ({ ...prev, paper }));
+                          }}
+                        >
+                          {groupEntries.map(([type, papers]) => (
+                            <div key={type} className="flex items-center gap-2 flex-wrap">
+                              <span className="text-xs font-medium text-gray-700 min-w-[60px]">
+                                {type}
+                              </span>
+                              {papers.map((paper) => (
+                                <Label
+                                  key={paper.id}
+                                  className={cn(
+                                    "flex items-center gap-1.5 px-3 py-1.5 border rounded-md cursor-pointer transition-colors text-xs",
+                                    selectedOptions.paper?.id === paper.id
+                                      ? "border-primary bg-primary/5 font-medium"
+                                      : "hover:border-gray-400"
+                                  )}
+                                >
+                                  <RadioGroupItem value={paper.id} className="h-3.5 w-3.5 flex-shrink-0" />
+                                  <span className="whitespace-nowrap">
+                                    {paper.grammage ? `${paper.grammage}g` : paper.name}
+                                  </span>
+                                  {paper.frontCoating && <Badge variant="outline" className="text-[10px] px-1 py-0">{paper.frontCoating}</Badge>}
+                                  {paper.grade && <Badge variant="secondary" className="text-[10px] px-1 py-0">G{paper.grade}</Badge>}
+                                </Label>
+                              ))}
+                            </div>
+                          ))}
+                        </RadioGroup>
+                      )}
                     </div>
                   </OptionSection>
                 );
@@ -1476,7 +1478,7 @@ export default function ProductPage() {
 
                     {isCopperPlateListExpanded && (
                     <div className="max-h-[200px] overflow-y-auto">
-                      <div className="grid grid-cols-1 gap-2">
+                      <div className="grid grid-cols-3 gap-2">
                         {ownedCopperPlates.filter(cp => cp.status === 'stored').map((cp) => {
                           const isSelected = selectedOptions.ownedCopperPlate?.id === cp.id;
                           return (
@@ -1495,7 +1497,7 @@ export default function ProductPage() {
                                 foilColor: cp.foilColor || prev.foilColor,
                                 foilPosition: cp.foilPosition || prev.foilPosition,
                               }));
-                              setIsCopperPlateListExpanded(false);
+                              // 목록을 계속 표시
                             }}
                           >
                             <div className="relative group/logo shrink-0">
@@ -1524,43 +1526,13 @@ export default function ProductPage() {
                                 </div>
                               )}
                             </div>
-                            <span className="font-medium text-sm">{cp.plateName}</span>
-                            {isSelected ? (
-                              <>
-                                <span className="text-gray-300">|</span>
-                                <span className="text-xs text-gray-600">
-                                  {copperPlateLabels?.foilColors?.find(c => c.code === cp.foilColor)?.name || cp.foilColorName || '-'}
-                                </span>
-                                <span className="text-gray-300">|</span>
-                                <span className="text-xs text-gray-600">
-                                  {copperPlateLabels?.platePositions?.find(p => p.code === cp.foilPosition)?.name || cp.foilPosition || '-'}
-                                </span>
-                                <span className="text-gray-300">|</span>
-                                <span className="text-xs text-gray-600">
-                                  {cp.plateType === 'copper' ? t('copperType') : t('leadType')}
-                                </span>
-                                {cp.registeredAt && (
-                                  <>
-                                    <span className="text-gray-300">|</span>
-                                    <span className="text-xs text-gray-400">{new Date(cp.registeredAt).toLocaleDateString('ko-KR')}</span>
-                                  </>
-                                )}
-                                {cp.notes && (
-                                  <>
-                                    <span className="text-gray-300">|</span>
-                                    <span className="text-xs text-gray-500 truncate max-w-[200px]" title={cp.notes}>{cp.notes}</span>
-                                  </>
-                                )}
-                              </>
-                            ) : (
-                              <span className="text-xs text-gray-500">
-                                {cp.foilColorName && <span className="mr-1">{cp.foilColorName}</span>}
-                                {cp.plateType === 'copper' ? t('copperType') : t('leadType')}
-                                {cp.registeredAt && (
-                                  <span className="ml-1 text-gray-400">({new Date(cp.registeredAt).toLocaleDateString('ko-KR')})</span>
-                                )}
-                              </span>
-                            )}
+                            <span className="font-medium text-sm truncate">{cp.plateName}</span>
+                            <span className="text-xs text-gray-500">
+                              {cp.plateType === 'copper' ? t('copperType') : t('leadType')}
+                              {cp.registeredAt && (
+                                <span className="ml-1 text-gray-400">({new Date(cp.registeredAt).toLocaleDateString('ko-KR')})</span>
+                              )}
+                            </span>
                             <Checkbox
                               checked={isSelected}
                               className="pointer-events-none ml-auto"

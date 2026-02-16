@@ -83,6 +83,11 @@ export class ProductBindingDto {
 
 // ==================== 용지 DTO ====================
 export class ProductPaperDto {
+  @ApiPropertyOptional({ description: '마스터 용지 ID' })
+  @IsOptional()
+  @IsString()
+  paperId?: string;
+
   @ApiProperty({ description: '용지명' })
   @IsString()
   name: string;

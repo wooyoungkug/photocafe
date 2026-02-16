@@ -523,6 +523,7 @@ model ProductBinding {
 model ProductPaper {
   id           String  @id @default(cuid())
   productId    String
+  paperId      String?
   name         String
   type         String
   price        Decimal @default(0) @db.Decimal(10, 2)
@@ -534,8 +535,11 @@ model ProductPaper {
   grade        Int?
   isActive     Boolean @default(true)
   product      Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  paper        Paper?  @relation(fields: [paperId], references: [id])
 
+  @@unique([productId, paperId])
   @@index([productId])
+  @@index([paperId])
   @@map("product_papers")
 }
 
@@ -1064,6 +1068,7 @@ model Paper {
   jdfPrePrinted       Boolean            @default(false)
   jdfTexture          String?
   prices              PaperPrice[]
+  productPapers       ProductPaper[]
   manufacturer        PaperManufacturer? @relation(fields: [manufacturerId], references: [id])
   paperGroup          PaperGroup?        @relation(fields: [paperGroupId], references: [id])
   supplier            PaperSupplier?     @relation(fields: [supplierId], references: [id])

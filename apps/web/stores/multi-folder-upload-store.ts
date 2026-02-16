@@ -291,12 +291,7 @@ export interface UploadedFolder {
   colorGroupingEnabled?: boolean;
 
   // 표지 소스 선택
-  coverSourceType: CoverSourceType | null; // 'fabric' | 'design' | null(미선택)
-  selectedFabricId: string | null;
-  selectedFabricName: string | null;
-  selectedFabricThumbnail: string | null;
-  selectedFabricPrice: number;
-  selectedFabricCategory: string | null; // 'leather' | 'canvas' | 'linen' | 'fabric'
+  coverSourceType: CoverSourceType | null; // 'design' | null(미선택)
   coverAutoDetected: boolean; // 파일명 기반 자동 감지 여부
 
   // 동판 정보 (박 각인)
@@ -378,8 +373,6 @@ interface MultiFolderUploadState {
 
   // 표지 소스 선택
   setFolderCoverSource: (folderId: string, source: CoverSourceType | null) => void;
-  setFolderFabric: (folderId: string, fabricId: string, fabricName: string, fabricThumbnail: string | null, fabricPrice: number, fabricCategory?: string | null) => void;
-  clearFolderFabric: (folderId: string) => void;
   reclassifyCoverToInner: (folderId: string) => void;
 
   // 동판 정보 (전체 폴더 일괄)
@@ -868,14 +861,6 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
       folders: state.folders.map(f => ({
         ...f,
         coverSourceType: source,
-        // fabric→design 전환 시 원단 선택 초기화
-        ...(source === 'design' ? {
-          selectedFabricId: null,
-          selectedFabricName: null,
-          selectedFabricThumbnail: null,
-          selectedFabricPrice: 0,
-          selectedFabricCategory: null,
-        } : {}),
       })),
     }));
   },
@@ -1234,39 +1219,10 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
           return { ...f, coverSourceType: source, coverAutoDetected: false };
         }
         if (source === 'design') {
-          // 디자인표지 선택 시 원단 선택 초기화
-          return {
-            ...f,
-            coverSourceType: source,
-            selectedFabricId: null,
-            selectedFabricName: null,
-            selectedFabricThumbnail: null,
-            selectedFabricPrice: 0,
-            selectedFabricCategory: null,
-          };
+          return { ...f, coverSourceType: source };
         }
         return { ...f, coverSourceType: source };
       }),
-    }));
-  },
-
-  setFolderFabric: (folderId, fabricId, fabricName, fabricThumbnail, fabricPrice, fabricCategory) => {
-    set(state => ({
-      folders: state.folders.map(f =>
-        f.id === folderId
-          ? { ...f, selectedFabricId: fabricId, selectedFabricName: fabricName, selectedFabricThumbnail: fabricThumbnail, selectedFabricPrice: fabricPrice, selectedFabricCategory: fabricCategory ?? null }
-          : f
-      ),
-    }));
-  },
-
-  clearFolderFabric: (folderId) => {
-    set(state => ({
-      folders: state.folders.map(f =>
-        f.id === folderId
-          ? { ...f, selectedFabricId: null, selectedFabricName: null, selectedFabricThumbnail: null, selectedFabricPrice: 0, selectedFabricCategory: null }
-          : f
-      ),
     }));
   },
 
@@ -1379,14 +1335,7 @@ export function calculateUploadedFolderPrice(folder: UploadedFolder): {
   const printPrice = pricePerPage * folder.pageCount;
 
   // 표지 유형별 단가 분기
-  let coverPrice: number;
-  if (folder.coverSourceType === 'fabric' && folder.selectedFabricPrice > 0) {
-    coverPrice = folder.selectedFabricPrice;
-  } else if (folder.coverSourceType === 'design') {
-    coverPrice = DESIGN_COVER_PRICE;
-  } else {
-    coverPrice = COVER_PRICE; // 기본값 (하위 호환)
-  }
+  const coverPrice = folder.coverSourceType === 'design' ? DESIGN_COVER_PRICE : COVER_PRICE;
 
   // 제본비
   const bindingPrice = BINDING_PRICE;
@@ -1436,14 +1385,7 @@ export function calculateAdditionalOrderPrice(
   const printPrice = pricePerPage * folder.pageCount;
 
   // 추가 주문도 동일한 표지 유형 적용
-  let coverPrice: number;
-  if (folder.coverSourceType === 'fabric' && folder.selectedFabricPrice > 0) {
-    coverPrice = folder.selectedFabricPrice;
-  } else if (folder.coverSourceType === 'design') {
-    coverPrice = DESIGN_COVER_PRICE;
-  } else {
-    coverPrice = COVER_PRICE;
-  }
+  const coverPrice = folder.coverSourceType === 'design' ? DESIGN_COVER_PRICE : COVER_PRICE;
 
   // 제본비
   const bindingPrice = BINDING_PRICE;
