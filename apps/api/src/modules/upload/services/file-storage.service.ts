@@ -93,7 +93,10 @@ export class FileStorageService implements OnModuleInit {
     const year = now.getFullYear().toString();
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
     const day = now.getDate().toString().padStart(2, '0');
-    const safeCompanyName = this.sanitizePath(companyName || 'unknown');
+    if (!companyName) {
+      throw new Error('거래처명이 필요합니다. (companyName is required)');
+    }
+    const safeCompanyName = this.sanitizePath(companyName);
 
     const dir = join(this.basePath, 'orders', year, month, day, safeCompanyName, orderNumber);
     const originals = join(dir, 'originals');
@@ -233,6 +236,47 @@ export class FileStorageService implements OnModuleInit {
       rmSync(originalsDir, { recursive: true, force: true });
     } catch {
       // ignore
+    }
+
+    return { deletedCount, freedBytes };
+  }
+
+  /** 주문 전체 디렉토리 삭제 (originals + thumbnails + pdf) */
+  deleteOrderDirectory(orderDir: string): { deletedCount: number; freedBytes: number } {
+    if (!existsSync(orderDir)) {
+      return { deletedCount: 0, freedBytes: 0 };
+    }
+
+    let deletedCount = 0;
+    let freedBytes = 0;
+
+    const countFiles = (dir: string) => {
+      if (!existsSync(dir)) return;
+      const entries = readdirSync(dir);
+      for (const entry of entries) {
+        const fullPath = join(dir, entry);
+        try {
+          const st = statSync(fullPath);
+          if (st.isDirectory()) {
+            countFiles(fullPath);
+          } else {
+            deletedCount++;
+            freedBytes += st.size;
+          }
+        } catch { /* skip */ }
+      }
+    };
+
+    try {
+      countFiles(orderDir);
+    } catch (err) {
+      this.logger.warn(`파일 집계 실패: ${orderDir} - ${err}`);
+    }
+
+    try {
+      rmSync(orderDir, { recursive: true, force: true });
+    } catch (err) {
+      this.logger.error(`주문 디렉토리 삭제 실패: ${orderDir}`, err);
     }
 
     return { deletedCount, freedBytes };
