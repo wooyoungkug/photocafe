@@ -33,8 +33,14 @@ export function uploadAlbumFile(
   metadata: AlbumFileMetadata,
   token: string | null,
   onProgress?: (percent: number) => void,
+  signal?: AbortSignal,
 ): Promise<UploadedFileResult> {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException('Upload cancelled', 'AbortError'));
+      return;
+    }
+
     const formData = new FormData();
     // text fields must come BEFORE file so multer's destination callback can access req.body
     formData.append('tempFolderId', metadata.tempFolderId);
@@ -51,6 +57,10 @@ export function uploadAlbumFile(
 
     const xhr = new XMLHttpRequest();
 
+    // AbortSignal 연결
+    const onAbort = () => xhr.abort();
+    signal?.addEventListener('abort', onAbort, { once: true });
+
     xhr.upload.addEventListener('progress', (e) => {
       if (e.lengthComputable) {
         onProgress?.(Math.round((e.loaded / e.total) * 100));
@@ -58,6 +68,7 @@ export function uploadAlbumFile(
     });
 
     xhr.addEventListener('load', () => {
+      signal?.removeEventListener('abort', onAbort);
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
           const result = JSON.parse(xhr.responseText);
@@ -70,8 +81,14 @@ export function uploadAlbumFile(
       }
     });
 
-    xhr.addEventListener('error', () => reject(new Error('Network error')));
-    xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
+    xhr.addEventListener('error', () => {
+      signal?.removeEventListener('abort', onAbort);
+      reject(new Error('Network error'));
+    });
+    xhr.addEventListener('abort', () => {
+      signal?.removeEventListener('abort', onAbort);
+      reject(new DOMException('Upload cancelled', 'AbortError'));
+    });
 
     xhr.open('POST', `${API_BASE}/api/v1/upload/album-file`);
     if (token) {

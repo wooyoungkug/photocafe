@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
 const CLIENT_LEDGER_API = '/client-ledger';
@@ -147,5 +147,28 @@ export function useClientLedgerDetail(
       );
     },
     enabled: !!clientId,
+  });
+}
+
+// ===== 거래내역서 이메일 발송 =====
+export interface SendStatementEmailParams {
+  clientId: string;
+  to: string;
+  subject?: string;
+  message?: string;
+  statementType: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export function useSendStatementEmail() {
+  return useMutation({
+    mutationFn: async (params: SendStatementEmailParams) => {
+      const { clientId, ...body } = params;
+      return api.post<{ success: boolean; messageId?: string; error?: string }>(
+        `${CLIENT_LEDGER_API}/${clientId}/send-email`,
+        body,
+      );
+    },
   });
 }

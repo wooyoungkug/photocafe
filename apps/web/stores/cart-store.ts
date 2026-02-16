@@ -83,7 +83,7 @@ export interface CartItem {
   shippingInfo?: CartShippingInfo;       // 장바구니 배송지 정보
   isDuplicateOverride?: boolean;         // 중복 경고 무시 여부
   // 원본 파일 업로드 상태
-  uploadStatus?: 'pending' | 'uploading' | 'completed' | 'failed';
+  uploadStatus?: 'pending' | 'uploading' | 'completed' | 'failed' | 'cancelled';
   uploadProgress?: number;               // 0-100
   uploadedFileCount?: number;
   totalFileCount?: number;
@@ -267,9 +267,9 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: 'cart-storage',
-      // thumbnailUrls는 대용량이므로 localStorage 저장에서 제외 (메모리에만 유지)
+      // thumbnailUrls 등 대용량/휘발성 데이터만 제외, serverFiles는 유지 (새로고침 후 유실 방지)
       partialize: (state) => ({
-        items: state.items.map(({ thumbnailUrls, files, ...rest }) => rest),
+        items: state.items.map(({ thumbnailUrls, files, uploadProgress, uploadedFileCount, totalFileCount, ...rest }) => rest),
       }),
       storage: {
         getItem: (name) => {

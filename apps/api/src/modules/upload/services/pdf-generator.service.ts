@@ -25,6 +25,24 @@ const BLANK_STD_THRESHOLD = 5;
 export class PdfGeneratorService {
   private readonly logger = new Logger(PdfGeneratorService.name);
 
+  /** 스프레드 이미지에서 좌/우 한 면만 추출 (버퍼 반환) */
+  private async extractSpreadSide(
+    source: string,
+    side: 'left' | 'right',
+    imgWidth: number,
+    imgHeight: number,
+  ): Promise<Buffer> {
+    const halfWidth = Math.floor(imgWidth / 2);
+    if (side === 'left') {
+      return sharp(source)
+        .extract({ left: 0, top: 0, width: halfWidth, height: imgHeight })
+        .toBuffer();
+    }
+    return sharp(source)
+      .extract({ left: halfWidth, top: 0, width: imgWidth - halfWidth, height: imgHeight })
+      .toBuffer();
+  }
+
   /** 빈 페이지(흰색) 여부 판정 */
   private async isBlankPage(imageInput: string | Buffer): Promise<boolean> {
     try {
@@ -94,10 +112,14 @@ export class PdfGeneratorService {
       throw new Error('No valid files to generate PDF');
     }
 
-    // ── 1단계: 모든 파일을 낱장 페이지로 펼치기 ──
-    const pages: Array<{
-      source: string;        // 원본 파일 경로
-      buffer?: Buffer;       // 분할된 경우 Buffer
+    // ── 1단계: 페이지 메타정보만 수집 (버퍼 미적재) ──
+    const pageMeta: Array<{
+      source: string;
+      isSpread: boolean;
+      side?: 'left' | 'right';
+      imgWidth: number;
+      imgHeight: number;
+      dpi: number;
       widthInch: number;
       heightInch: number;
     }> = [];
@@ -110,42 +132,35 @@ export class PdfGeneratorService {
       const isSpread = imgWidth > imgHeight * SPREAD_RATIO;
 
       if (isSpread) {
-        // 펼침 → 좌/우 분할
         const halfWidth = Math.floor(imgWidth / 2);
-
-        const leftBuffer = await sharp(file.originalPath)
-          .extract({ left: 0, top: 0, width: halfWidth, height: imgHeight })
-          .toBuffer();
-
-        const rightBuffer = await sharp(file.originalPath)
-          .extract({ left: halfWidth, top: 0, width: imgWidth - halfWidth, height: imgHeight })
-          .toBuffer();
-
-        const halfWidthInch = halfWidth / dpi;
         const heightInch = imgHeight / dpi;
-
-        pages.push(
-          { source: file.originalPath, buffer: leftBuffer, widthInch: halfWidthInch, heightInch },
-          { source: file.originalPath, buffer: rightBuffer, widthInch: (imgWidth - halfWidth) / dpi, heightInch },
+        pageMeta.push(
+          { source: file.originalPath, isSpread: true, side: 'left', imgWidth, imgHeight, dpi, widthInch: halfWidth / dpi, heightInch },
+          { source: file.originalPath, isSpread: true, side: 'right', imgWidth, imgHeight, dpi, widthInch: (imgWidth - halfWidth) / dpi, heightInch },
         );
       } else {
-        // 단면 → 그대로
         const widthInch = file.widthInch > 0 ? file.widthInch : imgWidth / dpi;
         const heightInch = file.heightInch > 0 ? file.heightInch : imgHeight / dpi;
-        pages.push({ source: file.originalPath, widthInch, heightInch });
+        pageMeta.push({ source: file.originalPath, isSpread: false, imgWidth, imgHeight, dpi, widthInch, heightInch });
       }
     }
 
-    // ── 2단계: 앞뒤 빈 페이지 제거 (중간은 유지) ──
+    // ── 2단계: 앞뒤 빈 페이지 제거 (메타 기반, 필요 시에만 버퍼 로드) ──
     let startIdx = 0;
-    let endIdx = pages.length - 1;
+    let endIdx = pageMeta.length - 1;
 
     while (startIdx <= endIdx) {
-      const input = pages[startIdx].buffer || pages[startIdx].source;
+      const p = pageMeta[startIdx];
+      const input = p.isSpread
+        ? await this.extractSpreadSide(p.source, p.side!, p.imgWidth, p.imgHeight)
+        : p.source;
       if (await this.isBlankPage(input)) { startIdx++; } else { break; }
     }
     while (endIdx >= startIdx) {
-      const input = pages[endIdx].buffer || pages[endIdx].source;
+      const p = pageMeta[endIdx];
+      const input = p.isSpread
+        ? await this.extractSpreadSide(p.source, p.side!, p.imgWidth, p.imgHeight)
+        : p.source;
       if (await this.isBlankPage(input)) { endIdx--; } else { break; }
     }
 
@@ -153,13 +168,13 @@ export class PdfGeneratorService {
       throw new Error('All pages were blank, no PDF generated');
     }
 
-    // ── 3단계: 1P부터 순차 PDF 생성 ──
+    // ── 3단계: 1P부터 순차 PDF 생성 (한 장씩 버퍼 로드→PDF→해제) ──
     let pageNum = 0;
     const skippedLeading = startIdx;
-    const skippedTrailing = pages.length - 1 - endIdx;
+    const skippedTrailing = pageMeta.length - 1 - endIdx;
 
     for (let i = startIdx; i <= endIdx; i++) {
-      const page = pages[i];
+      const page = pageMeta[i];
       pageNum++;
 
       const widthPt = page.widthInch * 72;
@@ -167,8 +182,13 @@ export class PdfGeneratorService {
       const num = pageNum.toString().padStart(3, '0');
       const pagePdfPath = join(pdfDir, `${pdfFileName}_${num}.pdf`);
 
-      const imageInput = page.buffer || page.source;
+      // 스프레드는 해당 면만 추출, 단면은 파일 경로 직접 사용
+      const imageInput = page.isSpread
+        ? await this.extractSpreadSide(page.source, page.side!, page.imgWidth, page.imgHeight)
+        : page.source;
+
       await this.generateSinglePagePdf(imageInput, pagePdfPath, widthPt, heightPt);
+      // Buffer는 이 루프 반복 끝나면 GC 대상
     }
 
     this.logger.log(

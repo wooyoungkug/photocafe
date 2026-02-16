@@ -2155,7 +2155,7 @@ model SalesLedger {
   @@index([salesStatus])
   @@index([paymentStatus])
   @@index([orderId])
-  @@index([dueDate]) // 수금예정일 조회 최적화
+  @@index([dueDate]) // 입금예정일 조회 최적화
   @@index([clientId, ledgerDate])
   @@index([staffId, ledgerDate])
   @@index([salesStatus, ledgerDate])

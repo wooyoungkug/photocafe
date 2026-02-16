@@ -21,6 +21,7 @@ import { JdfModule } from './modules/jdf/jdf.module';
 import { PublicCopperPlateModule } from './modules/public-copper-plate/public-copper-plate.module';
 import { MyProductModule } from './modules/my-product/my-product.module';
 import { PrismaModule } from './common/prisma/prisma.module';
+import { EmailModule } from './common/email/email.module';
 import { HealthModule } from './health/health.module';
 import { AppController } from './app.controller';
 
@@ -32,6 +33,7 @@ import { AppController } from './app.controller';
       envFilePath: '.env',
     }),
     PrismaModule,
+    EmailModule,
     HealthModule,
     AuthModule,
     CompanyModule,

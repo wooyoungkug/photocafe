@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { join, extname } from 'path';
-import { existsSync, mkdirSync, renameSync, unlinkSync, readdirSync, statSync, rmSync } from 'fs';
+import { existsSync, mkdirSync, renameSync, unlinkSync, readdirSync, statSync, rmSync, copyFileSync } from 'fs';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 
 // 모듈 레벨 base path (multer 콜백에서 접근용)
@@ -131,12 +131,10 @@ export class FileStorageService implements OnModuleInit {
       const destOriginal = join(orderDir, 'originals', fileName);
 
       try {
-        renameSync(srcOriginal, destOriginal);
-      } catch {
-        // 크로스 디바이스 이동 실패 시 복사 후 삭제
-        const { copyFileSync } = require('fs');
-        copyFileSync(srcOriginal, destOriginal);
-        unlinkSync(srcOriginal);
+        this.safeMove(srcOriginal, destOriginal);
+      } catch (err) {
+        this.logger.error(`파일 이동 실패: ${fileName}`, err);
+        continue; // 실패한 파일은 건너뛰고 나머지 계속 처리
       }
 
       // 썸네일 이동
@@ -146,11 +144,9 @@ export class FileStorageService implements OnModuleInit {
 
       if (existsSync(srcThumb)) {
         try {
-          renameSync(srcThumb, destThumb);
+          this.safeMove(srcThumb, destThumb);
         } catch {
-          const { copyFileSync } = require('fs');
-          copyFileSync(srcThumb, destThumb);
-          unlinkSync(srcThumb);
+          // 썸네일 이동 실패는 무시 (원본이 중요)
         }
       }
 
@@ -264,6 +260,25 @@ export class FileStorageService implements OnModuleInit {
     const ext = extname(originalName);
     const base = originalName.slice(0, -ext.length);
     return `${base}_thumb.jpg`;
+  }
+
+  /** 안전한 파일 이동 (rename 실패 시 복사→검증→삭제) */
+  private safeMove(src: string, dest: string) {
+    try {
+      renameSync(src, dest);
+    } catch {
+      // 크로스 디바이스: 복사 후 검증 → 삭제
+      copyFileSync(src, dest);
+      // 복사 결과 검증
+      const srcStat = statSync(src);
+      const destStat = statSync(dest);
+      if (destStat.size !== srcStat.size) {
+        // 복사 실패 - 대상 파일 삭제하고 에러
+        try { unlinkSync(dest); } catch { /* ignore */ }
+        throw new Error(`파일 복사 검증 실패: ${src} (${srcStat.size} != ${destStat.size})`);
+      }
+      unlinkSync(src);
+    }
   }
 
   /** 파일명으로 안전한 이름 생성 (multer용) */

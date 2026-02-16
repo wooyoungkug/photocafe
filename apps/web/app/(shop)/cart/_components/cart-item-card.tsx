@@ -17,6 +17,8 @@ import {
   Upload,
   Loader2,
   RefreshCw,
+  XCircle,
+  Ban,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -35,7 +37,7 @@ import type { FolderShippingInfo } from '@/stores/multi-folder-upload-store';
 import type { CompanyShippingInfo, OrdererShippingInfo } from '@/hooks/use-shipping-data';
 import type { DeliveryPricing } from '@/hooks/use-delivery-pricing';
 import { useTranslations } from 'next-intl';
-import { retryBackgroundUpload, canRetryUpload } from '@/lib/background-upload';
+import { retryBackgroundUpload, canRetryUpload, cancelUpload } from '@/lib/background-upload';
 
 const DELIVERY_METHODS = [
   { value: 'parcel', label: '택배' },
@@ -270,22 +272,28 @@ export function CartItemCard({
                       {t('halfProduct')}
                     </Badge>
                   )}
-                  {item.uploadStatus === 'completed' && (
+                  {item.uploadStatus === 'completed' && item.serverFiles && item.serverFiles.length > 0 && (
                     <Badge className="bg-gradient-to-r from-green-100 to-green-50 text-green-700 text-[11px] px-2 py-0.5 font-medium border border-green-200/50 rounded-md">
                       <CheckCircle2 className="w-3 h-3 mr-1" />
-                      업로드 완료
+                      업로드 완료 ({item.serverFiles.length}건)
+                    </Badge>
+                  )}
+                  {item.uploadStatus === 'completed' && (!item.serverFiles || item.serverFiles.length === 0) && (
+                    <Badge className="bg-gradient-to-r from-orange-100 to-orange-50 text-orange-700 text-[11px] px-2 py-0.5 font-medium border border-orange-200/50 rounded-md">
+                      <AlertCircle className="w-3 h-3 mr-1" />
+                      파일 누락 — 재업로드 필요
                     </Badge>
                   )}
                   {item.uploadStatus === 'uploading' && (
                     <Badge className="bg-gradient-to-r from-blue-100 to-blue-50 text-blue-700 text-[11px] px-2 py-0.5 font-medium border border-blue-200/50 rounded-md">
                       <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                      업로드 중 {item.uploadProgress || 0}%
+                      {item.uploadedFileCount || 0}/{item.totalFileCount || 0}건 · {item.uploadProgress || 0}%
                     </Badge>
                   )}
                   {item.uploadStatus === 'failed' && (
                     <Badge className="bg-gradient-to-r from-red-100 to-red-50 text-red-700 text-[11px] px-2 py-0.5 font-medium border border-red-200/50 rounded-md">
                       <AlertCircle className="w-3 h-3 mr-1" />
-                      업로드 실패
+                      업로드 실패 ({item.serverFiles?.length || 0}/{item.totalFileCount || 0}건)
                     </Badge>
                   )}
                   {item.addedAt && (
@@ -429,6 +437,27 @@ export function CartItemCard({
           </div>
         </div>
 
+        {/* Upload warning: completed but no serverFiles (data lost after refresh) */}
+        {item.uploadStatus === 'completed' && (!item.serverFiles || item.serverFiles.length === 0) && (
+          <div className="border-t border-orange-200 bg-orange-50 px-4 py-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs text-orange-700">
+                <AlertCircle className="w-3.5 h-3.5" />
+                <span className="font-medium">파일 데이터가 누락되었습니다. 상품을 삭제 후 다시 업로드해주세요.</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                onClick={() => onRemove(item.id)}
+              >
+                <Trash2 className="w-3 h-3 mr-1" />
+                삭제
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Upload progress section */}
         {item.uploadStatus && item.uploadStatus !== 'completed' && (
           <div className="border-t border-gray-100 px-4 py-2.5">
@@ -439,9 +468,20 @@ export function CartItemCard({
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     <span className="font-medium">원본 파일 업로드 중...</span>
                   </div>
-                  <span className="text-gray-500 tabular-nums">
-                    {item.uploadedFileCount || 0}/{item.totalFileCount || 0}건 · {item.uploadProgress || 0}%
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-500 tabular-nums">
+                      {item.uploadedFileCount || 0}/{item.totalFileCount || 0}건 · {item.uploadProgress || 0}%
+                    </span>
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded px-1.5 py-0.5 transition-colors"
+                      onClick={() => cancelUpload(item.id)}
+                      title="업로드 중단"
+                    >
+                      <XCircle className="w-4 h-4" />
+                      <span className="text-[11px] font-medium">중단</span>
+                    </button>
+                  </div>
                 </div>
                 <Progress value={item.uploadProgress || 0} className="h-1.5 rounded-full bg-blue-100" />
               </div>
@@ -450,6 +490,12 @@ export function CartItemCard({
               <div className="flex items-center gap-1.5 text-xs text-gray-500">
                 <Upload className="w-3.5 h-3.5" />
                 <span>업로드 대기 중...</span>
+              </div>
+            )}
+            {item.uploadStatus === 'cancelled' && (
+              <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                <Ban className="w-3.5 h-3.5" />
+                <span>업로드 중단됨 — 장바구니에서 삭제해주세요</span>
               </div>
             )}
             {item.uploadStatus === 'failed' && (

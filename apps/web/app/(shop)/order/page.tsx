@@ -321,7 +321,8 @@ export default function OrderPage() {
     cpChanges: CopperPlateChanges[]
   ) => {
     try {
-      for (const [idx, orderData] of orderDataList.entries()) {
+      // 주문번호 충돌 방지를 위해 순차 처리
+      for (const orderData of orderDataList) {
         await api.post('/orders', orderData);
       }
 
@@ -433,6 +434,17 @@ export default function OrderPage() {
 
     if (!allShippingComplete) {
       toast.error('배송정보 입력 필요', { description: '모든 항목의 배송정보를 입력해주세요.' });
+      return;
+    }
+
+    // 앨범 상품의 업로드 파일 유효성 검증
+    const albumItemsWithNoFiles = items.filter(
+      item => item.productType === 'album-order' && (!item.serverFiles || item.serverFiles.length === 0)
+    );
+    if (albumItemsWithNoFiles.length > 0) {
+      toast.error('파일 업로드 필요', {
+        description: `${albumItemsWithNoFiles.length}건의 앨범 상품에 업로드된 파일이 없습니다. 장바구니에서 다시 업로드해주세요.`,
+      });
       return;
     }
 
@@ -638,7 +650,19 @@ export default function OrderPage() {
                               </p>
                             )}
                             <div className="flex justify-between items-center mt-2">
-                              <span className="text-sm text-gray-500">수량: {item.quantity}개</span>
+                              <span className="text-sm text-gray-500">
+                                수량: {item.quantity}개
+                                {item.productType === 'album-order' && (
+                                  <>
+                                    {' / '}
+                                    {item.serverFiles && item.serverFiles.length > 0 ? (
+                                      <span className="text-green-600">파일: {item.serverFiles.length}장</span>
+                                    ) : (
+                                      <span className="text-red-500">파일: 0장</span>
+                                    )}
+                                  </>
+                                )}
+                              </span>
                               <span className="font-bold">{item.totalPrice.toLocaleString()}원</span>
                             </div>
                           </div>

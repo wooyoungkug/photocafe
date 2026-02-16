@@ -191,6 +191,125 @@ export class SalesLedgerService {
     return salesLedger;
   }
 
+  // ===== 매출 직접 등록 (홈페이지 외 매출) =====
+  // Order 없이 직접 매출원장 생성 → 자동 전표 생성
+  async createDirect(dto: {
+    clientId: string;
+    salesType: string;
+    paymentMethod: string;
+    supplyAmount: number;
+    vatAmount: number;
+    totalAmount: number;
+    description?: string;
+    items: Array<{
+      itemName: string;
+      specification?: string;
+      quantity: number;
+      unitPrice: number;
+      supplyAmount: number;
+      vatAmount: number;
+      totalAmount: number;
+    }>;
+  }, createdBy: string) {
+    // 거래처 정보 조회
+    const client = await this.prisma.client.findUnique({
+      where: { id: dto.clientId },
+    });
+
+    if (!client) {
+      throw new NotFoundException('거래처를 찾을 수 없습니다.');
+    }
+
+    const ledgerNumber = await this.generateLedgerNumber();
+
+    // 결제기한 산정
+    let dueDate: Date | null = null;
+    if (client.creditEnabled && client.creditPeriodDays) {
+      dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + client.creditPeriodDays);
+    } else if (client.creditEnabled && client.creditPaymentDay) {
+      dueDate = new Date();
+      dueDate.setMonth(dueDate.getMonth() + 1);
+      dueDate.setDate(client.creditPaymentDay);
+    }
+
+    // 선불 결제인 경우 이미 수금 완료
+    const isPrepaid = dto.paymentMethod === 'prepaid' || dto.paymentMethod === 'card';
+    const receivedAmount = isPrepaid ? dto.totalAmount : 0;
+    const outstandingAmount = isPrepaid ? 0 : dto.totalAmount;
+    const paymentStatus = isPrepaid ? 'paid' : 'unpaid';
+
+    // 매출원장 라인아이템 생성
+    const ledgerItems = dto.items.map((item, index) => ({
+      itemName: item.itemName,
+      specification: item.specification || '',
+      quantity: item.quantity,
+      unitPrice: Number(item.unitPrice),
+      supplyAmount: Number(item.supplyAmount),
+      vatAmount: Number(item.vatAmount),
+      totalAmount: Number(item.totalAmount),
+      salesType: dto.salesType as any,
+      sortOrder: index,
+    }));
+
+    // 주문 제목 생성
+    const orderTitle = dto.description || (
+      dto.items.length === 1
+        ? dto.items[0].itemName
+        : `${dto.items[0].itemName} 외 ${dto.items.length - 1}건`
+    );
+
+    const salesLedger = await this.prisma.salesLedger.create({
+      data: {
+        ledgerNumber,
+        ledgerDate: new Date(),
+        clientId: client.id,
+        clientName: client.clientName,
+        clientBizNo: client.businessNumber,
+        staffId: client.assignedManager,
+        salesType: dto.salesType as any,
+        taxType: 'TAXABLE',
+        supplyAmount: dto.supplyAmount,
+        vatAmount: dto.vatAmount,
+        shippingFee: 0,
+        totalAmount: dto.totalAmount,
+        receivedAmount,
+        outstandingAmount,
+        paymentMethod: dto.paymentMethod,
+        paymentStatus,
+        dueDate,
+        salesStatus: 'REGISTERED',
+        description: orderTitle,
+        createdBy,
+        items: {
+          create: ledgerItems,
+        },
+      },
+      include: {
+        items: true,
+        client: true,
+      },
+    });
+
+    // 자동 전표 생성
+    try {
+      await this.journalEngine.createSalesJournal({
+        salesLedgerId: salesLedger.id,
+        clientId: client.id,
+        clientName: client.clientName,
+        supplyAmount: Number(dto.supplyAmount),
+        vatAmount: Number(dto.vatAmount),
+        totalAmount: Number(dto.totalAmount),
+        accountCode: '402',
+        description: orderTitle,
+      });
+    } catch (err) {
+      // 분개 생성 실패 시 매출원장 생성은 계속 진행
+    }
+
+    return salesLedger;
+  }
+
   // ===== 매출원장 목록 조회 =====
   async findAll(query: SalesLedgerQueryDto) {
     const { startDate, endDate, clientId, salesType, paymentStatus, salesStatus, search, page = 1, limit = 20 } = query;

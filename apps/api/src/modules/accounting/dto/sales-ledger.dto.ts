@@ -79,14 +79,14 @@ export class SalesLedgerQueryDto {
   limit?: number;
 }
 
-// ===== 수금 등록 DTO =====
+// ===== 입금 등록 DTO =====
 
 export class CreateSalesReceiptDto {
-  @ApiProperty({ description: '수금일자' })
+  @ApiProperty({ description: '입금일자' })
   @IsDateString()
   receiptDate: string;
 
-  @ApiProperty({ description: '수금금액' })
+  @ApiProperty({ description: '입금금액' })
   @IsNumber()
   @Min(1)
   amount: number;
@@ -115,7 +115,7 @@ export class CreateSalesReceiptDto {
 
 export class SalesLedgerSummaryDto {
   totalSales: number;         // 당월 총 매출
-  totalReceived: number;      // 당월 총 수금
+  totalReceived: number;      // 당월 총 입금
   totalOutstanding: number;   // 총 미수금 잔액
   totalOverdue: number;       // 연체 미수금
   ledgerCount: number;        // 전표 건수

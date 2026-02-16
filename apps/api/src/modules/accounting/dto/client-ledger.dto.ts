@@ -4,9 +4,12 @@ import {
   IsDateString,
   IsNumber,
   IsEnum,
+  IsEmail,
+  IsArray,
+  IsNotEmpty,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export enum ClientTypeEnum {
   SALES = 'sales',
@@ -72,4 +75,37 @@ export class ClientLedgerDetailQueryDto {
   @IsOptional()
   @IsEnum(PeriodTypeEnum)
   periodType?: PeriodTypeEnum;
+}
+
+// ===== 거래내역서 이메일 발송 DTO =====
+export class SendStatementEmailDto {
+  @ApiProperty({ description: '수신 이메일 주소' })
+  @IsEmail()
+  @IsNotEmpty()
+  to: string;
+
+  @ApiPropertyOptional({ description: '이메일 제목 (미입력 시 자동 생성)' })
+  @IsOptional()
+  @IsString()
+  subject?: string;
+
+  @ApiPropertyOptional({ description: '추가 메시지' })
+  @IsOptional()
+  @IsString()
+  message?: string;
+
+  @ApiProperty({ description: '거래내역서 유형 (detail/daily/monthly/period)' })
+  @IsString()
+  @IsNotEmpty()
+  statementType: string;
+
+  @ApiPropertyOptional({ description: '시작일' })
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @ApiPropertyOptional({ description: '종료일' })
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
 }
