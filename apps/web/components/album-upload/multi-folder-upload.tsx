@@ -116,9 +116,6 @@ function BindingDirectionIcon({ direction, isSelected }: { direction: BindingDir
 import { FolderCard } from './folder-card';
 import { calculateNormalizedRatio, formatFileSize, readImageDpi } from '@/lib/album-utils';
 import { useShippingData } from '@/hooks/use-shipping-data';
-import { ClientPreferenceCard } from './client-preference-card';
-import { useClientAlbumPreference } from '@/hooks/use-client-album-preference';
-import type { ClientAlbumPreference } from '@/lib/types/client';
 
 import { detectImageColorSpace } from '@/lib/image-color-detection';
 const ACCEPTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.tif', '.tiff'];
@@ -159,18 +156,6 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
   // 배송 데이터 로드
   const { clientInfo } = useShippingData();
 
-  // 거래처 선호 설정 적용
-  const handleApplyPreference = useCallback((pref: ClientAlbumPreference) => {
-    if (pref.preferredEditStyle) {
-      const layout = pref.preferredEditStyle.toLowerCase() as 'single' | 'spread';
-      if (layout === 'single' || layout === 'spread') {
-        setDefaultPageLayout(layout);
-      }
-    }
-    if (pref.preferredBinding) {
-      setDefaultBindingDirection(pref.preferredBinding as any);
-    }
-  }, [setDefaultPageLayout, setDefaultBindingDirection]);
 
   // DB에서 인디고출력 규격 가져오기
   const { data: indigoSpecsRaw } = useIndigoSpecifications();
@@ -1091,6 +1076,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         selectedFabricName: null,
         selectedFabricThumbnail: null,
         selectedFabricPrice: 0,
+        selectedFabricCategory: null,
       };
 
       return folder;
@@ -1410,6 +1396,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
           selectedFabricName: null,
           selectedFabricThumbnail: null,
           selectedFabricPrice: 0,
+          selectedFabricCategory: null,
         };
 
         const result = addFolder(folder);
@@ -1661,6 +1648,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         selectedFabricName: null,
         selectedFabricThumbnail: null,
         selectedFabricPrice: 0,
+        selectedFabricCategory: null,
       };
 
       const result = addFolder(folder);
@@ -1735,14 +1723,6 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
 
   return (
     <div className="space-y-4">
-      {/* 거래처 선호 패턴 카드 */}
-      {clientInfo?.id && (
-        <ClientPreferenceCard
-          clientId={clientInfo.id}
-          clientName={clientInfo.clientName}
-          onApplyPreference={handleApplyPreference}
-        />
-      )}
 
       {/* 모바일 폴더명 입력 다이얼로그 */}
       {showMobileFolderNameDialog && (

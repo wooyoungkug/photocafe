@@ -201,6 +201,7 @@ export class OrderService {
               coverMaterial: true,
               foilName: true,
               foilColor: true,
+              foilPosition: true,
               finishingOptions: true,
               fabricName: true,
               folderName: true,
@@ -394,6 +395,7 @@ export class OrderService {
           coverMaterial: item.coverMaterial,
           foilName: item.foilName,
           foilColor: item.foilColor,
+          foilPosition: item.foilPosition,
           finishingOptions: item.finishingOptions || [],
           fabricName: item.fabricName,
           thumbnailUrl: item.thumbnailUrl,
@@ -797,6 +799,9 @@ export class OrderService {
               ...(update.pageLayout !== undefined && { pageLayout: update.pageLayout }),
               ...(update.bindingDirection !== undefined && { bindingDirection: update.bindingDirection }),
               ...(update.fabricName !== undefined && { fabricName: update.fabricName }),
+              ...(update.foilName !== undefined && { foilName: update.foilName }),
+              ...(update.foilColor !== undefined && { foilColor: update.foilColor }),
+              ...(update.foilPosition !== undefined && { foilPosition: update.foilPosition }),
             },
           });
         }
@@ -1095,6 +1100,7 @@ export class OrderService {
                   coverMaterial: item.coverMaterial,
                   foilName: item.foilName,
                   foilColor: item.foilColor,
+                  foilPosition: item.foilPosition,
                   finishingOptions: item.finishingOptions,
                   fabricName: item.fabricName,
                   thumbnailUrl: item.thumbnailUrl,

@@ -296,6 +296,7 @@ export interface UploadedFolder {
   selectedFabricName: string | null;
   selectedFabricThumbnail: string | null;
   selectedFabricPrice: number;
+  selectedFabricCategory: string | null; // 'leather' | 'canvas' | 'linen' | 'fabric'
   coverAutoDetected: boolean; // 파일명 기반 자동 감지 여부
 
   // 동판 정보 (박 각인)
@@ -377,9 +378,12 @@ interface MultiFolderUploadState {
 
   // 표지 소스 선택
   setFolderCoverSource: (folderId: string, source: CoverSourceType | null) => void;
-  setFolderFabric: (folderId: string, fabricId: string, fabricName: string, fabricThumbnail: string | null, fabricPrice: number) => void;
+  setFolderFabric: (folderId: string, fabricId: string, fabricName: string, fabricThumbnail: string | null, fabricPrice: number, fabricCategory?: string | null) => void;
   clearFolderFabric: (folderId: string) => void;
   reclassifyCoverToInner: (folderId: string) => void;
+
+  // 동판 정보 (전체 폴더 일괄)
+  setAllFoldersFoil: (foilName: string | null, foilColor: string | null, foilPosition: string | null) => void;
 
   // 배송 정보
   setFolderShipping: (folderId: string, shipping: FolderShippingInfo) => void;
@@ -870,6 +874,7 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
           selectedFabricName: null,
           selectedFabricThumbnail: null,
           selectedFabricPrice: 0,
+          selectedFabricCategory: null,
         } : {}),
       })),
     }));
@@ -1237,6 +1242,7 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
             selectedFabricName: null,
             selectedFabricThumbnail: null,
             selectedFabricPrice: 0,
+            selectedFabricCategory: null,
           };
         }
         return { ...f, coverSourceType: source };
@@ -1244,11 +1250,11 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
     }));
   },
 
-  setFolderFabric: (folderId, fabricId, fabricName, fabricThumbnail, fabricPrice) => {
+  setFolderFabric: (folderId, fabricId, fabricName, fabricThumbnail, fabricPrice, fabricCategory) => {
     set(state => ({
       folders: state.folders.map(f =>
         f.id === folderId
-          ? { ...f, selectedFabricId: fabricId, selectedFabricName: fabricName, selectedFabricThumbnail: fabricThumbnail, selectedFabricPrice: fabricPrice }
+          ? { ...f, selectedFabricId: fabricId, selectedFabricName: fabricName, selectedFabricThumbnail: fabricThumbnail, selectedFabricPrice: fabricPrice, selectedFabricCategory: fabricCategory ?? null }
           : f
       ),
     }));
@@ -1258,7 +1264,7 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
     set(state => ({
       folders: state.folders.map(f =>
         f.id === folderId
-          ? { ...f, selectedFabricId: null, selectedFabricName: null, selectedFabricThumbnail: null, selectedFabricPrice: 0 }
+          ? { ...f, selectedFabricId: null, selectedFabricName: null, selectedFabricThumbnail: null, selectedFabricPrice: 0, selectedFabricCategory: null }
           : f
       ),
     }));
@@ -1286,6 +1292,18 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
           splitCoverResults: [],
         };
       }),
+    }));
+  },
+
+  // 동판 정보 (전체 폴더 일괄)
+  setAllFoldersFoil: (foilName, foilColor, foilPosition) => {
+    set(state => ({
+      folders: state.folders.map(f => ({
+        ...f,
+        foilName: foilName ?? null,
+        foilColor: foilColor ?? null,
+        foilPosition: foilPosition ?? null,
+      })),
     }));
   },
 

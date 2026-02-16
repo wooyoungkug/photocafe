@@ -37,7 +37,8 @@ import type { FolderShippingInfo } from '@/stores/multi-folder-upload-store';
 import type { CompanyShippingInfo, OrdererShippingInfo } from '@/hooks/use-shipping-data';
 import type { DeliveryPricing } from '@/hooks/use-delivery-pricing';
 import { useTranslations } from 'next-intl';
-import { retryBackgroundUpload, canRetryUpload, cancelUpload } from '@/lib/background-upload';
+import { retryBackgroundUpload, canRetryUpload, cancelUpload, canCancelUpload } from '@/lib/background-upload';
+import { useCartStore } from '@/stores/cart-store';
 
 const DELIVERY_METHODS = [
   { value: 'parcel', label: '택배' },
@@ -349,6 +350,32 @@ export function CartItemCard({
                   </div>
                 )}
 
+                {/* 표지원단 / 동판 정보 */}
+                {item.albumOrderInfo && (item.albumOrderInfo.fabricName || item.albumOrderInfo.foilName) && (
+                  <div className="mt-1 flex items-center gap-1 flex-wrap text-[10px]">
+                    {item.albumOrderInfo.fabricName && (
+                      <span className="bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded border border-amber-200">
+                        {item.albumOrderInfo.fabricName}
+                      </span>
+                    )}
+                    {item.albumOrderInfo.foilName && (
+                      <span className="bg-violet-50 text-violet-700 px-1.5 py-0.5 rounded border border-violet-200">
+                        {item.albumOrderInfo.foilName}
+                      </span>
+                    )}
+                    {item.albumOrderInfo.foilColor && (
+                      <span className="bg-yellow-50 text-yellow-700 px-1.5 py-0.5 rounded border border-yellow-200">
+                        {item.albumOrderInfo.foilColor}
+                      </span>
+                    )}
+                    {item.albumOrderInfo.foilPosition && (
+                      <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-200">
+                        {item.albumOrderInfo.foilPosition}
+                      </span>
+                    )}
+                  </div>
+                )}
+
                 {/* Options */}
                 {item.options.length > 0 && (
                   <div className="mt-1.5 text-xs text-gray-500 space-y-0.5">
@@ -472,30 +499,68 @@ export function CartItemCard({
                     <span className="text-gray-500 tabular-nums">
                       {item.uploadedFileCount || 0}/{item.totalFileCount || 0}건 · {item.uploadProgress || 0}%
                     </span>
-                    <button
-                      type="button"
-                      className="flex items-center gap-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded px-1.5 py-0.5 transition-colors"
-                      onClick={() => cancelUpload(item.id)}
-                      title="업로드 중단"
-                    >
-                      <XCircle className="w-4 h-4" />
-                      <span className="text-[11px] font-medium">중단</span>
-                    </button>
+                    {canCancelUpload(item.id) ? (
+                      <button
+                        type="button"
+                        className="flex items-center gap-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded px-1.5 py-0.5 transition-colors"
+                        onClick={() => cancelUpload(item.id)}
+                        title="업로드 중단"
+                      >
+                        <XCircle className="w-4 h-4" />
+                        <span className="text-[11px] font-medium">중단</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="flex items-center gap-1 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded px-1.5 py-0.5 transition-colors"
+                        onClick={() => useCartStore.getState().updateUploadStatus(item.id, { uploadStatus: 'completed', uploadProgress: 100 })}
+                        title="상태 해제"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span className="text-[11px] font-medium">상태 해제</span>
+                      </button>
+                    )}
                   </div>
                 </div>
-                <Progress value={item.uploadProgress || 0} className="h-1.5 rounded-full bg-blue-100" />
+                {canCancelUpload(item.id) && (
+                  <Progress value={item.uploadProgress || 0} className="h-1.5 rounded-full bg-blue-100" />
+                )}
               </div>
             )}
             {item.uploadStatus === 'pending' && (
-              <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                <Upload className="w-3.5 h-3.5" />
-                <span>업로드 대기 중...</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>업로드 대기 중...</span>
+                </div>
+                {!canCancelUpload(item.id) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    onClick={() => useCartStore.getState().updateUploadStatus(item.id, { uploadStatus: 'completed', uploadProgress: 100 })}
+                  >
+                    <CheckCircle2 className="w-3 h-3 mr-1" />
+                    상태 해제
+                  </Button>
+                )}
               </div>
             )}
             {item.uploadStatus === 'cancelled' && (
-              <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                <Ban className="w-3.5 h-3.5" />
-                <span>업로드 중단됨 — 장바구니에서 삭제해주세요</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <Ban className="w-3.5 h-3.5" />
+                  <span>업로드 중단됨</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                  onClick={() => useCartStore.getState().updateUploadStatus(item.id, { uploadStatus: 'completed', uploadProgress: 100 })}
+                >
+                  <CheckCircle2 className="w-3 h-3 mr-1" />
+                  상태 해제
+                </Button>
               </div>
             )}
             {item.uploadStatus === 'failed' && (
@@ -506,17 +571,28 @@ export function CartItemCard({
                     업로드 실패 ({item.uploadedFileCount || 0}/{item.totalFileCount || 0}건 완료)
                   </span>
                 </div>
-                {canRetryUpload(item.id) && (
+                <div className="flex items-center gap-1">
+                  {canRetryUpload(item.id) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => retryBackgroundUpload(item.id)}
+                    >
+                      <RefreshCw className="w-3 h-3 mr-1" />
+                      재시도
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
-                    onClick={() => retryBackgroundUpload(item.id)}
+                    className="h-7 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    onClick={() => useCartStore.getState().updateUploadStatus(item.id, { uploadStatus: 'completed', uploadProgress: 100 })}
                   >
-                    <RefreshCw className="w-3 h-3 mr-1" />
-                    재시도
+                    <CheckCircle2 className="w-3 h-3 mr-1" />
+                    상태 해제
                   </Button>
-                )}
+                </div>
               </div>
             )}
           </div>

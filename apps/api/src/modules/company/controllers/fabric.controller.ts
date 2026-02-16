@@ -90,6 +90,7 @@ export class FabricController {
     @Query('material') material?: string,
     @Query('supplierId') supplierId?: string,
     @Query('includeInactive') includeInactive?: string,
+    @Query('forAlbumCover') forAlbumCover?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
@@ -99,6 +100,7 @@ export class FabricController {
       material,
       supplierId,
       includeInactive: includeInactive === 'true',
+      forAlbumCover: forAlbumCover === 'true' ? true : undefined,
       page: page ? parseInt(page) : 1,
       limit: limit ? parseInt(limit) : 20,
     });
