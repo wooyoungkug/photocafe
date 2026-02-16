@@ -1767,7 +1767,7 @@ model Fabric {
   id              String           @id @default(cuid())
   code            String           @unique
   name            String
-  category        String           @default("cloth")
+  category        String           @default("fabric")
   material        String           @default("cotton")
   colorCode       String?
   colorName       String?

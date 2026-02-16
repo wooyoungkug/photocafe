@@ -2,19 +2,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
 // 타입 정의
-export type FabricCategory = 'leather' | 'cloth' | 'velvet' | 'silk' | 'linen' | 'canvas' | 'synthetic' | 'other';
+export type FabricCategory = 'leather' | 'canvas' | 'linen' | 'fabric';
 export type FabricMaterial = 'genuine_leather' | 'pu_leather' | 'pvc_leather' | 'cotton' | 'polyester' | 'nylon' | 'wool' | 'mixed' | 'other';
 export type FabricUnitType = 'm' | 'roll' | 'yard';
 
 export const FABRIC_CATEGORY_LABELS: Record<FabricCategory, string> = {
-  leather: '가죽',
-  cloth: '천',
-  velvet: '벨벳',
-  silk: '실크',
+  leather: '레더(Leather)',
+  canvas: 'Canvas',
   linen: '린넨',
-  canvas: '캔버스',
-  synthetic: '합성',
-  other: '기타',
+  fabric: '페브릭',
 };
 
 export const FABRIC_MATERIAL_LABELS: Record<FabricMaterial, string> = {
@@ -37,13 +33,9 @@ export const FABRIC_UNIT_LABELS: Record<FabricUnitType, string> = {
 
 export const FABRIC_CATEGORY_COLORS: Record<FabricCategory, string> = {
   leather: 'bg-amber-100 text-amber-800 border-amber-200',
-  cloth: 'bg-blue-100 text-blue-800 border-blue-200',
-  velvet: 'bg-purple-100 text-purple-800 border-purple-200',
-  silk: 'bg-pink-100 text-pink-800 border-pink-200',
-  linen: 'bg-yellow-100 text-yellow-800 border-yellow-200',
   canvas: 'bg-orange-100 text-orange-800 border-orange-200',
-  synthetic: 'bg-gray-100 text-gray-800 border-gray-200',
-  other: 'bg-slate-100 text-slate-800 border-slate-200',
+  linen: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  fabric: 'bg-blue-100 text-blue-800 border-blue-200',
 };
 
 export interface FabricSupplier {
