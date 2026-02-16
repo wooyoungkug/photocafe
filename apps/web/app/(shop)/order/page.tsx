@@ -389,6 +389,20 @@ export default function OrderPage() {
     setIsSubmitting(false);
   };
 
+  // 앨범 상품 중 serverFiles 누락 검사 → 장바구니로 리다이렉트
+  const albumItemsMissingFiles = items.filter(
+    (item) => item.productType === 'album-order' && (!item.serverFiles || item.serverFiles.length === 0)
+  );
+
+  useEffect(() => {
+    if (albumItemsMissingFiles.length > 0) {
+      toast.error('파일 데이터 누락', {
+        description: `${albumItemsMissingFiles.length}건의 앨범 상품에 파일 데이터가 누락되었습니다. 해당 상품을 삭제 후 다시 업로드해주세요.`,
+      });
+      router.replace('/cart');
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Redirect to login if not authenticated
   if (!isAuthenticated) {
     return (

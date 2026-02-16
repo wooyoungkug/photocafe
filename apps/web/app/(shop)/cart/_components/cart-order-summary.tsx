@@ -18,6 +18,7 @@ interface CartOrderSummaryProps {
   isAuthenticated: boolean;
   hasUploadInProgress?: boolean;
   hasUploadFailed?: boolean;
+  hasFileMissing?: boolean;
   onCheckout: () => void;
 }
 
@@ -30,6 +31,7 @@ export function CartOrderSummary({
   isAuthenticated,
   hasUploadInProgress,
   hasUploadFailed,
+  hasFileMissing,
   onCheckout,
 }: CartOrderSummaryProps) {
   const t = useTranslations('cart');
@@ -134,12 +136,22 @@ export function CartOrderSummary({
             </div>
           )}
 
+          {/* Warning for file data missing */}
+          {hasFileMissing && !hasUploadInProgress && !hasUploadFailed && (
+            <div className="bg-orange-50 border border-orange-200/50 rounded-lg p-3 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-orange-500 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-orange-700 leading-relaxed">
+                파일 데이터가 누락된 앨범 상품이 있습니다. 해당 상품을 삭제 후 다시 업로드해주세요.
+              </p>
+            </div>
+          )}
+
           {/* Checkout button */}
           <Button
             size="lg"
             className="w-full h-12 text-base font-semibold gradient-primary text-white shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all disabled:opacity-50 disabled:shadow-none"
             onClick={onCheckout}
-            disabled={selectedCount === 0 || hasUploadInProgress || hasUploadFailed}
+            disabled={selectedCount === 0 || hasUploadInProgress || hasUploadFailed || hasFileMissing}
           >
             <ShoppingBag className="h-5 w-5 mr-2" />
             {t('checkout')} ({selectedCount})
