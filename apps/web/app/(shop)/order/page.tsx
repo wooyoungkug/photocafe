@@ -663,6 +663,23 @@ export default function OrderPage() {
                                 {item.options.map(o => o.value).join(' / ')}
                               </p>
                             )}
+                            {/* 원단/동판 정보 표시 */}
+                            {(item.albumOrderInfo?.fabricName || item.albumOrderInfo?.foilName || item.copperPlateInfo) && (
+                              <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-gray-500">
+                                {item.albumOrderInfo?.fabricName && (
+                                  <span>원단: <span className="text-gray-700">{item.albumOrderInfo.fabricName}</span></span>
+                                )}
+                                {(item.albumOrderInfo?.foilName || item.copperPlateInfo?.plateName) && (
+                                  <span>동판: <span className="text-gray-700">{item.albumOrderInfo?.foilName || item.copperPlateInfo?.plateName}</span></span>
+                                )}
+                                {(item.albumOrderInfo?.foilColor || item.copperPlateInfo?.selectedFoilColorName) && (
+                                  <span>박색상: <span className="text-gray-700">{item.albumOrderInfo?.foilColor || item.copperPlateInfo?.selectedFoilColorName}</span></span>
+                                )}
+                                {(item.albumOrderInfo?.foilPosition || item.copperPlateInfo?.selectedFoilPositionName) && (
+                                  <span>박위치: <span className="text-gray-700">{item.albumOrderInfo?.foilPosition || item.copperPlateInfo?.selectedFoilPositionName}</span></span>
+                                )}
+                              </div>
+                            )}
                             <div className="flex justify-between items-center mt-2">
                               <span className="text-sm text-gray-500">
                                 수량: {item.quantity}개

@@ -55,6 +55,7 @@ export interface AlbumOrderCartInfo {
   specificationId: string;         // 규격 ID
   specificationName: string;       // 규격명
   fabricName?: string;             // 원단명
+  fabricCategory?: string;         // 'leather' | 'canvas' | 'linen' | 'fabric'
   foilName?: string;               // 박 동판명
   foilColor?: string;              // 박 색상
   foilPosition?: string;           // 박 위치

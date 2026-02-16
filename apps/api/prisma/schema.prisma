@@ -802,6 +802,7 @@ model OrderItem {
   coverMaterial     String?
   foilName          String?
   foilColor         String?
+  foilPosition      String?
   finishingOptions  String[]           @default([])
   quantity          Int
   unitPrice         Decimal            @db.Decimal(10, 2)

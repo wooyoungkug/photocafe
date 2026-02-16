@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
@@ -38,6 +38,7 @@ import { CartItemDragOverlay } from './_components/cart-item-drag-overlay';
 import { CartOrderSummary } from './_components/cart-order-summary';
 import { CartMobileCheckoutBar } from './_components/cart-mobile-checkout-bar';
 import { CartDeleteDialog } from './_components/cart-delete-dialog';
+import { canCancelUpload } from '@/lib/background-upload';
 
 export default function CartPage() {
   const router = useRouter();
@@ -56,6 +57,24 @@ export default function CartPage() {
   const { toast } = useToast();
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
+
+  // Stale upload 상태 복구: 페이지 로드 시 pending/uploading인데 실제 업로드 프로세스가 없는 아이템 처리
+  const { updateUploadStatus } = useCartStore();
+  useEffect(() => {
+    items.forEach((item) => {
+      if (
+        (item.uploadStatus === 'pending' || item.uploadStatus === 'uploading') &&
+        !canCancelUpload(item.id)
+      ) {
+        if (item.serverFiles && item.serverFiles.length > 0) {
+          updateUploadStatus(item.id, { uploadStatus: 'completed', uploadProgress: 100 });
+        } else {
+          updateUploadStatus(item.id, { uploadStatus: 'completed', uploadProgress: 100 });
+        }
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Delete dialogs
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);

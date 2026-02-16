@@ -32,8 +32,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { MultiFolderUpload } from '@/components/album-upload';
 import { useMultiFolderUploadStore, type UploadedFolder, type CoverSourceType, calculateUploadedFolderPrice, calculateAdditionalOrderPrice } from '@/stores/multi-folder-upload-store';
-import { FabricPickerDialog } from '@/components/album-upload/fabric-picker-dialog';
-import type { Fabric } from '@/hooks/use-fabrics';
+import { useFabrics, FABRIC_CATEGORY_LABELS, FABRIC_CATEGORY_COLORS, type Fabric, type FabricCategory } from '@/hooks/use-fabrics';
 import { useTranslations } from 'next-intl';
 import { startBackgroundUpload, type FolderUploadData } from '@/lib/background-upload';
 import { UploadProgressModal } from './_components/upload-progress-modal';
@@ -134,10 +133,19 @@ export default function ProductPage() {
     clearFolders,
     applyGlobalCoverSource,
     setFolderFabric,
+    setAllFoldersFoil,
   } = useMultiFolderUploadStore();
 
-  // 표지 원단 선택 다이얼로그
-  const [showCoverFabricDialog, setShowCoverFabricDialog] = useState(false);
+  // 표지 원단 카테고리 선택
+  const [selectedFabricCategory, setSelectedFabricCategory] = useState<FabricCategory | null>(null);
+
+  // 카테고리별 원단 목록 조회 (카테고리 선택 시에만)
+  const { data: categoryFabricsData } = useFabrics(
+    selectedFabricCategory
+      ? { category: selectedFabricCategory, forAlbumCover: true, isActive: true, limit: 100 }
+      : undefined
+  );
+  const categoryFabrics = selectedFabricCategory ? (categoryFabricsData?.data || []) : [];
 
   // 현재 선택된 원단 (첫 번째 폴더 기준)
   const selectedFabricInfo = uploadFolders.length > 0 ? {
@@ -148,7 +156,7 @@ export default function ProductPage() {
 
   const handleCoverFabricSelect = (fabric: Fabric) => {
     uploadFolders.forEach(f => {
-      setFolderFabric(f.id, fabric.id, `${fabric.code} ${fabric.name}`, fabric.thumbnailUrl || null, fabric.basePrice);
+      setFolderFabric(f.id, fabric.id, fabric.name, fabric.thumbnailUrl || null, fabric.basePrice, fabric.category);
     });
   };
 
@@ -195,6 +203,21 @@ export default function ProductPage() {
               })),
             });
           }
+        });
+
+        // 2.5. 동판 정보를 selectedOptions에서 가져와 폴더에 주입
+        const copperPlateName = selectedOptions.copperPlateType === 'owned'
+          ? selectedOptions.ownedCopperPlate?.plateName
+          : selectedOptions.copperPlateType === 'public'
+            ? selectedOptions.publicCopperPlate?.plateName
+            : undefined;
+        const foilColorName = copperPlateLabels?.foilColors?.find(c => c.code === selectedOptions.foilColor)?.name;
+        const foilPositionName = copperPlateLabels?.platePositions?.find(p => p.code === selectedOptions.foilPosition)?.name;
+
+        folders.forEach((folder) => {
+          folder.foilName = copperPlateName || null;
+          folder.foilColor = foilColorName || null;
+          folder.foilPosition = foilPositionName || null;
         });
 
         // 3. 장바구니에 아이템 추가 (uploadStatus: 'pending')
@@ -249,6 +272,7 @@ export default function ProductPage() {
               specificationName: folder.specLabel,
               totalSize: folder.totalFileSize || 0,
               fabricName: folder.selectedFabricName || undefined,
+              fabricCategory: folder.selectedFabricCategory || undefined,
               foilName: folder.foilName || undefined,
               foilColor: folder.foilColor || undefined,
               foilPosition: folder.foilPosition || undefined,
@@ -288,6 +312,7 @@ export default function ProductPage() {
                 specificationName: additional.albumLabel,
                 totalSize: folder.totalFileSize || 0,
                 fabricName: folder.selectedFabricName || undefined,
+                fabricCategory: folder.selectedFabricCategory || undefined,
                 foilName: folder.foilName || undefined,
                 foilColor: folder.foilColor || undefined,
                 foilPosition: folder.foilPosition || undefined,
@@ -332,7 +357,7 @@ export default function ProductPage() {
         });
       }
     }, 50);
-  }, [product, addItem, clearFolders, router, toast, defaultPageLayout, defaultBindingDirection]);
+  }, [product, addItem, clearFolders, router, toast, defaultPageLayout, defaultBindingDirection, selectedOptions, copperPlateLabels]);
 
   // 화보/앨범 상품인지 확인
   const isAlbum = useMemo(() => {
@@ -362,6 +387,32 @@ export default function ProductPage() {
       });
     }
   }, [product, copperPlateLabels, allPublicCopperPlates]);
+
+  // 동판 옵션 변경 시 업로드된 폴더에 동기화
+  useEffect(() => {
+    if (uploadFolders.length === 0) return;
+    const copperPlateName = selectedOptions.copperPlateType === 'owned'
+      ? selectedOptions.ownedCopperPlate?.plateName
+      : selectedOptions.copperPlateType === 'public'
+        ? selectedOptions.publicCopperPlate?.plateName
+        : null;
+    const foilColorName = selectedOptions.copperPlateType !== 'none'
+      ? (copperPlateLabels?.foilColors?.find(c => c.code === selectedOptions.foilColor)?.name ?? null)
+      : null;
+    const foilPositionName = selectedOptions.copperPlateType !== 'none'
+      ? (copperPlateLabels?.platePositions?.find(p => p.code === selectedOptions.foilPosition)?.name ?? null)
+      : null;
+    setAllFoldersFoil(copperPlateName ?? null, foilColorName, foilPositionName);
+  }, [
+    selectedOptions.copperPlateType,
+    selectedOptions.ownedCopperPlate,
+    selectedOptions.publicCopperPlate,
+    selectedOptions.foilColor,
+    selectedOptions.foilPosition,
+    copperPlateLabels,
+    uploadFolders.length,
+    setAllFoldersFoil,
+  ]);
 
   // 가격 계산 (early return 위에 배치)
   const totalPrice = useMemo(() => {
@@ -799,67 +850,89 @@ export default function ProductPage() {
               {/* 앨범표지 - 화보/앨범 상품만 (제본방법 바로 아래) */}
               {isAlbum && (
                 <OptionSection title={t('albumCover')}>
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <div className="inline-flex rounded-lg border border-gray-200 p-0.5 bg-gray-50">
-                      <button
-                        type="button"
-                        onClick={() => applyGlobalCoverSource('fabric')}
-                        className={cn(
-                          'px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5',
-                          defaultCoverSourceType === 'fabric'
-                            ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
-                            : 'text-gray-500 hover:text-gray-700'
-                        )}
-                      >
-                        <Palette className="w-3.5 h-3.5" />
-                        {t('fabricCover')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => applyGlobalCoverSource('design')}
-                        className={cn(
-                          'px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5',
-                          defaultCoverSourceType === 'design'
-                            ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
-                            : 'text-gray-500 hover:text-gray-700'
-                        )}
-                      >
-                        <ImageIcon className="w-3.5 h-3.5" />
-                        {t('designCover')}
-                      </button>
+                  {/* 선택된 원단 표시 */}
+                  {selectedFabricInfo?.id && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 mb-3 rounded-md border border-amber-200 bg-amber-50">
+                      {selectedFabricInfo.thumbnail && (
+                        <div
+                          className="w-10 h-10 rounded border border-amber-300 bg-cover bg-center flex-shrink-0"
+                          style={{ backgroundImage: `url(${normalizeImageUrl(selectedFabricInfo.thumbnail)})` }}
+                        />
+                      )}
+                      <span className="text-sm font-medium text-gray-800">{selectedFabricInfo.name}</span>
                     </div>
+                  )}
 
-                    {/* 원단표지 선택 시 원단 선택 버튼 */}
-                    {defaultCoverSourceType === 'fabric' && (
-                      <div className="flex items-center gap-3">
-                        <Button
-                          size="sm"
-                          className="h-7 text-xs bg-amber-600 hover:bg-amber-700 flex-shrink-0"
-                          onClick={() => setShowCoverFabricDialog(true)}
-                        >
-                          {selectedFabricInfo?.id ? tc('change') : t('selectFabric')}
-                        </Button>
-                        {selectedFabricInfo?.id && (
-                          <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-amber-200 bg-amber-50">
-                            {selectedFabricInfo.thumbnail && (
-                              <div
-                                className="w-12 h-12 rounded border border-amber-300 bg-cover bg-center flex-shrink-0"
-                                style={{ backgroundImage: `url(${selectedFabricInfo.thumbnail})` }}
-                              />
-                            )}
-                            <span className="text-sm font-medium text-gray-800">{selectedFabricInfo.name}</span>
-                          </div>
+                  {/* 카테고리 버튼 4개 */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {(Object.keys(FABRIC_CATEGORY_LABELS) as FabricCategory[]).map((cat) => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => {
+                          setSelectedFabricCategory(prev => prev === cat ? null : cat);
+                          applyGlobalCoverSource('fabric');
+                        }}
+                        className={cn(
+                          'px-3 py-1.5 text-xs font-medium rounded-md border transition-all',
+                          selectedFabricCategory === cat
+                            ? FABRIC_CATEGORY_COLORS[cat]
+                            : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
                         )}
-                      </div>
-                    )}
+                      >
+                        {FABRIC_CATEGORY_LABELS[cat]}
+                      </button>
+                    ))}
                   </div>
 
-                  <FabricPickerDialog
-                    open={showCoverFabricDialog}
-                    onOpenChange={setShowCoverFabricDialog}
-                    selectedFabricId={selectedFabricInfo?.id || null}
-                    onSelect={handleCoverFabricSelect}
-                  />
+                  {/* 선택된 카테고리의 원단 목록 */}
+                  {selectedFabricCategory && (
+                    <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-[280px] overflow-y-auto pr-1">
+                      {categoryFabrics.length === 0 ? (
+                        <p className="col-span-full text-xs text-gray-400 py-4 text-center">
+                          {t('selectFabric')}
+                        </p>
+                      ) : (
+                        categoryFabrics.map((fabric) => (
+                          <button
+                            key={fabric.id}
+                            type="button"
+                            onClick={() => handleCoverFabricSelect(fabric)}
+                            className={cn(
+                              'flex flex-col items-center gap-1 p-2 rounded-lg border transition-all text-center',
+                              selectedFabricInfo?.id === fabric.id
+                                ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                            )}
+                          >
+                            {fabric.thumbnailUrl ? (
+                              <div
+                                className="w-12 h-12 rounded border bg-cover bg-center flex-shrink-0"
+                                style={{ backgroundImage: `url(${normalizeImageUrl(fabric.thumbnailUrl)})` }}
+                              />
+                            ) : fabric.colorCode ? (
+                              <div
+                                className="w-12 h-12 rounded border flex-shrink-0"
+                                style={{ backgroundColor: fabric.colorCode }}
+                              />
+                            ) : (
+                              <div className="w-12 h-12 rounded border bg-gray-100 flex items-center justify-center flex-shrink-0">
+                                <Palette className="w-5 h-5 text-gray-400" />
+                              </div>
+                            )}
+                            <span className="text-[10px] font-medium text-gray-800 leading-tight line-clamp-2">
+                              {fabric.name}
+                            </span>
+                            {fabric.colorName && (
+                              <span className="text-[10px] text-gray-500 leading-tight">
+                                {fabric.colorName}
+                              </span>
+                            )}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
                 </OptionSection>
               )}
 
@@ -1172,22 +1245,32 @@ export default function ProductPage() {
                         onClick={() => setIsCopperPlateListExpanded(true)}
                         className="w-full flex items-center gap-3 p-2 border-2 border-primary rounded-md bg-primary/5 hover:bg-primary/10 transition-colors text-left"
                       >
-                        {selectedOptions.publicCopperPlate.imageUrl && (
-                          <div className="relative group/logo shrink-0">
-                            <img
-                              src={normalizeImageUrl(selectedOptions.publicCopperPlate.imageUrl)}
-                              alt={selectedOptions.publicCopperPlate.plateName}
-                              className="w-12 h-12 object-cover rounded"
-                            />
-                            <div className="hidden group-hover/logo:block absolute z-50 left-full top-0 ml-2 p-1 bg-white border rounded-lg shadow-xl">
+                        <div className="relative group/logo shrink-0">
+                          {selectedOptions.publicCopperPlate.imageUrl ? (
+                            <>
                               <img
                                 src={normalizeImageUrl(selectedOptions.publicCopperPlate.imageUrl)}
                                 alt={selectedOptions.publicCopperPlate.plateName}
-                                className="w-48 h-48 object-contain rounded"
+                                className="w-12 h-12 object-cover rounded border"
+                                onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }}
                               />
+                              <div className="hidden w-12 h-12 rounded border bg-gray-100 flex items-center justify-center">
+                                <ImageIcon className="w-5 h-5 text-gray-400" />
+                              </div>
+                              <div className="hidden group-hover/logo:block absolute z-50 left-full top-0 ml-2 p-1 bg-white border rounded-lg shadow-xl">
+                                <img
+                                  src={normalizeImageUrl(selectedOptions.publicCopperPlate.imageUrl)}
+                                  alt={selectedOptions.publicCopperPlate.plateName}
+                                  className="w-48 h-48 object-contain rounded"
+                                />
+                              </div>
+                            </>
+                          ) : (
+                            <div className="w-12 h-12 rounded border bg-gray-100 flex items-center justify-center">
+                              <ImageIcon className="w-5 h-5 text-gray-400" />
                             </div>
-                          </div>
-                        )}
+                          )}
+                        </div>
                         <div className="flex-1">
                           <div className="font-medium text-sm">
                             {selectedOptions.publicCopperPlate.plateName}
@@ -1224,22 +1307,32 @@ export default function ProductPage() {
                             setIsCopperPlateListExpanded(false);
                           }}
                         >
-                          {plate.imageUrl && (
-                            <div className="relative group/logo shrink-0">
-                              <img
-                                src={normalizeImageUrl(plate.imageUrl)}
-                                alt={plate.plateName}
-                                className="w-12 h-12 object-cover rounded"
-                              />
-                              <div className="hidden group-hover/logo:block absolute z-50 left-full top-0 ml-2 p-1 bg-white border rounded-lg shadow-xl">
+                          <div className="relative group/logo shrink-0">
+                            {plate.imageUrl ? (
+                              <>
                                 <img
                                   src={normalizeImageUrl(plate.imageUrl)}
                                   alt={plate.plateName}
-                                  className="w-48 h-48 object-contain rounded"
+                                  className="w-12 h-12 object-cover rounded border"
+                                  onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }}
                                 />
+                                <div className="hidden w-12 h-12 rounded border bg-gray-100 flex items-center justify-center">
+                                  <ImageIcon className="w-5 h-5 text-gray-400" />
+                                </div>
+                                <div className="hidden group-hover/logo:block absolute z-50 left-full top-0 ml-2 p-1 bg-white border rounded-lg shadow-xl">
+                                  <img
+                                    src={normalizeImageUrl(plate.imageUrl)}
+                                    alt={plate.plateName}
+                                    className="w-48 h-48 object-contain rounded"
+                                  />
+                                </div>
+                              </>
+                            ) : (
+                              <div className="w-12 h-12 rounded border bg-gray-100 flex items-center justify-center">
+                                <ImageIcon className="w-5 h-5 text-gray-400" />
                               </div>
-                            </div>
-                          )}
+                            )}
+                          </div>
                           <div className="flex-1">
                             <div className="font-medium text-sm">
                               {plate.plateName}
@@ -1333,22 +1426,32 @@ export default function ProductPage() {
                         onClick={() => setIsCopperPlateListExpanded(true)}
                         className="w-full flex items-center gap-2 p-2 border-2 border-primary rounded-md bg-primary/5 hover:bg-primary/10 transition-colors text-left"
                       >
-                        {selectedOptions.ownedCopperPlate.imageUrl && (
-                          <div className="relative group/logo shrink-0">
-                            <img
-                              src={normalizeImageUrl(selectedOptions.ownedCopperPlate.imageUrl)}
-                              alt={selectedOptions.ownedCopperPlate.plateName}
-                              className="w-8 h-8 object-cover rounded"
-                            />
-                            <div className="hidden group-hover/logo:block absolute z-50 left-full top-0 ml-2 p-1 bg-white border rounded-lg shadow-xl">
+                        <div className="relative group/logo shrink-0">
+                          {selectedOptions.ownedCopperPlate.imageUrl ? (
+                            <>
                               <img
                                 src={normalizeImageUrl(selectedOptions.ownedCopperPlate.imageUrl)}
                                 alt={selectedOptions.ownedCopperPlate.plateName}
-                                className="w-48 h-48 object-contain rounded"
+                                className="w-10 h-10 object-cover rounded border"
+                                onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }}
                               />
+                              <div className="hidden w-10 h-10 rounded border bg-gray-100 flex items-center justify-center">
+                                <ImageIcon className="w-5 h-5 text-gray-400" />
+                              </div>
+                              <div className="hidden group-hover/logo:block absolute z-50 left-full top-0 ml-2 p-1 bg-white border rounded-lg shadow-xl">
+                                <img
+                                  src={normalizeImageUrl(selectedOptions.ownedCopperPlate.imageUrl)}
+                                  alt={selectedOptions.ownedCopperPlate.plateName}
+                                  className="w-48 h-48 object-contain rounded"
+                                />
+                              </div>
+                            </>
+                          ) : (
+                            <div className="w-10 h-10 rounded border bg-gray-100 flex items-center justify-center">
+                              <ImageIcon className="w-5 h-5 text-gray-400" />
                             </div>
-                          </div>
-                        )}
+                          )}
+                        </div>
                         <span className="font-medium text-sm">{selectedOptions.ownedCopperPlate.plateName}</span>
                         {selectedOptions.ownedCopperPlate.foilColorName && (
                           <>
@@ -1395,22 +1498,32 @@ export default function ProductPage() {
                               setIsCopperPlateListExpanded(false);
                             }}
                           >
-                            {cp.imageUrl && (
-                              <div className="relative group/logo shrink-0">
-                                <img
-                                  src={normalizeImageUrl(cp.imageUrl)}
-                                  alt={cp.plateName}
-                                  className="w-8 h-8 object-cover rounded"
-                                />
-                                <div className="hidden group-hover/logo:block absolute z-50 left-full top-0 ml-2 p-1 bg-white border rounded-lg shadow-xl">
+                            <div className="relative group/logo shrink-0">
+                              {cp.imageUrl ? (
+                                <>
                                   <img
                                     src={normalizeImageUrl(cp.imageUrl)}
                                     alt={cp.plateName}
-                                    className="w-48 h-48 object-contain rounded"
+                                    className="w-10 h-10 object-cover rounded border"
+                                    onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }}
                                   />
+                                  <div className="hidden w-10 h-10 rounded border bg-gray-100 flex items-center justify-center">
+                                    <ImageIcon className="w-5 h-5 text-gray-400" />
+                                  </div>
+                                  <div className="hidden group-hover/logo:block absolute z-50 left-full top-0 ml-2 p-1 bg-white border rounded-lg shadow-xl">
+                                    <img
+                                      src={normalizeImageUrl(cp.imageUrl)}
+                                      alt={cp.plateName}
+                                      className="w-48 h-48 object-contain rounded"
+                                    />
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="w-10 h-10 rounded border bg-gray-100 flex items-center justify-center">
+                                  <ImageIcon className="w-5 h-5 text-gray-400" />
                                 </div>
-                              </div>
-                            )}
+                              )}
+                            </div>
                             <span className="font-medium text-sm">{cp.plateName}</span>
                             {isSelected ? (
                               <>
@@ -1653,7 +1766,7 @@ export default function ProductPage() {
               )}
 
               {product.detailImages.length > 0 && (
-                <div className="mt-8 space-y-4">
+                <div className="mt-8 grid grid-cols-2 gap-4">
                   {product.detailImages.map((img, idx) => (
                     <img
                       key={idx}

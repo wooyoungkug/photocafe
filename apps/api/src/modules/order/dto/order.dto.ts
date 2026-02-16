@@ -210,6 +210,11 @@ export class CreateOrderItemDto {
   @IsString()
   foilColor?: string;
 
+  @ApiPropertyOptional({ description: '박 위치' })
+  @IsOptional()
+  @IsString()
+  foilPosition?: string;
+
   @ApiPropertyOptional({ description: '후가공 옵션' })
   @IsOptional()
   @IsArray()
@@ -510,6 +515,21 @@ export class AdjustOrderItemDto {
   @IsOptional()
   @IsString()
   fabricName?: string;
+
+  @ApiPropertyOptional({ description: '박 동판명' })
+  @IsOptional()
+  @IsString()
+  foilName?: string;
+
+  @ApiPropertyOptional({ description: '박 색상' })
+  @IsOptional()
+  @IsString()
+  foilColor?: string;
+
+  @ApiPropertyOptional({ description: '박 위치' })
+  @IsOptional()
+  @IsString()
+  foilPosition?: string;
 }
 
 export class AdjustOrderDto {
