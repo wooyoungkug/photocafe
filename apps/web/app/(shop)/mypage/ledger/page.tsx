@@ -123,7 +123,9 @@ export default function LedgerPage() {
       'spiral': '스프링제본',
       'ring': '링제본',
     };
-    return typeMap[bindingType] || bindingType;
+    const label = typeMap[bindingType] || bindingType;
+    // 괄호 이전의 이름만 표시 (예: "스타제본 (구간별 Nup/1p 가격)" → "스타제본")
+    return label.split(' (')[0].split(' - ')[0];
   };
 
   if (!isAuthenticated || !user) {

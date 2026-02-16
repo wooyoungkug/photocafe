@@ -28,6 +28,15 @@ export class SalesLedgerController {
     return this.salesLedgerService.findAll(query);
   }
 
+  // ===== 카드/선불 결제 SalesReceipt 백필 =====
+  @Post('backfill-receipts')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '카드/선불 결제 수금 레코드 백필 (관리자)' })
+  async backfillPrepaidReceipts() {
+    return this.salesLedgerService.backfillPrepaidReceipts();
+  }
+
   // ===== 매출원장 요약 (대시보드) =====
   @Get('summary')
   @ApiOperation({ summary: '매출원장 요약 (당월 매출, 수금, 미수금)' })

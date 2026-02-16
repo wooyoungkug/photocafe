@@ -171,6 +171,26 @@ export class SalesLedgerService {
       },
     });
 
+    // 카드/선불 결제 시 SalesReceipt 자동 생성 (입금내역에 표시되도록)
+    if (isPrepaid) {
+      try {
+        const receiptNumber = await this.generateReceiptNumber();
+        await this.prisma.salesReceipt.create({
+          data: {
+            salesLedgerId: salesLedger.id,
+            receiptNumber,
+            receiptDate: new Date(),
+            amount: totalAmount,
+            paymentMethod: order.paymentMethod,
+            note: '주문 시 자동 수금',
+            createdBy,
+          },
+        });
+      } catch (err) {
+        this.logger.warn(`선불 수금 자동 생성 실패: ${err.message}`);
+      }
+    }
+
     // After salesLedger creation, create auto-journal
     try {
       await this.journalEngine.createSalesJournal({
@@ -191,6 +211,53 @@ export class SalesLedgerService {
     }
 
     return salesLedger;
+  }
+
+  // ===== 카드/선불 결제 SalesReceipt 백필 =====
+  // 기존 카드/선불 결제 매출원장 중 SalesReceipt가 없는 건에 대해 자동 생성
+  async backfillPrepaidReceipts(): Promise<{ created: number; errors: number }> {
+    // SalesReceipt가 없는 카드/선불 결제 매출원장 조회
+    const ledgersWithoutReceipt = await this.prisma.salesLedger.findMany({
+      where: {
+        paymentMethod: { in: ['card', 'prepaid'] },
+        paymentStatus: 'paid',
+        receipts: { none: {} },
+      },
+      select: {
+        id: true,
+        ledgerDate: true,
+        totalAmount: true,
+        paymentMethod: true,
+        createdBy: true,
+      },
+    });
+
+    let created = 0;
+    let errors = 0;
+
+    for (const ledger of ledgersWithoutReceipt) {
+      try {
+        const receiptNumber = await this.generateReceiptNumber();
+        await this.prisma.salesReceipt.create({
+          data: {
+            salesLedgerId: ledger.id,
+            receiptNumber,
+            receiptDate: ledger.ledgerDate,
+            amount: ledger.totalAmount,
+            paymentMethod: ledger.paymentMethod,
+            note: '주문 시 자동 수금 (백필)',
+            createdBy: ledger.createdBy,
+          },
+        });
+        created++;
+      } catch (err) {
+        this.logger.warn(`백필 실패 (ledgerId: ${ledger.id}): ${err.message}`);
+        errors++;
+      }
+    }
+
+    this.logger.log(`SalesReceipt 백필 완료: ${created}건 생성, ${errors}건 실패`);
+    return { created, errors };
   }
 
   // ===== 매출 직접 등록 (홈페이지 외 매출) =====

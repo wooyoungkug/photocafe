@@ -74,11 +74,11 @@ export default function DepositsPage() {
     paymentMethod: filterMethod === 'all' ? undefined : filterMethod,
   });
 
-  // 드릴다운 건별 조회 (초기 비활성화)
-  const { data: detailData, refetch: refetchDetails, isFetching: isDetailFetching } =
+  // 드릴다운 건별 조회 (expandedRow 날짜가 선택되면 자동 실행)
+  const { data: detailData, isFetching: isDetailFetching } =
     useDepositDetails({
-      startDate: '',
-      endDate: '',
+      startDate: expandedRow || '',
+      endDate: expandedRow || '',
       clientId: user?.clientId,
     });
 
@@ -97,29 +97,9 @@ export default function DepositsPage() {
     setExpandedRow(null);
   };
 
-  // 행 클릭 핸들러 (드릴다운)
-  const handleRowClick = async (date: string) => {
-    if (expandedRow === date) {
-      setExpandedRow(null);
-      return;
-    }
-
-    setExpandedRow(date);
-
-    // 해당 일자의 건별 상세 조회
-    await refetchDetails({
-      cancelRefetch: true,
-      // @ts-ignore
-      queryKey: [
-        'deposits',
-        'details',
-        {
-          startDate: date,
-          endDate: date,
-          clientId: user?.clientId,
-        },
-      ],
-    });
+  // 행 클릭 핸들러 (드릴다운) - expandedRow 변경 시 useDepositDetails가 자동 실행됨
+  const handleRowClick = (date: string) => {
+    setExpandedRow(expandedRow === date ? null : date);
   };
 
   const handleExport = () => {
@@ -309,7 +289,7 @@ export default function DepositsPage() {
 
                     return (
                       <Collapsible key={row.date} open={isExpanded} asChild>
-                        <>
+                        <tbody>
                           {/* 합계 행 */}
                           <TableRow
                             className="cursor-pointer hover:bg-slate-100"
@@ -453,7 +433,7 @@ export default function DepositsPage() {
                               </TableCell>
                             </TableRow>
                           </CollapsibleContent>
-                        </>
+                        </tbody>
                       </Collapsible>
                     );
                   })}
