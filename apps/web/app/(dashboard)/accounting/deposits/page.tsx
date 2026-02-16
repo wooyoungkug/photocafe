@@ -11,7 +11,9 @@ import {
   TrendingUp,
   Loader2,
   Receipt,
+  CreditCard,
 } from 'lucide-react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -165,10 +167,18 @@ export default function DepositsPage() {
             거래처별 입금 합계 및 상세 내역을 조회합니다.
           </p>
         </div>
-        <Button variant="outline" onClick={handleExportCSV}>
-          <Download className="h-4 w-4 mr-2" />
-          CSV 다운로드
-        </Button>
+        <div className="flex gap-2">
+          <Link href="/accounting/receivables/payments">
+            <Button>
+              <CreditCard className="h-4 w-4 mr-2" />
+              입금 처리
+            </Button>
+          </Link>
+          <Button variant="outline" onClick={handleExportCSV}>
+            <Download className="h-4 w-4 mr-2" />
+            CSV 다운로드
+          </Button>
+        </div>
       </div>
 
       {/* KPI Cards */}

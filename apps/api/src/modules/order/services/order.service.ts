@@ -49,7 +49,7 @@ export class OrderService {
 
     // Advisory lock으로 동시 요청 직렬화 (트랜잭션 종료 시 자동 해제)
     const lockKey = parseInt(`${year}${month}${day}`, 10);
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(${lockKey})`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(${lockKey})`;
 
     // lock 획득 후 시퀀스 조회 → 동시 요청이 같은 번호를 받을 수 없음
     const result = await tx.$queryRaw<{ next_seq: bigint }[]>`
@@ -57,7 +57,7 @@ export class OrderService {
         MAX(CAST(SPLIT_PART("orderNumber", '-', 2) AS INTEGER)),
         0
       ) + 1 AS next_seq
-      FROM "Order"
+      FROM "orders"
       WHERE "orderNumber" LIKE ${dateStr + '-%'}
     `;
 
