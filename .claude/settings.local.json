@@ -317,7 +317,8 @@
       "Bash(sshpass -p '13515222' ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no wooceo@1.212.201.147 \"echo ''SSH OK'' && docker ps --format ''{{.Names}} {{.Status}}'' | grep -i photo\")",
       "Bash(ssh-copy-id:*)",
       "Bash(net use:*)",
-      "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"SELECT key, value FROM system_settings WHERE key LIKE ''%upload%'' OR key LIKE ''%path%'' OR key LIKE ''%server%'';\")"
+      "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"SELECT key, value FROM system_settings WHERE key LIKE ''%upload%'' OR key LIKE ''%path%'' OR key LIKE ''%server%'';\")",
+      "Bash(git status:*)"
     ]
   }
 }

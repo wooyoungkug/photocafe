@@ -91,6 +91,9 @@ export class OrderService {
 
     const nameMap: Record<string, string> = {};
 
+    // 시스템 자동 생성 이력 처리
+    uniqueIds.forEach(id => { if (id === 'system') nameMap[id] = '시스템'; });
+
     // Staff 테이블에서 조회 (관리자 작업이 대부분)
     const staffRecords = await this.prisma.staff.findMany({
       where: { id: { in: uniqueIds } },
@@ -299,7 +302,7 @@ export class OrderService {
             toStatus: order.status,
             processType: 'status_change',
             note: '기존 주문 이력 자동 생성',
-            processedBy: order.clientId,
+            processedBy: 'system',
             processedAt: order.orderedAt,
           },
         });
