@@ -121,12 +121,108 @@ interface CartState {
 }
 
 function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 }
 
 function calculateItemTotal(basePrice: number, quantity: number, options: CartItemOption[]): number {
   const optionsTotal = options.reduce((sum, opt) => sum + opt.price, 0);
   return (basePrice + optionsTotal) * quantity;
+}
+
+// IndexedDB 기반 스토리지 어댑터 (localStorage 5MB 한도 → IndexedDB 수백MB)
+function createCartStorage() {
+  if (typeof window === 'undefined') {
+    return {
+      getItem: () => null as any,
+      setItem: () => {},
+      removeItem: () => {},
+    };
+  }
+
+  const DB_NAME = 'printing114';
+  const STORE_NAME = 'cart';
+  let db: IDBDatabase | null = null;
+
+  const openDB = (): Promise<IDBDatabase> => {
+    if (db) return Promise.resolve(db);
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => {
+        if (!req.result.objectStoreNames.contains(STORE_NAME))
+          req.result.createObjectStore(STORE_NAME);
+      };
+      req.onsuccess = () => { db = req.result; resolve(db!); };
+      req.onerror = () => reject(req.error);
+    });
+  };
+
+  let migrated = false;
+
+  return {
+    getItem: async (name: string) => {
+      try {
+        const idb = await openDB();
+        const result = await new Promise<any>((res) => {
+          const tx = idb.transaction(STORE_NAME, 'readonly');
+          const req = tx.objectStore(STORE_NAME).get(name);
+          req.onsuccess = () => res(req.result ?? null);
+          req.onerror = () => res(null);
+        });
+        if (result) return result;
+
+        // localStorage → IndexedDB 1회 마이그레이션
+        if (!migrated) {
+          migrated = true;
+          try {
+            const str = localStorage.getItem(name);
+            if (str) {
+              const data = JSON.parse(str);
+              await new Promise<void>((res) => {
+                const tx = idb.transaction(STORE_NAME, 'readwrite');
+                tx.objectStore(STORE_NAME).put(data, name);
+                tx.oncomplete = () => res();
+                tx.onerror = () => res();
+              });
+              localStorage.removeItem(name);
+              return data;
+            }
+          } catch { /* migration failed, continue */ }
+        }
+        return null;
+      } catch {
+        // IndexedDB 불가 시 localStorage 폴백
+        try {
+          const str = localStorage.getItem(name);
+          return str ? JSON.parse(str) : null;
+        } catch { return null; }
+      }
+    },
+    setItem: async (name: string, value: any) => {
+      try {
+        const idb = await openDB();
+        await new Promise<void>((res) => {
+          const tx = idb.transaction(STORE_NAME, 'readwrite');
+          tx.objectStore(STORE_NAME).put(value, name);
+          tx.oncomplete = () => res();
+          tx.onerror = () => res();
+        });
+      } catch {
+        try { localStorage.setItem(name, JSON.stringify(value)); } catch { /* quota exceeded */ }
+      }
+    },
+    removeItem: async (name: string) => {
+      try {
+        const idb = await openDB();
+        await new Promise<void>((res) => {
+          const tx = idb.transaction(STORE_NAME, 'readwrite');
+          tx.objectStore(STORE_NAME).delete(name);
+          tx.oncomplete = () => res();
+          tx.onerror = () => res();
+        });
+      } catch { /* ignore */ }
+      try { localStorage.removeItem(name); } catch { /* ignore */ }
+    },
+  };
 }
 
 export const useCartStore = create<CartState>()(
@@ -271,30 +367,7 @@ export const useCartStore = create<CartState>()(
       partialize: (state) => ({
         items: state.items.map(({ thumbnailUrls, files, uploadProgress, uploadedFileCount, totalFileCount, ...rest }) => rest),
       }),
-      storage: {
-        getItem: (name) => {
-          try {
-            const str = localStorage.getItem(name);
-            return str ? JSON.parse(str) : null;
-          } catch {
-            return null;
-          }
-        },
-        setItem: (name, value) => {
-          try {
-            localStorage.setItem(name, JSON.stringify(value));
-          } catch (e) {
-            // QuotaExceededError 방지 - 저장 실패해도 메모리 상태는 유지
-          }
-        },
-        removeItem: (name) => {
-          try {
-            localStorage.removeItem(name);
-          } catch {
-            // ignore
-          }
-        },
-      },
+      storage: createCartStorage(),
     }
   )
 );

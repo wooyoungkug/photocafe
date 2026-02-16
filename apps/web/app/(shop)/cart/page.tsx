@@ -234,6 +234,10 @@ export default function CartPage() {
     (item) => item.uploadStatus === 'uploading' || item.uploadStatus === 'pending'
   );
   const hasUploadFailed = items.some((item) => item.uploadStatus === 'failed');
+  // 앨범 상품인데 업로드 완료 후 serverFiles가 누락된 경우 (새로고침 등으로 유실)
+  const hasFileMissing = items.some(
+    (item) => item.productType === 'album-order' && item.uploadStatus === 'completed' && (!item.serverFiles || item.serverFiles.length === 0)
+  );
 
   const handleCheckout = () => {
     if (hasUploadInProgress) {
@@ -248,6 +252,14 @@ export default function CartPage() {
       toast({
         title: '업로드 실패 항목 확인',
         description: '업로드에 실패한 항목이 있습니다. 재시도하거나 삭제 후 주문해주세요.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (hasFileMissing) {
+      toast({
+        title: '파일 데이터 누락',
+        description: '파일 데이터가 누락된 앨범 상품이 있습니다. 해당 상품을 삭제 후 다시 업로드해주세요.',
         variant: 'destructive',
       });
       return;
@@ -384,6 +396,7 @@ export default function CartPage() {
               isAuthenticated={isAuthenticated}
               hasUploadInProgress={hasUploadInProgress}
               hasUploadFailed={hasUploadFailed}
+              hasFileMissing={hasFileMissing}
               onCheckout={handleCheckout}
             />
           </div>
@@ -398,6 +411,7 @@ export default function CartPage() {
           totalShippingFee={totalShippingFee}
           hasUploadInProgress={hasUploadInProgress}
           hasUploadFailed={hasUploadFailed}
+          hasFileMissing={hasFileMissing}
           onCheckout={handleCheckout}
         />
       </div>
