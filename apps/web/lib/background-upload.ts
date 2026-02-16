@@ -187,10 +187,22 @@ export function startBackgroundUpload(
           });
 
           completedCount++;
-          updateAll({
-            uploadedFileCount: completedCount,
-            serverFiles: [...serverFiles],
-          });
+
+          // 메모리 해제: 업로드 완료된 파일 참조 제거
+          uploadFiles[index] = { ...uploadFiles[index], file: null as any };
+          const sourceFile = folderData.files[index];
+          if (sourceFile) {
+            sourceFile.file = undefined;
+            sourceFile.canvasDataUrl = undefined;
+          }
+
+          // 5개마다 또는 마지막 파일일 때만 상태 업데이트 (IndexedDB 쓰기 횟수 감소)
+          if (completedCount % 5 === 0 || completedCount === uploadFiles.length) {
+            updateAll({
+              uploadedFileCount: completedCount,
+              serverFiles: [...serverFiles],
+            });
+          }
 
           lastError = null;
           break;
@@ -256,14 +268,21 @@ export function startBackgroundUpload(
       }
     } catch (error) {
       if ((error as DOMException).name === 'AbortError') {
-        // 중단됨 → 서버 임시파일 삭제
-        deleteTempFolder(tempFolderId, accessToken).catch(() => {});
+        // 중단됨 → 성공한 파일이 있으면 유지, 없으면 임시폴더 삭제
+        if (serverFiles.length === 0) {
+          deleteTempFolder(tempFolderId, accessToken).catch(() => {});
+        }
         updateAll({
           uploadStatus: 'cancelled' as any,
-          uploadProgress: 0,
-          serverFiles: [],
+          uploadProgress: serverFiles.length > 0
+            ? Math.round((serverFiles.length / uploadFiles.length) * 100)
+            : 0,
+          serverFiles: [...serverFiles], // 성공한 파일 유지
         });
-        pendingFileRefs.delete(primaryId);
+        // 성공한 파일이 있으면 재시도 가능하도록 유지
+        if (serverFiles.length === 0) {
+          pendingFileRefs.delete(primaryId);
+        }
       } else {
         updateAll({
           uploadStatus: 'failed',

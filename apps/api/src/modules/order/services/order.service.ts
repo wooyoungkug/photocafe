@@ -492,7 +492,7 @@ export class OrderService {
           },
         },
       });
-    }, { timeout: 15000 });
+    }, { timeout: 60000 });
 
     // 비동기 후처리 (트랜잭션 밖에서 실행, 실패해도 주문은 유지)
 
@@ -508,8 +508,8 @@ export class OrderService {
     ).catch(() => { });
 
     // 임시 파일 → 정식 경로 이동
-    this.moveTemporaryFiles(order).catch((err) => {
-      this.logger.error('임시 파일 이동 실패:', err.message);
+    this.moveTemporaryFiles(order).catch((err: Error) => {
+      this.logger.error(`임시 파일 이동 최종 실패 (주문: ${order.orderNumber}):`, err.message);
     });
 
     // 매출원장 자동 등록
@@ -1552,43 +1552,70 @@ export class OrderService {
   /**
    * 임시 파일을 정식 주문 경로로 이동
    */
-  private async moveTemporaryFiles(order: any) {
-    for (const item of order.items) {
-      if (!item.files?.length) continue;
+  private async moveTemporaryFiles(order: any, retryCount = 0): Promise<void> {
+    const MAX_RETRIES = 2;
+    try {
+      for (const item of order.items) {
+        if (!item.files?.length) continue;
 
-      // tempFolderId 추출: fileUrl이 /uploads/temp/{tempFolderId}/... 형태
-      const firstFile = item.files[0];
-      if (!firstFile.fileUrl || !firstFile.fileUrl.includes('/temp/')) continue;
+        const firstFile = item.files[0];
+        if (!firstFile.fileUrl || !firstFile.fileUrl.includes('/temp/')) continue;
 
-      const urlParts = firstFile.fileUrl.replace(/\\/g, '/').split('/temp/');
-      if (urlParts.length < 2) continue;
-      const tempFolderId = urlParts[1].split('/')[0];
+        const urlParts = firstFile.fileUrl.replace(/\\/g, '/').split('/temp/');
+        if (urlParts.length < 2) continue;
+        const tempFolderId = urlParts[1].split('/')[0];
 
-      const companyName = order.client?.name || 'unknown';
-      const { orderDir, movedFiles } = this.fileStorage.moveToOrderDir(
-        tempFolderId,
-        order.orderNumber,
-        companyName,
-      );
-
-      // DB 경로 업데이트
-      for (const moved of movedFiles) {
-        const matchingFile = item.files.find(
-          (f: any) => f.fileUrl.includes(moved.fileName),
+        const companyName = order.client?.name || 'unknown';
+        const { orderDir, movedFiles } = this.fileStorage.moveToOrderDir(
+          tempFolderId,
+          order.orderNumber,
+          companyName,
         );
-        if (matchingFile) {
-          await this.prisma.orderFile.update({
-            where: { id: matchingFile.id },
-            data: {
+
+        // 배치 업데이트: N+1 → 단일 트랜잭션
+        const updates: { id: string; fileUrl: string; originalPath: string; thumbnailUrl: string; thumbnailPath: string | null }[] = [];
+        for (const moved of movedFiles) {
+          const matchingFile = item.files.find(
+            (f: any) => f.fileUrl.includes(moved.fileName),
+          );
+          if (matchingFile) {
+            updates.push({
+              id: matchingFile.id,
               fileUrl: this.fileStorage.toRelativeUrl(moved.original),
               originalPath: moved.original,
               thumbnailUrl: moved.thumbnail ? this.fileStorage.toRelativeUrl(moved.thumbnail) : matchingFile.thumbnailUrl,
               thumbnailPath: moved.thumbnail || null,
-              storageStatus: 'uploaded',
-            },
-          });
+            });
+          }
+        }
+
+        // 50개씩 배치 처리
+        const BATCH_SIZE = 50;
+        for (let i = 0; i < updates.length; i += BATCH_SIZE) {
+          const batch = updates.slice(i, i + BATCH_SIZE);
+          await this.prisma.$transaction(
+            batch.map(u =>
+              this.prisma.orderFile.update({
+                where: { id: u.id },
+                data: {
+                  fileUrl: u.fileUrl,
+                  originalPath: u.originalPath,
+                  thumbnailUrl: u.thumbnailUrl,
+                  thumbnailPath: u.thumbnailPath,
+                  storageStatus: 'uploaded',
+                },
+              })
+            )
+          );
         }
       }
+    } catch (err) {
+      if (retryCount < MAX_RETRIES) {
+        this.logger.warn(`임시 파일 이동 재시도 (${retryCount + 1}/${MAX_RETRIES}): ${(err as Error).message}`);
+        await new Promise(r => setTimeout(r, 2000 * (retryCount + 1)));
+        return this.moveTemporaryFiles(order, retryCount + 1);
+      }
+      throw err;
     }
   }
 
