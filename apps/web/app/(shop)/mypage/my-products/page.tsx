@@ -99,9 +99,6 @@ export default function MyProductsPage() {
                       {mp.options.paperName && (
                         <Badge variant="outline" className="text-[10px] h-4 px-1">{mp.options.paperName}</Badge>
                       )}
-                      {mp.options.fabricName && (
-                        <Badge variant="outline" className="text-[10px] h-4 px-1">{mp.options.fabricName}</Badge>
-                      )}
                       {mp.options.copperPlateName && (
                         <Badge variant="outline" className="text-[10px] h-4 px-1">{mp.options.copperPlateName}</Badge>
                       )}
@@ -113,7 +110,7 @@ export default function MyProductsPage() {
                       )}
                     </div>
                     <div className="flex items-center gap-1 mt-2">
-                      <Link href={`/product/${mp.productId}`}>
+                      <Link href={`/product/${mp.productId}?myProductId=${mp.id}`}>
                         <Button variant="outline" size="sm" className="h-6 text-[10px] px-2">
                           <ExternalLink className="h-3 w-3 mr-0.5" />
                           주문하기

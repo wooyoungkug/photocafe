@@ -125,13 +125,18 @@ export class UploadController {
             file.filename,
         ).catch(() => { /* 썸네일 실패해도 원본은 정상 */ });
 
+        // 썸네일 URL을 예측 가능한 경로로 즉시 반환 (파일명 규칙: {base}_thumb.jpg)
+        const ext = extname(file.filename);
+        const base = file.filename.slice(0, -ext.length);
+        const thumbnailUrl = `/uploads/temp/${body.tempFolderId}/thumbnails/${base}_thumb.jpg`;
+
         return {
             tempFileId: `${body.tempFolderId}/${file.filename}`,
             fileName: file.filename,
             originalName: file.originalname,
             size: file.size,
             fileUrl,
-            thumbnailUrl: '',
+            thumbnailUrl,
             sortOrder: parseInt(body.sortOrder || '0', 10),
         };
     }

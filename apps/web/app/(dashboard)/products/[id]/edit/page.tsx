@@ -38,9 +38,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCategories } from '@/hooks/use-categories';
 import { useSpecifications } from '@/hooks/use-specifications';
 import { useHalfProducts } from '@/hooks/use-half-products';
-import { useProduct, useUpdateProduct } from '@/hooks/use-products';
+import { useProduct, useUpdateProduct, useSyncProductPapers } from '@/hooks/use-products';
 import { useProductionGroupTree, useProductionSettings, type ProductionGroup, type ProductionSetting, type OutputPriceSelection, type IndigoUpPrice, type InkjetSpecPrice, type PriceGroup } from '@/hooks/use-production';
-import { usePapers } from '@/hooks/use-paper';
 import { useFoilColors, type FoilColorItem } from '@/hooks/use-copper-plates';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
@@ -201,6 +200,7 @@ export default function EditProductPage() {
   const { data: product, isLoading: isProductLoading, refetch: refetchProduct } = useProduct(productId);
   const { data: productionGroupTree, isLoading: isTreeLoading } = useProductionGroupTree();
   const updateProduct = useUpdateProduct();
+  const syncPapers = useSyncProductPapers();
 
   // 후가공옵션 카테고리 (ProductionGroup 트리에서 동적 로딩)
   const finishingGroup = useMemo(() => {
@@ -293,6 +293,17 @@ export default function EditProductPage() {
 
   // 초기 데이터 로드 여부 추적
   const isInitialLoadDone = useRef(false);
+  const isSyncDone = useRef(false);
+
+  // 마스터 용지 동기화 (초기 1회)
+  useEffect(() => {
+    if (product && !isSyncDone.current) {
+      isSyncDone.current = true;
+      syncPapers.mutateAsync(productId).then(() => {
+        refetchProduct();
+      }).catch(() => { /* 동기화 실패 시 무시 */ });
+    }
+  }, [product]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 기존 상품 데이터 로드 (초기 1회만 실행)
   useEffect(() => {
@@ -606,6 +617,7 @@ export default function EditProductPage() {
           pricingType: b.pricingType,
         })),
         papers: product?.papers?.map((p: any, idx: number) => ({
+          paperId: p.paperId || undefined,
           name: p.name,
           type: p.type || 'normal',
           printMethod: p.printMethod,
@@ -1088,7 +1100,7 @@ export default function EditProductPage() {
             </div>
           </div>
 
-          {/* 용지 사용 여부 */}
+          {/* 용지 사용 여부 - 출력방식별 그룹화 */}
           {product?.papers && product.papers.length > 0 && (
             <div className="space-y-3">
               <Label className="text-[13px] font-semibold text-slate-700 flex items-center gap-2">
@@ -1099,88 +1111,125 @@ export default function EditProductPage() {
                   (체크 해제 시 주문 페이지에 표시되지 않습니다)
                 </span>
               </Label>
-              <div className="border rounded-lg overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-slate-50">
-                      <TableHead className="w-16 text-center">사용</TableHead>
-                      <TableHead className="w-16 text-center">기본</TableHead>
-                      <TableHead>용지명</TableHead>
-                      <TableHead className="w-24">평량</TableHead>
-                      <TableHead className="w-24">코팅</TableHead>
-                      <TableHead className="w-24 text-right">가격</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(() => {
-                      // 용지 이름에서 종류 추출 (숫자와 g 제외)
-                      const getPaperType = (name: string) => {
-                        return name.replace(/\s*\d+g?$/i, '').replace(/\s+\d+$/, '').trim();
-                      };
-                      // 용지를 종류별로 그룹화
-                      const paperGroups = (product.papers as any[]).reduce((groups: Record<string, any[]>, paper: any) => {
-                        const type = getPaperType(paper.name);
-                        if (!groups[type]) groups[type] = [];
-                        groups[type].push(paper);
-                        return groups;
-                      }, {} as Record<string, any[]>);
-                      const groupEntries = Object.entries(paperGroups);
+              {(() => {
+                // 출력방식별로 1차 그룹화, 그 안에서 용지 종류별 2차 그룹화
+                const allPapers = product.papers as any[];
+                const printMethodGroups: Record<string, any[]> = {};
+                allPapers.forEach((paper: any) => {
+                  const method = paper.printMethod || 'etc';
+                  if (!printMethodGroups[method]) printMethodGroups[method] = [];
+                  printMethodGroups[method].push(paper);
+                });
 
-                      return groupEntries.map(([type, papers]) => (
-                        papers.map((paper: any, pIdx: number) => (
-                          <TableRow
-                            key={paper.id}
-                            className={paperActiveMap[paper.id] === false ? 'opacity-50 bg-slate-50' : ''}
-                          >
-                            <TableCell className="text-center">
-                              <Checkbox
-                                checked={paperActiveMap[paper.id] !== false}
-                                onCheckedChange={(checked) => {
-                                  setPaperActiveMap(prev => ({
-                                    ...prev,
-                                    [paper.id]: !!checked,
-                                  }));
-                                }}
-                                className="data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
-                              />
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <input
-                                type="radio"
-                                name="defaultPaper"
-                                checked={defaultPaperId === paper.id}
-                                onChange={() => setDefaultPaperId(paper.id)}
-                                className="h-4 w-4 accent-blue-600 cursor-pointer"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                {pIdx === 0 && (
-                                  <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                                    {type}
-                                  </Badge>
-                                )}
-                                <span className={`text-sm ${paperActiveMap[paper.id] === false ? 'line-through text-slate-400' : 'font-medium'}`}>
-                                  {paper.name}
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-sm text-slate-600">
-                              {paper.grammage ? `${paper.grammage}g` : '-'}
-                            </TableCell>
-                            <TableCell className="text-sm text-slate-600">
-                              {paper.frontCoating || '-'}
-                            </TableCell>
-                            <TableCell className="text-sm text-right text-slate-600">
-                              {Number(paper.price) > 0 ? `+${Number(paper.price).toLocaleString()}원` : '-'}
-                            </TableCell>
+                const methodOrder = ['indigo', 'inkjet', 'offset', 'etc'];
+                const methodLabels: Record<string, string> = {
+                  indigo: '인디고출력용지',
+                  inkjet: '잉크젯출력용지',
+                  offset: '오프셋용지',
+                  etc: '기타',
+                };
+                const methodColors: Record<string, string> = {
+                  indigo: 'bg-violet-50 text-violet-700 border-violet-200',
+                  inkjet: 'bg-cyan-50 text-cyan-700 border-cyan-200',
+                  offset: 'bg-amber-50 text-amber-700 border-amber-200',
+                  etc: 'bg-slate-50 text-slate-600 border-slate-200',
+                };
+
+                const sortedMethods = methodOrder.filter(m => printMethodGroups[m]);
+
+                return sortedMethods.map(method => {
+                  const papers = printMethodGroups[method];
+                  return (
+                    <div key={method} className="border rounded-lg overflow-hidden">
+                      {/* 출력방식 헤더 (여러 출력방식이 있을 때만 표시) */}
+                      {sortedMethods.length > 1 && (
+                        <div className={`px-3 py-1.5 text-xs font-semibold border-b ${methodColors[method] || methodColors.etc}`}>
+                          {methodLabels[method] || method}
+                          <span className="ml-1.5 font-normal opacity-70">({papers.length}개)</span>
+                        </div>
+                      )}
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-slate-50">
+                            <TableHead className="w-16 text-center">사용</TableHead>
+                            <TableHead className="w-16 text-center">기본</TableHead>
+                            <TableHead>용지명</TableHead>
+                            <TableHead className="w-24">평량</TableHead>
+                            <TableHead className="w-24">코팅</TableHead>
+                            <TableHead className="w-24 text-right">가격</TableHead>
                           </TableRow>
-                        ))
-                      ));
-                    })()}
-                  </TableBody>
-                </Table>
-              </div>
+                        </TableHeader>
+                        <TableBody>
+                          {(() => {
+                            const getPaperType = (name: string) => {
+                              return name.replace(/\s*\d+g?$/i, '').replace(/\s+\d+$/, '').trim();
+                            };
+                            const paperGroups = papers.reduce((groups: Record<string, any[]>, paper: any) => {
+                              const type = getPaperType(paper.name);
+                              if (!groups[type]) groups[type] = [];
+                              groups[type].push(paper);
+                              return groups;
+                            }, {} as Record<string, any[]>);
+                            const groupEntries = Object.entries(paperGroups);
+
+                            return groupEntries.map(([type, typePapers]) => (
+                              typePapers.map((paper: any, pIdx: number) => (
+                                <TableRow
+                                  key={paper.id}
+                                  className={paperActiveMap[paper.id] === false ? 'opacity-50 bg-slate-50' : ''}
+                                >
+                                  <TableCell className="text-center">
+                                    <Checkbox
+                                      checked={paperActiveMap[paper.id] !== false}
+                                      onCheckedChange={(checked) => {
+                                        setPaperActiveMap(prev => ({
+                                          ...prev,
+                                          [paper.id]: !!checked,
+                                        }));
+                                      }}
+                                      className="data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <input
+                                      type="radio"
+                                      name="defaultPaper"
+                                      checked={defaultPaperId === paper.id}
+                                      onChange={() => setDefaultPaperId(paper.id)}
+                                      className="h-4 w-4 accent-blue-600 cursor-pointer"
+                                    />
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      {pIdx === 0 && (
+                                        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                          {type}
+                                        </Badge>
+                                      )}
+                                      <span className={`text-sm ${paperActiveMap[paper.id] === false ? 'line-through text-slate-400' : 'font-medium'}`}>
+                                        {paper.name}
+                                      </span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-sm text-slate-600">
+                                    {paper.grammage ? `${paper.grammage}g` : '-'}
+                                  </TableCell>
+                                  <TableCell className="text-sm text-slate-600">
+                                    {paper.frontCoating || '-'}
+                                  </TableCell>
+                                  <TableCell className="text-sm text-right text-slate-600">
+                                    {Number(paper.price) > 0 ? `+${Number(paper.price).toLocaleString()}원` : '-'}
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            ));
+                          })()}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  );
+                });
+              })()}
               <div className="flex gap-2">
                 <Button
                   type="button"

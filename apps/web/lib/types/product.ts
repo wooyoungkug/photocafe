@@ -18,8 +18,10 @@ export interface ProductBinding {
 
 export interface ProductPaper {
   id: string;
+  paperId?: string;
   name: string;
   type: 'normal' | 'premium' | 'imported';
+  printMethod?: 'indigo' | 'inkjet' | 'offset';
   grammage?: number;
   frontCoating?: string;
   grade?: number;

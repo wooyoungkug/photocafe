@@ -145,7 +145,6 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
     computeColorGroups,
     selectAllFolders,
     applyGlobalCoverSource,
-    setFolderFabric,
     setFolderCoverSource,
   } = useMultiFolderUploadStore();
 
@@ -1072,11 +1071,6 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         uploadedAt: Date.now(),
         coverSourceType: defaultCoverSourceType ?? (hasDesignCoverFiles(sortedFiles) ? 'design' : null),
         coverAutoDetected: hasDesignCoverFiles(sortedFiles),
-        selectedFabricId: null,
-        selectedFabricName: null,
-        selectedFabricThumbnail: null,
-        selectedFabricPrice: 0,
-        selectedFabricCategory: null,
       };
 
       return folder;
@@ -1392,11 +1386,6 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
           uploadedAt: Date.now(),
           coverSourceType: defaultCoverSourceType ?? (hasDesignCoverFiles(sortedFiles) ? 'design' : null),
           coverAutoDetected: hasDesignCoverFiles(sortedFiles),
-          selectedFabricId: null,
-          selectedFabricName: null,
-          selectedFabricThumbnail: null,
-          selectedFabricPrice: 0,
-          selectedFabricCategory: null,
         };
 
         const result = addFolder(folder);
@@ -1644,11 +1633,6 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         uploadedAt: Date.now(),
         coverSourceType: defaultCoverSourceType ?? (hasDesignCoverFiles(sortedFiles) ? 'design' : null),
         coverAutoDetected: hasDesignCoverFiles(sortedFiles),
-        selectedFabricId: null,
-        selectedFabricName: null,
-        selectedFabricThumbnail: null,
-        selectedFabricPrice: 0,
-        selectedFabricCategory: null,
       };
 
       const result = addFolder(folder);

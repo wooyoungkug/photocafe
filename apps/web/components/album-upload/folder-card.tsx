@@ -958,11 +958,8 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                 >
                   <Edit2 className="h-3 w-3 text-gray-400" />
                 </Button>
-                {(folder.selectedFabricName || folder.foilName) && (
+                {folder.foilName && (
                   <div className="flex items-center gap-1 text-[10px] text-gray-500">
-                    {folder.selectedFabricName && (
-                      <span className="bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded border border-amber-200">{folder.selectedFabricName}</span>
-                    )}
                     {folder.foilName && (
                       <span className="bg-violet-50 text-violet-700 px-1.5 py-0.5 rounded border border-violet-200">{folder.foilName}</span>
                     )}

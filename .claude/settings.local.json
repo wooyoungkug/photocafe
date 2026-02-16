@@ -323,7 +323,15 @@
       "Bash(du:*)",
       "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbWtzOHhhYTcwMDAwbjUzY3VkN3EzOGJsIiwiZW1haWwiOiJ3b29jZW9AZ21haWwuY29tIiwicm9sZSI6ImFkbWluIiwiaWF0IjoxNzcxMjEzMTI3LCJleHAiOjE3NzEyOTk1Mjd9.YWQkqJqRbos1P8Pz3GNnTyKQTyDTyZY8xik6gH8_SVw\")",
       "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -t -c \"SELECT \"\"productName\"\", \"\"thumbnailUrl\"\" FROM products LIMIT 5;\")",
-      "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -c \"SELECT category, COUNT\\(*\\) as cnt FROM fabrics GROUP BY category ORDER BY category;\")"
+      "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -c \"SELECT category, COUNT\\(*\\) as cnt FROM fabrics GROUP BY category ORDER BY category;\")",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbWtzOHhhYTcwMDAwbjUzY3VkN3EzOGJsIiwiZW1haWwiOiJ3b29jZW9AZ21haWwuY29tIiwicm9sZSI6ImFkbWluIiwiaWF0IjoxNzcxMjQ1NTk3LCJleHAiOjE3NzEzMzE5OTd9.C5GXvNzLyehaZfSDvShSa9l7_0V7VHdzQ9aj4ogE29Y\":*)",
+      "Bash(__NEW_LINE_3e1b30f590026d50__ curl -s -X PUT \"http://localhost:3001/api/v1/products/cml4ixxoc0001gpi1byhcm6bf\" -H \"Content-Type: application/json\" -H \"Authorization: Bearer $TOKEN\" -d '{\n    \"\"papers\"\": [\n      {\"\"name\"\": \"\"스노우화이트 200g\"\", \"\"type\"\": \"\"normal\"\", \"\"price\"\": 0, \"\"isDefault\"\": true, \"\"sortOrder\"\": 0, \"\"grammage\"\": 200},\n      {\"\"name\"\": \"\"스노우화이트 250g\"\", \"\"type\"\": \"\"premium\"\", \"\"price\"\": 3000, \"\"isDefault\"\": false, \"\"sortOrder\"\": 1, \"\"grammage\"\": 250},\n      {\"\"name\"\": \"\"아트지 200g\"\", \"\"type\"\": \"\"normal\"\", \"\"price\"\": 0, \"\"isDefault\"\": false, \"\"sortOrder\"\": 2, \"\"grammage\"\": 200},\n      {\"\"name\"\": \"\"아트지 250g\"\", \"\"type\"\": \"\"premium\"\", \"\"price\"\": 5000, \"\"isDefault\"\": false, \"\"sortOrder\"\": 3, \"\"grammage\"\": 250}\n    ]\n  }')",
+      "Bash(xxd:*)",
+      "Bash(# Kill any running node on port 3001 netstat -ano)",
+      "Read(//c/dev/printing114/**)",
+      "Bash(# API 서버 재시작 netstat -ano)",
+      "Bash(while read PID)",
+      "Bash(do taskkill //PID $PID //F done sleep 2 cd /c/dev/printing114/apps/api)"
     ]
   }
 }
