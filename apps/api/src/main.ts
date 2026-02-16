@@ -28,9 +28,9 @@ async function bootstrap() {
   app.enableShutdownHooks();
 
   // Static file serving (uploads)
-  app.useStaticAssets(join(process.cwd(), process.env.UPLOAD_BASE_PATH || 'uploads'), {
-    prefix: '/uploads/',
-  });
+  const uploadPath = join(process.cwd(), process.env.UPLOAD_BASE_PATH || 'uploads');
+  app.useStaticAssets(uploadPath, { prefix: '/uploads/' });
+  app.useStaticAssets(uploadPath, { prefix: '/upload/' });
 
   // Global prefix
   app.setGlobalPrefix('api/v1');
