@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import {
@@ -10,6 +10,8 @@ import { subDays, differenceInDays, startOfDay, endOfDay, startOfWeek, endOfWeek
 
 @Injectable()
 export class SalesLedgerService {
+  private readonly logger = new Logger(SalesLedgerService.name);
+
   constructor(
     private prisma: PrismaService,
     private journalEngine: JournalEngineService,
@@ -491,14 +493,42 @@ export class SalesLedgerService {
     });
   }
 
-  // ===== 매출 취소 =====
+  // ===== 매출 취소 (취소전표 포함) =====
   async cancelSales(salesLedgerId: string) {
     const ledger = await this.findById(salesLedgerId);
 
-    if (Number(ledger.receivedAmount) > 0) {
-      throw new BadRequestException('수금 이력이 있는 매출은 취소할 수 없습니다. 먼저 수금을 환불 처리하세요.');
+    if (ledger.salesStatus === 'CANCELLED') {
+      throw new BadRequestException('이미 취소된 매출원장입니다.');
     }
 
+    // 1. 연결된 모든 전표 조회 (매출 + 수금)
+    const salesJournals = await this.journalEngine.getJournalsBySource('SALES', salesLedgerId);
+    const receiptJournals = await this.journalEngine.getJournalsBySource('RECEIPT', salesLedgerId);
+    const allJournals = [...salesJournals, ...receiptJournals];
+
+    // 2. 이미 생성된 취소전표 확인 (중복 방지)
+    const existingCancellations = await this.journalEngine.getJournalsBySource('CANCELLATION', salesLedgerId);
+    const cancelledVoucherNos = new Set(
+      existingCancellations
+        .map(c => c.description?.match(/원전표: (JE-[\d-]+)/)?.[1])
+        .filter(Boolean),
+    );
+
+    // 3. 각 전표에 대해 취소(반대) 전표 생성
+    for (const journal of allJournals) {
+      if (cancelledVoucherNos.has(journal.voucherNo)) continue;
+
+      try {
+        await this.journalEngine.createCancellationJournal({
+          originalJournalId: journal.id,
+          reason: journal.sourceType === 'SALES' ? '매출취소전표' : '수금취소전표',
+        });
+      } catch (err) {
+        this.logger.warn(`취소전표 생성 실패 (${journal.voucherNo}): ${(err as Error).message}`);
+      }
+    }
+
+    // 4. 매출원장 상태 업데이트
     return this.prisma.salesLedger.update({
       where: { id: salesLedgerId },
       data: {
