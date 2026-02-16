@@ -83,10 +83,15 @@ const nextConfig: NextConfig = {
   },
 
   async rewrites() {
+    const apiBase = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1").replace(/\/api\/v1\/?$/, "");
     return [
       {
         source: "/api/:path*",
-        destination: "http://localhost:3001/api/:path*",
+        destination: `${apiBase}/api/:path*`,
+      },
+      {
+        source: "/uploads/:path*",
+        destination: `${apiBase}/uploads/:path*`,
       },
     ];
   },

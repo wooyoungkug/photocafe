@@ -318,7 +318,9 @@
       "Bash(ssh-copy-id:*)",
       "Bash(net use:*)",
       "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"SELECT key, value FROM system_settings WHERE key LIKE ''%upload%'' OR key LIKE ''%path%'' OR key LIKE ''%server%'';\")",
-      "Bash(git status:*)"
+      "Bash(git status:*)",
+      "Bash(git -C /c/dev/printing114 status --porcelain)",
+      "Bash(du:*)"
     ]
   }
 }
