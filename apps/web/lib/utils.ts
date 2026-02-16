@@ -2,24 +2,23 @@ import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
 /**
- * 이미지 URL 정규화 (DB 저장 값 → API 서버 절대 URL)
- * API 서버에서 직접 이미지를 로드하여 Next.js rewrite 프록시 우회
+ * 이미지 URL 정규화 (DB 저장 값 → 상대 경로)
+ * Next.js rewrite가 /uploads/* → API 서버로 프록시 처리
  */
-const IMAGE_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1').replace(/\/api\/v1\/?$/, '');
-
 export function normalizeImageUrl(url: string | null | undefined): string {
   if (!url) return '';
-  // 이미 절대 URL이면 그대로 반환
+  // 절대 URL → 상대 경로 추출 (API 서버 주소 제거)
   if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url;
+    try {
+      const u = new URL(url);
+      url = u.pathname;
+    } catch {
+      return url;
+    }
   }
   // /upload/... → /uploads/... 변환 (레거시 URL 호환)
   if (url.startsWith('/upload/') && !url.startsWith('/uploads/')) {
     url = `/uploads/${url.substring('/upload/'.length)}`;
-  }
-  // /uploads/... → API 서버 절대 URL로 변환
-  if (url.startsWith('/uploads/')) {
-    return `${IMAGE_BASE}${url}`;
   }
   return url;
 }
