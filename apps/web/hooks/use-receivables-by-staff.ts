@@ -32,7 +32,7 @@ export function useSummaryByStaff(params?: {
   });
 }
 
-// ===== 영업담당자별 수금 실적 =====
+// ===== 영업담당자별 입금 실적 =====
 export interface StaffCollectionSummary {
   staffId: string;
   staffName: string;

@@ -36,6 +36,7 @@ import { FabricPickerDialog } from '@/components/album-upload/fabric-picker-dial
 import type { Fabric } from '@/hooks/use-fabrics';
 import { useTranslations } from 'next-intl';
 import { startBackgroundUpload, type FolderUploadData } from '@/lib/background-upload';
+import { UploadProgressModal } from './_components/upload-progress-modal';
 
 interface SelectedOptions {
   specification?: ProductSpecification;
@@ -151,8 +152,12 @@ export default function ProductPage() {
     });
   };
 
-  // 장바구니 담기 로딩 상태
-  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  // 업로드 진행 모달 상태
+  const [uploadModalState, setUploadModalState] = useState<{
+    isOpen: boolean;
+    newCartItemIds: string[];
+    primaryIds: string[];
+  } | null>(null);
 
   // 중복 주문 체크 상태
   const [duplicateCheckResult, setDuplicateCheckResult] = useState<{
@@ -164,7 +169,6 @@ export default function ProductPage() {
   // 폴더들을 장바구니에 추가하는 함수
   const addFoldersToCart = useCallback((folders: UploadedFolder[], isDuplicateOverride = false) => {
     if (!product) return;
-    setIsAddingToCart(true);
     setTimeout(() => {
       try {
         // 1. 업로드 전 기존 장바구니 아이템 ID 스냅샷
@@ -300,24 +304,27 @@ export default function ProductPage() {
         const allItems = useCartStore.getState().items;
         const newItems = allItems.filter((i) => !itemIdsBefore.has(i.id));
 
-        // 5. 폴더별로 백그라운드 업로드 시작
+        // 5. 폴더별로 백그라운드 업로드 시작 + primaryId 수집
+        const primaryIds: string[] = [];
         folderUploadMap.forEach((folderData, folderId) => {
           const relatedCartItems = newItems.filter(
             (item) => item.albumOrderInfo?.folderId === folderId
           );
           if (relatedCartItems.length > 0) {
-            startBackgroundUpload(
-              relatedCartItems.map((i) => i.id),
-              folderData,
-            );
+            const ids = relatedCartItems.map((i) => i.id);
+            primaryIds.push(ids[0]);
+            startBackgroundUpload(ids, folderData);
           }
         });
 
-        // 6. 업로드 스토어 정리 및 장바구니 이동
+        // 6. 업로드 스토어 정리 + 업로드 진행 모달 표시
         clearFolders();
-        router.push('/cart');
+        setUploadModalState({
+          isOpen: true,
+          newCartItemIds: newItems.map((i) => i.id),
+          primaryIds,
+        });
       } catch (error) {
-        setIsAddingToCart(false);
         toast({
           title: '오류 발생',
           description: '장바구니에 담는 중 문제가 발생했습니다. 다시 시도해주세요.',
@@ -1878,29 +1885,14 @@ export default function ProductPage() {
         </DialogContent>
       </Dialog>
 
-      {/* 장바구니 담기 로딩 오버레이 */}
-      {isAddingToCart && (
-        <div className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl p-8 mx-4 max-w-sm w-full text-center">
-            <div className="relative w-16 h-16 mx-auto mb-5">
-              <div className="absolute inset-0 rounded-full border-4 border-gray-200" />
-              <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
-              <ShoppingCart className="absolute inset-0 m-auto h-6 w-6 text-primary" />
-            </div>
-            <h3 className="text-lg font-bold text-gray-900 mb-2">
-              장바구니에 담는 중...
-            </h3>
-            <p className="text-sm text-gray-500 leading-relaxed">
-              주문 데이터를 준비하고 있습니다.<br />
-              잠시만 기다려 주세요.
-            </p>
-            <div className="mt-4 flex justify-center gap-1">
-              <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-              <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-              <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-            </div>
-          </div>
-        </div>
+      {/* 업로드 진행 모달 */}
+      {uploadModalState?.isOpen && (
+        <UploadProgressModal
+          isOpen={uploadModalState.isOpen}
+          newCartItemIds={uploadModalState.newCartItemIds}
+          primaryIds={uploadModalState.primaryIds}
+          onClose={() => setUploadModalState(null)}
+        />
       )}
     </div>
   );

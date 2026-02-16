@@ -15,6 +15,7 @@ import {
   TrendingDown,
   Wallet,
   Printer,
+  ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,6 +43,12 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useClientLedgerDetail } from '@/hooks/use-client-ledger';
 import { toast } from '@/hooks/use-toast';
 
@@ -230,8 +237,9 @@ export default function ClientLedgerDetailPage() {
   };
 
   // 거래내역서 출력
-  const handlePrintStatement = () => {
-    const url = `/accounting/client-ledger/${clientId}/statement?startDate=${startDate}&endDate=${endDate}&periodType=${periodType}`;
+  const handlePrintStatement = (statementType: 'detail' | 'daily' | 'monthly' | 'period') => {
+    const apiPeriodType = statementType === 'monthly' ? 'monthly' : 'daily';
+    const url = `/accounting/client-ledger/${clientId}/statement?startDate=${startDate}&endDate=${endDate}&periodType=${apiPeriodType}&statementType=${statementType}`;
     router.push(url);
   };
 
@@ -266,10 +274,33 @@ export default function ClientLedgerDetailPage() {
             <Download className="h-4 w-4 mr-2" />
             CSV 다운로드
           </Button>
-          <Button onClick={handlePrintStatement}>
-            <Printer className="h-4 w-4 mr-2" />
-            거래내역서 출력
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button>
+                <Printer className="h-4 w-4 mr-2" />
+                거래내역서 출력
+                <ChevronDown className="h-4 w-4 ml-1" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handlePrintStatement('detail')}>
+                세부거래내역서
+                <span className="ml-auto text-xs text-muted-foreground">건별 상세</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handlePrintStatement('daily')}>
+                일별거래내역서
+                <span className="ml-auto text-xs text-muted-foreground">일별 합계</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handlePrintStatement('monthly')}>
+                월별거래내역서
+                <span className="ml-auto text-xs text-muted-foreground">월별 집계</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handlePrintStatement('period')}>
+                기간별거래내역서
+                <span className="ml-auto text-xs text-muted-foreground">기간 요약</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -558,17 +589,25 @@ export default function ClientLedgerDetailPage() {
                                 {group.date}
                               </TableCell>
                               <TableCell colSpan={2} className="text-sm">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="font-medium text-muted-foreground">일계</span>
-                                  {Object.entries(group.typeCounts).map(([type, count]) => (
-                                    <span
-                                      key={type}
-                                      className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${typeLabels[type]?.color || 'bg-gray-100 text-gray-600'}`}
-                                    >
-                                      {typeLabels[type]?.label || type} {count}건
-                                    </span>
-                                  ))}
-                                </div>
+                                {Object.keys(group.typeCounts).length === 1 ? (
+                                  // 유형이 1개뿐이면 간결하게 표시
+                                  <span className="font-medium text-muted-foreground">
+                                    일계 ({Object.values(group.typeCounts)[0]}건)
+                                  </span>
+                                ) : (
+                                  // 유형이 2개 이상이면 유형별로 구분 표시
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="font-medium text-muted-foreground">일계</span>
+                                    {Object.entries(group.typeCounts).map(([type, count]) => (
+                                      <span
+                                        key={type}
+                                        className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${typeLabels[type]?.color || 'bg-gray-100 text-gray-600'}`}
+                                      >
+                                        {typeLabels[type]?.label || type} {count}건
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
                               </TableCell>
                               <TableCell className="text-right font-medium">
                                 {group.debitSum > 0

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import {
   Search,
@@ -11,6 +12,7 @@ import {
   Filter,
   CreditCard,
   CheckCircle,
+  Plus,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -61,6 +63,8 @@ import {
 import { toast } from '@/hooks/use-toast';
 
 export default function SalesLedgerPage() {
+  const router = useRouter();
+
   // ===== 필터 상태 =====
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('all');
@@ -219,10 +223,20 @@ export default function SalesLedgerPage() {
     <div className="space-y-4">
       {/* 헤더: 제목 + 필터 인라인 */}
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-xl font-bold flex items-center gap-2 shrink-0">
-          <FileText className="h-5 w-5" />
-          매출원장
-        </h1>
+        <div className="flex items-center gap-3 shrink-0">
+          <h1 className="text-xl font-bold flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            매출원장
+          </h1>
+          <Button
+            size="sm"
+            className="h-8"
+            onClick={() => router.push('/accounting/sales/new')}
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            매출 등록
+          </Button>
+        </div>
         <div className="flex items-center gap-2">
           <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
             <SelectTrigger className="w-[120px] h-9 text-xs">

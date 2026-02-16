@@ -1,9 +1,11 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { Controller, Get, Post, Param, Query, Body, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ClientLedgerService } from '../services/client-ledger.service';
 import {
   ClientLedgerListQueryDto,
   ClientLedgerDetailQueryDto,
+  SendStatementEmailDto,
 } from '../dto/client-ledger.dto';
 
 @ApiTags('거래처원장')
@@ -24,5 +26,16 @@ export class ClientLedgerController {
     @Query() query: ClientLedgerDetailQueryDto,
   ) {
     return this.clientLedgerService.getDetail(clientId, query);
+  }
+
+  @Post(':clientId/send-email')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '거래내역서 이메일 발송' })
+  async sendStatementEmail(
+    @Param('clientId') clientId: string,
+    @Body() dto: SendStatementEmailDto,
+  ) {
+    return this.clientLedgerService.sendStatementEmail(clientId, dto);
   }
 }

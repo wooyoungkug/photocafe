@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, Fragment } from 'react';
+import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import {
   Search,
@@ -10,6 +11,7 @@ import {
   ChevronRight,
   Trash2,
   BookOpen,
+  Plus,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -94,6 +96,8 @@ const SOURCE_TYPE_CONFIG: Record<
 const ITEMS_PER_PAGE = 20;
 
 export default function JournalsPage() {
+  const router = useRouter();
+
   // ===== 필터 상태 =====
   const [searchTerm, setSearchTerm] = useState('');
   const [voucherTypeFilter, setVoucherTypeFilter] = useState('all');
@@ -221,7 +225,7 @@ export default function JournalsPage() {
   return (
     <div className="space-y-6">
       {/* 헤더 */}
-      <div>
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 bg-indigo-500 rounded-xl flex items-center justify-center">
             <BookOpen className="h-5 w-5 text-white" />
@@ -233,6 +237,10 @@ export default function JournalsPage() {
             </p>
           </div>
         </div>
+        <Button onClick={() => router.push('/accounting/journals/new')}>
+          <Plus className="h-4 w-4 mr-2" />
+          신규 전표
+        </Button>
       </div>
 
       {/* 필터 */}

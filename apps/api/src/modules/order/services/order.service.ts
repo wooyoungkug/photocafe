@@ -35,26 +35,43 @@ export class OrderService {
     private pdfGenerator: PdfGeneratorService,
   ) { }
 
-  // ==================== 주문번호 생성 ====================
-  private async generateOrderNumber(): Promise<string> {
+  // ==================== 주문번호 생성 (원자적) ====================
+  private async generateOrderNumber(
+    tx: Prisma.TransactionClient = this.prisma,
+  ): Promise<string> {
     const today = new Date();
-    const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
 
-    // 오늘 날짜의 마지막 주문번호 조회
-    const lastOrder = await this.prisma.order.findFirst({
-      where: {
-        orderNumber: { startsWith: `ORD-${dateStr}` },
-      },
-      orderBy: { orderNumber: 'desc' },
-    });
+    // 날짜 형식: YYMMDD
+    const year = today.getFullYear().toString().slice(-2);
+    const month = (today.getMonth() + 1).toString().padStart(2, '0');
+    const day = today.getDate().toString().padStart(2, '0');
+    const dateStr = `${year}${month}${day}`;
 
-    let sequence = 1;
-    if (lastOrder) {
-      const lastSeq = parseInt(lastOrder.orderNumber.slice(-4), 10);
-      sequence = lastSeq + 1;
+    // Advisory lock으로 동시 요청 직렬화 (트랜잭션 종료 시 자동 해제)
+    const lockKey = parseInt(`${year}${month}${day}`, 10);
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(${lockKey})`;
+
+    // lock 획득 후 시퀀스 조회 → 동시 요청이 같은 번호를 받을 수 없음
+    const result = await tx.$queryRaw<{ next_seq: bigint }[]>`
+      SELECT COALESCE(
+        MAX(CAST(SPLIT_PART("orderNumber", '-', 2) AS INTEGER)),
+        0
+      ) + 1 AS next_seq
+      FROM "Order"
+      WHERE "orderNumber" LIKE ${dateStr + '-%'}
+    `;
+
+    const sequence = Number(result[0]?.next_seq || 1);
+
+    // 일일 999건 제한 검증
+    if (sequence > 999) {
+      throw new BadRequestException(
+        '일일 주문 한도(999건)를 초과했습니다. 시스템 관리자에게 문의하세요.',
+      );
     }
 
-    return `ORD-${dateStr}-${sequence.toString().padStart(4, '0')}`;
+    // 형식: YYMMDD-NNN
+    return `${dateStr}-${sequence.toString().padStart(3, '0')}`;
   }
 
   private async generateBarcode(): Promise<string> {
@@ -330,21 +347,22 @@ export class OrderService {
     return order;
   }
 
-  // ==================== 주문 생성 ====================
-  async create(dto: CreateOrderDto, userId: string) {
-    try {
-      const { items, shipping, ...orderData } = dto;
+  // ==================== 주문 생성 (트랜잭션 + Advisory Lock으로 주문번호 원자적 생성) ====================
+  async create(dto: CreateOrderDto, userId: string): Promise<any> {
+    const { items, shipping, ...orderData } = dto;
 
-      // 거래처 확인
-      const client = await this.prisma.client.findUnique({
-        where: { id: dto.clientId },
-      });
+    // 거래처 확인 (트랜잭션 밖에서 수행)
+    const client = await this.prisma.client.findUnique({
+      where: { id: dto.clientId },
+    });
 
-      if (!client) {
-        throw new NotFoundException('거래처를 찾을 수 없습니다');
-      }
+    if (!client) {
+      throw new NotFoundException('거래처를 찾을 수 없습니다');
+    }
 
-      const orderNumber = await this.generateOrderNumber();
+    // 트랜잭션 내에서 주문번호 생성 + 주문 생성 (advisory lock으로 직렬화)
+    const order = await this.prisma.$transaction(async (tx) => {
+      const orderNumber = await this.generateOrderNumber(tx);
       const barcode = await this.generateBarcode();
 
       // 가격 계산
@@ -435,7 +453,7 @@ export class OrderService {
       const tax = Math.round(productPrice * 0.1); // 부가세 10%
       const totalAmount = productPrice + tax;
 
-      const order = await this.prisma.order.create({
+      return tx.order.create({
         data: {
           orderNumber,
           barcode,
@@ -474,51 +492,51 @@ export class OrderService {
           },
         },
       });
+    }, { timeout: 15000 });
 
-      // 상품별 주문수 증가 (비동기, 에러 무시)
-      const productIds = [...new Set(items.map(item => item.productId))];
-      Promise.all(
-        productIds.map(productId =>
-          this.prisma.product.update({
-            where: { id: productId },
-            data: { orderCount: { increment: 1 } },
-          }).catch(() => { })
-        )
-      ).catch(() => { });
+    // 비동기 후처리 (트랜잭션 밖에서 실행, 실패해도 주문은 유지)
 
-      // 임시 파일 → 정식 경로 이동 (비동기, 에러 무시)
-      this.moveTemporaryFiles(order).catch((err) => {
-        this.logger.error('임시 파일 이동 실패:', err.message);
-      });
+    // 상품별 주문수 증가
+    const productIds = [...new Set(items.map(item => item.productId))];
+    Promise.all(
+      productIds.map(productId =>
+        this.prisma.product.update({
+          where: { id: productId },
+          data: { orderCount: { increment: 1 } },
+        }).catch(() => { })
+      )
+    ).catch(() => { });
 
-      // 매출원장 자동 등록 (비동기, 에러 시 주문은 유지)
-      this.salesLedgerService.createFromOrder({
-        id: order.id,
-        orderNumber: order.orderNumber,
-        clientId: order.clientId,
-        productPrice: Number(order.productPrice),
-        shippingFee: Number(order.shippingFee),
-        tax: Number(order.tax),
-        totalAmount: Number(order.totalAmount),
-        finalAmount: Number(order.finalAmount),
-        paymentMethod: order.paymentMethod,
-        items: order.items.map(item => ({
-          id: item.id,
-          productId: item.productId,
-          productName: item.productName,
-          size: item.size,
-          quantity: item.quantity,
-          unitPrice: Number(item.unitPrice),
-          totalPrice: Number(item.totalPrice),
-        })),
-      }, userId).catch(() => {
-        // 매출원장 자동등록 실패 시 주문 생성은 계속 진행
-      });
+    // 임시 파일 → 정식 경로 이동
+    this.moveTemporaryFiles(order).catch((err) => {
+      this.logger.error('임시 파일 이동 실패:', err.message);
+    });
 
-      return order;
-    } catch (error) {
-      throw error;
-    }
+    // 매출원장 자동 등록
+    this.salesLedgerService.createFromOrder({
+      id: order.id,
+      orderNumber: order.orderNumber,
+      clientId: order.clientId,
+      productPrice: Number(order.productPrice),
+      shippingFee: Number(order.shippingFee),
+      tax: Number(order.tax),
+      totalAmount: Number(order.totalAmount),
+      finalAmount: Number(order.finalAmount),
+      paymentMethod: order.paymentMethod,
+      items: order.items.map(item => ({
+        id: item.id,
+        productId: item.productId,
+        productName: item.productName,
+        size: item.size,
+        quantity: item.quantity,
+        unitPrice: Number(item.unitPrice),
+        totalPrice: Number(item.totalPrice),
+      })),
+    }, userId).catch(() => {
+      // 매출원장 자동등록 실패 시 주문 생성은 계속 진행
+    });
+
+    return order;
   }
 
   // ==================== 주문 수정 ====================
@@ -956,93 +974,95 @@ export class OrderService {
         });
         if (!order) { results.failed.push(orderId); continue; }
 
-        const newOrderNumber = await this.generateOrderNumber();
-        const newBarcode = await this.generateBarcode();
+        const newOrder = await this.prisma.$transaction(async (tx) => {
+          const newOrderNumber = await this.generateOrderNumber(tx);
+          const newBarcode = await this.generateBarcode();
 
-        const newOrder = await this.prisma.order.create({
-          data: {
-            orderNumber: newOrderNumber,
-            barcode: newBarcode,
-            clientId: order.clientId,
-            productPrice: order.productPrice,
-            shippingFee: order.shippingFee,
-            tax: order.tax,
-            adjustmentAmount: 0,
-            totalAmount: order.totalAmount,
-            finalAmount: order.finalAmount,
-            paymentMethod: order.paymentMethod,
-            isUrgent: false,
-            customerMemo: order.customerMemo,
-            productMemo: order.productMemo,
-            status: ORDER_STATUS.PENDING_RECEIPT,
-            currentProcess: 'receipt_pending',
-            items: {
-              create: order.items.map((item, idx) => ({
-                productionNumber: this.generateProductionNumber(newOrderNumber, idx),
-                productId: item.productId,
-                productName: item.productName,
-                size: item.size,
-                pages: item.pages,
-                printMethod: item.printMethod,
-                paper: item.paper,
-                bindingType: item.bindingType,
-                coverMaterial: item.coverMaterial,
-                foilName: item.foilName,
-                foilColor: item.foilColor,
-                finishingOptions: item.finishingOptions,
-                fabricName: item.fabricName,
-                thumbnailUrl: item.thumbnailUrl,
-                totalFileSize: item.totalFileSize,
-                pageLayout: item.pageLayout,
-                bindingDirection: item.bindingDirection,
-                quantity: item.quantity,
-                unitPrice: item.unitPrice,
-                totalPrice: item.totalPrice,
-                ...(item.shipping ? {
-                  shipping: {
-                    create: {
-                      senderType: item.shipping.senderType,
-                      senderName: item.shipping.senderName,
-                      senderPhone: item.shipping.senderPhone,
-                      senderPostalCode: item.shipping.senderPostalCode,
-                      senderAddress: item.shipping.senderAddress,
-                      senderAddressDetail: item.shipping.senderAddressDetail,
-                      receiverType: item.shipping.receiverType,
-                      recipientName: item.shipping.recipientName,
-                      phone: item.shipping.phone,
-                      postalCode: item.shipping.postalCode,
-                      address: item.shipping.address,
-                      addressDetail: item.shipping.addressDetail,
-                      deliveryMethod: item.shipping.deliveryMethod,
-                      deliveryFee: item.shipping.deliveryFee,
-                      deliveryFeeType: item.shipping.deliveryFeeType,
+          return tx.order.create({
+            data: {
+              orderNumber: newOrderNumber,
+              barcode: newBarcode,
+              clientId: order.clientId,
+              productPrice: order.productPrice,
+              shippingFee: order.shippingFee,
+              tax: order.tax,
+              adjustmentAmount: 0,
+              totalAmount: order.totalAmount,
+              finalAmount: order.finalAmount,
+              paymentMethod: order.paymentMethod,
+              isUrgent: false,
+              customerMemo: order.customerMemo,
+              productMemo: order.productMemo,
+              status: ORDER_STATUS.PENDING_RECEIPT,
+              currentProcess: 'receipt_pending',
+              items: {
+                create: order.items.map((item, idx) => ({
+                  productionNumber: this.generateProductionNumber(newOrderNumber, idx),
+                  productId: item.productId,
+                  productName: item.productName,
+                  size: item.size,
+                  pages: item.pages,
+                  printMethod: item.printMethod,
+                  paper: item.paper,
+                  bindingType: item.bindingType,
+                  coverMaterial: item.coverMaterial,
+                  foilName: item.foilName,
+                  foilColor: item.foilColor,
+                  finishingOptions: item.finishingOptions,
+                  fabricName: item.fabricName,
+                  thumbnailUrl: item.thumbnailUrl,
+                  totalFileSize: item.totalFileSize,
+                  pageLayout: item.pageLayout,
+                  bindingDirection: item.bindingDirection,
+                  quantity: item.quantity,
+                  unitPrice: item.unitPrice,
+                  totalPrice: item.totalPrice,
+                  ...(item.shipping ? {
+                    shipping: {
+                      create: {
+                        senderType: item.shipping.senderType,
+                        senderName: item.shipping.senderName,
+                        senderPhone: item.shipping.senderPhone,
+                        senderPostalCode: item.shipping.senderPostalCode,
+                        senderAddress: item.shipping.senderAddress,
+                        senderAddressDetail: item.shipping.senderAddressDetail,
+                        receiverType: item.shipping.receiverType,
+                        recipientName: item.shipping.recipientName,
+                        phone: item.shipping.phone,
+                        postalCode: item.shipping.postalCode,
+                        address: item.shipping.address,
+                        addressDetail: item.shipping.addressDetail,
+                        deliveryMethod: item.shipping.deliveryMethod,
+                        deliveryFee: item.shipping.deliveryFee,
+                        deliveryFeeType: item.shipping.deliveryFeeType,
+                      },
                     },
+                  } : {}),
+                })),
+              },
+              ...(order.shipping ? {
+                shipping: {
+                  create: {
+                    recipientName: order.shipping.recipientName,
+                    phone: order.shipping.phone,
+                    postalCode: order.shipping.postalCode,
+                    address: order.shipping.address,
+                    addressDetail: order.shipping.addressDetail,
                   },
-                } : {}),
-              })),
-            },
-            ...(order.shipping ? {
-              shipping: {
+                },
+              } : {}),
+              processHistory: {
                 create: {
-                  recipientName: order.shipping.recipientName,
-                  phone: order.shipping.phone,
-                  postalCode: order.shipping.postalCode,
-                  address: order.shipping.address,
-                  addressDetail: order.shipping.addressDetail,
+                  toStatus: ORDER_STATUS.PENDING_RECEIPT,
+                  processType: 'order_duplicated',
+                  note: `원본: ${order.orderNumber}`,
+                  processedBy: userId,
                 },
               },
-            } : {}),
-            processHistory: {
-              create: {
-                toStatus: ORDER_STATUS.PENDING_RECEIPT,
-                processType: 'order_duplicated',
-                note: `원본: ${order.orderNumber}`,
-                processedBy: userId,
-              },
             },
-          },
-          include: { items: true },
-        });
+            include: { items: true },
+          });
+        }, { timeout: 15000 });
         results.success++;
         results.newOrderIds.push(newOrder.id);
 

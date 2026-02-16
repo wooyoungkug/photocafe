@@ -159,6 +159,32 @@ export class SalesLedgerController {
     });
   }
 
+  // ===== 매출 직접 등록 (홈페이지 외 매출) =====
+  @Post('direct')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '매출 직접 등록 (홈페이지 외 매출)' })
+  async createDirect(@Body() dto: {
+    clientId: string;
+    salesType: string;
+    paymentMethod: string;
+    supplyAmount: number;
+    vatAmount: number;
+    totalAmount: number;
+    description?: string;
+    items: Array<{
+      itemName: string;
+      specification?: string;
+      quantity: number;
+      unitPrice: number;
+      supplyAmount: number;
+      vatAmount: number;
+      totalAmount: number;
+    }>;
+  }) {
+    return this.salesLedgerService.createDirect(dto, 'system');
+  }
+
   // ===== 매출원장 상세 조회 =====
   @Get(':id')
   @ApiOperation({ summary: '매출원장 상세 조회' })

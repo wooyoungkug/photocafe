@@ -52,7 +52,7 @@ export class DepositResponseDto {
   @ApiProperty({ description: '입금 ID' })
   id: string;
 
-  @ApiProperty({ description: '수금번호' })
+  @ApiProperty({ description: '입금번호' })
   receiptNumber: string;
 
   @ApiProperty({ description: '입금일자' })
@@ -76,7 +76,7 @@ export class DepositResponseDto {
   @ApiProperty({ description: '입금금액 (이 건)' })
   depositAmount: number;
 
-  @ApiProperty({ description: '총 수금액' })
+  @ApiProperty({ description: '총 입금액' })
   receivedAmount: number;
 
   @ApiProperty({ description: '미수금' })

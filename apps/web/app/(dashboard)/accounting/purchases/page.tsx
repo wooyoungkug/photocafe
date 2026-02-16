@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import {
   Plus,
@@ -92,6 +93,8 @@ const emptyItemRow: ItemRow = {
 };
 
 export default function PurchaseLedgerPage() {
+  const router = useRouter();
+
   // ===== 필터 상태 =====
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('all');
@@ -380,7 +383,7 @@ export default function PurchaseLedgerPage() {
           <h1 className="text-2xl font-bold">매입원장</h1>
           <p className="text-muted-foreground">매입원장을 조회하고 지급 처리를 관리합니다.</p>
         </div>
-        <Button onClick={() => { resetCreateForm(); setIsCreateOpen(true); }}>
+        <Button onClick={() => router.push('/accounting/purchases/new')}>
           <Plus className="h-4 w-4 mr-2" />
           매입 등록
         </Button>

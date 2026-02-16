@@ -218,7 +218,7 @@ export class CreateReceivableDto {
   @IsDateString()
   issueDate: string;
 
-  @ApiPropertyOptional({ description: '수금예정일' })
+  @ApiPropertyOptional({ description: '입금예정일' })
   @IsOptional()
   @IsDateString()
   dueDate?: string;
@@ -230,12 +230,12 @@ export class CreateReceivableDto {
 }
 
 export class CreateReceivablePaymentDto {
-  @ApiProperty({ description: '수금액' })
+  @ApiProperty({ description: '입금액' })
   @IsNumber()
   @Min(0)
   amount: number;
 
-  @ApiProperty({ description: '수금일' })
+  @ApiProperty({ description: '입금일' })
   @IsDateString()
   paymentDate: string;
 

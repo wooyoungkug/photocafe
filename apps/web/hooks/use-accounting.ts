@@ -568,7 +568,7 @@ export function useDeleteJournal() {
   });
 }
 
-// ===== 수금/지급 처리 =====
+// ===== 입금/지급 처리 =====
 export function useAddReceivablePayment() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -606,5 +606,28 @@ export function useAddPayablePayment() {
       queryClient.invalidateQueries({ queryKey: ['payables-summary'] });
       queryClient.invalidateQueries({ queryKey: ['accounting-summary'] });
     },
+  });
+}
+
+// ===== 계정과목 목록 조회 =====
+export function useAccounts() {
+  return useQuery({
+    queryKey: ['accounts'],
+    queryFn: async () => {
+      try {
+        const data = await api.get<Array<{
+          id: string;
+          code: string;
+          name: string;
+          type: string;
+          isActive: boolean;
+          sortOrder: number;
+        }>>(`${ACCOUNTING_API}/accounts`);
+        return data;
+      } catch {
+        return [];
+      }
+    },
+    staleTime: 5 * 60 * 1000, // 5분 캐시
   });
 }

@@ -195,8 +195,11 @@ export class JournalEngineService {
 
   // ===== 수금(입금) 자동분개 =====
   // 수금 처리 시 호출 -> 입금전표 자동 생성
-  // 차변: 보통예금(102) = amount
-  // 대변: 외상매출금(110) = amount
+  // 결제수단별 분기:
+  //   현금:       차변 현금(101) / 대변 외상매출금(110)
+  //   계좌이체:   차변 보통예금(102) / 대변 외상매출금(110)
+  //   카드:       차변 보통예금(102) + 지급수수료(618) / 대변 외상매출금(110)
+  //   수표:       차변 보통예금(102) / 대변 외상매출금(110)
   async createReceiptJournal(params: CreateReceiptJournalParams) {
     const {
       salesLedgerId,
@@ -208,9 +211,12 @@ export class JournalEngineService {
       description,
     } = params;
 
+    // 결제수단에 따른 차변 계정 결정
+    const cashAccountCode = paymentMethod === 'cash' ? '101' : '102';
+
     // 계정과목 조회
-    const [bankAccount, accountReceivable] = await Promise.all([
-      this.findAccountByCode('102'), // 보통예금
+    const [cashAccount, accountReceivable] = await Promise.all([
+      this.findAccountByCode(cashAccountCode),
       this.findAccountByCode('110'), // 외상매출금
     ]);
 
@@ -218,22 +224,58 @@ export class JournalEngineService {
       ? `${paymentMethod} (${bankName})`
       : paymentMethod;
 
-    const entries: JournalEntryInput[] = [
-      {
-        accountId: bankAccount.id,
-        transactionType: 'DEBIT',
-        amount,
-        description: `입금 - ${clientName} / ${paymentDesc}`,
-        sortOrder: 0,
-      },
-      {
-        accountId: accountReceivable.id,
-        transactionType: 'CREDIT',
-        amount,
-        description: `외상매출금 회수 - ${clientName}`,
-        sortOrder: 1,
-      },
-    ];
+    const entries: JournalEntryInput[] = [];
+
+    if (paymentMethod === 'card') {
+      // 카드 결제: 수수료 자동 분개
+      const CARD_FEE_RATE = 0.03; // 카드수수료율 3%
+      const cardFee = Math.round(amount * CARD_FEE_RATE);
+      const netAmount = amount - cardFee;
+
+      const feeAccount = await this.findAccountByCode('618'); // 지급수수료
+
+      entries.push(
+        {
+          accountId: cashAccount.id,
+          transactionType: 'DEBIT',
+          amount: netAmount,
+          description: `카드입금 - ${clientName} / ${paymentDesc}`,
+          sortOrder: 0,
+        },
+        {
+          accountId: feeAccount.id,
+          transactionType: 'DEBIT',
+          amount: cardFee,
+          description: `카드수수료 ${CARD_FEE_RATE * 100}% - ${clientName}`,
+          sortOrder: 1,
+        },
+        {
+          accountId: accountReceivable.id,
+          transactionType: 'CREDIT',
+          amount,
+          description: `외상매출금 회수 - ${clientName}`,
+          sortOrder: 2,
+        },
+      );
+    } else {
+      // 현금, 계좌이체, 수표 등
+      entries.push(
+        {
+          accountId: cashAccount.id,
+          transactionType: 'DEBIT',
+          amount,
+          description: `입금 - ${clientName} / ${paymentDesc}`,
+          sortOrder: 0,
+        },
+        {
+          accountId: accountReceivable.id,
+          transactionType: 'CREDIT',
+          amount,
+          description: `외상매출금 회수 - ${clientName}`,
+          sortOrder: 1,
+        },
+      );
+    }
 
     this.validateBalance(entries);
 
@@ -272,16 +314,16 @@ export class JournalEngineService {
     });
 
     this.logger.log(
-      `수금 자동분개 생성: ${voucherNo} (매출원장: ${salesLedgerId}, 금액: ${amount})`,
+      `수금 자동분개 생성: ${voucherNo} (매출원장: ${salesLedgerId}, 결제수단: ${paymentMethod}, 금액: ${amount})`,
     );
 
     return journal;
   }
 
-  // ===== 매입 자동분개 (Phase 2 준비) =====
+  // ===== 매입 자동분개 =====
   // 매입원장 생성 시 호출 -> 대체전표 자동 생성
   // 차변: 원재료/상품 등(materialAccountCode) = supplyAmount
-  // 차변: 선급비용(113) = vatAmount (부가세대급금 계정 추가 전 임시)
+  // 차변: 부가세대급금(115) = vatAmount
   // 대변: 외상매입금(201) = totalAmount
   async createPurchaseJournal(params: CreatePurchaseJournalParams) {
     const {
@@ -299,7 +341,7 @@ export class JournalEngineService {
     const [materialAccount, vatInputAccount, accountPayable] =
       await Promise.all([
         this.findAccountByCode(materialAccountCode), // 원재료(120) 또는 상품(123) 등
-        this.findAccountByCode('113'), // 선급비용 (부가세대급금 임시)
+        this.findAccountByCode('115'), // 부가세대급금
         this.findAccountByCode('201'), // 외상매입금
       ]);
 
@@ -377,8 +419,9 @@ export class JournalEngineService {
 
   // ===== 지급(출금) 자동분개 =====
   // 매입대금 지급 시 호출 -> 출금전표 자동 생성
-  // 차변: 외상매입금(201) = amount
-  // 대변: 보통예금(102) = amount
+  // 결제수단별 분기:
+  //   현금:       차변 외상매입금(201) / 대변 현금(101)
+  //   계좌이체:   차변 외상매입금(201) / 대변 보통예금(102)
   async createPaymentJournal(params: CreatePaymentJournalParams) {
     const {
       purchaseLedgerId,
@@ -390,10 +433,13 @@ export class JournalEngineService {
       description,
     } = params;
 
+    // 결제수단에 따른 대변 계정 결정
+    const cashAccountCode = paymentMethod === 'cash' ? '101' : '102';
+
     // 계정과목 조회
-    const [accountPayable, bankAccount] = await Promise.all([
+    const [accountPayable, cashAccount] = await Promise.all([
       this.findAccountByCode('201'), // 외상매입금
-      this.findAccountByCode('102'), // 보통예금
+      this.findAccountByCode(cashAccountCode),
     ]);
 
     const paymentDesc = bankName
@@ -409,7 +455,7 @@ export class JournalEngineService {
         sortOrder: 0,
       },
       {
-        accountId: bankAccount.id,
+        accountId: cashAccount.id,
         transactionType: 'CREDIT',
         amount,
         description: `출금 - ${supplierName} / ${paymentDesc}`,
@@ -454,7 +500,7 @@ export class JournalEngineService {
     });
 
     this.logger.log(
-      `지급 자동분개 생성: ${voucherNo} (매입원장: ${purchaseLedgerId}, 금액: ${amount})`,
+      `지급 자동분개 생성: ${voucherNo} (매입원장: ${purchaseLedgerId}, 결제수단: ${paymentMethod}, 금액: ${amount})`,
     );
 
     return journal;

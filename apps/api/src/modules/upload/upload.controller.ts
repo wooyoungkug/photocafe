@@ -115,21 +115,15 @@ export class UploadController {
             throw new BadRequestException('파일이 업로드되지 않았습니다.');
         }
 
-        // 서버 사이드 썸네일 생성
-        const thumbDir = this.fileStorage.getTempThumbnailDir(body.tempFolderId);
-        let thumbnailUrl = '';
-        try {
-            const thumbPath = await this.thumbnailService.generateThumbnail(
-                file.path,
-                thumbDir,
-                file.filename,
-            );
-            thumbnailUrl = this.fileStorage.toRelativeUrl(thumbPath);
-        } catch {
-            // 썸네일 생성 실패해도 원본 업로드는 유지
-        }
-
         const fileUrl = this.fileStorage.toRelativeUrl(file.path);
+
+        // 썸네일은 완전 비동기(fire-and-forget) — 응답을 전혀 블로킹하지 않음
+        const thumbDir = this.fileStorage.getTempThumbnailDir(body.tempFolderId);
+        this.thumbnailService.generateThumbnail(
+            file.path,
+            thumbDir,
+            file.filename,
+        ).catch(() => { /* 썸네일 실패해도 원본은 정상 */ });
 
         return {
             tempFileId: `${body.tempFolderId}/${file.filename}`,
@@ -137,7 +131,7 @@ export class UploadController {
             originalName: file.originalname,
             size: file.size,
             fileUrl,
-            thumbnailUrl,
+            thumbnailUrl: '',
             sortOrder: parseInt(body.sortOrder || '0', 10),
         };
     }

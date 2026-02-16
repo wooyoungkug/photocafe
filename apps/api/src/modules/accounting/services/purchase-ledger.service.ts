@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { JournalEngineService } from './journal-engine.service';
@@ -17,6 +17,8 @@ interface SupplierSummaryQueryDto {
 
 @Injectable()
 export class PurchaseLedgerService {
+  private readonly logger = new Logger(PurchaseLedgerService.name);
+
   constructor(
     private prisma: PrismaService,
     private journalEngine: JournalEngineService,
@@ -159,8 +161,12 @@ export class PurchaseLedgerService {
         materialAccountCode: accountCode,
         description: `${ledgerNumber} 매입 - ${supplier.clientName}`,
       });
+      this.logger.log(`매입 자동분개 성공: ${ledgerNumber} (${supplier.clientName}, ${dto.totalAmount}원)`);
     } catch (err) {
-      // 매입 자동분개 생성 실패 시 매입원장 생성은 계속 진행
+      this.logger.error(
+        `매입 자동분개 실패: ${ledgerNumber} (${supplier.clientName}) - ${err.message}`,
+        err.stack,
+      );
     }
 
     return purchaseLedger;
@@ -315,8 +321,12 @@ export class PurchaseLedgerService {
         where: { id: payment.id },
         data: { journalId: journal.id },
       });
+      this.logger.log(`지급 자동분개 성공: ${ledger.ledgerNumber} (${dto.paymentMethod}, ${dto.amount}원)`);
     } catch (err) {
-      // 지급분개 생성 실패 시 지급 처리는 계속 진행
+      this.logger.error(
+        `지급 자동분개 실패: ${ledger.ledgerNumber} (${ledger.supplierName}) - ${err.message}`,
+        err.stack,
+      );
     }
 
     return this.findById(purchaseLedgerId);

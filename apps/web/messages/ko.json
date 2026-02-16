@@ -538,8 +538,8 @@
       "custom": "기간설정"
     },
     "table": {
-      "receiptNumber": "수금번호",
-      "receiptDate": "수금일",
+      "receiptNumber": "입금번호",
+      "receiptDate": "입금일",
       "clientName": "거래처명",
       "amount": "금액",
       "paymentMethod": "결제방법",
@@ -608,7 +608,7 @@
       "clientCode": "거래처코드",
       "clientName": "거래처명",
       "salesAmount": "매출액",
-      "receivedAmount": "수금액",
+      "receivedAmount": "입금액",
       "salesOutstanding": "매출미수금",
       "salesCount": "매출건수",
       "purchaseAmount": "매입액",
@@ -631,7 +631,7 @@
     },
     "transactionType": {
       "sales": "매출",
-      "receipt": "수금",
+      "receipt": "입금",
       "purchase": "매입",
       "payment": "지급"
     },

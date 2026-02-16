@@ -1,6 +1,9 @@
-import { uploadAlbumFile, type AlbumFileMetadata } from './file-upload';
+import { uploadAlbumFile, deleteTempFolder, type AlbumFileMetadata } from './file-upload';
 import { useCartStore } from '@/stores/cart-store';
 import { useAuthStore } from '@/stores/auth-store';
+
+const CONCURRENCY = 8;          // 동시 업로드 수 (20+ 파일 대응)
+const THROTTLE_MS = 200;        // progress 업데이트 최소 간격
 
 function generateTempFolderId(): string {
   return `tf-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -38,10 +41,14 @@ export interface FolderUploadData {
 // 재시도를 위해 진행 중인 업로드의 파일 참조 보관
 const pendingFileRefs = new Map<string, FolderUploadData>();
 
+// 진행 중인 업로드의 AbortController 보관
+const activeAbortControllers = new Map<string, AbortController>();
+
 /**
  * 폴더의 원본 파일들을 백그라운드로 서버에 업로드
- * @param cartItemIds - 같은 폴더를 참조하는 장바구니 아이템 ID 배열
- * @param folderData - 업로드할 폴더 데이터 (파일 포함)
+ * - 동시 3개 병렬 업로드
+ * - progress 쓰로틀링 (200ms)
+ * - AbortController로 중단 가능
  */
 export function startBackgroundUpload(
   cartItemIds: string[],
@@ -55,7 +62,11 @@ export function startBackgroundUpload(
   const primaryId = cartItemIds[0];
   pendingFileRefs.set(primaryId, folderData);
 
-  // 업로드할 파일 준비 (File 객체 또는 canvasDataUrl → File 변환)
+  // AbortController 생성
+  const abortController = new AbortController();
+  activeAbortControllers.set(primaryId, abortController);
+
+  // 업로드할 파일 준비
   const uploadFiles = folderData.files
     .map((f) => {
       let file: File | null = null;
@@ -99,7 +110,9 @@ export function startBackgroundUpload(
     tempFolderId,
   });
 
-  // 비동기 순차 업로드 시작
+  const { signal } = abortController;
+
+  // 비동기 병렬 업로드 시작
   (async () => {
     const serverFiles: Array<{
       tempFileId: string;
@@ -115,69 +128,170 @@ export function startBackgroundUpload(
       fileSize: number;
     }> = [];
 
-    try {
-      for (let i = 0; i < uploadFiles.length; i++) {
-        const { file, metadata } = uploadFiles[i];
-        const maxRetries = 3;
-        let lastError: Error | null = null;
+    // 파일별 progress 추적
+    const fileProgress = new Float32Array(uploadFiles.length);
+    let completedCount = 0;
+    let lastProgressUpdate = 0;
 
-        for (let attempt = 0; attempt < maxRetries; attempt++) {
-          try {
-            const result = await uploadAlbumFile(
-              file,
-              metadata,
-              accessToken,
-              (percent) => {
-                const overall = Math.round(
-                  ((i + percent / 100) / uploadFiles.length) * 100
-                );
-                updateAll({ uploadProgress: overall });
-              },
-            );
+    const flushProgress = () => {
+      let sum = 0;
+      for (let i = 0; i < fileProgress.length; i++) {
+        sum += fileProgress[i];
+      }
+      const overall = Math.round(sum / uploadFiles.length);
+      updateAll({ uploadProgress: overall });
+      lastProgressUpdate = Date.now();
+    };
 
-            serverFiles.push({
-              tempFileId: result.tempFileId,
-              fileUrl: result.fileUrl,
-              thumbnailUrl: result.thumbnailUrl,
-              sortOrder: result.sortOrder,
-              fileName: result.fileName || metadata.fileName,
-              widthPx: metadata.width,
-              heightPx: metadata.height,
-              widthInch: metadata.widthInch,
-              heightInch: metadata.heightInch,
-              dpi: metadata.dpi,
-              fileSize: metadata.fileSize,
-            });
-            lastError = null;
-            break;
-          } catch (err) {
-            lastError = err as Error;
-            if (attempt < maxRetries - 1) {
-              await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt)));
-            }
+    const throttledProgress = () => {
+      const now = Date.now();
+      if (now - lastProgressUpdate >= THROTTLE_MS) {
+        flushProgress();
+      }
+    };
+
+    // 단일 파일 업로드 (재시도 포함)
+    const uploadOne = async (index: number) => {
+      const { file, metadata } = uploadFiles[index];
+      const maxRetries = 3;
+      let lastError: Error | null = null;
+
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        if (signal.aborted) throw new DOMException('Upload cancelled', 'AbortError');
+
+        try {
+          const result = await uploadAlbumFile(
+            file,
+            metadata,
+            accessToken,
+            (percent) => {
+              fileProgress[index] = percent;
+              throttledProgress();
+            },
+            signal,
+          );
+
+          fileProgress[index] = 100;
+          serverFiles.push({
+            tempFileId: result.tempFileId,
+            fileUrl: result.fileUrl,
+            thumbnailUrl: result.thumbnailUrl,
+            sortOrder: result.sortOrder,
+            fileName: result.fileName || metadata.fileName,
+            widthPx: metadata.width,
+            heightPx: metadata.height,
+            widthInch: metadata.widthInch,
+            heightInch: metadata.heightInch,
+            dpi: metadata.dpi,
+            fileSize: metadata.fileSize,
+          });
+
+          completedCount++;
+          updateAll({
+            uploadedFileCount: completedCount,
+            serverFiles: [...serverFiles],
+          });
+
+          lastError = null;
+          break;
+        } catch (err) {
+          if ((err as DOMException).name === 'AbortError') throw err;
+          lastError = err as Error;
+          if (attempt < maxRetries - 1) {
+            await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt)));
           }
         }
+      }
 
-        if (lastError) throw lastError;
+      if (lastError) throw lastError;
+    };
 
+    try {
+      // 병렬 업로드: CONCURRENCY 개씩 동시 실행 (allSettled로 부분 실패 허용)
+      let i = 0;
+      let failedCount = 0;
+      while (i < uploadFiles.length) {
+        if (signal.aborted) throw new DOMException('Upload cancelled', 'AbortError');
+
+        const batch: Promise<void>[] = [];
+        for (let j = 0; j < CONCURRENCY && i < uploadFiles.length; j++, i++) {
+          batch.push(uploadOne(i));
+        }
+        const results = await Promise.allSettled(batch);
+
+        // 배치 내 실패 건 카운트 (AbortError면 즉시 중단)
+        for (const r of results) {
+          if (r.status === 'rejected') {
+            if ((r.reason as DOMException)?.name === 'AbortError') {
+              throw r.reason;
+            }
+            failedCount++;
+          }
+        }
+      }
+
+      flushProgress();
+
+      if (failedCount > 0 && serverFiles.length > 0) {
+        // 부분 성공: 성공한 파일은 유지하되 상태를 failed로 표시
         updateAll({
-          uploadedFileCount: i + 1,
+          uploadStatus: 'failed',
+          uploadProgress: Math.round((serverFiles.length / uploadFiles.length) * 100),
+          serverFiles: [...serverFiles],
+        });
+        // pendingFileRefs 유지 → 재시도 가능
+      } else if (failedCount > 0) {
+        // 전체 실패
+        updateAll({
+          uploadStatus: 'failed',
+          serverFiles: [],
+        });
+      } else {
+        // 전체 성공
+        updateAll({
+          uploadStatus: 'completed',
+          uploadProgress: 100,
+        });
+        pendingFileRefs.delete(primaryId);
+      }
+    } catch (error) {
+      if ((error as DOMException).name === 'AbortError') {
+        // 중단됨 → 서버 임시파일 삭제
+        deleteTempFolder(tempFolderId, accessToken).catch(() => {});
+        updateAll({
+          uploadStatus: 'cancelled' as any,
+          uploadProgress: 0,
+          serverFiles: [],
+        });
+        pendingFileRefs.delete(primaryId);
+      } else {
+        updateAll({
+          uploadStatus: 'failed',
           serverFiles: [...serverFiles],
         });
       }
-
-      updateAll({
-        uploadStatus: 'completed',
-        uploadProgress: 100,
-      });
-      pendingFileRefs.delete(primaryId);
-    } catch (error) {
-      updateAll({
-        uploadStatus: 'failed',
-        serverFiles: [...serverFiles],
-      });
+    } finally {
+      activeAbortControllers.delete(primaryId);
     }
   })();
+}
+
+/**
+ * 진행 중인 업로드를 중단하고 서버 임시파일 삭제
+ */
+export function cancelUpload(cartItemId: string): boolean {
+  const controller = activeAbortControllers.get(cartItemId);
+  if (!controller) return false;
+
+  controller.abort();
+  return true;
+}
+
+/**
+ * 업로드 중단 가능 여부 확인
+ */
+export function canCancelUpload(cartItemId: string): boolean {
+  return activeAbortControllers.has(cartItemId);
 }
 
 /**

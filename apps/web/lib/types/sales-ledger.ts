@@ -30,7 +30,7 @@ export interface SalesLedgerItem {
   remark?: string;
 }
 
-// 수금 이력
+// 입금 이력
 export interface SalesReceipt {
   id: string;
   salesLedgerId: string;
@@ -142,7 +142,7 @@ export interface MonthlyTrend {
   count: number;
 }
 
-// 수금 등록 DTO
+// 입금 등록 DTO
 export interface CreateSalesReceiptDto {
   receiptDate: string;
   amount: number;
@@ -178,8 +178,8 @@ export const SALES_STATUS_OPTIONS = [
 
 export const PAYMENT_STATUS_OPTIONS = [
   { value: 'unpaid', label: '미수', color: 'bg-orange-100 text-orange-800' },
-  { value: 'partial', label: '부분수금', color: 'bg-blue-100 text-blue-800' },
-  { value: 'paid', label: '수금완료', color: 'bg-green-100 text-green-800' },
+  { value: 'partial', label: '부분입금', color: 'bg-blue-100 text-blue-800' },
+  { value: 'paid', label: '입금완료', color: 'bg-green-100 text-green-800' },
   { value: 'overdue', label: '연체', color: 'bg-red-100 text-red-800' },
 ] as const;
 

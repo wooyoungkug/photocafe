@@ -88,7 +88,7 @@ export function useMonthlyTrend(months: number = 12) {
   });
 }
 
-// ===== 수금 처리 =====
+// ===== 입금 처리 =====
 export function useAddSalesReceipt() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -198,7 +198,7 @@ export function useClientDetail(clientId: string) {
   });
 }
 
-// ===== 수금예정일 집계 =====
+// ===== 입금예정일 집계 =====
 export interface DueDateSummary {
   today: number;
   thisWeek: number;
@@ -260,7 +260,7 @@ export function useCalculateCreditScore() {
   });
 }
 
-// ===== 수금 패턴 분석 =====
+// ===== 입금 패턴 분석 =====
 export interface PaymentPattern {
   avgPaymentDays: number;
   medianPaymentDays: number;
