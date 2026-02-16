@@ -107,6 +107,7 @@ interface CartState {
   items: CartItem[];
 
   addItem: (item: Omit<CartItem, 'id' | 'addedAt'>) => void;
+  addItems: (items: Omit<CartItem, 'id' | 'addedAt'>[]) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   updateOptions: (id: string, options: CartItemOption[]) => void;
@@ -273,6 +274,20 @@ export const useCartStore = create<CartState>()(
         };
         set((state) => ({
           items: [...state.items, newItem],
+        }));
+      },
+
+      addItems: (newItems) => {
+        const items = newItems.map(item => ({
+          ...item,
+          id: generateId(),
+          totalPrice: item.productType === 'album-order' && item.totalPrice > 0
+            ? item.totalPrice
+            : calculateItemTotal(item.basePrice, item.quantity, item.options),
+          addedAt: new Date().toISOString(),
+        }));
+        set((state) => ({
+          items: [...state.items, ...items],
         }));
       },
 

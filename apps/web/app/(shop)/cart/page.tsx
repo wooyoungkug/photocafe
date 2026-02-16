@@ -328,40 +328,44 @@ export default function CartPage() {
                 strategy={verticalListSortingStrategy}
               >
                 <div className="space-y-3 sm:space-y-4">
-                  {items.map((item, idx) => {
-                    let hasPrevShipping = false;
-                    if (!item.albumOrderInfo?.shippingInfo) {
-                      for (let i = idx - 1; i >= 0; i--) {
-                        const prev = items[i];
-                        const prevShipping = prev.albumOrderInfo?.shippingInfo || prev.shippingInfo;
-                        if (prevShipping && isShippingComplete(prevShipping)) {
-                          hasPrevShipping = true;
-                          break;
-                        }
+                  {(() => {
+                    // O(n) 사전 계산: 이전 배송정보 존재 여부 맵
+                    const hasPrevShippingMap = new Map<number, boolean>();
+                    let foundPrevShipping = false;
+                    for (let i = 0; i < items.length; i++) {
+                      hasPrevShippingMap.set(i, foundPrevShipping);
+                      const shipping = items[i].albumOrderInfo?.shippingInfo || items[i].shippingInfo;
+                      if (shipping && isShippingComplete(shipping)) {
+                        foundPrevShipping = true;
                       }
                     }
-                    return (
-                      <CartItemCard
-                        key={item.id}
-                        item={item}
-                        isSelected={selectedItems.includes(item.id)}
-                        hasShipping={canSelectItem(item.id)}
-                        onSelect={handleSelectItem}
-                        onRemove={setDeleteTargetId}
-                        onUpdateQuantity={updateQuantity}
-                        onShippingChange={handleShippingChange}
-                        onAlbumInfoChange={updateAlbumInfo}
-                        onApplyToAll={handleApplyToAll}
-                        onCopyFromPrevious={
-                          hasPrevShipping ? () => handleCopyFromPrevious(item.id) : null
-                        }
-                        itemsCount={items.filter((i) => !i.albumOrderInfo?.shippingInfo).length}
-                        companyInfo={companyInfo}
-                        clientInfo={clientInfo}
-                        pricingMap={pricingMap}
-                      />
-                    );
-                  })}
+                    const noShippingCount = items.filter((i) => !i.albumOrderInfo?.shippingInfo).length;
+
+                    return items.map((item, idx) => {
+                      const hasPrevShipping = !item.albumOrderInfo?.shippingInfo && (hasPrevShippingMap.get(idx) ?? false);
+                      return (
+                        <CartItemCard
+                          key={item.id}
+                          item={item}
+                          isSelected={selectedItems.includes(item.id)}
+                          hasShipping={canSelectItem(item.id)}
+                          onSelect={handleSelectItem}
+                          onRemove={setDeleteTargetId}
+                          onUpdateQuantity={updateQuantity}
+                          onShippingChange={handleShippingChange}
+                          onAlbumInfoChange={updateAlbumInfo}
+                          onApplyToAll={handleApplyToAll}
+                          onCopyFromPrevious={
+                            hasPrevShipping ? () => handleCopyFromPrevious(item.id) : null
+                          }
+                          itemsCount={noShippingCount}
+                          companyInfo={companyInfo}
+                          clientInfo={clientInfo}
+                          pricingMap={pricingMap}
+                        />
+                      );
+                    });
+                  })()}
                 </div>
               </SortableContext>
 
