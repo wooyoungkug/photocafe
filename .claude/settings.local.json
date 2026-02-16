@@ -322,7 +322,8 @@
       "Bash(git -C /c/dev/printing114 status --porcelain)",
       "Bash(du:*)",
       "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbWtzOHhhYTcwMDAwbjUzY3VkN3EzOGJsIiwiZW1haWwiOiJ3b29jZW9AZ21haWwuY29tIiwicm9sZSI6ImFkbWluIiwiaWF0IjoxNzcxMjEzMTI3LCJleHAiOjE3NzEyOTk1Mjd9.YWQkqJqRbos1P8Pz3GNnTyKQTyDTyZY8xik6gH8_SVw\")",
-      "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -t -c \"SELECT \"\"productName\"\", \"\"thumbnailUrl\"\" FROM products LIMIT 5;\")"
+      "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -t -c \"SELECT \"\"productName\"\", \"\"thumbnailUrl\"\" FROM products LIMIT 5;\")",
+      "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -c \"SELECT category, COUNT\\(*\\) as cnt FROM fabrics GROUP BY category ORDER BY category;\")"
     ]
   }
 }
