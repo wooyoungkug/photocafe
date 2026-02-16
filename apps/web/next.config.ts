@@ -83,7 +83,9 @@ const nextConfig: NextConfig = {
   },
 
   async rewrites() {
-    const apiBase = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1").replace(/\/api\/v1\/?$/, "");
+    // INTERNAL_API_URL: Docker 컨테이너 간 내부 통신용 (서버사이드 전용)
+    // NEXT_PUBLIC_API_URL: 클라이언트/서버 공용 폴백
+    const apiBase = (process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1").replace(/\/api\/v1\/?$/, "");
     return [
       {
         source: "/api/:path*",
