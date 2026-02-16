@@ -188,7 +188,7 @@ export class UploadController {
             filename: file.filename,
             originalName: file.originalname,
             size: file.size,
-            url: `/upload/category-icons/${file.filename}`,
+            url: this.fileStorage.toRelativeUrl(file.path),
         };
     }
 
@@ -251,7 +251,7 @@ export class UploadController {
             filename: file.filename,
             originalName: file.originalname,
             size: file.size,
-            url: `/upload/copper-plate/ai/${file.filename}`,
+            url: this.fileStorage.toRelativeUrl(file.path),
         };
     }
 
@@ -310,7 +310,7 @@ export class UploadController {
             filename: file.filename,
             originalName: file.originalname,
             size: file.size,
-            url: `/upload/copper-plate/image/${file.filename}`,
+            url: this.fileStorage.toRelativeUrl(file.path),
         };
     }
 
@@ -369,7 +369,7 @@ export class UploadController {
             filename: file.filename,
             originalName: file.originalname,
             size: file.size,
-            url: `/upload/copper-plate/album/${file.filename}`,
+            url: this.fileStorage.toRelativeUrl(file.path),
         };
     }
 

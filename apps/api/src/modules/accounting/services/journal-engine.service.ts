@@ -506,6 +506,87 @@ export class JournalEngineService {
     return journal;
   }
 
+  // ===== 취소(반대) 전표 자동 생성 =====
+  // 원 전표의 차변/대변을 반대로 기입하여 원래 분개를 무효화
+  async createCancellationJournal(params: {
+    originalJournalId: string;
+    reason?: string;
+  }) {
+    const { originalJournalId, reason } = params;
+
+    const originalJournal = await this.prisma.journal.findUnique({
+      where: { id: originalJournalId },
+      include: {
+        entries: {
+          include: { account: true },
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
+    });
+
+    if (!originalJournal) {
+      throw new NotFoundException(`원 전표를 찾을 수 없습니다: ${originalJournalId}`);
+    }
+
+    // 반대 분개 항목 생성 (DEBIT ↔ CREDIT)
+    const reversedEntries: JournalEntryInput[] = originalJournal.entries.map(
+      (entry, index) => ({
+        accountId: entry.accountId,
+        transactionType:
+          entry.transactionType === 'DEBIT'
+            ? ('CREDIT' as const)
+            : ('DEBIT' as const),
+        amount: Number(entry.amount),
+        description: `[취소] ${entry.description || ''}`,
+        sortOrder: index,
+      }),
+    );
+
+    this.validateBalance(reversedEntries);
+
+    const voucherNo = await this.generateJournalNo();
+
+    const journal = await this.prisma.$transaction(async (tx) => {
+      return tx.journal.create({
+        data: {
+          voucherNo,
+          voucherType: 'TRANSFER',
+          journalDate: new Date(),
+          clientId: originalJournal.clientId,
+          clientName: originalJournal.clientName,
+          description: `${reason || '취소전표'} - ${originalJournal.clientName || ''} (원전표: ${originalJournal.voucherNo})`,
+          totalAmount: Number(originalJournal.totalAmount),
+          orderId: originalJournal.orderId,
+          orderNumber: originalJournal.orderNumber,
+          sourceType: 'CANCELLATION',
+          sourceId: originalJournal.sourceId,
+          createdBy: 'system',
+          entries: {
+            create: reversedEntries.map((entry) => ({
+              accountId: entry.accountId,
+              transactionType: entry.transactionType,
+              amount: entry.amount,
+              description: entry.description,
+              sortOrder: entry.sortOrder,
+            })),
+          },
+        },
+        include: {
+          entries: {
+            include: { account: true },
+            orderBy: { sortOrder: 'asc' },
+          },
+        },
+      });
+    });
+
+    this.logger.log(
+      `취소전표 생성: ${voucherNo} (원전표: ${originalJournal.voucherNo}, 금액: ${originalJournal.totalAmount})`,
+    );
+
+    return journal;
+  }
+
   // ===== 차대 균형 검증 =====
   // 차변 합계와 대변 합계가 반드시 일치해야 함
   validateBalance(entries: JournalEntryInput[]): void {

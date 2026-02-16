@@ -320,7 +320,9 @@
       "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"SELECT key, value FROM system_settings WHERE key LIKE ''%upload%'' OR key LIKE ''%path%'' OR key LIKE ''%server%'';\")",
       "Bash(git status:*)",
       "Bash(git -C /c/dev/printing114 status --porcelain)",
-      "Bash(du:*)"
+      "Bash(du:*)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbWtzOHhhYTcwMDAwbjUzY3VkN3EzOGJsIiwiZW1haWwiOiJ3b29jZW9AZ21haWwuY29tIiwicm9sZSI6ImFkbWluIiwiaWF0IjoxNzcxMjEzMTI3LCJleHAiOjE3NzEyOTk1Mjd9.YWQkqJqRbos1P8Pz3GNnTyKQTyDTyZY8xik6gH8_SVw\")",
+      "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -t -c \"SELECT \"\"productName\"\", \"\"thumbnailUrl\"\" FROM products LIMIT 5;\")"
     ]
   }
 }
