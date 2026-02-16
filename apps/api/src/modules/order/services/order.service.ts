@@ -4,6 +4,7 @@ import { SystemSettingsService } from '@/modules/system-settings/system-settings
 import { FileStorageService } from '@/modules/upload/services/file-storage.service';
 import { PdfGeneratorService } from '@/modules/upload/services/pdf-generator.service';
 import { Prisma } from '@prisma/client';
+import { dirname } from 'path';
 import {
   CreateOrderDto,
   UpdateOrderDto,
@@ -647,7 +648,7 @@ export class OrderService {
       throw new BadRequestException('배송완료된 주문은 취소할 수 없습니다');
     }
 
-    return this.prisma.order.update({
+    const updatedOrder = await this.prisma.order.update({
       where: { id },
       data: {
         status: ORDER_STATUS.CANCELLED,
@@ -662,6 +663,20 @@ export class OrderService {
         },
       },
     });
+
+    // 매출원장 취소 + 취소전표 생성
+    try {
+      const salesLedger = await this.prisma.salesLedger.findUnique({
+        where: { orderId: id },
+      });
+      if (salesLedger) {
+        await this.salesLedgerService.cancelSales(salesLedger.id);
+      }
+    } catch (err) {
+      this.logger.warn(`주문 취소 시 매출원장 취소 실패 (${id}): ${(err as Error).message}`);
+    }
+
+    return updatedOrder;
   }
 
   // ==================== 주문항목 개별 삭제 ====================
@@ -704,12 +719,44 @@ export class OrderService {
     return { message: '주문항목이 삭제되었습니다', deletedItemId: itemId };
   }
 
+  // ==================== 주문 디스크 디렉토리 경로 수집 ====================
+  private async getOrderDirectories(orderIds: string[]): Promise<string[]> {
+    const files = await this.prisma.orderFile.findMany({
+      where: {
+        orderItem: { orderId: { in: orderIds } },
+        originalPath: { not: null },
+      },
+      select: { originalPath: true },
+      distinct: ['orderItemId'],
+    });
+
+    const orderDirs = new Set<string>();
+    for (const file of files) {
+      if (file.originalPath) {
+        // originalPath: .../orders/YYYY/MM/DD/company/orderNumber/originals/filename
+        const orderDir = dirname(dirname(file.originalPath));
+        orderDirs.add(orderDir);
+      }
+    }
+    return Array.from(orderDirs);
+  }
+
   // ==================== 주문 삭제 ====================
   async delete(id: string) {
     const order = await this.findOne(id);
 
     if (order.status !== ORDER_STATUS.PENDING_RECEIPT && order.status !== ORDER_STATUS.CANCELLED) {
       throw new BadRequestException('접수대기 또는 취소 상태의 주문만 삭제할 수 있습니다');
+    }
+
+    // 디스크 파일 삭제 (DB 삭제 전에 경로 수집)
+    const orderDirs = await this.getOrderDirectories([id]);
+    for (const dir of orderDirs) {
+      try {
+        this.fileStorage.deleteOrderDirectory(dir);
+      } catch (err) {
+        this.logger.warn(`디스크 파일 삭제 실패 (${id}): ${(err as Error).message}`);
+      }
     }
 
     return this.prisma.order.delete({
@@ -872,6 +919,7 @@ export class OrderService {
   // ==================== 벌크: 일괄 취소 ====================
   async bulkCancel(dto: BulkCancelDto, userId: string) {
     const results = { success: 0, failed: [] as string[], skipped: [] as string[] };
+    const cancelledOrderIds: string[] = [];
 
     await this.prisma.$transaction(async (tx) => {
       for (const orderId of dto.orderIds) {
@@ -896,9 +944,24 @@ export class OrderService {
             },
           });
           results.success++;
+          cancelledOrderIds.push(orderId);
         } catch { results.failed.push(orderId); }
       }
     });
+
+    // 매출원장 취소 + 취소전표 생성 (트랜잭션 밖)
+    for (const orderId of cancelledOrderIds) {
+      try {
+        const salesLedger = await this.prisma.salesLedger.findUnique({
+          where: { orderId },
+        });
+        if (salesLedger) {
+          await this.salesLedgerService.cancelSales(salesLedger.id);
+        }
+      } catch (err) {
+        this.logger.warn(`일괄취소 매출원장 취소 실패 (${orderId}): ${(err as Error).message}`);
+      }
+    }
 
     return results;
   }
@@ -906,6 +969,13 @@ export class OrderService {
   // ==================== 벌크: 일괄 삭제 ====================
   async bulkDelete(orderIds: string[]) {
     const results = { success: 0, failed: [] as string[], skipped: [] as string[] };
+
+    // 삭제 대상 주문의 파일 경로 미리 수집
+    const orderDirsMap = new Map<string, string[]>();
+    for (const orderId of orderIds) {
+      const dirs = await this.getOrderDirectories([orderId]);
+      if (dirs.length > 0) orderDirsMap.set(orderId, dirs);
+    }
 
     await this.prisma.$transaction(async (tx) => {
       for (const orderId of orderIds) {
@@ -922,6 +992,20 @@ export class OrderService {
         } catch { results.failed.push(orderId); }
       }
     });
+
+    // DB 삭제 성공한 주문만 디스크 파일 삭제
+    for (const orderId of orderIds) {
+      if (!results.failed.includes(orderId) && !results.skipped.includes(orderId)) {
+        const dirs = orderDirsMap.get(orderId) || [];
+        for (const dir of dirs) {
+          try {
+            this.fileStorage.deleteOrderDirectory(dir);
+          } catch (err) {
+            this.logger.warn(`디스크 파일 삭제 실패 (${orderId}): ${(err as Error).message}`);
+          }
+        }
+      }
+    }
 
     return results;
   }
@@ -1178,6 +1262,16 @@ export class OrderService {
       },
     };
 
+    // 삭제 전에 대상 주문 ID 및 파일 경로 수집
+    const ordersToDelete = await this.prisma.order.findMany({
+      where,
+      select: { id: true },
+    });
+    const orderIds = ordersToDelete.map(o => o.id);
+    const orderDirs = orderIds.length > 0
+      ? await this.getOrderDirectories(orderIds)
+      : [];
+
     if (dto.deleteThumbnails) {
       await this.prisma.orderItem.updateMany({
         where: { order: where },
@@ -1186,6 +1280,15 @@ export class OrderService {
     }
 
     const deleted = await this.prisma.order.deleteMany({ where });
+
+    // 디스크 파일 삭제
+    for (const dir of orderDirs) {
+      try {
+        this.fileStorage.deleteOrderDirectory(dir);
+      } catch (err) {
+        this.logger.warn(`데이터정리 디스크 삭제 실패: ${(err as Error).message}`);
+      }
+    }
 
     return { success: deleted.count, deleted: deleted.count };
   }
@@ -1568,7 +1671,10 @@ export class OrderService {
         if (urlParts.length < 2) continue;
         const tempFolderId = urlParts[1].split('/')[0];
 
-        const companyName = order.client?.name || 'unknown';
+        if (!order.client?.name) {
+          throw new Error(`거래처 정보 누락 (주문: ${order.orderNumber}, clientId: ${order.clientId})`);
+        }
+        const companyName = order.client.name;
         const { orderDir, movedFiles } = this.fileStorage.moveToOrderDir(
           tempFolderId,
           order.orderNumber,
