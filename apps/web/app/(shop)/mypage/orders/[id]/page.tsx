@@ -474,16 +474,26 @@ export default function OrderDetailPage() {
                               수량: {item.quantity} | 단가: {item.unitPrice.toLocaleString()}원
                             </p>
 
-                            {/* 표지정보 / 박정보 / 후가공 뱃지 */}
+                            {/* 제본/편집/원단/표지/박/후가공 뱃지 */}
                             <div className="flex flex-wrap gap-1.5">
                               {item.bindingType && (
                                 <Badge variant="outline" className="text-xs">{item.bindingType}</Badge>
+                              )}
+                              {item.pageLayout && (
+                                <Badge className="text-xs bg-violet-100 text-violet-800 hover:bg-violet-200">
+                                  {item.pageLayout === 'spread' ? '펼침면' : item.pageLayout === 'single' ? '낱장' : item.pageLayout}
+                                </Badge>
+                              )}
+                              {item.bindingDirection && (
+                                <Badge className="text-xs bg-sky-100 text-sky-800 hover:bg-sky-200">
+                                  {{'ltr-rend': '좌시→우끝', 'ltr-lend': '좌시→좌끝', 'rtl-lend': '우시→좌끝', 'rtl-rend': '우시→우끝'}[item.bindingDirection] || item.bindingDirection}
+                                </Badge>
                               )}
                               {item.coverMaterial && (
                                 <Badge variant="secondary" className="text-xs">표지: {item.coverMaterial}</Badge>
                               )}
                               {item.fabricName && (
-                                <Badge variant="secondary" className="text-xs">원단: {item.fabricName}</Badge>
+                                <Badge className="text-xs bg-emerald-100 text-emerald-800 hover:bg-emerald-200">원단: {item.fabricName}</Badge>
                               )}
                               {item.foilColor && (
                                 <Badge className="text-xs bg-amber-100 text-amber-800 hover:bg-amber-200">
