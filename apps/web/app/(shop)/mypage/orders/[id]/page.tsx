@@ -144,6 +144,8 @@ interface OrderDetail {
     foilColor?: string;
     foilPosition?: string;
     fabricName?: string;
+    pageLayout?: string;
+    bindingDirection?: string;
     finishingOptions?: string[];
     thumbnailUrl?: string;
     originalsDeleted?: boolean;
