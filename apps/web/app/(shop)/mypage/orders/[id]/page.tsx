@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useParams } from 'next/navigation';
-import Link from 'next/link';
+import Image from 'next/image';
 import { useState } from 'react';
 import {
   ArrowLeft,
@@ -13,14 +13,19 @@ import {
   MapPin,
   User,
   Phone,
-  Mail,
-  Calendar,
   FileText,
+  ImageIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useAuthStore } from '@/stores/auth-store';
 import { api } from '@/lib/api';
 import { useQuery } from '@tanstack/react-query';
@@ -103,6 +108,18 @@ interface OrderDetail {
     quantity: number;
     unitPrice: number;
     totalPrice: number;
+    size?: string;
+    pages?: number;
+    printMethod?: string;
+    paper?: string;
+    bindingType?: string;
+    coverMaterial?: string;
+    foilName?: string;
+    foilColor?: string;
+    foilPosition?: string;
+    fabricName?: string;
+    finishingOptions?: string[];
+    thumbnailUrl?: string;
     options?: any;
   }[];
 }
@@ -112,6 +129,9 @@ export default function OrderDetailPage() {
   const params = useParams();
   const orderId = params?.id as string;
   const { isAuthenticated } = useAuthStore();
+
+  // 썸네일 미리보기
+  const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null);
 
   // 주문 상세 조회
   const { data: order, isLoading } = useQuery({
@@ -239,15 +259,67 @@ export default function OrderDetailPage() {
               <CardContent>
                 <div className="space-y-4">
                   {order.items.map((item) => (
-                    <div key={item.id} className="flex justify-between py-3 border-b last:border-0">
-                      <div className="flex-1">
+                    <div key={item.id} className="flex gap-4 py-4 border-b last:border-0">
+                      {/* 썸네일 */}
+                      <div
+                        className={`w-20 h-20 shrink-0 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center ${
+                          item.thumbnailUrl ? 'cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all' : ''
+                        }`}
+                        onClick={() => item.thumbnailUrl && setPreviewImage({ url: item.thumbnailUrl, name: item.productName })}
+                      >
+                        {item.thumbnailUrl ? (
+                          <Image
+                            src={item.thumbnailUrl}
+                            alt={item.productName}
+                            width={80}
+                            height={80}
+                            className="object-cover w-full h-full"
+                          />
+                        ) : (
+                          <ImageIcon className="h-8 w-8 text-gray-300" />
+                        )}
+                      </div>
+
+                      {/* 상품 정보 */}
+                      <div className="flex-1 min-w-0">
                         <h4 className="font-medium mb-1">{item.productName}</h4>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-gray-500 mb-2">
                           수량: {item.quantity} | 단가: {item.unitPrice.toLocaleString()}원
                         </p>
+
+                        {/* 표지정보 / 박정보 / 후가공 뱃지 */}
+                        <div className="flex flex-wrap gap-1.5">
+                          {item.bindingType && (
+                            <Badge variant="outline" className="text-xs">{item.bindingType}</Badge>
+                          )}
+                          {item.coverMaterial && (
+                            <Badge variant="secondary" className="text-xs">표지: {item.coverMaterial}</Badge>
+                          )}
+                          {item.fabricName && (
+                            <Badge variant="secondary" className="text-xs">원단: {item.fabricName}</Badge>
+                          )}
+                          {item.foilColor && (
+                            <Badge className="text-xs bg-amber-100 text-amber-800 hover:bg-amber-200">
+                              박: {item.foilColor}
+                            </Badge>
+                          )}
+                          {item.foilName && (
+                            <Badge className="text-xs bg-amber-50 text-amber-700 hover:bg-amber-100">
+                              박판: {item.foilName}
+                            </Badge>
+                          )}
+                          {item.foilPosition && (
+                            <Badge variant="outline" className="text-xs">박위치: {item.foilPosition}</Badge>
+                          )}
+                          {item.finishingOptions?.map((opt, i) => (
+                            <Badge key={i} variant="outline" className="text-xs">{opt}</Badge>
+                          ))}
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-bold">{item.totalPrice.toLocaleString()}원</p>
+
+                      {/* 금액 */}
+                      <div className="text-right shrink-0">
+                        <p className="font-bold text-lg">{item.totalPrice.toLocaleString()}원</p>
                       </div>
                     </div>
                   ))}
@@ -371,6 +443,26 @@ export default function OrderDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* 썸네일 미리보기 다이얼로그 */}
+      <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
+        <DialogContent className="max-w-lg p-2">
+          <DialogHeader className="px-2 pt-2">
+            <DialogTitle className="text-sm">{previewImage?.name}</DialogTitle>
+          </DialogHeader>
+          {previewImage && (
+            <div className="relative w-full aspect-square bg-gray-50 rounded overflow-hidden">
+              <Image
+                src={previewImage.url}
+                alt={previewImage.name}
+                fill
+                className="object-contain"
+                sizes="(max-width: 512px) 100vw, 512px"
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

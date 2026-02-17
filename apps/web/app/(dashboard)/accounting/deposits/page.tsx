@@ -60,9 +60,9 @@ export default function DepositsPage() {
 
   // 상태 관리
   const [viewMode, setViewMode] = useState<ViewMode>('daily');
-  const [filterMode, setFilterMode] = useState<'today' | 'month' | 'custom'>('today');
-  const [startDate, setStartDate] = useState(presets.today.startDate);
-  const [endDate, setEndDate] = useState(presets.today.endDate);
+  const [filterMode, setFilterMode] = useState<'today' | 'month' | 'custom'>('month');
+  const [startDate, setStartDate] = useState(presets.thisMonth.startDate);
+  const [endDate, setEndDate] = useState(presets.thisMonth.endDate);
   const [paymentMethod, setPaymentMethod] = useState<string>('all');
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [detailParams, setDetailParams] = useState<{ date: string; clientId: string } | null>(null);

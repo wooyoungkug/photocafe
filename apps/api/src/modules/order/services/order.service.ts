@@ -349,7 +349,23 @@ export class OrderService {
       throw new NotFoundException('주문을 찾을 수 없습니다');
     }
 
-    return order;
+    // 파일 보관정책 정보 계산
+    const retentionMonths = (order.client as any).fileRetentionMonths ?? 3;
+    const shippedAt = order.shipping?.shippedAt;
+    let retentionDeadline: string | null = null;
+    let isExpired = false;
+
+    if (shippedAt) {
+      const deadline = new Date(shippedAt);
+      deadline.setMonth(deadline.getMonth() + retentionMonths);
+      retentionDeadline = deadline.toISOString();
+      isExpired = new Date() > deadline;
+    }
+
+    return {
+      ...order,
+      fileRetention: { retentionMonths, shippedAt, retentionDeadline, isExpired },
+    };
   }
 
   // ==================== 주문 생성 (트랜잭션 + Advisory Lock으로 주문번호 원자적 생성) ====================
@@ -1395,6 +1411,48 @@ export class OrderService {
       paidAmount,
       unpaidAmount,
       categoryBreakdown,
+    };
+  }
+
+  /**
+   * 일자별 주문/입금 집계 조회
+   */
+  async getDailySummary(clientId: string, startDate: string, endDate: string) {
+    const rawData = await this.prisma.$queryRaw<any[]>`
+      SELECT
+        DATE(o."orderedAt") as date,
+        COUNT(o.id)::int as "orderCount",
+        COALESCE(SUM(o."totalAmount"), 0)::decimal as "orderAmount",
+        COALESCE(SUM(sl."receivedAmount"), 0)::decimal as "depositAmount"
+      FROM orders o
+      LEFT JOIN sales_ledgers sl ON o.id = sl."orderId"
+      WHERE o."clientId" = ${clientId}
+        AND o."orderedAt" >= ${startDate}::date
+        AND o."orderedAt" < (${endDate}::date + interval '1 day')
+        AND o.status != 'cancelled'
+      GROUP BY DATE(o."orderedAt")
+      ORDER BY date DESC
+    `;
+
+    const data = rawData.map((row) => ({
+      date: row.date.toISOString().slice(0, 10),
+      orderCount: row.orderCount,
+      orderAmount: parseFloat(row.orderAmount),
+      depositAmount: parseFloat(row.depositAmount),
+    }));
+
+    const totalOrders = data.reduce((s, d) => s + d.orderCount, 0);
+    const totalOrderAmount = data.reduce((s, d) => s + d.orderAmount, 0);
+    const totalDepositAmount = data.reduce((s, d) => s + d.depositAmount, 0);
+
+    return {
+      data,
+      summary: {
+        totalOrders,
+        totalOrderAmount,
+        totalDepositAmount,
+        totalOutstanding: totalOrderAmount - totalDepositAmount,
+      },
     };
   }
 

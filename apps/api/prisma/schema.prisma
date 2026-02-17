@@ -246,6 +246,7 @@ model Client {
   taxInvoiceMethod        String?
   totalClaims             Int                            @default(0)
   duplicateCheckMonths    Int?
+  fileRetentionMonths     Int                            @default(3)
   addresses               ClientAddress[]
   albumPreference         ClientAlbumPreference?
   productionSettingPrices ClientProductionSettingPrice[]

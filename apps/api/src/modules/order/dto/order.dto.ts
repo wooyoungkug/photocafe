@@ -584,6 +584,21 @@ export class MonthlySummaryQueryDto {
   endDate: string;
 }
 
+// ==================== 일자별 집계 조회 DTO ====================
+export class DailySummaryQueryDto {
+  @ApiProperty({ description: '거래처 ID' })
+  @IsString()
+  clientId: string;
+
+  @ApiProperty({ description: '시작일 (YYYY-MM-DD)' })
+  @IsString()
+  startDate: string;
+
+  @ApiProperty({ description: '종료일 (YYYY-MM-DD)' })
+  @IsString()
+  endDate: string;
+}
+
 // ==================== 파일검수 관련 DTO ====================
 export class InspectFileDto {
   @ApiProperty({
