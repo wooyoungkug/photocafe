@@ -41,6 +41,7 @@ export interface Client {
   creditGrade?: 'A' | 'B' | 'C' | 'D';
   paymentTerms?: number;
   duplicateCheckMonths?: number;
+  fileRetentionMonths?: number;
   assignedManager?: string;
   status: 'active' | 'inactive' | 'suspended';
   createdAt: string;
@@ -70,6 +71,7 @@ export interface CreateClientDto {
   assignedManager?: string | null;
   status?: 'active' | 'inactive' | 'suspended';
   duplicateCheckMonths?: number;
+  fileRetentionMonths?: number;
 }
 
 // 거래처 수정 DTO

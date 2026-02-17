@@ -398,10 +398,12 @@ export interface DailyOrderSummary {
 export interface DailyOrderSummaryResponse {
   data: DailyOrderSummary[];
   summary: {
+    carryForwardBalance: number;
     totalOrders: number;
     totalOrderAmount: number;
     totalDepositAmount: number;
     totalOutstanding: number;
+    closingBalance: number;
   };
 }
 

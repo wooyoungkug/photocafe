@@ -1,36 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Fragment, useMemo } from 'react';
 import Link from 'next/link';
 import {
   Calendar,
-  TrendingUp,
-  Package,
-  Wallet,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
-  ChevronUp,
+  ChevronRight as ChevronRightIcon,
   Eye,
   Loader2,
   Truck,
+  ArrowRightLeft,
+  Download,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
 import { useAuthStore } from '@/stores/auth-store';
 import {
   useDailyOrderSummary,
@@ -39,8 +25,12 @@ import {
 } from '@/hooks/use-orders';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { toast } from '@/hooks/use-toast';
 
-const STATUS_BADGE_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning'> = {
+const STATUS_BADGE_VARIANT: Record<
+  string,
+  'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning'
+> = {
   pending_receipt: 'outline',
   receipt_completed: 'default',
   in_production: 'warning',
@@ -49,8 +39,12 @@ const STATUS_BADGE_VARIANT: Record<string, 'default' | 'secondary' | 'destructiv
   cancelled: 'destructive',
 };
 
+function formatAmount(amount: number) {
+  return Math.round(amount).toLocaleString();
+}
+
 export default function MonthlySummaryPage() {
-  const { user, isAuthenticated } = useAuthStore();
+  const { user } = useAuthStore();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
@@ -76,6 +70,18 @@ export default function MonthlySummaryPage() {
       : undefined,
   );
 
+  // 누계잔액 계산 (일자별 데이터에 runningBalance 추가)
+  const dataWithBalance = useMemo(() => {
+    if (!dailyData?.data) return [];
+    const carryForward = dailyData.summary?.carryForwardBalance || 0;
+    let runningBalance = carryForward;
+
+    return dailyData.data.map((row) => {
+      runningBalance = runningBalance + row.orderAmount - row.depositAmount;
+      return { ...row, runningBalance };
+    });
+  }, [dailyData]);
+
   const handlePrevMonth = () => {
     setSelectedDate(subMonths(selectedDate, 1));
     setExpandedRow(null);
@@ -95,29 +101,59 @@ export default function MonthlySummaryPage() {
     setExpandedRow(expandedRow === date ? null : date);
   };
 
+  const handleExport = () => {
+    if (!dataWithBalance.length) {
+      toast({ title: '다운로드할 데이터가 없습니다.', variant: 'destructive' });
+      return;
+    }
+    const carryForward = dailyData?.summary?.carryForwardBalance || 0;
+    const headers = ['일자', '적요', '주문건수', '매출(차변)', '수금(대변)', '잔액'];
+    const rows: string[][] = [
+      ['', '전월이월', '', '', '', Math.round(carryForward).toString()],
+      ...dataWithBalance.map((d) => [
+        d.date,
+        '일자거래',
+        d.orderCount.toString(),
+        Math.round(d.orderAmount).toString(),
+        Math.round(d.depositAmount).toString(),
+        Math.round(d.runningBalance).toString(),
+      ]),
+    ];
+
+    const csvContent =
+      '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `월거래원장_${format(selectedDate, 'yyyyMM')}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({ title: 'CSV 파일이 다운로드되었습니다.' });
+  };
+
   // 배송상태 표시
   const renderShippingStatus = (order: any) => {
-    if (!order.shipping) {
-      return <span className="text-gray-400 text-xs">-</span>;
-    }
-    if (order.shipping.deliveredAt) {
-      return <Badge variant="success">배송완료</Badge>;
-    }
+    if (!order.shipping) return <span className="text-gray-400">-</span>;
+    if (order.shipping.deliveredAt) return <Badge variant="success">배송완료</Badge>;
     if (order.shipping.shippedAt || order.shipping.trackingNumber) {
       return (
-        <div className="flex items-center gap-1 text-xs">
+        <div className="flex items-center gap-1">
           <Truck className="h-3 w-3 text-blue-500" />
-          <span className="text-blue-600">
+          <span className="text-blue-600 text-xs">
             {order.shipping.trackingNumber || '배송중'}
           </span>
         </div>
       );
     }
-    if (order.status === 'ready_for_shipping') {
+    if (order.status === 'ready_for_shipping')
       return <Badge variant="secondary">배송준비</Badge>;
-    }
-    return <span className="text-gray-400 text-xs">-</span>;
+    return <span className="text-gray-400">-</span>;
   };
+
+  const summary = dailyData?.summary;
+  const carryForward = summary?.carryForwardBalance || 0;
+  const closingBalance = summary?.closingBalance || 0;
 
   return (
     <div className="space-y-6">
@@ -130,7 +166,7 @@ export default function MonthlySummaryPage() {
             </Button>
             <div className="flex items-center gap-3">
               <Calendar className="h-5 w-5 text-primary" />
-              <h2 className="text-xl font-bold">
+              <h2 className="text-xl">
                 {format(selectedDate, 'yyyy년 MM월', { locale: ko })}
               </h2>
             </div>
@@ -138,281 +174,335 @@ export default function MonthlySummaryPage() {
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          <div className="text-center mt-3">
+          <div className="flex items-center justify-center gap-2 mt-3">
             <Button variant="ghost" size="sm" onClick={handleToday}>
               이번 달
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExport}>
+              <Download className="h-4 w-4 mr-1" />
+              내보내기
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* 월 합계 카드 */}
+      {/* 요약 카드 */}
       {isLoading ? (
-        <div className="grid md:grid-cols-3 gap-4">
-          {[...Array(3)].map((_, i) => (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[...Array(4)].map((_, i) => (
             <Card key={i} className="animate-pulse">
-              <CardContent className="p-6">
-                <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
-                <div className="h-8 bg-gray-200 rounded w-3/4"></div>
+              <CardContent className="p-4">
+                <div className="h-3 bg-gray-200 rounded w-1/2 mb-2" />
+                <div className="h-6 bg-gray-200 rounded w-3/4" />
               </CardContent>
             </Card>
           ))}
         </div>
       ) : (
-        <div className="grid md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">총 주문</p>
-                  <p className="text-2xl font-bold">
-                    {dailyData?.summary?.totalOrders || 0}건
-                  </p>
-                </div>
-                <Package className="h-10 w-10 text-blue-500" />
-              </div>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground mb-1">전월이월</p>
+              <p className="text-lg sm:text-2xl tabular-nums">
+                {formatAmount(carryForward)}
+                <span className="text-sm">원</span>
+              </p>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">매출합계</p>
-                  <p className="text-2xl font-bold text-primary">
-                    {Math.round(
-                      dailyData?.summary?.totalOrderAmount || 0,
-                    ).toLocaleString()}
-                    원
-                  </p>
-                </div>
-                <TrendingUp className="h-10 w-10 text-green-500" />
-              </div>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground mb-1">당월매출</p>
+              <p className="text-lg sm:text-2xl tabular-nums">
+                {formatAmount(summary?.totalOrderAmount || 0)}
+                <span className="text-sm">원</span>
+              </p>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">입금합계</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    {Math.round(
-                      dailyData?.summary?.totalDepositAmount || 0,
-                    ).toLocaleString()}
-                    원
-                  </p>
-                </div>
-                <Wallet className="h-10 w-10 text-green-500" />
-              </div>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground mb-1">당월수금</p>
+              <p className="text-lg sm:text-2xl tabular-nums text-green-600">
+                {formatAmount(summary?.totalDepositAmount || 0)}
+                <span className="text-sm">원</span>
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground mb-1">기말잔액</p>
+              <p
+                className={`text-lg sm:text-2xl tabular-nums ${
+                  closingBalance > 0
+                    ? 'text-red-600'
+                    : closingBalance < 0
+                    ? 'text-blue-600'
+                    : ''
+                }`}
+              >
+                {closingBalance < 0 && '-'}
+                {formatAmount(Math.abs(closingBalance))}
+                <span className="text-sm">원</span>
+              </p>
+              {closingBalance > 0 && (
+                <p className="text-[10px] text-red-500 mt-0.5">미수금</p>
+              )}
+              {closingBalance < 0 && (
+                <p className="text-[10px] text-blue-500 mt-0.5">선수금</p>
+              )}
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* 일자별 거래 내역 */}
+      {/* 일자별 거래원장 */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            일자별 거래 내역
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <ArrowRightLeft className="h-4 w-4" />
+            거래원장
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-0 sm:px-6">
           {isLoading ? (
-            <div className="space-y-2">
+            <div className="space-y-2 px-4">
               {[...Array(5)].map((_, i) => (
                 <div
                   key={i}
                   className="h-12 bg-gray-100 animate-pulse rounded"
-                ></div>
+                />
               ))}
             </div>
-          ) : dailyData?.data && dailyData.data.length > 0 ? (
-            <div className="border rounded-lg overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-slate-50">
-                    <TableHead className="w-[40px]"></TableHead>
-                    <TableHead>일자</TableHead>
-                    <TableHead className="text-right">주문건수</TableHead>
-                    <TableHead className="text-right">매출합계</TableHead>
-                    <TableHead className="text-right">입금합계</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {dailyData.data.map((row) => {
+          ) : dataWithBalance.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-slate-50 text-xs text-muted-foreground">
+                    <th className="w-8 p-2 sm:p-3" />
+                    <th className="p-2 sm:p-3 text-left font-medium">일자</th>
+                    <th className="p-2 sm:p-3 text-left font-medium">적요</th>
+                    <th className="p-2 sm:p-3 text-right font-medium">
+                      차변<span className="hidden sm:inline">(매출)</span>
+                    </th>
+                    <th className="p-2 sm:p-3 text-right font-medium">
+                      대변<span className="hidden sm:inline">(수금)</span>
+                    </th>
+                    <th className="p-2 sm:p-3 text-right font-medium">잔액</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* 일자별 거래 행 (최신순) */}
+                  {[...dataWithBalance].reverse().map((row) => {
                     const isExpanded = expandedRow === row.date;
-
                     return (
-                      <Collapsible key={row.date} open={isExpanded} asChild>
-                        <tbody>
-                          {/* 일자 합계 행 */}
-                          <TableRow
-                            className="cursor-pointer hover:bg-slate-100"
-                            onClick={() => handleRowClick(row.date)}
+                      <Fragment key={row.date}>
+                        <tr
+                          className="border-b cursor-pointer hover:bg-slate-50 transition-colors"
+                          onClick={() => handleRowClick(row.date)}
+                        >
+                          <td className="p-2 sm:p-3 text-center">
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4 text-gray-500 inline-block" />
+                            ) : (
+                              <ChevronRightIcon className="h-4 w-4 text-gray-400 inline-block" />
+                            )}
+                          </td>
+                          <td className="p-2 sm:p-3 whitespace-nowrap">
+                            {format(
+                              new Date(row.date + 'T00:00:00'),
+                              'MM/dd (EEE)',
+                              { locale: ko },
+                            )}
+                          </td>
+                          <td className="p-2 sm:p-3 text-muted-foreground">
+                            {row.orderCount}건
+                          </td>
+                          <td className="p-2 sm:p-3 text-right tabular-nums">
+                            {row.orderAmount > 0
+                              ? formatAmount(row.orderAmount) + '원'
+                              : '-'}
+                          </td>
+                          <td className="p-2 sm:p-3 text-right tabular-nums text-green-600">
+                            {row.depositAmount > 0
+                              ? formatAmount(row.depositAmount) + '원'
+                              : '-'}
+                          </td>
+                          <td
+                            className={`p-2 sm:p-3 text-right tabular-nums font-semibold ${
+                              row.runningBalance > 0
+                                ? 'text-red-600'
+                                : row.runningBalance < 0
+                                ? 'text-blue-600'
+                                : ''
+                            }`}
                           >
-                            <TableCell>
-                              <CollapsibleTrigger asChild>
-                                <div>
-                                  {isExpanded ? (
-                                    <ChevronDown className="h-4 w-4" />
-                                  ) : (
-                                    <ChevronUp className="h-4 w-4" />
-                                  )}
-                                </div>
-                              </CollapsibleTrigger>
-                            </TableCell>
-                            <TableCell className="font-mono text-sm font-medium">
-                              {format(new Date(row.date + 'T00:00:00'), 'MM/dd (EEE)', {
-                                locale: ko,
-                              })}
-                            </TableCell>
-                            <TableCell className="text-right text-sm">
-                              {row.orderCount}건
-                            </TableCell>
-                            <TableCell className="text-right font-bold text-primary">
-                              {Math.round(row.orderAmount).toLocaleString()}원
-                            </TableCell>
-                            <TableCell className="text-right font-bold text-green-600">
-                              {Math.round(row.depositAmount).toLocaleString()}원
-                            </TableCell>
-                          </TableRow>
+                            {row.runningBalance < 0 && '-'}
+                            {formatAmount(Math.abs(row.runningBalance))}원
+                          </td>
+                        </tr>
 
-                          {/* 드릴다운: 건별 상세 */}
-                          <CollapsibleContent asChild>
-                            <TableRow>
-                              <TableCell colSpan={5} className="bg-slate-50 p-0">
-                                <div className="p-4">
-                                  <h4 className="text-sm font-semibold mb-3">
-                                    건별 거래 내역 (
-                                    {format(new Date(row.date + 'T00:00:00'), 'MM월 dd일', {
-                                      locale: ko,
-                                    })}
-                                    )
-                                  </h4>
-                                  {isDetailFetching ? (
-                                    <div className="flex items-center justify-center py-4">
-                                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                                    </div>
-                                  ) : (
-                                    <div className="overflow-x-auto">
-                                      <Table className="text-sm">
-                                        <TableHeader>
-                                          <TableRow>
-                                            <TableHead>주문번호</TableHead>
-                                            <TableHead>상품명</TableHead>
-                                            <TableHead className="text-right">
-                                              금액
-                                            </TableHead>
-                                            <TableHead>진행상황</TableHead>
-                                            <TableHead>배송</TableHead>
-                                            <TableHead className="text-center w-[50px]">
-                                              상세
-                                            </TableHead>
-                                          </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                          {detailData?.data?.map((order) => (
-                                            <TableRow key={order.id}>
-                                              <TableCell className="font-mono text-xs text-primary">
-                                                {order.orderNumber}
-                                              </TableCell>
-                                              <TableCell className="max-w-[200px] truncate">
-                                                {order.items?.[0]?.productName ||
-                                                  '-'}
-                                                {order.items?.length > 1 && (
-                                                  <span className="text-muted-foreground ml-1">
-                                                    외 {order.items.length - 1}건
-                                                  </span>
-                                                )}
-                                              </TableCell>
-                                              <TableCell className="text-right font-medium">
-                                                {Math.round(
-                                                  Number(order.finalAmount),
-                                                ).toLocaleString()}
-                                                원
-                                              </TableCell>
-                                              <TableCell>
-                                                <Badge
-                                                  variant={
-                                                    STATUS_BADGE_VARIANT[order.status] ||
-                                                    'outline'
-                                                  }
-                                                >
-                                                  {ORDER_STATUS_LABELS[order.status] ||
-                                                    order.status}
-                                                </Badge>
-                                              </TableCell>
-                                              <TableCell>
-                                                {renderShippingStatus(order)}
-                                              </TableCell>
-                                              <TableCell className="text-center">
-                                                <Link
-                                                  href={`/mypage/orders/${order.id}`}
-                                                >
-                                                  <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                  >
-                                                    <Eye className="h-4 w-4" />
-                                                  </Button>
-                                                </Link>
-                                              </TableCell>
-                                            </TableRow>
-                                          ))}
-                                          {(!detailData?.data ||
-                                            detailData.data.length === 0) && (
-                                            <TableRow>
-                                              <TableCell
-                                                colSpan={6}
-                                                className="text-center text-muted-foreground py-4"
-                                              >
-                                                거래 내역이 없습니다
-                                              </TableCell>
-                                            </TableRow>
-                                          )}
-                                        </TableBody>
-                                      </Table>
-                                    </div>
-                                  )}
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          </CollapsibleContent>
-                        </tbody>
-                      </Collapsible>
+                        {/* 드릴다운: 건별 상세 */}
+                        {isExpanded && (
+                          <tr>
+                            <td
+                              colSpan={6}
+                              className="bg-slate-50/80 p-0 border-b"
+                            >
+                              <div className="px-4 py-3 sm:px-8">
+                                <p className="text-xs text-muted-foreground mb-2">
+                                  {format(
+                                    new Date(row.date + 'T00:00:00'),
+                                    'MM월 dd일 (EEE)',
+                                    { locale: ko },
+                                  )}{' '}
+                                  거래 내역
+                                </p>
+                                {isDetailFetching ? (
+                                  <div className="flex items-center justify-center py-6">
+                                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                                  </div>
+                                ) : detailData?.data &&
+                                  detailData.data.length > 0 ? (
+                                  <div className="space-y-2">
+                                    {detailData.data.map((order) => (
+                                      <div
+                                        key={order.id}
+                                        className="flex items-center gap-3 bg-white rounded-lg border p-3 text-sm"
+                                      >
+                                        <div className="flex-1 min-w-0">
+                                          <p className="truncate">
+                                            {order.items?.[0]?.productName ||
+                                              '-'}
+                                            {order.items?.length > 1 && (
+                                              <span className="text-muted-foreground text-xs ml-1">
+                                                외 {order.items.length - 1}건
+                                              </span>
+                                            )}
+                                          </p>
+                                          <p className="text-xs text-muted-foreground mt-0.5">
+                                            {order.orderNumber}
+                                          </p>
+                                        </div>
+                                        <div className="text-right shrink-0">
+                                          <p className="tabular-nums">
+                                            {formatAmount(
+                                              Number(order.finalAmount),
+                                            )}
+                                            원
+                                          </p>
+                                        </div>
+                                        <div className="shrink-0">
+                                          <Badge
+                                            variant={
+                                              STATUS_BADGE_VARIANT[
+                                                order.status
+                                              ] || 'outline'
+                                            }
+                                          >
+                                            {ORDER_STATUS_LABELS[
+                                              order.status
+                                            ] || order.status}
+                                          </Badge>
+                                        </div>
+                                        <div className="shrink-0 w-16 text-center">
+                                          {renderShippingStatus(order)}
+                                        </div>
+                                        <Link
+                                          href={`/mypage/orders/${order.id}`}
+                                        >
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-8 w-8 p-0"
+                                          >
+                                            <Eye className="h-4 w-4" />
+                                          </Button>
+                                        </Link>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="text-center text-muted-foreground text-xs py-4">
+                                    거래 내역이 없습니다
+                                  </p>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
                     );
                   })}
 
-                  {/* 합계 행 */}
-                  <TableRow className="bg-gray-50 font-bold">
-                    <TableCell></TableCell>
-                    <TableCell>합계</TableCell>
-                    <TableCell className="text-right">
-                      {dailyData.summary.totalOrders}건
-                    </TableCell>
-                    <TableCell className="text-right text-primary">
-                      {Math.round(
-                        dailyData.summary.totalOrderAmount,
-                      ).toLocaleString()}
-                      원
-                    </TableCell>
-                    <TableCell className="text-right text-green-600">
-                      {Math.round(
-                        dailyData.summary.totalDepositAmount,
-                      ).toLocaleString()}
-                      원
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
+                  {/* 전월이월 행 */}
+                  <tr className="border-b bg-blue-50/50">
+                    <td className="p-2 sm:p-3" />
+                    <td className="p-2 sm:p-3 whitespace-nowrap text-muted-foreground">
+                      {format(startDate, 'MM/01', { locale: ko })}
+                    </td>
+                    <td className="p-2 sm:p-3 font-medium text-blue-700">
+                      전월이월
+                    </td>
+                    <td className="p-2 sm:p-3 text-right text-muted-foreground">
+                      -
+                    </td>
+                    <td className="p-2 sm:p-3 text-right text-muted-foreground">
+                      -
+                    </td>
+                    <td
+                      className={`p-2 sm:p-3 text-right tabular-nums font-bold ${
+                        carryForward > 0
+                          ? 'text-red-600'
+                          : carryForward < 0
+                          ? 'text-blue-600'
+                          : ''
+                      }`}
+                    >
+                      {carryForward < 0 && '-'}
+                      {formatAmount(Math.abs(carryForward))}원
+                    </td>
+                  </tr>
+
+                  {/* 당월합계 행 */}
+                  <tr className="bg-gray-100 text-sm border-t-2 font-semibold">
+                    <td className="p-2 sm:p-3" />
+                    <td className="p-2 sm:p-3" />
+                    <td className="p-2 sm:p-3">당월합계</td>
+                    <td className="p-2 sm:p-3 text-right tabular-nums">
+                      {formatAmount(summary?.totalOrderAmount || 0)}원
+                    </td>
+                    <td className="p-2 sm:p-3 text-right tabular-nums text-green-600">
+                      {formatAmount(summary?.totalDepositAmount || 0)}원
+                    </td>
+                    <td className="p-2 sm:p-3 text-right tabular-nums" />
+                  </tr>
+
+                  {/* 기말잔액 행 */}
+                  <tr className="bg-gray-50 text-sm border-t font-bold">
+                    <td className="p-2 sm:p-3" />
+                    <td className="p-2 sm:p-3" />
+                    <td className="p-2 sm:p-3 text-primary">차월이월</td>
+                    <td className="p-2 sm:p-3" />
+                    <td className="p-2 sm:p-3" />
+                    <td
+                      className={`p-2 sm:p-3 text-right tabular-nums ${
+                        closingBalance > 0
+                          ? 'text-red-600'
+                          : closingBalance < 0
+                          ? 'text-blue-600'
+                          : ''
+                      }`}
+                    >
+                      {closingBalance < 0 && '-'}
+                      {formatAmount(Math.abs(closingBalance))}원
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           ) : (
-            <div className="py-12 text-center">
-              <Calendar className="h-16 w-16 mx-auto text-gray-300 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                거래 내역이 없습니다
-              </h3>
-              <p className="text-gray-500">
+            <div className="py-12 text-center px-4">
+              <Calendar className="h-12 w-12 mx-auto text-gray-300 mb-3" />
+              <p className="text-sm text-gray-500">
                 {format(selectedDate, 'yyyy년 MM월', { locale: ko })}에는 거래
                 내역이 없습니다.
               </p>

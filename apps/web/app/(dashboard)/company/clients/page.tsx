@@ -186,6 +186,7 @@ export default function ClientsPage() {
         paymentTerms: client.paymentTerms || 30,
         status: client.status || 'active',
         duplicateCheckMonths: client.duplicateCheckMonths ?? undefined,
+        fileRetentionMonths: client.fileRetentionMonths ?? undefined,
       });
 
       // 영업담당자 정보 불러오기
@@ -857,6 +858,23 @@ export default function ClientsPage() {
                       <span className="text-sm text-muted-foreground">개월</span>
                     </div>
                     <p className="text-xs text-muted-foreground">비워두면 시스템 기본값 사용. 0이면 체크 안 함.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="fileRetentionMonths">데이터 원본 보존기간</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="fileRetentionMonths"
+                        type="number"
+                        min={1}
+                        max={120}
+                        value={formData.fileRetentionMonths ?? ''}
+                        onChange={(e) => setFormData({ ...formData, fileRetentionMonths: e.target.value ? parseInt(e.target.value) : undefined })}
+                        placeholder="기본값 3"
+                        className="w-32"
+                      />
+                      <span className="text-sm text-muted-foreground">개월</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">배송완료 후 원본파일 보관기간. 비워두면 기본 3개월.</p>
                   </div>
                 </div>
               </div>

@@ -250,6 +250,7 @@ export default function MembersPage() {
     creditGrade: 'B',
     paymentTerms: 30,
     status: 'active',
+    fileRetentionMonths: 3,
     assignedManager: '',
   });
 
@@ -272,6 +273,7 @@ export default function MembersPage() {
         creditGrade: member.creditGrade || 'B',
         paymentTerms: member.paymentTerms || 30,
         status: member.status || 'active',
+        fileRetentionMonths: member.fileRetentionMonths ?? 3,
         assignedManager: member.assignedManager || '',
       });
     } else {
@@ -294,6 +296,7 @@ export default function MembersPage() {
           creditGrade: 'B',
           paymentTerms: 30,
           status: 'active',
+          fileRetentionMonths: 3,
           assignedManager: '',
         });
       });
@@ -825,6 +828,29 @@ export default function MembersPage() {
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* 원본 데이터 삭제기간 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="fileRetentionMonths" className="text-sm font-medium">
+                      원본 데이터 삭제기간
+                    </Label>
+                    <Select
+                      value={String(formData.fileRetentionMonths ?? 3)}
+                      onValueChange={(v) => setFormData({ ...formData, fileRetentionMonths: parseInt(v) })}
+                    >
+                      <SelectTrigger className="bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1개월 (30일)</SelectItem>
+                        <SelectItem value="2">2개월 (60일)</SelectItem>
+                        <SelectItem value="3">3개월 (90일)</SelectItem>
+                        <SelectItem value="6">6개월 (180일)</SelectItem>
+                        <SelectItem value="12">12개월 (1년)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">거래 완료 후 원본 파일 보관 기간</p>
+                  </div>
                 </div>
               </div>
 
@@ -964,13 +990,6 @@ export default function MembersPage() {
                 </div>
               </div>
 
-              {/* 배송 안내 */}
-              <div className="p-4 bg-slate-50 rounded-lg border">
-                <p className="text-sm text-muted-foreground">
-                  <AlertCircle className="h-4 w-4 inline-block mr-2" />
-                  배송비 및 결제 관련 상세 설정은 관리자에게 문의하세요.
-                </p>
-              </div>
             </TabsContent>
 
             <TabsContent value="pricing" className="space-y-6">

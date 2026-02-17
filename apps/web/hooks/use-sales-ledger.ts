@@ -39,8 +39,31 @@ export function useSalesLedgers(params?: {
       return api.get<{
         data: SalesLedger[];
         meta: { total: number; page: number; limit: number; totalPages: number };
+        summary?: {
+          carryForwardBalance: number;
+          totalDebit: number;
+          totalCredit: number;
+          closingBalance: number;
+        };
       }>(SALES_LEDGER_API, queryParams);
     },
+  });
+}
+
+// ===== 전월이월 잔액 조회 =====
+export function useCarryOverBalance(params?: { clientId?: string; beforeDate?: string }) {
+  return useQuery({
+    queryKey: ['carry-over-balance', params],
+    queryFn: async () => {
+      const queryParams: Record<string, string | undefined> = {};
+      if (params?.clientId) queryParams.clientId = params.clientId;
+      if (params?.beforeDate) queryParams.beforeDate = params.beforeDate;
+      return api.get<{ totalDebit: number; totalCredit: number; balance: number }>(
+        `${SALES_LEDGER_API}/carry-over`,
+        queryParams,
+      );
+    },
+    enabled: !!params?.clientId && !!params?.beforeDate,
   });
 }
 
