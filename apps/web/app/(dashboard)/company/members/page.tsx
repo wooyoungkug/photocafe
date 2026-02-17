@@ -608,7 +608,7 @@ export default function MembersPage() {
               </TabsTrigger>
               <TabsTrigger value="fabrics" className="flex items-center gap-1 text-xs px-2" disabled={!editingMember}>
                 <Palette className="h-3.5 w-3.5" />
-                원단정보
+                표지원단정보
               </TabsTrigger>
               <TabsTrigger value="history" className="flex items-center gap-1 text-xs px-2" disabled={!editingMember}>
                 <MessageSquare className="h-3.5 w-3.5" />

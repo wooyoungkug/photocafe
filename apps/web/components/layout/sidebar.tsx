@@ -79,7 +79,7 @@ const DEFAULT_NAVIGATION: NavItem[] = [
     children: [
       { name: "기초정보 설정", href: "/settings/basic" },
       { name: "용지관리", href: "/master/papers" },
-      { name: "원단정보", href: "/master/fabrics" },
+      { name: "표지원단정보", href: "/master/fabrics" },
       { name: "카테고리", href: "/company/categories" },
       { name: "규격정보", href: "/master/specifications" },
       { name: "공용동판관리", href: "/settings/public-copper-plates" },

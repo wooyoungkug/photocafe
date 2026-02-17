@@ -586,7 +586,7 @@ export default function ClientsPage() {
               </TabsTrigger>
               <TabsTrigger value="fabric" className="flex items-center gap-1" disabled={!editingClient}>
                 <Scissors className="h-3 w-3" />
-                원단정보
+                표지원단정보
               </TabsTrigger>
               <TabsTrigger value="consultation" className="flex items-center gap-1" disabled={!editingClient}>
                 <MessageSquare className="h-3 w-3" />
@@ -994,11 +994,11 @@ export default function ClientsPage() {
               </div>
             </TabsContent>
 
-            {/* 원단정보 탭 */}
+            {/* 표지원단정보 탭 */}
             <TabsContent value="fabric" className="space-y-4">
               <div className="border rounded-lg p-4">
                 <div className="flex items-center justify-center h-32 text-muted-foreground">
-                  원단정보 기능은 준비 중입니다.
+                  표지원단정보 기능은 준비 중입니다.
                 </div>
               </div>
             </TabsContent>

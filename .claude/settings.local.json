@@ -337,7 +337,8 @@
       "Bash(where:*)",
       "Bash(git -C /c/dev/printing114 status --short)",
       "Bash(git worktree remove:*)",
-      "Bash(git worktree:*)"
+      "Bash(git worktree:*)",
+      "WebFetch(domain:v0.app)"
     ]
   }
 }
