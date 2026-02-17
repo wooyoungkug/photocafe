@@ -379,6 +379,30 @@ export class SalesLedgerService {
     return salesLedger;
   }
 
+  // ===== 전월이월 잔액 조회 =====
+  async getCarryOverBalance(clientId: string, beforeDate: string) {
+    const date = new Date(beforeDate);
+
+    const result = await this.prisma.salesLedger.aggregate({
+      where: {
+        clientId,
+        ledgerDate: { lt: date },
+        salesStatus: { not: 'CANCELLED' },
+      },
+      _sum: {
+        totalAmount: true,
+        receivedAmount: true,
+        outstandingAmount: true,
+      },
+    });
+
+    return {
+      totalDebit: Number(result._sum.totalAmount || 0),
+      totalCredit: Number(result._sum.receivedAmount || 0),
+      balance: Number(result._sum.outstandingAmount || 0),
+    };
+  }
+
   // ===== 매출원장 목록 조회 =====
   async findAll(query: SalesLedgerQueryDto) {
     const { startDate, endDate, clientId, salesType, paymentStatus, salesStatus, search, page = 1, limit = 20 } = query;
@@ -410,6 +434,22 @@ export class SalesLedgerService {
       ];
     }
 
+    // 전기이월잔액 (clientId + startDate가 있을 때만)
+    let carryForwardBalance = 0;
+    if (clientId && startDate) {
+      const cfResult = await this.prisma.$queryRaw<any[]>`
+        SELECT
+          COALESCE(SUM("totalAmount"), 0)::decimal as "totalDebit",
+          COALESCE(SUM("receivedAmount"), 0)::decimal as "totalCredit"
+        FROM sales_ledgers
+        WHERE "clientId" = ${clientId}
+          AND "ledgerDate" < ${startDate}::date
+      `;
+      const totalDebit = parseFloat(cfResult[0]?.totalDebit || '0');
+      const totalCredit = parseFloat(cfResult[0]?.totalCredit || '0');
+      carryForwardBalance = totalDebit - totalCredit;
+    }
+
     const [data, total] = await Promise.all([
       this.prisma.salesLedger.findMany({
         where,
@@ -433,16 +473,27 @@ export class SalesLedgerService {
             },
           },
         },
-        orderBy: { ledgerDate: 'desc' },
+        orderBy: { ledgerDate: 'asc' },
         skip: (page - 1) * limit,
         take: limit,
       }),
       this.prisma.salesLedger.count({ where }),
     ]);
 
+    // 당월 합계
+    const totalDebit = data.reduce((sum, d) => sum + Number(d.totalAmount), 0);
+    const totalCredit = data.reduce((sum, d) => sum + Number(d.receivedAmount), 0);
+    const closingBalance = carryForwardBalance + totalDebit - totalCredit;
+
     return {
       data,
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+      summary: {
+        carryForwardBalance,
+        totalDebit,
+        totalCredit,
+        closingBalance,
+      },
     };
   }
 

@@ -930,3 +930,110 @@ expect(journal.entries.find(e => e.account.code === '201' && e.transactionType =
 4. **권한 관리**
    - 전표 수정/삭제는 관리자만 가능하도록 제한
    - 마감된 회계기간 전표는 수정 불가 (향후 구현)
+
+---
+
+## 2026-02-17 월거래원장 (누계형 거래원장) 구현 완료
+
+### 개요
+
+마이페이지 > 월거래집계 페이지를 **누계형 거래원장** 구조로 전면 변경.
+전월이월잔액부터 시작하여 일자별 매출(차변)/수금(대변) 발생에 따라 잔액이 증감하는 회계 원장 형식.
+
+### 변경 파일
+
+| 파일 | 변경 내용 |
+|------|----------|
+| `apps/api/src/modules/order/services/order.service.ts` | `getDailySummary()`에 전월이월잔액 쿼리 추가 |
+| `apps/web/hooks/use-orders.ts` | `DailyOrderSummaryResponse` 타입에 `carryForwardBalance`, `closingBalance` 추가 |
+| `apps/web/app/(shop)/mypage/monthly-summary/page.tsx` | 누계형 거래원장 UI 전면 변경 |
+
+### 백엔드: getDailySummary() 변경사항
+
+**전월이월잔액 산출 쿼리 추가**:
+```sql
+-- startDate 이전의 총매출 - 총수금 = 전월이월잔액
+SELECT
+  COALESCE(SUM(o."totalAmount"), 0) as "totalOrderAmount",
+  COALESCE(SUM(sl."receivedAmount"), 0) as "totalDepositAmount"
+FROM orders o
+LEFT JOIN sales_ledgers sl ON o.id = sl."orderId"
+WHERE o."clientId" = $clientId
+  AND o."orderedAt" < $startDate::date
+  AND o.status != 'cancelled'
+```
+
+**응답 구조 변경**:
+```typescript
+{
+  data: DailyOrderSummary[],  // 일자별 데이터 (ASC 정렬)
+  summary: {
+    carryForwardBalance: number,  // 전월이월잔액 (신규)
+    totalOrders: number,
+    totalOrderAmount: number,     // 당월매출 합계
+    totalDepositAmount: number,   // 당월수금 합계
+    totalOutstanding: number,     // 당월 미수금
+    closingBalance: number,       // 기말잔액 = 이월 + 매출 - 수금 (신규)
+  }
+}
+```
+
+### 프론트엔드: 요약 카드 (4개)
+
+| 전월이월 | 당월매출 | 당월수금 | 기말잔액 |
+|---------|---------|---------|---------|
+| carryForwardBalance | totalOrderAmount | totalDepositAmount (초록) | closingBalance |
+
+- 기말잔액 양수 → 빨강 + "미수금" 표시
+- 기말잔액 음수 → 파랑 + "선수금" 표시
+
+### 프론트엔드: 거래원장 테이블 구조
+
+| 일자 | 적요 | 차변(매출) | 대변(수금) | 잔액 |
+|------|------|----------|----------|------|
+| MM/01 | **전월이월** | - | - | 이월잔액 |
+| MM/14 (토) | 9건 | 564,960원 | 250,000원 | **누계잔액** |
+| MM/15 (일) | 34건 | 950,180원 | 656,810원 | **누계잔액** |
+| MM/16 (월) | 35건 | 1,099,450원 | 99,000원 | **누계잔액** |
+| | **당월합계** | 합계액 | 합계액 | |
+| | **차월이월** | | | 기말잔액 |
+
+**누계잔액 계산** (프론트엔드 `useMemo`):
+```typescript
+const dataWithBalance = useMemo(() => {
+  let runningBalance = carryForwardBalance;
+  return dailyData.map((row) => {
+    runningBalance = runningBalance + row.orderAmount - row.depositAmount;
+    return { ...row, runningBalance };
+  });
+}, [dailyData]);
+```
+
+**잔액 색상 규칙**:
+- 양수 (미수금) → `text-red-600`
+- 음수 (선수금) → `text-blue-600`
+- 0 → 기본색
+
+### 회계 용어 매핑
+
+| UI 표시 | 회계 용어 | 설명 |
+|---------|----------|------|
+| 전월이월 | 이월잔액 / Carried Forward | 전월 말 미수금 잔액 |
+| 차변(매출) | 차변 / Debit | 외상매출금 증가 (매출 발생) |
+| 대변(수금) | 대변 / Credit | 외상매출금 감소 (수금 완료) |
+| 잔액 | 잔액 / Balance | 누적 미수금 잔액 |
+| 당월합계 | 당기합계 | 해당 월 차변/대변 합계 |
+| 차월이월 | 이월잔액 / Carry Forward | 다음 월로 이월되는 잔액 |
+| 기말잔액 | Closing Balance | 전월이월 + 당월매출 - 당월수금 |
+| 미수금 | Accounts Receivable | 잔액 양수 (거래처가 아직 미지급) |
+| 선수금 | Advance Received | 잔액 음수 (거래처가 선지급) |
+
+### CSV 내보내기
+
+누계 구조 반영:
+```
+일자, 적요, 주문건수, 매출(차변), 수금(대변), 잔액
+, 전월이월, , , , {carryForwardBalance}
+2026-02-14, 일자거래, 9, 564960, 250000, {runningBalance}
+...
+```

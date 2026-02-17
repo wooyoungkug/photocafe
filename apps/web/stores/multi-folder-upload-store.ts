@@ -294,6 +294,15 @@ export interface UploadedFolder {
   coverSourceType: CoverSourceType | null; // 'design' | null(미선택)
   coverAutoDetected: boolean; // 파일명 기반 자동 감지 여부
 
+  // 원단 선택 정보
+  selectedFabricId?: string | null;
+  selectedFabricName?: string | null;
+  selectedFabricThumbnail?: string | null;
+  selectedFabricPrice?: number | null;
+  selectedFabricCategory?: string | null;
+  selectedFabricColorCode?: string | null;
+  selectedFabricColorName?: string | null;
+
   // 동판 정보 (박 각인)
   foilName?: string | null;     // 박 동판명
   foilColor?: string | null;    // 박 색상
@@ -374,6 +383,9 @@ interface MultiFolderUploadState {
   // 표지 소스 선택
   setFolderCoverSource: (folderId: string, source: CoverSourceType | null) => void;
   reclassifyCoverToInner: (folderId: string) => void;
+
+  // 원단 선택
+  setFolderFabric: (folderId: string, fabricId: string, fabricName: string, thumbnailUrl: string | null, basePrice: number, category: string, colorCode: string | null, colorName: string | null) => void;
 
   // 동판 정보 (전체 폴더 일괄)
   setAllFoldersFoil: (foilName: string | null, foilColor: string | null, foilPosition: string | null) => void;
@@ -1248,6 +1260,26 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
           splitCoverResults: [],
         };
       }),
+    }));
+  },
+
+  // 원단 선택
+  setFolderFabric: (folderId, fabricId, fabricName, thumbnailUrl, basePrice, category, colorCode, colorName) => {
+    set(state => ({
+      folders: state.folders.map(f =>
+        f.id === folderId
+          ? {
+              ...f,
+              selectedFabricId: fabricId,
+              selectedFabricName: fabricName,
+              selectedFabricThumbnail: thumbnailUrl,
+              selectedFabricPrice: basePrice,
+              selectedFabricCategory: category,
+              selectedFabricColorCode: colorCode,
+              selectedFabricColorName: colorName,
+            }
+          : f
+      ),
     }));
   },
 

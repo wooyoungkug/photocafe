@@ -1415,9 +1415,26 @@ export class OrderService {
   }
 
   /**
-   * 일자별 주문/입금 집계 조회
+   * 일자별 주문/입금 집계 조회 (전월이월잔액 포함)
    */
   async getDailySummary(clientId: string, startDate: string, endDate: string) {
+    // 전월이월잔액: startDate 이전의 총매출 - 총수금
+    const carryForwardRaw = await this.prisma.$queryRaw<any[]>`
+      SELECT
+        COALESCE(SUM(o."totalAmount"), 0)::decimal as "totalOrderAmount",
+        COALESCE(SUM(sl."receivedAmount"), 0)::decimal as "totalDepositAmount"
+      FROM orders o
+      LEFT JOIN sales_ledgers sl ON o.id = sl."orderId"
+      WHERE o."clientId" = ${clientId}
+        AND o."orderedAt" < ${startDate}::date
+        AND o.status != 'cancelled'
+    `;
+
+    const carryForwardBalance =
+      parseFloat(carryForwardRaw[0]?.totalOrderAmount || '0') -
+      parseFloat(carryForwardRaw[0]?.totalDepositAmount || '0');
+
+    // 일자별 집계
     const rawData = await this.prisma.$queryRaw<any[]>`
       SELECT
         DATE(o."orderedAt") as date,
@@ -1431,7 +1448,7 @@ export class OrderService {
         AND o."orderedAt" < (${endDate}::date + interval '1 day')
         AND o.status != 'cancelled'
       GROUP BY DATE(o."orderedAt")
-      ORDER BY date DESC
+      ORDER BY date ASC
     `;
 
     const data = rawData.map((row) => ({
@@ -1448,10 +1465,12 @@ export class OrderService {
     return {
       data,
       summary: {
+        carryForwardBalance,
         totalOrders,
         totalOrderAmount,
         totalDepositAmount,
         totalOutstanding: totalOrderAmount - totalDepositAmount,
+        closingBalance: carryForwardBalance + totalOrderAmount - totalDepositAmount,
       },
     };
   }
@@ -1735,10 +1754,10 @@ export class OrderService {
         if (urlParts.length < 2) continue;
         const tempFolderId = urlParts[1].split('/')[0];
 
-        if (!order.client?.name) {
+        const companyName = order.client?.clientName;
+        if (!companyName) {
           throw new Error(`거래처 정보 누락 (주문: ${order.orderNumber}, clientId: ${order.clientId})`);
         }
-        const companyName = order.client.name;
         const { orderDir, movedFiles } = this.fileStorage.moveToOrderDir(
           tempFolderId,
           order.orderNumber,

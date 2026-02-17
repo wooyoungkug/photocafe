@@ -37,6 +37,16 @@ export class SalesLedgerController {
     return this.salesLedgerService.backfillPrepaidReceipts();
   }
 
+  // ===== 전월이월 잔액 조회 =====
+  @Get('carry-over')
+  @ApiOperation({ summary: '전월이월 잔액 조회 (거래처별)' })
+  async getCarryOverBalance(
+    @Query('clientId') clientId: string,
+    @Query('beforeDate') beforeDate: string,
+  ) {
+    return this.salesLedgerService.getCarryOverBalance(clientId, beforeDate);
+  }
+
   // ===== 매출원장 요약 (대시보드) =====
   @Get('summary')
   @ApiOperation({ summary: '매출원장 요약 (당월 매출, 수금, 미수금)' })
