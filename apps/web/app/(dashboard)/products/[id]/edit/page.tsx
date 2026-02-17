@@ -41,6 +41,7 @@ import { useHalfProducts } from '@/hooks/use-half-products';
 import { useProduct, useUpdateProduct, useSyncProductPapers } from '@/hooks/use-products';
 import { useProductionGroupTree, useProductionSettings, type ProductionGroup, type ProductionSetting, type OutputPriceSelection, type IndigoUpPrice, type InkjetSpecPrice, type PriceGroup } from '@/hooks/use-production';
 import { useFoilColors, type FoilColorItem } from '@/hooks/use-copper-plates';
+import { useFabrics, FABRIC_CATEGORY_LABELS, type FabricCategory } from '@/hooks/use-fabrics';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import { API_URL } from '@/lib/api';
@@ -201,6 +202,7 @@ export default function EditProductPage() {
   const { data: productionGroupTree, isLoading: isTreeLoading } = useProductionGroupTree();
   const updateProduct = useUpdateProduct();
   const syncPapers = useSyncProductPapers();
+  const { data: fabricsData } = useFabrics({ forAlbumCover: true, isActive: true, limit: 200 });
 
   // 후가공옵션 카테고리 (ProductionGroup 트리에서 동적 로딩)
   const finishingGroup = useMemo(() => {
@@ -247,6 +249,9 @@ export default function EditProductPage() {
 
   // 후가공정보
   const [finishingOptions, setFinishingOptions] = useState<Record<string, boolean>>({});
+
+  // 앨범 표지 원단
+  const [selectedFabricIds, setSelectedFabricIds] = useState<string[]>([]);
 
   // 옵션정보
   const [customOptions, setCustomOptions] = useState<ProductOption[]>([]);
@@ -379,6 +384,11 @@ export default function EditProductPage() {
           });
           setPaperActiveMap(activeMap);
           setDefaultPaperId(foundDefaultId || (product.papers[0] as any)?.id || '');
+        }
+
+        // 앨범 표지 원단 로드
+        if (product.fabrics && Array.isArray(product.fabrics)) {
+          setSelectedFabricIds(product.fabrics.map((pf: { fabricId: string }) => pf.fabricId));
         }
 
         // 후가공 옵션은 별도 useEffect에서 처리 (productionGroupTree 로딩 타이밍 대응)
@@ -642,6 +652,7 @@ export default function EditProductPage() {
             return { name: group?.name || groupId, productionGroupId: groupId, price: 0, isDefault: false, sortOrder: idx };
           }),
         outputPriceSettings,
+        fabricIds: selectedFabricIds,
       };
 
       const result = await updateProduct.mutateAsync({ id: productId, data: productData });
@@ -1098,6 +1109,77 @@ export default function EditProductPage() {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* 앨범 표지 원단 선택 */}
+          <div className="space-y-3">
+            <Label className="text-[13px] font-semibold text-slate-700 flex items-center gap-2">
+              <Palette className="h-4 w-4 text-emerald-500" />
+              앨범 표지 원단
+              {selectedFabricIds.length > 0 && (
+                <Badge variant="secondary" className="text-[10px] h-4 px-1.5">{selectedFabricIds.length}개 선택</Badge>
+              )}
+            </Label>
+            {(() => {
+              const allFabrics = fabricsData?.data || [];
+              const categories = [...new Set(allFabrics.map(f => f.category))] as FabricCategory[];
+              if (allFabrics.length === 0) {
+                return <p className="text-xs text-slate-400 py-2">등록된 앨범 커버용 원단이 없습니다. 기초정보 &gt; 표지원단 관리에서 원단을 등록하세요.</p>;
+              }
+              return (
+                <div className="space-y-3 p-3 bg-slate-50/60 rounded-lg border border-slate-200/60">
+                  {categories.map(cat => {
+                    const catFabrics = allFabrics.filter(f => f.category === cat);
+                    const allCatSelected = catFabrics.every(f => selectedFabricIds.includes(f.id));
+                    return (
+                      <div key={cat} className="space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const catIds = catFabrics.map(f => f.id);
+                              if (allCatSelected) {
+                                setSelectedFabricIds(prev => prev.filter(id => !catIds.includes(id)));
+                              } else {
+                                setSelectedFabricIds(prev => [...new Set([...prev, ...catIds])]);
+                              }
+                            }}
+                            className="text-[11px] font-semibold text-slate-500 hover:text-slate-700 px-2 py-0.5 rounded border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+                          >
+                            {FABRIC_CATEGORY_LABELS[cat] || cat}
+                          </button>
+                          <span className="text-[10px] text-slate-400">{catFabrics.filter(f => selectedFabricIds.includes(f.id)).length}/{catFabrics.length}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {catFabrics.map(fabric => {
+                            const isSelected = selectedFabricIds.includes(fabric.id);
+                            return (
+                              <button
+                                key={fabric.id}
+                                type="button"
+                                onClick={() => setSelectedFabricIds(prev =>
+                                  isSelected ? prev.filter(id => id !== fabric.id) : [...prev, fabric.id]
+                                )}
+                                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] border transition-all ${
+                                  isSelected
+                                    ? 'bg-emerald-500 text-white border-emerald-500'
+                                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+                                }`}
+                              >
+                                {fabric.colorCode && (
+                                  <span className="w-3 h-3 rounded-full border border-white/50 flex-shrink-0" style={{ backgroundColor: fabric.colorCode }} />
+                                )}
+                                {fabric.name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
 
           {/* 용지 사용 여부 - 출력방식별 그룹화 */}

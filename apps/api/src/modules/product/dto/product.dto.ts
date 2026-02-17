@@ -385,6 +385,11 @@ export class CreateProductDto {
   @ValidateNested({ each: true })
   @Type(() => ProductOutputPriceSettingDto)
   outputPriceSettings?: ProductOutputPriceSettingDto[];
+
+  @ApiPropertyOptional({ description: '앨범 표지 원단 ID 목록' })
+  @IsOptional()
+  @IsArray()
+  fabricIds?: string[];
 }
 
 export class UpdateProductDto extends PartialType(CreateProductDto) {}

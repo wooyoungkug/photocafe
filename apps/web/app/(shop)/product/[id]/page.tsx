@@ -539,15 +539,17 @@ export default function ProductPage() {
             {/* Options - simple text sections */}
             <div className="bg-white rounded-lg border p-4 space-y-0">
               {product.bindings && product.bindings.length > 0 && (
-                <OptionCard title={t('bindingMethod')}>
+                <OptionCard title={t('binding')} summary={selectedOptions.binding?.name?.split(' - ')[0].replace(/\s*\(.*?\)$/, '')}>
                   <OptionBinding bindings={product.bindings} selectedBindingId={selectedOptions.binding?.id}
                     onSelect={(binding) => setSelectedOptions(prev => ({ ...prev, binding, printSide: getDefaultPrintSideByBinding(binding.name) }))} />
                 </OptionCard>
               )}
 
-              {isAlbum && (
+              {isAlbum && product.fabrics && product.fabrics.length > 0 && (
                 <OptionCard title={t('albumCover')}>
-                  <OptionCoverFabric selectedFabricCategory={selectedFabricCategory}
+                  <OptionCoverFabric
+                    productFabrics={product.fabrics}
+                    selectedFabricCategory={selectedFabricCategory}
                     onCategoryChange={(cat) => { setSelectedFabricCategory(cat); applyGlobalCoverSource('fabric'); }}
                     selectedFabricInfo={selectedFabricInfo} onFabricSelect={handleCoverFabricSelect} />
                 </OptionCard>

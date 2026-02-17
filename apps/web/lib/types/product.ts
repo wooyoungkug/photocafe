@@ -159,6 +159,19 @@ export interface Product {
     isRequired: boolean;
   }>;
   publicCopperPlates?: ProductPublicCopperPlate[];
+  fabrics?: Array<{
+    fabricId: string;
+    sortOrder: number;
+    fabric: {
+      id: string;
+      name: string;
+      category: string;
+      colorCode?: string | null;
+      colorName?: string | null;
+      thumbnailUrl?: string | null;
+      isActive: boolean;
+    };
+  }>;
 
   _count?: {
     specifications: number;
@@ -256,6 +269,7 @@ export interface CreateProductDto {
   covers?: CreateProductCoverDto[];
   foils?: CreateProductFoilDto[];
   finishings?: CreateProductFinishingDto[];
+  fabricIds?: string[];
 }
 
 export type UpdateProductDto = Partial<CreateProductDto>;

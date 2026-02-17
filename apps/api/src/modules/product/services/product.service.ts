@@ -142,6 +142,14 @@ export class ProductService {
         },
         covers: { orderBy: { sortOrder: 'asc' } },
         foils: { orderBy: { sortOrder: 'asc' } },
+        fabrics: {
+          orderBy: { sortOrder: 'asc' },
+          include: {
+            fabric: {
+              select: { id: true, name: true, category: true, colorCode: true, colorName: true, thumbnailUrl: true, isActive: true },
+            },
+          },
+        },
         finishings: {
           orderBy: { sortOrder: 'asc' },
           include: {
@@ -209,7 +217,7 @@ export class ProductService {
   }
 
   async create(dto: CreateProductDto) {
-    const { specifications, bindings, papers, covers, foils, finishings, outputPriceSettings, ...productData } = dto;
+    const { specifications, bindings, papers, covers, foils, finishings, outputPriceSettings, fabricIds, ...productData } = dto;
 
     // Check for duplicate productCode
     const existing = await this.prisma.product.findUnique({
@@ -251,6 +259,9 @@ export class ProductService {
         finishings: finishings?.length
           ? { create: finishings }
           : undefined,
+        fabrics: fabricIds?.length
+          ? { create: fabricIds.map((fabricId, idx) => ({ fabricId, sortOrder: idx })) }
+          : undefined,
       },
       include: {
         category: true,
@@ -260,6 +271,7 @@ export class ProductService {
         covers: true,
         foils: true,
         finishings: true,
+        fabrics: { include: { fabric: { select: { id: true, name: true, category: true, colorCode: true, thumbnailUrl: true, isActive: true } } } },
       },
     });
   }
@@ -267,7 +279,7 @@ export class ProductService {
   async update(id: string, dto: UpdateProductDto) {
     await this.findOne(id);
 
-    const { specifications, bindings, papers, covers, foils, finishings, outputPriceSettings, categoryId, ...productData } = dto;
+    const { specifications, bindings, papers, covers, foils, finishings, outputPriceSettings, fabricIds, categoryId, ...productData } = dto;
 
     try {
       // 기존 옵션들 삭제
@@ -288,6 +300,9 @@ export class ProductService {
       }
       if (finishings !== undefined) {
         await this.prisma.productFinishing.deleteMany({ where: { productId: id } });
+      }
+      if (fabricIds !== undefined) {
+        await this.prisma.productFabric.deleteMany({ where: { productId: id } });
       }
 
       // 상품 업데이트
@@ -315,6 +330,9 @@ export class ProductService {
           finishings: finishings !== undefined && finishings.length > 0
             ? { create: finishings }
             : undefined,
+          fabrics: fabricIds !== undefined && fabricIds.length > 0
+            ? { create: fabricIds.map((fabricId, idx) => ({ fabricId, sortOrder: idx })) }
+            : undefined,
         },
         include: {
           category: true,
@@ -324,6 +342,7 @@ export class ProductService {
           covers: true,
           foils: true,
           finishings: true,
+          fabrics: { include: { fabric: { select: { id: true, name: true, category: true, colorCode: true, thumbnailUrl: true, isActive: true } } } },
         },
       });
 
