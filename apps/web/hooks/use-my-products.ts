@@ -24,6 +24,11 @@ export interface MyProductOptions {
   finishingIds?: string[];
   finishingNames?: string[];
   finishingSettingIds?: string[];
+  // 원단 (앨범 표지)
+  coverSourceType?: 'fabric' | 'design';
+  fabricId?: string;
+  fabricName?: string;
+  fabricThumbnail?: string;
 }
 
 export interface MyProduct {
