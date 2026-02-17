@@ -385,3 +385,35 @@ export function useCompleteInspection() {
     },
   });
 }
+
+// ==================== 일자별 주문/입금 집계 ====================
+
+export interface DailyOrderSummary {
+  date: string;
+  orderCount: number;
+  orderAmount: number;
+  depositAmount: number;
+}
+
+export interface DailyOrderSummaryResponse {
+  data: DailyOrderSummary[];
+  summary: {
+    totalOrders: number;
+    totalOrderAmount: number;
+    totalDepositAmount: number;
+    totalOutstanding: number;
+  };
+}
+
+export function useDailyOrderSummary(params: {
+  startDate: string;
+  endDate: string;
+  clientId?: string;
+}) {
+  return useQuery({
+    queryKey: [ORDERS_KEY, 'daily-summary', params],
+    queryFn: () =>
+      api.get<DailyOrderSummaryResponse>('/orders/daily-summary', params),
+    enabled: !!params.clientId,
+  });
+}

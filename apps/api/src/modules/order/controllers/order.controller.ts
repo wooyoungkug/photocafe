@@ -30,6 +30,7 @@ import {
   BulkDataCleanupDto,
   CheckDuplicateOrderDto,
   MonthlySummaryQueryDto,
+  DailySummaryQueryDto,
   InspectFileDto,
   HoldInspectionDto,
   CompleteInspectionDto,
@@ -66,6 +67,16 @@ export class OrderController {
       query.endDate,
     );
     return { data: summary };
+  }
+
+  @Get('daily-summary')
+  @ApiOperation({ summary: '일자별 주문/입금 집계 조회' })
+  async getDailySummary(@Query() query: DailySummaryQueryDto) {
+    return this.orderService.getDailySummary(
+      query.clientId,
+      query.startDate,
+      query.endDate,
+    );
   }
 
   // ==================== 벌크 작업 (반드시 :id 라우트 위에 배치) ====================
