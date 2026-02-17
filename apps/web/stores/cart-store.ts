@@ -62,6 +62,11 @@ export interface AlbumOrderCartInfo {
   foilPosition?: string;           // 박 위치
   totalSize?: number;              // 총 용량 (bytes)
   shippingInfo?: CartShippingInfo; // 배송 정보
+  // 원단 (앨범 표지)
+  coverSourceType?: 'fabric' | 'design';
+  fabricId?: string;               // 원단 ID
+  fabricName?: string;             // 원단명
+  fabricThumbnail?: string;        // 원단 썸네일
 }
 
 export interface CartItem {

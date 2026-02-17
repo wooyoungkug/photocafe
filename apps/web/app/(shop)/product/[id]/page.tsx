@@ -282,6 +282,10 @@ export default function ProductPage() {
               foilColor: folder.foilColor || undefined,
               foilPosition: folder.foilPosition || undefined,
               shippingInfo: shippingInfoData,
+              coverSourceType: folder.coverSourceType || undefined,
+              fabricId: folder.selectedFabricId || undefined,
+              fabricName: folder.selectedFabricName || undefined,
+              fabricThumbnail: folder.selectedFabricThumbnail || undefined,
             },
             uploadStatus: 'pending',
             totalFileCount: folder.files.length,
@@ -322,6 +326,10 @@ export default function ProductPage() {
                 foilColor: folder.foilColor || undefined,
                 foilPosition: folder.foilPosition || undefined,
                 shippingInfo: shippingInfoData,
+                coverSourceType: folder.coverSourceType || undefined,
+                fabricId: folder.selectedFabricId || undefined,
+                fabricName: folder.selectedFabricName || undefined,
+                fabricThumbnail: folder.selectedFabricThumbnail || undefined,
               },
               uploadStatus: 'pending',
               totalFileCount: folder.files.length,
@@ -436,6 +444,16 @@ export default function ProductPage() {
       foilColor: opts.foilColor,
       foilPosition: opts.foilPosition,
     });
+
+    // 원단 정보 복원
+    if (opts.coverSourceType) {
+      applyGlobalCoverSource(opts.coverSourceType);
+    }
+    if (opts.fabricId && opts.fabricName) {
+      uploadFolders.forEach(f => {
+        setFolderFabric(f.id, opts.fabricId!, opts.fabricName!, opts.fabricThumbnail || null, 0, '', null, null);
+      });
+    }
 
     if (myProductFromParam.defaultQuantity) {
       setQuantity(myProductFromParam.defaultQuantity);
@@ -708,6 +726,11 @@ export default function ProductPage() {
       foilPositionName: copperPlateLabels?.platePositions?.find(p => p.code === selectedOptions.foilPosition)?.name,
       finishingIds: selectedOptions.finishings.map(f => f.id),
       finishingNames: selectedOptions.finishings.map(f => f.name),
+      // 원단 (앨범 표지)
+      coverSourceType: uploadFolders[0]?.coverSourceType || undefined,
+      fabricId: selectedFabricInfo?.id || undefined,
+      fabricName: selectedFabricInfo?.name || undefined,
+      fabricThumbnail: selectedFabricInfo?.thumbnail || undefined,
     };
 
     try {
@@ -771,6 +794,17 @@ export default function ProductPage() {
       foilColor: opts.foilColor,
       foilPosition: opts.foilPosition,
     });
+
+    // 원단 정보 복원 (표지 유형 및 원단 선택)
+    if (opts.coverSourceType) {
+      applyGlobalCoverSource(opts.coverSourceType);
+    }
+    if (opts.fabricId && opts.fabricName) {
+      uploadFolders.forEach(f => {
+        setFolderFabric(f.id, opts.fabricId!, opts.fabricName!, opts.fabricThumbnail || null, 0, '', null, null);
+      });
+      setSelectedFabricCategory(null);
+    }
 
     setQuantity(myProduct.defaultQuantity);
 
