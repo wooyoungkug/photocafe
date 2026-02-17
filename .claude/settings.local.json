@@ -333,7 +333,8 @@
       "Bash(while read PID)",
       "Bash(do taskkill //PID $PID //F done sleep 2 cd /c/dev/printing114/apps/api)",
       "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"SELECT id, \"\"thumbnailUrl\"\", \"\"storageStatus\"\" FROM order_files LIMIT 5;\")",
-      "Bash(git --version)"
+      "Bash(git --version)",
+      "Bash(where:*)"
     ]
   }
 }
