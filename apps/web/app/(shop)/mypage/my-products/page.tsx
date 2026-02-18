@@ -17,16 +17,7 @@ import {
 import { useAuthStore } from '@/stores/auth-store';
 import { useMyProductsByClient, useDeleteMyProduct, type MyProduct } from '@/hooks/use-my-products';
 import { useToast } from '@/hooks/use-toast';
-import { API_BASE_URL, API_URL } from '@/lib/api';
-
-const normalizeImageUrl = (url: string | null | undefined): string => {
-  if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  if (url.startsWith('/api/v1/')) return `${API_BASE_URL}${url}`;
-  if (url.startsWith('/upload')) return `${API_URL}${url}`;
-  if (url.startsWith('/api/')) return `${API_BASE_URL}${url}`;
-  return url;
-};
+import { normalizeImageUrl } from '@/lib/utils';
 
 export default function MyProductsPage() {
   const { toast } = useToast();
@@ -108,9 +99,6 @@ export default function MyProductsPage() {
                       {mp.options.paperName && (
                         <Badge variant="outline" className="text-[10px] h-4 px-1">{mp.options.paperName}</Badge>
                       )}
-                      {mp.options.fabricName && (
-                        <Badge variant="outline" className="text-[10px] h-4 px-1">{mp.options.fabricName}</Badge>
-                      )}
                       {mp.options.copperPlateName && (
                         <Badge variant="outline" className="text-[10px] h-4 px-1">{mp.options.copperPlateName}</Badge>
                       )}
@@ -122,7 +110,7 @@ export default function MyProductsPage() {
                       )}
                     </div>
                     <div className="flex items-center gap-1 mt-2">
-                      <Link href={`/product/${mp.productId}`}>
+                      <Link href={`/product/${mp.productId}?myProductId=${mp.id}`}>
                         <Button variant="outline" size="sm" className="h-6 text-[10px] px-2">
                           <ExternalLink className="h-3 w-3 mr-0.5" />
                           주문하기

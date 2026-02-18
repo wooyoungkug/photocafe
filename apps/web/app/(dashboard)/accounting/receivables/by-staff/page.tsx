@@ -40,8 +40,8 @@ export default function ReceivablesByStaffPage() {
       {/* 헤더 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">영업담당자별 미수금 현황</h1>
-          <p className="text-muted-foreground">영업담당자별 매출 및 수금 실적을 관리합니다.</p>
+          <h1 className="text-2xl font-bold">영업담당자별 미입금 현황</h1>
+          <p className="text-muted-foreground">영업담당자별 매출 및 입금 실적을 관리합니다.</p>
         </div>
         <Link href="/accounting/receivables">
           <Button variant="outline">
@@ -73,7 +73,7 @@ export default function ReceivablesByStaffPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-green-600 font-medium">총 수금</p>
+                <p className="text-sm text-green-600 font-medium">총 입금</p>
                 <p className="text-2xl font-bold text-green-900">
                   {totals.totalReceived.toLocaleString()}원
                 </p>
@@ -83,7 +83,7 @@ export default function ReceivablesByStaffPage() {
               </div>
             </div>
             <div className="mt-2 text-xs text-green-600">
-              수금률 {overallCollectionRate}%
+              입금률 {overallCollectionRate}%
             </div>
           </CardContent>
         </Card>
@@ -92,7 +92,7 @@ export default function ReceivablesByStaffPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-orange-600 font-medium">총 미수금</p>
+                <p className="text-sm text-orange-600 font-medium">총 미입금</p>
                 <p className="text-2xl font-bold text-orange-900">
                   {totals.outstanding.toLocaleString()}원
                 </p>
@@ -125,7 +125,7 @@ export default function ReceivablesByStaffPage() {
       <Tabs defaultValue="summary" className="space-y-4">
         <TabsList>
           <TabsTrigger value="summary">영업담당자별 요약</TabsTrigger>
-          <TabsTrigger value="collection">수금 실적</TabsTrigger>
+          <TabsTrigger value="collection">입금 실적</TabsTrigger>
         </TabsList>
 
         <TabsContent value="summary" className="space-y-4">

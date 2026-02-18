@@ -361,7 +361,7 @@
     "shippingNotSet": "配送情報未設定",
     "unitPriceInfo": "(単価 {price}ウォン × {qty}部)",
     "vatIncluded": "VAT込み",
-    "priceFormulaUnit": "(@{perPage}×{pages}p={printPrice} + 表紙{cover} = 単価 {unitPrice}ウォン)",
+    "priceFormulaUnit": "(@{perPage}×{pages}p={printPrice} + 表紙{cover} + 製本{binding} = 単価 {unitPrice}ウォン)",
     "priceFormulaTotal": "({unitPrice}×{qty}部={subtotal} + VAT {tax} = {total}ウォン)",
     "additionalSetOrder": "追加セット注文",
     "specLabelShort": "仕様",
@@ -524,5 +524,137 @@
     "pendingOrders": "処理待ち",
     "expandMenu": "メニュー展開",
     "collapseMenu": "メニュー折りたたみ"
+  },
+  "deposits": {
+    "title": "入金履歴照会",
+    "description": "取引先の入金履歴を照会します",
+    "todayDeposits": "本日入金額",
+    "monthlyDeposits": "当月入金額",
+    "totalCount": "総入金件数",
+    "quickFilters": {
+      "today": "本日",
+      "thisMonth": "当月",
+      "custom": "期間設定"
+    },
+    "table": {
+      "receiptNumber": "入金番号",
+      "receiptDate": "入金日",
+      "clientName": "取引先名",
+      "amount": "金額",
+      "paymentMethod": "決済方法",
+      "bankName": "入金銀行",
+      "depositorName": "入金者",
+      "note": "備考"
+    },
+    "paymentMethods": {
+      "all": "全体",
+      "cash": "現金",
+      "bank_transfer": "銀行振込",
+      "card": "カード",
+      "check": "小切手"
+    },
+    "filters": {
+      "startDate": "開始日",
+      "endDate": "終了日",
+      "paymentMethod": "決済方法"
+    },
+    "noData": "入金履歴がありません",
+    "exportCSV": "CSVダウンロード",
+    "exportSuccess": "CSVファイルがダウンロードされました",
+    "exportError": "ダウンロードするデータがありません",
+    "pagination": {
+      "prev": "前へ",
+      "next": "次へ"
+    }
+  },
+  "clientLedger": {
+    "title": "取引先元帳",
+    "description": "取引先別の売上/仕入取引履歴と残高を照会します",
+    "sales": {
+      "title": "売上先元帳",
+      "description": "取引先別の売上取引履歴と売掛金を照会します",
+      "clientCount": "売上先数",
+      "noData": "売上取引履歴のある取引先がありません"
+    },
+    "purchase": {
+      "title": "仕入先元帳",
+      "description": "取引先別の仕入取引履歴と買掛金を照会します",
+      "clientCount": "仕入先数",
+      "noData": "仕入取引履歴のある取引先がありません"
+    },
+    "summary": {
+      "clientCount": "取引先数",
+      "totalSales": "総売上高",
+      "salesOutstanding": "売掛金残高",
+      "totalPurchases": "総仕入高"
+    },
+    "filters": {
+      "search": "取引先検索",
+      "searchPlaceholder": "取引先名またはコード",
+      "clientType": "取引先種類",
+      "all": "全て",
+      "salesClient": "売上先",
+      "purchaseClient": "仕入先",
+      "startDate": "開始日",
+      "endDate": "終了日",
+      "periodType": "照会単位",
+      "thisMonth": "当月",
+      "months3": "3ヶ月",
+      "months6": "6ヶ月",
+      "year1": "1年"
+    },
+    "table": {
+      "clientCode": "取引先コード",
+      "clientName": "取引先名",
+      "salesAmount": "売上高",
+      "receivedAmount": "入金額",
+      "salesOutstanding": "売掛金",
+      "salesCount": "売上件数",
+      "purchaseAmount": "仕入高",
+      "paidAmount": "支払額",
+      "purchaseOutstanding": "買掛金",
+      "purchaseCount": "仕入件数"
+    },
+    "detail": {
+      "clientInfo": "取引先情報",
+      "carryForward": "前期繰越残高",
+      "salesBalance": "売掛金残高",
+      "purchaseBalance": "買掛金残高",
+      "netBalance": "純残高",
+      "periodTotal": "期間合計",
+      "totalDebit": "借方合計",
+      "totalCredit": "貸方合計",
+      "closingBalance": "期末残高",
+      "transactions": "取引明細",
+      "periodSummary": "期間別集計"
+    },
+    "transactionType": {
+      "sales": "売上",
+      "receipt": "入金",
+      "purchase": "仕入",
+      "payment": "支払"
+    },
+    "periodType": {
+      "daily": "日別",
+      "monthly": "月別",
+      "quarterly": "四半期別",
+      "yearly": "年別"
+    },
+    "columns": {
+      "date": "日付",
+      "type": "種類",
+      "ledgerNumber": "伝票番号",
+      "orderNumber": "注文番号",
+      "description": "摘要",
+      "debit": "借方",
+      "credit": "貸方",
+      "balance": "残高",
+      "period": "期間",
+      "count": "件数"
+    },
+    "noData": "取引履歴のある取引先がありません",
+    "noTransactions": "該当期間の取引明細がありません",
+    "exportCSV": "CSVダウンロード",
+    "total": "合計"
   }
 }

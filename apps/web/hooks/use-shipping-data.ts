@@ -41,41 +41,42 @@ export function useShippingData() {
 
   // 2. 주문자(거래처) 정보 - 모든 로그인 사용자에 대해 조회
   const { data: clientInfo, isLoading: isLoadingClient } = useQuery<OrdererShippingInfo | null>({
-    queryKey: ['client-shipping-info', user?.id, user?.email],
+    queryKey: ['client-shipping-info', user?.clientId, user?.email],
     queryFn: async () => {
-      // 1차: ID로 직접 조회
-      try {
-        const response = await api.get<any>(`/clients/${user!.id}`);
-        return {
-          id: response.id,
-          clientName: response.clientName || user?.name || '',
-          phone: response.mobile || response.phone || '',
-          postalCode: response.postalCode || '',
-          address: response.address || '',
-          addressDetail: response.addressDetail || '',
-          shippingType: response.shippingType || 'conditional',
-        };
-      } catch {
-        // 2차: email로 검색 (관리자/staff 로그인 시)
-        if (user?.email) {
-          try {
-            const searchResult = await api.get<{ data: any[] }>('/clients', { search: user.email, limit: 1 });
-            const client = searchResult.data?.[0];
-            if (client) {
-              return {
-                id: client.id,
-                clientName: client.clientName || user?.name || '',
-                phone: client.mobile || client.phone || '',
-                postalCode: client.postalCode || '',
-                address: client.address || '',
-                addressDetail: client.addressDetail || '',
-                shippingType: client.shippingType || 'conditional',
-              };
-            }
-          } catch { /* ignore */ }
-        }
-        return null;
+      // 1차: clientId로 직접 조회 (고객 로그인 시에만)
+      if (user?.clientId) {
+        try {
+          const response = await api.get<any>(`/clients/${user.clientId}`);
+          return {
+            id: response.id,
+            clientName: response.clientName || user?.name || '',
+            phone: response.mobile || response.phone || '',
+            postalCode: response.postalCode || '',
+            address: response.address || '',
+            addressDetail: response.addressDetail || '',
+            shippingType: response.shippingType || 'conditional',
+          };
+        } catch { /* fall through to email search */ }
       }
+      // 2차: email로 검색 (관리자/staff 로그인 시)
+      if (user?.email) {
+        try {
+          const searchResult = await api.get<{ data: any[] }>('/clients', { search: user.email, limit: 1 });
+          const client = searchResult.data?.[0];
+          if (client) {
+            return {
+              id: client.id,
+              clientName: client.clientName || user?.name || '',
+              phone: client.mobile || client.phone || '',
+              postalCode: client.postalCode || '',
+              address: client.address || '',
+              addressDetail: client.addressDetail || '',
+              shippingType: client.shippingType || 'conditional',
+            };
+          }
+        } catch { /* ignore */ }
+      }
+      return null;
     },
     enabled: !!user?.id,
     retry: false,

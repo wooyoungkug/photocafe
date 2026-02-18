@@ -144,7 +144,6 @@ export const useAuthStore = create<AuthState>()(
 
           // 토큰이 없으면 인증 상태 초기화
           if (!hasToken) {
-            console.warn('[Auth Store] Rehydrate: 토큰이 없어서 인증 상태를 초기화합니다.');
             state.user = null;
             state.accessToken = null;
             state.refreshToken = null;

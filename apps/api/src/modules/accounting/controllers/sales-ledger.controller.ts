@@ -13,6 +13,7 @@ import { SalesLedgerService } from '../services/sales-ledger.service';
 import {
   SalesLedgerQueryDto,
   CreateSalesReceiptDto,
+  GetReceiptsQueryDto,
 } from '../dto/sales-ledger.dto';
 
 @ApiTags('매출원장')
@@ -25,6 +26,25 @@ export class SalesLedgerController {
   @ApiOperation({ summary: '매출원장 목록 조회' })
   async findAll(@Query() query: SalesLedgerQueryDto) {
     return this.salesLedgerService.findAll(query);
+  }
+
+  // ===== 카드/선불 결제 SalesReceipt 백필 =====
+  @Post('backfill-receipts')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '카드/선불 결제 수금 레코드 백필 (관리자)' })
+  async backfillPrepaidReceipts() {
+    return this.salesLedgerService.backfillPrepaidReceipts();
+  }
+
+  // ===== 전월이월 잔액 조회 =====
+  @Get('carry-over')
+  @ApiOperation({ summary: '전월이월 잔액 조회 (거래처별)' })
+  async getCarryOverBalance(
+    @Query('clientId') clientId: string,
+    @Query('beforeDate') beforeDate: string,
+  ) {
+    return this.salesLedgerService.getCarryOverBalance(clientId, beforeDate);
   }
 
   // ===== 매출원장 요약 (대시보드) =====
@@ -117,6 +137,13 @@ export class SalesLedgerController {
     return this.salesLedgerService.getCollectionByStaff({ startDate, endDate });
   }
 
+  // ===== 입금내역 조회 (금일/당월/기간별) =====
+  @Get('receipts')
+  @ApiOperation({ summary: '입금내역 조회 (금일/당월/기간별)' })
+  async getReceipts(@Query() query: GetReceiptsQueryDto) {
+    return this.salesLedgerService.getReceipts(query);
+  }
+
   // ===== 영업담당자별 상세 매출원장 목록 =====
   @Get('by-staff/:staffId')
   @ApiOperation({ summary: '영업담당자별 상세 매출원장 목록' })
@@ -149,6 +176,32 @@ export class SalesLedgerController {
       startDate,
       endDate,
     });
+  }
+
+  // ===== 매출 직접 등록 (홈페이지 외 매출) =====
+  @Post('direct')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '매출 직접 등록 (홈페이지 외 매출)' })
+  async createDirect(@Body() dto: {
+    clientId: string;
+    salesType: string;
+    paymentMethod: string;
+    supplyAmount: number;
+    vatAmount: number;
+    totalAmount: number;
+    description?: string;
+    items: Array<{
+      itemName: string;
+      specification?: string;
+      quantity: number;
+      unitPrice: number;
+      supplyAmount: number;
+      vatAmount: number;
+      totalAmount: number;
+    }>;
+  }) {
+    return this.salesLedgerService.createDirect(dto, 'system');
   }
 
   // ===== 매출원장 상세 조회 =====
@@ -212,5 +265,12 @@ export class SalesLedgerController {
   @ApiOperation({ summary: '연체 거래처 알림 발송' })
   async sendOverdueNotifications() {
     return this.salesLedgerService.sendOverdueNotifications();
+  }
+
+  // ===== 기존 매출원장 staffId 일괄 업데이트 =====
+  @Post('batch/update-staff-id')
+  @ApiOperation({ summary: '기존 매출원장의 담당자 일괄 업데이트' })
+  async updateStaffIdFromClients() {
+    return this.salesLedgerService.updateStaffIdFromClients();
   }
 }

@@ -27,6 +27,11 @@ async function bootstrap() {
   // Enable shutdown hooks for graceful shutdown
   app.enableShutdownHooks();
 
+  // Static file serving (uploads)
+  const uploadPath = join(process.cwd(), process.env.UPLOAD_BASE_PATH || 'uploads');
+  app.useStaticAssets(uploadPath, { prefix: '/uploads/' });
+  app.useStaticAssets(uploadPath, { prefix: '/upload/' });
+
   // Global prefix
   app.setGlobalPrefix('api/v1');
 
@@ -53,7 +58,6 @@ async function bootstrap() {
         enableImplicitConversion: true,
       },
       exceptionFactory: (errors) => {
-        console.error('=== Validation Errors ===', JSON.stringify(errors, null, 2));
         const messages = errors.map(error => Object.values(error.constraints || {}).join(', '));
         return new (require('@nestjs/common').BadRequestException)(messages);
       },

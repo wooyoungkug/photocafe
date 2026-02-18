@@ -90,6 +90,7 @@ export class AccountingService {
       { code: '111', name: '미수금', type: 'ASSET', sortOrder: 6 },
       { code: '112', name: '선급금', type: 'ASSET', sortOrder: 7 },
       { code: '113', name: '선급비용', type: 'ASSET', sortOrder: 8 },
+      { code: '115', name: '부가세대급금', type: 'ASSET', sortOrder: 8.5 },
       { code: '120', name: '원재료', type: 'ASSET', sortOrder: 9 },
       { code: '121', name: '재공품', type: 'ASSET', sortOrder: 10 },
       { code: '122', name: '제품', type: 'ASSET', sortOrder: 11 },

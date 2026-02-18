@@ -362,7 +362,7 @@
     "shippingNotSet": "배송정보 미설정",
     "unitPriceInfo": "(단가 {price}원 × {qty}부)",
     "vatIncluded": "VAT 포함",
-    "priceFormulaUnit": "(@{perPage}×{pages}p={printPrice} + 표지{cover} = 단가 {unitPrice}원)",
+    "priceFormulaUnit": "(@{perPage}×{pages}p={printPrice} + 표지{cover} + 제본{binding} = 단가 {unitPrice}원)",
     "priceFormulaTotal": "({unitPrice}×{qty}부={subtotal} + VAT {tax} = {total}원)",
     "additionalSetOrder": "추가세트주문",
     "specLabelShort": "규격",
@@ -525,5 +525,137 @@
     "pendingOrders": "처리 대기",
     "expandMenu": "메뉴 펼치기",
     "collapseMenu": "메뉴 접기"
+  },
+  "deposits": {
+    "title": "입금내역 조회",
+    "description": "거래처 입금 내역을 조회합니다",
+    "todayDeposits": "금일 입금액",
+    "monthlyDeposits": "당월 입금액",
+    "totalCount": "총 입금건수",
+    "quickFilters": {
+      "today": "금일",
+      "thisMonth": "당월",
+      "custom": "기간설정"
+    },
+    "table": {
+      "receiptNumber": "입금번호",
+      "receiptDate": "입금일",
+      "clientName": "거래처명",
+      "amount": "금액",
+      "paymentMethod": "결제방법",
+      "bankName": "입금은행",
+      "depositorName": "입금자",
+      "note": "비고"
+    },
+    "paymentMethods": {
+      "all": "전체",
+      "cash": "현금",
+      "bank_transfer": "계좌이체",
+      "card": "카드",
+      "check": "수표"
+    },
+    "filters": {
+      "startDate": "시작일",
+      "endDate": "종료일",
+      "paymentMethod": "결제방법"
+    },
+    "noData": "입금 내역이 없습니다",
+    "exportCSV": "CSV 다운로드",
+    "exportSuccess": "CSV 파일이 다운로드되었습니다",
+    "exportError": "다운로드할 데이터가 없습니다",
+    "pagination": {
+      "prev": "이전",
+      "next": "다음"
+    }
+  },
+  "clientLedger": {
+    "title": "거래처원장",
+    "description": "거래처별 매출/매입 거래내역 및 잔액을 조회합니다",
+    "sales": {
+      "title": "매출거래처원장",
+      "description": "거래처별 매출 거래내역 및 미수금을 조회합니다",
+      "clientCount": "매출 거래처 수",
+      "noData": "매출 거래내역이 있는 거래처가 없습니다"
+    },
+    "purchase": {
+      "title": "매입거래처원장",
+      "description": "거래처별 매입 거래내역 및 미지급금을 조회합니다",
+      "clientCount": "매입 거래처 수",
+      "noData": "매입 거래내역이 있는 거래처가 없습니다"
+    },
+    "summary": {
+      "clientCount": "거래처 수",
+      "totalSales": "총 매출액",
+      "salesOutstanding": "매출 미수금",
+      "totalPurchases": "총 매입액"
+    },
+    "filters": {
+      "search": "거래처 검색",
+      "searchPlaceholder": "거래처명 또는 거래처코드",
+      "clientType": "거래처 유형",
+      "all": "전체",
+      "salesClient": "매출거래처",
+      "purchaseClient": "매입거래처",
+      "startDate": "시작일",
+      "endDate": "종료일",
+      "periodType": "조회 단위",
+      "thisMonth": "당월",
+      "months3": "3개월",
+      "months6": "6개월",
+      "year1": "1년"
+    },
+    "table": {
+      "clientCode": "거래처코드",
+      "clientName": "거래처명",
+      "salesAmount": "매출액",
+      "receivedAmount": "입금액",
+      "salesOutstanding": "매출미수금",
+      "salesCount": "매출건수",
+      "purchaseAmount": "매입액",
+      "paidAmount": "지급액",
+      "purchaseOutstanding": "매입미지급",
+      "purchaseCount": "매입건수"
+    },
+    "detail": {
+      "clientInfo": "거래처 정보",
+      "carryForward": "전기이월 잔액",
+      "salesBalance": "매출 미수금",
+      "purchaseBalance": "매입 미지급금",
+      "netBalance": "순 잔액",
+      "periodTotal": "기간 합계",
+      "totalDebit": "차변 합계",
+      "totalCredit": "대변 합계",
+      "closingBalance": "기말 잔액",
+      "transactions": "거래내역",
+      "periodSummary": "기간별 요약"
+    },
+    "transactionType": {
+      "sales": "매출",
+      "receipt": "입금",
+      "purchase": "매입",
+      "payment": "지급"
+    },
+    "periodType": {
+      "daily": "일별",
+      "monthly": "월별",
+      "quarterly": "분기별",
+      "yearly": "연별"
+    },
+    "columns": {
+      "date": "일자",
+      "type": "유형",
+      "ledgerNumber": "전표번호",
+      "orderNumber": "주문번호",
+      "description": "적요",
+      "debit": "차변(입금)",
+      "credit": "대변(출금)",
+      "balance": "잔액",
+      "period": "기간",
+      "count": "건수"
+    },
+    "noData": "거래 내역이 있는 거래처가 없습니다",
+    "noTransactions": "해당 기간의 거래내역이 없습니다",
+    "exportCSV": "CSV 다운로드",
+    "total": "합 계"
   }
 }

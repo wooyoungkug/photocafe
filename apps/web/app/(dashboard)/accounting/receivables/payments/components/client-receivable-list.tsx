@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Search, Receipt, ArrowUpDown } from 'lucide-react';
+import { Search, ArrowUpDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -40,7 +40,7 @@ function getStatusInfo(outstanding: number, totalReceived: number) {
     return { label: '완납', className: 'bg-green-100 text-green-700' };
   }
   if (totalReceived > 0) {
-    return { label: '부분수금', className: 'bg-blue-100 text-blue-700' };
+    return { label: '부분입금', className: 'bg-blue-100 text-blue-700' };
   }
   return { label: '미수', className: 'bg-orange-100 text-orange-700' };
 }
@@ -119,7 +119,7 @@ export function ClientReceivableList({
   return (
     <Card className="h-full flex flex-col">
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">거래처별 미수금</CardTitle>
+        <CardTitle className="text-base">거래처별 미입금</CardTitle>
         <div className="flex flex-col sm:flex-row gap-2 mt-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -138,7 +138,7 @@ export function ClientReceivableList({
             <SelectContent>
               <SelectItem value="all">전체</SelectItem>
               <SelectItem value="outstanding">미수</SelectItem>
-              <SelectItem value="partial">부분수금</SelectItem>
+              <SelectItem value="partial">부분입금</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -163,7 +163,7 @@ export function ClientReceivableList({
                     className="flex items-center gap-1 ml-auto hover:text-foreground"
                     onClick={() => handleSort('outstanding')}
                   >
-                    미수금
+                    미입금
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </TableHead>
@@ -172,12 +172,11 @@ export function ClientReceivableList({
                     className="flex items-center gap-1 mx-auto hover:text-foreground"
                     onClick={() => handleSort('collectionRate')}
                   >
-                    수금률
+                    입금률
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </TableHead>
                 <TableHead className="text-center w-[70px]">상태</TableHead>
-                <TableHead className="w-[60px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -196,20 +195,17 @@ export function ClientReceivableList({
                     <TableCell>
                       <Skeleton className="h-5 w-14 mx-auto" />
                     </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-7 w-12" />
-                    </TableCell>
                   </TableRow>
                 ))
               ) : filteredData.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={5}
+                    colSpan={4}
                     className="text-center py-12 text-muted-foreground"
                   >
                     {searchTerm
                       ? '검색 결과가 없습니다.'
-                      : '미수금 내역이 없습니다.'}
+                      : '미입금 내역이 없습니다.'}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -233,7 +229,7 @@ export function ClientReceivableList({
                       role="button"
                       tabIndex={0}
                       aria-selected={isSelected}
-                      aria-label={`${item.clientName} 미수금 ${item.outstanding.toLocaleString()}원`}
+                      aria-label={`${item.clientName} 미입금 ${item.outstanding.toLocaleString()}원`}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
                           e.preventDefault();
@@ -269,20 +265,6 @@ export function ClientReceivableList({
                           {status.label}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSelect(item);
-                          }}
-                          aria-label={`${item.clientName} 수금 처리`}
-                        >
-                          <Receipt className="h-3.5 w-3.5" />
-                        </Button>
-                      </TableCell>
                     </TableRow>
                   );
                 })
@@ -306,7 +288,7 @@ export function ClientReceivableList({
             ))
           ) : filteredData.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground text-sm">
-              {searchTerm ? '검색 결과가 없습니다.' : '미수금 내역이 없습니다.'}
+              {searchTerm ? '검색 결과가 없습니다.' : '미입금 내역이 없습니다.'}
             </div>
           ) : (
             filteredData.map((item) => {
@@ -347,22 +329,10 @@ export function ClientReceivableList({
                       {status.label}
                     </Badge>
                   </div>
-                  <div className="mt-2 flex items-center justify-between">
+                  <div className="mt-2">
                     <span className="text-sm font-bold text-orange-600">
                       {item.outstanding.toLocaleString()}원
                     </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-xs"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelect(item);
-                      }}
-                    >
-                      <Receipt className="h-3 w-3 mr-1" />
-                      수금
-                    </Button>
                   </div>
                   <div className="mt-1.5 flex items-center gap-2">
                     <Progress value={rate} className="flex-1 h-1.5" />

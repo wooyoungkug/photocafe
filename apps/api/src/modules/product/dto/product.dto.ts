@@ -83,6 +83,11 @@ export class ProductBindingDto {
 
 // ==================== 용지 DTO ====================
 export class ProductPaperDto {
+  @ApiPropertyOptional({ description: '마스터 용지 ID' })
+  @IsOptional()
+  @IsString()
+  paperId?: string;
+
   @ApiProperty({ description: '용지명' })
   @IsString()
   name: string;
@@ -115,6 +120,16 @@ export class ProductPaperDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ description: '인디고 4도 사용 여부' })
+  @IsOptional()
+  @IsBoolean()
+  isActive4?: boolean;
+
+  @ApiPropertyOptional({ description: '인디고 6도 사용 여부' })
+  @IsOptional()
+  @IsBoolean()
+  isActive6?: boolean;
 
   @ApiPropertyOptional({ description: '정렬 순서' })
   @IsOptional()
@@ -380,6 +395,11 @@ export class CreateProductDto {
   @ValidateNested({ each: true })
   @Type(() => ProductOutputPriceSettingDto)
   outputPriceSettings?: ProductOutputPriceSettingDto[];
+
+  @ApiPropertyOptional({ description: '앨범 표지 원단 ID 목록' })
+  @IsOptional()
+  @IsArray()
+  fabricIds?: string[];
 }
 
 export class UpdateProductDto extends PartialType(CreateProductDto) {}

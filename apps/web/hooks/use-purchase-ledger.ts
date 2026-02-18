@@ -146,12 +146,12 @@ export const PAYMENT_STATUS_OPTIONS = [
 ];
 
 export const PAYMENT_METHOD_OPTIONS = [
-  { value: 'bank_transfer', label: '계좌이체' },
+  { value: 'bank_transfer', label: '보통예금' },
   { value: 'cash', label: '현금' },
-  { value: 'card', label: '카드' },
-  { value: 'check', label: '수표' },
-  { value: 'prepaid', label: '선불' },
-  { value: 'postpaid', label: '후불' },
+  { value: 'card', label: '법인카드' },
+  { value: 'check', label: '당좌수표' },
+  { value: 'prepaid', label: '선급금' },
+  { value: 'postpaid', label: '외상매입금' },
 ];
 
 // ===== Hooks =====

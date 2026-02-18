@@ -61,12 +61,6 @@ export class ProductController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '상품 수정' })
   async update(@Param('id') id: string, @Body() dto: UpdateProductDto) {
-    console.log('=== Controller: Update Product ===');
-    console.log('Product ID:', id);
-    console.log('DTO keys:', Object.keys(dto));
-    console.log('Specifications count:', dto.specifications?.length);
-    console.log('Bindings count:', dto.bindings?.length);
-    console.log('Papers count:', dto.papers?.length);
     return this.productService.update(id, dto);
   }
 
@@ -188,6 +182,24 @@ export class ProductController {
     @Param('halfProductId') halfProductId: string,
   ) {
     return this.productService.unlinkHalfProduct(id, halfProductId);
+  }
+
+  // ==================== 용지 마스터 동기화 ====================
+
+  @Post('sync-all-papers')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: '전체 상품 용지 마스터 일괄 동기화' })
+  async syncAllPapers() {
+    return this.productService.syncAllProductPapers();
+  }
+
+  @Post(':id/sync-papers')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: '개별 상품 용지 마스터 동기화' })
+  async syncPapers(@Param('id') id: string) {
+    return this.productService.syncProductPapers(id);
   }
 
   // ==================== 규격 정리 ====================

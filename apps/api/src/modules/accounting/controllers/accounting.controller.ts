@@ -140,7 +140,7 @@ export class AccountingController {
   @Post('receivables/:id/payments')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: '미수금 수금 처리' })
+  @ApiOperation({ summary: '미수금 입금 처리' })
   async addReceivablePayment(
     @Param('id') id: string,
     @Body() dto: CreateReceivablePaymentDto,

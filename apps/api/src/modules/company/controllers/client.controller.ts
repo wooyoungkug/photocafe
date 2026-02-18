@@ -80,4 +80,22 @@ export class ClientController {
   async delete(@Param('id') id: string) {
     return this.clientService.delete(id);
   }
+
+  @Patch(':id/staff')
+  @ApiOperation({ summary: '거래처 영업담당자 할당' })
+  async assignStaff(
+    @Param('id') id: string,
+    @Body() data: { staffIds: string[]; primaryStaffId?: string },
+  ) {
+    return this.clientService.assignStaff(id, data.staffIds, data.primaryStaffId);
+  }
+
+  @Delete(':id/staff/:staffId')
+  @ApiOperation({ summary: '거래처 영업담당자 제거' })
+  async removeStaff(
+    @Param('id') id: string,
+    @Param('staffId') staffId: string,
+  ) {
+    return this.clientService.removeStaff(id, staffId);
+  }
 }

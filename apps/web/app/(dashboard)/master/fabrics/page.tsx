@@ -221,12 +221,12 @@ export default function FabricsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="원단 관리"
-        description="앨범 커버 등에 사용되는 원단을 관리합니다."
+        title="표지원단 관리"
+        description="앨범 커버 등에 사용되는 표지원단을 관리합니다."
         breadcrumbs={[
           { label: '홈', href: '/' },
           { label: '기초정보', href: '/settings/basic' },
-          { label: '원단정보' },
+          { label: '표지원단정보' },
         ]}
       />
 

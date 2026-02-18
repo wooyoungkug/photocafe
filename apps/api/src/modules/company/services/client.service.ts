@@ -44,6 +44,22 @@ export class ClientService {
               groupCode: true,
             },
           },
+          assignedStaff: {
+            include: {
+              staff: {
+                select: {
+                  id: true,
+                  name: true,
+                  staffId: true,
+                  position: true,
+                },
+              },
+            },
+            orderBy: [
+              { isPrimary: 'desc' },
+              { createdAt: 'asc' },
+            ],
+          },
           _count: {
             select: {
               consultations: true,
@@ -94,6 +110,23 @@ export class ClientService {
       where: { id },
       include: {
         group: true,
+        assignedStaff: {
+          include: {
+            staff: {
+              select: {
+                id: true,
+                name: true,
+                staffId: true,
+                position: true,
+                departmentId: true,
+              },
+            },
+          },
+          orderBy: [
+            { isPrimary: 'desc' },
+            { createdAt: 'asc' },
+          ],
+        },
         orders: {
           take: 10,
           orderBy: { orderedAt: 'desc' },
@@ -183,5 +216,41 @@ export class ClientService {
 
     const nextNumber = parseInt(match[1], 10) + 1;
     return `M${nextNumber.toString().padStart(4, '0')}`;
+  }
+
+  // ==================== 영업담당자 할당 ====================
+  async assignStaff(clientId: string, staffIds: string[], primaryStaffId?: string) {
+    await this.findOne(clientId);
+
+    // 기존 할당 제거
+    await this.prisma.staffClient.deleteMany({
+      where: { clientId },
+    });
+
+    // 새로운 담당자 할당
+    if (staffIds.length > 0) {
+      await this.prisma.staffClient.createMany({
+        data: staffIds.map(staffId => ({
+          clientId,
+          staffId,
+          isPrimary: staffId === primaryStaffId,
+        })),
+      });
+    }
+
+    return this.findOne(clientId);
+  }
+
+  async removeStaff(clientId: string, staffId: string) {
+    await this.findOne(clientId);
+
+    await this.prisma.staffClient.deleteMany({
+      where: {
+        clientId,
+        staffId,
+      },
+    });
+
+    return this.findOne(clientId);
   }
 }

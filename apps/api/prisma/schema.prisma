@@ -116,6 +116,7 @@ model Staff {
   branch                  Branch?       @relation(fields: [branchId], references: [id])
   department              Department?   @relation(fields: [departmentId], references: [id])
   assignedClients         StaffClient[]
+  salesLedgers            SalesLedger[] @relation("SalesLedgerStaff")
 
   @@index([branchId])
   @@index([departmentId])
@@ -245,6 +246,7 @@ model Client {
   taxInvoiceMethod        String?
   totalClaims             Int                            @default(0)
   duplicateCheckMonths    Int?
+  fileRetentionMonths     Int                            @default(3)
   addresses               ClientAddress[]
   albumPreference         ClientAlbumPreference?
   productionSettingPrices ClientProductionSettingPrice[]
@@ -478,10 +480,25 @@ model Product {
   papers              ProductPaper[]
   publicCopperPlates  ProductPublicCopperPlate[]
   specifications      ProductSpecification[]
+  fabrics             ProductFabric[]
   category            Category                   @relation(fields: [categoryId], references: [id])
 
   @@index([categoryId])
   @@map("products")
+}
+
+model ProductFabric {
+  id        String   @id @default(cuid())
+  productId String
+  fabricId  String
+  sortOrder Int      @default(0)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  fabric    Fabric   @relation(fields: [fabricId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, fabricId])
+  @@index([productId])
+  @@index([fabricId])
+  @@map("product_fabrics")
 }
 
 model ProductSpecification {
@@ -522,6 +539,7 @@ model ProductBinding {
 model ProductPaper {
   id           String  @id @default(cuid())
   productId    String
+  paperId      String?
   name         String
   type         String
   price        Decimal @default(0) @db.Decimal(10, 2)
@@ -532,9 +550,14 @@ model ProductPaper {
   frontCoating String?
   grade        Int?
   isActive     Boolean @default(true)
+  isActive4    Boolean @default(true)
+  isActive6    Boolean @default(true)
   product      Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  paper        Paper?  @relation(fields: [paperId], references: [id])
 
+  @@unique([productId, paperId])
   @@index([productId])
+  @@index([paperId])
   @@map("product_papers")
 }
 
@@ -758,6 +781,7 @@ model Order {
   shipping              OrderShipping?
   client                Client           @relation(fields: [clientId], references: [id])
   processHistory        ProcessHistory[]
+  salesLedger           SalesLedger?
 
   @@index([clientId])
   @@index([status])
@@ -800,6 +824,7 @@ model OrderItem {
   coverMaterial     String?
   foilName          String?
   foilColor         String?
+  foilPosition      String?
   finishingOptions  String[]           @default([])
   quantity          Int
   unitPrice         Decimal            @db.Decimal(10, 2)
@@ -822,6 +847,10 @@ model OrderItem {
   fabricName        String?
   bindingDirection  String?
   pageLayout        String?
+  pdfPath           String?
+  pdfGeneratedAt    DateTime?
+  pdfStatus         String?
+  originalsDeleted  Boolean            @default(false)
   files             OrderFile[]
   shipping          OrderItemShipping?
   order             Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
@@ -867,6 +896,10 @@ model OrderFile {
   fileName         String
   fileUrl          String
   thumbnailUrl     String?
+  originalPath     String?
+  thumbnailPath    String?
+  storageStatus    String    @default("pending")
+  deletedAt        DateTime?
   pageRange        String
   pageStart        Int
   pageEnd          Int
@@ -1053,6 +1086,7 @@ model Paper {
   jdfPrePrinted       Boolean            @default(false)
   jdfTexture          String?
   prices              PaperPrice[]
+  productPapers       ProductPaper[]
   manufacturer        PaperManufacturer? @relation(fields: [manufacturerId], references: [id])
   paperGroup          PaperGroup?        @relation(fields: [paperGroupId], references: [id])
   supplier            PaperSupplier?     @relation(fields: [supplierId], references: [id])
@@ -1757,7 +1791,7 @@ model Fabric {
   id              String           @id @default(cuid())
   code            String           @unique
   name            String
-  category        String           @default("cloth")
+  category        String           @default("fabric")
   material        String           @default("cotton")
   colorCode       String?
   colorName       String?
@@ -1785,6 +1819,7 @@ model Fabric {
   updatedAt       DateTime         @updatedAt
   supplier        FabricSupplier?  @relation(fields: [supplierId], references: [id])
   photobookOrders PhotobookOrder[]
+  products        ProductFabric[]
 
   @@index([supplierId])
   @@index([category])
@@ -2110,6 +2145,7 @@ model SalesLedger {
   clientId          String
   clientName        String
   clientBizNo       String?
+  staffId           String?
   orderId           String            @unique
   orderNumber       String
   salesType         SalesType         @default(ALBUM)
@@ -2134,15 +2170,19 @@ model SalesLedger {
   updatedAt         DateTime          @updatedAt
   items             SalesLedgerItem[]
   client            Client            @relation("SalesLedgerClient", fields: [clientId], references: [id])
+  staff             Staff?            @relation("SalesLedgerStaff", fields: [staffId], references: [id])
+  order             Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
   receipts          SalesReceipt[]
 
   @@index([clientId])
+  @@index([staffId])
   @@index([ledgerDate])
   @@index([salesStatus])
   @@index([paymentStatus])
   @@index([orderId])
-  @@index([dueDate]) // 수금예정일 조회 최적화
+  @@index([dueDate]) // 입금예정일 조회 최적화
   @@index([clientId, ledgerDate])
+  @@index([staffId, ledgerDate])
   @@index([salesStatus, ledgerDate])
   @@index([paymentStatus, ledgerDate])
   @@map("sales_ledgers")
@@ -2177,7 +2217,9 @@ model SalesReceipt {
   amount        Decimal     @db.Decimal(12, 2)
   paymentMethod String
   bankName      String?
+  accountNumber String?
   depositorName String?
+  proofFileUrl  String?
   journalId     String?
   note          String?
   createdBy     String
@@ -2258,6 +2300,8 @@ model PurchasePayment {
   paymentMethod    String
   bankName         String?
   accountNumber    String?
+  depositorName    String?
+  proofFileUrl     String?
   journalId        String?
   note             String?
   createdBy        String

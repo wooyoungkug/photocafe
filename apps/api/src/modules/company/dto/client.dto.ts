@@ -139,6 +139,13 @@ export class CreateClientDto {
   @Max(24)
   duplicateCheckMonths?: number;
 
+  @ApiPropertyOptional({ description: '데이터 원본 보관 기간 (개월), 기본값 3개월' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(120)
+  fileRetentionMonths?: number;
+
   @ApiPropertyOptional({ description: '영업담당자 (직원 ID)', nullable: true })
   @IsOptional()
   assignedManager?: string | null;

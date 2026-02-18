@@ -163,7 +163,7 @@ export function PaymentForm({ client, onBack, onComplete }: PaymentFormProps) {
         const amount = form.getValues('amount');
         if (amount > client.outstanding) {
           form.setError('amount', {
-            message: `미수금 잔액(${client.outstanding.toLocaleString()}원)을 초과할 수 없습니다.`,
+            message: `미입금 잔액(${client.outstanding.toLocaleString()}원)을 초과할 수 없습니다.`,
           });
           return;
         }
@@ -178,14 +178,14 @@ export function PaymentForm({ client, onBack, onComplete }: PaymentFormProps) {
 
     if (selectedLedgerIds.length === 0) {
       toast({
-        title: '수금 대상 전표를 선택해주세요.',
+        title: '입금 대상 전표를 선택해주세요.',
         variant: 'destructive',
       });
       return;
     }
 
     try {
-      // FIFO 순서로 건별 수금 처리
+      // FIFO 순서로 건별 입금 처리
       let remainingAmount = values.amount;
 
       for (const ledgerId of selectedLedgerIds) {
@@ -225,7 +225,6 @@ export function PaymentForm({ client, onBack, onComplete }: PaymentFormProps) {
       setSelectedLedgerIds([]);
       onComplete?.();
     } catch (error) {
-      console.error('입금 처리 오류:', error);
       toast({
         title: '입금 처리에 실패했습니다.',
         description: '다시 시도해주세요.',
@@ -268,7 +267,7 @@ export function PaymentForm({ client, onBack, onComplete }: PaymentFormProps) {
               </div>
               <div className="flex items-center gap-3 mt-1 text-sm">
                 <span className="text-muted-foreground">
-                  미수금{' '}
+                  미입금{' '}
                   <span className="font-bold text-orange-600">
                     {client.outstanding.toLocaleString()}원
                   </span>
@@ -475,7 +474,7 @@ export function PaymentForm({ client, onBack, onComplete }: PaymentFormProps) {
           {watchedAmount > 0 && (
             <div className="p-3 bg-slate-50 rounded-lg">
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">현재 미수금</span>
+                <span className="text-muted-foreground">현재 미입금</span>
                 <span className="font-medium">
                   {client.outstanding.toLocaleString()}원
                 </span>
@@ -609,7 +608,7 @@ export function PaymentForm({ client, onBack, onComplete }: PaymentFormProps) {
             {/* 처리 후 예상 */}
             <div className="text-center p-3 bg-primary/5 rounded-lg">
               <span className="text-sm text-muted-foreground">
-                처리 후 예상 미수금:{' '}
+                처리 후 예상 미입금:{' '}
               </span>
               <span
                 className={`font-bold ${

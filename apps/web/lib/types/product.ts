@@ -6,6 +6,9 @@ export interface ProductSpecification {
   price: number;
   isDefault: boolean;
   sortOrder: number;
+  forIndigo?: boolean;
+  forInkjet?: boolean;
+  specificationId?: string;
 }
 
 export interface ProductBinding {
@@ -18,14 +21,18 @@ export interface ProductBinding {
 
 export interface ProductPaper {
   id: string;
+  paperId?: string;
   name: string;
   type: 'normal' | 'premium' | 'imported';
+  printMethod?: 'indigo' | 'inkjet' | 'offset';
   grammage?: number;
   frontCoating?: string;
   grade?: number;
   price: number;
   isDefault: boolean;
   isActive: boolean;
+  isActive4: boolean;
+  isActive6: boolean;
   sortOrder: number;
 }
 
@@ -48,6 +55,14 @@ export interface ProductFoil {
   sortOrder: number;
 }
 
+export interface FinishingSettingPrice {
+  id: string;
+  specificationId: string | null;
+  minQuantity: number | null;
+  maxQuantity: number | null;
+  price: number;
+}
+
 export interface FinishingSetting {
   id: string;
   settingName: string | null;
@@ -57,6 +72,7 @@ export interface FinishingSetting {
   basePrice: number;
   sortOrder: number;
   isActive: boolean;
+  prices?: FinishingSettingPrice[];
 }
 
 export interface ProductFinishing {
@@ -157,6 +173,20 @@ export interface Product {
     isRequired: boolean;
   }>;
   publicCopperPlates?: ProductPublicCopperPlate[];
+  fabrics?: Array<{
+    fabricId: string;
+    sortOrder: number;
+    fabric: {
+      id: string;
+      name: string;
+      category: string;
+      colorCode?: string | null;
+      colorName?: string | null;
+      thumbnailUrl?: string | null;
+      basePrice?: number;
+      isActive: boolean;
+    };
+  }>;
 
   _count?: {
     specifications: number;
@@ -254,6 +284,7 @@ export interface CreateProductDto {
   covers?: CreateProductCoverDto[];
   foils?: CreateProductFoilDto[];
   finishings?: CreateProductFinishingDto[];
+  fabricIds?: string[];
 }
 
 export type UpdateProductDto = Partial<CreateProductDto>;

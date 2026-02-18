@@ -308,7 +308,6 @@ export default function DeliverySettingsContent({
       }
     } catch (error) {
       toast.error('저장 중 오류가 발생했습니다.');
-      console.error(error);
     }
   };
 

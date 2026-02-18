@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import {
   Dialog,
@@ -98,7 +98,6 @@ const toShippingDto = (s: CartShippingInfo) => ({
 
 export default function OrderPage() {
   const router = useRouter();
-  const { toast } = useToast();
   const { items, getTotal, clearCart } = useCartStore();
   const { user, isAuthenticated } = useAuthStore();
 
@@ -144,7 +143,6 @@ export default function OrderPage() {
             setClientInfo(searchResult.data[0]);
           }
         } catch {
-          console.error('Failed to load client info by email');
         }
       }
     }
@@ -173,7 +171,7 @@ export default function OrderPage() {
       }
     });
     setItemShippingMap(newMap);
-    toast({ title: '모든 항목에 배송정보가 적용되었습니다' });
+    toast.success('모든 항목에 배송정보가 적용되었습니다');
   };
 
   const handleCopyFromPrevious = (itemId: string) => {
@@ -183,7 +181,7 @@ export default function OrderPage() {
       const prevShipping = itemShippingMap[items[i].id];
       if (prevShipping && isShippingComplete(prevShipping)) {
         setItemShippingMap(prev => ({ ...prev, [itemId]: prevShipping }));
-        toast({ title: '이전 항목 배송정보가 복사되었습니다' });
+        toast.success('이전 항목 배송정보가 복사되었습니다');
         break;
       }
     }
@@ -286,12 +284,8 @@ export default function OrderPage() {
         });
       }
 
-      toast({
-        title: '동판 정보가 업데이트되었습니다',
-        description: '변경된 박색상/박위치가 동판 정보에 저장되었습니다.',
-      });
+      toast.success('동판 정보가 업데이트되었습니다', { description: '변경된 박색상/박위치가 동판 정보에 저장되었습니다.' });
     } catch (error) {
-      console.error('Failed to update copper plate info:', error);
     }
   };
 
@@ -327,8 +321,8 @@ export default function OrderPage() {
     cpChanges: CopperPlateChanges[]
   ) => {
     try {
-      for (const [idx, orderData] of orderDataList.entries()) {
-        console.log(`[Order] Submitting item ${idx + 1}/${orderDataList.length}:`, { clientId: orderData.clientId, paymentMethod: orderData.paymentMethod, itemCount: orderData.items?.length });
+      // 주문번호 충돌 방지를 위해 순차 처리
+      for (const orderData of orderDataList) {
         await api.post('/orders', orderData);
       }
 
@@ -364,20 +358,12 @@ export default function OrderPage() {
         }).catch(() => {});
       }
 
-      toast({
-        title: '주문이 완료되었습니다',
-        description: '주문내역은 마이페이지에서 확인하실 수 있습니다.',
-      });
+      toast.success('주문이 완료되었습니다', { description: '주문내역은 마이페이지에서 확인하실 수 있습니다.' });
 
       clearCart();
       router.push('/order/complete');
     } catch (error) {
-      console.error('Order error:', error);
-      toast({
-        title: '주문 실패',
-        description: error instanceof Error ? error.message : '주문 처리 중 오류가 발생했습니다.',
-        variant: 'destructive',
-      });
+      toast.error('주문 실패', { description: error instanceof Error ? error.message : '주문 처리 중 오류가 발생했습니다.' });
     }
   };
 
@@ -402,6 +388,20 @@ export default function OrderPage() {
     setCopperPlateChanges([]);
     setIsSubmitting(false);
   };
+
+  // 앨범 상품 중 serverFiles 누락 검사 → 장바구니로 리다이렉트
+  const albumItemsMissingFiles = items.filter(
+    (item) => item.productType === 'album-order' && (!item.serverFiles || item.serverFiles.length === 0)
+  );
+
+  useEffect(() => {
+    if (albumItemsMissingFiles.length > 0) {
+      toast.error('파일 데이터 누락', {
+        description: `${albumItemsMissingFiles.length}건의 앨범 상품에 파일 데이터가 누락되었습니다. 해당 상품을 삭제 후 다시 업로드해주세요.`,
+      });
+      router.replace('/cart');
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Redirect to login if not authenticated
   if (!isAuthenticated) {
@@ -441,22 +441,23 @@ export default function OrderPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('[Order] handleSubmit called', { agreeTerms, allShippingComplete, clientInfoId: clientInfo?.id, userId: user?.id, itemCount: items.length });
-
     if (!agreeTerms) {
-      toast({
-        title: '약관 동의 필요',
-        description: '주문을 진행하려면 약관에 동의해주세요.',
-        variant: 'destructive',
-      });
+      toast.error('약관 동의 필요', { description: '주문을 진행하려면 약관에 동의해주세요.' });
       return;
     }
 
     if (!allShippingComplete) {
-      toast({
-        title: '배송정보 입력 필요',
-        description: '모든 항목의 배송정보를 입력해주세요.',
-        variant: 'destructive',
+      toast.error('배송정보 입력 필요', { description: '모든 항목의 배송정보를 입력해주세요.' });
+      return;
+    }
+
+    // 앨범 상품의 업로드 파일 유효성 검증
+    const albumItemsWithNoFiles = items.filter(
+      item => item.productType === 'album-order' && (!item.serverFiles || item.serverFiles.length === 0)
+    );
+    if (albumItemsWithNoFiles.length > 0) {
+      toast.error('파일 업로드 필요', {
+        description: `${albumItemsWithNoFiles.length}건의 앨범 상품에 업로드된 파일이 없습니다. 장바구니에서 다시 업로드해주세요.`,
       });
       return;
     }
@@ -464,11 +465,7 @@ export default function OrderPage() {
     const clientId = clientInfo?.id || user?.id;
 
     if (!clientId) {
-      toast({
-        title: '회원 정보 오류',
-        description: '회원 정보를 불러올 수 없습니다. 다시 로그인해주세요.',
-        variant: 'destructive',
-      });
+      toast.error('회원 정보 오류', { description: '회원 정보를 불러올 수 없습니다. 다시 로그인해주세요.' });
       return;
     }
 
@@ -488,8 +485,9 @@ export default function OrderPage() {
           size: albumInfo.specificationName || item.options.find(o => o.name === '규격')?.value || 'A4',
           pages: albumInfo.pageCount || parseInt(item.options.find(o => o.name === '페이지수')?.value || '20'),
           printMethod: albumInfo.printMethod === 'indigo' ? '인디고앨범' : '잉크젯',
-          paper: item.options.find(o => o.name === '용지')?.value || '스노우화이트',
-          bindingType: item.options.find(o => o.name === '제본')?.value || '무선제본',
+          paper: albumInfo.paperName || item.options.find(o => o.name === '용지')?.value || '스노우화이트',
+          bindingType: albumInfo.bindingName || item.options.find(o => o.name === '제본')?.value || '',
+          coverMaterial: albumInfo.coverMaterial || undefined,
           quantity: item.quantity,
           unitPrice: item.basePrice,
           thumbnailUrl: item.thumbnailUrl || item.thumbnailUrls?.[0] || undefined,
@@ -498,22 +496,25 @@ export default function OrderPage() {
           pageLayout: albumInfo.pageLayout,
           bindingDirection: albumInfo.bindingDirection,
           fabricName: albumInfo.fabricName || undefined,
+          foilName: albumInfo.foilName || undefined,
+          foilColor: albumInfo.foilColor || undefined,
+          foilPosition: albumInfo.foilPosition || undefined,
           folderName: albumInfo.folderName,
           fileCount: albumInfo.fileCount,
-          files: (item.thumbnailUrls || []).map((url, idx) => ({
-            fileName: `page_${idx + 1}.jpg`,
-            fileUrl: url,
-            thumbnailUrl: url,
+          files: (item.serverFiles || []).map((sf, idx) => ({
+            fileName: sf.fileName || sf.tempFileId?.split('/').pop() || `page_${idx + 1}.jpg`,
+            fileUrl: sf.fileUrl,
+            thumbnailUrl: sf.thumbnailUrl,
             pageRange: `${idx + 1}p`,
             pageStart: idx + 1,
             pageEnd: idx + 1,
-            width: 0,
-            height: 0,
-            widthInch: 0,
-            heightInch: 0,
-            dpi: 0,
-            fileSize: 0,
-            sortOrder: idx,
+            width: sf.widthPx || 0,
+            height: sf.heightPx || 0,
+            widthInch: sf.widthInch || 0,
+            heightInch: sf.heightInch || 0,
+            dpi: sf.dpi || 0,
+            fileSize: sf.fileSize || 0,
+            sortOrder: sf.sortOrder ?? idx,
           })),
           ...(shippingDto ? { shipping: shippingDto } : {}),
         };
@@ -525,7 +526,7 @@ export default function OrderPage() {
           pages: parseInt(item.options.find(o => o.name === '페이지')?.value || '20'),
           printMethod: item.options.find(o => o.name === '인쇄방식')?.value || '디지털인쇄',
           paper: item.options.find(o => o.name === '용지')?.value || '스노우화이트',
-          bindingType: item.options.find(o => o.name === '제본')?.value || '무선제본',
+          bindingType: item.options.find(o => o.name === '제본')?.value || '',
           quantity: item.quantity,
           unitPrice: item.basePrice,
           thumbnailUrl: item.thumbnailUrl || item.thumbnailUrls?.[0] || undefined,
@@ -663,8 +664,37 @@ export default function OrderPage() {
                                 {item.options.map(o => o.value).join(' / ')}
                               </p>
                             )}
+                            {/* 원단/동판 정보 표시 */}
+                            {(item.albumOrderInfo?.fabricName || item.albumOrderInfo?.foilName || item.copperPlateInfo) && (
+                              <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-gray-500">
+                                {item.albumOrderInfo?.fabricName && (
+                                  <span>원단: <span className="text-gray-700">{item.albumOrderInfo.fabricName}</span></span>
+                                )}
+                                {(item.albumOrderInfo?.foilName || item.copperPlateInfo?.plateName) && (
+                                  <span>동판: <span className="text-gray-700">{item.albumOrderInfo?.foilName || item.copperPlateInfo?.plateName}</span></span>
+                                )}
+                                {(item.albumOrderInfo?.foilColor || item.copperPlateInfo?.selectedFoilColorName) && (
+                                  <span>박색상: <span className="text-gray-700">{item.albumOrderInfo?.foilColor || item.copperPlateInfo?.selectedFoilColorName}</span></span>
+                                )}
+                                {(item.albumOrderInfo?.foilPosition || item.copperPlateInfo?.selectedFoilPositionName) && (
+                                  <span>박위치: <span className="text-gray-700">{item.albumOrderInfo?.foilPosition || item.copperPlateInfo?.selectedFoilPositionName}</span></span>
+                                )}
+                              </div>
+                            )}
                             <div className="flex justify-between items-center mt-2">
-                              <span className="text-sm text-gray-500">수량: {item.quantity}개</span>
+                              <span className="text-sm text-gray-500">
+                                수량: {item.quantity}개
+                                {item.productType === 'album-order' && (
+                                  <>
+                                    {' / '}
+                                    {item.serverFiles && item.serverFiles.length > 0 ? (
+                                      <span className="text-green-600">파일: {item.serverFiles.length}장</span>
+                                    ) : (
+                                      <span className="text-red-500">파일: 0장</span>
+                                    )}
+                                  </>
+                                )}
+                              </span>
                               <span className="font-bold">{item.totalPrice.toLocaleString()}원</span>
                             </div>
                           </div>

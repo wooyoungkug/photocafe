@@ -79,7 +79,7 @@ export function ReceivableSummaryCards({
 }: ReceivableSummaryCardsProps) {
   const cards: SummaryCardProps[] = [
     {
-      label: '총 미수금',
+      label: '총 미입금',
       value: summary?.totalOutstanding || 0,
       subText: `${summary?.clientCount || 0}개 거래처`,
       icon: FileText,
@@ -99,7 +99,7 @@ export function ReceivableSummaryCards({
       filterKey: 'overdue',
     },
     {
-      label: '오늘 수금예정',
+      label: '오늘 입금예정',
       value: dueDateToday,
       icon: Calendar,
       gradient: 'bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200',
@@ -108,7 +108,7 @@ export function ReceivableSummaryCards({
       filterKey: 'today',
     },
     {
-      label: '이번주 수금예정',
+      label: '이번주 입금예정',
       value: dueDateThisWeek,
       icon: TrendingUp,
       gradient: 'bg-gradient-to-br from-green-50 to-green-100 border-green-200',

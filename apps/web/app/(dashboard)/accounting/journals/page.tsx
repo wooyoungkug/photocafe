@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, Fragment } from 'react';
+import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import {
   Search,
@@ -10,6 +11,7 @@ import {
   ChevronRight,
   Trash2,
   BookOpen,
+  Plus,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -85,7 +87,7 @@ const SOURCE_TYPE_CONFIG: Record<
   { label: string; color: string }
 > = {
   SALES: { label: '매출', color: 'bg-indigo-100 text-indigo-700' },
-  RECEIPT: { label: '수금', color: 'bg-emerald-100 text-emerald-700' },
+  RECEIPT: { label: '입금', color: 'bg-emerald-100 text-emerald-700' },
   PURCHASE: { label: '매입', color: 'bg-amber-100 text-amber-700' },
   PAYMENT: { label: '지급', color: 'bg-rose-100 text-rose-700' },
   MANUAL: { label: '수동', color: 'bg-gray-100 text-gray-700' },
@@ -94,6 +96,8 @@ const SOURCE_TYPE_CONFIG: Record<
 const ITEMS_PER_PAGE = 20;
 
 export default function JournalsPage() {
+  const router = useRouter();
+
   // ===== 필터 상태 =====
   const [searchTerm, setSearchTerm] = useState('');
   const [voucherTypeFilter, setVoucherTypeFilter] = useState('all');
@@ -221,7 +225,7 @@ export default function JournalsPage() {
   return (
     <div className="space-y-6">
       {/* 헤더 */}
-      <div>
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 bg-indigo-500 rounded-xl flex items-center justify-center">
             <BookOpen className="h-5 w-5 text-white" />
@@ -233,6 +237,10 @@ export default function JournalsPage() {
             </p>
           </div>
         </div>
+        <Button onClick={() => router.push('/accounting/journals/new')}>
+          <Plus className="h-4 w-4 mr-2" />
+          신규 전표
+        </Button>
       </div>
 
       {/* 필터 */}
@@ -286,7 +294,7 @@ export default function JournalsPage() {
               <SelectContent>
                 <SelectItem value="all">전체 원천</SelectItem>
                 <SelectItem value="SALES">매출</SelectItem>
-                <SelectItem value="RECEIPT">수금</SelectItem>
+                <SelectItem value="RECEIPT">입금</SelectItem>
                 <SelectItem value="PURCHASE">매입</SelectItem>
                 <SelectItem value="PAYMENT">지급</SelectItem>
                 <SelectItem value="MANUAL">수동</SelectItem>

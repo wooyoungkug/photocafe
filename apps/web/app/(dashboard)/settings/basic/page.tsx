@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { Building2, Printer, Truck, ListChecks, Save, RotateCcw } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Building2, Printer, Truck, ListChecks, Server, Save, RotateCcw, HardDrive, FolderOpen, AlertTriangle } from "lucide-react";
 import DeliverySettingsContent from "@/components/settings/delivery-settings-content";
 import {
   useSystemSettings,
@@ -74,6 +75,15 @@ export default function BasicSettingsPage() {
     "transaction_complete",
   ]);
 
+  // 서버 설정 상태
+  const [serverSettings, setServerSettings] = useState({
+    uploadBasePath: "/app/uploads",
+    orderStoragePath: "",
+    backupPath: "",
+    nasIp: "",
+    nasPort: "",
+  });
+
   // 설정 로드
   useEffect(() => {
     if (settings) {
@@ -118,6 +128,15 @@ export default function BasicSettingsPage() {
           // 기본값 유지
         }
       }
+
+      // 서버 설정 로드
+      setServerSettings({
+        uploadBasePath: map.server_upload_base_path || "/app/uploads",
+        orderStoragePath: map.server_order_storage_path || "",
+        backupPath: map.server_backup_path || "",
+        nasIp: map.server_nas_ip || "",
+        nasPort: map.server_nas_port || "",
+      });
     }
   }, [settings]);
 
@@ -162,6 +181,18 @@ export default function BasicSettingsPage() {
     await bulkUpdate.mutateAsync(settingsToSave);
   };
 
+  // 서버 설정 저장
+  const saveServerSettings = async () => {
+    const settingsToSave = [
+      { key: "server_upload_base_path", value: serverSettings.uploadBasePath, category: "server", label: "업로드 기본경로" },
+      { key: "server_order_storage_path", value: serverSettings.orderStoragePath, category: "server", label: "주문파일 저장경로" },
+      { key: "server_backup_path", value: serverSettings.backupPath, category: "server", label: "백업 경로" },
+      { key: "server_nas_ip", value: serverSettings.nasIp, category: "server", label: "NAS IP" },
+      { key: "server_nas_port", value: serverSettings.nasPort, category: "server", label: "NAS 포트" },
+    ];
+    await bulkUpdate.mutateAsync(settingsToSave);
+  };
+
   // 공정단계 토글
   const toggleStage = (stageCode: string) => {
     setEnabledStages((prev) =>
@@ -196,7 +227,7 @@ export default function BasicSettingsPage() {
       </div>
 
       <Tabs defaultValue="company" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4 lg:w-[600px]">
+        <TabsList className="grid w-full grid-cols-5 lg:w-[750px]">
           <TabsTrigger value="company" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             <span className="hidden sm:inline">회사정보</span>
@@ -212,6 +243,10 @@ export default function BasicSettingsPage() {
           <TabsTrigger value="process" className="flex items-center gap-2">
             <ListChecks className="h-4 w-4" />
             <span className="hidden sm:inline">공정단계</span>
+          </TabsTrigger>
+          <TabsTrigger value="server" className="flex items-center gap-2">
+            <Server className="h-4 w-4" />
+            <span className="hidden sm:inline">서버설정</span>
           </TabsTrigger>
         </TabsList>
 
@@ -583,6 +618,155 @@ export default function BasicSettingsPage() {
               초기화
             </Button>
             <Button onClick={saveProcessStages} disabled={bulkUpdate.isPending}>
+              <Save className="h-4 w-4 mr-2" />
+              저장
+            </Button>
+          </div>
+        </TabsContent>
+
+        {/* 서버 설정 탭 */}
+        <TabsContent value="server" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <HardDrive className="h-5 w-5" />
+                    파일 저장 경로
+                  </CardTitle>
+                  <CardDescription>시놀로지 NAS 서버의 파일 저장 경로를 설정합니다.</CardDescription>
+                </div>
+                <Badge variant="outline" className="text-xs">Docker 볼륨 마운트</Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="upload_base_path" className="flex items-center gap-2">
+                    <FolderOpen className="h-4 w-4" />
+                    업로드 기본경로
+                  </Label>
+                  <Input
+                    id="upload_base_path"
+                    value={serverSettings.uploadBasePath}
+                    onChange={(e) => setServerSettings({ ...serverSettings, uploadBasePath: e.target.value })}
+                    placeholder="/app/uploads"
+                    className="font-mono"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Docker 컨테이너 내부 경로입니다. 시놀로지 실제 경로: /volume1/docker/printing114/uploads
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="order_storage_path" className="flex items-center gap-2">
+                    <FolderOpen className="h-4 w-4" />
+                    주문파일 저장경로
+                  </Label>
+                  <Input
+                    id="order_storage_path"
+                    value={serverSettings.orderStoragePath}
+                    onChange={(e) => setServerSettings({ ...serverSettings, orderStoragePath: e.target.value })}
+                    placeholder="/app/uploads/orders (비워두면 기본경로/orders 사용)"
+                    className="font-mono"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    주문 확정 후 원본 이미지가 이동되는 경로입니다. 비워두면 업로드 기본경로 하위에 저장됩니다.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="backup_path" className="flex items-center gap-2">
+                    <FolderOpen className="h-4 w-4" />
+                    백업 경로
+                  </Label>
+                  <Input
+                    id="backup_path"
+                    value={serverSettings.backupPath}
+                    onChange={(e) => setServerSettings({ ...serverSettings, backupPath: e.target.value })}
+                    placeholder="/volume1/backup/printing114"
+                    className="font-mono"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    DB 백업 및 파일 백업이 저장되는 경로입니다.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Server className="h-5 w-5" />
+                NAS 서버 정보
+              </CardTitle>
+              <CardDescription>시놀로지 NAS 서버 접속 정보입니다.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="nas_ip">NAS IP 주소</Label>
+                  <Input
+                    id="nas_ip"
+                    value={serverSettings.nasIp}
+                    onChange={(e) => setServerSettings({ ...serverSettings, nasIp: e.target.value })}
+                    placeholder="192.168.0.67"
+                    className="font-mono"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="nas_port">NAS 포트</Label>
+                  <Input
+                    id="nas_port"
+                    value={serverSettings.nasPort}
+                    onChange={(e) => setServerSettings({ ...serverSettings, nasPort: e.target.value })}
+                    placeholder="5000"
+                    className="font-mono w-32"
+                  />
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="bg-muted/50 p-4 rounded-lg space-y-3">
+                <p className="text-sm font-medium">Docker 볼륨 매핑 정보</p>
+                <div className="space-y-2 text-sm font-mono">
+                  <div className="flex items-start gap-2">
+                    <span className="text-muted-foreground whitespace-nowrap">호스트(NAS):</span>
+                    <span>/volume1/docker/printing114/uploads</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-muted-foreground whitespace-nowrap">컨테이너:</span>
+                    <span>{serverSettings.uploadBasePath || "/app/uploads"}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                <p className="text-xs text-amber-700 dark:text-amber-400">
+                  경로 변경 시 서버 재시작이 필요합니다. Docker 볼륨 마운트 설정도 함께 변경해야 합니다.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() =>
+                setServerSettings({
+                  uploadBasePath: "/app/uploads",
+                  orderStoragePath: "",
+                  backupPath: "",
+                  nasIp: "",
+                  nasPort: "",
+                })
+              }
+            >
+              <RotateCcw className="h-4 w-4 mr-2" />
+              초기화
+            </Button>
+            <Button onClick={saveServerSettings} disabled={bulkUpdate.isPending}>
               <Save className="h-4 w-4 mr-2" />
               저장
             </Button>

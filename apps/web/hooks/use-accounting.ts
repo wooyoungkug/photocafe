@@ -5,7 +5,6 @@ import type {
   Payment,
   Receivable,
   Payable,
-  Settlement,
   BankAccount,
   TransactionSummary,
   CreateTransactionDto,
@@ -409,12 +408,46 @@ export function useSettlements(params?: {
   periodType?: string;
   startDate?: string;
   endDate?: string;
+  status?: string;
 }) {
   return useQuery({
     queryKey: ['settlements', params],
     queryFn: async () => {
-      // TODO: 실제 API 연동
-      return { data: [], meta: { total: 0 } };
+      const queryParams: Record<string, string> = {};
+      if (params?.periodType) queryParams.periodType = params.periodType;
+      if (params?.startDate) queryParams.startDate = params.startDate;
+      if (params?.endDate) queryParams.endDate = params.endDate;
+      if (params?.status) queryParams.status = params.status;
+
+      const data = await api.get<any[]>(`${ACCOUNTING_API}/settlements`, queryParams);
+      return data;
+    },
+  });
+}
+
+export function useCreateSettlement() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { periodType: string; periodStart: string; periodEnd: string }) => {
+      const response = await api.post<any>(`${ACCOUNTING_API}/settlements`, data);
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settlements'] });
+      queryClient.invalidateQueries({ queryKey: ['accounting-summary'] });
+    },
+  });
+}
+
+export function useConfirmSettlement() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const response = await api.post<any>(`${ACCOUNTING_API}/settlements/${id}/confirm`, {});
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settlements'] });
     },
   });
 }
@@ -423,17 +456,18 @@ export function useDailySummary(date?: string) {
   return useQuery({
     queryKey: ['daily-summary', date],
     queryFn: async () => {
-      // 오늘 날짜 기준 샘플 요약
-      return {
-        date: date || new Date().toISOString().split('T')[0],
-        totalSales: 850000,
-        totalExpenses: 220000,
-        totalIncome: 500000,
-        totalOutcome: 200000,
-        receivablesBalance: 1800000,
-        payablesBalance: 300000,
-        netCashFlow: 300000,
-      };
+      const queryParams: Record<string, string> = {};
+      if (date) queryParams.date = date;
+
+      const data = await api.get<{
+        date: string;
+        totalSales: number;
+        totalExpenses: number;
+        totalIncome: number;
+        totalOutcome: number;
+        netCashFlow: number;
+      }>(`${ACCOUNTING_API}/daily-summary`, queryParams);
+      return data;
     },
   });
 }
@@ -443,21 +477,8 @@ export function useAccountingSummary() {
   return useQuery({
     queryKey: ['accounting-summary'],
     queryFn: async (): Promise<TransactionSummary> => {
-      try {
-        const data = await api.get<TransactionSummary>(`${ACCOUNTING_API}/summary`);
-        return data;
-      } catch (error) {
-        // API 실패 시 샘플 데이터 사용
-        return {
-          totalSales: 850000,
-          totalPurchases: 220000,
-          totalIncome: 500000,
-          totalExpense: 200000,
-          receivablesBalance: 1800000,
-          payablesBalance: 300000,
-          netCashFlow: 300000,
-        };
-      }
+      const data = await api.get<TransactionSummary>(`${ACCOUNTING_API}/summary`);
+      return data;
     },
     staleTime: 30_000,
   });
@@ -547,7 +568,7 @@ export function useDeleteJournal() {
   });
 }
 
-// ===== 수금/지급 처리 =====
+// ===== 입금/지급 처리 =====
 export function useAddReceivablePayment() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -585,5 +606,28 @@ export function useAddPayablePayment() {
       queryClient.invalidateQueries({ queryKey: ['payables-summary'] });
       queryClient.invalidateQueries({ queryKey: ['accounting-summary'] });
     },
+  });
+}
+
+// ===== 계정과목 목록 조회 =====
+export function useAccounts() {
+  return useQuery({
+    queryKey: ['accounts'],
+    queryFn: async () => {
+      try {
+        const data = await api.get<Array<{
+          id: string;
+          code: string;
+          name: string;
+          type: string;
+          isActive: boolean;
+          sortOrder: number;
+        }>>(`${ACCOUNTING_API}/accounts`);
+        return data;
+      } catch {
+        return [];
+      }
+    },
+    staleTime: 5 * 60 * 1000, // 5분 캐시
   });
 }

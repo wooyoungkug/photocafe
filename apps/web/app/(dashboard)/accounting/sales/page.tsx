@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import {
   Search,
@@ -11,6 +12,7 @@ import {
   Filter,
   CreditCard,
   CheckCircle,
+  Plus,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -61,6 +63,8 @@ import {
 import { toast } from '@/hooks/use-toast';
 
 export default function SalesLedgerPage() {
+  const router = useRouter();
+
   // ===== 필터 상태 =====
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('all');
@@ -74,7 +78,7 @@ export default function SalesLedgerPage() {
   const [selectedLedger, setSelectedLedger] = useState<SalesLedger | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
-  // ===== 수금 처리 Dialog =====
+  // ===== 입금 처리 Dialog =====
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [receiptTarget, setReceiptTarget] = useState<SalesLedger | null>(null);
   const [receiptForm, setReceiptForm] = useState({
@@ -110,7 +114,7 @@ export default function SalesLedgerPage() {
     setIsDetailOpen(true);
   };
 
-  // ===== 수금 처리 Dialog 열기 =====
+  // ===== 입금 처리 Dialog 열기 =====
   const openReceiptDialog = (ledger: SalesLedger) => {
     setReceiptTarget(ledger);
     setReceiptForm({
@@ -124,17 +128,17 @@ export default function SalesLedgerPage() {
     setIsReceiptOpen(true);
   };
 
-  // ===== 수금 처리 제출 =====
+  // ===== 입금 처리 제출 =====
   const handleReceiptSubmit = async () => {
     if (!receiptTarget) return;
 
     if (receiptForm.amount <= 0) {
-      toast({ title: '수금액을 입력해주세요.', variant: 'destructive' });
+      toast({ title: '입금액을 입력해주세요.', variant: 'destructive' });
       return;
     }
 
     if (receiptForm.amount > receiptTarget.outstandingAmount) {
-      toast({ title: '수금액이 미수금 잔액을 초과할 수 없습니다.', variant: 'destructive' });
+      toast({ title: '입금액이 미입금 잔액을 초과할 수 없습니다.', variant: 'destructive' });
       return;
     }
 
@@ -150,11 +154,11 @@ export default function SalesLedgerPage() {
           note: receiptForm.note || undefined,
         },
       });
-      toast({ title: '수금이 처리되었습니다.' });
+      toast({ title: '입금이 처리되었습니다.' });
       setIsReceiptOpen(false);
       setReceiptTarget(null);
     } catch {
-      toast({ title: '수금 처리에 실패했습니다.', variant: 'destructive' });
+      toast({ title: '입금 처리에 실패했습니다.', variant: 'destructive' });
     }
   };
 
@@ -203,7 +207,7 @@ export default function SalesLedgerPage() {
     return RECEIPT_METHOD_OPTIONS.find((m) => m.value === method)?.label || method;
   };
 
-  // ===== 거래처별 미수금 합계 맵 =====
+  // ===== 거래처별 미입금 합계 맵 =====
   const clientOutstandingMap = useMemo(() => {
     const map = new Map<string, number>();
     if (clientSummary) {
@@ -219,10 +223,20 @@ export default function SalesLedgerPage() {
     <div className="space-y-4">
       {/* 헤더: 제목 + 필터 인라인 */}
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-xl font-bold flex items-center gap-2 shrink-0">
-          <FileText className="h-5 w-5" />
-          매출원장
-        </h1>
+        <div className="flex items-center gap-3 shrink-0">
+          <h1 className="text-xl font-bold flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            매출원장
+          </h1>
+          <Button
+            size="sm"
+            className="h-8"
+            onClick={() => router.push('/accounting/sales/new')}
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            매출 등록
+          </Button>
+        </div>
         <div className="flex items-center gap-2">
           <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
             <SelectTrigger className="w-[120px] h-9 text-xs">
@@ -301,12 +315,12 @@ export default function SalesLedgerPage() {
           </CardContent>
         </Card>
 
-        {/* 수금 완료 */}
+        {/* 입금 완료 */}
         <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
           <CardContent className="py-4 px-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-green-600 font-medium">수금 완료</p>
+                <p className="text-xs text-green-600 font-medium">입금 완료</p>
                 <p className="text-xl font-bold text-green-900">
                   {(summary?.totalReceived || 0).toLocaleString()}원
                 </p>
@@ -316,7 +330,7 @@ export default function SalesLedgerPage() {
               </div>
             </div>
             <p className="mt-1 text-[11px] text-green-600">
-              수금률{' '}
+              입금률{' '}
               {summary?.totalSales
                 ? Math.round((summary.totalReceived / summary.totalSales) * 100)
                 : 0}
@@ -325,12 +339,12 @@ export default function SalesLedgerPage() {
           </CardContent>
         </Card>
 
-        {/* 미수금 잔액 */}
+        {/* 미입금 잔액 */}
         <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
           <CardContent className="py-4 px-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-orange-600 font-medium">미수금 잔액</p>
+                <p className="text-xs text-orange-600 font-medium">미입금 잔액</p>
                 <p className="text-xl font-bold text-orange-900">
                   {(summary?.totalOutstanding || 0).toLocaleString()}원
                 </p>
@@ -360,11 +374,11 @@ export default function SalesLedgerPage() {
         </Card>
       </div>
 
-      {/* 거래처별 미수금 합계 */}
+      {/* 거래처별 미입금 합계 */}
       {clientSummary && clientSummary.filter((c) => c.outstanding > 0).length > 0 && (
         <Card>
           <CardContent className="py-3 px-4">
-            <h3 className="text-sm font-semibold mb-2">거래처별 미수금 합계</h3>
+            <h3 className="text-sm font-semibold mb-2">거래처별 미입금 합계</h3>
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -373,8 +387,8 @@ export default function SalesLedgerPage() {
                     <TableHead className="text-xs">거래처명</TableHead>
                     <TableHead className="text-right text-xs w-[80px]">건수</TableHead>
                     <TableHead className="text-right text-xs w-[120px]">총 매출</TableHead>
-                    <TableHead className="text-right text-xs w-[120px]">수금액</TableHead>
-                    <TableHead className="text-right text-xs w-[120px]">미수금 잔액</TableHead>
+                    <TableHead className="text-right text-xs w-[120px]">입금액</TableHead>
+                    <TableHead className="text-right text-xs w-[120px]">미입금 잔액</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -454,10 +468,10 @@ export default function SalesLedgerPage() {
                   <TableHead className="text-right w-[80px] text-xs">부가세</TableHead>
                   <TableHead className="text-right w-[80px] text-xs">할인금액</TableHead>
                   <TableHead className="text-right w-[100px] text-xs">합계금액</TableHead>
-                  <TableHead className="text-right w-[100px] text-xs">미수금액</TableHead>
+                  <TableHead className="text-right w-[100px] text-xs">미입금액</TableHead>
                   <TableHead className="text-right w-[100px] text-xs">거래처미수합계</TableHead>
                   <TableHead className="text-center w-[70px] text-xs">결제상태</TableHead>
-                  <TableHead className="text-center w-[80px] text-xs">수금처리</TableHead>
+                  <TableHead className="text-center w-[80px] text-xs">입금처리</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -512,7 +526,7 @@ export default function SalesLedgerPage() {
                           }}
                         >
                           <CreditCard className="h-3 w-3 mr-1" />
-                          수금
+                          입금
                         </Button>
                       )}
                     </TableCell>
@@ -647,13 +661,13 @@ export default function SalesLedgerPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4 mt-3 text-sm">
                   <div className="bg-green-50 p-3 rounded-lg text-center">
-                    <p className="text-green-600">수금액</p>
+                    <p className="text-green-600">입금액</p>
                     <p className="text-lg font-bold text-green-700">
                       {selectedLedger.receivedAmount.toLocaleString()}원
                     </p>
                   </div>
                   <div className="bg-orange-50 p-3 rounded-lg text-center">
-                    <p className="text-orange-600">미수금</p>
+                    <p className="text-orange-600">미입금</p>
                     <p className="text-lg font-bold text-orange-700">
                       {selectedLedger.outstandingAmount.toLocaleString()}원
                     </p>
@@ -712,18 +726,18 @@ export default function SalesLedgerPage() {
                 </>
               )}
 
-              {/* 수금 이력 */}
+              {/* 입금 이력 */}
               {selectedLedger.receipts && selectedLedger.receipts.length > 0 && (
                 <>
                   <Separator />
                   <div>
-                    <h4 className="font-semibold mb-3">수금 이력</h4>
+                    <h4 className="font-semibold mb-3">입금 이력</h4>
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-muted/60">
-                          <TableHead>수금번호</TableHead>
-                          <TableHead>수금일자</TableHead>
-                          <TableHead className="text-right">수금액</TableHead>
+                          <TableHead>입금번호</TableHead>
+                          <TableHead>입금일자</TableHead>
+                          <TableHead className="text-right">입금액</TableHead>
                           <TableHead>결제수단</TableHead>
                           <TableHead>입금은행</TableHead>
                           <TableHead>입금자명</TableHead>
@@ -768,7 +782,7 @@ export default function SalesLedgerPage() {
                       }}
                     >
                       <CreditCard className="h-4 w-4 mr-2" />
-                      수금 처리
+                      입금 처리
                     </Button>
                   )}
                 {selectedLedger.salesStatus === 'REGISTERED' && (
@@ -789,11 +803,11 @@ export default function SalesLedgerPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ===== 수금 처리 Dialog ===== */}
+      {/* ===== 입금 처리 Dialog ===== */}
       <Dialog open={isReceiptOpen} onOpenChange={setIsReceiptOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>수금 처리</DialogTitle>
+            <DialogTitle>입금 처리</DialogTitle>
             <DialogDescription>
               {receiptTarget?.ledgerNumber} - {receiptTarget?.clientName}
             </DialogDescription>
@@ -801,17 +815,17 @@ export default function SalesLedgerPage() {
 
           {receiptTarget && (
             <div className="space-y-4 mt-2">
-              {/* 미수금 잔액 안내 */}
+              {/* 미입금 잔액 안내 */}
               <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-center">
-                <p className="text-sm text-orange-600">미수금 잔액</p>
+                <p className="text-sm text-orange-600">미입금 잔액</p>
                 <p className="text-xl font-bold text-orange-700">
                   {receiptTarget.outstandingAmount.toLocaleString()}원
                 </p>
               </div>
 
-              {/* 수금일자 */}
+              {/* 입금일자 */}
               <div className="space-y-2">
-                <Label>수금일자 *</Label>
+                <Label>입금일자 *</Label>
                 <Input
                   type="date"
                   value={receiptForm.receiptDate}
@@ -821,9 +835,9 @@ export default function SalesLedgerPage() {
                 />
               </div>
 
-              {/* 수금액 */}
+              {/* 입금액 */}
               <div className="space-y-2">
-                <Label>수금액 *</Label>
+                <Label>입금액 *</Label>
                 <Input
                   type="number"
                   value={receiptForm.amount}
@@ -905,7 +919,7 @@ export default function SalesLedgerPage() {
                   취소
                 </Button>
                 <Button onClick={handleReceiptSubmit} disabled={addReceipt.isPending}>
-                  {addReceipt.isPending ? '처리 중...' : '수금 처리'}
+                  {addReceipt.isPending ? '처리 중...' : '입금 처리'}
                 </Button>
               </DialogFooter>
             </div>

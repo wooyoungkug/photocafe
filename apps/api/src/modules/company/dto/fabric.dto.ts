@@ -3,14 +3,10 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 // 원단 분류
 export enum FabricCategory {
-  LEATHER = 'leather',       // 가죽
-  CLOTH = 'cloth',           // 천
-  VELVET = 'velvet',         // 벨벳
-  SILK = 'silk',             // 실크
+  LEATHER = 'leather',       // 레더(Leather)
+  CANVAS = 'canvas',         // Canvas
   LINEN = 'linen',           // 린넨
-  CANVAS = 'canvas',         // 캔버스
-  SYNTHETIC = 'synthetic',   // 합성
-  OTHER = 'other',           // 기타
+  FABRIC = 'fabric',         // 페브릭
 }
 
 // 원단 재질
@@ -34,14 +30,10 @@ export enum FabricUnitType {
 }
 
 export const FABRIC_CATEGORY_LABELS: Record<FabricCategory, string> = {
-  [FabricCategory.LEATHER]: '가죽',
-  [FabricCategory.CLOTH]: '천',
-  [FabricCategory.VELVET]: '벨벳',
-  [FabricCategory.SILK]: '실크',
+  [FabricCategory.LEATHER]: '레더(Leather)',
+  [FabricCategory.CANVAS]: 'Canvas',
   [FabricCategory.LINEN]: '린넨',
-  [FabricCategory.CANVAS]: '캔버스',
-  [FabricCategory.SYNTHETIC]: '합성',
-  [FabricCategory.OTHER]: '기타',
+  [FabricCategory.FABRIC]: '페브릭',
 };
 
 export const FABRIC_MATERIAL_LABELS: Record<FabricMaterial, string> = {
@@ -226,7 +218,7 @@ export class CreateFabricDto {
   @IsString()
   name: string;
 
-  @ApiPropertyOptional({ description: '원단 분류', enum: FabricCategory, default: FabricCategory.CLOTH })
+  @ApiPropertyOptional({ description: '원단 분류', enum: FabricCategory, default: FabricCategory.FABRIC })
   @IsEnum(FabricCategory)
   @IsOptional()
   category?: FabricCategory;

@@ -26,6 +26,10 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
     return `${parseInt(m)}월`;
   };
 
+  // 거래가 발생한 월 수만 카운트 (0원인 월 제외)
+  const activeMonths = data.filter(d => d.count > 0).length;
+  const divisor = activeMonths > 0 ? activeMonths : 1; // 0으로 나누기 방지
+
   return (
     <Card>
       <CardHeader>
@@ -41,8 +45,8 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
               formatter={(value: number, name: string) => {
                 const labels: Record<string, string> = {
                   sales: '매출',
-                  received: '수금',
-                  outstanding: '미수금',
+                  received: '입금',
+                  outstanding: '미입금',
                 };
                 return [formatCurrency(value), labels[name] || name];
               }}
@@ -58,8 +62,8 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
               formatter={(value: string) => {
                 const labels: Record<string, string> = {
                   sales: '매출',
-                  received: '수금',
-                  outstanding: '미수금',
+                  received: '입금',
+                  outstanding: '미입금',
                 };
                 return labels[value] || value;
               }}
@@ -96,19 +100,19 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
           <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
             <div className="text-xs text-blue-600 mb-1">평균 매출</div>
             <div className="text-lg font-bold text-blue-900">
-              {formatCurrency(data.reduce((sum, d) => sum + d.sales, 0) / data.length)}
+              {formatCurrency(data.reduce((sum, d) => sum + d.sales, 0) / divisor)}
             </div>
           </div>
           <div className="p-3 rounded-lg bg-green-50 border border-green-200">
-            <div className="text-xs text-green-600 mb-1">평균 수금</div>
+            <div className="text-xs text-green-600 mb-1">평균 입금</div>
             <div className="text-lg font-bold text-green-900">
-              {formatCurrency(data.reduce((sum, d) => sum + d.received, 0) / data.length)}
+              {formatCurrency(data.reduce((sum, d) => sum + d.received, 0) / divisor)}
             </div>
           </div>
           <div className="p-3 rounded-lg bg-orange-50 border border-orange-200">
-            <div className="text-xs text-orange-600 mb-1">평균 미수금</div>
+            <div className="text-xs text-orange-600 mb-1">평균 미입금</div>
             <div className="text-lg font-bold text-orange-900">
-              {formatCurrency(data.reduce((sum, d) => sum + d.outstanding, 0) / data.length)}
+              {formatCurrency(data.reduce((sum, d) => sum + d.outstanding, 0) / divisor)}
             </div>
           </div>
         </div>

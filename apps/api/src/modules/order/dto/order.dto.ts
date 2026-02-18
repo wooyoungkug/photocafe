@@ -30,6 +30,15 @@ export const PROCESS_STATUS = {
   COMPLETED: 'completed',                   // 완료
 } as const;
 
+export const INSPECTION_PROCESS_TYPES = {
+  FILE_INSPECTION_STARTED: 'file_inspection_started',
+  FILE_INSPECTION_COMPLETED: 'file_inspection_completed',
+  FILE_APPROVED: 'file_approved',
+  FILE_REJECTED: 'file_rejected',
+  INSPECTION_HOLD: 'inspection_hold',
+  INSPECTION_SMS_SENT: 'inspection_sms_sent',
+} as const;
+
 // ==================== 주문 파일 DTO ====================
 export class OrderFileDto {
   @ApiProperty({ description: '파일명' })
@@ -200,6 +209,11 @@ export class CreateOrderItemDto {
   @IsOptional()
   @IsString()
   foilColor?: string;
+
+  @ApiPropertyOptional({ description: '박 위치' })
+  @IsOptional()
+  @IsString()
+  foilPosition?: string;
 
   @ApiPropertyOptional({ description: '후가공 옵션' })
   @IsOptional()
@@ -501,6 +515,21 @@ export class AdjustOrderItemDto {
   @IsOptional()
   @IsString()
   fabricName?: string;
+
+  @ApiPropertyOptional({ description: '박 동판명' })
+  @IsOptional()
+  @IsString()
+  foilName?: string;
+
+  @ApiPropertyOptional({ description: '박 색상' })
+  @IsOptional()
+  @IsString()
+  foilColor?: string;
+
+  @ApiPropertyOptional({ description: '박 위치' })
+  @IsOptional()
+  @IsString()
+  foilPosition?: string;
 }
 
 export class AdjustOrderDto {
@@ -553,4 +582,52 @@ export class MonthlySummaryQueryDto {
   @ApiProperty({ description: '종료일 (YYYY-MM-DD)' })
   @IsString()
   endDate: string;
+}
+
+// ==================== 일자별 집계 조회 DTO ====================
+export class DailySummaryQueryDto {
+  @ApiProperty({ description: '거래처 ID' })
+  @IsString()
+  clientId: string;
+
+  @ApiProperty({ description: '시작일 (YYYY-MM-DD)' })
+  @IsString()
+  startDate: string;
+
+  @ApiProperty({ description: '종료일 (YYYY-MM-DD)' })
+  @IsString()
+  endDate: string;
+}
+
+// ==================== 파일검수 관련 DTO ====================
+export class InspectFileDto {
+  @ApiProperty({
+    description: '검수 상태',
+    enum: ['approved', 'rejected'],
+  })
+  @IsIn(['approved', 'rejected'])
+  inspectionStatus: string;
+
+  @ApiPropertyOptional({ description: '검수 메모' })
+  @IsOptional()
+  @IsString()
+  inspectionNote?: string;
+}
+
+export class HoldInspectionDto {
+  @ApiProperty({ description: '보류 사유' })
+  @IsString()
+  reason: string;
+
+  @ApiPropertyOptional({ description: 'SMS 발송 여부', default: true })
+  @IsOptional()
+  @IsBoolean()
+  sendSms?: boolean;
+}
+
+export class CompleteInspectionDto {
+  @ApiPropertyOptional({ description: '완료 메모' })
+  @IsOptional()
+  @IsString()
+  note?: string;
 }

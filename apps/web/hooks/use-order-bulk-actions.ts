@@ -89,3 +89,27 @@ export function useDataCleanup() {
     },
   });
 }
+
+// 주문 단위 원본 이미지 삭제
+export function useDeleteOrderOriginals() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (orderId: string) =>
+      api.delete<{ totalDeletedCount: number; totalFreedMB: number }>(`/orders/${orderId}/originals`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    },
+  });
+}
+
+// 원본 이미지 일괄 삭제
+export function useBulkDeleteOriginals() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { orderIds: string[] }) =>
+      api.post<BulkResult>('/orders/bulk/delete-originals', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    },
+  });
+}

@@ -127,11 +127,29 @@ export class ProductService {
       where: { id },
       include: {
         category: true,
-        specifications: { orderBy: { sortOrder: 'asc' } },
+        specifications: {
+          include: {
+            specification: {
+              select: { id: true, isActive: true, forIndigo: true, forInkjet: true, forAlbum: true, forFrame: true, forBooklet: true },
+            },
+          },
+          orderBy: { sortOrder: 'asc' },
+        },
         bindings: { orderBy: { sortOrder: 'asc' } },
-        papers: { orderBy: { sortOrder: 'asc' } },
+        papers: {
+          orderBy: { sortOrder: 'asc' },
+          include: { paper: { select: { id: true, name: true, printMethods: true, colorType: true, isActive: true } } },
+        },
         covers: { orderBy: { sortOrder: 'asc' } },
         foils: { orderBy: { sortOrder: 'asc' } },
+        fabrics: {
+          orderBy: { sortOrder: 'asc' },
+          include: {
+            fabric: {
+              select: { id: true, name: true, category: true, colorCode: true, colorName: true, thumbnailUrl: true, isActive: true },
+            },
+          },
+        },
         finishings: {
           orderBy: { sortOrder: 'asc' },
           include: {
@@ -140,6 +158,11 @@ export class ProductService {
                 settings: {
                   where: { isActive: true },
                   orderBy: { sortOrder: 'asc' },
+                  include: {
+                    prices: {
+                      orderBy: [{ specificationId: 'asc' }, { minQuantity: 'asc' }],
+                    },
+                  },
                 },
               },
             },
@@ -171,11 +194,43 @@ export class ProductService {
       throw new NotFoundException('상품을 찾을 수 없습니다');
     }
 
+    // 상품 outputPriceSettings 기반으로 활성 규격만 필터링
+    const outputSettings = product.outputPriceSettings as any[];
+    if (outputSettings && Array.isArray(outputSettings) && outputSettings.length > 0) {
+      const hasIndigo = outputSettings.some((s: any) => s.outputMethod === 'INDIGO');
+      const hasInkjet = outputSettings.some((s: any) => s.outputMethod === 'INKJET');
+
+      (product as any).specifications = product.specifications
+        .filter((ps: any) => {
+          if (!ps.specification) return false;
+          if (!ps.specification.isActive) return false;
+          if (hasIndigo && !hasInkjet) return ps.specification.forIndigo;
+          if (hasInkjet && !hasIndigo) {
+            return ps.specification.forInkjet || ps.specification.forAlbum ||
+                   ps.specification.forFrame || ps.specification.forBooklet;
+          }
+          return true;
+        })
+        .map(({ specification, ...rest }: any) => ({
+          ...rest,
+          forIndigo: specification?.forIndigo ?? false,
+          forInkjet: specification?.forInkjet ?? false,
+        }));
+    } else {
+      (product as any).specifications = product.specifications
+        .filter((ps: any) => !ps.specification || ps.specification.isActive)
+        .map(({ specification, ...rest }: any) => ({
+          ...rest,
+          forIndigo: specification?.forIndigo ?? false,
+          forInkjet: specification?.forInkjet ?? false,
+        }));
+    }
+
     return this.convertDecimalToNumber(product);
   }
 
   async create(dto: CreateProductDto) {
-    const { specifications, bindings, papers, covers, foils, finishings, outputPriceSettings, ...productData } = dto;
+    const { specifications, bindings, papers, covers, foils, finishings, outputPriceSettings, fabricIds, ...productData } = dto;
 
     // Check for duplicate productCode
     const existing = await this.prisma.product.findUnique({
@@ -217,6 +272,9 @@ export class ProductService {
         finishings: finishings?.length
           ? { create: finishings }
           : undefined,
+        fabrics: fabricIds?.length
+          ? { create: fabricIds.map((fabricId, idx) => ({ fabricId, sortOrder: idx })) }
+          : undefined,
       },
       include: {
         category: true,
@@ -226,6 +284,7 @@ export class ProductService {
         covers: true,
         foils: true,
         finishings: true,
+        fabrics: { include: { fabric: { select: { id: true, name: true, category: true, colorCode: true, thumbnailUrl: true, isActive: true } } } },
       },
     });
   }
@@ -233,70 +292,71 @@ export class ProductService {
   async update(id: string, dto: UpdateProductDto) {
     await this.findOne(id);
 
-    const { specifications, bindings, papers, covers, foils, finishings, outputPriceSettings, categoryId, ...productData } = dto;
+    const { specifications, bindings, papers, covers, foils, finishings, outputPriceSettings, fabricIds, categoryId, ...productData } = dto;
 
-    try {
-      // 기존 옵션들 삭제
-      if (specifications !== undefined) {
-        await this.prisma.productSpecification.deleteMany({ where: { productId: id } });
-      }
-      if (bindings !== undefined) {
-        await this.prisma.productBinding.deleteMany({ where: { productId: id } });
-      }
-      if (papers !== undefined) {
-        await this.prisma.productPaper.deleteMany({ where: { productId: id } });
-      }
-      if (covers !== undefined) {
-        await this.prisma.productCover.deleteMany({ where: { productId: id } });
-      }
-      if (foils !== undefined) {
-        await this.prisma.productFoil.deleteMany({ where: { productId: id } });
-      }
-      if (finishings !== undefined) {
-        await this.prisma.productFinishing.deleteMany({ where: { productId: id } });
-      }
-
-      // 상품 업데이트
-      const result = await this.prisma.product.update({
-        where: { id },
-        data: {
-          ...productData,
-          ...(categoryId && { category: { connect: { id: categoryId } } }),
-          ...(outputPriceSettings !== undefined && { outputPriceSettings: JSON.parse(JSON.stringify(outputPriceSettings)) }),
-          specifications: specifications !== undefined && specifications.length > 0
-            ? { create: specifications }
-            : undefined,
-          bindings: bindings !== undefined && bindings.length > 0
-            ? { create: bindings }
-            : undefined,
-          papers: papers !== undefined && papers.length > 0
-            ? { create: papers }
-            : undefined,
-          covers: covers !== undefined && covers.length > 0
-            ? { create: covers }
-            : undefined,
-          foils: foils !== undefined && foils.length > 0
-            ? { create: foils }
-            : undefined,
-          finishings: finishings !== undefined && finishings.length > 0
-            ? { create: finishings }
-            : undefined,
-        },
-        include: {
-          category: true,
-          specifications: true,
-          bindings: true,
-          papers: true,
-          covers: true,
-          foils: true,
-          finishings: true,
-        },
-      });
-
-      return result;
-    } catch (error) {
-      throw error;
+    // 기존 옵션들 삭제
+    if (specifications !== undefined) {
+      await this.prisma.productSpecification.deleteMany({ where: { productId: id } });
     }
+    if (bindings !== undefined) {
+      await this.prisma.productBinding.deleteMany({ where: { productId: id } });
+    }
+    if (papers !== undefined) {
+      await this.prisma.productPaper.deleteMany({ where: { productId: id } });
+    }
+    if (covers !== undefined) {
+      await this.prisma.productCover.deleteMany({ where: { productId: id } });
+    }
+    if (foils !== undefined) {
+      await this.prisma.productFoil.deleteMany({ where: { productId: id } });
+    }
+    if (finishings !== undefined) {
+      await this.prisma.productFinishing.deleteMany({ where: { productId: id } });
+    }
+    if (fabricIds !== undefined) {
+      await this.prisma.productFabric.deleteMany({ where: { productId: id } });
+    }
+
+    // 상품 업데이트
+    return this.prisma.product.update({
+      where: { id },
+      data: {
+        ...productData,
+        ...(categoryId && { category: { connect: { id: categoryId } } }),
+        ...(outputPriceSettings !== undefined && { outputPriceSettings: JSON.parse(JSON.stringify(outputPriceSettings)) }),
+        specifications: specifications !== undefined && specifications.length > 0
+          ? { create: specifications }
+          : undefined,
+        bindings: bindings !== undefined && bindings.length > 0
+          ? { create: bindings }
+          : undefined,
+        papers: papers !== undefined && papers.length > 0
+          ? { create: papers }
+          : undefined,
+        covers: covers !== undefined && covers.length > 0
+          ? { create: covers }
+          : undefined,
+        foils: foils !== undefined && foils.length > 0
+          ? { create: foils }
+          : undefined,
+        finishings: finishings !== undefined && finishings.length > 0
+          ? { create: finishings }
+          : undefined,
+        fabrics: fabricIds !== undefined && fabricIds.length > 0
+          ? { create: fabricIds.map((fabricId, idx) => ({ fabricId, sortOrder: idx })) }
+          : undefined,
+      },
+      include: {
+        category: true,
+        specifications: true,
+        bindings: true,
+        papers: true,
+        covers: true,
+        foils: true,
+        finishings: true,
+        fabrics: { include: { fabric: { select: { id: true, name: true, category: true, colorCode: true, thumbnailUrl: true, isActive: true } } } },
+      },
+    });
   }
 
   async delete(id: string) {
@@ -389,6 +449,144 @@ export class ProductService {
         productId_halfProductId: { productId, halfProductId },
       },
     });
+  }
+
+  // ==================== 용지 마스터 동기화 ====================
+
+  /**
+   * 상품의 outputPriceSettings(출력방식)에 맞는 마스터 용지를 ProductPaper에 동기화
+   * - 이미 연결된 용지(paperId)는 건너뜀
+   * - paperId 없는 기존 항목은 이름 매칭으로 연결
+   * - 누락된 마스터 용지는 새 ProductPaper로 추가
+   */
+  async syncProductPapers(productId: string) {
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId },
+      include: { papers: true },
+    });
+
+    if (!product) {
+      throw new NotFoundException('상품을 찾을 수 없습니다');
+    }
+
+    // 1. outputPriceSettings에서 출력방식 파악
+    const outputSettings = product.outputPriceSettings as any[];
+    const printMethods: string[] = [];
+    if (outputSettings && Array.isArray(outputSettings)) {
+      if (outputSettings.some((s: any) => s.outputMethod === 'INDIGO')) printMethods.push('indigo');
+      if (outputSettings.some((s: any) => s.outputMethod === 'INKJET')) printMethods.push('inkjet');
+    }
+
+    // 출력방식이 없으면 전체 용지 대상
+    const masterPapers = await this.prisma.paper.findMany({
+      where: {
+        isActive: true,
+        ...(printMethods.length > 0 && { printMethods: { hasSome: printMethods } }),
+      },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }, { grammage: 'asc' }],
+    });
+
+    const existingPapers = product.papers;
+    const linkedPaperIds = new Set(existingPapers.filter(p => p.paperId).map(p => p.paperId));
+
+    let addedCount = 0;
+    let linkedCount = 0;
+    const details: { paperId: string; paperName: string; action: 'added' | 'linked' }[] = [];
+
+    // 2. paperId 없는 기존 항목 → 이름+평량 정확 매칭으로 paperId 연결
+    for (const pp of existingPapers) {
+      if (pp.paperId) continue;
+
+      const matchedMaster = masterPapers.find(mp => {
+        // 정확한 이름+평량 매칭만 허용
+        const ppNameNorm = pp.name.replace(/\s+/g, '').toLowerCase();
+        const masterExact = `${mp.name}${mp.grammage}g`.replace(/\s+/g, '').toLowerCase();
+        if (ppNameNorm === masterExact) return true;
+        // 이름이 정확히 같고 평량도 같은 경우
+        const ppBaseName = pp.name.replace(/\s*\d+g?$/i, '').trim().toLowerCase();
+        return ppBaseName === mp.name.toLowerCase() && pp.grammage === mp.grammage;
+      });
+
+      if (matchedMaster && !linkedPaperIds.has(matchedMaster.id)) {
+        await this.prisma.productPaper.update({
+          where: { id: pp.id },
+          data: { paperId: matchedMaster.id },
+        }).catch(() => { /* unique constraint 무시 */ });
+        linkedPaperIds.add(matchedMaster.id);
+        linkedCount++;
+        details.push({ paperId: matchedMaster.id, paperName: matchedMaster.name, action: 'linked' });
+      }
+    }
+
+    // 3. 누락된 마스터 용지 → 새 ProductPaper 생성
+    const maxSortOrder = existingPapers.length > 0
+      ? Math.max(...existingPapers.map(p => p.sortOrder))
+      : -1;
+
+    let sortIdx = maxSortOrder + 1;
+    for (const mp of masterPapers) {
+      if (linkedPaperIds.has(mp.id)) continue;
+
+      const displayName = mp.grammage ? `${mp.name} ${mp.grammage}g` : mp.name;
+      const paperPrintMethod = printMethods.length === 1
+        ? printMethods[0]
+        : mp.printMethods.find(m => printMethods.includes(m)) || mp.printMethods[0] || null;
+
+      await this.prisma.productPaper.create({
+        data: {
+          productId,
+          paperId: mp.id,
+          name: displayName,
+          type: mp.paperType === 'roll' ? 'roll' : 'normal',
+          grammage: mp.grammage,
+          printMethod: paperPrintMethod,
+          frontCoating: mp.jdfFrontCoating,
+          grade: mp.jdfGrade,
+          price: 0,
+          isDefault: false,
+          isActive: true,
+          isActive4: true,
+          isActive6: true,
+          sortOrder: sortIdx++,
+        },
+      });
+
+      addedCount++;
+      details.push({ paperId: mp.id, paperName: displayName, action: 'added' });
+    }
+
+    return {
+      productId,
+      productName: product.productName,
+      existingCount: existingPapers.length,
+      addedCount,
+      linkedCount,
+      totalCount: existingPapers.length + addedCount,
+      details,
+    };
+  }
+
+  /**
+   * 전체 상품의 용지를 마스터와 일괄 동기화
+   */
+  async syncAllProductPapers() {
+    const products = await this.prisma.product.findMany({
+      select: { id: true, productName: true },
+    });
+
+    const results = [];
+    for (const product of products) {
+      const result = await this.syncProductPapers(product.id);
+      if (result.addedCount > 0 || result.linkedCount > 0) {
+        results.push(result);
+      }
+    }
+
+    return {
+      totalProducts: products.length,
+      syncedProducts: results.length,
+      details: results,
+    };
   }
 
   // ==================== 규격 정리 ====================

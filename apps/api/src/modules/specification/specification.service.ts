@@ -198,15 +198,132 @@ export class SpecificationService {
                 data: { pairId: pairSpec.id },
             });
 
+            // 5. 매칭되는 상품에 규격 자동 추가 (메인 + 페어)
+            const autoLinked = await this.autoLinkToProducts([
+                { spec: mainSpec, name, widthMm, heightMm },
+                { spec: pairSpec, name: pairName, widthMm: heightMm, heightMm: widthMm },
+            ], dto);
+
             return {
                 main: mainSpec,
                 pair: pairSpec,
-                message: `${this.getOrientationLabel(orientation)} 규격과 ${this.getOrientationLabel(pairOrientation)} 규격이 함께 생성되었습니다.`,
+                autoLinked,
+                message: `${this.getOrientationLabel(orientation)} 규격과 ${this.getOrientationLabel(pairOrientation)} 규격이 함께 생성되었습니다. ${autoLinked.linkedProducts}개 상품에 자동 추가됨.`,
             };
         }
 
-        // 정방형이거나 createPair가 false인 경우 단일 규격만 반환
-        return mainSpec;
+        // 5. 매칭되는 상품에 규격 자동 추가 (단일)
+        const autoLinked = await this.autoLinkToProducts([
+            { spec: mainSpec, name, widthMm, heightMm },
+        ], dto);
+
+        return {
+            ...mainSpec,
+            autoLinked,
+            message: autoLinked.linkedProducts > 0
+                ? `규격이 생성되었습니다. ${autoLinked.linkedProducts}개 상품에 자동 추가됨.`
+                : undefined,
+        };
+    }
+
+    /**
+     * 새로 생성된 규격을 매칭되는 상품에 자동으로 ProductSpecification으로 추가
+     * - 상품의 outputPriceSettings 기반으로 INDIGO/INKJET 판별
+     * - 규격의 forIndigo/forInkjet/forAlbum 등 플래그와 매칭
+     */
+    private async autoLinkToProducts(
+        specs: Array<{ spec: { id: string }; name: string; widthMm: number; heightMm: number }>,
+        dto: CreateSpecificationDto,
+    ) {
+        const forIndigo = dto.forIndigo ?? false;
+        const forInkjet = dto.forInkjet ?? false;
+        const forAlbum = dto.forAlbum ?? false;
+        const forFrame = dto.forFrame ?? false;
+        const forBooklet = dto.forBooklet ?? false;
+
+        // 용도 플래그가 하나도 없으면 스킵
+        if (!forIndigo && !forInkjet && !forAlbum && !forFrame && !forBooklet) {
+            return { linkedProducts: 0, details: [] };
+        }
+
+        // outputPriceSettings가 있는 상품 조회
+        const products = await this.prisma.product.findMany({
+            where: {
+                isActive: true,
+                NOT: { outputPriceSettings: { equals: Prisma.DbNull } },
+            },
+            select: {
+                id: true,
+                productName: true,
+                outputPriceSettings: true,
+                specifications: {
+                    select: { specificationId: true },
+                },
+            },
+        });
+
+        const details: Array<{ productId: string; productName: string; addedSpecs: number }> = [];
+
+        for (const product of products) {
+            const outputSettings = product.outputPriceSettings as any[];
+            if (!Array.isArray(outputSettings) || outputSettings.length === 0) continue;
+
+            const hasIndigo = outputSettings.some((s: any) => s.outputMethod === 'INDIGO');
+            const hasInkjet = outputSettings.some((s: any) => s.outputMethod === 'INKJET');
+
+            // 상품 출력방식과 규격 용도 플래그 매칭 확인
+            const isMatch =
+                (hasIndigo && forIndigo) ||
+                (hasInkjet && (forInkjet || forAlbum || forFrame || forBooklet));
+
+            if (!isMatch) continue;
+
+            // 이미 연결된 규격 ID 목록
+            const existingSpecIds = new Set(
+                product.specifications.map(s => s.specificationId).filter(Boolean),
+            );
+
+            // 기존 규격 개수 (sortOrder 결정용)
+            const maxSortOrder = product.specifications.length;
+
+            let addedCount = 0;
+            for (let i = 0; i < specs.length; i++) {
+                const { spec, name, widthMm, heightMm } = specs[i];
+
+                // 이미 연결되어 있으면 스킵
+                if (existingSpecIds.has(spec.id)) continue;
+
+                await this.prisma.productSpecification.create({
+                    data: {
+                        productId: product.id,
+                        specificationId: spec.id,
+                        name,
+                        widthMm,
+                        heightMm,
+                        price: 0,
+                        isDefault: false,
+                        sortOrder: maxSortOrder + i,
+                    },
+                }).catch(() => {
+                    // unique constraint 충돌 시 무시 (이미 존재)
+                });
+
+                addedCount++;
+            }
+
+            if (addedCount > 0) {
+                details.push({
+                    productId: product.id,
+                    productName: product.productName,
+                    addedSpecs: addedCount,
+                });
+            }
+        }
+
+        return {
+            linkedProducts: details.length,
+            details,
+        };
     }
 
     async update(id: string, dto: UpdateSpecificationDto) {

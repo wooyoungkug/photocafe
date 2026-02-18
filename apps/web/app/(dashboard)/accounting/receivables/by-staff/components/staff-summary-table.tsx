@@ -49,7 +49,7 @@ export default function StaffSummaryTable({ data, isLoading, dateRange }: StaffS
   return (
     <Card>
       <CardHeader>
-        <CardTitle>영업담당자별 미수금 현황</CardTitle>
+        <CardTitle>영업담당자별 미입금 현황</CardTitle>
       </CardHeader>
       <CardContent>
         <Table>
@@ -59,10 +59,10 @@ export default function StaffSummaryTable({ data, isLoading, dateRange }: StaffS
               <TableHead>담당자</TableHead>
               <TableHead className="text-center">담당 고객</TableHead>
               <TableHead className="text-right">총 매출</TableHead>
-              <TableHead className="text-right">수금액</TableHead>
-              <TableHead className="text-right">미수금</TableHead>
-              <TableHead className="text-center">수금률</TableHead>
-              <TableHead className="text-center">거래 건수</TableHead>
+              <TableHead className="text-right">입금액</TableHead>
+              <TableHead className="text-right">미입금</TableHead>
+              <TableHead className="text-center">입금률</TableHead>
+              <TableHead className="text-center">주문 건수</TableHead>
               <TableHead className="w-[100px]"></TableHead>
             </TableRow>
           </TableHeader>
@@ -180,7 +180,7 @@ function StaffRow({ staff, isExpanded, onToggle, dateRange, getCollectionRateBad
             <div className="p-4">
               <div className="flex items-center gap-2 mb-3">
                 <Building2 className="h-4 w-4 text-slate-600" />
-                <h4 className="text-sm font-semibold text-slate-700">거래처별 미수금 상세</h4>
+                <h4 className="text-sm font-semibold text-slate-700">거래처별 미입금 상세</h4>
               </div>
               {isLoadingClients ? (
                 <div className="text-center py-4 text-sm text-muted-foreground">
@@ -196,10 +196,10 @@ function StaffRow({ staff, isExpanded, onToggle, dateRange, getCollectionRateBad
                     <TableRow className="bg-white border-b">
                       <TableHead className="text-left">거래처</TableHead>
                       <TableHead className="text-right">총 매출</TableHead>
-                      <TableHead className="text-right">수금액</TableHead>
-                      <TableHead className="text-right">미수금</TableHead>
-                      <TableHead className="text-center">수금률</TableHead>
-                      <TableHead className="text-center">거래 건수</TableHead>
+                      <TableHead className="text-right">입금액</TableHead>
+                      <TableHead className="text-right">미입금</TableHead>
+                      <TableHead className="text-center">입금률</TableHead>
+                      <TableHead className="text-center">주문 건수</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

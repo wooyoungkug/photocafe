@@ -14,36 +14,31 @@ import {
   GripVertical,
   CheckCircle2,
   AlertCircle,
+  Upload,
+  Loader2,
+  RefreshCw,
+  XCircle,
+  Ban,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { FolderShippingSection } from '@/components/album-upload/folder-shipping-section';
 import { CartThumbnailGallery } from './cart-thumbnail-gallery';
-import { cn } from '@/lib/utils';
+import { cn, normalizeImageUrl } from '@/lib/utils';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { CartItem, CartShippingInfo } from '@/stores/cart-store';
 import type { FolderShippingInfo } from '@/stores/multi-folder-upload-store';
 import type { CompanyShippingInfo, OrdererShippingInfo } from '@/hooks/use-shipping-data';
 import type { DeliveryPricing } from '@/hooks/use-delivery-pricing';
-import { API_URL, API_BASE_URL } from '@/lib/api';
 import { useTranslations } from 'next-intl';
-
-// Image URL normalization
-const normalizeImageUrl = (url: string | null | undefined): string => {
-  if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url.replace(/\/api\/v1\/api\/v1\//g, '/api/v1/');
-  }
-  if (url.startsWith('/api/v1/')) return `${API_BASE_URL}${url}`;
-  if (url.startsWith('/upload')) return `${API_URL}${url}`;
-  if (url.startsWith('/api/')) return `${API_BASE_URL}${url}`;
-  return url;
-};
+import { retryBackgroundUpload, canRetryUpload, cancelUpload, canCancelUpload } from '@/lib/background-upload';
+import { useCartStore } from '@/stores/cart-store';
 
 const DELIVERY_METHODS = [
   { value: 'parcel', label: '택배' },
@@ -278,6 +273,30 @@ export function CartItemCard({
                       {t('halfProduct')}
                     </Badge>
                   )}
+                  {item.uploadStatus === 'completed' && item.serverFiles && item.serverFiles.length > 0 && (
+                    <Badge className="bg-gradient-to-r from-green-100 to-green-50 text-green-700 text-[11px] px-2 py-0.5 font-medium border border-green-200/50 rounded-md">
+                      <CheckCircle2 className="w-3 h-3 mr-1" />
+                      업로드 완료 ({item.serverFiles.length}건)
+                    </Badge>
+                  )}
+                  {item.uploadStatus === 'completed' && (!item.serverFiles || item.serverFiles.length === 0) && (
+                    <Badge className="bg-gradient-to-r from-orange-100 to-orange-50 text-orange-700 text-[11px] px-2 py-0.5 font-medium border border-orange-200/50 rounded-md">
+                      <AlertCircle className="w-3 h-3 mr-1" />
+                      파일 누락 — 재업로드 필요
+                    </Badge>
+                  )}
+                  {item.uploadStatus === 'uploading' && (
+                    <Badge className="bg-gradient-to-r from-blue-100 to-blue-50 text-blue-700 text-[11px] px-2 py-0.5 font-medium border border-blue-200/50 rounded-md">
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      {item.uploadedFileCount || 0}/{item.totalFileCount || 0}건 · {item.uploadProgress || 0}%
+                    </Badge>
+                  )}
+                  {item.uploadStatus === 'failed' && (
+                    <Badge className="bg-gradient-to-r from-red-100 to-red-50 text-red-700 text-[11px] px-2 py-0.5 font-medium border border-red-200/50 rounded-md">
+                      <AlertCircle className="w-3 h-3 mr-1" />
+                      업로드 실패 ({item.serverFiles?.length || 0}/{item.totalFileCount || 0}건)
+                    </Badge>
+                  )}
                   {item.addedAt && (
                     <span className="text-[11px] text-gray-400 flex items-center gap-1">
                       <Clock className="w-3 h-3" />
@@ -328,6 +347,32 @@ export function CartItemCard({
                         ))}
                       </select>
                     </div>
+                  </div>
+                )}
+
+                {/* 표지원단 / 동판 정보 */}
+                {item.albumOrderInfo && (item.albumOrderInfo.fabricName || item.albumOrderInfo.foilName) && (
+                  <div className="mt-1 flex items-center gap-1 flex-wrap text-[10px]">
+                    {item.albumOrderInfo.fabricName && (
+                      <span className="bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded border border-amber-200">
+                        {item.albumOrderInfo.fabricName}
+                      </span>
+                    )}
+                    {item.albumOrderInfo.foilName && (
+                      <span className="bg-violet-50 text-violet-700 px-1.5 py-0.5 rounded border border-violet-200">
+                        {item.albumOrderInfo.foilName}
+                      </span>
+                    )}
+                    {item.albumOrderInfo.foilColor && (
+                      <span className="bg-yellow-50 text-yellow-700 px-1.5 py-0.5 rounded border border-yellow-200">
+                        {item.albumOrderInfo.foilColor}
+                      </span>
+                    )}
+                    {item.albumOrderInfo.foilPosition && (
+                      <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-200">
+                        {item.albumOrderInfo.foilPosition}
+                      </span>
+                    )}
                   </div>
                 )}
 
@@ -418,6 +463,140 @@ export function CartItemCard({
             </div>
           </div>
         </div>
+
+        {/* Upload warning: completed but no serverFiles (data lost after refresh) */}
+        {item.uploadStatus === 'completed' && (!item.serverFiles || item.serverFiles.length === 0) && (
+          <div className="border-t border-orange-200 bg-orange-50 px-4 py-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs text-orange-700">
+                <AlertCircle className="w-3.5 h-3.5" />
+                <span className="font-medium">파일 데이터가 누락되었습니다. 상품을 삭제 후 다시 업로드해주세요.</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                onClick={() => onRemove(item.id)}
+              >
+                <Trash2 className="w-3 h-3 mr-1" />
+                삭제
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Upload progress section */}
+        {item.uploadStatus && item.uploadStatus !== 'completed' && (
+          <div className="border-t border-gray-100 px-4 py-2.5">
+            {item.uploadStatus === 'uploading' && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-1.5 text-blue-600">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span className="font-medium">원본 파일 업로드 중...</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-500 tabular-nums">
+                      {item.uploadedFileCount || 0}/{item.totalFileCount || 0}건 · {item.uploadProgress || 0}%
+                    </span>
+                    {canCancelUpload(item.id) ? (
+                      <button
+                        type="button"
+                        className="flex items-center gap-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded px-1.5 py-0.5 transition-colors"
+                        onClick={() => cancelUpload(item.id)}
+                        title="업로드 중단"
+                      >
+                        <XCircle className="w-4 h-4" />
+                        <span className="text-[11px] font-medium">중단</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="flex items-center gap-1 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded px-1.5 py-0.5 transition-colors"
+                        onClick={() => useCartStore.getState().updateUploadStatus(item.id, { uploadStatus: 'completed', uploadProgress: 100 })}
+                        title="상태 해제"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span className="text-[11px] font-medium">상태 해제</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {canCancelUpload(item.id) && (
+                  <Progress value={item.uploadProgress || 0} className="h-1.5 rounded-full bg-blue-100" />
+                )}
+              </div>
+            )}
+            {item.uploadStatus === 'pending' && (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>업로드 대기 중...</span>
+                </div>
+                {!canCancelUpload(item.id) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    onClick={() => useCartStore.getState().updateUploadStatus(item.id, { uploadStatus: 'completed', uploadProgress: 100 })}
+                  >
+                    <CheckCircle2 className="w-3 h-3 mr-1" />
+                    상태 해제
+                  </Button>
+                )}
+              </div>
+            )}
+            {item.uploadStatus === 'cancelled' && (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <Ban className="w-3.5 h-3.5" />
+                  <span>업로드 중단됨</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                  onClick={() => useCartStore.getState().updateUploadStatus(item.id, { uploadStatus: 'completed', uploadProgress: 100 })}
+                >
+                  <CheckCircle2 className="w-3 h-3 mr-1" />
+                  상태 해제
+                </Button>
+              </div>
+            )}
+            {item.uploadStatus === 'failed' && (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs text-red-600">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  <span className="font-medium">
+                    업로드 실패 ({item.uploadedFileCount || 0}/{item.totalFileCount || 0}건 완료)
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  {canRetryUpload(item.id) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => retryBackgroundUpload(item.id)}
+                    >
+                      <RefreshCw className="w-3 h-3 mr-1" />
+                      재시도
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    onClick={() => useCartStore.getState().updateUploadStatus(item.id, { uploadStatus: 'completed', uploadProgress: 100 })}
+                  >
+                    <CheckCircle2 className="w-3 h-3 mr-1" />
+                    상태 해제
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Shipping section (non-album items) */}
         {!hasAlbumShipping && (

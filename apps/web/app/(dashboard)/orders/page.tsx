@@ -11,6 +11,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ExternalLink,
+  Download,
+  Trash2,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -35,7 +37,9 @@ import {
 import { useOrders, Order, ORDER_STATUS_LABELS } from '@/hooks/use-orders';
 import { BulkActionToolbar } from './components/bulk-action-toolbar';
 import { OrderQuickEditDialog } from './components/order-quick-edit-dialog';
+import { ConfirmActionDialog } from './components/confirm-action-dialog';
 import { ProcessHistoryDialog } from '@/components/order/process-history-dialog';
+import { useDeleteOrderOriginals } from '@/hooks/use-order-bulk-actions';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -108,6 +112,12 @@ export default function OrderListPage() {
   const [historyOrderNumber, setHistoryOrderNumber] = useState<string>('');
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
+  // 원본 이미지 다운로드/삭제
+  const [isDownloading, setIsDownloading] = useState<string | null>(null);
+  const [deleteOriginalsOrderId, setDeleteOriginalsOrderId] = useState<string | null>(null);
+  const [deleteOriginalsDialog, setDeleteOriginalsDialog] = useState(false);
+  const deleteOrderOriginals = useDeleteOrderOriginals();
+
   // 주문 목록 조회
   const { data: ordersData, isLoading } = useOrders({
     page,
@@ -145,6 +155,34 @@ export default function OrderListPage() {
   const clearSelection = () => setSelectedOrderIds(new Set());
 
   const isAllSelected = orders.length > 0 && selectedOrderIds.size === orders.length;
+
+  // 원본 이미지 다운로드
+  const handleDownloadOriginals = async (orderId: string, orderNumber: string) => {
+    try {
+      setIsDownloading(orderId);
+      await api.downloadBlob(`/orders/${orderId}/download-originals`, `${orderNumber}_originals.zip`);
+      toast({ title: '원본 이미지 다운로드 완료' });
+    } catch (err: any) {
+      toast({ title: err.message || '다운로드 실패', variant: 'destructive' });
+    } finally {
+      setIsDownloading(null);
+    }
+  };
+
+  // 원본 이미지 삭제
+  const handleDeleteOriginals = () => {
+    if (!deleteOriginalsOrderId) return;
+    deleteOrderOriginals.mutate(deleteOriginalsOrderId, {
+      onSuccess: (result: any) => {
+        toast({ title: `원본 삭제 완료: ${result.totalFreedMB || 0}MB 확보` });
+        setDeleteOriginalsDialog(false);
+        setDeleteOriginalsOrderId(null);
+      },
+      onError: (err: any) => {
+        toast({ title: err.message || '원본 삭제 실패', variant: 'destructive' });
+      },
+    });
+  };
 
   // 회원 임퍼스네이션: 해당 거래처로 쇼핑몰 로그인 (관리자 토큰 보존)
   const handleImpersonate = async (clientId: string) => {
@@ -235,11 +273,11 @@ export default function OrderListPage() {
                       주문일<br />(주문번호)
                     </TableHead>
                     <TableHead className="text-center w-[100px] text-xs">회원정보<br />영업담당자</TableHead>
-                    <TableHead className="text-xs">상품명</TableHead>
-                    <TableHead className="text-xs">주문제목 / 재질 및 규격</TableHead>
+                    <TableHead className="text-xs w-[150px]">상품명</TableHead>
+                    <TableHead className="text-xs w-[400px]">주문제목 / 재질 및 규격</TableHead>
                     <TableHead className="text-center w-[100px] text-xs">편집스타일<br />/ 제본순서</TableHead>
                     <TableHead className="text-center w-[80px] text-xs">페이지<br />/ 부수</TableHead>
-                    <TableHead className="text-center w-[70px] text-xs">용량</TableHead>
+                    <TableHead className="text-center w-[80px] text-xs">용량</TableHead>
                     <TableHead className="text-right w-[120px] text-xs">주문금액</TableHead>
                     <TableHead className="text-center w-[120px] text-xs">진행상황</TableHead>
                     <TableHead className="text-center w-[100px] text-xs">확인</TableHead>
@@ -248,7 +286,10 @@ export default function OrderListPage() {
                 <TableBody>
                   {orders.map((order) => {
                     const items = order.items || [];
-                    const statusBadge = STATUS_BADGE[order.status] || STATUS_BADGE.pending_receipt;
+                    // 파일검수 중 상태 처리
+                    const statusBadge = order.status === 'pending_receipt' && order.currentProcess === 'inspection'
+                      ? { label: '파일검수 중', className: 'bg-yellow-100 text-yellow-700' }
+                      : (STATUS_BADGE[order.status] || STATUS_BADGE.pending_receipt);
                     const isSelected = selectedOrderIds.has(order.id);
 
                     return items.map((item, idx) => (
@@ -327,7 +368,7 @@ export default function OrderListPage() {
 
                         {/* 주문제목 / 재질 및 규격 - 클릭 시 검증 다이얼로그 */}
                         <TableCell
-                          className="cursor-pointer hover:bg-blue-50/30"
+                          className="cursor-pointer hover:bg-blue-50/30 max-w-[400px]"
                           onClick={() => {
                             setQuickEditOrder(order);
                             setIsQuickEditOpen(true);
@@ -337,12 +378,14 @@ export default function OrderListPage() {
                             <div className="text-xs font-medium truncate text-blue-600 hover:underline" title={item.folderName || item.productName}>
                               {item.folderName || item.productName}
                             </div>
-                            <div className="text-[11px] text-muted-foreground truncate" title={[item.size, item.printMethod, item.paper, item.bindingType, item.coverMaterial, item.foilColor ? `박:${item.foilColor}` : ''].filter(Boolean).join(' / ')}>
+                            <div className="text-[11px] text-muted-foreground truncate" title={[item.size, item.printMethod, item.paper, item.bindingType, item.coverMaterial, item.fabricName ? `원단:${item.fabricName}` : '', item.foilName ? `동판:${item.foilName}` : '', item.foilColor ? `박:${item.foilColor}` : '', item.foilPosition ? `위치:${item.foilPosition}` : ''].filter(Boolean).join(' / ')}>
                               {item.size} / {item.printMethod} / {item.paper}
                               {item.bindingType && <> / {item.bindingType}</>}
                               {item.coverMaterial && <> / {item.coverMaterial}</>}
                               {item.fabricName && <> / 원단:{item.fabricName}</>}
+                              {item.foilName && <> / 동판:{item.foilName}</>}
                               {item.foilColor && <> / 박:{item.foilColor}</>}
+                              {item.foilPosition && <> / 위치:{item.foilPosition}</>}
                             </div>
                           </div>
                         </TableCell>
@@ -365,9 +408,37 @@ export default function OrderListPage() {
                           <div>{item.quantity}건</div>
                         </TableCell>
 
-                        {/* 용량 */}
+                        {/* 용량 + 원본받기/삭제 */}
                         <TableCell className="text-center text-xs text-muted-foreground">
-                          {formatFileSize(Number(item.totalFileSize))}
+                          {item.originalsDeleted ? (
+                            <Badge variant="outline" className="text-[10px] px-1 py-0 border-red-300 text-red-500">
+                              삭제됨
+                            </Badge>
+                          ) : (
+                            <div className="space-y-1">
+                              <div>{formatFileSize(Number(item.totalFileSize))}</div>
+                              <button
+                                className="flex items-center justify-center gap-0.5 text-[11px] text-blue-600 hover:underline mx-auto disabled:opacity-50"
+                                onClick={() => handleDownloadOriginals(order.id, order.orderNumber)}
+                                disabled={isDownloading === order.id}
+                              >
+                                <Download className="h-3 w-3" />
+                                {isDownloading === order.id ? '다운로드중...' : '원본받기'}
+                              </button>
+                              {order.status === 'shipped' && (
+                                <button
+                                  className="flex items-center justify-center gap-0.5 text-[11px] text-red-500 hover:underline mx-auto"
+                                  onClick={() => {
+                                    setDeleteOriginalsOrderId(order.id);
+                                    setDeleteOriginalsDialog(true);
+                                  }}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                  원본삭제
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </TableCell>
 
                         {/* 주문금액 - 첫 번째 항목에만 합계 표시 */}
@@ -376,7 +447,7 @@ export default function OrderListPage() {
                             className="text-right align-top pt-3 font-bold text-sm whitespace-nowrap"
                             rowSpan={items.length}
                           >
-                            {Number(order.finalAmount).toLocaleString()}원
+                            {Math.round(Number(order.finalAmount)).toLocaleString()}원
                           </TableCell>
                         )}
 
@@ -505,6 +576,18 @@ export default function OrderListPage() {
         orderNumber={historyOrderNumber}
         open={isHistoryOpen}
         onOpenChange={setIsHistoryOpen}
+      />
+
+      {/* 원본 이미지 삭제 확인 다이얼로그 */}
+      <ConfirmActionDialog
+        open={deleteOriginalsDialog}
+        onOpenChange={setDeleteOriginalsDialog}
+        title="원본 이미지 삭제"
+        description="이 주문의 원본 이미지를 영구 삭제합니다. PDF가 완성된 항목만 삭제됩니다. 이 작업은 되돌릴 수 없습니다."
+        confirmLabel="삭제 실행"
+        variant="destructive"
+        isLoading={deleteOrderOriginals.isPending}
+        onConfirm={handleDeleteOriginals}
       />
     </div>
   );

@@ -10,7 +10,9 @@ import {
   Query,
   UseGuards,
   Request,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 import { OrderService } from '../services/order.service';
@@ -28,6 +30,10 @@ import {
   BulkDataCleanupDto,
   CheckDuplicateOrderDto,
   MonthlySummaryQueryDto,
+  DailySummaryQueryDto,
+  InspectFileDto,
+  HoldInspectionDto,
+  CompleteInspectionDto,
 } from '../dto';
 
 @ApiTags('주문')
@@ -61,6 +67,16 @@ export class OrderController {
       query.endDate,
     );
     return { data: summary };
+  }
+
+  @Get('daily-summary')
+  @ApiOperation({ summary: '일자별 주문/입금 집계 조회' })
+  async getDailySummary(@Query() query: DailySummaryQueryDto) {
+    return this.orderService.getDailySummary(
+      query.clientId,
+      query.startDate,
+      query.endDate,
+    );
   }
 
   // ==================== 벌크 작업 (반드시 :id 라우트 위에 배치) ====================
@@ -106,6 +122,12 @@ export class OrderController {
     return this.orderService.dataCleanup(dto);
   }
 
+  @Post('bulk/delete-originals')
+  @ApiOperation({ summary: '원본 이미지 일괄 삭제 (배송완료 후)' })
+  async bulkDeleteOriginals(@Body() dto: BulkOrderIdsDto, @Request() req: any) {
+    return this.orderService.bulkDeleteOriginals(dto.orderIds, req.user.id);
+  }
+
   @Post('check-duplicates')
   @ApiOperation({ summary: '중복 주문 체크 (3개월 이내)' })
   async checkDuplicates(@Body() dto: CheckDuplicateOrderDto) {
@@ -116,6 +138,12 @@ export class OrderController {
   @ApiOperation({ summary: '주문 공정 이력 조회' })
   async getProcessHistory(@Param('id') id: string) {
     return this.orderService.getProcessHistory(id);
+  }
+
+  @Get(':id/download-originals')
+  @ApiOperation({ summary: '원본 이미지 다운로드 (ZIP)' })
+  async downloadOriginals(@Param('id') id: string, @Res() res: Response) {
+    return this.orderService.downloadOriginals(id, res);
   }
 
   @Get(':id')
@@ -188,5 +216,69 @@ export class OrderController {
   @ApiOperation({ summary: '주문 삭제' })
   async delete(@Param('id') id: string) {
     return this.orderService.delete(id);
+  }
+
+  // ==================== 파일검수 관련 ====================
+
+  @Post(':id/start-inspection')
+  @ApiOperation({ summary: '파일검수 시작 (자동 호출)' })
+  async startInspection(@Param('id') id: string, @Request() req: any) {
+    return this.orderService.startInspection(id, req.user.id);
+  }
+
+  @Patch(':id/files/:fileId/inspect')
+  @ApiOperation({ summary: '개별 파일 검수 승인/거부' })
+  async inspectFile(
+    @Param('id') id: string,
+    @Param('fileId') fileId: string,
+    @Body() dto: InspectFileDto,
+    @Request() req: any,
+  ) {
+    return this.orderService.inspectFile(id, fileId, dto, req.user.id);
+  }
+
+  @Post(':id/hold-inspection')
+  @ApiOperation({ summary: '검수 보류 (SMS 발송 옵션)' })
+  async holdInspection(
+    @Param('id') id: string,
+    @Body() dto: HoldInspectionDto,
+    @Request() req: any,
+  ) {
+    return this.orderService.holdInspection(id, dto, req.user.id);
+  }
+
+  @Post(':id/complete-inspection')
+  @ApiOperation({ summary: '파일검수 완료' })
+  async completeInspection(
+    @Param('id') id: string,
+    @Body() dto: CompleteInspectionDto,
+    @Request() req: any,
+  ) {
+    return this.orderService.completeInspection(id, req.user.id, dto);
+  }
+
+  @Post(':id/regenerate-pdf')
+  @ApiOperation({ summary: 'PDF 재생성 (실패 시 재시도)' })
+  async regeneratePdf(@Param('id') id: string) {
+    return this.orderService.regeneratePdf(id);
+  }
+
+  @Delete(':id/originals')
+  @ApiOperation({ summary: '주문 전체 원본 이미지 삭제 (배송완료 후)' })
+  async deleteOrderOriginals(
+    @Param('id') id: string,
+    @Request() req: any,
+  ) {
+    return this.orderService.deleteOrderOriginals(id, req.user.id);
+  }
+
+  @Delete(':id/items/:itemId/originals')
+  @ApiOperation({ summary: '원본 이미지 삭제 (배송완료 후)' })
+  async deleteOriginals(
+    @Param('id') id: string,
+    @Param('itemId') itemId: string,
+    @Request() req: any,
+  ) {
+    return this.orderService.deleteOriginals(id, itemId, req.user.id);
   }
 }

@@ -183,13 +183,11 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
       }
 
       // refresh 실패 → 로그인 페이지로 이동
-      console.log('[API] 토큰 갱신 실패 - 로그인 페이지로 이동');
       clearAllAuth();
       redirectToLogin();
       throw new Error('Unauthorized');
     }
     const error = await response.json().catch(() => ({ message: 'Network error' }));
-    console.error('[API Error]', response.status, error);
     const message = Array.isArray(error.message) ? error.message.join(', ') : (error.message || `HTTP error ${response.status}`);
     throw new Error(message);
   }
@@ -218,4 +216,36 @@ export const api = {
 
   delete: <T>(endpoint: string) =>
     request<T>(endpoint, { method: 'DELETE' }),
+
+  downloadBlob: async (endpoint: string, defaultFileName: string = 'download') => {
+    const token = getAccessToken();
+    const response = await fetch(`${API_URL}${endpoint}`, {
+      method: 'GET',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: '다운로드 실패' }));
+      throw new Error(error.message || `HTTP error ${response.status}`);
+    }
+
+    const blob = await response.blob();
+    const disposition = response.headers.get('Content-Disposition');
+    let fileName = defaultFileName;
+    if (disposition) {
+      const match = disposition.match(/filename\*?=(?:UTF-8'')?["']?([^"';\s]+)/i);
+      if (match) fileName = decodeURIComponent(match[1]);
+    }
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  },
 };

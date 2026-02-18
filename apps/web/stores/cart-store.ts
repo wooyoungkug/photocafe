@@ -50,13 +50,23 @@ export interface AlbumOrderCartInfo {
   pageCount: number;               // 페이지 수
   printMethod: 'indigo' | 'inkjet'; // 출력기종
   colorMode: '4c' | '6c';          // 도수
-  pageLayout: 'single' | 'spread'; // 페이지 레이아웃
+  pageLayout: 'single' | 'spread'; // 페이지 레이아웃 (편집스타일)
   bindingDirection: string;        // 제본방향
   specificationId: string;         // 규격 ID
   specificationName: string;       // 규격명
-  fabricName?: string;             // 원단명
+  bindingName?: string;            // 제본방법명
+  paperName?: string;              // 용지명
+  coverMaterial?: string;          // 커버 재질
+  foilName?: string;               // 박 동판명
+  foilColor?: string;              // 박 색상
+  foilPosition?: string;           // 박 위치
   totalSize?: number;              // 총 용량 (bytes)
   shippingInfo?: CartShippingInfo; // 배송 정보
+  // 원단 (앨범 표지)
+  coverSourceType?: 'fabric' | 'design';
+  fabricId?: string;               // 원단 ID
+  fabricName?: string;             // 원단명
+  fabricThumbnail?: string;        // 원단 썸네일
 }
 
 export interface CartItem {
@@ -79,18 +89,39 @@ export interface CartItem {
   albumOrderInfo?: AlbumOrderCartInfo;   // 앨범/화보 주문 정보
   shippingInfo?: CartShippingInfo;       // 장바구니 배송지 정보
   isDuplicateOverride?: boolean;         // 중복 경고 무시 여부
+  // 원본 파일 업로드 상태
+  uploadStatus?: 'pending' | 'uploading' | 'completed' | 'failed' | 'cancelled';
+  uploadProgress?: number;               // 0-100
+  uploadedFileCount?: number;
+  totalFileCount?: number;
+  serverFiles?: Array<{
+    tempFileId: string;
+    fileUrl: string;
+    thumbnailUrl: string;
+    sortOrder: number;
+    fileName: string;
+    widthPx: number;
+    heightPx: number;
+    widthInch: number;
+    heightInch: number;
+    dpi: number;
+    fileSize: number;
+  }>;
+  tempFolderId?: string;                 // 임시 폴더 ID
 }
 
 interface CartState {
   items: CartItem[];
 
   addItem: (item: Omit<CartItem, 'id' | 'addedAt'>) => void;
+  addItems: (items: Omit<CartItem, 'id' | 'addedAt'>[]) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   updateOptions: (id: string, options: CartItemOption[]) => void;
   updateItemShipping: (id: string, shippingInfo: CartShippingInfo) => void;
   updateAllItemsShipping: (shippingInfo: CartShippingInfo) => void;
   updateAlbumInfo: (id: string, updates: Partial<AlbumOrderCartInfo>) => void;
+  updateUploadStatus: (id: string, updates: Partial<Pick<CartItem, 'uploadStatus' | 'uploadProgress' | 'uploadedFileCount' | 'totalFileCount' | 'serverFiles' | 'tempFolderId'>>) => void;
   reorderItems: (items: CartItem[]) => void;
   clearCart: () => void;
   getTotal: () => number;
@@ -98,12 +129,108 @@ interface CartState {
 }
 
 function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 }
 
 function calculateItemTotal(basePrice: number, quantity: number, options: CartItemOption[]): number {
   const optionsTotal = options.reduce((sum, opt) => sum + opt.price, 0);
   return (basePrice + optionsTotal) * quantity;
+}
+
+// IndexedDB 기반 스토리지 어댑터 (localStorage 5MB 한도 → IndexedDB 수백MB)
+function createCartStorage() {
+  if (typeof window === 'undefined') {
+    return {
+      getItem: () => null as any,
+      setItem: () => {},
+      removeItem: () => {},
+    };
+  }
+
+  const DB_NAME = 'printing114';
+  const STORE_NAME = 'cart';
+  let db: IDBDatabase | null = null;
+
+  const openDB = (): Promise<IDBDatabase> => {
+    if (db) return Promise.resolve(db);
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => {
+        if (!req.result.objectStoreNames.contains(STORE_NAME))
+          req.result.createObjectStore(STORE_NAME);
+      };
+      req.onsuccess = () => { db = req.result; resolve(db!); };
+      req.onerror = () => reject(req.error);
+    });
+  };
+
+  let migrated = false;
+
+  return {
+    getItem: async (name: string) => {
+      try {
+        const idb = await openDB();
+        const result = await new Promise<any>((res) => {
+          const tx = idb.transaction(STORE_NAME, 'readonly');
+          const req = tx.objectStore(STORE_NAME).get(name);
+          req.onsuccess = () => res(req.result ?? null);
+          req.onerror = () => res(null);
+        });
+        if (result) return result;
+
+        // localStorage → IndexedDB 1회 마이그레이션
+        if (!migrated) {
+          migrated = true;
+          try {
+            const str = localStorage.getItem(name);
+            if (str) {
+              const data = JSON.parse(str);
+              await new Promise<void>((res) => {
+                const tx = idb.transaction(STORE_NAME, 'readwrite');
+                tx.objectStore(STORE_NAME).put(data, name);
+                tx.oncomplete = () => res();
+                tx.onerror = () => res();
+              });
+              localStorage.removeItem(name);
+              return data;
+            }
+          } catch { /* migration failed, continue */ }
+        }
+        return null;
+      } catch {
+        // IndexedDB 불가 시 localStorage 폴백
+        try {
+          const str = localStorage.getItem(name);
+          return str ? JSON.parse(str) : null;
+        } catch { return null; }
+      }
+    },
+    setItem: async (name: string, value: any) => {
+      try {
+        const idb = await openDB();
+        await new Promise<void>((res) => {
+          const tx = idb.transaction(STORE_NAME, 'readwrite');
+          tx.objectStore(STORE_NAME).put(value, name);
+          tx.oncomplete = () => res();
+          tx.onerror = () => res();
+        });
+      } catch {
+        try { localStorage.setItem(name, JSON.stringify(value)); } catch { /* quota exceeded */ }
+      }
+    },
+    removeItem: async (name: string) => {
+      try {
+        const idb = await openDB();
+        await new Promise<void>((res) => {
+          const tx = idb.transaction(STORE_NAME, 'readwrite');
+          tx.objectStore(STORE_NAME).delete(name);
+          tx.oncomplete = () => res();
+          tx.onerror = () => res();
+        });
+      } catch { /* ignore */ }
+      try { localStorage.removeItem(name); } catch { /* ignore */ }
+    },
+  };
 }
 
 export const useCartStore = create<CartState>()(
@@ -154,6 +281,20 @@ export const useCartStore = create<CartState>()(
         };
         set((state) => ({
           items: [...state.items, newItem],
+        }));
+      },
+
+      addItems: (newItems) => {
+        const items = newItems.map(item => ({
+          ...item,
+          id: generateId(),
+          totalPrice: item.productType === 'album-order' && item.totalPrice > 0
+            ? item.totalPrice
+            : calculateItemTotal(item.basePrice, item.quantity, item.options),
+          addedAt: new Date().toISOString(),
+        }));
+        set((state) => ({
+          items: [...state.items, ...items],
         }));
       },
 
@@ -218,6 +359,14 @@ export const useCartStore = create<CartState>()(
         }));
       },
 
+      updateUploadStatus: (id, updates) => {
+        set((state) => ({
+          items: state.items.map((item) =>
+            item.id === id ? { ...item, ...updates } : item
+          ),
+        }));
+      },
+
       reorderItems: (items) => {
         set({ items });
       },
@@ -236,6 +385,11 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: 'cart-storage',
+      // thumbnailUrls 등 대용량/휘발성 데이터만 제외, serverFiles는 유지 (새로고침 후 유실 방지)
+      partialize: (state) => ({
+        items: state.items.map(({ thumbnailUrls, files, uploadProgress, uploadedFileCount, totalFileCount, ...rest }) => rest),
+      }),
+      storage: createCartStorage(),
     }
   )
 );

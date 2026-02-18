@@ -14,7 +14,6 @@ export default getRequestConfig(async () => {
       locale = cookieLocale as Locale;
     }
   } catch (error) {
-    console.error('Failed to read locale cookie:', error);
   }
 
   return {

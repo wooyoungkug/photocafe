@@ -116,10 +116,8 @@ function BindingDirectionIcon({ direction, isSelected }: { direction: BindingDir
 import { FolderCard } from './folder-card';
 import { calculateNormalizedRatio, formatFileSize, readImageDpi } from '@/lib/album-utils';
 import { useShippingData } from '@/hooks/use-shipping-data';
-import { ClientPreferenceCard } from './client-preference-card';
-import { useClientAlbumPreference } from '@/hooks/use-client-album-preference';
-import type { ClientAlbumPreference } from '@/lib/types/client';
 
+import { detectImageColorSpace } from '@/lib/image-color-detection';
 const ACCEPTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.tif', '.tiff'];
 const MAX_DEPTH = 4;
 
@@ -147,7 +145,6 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
     computeColorGroups,
     selectAllFolders,
     applyGlobalCoverSource,
-    setFolderFabric,
     setFolderCoverSource,
   } = useMultiFolderUploadStore();
 
@@ -158,18 +155,6 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
   // 배송 데이터 로드
   const { clientInfo } = useShippingData();
 
-  // 거래처 선호 설정 적용
-  const handleApplyPreference = useCallback((pref: ClientAlbumPreference) => {
-    if (pref.preferredEditStyle) {
-      const layout = pref.preferredEditStyle.toLowerCase() as 'single' | 'spread';
-      if (layout === 'single' || layout === 'spread') {
-        setDefaultPageLayout(layout);
-      }
-    }
-    if (pref.preferredBinding) {
-      setDefaultBindingDirection(pref.preferredBinding as any);
-    }
-  }, [setDefaultPageLayout, setDefaultBindingDirection]);
 
   // DB에서 인디고출력 규격 가져오기
   const { data: indigoSpecsRaw } = useIndigoSpecifications();
@@ -190,6 +175,9 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [processingMessage, setProcessingMessage] = useState('');
   const [allThumbnailsCollapsed, setAllThumbnailsCollapsed] = useState<boolean | undefined>(undefined);
+  const [currentFolderIndex, setCurrentFolderIndex] = useState(0);
+  const [totalFolderCount, setTotalFolderCount] = useState(0);
+  const [overallProgress, setOverallProgress] = useState(0);
 
   // 모바일 감지 (Android/iOS에서 webkitdirectory 미지원)
   const [isMobile, setIsMobile] = useState(false);
@@ -760,6 +748,10 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       pageLayout: PageLayoutType
     ): Promise<UploadedFile | { split: true; frontCover: UploadedFile; backCover: UploadedFile }> => {
       const dpi = await readImageDpi(file);
+
+      // 컬러 스페이스 감지
+      const colorSpace = await detectImageColorSpace(file);
+
       return new Promise((resolve) => {
         const img = new Image();
         const url = URL.createObjectURL(file);
@@ -805,6 +797,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
             coverType,
             thumbnailUrl,
             colorInfo,
+            colorSpace,
             status: 'PENDING',
           });
         };
@@ -885,7 +878,6 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       const results: { entry: FileSystemDirectoryEntry; fullPath: string; depth: number }[] = [];
 
       if (currentDepth > MAX_DEPTH) {
-        console.warn(`최대 깊이(${MAX_DEPTH}) 초과: ${parentPath}/${entry.name}`);
         return results;
       }
 
@@ -917,7 +909,6 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       const { files } = await readDirectoryFiles(entry);
 
       if (files.length === 0) {
-        console.warn(`폴더 "${fullPath}"에 이미지 파일이 없습니다.`);
         return null;
       }
 
@@ -1080,10 +1071,6 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         uploadedAt: Date.now(),
         coverSourceType: defaultCoverSourceType ?? (hasDesignCoverFiles(sortedFiles) ? 'design' : null),
         coverAutoDetected: hasDesignCoverFiles(sortedFiles),
-        selectedFabricId: null,
-        selectedFabricName: null,
-        selectedFabricThumbnail: null,
-        selectedFabricPrice: 0,
       };
 
       return folder;
@@ -1119,9 +1106,12 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         allFolders.push(...collected);
       }
 
+      setTotalFolderCount(allFolders.length);
+
       const duplicateMessages: string[] = [];
       for (let i = 0; i < allFolders.length; i++) {
         const { entry, fullPath, depth } = allFolders[i];
+        setCurrentFolderIndex(i + 1);
         setProcessingMessage(tu('processingProgress', { current: i + 1, total: allFolders.length, name: fullPath }));
 
         // 편집스타일 자동감지 (기본값 미선택 시)
@@ -1160,6 +1150,10 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
             }
           }
         }
+
+        // 전체 진행률 계산
+        const overall = Math.round(((i + 1) / allFolders.length) * 100);
+        setOverallProgress(overall);
       }
 
       if (duplicateMessages.length > 0) {
@@ -1172,6 +1166,9 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
 
       setUploading(false);
       setProcessingMessage('');
+      setCurrentFolderIndex(0);
+      setTotalFolderCount(0);
+      setOverallProgress(0);
 
       // 새 폴더로 스크롤
       scrollToNewFolder(initialFolderCount);
@@ -1214,9 +1211,12 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       }
 
       const entries = Array.from(folderMap.entries());
+      setTotalFolderCount(entries.length);
+
       const duplicateMessages: string[] = [];
       for (let i = 0; i < entries.length; i++) {
         const [folderPath, { files: folderFiles, depth, folderName }] = entries[i];
+        setCurrentFolderIndex(i + 1);
         setProcessingMessage(tu('processingProgress', { current: i + 1, total: entries.length, name: folderPath }));
 
         folderFiles.sort((a, b) => a.name.localeCompare(b.name, 'ko', { numeric: true }));
@@ -1386,10 +1386,6 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
           uploadedAt: Date.now(),
           coverSourceType: defaultCoverSourceType ?? (hasDesignCoverFiles(sortedFiles) ? 'design' : null),
           coverAutoDetected: hasDesignCoverFiles(sortedFiles),
-          selectedFabricId: null,
-          selectedFabricName: null,
-          selectedFabricThumbnail: null,
-          selectedFabricPrice: 0,
         };
 
         const result = addFolder(folder);
@@ -1401,6 +1397,10 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
             duplicateMessages.push(result.reason);
           }
         }
+
+        // 전체 진행률 계산
+        const overall = Math.round(((i + 1) / entries.length) * 100);
+        setOverallProgress(overall);
       }
 
       if (duplicateMessages.length > 0) {
@@ -1413,6 +1413,9 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
 
       setUploading(false);
       setProcessingMessage('');
+      setCurrentFolderIndex(0);
+      setTotalFolderCount(0);
+      setOverallProgress(0);
       e.target.value = '';
 
       // 새 폴더로 스크롤
@@ -1457,6 +1460,9 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       // 업로드 전 폴더 개수 저장
       const initialFolderCount = useMultiFolderUploadStore.getState().folders.length;
 
+      setTotalFolderCount(1);
+      setCurrentFolderIndex(1);
+
       const folderPath = folderName;
       files.sort((a, b) => a.name.localeCompare(b.name, 'ko', { numeric: true }));
 
@@ -1497,7 +1503,9 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
           processedFiles.push(result);
         }
 
-        setUploadProgress(Math.round(((j + 1) / files.length) * 100));
+        const progress = Math.round(((j + 1) / files.length) * 100);
+        setUploadProgress(progress);
+        setOverallProgress(progress);
       }
 
       if (processedFiles.length === 0) {
@@ -1625,10 +1633,6 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         uploadedAt: Date.now(),
         coverSourceType: defaultCoverSourceType ?? (hasDesignCoverFiles(sortedFiles) ? 'design' : null),
         coverAutoDetected: hasDesignCoverFiles(sortedFiles),
-        selectedFabricId: null,
-        selectedFabricName: null,
-        selectedFabricThumbnail: null,
-        selectedFabricPrice: 0,
       };
 
       const result = addFolder(folder);
@@ -1640,6 +1644,9 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
 
       setUploading(false);
       setProcessingMessage('');
+      setCurrentFolderIndex(0);
+      setTotalFolderCount(0);
+      setOverallProgress(0);
       setPendingMobileFiles([]);
 
       // 새 폴더로 스크롤
@@ -1700,14 +1707,6 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
 
   return (
     <div className="space-y-4">
-      {/* 거래처 선호 패턴 카드 */}
-      {clientInfo?.id && (
-        <ClientPreferenceCard
-          clientId={clientInfo.id}
-          clientName={clientInfo.clientName}
-          onApplyPreference={handleApplyPreference}
-        />
-      )}
 
       {/* 모바일 폴더명 입력 다이얼로그 */}
       {showMobileFolderNameDialog && (
@@ -1758,9 +1757,36 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         {isUploading ? (
           <div className="flex flex-col items-center gap-3">
             <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-            <span className="text-sm text-gray-600">{processingMessage}</span>
-            <Progress value={uploadProgress} className="w-48 h-2" />
-            <span className="text-xs text-gray-500">{uploadProgress}%</span>
+
+            {/* 폴더 진행 상황 */}
+            {totalFolderCount > 0 && (
+              <div className="text-center">
+                <div className="text-lg font-semibold text-blue-600">
+                  {currentFolderIndex} / {totalFolderCount} 폴더 업로드 중
+                </div>
+                <span className="text-sm text-gray-600 mt-1 block">{processingMessage}</span>
+              </div>
+            )}
+
+            {/* 현재 폴더 진행률 */}
+            <div className="w-full max-w-md space-y-2">
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>현재 폴더</span>
+                <span>{uploadProgress}%</span>
+              </div>
+              <Progress value={uploadProgress} className="h-2" />
+            </div>
+
+            {/* 전체 진행률 */}
+            {totalFolderCount > 1 && (
+              <div className="w-full max-w-md space-y-2">
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>전체 진행률</span>
+                  <span>{overallProgress}%</span>
+                </div>
+                <Progress value={overallProgress} className="h-3 bg-gray-200" />
+              </div>
+            )}
           </div>
         ) : isMobile ? (
           /* 모바일: 다중 파일 선택 (webkitdirectory 미지원) */

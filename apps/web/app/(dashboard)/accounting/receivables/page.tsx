@@ -57,7 +57,7 @@ export default function ReceivablesPage() {
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [selectedReceivable, setSelectedReceivable] = useState<any>(null);
 
-  // 거래처별 미수금 집계 데이터 사용
+  // 거래처별 미입금 집계 데이터 사용
   const { data: clientSummary, isLoading: isLoadingSummary } = useClientSalesSummary();
   const { data: summary } = useSalesLedgerSummary();
   const { data: agingData } = useAgingAnalysis();
@@ -95,12 +95,12 @@ export default function ReceivablesPage() {
 
   const handlePayment = async () => {
     if (paymentForm.amount <= 0) {
-      toast({ title: '수금액을 입력해주세요.', variant: 'destructive' });
+      toast({ title: '입금액을 입력해주세요.', variant: 'destructive' });
       return;
     }
 
     try {
-      // 해당 거래처의 미수금 중 가장 오래된 건을 조회하여 수금 처리
+      // 해당 거래처의 미입금 중 가장 오래된 건을 조회하여 입금 처리
       // 간단한 구현: Payment 생성 (향후 매출원장과 연결 필요)
       await createPayment.mutateAsync({
         type: 'income',
@@ -109,20 +109,19 @@ export default function ReceivablesPage() {
         paymentMethod: paymentForm.paymentMethod as any,
         clientId: selectedReceivable?.clientId,
         clientName: selectedReceivable?.clientName,
-        description: paymentForm.description || `${selectedReceivable?.clientName} 미수금 수금`,
+        description: paymentForm.description || `${selectedReceivable?.clientName} 미입금 입금`,
       });
-      toast({ title: '수금이 처리되었습니다.' });
+      toast({ title: '입금이 처리되었습니다.' });
       setIsPaymentDialogOpen(false);
     } catch (error) {
-      console.error('수금 처리 오류:', error);
-      toast({ title: '수금 처리에 실패했습니다.', variant: 'destructive' });
+      toast({ title: '입금 처리에 실패했습니다.', variant: 'destructive' });
     }
   };
 
   const getStatusBadge = (status: string) => {
     const configs: Record<string, { label: string; color: string; icon: any }> = {
       outstanding: { label: '미수', color: 'bg-orange-100 text-orange-700', icon: Clock },
-      partial: { label: '부분수금', color: 'bg-blue-100 text-blue-700', icon: TrendingDown },
+      partial: { label: '부분입금', color: 'bg-blue-100 text-blue-700', icon: TrendingDown },
       paid: { label: '완납', color: 'bg-green-100 text-green-700', icon: CheckCircle },
       overdue: { label: '연체', color: 'bg-red-100 text-red-700', icon: AlertTriangle },
     };
@@ -148,7 +147,7 @@ export default function ReceivablesPage() {
     }
 
     // CSV 헤더
-    const headers = ['거래처코드', '거래처명', '총매출', '수금액', '미수금', '수금률(%)', '거래건수'];
+    const headers = ['거래처코드', '거래처명', '총매출', '입금액', '미입금', '입금률(%)', '주문건수'];
 
     // CSV 데이터 행
     const rows = clientSummary.map(item => [
@@ -169,7 +168,7 @@ export default function ReceivablesPage() {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `미수금관리_${format(new Date(), 'yyyyMMdd')}.csv`);
+    link.setAttribute('download', `미입금관리_${format(new Date(), 'yyyyMMdd')}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -183,8 +182,8 @@ export default function ReceivablesPage() {
       {/* 헤더 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">미수금 관리</h1>
-          <p className="text-muted-foreground">거래처별 미수금 현황을 관리합니다.</p>
+          <h1 className="text-2xl font-bold">미입금 관리</h1>
+          <p className="text-muted-foreground">거래처별 미입금 현황을 관리합니다.</p>
         </div>
         <div className="flex gap-2">
           <Link href="/accounting/receivables/payments">
@@ -212,9 +211,9 @@ export default function ReceivablesPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-orange-600 font-medium">총 미수금</p>
+                <p className="text-sm text-orange-600 font-medium">총 미입금</p>
                 <p className="text-2xl font-bold text-orange-900">
-                  {(summary?.totalOutstanding || 0).toLocaleString()}원
+                  {Math.round(summary?.totalOutstanding || 0).toLocaleString()}원
                 </p>
               </div>
               <div className="h-12 w-12 bg-orange-500 rounded-xl flex items-center justify-center">
@@ -233,7 +232,7 @@ export default function ReceivablesPage() {
               <div>
                 <p className="text-sm text-red-600 font-medium">연체금액</p>
                 <p className="text-2xl font-bold text-red-900">
-                  {(summary?.totalOverdue || 0).toLocaleString()}원
+                  {Math.round(summary?.totalOverdue || 0).toLocaleString()}원
                 </p>
               </div>
               <div className="h-12 w-12 bg-red-500 rounded-xl flex items-center justify-center">
@@ -252,7 +251,7 @@ export default function ReceivablesPage() {
               <div>
                 <p className="text-sm text-blue-600 font-medium">30일 이내</p>
                 <p className="text-2xl font-bold text-blue-900">
-                  {(agingData?.under30 || 0).toLocaleString()}원
+                  {Math.round(agingData?.under30 || 0).toLocaleString()}원
                 </p>
               </div>
               <div className="h-12 w-12 bg-blue-500 rounded-xl flex items-center justify-center">
@@ -271,7 +270,7 @@ export default function ReceivablesPage() {
               <div>
                 <p className="text-sm text-purple-600 font-medium">90일 초과</p>
                 <p className="text-2xl font-bold text-purple-900">
-                  {(agingData?.over90 || 0).toLocaleString()}원
+                  {Math.round(agingData?.over90 || 0).toLocaleString()}원
                 </p>
               </div>
               <div className="h-12 w-12 bg-purple-500 rounded-xl flex items-center justify-center">
@@ -296,28 +295,28 @@ export default function ReceivablesPage() {
               <div className="w-24 text-sm text-muted-foreground">30일 이내</div>
               <Progress value={agingPercent.under30} className="flex-1 h-3" />
               <div className="w-32 text-right text-sm font-medium">
-                {(agingData?.under30 || 0).toLocaleString()}원
+                {Math.round(agingData?.under30 || 0).toLocaleString()}원
               </div>
             </div>
             <div className="flex items-center gap-4">
               <div className="w-24 text-sm text-muted-foreground">31~60일</div>
               <Progress value={agingPercent.days30to60} className="flex-1 h-3 [&>div]:bg-yellow-500" />
               <div className="w-32 text-right text-sm font-medium">
-                {(agingData?.days30to60 || 0).toLocaleString()}원
+                {Math.round(agingData?.days30to60 || 0).toLocaleString()}원
               </div>
             </div>
             <div className="flex items-center gap-4">
               <div className="w-24 text-sm text-muted-foreground">61~90일</div>
               <Progress value={agingPercent.days60to90} className="flex-1 h-3 [&>div]:bg-orange-500" />
               <div className="w-32 text-right text-sm font-medium">
-                {(agingData?.days60to90 || 0).toLocaleString()}원
+                {Math.round(agingData?.days60to90 || 0).toLocaleString()}원
               </div>
             </div>
             <div className="flex items-center gap-4">
               <div className="w-24 text-sm text-muted-foreground">90일 초과</div>
               <Progress value={agingPercent.over90} className="flex-1 h-3 [&>div]:bg-red-500" />
               <div className="w-32 text-right text-sm font-medium">
-                {(agingData?.over90 || 0).toLocaleString()}원
+                {Math.round(agingData?.over90 || 0).toLocaleString()}원
               </div>
             </div>
           </div>
@@ -347,7 +346,7 @@ export default function ReceivablesPage() {
               <SelectContent>
                 <SelectItem value="all">전체 상태</SelectItem>
                 <SelectItem value="outstanding">미수</SelectItem>
-                <SelectItem value="partial">부분수금</SelectItem>
+                <SelectItem value="partial">부분입금</SelectItem>
                 <SelectItem value="overdue">연체</SelectItem>
                 <SelectItem value="paid">완납</SelectItem>
               </SelectContent>
@@ -360,10 +359,10 @@ export default function ReceivablesPage() {
         </CardContent>
       </Card>
 
-      {/* 미수금 목록 */}
+      {/* 미입금 목록 */}
       <Card>
         <CardHeader>
-          <CardTitle>미수금 현황</CardTitle>
+          <CardTitle>미입금 현황</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
@@ -371,10 +370,10 @@ export default function ReceivablesPage() {
               <TableRow className="bg-slate-50">
                 <TableHead>거래처</TableHead>
                 <TableHead className="text-right">발생금액</TableHead>
-                <TableHead className="text-right">수금액</TableHead>
+                <TableHead className="text-right">입금액</TableHead>
                 <TableHead className="text-right">잔액</TableHead>
-                <TableHead className="text-center">수금률</TableHead>
-                <TableHead className="text-center">수금예정일</TableHead>
+                <TableHead className="text-center">입금률</TableHead>
+                <TableHead className="text-center">입금예정일</TableHead>
                 <TableHead className="text-center">상태</TableHead>
                 <TableHead className="w-[100px]"></TableHead>
               </TableRow>
@@ -390,7 +389,7 @@ export default function ReceivablesPage() {
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                     <FileText className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                    미수금 내역이 없습니다.
+                    미입금 내역이 없습니다.
                   </TableCell>
                 </TableRow>
               ) : (
@@ -413,13 +412,13 @@ export default function ReceivablesPage() {
                           </Link>
                         </TableCell>
                         <TableCell className="text-right font-medium">
-                          {item.totalSales.toLocaleString()}
+                          {Math.round(item.totalSales).toLocaleString()}
                         </TableCell>
                         <TableCell className="text-right text-green-600">
-                          {item.totalReceived.toLocaleString()}
+                          {Math.round(item.totalReceived).toLocaleString()}
                         </TableCell>
                         <TableCell className="text-right font-bold text-orange-600">
-                          {item.outstanding.toLocaleString()}
+                          {Math.round(item.outstanding).toLocaleString()}
                         </TableCell>
                         <TableCell className="text-center">
                           <div className="flex items-center justify-center gap-2">
@@ -446,7 +445,7 @@ export default function ReceivablesPage() {
                               disabled={status === 'paid'}
                             >
                               <Receipt className="h-3 w-3 mr-1" />
-                              수금
+                              입금
                             </Button>
                             <Button variant="ghost" size="icon" className="h-8 w-8">
                               <MoreHorizontal className="h-4 w-4" />
@@ -476,7 +475,7 @@ export default function ReceivablesPage() {
                 <TableHead>주문번호</TableHead>
                 <TableHead>매출일</TableHead>
                 <TableHead className="text-right">금액</TableHead>
-                <TableHead className="text-right">미수금</TableHead>
+                <TableHead className="text-right">미입금</TableHead>
                 <TableHead className="text-center">결제상태</TableHead>
               </TableRow>
             </TableHeader>
@@ -516,11 +515,11 @@ export default function ReceivablesPage() {
         </CardContent>
       </Card>
 
-      {/* 수금 등록 다이얼로그 */}
+      {/* 입금 등록 다이얼로그 */}
       <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>수금 등록</DialogTitle>
+            <DialogTitle>입금 등록</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 mt-4">
             <div className="p-4 bg-slate-50 rounded-lg space-y-2">
@@ -529,7 +528,7 @@ export default function ReceivablesPage() {
                 <span className="font-medium">{selectedReceivable?.clientName}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">미수금 잔액</span>
+                <span className="text-muted-foreground">미입금 잔액</span>
                 <span className="font-bold text-orange-600">
                   {selectedReceivable?.remainingAmount?.toLocaleString()}원
                 </span>
@@ -537,7 +536,7 @@ export default function ReceivablesPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>수금일자</Label>
+              <Label>입금일자</Label>
               <Input
                 type="date"
                 value={paymentForm.paymentDate}
@@ -546,7 +545,7 @@ export default function ReceivablesPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>수금액</Label>
+              <Label>입금액</Label>
               <Input
                 type="number"
                 value={paymentForm.amount}
@@ -578,7 +577,7 @@ export default function ReceivablesPage() {
               <Input
                 value={paymentForm.description}
                 onChange={(e) => setPaymentForm({ ...paymentForm, description: e.target.value })}
-                placeholder="수금 내용을 입력하세요"
+                placeholder="입금 내용을 입력하세요"
               />
             </div>
           </div>
@@ -588,7 +587,7 @@ export default function ReceivablesPage() {
               취소
             </Button>
             <Button onClick={handlePayment} disabled={createPayment.isPending}>
-              수금 등록
+              입금 등록
             </Button>
           </DialogFooter>
         </DialogContent>

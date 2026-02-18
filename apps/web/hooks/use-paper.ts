@@ -156,7 +156,6 @@ export function usePaperManufacturers(isActive?: boolean) {
       const params = new URLSearchParams();
       if (isActive !== undefined) params.append('isActive', String(isActive));
       const data = await api.get<PaperManufacturer[]>(`/paper-manufacturers?${params}`);
-      console.log('Fetched manufacturers:', data);
       return data ?? [];
     },
     staleTime: 0,
@@ -179,18 +178,13 @@ export function useCreatePaperManufacturer() {
 
   return useMutation({
     mutationFn: async (dto: CreatePaperManufacturerDto) => {
-      console.log('Creating manufacturer with dto:', dto);
       const data = await api.post<PaperManufacturer>('/paper-manufacturers', dto);
-      console.log('Create manufacturer response:', data);
       return data;
     },
     onSuccess: (data) => {
-      console.log('Manufacturer created successfully:', data);
       queryClient.invalidateQueries({ queryKey: ['paper-manufacturers'] });
     },
     onError: (error: any) => {
-      console.error('Failed to create manufacturer:', error);
-      console.error('Error response:', error.response?.data);
     },
   });
 }

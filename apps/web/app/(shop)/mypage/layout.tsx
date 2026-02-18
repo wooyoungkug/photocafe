@@ -5,7 +5,6 @@ import Link from 'next/link';
 import {
   ShoppingBag,
   Calendar,
-  BookOpen,
   Wallet,
   User,
   MapPin,
@@ -41,11 +40,6 @@ const MENU_ITEMS = [
     icon: Calendar,
     label: '월거래집계',
     href: '/mypage/monthly-summary',
-  },
-  {
-    icon: BookOpen,
-    label: '거래대장',
-    href: '/mypage/ledger',
   },
   {
     icon: Wallet,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
@@ -38,6 +38,7 @@ import { CartItemDragOverlay } from './_components/cart-item-drag-overlay';
 import { CartOrderSummary } from './_components/cart-order-summary';
 import { CartMobileCheckoutBar } from './_components/cart-mobile-checkout-bar';
 import { CartDeleteDialog } from './_components/cart-delete-dialog';
+import { canCancelUpload } from '@/lib/background-upload';
 
 export default function CartPage() {
   const router = useRouter();
@@ -56,6 +57,24 @@ export default function CartPage() {
   const { toast } = useToast();
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
+
+  // Stale upload 상태 복구: 페이지 로드 시 pending/uploading인데 실제 업로드 프로세스가 없는 아이템 처리
+  const { updateUploadStatus } = useCartStore();
+  useEffect(() => {
+    items.forEach((item) => {
+      if (
+        (item.uploadStatus === 'pending' || item.uploadStatus === 'uploading') &&
+        !canCancelUpload(item.id)
+      ) {
+        if (item.serverFiles && item.serverFiles.length > 0) {
+          updateUploadStatus(item.id, { uploadStatus: 'completed', uploadProgress: 100 });
+        } else {
+          updateUploadStatus(item.id, { uploadStatus: 'completed', uploadProgress: 100 });
+        }
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Delete dialogs
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
@@ -229,7 +248,41 @@ export default function CartPage() {
     return sum;
   }, 0);
 
+  // 업로드 진행 중인 아이템이 있는지 확인
+  const hasUploadInProgress = items.some(
+    (item) => item.uploadStatus === 'uploading' || item.uploadStatus === 'pending'
+  );
+  const hasUploadFailed = items.some((item) => item.uploadStatus === 'failed');
+  // 앨범 상품인데 업로드 완료 후 serverFiles가 누락된 경우 (새로고침 등으로 유실)
+  const hasFileMissing = items.some(
+    (item) => item.productType === 'album-order' && item.uploadStatus === 'completed' && (!item.serverFiles || item.serverFiles.length === 0)
+  );
+
   const handleCheckout = () => {
+    if (hasUploadInProgress) {
+      toast({
+        title: '파일 업로드 진행 중',
+        description: '원본 파일 업로드가 완료된 후 주문할 수 있습니다.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (hasUploadFailed) {
+      toast({
+        title: '업로드 실패 항목 확인',
+        description: '업로드에 실패한 항목이 있습니다. 재시도하거나 삭제 후 주문해주세요.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (hasFileMissing) {
+      toast({
+        title: '파일 데이터 누락',
+        description: '파일 데이터가 누락된 앨범 상품이 있습니다. 해당 상품을 삭제 후 다시 업로드해주세요.',
+        variant: 'destructive',
+      });
+      return;
+    }
     if (!isAuthenticated) {
       router.push('/login?redirect=/order');
       return;
@@ -294,40 +347,44 @@ export default function CartPage() {
                 strategy={verticalListSortingStrategy}
               >
                 <div className="space-y-3 sm:space-y-4">
-                  {items.map((item, idx) => {
-                    let hasPrevShipping = false;
-                    if (!item.albumOrderInfo?.shippingInfo) {
-                      for (let i = idx - 1; i >= 0; i--) {
-                        const prev = items[i];
-                        const prevShipping = prev.albumOrderInfo?.shippingInfo || prev.shippingInfo;
-                        if (prevShipping && isShippingComplete(prevShipping)) {
-                          hasPrevShipping = true;
-                          break;
-                        }
+                  {(() => {
+                    // O(n) 사전 계산: 이전 배송정보 존재 여부 맵
+                    const hasPrevShippingMap = new Map<number, boolean>();
+                    let foundPrevShipping = false;
+                    for (let i = 0; i < items.length; i++) {
+                      hasPrevShippingMap.set(i, foundPrevShipping);
+                      const shipping = items[i].albumOrderInfo?.shippingInfo || items[i].shippingInfo;
+                      if (shipping && isShippingComplete(shipping)) {
+                        foundPrevShipping = true;
                       }
                     }
-                    return (
-                      <CartItemCard
-                        key={item.id}
-                        item={item}
-                        isSelected={selectedItems.includes(item.id)}
-                        hasShipping={canSelectItem(item.id)}
-                        onSelect={handleSelectItem}
-                        onRemove={setDeleteTargetId}
-                        onUpdateQuantity={updateQuantity}
-                        onShippingChange={handleShippingChange}
-                        onAlbumInfoChange={updateAlbumInfo}
-                        onApplyToAll={handleApplyToAll}
-                        onCopyFromPrevious={
-                          hasPrevShipping ? () => handleCopyFromPrevious(item.id) : null
-                        }
-                        itemsCount={items.filter((i) => !i.albumOrderInfo?.shippingInfo).length}
-                        companyInfo={companyInfo}
-                        clientInfo={clientInfo}
-                        pricingMap={pricingMap}
-                      />
-                    );
-                  })}
+                    const noShippingCount = items.filter((i) => !i.albumOrderInfo?.shippingInfo).length;
+
+                    return items.map((item, idx) => {
+                      const hasPrevShipping = !item.albumOrderInfo?.shippingInfo && (hasPrevShippingMap.get(idx) ?? false);
+                      return (
+                        <CartItemCard
+                          key={item.id}
+                          item={item}
+                          isSelected={selectedItems.includes(item.id)}
+                          hasShipping={canSelectItem(item.id)}
+                          onSelect={handleSelectItem}
+                          onRemove={setDeleteTargetId}
+                          onUpdateQuantity={updateQuantity}
+                          onShippingChange={handleShippingChange}
+                          onAlbumInfoChange={updateAlbumInfo}
+                          onApplyToAll={handleApplyToAll}
+                          onCopyFromPrevious={
+                            hasPrevShipping ? () => handleCopyFromPrevious(item.id) : null
+                          }
+                          itemsCount={noShippingCount}
+                          companyInfo={companyInfo}
+                          clientInfo={clientInfo}
+                          pricingMap={pricingMap}
+                        />
+                      );
+                    });
+                  })()}
                 </div>
               </SortableContext>
 
@@ -360,6 +417,9 @@ export default function CartPage() {
               selectedTotal={selectedTotal}
               totalShippingFee={totalShippingFee}
               isAuthenticated={isAuthenticated}
+              hasUploadInProgress={hasUploadInProgress}
+              hasUploadFailed={hasUploadFailed}
+              hasFileMissing={hasFileMissing}
               onCheckout={handleCheckout}
             />
           </div>
@@ -372,6 +432,9 @@ export default function CartPage() {
           selectedCount={selectedItems.length}
           selectedTotal={selectedTotal}
           totalShippingFee={totalShippingFee}
+          hasUploadInProgress={hasUploadInProgress}
+          hasUploadFailed={hasUploadFailed}
+          hasFileMissing={hasFileMissing}
           onCheckout={handleCheckout}
         />
       </div>

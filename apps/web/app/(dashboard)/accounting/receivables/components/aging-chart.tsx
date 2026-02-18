@@ -34,7 +34,7 @@ export function AgingChart({ data }: AgingChartProps) {
             <XAxis dataKey="name" stroke="#64748b" fontSize={12} />
             <YAxis stroke="#64748b" fontSize={12} tickFormatter={(val) => `${(val / 1000).toFixed(0)}K`} />
             <Tooltip
-              formatter={(value: number) => [formatCurrency(value), '미수금']}
+              formatter={(value: number) => [formatCurrency(value), '미입금']}
               contentStyle={{
                 backgroundColor: 'white',
                 border: '1px solid #e2e8f0',

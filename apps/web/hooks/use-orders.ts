@@ -54,6 +54,7 @@ export interface OrderItem {
   coverMaterial?: string;
   foilName?: string;
   foilColor?: string;
+  foilPosition?: string;
   finishingOptions: string[];
   fabricName?: string;
   folderName?: string;
@@ -61,6 +62,8 @@ export interface OrderItem {
   totalFileSize?: number;
   pageLayout?: string;
   bindingDirection?: string;
+  originalsDeleted?: boolean;
+  pdfStatus?: string;
   quantity: number;
   unitPrice: number;
   totalPrice: number;
@@ -144,6 +147,7 @@ export interface CreateOrderDto {
     coverMaterial?: string;
     foilName?: string;
     foilColor?: string;
+    foilPosition?: string;
     finishingOptions?: string[];
     quantity: number;
     unitPrice: number;
@@ -151,6 +155,7 @@ export interface CreateOrderDto {
     colorMode?: string;
     pageLayout?: string;
     bindingDirection?: string;
+    fabricName?: string;
     folderName?: string;
     fileCount?: number;
   }[];
@@ -304,5 +309,113 @@ export function useOrderHistory(orderId: string | null) {
     queryKey: [ORDERS_KEY, orderId, 'history'],
     queryFn: () => api.get<ProcessHistory[]>(`/orders/${orderId}/history`),
     enabled: !!orderId,
+  });
+}
+
+// ==================== 파일검수 관련 ====================
+
+// 검수 시작
+export function useStartInspection() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (orderId: string) =>
+      api.post(`/api/v1/orders/${orderId}/start-inspection`, {}),
+    onSuccess: (_, orderId) => {
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY, orderId] });
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY] });
+    },
+  });
+}
+
+// 파일 검수 (승인/거부)
+export function useInspectFile() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      orderId,
+      fileId,
+      inspectionStatus,
+      inspectionNote,
+    }: {
+      orderId: string;
+      fileId: string;
+      inspectionStatus: 'approved' | 'rejected';
+      inspectionNote?: string;
+    }) =>
+      api.patch(`/api/v1/orders/${orderId}/files/${fileId}/inspect`, {
+        inspectionStatus,
+        inspectionNote,
+      }),
+    onSuccess: (_, { orderId }) => {
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY, orderId] });
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY] });
+    },
+  });
+}
+
+// 검수 보류
+export function useHoldInspection() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      orderId,
+      reason,
+      sendSms = true,
+    }: {
+      orderId: string;
+      reason: string;
+      sendSms?: boolean;
+    }) => api.post(`/api/v1/orders/${orderId}/hold-inspection`, { reason, sendSms }),
+    onSuccess: (_, { orderId }) => {
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY, orderId] });
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY] });
+    },
+  });
+}
+
+// 검수 완료
+export function useCompleteInspection() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orderId, note }: { orderId: string; note?: string }) =>
+      api.post(`/api/v1/orders/${orderId}/complete-inspection`, { note }),
+    onSuccess: (_, { orderId }) => {
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY, orderId] });
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY] });
+    },
+  });
+}
+
+// ==================== 일자별 주문/입금 집계 ====================
+
+export interface DailyOrderSummary {
+  date: string;
+  orderCount: number;
+  orderAmount: number;
+  depositAmount: number;
+}
+
+export interface DailyOrderSummaryResponse {
+  data: DailyOrderSummary[];
+  summary: {
+    carryForwardBalance: number;
+    totalOrders: number;
+    totalOrderAmount: number;
+    totalDepositAmount: number;
+    totalOutstanding: number;
+    closingBalance: number;
+  };
+}
+
+export function useDailyOrderSummary(params: {
+  startDate: string;
+  endDate: string;
+  clientId?: string;
+}) {
+  return useQuery({
+    queryKey: [ORDERS_KEY, 'daily-summary', params],
+    queryFn: () =>
+      api.get<DailyOrderSummaryResponse>('/orders/daily-summary', params),
+    enabled: !!params.clientId,
   });
 }

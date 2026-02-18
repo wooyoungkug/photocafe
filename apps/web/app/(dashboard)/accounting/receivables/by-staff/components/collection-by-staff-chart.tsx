@@ -34,7 +34,7 @@ export default function CollectionByStaffChart({ data, isLoading }: CollectionBy
       {/* 차트 */}
       <Card>
         <CardHeader>
-          <CardTitle>영업담당자별 수금 실적 (수금방법별)</CardTitle>
+          <CardTitle>영업담당자별 입금 실적 (입금방법별)</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -44,7 +44,7 @@ export default function CollectionByStaffChart({ data, isLoading }: CollectionBy
           ) : !data.length ? (
             <div className="flex flex-col items-center justify-center h-80 text-muted-foreground">
               <BarChart3 className="h-16 w-16 mb-4 opacity-20" />
-              <p>수금 실적 데이터가 없습니다.</p>
+              <p>입금 실적 데이터가 없습니다.</p>
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={400}>
@@ -69,15 +69,15 @@ export default function CollectionByStaffChart({ data, isLoading }: CollectionBy
       {/* 상세 테이블 */}
       <Card>
         <CardHeader>
-          <CardTitle>수금방법별 상세 내역</CardTitle>
+          <CardTitle>입금방법별 상세 내역</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-50">
                 <TableHead>담당자</TableHead>
-                <TableHead className="text-right">총 수금액</TableHead>
-                <TableHead className="text-center">수금 건수</TableHead>
+                <TableHead className="text-right">총 입금액</TableHead>
+                <TableHead className="text-center">입금 건수</TableHead>
                 <TableHead className="text-right">현금</TableHead>
                 <TableHead className="text-right">계좌이체</TableHead>
                 <TableHead className="text-right">카드</TableHead>
@@ -94,7 +94,7 @@ export default function CollectionByStaffChart({ data, isLoading }: CollectionBy
               ) : !data.length ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
-                    수금 실적 데이터가 없습니다.
+                    입금 실적 데이터가 없습니다.
                   </TableCell>
                 </TableRow>
               ) : (

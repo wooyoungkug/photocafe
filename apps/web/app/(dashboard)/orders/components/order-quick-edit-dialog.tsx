@@ -94,6 +94,9 @@ interface ItemEdit {
   pageLayout?: string;
   bindingDirection?: string;
   fabricName?: string;
+  foilName?: string;
+  foilColor?: string;
+  foilPosition?: string;
 }
 
 // ==================== ThumbnailGrid 서브 컴포넌트 ====================
@@ -122,6 +125,9 @@ function AdaptiveThumbnail({
   direction: BindingDirectionType;
 }) {
   const [aspectStyle, setAspectStyle] = useState<string>('aspect-[3/4]');
+  const [imgSrc, setImgSrc] = useState<string | null>(
+    file.thumbnailUrl || file.fileUrl || null
+  );
 
   const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
@@ -129,15 +135,21 @@ function AdaptiveThumbnail({
     if (naturalWidth && naturalHeight) {
       const ratio = naturalWidth / naturalHeight;
       if (ratio > 1) {
-        // 가로 이미지
         setAspectStyle('aspect-[4/3]');
       } else if (ratio > 0.9) {
-        // 거의 정사각형
         setAspectStyle('aspect-square');
       } else {
-        // 세로 이미지 - 실제 비율 적용
         setAspectStyle('');
       }
+    }
+  };
+
+  const handleImageError = () => {
+    // thumbnailUrl 실패 시 fileUrl로 폴백, fileUrl도 실패 시 포기
+    if (imgSrc === file.thumbnailUrl && file.fileUrl) {
+      setImgSrc(file.fileUrl);
+    } else {
+      setImgSrc(null);
     }
   };
 
@@ -147,9 +159,9 @@ function AdaptiveThumbnail({
         'relative rounded-t-md overflow-hidden border-2 border-gray-200 hover:border-blue-400 hover:shadow-md transition-all bg-gray-100',
         aspectStyle || 'aspect-auto'
       )}>
-        {file.thumbnailUrl || file.fileUrl ? (
+        {imgSrc ? (
           <img
-            src={file.thumbnailUrl || file.fileUrl}
+            src={imgSrc}
             alt={file.fileName}
             className={cn(
               'w-full object-contain',
@@ -157,6 +169,7 @@ function AdaptiveThumbnail({
             )}
             loading="lazy"
             onLoad={handleImageLoad}
+            onError={handleImageError}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center min-h-[80px]">
@@ -366,6 +379,9 @@ export function OrderQuickEditDialog({
           pageLayout: item.pageLayout || undefined,
           bindingDirection: item.bindingDirection || undefined,
           fabricName: item.fabricName || undefined,
+          foilName: item.foilName || undefined,
+          foilColor: item.foilColor || undefined,
+          foilPosition: item.foilPosition || undefined,
         };
       });
       setItemEdits(edits);
@@ -407,7 +423,10 @@ export function OrderQuickEditDialog({
         edit.unitPrice !== Number(item.unitPrice) ||
         edit.pageLayout !== (item.pageLayout || undefined) ||
         edit.bindingDirection !== (item.bindingDirection || undefined) ||
-        edit.fabricName !== (item.fabricName || undefined)
+        edit.fabricName !== (item.fabricName || undefined) ||
+        edit.foilName !== (item.foilName || undefined) ||
+        edit.foilColor !== (item.foilColor || undefined) ||
+        edit.foilPosition !== (item.foilPosition || undefined)
       );
     });
   };
@@ -424,7 +443,10 @@ export function OrderQuickEditDialog({
           edit.unitPrice !== Number(item.unitPrice) ||
           edit.pageLayout !== (item.pageLayout || undefined) ||
           edit.bindingDirection !== (item.bindingDirection || undefined) ||
-          edit.fabricName !== (item.fabricName || undefined)
+          edit.fabricName !== (item.fabricName || undefined) ||
+          edit.foilName !== (item.foilName || undefined) ||
+          edit.foilColor !== (item.foilColor || undefined) ||
+          edit.foilPosition !== (item.foilPosition || undefined)
         );
       })
       .map((item) => ({
@@ -434,6 +456,9 @@ export function OrderQuickEditDialog({
         pageLayout: itemEdits[item.id].pageLayout,
         bindingDirection: itemEdits[item.id].bindingDirection,
         fabricName: itemEdits[item.id].fabricName,
+        foilName: itemEdits[item.id].foilName,
+        foilColor: itemEdits[item.id].foilColor,
+        foilPosition: itemEdits[item.id].foilPosition,
       }));
 
     try {
@@ -758,6 +783,61 @@ export function OrderQuickEditDialog({
                           placeholder="원단명 입력"
                           className="w-48 h-8 text-sm"
                         />
+                      </div>
+
+                      {/* Foil information (동판 정보) */}
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">박 동판명</Label>
+                          <Input
+                            value={edit.foilName || ''}
+                            onChange={(e) =>
+                              setItemEdits((prev) => ({
+                                ...prev,
+                                [item.id]: {
+                                  ...prev[item.id],
+                                  foilName: e.target.value || undefined,
+                                },
+                              }))
+                            }
+                            placeholder="동판명 입력"
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">박 색상</Label>
+                          <Input
+                            value={edit.foilColor || ''}
+                            onChange={(e) =>
+                              setItemEdits((prev) => ({
+                                ...prev,
+                                [item.id]: {
+                                  ...prev[item.id],
+                                  foilColor: e.target.value || undefined,
+                                },
+                              }))
+                            }
+                            placeholder="박 색상"
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">박 위치</Label>
+                          <Input
+                            value={edit.foilPosition || ''}
+                            onChange={(e) =>
+                              setItemEdits((prev) => ({
+                                ...prev,
+                                [item.id]: {
+                                  ...prev[item.id],
+                                  foilPosition: e.target.value || undefined,
+                                },
+                              }))
+                            }
+                            placeholder="박 위치"
+                            className="h-8 text-sm"
+                          />
+                        </div>
                       </div>
 
                       {/* Quantity / Unit price / Subtotal */}

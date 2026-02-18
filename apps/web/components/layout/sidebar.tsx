@@ -79,7 +79,7 @@ const DEFAULT_NAVIGATION: NavItem[] = [
     children: [
       { name: "기초정보 설정", href: "/settings/basic" },
       { name: "용지관리", href: "/master/papers" },
-      { name: "원단정보", href: "/master/fabrics" },
+      { name: "표지원단정보", href: "/master/fabrics" },
       { name: "카테고리", href: "/company/categories" },
       { name: "규격정보", href: "/master/specifications" },
       { name: "공용동판관리", href: "/settings/public-copper-plates" },
@@ -138,10 +138,12 @@ const DEFAULT_NAVIGATION: NavItem[] = [
     children: [
       { name: "계정과목관리", href: "/accounting/accounts" },
       { name: "전표관리", href: "/accounting/journals" },
+      { name: "매출거래처원장", href: "/accounting/client-ledger/sales" },
+      { name: "매입거래처원장", href: "/accounting/client-ledger/purchases" },
       { name: "매출원장", href: "/accounting/sales" },
       { name: "매입관리", href: "/accounting/purchases" },
       { name: "미수금관리", href: "/accounting/receivables" },
-      { name: "입금 처리", href: "/accounting/receivables/payments" },
+      { name: "입금내역 조회", href: "/accounting/deposits" },
       { name: "미지급관리", href: "/accounting/payables" },
       { name: "정산관리", href: "/accounting/settlements" },
       { name: "세금계산서관리", href: "/accounting/tax-invoices" },

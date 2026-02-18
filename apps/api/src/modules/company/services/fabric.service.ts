@@ -103,6 +103,7 @@ export class FabricService {
     material?: string;
     supplierId?: string;
     includeInactive?: boolean;
+    forAlbumCover?: boolean;
     page?: number;
     limit?: number;
   }) {
@@ -112,6 +113,7 @@ export class FabricService {
       material,
       supplierId,
       includeInactive = false,
+      forAlbumCover,
       page = 1,
       limit = 20,
     } = params;
@@ -141,6 +143,10 @@ export class FabricService {
 
     if (supplierId) {
       where.supplierId = supplierId;
+    }
+
+    if (forAlbumCover) {
+      where.forAlbumCover = true;
     }
 
     const [data, total] = await Promise.all([
@@ -204,7 +210,7 @@ export class FabricService {
       data: {
         code: dto.code,
         name: dto.name,
-        category: dto.category || 'cloth',
+        category: dto.category || 'fabric',
         material: dto.material || 'cotton',
         colorCode: dto.colorCode,
         colorName: dto.colorName,

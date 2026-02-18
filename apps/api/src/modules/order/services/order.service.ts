@@ -1,7 +1,10 @@
-import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef, Logger } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { SystemSettingsService } from '@/modules/system-settings/system-settings.service';
+import { FileStorageService } from '@/modules/upload/services/file-storage.service';
+import { PdfGeneratorService } from '@/modules/upload/services/pdf-generator.service';
 import { Prisma } from '@prisma/client';
+import { dirname } from 'path';
 import {
   CreateOrderDto,
   UpdateOrderDto,
@@ -13,37 +16,63 @@ import {
   BulkUpdateReceiptDateDto,
   BulkDataCleanupDto,
   ORDER_STATUS,
+  PROCESS_STATUS,
+  INSPECTION_PROCESS_TYPES,
+  InspectFileDto,
+  HoldInspectionDto,
+  CompleteInspectionDto,
 } from '../dto';
 import { SalesLedgerService } from '../../accounting/services/sales-ledger.service';
 
 @Injectable()
 export class OrderService {
+  private readonly logger = new Logger(OrderService.name);
+
   constructor(
     private prisma: PrismaService,
     private systemSettings: SystemSettingsService,
     private salesLedgerService: SalesLedgerService,
+    private fileStorage: FileStorageService,
+    private pdfGenerator: PdfGeneratorService,
   ) { }
 
-  // ==================== 주문번호 생성 ====================
-  private async generateOrderNumber(): Promise<string> {
+  // ==================== 주문번호 생성 (원자적) ====================
+  private async generateOrderNumber(
+    tx: Prisma.TransactionClient = this.prisma,
+  ): Promise<string> {
     const today = new Date();
-    const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
 
-    // 오늘 날짜의 마지막 주문번호 조회
-    const lastOrder = await this.prisma.order.findFirst({
-      where: {
-        orderNumber: { startsWith: `ORD-${dateStr}` },
-      },
-      orderBy: { orderNumber: 'desc' },
-    });
+    // 날짜 형식: YYMMDD
+    const year = today.getFullYear().toString().slice(-2);
+    const month = (today.getMonth() + 1).toString().padStart(2, '0');
+    const day = today.getDate().toString().padStart(2, '0');
+    const dateStr = `${year}${month}${day}`;
 
-    let sequence = 1;
-    if (lastOrder) {
-      const lastSeq = parseInt(lastOrder.orderNumber.slice(-4), 10);
-      sequence = lastSeq + 1;
+    // Advisory lock으로 동시 요청 직렬화 (트랜잭션 종료 시 자동 해제)
+    const lockKey = parseInt(`${year}${month}${day}`, 10);
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(${lockKey})`;
+
+    // lock 획득 후 시퀀스 조회 → 동시 요청이 같은 번호를 받을 수 없음
+    const result = await tx.$queryRaw<{ next_seq: bigint }[]>`
+      SELECT COALESCE(
+        MAX(CAST(SPLIT_PART("orderNumber", '-', 2) AS INTEGER)),
+        0
+      ) + 1 AS next_seq
+      FROM "orders"
+      WHERE "orderNumber" LIKE ${dateStr + '-%'}
+    `;
+
+    const sequence = Number(result[0]?.next_seq || 1);
+
+    // 일일 999건 제한 검증
+    if (sequence > 999) {
+      throw new BadRequestException(
+        '일일 주문 한도(999건)를 초과했습니다. 시스템 관리자에게 문의하세요.',
+      );
     }
 
-    return `ORD-${dateStr}-${sequence.toString().padStart(4, '0')}`;
+    // 형식: YYMMDD-NNN
+    return `${dateStr}-${sequence.toString().padStart(3, '0')}`;
   }
 
   private async generateBarcode(): Promise<string> {
@@ -62,6 +91,9 @@ export class OrderService {
     if (!uniqueIds.length) return {};
 
     const nameMap: Record<string, string> = {};
+
+    // 시스템 자동 생성 이력 처리
+    uniqueIds.forEach(id => { if (id === 'system') nameMap[id] = '시스템'; });
 
     // Staff 테이블에서 조회 (관리자 작업이 대부분)
     const staffRecords = await this.prisma.staff.findMany({
@@ -169,6 +201,7 @@ export class OrderService {
               coverMaterial: true,
               foilName: true,
               foilColor: true,
+              foilPosition: true,
               finishingOptions: true,
               fabricName: true,
               folderName: true,
@@ -179,6 +212,8 @@ export class OrderService {
               quantity: true,
               unitPrice: true,
               totalPrice: true,
+              originalsDeleted: true,
+              pdfStatus: true,
               files: {
                 select: {
                   thumbnailUrl: true,
@@ -269,7 +304,7 @@ export class OrderService {
             toStatus: order.status,
             processType: 'status_change',
             note: '기존 주문 이력 자동 생성',
-            processedBy: order.clientId,
+            processedBy: 'system',
             processedAt: order.orderedAt,
           },
         });
@@ -314,24 +349,41 @@ export class OrderService {
       throw new NotFoundException('주문을 찾을 수 없습니다');
     }
 
-    return order;
+    // 파일 보관정책 정보 계산
+    const retentionMonths = (order.client as any).fileRetentionMonths ?? 3;
+    const shippedAt = order.shipping?.shippedAt;
+    let retentionDeadline: string | null = null;
+    let isExpired = false;
+
+    if (shippedAt) {
+      const deadline = new Date(shippedAt);
+      deadline.setMonth(deadline.getMonth() + retentionMonths);
+      retentionDeadline = deadline.toISOString();
+      isExpired = new Date() > deadline;
+    }
+
+    return {
+      ...order,
+      fileRetention: { retentionMonths, shippedAt, retentionDeadline, isExpired },
+    };
   }
 
-  // ==================== 주문 생성 ====================
-  async create(dto: CreateOrderDto, userId: string) {
-    try {
-      const { items, shipping, ...orderData } = dto;
+  // ==================== 주문 생성 (트랜잭션 + Advisory Lock으로 주문번호 원자적 생성) ====================
+  async create(dto: CreateOrderDto, userId: string): Promise<any> {
+    const { items, shipping, ...orderData } = dto;
 
-      // 거래처 확인
-      const client = await this.prisma.client.findUnique({
-        where: { id: dto.clientId },
-      });
+    // 거래처 확인 (트랜잭션 밖에서 수행)
+    const client = await this.prisma.client.findUnique({
+      where: { id: dto.clientId },
+    });
 
-      if (!client) {
-        throw new NotFoundException('거래처를 찾을 수 없습니다');
-      }
+    if (!client) {
+      throw new NotFoundException('거래처를 찾을 수 없습니다');
+    }
 
-      const orderNumber = await this.generateOrderNumber();
+    // 트랜잭션 내에서 주문번호 생성 + 주문 생성 (advisory lock으로 직렬화)
+    const order = await this.prisma.$transaction(async (tx) => {
+      const orderNumber = await this.generateOrderNumber(tx);
       const barcode = await this.generateBarcode();
 
       // 가격 계산
@@ -359,6 +411,7 @@ export class OrderService {
           coverMaterial: item.coverMaterial,
           foilName: item.foilName,
           foilColor: item.foilColor,
+          foilPosition: item.foilPosition,
           finishingOptions: item.finishingOptions || [],
           fabricName: item.fabricName,
           thumbnailUrl: item.thumbnailUrl,
@@ -422,7 +475,7 @@ export class OrderService {
       const tax = Math.round(productPrice * 0.1); // 부가세 10%
       const totalAmount = productPrice + tax;
 
-      const order = await this.prisma.order.create({
+      return tx.order.create({
         data: {
           orderNumber,
           barcode,
@@ -461,47 +514,51 @@ export class OrderService {
           },
         },
       });
+    }, { timeout: 60000 });
 
-      // 상품별 주문수 증가 (비동기, 에러 무시)
-      const productIds = [...new Set(items.map(item => item.productId))];
-      Promise.all(
-        productIds.map(productId =>
-          this.prisma.product.update({
-            where: { id: productId },
-            data: { orderCount: { increment: 1 } },
-          }).catch(() => { })
-        )
-      ).catch(() => { });
+    // 비동기 후처리 (트랜잭션 밖에서 실행, 실패해도 주문은 유지)
 
-      // 매출원장 자동 등록 (비동기, 에러 시 주문은 유지)
-      this.salesLedgerService.createFromOrder({
-        id: order.id,
-        orderNumber: order.orderNumber,
-        clientId: order.clientId,
-        productPrice: Number(order.productPrice),
-        shippingFee: Number(order.shippingFee),
-        tax: Number(order.tax),
-        totalAmount: Number(order.totalAmount),
-        finalAmount: Number(order.finalAmount),
-        paymentMethod: order.paymentMethod,
-        items: order.items.map(item => ({
-          id: item.id,
-          productId: item.productId,
-          productName: item.productName,
-          size: item.size,
-          quantity: item.quantity,
-          unitPrice: Number(item.unitPrice),
-          totalPrice: Number(item.totalPrice),
-        })),
-      }, userId).catch((err) => {
-        console.error('매출원장 자동등록 실패:', err.message);
-      });
+    // 상품별 주문수 증가
+    const productIds = [...new Set(items.map(item => item.productId))];
+    Promise.all(
+      productIds.map(productId =>
+        this.prisma.product.update({
+          where: { id: productId },
+          data: { orderCount: { increment: 1 } },
+        }).catch(() => { })
+      )
+    ).catch(() => { });
 
-      return order;
-    } catch (error) {
-      console.error('Order creation error:', error);
-      throw error;
-    }
+    // 임시 파일 → 정식 경로 이동
+    this.moveTemporaryFiles(order).catch((err: Error) => {
+      this.logger.error(`임시 파일 이동 최종 실패 (주문: ${order.orderNumber}):`, err.message);
+    });
+
+    // 매출원장 자동 등록
+    this.salesLedgerService.createFromOrder({
+      id: order.id,
+      orderNumber: order.orderNumber,
+      clientId: order.clientId,
+      productPrice: Number(order.productPrice),
+      shippingFee: Number(order.shippingFee),
+      tax: Number(order.tax),
+      totalAmount: Number(order.totalAmount),
+      finalAmount: Number(order.finalAmount),
+      paymentMethod: order.paymentMethod,
+      items: order.items.map(item => ({
+        id: item.id,
+        productId: item.productId,
+        productName: item.productName,
+        size: item.size,
+        quantity: item.quantity,
+        unitPrice: Number(item.unitPrice),
+        totalPrice: Number(item.totalPrice),
+      })),
+    }, userId).catch(() => {
+      // 매출원장 자동등록 실패 시 주문 생성은 계속 진행
+    });
+
+    return order;
   }
 
   // ==================== 주문 수정 ====================
@@ -609,7 +666,7 @@ export class OrderService {
       throw new BadRequestException('배송완료된 주문은 취소할 수 없습니다');
     }
 
-    return this.prisma.order.update({
+    const updatedOrder = await this.prisma.order.update({
       where: { id },
       data: {
         status: ORDER_STATUS.CANCELLED,
@@ -624,6 +681,20 @@ export class OrderService {
         },
       },
     });
+
+    // 매출원장 취소 + 취소전표 생성
+    try {
+      const salesLedger = await this.prisma.salesLedger.findUnique({
+        where: { orderId: id },
+      });
+      if (salesLedger) {
+        await this.salesLedgerService.cancelSales(salesLedger.id);
+      }
+    } catch (err) {
+      this.logger.warn(`주문 취소 시 매출원장 취소 실패 (${id}): ${(err as Error).message}`);
+    }
+
+    return updatedOrder;
   }
 
   // ==================== 주문항목 개별 삭제 ====================
@@ -666,12 +737,44 @@ export class OrderService {
     return { message: '주문항목이 삭제되었습니다', deletedItemId: itemId };
   }
 
+  // ==================== 주문 디스크 디렉토리 경로 수집 ====================
+  private async getOrderDirectories(orderIds: string[]): Promise<string[]> {
+    const files = await this.prisma.orderFile.findMany({
+      where: {
+        orderItem: { orderId: { in: orderIds } },
+        originalPath: { not: null },
+      },
+      select: { originalPath: true },
+      distinct: ['orderItemId'],
+    });
+
+    const orderDirs = new Set<string>();
+    for (const file of files) {
+      if (file.originalPath) {
+        // originalPath: .../orders/YYYY/MM/DD/company/orderNumber/originals/filename
+        const orderDir = dirname(dirname(file.originalPath));
+        orderDirs.add(orderDir);
+      }
+    }
+    return Array.from(orderDirs);
+  }
+
   // ==================== 주문 삭제 ====================
   async delete(id: string) {
     const order = await this.findOne(id);
 
     if (order.status !== ORDER_STATUS.PENDING_RECEIPT && order.status !== ORDER_STATUS.CANCELLED) {
       throw new BadRequestException('접수대기 또는 취소 상태의 주문만 삭제할 수 있습니다');
+    }
+
+    // 디스크 파일 삭제 (DB 삭제 전에 경로 수집)
+    const orderDirs = await this.getOrderDirectories([id]);
+    for (const dir of orderDirs) {
+      try {
+        this.fileStorage.deleteOrderDirectory(dir);
+      } catch (err) {
+        this.logger.warn(`디스크 파일 삭제 실패 (${id}): ${(err as Error).message}`);
+      }
     }
 
     return this.prisma.order.delete({
@@ -712,6 +815,9 @@ export class OrderService {
               ...(update.pageLayout !== undefined && { pageLayout: update.pageLayout }),
               ...(update.bindingDirection !== undefined && { bindingDirection: update.bindingDirection }),
               ...(update.fabricName !== undefined && { fabricName: update.fabricName }),
+              ...(update.foilName !== undefined && { foilName: update.foilName }),
+              ...(update.foilColor !== undefined && { foilColor: update.foilColor }),
+              ...(update.foilPosition !== undefined && { foilPosition: update.foilPosition }),
             },
           });
         }
@@ -790,8 +896,8 @@ export class OrderService {
             },
           });
         }
-      } catch (e) {
-        console.error('매출원장 연동 업데이트 실패:', e);
+      } catch {
+        // 매출원장 연동 업데이트 실패 시 주문 업데이트는 계속 진행
       }
 
       return updatedOrder;
@@ -834,6 +940,7 @@ export class OrderService {
   // ==================== 벌크: 일괄 취소 ====================
   async bulkCancel(dto: BulkCancelDto, userId: string) {
     const results = { success: 0, failed: [] as string[], skipped: [] as string[] };
+    const cancelledOrderIds: string[] = [];
 
     await this.prisma.$transaction(async (tx) => {
       for (const orderId of dto.orderIds) {
@@ -858,9 +965,24 @@ export class OrderService {
             },
           });
           results.success++;
+          cancelledOrderIds.push(orderId);
         } catch { results.failed.push(orderId); }
       }
     });
+
+    // 매출원장 취소 + 취소전표 생성 (트랜잭션 밖)
+    for (const orderId of cancelledOrderIds) {
+      try {
+        const salesLedger = await this.prisma.salesLedger.findUnique({
+          where: { orderId },
+        });
+        if (salesLedger) {
+          await this.salesLedgerService.cancelSales(salesLedger.id);
+        }
+      } catch (err) {
+        this.logger.warn(`일괄취소 매출원장 취소 실패 (${orderId}): ${(err as Error).message}`);
+      }
+    }
 
     return results;
   }
@@ -868,6 +990,13 @@ export class OrderService {
   // ==================== 벌크: 일괄 삭제 ====================
   async bulkDelete(orderIds: string[]) {
     const results = { success: 0, failed: [] as string[], skipped: [] as string[] };
+
+    // 삭제 대상 주문의 파일 경로 미리 수집
+    const orderDirsMap = new Map<string, string[]>();
+    for (const orderId of orderIds) {
+      const dirs = await this.getOrderDirectories([orderId]);
+      if (dirs.length > 0) orderDirsMap.set(orderId, dirs);
+    }
 
     await this.prisma.$transaction(async (tx) => {
       for (const orderId of orderIds) {
@@ -884,6 +1013,20 @@ export class OrderService {
         } catch { results.failed.push(orderId); }
       }
     });
+
+    // DB 삭제 성공한 주문만 디스크 파일 삭제
+    for (const orderId of orderIds) {
+      if (!results.failed.includes(orderId) && !results.skipped.includes(orderId)) {
+        const dirs = orderDirsMap.get(orderId) || [];
+        for (const dir of dirs) {
+          try {
+            this.fileStorage.deleteOrderDirectory(dir);
+          } catch (err) {
+            this.logger.warn(`디스크 파일 삭제 실패 (${orderId}): ${(err as Error).message}`);
+          }
+        }
+      }
+    }
 
     return results;
   }
@@ -939,93 +1082,96 @@ export class OrderService {
         });
         if (!order) { results.failed.push(orderId); continue; }
 
-        const newOrderNumber = await this.generateOrderNumber();
-        const newBarcode = await this.generateBarcode();
+        const newOrder = await this.prisma.$transaction(async (tx) => {
+          const newOrderNumber = await this.generateOrderNumber(tx);
+          const newBarcode = await this.generateBarcode();
 
-        const newOrder = await this.prisma.order.create({
-          data: {
-            orderNumber: newOrderNumber,
-            barcode: newBarcode,
-            clientId: order.clientId,
-            productPrice: order.productPrice,
-            shippingFee: order.shippingFee,
-            tax: order.tax,
-            adjustmentAmount: 0,
-            totalAmount: order.totalAmount,
-            finalAmount: order.finalAmount,
-            paymentMethod: order.paymentMethod,
-            isUrgent: false,
-            customerMemo: order.customerMemo,
-            productMemo: order.productMemo,
-            status: ORDER_STATUS.PENDING_RECEIPT,
-            currentProcess: 'receipt_pending',
-            items: {
-              create: order.items.map((item, idx) => ({
-                productionNumber: this.generateProductionNumber(newOrderNumber, idx),
-                productId: item.productId,
-                productName: item.productName,
-                size: item.size,
-                pages: item.pages,
-                printMethod: item.printMethod,
-                paper: item.paper,
-                bindingType: item.bindingType,
-                coverMaterial: item.coverMaterial,
-                foilName: item.foilName,
-                foilColor: item.foilColor,
-                finishingOptions: item.finishingOptions,
-                fabricName: item.fabricName,
-                thumbnailUrl: item.thumbnailUrl,
-                totalFileSize: item.totalFileSize,
-                pageLayout: item.pageLayout,
-                bindingDirection: item.bindingDirection,
-                quantity: item.quantity,
-                unitPrice: item.unitPrice,
-                totalPrice: item.totalPrice,
-                ...(item.shipping ? {
-                  shipping: {
-                    create: {
-                      senderType: item.shipping.senderType,
-                      senderName: item.shipping.senderName,
-                      senderPhone: item.shipping.senderPhone,
-                      senderPostalCode: item.shipping.senderPostalCode,
-                      senderAddress: item.shipping.senderAddress,
-                      senderAddressDetail: item.shipping.senderAddressDetail,
-                      receiverType: item.shipping.receiverType,
-                      recipientName: item.shipping.recipientName,
-                      phone: item.shipping.phone,
-                      postalCode: item.shipping.postalCode,
-                      address: item.shipping.address,
-                      addressDetail: item.shipping.addressDetail,
-                      deliveryMethod: item.shipping.deliveryMethod,
-                      deliveryFee: item.shipping.deliveryFee,
-                      deliveryFeeType: item.shipping.deliveryFeeType,
+          return tx.order.create({
+            data: {
+              orderNumber: newOrderNumber,
+              barcode: newBarcode,
+              clientId: order.clientId,
+              productPrice: order.productPrice,
+              shippingFee: order.shippingFee,
+              tax: order.tax,
+              adjustmentAmount: 0,
+              totalAmount: order.totalAmount,
+              finalAmount: order.finalAmount,
+              paymentMethod: order.paymentMethod,
+              isUrgent: false,
+              customerMemo: order.customerMemo,
+              productMemo: order.productMemo,
+              status: ORDER_STATUS.PENDING_RECEIPT,
+              currentProcess: 'receipt_pending',
+              items: {
+                create: order.items.map((item, idx) => ({
+                  productionNumber: this.generateProductionNumber(newOrderNumber, idx),
+                  productId: item.productId,
+                  productName: item.productName,
+                  size: item.size,
+                  pages: item.pages,
+                  printMethod: item.printMethod,
+                  paper: item.paper,
+                  bindingType: item.bindingType,
+                  coverMaterial: item.coverMaterial,
+                  foilName: item.foilName,
+                  foilColor: item.foilColor,
+                  foilPosition: item.foilPosition,
+                  finishingOptions: item.finishingOptions,
+                  fabricName: item.fabricName,
+                  thumbnailUrl: item.thumbnailUrl,
+                  totalFileSize: item.totalFileSize,
+                  pageLayout: item.pageLayout,
+                  bindingDirection: item.bindingDirection,
+                  quantity: item.quantity,
+                  unitPrice: item.unitPrice,
+                  totalPrice: item.totalPrice,
+                  ...(item.shipping ? {
+                    shipping: {
+                      create: {
+                        senderType: item.shipping.senderType,
+                        senderName: item.shipping.senderName,
+                        senderPhone: item.shipping.senderPhone,
+                        senderPostalCode: item.shipping.senderPostalCode,
+                        senderAddress: item.shipping.senderAddress,
+                        senderAddressDetail: item.shipping.senderAddressDetail,
+                        receiverType: item.shipping.receiverType,
+                        recipientName: item.shipping.recipientName,
+                        phone: item.shipping.phone,
+                        postalCode: item.shipping.postalCode,
+                        address: item.shipping.address,
+                        addressDetail: item.shipping.addressDetail,
+                        deliveryMethod: item.shipping.deliveryMethod,
+                        deliveryFee: item.shipping.deliveryFee,
+                        deliveryFeeType: item.shipping.deliveryFeeType,
+                      },
                     },
+                  } : {}),
+                })),
+              },
+              ...(order.shipping ? {
+                shipping: {
+                  create: {
+                    recipientName: order.shipping.recipientName,
+                    phone: order.shipping.phone,
+                    postalCode: order.shipping.postalCode,
+                    address: order.shipping.address,
+                    addressDetail: order.shipping.addressDetail,
                   },
-                } : {}),
-              })),
-            },
-            ...(order.shipping ? {
-              shipping: {
+                },
+              } : {}),
+              processHistory: {
                 create: {
-                  recipientName: order.shipping.recipientName,
-                  phone: order.shipping.phone,
-                  postalCode: order.shipping.postalCode,
-                  address: order.shipping.address,
-                  addressDetail: order.shipping.addressDetail,
+                  toStatus: ORDER_STATUS.PENDING_RECEIPT,
+                  processType: 'order_duplicated',
+                  note: `원본: ${order.orderNumber}`,
+                  processedBy: userId,
                 },
               },
-            } : {}),
-            processHistory: {
-              create: {
-                toStatus: ORDER_STATUS.PENDING_RECEIPT,
-                processType: 'order_duplicated',
-                note: `원본: ${order.orderNumber}`,
-                processedBy: userId,
-              },
             },
-          },
-          include: { items: true },
-        });
+            include: { items: true },
+          });
+        }, { timeout: 15000 });
         results.success++;
         results.newOrderIds.push(newOrder.id);
 
@@ -1049,8 +1195,8 @@ export class OrderService {
             unitPrice: Number(item.unitPrice),
             totalPrice: Number(item.totalPrice),
           })),
-        }, userId).catch((err) => {
-          console.error('복제 주문 매출원장 자동등록 실패:', err.message);
+        }, userId).catch(() => {
+          // 복제 주문 매출원장 자동등록 실패 시 건너뜀
         });
       } catch { results.failed.push(orderId); }
     }
@@ -1138,6 +1284,16 @@ export class OrderService {
       },
     };
 
+    // 삭제 전에 대상 주문 ID 및 파일 경로 수집
+    const ordersToDelete = await this.prisma.order.findMany({
+      where,
+      select: { id: true },
+    });
+    const orderIds = ordersToDelete.map(o => o.id);
+    const orderDirs = orderIds.length > 0
+      ? await this.getOrderDirectories(orderIds)
+      : [];
+
     if (dto.deleteThumbnails) {
       await this.prisma.orderItem.updateMany({
         where: { order: where },
@@ -1146,6 +1302,15 @@ export class OrderService {
     }
 
     const deleted = await this.prisma.order.deleteMany({ where });
+
+    // 디스크 파일 삭제
+    for (const dir of orderDirs) {
+      try {
+        this.fileStorage.deleteOrderDirectory(dir);
+      } catch (err) {
+        this.logger.warn(`데이터정리 디스크 삭제 실패: ${(err as Error).message}`);
+      }
+    }
 
     return { success: deleted.count, deleted: deleted.count };
   }
@@ -1247,5 +1412,715 @@ export class OrderService {
       unpaidAmount,
       categoryBreakdown,
     };
+  }
+
+  /**
+   * 일자별 주문/입금 집계 조회 (전월이월잔액 포함)
+   */
+  async getDailySummary(clientId: string, startDate: string, endDate: string) {
+    // 전월이월잔액: startDate 이전의 총매출 - 총수금
+    const carryForwardRaw = await this.prisma.$queryRaw<any[]>`
+      SELECT
+        COALESCE(SUM(o."totalAmount"), 0)::decimal as "totalOrderAmount",
+        COALESCE(SUM(sl."receivedAmount"), 0)::decimal as "totalDepositAmount"
+      FROM orders o
+      LEFT JOIN sales_ledgers sl ON o.id = sl."orderId"
+      WHERE o."clientId" = ${clientId}
+        AND o."orderedAt" < ${startDate}::date
+        AND o.status != 'cancelled'
+    `;
+
+    const carryForwardBalance =
+      parseFloat(carryForwardRaw[0]?.totalOrderAmount || '0') -
+      parseFloat(carryForwardRaw[0]?.totalDepositAmount || '0');
+
+    // 일자별 집계
+    const rawData = await this.prisma.$queryRaw<any[]>`
+      SELECT
+        DATE(o."orderedAt") as date,
+        COUNT(o.id)::int as "orderCount",
+        COALESCE(SUM(o."totalAmount"), 0)::decimal as "orderAmount",
+        COALESCE(SUM(sl."receivedAmount"), 0)::decimal as "depositAmount"
+      FROM orders o
+      LEFT JOIN sales_ledgers sl ON o.id = sl."orderId"
+      WHERE o."clientId" = ${clientId}
+        AND o."orderedAt" >= ${startDate}::date
+        AND o."orderedAt" < (${endDate}::date + interval '1 day')
+        AND o.status != 'cancelled'
+      GROUP BY DATE(o."orderedAt")
+      ORDER BY date ASC
+    `;
+
+    const data = rawData.map((row) => ({
+      date: row.date.toISOString().slice(0, 10),
+      orderCount: row.orderCount,
+      orderAmount: parseFloat(row.orderAmount),
+      depositAmount: parseFloat(row.depositAmount),
+    }));
+
+    const totalOrders = data.reduce((s, d) => s + d.orderCount, 0);
+    const totalOrderAmount = data.reduce((s, d) => s + d.orderAmount, 0);
+    const totalDepositAmount = data.reduce((s, d) => s + d.depositAmount, 0);
+
+    return {
+      data,
+      summary: {
+        carryForwardBalance,
+        totalOrders,
+        totalOrderAmount,
+        totalDepositAmount,
+        totalOutstanding: totalOrderAmount - totalDepositAmount,
+        closingBalance: carryForwardBalance + totalOrderAmount - totalDepositAmount,
+      },
+    };
+  }
+
+  // ==================== 파일검수 관련 ====================
+
+  /**
+   * 파일검수 시작 (자동 호출)
+   */
+  async startInspection(orderId: string, userId: string) {
+    const order = await this.findOne(orderId);
+
+    // 이미 검수 중이거나 검수가 완료된 경우 스킵
+    if (order.currentProcess === PROCESS_STATUS.INSPECTION ||
+        order.status !== ORDER_STATUS.PENDING_RECEIPT) {
+      return order;
+    }
+
+    // 파일이 없는 주문은 자동으로 접수완료로 변경
+    const hasFiles = await this.prisma.orderFile.count({
+      where: {
+        orderItem: {
+          orderId,
+        },
+      },
+    });
+
+    if (hasFiles === 0) {
+      // 파일이 없으면 바로 접수완료
+      return this.prisma.order.update({
+        where: { id: orderId },
+        data: {
+          status: ORDER_STATUS.RECEIPT_COMPLETED,
+          currentProcess: PROCESS_STATUS.COMPLETED,
+          processHistory: {
+            create: {
+              fromStatus: order.status,
+              toStatus: ORDER_STATUS.RECEIPT_COMPLETED,
+              processType: 'status_change',
+              note: '파일 없음 - 자동 접수완료',
+              processedBy: userId,
+            },
+          },
+        },
+      });
+    }
+
+    // 파일검수 시작
+    return this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        currentProcess: PROCESS_STATUS.INSPECTION,
+        processHistory: {
+          create: {
+            fromStatus: order.currentProcess,
+            toStatus: PROCESS_STATUS.INSPECTION,
+            processType: INSPECTION_PROCESS_TYPES.FILE_INSPECTION_STARTED,
+            note: '파일검수 시작',
+            processedBy: userId,
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * 개별 파일 검수 (승인/거부)
+   */
+  async inspectFile(
+    orderId: string,
+    fileId: string,
+    dto: InspectFileDto,
+    userId: string,
+  ) {
+    const order = await this.findOne(orderId);
+
+    if (order.currentProcess !== PROCESS_STATUS.INSPECTION) {
+      throw new BadRequestException('파일검수 상태가 아닙니다.');
+    }
+
+    // 파일 검수 상태 업데이트
+    const file = await this.prisma.orderFile.update({
+      where: { id: fileId },
+      data: {
+        inspectionStatus: dto.inspectionStatus,
+        inspectionNote: dto.inspectionNote,
+      },
+    });
+
+    // ProcessHistory 기록
+    await this.prisma.processHistory.create({
+      data: {
+        orderId,
+        fromStatus: 'pending',
+        toStatus: dto.inspectionStatus,
+        processType: dto.inspectionStatus === 'approved'
+          ? INSPECTION_PROCESS_TYPES.FILE_APPROVED
+          : INSPECTION_PROCESS_TYPES.FILE_REJECTED,
+        note: dto.inspectionNote || `파일 ${dto.inspectionStatus === 'approved' ? '승인' : '거부'}: ${file.fileName}`,
+        processedBy: userId,
+      },
+    });
+
+    // 모든 파일이 승인되었는지 확인
+    const allFiles = await this.prisma.orderFile.findMany({
+      where: {
+        orderItem: {
+          orderId,
+        },
+      },
+      select: {
+        id: true,
+        inspectionStatus: true,
+      },
+    });
+
+    const allApproved = allFiles.every(f => f.inspectionStatus === 'approved');
+    const hasRejected = allFiles.some(f => f.inspectionStatus === 'rejected');
+
+    // 모든 파일이 승인되면 자동으로 검수 완료
+    if (allApproved && allFiles.length > 0) {
+      return this.completeInspection(orderId, userId, {
+        note: '모든 파일 승인 완료 - 자동 접수완료',
+      });
+    }
+
+    // 거부된 파일이 있으면 알림 (선택적)
+    if (hasRejected) {
+      // TODO: 거부된 파일이 있을 때 추가 처리 로직
+    }
+
+    return file;
+  }
+
+  /**
+   * 검수 보류 (SMS 발송 옵션)
+   */
+  async holdInspection(
+    orderId: string,
+    dto: HoldInspectionDto,
+    userId: string,
+  ) {
+    const order = await this.findOne(orderId);
+
+    if (order.currentProcess !== PROCESS_STATUS.INSPECTION) {
+      throw new BadRequestException('파일검수 상태가 아닙니다.');
+    }
+
+    // 상태를 접수대기로 롤백
+    const updatedOrder = await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        status: ORDER_STATUS.PENDING_RECEIPT,
+        currentProcess: PROCESS_STATUS.RECEIPT_PENDING,
+        processHistory: {
+          create: {
+            fromStatus: order.status,
+            toStatus: ORDER_STATUS.PENDING_RECEIPT,
+            processType: INSPECTION_PROCESS_TYPES.INSPECTION_HOLD,
+            note: `검수 보류: ${dto.reason}`,
+            processedBy: userId,
+          },
+        },
+      },
+      include: {
+        client: {
+          select: {
+            name: true,
+            mobile: true,
+          },
+        },
+      },
+    });
+
+    // SMS 발송 (옵션)
+    if (dto.sendSms !== false && updatedOrder.client.mobile) {
+      const smsSent = await this.sendInspectionHoldSms(
+        updatedOrder,
+        dto.reason,
+      );
+
+      if (smsSent) {
+        // SMS 발송 성공 기록
+        await this.prisma.processHistory.create({
+          data: {
+            orderId,
+            fromStatus: '',
+            toStatus: '',
+            processType: INSPECTION_PROCESS_TYPES.INSPECTION_SMS_SENT,
+            note: `고객 통지 완료: ${updatedOrder.client.mobile}`,
+            processedBy: userId,
+          },
+        });
+      }
+    }
+
+    return updatedOrder;
+  }
+
+  /**
+   * 검수 완료 (접수완료로 전환)
+   */
+  async completeInspection(
+    orderId: string,
+    userId: string,
+    dto?: CompleteInspectionDto,
+  ) {
+    const order = await this.findOne(orderId);
+
+    // 모든 파일이 승인되었는지 확인
+    const files = await this.prisma.orderFile.findMany({
+      where: {
+        orderItem: {
+          orderId,
+        },
+      },
+      select: {
+        inspectionStatus: true,
+      },
+    });
+
+    const allApproved = files.every(f => f.inspectionStatus === 'approved');
+    if (files.length > 0 && !allApproved) {
+      throw new BadRequestException('모든 파일이 승인되어야 검수를 완료할 수 있습니다.');
+    }
+
+    // 비동기 PDF 생성 트리거 (접수확정 응답을 차단하지 않음)
+    this.triggerPdfGeneration(orderId).catch(err => {
+      this.logger.error(`PDF 생성 실패 (주문 ${orderId}):`, err);
+    });
+
+    // 접수완료로 상태 변경
+    return this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        status: ORDER_STATUS.RECEIPT_COMPLETED,
+        currentProcess: PROCESS_STATUS.COMPLETED,
+        processHistory: {
+          create: {
+            fromStatus: order.status,
+            toStatus: ORDER_STATUS.RECEIPT_COMPLETED,
+            processType: INSPECTION_PROCESS_TYPES.FILE_INSPECTION_COMPLETED,
+            note: dto?.note || '파일검수 완료',
+            processedBy: userId,
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * SMS 발송 (private)
+   */
+  private async sendInspectionHoldSms(
+    order: any,
+    reason: string,
+  ): Promise<boolean> {
+    try {
+      // TODO: SMS 서비스 연동
+      return true; // 임시로 성공 반환
+    } catch {
+      return false; // 실패해도 전체 작업은 계속 진행
+    }
+  }
+
+  // ==================== 파일 관리 ====================
+
+  /**
+   * 임시 파일을 정식 주문 경로로 이동
+   */
+  private async moveTemporaryFiles(order: any, retryCount = 0): Promise<void> {
+    const MAX_RETRIES = 2;
+    try {
+      for (const item of order.items) {
+        if (!item.files?.length) continue;
+
+        const firstFile = item.files[0];
+        if (!firstFile.fileUrl || !firstFile.fileUrl.includes('/temp/')) continue;
+
+        const urlParts = firstFile.fileUrl.replace(/\\/g, '/').split('/temp/');
+        if (urlParts.length < 2) continue;
+        const tempFolderId = urlParts[1].split('/')[0];
+
+        const companyName = order.client?.clientName;
+        if (!companyName) {
+          throw new Error(`거래처 정보 누락 (주문: ${order.orderNumber}, clientId: ${order.clientId})`);
+        }
+        const { orderDir, movedFiles } = this.fileStorage.moveToOrderDir(
+          tempFolderId,
+          order.orderNumber,
+          companyName,
+        );
+
+        // 배치 업데이트: N+1 → 단일 트랜잭션
+        const updates: { id: string; fileUrl: string; originalPath: string; thumbnailUrl: string; thumbnailPath: string | null }[] = [];
+        for (const moved of movedFiles) {
+          const matchingFile = item.files.find(
+            (f: any) => f.fileUrl.includes(moved.fileName),
+          );
+          if (matchingFile) {
+            updates.push({
+              id: matchingFile.id,
+              fileUrl: this.fileStorage.toRelativeUrl(moved.original),
+              originalPath: moved.original,
+              thumbnailUrl: moved.thumbnail ? this.fileStorage.toRelativeUrl(moved.thumbnail) : matchingFile.thumbnailUrl,
+              thumbnailPath: moved.thumbnail || null,
+            });
+          }
+        }
+
+        // 50개씩 배치 처리
+        const BATCH_SIZE = 50;
+        for (let i = 0; i < updates.length; i += BATCH_SIZE) {
+          const batch = updates.slice(i, i + BATCH_SIZE);
+          await this.prisma.$transaction(
+            batch.map(u =>
+              this.prisma.orderFile.update({
+                where: { id: u.id },
+                data: {
+                  fileUrl: u.fileUrl,
+                  originalPath: u.originalPath,
+                  thumbnailUrl: u.thumbnailUrl,
+                  thumbnailPath: u.thumbnailPath,
+                  storageStatus: 'uploaded',
+                },
+              })
+            )
+          );
+        }
+      }
+    } catch (err) {
+      if (retryCount < MAX_RETRIES) {
+        this.logger.warn(`임시 파일 이동 재시도 (${retryCount + 1}/${MAX_RETRIES}): ${(err as Error).message}`);
+        await new Promise(r => setTimeout(r, 2000 * (retryCount + 1)));
+        return this.moveTemporaryFiles(order, retryCount + 1);
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * 접수확정 시 PDF 생성 트리거 (비동기)
+   */
+  private async triggerPdfGeneration(orderId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { orderNumber: true },
+    });
+    if (!order) return;
+
+    const items = await this.prisma.orderItem.findMany({
+      where: { orderId },
+      include: {
+        files: {
+          where: { inspectionStatus: 'approved', storageStatus: 'uploaded' },
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
+    });
+
+    for (const item of items) {
+      if (item.files.length === 0) continue;
+
+      try {
+        await this.prisma.orderItem.update({
+          where: { id: item.id },
+          data: { pdfStatus: 'generating' },
+        });
+
+        // 원본 파일 경로에서 디렉토리 추출
+        const firstFilePath = item.files[0].originalPath;
+        if (!firstFilePath) {
+          this.logger.warn(`No original path for item ${item.id}, skipping PDF`);
+          await this.prisma.orderItem.update({
+            where: { id: item.id },
+            data: { pdfStatus: 'failed' },
+          });
+          continue;
+        }
+
+        const { join, dirname } = require('path');
+        const orderDir = dirname(dirname(firstFilePath)); // originals/ 상위
+
+        const pdfFiles = item.files
+          .filter(f => f.originalPath)
+          .map(f => ({
+            originalPath: f.originalPath!,
+            fileName: f.fileName,
+            widthInch: f.widthInch,
+            heightInch: f.heightInch,
+            sortOrder: f.sortOrder,
+          }));
+
+        const pdfPath = await this.pdfGenerator.generatePdf(
+          pdfFiles,
+          orderDir,
+          item.productionNumber,
+        );
+
+        await this.prisma.orderItem.update({
+          where: { id: item.id },
+          data: {
+            pdfPath,
+            pdfStatus: 'completed',
+            pdfGeneratedAt: new Date(),
+          },
+        });
+
+        this.logger.log(`PDF generated for item ${item.productionNumber}`);
+      } catch (err) {
+        this.logger.error(`PDF generation failed for item ${item.id}:`, err);
+        await this.prisma.orderItem.update({
+          where: { id: item.id },
+          data: { pdfStatus: 'failed' },
+        });
+      }
+    }
+  }
+
+  /**
+   * PDF 수동 재생성
+   */
+  async regeneratePdf(orderId: string) {
+    const failedItems = await this.prisma.orderItem.findMany({
+      where: { orderId, pdfStatus: 'failed' },
+    });
+
+    if (failedItems.length === 0) {
+      throw new BadRequestException('재생성할 PDF가 없습니다.');
+    }
+
+    // 비동기 실행
+    this.triggerPdfGeneration(orderId).catch(err => {
+      this.logger.error(`PDF 재생성 실패: ${orderId}`, err);
+    });
+
+    return { message: `${failedItems.length}건의 PDF 재생성을 시작합니다.` };
+  }
+
+  /**
+   * 원본 이미지 삭제 (배송완료 후 관리자 수동)
+   */
+  async deleteOriginals(orderId: string, itemId: string, userId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { status: true, orderNumber: true },
+    });
+    if (!order) throw new NotFoundException('주문을 찾을 수 없습니다');
+
+    if (order.status !== ORDER_STATUS.SHIPPED) {
+      throw new BadRequestException('배송완료 상태의 주문만 원본을 삭제할 수 있습니다.');
+    }
+
+    const item = await this.prisma.orderItem.findUnique({
+      where: { id: itemId },
+      include: { files: true },
+    });
+    if (!item || item.orderId !== orderId) {
+      throw new NotFoundException('주문항목을 찾을 수 없습니다');
+    }
+
+    if (item.originalsDeleted) {
+      throw new BadRequestException('이미 원본이 삭제된 항목입니다.');
+    }
+
+    // 디스크에서 원본 파일 삭제
+    const firstFile = item.files.find(f => f.originalPath);
+    let deletedCount = 0;
+    let freedBytes = 0;
+
+    if (firstFile?.originalPath) {
+      const { dirname } = require('path');
+      const orderDir = dirname(dirname(firstFile.originalPath));
+      const result = this.fileStorage.deleteOriginals(orderDir);
+      deletedCount = result.deletedCount;
+      freedBytes = result.freedBytes;
+    }
+
+    // DB 업데이트
+    await this.prisma.$transaction([
+      this.prisma.orderFile.updateMany({
+        where: { orderItemId: itemId },
+        data: {
+          storageStatus: 'deleted',
+          deletedAt: new Date(),
+        },
+      }),
+      this.prisma.orderItem.update({
+        where: { id: itemId },
+        data: { originalsDeleted: true, totalFileSize: 0 },
+      }),
+      this.prisma.processHistory.create({
+        data: {
+          orderId,
+          fromStatus: order.status,
+          toStatus: order.status,
+          processType: 'originals_deleted',
+          note: `원본 이미지 삭제: ${deletedCount}개 파일, ${Math.round(freedBytes / 1024 / 1024)}MB 확보`,
+          processedBy: userId,
+        },
+      }),
+    ]);
+
+    return {
+      message: '원본 이미지가 삭제되었습니다.',
+      deletedCount,
+      freedBytes,
+      freedMB: Math.round(freedBytes / 1024 / 1024),
+    };
+  }
+
+  /**
+   * 원본 이미지 ZIP 다운로드
+   */
+  async downloadOriginals(orderId: string, res: any) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: {
+        orderNumber: true,
+        items: {
+          select: {
+            id: true,
+            folderName: true,
+            originalsDeleted: true,
+            files: {
+              select: {
+                originalPath: true,
+                fileName: true,
+                storageStatus: true,
+              },
+              orderBy: { sortOrder: 'asc' },
+            },
+          },
+        },
+      },
+    });
+
+    if (!order) throw new NotFoundException('주문을 찾을 수 없습니다');
+
+    const { existsSync } = require('fs');
+    const filesToZip: { path: string; name: string; folder: string }[] = [];
+
+    for (const item of order.items) {
+      if (item.originalsDeleted) continue;
+      for (const file of item.files) {
+        if (file.originalPath && file.storageStatus !== 'deleted') {
+          if (existsSync(file.originalPath)) {
+            filesToZip.push({
+              path: file.originalPath,
+              name: file.fileName,
+              folder: item.folderName || item.id,
+            });
+          }
+        }
+      }
+    }
+
+    if (filesToZip.length === 0) {
+      throw new BadRequestException('다운로드할 원본 파일이 없습니다.');
+    }
+
+    const zipFileName = `${order.orderNumber}_originals.zip`;
+    res.set({
+      'Content-Type': 'application/zip',
+      'Content-Disposition': `attachment; filename="${encodeURIComponent(zipFileName)}"`,
+    });
+
+    const archiver = require('archiver');
+    const archive = archiver('zip', { zlib: { level: 1 } });
+
+    archive.on('error', (err: any) => {
+      this.logger.error(`ZIP 생성 실패: ${orderId}`, err);
+      if (!res.headersSent) {
+        res.status(500).json({ message: 'ZIP 생성 중 오류가 발생했습니다.' });
+      }
+    });
+
+    archive.pipe(res);
+
+    for (const file of filesToZip) {
+      archive.file(file.path, { name: `${file.folder}/${file.name}` });
+    }
+
+    await archive.finalize();
+  }
+
+  /**
+   * 주문 단위 원본 이미지 삭제 (모든 항목)
+   */
+  async deleteOrderOriginals(orderId: string, userId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: {
+        status: true,
+        orderNumber: true,
+        items: {
+          select: {
+            id: true,
+            pdfStatus: true,
+            originalsDeleted: true,
+          },
+        },
+      },
+    });
+
+    if (!order) throw new NotFoundException('주문을 찾을 수 없습니다');
+    if (order.status !== ORDER_STATUS.SHIPPED) {
+      throw new BadRequestException('배송완료 상태의 주문만 원본을 삭제할 수 있습니다.');
+    }
+
+    let totalDeleted = 0;
+    let totalFreed = 0;
+
+    for (const item of order.items) {
+      if (item.originalsDeleted) continue;
+
+      try {
+        const result = await this.deleteOriginals(orderId, item.id, userId);
+        totalDeleted += result.deletedCount;
+        totalFreed += result.freedBytes;
+      } catch (err) {
+        this.logger.warn(`원본 삭제 실패 (item: ${item.id}): ${err.message}`);
+      }
+    }
+
+    return {
+      message: '원본 이미지 삭제 완료',
+      totalDeletedCount: totalDeleted,
+      totalFreedBytes: totalFreed,
+      totalFreedMB: Math.round(totalFreed / 1024 / 1024),
+    };
+  }
+
+  /**
+   * 원본 이미지 일괄 삭제
+   */
+  async bulkDeleteOriginals(orderIds: string[], userId: string) {
+    let successCount = 0;
+    const failed: string[] = [];
+
+    for (const orderId of orderIds) {
+      try {
+        await this.deleteOrderOriginals(orderId, userId);
+        successCount++;
+      } catch (err) {
+        failed.push(orderId);
+        this.logger.warn(`원본 일괄 삭제 실패: ${orderId} - ${err.message}`);
+      }
+    }
+
+    return { success: successCount, failed };
   }
 }

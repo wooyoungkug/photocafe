@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import {
@@ -10,6 +10,8 @@ import { subDays, differenceInDays, startOfDay, endOfDay, startOfWeek, endOfWeek
 
 @Injectable()
 export class SalesLedgerService {
+  private readonly logger = new Logger(SalesLedgerService.name);
+
   constructor(
     private prisma: PrismaService,
     private journalEngine: JournalEngineService,
@@ -130,6 +132,11 @@ export class SalesLedgerService {
       };
     });
 
+    // 주문 제목 생성 (상품명 기반)
+    const orderTitle = order.items.length === 1
+      ? order.items[0].productName
+      : `${order.items[0].productName} 외 ${order.items.length - 1}건`;
+
     const salesLedger = await this.prisma.salesLedger.create({
       data: {
         ledgerNumber,
@@ -137,6 +144,7 @@ export class SalesLedgerService {
         clientId: client.id,
         clientName: client.clientName,
         clientBizNo: client.businessNumber,
+        staffId: client.assignedManager, // 거래처 담당자 설정
         orderId: order.id,
         orderNumber: order.orderNumber,
         salesType: 'ALBUM',
@@ -151,7 +159,7 @@ export class SalesLedgerService {
         paymentStatus,
         dueDate,
         salesStatus: 'REGISTERED',
-        description: `${order.orderNumber} 매출`,
+        description: orderTitle,
         createdBy,
         items: {
           create: ledgerItems,
@@ -162,6 +170,26 @@ export class SalesLedgerService {
         client: true,
       },
     });
+
+    // 카드/선불 결제 시 SalesReceipt 자동 생성 (입금내역에 표시되도록)
+    if (isPrepaid) {
+      try {
+        const receiptNumber = await this.generateReceiptNumber();
+        await this.prisma.salesReceipt.create({
+          data: {
+            salesLedgerId: salesLedger.id,
+            receiptNumber,
+            receiptDate: new Date(),
+            amount: totalAmount,
+            paymentMethod: order.paymentMethod,
+            note: '주문 시 자동 수금',
+            createdBy,
+          },
+        });
+      } catch (err) {
+        this.logger.warn(`선불 수금 자동 생성 실패: ${err.message}`);
+      }
+    }
 
     // After salesLedger creation, create auto-journal
     try {
@@ -175,14 +203,204 @@ export class SalesLedgerService {
         accountCode: '402', // 제품매출
         orderId: order.id,
         orderNumber: order.orderNumber,
-        description: `${order.orderNumber} 매출`,
+        description: orderTitle,
       });
     } catch (err) {
       // Journal creation failure should not block sales ledger creation
-      console.error('자동분개 생성 실패:', err);
+      // 분개 생성 실패 시 매출원장 생성은 계속 진행
     }
 
     return salesLedger;
+  }
+
+  // ===== 카드/선불 결제 SalesReceipt 백필 =====
+  // 기존 카드/선불 결제 매출원장 중 SalesReceipt가 없는 건에 대해 자동 생성
+  async backfillPrepaidReceipts(): Promise<{ created: number; errors: number }> {
+    // SalesReceipt가 없는 카드/선불 결제 매출원장 조회
+    const ledgersWithoutReceipt = await this.prisma.salesLedger.findMany({
+      where: {
+        paymentMethod: { in: ['card', 'prepaid'] },
+        paymentStatus: 'paid',
+        receipts: { none: {} },
+      },
+      select: {
+        id: true,
+        ledgerDate: true,
+        totalAmount: true,
+        paymentMethod: true,
+        createdBy: true,
+      },
+    });
+
+    let created = 0;
+    let errors = 0;
+
+    for (const ledger of ledgersWithoutReceipt) {
+      try {
+        const receiptNumber = await this.generateReceiptNumber();
+        await this.prisma.salesReceipt.create({
+          data: {
+            salesLedgerId: ledger.id,
+            receiptNumber,
+            receiptDate: ledger.ledgerDate,
+            amount: ledger.totalAmount,
+            paymentMethod: ledger.paymentMethod,
+            note: '주문 시 자동 수금 (백필)',
+            createdBy: ledger.createdBy,
+          },
+        });
+        created++;
+      } catch (err) {
+        this.logger.warn(`백필 실패 (ledgerId: ${ledger.id}): ${err.message}`);
+        errors++;
+      }
+    }
+
+    this.logger.log(`SalesReceipt 백필 완료: ${created}건 생성, ${errors}건 실패`);
+    return { created, errors };
+  }
+
+  // ===== 매출 직접 등록 (홈페이지 외 매출) =====
+  // Order 없이 직접 매출원장 생성 → 자동 전표 생성
+  async createDirect(dto: {
+    clientId: string;
+    salesType: string;
+    paymentMethod: string;
+    supplyAmount: number;
+    vatAmount: number;
+    totalAmount: number;
+    description?: string;
+    items: Array<{
+      itemName: string;
+      specification?: string;
+      quantity: number;
+      unitPrice: number;
+      supplyAmount: number;
+      vatAmount: number;
+      totalAmount: number;
+    }>;
+  }, createdBy: string) {
+    // 거래처 정보 조회
+    const client = await this.prisma.client.findUnique({
+      where: { id: dto.clientId },
+    });
+
+    if (!client) {
+      throw new NotFoundException('거래처를 찾을 수 없습니다.');
+    }
+
+    const ledgerNumber = await this.generateLedgerNumber();
+
+    // 결제기한 산정
+    let dueDate: Date | null = null;
+    if (client.creditEnabled && client.creditPeriodDays) {
+      dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + client.creditPeriodDays);
+    } else if (client.creditEnabled && client.creditPaymentDay) {
+      dueDate = new Date();
+      dueDate.setMonth(dueDate.getMonth() + 1);
+      dueDate.setDate(client.creditPaymentDay);
+    }
+
+    // 선불 결제인 경우 이미 수금 완료
+    const isPrepaid = dto.paymentMethod === 'prepaid' || dto.paymentMethod === 'card';
+    const receivedAmount = isPrepaid ? dto.totalAmount : 0;
+    const outstandingAmount = isPrepaid ? 0 : dto.totalAmount;
+    const paymentStatus = isPrepaid ? 'paid' : 'unpaid';
+
+    // 매출원장 라인아이템 생성
+    const ledgerItems = dto.items.map((item, index) => ({
+      itemName: item.itemName,
+      specification: item.specification || '',
+      quantity: item.quantity,
+      unitPrice: Number(item.unitPrice),
+      supplyAmount: Number(item.supplyAmount),
+      vatAmount: Number(item.vatAmount),
+      totalAmount: Number(item.totalAmount),
+      salesType: dto.salesType as any,
+      sortOrder: index,
+    }));
+
+    // 주문 제목 생성
+    const orderTitle = dto.description || (
+      dto.items.length === 1
+        ? dto.items[0].itemName
+        : `${dto.items[0].itemName} 외 ${dto.items.length - 1}건`
+    );
+
+    const salesLedger = await this.prisma.salesLedger.create({
+      data: {
+        ledgerNumber,
+        ledgerDate: new Date(),
+        clientId: client.id,
+        clientName: client.clientName,
+        clientBizNo: client.businessNumber,
+        staffId: client.assignedManager,
+        salesType: dto.salesType as any,
+        taxType: 'TAXABLE',
+        supplyAmount: dto.supplyAmount,
+        vatAmount: dto.vatAmount,
+        shippingFee: 0,
+        totalAmount: dto.totalAmount,
+        receivedAmount,
+        outstandingAmount,
+        paymentMethod: dto.paymentMethod,
+        paymentStatus,
+        dueDate,
+        salesStatus: 'REGISTERED',
+        description: orderTitle,
+        createdBy,
+        items: {
+          create: ledgerItems,
+        },
+      },
+      include: {
+        items: true,
+        client: true,
+      },
+    });
+
+    // 자동 전표 생성
+    try {
+      await this.journalEngine.createSalesJournal({
+        salesLedgerId: salesLedger.id,
+        clientId: client.id,
+        clientName: client.clientName,
+        supplyAmount: Number(dto.supplyAmount),
+        vatAmount: Number(dto.vatAmount),
+        totalAmount: Number(dto.totalAmount),
+        accountCode: '402',
+        description: orderTitle,
+      });
+    } catch (err) {
+      // 분개 생성 실패 시 매출원장 생성은 계속 진행
+    }
+
+    return salesLedger;
+  }
+
+  // ===== 전월이월 잔액 조회 =====
+  async getCarryOverBalance(clientId: string, beforeDate: string) {
+    const date = new Date(beforeDate);
+
+    const result = await this.prisma.salesLedger.aggregate({
+      where: {
+        clientId,
+        ledgerDate: { lt: date },
+        salesStatus: { not: 'CANCELLED' },
+      },
+      _sum: {
+        totalAmount: true,
+        receivedAmount: true,
+        outstandingAmount: true,
+      },
+    });
+
+    return {
+      totalDebit: Number(result._sum.totalAmount || 0),
+      totalCredit: Number(result._sum.receivedAmount || 0),
+      balance: Number(result._sum.outstandingAmount || 0),
+    };
   }
 
   // ===== 매출원장 목록 조회 =====
@@ -216,6 +434,22 @@ export class SalesLedgerService {
       ];
     }
 
+    // 전기이월잔액 (clientId + startDate가 있을 때만)
+    let carryForwardBalance = 0;
+    if (clientId && startDate) {
+      const cfResult = await this.prisma.$queryRaw<any[]>`
+        SELECT
+          COALESCE(SUM("totalAmount"), 0)::decimal as "totalDebit",
+          COALESCE(SUM("receivedAmount"), 0)::decimal as "totalCredit"
+        FROM sales_ledgers
+        WHERE "clientId" = ${clientId}
+          AND "ledgerDate" < ${startDate}::date
+      `;
+      const totalDebit = parseFloat(cfResult[0]?.totalDebit || '0');
+      const totalCredit = parseFloat(cfResult[0]?.totalCredit || '0');
+      carryForwardBalance = totalDebit - totalCredit;
+    }
+
     const [data, total] = await Promise.all([
       this.prisma.salesLedger.findMany({
         where,
@@ -225,17 +459,41 @@ export class SalesLedgerService {
           client: {
             select: { id: true, clientCode: true, clientName: true, businessNumber: true },
           },
+          order: {
+            select: {
+              id: true,
+              orderNumber: true,
+              items: {
+                select: {
+                  id: true,
+                  bindingType: true,
+                },
+                take: 1,
+              },
+            },
+          },
         },
-        orderBy: { ledgerDate: 'desc' },
+        orderBy: { ledgerDate: 'asc' },
         skip: (page - 1) * limit,
         take: limit,
       }),
       this.prisma.salesLedger.count({ where }),
     ]);
 
+    // 당월 합계
+    const totalDebit = data.reduce((sum, d) => sum + Number(d.totalAmount), 0);
+    const totalCredit = data.reduce((sum, d) => sum + Number(d.receivedAmount), 0);
+    const closingBalance = carryForwardBalance + totalDebit - totalCredit;
+
     return {
       data,
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+      summary: {
+        carryForwardBalance,
+        totalDebit,
+        totalCredit,
+        closingBalance,
+      },
     };
   }
 
@@ -324,7 +582,7 @@ export class SalesLedgerService {
         description: `${ledger.ledgerNumber} 수금 (${dto.paymentMethod})`,
       });
     } catch (err) {
-      console.error('수금분개 생성 실패:', err);
+      // 수금분개 생성 실패 시 수금 처리는 계속 진행
     }
 
     return this.findById(salesLedgerId);
@@ -353,14 +611,42 @@ export class SalesLedgerService {
     });
   }
 
-  // ===== 매출 취소 =====
+  // ===== 매출 취소 (취소전표 포함) =====
   async cancelSales(salesLedgerId: string) {
     const ledger = await this.findById(salesLedgerId);
 
-    if (Number(ledger.receivedAmount) > 0) {
-      throw new BadRequestException('수금 이력이 있는 매출은 취소할 수 없습니다. 먼저 수금을 환불 처리하세요.');
+    if (ledger.salesStatus === 'CANCELLED') {
+      throw new BadRequestException('이미 취소된 매출원장입니다.');
     }
 
+    // 1. 연결된 모든 전표 조회 (매출 + 수금)
+    const salesJournals = await this.journalEngine.getJournalsBySource('SALES', salesLedgerId);
+    const receiptJournals = await this.journalEngine.getJournalsBySource('RECEIPT', salesLedgerId);
+    const allJournals = [...salesJournals, ...receiptJournals];
+
+    // 2. 이미 생성된 취소전표 확인 (중복 방지)
+    const existingCancellations = await this.journalEngine.getJournalsBySource('CANCELLATION', salesLedgerId);
+    const cancelledVoucherNos = new Set(
+      existingCancellations
+        .map(c => c.description?.match(/원전표: (JE-[\d-]+)/)?.[1])
+        .filter(Boolean),
+    );
+
+    // 3. 각 전표에 대해 취소(반대) 전표 생성
+    for (const journal of allJournals) {
+      if (cancelledVoucherNos.has(journal.voucherNo)) continue;
+
+      try {
+        await this.journalEngine.createCancellationJournal({
+          originalJournalId: journal.id,
+          reason: journal.sourceType === 'SALES' ? '매출취소전표' : '수금취소전표',
+        });
+      } catch (err) {
+        this.logger.warn(`취소전표 생성 실패 (${journal.voucherNo}): ${(err as Error).message}`);
+      }
+    }
+
+    // 4. 매출원장 상태 업데이트
     return this.prisma.salesLedger.update({
       where: { id: salesLedgerId },
       data: {
@@ -581,7 +867,7 @@ export class SalesLedgerService {
           }, 'system-backfill');
           created++;
         } catch (err: any) {
-          console.error(`백필 실패 (${order.orderNumber}):`, err.message);
+          // 백필 실패 시 건너뛰고 계속 진행
           failed++;
         }
       }
@@ -901,6 +1187,8 @@ export class SalesLedgerService {
           receivablesTurnoverScore: 0,
           overdueHistoryScore: 0,
         },
+        overdueCount: 0,
+        monthlyAvgSales: 0,
         recommendation: '거래내역이 없어 기본 B등급으로 설정되었습니다.',
       };
     }
@@ -1264,8 +1552,7 @@ export class SalesLedgerService {
                 ELSE 0
               END as "collectionRate"
        FROM staff s
-       LEFT JOIN staff_clients sc ON sc."staffId" = s.id AND sc."isPrimary" = true
-       LEFT JOIN sales_ledgers sl ON sl."clientId" = sc."clientId" AND ${whereClause}
+       LEFT JOIN sales_ledgers sl ON sl."staffId" = s.id AND ${whereClause}
        WHERE s."isActive" = true
        GROUP BY s.id, s.name, s."staffId"
        ORDER BY "totalSales" DESC`,
@@ -1330,8 +1617,7 @@ export class SalesLedgerService {
               COALESCE(SUM(CASE WHEN sr."paymentMethod" = 'card' THEN sr.amount ELSE 0 END), 0)::float as "cardAmount",
               COALESCE(SUM(CASE WHEN sr."paymentMethod" = 'check' THEN sr.amount ELSE 0 END), 0)::float as "checkAmount"
        FROM staff s
-       LEFT JOIN staff_clients sc ON sc."staffId" = s.id AND sc."isPrimary" = true
-       LEFT JOIN sales_ledgers sl ON sl."clientId" = sc."clientId"
+       LEFT JOIN sales_ledgers sl ON sl."staffId" = s.id
        LEFT JOIN sales_receipts sr ON sr."salesLedgerId" = sl.id
        ${whereClause}
        GROUP BY s.id, s.name, s."staffId"
@@ -1364,23 +1650,8 @@ export class SalesLedgerService {
   }) {
     const { startDate, endDate, paymentStatus, page = 1, limit = 20 } = query;
 
-    // 해당 영업담당자가 담당하는 거래처 ID 조회
-    const staffClients = await this.prisma.staffClient.findMany({
-      where: { staffId, isPrimary: true },
-      select: { clientId: true },
-    });
-
-    const clientIds = staffClients.map(sc => sc.clientId);
-
-    if (clientIds.length === 0) {
-      return {
-        data: [],
-        meta: { total: 0, page, limit, totalPages: 0 },
-      };
-    }
-
     const where: Prisma.SalesLedgerWhereInput = {
-      clientId: { in: clientIds },
+      staffId,
       salesStatus: { not: 'CANCELLED' },
     };
 
@@ -1464,8 +1735,7 @@ export class SalesLedgerService {
               MAX(sl."ledgerDate") as "lastLedgerDate"
        FROM sales_ledgers sl
        JOIN clients c ON c.id = sl."clientId"
-       JOIN staff_clients sc ON sc."clientId" = sl."clientId" AND sc."isPrimary" = true
-       WHERE sc."staffId" = $1 AND ${whereClause}
+       WHERE sl."staffId" = $1 AND ${whereClause}
        GROUP BY sl."clientId", sl."clientName", c."clientCode"
        ORDER BY outstanding DESC`,
       ...params,
@@ -1481,5 +1751,102 @@ export class SalesLedgerService {
       ledgerCount: Number(r.ledgerCount),
       lastLedgerDate: r.lastLedgerDate?.toISOString() || '',
     }));
+  }
+
+  // ===== 기존 매출원장 staffId 일괄 업데이트 =====
+  async updateStaffIdFromClients() {
+    // staffId가 null인 매출원장을 거래처의 assignedManager로 업데이트
+    const result = await this.prisma.$executeRaw`
+      UPDATE sales_ledgers sl
+      SET "staffId" = c."assignedManager"
+      FROM clients c
+      WHERE sl."clientId" = c.id
+        AND sl."staffId" IS NULL
+        AND c."assignedManager" IS NOT NULL
+    `;
+
+    return {
+      updatedCount: result,
+      message: `${result}건의 매출원장에 담당자가 설정되었습니다.`,
+    };
+  }
+
+  // ===== 입금내역 조회 (금일/당월/기간별) =====
+  async getReceipts(query: {
+    startDate?: string;
+    endDate?: string;
+    clientId?: string;
+    paymentMethod?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const { startDate, endDate, clientId, paymentMethod, page = 1, limit = 50 } = query;
+
+    const where: Prisma.SalesReceiptWhereInput = {};
+
+    // 날짜 범위 필터
+    if (startDate || endDate) {
+      where.receiptDate = {};
+      if (startDate) {
+        where.receiptDate.gte = new Date(startDate);
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        where.receiptDate.lte = end;
+      }
+    }
+
+    // 거래처 필터
+    if (clientId) {
+      where.salesLedger = { clientId };
+    }
+
+    // 결제방법 필터
+    if (paymentMethod) {
+      where.paymentMethod = paymentMethod;
+    }
+
+    // 데이터 조회 및 총 개수 조회 병렬 실행
+    const [data, total] = await Promise.all([
+      this.prisma.salesReceipt.findMany({
+        where,
+        include: {
+          salesLedger: {
+            select: {
+              clientId: true,
+              clientName: true,
+              ledgerNumber: true,
+              orderNumber: true,
+            },
+          },
+        },
+        orderBy: { receiptDate: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.salesReceipt.count({ where }),
+    ]);
+
+    // 총 입금액 및 건수 집계
+    const summary = await this.prisma.salesReceipt.aggregate({
+      where,
+      _sum: { amount: true },
+      _count: { id: true },
+    });
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+      summary: {
+        totalAmount: Number(summary._sum.amount || 0),
+        totalCount: summary._count.id,
+      },
+    };
   }
 }

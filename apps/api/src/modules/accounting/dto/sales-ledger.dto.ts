@@ -79,14 +79,14 @@ export class SalesLedgerQueryDto {
   limit?: number;
 }
 
-// ===== 수금 등록 DTO =====
+// ===== 입금 등록 DTO =====
 
 export class CreateSalesReceiptDto {
-  @ApiProperty({ description: '수금일자' })
+  @ApiProperty({ description: '입금일자' })
   @IsDateString()
   receiptDate: string;
 
-  @ApiProperty({ description: '수금금액' })
+  @ApiProperty({ description: '입금금액' })
   @IsNumber()
   @Min(1)
   amount: number;
@@ -115,7 +115,7 @@ export class CreateSalesReceiptDto {
 
 export class SalesLedgerSummaryDto {
   totalSales: number;         // 당월 총 매출
-  totalReceived: number;      // 당월 총 수금
+  totalReceived: number;      // 당월 총 입금
   totalOutstanding: number;   // 총 미수금 잔액
   totalOverdue: number;       // 연체 미수금
   ledgerCount: number;        // 전표 건수
@@ -133,4 +133,40 @@ export class ClientSalesSummaryDto {
   outstanding: number;
   orderCount: number;
   lastOrderDate: string;
+}
+
+// ===== 입금내역 조회 DTO =====
+
+export class GetReceiptsQueryDto {
+  @ApiPropertyOptional({ description: '시작일 (YYYY-MM-DD)' })
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @ApiPropertyOptional({ description: '종료일 (YYYY-MM-DD)' })
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
+
+  @ApiPropertyOptional({ description: '거래처 ID' })
+  @IsOptional()
+  @IsString()
+  clientId?: string;
+
+  @ApiPropertyOptional({ description: '결제방법 (cash/bank_transfer/card/check)' })
+  @IsOptional()
+  @IsString()
+  paymentMethod?: string;
+
+  @ApiPropertyOptional({ description: '페이지 번호', default: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  page?: number;
+
+  @ApiPropertyOptional({ description: '페이지 크기', default: 50 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  limit?: number;
 }

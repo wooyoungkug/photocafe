@@ -39,26 +39,10 @@ import { useSpecifications } from '@/hooks/use-specifications';
 import { useHalfProducts } from '@/hooks/use-half-products';
 import { useCreateProduct } from '@/hooks/use-products';
 import { useProductionGroupTree, type ProductionGroup } from '@/hooks/use-production';
+import { useFabrics, FABRIC_CATEGORY_LABELS, type FabricCategory } from '@/hooks/use-fabrics';
 import { useToast } from '@/hooks/use-toast';
-import { API_URL, API_BASE_URL } from '@/lib/api';
-
-// 이미지 URL 정규화 함수
-const normalizeImageUrl = (url: string | null | undefined): string => {
-  if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url.replace(/\/api\/v1\/api\/v1\//g, '/api/v1/');
-  }
-  if (url.startsWith('/api/v1/')) {
-    return `${API_BASE_URL}${url}`;
-  }
-  if (url.startsWith('/upload')) {
-    return `${API_URL}${url}`;
-  }
-  if (url.startsWith('/api/')) {
-    return `${API_BASE_URL}${url}`;
-  }
-  return url;
-};
+import { API_URL } from '@/lib/api';
+import { normalizeImageUrl } from '@/lib/utils';
 
 import {
   ArrowLeft,
@@ -194,6 +178,7 @@ export default function NewProductPage() {
   const { data: halfProductsData } = useHalfProducts({ limit: 100 });
   const createProduct = useCreateProduct();
   const { data: productionGroupTree, isLoading: isTreeLoading } = useProductionGroupTree();
+  const { data: fabricsData } = useFabrics({ forAlbumCover: true, isActive: true, limit: 200 });
 
   // 후가공옵션 카테고리 (ProductionGroup 트리에서 동적 로딩)
   const finishingGroup = useMemo(() => {
@@ -233,6 +218,9 @@ export default function NewProductPage() {
 
   // 후가공정보
   const [finishingOptions, setFinishingOptions] = useState<Record<string, boolean>>({});
+
+  // 앨범 표지 원단
+  const [selectedFabricIds, setSelectedFabricIds] = useState<string[]>([]);
 
   // 옵션정보
   const [customOptions, setCustomOptions] = useState<ProductOption[]>([]);
@@ -295,7 +283,7 @@ export default function NewProductPage() {
     formData.append('file', file);
 
     try {
-      const response = await fetch(`${API_URL}/upload/category-icon`, {
+      const response = await fetch(`${API_URL}/upload/product-image`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -407,6 +395,7 @@ export default function NewProductPage() {
             const group = finishingChildren.find(c => c.id === groupId);
             return { name: group?.name || groupId, productionGroupId: groupId, price: 0, isDefault: false, sortOrder: idx };
           }),
+        fabricIds: selectedFabricIds,
       };
 
       await createProduct.mutateAsync(productData);
@@ -512,7 +501,7 @@ export default function NewProductPage() {
                   <div className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isActive ? 'bg-emerald-500' : 'bg-slate-200'}`}>
                     {isActive ? <Eye className="h-3.5 w-3.5 text-white" /> : <EyeOff className="h-3.5 w-3.5 text-slate-400" />}
                   </div>
-                  <span className={`text-sm font-medium ${isActive ? 'text-emerald-700' : 'text-slate-500'}`}>활성화</span>
+                  <span className={`text-[13px] font-medium ${isActive ? 'text-emerald-700' : 'text-slate-500'}`}>활성화</span>
                   <Switch checked={isActive} onCheckedChange={setIsActive} className="ml-1 data-[state=checked]:bg-emerald-500" />
                 </label>
                 <label
@@ -527,7 +516,7 @@ export default function NewProductPage() {
                   <div className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isNew ? 'bg-blue-500' : 'bg-slate-200'}`}>
                     <Sparkles className={`h-3.5 w-3.5 ${isNew ? 'text-white' : 'text-slate-400'}`} />
                   </div>
-                  <span className={`text-sm font-medium ${isNew ? 'text-blue-700' : 'text-slate-500'}`}>신상품</span>
+                  <span className={`text-[13px] font-medium ${isNew ? 'text-blue-700' : 'text-slate-500'}`}>신상품</span>
                   <Switch checked={isNew} onCheckedChange={setIsNew} className="ml-1 data-[state=checked]:bg-blue-500" />
                 </label>
                 <label
@@ -542,7 +531,7 @@ export default function NewProductPage() {
                   <div className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isBest ? 'bg-amber-500' : 'bg-slate-200'}`}>
                     <Star className={`h-3.5 w-3.5 ${isBest ? 'text-white' : 'text-slate-400'}`} />
                   </div>
-                  <span className={`text-sm font-medium ${isBest ? 'text-amber-700' : 'text-slate-500'}`}>베스트</span>
+                  <span className={`text-[13px] font-medium ${isBest ? 'text-amber-700' : 'text-slate-500'}`}>베스트</span>
                   <Switch checked={isBest} onCheckedChange={setIsBest} className="ml-1 data-[state=checked]:bg-amber-500" />
                 </label>
               </div>
@@ -561,7 +550,7 @@ export default function NewProductPage() {
                     type="number"
                     value={sortOrder}
                     onChange={(e) => setSortOrder(Number(e.target.value))}
-                    className="w-20 h-8 text-center text-sm"
+                    className="w-20 h-8 text-center text-[13px]"
                   />
                 </div>
               </div>
@@ -722,7 +711,7 @@ export default function NewProductPage() {
                 <div className="space-y-2">
                   {selectedBindings.map((b, idx) => (
                     <div key={idx} className="flex items-center gap-2 p-2 bg-white border rounded-lg">
-                      <span className="font-medium text-sm flex-1">{b.name}</span>
+                      <span className="font-medium text-[13px] flex-1">{b.name}</span>
                       <button
                         type="button"
                         title="제거"
@@ -824,6 +813,77 @@ export default function NewProductPage() {
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* 앨범 표지 원단 선택 */}
+            <div className="col-span-2 space-y-3">
+              <Label className="text-[13px] font-semibold text-slate-700 flex items-center gap-2">
+                <Palette className="h-4 w-4 text-emerald-500" />
+                앨범 표지 원단
+                {selectedFabricIds.length > 0 && (
+                  <Badge variant="secondary" className="text-[10px] h-4 px-1.5">{selectedFabricIds.length}개 선택</Badge>
+                )}
+              </Label>
+              {(() => {
+                const allFabrics = fabricsData?.data || [];
+                const categories = [...new Set(allFabrics.map(f => f.category))] as FabricCategory[];
+                if (allFabrics.length === 0) {
+                  return <p className="text-xs text-slate-400 py-2">등록된 앨범 커버용 원단이 없습니다. 기초정보 &gt; 표지원단 관리에서 원단을 등록하세요.</p>;
+                }
+                return (
+                  <div className="space-y-3 p-3 bg-slate-50/60 rounded-lg border border-slate-200/60">
+                    {categories.map(cat => {
+                      const catFabrics = allFabrics.filter(f => f.category === cat);
+                      const allCatSelected = catFabrics.every(f => selectedFabricIds.includes(f.id));
+                      return (
+                        <div key={cat} className="space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const catIds = catFabrics.map(f => f.id);
+                                if (allCatSelected) {
+                                  setSelectedFabricIds(prev => prev.filter(id => !catIds.includes(id)));
+                                } else {
+                                  setSelectedFabricIds(prev => [...new Set([...prev, ...catIds])]);
+                                }
+                              }}
+                              className="text-[11px] font-semibold text-slate-500 hover:text-slate-700 px-2 py-0.5 rounded border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+                            >
+                              {FABRIC_CATEGORY_LABELS[cat] || cat}
+                            </button>
+                            <span className="text-[10px] text-slate-400">{catFabrics.filter(f => selectedFabricIds.includes(f.id)).length}/{catFabrics.length}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {catFabrics.map(fabric => {
+                              const isSelected = selectedFabricIds.includes(fabric.id);
+                              return (
+                                <button
+                                  key={fabric.id}
+                                  type="button"
+                                  onClick={() => setSelectedFabricIds(prev =>
+                                    isSelected ? prev.filter(id => id !== fabric.id) : [...prev, fabric.id]
+                                  )}
+                                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] border transition-all ${
+                                    isSelected
+                                      ? 'bg-emerald-500 text-white border-emerald-500'
+                                      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+                                  }`}
+                                >
+                                  {fabric.colorCode && (
+                                    <span className="w-3 h-3 rounded-full border border-white/50 flex-shrink-0" style={{ backgroundColor: fabric.colorCode }} />
+                                  )}
+                                  {fabric.name}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
@@ -935,8 +995,8 @@ export default function NewProductPage() {
               <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-slate-100 flex items-center justify-center">
                 <Settings className="h-5 w-5 text-slate-300" />
               </div>
-              <p className="text-sm font-medium text-slate-500">등록된 옵션이 없습니다</p>
-              <p className="text-xs mt-1 text-slate-400">상단의 &apos;옵션 추가&apos; 버튼을 클릭하여 옵션을 추가하세요</p>
+              <p className="text-[13px] font-medium text-slate-500">등록된 옵션이 없습니다</p>
+              <p className="text-[12px] mt-1 text-slate-400">상단의 &apos;옵션 추가&apos; 버튼을 클릭하여 옵션을 추가하세요</p>
             </div>
           )}
         </CardContent>
@@ -1081,7 +1141,7 @@ export default function NewProductPage() {
               const formData = new FormData();
               formData.append('file', file);
 
-              const response = await fetch(`${API_URL}/upload/category-icon`, {
+              const response = await fetch(`${API_URL}/upload/product-image`, {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${token}` },
                 body: formData,
@@ -1202,7 +1262,7 @@ export default function NewProductPage() {
           </div>
           {selectedSpecs.length > 0 && (
             <div className="p-3 bg-slate-50 rounded-lg">
-              <p className="text-sm font-medium mb-2">선택된 규격 ({selectedSpecs.length}개)</p>
+              <p className="text-[13px] font-medium mb-2">선택된 규격 ({selectedSpecs.length}개)</p>
               <div className="flex flex-wrap gap-2">
                 {selectedSpecs.map(specId => {
                   const spec = specifications?.find(s => s.id === specId);
@@ -1313,11 +1373,11 @@ function OptionForm({ onSubmit, onCancel }: { onSubmit: (opt: Omit<ProductOption
           <div className="flex gap-4">
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="radio" name="optType" value="select" checked={type === 'select'} onChange={() => setType('select')} className="w-4 h-4" />
-              <span className="text-sm">선택옵션</span>
+              <span className="text-[13px]">선택옵션</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="radio" name="optType" value="required" checked={type === 'required'} onChange={() => setType('required')} className="w-4 h-4" />
-              <span className="text-sm">필수옵션</span>
+              <span className="text-[13px]">필수옵션</span>
             </label>
           </div>
         </div>
@@ -1327,11 +1387,11 @@ function OptionForm({ onSubmit, onCancel }: { onSubmit: (opt: Omit<ProductOption
           <div className="flex gap-4">
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="radio" name="qtyType" value="auto" checked={quantityType === 'auto'} onChange={() => setQuantityType('auto')} className="w-4 h-4" />
-              <span className="text-sm">자동수량</span>
+              <span className="text-[13px]">자동수량</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="radio" name="qtyType" value="manual" checked={quantityType === 'manual'} onChange={() => setQuantityType('manual')} className="w-4 h-4" />
-              <span className="text-sm">선택수량</span>
+              <span className="text-[13px]">선택수량</span>
             </label>
           </div>
         </div>

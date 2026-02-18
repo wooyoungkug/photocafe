@@ -111,6 +111,9 @@ export function isDesignCoverFileName(fileName: string): boolean {
 // 폴더 검증 상태
 export type FolderValidationStatus = 'PENDING' | 'EXACT_MATCH' | 'RATIO_MATCH' | 'RATIO_MISMATCH';
 
+// 이미지 컬러 스페이스 타입
+export type ImageColorSpace = 'sRGB' | 'RGB' | 'CMYK' | 'Grayscale' | 'Unknown';
+
 // 개별 파일 정보
 export interface UploadedFile {
   id: string;
@@ -158,6 +161,9 @@ export interface UploadedFile {
 
   // 색상 분석 (의상 그룹핑용)
   colorInfo?: PhotoColorInfo;
+
+  // 이미지 컬러 스페이스 (RGB/CMYK 구분)
+  colorSpace?: ImageColorSpace;
 }
 
 // 발송지 유형
@@ -285,12 +291,22 @@ export interface UploadedFolder {
   colorGroupingEnabled?: boolean;
 
   // 표지 소스 선택
-  coverSourceType: CoverSourceType | null; // 'fabric' | 'design' | null(미선택)
-  selectedFabricId: string | null;
-  selectedFabricName: string | null;
-  selectedFabricThumbnail: string | null;
-  selectedFabricPrice: number;
+  coverSourceType: CoverSourceType | null; // 'design' | null(미선택)
   coverAutoDetected: boolean; // 파일명 기반 자동 감지 여부
+
+  // 원단 선택 정보
+  selectedFabricId?: string | null;
+  selectedFabricName?: string | null;
+  selectedFabricThumbnail?: string | null;
+  selectedFabricPrice?: number | null;
+  selectedFabricCategory?: string | null;
+  selectedFabricColorCode?: string | null;
+  selectedFabricColorName?: string | null;
+
+  // 동판 정보 (박 각인)
+  foilName?: string | null;     // 박 동판명
+  foilColor?: string | null;    // 박 색상
+  foilPosition?: string | null; // 박 위치
 
   // 업로드 시각
   uploadedAt: number; // Date.now()
@@ -366,9 +382,13 @@ interface MultiFolderUploadState {
 
   // 표지 소스 선택
   setFolderCoverSource: (folderId: string, source: CoverSourceType | null) => void;
-  setFolderFabric: (folderId: string, fabricId: string, fabricName: string, fabricThumbnail: string | null, fabricPrice: number) => void;
-  clearFolderFabric: (folderId: string) => void;
   reclassifyCoverToInner: (folderId: string) => void;
+
+  // 원단 선택
+  setFolderFabric: (folderId: string, fabricId: string, fabricName: string, thumbnailUrl: string | null, basePrice: number, category: string, colorCode: string | null, colorName: string | null) => void;
+
+  // 동판 정보 (전체 폴더 일괄)
+  setAllFoldersFoil: (foilName: string | null, foilColor: string | null, foilPosition: string | null) => void;
 
   // 배송 정보
   setFolderShipping: (folderId: string, shipping: FolderShippingInfo) => void;
@@ -853,13 +873,6 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
       folders: state.folders.map(f => ({
         ...f,
         coverSourceType: source,
-        // fabric→design 전환 시 원단 선택 초기화
-        ...(source === 'design' ? {
-          selectedFabricId: null,
-          selectedFabricName: null,
-          selectedFabricThumbnail: null,
-          selectedFabricPrice: 0,
-        } : {}),
       })),
     }));
   },
@@ -1218,38 +1231,10 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
           return { ...f, coverSourceType: source, coverAutoDetected: false };
         }
         if (source === 'design') {
-          // 디자인표지 선택 시 원단 선택 초기화
-          return {
-            ...f,
-            coverSourceType: source,
-            selectedFabricId: null,
-            selectedFabricName: null,
-            selectedFabricThumbnail: null,
-            selectedFabricPrice: 0,
-          };
+          return { ...f, coverSourceType: source };
         }
         return { ...f, coverSourceType: source };
       }),
-    }));
-  },
-
-  setFolderFabric: (folderId, fabricId, fabricName, fabricThumbnail, fabricPrice) => {
-    set(state => ({
-      folders: state.folders.map(f =>
-        f.id === folderId
-          ? { ...f, selectedFabricId: fabricId, selectedFabricName: fabricName, selectedFabricThumbnail: fabricThumbnail, selectedFabricPrice: fabricPrice }
-          : f
-      ),
-    }));
-  },
-
-  clearFolderFabric: (folderId) => {
-    set(state => ({
-      folders: state.folders.map(f =>
-        f.id === folderId
-          ? { ...f, selectedFabricId: null, selectedFabricName: null, selectedFabricThumbnail: null, selectedFabricPrice: 0 }
-          : f
-      ),
     }));
   },
 
@@ -1275,6 +1260,38 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
           splitCoverResults: [],
         };
       }),
+    }));
+  },
+
+  // 원단 선택
+  setFolderFabric: (folderId, fabricId, fabricName, thumbnailUrl, basePrice, category, colorCode, colorName) => {
+    set(state => ({
+      folders: state.folders.map(f =>
+        f.id === folderId
+          ? {
+              ...f,
+              selectedFabricId: fabricId,
+              selectedFabricName: fabricName,
+              selectedFabricThumbnail: thumbnailUrl,
+              selectedFabricPrice: basePrice,
+              selectedFabricCategory: category,
+              selectedFabricColorCode: colorCode,
+              selectedFabricColorName: colorName,
+            }
+          : f
+      ),
+    }));
+  },
+
+  // 동판 정보 (전체 폴더 일괄)
+  setAllFoldersFoil: (foilName, foilColor, foilPosition) => {
+    set(state => ({
+      folders: state.folders.map(f => ({
+        ...f,
+        foilName: foilName ?? null,
+        foilColor: foilColor ?? null,
+        foilPosition: foilPosition ?? null,
+      })),
     }));
   },
 
@@ -1320,6 +1337,9 @@ const INDIGO_PRINT_PRICES: Record<string, { single: number; spread: number }> = 
 const COVER_PRICE = 5000; // 원단표지 기본 단가
 const DESIGN_COVER_PRICE = 3000; // 디자인표지 출력 단가
 
+// 제본비
+const BINDING_PRICE = 2000; // 제본비 기본 단가
+
 // 규격 키 추출
 function getSpecKey(width: number, height: number): string {
   return `${Math.round(width)}x${Math.round(height)}`;
@@ -1333,6 +1353,7 @@ export function calculateUploadedFolderPrice(folder: UploadedFolder): {
   pageCount: number;
   printPrice: number;
   coverPrice: number;
+  bindingPrice: number;
   unitPrice: number;
   quantity: number;
   subtotal: number;
@@ -1346,16 +1367,12 @@ export function calculateUploadedFolderPrice(folder: UploadedFolder): {
   const printPrice = pricePerPage * folder.pageCount;
 
   // 표지 유형별 단가 분기
-  let coverPrice: number;
-  if (folder.coverSourceType === 'fabric' && folder.selectedFabricPrice > 0) {
-    coverPrice = folder.selectedFabricPrice;
-  } else if (folder.coverSourceType === 'design') {
-    coverPrice = DESIGN_COVER_PRICE;
-  } else {
-    coverPrice = COVER_PRICE; // 기본값 (하위 호환)
-  }
+  const coverPrice = folder.coverSourceType === 'design' ? DESIGN_COVER_PRICE : COVER_PRICE;
 
-  const unitPrice = printPrice + coverPrice;
+  // 제본비
+  const bindingPrice = BINDING_PRICE;
+
+  const unitPrice = printPrice + coverPrice + bindingPrice;
   const quantity = folder.quantity;
   const subtotal = unitPrice * quantity;
   const tax = Math.round(subtotal * 0.1);
@@ -1366,6 +1383,7 @@ export function calculateUploadedFolderPrice(folder: UploadedFolder): {
     pageCount: folder.pageCount,
     printPrice,
     coverPrice,
+    bindingPrice,
     unitPrice,
     quantity,
     subtotal,
@@ -1385,6 +1403,7 @@ export function calculateAdditionalOrderPrice(
   pageCount: number;
   printPrice: number;
   coverPrice: number;
+  bindingPrice: number;
   unitPrice: number;
   quantity: number;
   subtotal: number;
@@ -1398,21 +1417,18 @@ export function calculateAdditionalOrderPrice(
   const printPrice = pricePerPage * folder.pageCount;
 
   // 추가 주문도 동일한 표지 유형 적용
-  let coverPrice: number;
-  if (folder.coverSourceType === 'fabric' && folder.selectedFabricPrice > 0) {
-    coverPrice = folder.selectedFabricPrice;
-  } else if (folder.coverSourceType === 'design') {
-    coverPrice = DESIGN_COVER_PRICE;
-  } else {
-    coverPrice = COVER_PRICE;
-  }
-  const unitPrice = printPrice + coverPrice;
+  const coverPrice = folder.coverSourceType === 'design' ? DESIGN_COVER_PRICE : COVER_PRICE;
+
+  // 제본비
+  const bindingPrice = BINDING_PRICE;
+
+  const unitPrice = printPrice + coverPrice + bindingPrice;
   const quantity = order.quantity;
   const subtotal = unitPrice * quantity;
   const tax = Math.round(subtotal * 0.1);
   const totalPrice = subtotal + tax;
 
-  return { pricePerPage, pageCount: folder.pageCount, printPrice, coverPrice, unitPrice, quantity, subtotal, tax, totalPrice };
+  return { pricePerPage, pageCount: folder.pageCount, printPrice, coverPrice, bindingPrice, unitPrice, quantity, subtotal, tax, totalPrice };
 }
 
 /**
