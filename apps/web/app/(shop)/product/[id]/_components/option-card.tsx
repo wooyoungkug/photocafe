@@ -10,6 +10,7 @@ interface OptionCardProps {
   summary?: string;
   children: React.ReactNode;
   className?: string;
+  inline?: boolean;
 }
 
 export function OptionCard({
@@ -18,7 +19,22 @@ export function OptionCard({
   summary,
   children,
   className,
+  inline,
 }: OptionCardProps) {
+  if (inline) {
+    return (
+      <div className={cn('py-3 border-b border-gray-100 last:border-b-0', className)}>
+        <div className="flex items-center gap-2 flex-wrap text-sm text-gray-900">
+          <span className="font-bold whitespace-nowrap">{title}</span>
+          {count !== undefined && count > 0 && (
+            <span className="text-xs text-gray-400 font-normal">({count})</span>
+          )}
+          {children}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={cn('py-3 border-b border-gray-100 last:border-b-0', className)}>
       <h3 className="text-sm text-gray-900 mb-2">

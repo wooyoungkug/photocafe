@@ -11,6 +11,7 @@ interface OptionBindingProps {
 
 export function OptionBinding({ bindings, selectedBindingId, onSelect }: OptionBindingProps) {
   if (!bindings || bindings.length === 0) return null;
+  if (bindings.length === 1) return null;
 
   return (
     <div className="flex flex-wrap gap-1.5">

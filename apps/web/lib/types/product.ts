@@ -6,6 +6,8 @@ export interface ProductSpecification {
   price: number;
   isDefault: boolean;
   sortOrder: number;
+  forIndigo?: boolean;
+  forInkjet?: boolean;
 }
 
 export interface ProductBinding {

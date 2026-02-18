@@ -1,8 +1,8 @@
 'use client';
 
-import { Image as ImageIcon } from 'lucide-react';
-import { cn, normalizeImageUrl } from '@/lib/utils';
+import { useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
+import { cn } from '@/lib/utils';
 import type { CopperPlate, CopperPlateLabels } from '@/hooks/use-copper-plates';
 import type { PublicCopperPlate } from '@/hooks/use-public-copper-plates';
 
@@ -30,137 +30,111 @@ export function OptionCopperPlate({
   onTypeChange, onPublicPlateSelect, onOwnedPlateSelect, onFoilColorChange, onFoilPositionChange,
 }: OptionCopperPlateProps) {
   const t = useTranslations('product');
+  const initializedRef = useRef(false);
+
   const hasPublic = publicCopperPlates && publicCopperPlates.length > 0;
   const storedOwned = ownedCopperPlates?.filter(cp => cp.status === 'stored') || [];
   const hasOwned = isAuthenticated && storedOwned.length > 0;
 
+  const activeColors = copperPlateLabels?.foilColors?.filter(c => c.isActive) ?? [];
+  const activePositions = copperPlateLabels?.platePositions?.filter(p => p.isActive) ?? [];
+  const hasColors = activeColors.length > 0;
+  const hasPositions = activePositions.length > 0;
+
   if (!hasPublic && !hasOwned) return null;
 
+  // 현재 선택된 동판 id → select value
+  const selectedPlateValue =
+    copperPlateType === 'public' && selectedPublicPlate ? `public:${selectedPublicPlate.id}` :
+    copperPlateType === 'owned' && selectedOwnedPlate ? `owned:${selectedOwnedPlate.id}` :
+    '';
+
+  // 저장된 상품 불러올 때 초기화 방지
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    initializedRef.current = true;
+  }, []);
+
+  const handlePlateChange = (value: string) => {
+    if (!value) {
+      onTypeChange('none');
+      return;
+    }
+    const [type, id] = value.split(':');
+    if (type === 'public') {
+      const plate = publicCopperPlates?.find(p => p.id === id);
+      if (plate) { onTypeChange('public'); onPublicPlateSelect(plate); }
+    } else if (type === 'owned') {
+      const cp = storedOwned.find(p => p.id === id);
+      if (cp) { onTypeChange('owned'); onOwnedPlateSelect(cp); }
+    }
+  };
+
+  const selectClass = cn(
+    'h-8 rounded border border-gray-200 bg-white px-2 py-0 text-xs text-gray-700',
+    'focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary',
+    'appearance-none cursor-pointer min-w-0',
+  );
+
   return (
-    <div className="space-y-2">
-      {/* Type buttons */}
-      <div className="flex flex-wrap gap-1.5">
-        <button type="button" onClick={() => onTypeChange('none')}
-          className={cn('px-3 py-1.5 text-xs rounded border transition-colors',
-            copperPlateType === 'none' ? 'border-primary bg-primary text-white' : 'border-gray-200 text-gray-600 hover:border-gray-400')}>
-          {t('noCopperPlate')}
-        </button>
+    <div className="flex items-center gap-2 flex-nowrap">
+      {/* 동판 선택 드롭다운 */}
+      <select
+        value={selectedPlateValue}
+        onChange={e => handlePlateChange(e.target.value)}
+        title={t('copperPlate')}
+        className={cn(selectClass, 'w-auto max-w-full')}
+      >
+        <option value="">{t('noCopperPlate')}</option>
         {hasPublic && (
-          <button type="button" onClick={() => onTypeChange('public')}
-            className={cn('px-3 py-1.5 text-xs rounded border transition-colors',
-              copperPlateType === 'public' ? 'border-primary bg-primary text-white' : 'border-gray-200 text-gray-600 hover:border-gray-400')}>
-            {t('publicCopperPlate')}
-          </button>
+          <optgroup label={t('publicCopperPlate')}>
+            {publicCopperPlates!.map(plate => (
+              <option key={plate.id} value={`public:${plate.id}`}>
+                {plate.plateName}
+                {(plate.widthMm || plate.heightMm) ? ` (${plate.widthMm}×${plate.heightMm}mm)` : ''}
+              </option>
+            ))}
+          </optgroup>
         )}
         {hasOwned && (
-          <button type="button" onClick={() => onTypeChange('owned')}
-            className={cn('px-3 py-1.5 text-xs rounded border transition-colors',
-              copperPlateType === 'owned' ? 'border-primary bg-primary text-white' : 'border-gray-200 text-gray-600 hover:border-gray-400')}>
-            {t('ownedCopperPlate')} ({storedOwned.length})
-          </button>
+          <optgroup label={`${t('ownedCopperPlate')} (${storedOwned.length})`}>
+            {storedOwned.map(cp => (
+              <option key={cp.id} value={`owned:${cp.id}`}>
+                {cp.plateName}
+              </option>
+            ))}
+          </optgroup>
         )}
-      </div>
+      </select>
 
-      {/* Public plates */}
-      {copperPlateType === 'public' && hasPublic && (
-        <div className="space-y-2">
-          <div className="space-y-1 max-h-[180px] overflow-y-auto">
-            {publicCopperPlates!.map((plate) => (
-              <button key={plate.id} type="button" onClick={() => onPublicPlateSelect(plate)}
-                className={cn('w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-sm transition-colors',
-                  selectedPublicPlate?.id === plate.id ? 'bg-primary/10 text-primary' : 'hover:bg-gray-50')}>
-                {plate.imageUrl ? (
-                  <img src={normalizeImageUrl(plate.imageUrl)} alt={plate.plateName}
-                    className="w-8 h-8 object-cover rounded border flex-shrink-0"
-                    onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                ) : (
-                  <div className="w-8 h-8 rounded border bg-gray-100 flex items-center justify-center flex-shrink-0">
-                    <ImageIcon className="w-4 h-4 text-gray-400" />
-                  </div>
-                )}
-                <span className="truncate">{plate.plateName}</span>
-                {(plate.widthMm || plate.heightMm) && (
-                  <span className="text-[10px] text-gray-400 ml-auto flex-shrink-0">{plate.widthMm}x{plate.heightMm}mm</span>
-                )}
-              </button>
-            ))}
-          </div>
-          <FoilOptions copperPlateLabels={copperPlateLabels} foilColor={foilColor} foilPosition={foilPosition}
-            onFoilColorChange={onFoilColorChange} onFoilPositionChange={onFoilPositionChange} />
-        </div>
-      )}
-
-      {/* Owned plates */}
-      {copperPlateType === 'owned' && hasOwned && (
-        <div className="space-y-2">
-          <div className="space-y-1 max-h-[180px] overflow-y-auto">
-            {storedOwned.map((cp) => (
-              <button key={cp.id} type="button" onClick={() => onOwnedPlateSelect(cp)}
-                className={cn('w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-sm transition-colors',
-                  selectedOwnedPlate?.id === cp.id ? 'bg-primary/10 text-primary' : 'hover:bg-gray-50')}>
-                {cp.imageUrl ? (
-                  <img src={normalizeImageUrl(cp.imageUrl)} alt={cp.plateName}
-                    className="w-8 h-8 object-cover rounded border flex-shrink-0"
-                    onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                ) : (
-                  <div className="w-8 h-8 rounded border bg-gray-100 flex items-center justify-center flex-shrink-0">
-                    <ImageIcon className="w-4 h-4 text-gray-400" />
-                  </div>
-                )}
-                <span className="truncate">{cp.plateName}</span>
-                <span className="text-[10px] text-gray-400 ml-auto flex-shrink-0">
-                  {cp.plateType === 'copper' ? t('copperType') : t('leadType')}
-                </span>
-              </button>
-            ))}
-          </div>
-          {selectedOwnedPlate && (
-            <FoilOptions copperPlateLabels={copperPlateLabels} foilColor={foilColor} foilPosition={foilPosition}
-              onFoilColorChange={onFoilColorChange} onFoilPositionChange={onFoilPositionChange} />
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function FoilOptions({ copperPlateLabels, foilColor, foilPosition, onFoilColorChange, onFoilPositionChange }: {
-  copperPlateLabels?: CopperPlateLabels; foilColor?: string; foilPosition?: string;
-  onFoilColorChange: (code: string) => void; onFoilPositionChange: (code: string) => void;
-}) {
-  const t = useTranslations('product');
-
-  return (
-    <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-gray-100">
-      {copperPlateLabels?.foilColors && copperPlateLabels.foilColors.length > 0 && (
-        <>
-          <span className="text-xs text-gray-500">{t('foilColor')}</span>
-          {copperPlateLabels.foilColors.filter(c => c.isActive).map((color) => (
-            <button key={color.id} type="button" onClick={() => onFoilColorChange(color.code)}
-              className={cn('flex items-center gap-1 px-2 py-1 text-[11px] rounded border transition-colors',
-                foilColor === color.code ? 'border-primary bg-primary/10' : 'border-gray-200 hover:border-gray-400')}>
-              <span className={cn('w-3 h-3 rounded-sm border',
-                color.code === 'hologram' && 'bg-gradient-to-r from-pink-300 via-purple-300 to-cyan-300',
-                color.colorHex === '#FFFFFF' && 'border-gray-400')}
-                style={{ backgroundColor: color.code !== 'hologram' ? color.colorHex : undefined,
-                  borderColor: color.colorHex === '#FFFFFF' ? '#9ca3af' : color.colorHex }} />
-              {color.name}
-            </button>
+      {/* 박 컬러 드롭다운 (동판 선택 시에만 표시) */}
+      {copperPlateType !== 'none' && hasColors && (
+        <select
+          value={foilColor ?? ''}
+          onChange={e => onFoilColorChange(e.target.value)}
+          title={t('foilColor')}
+          className={cn(selectClass, 'min-w-[90px]')}
+        >
+          <option value="">{t('foilColor')}</option>
+          {activeColors.map(color => (
+            <option key={color.id} value={color.code}>{color.name}</option>
           ))}
-        </>
+        </select>
       )}
-      {copperPlateLabels?.platePositions && copperPlateLabels.platePositions.length > 0 && (
-        <>
-          <span className="text-gray-300">|</span>
-          <span className="text-xs text-gray-500">{t('foilPosition')}</span>
-          {copperPlateLabels.platePositions.filter(p => p.isActive).map((pos) => (
-            <button key={pos.id} type="button" onClick={() => onFoilPositionChange(pos.code)}
-              className={cn('px-2 py-1 text-[11px] rounded border transition-colors',
-                foilPosition === pos.code ? 'border-primary bg-primary text-white' : 'border-gray-200 hover:border-gray-400')}>
-              {pos.name}
-            </button>
+
+      {/* 박 위치 드롭다운 (동판 선택 시에만 표시) */}
+      {copperPlateType !== 'none' && hasPositions && (
+        <select
+          value={foilPosition ?? ''}
+          onChange={e => onFoilPositionChange(e.target.value)}
+          title={t('foilPosition')}
+          className={cn(selectClass, 'min-w-[80px]')}
+        >
+          <option value="">{t('foilPosition')}</option>
+          {activePositions.map(pos => (
+            <option key={pos.id} value={pos.code}>{pos.name}</option>
           ))}
-        </>
+        </select>
       )}
     </div>
   );

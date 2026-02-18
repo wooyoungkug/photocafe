@@ -39,7 +39,7 @@ import { useCategories } from '@/hooks/use-categories';
 import { useSpecifications } from '@/hooks/use-specifications';
 import { useHalfProducts } from '@/hooks/use-half-products';
 import { useProduct, useUpdateProduct, useSyncProductPapers } from '@/hooks/use-products';
-import { useProductionGroupTree, useProductionSettings, type ProductionGroup, type ProductionSetting, type OutputPriceSelection, type IndigoUpPrice, type InkjetSpecPrice, type PriceGroup } from '@/hooks/use-production';
+import { useProductionGroupTree, useProductionSettings, type ProductionGroup, type ProductionSetting, type OutputPriceSelection, type IndigoUpPrice, type InkjetSpecPrice } from '@/hooks/use-production';
 import { useFoilColors, type FoilColorItem } from '@/hooks/use-copper-plates';
 import { useFabrics, FABRIC_CATEGORY_LABELS, type FabricCategory } from '@/hooks/use-fabrics';
 import { useToast } from '@/hooks/use-toast';
@@ -190,7 +190,6 @@ export default function EditProductPage() {
   // 기본정보
   const [productCode, setProductCode] = useState('');
   const [productName, setProductName] = useState('');
-  const [unitName, setUnitName] = useState('부');
   const [isActive, setIsActive] = useState(true);
   const [isNew, setIsNew] = useState(false);
   const [isBest, setIsBest] = useState(false);
@@ -208,6 +207,8 @@ export default function EditProductPage() {
   const [outputPriceDialogOpen, setOutputPriceDialogOpen] = useState(false);
   const [printType, setPrintType] = useState('double');
   const [selectedCovers, setSelectedCovers] = useState<{ id: string; name: string; price: number }[]>([]);
+  const [newCoverName, setNewCoverName] = useState('');
+  const [newCoverPrice, setNewCoverPrice] = useState(0);
   const [selectedFoils, setSelectedFoils] = useState<{ id: string; name: string; color: string; price: number }[]>([]);
   // 용지 사용 여부 관리
   const [paperActiveMap, setPaperActiveMap] = useState<Record<string, boolean>>({});
@@ -453,6 +454,38 @@ export default function EditProductPage() {
       }
     }
   }, [product?.specifications, specifications]);
+
+  // 용지 활성화 상태에 따른 규격 자동 등록/해제
+  // 인디고출력용지가 활성화되면 forIndigo 규격을, 잉크젯출력용지가 활성화되면 forInkjet 규격을 자동 추가
+  useEffect(() => {
+    if (!isFormReady || !specifications || !product?.papers) return;
+    const allPapers = product.papers as any[];
+    const hasActiveIndigo = allPapers.some((p: any) =>
+      p.printMethod === 'indigo' && paperActiveMap[p.id] !== false
+    );
+    const hasActiveInkjet = allPapers.some((p: any) =>
+      p.printMethod === 'inkjet' && paperActiveMap[p.id] !== false
+    );
+
+    setSelectedSpecs(prev => {
+      let next = [...prev];
+      for (const spec of specifications) {
+        const isForPaper = spec.forIndigo || spec.forInkjet;
+        if (!isForPaper) continue;
+        const shouldInclude =
+          (spec.forIndigo && hasActiveIndigo) ||
+          (spec.forInkjet && hasActiveInkjet);
+        const isIncluded = next.includes(spec.id);
+        if (shouldInclude && !isIncluded) {
+          next = [...next, spec.id];
+        } else if (!shouldInclude && isIncluded) {
+          next = next.filter(id => id !== spec.id);
+        }
+      }
+      if (next.length === prev.length && next.every((id, i) => prev[i] === id)) return prev;
+      return next;
+    });
+  }, [paperActiveMap, specifications, isFormReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 제본 선택에 따른 출력구분 자동 설정
   useEffect(() => {
@@ -783,124 +816,6 @@ export default function EditProductPage() {
           theme="emerald"
         />
         <CardContent className="px-6 pb-6 pt-2 space-y-5">
-          {/* 규격 선택 */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-[13px] font-medium text-slate-600 flex items-center gap-1.5">
-                <Grid3X3 className="h-4 w-4 text-slate-400" />
-                앨범 규격
-              </Label>
-            </div>
-
-            {/* 규격 타입 탭 */}
-            <div className="flex gap-0.5 p-0.5 bg-slate-100/80 rounded-lg w-fit border border-slate-200/60">
-              {[
-                { key: 'indigo', label: '인디고앨범' },
-                { key: 'inkjet', label: '잉크젯' },
-                { key: 'album', label: '잉크젯앨범' },
-                { key: 'frame', label: '액자' },
-                { key: 'booklet', label: '책자' },
-              ].map(tab => {
-                const tabSpecs = getFilteredSpecs(tab.key as typeof specType);
-                const tabSelectedCount = selectedSpecs.filter(specId => tabSpecs.some(s => s.id === specId)).length;
-                const isActive = specType === tab.key;
-                return (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    className={`
-                      relative h-8 px-3 text-xs font-medium rounded-md transition-all
-                      ${isActive
-                        ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/60'
-                        : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
-                      }
-                    `}
-                    onClick={() => setSpecType(tab.key as typeof specType)}
-                  >
-                    {tab.label}
-                    <span className="ml-1.5 text-[10px] tabular-nums text-slate-400">
-                      {tabSelectedCount}/{tabSpecs.length}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* 선택된 규격 - 탭별로 필터링 */}
-            {(() => {
-              const filteredSpecs = getFilteredSpecs(specType);
-              const filteredSelectedSpecs = selectedSpecs.filter(specId =>
-                filteredSpecs.some(s => s.id === specId)
-              );
-              const allSelected = filteredSpecs.length > 0 && filteredSpecs.every(s => selectedSpecs.includes(s.id));
-
-              return (
-                <div className="space-y-2">
-                  {/* 전체 선택/삭제 버튼 */}
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-xs border-slate-200"
-                      onClick={() => {
-                        const filteredIds = filteredSpecs.map(s => s.id);
-                        if (allSelected) {
-                          setSelectedSpecs(prev => prev.filter(id => !filteredIds.includes(id)));
-                        } else {
-                          setSelectedSpecs(prev => [...new Set([...prev, ...filteredIds])]);
-                        }
-                      }}
-                    >
-                      {allSelected ? '전체 해제' : '전체 선택'}
-                    </Button>
-                    <span className="text-[11px] text-slate-400 tabular-nums">
-                      {filteredSelectedSpecs.length} / {filteredSpecs.length}개 선택
-                    </span>
-                  </div>
-
-                  {/* 규격 목록 */}
-                  {filteredSelectedSpecs.length > 0 ? (
-                    <div className="grid grid-cols-6 gap-1.5 p-2 bg-white rounded border border-slate-200">
-                      {[...filteredSelectedSpecs]
-                        .sort((a, b) => {
-                          const specA = specifications?.find(s => s.id === a);
-                          const specB = specifications?.find(s => s.id === b);
-                          const areaA = (specA?.widthMm || 0) * (specA?.heightMm || 0);
-                          const areaB = (specB?.widthMm || 0) * (specB?.heightMm || 0);
-                          return areaA - areaB;
-                        })
-                        .map(specId => {
-                          const spec = specifications?.find(s => s.id === specId);
-                          return spec ? (
-                            <div key={specId} className="group flex items-center justify-between py-1 px-2 bg-white border border-slate-150 rounded-md text-[12px] hover:border-slate-300 transition-colors">
-                              <span className="font-medium text-slate-700 truncate">
-                                {spec.name}
-                                {spec.nup && <span className="ml-1 text-[10px] text-slate-400">({spec.nup})</span>}
-                              </span>
-                              <button
-                                type="button"
-                                className="ml-1 opacity-0 group-hover:opacity-100 hover:bg-red-50 rounded p-0.5 flex-shrink-0 transition-opacity"
-                                onClick={() => setSelectedSpecs(prev => prev.filter(id => id !== specId))}
-                              >
-                                <X className="h-3 w-3 text-red-400" />
-                              </button>
-                            </div>
-                          ) : null;
-                        })}
-                    </div>
-                  ) : (
-                    <div className="py-6 text-center text-[13px] text-slate-400 bg-slate-50/40 rounded-lg border border-dashed border-slate-200">
-                      선택된 규격이 없습니다. 규격선택 버튼을 클릭하세요.
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-          </div>
-
-          <Separator className="my-1" />
-
           {/* 제본/용지 선택 - 2열 그리드 */}
           <div className="grid grid-cols-2 gap-6">
             {/* 제본 선택 */}
@@ -1013,6 +928,77 @@ export default function EditProductPage() {
                   ※ 제본방법에 따라 자동으로 설정됩니다
                 </p>
               </div>
+            </div>
+          </div>
+
+          {/* 앨범표지 옵션 */}
+          <div className="space-y-3">
+            <Label className="text-[13px] font-medium text-slate-600 flex items-center gap-1.5">
+              <Palette className="h-4 w-4 text-slate-400" />
+              앨범표지 옵션
+              {selectedCovers.length > 0 && (
+                <Badge variant="secondary" className="text-[10px] h-4 px-1.5">{selectedCovers.length}개</Badge>
+              )}
+            </Label>
+            {selectedCovers.length > 0 && (
+              <div className="border rounded-md divide-y">
+                {selectedCovers.map((cover, idx) => (
+                  <div key={cover.id || idx} className="flex items-center gap-2 px-3 py-2">
+                    <span className="flex-1 text-[13px] text-slate-700">{cover.name}</span>
+                    <span className="text-[12px] text-slate-500">
+                      {cover.price > 0 ? `+${cover.price.toLocaleString()}원` : '기본'}
+                    </span>
+                    {idx === 0 && (
+                      <Badge variant="outline" className="text-[10px] h-4 px-1.5">기본</Badge>
+                    )}
+                    <button
+                      type="button"
+                      title="삭제"
+                      onClick={() => setSelectedCovers(prev => prev.filter((_, i) => i !== idx))}
+                      className="p-1 hover:bg-red-50 rounded text-slate-400 hover:text-red-500 transition-colors"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="표지명 (예: 기본커버, 고급커버)"
+                value={newCoverName}
+                onChange={e => setNewCoverName(e.target.value)}
+                className="flex-1 h-8 text-[12px]"
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && newCoverName.trim()) {
+                    setSelectedCovers(prev => [...prev, { id: `new-${Date.now()}`, name: newCoverName.trim(), price: newCoverPrice }]);
+                    setNewCoverName('');
+                    setNewCoverPrice(0);
+                  }
+                }}
+              />
+              <Input
+                type="number"
+                placeholder="추가금액"
+                value={newCoverPrice || ''}
+                onChange={e => setNewCoverPrice(Number(e.target.value))}
+                className="w-24 h-8 text-[12px]"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 text-[12px] whitespace-nowrap"
+                disabled={!newCoverName.trim()}
+                onClick={() => {
+                  setSelectedCovers(prev => [...prev, { id: `new-${Date.now()}`, name: newCoverName.trim(), price: newCoverPrice }]);
+                  setNewCoverName('');
+                  setNewCoverPrice(0);
+                }}
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                추가
+              </Button>
             </div>
           </div>
 

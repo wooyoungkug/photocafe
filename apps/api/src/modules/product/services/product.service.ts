@@ -206,11 +206,19 @@ export class ProductService {
           }
           return true;
         })
-        .map(({ specification, ...rest }: any) => rest);
+        .map(({ specification, ...rest }: any) => ({
+          ...rest,
+          forIndigo: specification?.forIndigo ?? false,
+          forInkjet: specification?.forInkjet ?? false,
+        }));
     } else {
       (product as any).specifications = product.specifications
         .filter((ps: any) => !ps.specification || ps.specification.isActive)
-        .map(({ specification, ...rest }: any) => rest);
+        .map(({ specification, ...rest }: any) => ({
+          ...rest,
+          forIndigo: specification?.forIndigo ?? false,
+          forInkjet: specification?.forInkjet ?? false,
+        }));
     }
 
     return this.convertDecimalToNumber(product);
@@ -281,75 +289,69 @@ export class ProductService {
 
     const { specifications, bindings, papers, covers, foils, finishings, outputPriceSettings, fabricIds, categoryId, ...productData } = dto;
 
-    try {
-      // 기존 옵션들 삭제
-      if (specifications !== undefined) {
-        await this.prisma.productSpecification.deleteMany({ where: { productId: id } });
-      }
-      if (bindings !== undefined) {
-        await this.prisma.productBinding.deleteMany({ where: { productId: id } });
-      }
-      if (papers !== undefined) {
-        await this.prisma.productPaper.deleteMany({ where: { productId: id } });
-      }
-      if (covers !== undefined) {
-        await this.prisma.productCover.deleteMany({ where: { productId: id } });
-      }
-      if (foils !== undefined) {
-        await this.prisma.productFoil.deleteMany({ where: { productId: id } });
-      }
-      if (finishings !== undefined) {
-        await this.prisma.productFinishing.deleteMany({ where: { productId: id } });
-      }
-      if (fabricIds !== undefined) {
-        await this.prisma.productFabric.deleteMany({ where: { productId: id } });
-      }
-
-      // 상품 업데이트
-      const result = await this.prisma.product.update({
-        where: { id },
-        data: {
-          ...productData,
-          ...(categoryId && { category: { connect: { id: categoryId } } }),
-          ...(outputPriceSettings !== undefined && { outputPriceSettings: JSON.parse(JSON.stringify(outputPriceSettings)) }),
-          specifications: specifications !== undefined && specifications.length > 0
-            ? { create: specifications }
-            : undefined,
-          bindings: bindings !== undefined && bindings.length > 0
-            ? { create: bindings }
-            : undefined,
-          papers: papers !== undefined && papers.length > 0
-            ? { create: papers }
-            : undefined,
-          covers: covers !== undefined && covers.length > 0
-            ? { create: covers }
-            : undefined,
-          foils: foils !== undefined && foils.length > 0
-            ? { create: foils }
-            : undefined,
-          finishings: finishings !== undefined && finishings.length > 0
-            ? { create: finishings }
-            : undefined,
-          fabrics: fabricIds !== undefined && fabricIds.length > 0
-            ? { create: fabricIds.map((fabricId, idx) => ({ fabricId, sortOrder: idx })) }
-            : undefined,
-        },
-        include: {
-          category: true,
-          specifications: true,
-          bindings: true,
-          papers: true,
-          covers: true,
-          foils: true,
-          finishings: true,
-          fabrics: { include: { fabric: { select: { id: true, name: true, category: true, colorCode: true, thumbnailUrl: true, isActive: true } } } },
-        },
-      });
-
-      return result;
-    } catch (error) {
-      throw error;
+    // 기존 옵션들 삭제
+    if (specifications !== undefined) {
+      await this.prisma.productSpecification.deleteMany({ where: { productId: id } });
     }
+    if (bindings !== undefined) {
+      await this.prisma.productBinding.deleteMany({ where: { productId: id } });
+    }
+    if (papers !== undefined) {
+      await this.prisma.productPaper.deleteMany({ where: { productId: id } });
+    }
+    if (covers !== undefined) {
+      await this.prisma.productCover.deleteMany({ where: { productId: id } });
+    }
+    if (foils !== undefined) {
+      await this.prisma.productFoil.deleteMany({ where: { productId: id } });
+    }
+    if (finishings !== undefined) {
+      await this.prisma.productFinishing.deleteMany({ where: { productId: id } });
+    }
+    if (fabricIds !== undefined) {
+      await this.prisma.productFabric.deleteMany({ where: { productId: id } });
+    }
+
+    // 상품 업데이트
+    return this.prisma.product.update({
+      where: { id },
+      data: {
+        ...productData,
+        ...(categoryId && { category: { connect: { id: categoryId } } }),
+        ...(outputPriceSettings !== undefined && { outputPriceSettings: JSON.parse(JSON.stringify(outputPriceSettings)) }),
+        specifications: specifications !== undefined && specifications.length > 0
+          ? { create: specifications }
+          : undefined,
+        bindings: bindings !== undefined && bindings.length > 0
+          ? { create: bindings }
+          : undefined,
+        papers: papers !== undefined && papers.length > 0
+          ? { create: papers }
+          : undefined,
+        covers: covers !== undefined && covers.length > 0
+          ? { create: covers }
+          : undefined,
+        foils: foils !== undefined && foils.length > 0
+          ? { create: foils }
+          : undefined,
+        finishings: finishings !== undefined && finishings.length > 0
+          ? { create: finishings }
+          : undefined,
+        fabrics: fabricIds !== undefined && fabricIds.length > 0
+          ? { create: fabricIds.map((fabricId, idx) => ({ fabricId, sortOrder: idx })) }
+          : undefined,
+      },
+      include: {
+        category: true,
+        specifications: true,
+        bindings: true,
+        papers: true,
+        covers: true,
+        foils: true,
+        finishings: true,
+        fabrics: { include: { fabric: { select: { id: true, name: true, category: true, colorCode: true, thumbnailUrl: true, isActive: true } } } },
+      },
+    });
   }
 
   async delete(id: string) {

@@ -93,7 +93,7 @@ export function OptionCoverFabric({
         onClick={() => setIsOpen(prev => !prev)}
         className={cn(
           'w-full flex items-center gap-2 px-3 py-2 border rounded-md text-sm transition-colors text-left',
-          isOpen ? 'border-primary ring-1 ring-primary' : 'border-gray-200 hover:border-gray-400'
+          isOpen ? 'border-primary ring-1 ring-primary' : selectedFabric ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-gray-400'
         )}
       >
         {/* 선택된 원단 미리보기 */}
@@ -114,7 +114,6 @@ export function OptionCoverFabric({
                 <Palette className="w-3.5 h-3.5 text-gray-400" />
               </div>
             )}
-            <span className="flex-1 font-medium text-gray-900">{selectedFabric.name}</span>
             <Check className="h-4 w-4 text-primary flex-shrink-0" />
           </>
         ) : (
@@ -209,19 +208,19 @@ export function OptionCoverFabric({
                     className={cn(
                       'w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors text-left',
                       isSelected
-                        ? 'bg-primary/10 text-primary'
+                        ? 'bg-primary/5 text-primary'
                         : 'text-gray-700 hover:bg-gray-50'
                     )}
                   >
                     {/* Swatch */}
                     {fabric.thumbnailUrl ? (
                       <div
-                        className={cn('w-7 h-7 rounded border bg-cover bg-center flex-shrink-0', isSelected && 'ring-2 ring-primary')}
+                        className={cn('w-7 h-7 rounded border bg-cover bg-center flex-shrink-0', isSelected && 'ring-1 ring-primary')}
                         style={{ backgroundImage: `url(${normalizeImageUrl(fabric.thumbnailUrl)})` }}
                       />
                     ) : fabric.colorCode ? (
                       <div
-                        className={cn('w-7 h-7 rounded border flex-shrink-0', isSelected && 'ring-2 ring-primary')}
+                        className={cn('w-7 h-7 rounded border flex-shrink-0', isSelected && 'ring-1 ring-primary')}
                         style={{ backgroundColor: fabric.colorCode }}
                       />
                     ) : (

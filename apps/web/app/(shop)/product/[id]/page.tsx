@@ -2,7 +2,7 @@
 
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRight, ChevronDown, ChevronUp, Minus, Plus, ShoppingCart, Heart, Share2, Star, FolderHeart, Loader2, Upload, BookOpen, AlertTriangle } from 'lucide-react';
+import { ChevronRight, ChevronDown, ChevronUp, Minus, Plus, ShoppingCart, Heart, Share2, Star, FolderHeart, Loader2, Upload, BookOpen, AlertTriangle, Pencil } from 'lucide-react';
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useProduct } from '@/hooks/use-products';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MultiFolderUpload } from '@/components/album-upload';
 import { useMultiFolderUploadStore, type UploadedFolder, calculateUploadedFolderPrice, calculateAdditionalOrderPrice } from '@/stores/multi-folder-upload-store';
 import { type FabricCategory } from '@/hooks/use-fabrics';
@@ -49,8 +50,6 @@ interface SelectedOptions {
   printSide?: 'single' | 'double';
   printMethod?: 'indigo' | 'inkjet';
   colorMode?: '4c' | '6c';
-  pageEditMode?: 'single' | 'spread';
-  bindingDirection?: string;
   copperPlateType?: 'none' | 'public' | 'owned';
   publicCopperPlate?: PublicCopperPlate;
   ownedCopperPlate?: CopperPlate;
@@ -69,12 +68,18 @@ const getDefaultPrintSideByBinding = (bindingName: string): 'single' | 'double' 
   return 'double';
 };
 
-const isAlbumProduct = (bindings?: ProductBinding[]): boolean => {
+const isAlbumProduct = (bindings?: ProductBinding[], categoryName?: string): boolean => {
+  // 카테고리 이름으로 앨범 감지 (가장 신뢰도 높음)
+  if (categoryName) {
+    const cat = categoryName.toLowerCase();
+    if (cat.includes('앨범') || cat.includes('포토북') || cat.includes('화보')) return true;
+  }
+  // 제본 이름으로 앨범 감지 (fallback)
   if (!bindings || bindings.length === 0) return false;
   return bindings.some(binding => {
     const name = binding.name.toLowerCase();
     return name.includes('화보') || name.includes('포토북') || name.includes('스타화보') ||
-           name.includes('핀화보') || name.includes('스타제본') || name.includes('압축제본');
+           name.includes('핀화보') || name.includes('스타제본') || name.includes('압축');
   });
 };
 
@@ -116,6 +121,8 @@ export default function ProductPage() {
   } = useMultiFolderUploadStore();
 
   const [selectedFabricCategory, setSelectedFabricCategory] = useState<FabricCategory | null>(null);
+  const [fabricSelection, setFabricSelection] = useState<{ id: string; name: string; thumbnail: string | null } | null>(null);
+  const [isEditingFabric, setIsEditingFabric] = useState(false);
 
   const selectedFabricInfo = uploadFolders.length > 0 ? {
     id: uploadFolders[0].selectedFabricId,
@@ -123,10 +130,14 @@ export default function ProductPage() {
     thumbnail: uploadFolders[0].selectedFabricThumbnail,
   } : null;
 
+  const effectiveFabricInfo = selectedFabricInfo ?? fabricSelection;
+
   const handleCoverFabricSelect = (fabric: { id: string; name: string; thumbnailUrl?: string | null; basePrice?: number; category: string; colorCode?: string | null; colorName?: string | null }) => {
+    setFabricSelection({ id: fabric.id, name: fabric.name, thumbnail: fabric.thumbnailUrl || null });
     uploadFolders.forEach(f => {
       setFolderFabric(f.id, fabric.id, fabric.name, fabric.thumbnailUrl || null, fabric.basePrice ?? 0, fabric.category, fabric.colorCode || null, fabric.colorName || null);
     });
+    setIsEditingFabric(false);
   };
 
   const [uploadModalState, setUploadModalState] = useState<{
@@ -267,7 +278,7 @@ export default function ProductPage() {
     }, 50);
   }, [product, addItem, clearFolders, router, toast, defaultPageLayout, defaultBindingDirection, selectedOptions, copperPlateLabels]);
 
-  const isAlbum = useMemo(() => isAlbumProduct(product?.bindings), [product?.bindings]);
+  const isAlbum = useMemo(() => isAlbumProduct(product?.bindings, product?.category?.name), [product?.bindings, product?.category?.name]);
 
   useEffect(() => {
     if (product) {
@@ -287,10 +298,11 @@ export default function ProductPage() {
         foil: product.foils?.find(f => f.isDefault) || product.foils?.[0],
         finishings: product.finishings?.filter(f => f.isDefault) || [],
         printSide: defaultBinding ? getDefaultPrintSideByBinding(defaultBinding.name) : 'double',
-        copperPlateType: 'none', publicCopperPlate: publicPlates[0],
+        copperPlateType: 'none',
+        publicCopperPlate: undefined,
         ownedCopperPlate: undefined,
-        foilColor: copperPlateLabels?.foilColors?.[0]?.code,
-        foilPosition: copperPlateLabels?.platePositions?.[0]?.code,
+        foilColor: undefined,
+        foilPosition: undefined,
       });
     }
   }, [product, copperPlateLabels, allPublicCopperPlates]);
@@ -316,6 +328,7 @@ export default function ProductPage() {
     });
     if (opts.coverSourceType) applyGlobalCoverSource(opts.coverSourceType);
     if (opts.fabricId && opts.fabricName) {
+      setFabricSelection({ id: opts.fabricId, name: opts.fabricName, thumbnail: opts.fabricThumbnail || null });
       uploadFolders.forEach(f => {
         setFolderFabric(f.id, opts.fabricId!, opts.fabricName!, opts.fabricThumbnail || null, 0, '', null, null);
       });
@@ -437,8 +450,8 @@ export default function ProductPage() {
       foilPositionName: copperPlateLabels?.platePositions?.find(p => p.code === selectedOptions.foilPosition)?.name,
       finishingIds: selectedOptions.finishings.map(f => f.id), finishingNames: selectedOptions.finishings.map(f => f.name),
       coverSourceType: uploadFolders[0]?.coverSourceType || undefined,
-      fabricId: selectedFabricInfo?.id || undefined, fabricName: selectedFabricInfo?.name || undefined,
-      fabricThumbnail: selectedFabricInfo?.thumbnail || undefined,
+      fabricId: effectiveFabricInfo?.id || undefined, fabricName: effectiveFabricInfo?.name || undefined,
+      fabricThumbnail: effectiveFabricInfo?.thumbnail || undefined,
     };
     try {
       await createMyProduct.mutateAsync({
@@ -467,6 +480,7 @@ export default function ProductPage() {
     });
     if (opts.coverSourceType) applyGlobalCoverSource(opts.coverSourceType);
     if (opts.fabricId && opts.fabricName) {
+      setFabricSelection({ id: opts.fabricId, name: opts.fabricName, thumbnail: opts.fabricThumbnail || null });
       uploadFolders.forEach(f => setFolderFabric(f.id, opts.fabricId!, opts.fabricName!, opts.fabricThumbnail || null, 0, '', null, null));
       setSelectedFabricCategory(null);
     }
@@ -546,18 +560,62 @@ export default function ProductPage() {
                 </OptionCard>
               )}
 
-              {isAlbum && product.fabrics && product.fabrics.length > 0 && (
-                <OptionCard title={t('albumCover')}>
-                  <OptionCoverFabric
-                    productFabrics={product.fabrics}
-                    selectedFabricCategory={selectedFabricCategory}
-                    onCategoryChange={(cat) => { setSelectedFabricCategory(cat); applyGlobalCoverSource('fabric'); }}
-                    selectedFabricInfo={selectedFabricInfo} onFabricSelect={handleCoverFabricSelect} />
+              {product.covers && product.covers.length > 0 && (
+                <OptionCard title={t('albumCover')} summary={selectedOptions.cover?.name}>
+                  <Select
+                    value={selectedOptions.cover?.id || ''}
+                    onValueChange={(value) => {
+                      const cover = product.covers!.find(c => c.id === value);
+                      if (cover) setSelectedOptions(prev => ({ ...prev, cover }));
+                    }}
+                  >
+                    <SelectTrigger className="h-9 text-sm">
+                      <SelectValue placeholder="표지를 선택하세요" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {product.covers.map(cover => (
+                        <SelectItem key={cover.id} value={cover.id} className="text-sm">
+                          {cover.name}{cover.price > 0 ? ` (+${cover.price.toLocaleString()}원)` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </OptionCard>
               )}
 
+              {isAlbum && product.fabrics && product.fabrics.length > 0 && (
+                effectiveFabricInfo?.id && !isEditingFabric ? (
+                  <OptionCard title={t('albumCover')} inline>
+                    <div className="flex items-center gap-1.5 flex-1">
+                      {effectiveFabricInfo.thumbnail && (
+                        <img src={normalizeImageUrl(effectiveFabricInfo.thumbnail)} alt={effectiveFabricInfo.name ?? ''}
+                          className="w-5 h-5 rounded border object-cover flex-shrink-0" />
+                      )}
+                      <span className="text-gray-700">{effectiveFabricInfo.name}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingFabric(true)}
+                      className="ml-2 text-xs text-primary hover:underline flex items-center gap-0.5 flex-shrink-0"
+                    >
+                      <Pencil className="h-3 w-3" />변경
+                    </button>
+                  </OptionCard>
+                ) : (
+                  <OptionCard title={t('albumCover')} count={product.fabrics.filter(pf => pf.fabric.isActive).length}>
+                    <OptionCoverFabric
+                      productFabrics={product.fabrics}
+                      selectedFabricCategory={selectedFabricCategory}
+                      onCategoryChange={setSelectedFabricCategory}
+                      selectedFabricInfo={effectiveFabricInfo}
+                      onFabricSelect={handleCoverFabricSelect}
+                    />
+                  </OptionCard>
+                )
+              )}
+
               {product.papers && product.papers.length > 0 && (
-                <OptionCard title={t('paper')} count={product.papers.filter(p => p.isActive !== false).length}>
+                <OptionCard title={t('paper')} count={product.papers.filter(p => p.isActive !== false).length} inline>
                   <OptionPaper papers={product.papers} selectedPaperId={selectedOptions.paper?.id}
                     printMethod={selectedOptions.printMethod || 'indigo'}
                     colorMode={selectedOptions.colorMode || '4c'}
@@ -566,7 +624,7 @@ export default function ProductPage() {
                 </OptionCard>
               )}
 
-              <OptionCard title={t('printSection')}>
+              <OptionCard title={t('printSection')} inline>
                 <OptionPrintSide printSide={selectedOptions.printSide} bindingName={selectedOptions.binding?.name} />
               </OptionCard>
 
@@ -580,7 +638,7 @@ export default function ProductPage() {
               )}
 
               {hasCopperPlates && (
-                <OptionCard title={t('copperPlate')}>
+                <OptionCard title={t('copperPlate')} inline>
                   <OptionCopperPlate
                     copperPlateType={selectedOptions.copperPlateType || 'none'}
                     publicCopperPlates={allPublicCopperPlates?.data} ownedCopperPlates={ownedCopperPlates}
@@ -588,16 +646,17 @@ export default function ProductPage() {
                     foilColor={selectedOptions.foilColor} foilPosition={selectedOptions.foilPosition}
                     copperPlateLabels={copperPlateLabels} isAuthenticated={isAuthenticated}
                     onTypeChange={(type) => {
-                      const firstOwned = ownedCopperPlates?.filter(cp => cp.status === 'stored')?.[0];
                       setSelectedOptions(prev => ({
-                        ...prev, copperPlateType: type, publicCopperPlate: undefined,
-                        ownedCopperPlate: type === 'owned' ? (firstOwned || prev.ownedCopperPlate) : undefined,
-                        foilColor: type === 'owned' && firstOwned ? (firstOwned.foilColor || prev.foilColor) : prev.foilColor,
-                        foilPosition: type === 'owned' && firstOwned ? (firstOwned.foilPosition || prev.foilPosition) : prev.foilPosition,
+                        ...prev,
+                        copperPlateType: type,
+                        publicCopperPlate: undefined,
+                        ownedCopperPlate: undefined,
+                        foilColor: undefined,
+                        foilPosition: undefined,
                       }));
                     }}
                     onPublicPlateSelect={(plate) => setSelectedOptions(prev => ({ ...prev, publicCopperPlate: plate }))}
-                    onOwnedPlateSelect={(cp) => setSelectedOptions(prev => ({ ...prev, ownedCopperPlate: cp, foilColor: cp.foilColor || prev.foilColor, foilPosition: cp.foilPosition || prev.foilPosition }))}
+                    onOwnedPlateSelect={(cp) => setSelectedOptions(prev => ({ ...prev, ownedCopperPlate: cp, foilColor: undefined, foilPosition: undefined }))}
                     onFoilColorChange={(code) => setSelectedOptions(prev => ({ ...prev, foilColor: code }))}
                     onFoilPositionChange={(code) => setSelectedOptions(prev => ({ ...prev, foilPosition: code }))}
                   />
@@ -663,37 +722,77 @@ export default function ProductPage() {
           <Card>
             <CardHeader><CardTitle>{t('detailInfo')}</CardTitle></CardHeader>
             <CardContent>
-              {product.specifications && product.specifications.length > 0 && (
-                <div className="mb-8">
-                  <button type="button" onClick={() => setIsSpecExpanded(!isSpecExpanded)}
-                    className="w-full flex items-center justify-between font-medium mb-2 hover:text-primary transition-colors">
-                    <span className="flex items-center gap-2">
-                      {t('availableSpecs')}
-                      <span className="text-xs text-gray-500 font-normal">({t('countUnit', { count: product.specifications.length })})</span>
-                    </span>
-                    {isSpecExpanded ? <ChevronUp className="h-4 w-4 text-gray-500" /> : <ChevronDown className="h-4 w-4 text-gray-500" />}
-                  </button>
-                  {isSpecExpanded && (
-                    <div className="border rounded-lg p-3 bg-gray-50">
-                      <RadioGroup value={selectedOptions.specification?.id}
-                        onValueChange={(value) => setSelectedOptions(prev => ({ ...prev, specification: product.specifications?.find(s => s.id === value) }))}
-                        className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                        {[...product.specifications].sort((a, b) => ((a.widthMm || 0) * (a.heightMm || 0)) - ((b.widthMm || 0) * (b.heightMm || 0)))
-                          .map((spec) => (
-                            <Label key={spec.id} className={cn('flex items-center gap-1.5 px-2.5 py-2 border rounded-md cursor-pointer transition-colors text-sm bg-white min-h-[44px]',
-                              selectedOptions.specification?.id === spec.id ? 'border-primary bg-primary/5 font-medium' : 'hover:border-gray-400')}>
-                              <RadioGroupItem value={spec.id} className="h-3.5 w-3.5 flex-shrink-0" />
-                              <div className="flex flex-col min-w-0">
-                                <span className="truncate font-medium">{spec.name}</span>
-                                {spec.widthMm && spec.heightMm && <span className="text-xs text-gray-500">{spec.widthMm}x{spec.heightMm}mm</span>}
+              {product.specifications && product.specifications.length > 0 && (() => {
+                const sortedSpecs = [...product.specifications].sort((a, b) => ((a.widthMm || 0) * (a.heightMm || 0)) - ((b.widthMm || 0) * (b.heightMm || 0)));
+                const hasInkjetPapers = product.papers?.some(p => p.isActive !== false && p.printMethod === 'inkjet') ?? false;
+                const indigoSpecs = sortedSpecs.filter(s => s.forIndigo);
+                const inkjetSpecs = hasInkjetPapers ? sortedSpecs.filter(s => s.forInkjet || (!s.forIndigo && !s.forInkjet)) : [];
+                const hasBothGroups = indigoSpecs.length > 0 && inkjetSpecs.length > 0;
+                const renderSpecGroup = (specs: typeof sortedSpecs) => (
+                  <RadioGroup value={selectedOptions.specification?.id}
+                    onValueChange={(value) => setSelectedOptions(prev => ({ ...prev, specification: product.specifications?.find(s => s.id === value) }))}
+                    className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                    {specs.map((spec) => (
+                      <Label key={spec.id} className={cn('flex items-center gap-1.5 px-2.5 py-2 border rounded-md cursor-pointer transition-colors text-sm bg-white min-h-[44px]',
+                        selectedOptions.specification?.id === spec.id ? 'border-primary bg-primary/5 font-medium' : 'hover:border-gray-400')}>
+                        <RadioGroupItem value={spec.id} className="h-3.5 w-3.5 flex-shrink-0" />
+                        <div className="flex flex-col min-w-0">
+                          <span className="truncate font-medium">{spec.name}</span>
+                          {spec.widthMm && spec.heightMm && <span className="text-xs text-gray-500">{spec.widthMm}x{spec.heightMm}mm</span>}
+                        </div>
+                      </Label>
+                    ))}
+                  </RadioGroup>
+                );
+                return (
+                  <div className="mb-8">
+                    <button type="button" onClick={() => setIsSpecExpanded(!isSpecExpanded)}
+                      className="w-full flex items-center justify-between font-medium mb-2 hover:text-primary transition-colors">
+                      <span className="flex items-center gap-2">
+                        {t('availableSpecs')}
+                        <span className="text-xs text-gray-500 font-normal">({t('countUnit', { count: product.specifications.length })})</span>
+                      </span>
+                      {isSpecExpanded ? <ChevronUp className="h-4 w-4 text-gray-500" /> : <ChevronDown className="h-4 w-4 text-gray-500" />}
+                    </button>
+                    {isSpecExpanded && (
+                      <div className="border rounded-lg p-3 bg-gray-50 space-y-4">
+                        {hasBothGroups ? (
+                          <>
+                            {indigoSpecs.length > 0 && (
+                              <div>
+                                <p className="text-xs font-semibold text-blue-600 mb-2">인디고앨범 제작가능규격 <span className="text-gray-400 font-normal">({indigoSpecs.length}개)</span></p>
+                                {renderSpecGroup(indigoSpecs)}
                               </div>
-                            </Label>
-                          ))}
-                      </RadioGroup>
-                    </div>
-                  )}
-                </div>
-              )}
+                            )}
+                            {inkjetSpecs.length > 0 && (
+                              <div>
+                                <p className="text-xs font-semibold text-emerald-600 mb-2">잉크젯앨범 제작가능규격 <span className="text-gray-400 font-normal">({inkjetSpecs.length}개)</span></p>
+                                {renderSpecGroup(inkjetSpecs)}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            {indigoSpecs.length > 0 && (
+                              <div>
+                                <p className="text-xs font-semibold text-blue-600 mb-2">인디고앨범 제작가능규격</p>
+                                {renderSpecGroup(indigoSpecs)}
+                              </div>
+                            )}
+                            {inkjetSpecs.length > 0 && (
+                              <div>
+                                <p className="text-xs font-semibold text-emerald-600 mb-2">잉크젯앨범 제작가능규격</p>
+                                {renderSpecGroup(inkjetSpecs)}
+                              </div>
+                            )}
+                            {indigoSpecs.length === 0 && inkjetSpecs.length === 0 && renderSpecGroup(sortedSpecs)}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               {product.description ? (
                 <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: product.description }} />
               ) : (
@@ -713,7 +812,7 @@ export default function ProductPage() {
 
       {/* H. Sticky Bottom Bar */}
       <ProductSummaryBar isAlbum={isAlbum} bindingName={selectedOptions.binding?.name} paperName={selectedOptions.paper?.name}
-        fabricName={selectedFabricInfo?.name || undefined} copperPlateType={selectedOptions.copperPlateType}
+        fabricName={effectiveFabricInfo?.name || undefined} copperPlateType={selectedOptions.copperPlateType}
         onAddToCart={handleAddToCart} onScrollToUpload={() => uploadSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
         hasUploadedFolders={uploadFolders.length > 0} />
 
