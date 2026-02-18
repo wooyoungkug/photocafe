@@ -121,6 +121,16 @@ export class ProductPaperDto {
   @IsBoolean()
   isActive?: boolean;
 
+  @ApiPropertyOptional({ description: '인디고 4도 사용 여부' })
+  @IsOptional()
+  @IsBoolean()
+  isActive4?: boolean;
+
+  @ApiPropertyOptional({ description: '인디고 6도 사용 여부' })
+  @IsOptional()
+  @IsBoolean()
+  isActive6?: boolean;
+
   @ApiPropertyOptional({ description: '정렬 순서' })
   @IsOptional()
   @IsNumber()

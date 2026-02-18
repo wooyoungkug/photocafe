@@ -550,6 +550,8 @@ model ProductPaper {
   frontCoating String?
   grade        Int?
   isActive     Boolean @default(true)
+  isActive4    Boolean @default(true)
+  isActive6    Boolean @default(true)
   product      Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   paper        Paper?  @relation(fields: [paperId], references: [id])
 

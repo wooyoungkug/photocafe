@@ -535,7 +535,7 @@ export default function ProductPage() {
 
             {/* Actions */}
             <div className="flex flex-wrap items-center gap-2 mt-2 mb-4">
-              {isAuthenticated && (
+              {isAuthenticated && user?.clientId && (
                 <>
                   <button type="button" onClick={() => { setMyProductName(product.productName); setShowSaveMyProductModal(true); }}
                     className="text-xs text-primary hover:underline flex items-center gap-1">
@@ -562,7 +562,7 @@ export default function ProductPage() {
             )}
 
             {/* Options - simple text sections */}
-            <div className="bg-white rounded-lg border p-4 space-y-0">
+            <div className="bg-white border py-2 px-4 space-y-0">
               {product.bindings && product.bindings.length > 0 && (
                 <OptionCard title={t('binding')} summary={selectedOptions.binding?.name?.split(' - ')[0].replace(/\s*\(.*?\)$/, '')}>
                   <OptionBinding bindings={product.bindings} selectedBindingId={selectedOptions.binding?.id}
@@ -597,11 +597,13 @@ export default function ProductPage() {
                 effectiveFabricInfo?.id && !isEditingFabric ? (
                   <OptionCard title={t('albumCover')} inline>
                     <div className="flex items-center gap-1.5 flex-1">
-                      {effectiveFabricInfo.thumbnail && (
-                        <img src={normalizeImageUrl(effectiveFabricInfo.thumbnail)} alt={effectiveFabricInfo.name ?? ''}
-                          className="w-5 h-5 rounded border object-cover flex-shrink-0" />
-                      )}
-                      <span className="text-gray-700">{effectiveFabricInfo.name}</span>
+                      <div className="flex items-center gap-1.5 border border-primary bg-primary/10 text-primary rounded px-2 h-9 text-[10pt]">
+                        {effectiveFabricInfo.thumbnail && (
+                          <img src={normalizeImageUrl(effectiveFabricInfo.thumbnail)} alt={effectiveFabricInfo.name ?? ''}
+                            className="w-5 h-5 rounded border object-cover flex-shrink-0" />
+                        )}
+                        <span>{effectiveFabricInfo.name}</span>
+                      </div>
                     </div>
                     <button
                       type="button"
@@ -625,7 +627,7 @@ export default function ProductPage() {
               )}
 
               {product.papers && product.papers.length > 0 && (
-                <OptionCard title={t('paper')} count={product.papers.filter(p => p.isActive !== false).length} inline>
+                <OptionCard title={t('paper')} inline>
                   <OptionPaper papers={product.papers} selectedPaperId={selectedOptions.paper?.id}
                     printMethod={selectedOptions.printMethod || 'indigo'}
                     colorMode={selectedOptions.colorMode || '4c'}
@@ -662,7 +664,7 @@ export default function ProductPage() {
               )}
 
               {product.finishings && product.finishings.length > 0 && (
-                <OptionCard title={t('finishing')}>
+                <OptionCard title={t('finishing')} inline>
                   <OptionFinishing
                     finishings={product.finishings}
                     selectedFinishings={selectedOptions.finishings}

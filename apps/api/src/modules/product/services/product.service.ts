@@ -138,7 +138,7 @@ export class ProductService {
         bindings: { orderBy: { sortOrder: 'asc' } },
         papers: {
           orderBy: { sortOrder: 'asc' },
-          include: { paper: { select: { id: true, name: true, printMethods: true, isActive: true } } },
+          include: { paper: { select: { id: true, name: true, printMethods: true, colorType: true, isActive: true } } },
         },
         covers: { orderBy: { sortOrder: 'asc' } },
         foils: { orderBy: { sortOrder: 'asc' } },

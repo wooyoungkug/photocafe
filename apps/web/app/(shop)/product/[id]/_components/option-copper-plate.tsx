@@ -71,10 +71,12 @@ export function OptionCopperPlate({
   };
 
   const selectClass = cn(
-    'h-8 rounded border border-gray-200 bg-white px-2 py-0 text-[10pt] text-gray-700',
+    'h-8 rounded border px-2 py-0 text-[10pt]',
     'focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary',
     'appearance-none cursor-pointer min-w-0',
   );
+  const selectedClass = 'border-primary bg-primary/10 text-primary';
+  const unselectedClass = 'border-gray-200 bg-white text-gray-700';
 
   return (
     <div className="flex items-center gap-2 flex-nowrap">
@@ -83,7 +85,7 @@ export function OptionCopperPlate({
         value={selectedPlateValue}
         onChange={e => handlePlateChange(e.target.value)}
         title={t('copperPlate')}
-        className={cn(selectClass, 'w-auto max-w-full')}
+        className={cn(selectClass, 'w-auto max-w-full', selectedPlateValue ? selectedClass : unselectedClass)}
       >
         <option value="">{t('noCopperPlate')}</option>
         {hasPublic && (
@@ -113,7 +115,7 @@ export function OptionCopperPlate({
           value={foilColor ?? ''}
           onChange={e => onFoilColorChange(e.target.value)}
           title={t('foilColor')}
-          className={cn(selectClass, 'min-w-[90px]')}
+          className={cn(selectClass, 'min-w-[90px]', foilColor ? selectedClass : unselectedClass)}
         >
           <option value="">{t('foilColor')}</option>
           {activeColors.map(color => (
@@ -128,7 +130,7 @@ export function OptionCopperPlate({
           value={foilPosition ?? ''}
           onChange={e => onFoilPositionChange(e.target.value)}
           title={t('foilPosition')}
-          className={cn(selectClass, 'min-w-[80px]')}
+          className={cn(selectClass, 'min-w-[80px]', foilPosition ? selectedClass : unselectedClass)}
         >
           <option value="">{t('foilPosition')}</option>
           {activePositions.map(pos => (

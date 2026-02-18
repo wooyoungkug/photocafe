@@ -45,7 +45,7 @@ import { useFabrics, FABRIC_CATEGORY_LABELS, type FabricCategory } from '@/hooks
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import { API_URL } from '@/lib/api';
-import { normalizeImageUrl } from '@/lib/utils';
+import { normalizeImageUrl, cn } from '@/lib/utils';
 
 import {
   ArrowLeft,
@@ -182,6 +182,20 @@ export default function EditProductPage() {
     return finishingGroup.children.filter(c => c.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
   }, [finishingGroup]);
 
+  // 후가공 중분류별 세팅값 로딩
+  const { data: allFinishingSettings } = useProductionSettings({ isActive: true });
+
+  const finishingGroupSettings = useMemo(() => {
+    if (!allFinishingSettings || !finishingChildren.length) return {} as Record<string, ProductionSetting[]>;
+    const result: Record<string, ProductionSetting[]> = {};
+    for (const group of finishingChildren) {
+      result[group.id] = allFinishingSettings
+        .filter(s => s.groupId === group.id)
+        .sort((a, b) => a.sortOrder - b.sortOrder);
+    }
+    return result;
+  }, [allFinishingSettings, finishingChildren]);
+
   // 카테고리 분류
   const [largeCategoryId, setLargeCategoryId] = useState('');
   const [mediumCategoryId, setMediumCategoryId] = useState('');
@@ -215,8 +229,8 @@ export default function EditProductPage() {
   // 기본 용지 ID
   const [defaultPaperId, setDefaultPaperId] = useState<string>('');
 
-  // 후가공정보
-  const [finishingOptions, setFinishingOptions] = useState<Record<string, boolean>>({});
+  // 후가공정보: groupId → settingId[] (복수 선택, '__enabled__' = 세팅 없는 그룹용)
+  const [finishingOptions, setFinishingOptions] = useState<Record<string, string[]>>({});
 
   // 앨범 표지 원단
   const [selectedFabricIds, setSelectedFabricIds] = useState<string[]>([]);
@@ -397,20 +411,25 @@ export default function EditProductPage() {
     }
   }, [product, categories]);
 
-  // 후가공 옵션 로딩 (productionGroupTree 로딩 완료 후)
+  // 후가공 옵션 로딩 (productionGroupTree + allFinishingSettings 로딩 완료 후)
   useEffect(() => {
     if (!product?.finishings || !Array.isArray(product.finishings) || !finishingChildren.length) return;
-    const opts: Record<string, boolean> = {};
+    const opts: Record<string, string[]> = {};
     product.finishings.forEach((f: { name: string; productionGroupId?: string }) => {
       if (f.productionGroupId) {
-        opts[f.productionGroupId] = true;
+        // 세팅명으로 매칭 시도 (새 방식)
+        const groupSettings = allFinishingSettings?.filter(s => s.groupId === f.productionGroupId) ?? [];
+        const matched = groupSettings.find(s => s.settingName === f.name);
+        const id = matched?.id ?? '__enabled__';
+        if (!opts[f.productionGroupId]) opts[f.productionGroupId] = [];
+        if (!opts[f.productionGroupId].includes(id)) opts[f.productionGroupId].push(id);
       } else {
         const group = finishingChildren.find(c => c.name === f.name);
-        if (group) opts[group.id] = true;
+        if (group) opts[group.id] = ['__enabled__'];
       }
     });
     setFinishingOptions(opts);
-  }, [product?.finishings, finishingChildren]);
+  }, [product?.finishings, finishingChildren, allFinishingSettings]);
 
   // 규격 매칭 (specifications가 로드된 후 실행)
   useEffect(() => {
@@ -647,11 +666,26 @@ export default function EditProductPage() {
           name: f.name, color: f.color, price: f.price, isDefault: idx === 0, sortOrder: idx,
         })),
         finishings: Object.entries(finishingOptions)
-          .filter(([, enabled]) => enabled)
-          .map(([groupId], idx) => {
+          .filter(([, values]) => values.length > 0)
+          .flatMap(([groupId, values]) => {
             const group = finishingChildren.find(c => c.id === groupId);
-            return { name: group?.name || groupId, productionGroupId: groupId, price: 0, isDefault: false, sortOrder: idx };
-          }),
+            return values.map((value) => {
+              if (value === '__enabled__') {
+                // 세팅 없는 그룹 또는 기존 데이터
+                return { name: group?.name || groupId, productionGroupId: groupId, price: 0, isDefault: false, sortOrder: 0 };
+              }
+              // 특정 세팅 선택된 경우
+              const setting = allFinishingSettings?.find(s => s.id === value);
+              return {
+                name: setting?.settingName || group?.name || groupId,
+                productionGroupId: groupId,
+                price: Number(setting?.basePrice) || 0,
+                isDefault: false,
+                sortOrder: 0,
+              };
+            });
+          })
+          .map((f, idx) => ({ ...f, sortOrder: idx })),
         outputPriceSettings,
         fabricIds: selectedFabricIds,
       };
@@ -1198,76 +1232,124 @@ export default function EditProductPage() {
 
                 const sortedMethods = methodOrder.filter(m => printMethodGroups[m]);
 
+                const getPaperType = (name: string) =>
+                  name.replace(/\s*\d+g?$/i, '').replace(/\s+\d+$/, '').trim();
+
+                const renderPaperChip = (paper: any) => {
+                  const isActive = paperActiveMap[paper.id] !== false;
+                  const isDefault = defaultPaperId === paper.id;
+                  return (
+                    <div
+                      key={paper.id}
+                      className={`flex items-center gap-1 px-2 py-1 rounded-md border text-[11px] transition-all ${
+                        isActive
+                          ? isDefault
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-blue-50 text-blue-700 border-blue-300'
+                          : 'bg-slate-50 text-slate-400 border-slate-200'
+                      }`}
+                    >
+                      <Checkbox
+                        checked={isActive}
+                        onCheckedChange={(c) =>
+                          setPaperActiveMap(prev => ({ ...prev, [paper.id]: !!c }))
+                        }
+                        className={`h-3 w-3 ${isActive && isDefault ? 'border-white data-[state=checked]:bg-white data-[state=checked]:text-blue-600' : ''}`}
+                      />
+                      <span
+                        className="cursor-pointer select-none"
+                        onClick={() => setPaperActiveMap(prev => ({ ...prev, [paper.id]: !isActive }))}
+                      >
+                        {paper.grammage ? `${paper.grammage}g` : paper.name}
+                      </span>
+                      {isActive && (
+                        <button
+                          type="button"
+                          title={isDefault ? '기본용지' : '기본용지로 설정'}
+                          onClick={() => setDefaultPaperId(paper.id)}
+                          className={`transition-colors leading-none ${isDefault ? 'text-amber-300' : 'text-slate-300 hover:text-amber-400'}`}
+                        >
+                          ★
+                        </button>
+                      )}
+                    </div>
+                  );
+                };
+
+                const renderPaperTypeRows = (papers: any[]) => {
+                  const paperGroups = papers.reduce((groups: Record<string, any[]>, paper: any) => {
+                    const type = getPaperType(paper.name);
+                    if (!groups[type]) groups[type] = [];
+                    groups[type].push(paper);
+                    return groups;
+                  }, {} as Record<string, any[]>);
+
+                  return Object.entries(paperGroups).map(([type, typePapers]) => (
+                    <div key={type} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50/50">
+                      <span className="w-20 text-[12px] font-medium text-slate-600 flex-shrink-0">{type}</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {typePapers.map(renderPaperChip)}
+                      </div>
+                    </div>
+                  ));
+                };
+
+                // 상품 outputPriceSettings에서 인디고 4도/6도 존재 여부 파악
+                const outputSettings = (product as any).outputPriceSettings as any[] || [];
+                const indigoColorTypes = Array.from(new Set(
+                  outputSettings
+                    .filter((s: any) => s.outputMethod === 'INDIGO' && s.colorType)
+                    .map((s: any) => s.colorType as string)
+                ));
+                // ['4도', '6도'] 순서 보장
+                const indigoColorOrder = ['4도', '6도'].filter(ct => indigoColorTypes.includes(ct));
+
                 return sortedMethods.map(method => {
                   const papers = printMethodGroups[method];
+
+                  // 인디고이고, 4도/6도 두 가지 이상 설정된 경우 동일 용지를 각 섹션에 표시
+                  const showIndigoSubGroups = method === 'indigo' && indigoColorOrder.length > 1;
+                  // 인디고이고, 한 가지 colorType만 설정된 경우 헤더만 바꿔서 표시
+                  const singleIndigoColor = method === 'indigo' && indigoColorOrder.length === 1
+                    ? indigoColorOrder[0]
+                    : null;
+
                   return (
                     <div key={method} className="border rounded-lg overflow-hidden">
-                      {/* 출력방식 헤더 (여러 출력방식이 있을 때만 표시) */}
-                      {sortedMethods.length > 1 && (
+                      {/* 출력방식 헤더 (여러 출력방식이 있을 때만 표시, 인디고 서브그룹 있으면 숨김) */}
+                      {sortedMethods.length > 1 && !showIndigoSubGroups && !singleIndigoColor && (
                         <div className={`px-3 py-1.5 text-xs font-semibold border-b ${methodColors[method] || methodColors.etc}`}>
                           {methodLabels[method] || method}
                           <span className="ml-1.5 font-normal opacity-70">({papers.length}개)</span>
                         </div>
                       )}
-                      <div className={`divide-y ${sortedMethods.length > 1 ? 'border-t' : ''}`}>
-                        {(() => {
-                          const getPaperType = (name: string) =>
-                            name.replace(/\s*\d+g?$/i, '').replace(/\s+\d+$/, '').trim();
-                          const paperGroups = papers.reduce((groups: Record<string, any[]>, paper: any) => {
-                            const type = getPaperType(paper.name);
-                            if (!groups[type]) groups[type] = [];
-                            groups[type].push(paper);
-                            return groups;
-                          }, {} as Record<string, any[]>);
-
-                          return Object.entries(paperGroups).map(([type, typePapers]) => (
-                            <div key={type} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50/50">
-                              <span className="w-20 text-[12px] font-medium text-slate-600 flex-shrink-0">{type}</span>
-                              <div className="flex flex-wrap gap-1.5">
-                                {typePapers.map((paper: any) => {
-                                  const isActive = paperActiveMap[paper.id] !== false;
-                                  const isDefault = defaultPaperId === paper.id;
-                                  return (
-                                    <div
-                                      key={paper.id}
-                                      className={`flex items-center gap-1 px-2 py-1 rounded-md border text-[11px] transition-all ${
-                                        isActive
-                                          ? isDefault
-                                            ? 'bg-blue-600 text-white border-blue-600'
-                                            : 'bg-blue-50 text-blue-700 border-blue-300'
-                                          : 'bg-slate-50 text-slate-400 border-slate-200'
-                                      }`}
-                                    >
-                                      <Checkbox
-                                        checked={isActive}
-                                        onCheckedChange={(c) =>
-                                          setPaperActiveMap(prev => ({ ...prev, [paper.id]: !!c }))
-                                        }
-                                        className={`h-3 w-3 ${isActive && isDefault ? 'border-white data-[state=checked]:bg-white data-[state=checked]:text-blue-600' : ''}`}
-                                      />
-                                      <span
-                                        className="cursor-pointer select-none"
-                                        onClick={() => setPaperActiveMap(prev => ({ ...prev, [paper.id]: !isActive }))}
-                                      >
-                                        {paper.grammage ? `${paper.grammage}g` : paper.name}
-                                      </span>
-                                      {isActive && (
-                                        <button
-                                          type="button"
-                                          title={isDefault ? '기본용지' : '기본용지로 설정'}
-                                          onClick={() => setDefaultPaperId(paper.id)}
-                                          className={`transition-colors leading-none ${isDefault ? 'text-amber-300' : 'text-slate-300 hover:text-amber-400'}`}
-                                        >
-                                          ★
-                                        </button>
-                                      )}
-                                    </div>
-                                  );
-                                })}
+                      <div className={`divide-y ${sortedMethods.length > 1 && !showIndigoSubGroups && !singleIndigoColor ? 'border-t' : ''}`}>
+                        {showIndigoSubGroups
+                          ? indigoColorOrder.map(ct => (
+                              <div key={ct}>
+                                <div className="px-3 py-1 text-[11px] font-semibold text-indigo-600 bg-indigo-50/60 border-b border-indigo-100">
+                                  인디고{ct}
+                                  <span className="ml-1 font-normal opacity-70">({papers.length}개)</span>
+                                </div>
+                                <div className="divide-y">
+                                  {renderPaperTypeRows(papers)}
+                                </div>
                               </div>
-                            </div>
-                          ));
-                        })()}
+                            ))
+                          : singleIndigoColor
+                            ? (
+                              <div>
+                                <div className="px-3 py-1 text-[11px] font-semibold text-indigo-600 bg-indigo-50/60 border-b border-indigo-100">
+                                  인디고{singleIndigoColor}
+                                  <span className="ml-1 font-normal opacity-70">({papers.length}개)</span>
+                                </div>
+                                <div className="divide-y">
+                                  {renderPaperTypeRows(papers)}
+                                </div>
+                              </div>
+                            )
+                            : renderPaperTypeRows(papers)
+                        }
                       </div>
                     </div>
                   );
@@ -1310,32 +1392,88 @@ export default function EditProductPage() {
               <Settings className="h-4 w-4 text-slate-400" />
               후가공 옵션
             </Label>
-            <div className="grid grid-cols-3 gap-2">
-              {finishingChildren.length > 0 ? (
-                finishingChildren.map(group => (
-                  <label
-                    key={group.id}
-                    className="flex items-center gap-2.5 px-3 py-2 rounded border border-slate-200 bg-white cursor-pointer hover:bg-slate-50 transition-colors"
-                  >
-                    <Checkbox
-                      id={group.id}
-                      checked={finishingOptions[group.id] || false}
-                      onCheckedChange={(checked) => setFinishingOptions(prev => ({ ...prev, [group.id]: !!checked }))}
-                    />
-                    <span className="text-[13px] text-slate-700">{group.name}</span>
-                    {(group._count?.children ?? 0) > 0 && (
-                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 ml-auto">
-                        {group._count?.children}
-                      </Badge>
-                    )}
-                  </label>
-                ))
-              ) : (
-                <p className="text-xs text-slate-400 col-span-3 text-center py-4">
-                  {isTreeLoading ? '로딩 중...' : '후가공 옵션이 설정되지 않았습니다. 기초정보 > 가격관리에서 후가공옵션 그룹을 추가하세요.'}
-                </p>
-              )}
-            </div>
+            {finishingChildren.length > 0 ? (
+              <div className="space-y-2">
+                {finishingChildren.map(group => {
+                  const groupSettings = finishingGroupSettings[group.id] ?? [];
+                  const selectedValues = finishingOptions[group.id] ?? [];
+
+                  if (groupSettings.length === 0) {
+                    // 세팅 없는 그룹: 체크박스 방식
+                    return (
+                      <label
+                        key={group.id}
+                        className="flex items-center gap-2.5 px-3 py-2 rounded border border-slate-200 bg-white cursor-pointer hover:bg-slate-50 transition-colors"
+                      >
+                        <Checkbox
+                          id={group.id}
+                          checked={selectedValues.includes('__enabled__')}
+                          onCheckedChange={(checked) =>
+                            setFinishingOptions(prev => ({ ...prev, [group.id]: checked ? ['__enabled__'] : [] }))
+                          }
+                        />
+                        <span className="text-[13px] text-slate-700">{group.name}</span>
+                      </label>
+                    );
+                  }
+
+                  // 세팅 있는 그룹: 중분류명 헤더 + 세팅값 체크박스
+                  return (
+                    <div key={group.id} className="rounded border border-slate-200 bg-white overflow-hidden">
+                      <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                        <span className="text-[13px] font-medium text-slate-700">{group.name}</span>
+                        {selectedValues.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setFinishingOptions(prev => ({ ...prev, [group.id]: [] }))}
+                            className="text-slate-400 hover:text-slate-600 transition-colors"
+                            title="전체 해제"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-1 p-2">
+                        {groupSettings.map(setting => {
+                          const isChecked = selectedValues.includes(setting.id);
+                          return (
+                            <label
+                              key={setting.id}
+                              className={cn(
+                                'flex items-center gap-1.5 px-2.5 py-1.5 rounded cursor-pointer transition-colors text-[12px]',
+                                isChecked
+                                  ? 'bg-primary/10 text-primary font-medium'
+                                  : 'hover:bg-slate-100 text-slate-700'
+                              )}
+                            >
+                              <Checkbox
+                                checked={isChecked}
+                                onCheckedChange={(checked) =>
+                                  setFinishingOptions(prev => {
+                                    const current = prev[group.id] ?? [];
+                                    return {
+                                      ...prev,
+                                      [group.id]: checked
+                                        ? [...current, setting.id]
+                                        : current.filter(id => id !== setting.id),
+                                    };
+                                  })
+                                }
+                              />
+                              {setting.settingName ?? setting.codeName ?? '-'}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400 text-center py-4">
+                {isTreeLoading ? '로딩 중...' : '후가공 옵션이 설정되지 않았습니다. 기초정보 > 가격관리에서 후가공옵션 그룹을 추가하세요.'}
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>
