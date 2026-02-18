@@ -2,15 +2,15 @@
 
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRight, ChevronDown, ChevronUp, Minus, Plus, ShoppingCart, Heart, Share2, Eye, FileText, Image as ImageIcon, Calendar, Star, FolderHeart, Loader2, Upload, BookOpen, AlertTriangle, Palette, Check } from 'lucide-react';
+import { ChevronRight, ChevronDown, ChevronUp, Minus, Plus, ShoppingCart, Image as ImageIcon, Star, FolderHeart, Loader2, Upload, BookOpen, AlertTriangle, Palette, Check } from 'lucide-react';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useProduct } from '@/hooks/use-products';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+// Card components removed - using plain divs for cleaner layout
 import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
+// Badge removed - using inline styled spans
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+// RadioGroup removed - using pill buttons instead
 import { Checkbox } from '@/components/ui/checkbox';
 import { useCartStore, type CartItemOption } from '@/stores/cart-store';
 import { useToast } from '@/hooks/use-toast';
@@ -121,8 +121,7 @@ export default function ProductPage() {
 
   // 제작가능규격 섹션 펼침 상태
   const [isSpecExpanded, setIsSpecExpanded] = useState(false);
-  // 동판 리스트 펼침 상태
-  const [isCopperPlateListExpanded, setIsCopperPlateListExpanded] = useState(true);
+  // (동판 펼침 상태는 JSX return 직전에서 관리)
 
   // 마이상품 모달 상태
   const [showSaveMyProductModal, setShowSaveMyProductModal] = useState(false);
@@ -521,6 +520,26 @@ export default function ProductPage() {
     return [];
   }, [product]);
 
+  // 동판 섹션 펼침/접힘 상태 (기본 접힘)
+  const [isCopperPlateExpanded, setIsCopperPlateExpanded] = useState(false);
+  // 상세정보 섹션 펼침/접힘 상태 (기본 접힘)
+  const [isDetailExpanded, setIsDetailExpanded] = useState(false);
+
+  // 동판 요약 텍스트
+  const copperPlateSummary = useMemo(() => {
+    if (!selectedOptions.copperPlateType || selectedOptions.copperPlateType === 'none') return t('noCopperPlate');
+    if (selectedOptions.copperPlateType === 'public' && selectedOptions.publicCopperPlate) {
+      return `${t('publicCopperPlate')} - ${selectedOptions.publicCopperPlate.plateName}`;
+    }
+    if (selectedOptions.copperPlateType === 'owned' && selectedOptions.ownedCopperPlate) {
+      return `${t('ownedCopperPlate')} - ${selectedOptions.ownedCopperPlate.plateName}`;
+    }
+    return t('noCopperPlate');
+  }, [selectedOptions.copperPlateType, selectedOptions.publicCopperPlate, selectedOptions.ownedCopperPlate, t]);
+
+  // 동판 존재 여부
+  const hasCopperPlateOptions = ((allPublicCopperPlates?.data && allPublicCopperPlates.data.length > 0) || (isAuthenticated && ownedCopperPlates && ownedCopperPlates.length > 0));
+
   if (isLoading) {
     return <ProductPageSkeleton />;
   }
@@ -817,19 +836,19 @@ export default function ProductPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Breadcrumb */}
+    <div className="min-h-screen bg-gray-50 pb-16">
+      {/* Breadcrumb - compact */}
       <div className="bg-white border-b">
-        <div className="container mx-auto px-4 py-3">
-          <nav className="flex items-center gap-2 text-sm text-gray-500">
+        <div className="max-w-7xl mx-auto px-4 py-2">
+          <nav className="flex items-center gap-1.5 text-xs text-gray-500">
             <Link href="/" className="hover:text-primary">{tc('home')}</Link>
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-3 w-3" />
             {product.category && (
               <>
                 <Link href={`/category/${product.category.id}`} className="hover:text-primary">
                   {product.category.name}
                 </Link>
-                <ChevronRight className="h-4 w-4" />
+                <ChevronRight className="h-3 w-3" />
               </>
             )}
             <span className="text-gray-900 font-medium truncate max-w-[200px]">
@@ -839,127 +858,133 @@ export default function ProductPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Product Info - 나머지 공간 사용 */}
-          <div className="flex-1 space-y-5">
-            {/* 마이상품 & Share & Wishlist */}
-            <div className="flex flex-wrap gap-1.5">
-              {isAuthenticated && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setMyProductName(`${product.productName} ${selectedOptions.specification?.name || ''}`.trim());
-                      setShowSaveMyProductModal(true);
-                    }}
-                    className="text-xs h-7 px-2 text-primary border-primary hover:bg-primary/10"
+      <div className="max-w-7xl mx-auto px-4 py-4">
+        {/* Main two-column: Image LEFT, Options RIGHT */}
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* LEFT: Product Image */}
+          <div className="w-full lg:w-[360px] lg:sticky lg:top-4 lg:self-start flex-shrink-0 space-y-2">
+            <div className="aspect-square bg-white rounded-lg border overflow-hidden shadow-sm">
+              {images.length > 0 ? (
+                <img
+                  src={images[selectedImage]}
+                  alt={product.productName}
+                  className="w-full h-full object-contain"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                  <ImageIcon className="h-16 w-16 text-gray-300" />
+                </div>
+              )}
+            </div>
+            {images.length > 1 && (
+              <div className="flex gap-1.5 overflow-x-auto pb-1">
+                {images.map((img, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setSelectedImage(idx)}
+                    className={cn(
+                      "w-14 h-14 flex-shrink-0 rounded border-2 overflow-hidden transition-all",
+                      selectedImage === idx ? "border-primary ring-1 ring-primary/20" : "border-gray-200 hover:border-gray-300"
+                    )}
                   >
-                    <Star className="h-3.5 w-3.5 mr-1" />
-                    {t('saveMyProduct')}
-                  </Button>
-                  {myProducts && myProducts.length > 0 && (
+                    <img src={img} alt="" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* RIGHT: Product Options - scrollable */}
+          <div className="flex-1 lg:max-h-[calc(100vh-120px)] lg:overflow-y-auto lg:pr-1">
+            {/* Title + Action buttons row */}
+            <div className="mb-4">
+              <h1 className="text-xl md:text-2xl font-bold mb-2">{product.productName}</h1>
+              <div className="flex flex-wrap gap-1.5">
+                {isAuthenticated && (
+                  <>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setShowLoadMyProductModal(true)}
-                      className="text-xs h-7 px-2 text-orange-600 border-orange-600 hover:bg-orange-50"
+                      onClick={() => {
+                        setMyProductName(`${product.productName} ${selectedOptions.specification?.name || ''}`.trim());
+                        setShowSaveMyProductModal(true);
+                      }}
+                      className="text-xs h-7 px-2 text-primary border-primary hover:bg-primary/10"
                     >
-                      <FolderHeart className="h-3.5 w-3.5 mr-1" />
-                      {t('loadMyProduct')} ({myProducts.filter(mp => mp.productId === product.id).length})
+                      <Star className="h-3.5 w-3.5 mr-1" />
+                      {t('saveMyProduct')}
                     </Button>
-                  )}
-                </>
-              )}
-              <Button variant="ghost" size="sm" className="text-xs h-7 px-2 text-gray-500">
-                <Heart className="h-3.5 w-3.5 mr-1" />
-                {tc('wishlist')}
-              </Button>
-              <Button variant="ghost" size="sm" className="text-xs h-7 px-2 text-gray-500">
-                <Share2 className="h-3.5 w-3.5 mr-1" />
-                {tc('share')}
-              </Button>
-            </div>
-
-            {/* Header */}
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold mb-2">{product.productName}</h1>
-            </div>
-
-            {/* Price - 화보 상품은 데이터 업로드 후 폴더별로 계산하므로 숨김 */}
-            {!isAlbum && (
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-primary">
-                    {totalPrice.toLocaleString()}
-                  </span>
-                  <span className="text-lg">{tc('won')}</span>
-                </div>
-                <p className="text-sm text-gray-500 mt-1">
-                  {t('basePrice')} {product.basePrice.toLocaleString()}{tc('won')} + {t('optionPrice')}
-                </p>
+                    {myProducts && myProducts.length > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowLoadMyProductModal(true)}
+                        className="text-xs h-7 px-2 text-orange-600 border-orange-600 hover:bg-orange-50"
+                      >
+                        <FolderHeart className="h-3.5 w-3.5 mr-1" />
+                        {t('loadMyProduct')} ({myProducts.filter(mp => mp.productId === product.id).length})
+                      </Button>
+                    )}
+                  </>
+                )}
               </div>
-            )}
+            </div>
 
-            {/* Options */}
-            <div className="space-y-6">
-              {/* Binding */}
+            {/* Options - compact spacing */}
+            <div className="space-y-4">
+              {/* Binding - pill buttons */}
               {product.bindings && product.bindings.length > 0 && (
                 <OptionSection title={t('bindingMethod')}>
-                  <div className="grid grid-cols-2 gap-2">
-                    <RadioGroup
-                      value={selectedOptions.binding?.id}
-                      onValueChange={(value) => {
-                        const binding = product.bindings?.find(b => b.id === value);
-                        setSelectedOptions(prev => ({
-                          ...prev,
-                          binding,
-                          printSide: binding ? getDefaultPrintSideByBinding(binding.name) : prev.printSide,
-                        }));
-                      }}
-                      className="grid grid-cols-2 gap-2 col-span-2"
-                    >
-                      {product.bindings.map((binding) => (
-                        <Label
-                          key={binding.id}
-                          className={cn(
-                            "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors bg-white",
-                            selectedOptions.binding?.id === binding.id
-                              ? "border-primary bg-primary/5"
-                              : "hover:border-gray-400"
-                          )}
-                        >
-                          <RadioGroupItem value={binding.id} />
-                          <span className="flex-1 text-xs">{binding.name.split(' - ')[0]}</span>
-                          {binding.price > 0 && (
-                            <span className="text-xs text-primary">+{binding.price.toLocaleString()}</span>
-                          )}
-                        </Label>
-                      ))}
-                    </RadioGroup>
+                  <div className="flex flex-wrap gap-1.5">
+                    {product.bindings.map((binding) => (
+                      <button
+                        key={binding.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedOptions(prev => ({
+                            ...prev,
+                            binding,
+                            printSide: getDefaultPrintSideByBinding(binding.name),
+                          }));
+                        }}
+                        className={cn(
+                          "px-3 py-1.5 text-xs rounded-full border transition-all",
+                          selectedOptions.binding?.id === binding.id
+                            ? "bg-primary text-white border-primary shadow-sm"
+                            : "border-gray-300 hover:border-gray-400 bg-white"
+                        )}
+                      >
+                        {binding.name.split(' - ')[0]}
+                        {binding.price > 0 && ` +${binding.price.toLocaleString()}`}
+                      </button>
+                    ))}
                   </div>
+                  {/* Print side as small text below binding */}
+                  <p className="text-[11px] text-gray-500 mt-1.5">
+                    {selectedOptions.printSide === 'single' ? t('singleSided') : t('doubleSided')}
+                    {' '}({t('autoByBinding')})
+                  </p>
                 </OptionSection>
               )}
 
-              {/* 앨범표지 - 화보/앨범 상품만 (제본방법 바로 아래) */}
+              {/* 앨범표지 - 화보/앨범 상품만 */}
               {isAlbum && (
                 <OptionSection title={t('albumCover')}>
                   {/* 선택된 원단 표시 */}
                   {selectedFabricInfo?.id && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 mb-3 rounded-md border border-amber-200 bg-amber-50">
+                    <div className="flex items-center gap-2 px-2.5 py-1.5 mb-2 rounded-md border border-amber-200 bg-amber-50">
                       {selectedFabricInfo.thumbnail && (
                         <div
-                          className="w-10 h-10 rounded border border-amber-300 bg-cover bg-center flex-shrink-0"
+                          className="w-8 h-8 rounded border border-amber-300 bg-cover bg-center flex-shrink-0"
                           style={{ backgroundImage: `url(${normalizeImageUrl(selectedFabricInfo.thumbnail)})` }}
                         />
                       )}
-                      <span className="text-sm font-medium text-gray-800">{selectedFabricInfo.name}</span>
+                      <span className="text-xs font-medium text-gray-800">{selectedFabricInfo.name}</span>
                     </div>
                   )}
 
-                  {/* 카테고리 버튼 4개 */}
-                  <div className="flex items-center gap-2 flex-wrap">
+                  {/* 카테고리 pill buttons */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     {(Object.keys(FABRIC_CATEGORY_LABELS) as FabricCategory[]).map((cat) => (
                       <button
                         key={cat}
@@ -969,7 +994,7 @@ export default function ProductPage() {
                           applyGlobalCoverSource('fabric');
                         }}
                         className={cn(
-                          'px-3 py-1.5 text-xs font-medium rounded-md border transition-all',
+                          'px-2.5 py-1 text-xs font-medium rounded-full border transition-all',
                           selectedFabricCategory === cat
                             ? FABRIC_CATEGORY_COLORS[cat]
                             : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
@@ -980,9 +1005,9 @@ export default function ProductPage() {
                     ))}
                   </div>
 
-                  {/* 선택된 카테고리의 원단 목록 */}
+                  {/* Fabric grid - smaller thumbnails */}
                   {selectedFabricCategory && categoryFabrics.length > 0 && (
-                    <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-[280px] overflow-y-auto pr-1">
+                    <div className="mt-2 grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-1.5 max-h-[240px] overflow-y-auto pr-1">
                       {categoryFabrics.map((fabric) => {
                           const isSelected = selectedFabricInfo?.id === fabric.id;
                           return (
@@ -991,23 +1016,22 @@ export default function ProductPage() {
                             type="button"
                             onClick={() => handleCoverFabricSelect(fabric)}
                             className={cn(
-                              'flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-all text-center relative',
+                              'flex flex-col items-center gap-0.5 p-1.5 rounded-lg border-2 transition-all text-center relative',
                               isSelected
                                 ? 'border-pink-500 bg-pink-50'
                                 : 'border-transparent hover:border-gray-300 hover:bg-gray-50'
                             )}
                           >
-                            {/* 선택 체크 표시 */}
                             {isSelected && (
-                              <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-primary rounded-full flex items-center justify-center shadow-sm z-10">
-                                <Check className="w-3 h-3 text-white" strokeWidth={3} />
+                              <div className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center shadow-sm z-10">
+                                <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
                               </div>
                             )}
                             <div className="relative">
                               {fabric.thumbnailUrl ? (
                                 <div
                                   className={cn(
-                                    "w-12 h-12 rounded border bg-cover bg-center flex-shrink-0",
+                                    "w-10 h-10 rounded border bg-cover bg-center flex-shrink-0",
                                     isSelected && "ring-2 ring-pink-400"
                                   )}
                                   style={{ backgroundImage: `url(${normalizeImageUrl(fabric.thumbnailUrl)})` }}
@@ -1015,14 +1039,14 @@ export default function ProductPage() {
                               ) : fabric.colorCode ? (
                                 <div
                                   className={cn(
-                                    "w-12 h-12 rounded border flex-shrink-0",
+                                    "w-10 h-10 rounded border flex-shrink-0",
                                     isSelected && "ring-2 ring-pink-400"
                                   )}
                                   style={{ backgroundColor: fabric.colorCode }}
                                 />
                               ) : (
-                                <div className="w-12 h-12 rounded border bg-gray-100 flex items-center justify-center flex-shrink-0">
-                                  <Palette className="w-5 h-5 text-gray-400" />
+                                <div className="w-10 h-10 rounded border bg-gray-100 flex items-center justify-center flex-shrink-0">
+                                  <Palette className="w-4 h-4 text-gray-400" />
                                 </div>
                               )}
                             </div>
@@ -1048,27 +1072,23 @@ export default function ProductPage() {
                 </OptionSection>
               )}
 
-              {/* Paper - 출력방식별 필터링 + 종류별 그룹화 (isActive인 용지만 표시) */}
+              {/* Paper - 출력방식별 필터링 + 종류별 그룹화 */}
               {product.papers && product.papers.length > 0 && (() => {
                 const activePapers = product.papers.filter(p => p.isActive !== false);
                 if (activePapers.length === 0) return null;
 
-                // 출력방식별 용지 존재 여부 확인
                 const hasIndigoPapers = activePapers.some(p => p.printMethod === 'indigo');
                 const hasInkjetPapers = activePapers.some(p => p.printMethod === 'inkjet');
                 const hasPrintMethodInfo = hasIndigoPapers || hasInkjetPapers;
                 const currentPrintMethod = selectedOptions.printMethod || 'indigo';
 
-                // 출력방식에 따라 용지 필터링 (printMethod 정보가 없으면 전체 표시)
                 const filteredPapers = hasPrintMethodInfo
                   ? activePapers.filter(p => p.printMethod === currentPrintMethod)
                   : activePapers;
 
-                // 용지 이름에서 종류 추출 (숫자와 g 제외)
                 const getPaperType = (name: string) => {
                   return name.replace(/\s*\d+g?$/i, '').replace(/\s+\d+$/,'').trim();
                 };
-                // 용지를 종류별로 그룹화
                 const paperGroups = filteredPapers.reduce((groups, paper) => {
                   const type = getPaperType(paper.name);
                   if (!groups[type]) groups[type] = [];
@@ -1078,10 +1098,10 @@ export default function ProductPage() {
                 const groupEntries = Object.entries(paperGroups);
 
                 return (
-                  <OptionSection title={t('paper')} count={filteredPapers.length}>
-                    {/* 출력방식 탭 (인디고/잉크젯 용지가 모두 있을 때만 표시) */}
+                  <OptionSection title={t('paper')}>
+                    {/* Print method tabs - compact */}
                     {hasPrintMethodInfo && hasIndigoPapers && hasInkjetPapers && (
-                      <div className="flex gap-1 mb-3 p-1 bg-gray-100 rounded-lg">
+                      <div className="flex gap-0.5 mb-2 p-0.5 bg-gray-100 rounded-md w-fit">
                         <button
                           type="button"
                           onClick={() => {
@@ -1090,7 +1110,7 @@ export default function ProductPage() {
                             setSelectedOptions(prev => ({ ...prev, printMethod: 'indigo', paper: defaultPaper }));
                           }}
                           className={cn(
-                            "flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-all",
+                            "px-3 py-1 text-xs font-medium rounded transition-all",
                             currentPrintMethod === 'indigo'
                               ? "bg-white text-primary shadow-sm"
                               : "text-gray-500 hover:text-gray-700"
@@ -1106,7 +1126,7 @@ export default function ProductPage() {
                             setSelectedOptions(prev => ({ ...prev, printMethod: 'inkjet', paper: defaultPaper }));
                           }}
                           className={cn(
-                            "flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-all",
+                            "px-3 py-1 text-xs font-medium rounded transition-all",
                             currentPrintMethod === 'inkjet'
                               ? "bg-white text-primary shadow-sm"
                               : "text-gray-500 hover:text-gray-700"
@@ -1116,308 +1136,225 @@ export default function ProductPage() {
                         </button>
                       </div>
                     )}
-                    <div className="max-h-[280px] overflow-y-auto pr-1 space-y-3">
+                    {/* Paper groups with pill buttons */}
+                    <div className="space-y-2">
                       {filteredPapers.length === 0 ? (
-                        <p className="text-xs text-gray-400 py-2 text-center">
+                        <p className="text-xs text-gray-400 py-1 text-center">
                           해당 출력방식의 용지가 없습니다
                         </p>
                       ) : (
-                        <RadioGroup
-                          value={selectedOptions.paper?.id}
-                          onValueChange={(value) => {
-                            const paper = product.papers?.find(p => p.id === value);
-                            setSelectedOptions(prev => ({ ...prev, paper }));
-                          }}
-                        >
-                          {groupEntries.map(([type, papers]) => (
-                            <div key={type} className="flex items-center gap-2 flex-wrap">
-                              <span className="text-xs font-medium text-gray-700 min-w-[60px]">
-                                {type}
-                              </span>
-                              {papers.map((paper) => (
-                                <Label
-                                  key={paper.id}
-                                  className={cn(
-                                    "flex items-center gap-1.5 px-3 py-1.5 border rounded-md cursor-pointer transition-colors text-xs",
-                                    selectedOptions.paper?.id === paper.id
-                                      ? "border-primary bg-primary/5 font-medium"
-                                      : "hover:border-gray-400"
-                                  )}
-                                >
-                                  <RadioGroupItem value={paper.id} className="h-3.5 w-3.5 flex-shrink-0" />
-                                  <span className="whitespace-nowrap">
-                                    {paper.grammage ? `${paper.grammage}g` : paper.name}
-                                  </span>
-                                  {paper.frontCoating && <Badge variant="outline" className="text-[10px] px-1 py-0">{paper.frontCoating}</Badge>}
-                                  {paper.grade && <Badge variant="secondary" className="text-[10px] px-1 py-0">G{paper.grade}</Badge>}
-                                </Label>
-                              ))}
-                            </div>
-                          ))}
-                        </RadioGroup>
+                        groupEntries.map(([type, papers]) => (
+                          <div key={type} className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-xs font-medium text-gray-600 min-w-[50px]">
+                              {type}
+                            </span>
+                            {papers.map((paper) => (
+                              <button
+                                key={paper.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedOptions(prev => ({ ...prev, paper }));
+                                }}
+                                className={cn(
+                                  "inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border transition-all",
+                                  selectedOptions.paper?.id === paper.id
+                                    ? "bg-primary text-white border-primary shadow-sm"
+                                    : "border-gray-300 hover:border-gray-400 bg-white"
+                                )}
+                              >
+                                {paper.grammage ? `${paper.grammage}g` : paper.name}
+                                {paper.frontCoating && <span className="text-[10px] opacity-80">({paper.frontCoating})</span>}
+                                {paper.grade && <span className="text-[10px] opacity-80">G{paper.grade}</span>}
+                              </button>
+                            ))}
+                          </div>
+                        ))
                       )}
                     </div>
                   </OptionSection>
                 );
               })()}
 
-              {/* 출력구분 - 제본방법에 따라 자동 설정 (읽기 전용) */}
-              <OptionSection title={t('printSection')}>
-                <div className="flex gap-6">
-                  <div
-                    className={cn(
-                      "flex items-center gap-2 py-1 transition-colors",
-                      selectedOptions.printSide === 'single'
-                        ? ""
-                        : "text-gray-400"
-                    )}
-                  >
-                    <div className={cn(
-                      "w-4 h-4 rounded-full border-2",
-                      selectedOptions.printSide === 'single'
-                        ? "border-primary bg-primary"
-                        : "border-gray-300"
-                    )}>
-                      {selectedOptions.printSide === 'single' && (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <div className="w-2 h-2 rounded-full bg-white" />
-                        </div>
-                      )}
-                    </div>
-                    <span className="flex-1 text-xs">{t('singleSided')}</span>
-                  </div>
-                  <div
-                    className={cn(
-                      "flex items-center gap-2 py-1 transition-colors",
-                      selectedOptions.printSide === 'double'
-                        ? ""
-                        : "text-gray-400"
-                    )}
-                  >
-                    <div className={cn(
-                      "w-4 h-4 rounded-full border-2",
-                      selectedOptions.printSide === 'double'
-                        ? "border-primary bg-primary"
-                        : "border-gray-300"
-                    )}>
-                      {selectedOptions.printSide === 'double' && (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <div className="w-2 h-2 rounded-full bg-white" />
-                        </div>
-                      )}
-                    </div>
-                    <span className="flex-1 text-xs">{t('doubleSided')}</span>
-                  </div>
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  {selectedOptions.binding?.name?.includes('압축') ||
-                    selectedOptions.binding?.name?.includes('맞장') ||
-                    selectedOptions.binding?.name?.includes('레이플릿')
-                    ? `※ ${t('singleSidedFixed')}`
-                    : selectedOptions.binding?.name?.includes('화보') ||
-                      selectedOptions.binding?.name?.includes('포토북')
-                      ? `※ ${t('doubleSidedFixed')}`
-                      : `※ ${t('autoByBinding')}`}
-                </p>
-              </OptionSection>
-
-              {/* Finishings */}
+              {/* Finishings - checkbox pills */}
               {product.finishings && product.finishings.length > 0 && (
                 <OptionSection title={t('finishing')}>
-                  <div className="grid grid-cols-2 gap-2">
-                    {product.finishings.map((finishing) => (
-                      <Label
-                        key={finishing.id}
-                        className={cn(
-                          "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors",
-                          selectedOptions.finishings.some(f => f.id === finishing.id)
-                            ? "border-primary bg-primary/5"
-                            : "hover:border-gray-400"
-                        )}
-                      >
-                        <Checkbox
-                          checked={selectedOptions.finishings.some(f => f.id === finishing.id)}
-                          onCheckedChange={(checked) => {
+                  <div className="flex flex-wrap gap-1.5">
+                    {product.finishings.map((finishing) => {
+                      const isChecked = selectedOptions.finishings.some(f => f.id === finishing.id);
+                      return (
+                        <button
+                          key={finishing.id}
+                          type="button"
+                          onClick={() => {
                             setSelectedOptions(prev => ({
                               ...prev,
-                              finishings: checked
-                                ? [...prev.finishings, finishing]
-                                : prev.finishings.filter(f => f.id !== finishing.id),
+                              finishings: isChecked
+                                ? prev.finishings.filter(f => f.id !== finishing.id)
+                                : [...prev.finishings, finishing],
                             }));
                           }}
-                        />
-                        <span className="flex-1">{finishing.name}</span>
-                        {finishing.price > 0 && (
-                          <span className="text-sm text-primary">+{finishing.price.toLocaleString()}</span>
-                        )}
-                      </Label>
-                    ))}
+                          className={cn(
+                            "inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full border transition-all",
+                            isChecked
+                              ? "bg-primary text-white border-primary shadow-sm"
+                              : "border-gray-300 hover:border-gray-400 bg-white"
+                          )}
+                        >
+                          <Checkbox
+                            checked={isChecked}
+                            className={cn("h-3 w-3 pointer-events-none", isChecked && "border-white data-[state=checked]:bg-transparent data-[state=checked]:text-white")}
+                            tabIndex={-1}
+                          />
+                          {finishing.name}
+                          {finishing.price > 0 && ` +${finishing.price.toLocaleString()}`}
+                        </button>
+                      );
+                    })}
                   </div>
                 </OptionSection>
               )}
 
-              {/* 동판 선택은 아래 전체 너비 영역으로 이동 */}
-
-              {/* Quantity - 화보 상품은 데이터 업로드 후 폴더별로 수량 결정 */}
+              {/* Quantity - non-album only */}
               {!isAlbum && (
-              <OptionSection title={tc('quantity')}>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center border rounded-lg">
-                    <button
-                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="p-3 hover:bg-gray-100 transition-colors"
-                    >
-                      <Minus className="h-4 w-4" />
-                    </button>
-                    <input
-                      type="number"
-                      value={quantity}
-                      onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                      className="w-16 text-center border-x py-2"
-                      min="1"
-                    />
-                    <button
-                      onClick={() => setQuantity(quantity + 1)}
-                      className="p-3 hover:bg-gray-100 transition-colors"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </button>
+                <OptionSection title={tc('quantity')}>
+                  <div className="flex items-center">
+                    <div className="flex items-center border rounded-lg">
+                      <button
+                        onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                        className="p-2 hover:bg-gray-100 transition-colors"
+                      >
+                        <Minus className="h-3.5 w-3.5" />
+                      </button>
+                      <input
+                        type="number"
+                        value={quantity}
+                        onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                        className="w-12 text-center border-x py-1.5 text-sm"
+                        min="1"
+                      />
+                      <button
+                        onClick={() => setQuantity(quantity + 1)}
+                        className="p-2 hover:bg-gray-100 transition-colors"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </OptionSection>
+                </OptionSection>
               )}
-            </div>
 
-            {/* Action Buttons - 화보 상품이 아닌 경우만 여기에 표시 (화보는 업로드 섹션 하단에) */}
-            {!isAlbum && (
-              <div className="flex flex-col gap-3 pt-4 border-t">
-                <Button size="lg" className="w-full" onClick={handleAddToCart}>
-                  <ShoppingCart className="h-5 w-5 mr-2" />
-                  {t('addToCart')}
-                </Button>
-              </div>
-            )}
-
-          </div>
-
-          {/* Product Images - 고정 너비 */}
-          <div className="w-full lg:w-[400px] lg:sticky lg:top-4 lg:self-start flex-shrink-0 space-y-3">
-            {/* Main Image */}
-            <div className="aspect-square bg-white rounded-lg border overflow-hidden shadow-sm">
-              {images.length > 0 ? (
-                <img
-                  src={images[selectedImage]}
-                  alt={product.productName}
-                  className="w-full h-full object-contain"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-6xl">
-                  📦
+              {/* Cart button inline for non-album (also in sticky bar) */}
+              {!isAlbum && (
+                <div className="pt-2">
+                  <Button size="default" className="w-full" onClick={handleAddToCart}>
+                    <ShoppingCart className="h-4 w-4 mr-1.5" />
+                    {t('addToCart')}
+                  </Button>
                 </div>
               )}
             </div>
-
-            {/* Thumbnail Gallery */}
-            {images.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto pb-2">
-                {images.map((img, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setSelectedImage(idx)}
-                    className={cn(
-                      "w-16 h-16 flex-shrink-0 rounded-lg border-2 overflow-hidden transition-all",
-                      selectedImage === idx ? "border-primary ring-2 ring-primary/20" : "border-gray-200 hover:border-gray-300"
-                    )}
-                  >
-                    <img src={img} alt="" className="w-full h-full object-cover" />
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
         </div>
 
-        {/* 동판 선택 - 전체 너비 사용 */}
-        {((allPublicCopperPlates?.data && allPublicCopperPlates.data.length > 0) || (isAuthenticated && ownedCopperPlates && ownedCopperPlates.length > 0)) && (
-          <div className="mt-6">
-            <OptionSection title={t('copperPlate')}>
-              <RadioGroup
-                value={selectedOptions.copperPlateType || 'none'}
-                onValueChange={(value) => {
-                  const plateType = value as 'none' | 'public' | 'owned';
-                  const firstOwnedPlate = ownedCopperPlates?.filter(cp => cp.status === 'stored')?.[0];
-                  setIsCopperPlateListExpanded(true);
-                  setSelectedOptions(prev => ({
-                    ...prev,
-                    copperPlateType: plateType,
-                    publicCopperPlate: undefined,
-                    ownedCopperPlate: plateType === 'owned' ? (firstOwnedPlate || prev.ownedCopperPlate) : undefined,
-                    foilColor: plateType === 'owned' && firstOwnedPlate ? (firstOwnedPlate.foilColor || prev.foilColor) : prev.foilColor,
-                    foilPosition: plateType === 'owned' && firstOwnedPlate ? (firstOwnedPlate.foilPosition || prev.foilPosition) : prev.foilPosition,
-                  }));
-                }}
-                className="space-y-3"
-              >
-                {/* 동판 타입 가로 배치 */}
-                <div className="grid grid-cols-3 gap-2">
-                  <Label
+        {/* Copper Plate - Collapsible full width section */}
+        {hasCopperPlateOptions && (
+          <div className="mt-4 border rounded-lg bg-white overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setIsCopperPlateExpanded(!isCopperPlateExpanded)}
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-sm">{t('copperPlate')}</h3>
+                <span className="px-2 py-0.5 bg-gray-100 rounded text-xs text-gray-600">{copperPlateSummary}</span>
+              </div>
+              {isCopperPlateExpanded ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
+            </button>
+
+            {isCopperPlateExpanded && (
+              <div className="px-4 pb-4 space-y-3 border-t">
+                {/* Type pills */}
+                <div className="flex flex-wrap gap-1.5 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedOptions(prev => ({ ...prev, copperPlateType: 'none', publicCopperPlate: undefined, ownedCopperPlate: undefined }));
+                    }}
                     className={cn(
-                      "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors",
+                      "px-3 py-1.5 text-xs rounded-full border transition-all",
                       selectedOptions.copperPlateType === 'none'
-                        ? "border-primary bg-primary/5"
-                        : "hover:border-gray-400"
+                        ? "bg-primary text-white border-primary shadow-sm"
+                        : "border-gray-300 hover:border-gray-400 bg-white"
                     )}
                   >
-                    <RadioGroupItem value="none" />
-                    <span className="text-xs">{t('noCopperPlate')}</span>
-                  </Label>
+                    {t('noCopperPlate')}
+                  </button>
 
                   {allPublicCopperPlates?.data && allPublicCopperPlates.data.length > 0 && (
-                    <Label
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const firstOwnedPlate = ownedCopperPlates?.filter(cp => cp.status === 'stored')?.[0];
+                        setSelectedOptions(prev => ({
+                          ...prev,
+                          copperPlateType: 'public',
+                          publicCopperPlate: undefined,
+                          ownedCopperPlate: undefined,
+                        }));
+                      }}
                       className={cn(
-                        "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors",
+                        "px-3 py-1.5 text-xs rounded-full border transition-all",
                         selectedOptions.copperPlateType === 'public'
-                          ? "border-primary bg-primary/5"
-                          : "hover:border-gray-400"
+                          ? "bg-primary text-white border-primary shadow-sm"
+                          : "border-gray-300 hover:border-gray-400 bg-white"
                       )}
                     >
-                      <RadioGroupItem value="public" />
-                      <span className="text-xs">{t('publicCopperPlate')}</span>
-                    </Label>
+                      {t('publicCopperPlate')}
+                    </button>
                   )}
 
                   {isAuthenticated && ownedCopperPlates && ownedCopperPlates.length > 0 && (
-                    <Label
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const firstOwnedPlate = ownedCopperPlates?.filter(cp => cp.status === 'stored')?.[0];
+                        setSelectedOptions(prev => ({
+                          ...prev,
+                          copperPlateType: 'owned',
+                          publicCopperPlate: undefined,
+                          ownedCopperPlate: firstOwnedPlate || prev.ownedCopperPlate,
+                          foilColor: firstOwnedPlate ? (firstOwnedPlate.foilColor || prev.foilColor) : prev.foilColor,
+                          foilPosition: firstOwnedPlate ? (firstOwnedPlate.foilPosition || prev.foilPosition) : prev.foilPosition,
+                        }));
+                      }}
                       className={cn(
-                        "flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors",
+                        "px-3 py-1.5 text-xs rounded-full border transition-all",
                         selectedOptions.copperPlateType === 'owned'
-                          ? "border-primary bg-primary/5"
-                          : "hover:border-gray-400"
+                          ? "bg-primary text-white border-primary shadow-sm"
+                          : "border-gray-300 hover:border-gray-400 bg-white"
                       )}
                     >
-                      <RadioGroupItem value="owned" />
-                      <span className="text-xs">{t('ownedCopperPlate')}</span>
-                      <Badge variant="secondary" className="ml-auto text-xs">{t('countUnit', { count: ownedCopperPlates.length })}</Badge>
-                    </Label>
+                      {t('ownedCopperPlate')}
+                      {ownedCopperPlates && <span className="ml-1 opacity-80">({ownedCopperPlates.length})</span>}
+                    </button>
                   )}
                 </div>
 
-                {/* 공용동판 목록 */}
+                {/* Public copper plate grid */}
                 {selectedOptions.copperPlateType === 'public' && allPublicCopperPlates?.data && allPublicCopperPlates.data.length > 0 && (
                   <div className="space-y-2">
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {allPublicCopperPlates.data.map((plate) => (
-                        <Label
+                        <button
                           key={plate.id}
+                          type="button"
+                          onClick={() => setSelectedOptions(prev => ({ ...prev, publicCopperPlate: plate }))}
                           className={cn(
-                            "flex items-center gap-3 p-2 border rounded-md cursor-pointer transition-colors",
+                            "flex items-center gap-2 p-2 border rounded-md text-left transition-colors",
                             selectedOptions.publicCopperPlate?.id === plate.id
                               ? "border-primary bg-primary/5"
                               : "hover:border-gray-400"
                           )}
-                          onClick={() => {
-                            setSelectedOptions(prev => ({ ...prev, publicCopperPlate: plate }));
-                          }}
                         >
                           <div className="relative group/logo shrink-0">
                             {plate.imageUrl ? (
@@ -1425,50 +1362,43 @@ export default function ProductPage() {
                                 <img
                                   src={normalizeImageUrl(plate.imageUrl)}
                                   alt={plate.plateName}
-                                  className="w-12 h-12 object-cover rounded border"
+                                  className="w-10 h-10 object-cover rounded border"
                                   onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }}
                                 />
-                                <div className="hidden w-12 h-12 rounded border bg-gray-100 flex items-center justify-center">
-                                  <ImageIcon className="w-5 h-5 text-gray-400" />
+                                <div className="hidden w-10 h-10 rounded border bg-gray-100 flex items-center justify-center">
+                                  <ImageIcon className="w-4 h-4 text-gray-400" />
                                 </div>
                                 <div className="hidden group-hover/logo:block absolute z-50 left-full top-0 ml-2 p-1 bg-white border rounded-lg shadow-xl">
-                                  <img
-                                    src={normalizeImageUrl(plate.imageUrl)}
-                                    alt={plate.plateName}
-                                    className="w-48 h-48 object-contain rounded"
-                                  />
+                                  <img src={normalizeImageUrl(plate.imageUrl)} alt={plate.plateName} className="w-48 h-48 object-contain rounded" />
                                 </div>
                               </>
                             ) : (
-                              <div className="w-12 h-12 rounded border bg-gray-100 flex items-center justify-center">
-                                <ImageIcon className="w-5 h-5 text-gray-400" />
+                              <div className="w-10 h-10 rounded border bg-gray-100 flex items-center justify-center">
+                                <ImageIcon className="w-4 h-4 text-gray-400" />
                               </div>
                             )}
                           </div>
-                          <div className="flex-1">
-                            <div className="font-medium text-sm">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-xs truncate">
                               {plate.plateName}
                               {(plate.widthMm || plate.heightMm) && (
-                                <span className="ml-1 text-xs text-blue-600">
-                                  ({plate.widthMm}x{plate.heightMm}mm)
-                                </span>
+                                <span className="ml-1 text-[10px] text-blue-600">({plate.widthMm}x{plate.heightMm}mm)</span>
                               )}
                             </div>
                             {plate.defaultEngravingText && (
-                              <div className="text-xs text-gray-500">{t('engraving')} {plate.defaultEngravingText}</div>
+                              <div className="text-[10px] text-gray-500 truncate">{t('engraving')} {plate.defaultEngravingText}</div>
                             )}
                           </div>
-                          <Checkbox
-                            checked={selectedOptions.publicCopperPlate?.id === plate.id}
-                            className="pointer-events-none"
-                          />
-                        </Label>
+                          {selectedOptions.publicCopperPlate?.id === plate.id && (
+                            <Check className="h-4 w-4 text-primary shrink-0" />
+                          )}
+                        </button>
                       ))}
                     </div>
 
-                    {/* 박 색상 선택 */}
+                    {/* Foil color */}
                     {copperPlateLabels?.foilColors && copperPlateLabels.foilColors.length > 0 && (
-                      <div className="mt-3">
+                      <div>
                         <Label className="text-xs text-gray-600 mb-1 block">{t('foilColor')}</Label>
                         <div className="flex flex-wrap gap-1.5">
                           {copperPlateLabels.foilColors.filter(c => c.isActive).map((color) => (
@@ -1485,7 +1415,7 @@ export default function ProductPage() {
                             >
                               <span
                                 className={cn(
-                                  "w-4 h-4 rounded-sm border",
+                                  "w-3.5 h-3.5 rounded-sm border",
                                   color.code === 'hologram' && "bg-gradient-to-r from-pink-300 via-purple-300 to-cyan-300",
                                   color.colorHex === '#FFFFFF' && "border-gray-400"
                                 )}
@@ -1501,9 +1431,9 @@ export default function ProductPage() {
                       </div>
                     )}
 
-                    {/* 박 위치 선택 */}
+                    {/* Foil position */}
                     {copperPlateLabels?.platePositions && copperPlateLabels.platePositions.length > 0 && (
-                      <div className="mt-2">
+                      <div>
                         <Label className="text-xs text-gray-600 mb-1 block">{t('foilPosition')}</Label>
                         <div className="flex flex-wrap gap-1.5">
                           {copperPlateLabels.platePositions.filter(p => p.isActive).map((pos) => (
@@ -1527,76 +1457,71 @@ export default function ProductPage() {
                   </div>
                 )}
 
-                {/* 보유동판 목록 */}
+                {/* Owned copper plate grid */}
                 {selectedOptions.copperPlateType === 'owned' && isAuthenticated && ownedCopperPlates && ownedCopperPlates.length > 0 && (
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     <div className="max-h-[200px] overflow-y-auto">
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         {ownedCopperPlates.filter(cp => cp.status === 'stored').map((cp) => {
                           const isSelected = selectedOptions.ownedCopperPlate?.id === cp.id;
                           return (
-                          <Label
-                            key={cp.id}
-                            className={cn(
-                              "flex items-center gap-2 p-2 border rounded-md cursor-pointer transition-colors",
-                              isSelected
-                                ? "border-primary bg-primary/5"
-                                : "hover:border-gray-400"
-                            )}
-                            onClick={() => {
-                              setSelectedOptions(prev => ({
-                                ...prev,
-                                ownedCopperPlate: cp,
-                                foilColor: cp.foilColor || prev.foilColor,
-                                foilPosition: cp.foilPosition || prev.foilPosition,
-                              }));
-                              // 목록을 계속 표시
-                            }}
-                          >
-                            <div className="relative group/logo shrink-0">
-                              {cp.imageUrl ? (
-                                <>
-                                  <img
-                                    src={normalizeImageUrl(cp.imageUrl)}
-                                    alt={cp.plateName}
-                                    className="w-10 h-10 object-cover rounded border"
-                                    onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }}
-                                  />
-                                  <div className="hidden w-10 h-10 rounded border bg-gray-100 flex items-center justify-center">
-                                    <ImageIcon className="w-5 h-5 text-gray-400" />
-                                  </div>
-                                  <div className="hidden group-hover/logo:block absolute z-50 left-full top-0 ml-2 p-1 bg-white border rounded-lg shadow-xl">
+                            <button
+                              key={cp.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedOptions(prev => ({
+                                  ...prev,
+                                  ownedCopperPlate: cp,
+                                  foilColor: cp.foilColor || prev.foilColor,
+                                  foilPosition: cp.foilPosition || prev.foilPosition,
+                                }));
+                              }}
+                              className={cn(
+                                "flex items-center gap-2 p-2 border rounded-md text-left transition-colors",
+                                isSelected
+                                  ? "border-primary bg-primary/5"
+                                  : "hover:border-gray-400"
+                              )}
+                            >
+                              <div className="relative group/logo shrink-0">
+                                {cp.imageUrl ? (
+                                  <>
                                     <img
                                       src={normalizeImageUrl(cp.imageUrl)}
                                       alt={cp.plateName}
-                                      className="w-48 h-48 object-contain rounded"
+                                      className="w-10 h-10 object-cover rounded border"
+                                      onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }}
                                     />
+                                    <div className="hidden w-10 h-10 rounded border bg-gray-100 flex items-center justify-center">
+                                      <ImageIcon className="w-4 h-4 text-gray-400" />
+                                    </div>
+                                    <div className="hidden group-hover/logo:block absolute z-50 left-full top-0 ml-2 p-1 bg-white border rounded-lg shadow-xl">
+                                      <img src={normalizeImageUrl(cp.imageUrl)} alt={cp.plateName} className="w-48 h-48 object-contain rounded" />
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div className="w-10 h-10 rounded border bg-gray-100 flex items-center justify-center">
+                                    <ImageIcon className="w-4 h-4 text-gray-400" />
                                   </div>
-                                </>
-                              ) : (
-                                <div className="w-10 h-10 rounded border bg-gray-100 flex items-center justify-center">
-                                  <ImageIcon className="w-5 h-5 text-gray-400" />
-                                </div>
-                              )}
-                            </div>
-                            <span className="font-medium text-sm truncate">{cp.plateName}</span>
-                            <span className="text-xs text-gray-500">
-                              {cp.plateType === 'copper' ? t('copperType') : t('leadType')}
-                              {cp.registeredAt && (
-                                <span className="ml-1 text-gray-400">({new Date(cp.registeredAt).toLocaleDateString('ko-KR')})</span>
-                              )}
-                            </span>
-                            <Checkbox
-                              checked={isSelected}
-                              className="pointer-events-none ml-auto"
-                            />
-                          </Label>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <span className="font-medium text-xs truncate block">{cp.plateName}</span>
+                                <span className="text-[10px] text-gray-500">
+                                  {cp.plateType === 'copper' ? t('copperType') : t('leadType')}
+                                  {cp.registeredAt && (
+                                    <span className="ml-1 text-gray-400">({new Date(cp.registeredAt).toLocaleDateString('ko-KR')})</span>
+                                  )}
+                                </span>
+                              </div>
+                              {isSelected && <Check className="h-4 w-4 text-primary shrink-0" />}
+                            </button>
                           );
                         })}
                       </div>
                     </div>
 
-                    {/* 보유동판 선택 시 박 색상/위치 수정 가능 */}
+                    {/* Foil color/position for owned plates */}
                     {selectedOptions.ownedCopperPlate && (
                       <>
                         {copperPlateLabels?.foilColors && copperPlateLabels.foilColors.length > 0 && (
@@ -1617,7 +1542,7 @@ export default function ProductPage() {
                                 >
                                   <span
                                     className={cn(
-                                      "w-4 h-4 rounded-sm border",
+                                      "w-3.5 h-3.5 rounded-sm border",
                                       color.code === 'hologram' && "bg-gradient-to-r from-pink-300 via-purple-300 to-cyan-300",
                                       color.colorHex === '#FFFFFF' && "border-gray-400"
                                     )}
@@ -1659,21 +1584,20 @@ export default function ProductPage() {
                     )}
                   </div>
                 )}
-              </RadioGroup>
-            </OptionSection>
+              </div>
+            )}
           </div>
         )}
 
-        {/* 데이터 업로드 섹션 - 화보 상품만 (전체 너비 사용) */}
+        {/* Data Upload - album only, full width */}
         {isAlbum && (
-          <div className="mt-6 border rounded-lg p-4 bg-white">
-            <h3 className="font-medium mb-3 flex items-center gap-2">
+          <div className="mt-4 border rounded-lg p-4 bg-white">
+            <h3 className="font-medium mb-3 flex items-center gap-2 text-sm">
               <Upload className="h-4 w-4" />
               {t('dataUpload')}
             </h3>
             <MultiFolderUpload
               onAddToCart={async (folders) => {
-                // 3개월 이내 중복 주문 체크
                 if (user?.clientId) {
                   try {
                     const folderNames = folders.map(f => f.orderTitle);
@@ -1682,72 +1606,59 @@ export default function ProductPage() {
                       { clientId: user.clientId, folderNames }
                     );
                     if (result.duplicates.length > 0) {
-                      // 중복 발견 - 경고 다이얼로그 표시
                       setDuplicateCheckResult({ duplicates: result.duplicates, pendingFolders: folders, months: result.months });
                       return;
                     }
                   } catch (error) {
-                    // 체크 실패 시 그냥 진행
+                    // check failed, proceed anyway
                   }
                 }
-
-                // 중복 없으면 바로 장바구니 담기
                 addFoldersToCart(folders);
               }}
             />
-
-            {/* 화보/앨범 주문 안내 */}
-            <div className="bg-pink-50 border border-pink-200 rounded-lg p-4 mt-4">
-              <div className="flex items-start gap-3">
-                <BookOpen className="h-5 w-5 text-pink-600 mt-0.5" />
+            <div className="bg-pink-50 border border-pink-200 rounded-lg p-3 mt-3">
+              <div className="flex items-start gap-2">
+                <BookOpen className="h-4 w-4 text-pink-600 mt-0.5 shrink-0" />
                 <div>
-                  <h4 className="font-medium text-pink-900">{t('albumOrderGuide')}</h4>
-                  <p className="text-sm text-pink-700 mt-1">
-                    {t('albumOrderDescription')}
-                  </p>
+                  <h4 className="font-medium text-pink-900 text-xs">{t('albumOrderGuide')}</h4>
+                  <p className="text-xs text-pink-700 mt-0.5">{t('albumOrderDescription')}</p>
                 </div>
               </div>
             </div>
-
           </div>
         )}
 
-        {/* Product Detail Tabs */}
-        <div className="mt-12">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('detailInfo')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {/* 제작가능규격 */}
+        {/* Detail Info - Collapsible */}
+        <div className="mt-4 border rounded-lg bg-white overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setIsDetailExpanded(!isDetailExpanded)}
+            className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+          >
+            <h3 className="font-bold text-sm">{t('detailInfo')}</h3>
+            {isDetailExpanded ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
+          </button>
+
+          {isDetailExpanded && (
+            <div className="px-4 pb-4 border-t">
+              {/* Specifications */}
               {product.specifications && product.specifications.length > 0 && (
-                <div className="mb-8">
+                <div className="py-3">
                   <button
                     type="button"
                     onClick={() => setIsSpecExpanded(!isSpecExpanded)}
-                    className="w-full flex items-center justify-between font-medium mb-2 hover:text-primary transition-colors"
+                    className="w-full flex items-center justify-between text-sm font-medium mb-2 hover:text-primary transition-colors"
                   >
-                    <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-1.5">
                       {t('availableSpecs')}
                       <span className="text-xs text-gray-500 font-normal">({t('countUnit', { count: product.specifications.length })})</span>
                     </span>
-                    {isSpecExpanded ? (
-                      <ChevronUp className="h-4 w-4 text-gray-500" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4 text-gray-500" />
-                    )}
+                    {isSpecExpanded ? <ChevronUp className="h-3.5 w-3.5 text-gray-500" /> : <ChevronDown className="h-3.5 w-3.5 text-gray-500" />}
                   </button>
 
                   {isSpecExpanded && (
-                    <div className="border rounded-lg p-3 bg-gray-50">
-                      <RadioGroup
-                        value={selectedOptions.specification?.id}
-                        onValueChange={(value) => {
-                          const spec = product.specifications?.find(s => s.id === value);
-                          setSelectedOptions(prev => ({ ...prev, specification: spec }));
-                        }}
-                        className="grid grid-cols-2 sm:grid-cols-4 gap-1.5"
-                      >
+                    <div className="border rounded-lg p-2.5 bg-gray-50">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                         {[...product.specifications]
                           .sort((a, b) => {
                             const areaA = (a.widthMm || 0) * (a.heightMm || 0);
@@ -1755,42 +1666,41 @@ export default function ProductPage() {
                             return areaA - areaB;
                           })
                           .map((spec) => (
-                          <Label
+                          <button
                             key={spec.id}
+                            type="button"
+                            onClick={() => setSelectedOptions(prev => ({ ...prev, specification: spec }))}
                             className={cn(
-                              "flex items-center gap-1.5 px-2.5 py-2 border rounded-md cursor-pointer transition-colors text-sm bg-white",
+                              "flex flex-col px-2 py-1.5 border rounded-md text-left transition-colors text-xs bg-white",
                               selectedOptions.specification?.id === spec.id
                                 ? "border-primary bg-primary/5 font-medium"
                                 : "hover:border-gray-400"
                             )}
                           >
-                            <RadioGroupItem value={spec.id} className="h-3.5 w-3.5 flex-shrink-0" />
-                            <div className="flex flex-col min-w-0">
-                              <span className="truncate font-medium">{spec.name}</span>
-                              {spec.widthMm && spec.heightMm && (
-                                <span className="text-xs text-gray-500">{spec.widthMm}x{spec.heightMm}mm</span>
-                              )}
-                            </div>
-                          </Label>
+                            <span className="truncate font-medium">{spec.name}</span>
+                            {spec.widthMm && spec.heightMm && (
+                              <span className="text-[10px] text-gray-500">{spec.widthMm}x{spec.heightMm}mm</span>
+                            )}
+                          </button>
                         ))}
-                      </RadioGroup>
+                      </div>
                     </div>
                   )}
                 </div>
               )}
+
+              {/* Description */}
               {product.description ? (
                 <div
-                  className="prose max-w-none"
+                  className="prose prose-sm max-w-none pt-3"
                   dangerouslySetInnerHTML={{ __html: product.description }}
                 />
               ) : (
-                <p className="text-gray-500 text-center py-8">
-                  {t('noDetailInfo')}
-                </p>
+                <p className="text-gray-500 text-center py-6 text-sm">{t('noDetailInfo')}</p>
               )}
 
               {product.detailImages.length > 0 && (
-                <div className="mt-8 grid grid-cols-2 gap-4">
+                <div className="mt-4 grid grid-cols-2 gap-3">
                   {product.detailImages.map((img, idx) => (
                     <img
                       key={idx}
@@ -1802,8 +1712,44 @@ export default function ProductPage() {
                   ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Sticky Bottom Summary Bar */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-40">
+        <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5 flex-wrap min-w-0 flex-1">
+            {selectedOptions.binding && (
+              <span className="px-2 py-0.5 bg-gray-100 rounded text-xs text-gray-700 whitespace-nowrap">{selectedOptions.binding.name.split(' - ')[0]}</span>
+            )}
+            {selectedOptions.paper && (
+              <span className="px-2 py-0.5 bg-gray-100 rounded text-xs text-gray-700 whitespace-nowrap">{selectedOptions.paper.name}</span>
+            )}
+            {selectedOptions.printSide && (
+              <span className="px-2 py-0.5 bg-blue-50 rounded text-xs text-blue-700 whitespace-nowrap">
+                {selectedOptions.printSide === 'single' ? t('singleSided') : t('doubleSided')}
+              </span>
+            )}
+            {selectedOptions.finishings.length > 0 && selectedOptions.finishings.map(f => (
+              <span key={f.id} className="px-2 py-0.5 bg-green-50 rounded text-xs text-green-700 whitespace-nowrap">{f.name}</span>
+            ))}
+            {selectedOptions.copperPlateType && selectedOptions.copperPlateType !== 'none' && (
+              <span className="px-2 py-0.5 bg-amber-50 rounded text-xs text-amber-700 whitespace-nowrap">{copperPlateSummary}</span>
+            )}
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            {!isAlbum && (
+              <>
+                <span className="text-lg font-bold whitespace-nowrap">{totalPrice.toLocaleString()}{tc('won')}</span>
+                <Button size="sm" onClick={handleAddToCart}>
+                  <ShoppingCart className="h-4 w-4 mr-1.5" />
+                  {t('addToCart')}
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -2035,15 +1981,10 @@ export default function ProductPage() {
   );
 }
 
-function OptionSection({ title, count, children }: { title: string; count?: number; children: React.ReactNode }) {
+function OptionSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <h3 className="font-bold text-sm mb-2 flex items-center gap-2">
-        {title}
-        {count !== undefined && count > 0 && (
-          <span className="text-xs text-gray-500 font-normal">({count})</span>
-        )}
-      </h3>
+      <h3 className="font-bold text-xs uppercase tracking-wide text-gray-500 mb-1.5">{title}</h3>
       {children}
     </div>
   );
@@ -2053,29 +1994,22 @@ function ProductPageSkeleton() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white border-b">
-        <div className="container mx-auto px-4 py-3">
-          <Skeleton className="h-4 w-64" />
+        <div className="max-w-7xl mx-auto px-4 py-2">
+          <Skeleton className="h-3 w-48" />
         </div>
       </div>
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid lg:grid-cols-2 gap-8">
-          <Skeleton className="aspect-square rounded-lg" />
-          <div className="space-y-6">
-            <div>
-              <Skeleton className="h-6 w-32 mb-2" />
-              <Skeleton className="h-8 w-full mb-2" />
-              <Skeleton className="h-4 w-2/3" />
+      <div className="max-w-7xl mx-auto px-4 py-4">
+        <div className="flex flex-col lg:flex-row gap-6">
+          <Skeleton className="w-full lg:w-[360px] aspect-square rounded-lg flex-shrink-0" />
+          <div className="flex-1 space-y-4">
+            <Skeleton className="h-7 w-3/4" />
+            <Skeleton className="h-6 w-48" />
+            <div className="space-y-3">
+              <Skeleton className="h-20 rounded-lg" />
+              <Skeleton className="h-20 rounded-lg" />
+              <Skeleton className="h-20 rounded-lg" />
             </div>
-            <Skeleton className="h-24 rounded-lg" />
-            <div className="space-y-4">
-              <Skeleton className="h-32 rounded-lg" />
-              <Skeleton className="h-32 rounded-lg" />
-              <Skeleton className="h-32 rounded-lg" />
-            </div>
-            <div className="flex gap-3">
-              <Skeleton className="h-12 flex-1 rounded-lg" />
-              <Skeleton className="h-12 flex-1 rounded-lg" />
-            </div>
+            <Skeleton className="h-10 w-full rounded-lg" />
           </div>
         </div>
       </div>
