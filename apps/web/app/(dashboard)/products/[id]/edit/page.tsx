@@ -71,6 +71,7 @@ import {
   ChevronDown,
   ChevronRight,
   Folder,
+  Search,
 } from 'lucide-react';
 
 // 제본방향 옵션
@@ -111,63 +112,29 @@ interface ProductOption {
 }
 
 // 섹션 헤더 컴포넌트
-const SECTION_THEMES = {
-  blue: {
-    iconBg: 'bg-blue-50 ring-1 ring-blue-100',
-    iconColor: 'text-blue-600',
-    accentBar: 'from-blue-500 to-blue-400',
-  },
-  emerald: {
-    iconBg: 'bg-emerald-50 ring-1 ring-emerald-100',
-    iconColor: 'text-emerald-600',
-    accentBar: 'from-emerald-500 to-teal-400',
-  },
-  violet: {
-    iconBg: 'bg-violet-50 ring-1 ring-violet-100',
-    iconColor: 'text-violet-600',
-    accentBar: 'from-violet-500 to-purple-400',
-  },
-  amber: {
-    iconBg: 'bg-amber-50 ring-1 ring-amber-100',
-    iconColor: 'text-amber-600',
-    accentBar: 'from-amber-500 to-orange-400',
-  },
-  slate: {
-    iconBg: 'bg-slate-100 ring-1 ring-slate-200',
-    iconColor: 'text-slate-600',
-    accentBar: 'from-slate-500 to-slate-400',
-  },
-} as const;
-
 function SectionHeader({
   icon: Icon,
   title,
   subtitle,
-  theme = 'slate',
+  theme,
   actions
 }: {
   icon: React.ElementType;
   title: string;
   subtitle?: string;
-  theme?: keyof typeof SECTION_THEMES;
+  theme?: string;
   actions?: React.ReactNode;
 }) {
-  const t = SECTION_THEMES[theme];
   return (
-    <div className="relative">
-      <div className={`absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r ${t.accentBar} rounded-t-lg`} />
-      <div className="flex items-center justify-between px-6 pt-5 pb-3">
-        <div className="flex items-center gap-3.5">
-          <div className={`p-2 rounded-lg ${t.iconBg}`}>
-            <Icon className={`h-[18px] w-[18px] ${t.iconColor}`} />
-          </div>
-          <div>
-            <h3 className="font-semibold text-[15px] text-slate-900 leading-tight tracking-tight">{title}</h3>
-            {subtitle && <p className="text-slate-400 text-xs mt-0.5">{subtitle}</p>}
-          </div>
+    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+      <div className="flex items-center gap-2">
+        <Icon className="h-4 w-4 text-slate-400" />
+        <div>
+          <h3 className="font-semibold text-[14px] text-slate-800">{title}</h3>
+          {subtitle && <p className="text-slate-400 text-xs mt-0.5">{subtitle}</p>}
         </div>
-        {actions}
       </div>
+      {actions}
     </div>
   );
 }
@@ -252,6 +219,8 @@ export default function EditProductPage() {
 
   // 앨범 표지 원단
   const [selectedFabricIds, setSelectedFabricIds] = useState<string[]>([]);
+  const [fabricSearch, setFabricSearch] = useState('');
+  const [collapsedFabricCats, setCollapsedFabricCats] = useState<Set<string>>(new Set());
 
   // 옵션정보
   const [customOptions, setCustomOptions] = useState<ProductOption[]>([]);
@@ -270,7 +239,6 @@ export default function EditProductPage() {
   const [specDialogOpen, setSpecDialogOpen] = useState(false);
   const [halfProductDialogOpen, setHalfProductDialogOpen] = useState(false);
   const [bindingDialogOpen, setBindingDialogOpen] = useState(false);
-  const [coverDialogOpen, setCoverDialogOpen] = useState(false);
   const [foilDialogOpen, setFoilDialogOpen] = useState(false);
 
   // 규격 타입 선택
@@ -709,7 +677,7 @@ export default function EditProductPage() {
       />
 
       {/* 기본정보 섹션 */}
-      <Card className="overflow-hidden border-0 shadow-sm ring-1 ring-slate-200/80 rounded-xl">
+      <Card className="overflow-hidden border border-slate-200 shadow-none rounded-lg">
         <SectionHeader
           icon={Package}
           title="기본정보"
@@ -768,51 +736,18 @@ export default function EditProductPage() {
 
             {/* 상태 토글 */}
             <FormRow label="상품상태">
-              <div className="flex gap-3">
-                <label
-                  className={`
-                    flex items-center gap-2.5 px-4 py-2 rounded-lg border cursor-pointer transition-all
-                    ${isActive
-                      ? 'bg-emerald-50/80 border-emerald-200 ring-1 ring-emerald-100'
-                      : 'bg-white border-slate-200 hover:bg-slate-50'
-                    }
-                  `}
-                >
-                  <div className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isActive ? 'bg-emerald-500' : 'bg-slate-200'}`}>
-                    {isActive ? <Eye className="h-3.5 w-3.5 text-white" /> : <EyeOff className="h-3.5 w-3.5 text-slate-400" />}
-                  </div>
-                  <span className={`text-sm font-medium ${isActive ? 'text-emerald-700' : 'text-slate-500'}`}>활성화</span>
-                  <Switch checked={isActive} onCheckedChange={setIsActive} className="ml-1 data-[state=checked]:bg-emerald-500" />
+              <div className="flex gap-6">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <Switch checked={isActive} onCheckedChange={setIsActive} />
+                  <span className="text-[13px] text-slate-600">활성화</span>
                 </label>
-                <label
-                  className={`
-                    flex items-center gap-2.5 px-4 py-2 rounded-lg border cursor-pointer transition-all
-                    ${isNew
-                      ? 'bg-blue-50/80 border-blue-200 ring-1 ring-blue-100'
-                      : 'bg-white border-slate-200 hover:bg-slate-50'
-                    }
-                  `}
-                >
-                  <div className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isNew ? 'bg-blue-500' : 'bg-slate-200'}`}>
-                    <Sparkles className={`h-3.5 w-3.5 ${isNew ? 'text-white' : 'text-slate-400'}`} />
-                  </div>
-                  <span className={`text-sm font-medium ${isNew ? 'text-blue-700' : 'text-slate-500'}`}>신상품</span>
-                  <Switch checked={isNew} onCheckedChange={setIsNew} className="ml-1 data-[state=checked]:bg-blue-500" />
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <Switch checked={isNew} onCheckedChange={setIsNew} />
+                  <span className="text-[13px] text-slate-600">신상품</span>
                 </label>
-                <label
-                  className={`
-                    flex items-center gap-2.5 px-4 py-2 rounded-lg border cursor-pointer transition-all
-                    ${isBest
-                      ? 'bg-amber-50/80 border-amber-200 ring-1 ring-amber-100'
-                      : 'bg-white border-slate-200 hover:bg-slate-50'
-                    }
-                  `}
-                >
-                  <div className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isBest ? 'bg-amber-500' : 'bg-slate-200'}`}>
-                    <Star className={`h-3.5 w-3.5 ${isBest ? 'text-white' : 'text-slate-400'}`} />
-                  </div>
-                  <span className={`text-sm font-medium ${isBest ? 'text-amber-700' : 'text-slate-500'}`}>베스트</span>
-                  <Switch checked={isBest} onCheckedChange={setIsBest} className="ml-1 data-[state=checked]:bg-amber-500" />
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <Switch checked={isBest} onCheckedChange={setIsBest} />
+                  <span className="text-[13px] text-slate-600">베스트</span>
                 </label>
               </div>
             </FormRow>
@@ -830,7 +765,7 @@ export default function EditProductPage() {
                     type="number"
                     value={sortOrder}
                     onChange={(e) => setSortOrder(Number(e.target.value))}
-                    className="w-20 h-8 text-center text-sm"
+                    className="w-20 h-8 text-center text-[13px]"
                   />
                 </div>
               </div>
@@ -840,7 +775,7 @@ export default function EditProductPage() {
       </Card>
 
       {/* 가격정보 섹션 */}
-      <Card className="overflow-hidden border-0 shadow-sm ring-1 ring-slate-200/80 rounded-xl">
+      <Card className="overflow-hidden border border-slate-200 shadow-none rounded-lg">
         <SectionHeader
           icon={Tag}
           title="가격정보 상세"
@@ -851,8 +786,8 @@ export default function EditProductPage() {
           {/* 규격 선택 */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-[13px] font-semibold text-slate-700 flex items-center gap-2">
-                <Grid3X3 className="h-4 w-4 text-emerald-500" />
+              <Label className="text-[13px] font-medium text-slate-600 flex items-center gap-1.5">
+                <Grid3X3 className="h-4 w-4 text-slate-400" />
                 앨범 규격
               </Label>
             </div>
@@ -883,15 +818,7 @@ export default function EditProductPage() {
                     onClick={() => setSpecType(tab.key as typeof specType)}
                   >
                     {tab.label}
-                    <span className={`
-                      ml-1.5 inline-flex items-center justify-center min-w-[32px] px-1 py-0.5 rounded text-[10px] font-semibold tabular-nums
-                      ${isActive
-                        ? 'bg-emerald-500 text-white'
-                        : tabSelectedCount > 0
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : 'bg-slate-200/80 text-slate-400'
-                      }
-                    `}>
+                    <span className="ml-1.5 text-[10px] tabular-nums text-slate-400">
                       {tabSelectedCount}/{tabSpecs.length}
                     </span>
                   </button>
@@ -934,7 +861,7 @@ export default function EditProductPage() {
 
                   {/* 규격 목록 */}
                   {filteredSelectedSpecs.length > 0 ? (
-                    <div className="grid grid-cols-6 gap-1.5 p-3 bg-slate-50/60 rounded-lg border border-slate-200/60">
+                    <div className="grid grid-cols-6 gap-1.5 p-2 bg-white rounded border border-slate-200">
                       {[...filteredSelectedSpecs]
                         .sort((a, b) => {
                           const specA = specifications?.find(s => s.id === a);
@@ -949,7 +876,7 @@ export default function EditProductPage() {
                             <div key={specId} className="group flex items-center justify-between py-1 px-2 bg-white border border-slate-150 rounded-md text-[12px] hover:border-slate-300 transition-colors">
                               <span className="font-medium text-slate-700 truncate">
                                 {spec.name}
-                                {spec.nup && <span className="ml-1 text-[10px] text-emerald-600 font-semibold">({spec.nup})</span>}
+                                {spec.nup && <span className="ml-1 text-[10px] text-slate-400">({spec.nup})</span>}
                               </span>
                               <button
                                 type="button"
@@ -979,8 +906,8 @@ export default function EditProductPage() {
             {/* 제본 선택 */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label className="text-[13px] font-semibold text-slate-700 flex items-center gap-2">
-                  <Layers className="h-4 w-4 text-emerald-500" />
+                <Label className="text-[13px] font-medium text-slate-600 flex items-center gap-1.5">
+                  <Layers className="h-4 w-4 text-slate-400" />
                   제본 선택
                 </Label>
                 <Button type="button" variant="outline" size="sm" onClick={() => setBindingDialogOpen(true)} className="gap-1.5 h-7 text-xs border-slate-200">
@@ -992,7 +919,7 @@ export default function EditProductPage() {
                 <div className="space-y-2">
                   {selectedBindings.map((b, idx) => (
                     <div key={idx} className="flex items-center gap-2 p-2 bg-white border rounded-lg">
-                      <span className="font-medium text-sm flex-1">{b.name}</span>
+                      <span className="font-medium text-[13px] flex-1">{b.name}</span>
                       <button
                         type="button"
                         title="제거"
@@ -1028,8 +955,8 @@ export default function EditProductPage() {
             {/* 출력단가 선택 (새로운 방식) */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label className="text-[13px] font-semibold text-slate-700 flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-emerald-500" />
+                <Label className="text-[13px] font-medium text-slate-600 flex items-center gap-1.5">
+                  <FileText className="h-4 w-4 text-slate-400" />
                   출력단가 설정
                 </Label>
                 <Button type="button" variant="outline" size="sm" onClick={() => setOutputPriceDialogOpen(true)} className="gap-1.5 h-7 text-xs border-slate-200">
@@ -1038,14 +965,13 @@ export default function EditProductPage() {
                 </Button>
               </div>
               {outputPriceSelections.length > 0 && (
-                <div className="space-y-2 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                <div className="space-y-2 p-3 bg-slate-50 rounded border border-slate-200">
                   {outputPriceSelections.map((selection, idx) => (
                     <div key={selection.id} className="flex items-center justify-between p-2 bg-white rounded-lg border">
-                      <div className="flex items-center gap-3">
-                        <span className="text-lg">{selection.outputMethod === 'INDIGO' ? '🖨️' : '💧'}</span>
+                      <div className="flex items-center gap-2">
                         <div>
-                          <p className="font-medium text-sm">{selection.productionSettingName}</p>
-                          <p className="text-xs text-slate-500">
+                          <p className="font-medium text-[13px]">{selection.productionSettingName}</p>
+                          <p className="text-[12px] text-slate-500">
                             {selection.outputMethod === 'INDIGO'
                               ? `인디고 ${selection.colorType}`
                               : `잉크젯 - ${selection.specificationId || '규격 미선택'}`}
@@ -1088,33 +1014,12 @@ export default function EditProductPage() {
                 </p>
               </div>
             </div>
-
-            {/* 커버 선택 */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-[13px] font-semibold text-slate-700 flex items-center gap-2">
-                  <Palette className="h-4 w-4 text-emerald-500" />
-                  커버 선택
-                </Label>
-                <Button type="button" variant="outline" size="sm" onClick={() => setCoverDialogOpen(true)} className="gap-1.5 h-7 text-xs border-slate-200">
-                  <Plus className="h-3.5 w-3.5" />
-                  커버선택
-                </Button>
-              </div>
-              {selectedCovers.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {selectedCovers.map((c, idx) => (
-                    <Badge key={idx} variant="outline" className="bg-white">{c.name}</Badge>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
 
           {/* 앨범 표지 원단 선택 */}
           <div className="space-y-3">
-            <Label className="text-[13px] font-semibold text-slate-700 flex items-center gap-2">
-              <Palette className="h-4 w-4 text-emerald-500" />
+            <Label className="text-[13px] font-medium text-slate-600 flex items-center gap-1.5">
+              <Palette className="h-4 w-4 text-slate-400" />
               앨범 표지 원단
               {selectedFabricIds.length > 0 && (
                 <Badge variant="secondary" className="text-[10px] h-4 px-1.5">{selectedFabricIds.length}개 선택</Badge>
@@ -1122,61 +1027,149 @@ export default function EditProductPage() {
             </Label>
             {(() => {
               const allFabrics = fabricsData?.data || [];
-              const categories = [...new Set(allFabrics.map(f => f.category))] as FabricCategory[];
               if (allFabrics.length === 0) {
                 return <p className="text-xs text-slate-400 py-2">등록된 앨범 커버용 원단이 없습니다. 기초정보 &gt; 표지원단 관리에서 원단을 등록하세요.</p>;
               }
+
+              const searchLower = fabricSearch.toLowerCase();
+              const filteredFabrics = searchLower
+                ? allFabrics.filter(f => f.name.toLowerCase().includes(searchLower))
+                : null;
+
+              const categories = [...new Set(allFabrics.map(f => f.category))] as FabricCategory[];
+
               return (
-                <div className="space-y-3 p-3 bg-slate-50/60 rounded-lg border border-slate-200/60">
-                  {categories.map(cat => {
-                    const catFabrics = allFabrics.filter(f => f.category === cat);
-                    const allCatSelected = catFabrics.every(f => selectedFabricIds.includes(f.id));
-                    return (
-                      <div key={cat} className="space-y-1.5">
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const catIds = catFabrics.map(f => f.id);
-                              if (allCatSelected) {
-                                setSelectedFabricIds(prev => prev.filter(id => !catIds.includes(id)));
-                              } else {
-                                setSelectedFabricIds(prev => [...new Set([...prev, ...catIds])]);
+                <div className="space-y-2">
+                  {/* 검색 + 전체선택/해제 */}
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                      <Input
+                        placeholder="원단명 검색..."
+                        value={fabricSearch}
+                        onChange={e => setFabricSearch(e.target.value)}
+                        className="pl-7 h-7 text-[12px]"
+                      />
+                      {fabricSearch && (
+                        <button type="button" onClick={() => setFabricSearch('')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2">
+                          <X className="h-3 w-3 text-slate-400 hover:text-slate-600" />
+                        </button>
+                      )}
+                    </div>
+                    <button type="button"
+                      onClick={() => setSelectedFabricIds(allFabrics.map(f => f.id))}
+                      className="text-[11px] text-slate-500 hover:text-slate-800 whitespace-nowrap px-2 py-1 rounded border border-slate-200 hover:border-slate-400 transition-colors">
+                      전체선택
+                    </button>
+                    <button type="button"
+                      onClick={() => setSelectedFabricIds([])}
+                      className="text-[11px] text-slate-500 hover:text-slate-800 whitespace-nowrap px-2 py-1 rounded border border-slate-200 hover:border-slate-400 transition-colors">
+                      전체해제
+                    </button>
+                  </div>
+
+                  {/* 검색 결과 (평면 리스트) */}
+                  {filteredFabrics ? (
+                    <div className="border rounded-md divide-y max-h-[280px] overflow-y-auto">
+                      {filteredFabrics.length === 0 ? (
+                        <p className="text-xs text-slate-400 py-3 text-center">검색 결과가 없습니다.</p>
+                      ) : filteredFabrics.map(fabric => {
+                        const isSelected = selectedFabricIds.includes(fabric.id);
+                        return (
+                          <label key={fabric.id}
+                            className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-50 cursor-pointer">
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={checked =>
+                                setSelectedFabricIds(prev =>
+                                  checked ? [...prev, fabric.id] : prev.filter(id => id !== fabric.id)
+                                )
                               }
-                            }}
-                            className="text-[11px] font-semibold text-slate-500 hover:text-slate-700 px-2 py-0.5 rounded border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
-                          >
-                            {FABRIC_CATEGORY_LABELS[cat] || cat}
-                          </button>
-                          <span className="text-[10px] text-slate-400">{catFabrics.filter(f => selectedFabricIds.includes(f.id)).length}/{catFabrics.length}</span>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {catFabrics.map(fabric => {
-                            const isSelected = selectedFabricIds.includes(fabric.id);
-                            return (
-                              <button
-                                key={fabric.id}
-                                type="button"
-                                onClick={() => setSelectedFabricIds(prev =>
-                                  isSelected ? prev.filter(id => id !== fabric.id) : [...prev, fabric.id]
-                                )}
-                                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] border transition-all ${
-                                  isSelected
-                                    ? 'bg-emerald-500 text-white border-emerald-500'
-                                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
-                                }`}
-                              >
-                                {fabric.colorCode && (
-                                  <span className="w-3 h-3 rounded-full border border-white/50 flex-shrink-0" style={{ backgroundColor: fabric.colorCode }} />
-                                )}
-                                {fabric.name}
+                            />
+                            {fabric.thumbnailUrl && (
+                              <div className="w-5 h-5 rounded border bg-cover bg-center flex-shrink-0"
+                                style={{ backgroundImage: `url(${normalizeImageUrl(fabric.thumbnailUrl)})` }} />
+                            )}
+                            <span className="text-[12px] text-slate-700">{fabric.name}</span>
+                            <span className="text-[10px] text-slate-400 ml-auto">{FABRIC_CATEGORY_LABELS[fabric.category as FabricCategory] || fabric.category}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    /* 카테고리 Accordion */
+                    <div className="space-y-1">
+                      {categories.map(cat => {
+                        const catFabrics = allFabrics.filter(f => f.category === cat);
+                        const selectedCount = catFabrics.filter(f => selectedFabricIds.includes(f.id)).length;
+                        const allSelected = selectedCount === catFabrics.length;
+                        const someSelected = selectedCount > 0 && !allSelected;
+                        const isCollapsed = collapsedFabricCats.has(cat);
+
+                        return (
+                          <div key={cat} className="border rounded-md overflow-hidden">
+                            {/* 카테고리 헤더 */}
+                            <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 hover:bg-slate-100 transition-colors">
+                              <Checkbox
+                                checked={someSelected ? 'indeterminate' : allSelected}
+                                onCheckedChange={checked => {
+                                  const catIds = catFabrics.map(f => f.id);
+                                  setSelectedFabricIds(prev =>
+                                    checked
+                                      ? [...new Set([...prev, ...catIds])]
+                                      : prev.filter(id => !catIds.includes(id))
+                                  );
+                                }}
+                              />
+                              <button type="button"
+                                className="flex-1 flex items-center gap-2 text-left"
+                                onClick={() => setCollapsedFabricCats(prev => {
+                                  const next = new Set(prev);
+                                  next.has(cat) ? next.delete(cat) : next.add(cat);
+                                  return next;
+                                })}>
+                                <span className="text-[12px] font-medium text-slate-700">
+                                  {FABRIC_CATEGORY_LABELS[cat] || cat}
+                                </span>
+                                <span className="text-[10px] text-slate-400">
+                                  {selectedCount}/{catFabrics.length}
+                                </span>
+                                <ChevronDown className={`h-3.5 w-3.5 text-slate-400 ml-auto transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
                               </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
+                            </div>
+
+                            {/* 원단 목록 */}
+                            {!isCollapsed && (
+                              <div className="divide-y max-h-[200px] overflow-y-auto">
+                                {catFabrics.map(fabric => {
+                                  const isSelected = selectedFabricIds.includes(fabric.id);
+                                  return (
+                                    <label key={fabric.id}
+                                      className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-50 cursor-pointer">
+                                      <Checkbox
+                                        checked={isSelected}
+                                        onCheckedChange={checked =>
+                                          setSelectedFabricIds(prev =>
+                                            checked ? [...prev, fabric.id] : prev.filter(id => id !== fabric.id)
+                                          )
+                                        }
+                                      />
+                                      {fabric.thumbnailUrl && (
+                                        <div className="w-5 h-5 rounded border bg-cover bg-center flex-shrink-0"
+                                          style={{ backgroundImage: `url(${normalizeImageUrl(fabric.thumbnailUrl)})` }} />
+                                      )}
+                                      <span className="text-[12px] text-slate-700">{fabric.name}</span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })()}
@@ -1185,8 +1178,8 @@ export default function EditProductPage() {
           {/* 용지 사용 여부 - 출력방식별 그룹화 */}
           {product?.papers && product.papers.length > 0 && (
             <div className="space-y-3">
-              <Label className="text-[13px] font-semibold text-slate-700 flex items-center gap-2">
-                <FileText className="h-4 w-4 text-emerald-500" />
+              <Label className="text-[13px] font-medium text-slate-600 flex items-center gap-1.5">
+                <FileText className="h-4 w-4 text-slate-400" />
                 용지 사용 여부
                 <Badge variant="secondary" className="text-[10px] h-5 px-1.5">{product.papers.length}개</Badge>
                 <span className="text-[11px] text-slate-400 font-normal ml-1">
@@ -1211,9 +1204,9 @@ export default function EditProductPage() {
                   etc: '기타',
                 };
                 const methodColors: Record<string, string> = {
-                  indigo: 'bg-violet-50 text-violet-700 border-violet-200',
-                  inkjet: 'bg-cyan-50 text-cyan-700 border-cyan-200',
-                  offset: 'bg-amber-50 text-amber-700 border-amber-200',
+                  indigo: 'bg-slate-50 text-slate-600 border-slate-200',
+                  inkjet: 'bg-slate-50 text-slate-600 border-slate-200',
+                  offset: 'bg-slate-50 text-slate-600 border-slate-200',
                   etc: 'bg-slate-50 text-slate-600 border-slate-200',
                 };
 
@@ -1230,84 +1223,66 @@ export default function EditProductPage() {
                           <span className="ml-1.5 font-normal opacity-70">({papers.length}개)</span>
                         </div>
                       )}
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="bg-slate-50">
-                            <TableHead className="w-16 text-center">사용</TableHead>
-                            <TableHead className="w-16 text-center">기본</TableHead>
-                            <TableHead>용지명</TableHead>
-                            <TableHead className="w-24">평량</TableHead>
-                            <TableHead className="w-24">코팅</TableHead>
-                            <TableHead className="w-24 text-right">가격</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {(() => {
-                            const getPaperType = (name: string) => {
-                              return name.replace(/\s*\d+g?$/i, '').replace(/\s+\d+$/, '').trim();
-                            };
-                            const paperGroups = papers.reduce((groups: Record<string, any[]>, paper: any) => {
-                              const type = getPaperType(paper.name);
-                              if (!groups[type]) groups[type] = [];
-                              groups[type].push(paper);
-                              return groups;
-                            }, {} as Record<string, any[]>);
-                            const groupEntries = Object.entries(paperGroups);
+                      <div className={`divide-y ${sortedMethods.length > 1 ? 'border-t' : ''}`}>
+                        {(() => {
+                          const getPaperType = (name: string) =>
+                            name.replace(/\s*\d+g?$/i, '').replace(/\s+\d+$/, '').trim();
+                          const paperGroups = papers.reduce((groups: Record<string, any[]>, paper: any) => {
+                            const type = getPaperType(paper.name);
+                            if (!groups[type]) groups[type] = [];
+                            groups[type].push(paper);
+                            return groups;
+                          }, {} as Record<string, any[]>);
 
-                            return groupEntries.map(([type, typePapers]) => (
-                              typePapers.map((paper: any, pIdx: number) => (
-                                <TableRow
-                                  key={paper.id}
-                                  className={paperActiveMap[paper.id] === false ? 'opacity-50 bg-slate-50' : ''}
-                                >
-                                  <TableCell className="text-center">
-                                    <Checkbox
-                                      checked={paperActiveMap[paper.id] !== false}
-                                      onCheckedChange={(checked) => {
-                                        setPaperActiveMap(prev => ({
-                                          ...prev,
-                                          [paper.id]: !!checked,
-                                        }));
-                                      }}
-                                      className="data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
-                                    />
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    <input
-                                      type="radio"
-                                      name="defaultPaper"
-                                      checked={defaultPaperId === paper.id}
-                                      onChange={() => setDefaultPaperId(paper.id)}
-                                      className="h-4 w-4 accent-blue-600 cursor-pointer"
-                                    />
-                                  </TableCell>
-                                  <TableCell>
-                                    <div className="flex items-center gap-2">
-                                      {pIdx === 0 && (
-                                        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                                          {type}
-                                        </Badge>
-                                      )}
-                                      <span className={`text-sm ${paperActiveMap[paper.id] === false ? 'line-through text-slate-400' : 'font-medium'}`}>
-                                        {paper.name}
+                          return Object.entries(paperGroups).map(([type, typePapers]) => (
+                            <div key={type} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50/50">
+                              <span className="w-20 text-[12px] font-medium text-slate-600 flex-shrink-0">{type}</span>
+                              <div className="flex flex-wrap gap-1.5">
+                                {typePapers.map((paper: any) => {
+                                  const isActive = paperActiveMap[paper.id] !== false;
+                                  const isDefault = defaultPaperId === paper.id;
+                                  return (
+                                    <div
+                                      key={paper.id}
+                                      className={`flex items-center gap-1 px-2 py-1 rounded-md border text-[11px] transition-all ${
+                                        isActive
+                                          ? isDefault
+                                            ? 'bg-blue-600 text-white border-blue-600'
+                                            : 'bg-blue-50 text-blue-700 border-blue-300'
+                                          : 'bg-slate-50 text-slate-400 border-slate-200'
+                                      }`}
+                                    >
+                                      <Checkbox
+                                        checked={isActive}
+                                        onCheckedChange={(c) =>
+                                          setPaperActiveMap(prev => ({ ...prev, [paper.id]: !!c }))
+                                        }
+                                        className={`h-3 w-3 ${isActive && isDefault ? 'border-white data-[state=checked]:bg-white data-[state=checked]:text-blue-600' : ''}`}
+                                      />
+                                      <span
+                                        className="cursor-pointer select-none"
+                                        onClick={() => setPaperActiveMap(prev => ({ ...prev, [paper.id]: !isActive }))}
+                                      >
+                                        {paper.grammage ? `${paper.grammage}g` : paper.name}
                                       </span>
+                                      {isActive && (
+                                        <button
+                                          type="button"
+                                          title={isDefault ? '기본용지' : '기본용지로 설정'}
+                                          onClick={() => setDefaultPaperId(paper.id)}
+                                          className={`transition-colors leading-none ${isDefault ? 'text-amber-300' : 'text-slate-300 hover:text-amber-400'}`}
+                                        >
+                                          ★
+                                        </button>
+                                      )}
                                     </div>
-                                  </TableCell>
-                                  <TableCell className="text-sm text-slate-600">
-                                    {paper.grammage ? `${paper.grammage}g` : '-'}
-                                  </TableCell>
-                                  <TableCell className="text-sm text-slate-600">
-                                    {paper.frontCoating || '-'}
-                                  </TableCell>
-                                  <TableCell className="text-sm text-right text-slate-600">
-                                    {Number(paper.price) > 0 ? `+${Number(paper.price).toLocaleString()}원` : '-'}
-                                  </TableCell>
-                                </TableRow>
-                              ))
-                            ));
-                          })()}
-                        </TableBody>
-                      </Table>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ));
+                        })()}
+                      </div>
                     </div>
                   );
                 });
@@ -1345,8 +1320,8 @@ export default function EditProductPage() {
 
           {/* 후가공 옵션 */}
           <div className="space-y-3">
-            <Label className="text-[13px] font-semibold text-slate-700 flex items-center gap-2">
-              <Settings className="h-4 w-4 text-emerald-500" />
+            <Label className="text-[13px] font-medium text-slate-600 flex items-center gap-1.5">
+              <Settings className="h-4 w-4 text-slate-400" />
               후가공 옵션
             </Label>
             <div className="grid grid-cols-3 gap-2">
@@ -1354,21 +1329,14 @@ export default function EditProductPage() {
                 finishingChildren.map(group => (
                   <label
                     key={group.id}
-                    className={`
-                      flex items-center gap-2.5 px-3 py-2.5 rounded-lg border cursor-pointer transition-all
-                      ${finishingOptions[group.id]
-                        ? 'border-emerald-300 bg-emerald-50/70 ring-1 ring-emerald-100'
-                        : 'border-slate-200 bg-white hover:bg-slate-50/80 hover:border-slate-300'
-                      }
-                    `}
+                    className="flex items-center gap-2.5 px-3 py-2 rounded border border-slate-200 bg-white cursor-pointer hover:bg-slate-50 transition-colors"
                   >
                     <Checkbox
                       id={group.id}
                       checked={finishingOptions[group.id] || false}
                       onCheckedChange={(checked) => setFinishingOptions(prev => ({ ...prev, [group.id]: !!checked }))}
-                      className="data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
                     />
-                    <span className="text-[13px] font-medium text-slate-700">{group.name}</span>
+                    <span className="text-[13px] text-slate-700">{group.name}</span>
                     {(group._count?.children ?? 0) > 0 && (
                       <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 ml-auto">
                         {group._count?.children}
@@ -1387,7 +1355,7 @@ export default function EditProductPage() {
       </Card>
 
       {/* 옵션정보 섹션 */}
-      <Card className="overflow-hidden border-0 shadow-sm ring-1 ring-slate-200/80 rounded-xl">
+      <Card className="overflow-hidden border border-slate-200 shadow-none rounded-lg">
         <SectionHeader
           icon={Settings}
           title="옵션정보"
@@ -1449,15 +1417,15 @@ export default function EditProductPage() {
               <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-slate-100 flex items-center justify-center">
                 <Settings className="h-5 w-5 text-slate-300" />
               </div>
-              <p className="text-sm font-medium text-slate-500">등록된 옵션이 없습니다</p>
-              <p className="text-xs mt-1 text-slate-400">상단의 &apos;옵션 추가&apos; 버튼을 클릭하여 옵션을 추가하세요</p>
+              <p className="text-[13px] font-medium text-slate-500">등록된 옵션이 없습니다</p>
+              <p className="text-[12px] mt-1 text-slate-400">상단의 &apos;옵션 추가&apos; 버튼을 클릭하여 옵션을 추가하세요</p>
             </div>
           )}
         </CardContent>
       </Card>
 
       {/* 상세이미지 섹션 */}
-      <Card className="overflow-hidden border-0 shadow-sm ring-1 ring-slate-200/80 rounded-xl">
+      <Card className="overflow-hidden border border-slate-200 shadow-none rounded-lg">
         <SectionHeader
           icon={ImageIcon}
           title="상품 이미지"
@@ -1576,7 +1544,7 @@ export default function EditProductPage() {
       </Card>
 
       {/* 상세설명 섹션 */}
-      <Card className="overflow-hidden border-0 shadow-sm ring-1 ring-slate-200/80 rounded-xl">
+      <Card className="overflow-hidden border border-slate-200 shadow-none rounded-lg">
         <SectionHeader
           icon={FileText}
           title="상세정보 편집"
@@ -1844,6 +1812,22 @@ export default function EditProductPage() {
             selectedBindings={selectedBindings}
             onSelect={(prices) => {
               setOutputPriceSelections(prices);
+              // 잉크젯 출력 선택 시 해당 규격을 selectedSpecs에 자동 추가
+              const inkjetSpecIds = prices
+                .filter(p => p.outputMethod === 'INKJET' && p.specificationId)
+                .map(p => p.specificationId as string);
+              if (inkjetSpecIds.length > 0) {
+                setSelectedSpecs(prev => [...new Set([...prev, ...inkjetSpecIds])]);
+                // 규격 타입도 자동 설정 (잉크젯 규격이면 album 탭으로)
+                if (specifications) {
+                  const firstSpec = specifications.find(s => s.id === inkjetSpecIds[0]);
+                  if (firstSpec) {
+                    if (firstSpec.forAlbum) setSpecType('album');
+                    else if (firstSpec.forInkjet) setSpecType('inkjet');
+                    else if (firstSpec.forIndigo) setSpecType('indigo');
+                  }
+                }
+              }
               setOutputPriceDialogOpen(false);
             }}
             onCancel={() => setOutputPriceDialogOpen(false)}
@@ -2058,27 +2042,30 @@ function OutputPriceSelectionForm({
       if (newSelections.length > 0) {
         setLocalSelected(prev => [...prev, ...newSelections]);
       }
-    } else if (outputMethod === 'INKJET' && selectedSpecId) {
-      // 잉크젯 출력 - 헬퍼 함수를 사용해서 규격 가격 찾기
-      // 중복 체크: 같은 productionSettingId + specificationId 조합이 있으면 추가하지 않음
-      const existsInkjet = localSelected.some(
-        s => s.productionSettingId === selectedSetting.id && s.specificationId === selectedSpecId
-      );
+    } else if (outputMethod === 'INKJET') {
+      // 잉크젯 출력 - 해당 설정의 전체 규격을 일괄 추가
+      const inkjetSpecs = getInkjetSpecPrices(selectedSetting);
+      const newSelections: OutputPriceSelection[] = [];
 
-      if (!existsInkjet) {
-        const inkjetSpecs = getInkjetSpecPrices(selectedSetting);
-        const specPrice = inkjetSpecs.find(p => p.specificationId === selectedSpecId);
-        if (specPrice) {
-          const newSelection: OutputPriceSelection = {
-            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      inkjetSpecs.forEach(specPrice => {
+        // 중복 체크: 같은 productionSettingId + specificationId 조합이 있으면 추가하지 않음
+        const existsInkjet = localSelected.some(
+          s => s.productionSettingId === selectedSetting.id && s.specificationId === specPrice.specificationId
+        );
+        if (!existsInkjet) {
+          newSelections.push({
+            id: `${Date.now()}-${specPrice.specificationId}-${Math.random().toString(36).substr(2, 6)}`,
             outputMethod,
             productionSettingId: selectedSetting.id,
             productionSettingName: selectedSetting.settingName || selectedSetting.codeName || '단가설정',
-            specificationId: selectedSpecId,
+            specificationId: specPrice.specificationId,
             selectedSpecPrice: specPrice,
-          };
-          setLocalSelected(prev => [...prev, newSelection]);
+          });
         }
+      });
+
+      if (newSelections.length > 0) {
+        setLocalSelected(prev => [...prev, ...newSelections]);
       }
     }
 
@@ -2441,9 +2428,17 @@ function OutputPriceSelectionForm({
 
           {outputMethod === 'INKJET' && (
             <>
-              {/* 규격 선택 */}
+              {/* 전체 규격 미리보기 (일괄 추가) */}
               <div className="mb-4">
-                <Label className="text-sm font-medium mb-2 block">규격 선택</Label>
+                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    <span className="font-medium">💡 전체 규격 일괄 추가:</span> 추가 버튼 클릭 시 아래 가격이 설정된 전체 규격이 자동 등록됩니다.
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    단면출력 전용 · 규격은 상품 규격에도 자동으로 추가됩니다.
+                  </p>
+                </div>
+                <Label className="text-sm font-medium mb-2 block">등록될 규격 목록 ({getInkjetSpecPrices(selectedSetting).length}개)</Label>
                 {(() => {
                   const inkjetSpecs = getInkjetSpecPrices(selectedSetting);
                   return inkjetSpecs.length > 0 ? (
@@ -2451,25 +2446,14 @@ function OutputPriceSelectionForm({
                       <Table>
                         <TableHeader>
                           <TableRow className="bg-slate-50">
-                            <TableHead className="w-12">선택</TableHead>
                             <TableHead>규격명</TableHead>
-                            <TableHead className="text-right">가격</TableHead>
+                            <TableHead className="text-right">단면가격</TableHead>
                             <TableHead className="text-center">기준규격</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {inkjetSpecs.map((specPrice) => (
-                            <TableRow
-                              key={specPrice.specificationId}
-                              className={`cursor-pointer ${selectedSpecId === specPrice.specificationId ? 'bg-blue-50' : 'hover:bg-slate-50'}`}
-                              onClick={() => setSelectedSpecId(specPrice.specificationId)}
-                            >
-                              <TableCell>
-                                <Checkbox
-                                  checked={selectedSpecId === specPrice.specificationId}
-                                  onCheckedChange={() => setSelectedSpecId(specPrice.specificationId)}
-                                />
-                              </TableCell>
+                            <TableRow key={specPrice.specificationId} className="bg-blue-50/30">
                               <TableCell className="font-medium">{getSpecName(specPrice.specificationId)}</TableCell>
                               <TableCell className="text-right">{specPrice.singleSidedPrice.toLocaleString()}원</TableCell>
                               <TableCell className="text-center">
@@ -2494,7 +2478,7 @@ function OutputPriceSelectionForm({
               type="button"
               onClick={handleAddSelection}
               className="w-full bg-emerald-600 hover:bg-emerald-700"
-              disabled={outputMethod === 'INKJET' && !selectedSpecId}
+              disabled={!selectedSetting}
             >
               <Plus className="h-4 w-4 mr-2" />
               출력단가 추가

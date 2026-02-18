@@ -169,6 +169,7 @@ export interface Product {
       colorCode?: string | null;
       colorName?: string | null;
       thumbnailUrl?: string | null;
+      basePrice?: number;
       isActive: boolean;
     };
   }>;

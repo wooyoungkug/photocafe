@@ -501,7 +501,7 @@ export default function NewProductPage() {
                   <div className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isActive ? 'bg-emerald-500' : 'bg-slate-200'}`}>
                     {isActive ? <Eye className="h-3.5 w-3.5 text-white" /> : <EyeOff className="h-3.5 w-3.5 text-slate-400" />}
                   </div>
-                  <span className={`text-sm font-medium ${isActive ? 'text-emerald-700' : 'text-slate-500'}`}>활성화</span>
+                  <span className={`text-[13px] font-medium ${isActive ? 'text-emerald-700' : 'text-slate-500'}`}>활성화</span>
                   <Switch checked={isActive} onCheckedChange={setIsActive} className="ml-1 data-[state=checked]:bg-emerald-500" />
                 </label>
                 <label
@@ -516,7 +516,7 @@ export default function NewProductPage() {
                   <div className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isNew ? 'bg-blue-500' : 'bg-slate-200'}`}>
                     <Sparkles className={`h-3.5 w-3.5 ${isNew ? 'text-white' : 'text-slate-400'}`} />
                   </div>
-                  <span className={`text-sm font-medium ${isNew ? 'text-blue-700' : 'text-slate-500'}`}>신상품</span>
+                  <span className={`text-[13px] font-medium ${isNew ? 'text-blue-700' : 'text-slate-500'}`}>신상품</span>
                   <Switch checked={isNew} onCheckedChange={setIsNew} className="ml-1 data-[state=checked]:bg-blue-500" />
                 </label>
                 <label
@@ -531,7 +531,7 @@ export default function NewProductPage() {
                   <div className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isBest ? 'bg-amber-500' : 'bg-slate-200'}`}>
                     <Star className={`h-3.5 w-3.5 ${isBest ? 'text-white' : 'text-slate-400'}`} />
                   </div>
-                  <span className={`text-sm font-medium ${isBest ? 'text-amber-700' : 'text-slate-500'}`}>베스트</span>
+                  <span className={`text-[13px] font-medium ${isBest ? 'text-amber-700' : 'text-slate-500'}`}>베스트</span>
                   <Switch checked={isBest} onCheckedChange={setIsBest} className="ml-1 data-[state=checked]:bg-amber-500" />
                 </label>
               </div>
@@ -550,7 +550,7 @@ export default function NewProductPage() {
                     type="number"
                     value={sortOrder}
                     onChange={(e) => setSortOrder(Number(e.target.value))}
-                    className="w-20 h-8 text-center text-sm"
+                    className="w-20 h-8 text-center text-[13px]"
                   />
                 </div>
               </div>
@@ -711,7 +711,7 @@ export default function NewProductPage() {
                 <div className="space-y-2">
                   {selectedBindings.map((b, idx) => (
                     <div key={idx} className="flex items-center gap-2 p-2 bg-white border rounded-lg">
-                      <span className="font-medium text-sm flex-1">{b.name}</span>
+                      <span className="font-medium text-[13px] flex-1">{b.name}</span>
                       <button
                         type="button"
                         title="제거"
@@ -995,8 +995,8 @@ export default function NewProductPage() {
               <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-slate-100 flex items-center justify-center">
                 <Settings className="h-5 w-5 text-slate-300" />
               </div>
-              <p className="text-sm font-medium text-slate-500">등록된 옵션이 없습니다</p>
-              <p className="text-xs mt-1 text-slate-400">상단의 &apos;옵션 추가&apos; 버튼을 클릭하여 옵션을 추가하세요</p>
+              <p className="text-[13px] font-medium text-slate-500">등록된 옵션이 없습니다</p>
+              <p className="text-[12px] mt-1 text-slate-400">상단의 &apos;옵션 추가&apos; 버튼을 클릭하여 옵션을 추가하세요</p>
             </div>
           )}
         </CardContent>
@@ -1262,7 +1262,7 @@ export default function NewProductPage() {
           </div>
           {selectedSpecs.length > 0 && (
             <div className="p-3 bg-slate-50 rounded-lg">
-              <p className="text-sm font-medium mb-2">선택된 규격 ({selectedSpecs.length}개)</p>
+              <p className="text-[13px] font-medium mb-2">선택된 규격 ({selectedSpecs.length}개)</p>
               <div className="flex flex-wrap gap-2">
                 {selectedSpecs.map(specId => {
                   const spec = specifications?.find(s => s.id === specId);
@@ -1373,11 +1373,11 @@ function OptionForm({ onSubmit, onCancel }: { onSubmit: (opt: Omit<ProductOption
           <div className="flex gap-4">
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="radio" name="optType" value="select" checked={type === 'select'} onChange={() => setType('select')} className="w-4 h-4" />
-              <span className="text-sm">선택옵션</span>
+              <span className="text-[13px]">선택옵션</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="radio" name="optType" value="required" checked={type === 'required'} onChange={() => setType('required')} className="w-4 h-4" />
-              <span className="text-sm">필수옵션</span>
+              <span className="text-[13px]">필수옵션</span>
             </label>
           </div>
         </div>
@@ -1387,11 +1387,11 @@ function OptionForm({ onSubmit, onCancel }: { onSubmit: (opt: Omit<ProductOption
           <div className="flex gap-4">
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="radio" name="qtyType" value="auto" checked={quantityType === 'auto'} onChange={() => setQuantityType('auto')} className="w-4 h-4" />
-              <span className="text-sm">자동수량</span>
+              <span className="text-[13px]">자동수량</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="radio" name="qtyType" value="manual" checked={quantityType === 'manual'} onChange={() => setQuantityType('manual')} className="w-4 h-4" />
-              <span className="text-sm">선택수량</span>
+              <span className="text-[13px]">선택수량</span>
             </label>
           </div>
         </div>

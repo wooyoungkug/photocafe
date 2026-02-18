@@ -25,7 +25,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { MultiFolderUpload } from '@/components/album-upload';
 import { useMultiFolderUploadStore, type UploadedFolder, calculateUploadedFolderPrice, calculateAdditionalOrderPrice } from '@/stores/multi-folder-upload-store';
-import { type Fabric, type FabricCategory } from '@/hooks/use-fabrics';
+import { type FabricCategory } from '@/hooks/use-fabrics';
 import { useTranslations } from 'next-intl';
 import { startBackgroundUpload, type FolderUploadData } from '@/lib/background-upload';
 import { UploadProgressModal } from './_components/upload-progress-modal';
@@ -48,6 +48,7 @@ interface SelectedOptions {
   finishings: ProductFinishing[];
   printSide?: 'single' | 'double';
   printMethod?: 'indigo' | 'inkjet';
+  colorMode?: '4c' | '6c';
   pageEditMode?: 'single' | 'spread';
   bindingDirection?: string;
   copperPlateType?: 'none' | 'public' | 'owned';
@@ -73,7 +74,7 @@ const isAlbumProduct = (bindings?: ProductBinding[]): boolean => {
   return bindings.some(binding => {
     const name = binding.name.toLowerCase();
     return name.includes('화보') || name.includes('포토북') || name.includes('스타화보') ||
-           name.includes('핀화보') || name.includes('스타제본');
+           name.includes('핀화보') || name.includes('스타제본') || name.includes('압축제본');
   });
 };
 
@@ -122,9 +123,9 @@ export default function ProductPage() {
     thumbnail: uploadFolders[0].selectedFabricThumbnail,
   } : null;
 
-  const handleCoverFabricSelect = (fabric: Fabric) => {
+  const handleCoverFabricSelect = (fabric: { id: string; name: string; thumbnailUrl?: string | null; basePrice?: number; category: string; colorCode?: string | null; colorName?: string | null }) => {
     uploadFolders.forEach(f => {
-      setFolderFabric(f.id, fabric.id, fabric.name, fabric.thumbnailUrl || null, fabric.basePrice, fabric.category, fabric.colorCode || null, fabric.colorName || null);
+      setFolderFabric(f.id, fabric.id, fabric.name, fabric.thumbnailUrl || null, fabric.basePrice ?? 0, fabric.category, fabric.colorCode || null, fabric.colorName || null);
     });
   };
 
@@ -196,7 +197,7 @@ export default function ProductPage() {
             albumOrderInfo: {
               folderId: folder.id, folderName: folder.orderTitle,
               fileCount: folder.files.length, pageCount: folder.pageCount,
-              printMethod: selectedOptions.printMethod || 'indigo', colorMode: '4c',
+              printMethod: selectedOptions.printMethod || 'indigo', colorMode: selectedOptions.colorMode || '4c',
               pageLayout: folder.pageLayout || 'single',
               bindingDirection: folder.bindingDirection || 'LEFT_START_RIGHT_END',
               specificationId: '', specificationName: folder.specLabel,
@@ -228,7 +229,7 @@ export default function ProductPage() {
               albumOrderInfo: {
                 folderId: folder.id, folderName: folder.orderTitle,
                 fileCount: folder.files.length, pageCount: folder.pageCount,
-                printMethod: selectedOptions.printMethod || 'indigo', colorMode: '4c',
+                printMethod: selectedOptions.printMethod || 'indigo', colorMode: selectedOptions.colorMode || '4c',
                 pageLayout: folder.pageLayout || 'single',
                 bindingDirection: folder.bindingDirection || 'LEFT_START_RIGHT_END',
                 specificationId: '', specificationName: additional.albumLabel,
@@ -281,7 +282,7 @@ export default function ProductPage() {
       setSelectedOptions({
         specification: product.specifications?.find(s => s.isDefault) || product.specifications?.[0],
         binding: defaultBinding,
-        paper: defaultPaper, printMethod: defaultPrintMethod,
+        paper: defaultPaper, printMethod: defaultPrintMethod, colorMode: '4c',
         cover: product.covers?.find(c => c.isDefault) || product.covers?.[0],
         foil: product.foils?.find(f => f.isDefault) || product.foils?.[0],
         finishings: product.finishings?.filter(f => f.isDefault) || [],
@@ -559,8 +560,9 @@ export default function ProductPage() {
                 <OptionCard title={t('paper')} count={product.papers.filter(p => p.isActive !== false).length}>
                   <OptionPaper papers={product.papers} selectedPaperId={selectedOptions.paper?.id}
                     printMethod={selectedOptions.printMethod || 'indigo'}
+                    colorMode={selectedOptions.colorMode || '4c'}
                     onSelectPaper={(paper) => setSelectedOptions(prev => ({ ...prev, paper }))}
-                    onChangePrintMethod={(method, defaultPaper) => setSelectedOptions(prev => ({ ...prev, printMethod: method, paper: defaultPaper }))} />
+                    onChangePrintMethod={(method, colorMode, defaultPaper) => setSelectedOptions(prev => ({ ...prev, printMethod: method, colorMode, paper: defaultPaper }))} />
                 </OptionCard>
               )}
 
