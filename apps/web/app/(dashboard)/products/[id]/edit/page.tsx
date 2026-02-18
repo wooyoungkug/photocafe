@@ -535,7 +535,7 @@ export default function EditProductPage() {
     formData.append('file', file);
 
     try {
-      const response = await fetch(`${API_URL}/upload/category-icon`, {
+      const response = await fetch(`${API_URL}/upload/product-image`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -923,32 +923,47 @@ export default function EditProductPage() {
                   출력단가 선택
                 </Button>
               </div>
-              {outputPriceSelections.length > 0 && (
-                <div className="space-y-2 p-3 bg-slate-50 rounded border border-slate-200">
-                  {outputPriceSelections.map((selection, idx) => (
-                    <div key={selection.id} className="flex items-center justify-between p-2 bg-white rounded-lg border">
-                      <div className="flex items-center gap-2">
-                        <div>
-                          <p className="font-medium text-[13px]">{selection.productionSettingName}</p>
-                          <p className="text-[12px] text-slate-500">
-                            {selection.outputMethod === 'INDIGO'
-                              ? `인디고 ${selection.colorType}`
-                              : `잉크젯 - ${selection.specificationId || '규격 미선택'}`}
-                          </p>
+              {outputPriceSelections.length > 0 && (() => {
+                // productionSettingId 기준으로 그룹핑하여 1줄로 표시
+                const groups = new Map<string, { name: string; method: string; colorTypes: string[]; specCount: number; ids: string[] }>();
+                outputPriceSelections.forEach(sel => {
+                  const key = `${sel.productionSettingId}-${sel.outputMethod}`;
+                  if (!groups.has(key)) {
+                    groups.set(key, { name: sel.productionSettingName, method: sel.outputMethod, colorTypes: [], specCount: 0, ids: [] });
+                  }
+                  const g = groups.get(key)!;
+                  g.ids.push(sel.id);
+                  if (sel.outputMethod === 'INDIGO' && sel.colorType) g.colorTypes.push(sel.colorType);
+                  else g.specCount++;
+                });
+                return (
+                  <div className="space-y-2 p-3 bg-slate-50 rounded border border-slate-200">
+                    {Array.from(groups.values()).map((g, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-2 bg-white rounded-lg border">
+                        <div className="flex items-center gap-2">
+                          <span className="text-base">{g.method === 'INDIGO' ? '🖨️' : '💧'}</span>
+                          <div>
+                            <p className="font-medium text-[13px]">{g.name}</p>
+                            <p className="text-[12px] text-slate-500">
+                              {g.method === 'INDIGO'
+                                ? `인디고 ${g.colorTypes.join('/')}`
+                                : `잉크젯 (${g.specCount}개 규격)`}
+                            </p>
+                          </div>
                         </div>
+                        <button
+                          type="button"
+                          title="제거"
+                          className="p-1 hover:bg-red-100 rounded-full"
+                          onClick={() => setOutputPriceSelections(prev => prev.filter(p => !g.ids.includes(p.id)))}
+                        >
+                          <X className="h-4 w-4 text-red-500" />
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        title="제거"
-                        className="p-1 hover:bg-red-100 rounded-full"
-                        onClick={() => setOutputPriceSelections(prev => prev.filter(p => p.id !== selection.id))}
-                      >
-                        <X className="h-4 w-4 text-red-500" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                );
+              })()}
               <div className="pt-2 space-y-1">
                 <div className="flex gap-4 items-center">
                   <Label className="text-xs text-slate-500">출력구분</Label>
@@ -1264,7 +1279,7 @@ export default function EditProductPage() {
                       key={`${paper.id}-${colorType ?? 'common'}`}
                       className={`flex items-center gap-1 px-2 py-1 rounded-md border text-[11px] transition-all ${
                         isActive
-                          ? isDefault && !colorType
+                          ? isDefault
                             ? 'bg-blue-600 text-white border-blue-600'
                             : 'bg-blue-50 text-blue-700 border-blue-300'
                           : 'bg-slate-50 text-slate-400 border-slate-200'
@@ -1273,7 +1288,7 @@ export default function EditProductPage() {
                       <Checkbox
                         checked={isActive}
                         onCheckedChange={(c) => toggleActive(!!c)}
-                        className={`h-3 w-3 ${isActive && isDefault && !colorType ? 'border-white data-[state=checked]:bg-white data-[state=checked]:text-blue-600' : ''}`}
+                        className={`h-3 w-3 ${isActive && isDefault ? 'border-white data-[state=checked]:bg-white data-[state=checked]:text-blue-600' : ''}`}
                       />
                       <span
                         className="cursor-pointer select-none"
@@ -1281,7 +1296,7 @@ export default function EditProductPage() {
                       >
                         {paper.grammage ? `${paper.grammage}g` : paper.name}
                       </span>
-                      {isActive && !colorType && (
+                      {isActive && (
                         <button
                           type="button"
                           title={isDefault ? '기본용지' : '기본용지로 설정'}
@@ -1712,7 +1727,7 @@ export default function EditProductPage() {
                 const formData = new FormData();
                 formData.append('file', file);
 
-                const response = await fetch(`${API_URL}/upload/category-icon`, {
+                const response = await fetch(`${API_URL}/upload/product-image`, {
                   method: 'POST',
                   headers: { Authorization: `Bearer ${token}` },
                   body: formData,
@@ -2634,39 +2649,49 @@ function OutputPriceSelectionForm({
         </div>
       )}
 
-      {/* 선택된 출력단가 목록 */}
-      {localSelected.length > 0 && (
-        <div className="p-4 border-t bg-emerald-50">
-          <p className="text-sm font-medium mb-3">선택된 출력단가 ({localSelected.length}개)</p>
-          <div className="space-y-2 max-h-[200px] overflow-y-auto">
-            {localSelected.map((selection) => (
-              <div
-                key={selection.id}
-                className="flex items-center justify-between p-3 bg-white rounded-lg border"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-lg">{selection.outputMethod === 'INDIGO' ? '🖨️' : '💧'}</span>
-                  <div>
-                    <p className="font-medium text-sm">{selection.productionSettingName}</p>
-                    <p className="text-xs text-slate-500">
-                      {selection.outputMethod === 'INDIGO'
-                        ? `인디고 ${selection.colorType}`
-                        : `잉크젯 - ${selection.specificationId ? getSpecName(selection.specificationId) : '규격 미선택'}`}
-                    </p>
+      {/* 선택된 출력단가 목록 (설정 기준 그룹핑) */}
+      {localSelected.length > 0 && (() => {
+        const groups = new Map<string, { name: string; method: string; colorTypes: string[]; specCount: number; ids: string[] }>();
+        localSelected.forEach(sel => {
+          const key = `${sel.productionSettingId}-${sel.outputMethod}`;
+          if (!groups.has(key)) {
+            groups.set(key, { name: sel.productionSettingName, method: sel.outputMethod, colorTypes: [], specCount: 0, ids: [] });
+          }
+          const g = groups.get(key)!;
+          g.ids.push(sel.id);
+          if (sel.outputMethod === 'INDIGO' && sel.colorType) g.colorTypes.push(sel.colorType);
+          else g.specCount++;
+        });
+        return (
+          <div className="p-4 border-t bg-emerald-50">
+            <p className="text-sm font-medium mb-3">선택된 출력단가 ({groups.size}개 설정)</p>
+            <div className="space-y-2 max-h-[200px] overflow-y-auto">
+              {Array.from(groups.values()).map((g, idx) => (
+                <div key={idx} className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg">{g.method === 'INDIGO' ? '🖨️' : '💧'}</span>
+                    <div>
+                      <p className="font-medium text-sm">{g.name}</p>
+                      <p className="text-xs text-slate-500">
+                        {g.method === 'INDIGO'
+                          ? `인디고 ${g.colorTypes.join('/')}`
+                          : `잉크젯 (${g.specCount}개 규격)`}
+                      </p>
+                    </div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setLocalSelected(prev => prev.filter(p => !g.ids.includes(p.id)))}
+                    className="p-1 hover:bg-red-100 rounded-full"
+                  >
+                    <X className="h-4 w-4 text-red-500" />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => removeSelection(selection.id)}
-                  className="p-1 hover:bg-red-100 rounded-full"
-                >
-                  <X className="h-4 w-4 text-red-500" />
-                </button>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       <DialogFooter className="mt-4 p-4 border-t">
         <Button variant="outline" onClick={() => setLocalSelected([])}>전체 해제</Button>

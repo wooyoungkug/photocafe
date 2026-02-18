@@ -21,6 +21,7 @@ function ensureDir(subPath: string): string {
 // 초기 디렉토리 생성
 ensureDir('');
 ensureDir('category-icons');
+ensureDir('products');
 ensureDir('copper-plates/ai');
 ensureDir('copper-plates/images');
 ensureDir('copper-plates/albums');
@@ -207,6 +208,50 @@ export class UploadController {
         }
 
         return res.sendFile(filePath);
+    }
+
+    // ==================== 상품 이미지 업로드 ====================
+
+    @Post('product-image')
+    @ApiOperation({ summary: '상품 썸네일/상세이미지 업로드' })
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: { file: { type: 'string', format: 'binary' } },
+        },
+    })
+    @UseInterceptors(
+        FileInterceptor('file', {
+            storage: diskStorage({
+                destination: (_req, _file, cb) => cb(null, ensureDir('products')),
+                filename: (_req, file, callback) => {
+                    const uniqueName = `${randomUUID()}${extname(file.originalname)}`;
+                    callback(null, uniqueName);
+                },
+            }),
+            fileFilter: (_req, file, callback) => {
+                if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp|avif)$/)) {
+                    return callback(new BadRequestException('이미지 파일만 업로드 가능합니다.'), false);
+                }
+                callback(null, true);
+            },
+            limits: {
+                fileSize: parseInt(process.env.UPLOAD_MAX_FILE_SIZE || '52428800', 10),
+            },
+        }),
+    )
+    uploadProductImage(@UploadedFile() file: Express.Multer.File) {
+        if (!file) {
+            throw new BadRequestException('파일이 업로드되지 않았습니다.');
+        }
+
+        return {
+            filename: file.filename,
+            originalName: file.originalname,
+            size: file.size,
+            url: this.fileStorage.toRelativeUrl(file.path),
+        };
     }
 
     // ==================== 동판 파일 업로드 ====================

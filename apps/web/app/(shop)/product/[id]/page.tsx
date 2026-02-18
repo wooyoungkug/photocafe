@@ -284,16 +284,23 @@ export default function ProductPage() {
     if (product) {
       const defaultBinding = product.bindings?.find(b => b.isDefault) || product.bindings?.[0];
       const publicPlates = allPublicCopperPlates?.data || [];
-      const activePapers = product.papers?.filter(p => p.isActive !== false) || [];
-      const hasIndigo = activePapers.some(p => p.printMethod === 'indigo');
+      // 인디고는 4도 기준(isActive4), 그 외는 isActive로 활성 여부 판단
+      const allPapers = product.papers || [];
+      const has4doPapers = allPapers.some(p => p.printMethod === 'indigo' && p.isActive4 !== false);
+      const defaultColorMode: '4c' | '6c' = '4c';
+      const hasIndigo = has4doPapers || allPapers.some(p => p.printMethod === 'indigo' && p.isActive6 !== false);
       const defaultPrintMethod: 'indigo' | 'inkjet' = hasIndigo ? 'indigo' : 'inkjet';
-      const filteredPapers = activePapers.filter(p => p.printMethod === defaultPrintMethod);
-      const defaultPaper = filteredPapers.find(p => p.isDefault) || filteredPapers[0] || activePapers.find(p => p.isDefault) || activePapers[0];
+      const filteredPapers = allPapers.filter(p => {
+        if (p.printMethod !== defaultPrintMethod) return false;
+        if (p.printMethod === 'indigo') return p.isActive4 !== false;
+        return p.isActive !== false;
+      });
+      const defaultPaper = filteredPapers.find(p => p.isDefault) || filteredPapers[0];
 
       setSelectedOptions({
         specification: product.specifications?.find(s => s.isDefault) || product.specifications?.[0],
         binding: defaultBinding,
-        paper: defaultPaper, printMethod: defaultPrintMethod, colorMode: '4c',
+        paper: defaultPaper, printMethod: defaultPrintMethod, colorMode: defaultColorMode,
         cover: product.covers?.find(c => c.isDefault) || product.covers?.[0],
         foil: product.foils?.find(f => f.isDefault) || product.foils?.[0],
         finishings: product.finishings?.filter(f => f.isDefault) || [],

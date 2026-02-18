@@ -283,7 +283,7 @@ export default function NewProductPage() {
     formData.append('file', file);
 
     try {
-      const response = await fetch(`${API_URL}/upload/category-icon`, {
+      const response = await fetch(`${API_URL}/upload/product-image`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -1141,7 +1141,7 @@ export default function NewProductPage() {
               const formData = new FormData();
               formData.append('file', file);
 
-              const response = await fetch(`${API_URL}/upload/category-icon`, {
+              const response = await fetch(`${API_URL}/upload/product-image`, {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${token}` },
                 body: formData,
