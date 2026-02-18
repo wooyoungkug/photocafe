@@ -24,7 +24,7 @@ export function OptionCard({
   if (inline) {
     return (
       <div className={cn('py-3 border-b border-gray-100 last:border-b-0', className)}>
-        <div className="flex items-center gap-2 flex-wrap text-sm text-gray-900">
+        <div className="flex items-center gap-2 flex-wrap text-[10pt] text-gray-900">
           <span className="font-bold whitespace-nowrap">{title}</span>
           {count !== undefined && count > 0 && (
             <span className="text-xs text-gray-400 font-normal">({count})</span>
@@ -37,7 +37,7 @@ export function OptionCard({
 
   return (
     <div className={cn('py-3 border-b border-gray-100 last:border-b-0', className)}>
-      <h3 className="text-sm text-gray-900 mb-2">
+      <h3 className="text-[10pt] text-gray-900 mb-2">
         <span className="font-bold">{title}</span>
         {summary && (
           <span className="font-normal text-gray-700 ml-2">{summary}</span>

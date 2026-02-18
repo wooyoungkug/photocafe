@@ -71,7 +71,7 @@ export function OptionCopperPlate({
   };
 
   const selectClass = cn(
-    'h-8 rounded border border-gray-200 bg-white px-2 py-0 text-xs text-gray-700',
+    'h-8 rounded border border-gray-200 bg-white px-2 py-0 text-[10pt] text-gray-700',
     'focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary',
     'appearance-none cursor-pointer min-w-0',
   );

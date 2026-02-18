@@ -17,7 +17,7 @@ export function OptionPrintSide({ printSide, bindingName }: OptionPrintSideProps
   const reason = isCompression ? t('singleSidedFixed') : isPhotoBook ? t('doubleSidedFixed') : t('autoByBinding');
 
   return (
-    <p className="text-sm text-gray-700">
+    <p className="text-[10pt] text-gray-700">
       <span className="font-medium">{label}</span>
       <span className="text-xs text-gray-400 ml-2">{reason}</span>
     </p>

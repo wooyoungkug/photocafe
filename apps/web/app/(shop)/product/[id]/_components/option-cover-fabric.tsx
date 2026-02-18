@@ -92,8 +92,8 @@ export function OptionCoverFabric({
         type="button"
         onClick={() => setIsOpen(prev => !prev)}
         className={cn(
-          'w-full flex items-center gap-2 px-3 py-2 border rounded-md text-sm transition-colors text-left',
-          isOpen ? 'border-primary ring-1 ring-primary' : selectedFabric ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-gray-400'
+          'flex items-center gap-2 px-3 py-2 border rounded-md text-sm transition-colors text-left',
+          isOpen ? 'border-primary ring-1 ring-primary' : selectedFabric ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-blue-500'
         )}
       >
         {/* 선택된 원단 미리보기 */}
@@ -115,6 +115,7 @@ export function OptionCoverFabric({
               </div>
             )}
             <Check className="h-4 w-4 text-primary flex-shrink-0" />
+            <span className="whitespace-nowrap text-gray-700">{selectedFabric.name}</span>
           </>
         ) : (
           <>
@@ -129,7 +130,7 @@ export function OptionCoverFabric({
 
       {/* Dropdown panel */}
       {isOpen && (
-        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg">
+        <div className="absolute z-50 mt-1 min-w-full w-max max-w-xs bg-white border border-gray-200 rounded-md shadow-lg">
           {/* Search input */}
           <div className="p-2 border-b">
             <div className="relative">
@@ -163,7 +164,7 @@ export function OptionCoverFabric({
                   'px-2.5 py-1 text-xs rounded border transition-colors',
                   selectedFabricCategory === null
                     ? 'border-primary bg-primary text-white'
-                    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-400'
+                    : 'border-gray-200 bg-white text-gray-600 hover:border-blue-500'
                 )}
               >
                 전체 ({activeFabrics.length})
@@ -177,7 +178,7 @@ export function OptionCoverFabric({
                     'px-2.5 py-1 text-xs rounded border transition-colors',
                     selectedFabricCategory === cat
                       ? 'border-primary bg-primary text-white'
-                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-400'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-blue-500'
                   )}
                 >
                   {FABRIC_CATEGORY_LABELS[cat] || cat} ({activeFabrics.filter(pf => pf.fabric.category === cat).length})
@@ -209,7 +210,7 @@ export function OptionCoverFabric({
                       'w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors text-left',
                       isSelected
                         ? 'bg-primary/5 text-primary'
-                        : 'text-gray-700 hover:bg-gray-50'
+                        : 'text-gray-700 hover:bg-blue-100'
                     )}
                   >
                     {/* Swatch */}

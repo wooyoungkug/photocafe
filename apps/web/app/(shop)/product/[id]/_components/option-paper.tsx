@@ -63,18 +63,18 @@ export function OptionPaper({
     <div className="flex gap-2 flex-wrap min-w-0">
         {showMethodSelector && (
           <Select value={methodValue} onValueChange={handleMethodChange}>
-            <SelectTrigger className="w-fit flex-shrink-0 h-9 text-sm">
+            <SelectTrigger className="w-fit flex-shrink-0 h-9 text-[10pt]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {hasIndigoPapers && (
                 <>
-                  <SelectItem value="indigo_4c" className="text-sm">인디고 4도</SelectItem>
-                  <SelectItem value="indigo_6c" className="text-sm">인디고 6도</SelectItem>
+                  <SelectItem value="indigo_4c" className="text-[10pt]">인디고 4도</SelectItem>
+                  <SelectItem value="indigo_6c" className="text-[10pt]">인디고 6도</SelectItem>
                 </>
               )}
               {hasInkjetPapers && (
-                <SelectItem value="inkjet" className="text-sm">잉크젯</SelectItem>
+                <SelectItem value="inkjet" className="text-[10pt]">잉크젯</SelectItem>
               )}
             </SelectContent>
           </Select>
@@ -89,12 +89,12 @@ export function OptionPaper({
               if (paper) onSelectPaper(paper);
             }}
           >
-            <SelectTrigger className="w-fit h-9 text-sm">
+            <SelectTrigger className="w-fit h-9 text-[10pt]">
               <SelectValue placeholder="용지를 선택하세요" />
             </SelectTrigger>
             <SelectContent>
               {filteredPapers.map(paper => (
-                <SelectItem key={paper.id} value={paper.id} className="text-sm">
+                <SelectItem key={paper.id} value={paper.id} className="text-[10pt]">
                   {getPaperLabel(paper)}
                 </SelectItem>
               ))}

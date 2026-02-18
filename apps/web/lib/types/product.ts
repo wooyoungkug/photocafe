@@ -8,6 +8,7 @@ export interface ProductSpecification {
   sortOrder: number;
   forIndigo?: boolean;
   forInkjet?: boolean;
+  specificationId?: string;
 }
 
 export interface ProductBinding {
@@ -52,6 +53,14 @@ export interface ProductFoil {
   sortOrder: number;
 }
 
+export interface FinishingSettingPrice {
+  id: string;
+  specificationId: string | null;
+  minQuantity: number | null;
+  maxQuantity: number | null;
+  price: number;
+}
+
 export interface FinishingSetting {
   id: string;
   settingName: string | null;
@@ -61,6 +70,7 @@ export interface FinishingSetting {
   basePrice: number;
   sortOrder: number;
   isActive: boolean;
+  prices?: FinishingSettingPrice[];
 }
 
 export interface ProductFinishing {

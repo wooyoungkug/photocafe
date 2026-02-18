@@ -98,11 +98,11 @@ export default function ProductPage() {
   const { addItem } = useCartStore();
   const { user, isAuthenticated } = useAuthStore();
 
-  const { data: ownedCopperPlates } = useCopperPlatesByClient(isAuthenticated ? user?.id : undefined);
+  const { data: ownedCopperPlates } = useCopperPlatesByClient(isAuthenticated ? user?.clientId : undefined);
   const { data: copperPlateLabels } = useCopperPlateLabels();
   const { data: allPublicCopperPlates } = usePublicCopperPlates({ status: 'active' });
 
-  const { data: myProducts } = useMyProductsByClient(isAuthenticated ? user?.id : undefined);
+  const { data: myProducts } = useMyProductsByClient(isAuthenticated ? user?.clientId : undefined);
   const { data: myProductFromParam } = useMyProduct(myProductIdParam || undefined);
   const createMyProduct = useCreateMyProduct();
   const recordMyProductUsage = useRecordMyProductUsage();
@@ -312,7 +312,7 @@ export default function ProductPage() {
     if (!myProductIdParam || !myProductFromParam || !product || myProductApplied) return;
     const opts = myProductFromParam.options;
     setSelectedOptions({
-      specification: product.specifications?.find(s => s.id === opts.specificationId),
+      specification: undefined,
       binding: product.bindings?.find(b => b.id === opts.bindingId),
       paper: product.papers?.find(p => p.id === opts.paperId),
       cover: product.covers?.find(c => c.id === opts.coverId),
@@ -359,7 +359,17 @@ export default function ProductPage() {
     if (selectedOptions.paper) price += selectedOptions.paper.price;
     if (selectedOptions.cover) price += selectedOptions.cover.price;
     if (selectedOptions.foil) price += selectedOptions.foil.price;
-    for (const finishing of selectedOptions.finishings) price += finishing.price;
+    const specId = selectedOptions.specification?.specificationId;
+    for (const finishing of selectedOptions.finishings) {
+      const settings = finishing.productionGroup?.settings;
+      const setting = settings?.find((s) => s.settingName === finishing.name);
+      if (setting) {
+        const specPrice = specId ? setting.prices?.find((p) => p.specificationId === specId) : undefined;
+        price += specPrice ? specPrice.price : (setting.basePrice > 0 ? setting.basePrice : finishing.price);
+      } else {
+        price += finishing.price;
+      }
+    }
     return price * quantity;
   }, [product, selectedOptions, quantity]);
 
@@ -433,7 +443,7 @@ export default function ProductPage() {
 
   // --- handleSaveMyProduct ---
   const handleSaveMyProduct = async () => {
-    if (!isAuthenticated || !user?.id || !product) {
+    if (!isAuthenticated || !user?.clientId || !product) {
       toast({ title: t('loginRequired'), description: t('loginRequiredDesc'), variant: 'destructive' });
       return;
     }
@@ -455,8 +465,8 @@ export default function ProductPage() {
     };
     try {
       await createMyProduct.mutateAsync({
-        clientId: user.id, productId: product.id,
-        name: myProductName || `${product.productName} ${selectedOptions.specification?.name || ''}`.trim(),
+        clientId: user.clientId, productId: product.id,
+        name: myProductName || product.productName,
         thumbnailUrl: product.thumbnailUrl || undefined, options: opts, defaultQuantity: quantity,
       });
       toast({ title: t('myProductSaved'), description: t('myProductSavedDesc') });
@@ -468,7 +478,7 @@ export default function ProductPage() {
   const handleLoadMyProduct = (myProduct: MyProduct) => {
     const opts = myProduct.options;
     setSelectedOptions({
-      specification: product?.specifications?.find(s => s.id === opts.specificationId),
+      specification: undefined,
       binding: product?.bindings?.find(b => b.id === opts.bindingId),
       paper: product?.papers?.find(p => p.id === opts.paperId),
       cover: product?.covers?.find(c => c.id === opts.coverId),
@@ -527,7 +537,7 @@ export default function ProductPage() {
             <div className="flex flex-wrap items-center gap-2 mt-2 mb-4">
               {isAuthenticated && (
                 <>
-                  <button type="button" onClick={() => { setMyProductName(`${product.productName} ${selectedOptions.specification?.name || ''}`.trim()); setShowSaveMyProductModal(true); }}
+                  <button type="button" onClick={() => { setMyProductName(product.productName); setShowSaveMyProductModal(true); }}
                     className="text-xs text-primary hover:underline flex items-center gap-1">
                     <Star className="h-3 w-3" />{t('saveMyProduct')}
                   </button>
@@ -569,12 +579,12 @@ export default function ProductPage() {
                       if (cover) setSelectedOptions(prev => ({ ...prev, cover }));
                     }}
                   >
-                    <SelectTrigger className="h-9 text-sm">
+                    <SelectTrigger className="h-9 text-[11pt]">
                       <SelectValue placeholder="표지를 선택하세요" />
                     </SelectTrigger>
                     <SelectContent>
                       {product.covers.map(cover => (
-                        <SelectItem key={cover.id} value={cover.id} className="text-sm">
+                        <SelectItem key={cover.id} value={cover.id} className="text-[11pt]">
                           {cover.name}{cover.price > 0 ? ` (+${cover.price.toLocaleString()}원)` : ''}
                         </SelectItem>
                       ))}
@@ -621,19 +631,7 @@ export default function ProductPage() {
                     colorMode={selectedOptions.colorMode || '4c'}
                     onSelectPaper={(paper) => setSelectedOptions(prev => ({ ...prev, paper }))}
                     onChangePrintMethod={(method, colorMode, defaultPaper) => setSelectedOptions(prev => ({ ...prev, printMethod: method, colorMode, paper: defaultPaper }))} />
-                </OptionCard>
-              )}
-
-              <OptionCard title={t('printSection')} inline>
-                <OptionPrintSide printSide={selectedOptions.printSide} bindingName={selectedOptions.binding?.name} />
-              </OptionCard>
-
-              {product.finishings && product.finishings.length > 0 && (
-                <OptionCard title={t('finishing')}>
-                  <OptionFinishing finishings={product.finishings} selectedFinishings={selectedOptions.finishings}
-                    onToggle={(finishing, checked) => setSelectedOptions(prev => ({
-                      ...prev, finishings: checked ? [...prev.finishings, finishing] : prev.finishings.filter(f => f.id !== finishing.id),
-                    }))} />
+                  <OptionPrintSide printSide={selectedOptions.printSide} bindingName={selectedOptions.binding?.name} />
                 </OptionCard>
               )}
 
@@ -659,6 +657,19 @@ export default function ProductPage() {
                     onOwnedPlateSelect={(cp) => setSelectedOptions(prev => ({ ...prev, ownedCopperPlate: cp, foilColor: undefined, foilPosition: undefined }))}
                     onFoilColorChange={(code) => setSelectedOptions(prev => ({ ...prev, foilColor: code }))}
                     onFoilPositionChange={(code) => setSelectedOptions(prev => ({ ...prev, foilPosition: code }))}
+                  />
+                </OptionCard>
+              )}
+
+              {product.finishings && product.finishings.length > 0 && (
+                <OptionCard title={t('finishing')}>
+                  <OptionFinishing
+                    finishings={product.finishings}
+                    selectedFinishings={selectedOptions.finishings}
+                    selectedSpecificationId={selectedOptions.specification?.id}
+                    onToggle={(finishing, checked) => setSelectedOptions(prev => ({
+                      ...prev, finishings: checked ? [...prev.finishings, finishing] : prev.finishings.filter(f => f.id !== finishing.id),
+                    }))}
                   />
                 </OptionCard>
               )}
@@ -858,8 +869,8 @@ export default function ProductPage() {
             </div>
             <div className="bg-gray-50 rounded-lg p-3 space-y-1 text-sm">
               <p className="font-medium text-gray-700 mb-2">{t('selectedOptions')}</p>
-              {selectedOptions.specification && <p className="text-gray-600">{t('spec')}: {selectedOptions.specification.name}</p>}
               {selectedOptions.binding && <p className="text-gray-600">{t('binding')}: {selectedOptions.binding.name}</p>}
+              {effectiveFabricInfo?.name && <p className="text-gray-600">{t('albumCover')}: {effectiveFabricInfo.name}</p>}
               {selectedOptions.paper && <p className="text-gray-600">{t('paper')}: {selectedOptions.paper.name}</p>}
               {selectedOptions.printSide && <p className="text-gray-600">{t('printSection')}: {selectedOptions.printSide === 'single' ? t('singleSided') : t('doubleSided')}</p>}
               <p className="text-gray-600">{t('copperPlate')}: {selectedOptions.copperPlateType === 'none' ? t('none') : selectedOptions.copperPlateType === 'public' ? `${t('publicCopperPlate')} - ${selectedOptions.publicCopperPlate?.plateName || ''}` : `${t('ownedCopperPlate')} - ${selectedOptions.ownedCopperPlate?.plateName || ''}`}</p>
@@ -896,7 +907,6 @@ export default function ProductPage() {
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate">{mp.name}</p>
                     <div className="text-xs text-gray-500 space-y-0.5">
-                      {mp.options.specificationName && <p>{t('spec')}: {mp.options.specificationName}</p>}
                       {mp.options.bindingName && <p>{t('binding')}: {mp.options.bindingName}</p>}
                       {mp.options.paperName && <p>{t('paper')}: {mp.options.paperName}</p>}
                       {mp.options.copperPlateName && <p>{t('copperPlate')}: {mp.options.copperPlateName}</p>}

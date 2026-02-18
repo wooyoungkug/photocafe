@@ -158,6 +158,11 @@ export class ProductService {
                 settings: {
                   where: { isActive: true },
                   orderBy: { sortOrder: 'asc' },
+                  include: {
+                    prices: {
+                      orderBy: [{ specificationId: 'asc' }, { minQuantity: 'asc' }],
+                    },
+                  },
                 },
               },
             },

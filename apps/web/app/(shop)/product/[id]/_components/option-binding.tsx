@@ -24,7 +24,7 @@ export function OptionBinding({ bindings, selectedBindingId, onSelect }: OptionB
             type="button"
             onClick={() => onSelect(binding)}
             className={cn(
-              'px-3 py-1.5 text-sm rounded border transition-colors',
+              'px-3 py-1.5 text-[10pt] rounded border transition-colors',
               isSelected
                 ? 'border-primary bg-primary text-white'
                 : 'border-gray-200 text-gray-700 hover:border-gray-400'
