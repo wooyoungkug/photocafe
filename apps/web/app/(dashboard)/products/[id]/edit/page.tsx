@@ -226,6 +226,8 @@ export default function EditProductPage() {
   const [selectedFoils, setSelectedFoils] = useState<{ id: string; name: string; color: string; price: number }[]>([]);
   // 용지 사용 여부 관리
   const [paperActiveMap, setPaperActiveMap] = useState<Record<string, boolean>>({});
+  const [paperActive4Map, setPaperActive4Map] = useState<Record<string, boolean>>({});
+  const [paperActive6Map, setPaperActive6Map] = useState<Record<string, boolean>>({});
   // 기본 용지 ID
   const [defaultPaperId, setDefaultPaperId] = useState<string>('');
 
@@ -360,12 +362,18 @@ export default function EditProductPage() {
         // 용지 사용 여부 로드
         if (product.papers && Array.isArray(product.papers)) {
           const activeMap: Record<string, boolean> = {};
+          const active4Map: Record<string, boolean> = {};
+          const active6Map: Record<string, boolean> = {};
           let foundDefaultId = '';
-          product.papers.forEach((p: { id: string; isActive?: boolean; isDefault?: boolean }) => {
-            activeMap[p.id] = p.isActive !== false; // 기본값 true
+          product.papers.forEach((p: { id: string; isActive?: boolean; isActive4?: boolean; isActive6?: boolean; isDefault?: boolean }) => {
+            activeMap[p.id] = p.isActive !== false;
+            active4Map[p.id] = p.isActive4 !== false;
+            active6Map[p.id] = p.isActive6 !== false;
             if (p.isDefault) foundDefaultId = p.id;
           });
           setPaperActiveMap(activeMap);
+          setPaperActive4Map(active4Map);
+          setPaperActive6Map(active6Map);
           setDefaultPaperId(foundDefaultId || (product.papers[0] as any)?.id || '');
         }
 
@@ -657,6 +665,8 @@ export default function EditProductPage() {
           price: Number(p.price) || 0,
           isDefault: p.id === defaultPaperId,
           isActive: paperActiveMap[p.id] !== false,
+          isActive4: paperActive4Map[p.id] !== false,
+          isActive6: paperActive6Map[p.id] !== false,
           sortOrder: p.sortOrder ?? idx,
         })),
         covers: selectedCovers.map((c, idx) => ({
@@ -1235,15 +1245,26 @@ export default function EditProductPage() {
                 const getPaperType = (name: string) =>
                   name.replace(/\s*\d+g?$/i, '').replace(/\s+\d+$/, '').trim();
 
-                const renderPaperChip = (paper: any) => {
-                  const isActive = paperActiveMap[paper.id] !== false;
+                const renderPaperChip = (paper: any, colorType?: string) => {
+                  let isActive: boolean;
+                  let toggleActive: (val: boolean) => void;
+                  if (colorType === '4도') {
+                    isActive = paperActive4Map[paper.id] !== false;
+                    toggleActive = (val) => setPaperActive4Map(prev => ({ ...prev, [paper.id]: val }));
+                  } else if (colorType === '6도') {
+                    isActive = paperActive6Map[paper.id] !== false;
+                    toggleActive = (val) => setPaperActive6Map(prev => ({ ...prev, [paper.id]: val }));
+                  } else {
+                    isActive = paperActiveMap[paper.id] !== false;
+                    toggleActive = (val) => setPaperActiveMap(prev => ({ ...prev, [paper.id]: val }));
+                  }
                   const isDefault = defaultPaperId === paper.id;
                   return (
                     <div
-                      key={paper.id}
+                      key={`${paper.id}-${colorType ?? 'common'}`}
                       className={`flex items-center gap-1 px-2 py-1 rounded-md border text-[11px] transition-all ${
                         isActive
-                          ? isDefault
+                          ? isDefault && !colorType
                             ? 'bg-blue-600 text-white border-blue-600'
                             : 'bg-blue-50 text-blue-700 border-blue-300'
                           : 'bg-slate-50 text-slate-400 border-slate-200'
@@ -1251,18 +1272,16 @@ export default function EditProductPage() {
                     >
                       <Checkbox
                         checked={isActive}
-                        onCheckedChange={(c) =>
-                          setPaperActiveMap(prev => ({ ...prev, [paper.id]: !!c }))
-                        }
-                        className={`h-3 w-3 ${isActive && isDefault ? 'border-white data-[state=checked]:bg-white data-[state=checked]:text-blue-600' : ''}`}
+                        onCheckedChange={(c) => toggleActive(!!c)}
+                        className={`h-3 w-3 ${isActive && isDefault && !colorType ? 'border-white data-[state=checked]:bg-white data-[state=checked]:text-blue-600' : ''}`}
                       />
                       <span
                         className="cursor-pointer select-none"
-                        onClick={() => setPaperActiveMap(prev => ({ ...prev, [paper.id]: !isActive }))}
+                        onClick={() => toggleActive(!isActive)}
                       >
                         {paper.grammage ? `${paper.grammage}g` : paper.name}
                       </span>
-                      {isActive && (
+                      {isActive && !colorType && (
                         <button
                           type="button"
                           title={isDefault ? '기본용지' : '기본용지로 설정'}
@@ -1276,7 +1295,7 @@ export default function EditProductPage() {
                   );
                 };
 
-                const renderPaperTypeRows = (papers: any[]) => {
+                const renderPaperTypeRows = (papers: any[], colorType?: string) => {
                   const paperGroups = papers.reduce((groups: Record<string, any[]>, paper: any) => {
                     const type = getPaperType(paper.name);
                     if (!groups[type]) groups[type] = [];
@@ -1285,10 +1304,10 @@ export default function EditProductPage() {
                   }, {} as Record<string, any[]>);
 
                   return Object.entries(paperGroups).map(([type, typePapers]) => (
-                    <div key={type} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50/50">
+                    <div key={`${type}-${colorType ?? 'common'}`} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50/50">
                       <span className="w-20 text-[12px] font-medium text-slate-600 flex-shrink-0">{type}</span>
                       <div className="flex flex-wrap gap-1.5">
-                        {typePapers.map(renderPaperChip)}
+                        {typePapers.map(p => renderPaperChip(p, colorType))}
                       </div>
                     </div>
                   ));
@@ -1332,7 +1351,7 @@ export default function EditProductPage() {
                                   <span className="ml-1 font-normal opacity-70">({papers.length}개)</span>
                                 </div>
                                 <div className="divide-y">
-                                  {renderPaperTypeRows(papers)}
+                                  {renderPaperTypeRows(papers, ct)}
                                 </div>
                               </div>
                             ))
@@ -1344,7 +1363,7 @@ export default function EditProductPage() {
                                   <span className="ml-1 font-normal opacity-70">({papers.length}개)</span>
                                 </div>
                                 <div className="divide-y">
-                                  {renderPaperTypeRows(papers)}
+                                  {renderPaperTypeRows(papers, singleIndigoColor)}
                                 </div>
                               </div>
                             )
@@ -1361,9 +1380,11 @@ export default function EditProductPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    const allActive: Record<string, boolean> = {};
-                    (product.papers as any[]).forEach((p: any) => { allActive[p.id] = true; });
-                    setPaperActiveMap(allActive);
+                    const allTrue: Record<string, boolean> = {};
+                    (product.papers as any[]).forEach((p: any) => { allTrue[p.id] = true; });
+                    setPaperActiveMap(allTrue);
+                    setPaperActive4Map(allTrue);
+                    setPaperActive6Map({ ...allTrue });
                   }}
                 >
                   전체 선택
@@ -1373,9 +1394,11 @@ export default function EditProductPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    const allInactive: Record<string, boolean> = {};
-                    (product.papers as any[]).forEach((p: any) => { allInactive[p.id] = false; });
-                    setPaperActiveMap(allInactive);
+                    const allFalse: Record<string, boolean> = {};
+                    (product.papers as any[]).forEach((p: any) => { allFalse[p.id] = false; });
+                    setPaperActiveMap(allFalse);
+                    setPaperActive4Map(allFalse);
+                    setPaperActive6Map({ ...allFalse });
                   }}
                 >
                   전체 해제

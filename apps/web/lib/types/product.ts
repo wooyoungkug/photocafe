@@ -31,6 +31,8 @@ export interface ProductPaper {
   price: number;
   isDefault: boolean;
   isActive: boolean;
+  isActive4: boolean;
+  isActive6: boolean;
   sortOrder: number;
 }
 

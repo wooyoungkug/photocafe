@@ -545,6 +545,8 @@ export class ProductService {
           price: 0,
           isDefault: false,
           isActive: true,
+          isActive4: true,
+          isActive6: true,
           sortOrder: sortIdx++,
         },
       });
