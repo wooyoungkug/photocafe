@@ -415,6 +415,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
       )}
     >
       {/* 첫막장 분리 결과 표시 */}
+      {/* hidden
       {folder.hasCombinedCover && folder.splitCoverResults.length > 0 && (
         <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
           <div className="flex items-center gap-2 text-blue-700 text-sm font-medium mb-2">
@@ -439,8 +440,10 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
           ))}
         </div>
       )}
+      */}
 
       {/* 빈페이지 자동감지 결과 */}
+      {/* hidden
       {folder.autoBindingDetected && (folder.firstPageBlank || folder.lastPageBlank) && (
         <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
           <div className="flex items-center gap-2 text-green-700 text-sm font-medium">
@@ -453,6 +456,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
           </div>
         </div>
       )}
+      */}
 
       {/* CMYK 파일 경고 */}
       {(() => {

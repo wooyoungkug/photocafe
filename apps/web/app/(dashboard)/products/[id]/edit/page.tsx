@@ -289,7 +289,7 @@ export default function EditProductPage() {
   useEffect(() => {
     if (product && !isSyncDone.current) {
       isSyncDone.current = true;
-      syncPapers.mutateAsync(productId).then(() => {
+      syncPapers.mutateAsync({ productId }).then(() => {
         refetchProduct();
       }).catch(() => { /* 동기화 실패 시 무시 */ });
     }
@@ -1972,8 +1972,16 @@ export default function EditProductPage() {
             selectedOutputPrices={outputPriceSelections}
             productionGroupTree={productionGroupTree || []}
             selectedBindings={selectedBindings}
-            onSelect={(prices) => {
+            onSelect={async (prices) => {
+              // 출력방식 변경 감지: 이전과 새 선택에서 출력방식 집합 비교
+              const prevMethods = new Set(outputPriceSelections.map(s => s.outputMethod));
+              const newMethods = new Set(prices.map(s => s.outputMethod));
+              const methodsChanged =
+                [...prevMethods].some(m => !newMethods.has(m)) ||
+                [...newMethods].some(m => !prevMethods.has(m));
+
               setOutputPriceSelections(prices);
+
               // 잉크젯 출력 선택 시 해당 규격을 selectedSpecs에 자동 추가
               const inkjetSpecIds = prices
                 .filter(p => p.outputMethod === 'INKJET' && p.specificationId)
@@ -1990,6 +1998,18 @@ export default function EditProductPage() {
                   }
                 }
               }
+
+              // 출력방식 변경 시 용지 동기화 (추가/비활성화 처리)
+              if (methodsChanged) {
+                const activePrintMethods = [...newMethods].map(m => m.toLowerCase());
+                try {
+                  await syncPapers.mutateAsync({ productId, printMethods: activePrintMethods });
+                  await refetchProduct();
+                } catch {
+                  // 동기화 실패해도 다이얼로그는 닫음
+                }
+              }
+
               setOutputPriceDialogOpen(false);
             }}
             onCancel={() => setOutputPriceDialogOpen(false)}

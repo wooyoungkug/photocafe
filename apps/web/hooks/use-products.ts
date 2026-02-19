@@ -99,7 +99,8 @@ export function useSyncProductPapers() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (productId: string) => api.post(`/products/${productId}/sync-papers`),
+    mutationFn: ({ productId, printMethods }: { productId: string; printMethods?: string[] }) =>
+      api.post(`/products/${productId}/sync-papers`, { printMethods }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [PRODUCTS_KEY] });
     },

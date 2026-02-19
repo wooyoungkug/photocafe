@@ -198,8 +198,11 @@ export class ProductController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '개별 상품 용지 마스터 동기화' })
-  async syncPapers(@Param('id') id: string) {
-    return this.productService.syncProductPapers(id);
+  async syncPapers(
+    @Param('id') id: string,
+    @Body() body?: { printMethods?: string[] },
+  ) {
+    return this.productService.syncProductPapers(id, body?.printMethods);
   }
 
   // ==================== 규격 정리 ====================

@@ -458,8 +458,10 @@ export class ProductService {
    * - 이미 연결된 용지(paperId)는 건너뜀
    * - paperId 없는 기존 항목은 이름 매칭으로 연결
    * - 누락된 마스터 용지는 새 ProductPaper로 추가
+   * - 선택 해제된 출력방식의 용지는 비활성화, 선택된 출력방식의 용지는 재활성화
+   * @param requestedPrintMethods 외부에서 명시적으로 전달하는 출력방식 목록 (선택적)
    */
-  async syncProductPapers(productId: string) {
+  async syncProductPapers(productId: string, requestedPrintMethods?: string[]) {
     const product = await this.prisma.product.findUnique({
       where: { id: productId },
       include: { papers: true },
@@ -469,12 +471,16 @@ export class ProductService {
       throw new NotFoundException('상품을 찾을 수 없습니다');
     }
 
-    // 1. outputPriceSettings에서 출력방식 파악
-    const outputSettings = product.outputPriceSettings as any[];
-    const printMethods: string[] = [];
-    if (outputSettings && Array.isArray(outputSettings)) {
-      if (outputSettings.some((s: any) => s.outputMethod === 'INDIGO')) printMethods.push('indigo');
-      if (outputSettings.some((s: any) => s.outputMethod === 'INKJET')) printMethods.push('inkjet');
+    // 1. 출력방식 결정: 외부 파라미터 우선, 없으면 DB의 outputPriceSettings에서 파악
+    let printMethods: string[] = [];
+    if (requestedPrintMethods && requestedPrintMethods.length > 0) {
+      printMethods = requestedPrintMethods;
+    } else {
+      const outputSettings = product.outputPriceSettings as any[];
+      if (outputSettings && Array.isArray(outputSettings)) {
+        if (outputSettings.some((s: any) => s.outputMethod === 'INDIGO')) printMethods.push('indigo');
+        if (outputSettings.some((s: any) => s.outputMethod === 'INKJET')) printMethods.push('inkjet');
+      }
     }
 
     // 출력방식이 없으면 전체 용지 대상
@@ -555,12 +561,55 @@ export class ProductService {
       details.push({ paperId: mp.id, paperName: displayName, action: 'added' });
     }
 
+    // 4. 출력방식 변경에 따른 기존 용지 활성화/비활성화
+    // printMethods가 명시된 경우에만 실행 (출력방식 변경 시)
+    let deactivatedCount = 0;
+    let reactivatedCount = 0;
+    if (requestedPrintMethods && requestedPrintMethods.length > 0) {
+      // 최신 용지 목록 조회 (새로 추가된 용지 포함)
+      const latestPapers = await this.prisma.productPaper.findMany({
+        where: { productId },
+      });
+
+      for (const paper of latestPapers) {
+        if (!paper.printMethod) continue;
+
+        const isMethodSelected = printMethods.includes(paper.printMethod);
+
+        if (!isMethodSelected) {
+          // 선택 해제된 출력방식의 용지 → 비활성화
+          await this.prisma.productPaper.update({
+            where: { id: paper.id },
+            data: {
+              isActive: false,
+              isActive4: paper.printMethod === 'indigo' ? false : paper.isActive4,
+              isActive6: paper.printMethod === 'indigo' ? false : paper.isActive6,
+            },
+          });
+          deactivatedCount++;
+        } else {
+          // 선택된 출력방식의 용지 → 재활성화
+          await this.prisma.productPaper.update({
+            where: { id: paper.id },
+            data: {
+              isActive: true,
+              isActive4: paper.printMethod === 'indigo' ? true : paper.isActive4,
+              isActive6: paper.printMethod === 'indigo' ? true : paper.isActive6,
+            },
+          });
+          reactivatedCount++;
+        }
+      }
+    }
+
     return {
       productId,
       productName: product.productName,
       existingCount: existingPapers.length,
       addedCount,
       linkedCount,
+      deactivatedCount,
+      reactivatedCount,
       totalCount: existingPapers.length + addedCount,
       details,
     };
