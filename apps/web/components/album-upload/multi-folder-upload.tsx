@@ -1071,6 +1071,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         uploadedAt: Date.now(),
         coverSourceType: defaultCoverSourceType ?? (hasDesignCoverFiles(sortedFiles) ? 'design' : null),
         coverAutoDetected: hasDesignCoverFiles(sortedFiles),
+        specFoundInDB: false, // validateFolder에서 실제 값으로 덮어씌워짐
       };
 
       return folder;
@@ -1386,6 +1387,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
           uploadedAt: Date.now(),
           coverSourceType: defaultCoverSourceType ?? (hasDesignCoverFiles(sortedFiles) ? 'design' : null),
           coverAutoDetected: hasDesignCoverFiles(sortedFiles),
+          specFoundInDB: false, // validateFolder에서 실제 값으로 덮어씌워짐
         };
 
         const result = addFolder(folder);
@@ -1633,6 +1635,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         uploadedAt: Date.now(),
         coverSourceType: defaultCoverSourceType ?? (hasDesignCoverFiles(sortedFiles) ? 'design' : null),
         coverAutoDetected: hasDesignCoverFiles(sortedFiles),
+        specFoundInDB: false, // validateFolder에서 실제 값으로 덮어씌워짐
       };
 
       const result = addFolder(folder);

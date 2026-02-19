@@ -275,6 +275,9 @@ export interface UploadedFolder {
   // 추가 주문
   additionalOrders: AdditionalOrder[];
 
+  // DB 표준 규격 매칭 여부 (false = DB에 해당 규격 미등록)
+  specFoundInDB: boolean;
+
   // 자동감지 여부
   isAutoDetected?: boolean;
 
@@ -815,11 +818,13 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
         const isLandscape = rawAlbumWidth >= rawAlbumHeight; // 가로형 여부
         const availableSizes = findAvailableSizes(specs, albumRatio, isLandscape);
 
-        // 앨범 크기를 가장 가까운 표준 규격으로 스냅
-        const albumWidth = closestSize && Math.abs(rawAlbumWidth - closestSize.width) < 0.5 && Math.abs(rawAlbumHeight - closestSize.height) < 0.5
-          ? closestSize.width : rawAlbumWidth;
-        const albumHeight = closestSize && Math.abs(rawAlbumWidth - closestSize.width) < 0.5 && Math.abs(rawAlbumHeight - closestSize.height) < 0.5
-          ? closestSize.height : rawAlbumHeight;
+        // 앨범 크기를 가장 가까운 표준 규격으로 스냅 (오차 0.5 이내만 스냅)
+        const layoutSnapDiff = closestSize
+          ? Math.abs(rawAlbumWidth - closestSize.width) + Math.abs(rawAlbumHeight - closestSize.height)
+          : Infinity;
+        const isLayoutSnapped = layoutSnapDiff < 0.5;
+        const albumWidth = isLayoutSnapped ? closestSize!.width : rawAlbumWidth;
+        const albumHeight = isLayoutSnapped ? closestSize!.height : rawAlbumHeight;
 
         // 페이지 수 재계산
         const fileCount = f.files.length;
@@ -832,11 +837,12 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
           albumWidth,
           albumHeight,
           albumRatio,
-          albumLabel: closestSize ? closestSize.label : getSpecLabel(specs, albumWidth, albumHeight),
-          specWidth: closestSize?.width ?? albumWidth,
-          specHeight: closestSize?.height ?? albumHeight,
-          specRatio: closestSize ? calculateNormalizedRatio(closestSize.width, closestSize.height) : albumRatio,
-          specLabel: closestSize?.label ?? getSpecLabel(specs, albumWidth, albumHeight),
+          albumLabel: isLayoutSnapped ? closestSize!.label : getSpecLabel(specs, albumWidth, albumHeight),
+          specWidth: isLayoutSnapped ? closestSize!.width : albumWidth,
+          specHeight: isLayoutSnapped ? closestSize!.height : albumHeight,
+          specRatio: isLayoutSnapped ? calculateNormalizedRatio(closestSize!.width, closestSize!.height) : albumRatio,
+          specLabel: isLayoutSnapped ? closestSize!.label : getSpecLabel(specs, albumWidth, albumHeight),
+          specFoundInDB: isLayoutSnapped,
           availableSizes,
         };
       }),
@@ -1019,10 +1025,13 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
     const closestSize = findClosestStandardSize(specs, representativeWidth, representativeHeight);
 
     // 앨범 크기를 가장 가까운 표준 규격으로 스냅 (소수점 오차 보정)
-    const albumWidth = closestSize && Math.abs(representativeWidth - closestSize.width) < 0.5 && Math.abs(representativeHeight - closestSize.height) < 0.5
-      ? closestSize.width : representativeWidth;
-    const albumHeight = closestSize && Math.abs(representativeWidth - closestSize.width) < 0.5 && Math.abs(representativeHeight - closestSize.height) < 0.5
-      ? closestSize.height : representativeHeight;
+    // 스냅 조건: 가로+세로 차이 합이 0.5 이내일 때만 DB 규격으로 스냅
+    const snapDiff = closestSize
+      ? Math.abs(representativeWidth - closestSize.width) + Math.abs(representativeHeight - closestSize.height)
+      : Infinity;
+    const isSnapped = snapDiff < 0.5; // DB 규격에 정확히 매칭됨
+    const albumWidth = isSnapped ? closestSize!.width : representativeWidth;
+    const albumHeight = isSnapped ? closestSize!.height : representativeHeight;
     const albumRatio = calculateNormalizedRatio(albumWidth, albumHeight);
 
     // 3. 파일별 대표규격 대비 검증
@@ -1105,11 +1114,14 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
       albumWidth,
       albumHeight,
       albumRatio,
-      albumLabel: closestSize ? closestSize.label : getSpecLabel(specs, albumWidth, albumHeight),
-      specWidth: closestSize?.width ?? albumWidth,
-      specHeight: closestSize?.height ?? albumHeight,
-      specRatio: closestSize ? calculateNormalizedRatio(closestSize.width, closestSize.height) : albumRatio,
-      specLabel: closestSize?.label ?? getSpecLabel(specs, albumWidth, albumHeight),
+      // DB 규격에 스냅된 경우만 DB label 사용, 미스냅 시 실제 크기 label 생성
+      albumLabel: isSnapped ? closestSize!.label : getSpecLabel(specs, albumWidth, albumHeight),
+      specWidth: isSnapped ? closestSize!.width : albumWidth,
+      specHeight: isSnapped ? closestSize!.height : albumHeight,
+      specRatio: isSnapped ? calculateNormalizedRatio(closestSize!.width, closestSize!.height) : albumRatio,
+      specLabel: isSnapped ? closestSize!.label : getSpecLabel(specs, albumWidth, albumHeight),
+      // DB 표준 규격에 매칭됐는지 여부 (false면 DB에 해당 규격 미등록)
+      specFoundInDB: isSnapped,
       // 정확히 일치하는 경우만 자동 선택 가능
       isSelected: false,
       isApproved: validationStatus === 'EXACT_MATCH',

@@ -189,13 +189,13 @@ export function OptionFinishing({
                 className={cn(
                   'flex items-center gap-1.5 px-3 py-1.5 rounded border text-[10pt] transition-colors',
                   isSelected
-                    ? 'border-primary bg-primary/10 text-primary font-medium'
+                    ? 'border-primary bg-transparent text-gray-900 font-medium'
                     : 'border-gray-200 bg-white text-gray-700 hover:border-gray-400',
                 )}
               >
                 <span>{item.name}</span>
                 {price > 0 && (
-                  <span className={cn('text-[9pt]', isSelected ? 'text-primary/80' : 'text-gray-400')}>
+                  <span className={cn('text-[9pt]', isSelected ? 'text-gray-600' : 'text-gray-400')}>
                     +{price.toLocaleString()}원
                   </span>
                 )}
@@ -217,7 +217,7 @@ export function OptionFinishing({
               className={cn(
                 'flex items-center gap-1.5 px-3 py-1.5 rounded border text-[10pt] transition-colors',
                 selectedInGroup
-                  ? 'border-primary bg-primary/10 text-primary font-medium'
+                  ? 'border-primary bg-transparent text-gray-900 font-medium'
                   : isExpanded
                     ? 'border-gray-400 bg-gray-50 text-gray-700'
                     : 'border-gray-200 bg-white text-gray-700 hover:border-gray-400',
@@ -287,7 +287,7 @@ export function OptionFinishing({
                       className={cn(
                         'w-full flex items-center justify-between px-3 py-2.5 rounded-md border transition-colors text-left',
                         isSelected
-                          ? 'border-primary bg-primary/10 text-primary'
+                          ? 'border-primary bg-transparent text-gray-900'
                           : 'border-transparent bg-white text-gray-700 hover:border-gray-200 hover:bg-white',
                       )}
                     >
@@ -311,7 +311,7 @@ export function OptionFinishing({
                       {price > 0 && (
                         <span className={cn(
                           'text-[9pt] flex-shrink-0',
-                          isSelected ? 'text-primary/80' : 'text-gray-400',
+                          isSelected ? 'text-gray-600' : 'text-gray-400',
                         )}>
                           +{price.toLocaleString()}원
                         </span>
@@ -333,7 +333,7 @@ export function OptionFinishing({
                     className={cn(
                       'w-full flex items-center justify-between px-3 py-2.5 rounded-md border transition-colors text-left',
                       isSelected
-                        ? 'border-primary bg-primary/10 text-primary'
+                        ? 'border-primary bg-transparent text-gray-900'
                         : 'border-transparent bg-white text-gray-700 hover:border-gray-200 hover:bg-white',
                     )}
                   >
@@ -357,7 +357,7 @@ export function OptionFinishing({
                     {price > 0 && (
                       <span className={cn(
                         'text-[9pt] flex-shrink-0',
-                        isSelected ? 'text-primary/80' : 'text-gray-400',
+                        isSelected ? 'text-gray-600' : 'text-gray-400',
                       )}>
                         +{price.toLocaleString()}원
                       </span>

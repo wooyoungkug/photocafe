@@ -11,13 +11,6 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -392,9 +385,11 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     ? STATUS_CONFIG.EXACT_MATCH
     : config;
 
-  const canSelect =
+  const hasValidStatus =
     folder.validationStatus === 'EXACT_MATCH' ||
     (folder.validationStatus === 'RATIO_MATCH' && folder.isApproved);
+
+  const canSelect = hasValidStatus && folder.specFoundInDB !== false;
 
   // 가격 계산
   const folderPrice = useMemo(() => calculateUploadedFolderPrice(folder), [folder]);
@@ -549,12 +544,6 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
               const aspectRatio = file.widthPx > 0 && file.heightPx > 0
                 ? (file.heightPx / file.widthPx) * 100
                 : 133;
-              const fileSizeStr = (() => {
-                const bytes = file.fileSize;
-                if (bytes < 1024) return `${bytes}B`;
-                if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
-                return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
-              })();
               return (
                 <div key={file.id}
                     className={cn(
@@ -649,27 +638,54 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                       file.status === 'RATIO_MISMATCH' ? 'bg-red-50 border-red-300' : 'bg-white border-gray-200'
                     )}>
                       <div className="truncate font-medium" title={file.newFileName || file.fileName}>{file.newFileName || file.fileName}</div>
-                      <div className="text-gray-500 flex items-center gap-0.5 min-w-0">
-                        <span className="truncate shrink">{fileSizeStr} | {file.widthInch}×{file.heightInch}" | {file.dpi}dpi</span>
-                        {file.colorSpace && (
+                      {folder.pageLayout === 'single' ? (
+                        <>
+                          <div className="text-gray-500 truncate">{file.widthInch}×{file.heightInch}"</div>
+                          <div className="text-gray-500 flex items-center gap-0.5 min-w-0">
+                            <span className="shrink-0">{file.dpi}dpi</span>
+                            {file.colorSpace && (
+                              <span className={cn(
+                                'inline-block px-1 py-0 rounded text-[8px] font-medium',
+                                file.colorSpace === 'CMYK' ? 'bg-red-100 text-red-700 border border-red-300' :
+                                  file.colorSpace === 'sRGB' || file.colorSpace === 'RGB' ? 'bg-blue-100 text-blue-700' :
+                                    'bg-gray-100 text-gray-600'
+                              )}>
+                                {file.colorSpace}
+                              </span>
+                            )}
+                            <span className={cn(
+                              'inline-block px-1 py-0 rounded text-[8px] font-medium ml-auto',
+                              file.status === 'EXACT' ? 'bg-green-100 text-green-700' :
+                                file.status === 'RATIO_MATCH' ? 'bg-yellow-100 text-yellow-700' :
+                                  'bg-red-100 text-red-700'
+                            )}>
+                              {file.status === 'EXACT' ? t('exact') : file.status === 'RATIO_MATCH' ? t('ratioMatch') : t('mismatch')}
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-gray-500 flex items-center gap-0.5 min-w-0">
+                          <span className="truncate shrink">{file.widthInch}×{file.heightInch}" | {file.dpi}dpi</span>
+                          {file.colorSpace && (
+                            <span className={cn(
+                              'inline-block px-1 py-0 rounded text-[8px] font-medium',
+                              file.colorSpace === 'CMYK' ? 'bg-red-100 text-red-700 border border-red-300' :
+                                file.colorSpace === 'sRGB' || file.colorSpace === 'RGB' ? 'bg-blue-100 text-blue-700' :
+                                  'bg-gray-100 text-gray-600'
+                            )}>
+                              {file.colorSpace}
+                            </span>
+                          )}
                           <span className={cn(
-                            'inline-block px-1 py-0 rounded text-[8px] font-medium',
-                            file.colorSpace === 'CMYK' ? 'bg-red-100 text-red-700 border border-red-300' :
-                              file.colorSpace === 'sRGB' || file.colorSpace === 'RGB' ? 'bg-blue-100 text-blue-700' :
-                                'bg-gray-100 text-gray-600'
+                            'inline-block px-1 py-0 rounded text-[8px] font-medium ml-auto',
+                            file.status === 'EXACT' ? 'bg-green-100 text-green-700' :
+                              file.status === 'RATIO_MATCH' ? 'bg-yellow-100 text-yellow-700' :
+                                'bg-red-100 text-red-700'
                           )}>
-                            {file.colorSpace}
+                            {file.status === 'EXACT' ? t('exact') : file.status === 'RATIO_MATCH' ? t('ratioMatch') : t('mismatch')}
                           </span>
-                        )}
-                        <span className={cn(
-                          'inline-block px-1 py-0 rounded text-[8px] font-medium ml-auto',
-                          file.status === 'EXACT' ? 'bg-green-100 text-green-700' :
-                            file.status === 'RATIO_MATCH' ? 'bg-yellow-100 text-yellow-700' :
-                              'bg-red-100 text-red-700'
-                        )}>
-                          {file.status === 'EXACT' ? t('exact') : file.status === 'RATIO_MATCH' ? t('ratioMatch') : t('mismatch')}
-                        </span>
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </div>
               );
@@ -913,7 +929,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
       {/* 헤더 (체크박스 + 제목 + 가격) */}
       <div className="flex items-start gap-3 mt-3">
         {/* 체크박스 */}
-        <div className="pt-1">
+        <div className="pt-1" title={!canSelect && folder.specFoundInDB === false ? 'DB에 등록된 규격이 없어 주문할 수 없습니다' : undefined}>
           <Checkbox
             checked={folder.isSelected}
             disabled={!canSelect}
@@ -950,7 +966,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
               </div>
             ) : (
               <>
-                <span className="font-medium truncate">{folder.orderTitle}</span>
+                <span className="font-normal text-black text-xs truncate">{folder.orderTitle}</span>
                 <Button
                   size="icon"
                   variant="ghost"
@@ -962,8 +978,14 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                 >
                   <Edit2 className="h-3 w-3 text-gray-400" />
                 </Button>
-                {folder.foilName && (
+                {(folder.selectedFabricName || folder.foilName) && (
                   <div className="flex items-center gap-1 text-[10px] text-gray-500">
+                    {folder.selectedFabricName && (
+                      <span className="bg-pink-50 text-pink-700 px-1.5 py-0.5 rounded border border-pink-200 flex items-center gap-1">
+                        <Palette className="w-2.5 h-2.5" />
+                        {folder.selectedFabricName}
+                      </span>
+                    )}
                     {folder.foilName && (
                       <span className="bg-violet-50 text-violet-700 px-1.5 py-0.5 rounded border border-violet-200">{folder.foilName}</span>
                     )}
@@ -981,35 +1003,40 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
 
           </div>
           {/* 규격 · 페이지 · 부수 (제목 아래) */}
-          {canSelect && (
+          {hasValidStatus && (
             <div className="flex items-center gap-2 flex-wrap mt-1">
-              <span className="text-[10px] text-gray-400">{t('specLabelShort')}</span>
-              <span className="text-xs font-medium text-blue-600">{folder.albumLabel}</span>
+              <span className="text-xs text-black">{t('specLabelShort')}</span>
+              <span className="text-xs text-black">{folder.albumLabel}</span>
+              {!folder.specFoundInDB && (
+                <span
+                  className="text-[9px] bg-orange-100 text-orange-700 border border-orange-300 px-1 py-0.5 rounded cursor-help"
+                  title="이 규격은 DB에 등록되지 않았습니다. 관리자 > 규격관리에서 해당 규격을 추가하거나, 아래 유사 규격을 선택하세요."
+                >
+                  ⚠ DB미등록
+                </span>
+              )}
               <span className="text-gray-300">|</span>
-              <span className="text-[10px] text-gray-400">{t('pageLabelShort')}</span>
-              <span className="text-xs font-medium text-blue-600">{folder.pageCount}p</span>
+              <span className="text-xs text-black">{t('pageLabelShort')}</span>
+              <span className="text-xs text-black">{folder.pageCount}p</span>
               <span className="text-gray-300">|</span>
-              <span className="text-sm">{t('copiesLabel')}</span>
-              <Select
-                value={folder.quantity.toString()}
-                onValueChange={(val) => setFolderQuantity(folder.id, parseInt(val))}
-              >
-                <SelectTrigger className="w-20 h-8 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[1, 2, 3, 4, 5, 10, 20, 30, 50, 100].map((num) => (
-                    <SelectItem key={num} value={num.toString()}>{t('copies', { count: num })}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <span className="text-xs text-black">{t('copiesLabel')}</span>
+              <input
+                type="number"
+                min={1}
+                max={999}
+                value={folder.quantity}
+                aria-label={t('copiesLabel')}
+                onChange={(e) => setFolderQuantity(folder.id, Math.max(1, parseInt(e.target.value) || 1))}
+                disabled={!canSelect}
+                className="w-16 h-8 text-xs text-black text-center border rounded px-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              />
             </div>
           )}
         </div>
 
         {/* 가격 표시 */}
         <div className="text-right flex-shrink-0">
-          <div className="text-lg font-bold text-primary">
+          <div className="text-sm font-bold text-primary">
             {t('priceWon', { price: Math.round(folderPrice.totalPrice).toLocaleString() })}
           </div>
           <div className="text-[10px] text-gray-400">
@@ -1045,7 +1072,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
       </div>
 
       {/* 정상/승인 완료 시 - 규격 옵션 및 수량 */}
-      {canSelect && (
+      {(canSelect || (hasValidStatus && (folder.availableSizes?.length ?? 0) > 0)) && (
         <div className="mt-3 pt-3 border-t">
           {/* 추가 주문 버튼 */}
           <div className="flex items-center justify-end">
@@ -1086,12 +1113,6 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
           {folder.additionalOrders.length > 0 && (
             <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
               <div className="flex items-center gap-2 mb-2">
-                <Checkbox
-                  checked={folder.isSelected}
-                  disabled={!canSelect}
-                  onCheckedChange={(checked) => setFolderSelected(folder.id, !!checked)}
-                  className="h-4 w-4 data-[state=checked]:bg-blue-600"
-                />
                 <p className="text-xs font-medium text-blue-700">{t('additionalOrderDescription')}</p>
                 <Badge variant="outline" className="text-[10px] border-blue-300 text-blue-600 ml-auto">
                   1 JOB · {1 + folder.additionalOrders.length}{t('specLabelShort')}
@@ -1112,27 +1133,27 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                   );
                   return (
                     <div key={order.id} className="flex items-center gap-2 bg-white rounded border border-blue-100 px-3 py-2">
-                      <Checkbox
-                        checked={folder.isSelected}
-                        disabled={!canSelect}
-                        onCheckedChange={(checked) => setFolderSelected(folder.id, !!checked)}
-                        className="h-4 w-4 data-[state=checked]:bg-blue-600 flex-shrink-0"
-                      />
                       <div className="flex-1 min-w-0">
                         {/* 폴더명 + 가격 */}
                         <div className="flex items-center justify-between mb-1.5">
                           <div className="flex items-center gap-1.5 flex-wrap">
+                            <Checkbox
+                              checked={folder.isSelected}
+                              disabled={!canSelect}
+                              onCheckedChange={(checked) => setFolderSelected(folder.id, !!checked)}
+                              className="h-4 w-4 data-[state=checked]:bg-blue-600 flex-shrink-0"
+                            />
                             <Folder className="h-3 w-3 text-orange-500" />
                             <span className="text-[10px] font-bold text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded">{t('additionalSetOrder')}</span>
-                            <span className="text-xs font-medium text-gray-700 truncate">{folder.orderTitle}</span>
+                            <span className="text-xs font-normal text-black truncate">{folder.orderTitle}</span>
                             <span className="text-gray-300">|</span>
-                            <span className="text-[10px] text-gray-500">
+                            <span className="text-xs text-black">
                               {folder.pageLayout === 'single' ? t('single') : t('spread')}
                             </span>
                             {folder.pageLayout === 'spread' && folder.bindingDirection && (
                               <>
                                 <span className="text-gray-300">|</span>
-                                <span className="text-[10px] text-gray-500">
+                                <span className="text-xs text-black">
                                   {folder.bindingDirection === 'LEFT_START_RIGHT_END' ? t('bindingLeftRight') :
                                     folder.bindingDirection === 'LEFT_START_LEFT_END' ? t('bindingLeftLeft') :
                                       folder.bindingDirection === 'RIGHT_START_LEFT_END' ? t('bindingRightLeft') :
@@ -1167,7 +1188,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                         {/* 규격 · 페이지 · 부수 */}
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-[10px] text-gray-400">{t('specLabelShort')}</span>
+                            <span className="text-xs text-black">{t('specLabelShort')}</span>
                             <select
                               value={`${order.albumWidth}x${order.albumHeight}`}
                               onChange={(e) => {
@@ -1179,7 +1200,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                                   updateAdditionalOrderSpec(folder.id, order.id, selectedSize);
                                 }
                               }}
-                              className="text-xs border rounded px-2 py-0.5 bg-white font-medium"
+                              className="text-xs text-black border rounded px-2 py-0.5 bg-white font-normal"
                               aria-label={t('additionalOrderSpec')}
                             >
                               {selectableSizes.map((size) => (
@@ -1189,25 +1210,21 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                               ))}
                             </select>
                             <span className="text-gray-300">|</span>
-                            <span className="text-[10px] text-gray-400">{t('pageLabelShort')}</span>
-                            <span className="text-xs font-medium text-blue-600">{folder.pageCount}p</span>
+                            <span className="text-xs text-black">{t('pageLabelShort')}</span>
+                            <span className="text-xs text-black">{folder.pageCount}p</span>
                             <span className="text-gray-300">|</span>
-                            <span className="text-[10px] text-gray-400">{t('copiesLabelShort')}</span>
-                            <Select
-                              value={order.quantity.toString()}
-                              onValueChange={(val) => updateAdditionalOrderQuantity(folder.id, order.id, parseInt(val))}
-                            >
-                              <SelectTrigger className="w-18 h-7 text-xs">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {[1, 2, 3, 4, 5, 10, 20, 30, 50, 100].map((num) => (
-                                  <SelectItem key={num} value={num.toString()}>{t('copies', { count: num })}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            {/* 같은 비율 앨범규격 */}
-                            {selectableSizes.length > 1 && (
+                            <span className="text-xs text-black">{t('copiesLabelShort')}</span>
+                            <input
+                              type="number"
+                              min={1}
+                              max={999}
+                              value={order.quantity}
+                              aria-label={t('copiesLabelShort')}
+                              onChange={(e) => updateAdditionalOrderQuantity(folder.id, order.id, Math.max(1, parseInt(e.target.value) || 1))}
+                              className="w-16 h-7 text-xs text-black text-center border rounded px-2"
+                            />
+                            {/* 같은 비율 앨범규격 - hidden (드롭다운과 중복) */}
+                            {false && selectableSizes.length > 1 && (
                               <div className="flex items-center gap-1 ml-2">
                                 {selectableSizes.map((size) => (
                                   <button

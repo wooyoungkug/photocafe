@@ -71,7 +71,7 @@ export function OptionPaper({
     <div className="flex gap-2 flex-wrap min-w-0">
         {showMethodSelector && (
           <Select value={methodValue} onValueChange={handleMethodChange}>
-            <SelectTrigger className="w-fit flex-shrink-0 h-9 text-[10pt] border-primary bg-primary/10 text-primary">
+            <SelectTrigger className="w-fit flex-shrink-0 h-9 text-[10pt] border-primary bg-transparent text-gray-900">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -100,7 +100,7 @@ export function OptionPaper({
             <SelectTrigger className={cn(
               'w-fit h-9 text-[10pt]',
               selectedPaperId
-                ? 'border-primary bg-primary/10 text-primary'
+                ? 'border-primary bg-transparent text-gray-900'
                 : '',
             )}>
               <SelectValue placeholder="용지를 선택하세요" />

@@ -75,7 +75,7 @@ export function OptionCopperPlate({
     'focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary',
     'appearance-none cursor-pointer min-w-0',
   );
-  const selectedClass = 'border-primary bg-primary/10 text-primary';
+  const selectedClass = 'border-primary bg-transparent text-gray-900';
   const unselectedClass = 'border-gray-200 bg-white text-gray-700';
 
   return (
