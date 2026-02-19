@@ -649,8 +649,8 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                       file.status === 'RATIO_MISMATCH' ? 'bg-red-50 border-red-300' : 'bg-white border-gray-200'
                     )}>
                       <div className="truncate font-medium" title={file.newFileName || file.fileName}>{file.newFileName || file.fileName}</div>
-                      <div className="text-gray-500 flex items-center gap-0.5">
-                        <span>{fileSizeStr} | {file.widthInch}×{file.heightInch}" | {file.dpi}dpi</span>
+                      <div className="text-gray-500 flex items-center gap-0.5 min-w-0">
+                        <span className="truncate shrink">{fileSizeStr} | {file.widthInch}×{file.heightInch}" | {file.dpi}dpi</span>
                         {file.colorSpace && (
                           <span className={cn(
                             'inline-block px-1 py-0 rounded text-[8px] font-medium',
