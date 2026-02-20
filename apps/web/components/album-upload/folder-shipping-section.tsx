@@ -36,7 +36,7 @@ interface FolderShippingSectionProps {
   clientInfo: OrdererShippingInfo | null;
   pricingMap: Record<string, DeliveryPricing>;
   onChange: (shipping: FolderShippingInfo) => void;
-  itemTotal?: number;
+  studioTotal?: number;
 }
 
 export function FolderShippingSection({
@@ -45,7 +45,7 @@ export function FolderShippingSection({
   clientInfo,
   pricingMap,
   onChange,
-  itemTotal,
+  studioTotal,
 }: FolderShippingSectionProps) {
   // 로컬 상태
   const [senderType, setSenderType] = useState<SenderType>(shippingInfo?.senderType || 'company');
