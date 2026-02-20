@@ -15,6 +15,7 @@ interface CartOrderSummaryProps {
   shippingCompleteCount: number;
   selectedTotal: number;
   totalShippingFee: number;
+  sameDayRefund?: number;
   isAuthenticated: boolean;
   hasUploadInProgress?: boolean;
   hasUploadFailed?: boolean;
@@ -28,6 +29,7 @@ export function CartOrderSummary({
   shippingCompleteCount,
   selectedTotal,
   totalShippingFee,
+  sameDayRefund = 0,
   isAuthenticated,
   hasUploadInProgress,
   hasUploadFailed,
@@ -86,25 +88,42 @@ export function CartOrderSummary({
               <span className="font-medium">{Math.round(selectedTotal).toLocaleString()}원</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">{t('shippingFee')}</span>
-              <span className={cn('font-medium', totalShippingFee === 0 && 'text-green-600')}>
-                {totalShippingFee === 0 ? t('free') : `+${Math.round(totalShippingFee).toLocaleString()}원`}
+              <span className="text-gray-500">
+                {sameDayRefund > 0 ? '합배송 환불' : t('shippingFee')}
               </span>
+              {sameDayRefund > 0 ? (
+                <span className="font-medium text-green-600">
+                  -{Math.round(sameDayRefund).toLocaleString()}원
+                </span>
+              ) : (
+                <span className={cn('font-medium', totalShippingFee === 0 && 'text-green-600')}>
+                  {totalShippingFee === 0 ? t('free') : `+${Math.round(totalShippingFee).toLocaleString()}원`}
+                </span>
+              )}
             </div>
           </div>
 
           <Separator />
 
           {/* Total */}
-          <div className="flex justify-between items-baseline">
-            <span className="text-base font-semibold">{t('totalPayment')}</span>
-            <div className="text-right">
-              <span className="text-2xl font-bold text-primary">
-                {Math.round(selectedTotal + totalShippingFee).toLocaleString()}
-              </span>
-              <span className="text-sm text-gray-500 ml-0.5">원</span>
-            </div>
-          </div>
+          {(() => {
+            const grandTotal = Math.round(selectedTotal + totalShippingFee - sameDayRefund);
+            return (
+              <div className="flex justify-between items-baseline">
+                <span className="text-base font-semibold">
+                  {grandTotal < 0 ? '환불 예정 금액' : t('totalPayment')}
+                </span>
+                <div className="text-right">
+                  <span className={cn('text-2xl font-bold', grandTotal < 0 ? 'text-green-600' : 'text-primary')}>
+                    {grandTotal < 0
+                      ? `-${Math.abs(grandTotal).toLocaleString()}`
+                      : grandTotal.toLocaleString()}
+                  </span>
+                  <span className="text-sm text-gray-500 ml-0.5">원</span>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Warning for incomplete shipping */}
           {incompleteCount > 0 && (

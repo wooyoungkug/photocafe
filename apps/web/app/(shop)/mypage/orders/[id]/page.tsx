@@ -118,6 +118,7 @@ interface OrderDetail {
   productPrice?: number;
   tax?: number;
   shippingFee?: number;
+  adjustmentAmount?: number;
   customerMemo?: string;
   productMemo?: string;
   client: {
@@ -163,6 +164,12 @@ interface OrderDetail {
     retentionDeadline?: string;
     isExpired: boolean;
   };
+  processHistory?: {
+    id: string;
+    processType: string;
+    note?: string;
+    processedAt: string;
+  }[];
 }
 
 function formatFileSize(bytes?: number): string {
@@ -329,6 +336,11 @@ export default function OrderDetailPage() {
   const productAmount = order.productPrice != null ? Number(order.productPrice) : order.items.reduce((sum, item) => sum + Number(item.totalPrice), 0);
   const taxAmount = order.tax != null ? Number(order.tax) : 0;
   const shippingFeeAmount = order.shippingFee != null ? Number(order.shippingFee) : 0;
+  const adjustmentAmount = order.adjustmentAmount != null ? Number(order.adjustmentAmount) : 0;
+  // DB에 저장된 finalAmount를 최종 결제금액으로 직접 사용 (adjustmentAmount는 양수=할인)
+  const displayTotal = order.finalAmount != null
+    ? Number(order.finalAmount)
+    : productAmount + taxAmount + shippingFeeAmount - adjustmentAmount;
   const DELIVERY_METHOD_LABEL: Record<string, string> = {
     parcel: '택배',
     motorcycle: '오토바이퀵',
@@ -763,11 +775,25 @@ export default function OrderDetailPage() {
                     <span>{shippingFeeAmount.toLocaleString()}원</span>
                   </div>
                 )}
+                {adjustmentAmount !== 0 && (
+                  <div className={`flex justify-between text-sm ${adjustmentAmount > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <div>
+                      <span>조정 금액</span>
+                      {(() => {
+                        const note = order.processHistory?.find(h => h.processType === 'admin_adjustment')?.note;
+                        return note ? (
+                          <p className="text-xs text-gray-400 mt-0.5">{note}</p>
+                        ) : null;
+                      })()}
+                    </div>
+                    <span>{adjustmentAmount > 0 ? '-' : '+'}{Math.abs(adjustmentAmount).toLocaleString()}원</span>
+                  </div>
+                )}
                 <Separator />
                 <div className="flex justify-between text-lg font-normal">
                   <span>총 결제금액</span>
                   <span className="text-primary">
-                    {order.finalAmount.toLocaleString()}원
+                    {displayTotal.toLocaleString()}원
                   </span>
                 </div>
               </CardContent>

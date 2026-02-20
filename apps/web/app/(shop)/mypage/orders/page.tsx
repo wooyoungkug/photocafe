@@ -3,7 +3,6 @@
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useState, useMemo } from 'react';
-import Image from 'next/image';
 import {
   Package,
   Clock,
@@ -11,13 +10,10 @@ import {
   XCircle,
   ChevronRight,
   ChevronLeft,
-  Eye,
   FileText,
   ClipboardCheck,
   Printer,
   PackageCheck,
-  ImageIcon,
-  Receipt,
   Search,
   CalendarIcon,
   Ban,
@@ -50,7 +46,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ProcessHistoryDialog } from '@/components/order/process-history-dialog';
 import { api } from '@/lib/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { format, subDays, subMonths, subYears, startOfDay, endOfDay } from 'date-fns';
+import { format, subDays, subMonths, subYears } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
@@ -90,6 +86,7 @@ interface OrderItem {
   id: string;
   productionNumber: string;
   productName: string;
+  folderName?: string;
   size: string;
   pages: number;
   printMethod: string;
@@ -143,9 +140,6 @@ export default function MyOrdersPage() {
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
-
-  // 썸네일 미리보기
-  const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null);
 
   // 공정 이력 다이얼로그
   const [historyOrderId, setHistoryOrderId] = useState<string | null>(null);
@@ -469,14 +463,12 @@ export default function MyOrdersPage() {
                         aria-label="전체 선택"
                       />
                     </TableHead>
-                    <TableHead className="text-center w-[120px] text-xs">주문일<br />(주문번호)</TableHead>
-                    <TableHead className="w-[50px] text-center text-xs">썸네일</TableHead>
+                    <TableHead className="text-center w-[150px] text-xs">주문일<br />(주문번호)</TableHead>
                     <TableHead className="text-xs">상품명 / 주문제목 / 재질 및 규격</TableHead>
                     <TableHead className="text-center w-[70px] text-xs">페이지<br />/ 부수</TableHead>
                     <TableHead className="text-center w-[65px] text-xs">용량</TableHead>
-                    <TableHead className="text-right w-[90px] text-xs">주문금액</TableHead>
-                    <TableHead className="text-center w-[70px] text-xs">진행상황</TableHead>
-                    <TableHead className="text-center w-[90px] text-xs">확인/취소</TableHead>
+                    <TableHead className="text-right w-[100px] text-xs">주문금액</TableHead>
+                    <TableHead className="text-center w-[100px] text-xs">진행상황</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -515,7 +507,9 @@ export default function MyOrdersPage() {
                           <TableCell className="text-center align-top pt-3" rowSpan={items.length}>
                             <div className="space-y-1">
                               <div className="text-xs text-muted-foreground">
-                                {format(new Date(order.orderedAt), 'yyyy-MM-dd', { locale: ko })}
+                                  {format(new Date(order.orderedAt), 'yyyy-MM-dd', { locale: ko })}
+                                <br />
+                                {format(new Date(order.orderedAt), 'HH:mm', { locale: ko })}
                               </div>
                               <Link href={`/mypage/orders/${order.id}`} className="text-xs text-primary hover:underline">
                                 {order.orderNumber}
@@ -525,27 +519,13 @@ export default function MyOrdersPage() {
                           </TableCell>
                         )}
 
-                        <TableCell className="text-center">
-                          <div
-                            className={cn(
-                              'w-10 h-10 mx-auto bg-gray-100 rounded overflow-hidden flex items-center justify-center',
-                              item.thumbnailUrl && 'cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all'
-                            )}
-                            onClick={() => item.thumbnailUrl && setPreviewImage({ url: item.thumbnailUrl, name: item.productName })}
-                          >
-                            {item.thumbnailUrl ? (
-                              <Image src={item.thumbnailUrl} alt={item.productName} width={40} height={40} className="object-cover w-full h-full" />
-                            ) : (
-                              <ImageIcon className="h-4 w-4 text-gray-300" />
-                            )}
-                          </div>
-                        </TableCell>
-
                         <TableCell>
                           <div className="space-y-1">
-                            <p className="text-sm leading-tight line-clamp-1">{item.productName}</p>
-                            <div className="text-xs text-muted-foreground leading-tight">
-                              {item.size} / {item.printMethod} / {item.paper}
+                            <Link href={`/mypage/orders/${order.id}`} className="text-sm font-normal leading-tight line-clamp-1 hover:underline hover:text-primary block">
+                              {item.folderName || item.productName}
+                            </Link>
+                            <div className="text-xs text-muted-foreground leading-tight line-clamp-1">
+                              {item.productName?.split(' - ')[0]} / {item.size} / {item.printMethod} / {item.paper}
                             </div>
                             <div className="flex flex-wrap gap-1">
                               {item.bindingType && <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">{item.bindingType}</Badge>}
@@ -591,30 +571,6 @@ export default function MyOrdersPage() {
                           </TableCell>
                         )}
 
-                        {idx === 0 && (
-                          <TableCell className="text-center align-top pt-3" rowSpan={items.length}>
-                            <div className="flex flex-col gap-1">
-                              <Link href={`/mypage/orders/${order.id}`}>
-                                <Button variant="outline" size="sm" className="w-full text-xs h-7">
-                                  <Eye className="h-3 w-3 mr-1" />상세보기
-                                </Button>
-                              </Link>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="w-full text-xs h-7 text-green-700 hover:text-green-800"
-                                onClick={() => window.open(`/mypage/orders/${order.id}/receipt`, '_blank', 'width=800,height=900,scrollbars=yes')}
-                              >
-                                <Receipt className="h-3 w-3 mr-1" />거래명세서
-                              </Button>
-                              {order.status === 'shipped' && (
-                                <Button variant="ghost" size="sm" className="w-full text-xs h-7 text-muted-foreground">
-                                  <Truck className="h-3 w-3 mr-1" />배송조회
-                                </Button>
-                              )}
-                            </div>
-                          </TableCell>
-                        )}
                       </TableRow>
                     ));
                   })}
@@ -683,26 +639,6 @@ export default function MyOrdersPage() {
               {isCancelling ? '취소 처리 중...' : '주문 취소'}
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* 썸네일 미리보기 다이얼로그 */}
-      <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
-        <DialogContent className="max-w-lg p-2">
-          <DialogHeader className="px-2 pt-2">
-            <DialogTitle className="text-sm">{previewImage?.name}</DialogTitle>
-          </DialogHeader>
-          {previewImage && (
-            <div className="relative w-full aspect-square bg-gray-50 rounded overflow-hidden">
-              <Image
-                src={previewImage.url}
-                alt={previewImage.name}
-                fill
-                className="object-contain"
-                sizes="(max-width: 512px) 100vw, 512px"
-              />
-            </div>
-          )}
         </DialogContent>
       </Dialog>
 

@@ -7,6 +7,7 @@ import { ArrowLeft, CreditCard, Wallet, Building2, Smartphone, AlertTriangle, Ch
 import { useCartStore } from '@/stores/cart-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { api } from '@/lib/api';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -98,6 +99,7 @@ const toShippingDto = (s: CartShippingInfo) => ({
 
 export default function OrderPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { items, getTotal, clearCart } = useCartStore();
   const { user, isAuthenticated } = useAuthStore();
 
@@ -378,6 +380,7 @@ export default function OrderPage() {
 
       toast.success('주문이 완료되었습니다', { description: '주문내역은 마이페이지에서 확인하실 수 있습니다.' });
 
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
       clearCart();
       router.push('/order/complete');
     } catch (error) {
@@ -421,45 +424,17 @@ export default function OrderPage() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Redirect to login if not authenticated
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="container mx-auto px-4 py-16 text-center">
-          <h1 className="text-2xl font-bold mb-4">로그인이 필요합니다</h1>
-          <p className="text-gray-500 mb-8">주문을 진행하려면 로그인해주세요.</p>
-          <Link href="/login?redirect=/order">
-            <Button size="lg">로그인하기</Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (items.length === 0) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="container mx-auto px-4 py-16 text-center">
-          <h1 className="text-2xl font-bold mb-4">주문할 상품이 없습니다</h1>
-          <p className="text-gray-500 mb-8">장바구니에 상품을 담아주세요.</p>
-          <Link href="/">
-            <Button size="lg">쇼핑하러 가기</Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   const subtotal = getTotal();
 
-  // 합배송 적용 여부 계산
+  // 합배송 적용 여부 계산 (hooks는 early return 전에 선언해야 함)
   const combinedShipping = useMemo(() => {
     if (!sameDayData?.applicable) return null;
     const combinedTotal = sameDayData.totalProductAmount + subtotal;
-    // 당일 누적이 기준금액을 처음 넘는 경우에만 합배송 트리거
-    const isTriggered = combinedTotal >= sameDayData.freeThreshold
-      && sameDayData.totalProductAmount < sameDayData.freeThreshold;
-    return { ...sameDayData, isTriggered, cartSubtotal: subtotal, combinedTotal };
+    // 당일 누적(이전 주문 + 현재 카트)이 기준금액 이상이면 이번 주문 무료
+    const isTriggered = combinedTotal >= sameDayData.freeThreshold;
+    // 합배송 조건 충족 + 이전 주문에 청구된 배송비가 있으면 환급
+    const shouldRefundPrevious = isTriggered && sameDayData.totalShippingCharged > 0;
+    return { ...sameDayData, isTriggered, shouldRefundPrevious, cartSubtotal: subtotal, combinedTotal };
   }, [sameDayData, subtotal]);
 
   const totalShippingFee = items.reduce((sum, item) => {
@@ -493,10 +468,40 @@ export default function OrderPage() {
   const effectiveShippingFee = combinedShipping?.isTriggered ? 0
     : batchSingleShipping ? batchShippingFee
     : totalShippingFee;
-  const combinedShippingAdjustment = combinedShipping?.isTriggered ? -(combinedShipping.totalShippingCharged) : 0;
+  // 이전 배송비 환급: 이번 주문으로 처음 기준을 넘는 경우에만 차감
+  const combinedShippingAdjustment = combinedShipping?.shouldRefundPrevious ? -(combinedShipping.totalShippingCharged) : 0;
   const total = subtotal + effectiveShippingFee + combinedShippingAdjustment;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Redirect to login if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="container mx-auto px-4 py-16 text-center">
+          <h1 className="text-2xl font-bold mb-4">로그인이 필요합니다</h1>
+          <p className="text-gray-500 mb-8">주문을 진행하려면 로그인해주세요.</p>
+          <Link href="/login?redirect=/order">
+            <Button size="lg">로그인하기</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="container mx-auto px-4 py-16 text-center">
+          <h1 className="text-2xl font-bold mb-4">주문할 상품이 없습니다</h1>
+          <p className="text-gray-500 mb-8">장바구니에 상품을 담아주세요.</p>
+          <Link href="/">
+            <Button size="lg">쇼핑하러 가기</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!agreeTerms) {
       toast.error('약관 동의 필요', { description: '주문을 진행하려면 약관에 동의해주세요.' });
@@ -629,16 +634,20 @@ export default function OrderPage() {
       };
     });
 
-    // 합배송 적용: 비직배송 주문의 배송비 0원 처리 + 이전 배송비 차감
+    // 합배송 적용: 비직배송 주문의 배송비 0원 처리 (당일 기준금액 달성 시 이번 주문 무료)
     if (combinedShipping?.isTriggered) {
       let creditApplied = false;
       for (const od of orderDataList) {
         const isDirectCustomer = od.items?.[0]?.shipping?.receiverType === 'direct_customer';
         if (!isDirectCustomer) {
           od.shippingFee = 0;
-          // 첫 번째 비직배송 주문에만 이전 배송비 차감 적용
-          if (!creditApplied && combinedShipping.totalShippingCharged > 0) {
-            od.adjustmentAmount = -(combinedShipping.totalShippingCharged);
+          // 아이템 레벨 deliveryFee도 0으로 처리 (백엔드가 아이템 배송비를 우선 사용하므로)
+          if (od.items?.[0]?.shipping) {
+            od.items[0].shipping.deliveryFee = 0;
+          }
+          // 이전 주문 배송비 환급: adjustmentAmount에 양수로 설정 (양수=할인)
+          if (combinedShipping.shouldRefundPrevious && !creditApplied && combinedShipping.totalShippingCharged > 0) {
+            od.adjustmentAmount = combinedShipping.totalShippingCharged;
             creditApplied = true;
           }
         }
@@ -844,7 +853,7 @@ export default function OrderPage() {
                                       clientInfo={shippingClientInfo}
                                       pricingMap={pricingMap}
                                       onChange={(shipping) => handleItemShippingChange(item.id, shipping)}
-                                      itemTotal={item.totalPrice}
+                                      studioTotal={item.totalPrice}
                                     />
 
                                     {/* 편의 버튼 */}
@@ -957,11 +966,13 @@ export default function OrderPage() {
                     <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-start gap-2 text-sm">
                       <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
                       <div>
-                        <p className="font-medium text-green-700">합배송 적용</p>
+                        <p className="font-medium text-green-700">합배송 무료배송 적용</p>
                         <p className="text-green-600 text-xs mt-0.5">
                           당일 누적 {combinedShipping.combinedTotal.toLocaleString()}원
-                          (기준 {combinedShipping.freeThreshold.toLocaleString()}원) —
-                          이전 배송비 {combinedShipping.totalShippingCharged.toLocaleString()}원 차감
+                          (기준 {combinedShipping.freeThreshold.toLocaleString()}원 이상)
+                          {combinedShipping.shouldRefundPrevious && combinedShipping.totalShippingCharged > 0
+                            ? ` — 이전 배송비 ${combinedShipping.totalShippingCharged.toLocaleString()}원 차감`
+                            : ' — 배송비 무료'}
                         </p>
                       </div>
                     </div>

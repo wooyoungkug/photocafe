@@ -414,6 +414,8 @@ export default function ProductPage() {
     const opts = myProductFromParam.options;
     // 보유 동판을 사용하는 경우 ownedCopperPlates 데이터가 로드될 때까지 대기
     if (opts.copperPlateType === 'owned' && ownedCopperPlates === undefined) return;
+    // 공용 동판을 사용하는 경우 allPublicCopperPlates 데이터가 로드될 때까지 대기
+    if (opts.copperPlateType === 'public' && allPublicCopperPlates === undefined) return;
     setSelectedOptions({
       specification: undefined,
       binding: product.bindings?.find(b => b.id === opts.bindingId),
@@ -434,7 +436,7 @@ export default function ProductPage() {
       copperPlateType: opts.copperPlateType,
       ownedCopperPlate: opts.copperPlateType === 'owned' ? ownedCopperPlates?.find(cp => cp.id === opts.copperPlateId) : undefined,
       publicCopperPlate: opts.copperPlateType === 'public'
-        ? product.publicCopperPlates?.find(p => p.publicCopperPlate?.id === opts.copperPlateId)?.publicCopperPlate : undefined,
+        ? allPublicCopperPlates?.data?.find(p => p.id === opts.copperPlateId) : undefined,
       foilColor: opts.foilColor, foilPosition: opts.foilPosition,
     });
     if (opts.coverSourceType) applyGlobalCoverSource(opts.coverSourceType);
@@ -448,7 +450,7 @@ export default function ProductPage() {
     setMyProductApplied(true);
     recordMyProductUsage.mutate(myProductFromParam.id);
     toast({ title: t('myProductLoaded'), description: t('myProductLoadedDesc', { name: myProductFromParam.name }) });
-  }, [myProductIdParam, myProductFromParam, product, myProductApplied, ownedCopperPlates]);
+  }, [myProductIdParam, myProductFromParam, product, myProductApplied, ownedCopperPlates, allPublicCopperPlates]);
 
   useEffect(() => {
     if (uploadFolders.length === 0) return;
@@ -612,7 +614,7 @@ export default function ProductPage() {
       }).filter((f): f is ProductFinishing => f !== null),
       printSide: opts.printSide, copperPlateType: opts.copperPlateType,
       ownedCopperPlate: opts.copperPlateType === 'owned' ? ownedCopperPlates?.find(cp => cp.id === opts.copperPlateId) : undefined,
-      publicCopperPlate: opts.copperPlateType === 'public' ? product?.publicCopperPlates?.find(p => p.publicCopperPlate?.id === opts.copperPlateId)?.publicCopperPlate : undefined,
+      publicCopperPlate: opts.copperPlateType === 'public' ? allPublicCopperPlates?.data?.find(p => p.id === opts.copperPlateId) : undefined,
       foilColor: opts.foilColor, foilPosition: opts.foilPosition,
     });
     if (opts.coverSourceType) applyGlobalCoverSource(opts.coverSourceType);

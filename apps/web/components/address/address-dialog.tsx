@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { AddressSearch } from '@/components/address-search';
@@ -98,13 +99,12 @@ export function AddressDialog({ open, onOpenChange, address, onSave, isPending }
             <Label htmlFor="phone">
               연락처 <span className="text-red-500">*</span>
             </Label>
-            <Input
+            <PhoneInput
               id="phone"
               value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              onChange={(value) => setFormData({ ...formData, phone: value })}
               placeholder="010-0000-0000"
               required
-              maxLength={20}
             />
           </div>
 

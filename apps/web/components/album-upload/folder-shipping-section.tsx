@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
@@ -302,10 +303,10 @@ export function FolderShippingSection({
               </div>
               <div>
                 <Label className="text-xs text-gray-500">연락처 <span className="text-red-500">*</span></Label>
-                <Input
+                <PhoneInput
                   placeholder="010-0000-0000"
                   value={directPhone}
-                  onChange={(e) => setDirectPhone(e.target.value)}
+                  onChange={(value) => setDirectPhone(value)}
                   className={`h-8 text-sm ${!directPhone.trim() ? 'border-red-300 focus-visible:ring-red-400' : ''}`}
                 />
               </div>

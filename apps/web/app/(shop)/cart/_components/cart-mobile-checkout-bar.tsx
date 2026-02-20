@@ -11,6 +11,7 @@ interface CartMobileCheckoutBarProps {
   selectedCount: number;
   selectedTotal: number;
   totalShippingFee: number;
+  sameDayRefund?: number;
   hasUploadInProgress?: boolean;
   hasUploadFailed?: boolean;
   hasFileMissing?: boolean;
@@ -21,6 +22,7 @@ export function CartMobileCheckoutBar({
   selectedCount,
   selectedTotal,
   totalShippingFee,
+  sameDayRefund = 0,
   hasUploadInProgress,
   hasUploadFailed,
   hasFileMissing,
@@ -28,7 +30,7 @@ export function CartMobileCheckoutBar({
 }: CartMobileCheckoutBarProps) {
   const [expanded, setExpanded] = useState(false);
   const t = useTranslations('cart');
-  const grandTotal = selectedTotal + totalShippingFee;
+  const grandTotal = selectedTotal + totalShippingFee - sameDayRefund;
 
   return (
     <div className="bg-white border-t shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] safe-area-inset">
@@ -58,10 +60,18 @@ export function CartMobileCheckoutBar({
               <span className="font-medium">{selectedTotal.toLocaleString()}원</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">{t('shippingFee')}</span>
-              <span className={cn('font-medium', totalShippingFee === 0 && 'text-green-600')}>
-                {totalShippingFee === 0 ? t('free') : `+${totalShippingFee.toLocaleString()}원`}
+              <span className="text-gray-500">
+                {sameDayRefund > 0 ? '합배송 환불' : t('shippingFee')}
               </span>
+              {sameDayRefund > 0 ? (
+                <span className="font-medium text-green-600">
+                  -{sameDayRefund.toLocaleString()}원
+                </span>
+              ) : (
+                <span className={cn('font-medium', totalShippingFee === 0 && 'text-green-600')}>
+                  {totalShippingFee === 0 ? t('free') : `+${totalShippingFee.toLocaleString()}원`}
+                </span>
+              )}
             </div>
           </div>
         </CollapsibleContent>

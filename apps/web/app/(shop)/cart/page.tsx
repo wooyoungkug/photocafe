@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { useCartStore, type CartShippingInfo } from '@/stores/cart-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { useShippingData } from '@/hooks/use-shipping-data';
+import { useSameDayShipping } from '@/hooks/use-same-day-shipping';
 import { useToast } from '@/hooks/use-toast';
 import type { FolderShippingInfo } from '@/stores/multi-folder-upload-store';
 import {
@@ -38,6 +39,7 @@ import { CartItemDragOverlay } from './_components/cart-item-drag-overlay';
 import { CartOrderSummary } from './_components/cart-order-summary';
 import { CartMobileCheckoutBar } from './_components/cart-mobile-checkout-bar';
 import { CartDeleteDialog } from './_components/cart-delete-dialog';
+import { CartSameDayShippingBanner } from './_components/cart-same-day-shipping-banner';
 import { canCancelUpload } from '@/lib/background-upload';
 
 export default function CartPage() {
@@ -89,6 +91,11 @@ export default function CartPage() {
 
   // Shipping data
   const { companyInfo, clientInfo, pricingMap } = useShippingData();
+
+  // 당일 합배송 현황 (스튜디오 배송 거래처에만 표시)
+  const { data: sameDayInfo } = useSameDayShipping(
+    clientInfo?.shippingType === 'conditional' ? clientInfo.id : null,
+  );
 
   // --- Helpers ---
   const canSelectItem = (itemId: string) => {
@@ -250,15 +257,25 @@ export default function CartPage() {
     })
     .reduce((sum, item) => sum + item.totalPrice, 0);
 
+  // 당일 합배송 조건 충족 여부 (이전 주문 누적 포함)
+  const sameDayFreeEligible =
+    !!sameDayInfo?.applicable &&
+    sameDayInfo.totalProductAmount > 0 &&
+    sameDayInfo.totalProductAmount + studioItemsTotal >= sameDayInfo.freeThreshold;
+  // 환불 대상 배송비 (기존 주문에서 이미 청구된 배송비)
+  const sameDayRefund = sameDayFreeEligible ? sameDayInfo!.totalShippingCharged : 0;
+
   // 배송비 합계
   // - 고객직배송: 무조건 청구 (개별 배송)
   // - 스튜디오배송: 스튜디오 합계가 무료배송 임계값 이상이면 전체 무료, 미달 시 배송방법별 1회 청구
+  // - 당일 합배송 조건 충족 시: 스튜디오 배송 전체 무료
   const totalShippingFee = (() => {
     const freeThreshold = clientInfo?.freeShippingThreshold
       ?? (pricingMap['parcel']?.freeThreshold != null ? Number(pricingMap['parcel'].freeThreshold) : 90000);
     const isStudioFree =
       clientInfo?.shippingType === 'free' ||
-      (clientInfo?.shippingType === 'conditional' && studioItemsTotal >= freeThreshold);
+      (clientInfo?.shippingType === 'conditional' && studioItemsTotal >= freeThreshold) ||
+      sameDayFreeEligible; // 당일 합배송 조건 충족 시 스튜디오 배송 무료
 
     let total = 0;
     const chargedStudioMethods = new Set<string>();
@@ -357,6 +374,14 @@ export default function CartPage() {
               onClearCart={() => setClearCartOpen(true)}
             />
 
+            {/* 당일 합배송 안내 배너 */}
+            {sameDayInfo && sameDayInfo.totalProductAmount > 0 && (
+              <CartSameDayShippingBanner
+                info={sameDayInfo}
+                newOrderTotal={selectedTotal}
+              />
+            )}
+
             {/* Global Shipping */}
             {items.filter((i) => !i.albumOrderInfo?.shippingInfo).length > 1 && (
               <CartGlobalShipping
@@ -450,6 +475,7 @@ export default function CartPage() {
               shippingCompleteCount={shippingCompleteCount}
               selectedTotal={selectedTotal}
               totalShippingFee={totalShippingFee}
+              sameDayRefund={sameDayRefund}
               isAuthenticated={isAuthenticated}
               hasUploadInProgress={hasUploadInProgress}
               hasUploadFailed={hasUploadFailed}
@@ -466,6 +492,7 @@ export default function CartPage() {
           selectedCount={selectedItems.length}
           selectedTotal={selectedTotal}
           totalShippingFee={totalShippingFee}
+          sameDayRefund={sameDayRefund}
           hasUploadInProgress={hasUploadInProgress}
           hasUploadFailed={hasUploadFailed}
           hasFileMissing={hasFileMissing}

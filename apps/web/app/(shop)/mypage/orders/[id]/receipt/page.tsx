@@ -16,6 +16,7 @@ interface OrderDetail {
   productPrice: number;
   shippingFee: number;
   tax: number;
+  adjustmentAmount: number;
   totalAmount: number;
   finalAmount: number;
   client: {
@@ -79,7 +80,8 @@ export default function OrderReceiptPage() {
   const productPrice = Number(order.productPrice) || 0;
   const tax = Number(order.tax) || 0;
   const shippingFee = Number(order.shippingFee) || 0;
-  const finalAmount = Number(order.finalAmount) || 0;
+  const adjustmentAmount = Number(order.adjustmentAmount) || 0;
+  const calculatedTotal = productPrice + tax + shippingFee - adjustmentAmount;
 
   return (
     <>
@@ -189,10 +191,10 @@ export default function OrderReceiptPage() {
           </div>
           <div className="px-4 py-2 flex-1 flex items-center justify-between">
             <span className="text-2xl font-bold">
-              {finalAmount.toLocaleString()} 원
+              {calculatedTotal.toLocaleString()} 원
             </span>
             <span className="text-sm text-gray-600">
-              합계 : {productPrice.toLocaleString()}원 + 부가세 {tax.toLocaleString()}원 + 배송비(VAT 포함) {shippingFee.toLocaleString()}원
+              합계 : {productPrice.toLocaleString()}원 + 부가세 {tax.toLocaleString()}원{shippingFee > 0 ? ` + 배송비 ${shippingFee.toLocaleString()}원` : ''}{adjustmentAmount !== 0 ? ` ${adjustmentAmount > 0 ? '-' : '+'} 조정 ${Math.abs(adjustmentAmount).toLocaleString()}원` : ''}
             </span>
           </div>
         </div>

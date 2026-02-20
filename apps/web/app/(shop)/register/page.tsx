@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -64,23 +65,6 @@ const formatBusinessNumber = (value: string): string => {
   return `${numbers.slice(0, 3)}-${numbers.slice(3, 5)}-${numbers.slice(5)}`;
 };
 
-// 전화번호 포맷팅 (휴대폰: 010-XXXX-XXXX, 일반: 02-XXX-XXXX 또는 031-XXX-XXXX)
-const formatPhoneNumber = (value: string): string => {
-  const numbers = value.replace(/\D/g, '').slice(0, 11);
-
-  // 02 지역번호 (서울)
-  if (numbers.startsWith('02')) {
-    if (numbers.length <= 2) return numbers;
-    if (numbers.length <= 5) return `${numbers.slice(0, 2)}-${numbers.slice(2)}`;
-    if (numbers.length <= 9) return `${numbers.slice(0, 2)}-${numbers.slice(2, 5)}-${numbers.slice(5)}`;
-    return `${numbers.slice(0, 2)}-${numbers.slice(2, 6)}-${numbers.slice(6)}`;
-  }
-
-  // 휴대폰 또는 지역번호 (3자리)
-  if (numbers.length <= 3) return numbers;
-  if (numbers.length <= 7) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
-  return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7)}`;
-};
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -133,14 +117,7 @@ export default function RegisterPage() {
 
   const handleIndividualChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    let formattedValue = value;
-
-    // 휴대폰 번호 자동 포맷팅
-    if (name === 'mobile') {
-      formattedValue = formatPhoneNumber(value);
-    }
-
-    setIndividualForm(prev => ({ ...prev, [name]: formattedValue }));
+    setIndividualForm(prev => ({ ...prev, [name]: value }));
     if (name === 'email') setEmailChecked(false);
   };
 
@@ -152,11 +129,6 @@ export default function RegisterPage() {
     if (name === 'businessNumber') {
       formattedValue = formatBusinessNumber(value);
       setBusinessNumberChecked(false);
-    }
-
-    // 전화번호 자동 포맷팅
-    if (name === 'mobile' || name === 'phone' || name === 'contactPhone') {
-      formattedValue = formatPhoneNumber(value);
     }
 
     setStudioForm(prev => ({ ...prev, [name]: formattedValue }));
@@ -420,13 +392,11 @@ export default function RegisterPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="ind-mobile">휴대폰 번호</Label>
-                  <Input
+                  <PhoneInput
                     id="ind-mobile"
-                    name="mobile"
-                    type="tel"
                     placeholder="010-0000-0000"
                     value={individualForm.mobile}
-                    onChange={handleIndividualChange}
+                    onChange={(val) => setIndividualForm(prev => ({ ...prev, mobile: val }))}
                     disabled={isLoading}
                   />
                 </div>
@@ -512,26 +482,22 @@ export default function RegisterPage() {
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <Label htmlFor="studio-mobile">휴대폰 번호 *</Label>
-                            <Input
+                            <PhoneInput
                               id="studio-mobile"
-                              name="mobile"
-                              type="tel"
                               placeholder="010-0000-0000"
                               value={studioForm.mobile}
-                              onChange={handleStudioChange}
+                              onChange={(val) => setStudioForm(prev => ({ ...prev, mobile: val }))}
                               required
                               disabled={isLoading}
                             />
                           </div>
                           <div className="space-y-2">
                             <Label htmlFor="contactPhone">담당자 연락처</Label>
-                            <Input
+                            <PhoneInput
                               id="contactPhone"
-                              name="contactPhone"
-                              type="tel"
                               placeholder="010-0000-0000"
                               value={studioForm.contactPhone}
-                              onChange={handleStudioChange}
+                              onChange={(val) => setStudioForm(prev => ({ ...prev, contactPhone: val }))}
                               disabled={isLoading}
                             />
                           </div>
@@ -539,13 +505,11 @@ export default function RegisterPage() {
 
                         <div className="space-y-2">
                           <Label htmlFor="studio-phone">대표 전화번호</Label>
-                          <Input
+                          <PhoneInput
                             id="studio-phone"
-                            name="phone"
-                            type="tel"
                             placeholder="02-000-0000"
                             value={studioForm.phone}
-                            onChange={handleStudioChange}
+                            onChange={(val) => setStudioForm(prev => ({ ...prev, phone: val }))}
                             disabled={isLoading}
                           />
                         </div>

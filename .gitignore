@@ -46,3 +46,6 @@ nul
 # Claude Code
 .claude/settings.local.json
 .claude/worktrees/
+
+# Uploaded files (order images, etc.)
+apps/api/uploads/
