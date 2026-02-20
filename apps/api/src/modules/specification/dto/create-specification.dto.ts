@@ -58,10 +58,15 @@ export class CreateSpecificationDto {
     @IsBoolean()
     forInkjet?: boolean;
 
-    @ApiPropertyOptional({ description: '앨범전용', default: false })
+    @ApiPropertyOptional({ description: '잉크젯앨범전용', default: false })
     @IsOptional()
     @IsBoolean()
     forAlbum?: boolean;
+
+    @ApiPropertyOptional({ description: '인디고앨범전용', default: false })
+    @IsOptional()
+    @IsBoolean()
+    forIndigoAlbum?: boolean;
 
     @ApiPropertyOptional({ description: '액자전용', default: false })
     @IsOptional()

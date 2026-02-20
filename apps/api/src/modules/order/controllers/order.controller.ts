@@ -128,6 +128,15 @@ export class OrderController {
     return this.orderService.bulkDeleteOriginals(dto.orderIds, req.user.id);
   }
 
+  @Get('last-product-options')
+  @ApiOperation({ summary: '해당 상품의 최근 주문 옵션 조회' })
+  async getLastProductOptions(
+    @Query('clientId') clientId: string,
+    @Query('productId') productId: string,
+  ) {
+    return this.orderService.getLastProductOptions(clientId, productId);
+  }
+
   @Post('check-duplicates')
   @ApiOperation({ summary: '중복 주문 체크 (3개월 이내)' })
   async checkDuplicates(@Body() dto: CheckDuplicateOrderDto) {

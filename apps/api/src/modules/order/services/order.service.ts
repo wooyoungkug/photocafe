@@ -1070,6 +1070,35 @@ export class OrderService {
     return { duplicates, months };
   }
 
+  // ==================== 최근 주문 옵션 조회 ====================
+  async getLastProductOptions(clientId: string, productId: string) {
+    const item = await this.prisma.orderItem.findFirst({
+      where: {
+        productId,
+        order: {
+          clientId,
+          status: { not: 'cancelled' },
+        },
+      },
+      orderBy: {
+        order: { orderedAt: 'desc' },
+      },
+      select: {
+        bindingType: true,
+        paper: true,
+        printMethod: true,
+        coverMaterial: true,
+        foilName: true,
+        foilColor: true,
+        foilPosition: true,
+        finishingOptions: true,
+        fabricName: true,
+        fabricSnapshot: true,
+      },
+    });
+    return item;
+  }
+
   // ==================== 벌크: 일괄 복제 ====================
   async bulkDuplicate(orderIds: string[], userId: string) {
     const results = { success: 0, failed: [] as string[], newOrderIds: [] as string[] };

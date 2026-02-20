@@ -54,6 +54,7 @@ interface Specification {
   usageIndigo: boolean;
   usageInkjet: boolean;
   usageAlbum: boolean;
+  usageIndigoAlbum: boolean;
   usageFrame: boolean;
   usageBooklet: boolean;
   squareMeters?: number;
@@ -121,6 +122,7 @@ interface SpecificationForm {
   usageIndigo: boolean;
   usageInkjet: boolean;
   usageAlbum: boolean;
+  usageIndigoAlbum: boolean;
   usageFrame: boolean;
   usageBooklet: boolean;
   squareMeters?: number;
@@ -153,6 +155,7 @@ const defaultForm: SpecificationForm = {
   usageIndigo: false,
   usageInkjet: false,
   usageAlbum: false,
+  usageIndigoAlbum: false,
   usageFrame: false,
   usageBooklet: false,
   description: "",
@@ -205,6 +208,7 @@ export default function SpecificationsPage() {
     usageIndigo: data.forIndigo,
     usageInkjet: data.forInkjet,
     usageAlbum: data.forAlbum,
+    usageIndigoAlbum: data.forIndigoAlbum,
     usageFrame: data.forFrame,
     usageBooklet: data.forBooklet,
   });
@@ -229,6 +233,7 @@ export default function SpecificationsPage() {
     forIndigo: data.usageIndigo,
     forInkjet: data.usageInkjet,
     forAlbum: data.usageAlbum,
+    forIndigoAlbum: data.usageIndigoAlbum,
     forFrame: data.usageFrame,
     forBooklet: data.usageBooklet,
     squareMeters: data.squareMeters,
@@ -327,6 +332,7 @@ export default function SpecificationsPage() {
       usageIndigo: spec.usageIndigo,
       usageInkjet: spec.usageInkjet,
       usageAlbum: spec.usageAlbum,
+      usageIndigoAlbum: spec.usageIndigoAlbum,
       usageFrame: spec.usageFrame,
       usageBooklet: spec.usageBooklet,
       squareMeters: spec.squareMeters ? Number(spec.squareMeters) : undefined,
@@ -502,6 +508,7 @@ export default function SpecificationsPage() {
         (usageFilters.includes("indigo") && spec.usageIndigo) ||
         (usageFilters.includes("inkjet") && spec.usageInkjet) ||
         (usageFilters.includes("album") && spec.usageAlbum) ||
+        (usageFilters.includes("indigoAlbum") && spec.usageIndigoAlbum) ||
         (usageFilters.includes("frame") && spec.usageFrame) ||
         (usageFilters.includes("booklet") && spec.usageBooklet);
 
@@ -587,8 +594,9 @@ export default function SpecificationsPage() {
             </div>
             <div className="flex flex-wrap gap-1">
               {[
-                { key: "indigo", label: "인디고앨범" },
-                { key: "inkjet", label: "잉크젯" },
+                { key: "indigo", label: "인디고출력" },
+                { key: "inkjet", label: "잉크젯출력" },
+                { key: "indigoAlbum", label: "인디고앨범" },
                 { key: "album", label: "잉크젯앨범" },
                 { key: "frame", label: "액자" },
                 { key: "booklet", label: "책자" },
@@ -668,9 +676,10 @@ export default function SpecificationsPage() {
                 {/* 3. 용도 및 액션 */}
                 <div className="flex items-center gap-4 ml-auto">
                   <div className="flex flex-wrap gap-1 justify-end min-w-[120px]">
-                    {spec.usageIndigo && <Badge variant="outline" className="text-[10px] px-1.5 bg-indigo-50/50 text-indigo-700 border-indigo-200">인디고</Badge>}
-                    {spec.usageInkjet && <Badge variant="outline" className="text-[10px] px-1.5 bg-orange-50/50 text-orange-700 border-orange-200">잉크젯</Badge>}
-                    {spec.usageAlbum && <Badge variant="outline" className="text-[10px] px-1.5 bg-pink-50/50 text-pink-700 border-pink-200">앨범</Badge>}
+                    {spec.usageIndigo && <Badge variant="outline" className="text-[10px] px-1.5 bg-indigo-50/50 text-indigo-700 border-indigo-200">인디고출력</Badge>}
+                    {spec.usageInkjet && <Badge variant="outline" className="text-[10px] px-1.5 bg-orange-50/50 text-orange-700 border-orange-200">잉크젯출력</Badge>}
+                    {spec.usageIndigoAlbum && <Badge variant="outline" className="text-[10px] px-1.5 bg-violet-50/50 text-violet-700 border-violet-200">인디고앨범</Badge>}
+                    {spec.usageAlbum && <Badge variant="outline" className="text-[10px] px-1.5 bg-pink-50/50 text-pink-700 border-pink-200">잉크젯앨범</Badge>}
                     {spec.usageFrame && <Badge variant="outline" className="text-[10px] px-1.5 bg-stone-50/50 text-stone-700 border-stone-200">액자</Badge>}
                     {spec.usageBooklet && <Badge variant="outline" className="text-[10px] px-1.5 bg-blue-50/50 text-blue-700 border-blue-200">책자</Badge>}
                   </div>
@@ -824,11 +833,19 @@ export default function SpecificationsPage() {
                 </div>
                 <div className="flex items-center space-x-2">
                   <Checkbox
+                    id="usageIndigoAlbum"
+                    checked={form.usageIndigoAlbum}
+                    onCheckedChange={(checked) => setForm({ ...form, usageIndigoAlbum: !!checked })}
+                  />
+                  <Label htmlFor="usageIndigoAlbum" className="cursor-pointer">인디고앨범</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
                     id="usageAlbum"
                     checked={form.usageAlbum}
                     onCheckedChange={(checked) => handleAlbumChange(!!checked)}
                   />
-                  <Label htmlFor="usageAlbum" className="cursor-pointer">앨범</Label>
+                  <Label htmlFor="usageAlbum" className="cursor-pointer">잉크젯앨범</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Checkbox

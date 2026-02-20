@@ -16,6 +16,7 @@ import { cn, normalizeImageUrl } from '@/lib/utils';
 import { api } from '@/lib/api';
 import type { ProductSpecification, ProductBinding, ProductPaper, ProductCover, ProductFoil, ProductFinishing } from '@/lib/types';
 import { useAuthStore } from '@/stores/auth-store';
+import { useLastProductOptions } from '@/hooks/use-orders';
 import { useCopperPlatesByClient, useCopperPlateLabels, type CopperPlate } from '@/hooks/use-copper-plates';
 import { useMyProductsByClient, useMyProduct, useCreateMyProduct, useRecordMyProductUsage, type MyProduct, type MyProductOptions } from '@/hooks/use-my-products';
 import { usePublicCopperPlates, type PublicCopperPlate } from '@/hooks/use-public-copper-plates';
@@ -106,6 +107,11 @@ export default function ProductPage() {
   const { data: myProductFromParam } = useMyProduct(myProductIdParam || undefined);
   const createMyProduct = useCreateMyProduct();
   const recordMyProductUsage = useRecordMyProductUsage();
+
+  const { data: lastProductOptions } = useLastProductOptions(
+    isAuthenticated && !myProductIdParam ? user?.clientId : undefined,
+    isAuthenticated && !myProductIdParam ? productId : undefined,
+  );
 
   const [quantity, setQuantity] = useState(1);
   const [selectedOptions, setSelectedOptions] = useState<SelectedOptions>({ finishings: [] });
@@ -316,7 +322,6 @@ export default function ProductPage() {
   useEffect(() => {
     if (product) {
       const defaultBinding = product.bindings?.find(b => b.isDefault) || product.bindings?.[0];
-      const publicPlates = allPublicCopperPlates?.data || [];
       // 인디고는 4도 기준(isActive4), 그 외는 isActive로 활성 여부 판단
       const allPapers = product.papers || [];
       const has4doPapers = allPapers.some(p => p.printMethod === 'indigo' && p.isActive4 !== false);
@@ -346,6 +351,59 @@ export default function ProductPage() {
       });
     }
   }, [product, copperPlateLabels, allPublicCopperPlates]);
+
+  // ===== 최근 주문 옵션 자동 적용 =====
+  const [lastOptionsApplied, setLastOptionsApplied] = useState(false);
+  useEffect(() => {
+    if (!product || !lastProductOptions || lastOptionsApplied || myProductIdParam) return;
+
+    const matchedBinding = product.bindings?.find(b => b.name === lastProductOptions.bindingType);
+    const matchedPaper = product.papers?.find(p => p.name === lastProductOptions.paper);
+    const matchedCover = product.covers?.find(c => c.name === lastProductOptions.coverMaterial);
+    const matchedFinishings = product.finishings?.filter(f => lastProductOptions.finishingOptions.includes(f.name)) || [];
+    const printMethod = (lastProductOptions.printMethod === 'indigo' || lastProductOptions.printMethod === 'inkjet')
+      ? lastProductOptions.printMethod as 'indigo' | 'inkjet' : 'indigo';
+
+    // 동판(박) 복원: foilName으로 보유 동판 또는 공용 동판 매칭
+    let copperPlateType: 'none' | 'public' | 'owned' = 'none';
+    let matchedOwnedPlate: CopperPlate | undefined;
+    let matchedPublicPlate: PublicCopperPlate | undefined;
+    if (lastProductOptions.foilName) {
+      const owned = ownedCopperPlates?.find(cp => cp.plateName === lastProductOptions.foilName);
+      if (owned) { copperPlateType = 'owned'; matchedOwnedPlate = owned; }
+      else {
+        const pub = allPublicCopperPlates?.data?.find(p => p.plateName === lastProductOptions.foilName);
+        if (pub) { copperPlateType = 'public'; matchedPublicPlate = pub; }
+      }
+    }
+
+    setSelectedOptions(prev => ({
+      ...prev,
+      binding: matchedBinding || prev.binding,
+      paper: matchedPaper || prev.paper,
+      printMethod,
+      cover: matchedCover || prev.cover,
+      finishings: matchedFinishings.length > 0 ? matchedFinishings : prev.finishings,
+      printSide: matchedBinding ? getDefaultPrintSideByBinding(matchedBinding.name) : prev.printSide,
+      copperPlateType,
+      ownedCopperPlate: matchedOwnedPlate,
+      publicCopperPlate: matchedPublicPlate,
+      foilColor: lastProductOptions.foilColor || undefined,
+      foilPosition: lastProductOptions.foilPosition || undefined,
+    }));
+
+    // 원단 복원 (fabricSnapshot에 id가 있을 때)
+    const snap = lastProductOptions.fabricSnapshot as { id: string; name: string; thumbnailUrl?: string | null; basePrice?: number; category?: string; colorCode?: string | null; colorName?: string | null } | null;
+    if (snap?.id && snap?.name) {
+      setFabricSelection({
+        id: snap.id, name: snap.name, thumbnail: snap.thumbnailUrl || null,
+        basePrice: snap.basePrice ?? 0, category: snap.category || '',
+        colorCode: snap.colorCode || null, colorName: snap.colorName || null,
+      });
+    }
+
+    setLastOptionsApplied(true);
+  }, [product, lastProductOptions, lastOptionsApplied, myProductIdParam, ownedCopperPlates, allPublicCopperPlates]);
 
   const [myProductApplied, setMyProductApplied] = useState(false);
   useEffect(() => {

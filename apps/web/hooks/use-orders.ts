@@ -386,6 +386,42 @@ export function useCompleteInspection() {
   });
 }
 
+// 해당 상품의 최근 주문 옵션 조회
+export interface LastProductOptions {
+  bindingType: string;
+  paper: string;
+  printMethod: string;
+  coverMaterial?: string | null;
+  foilName?: string | null;
+  foilColor?: string | null;
+  foilPosition?: string | null;
+  finishingOptions: string[];
+  fabricName?: string | null;
+  fabricSnapshot?: {
+    id: string;
+    code?: string;
+    name: string;
+    thumbnailUrl?: string | null;
+    basePrice?: number;
+    category?: string;
+    colorCode?: string | null;
+    colorName?: string | null;
+  } | null;
+}
+
+export function useLastProductOptions(clientId?: string, productId?: string) {
+  return useQuery({
+    queryKey: [ORDERS_KEY, 'last-product-options', clientId, productId],
+    queryFn: () =>
+      api.get<LastProductOptions | null>('/orders/last-product-options', {
+        clientId,
+        productId,
+      }),
+    enabled: !!clientId && !!productId,
+    staleTime: 1000 * 60 * 5, // 5분 캐시
+  });
+}
+
 // ==================== 일자별 주문/입금 집계 ====================
 
 export interface DailyOrderSummary {

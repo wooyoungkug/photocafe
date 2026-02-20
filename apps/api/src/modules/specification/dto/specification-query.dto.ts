@@ -12,10 +12,15 @@ export class SpecificationQueryDto {
     @IsBoolean()
     forInkjet?: boolean;
 
-    @ApiPropertyOptional({ description: '앨범전용 필터' })
+    @ApiPropertyOptional({ description: '잉크젯앨범전용 필터' })
     @IsOptional()
     @IsBoolean()
     forAlbum?: boolean;
+
+    @ApiPropertyOptional({ description: '인디고앨범전용 필터' })
+    @IsOptional()
+    @IsBoolean()
+    forIndigoAlbum?: boolean;
 
     @ApiPropertyOptional({ description: '액자전용 필터' })
     @IsOptional()

@@ -350,7 +350,7 @@ export default function OrderDetailPage() {
           </Button>
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold mb-2">주문 상세</h1>
+              <h1 className="text-2xl font-normal mb-2">주문 상세</h1>
               <p className="text-gray-500">주문번호: {order.orderNumber}</p>
             </div>
             <Badge className={`${statusConfig.className} px-4 py-2`}>
@@ -372,7 +372,7 @@ export default function OrderDetailPage() {
                   <div className="flex items-start gap-3">
                     <Clock className="h-5 w-5 text-orange-600 mt-0.5" />
                     <div>
-                      <h3 className="font-medium text-orange-900 mb-1">
+                      <h3 className="font-normal text-orange-900 mb-1">
                         접수 대기 중입니다
                       </h3>
                       <p className="text-sm text-orange-700">
@@ -389,7 +389,7 @@ export default function OrderDetailPage() {
                   <div className="flex items-start gap-3">
                     <CheckCircle className="h-5 w-5 text-blue-600 mt-0.5" />
                     <div>
-                      <h3 className="font-medium text-blue-900 mb-1">
+                      <h3 className="font-normal text-blue-900 mb-1">
                         접수가 완료되었습니다
                       </h3>
                       <p className="text-sm text-blue-700">
@@ -408,7 +408,7 @@ export default function OrderDetailPage() {
                   <div className="flex items-start gap-3">
                     <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5" />
                     <div>
-                      <h3 className="font-medium text-red-900 mb-1">
+                      <h3 className="font-normal text-red-900 mb-1">
                         원본 파일이 삭제되었습니다
                       </h3>
                       <p className="text-sm text-red-700">
@@ -426,7 +426,7 @@ export default function OrderDetailPage() {
                   <div className="flex items-start gap-3">
                     <Info className="h-5 w-5 text-sky-600 mt-0.5" />
                     <div>
-                      <h3 className="font-medium text-sky-900 mb-1">
+                      <h3 className="font-normal text-sky-900 mb-1">
                         원본 파일 보관 안내
                       </h3>
                       <p className="text-sm text-sky-700">
@@ -496,7 +496,7 @@ export default function OrderDetailPage() {
 
                           {/* 상품 정보 */}
                           <div className="flex-1 min-w-0">
-                            <h4 className="font-medium mb-1">{item.productName}</h4>
+                            <h4 className="font-normal mb-1">{item.productName}</h4>
                             <p className="text-sm text-gray-500 mb-2">
                               수량: {item.quantity} | 단가: {item.unitPrice.toLocaleString()}원
                             </p>
@@ -543,7 +543,7 @@ export default function OrderDetailPage() {
 
                           {/* 금액 */}
                           <div className="text-right shrink-0">
-                            <p className="font-bold text-lg">{item.totalPrice.toLocaleString()}원</p>
+                            <p className="font-normal text-lg">{item.totalPrice.toLocaleString()}원</p>
                           </div>
                         </div>
 
@@ -583,22 +583,17 @@ export default function OrderDetailPage() {
                                         className="w-full h-auto block"
                                         loading="lazy"
                                         onError={(e) => {
-                                          const img = e.currentTarget;
-                                          if (item.thumbnailUrl && img.src !== item.thumbnailUrl) {
-                                            img.src = item.thumbnailUrl;
-                                          } else {
-                                            img.style.display = 'none';
-                                          }
+                                          e.currentTarget.style.display = 'none';
                                         }}
                                       />
                                       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-1 pb-0.5 pt-3">
-                                        <span className="text-white text-[10px] font-medium">
+                                        <span className="text-white text-[10px] font-normal">
                                           {getSpreadPageLabel(idx, thumbnailFiles.length, item.pageLayout, item.bindingDirection)}
                                         </span>
                                       </div>
                                       {file.storageStatus === 'deleted' && (
                                         <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                                          <span className="text-white text-[10px] font-medium">삭제됨</span>
+                                          <span className="text-white text-[10px] font-normal">삭제됨</span>
                                         </div>
                                       )}
                                     </div>
@@ -637,21 +632,21 @@ export default function OrderDetailPage() {
                   <User className="h-4 w-4 text-gray-400 mt-1" />
                   <div>
                     <p className="text-sm text-gray-500">수령인</p>
-                    <p className="font-medium">{order.shipping.recipientName}</p>
+                    <p className="font-normal">{order.shipping.recipientName}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <Phone className="h-4 w-4 text-gray-400 mt-1" />
                   <div>
                     <p className="text-sm text-gray-500">연락처</p>
-                    <p className="font-medium">{order.shipping.phone}</p>
+                    <p className="font-normal">{order.shipping.phone}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <MapPin className="h-4 w-4 text-gray-400 mt-1" />
                   <div>
                     <p className="text-sm text-gray-500">배송 주소</p>
-                    <p className="font-medium">
+                    <p className="font-normal">
                       [{order.shipping.postalCode}] {order.shipping.address}{' '}
                       {order.shipping.addressDetail}
                     </p>
@@ -704,7 +699,7 @@ export default function OrderDetailPage() {
                   </span>
                 </div>
                 <Separator />
-                <div className="flex justify-between text-lg font-bold">
+                <div className="flex justify-between text-lg font-normal">
                   <span>총 결제금액</span>
                   <span className="text-primary">
                     {order.finalAmount.toLocaleString()}원
@@ -721,18 +716,18 @@ export default function OrderDetailPage() {
               <CardContent className="space-y-3">
                 <div>
                   <p className="text-sm text-gray-500">이름</p>
-                  <p className="font-medium">{order.client.clientName}</p>
+                  <p className="font-normal">{order.client.clientName}</p>
                 </div>
                 {order.client.mobile && (
                   <div>
                     <p className="text-sm text-gray-500">연락처</p>
-                    <p className="font-medium">{order.client.mobile}</p>
+                    <p className="font-normal">{order.client.mobile}</p>
                   </div>
                 )}
                 {order.client.email && (
                   <div>
                     <p className="text-sm text-gray-500">이메일</p>
-                    <p className="font-medium">{order.client.email}</p>
+                    <p className="font-normal">{order.client.email}</p>
                   </div>
                 )}
               </CardContent>

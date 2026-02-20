@@ -62,6 +62,9 @@ export class SpecificationService {
         if (query.forAlbum !== undefined) {
             where.forAlbum = query.forAlbum;
         }
+        if (query.forIndigoAlbum !== undefined) {
+            where.forIndigoAlbum = query.forIndigoAlbum;
+        }
         if (query.forFrame !== undefined) {
             where.forFrame = query.forFrame;
         }
@@ -136,8 +139,9 @@ export class SpecificationService {
 
         // Nup 계산 (앨범 전용)
         const forAlbum = dto.forAlbum ?? false;
-        const nupSqInch = forAlbum ? widthInch * heightInch : null;
-        const nup = forAlbum ? (dto.nup || this.calculateNup(widthInch, heightInch)) : null;
+        const forIndigoAlbum = dto.forIndigoAlbum ?? false;
+        const nupSqInch = (forAlbum || forIndigoAlbum) ? widthInch * heightInch : null;
+        const nup = (forAlbum || forIndigoAlbum) ? (dto.nup || this.calculateNup(widthInch, heightInch)) : null;
 
         // 3. 메인 규격 생성
         const mainSpec = await this.prisma.specification.create({
@@ -152,6 +156,7 @@ export class SpecificationService {
                 forIndigo: dto.forIndigo ?? false,
                 forInkjet: dto.forInkjet ?? false,
                 forAlbum,
+                forIndigoAlbum,
                 forFrame: dto.forFrame ?? false,
                 forBooklet: dto.forBooklet ?? false,
                 squareMeters: squareMeters,
@@ -182,6 +187,7 @@ export class SpecificationService {
                     forIndigo: dto.forIndigo ?? false,
                     forInkjet: dto.forInkjet ?? false,
                     forAlbum,
+                    forIndigoAlbum,
                     forFrame: dto.forFrame ?? false,
                     forBooklet: dto.forBooklet ?? false,
                     squareMeters: squareMeters, // 면적은 동일
@@ -238,11 +244,12 @@ export class SpecificationService {
         const forIndigo = dto.forIndigo ?? false;
         const forInkjet = dto.forInkjet ?? false;
         const forAlbum = dto.forAlbum ?? false;
+        const forIndigoAlbum = dto.forIndigoAlbum ?? false;
         const forFrame = dto.forFrame ?? false;
         const forBooklet = dto.forBooklet ?? false;
 
         // 용도 플래그가 하나도 없으면 스킵
-        if (!forIndigo && !forInkjet && !forAlbum && !forFrame && !forBooklet) {
+        if (!forIndigo && !forInkjet && !forAlbum && !forIndigoAlbum && !forFrame && !forBooklet) {
             return { linkedProducts: 0, details: [] };
         }
 
@@ -273,7 +280,7 @@ export class SpecificationService {
 
             // 상품 출력방식과 규격 용도 플래그 매칭 확인
             const isMatch =
-                (hasIndigo && forIndigo) ||
+                (hasIndigo && (forIndigo || forIndigoAlbum)) ||
                 (hasInkjet && (forInkjet || forAlbum || forFrame || forBooklet));
 
             if (!isMatch) continue;
@@ -337,14 +344,15 @@ export class SpecificationService {
 
         // Nup 계산 (앨범 전용)
         const forAlbum = dto.forAlbum ?? existing.forAlbum;
+        const forIndigoAlbum = dto.forIndigoAlbum ?? (existing as any).forIndigoAlbum ?? false;
         const widthInch = dto.widthInch ?? Number(existing.widthInch);
         const heightInch = dto.heightInch ?? Number(existing.heightInch);
 
         let nup = dto.nup;
         let nupSqInch = dto.nupSqInch;
 
-        // forAlbum이 변경되거나 크기가 변경된 경우 Nup 재계산
-        if (forAlbum) {
+        // forAlbum 또는 forIndigoAlbum이 변경되거나 크기가 변경된 경우 Nup 재계산
+        if (forAlbum || forIndigoAlbum) {
             nupSqInch = nupSqInch ?? widthInch * heightInch;
             nup = nup || this.calculateNup(widthInch, heightInch);
         } else {
@@ -364,6 +372,7 @@ export class SpecificationService {
                 forIndigo: dto.forIndigo,
                 forInkjet: dto.forInkjet,
                 forAlbum: dto.forAlbum,
+                forIndigoAlbum: dto.forIndigoAlbum,
                 forFrame: dto.forFrame,
                 forBooklet: dto.forBooklet,
                 squareMeters: squareMeters,

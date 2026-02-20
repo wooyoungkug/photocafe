@@ -287,7 +287,12 @@ export class FileStorageService implements OnModuleInit {
     const basePath = this.basePath.replace(/\\/g, '/');
     const absPath = absolutePath.replace(/\\/g, '/');
     const relative = absPath.replace(basePath, '');
-    return `/uploads${relative}`;
+    // 비ASCII 문자(한글 등)를 포함한 경로 세그먼트를 URL 인코딩
+    const encodedRelative = relative
+      .split('/')
+      .map(segment => (/[^\x00-\x7F]/.test(segment) ? encodeURIComponent(segment) : segment))
+      .join('/');
+    return `/uploads${encodedRelative}`;
   }
 
   /** 파일명 정리 (경로 탐색 방지) */
