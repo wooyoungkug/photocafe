@@ -79,8 +79,8 @@ export function FolderShippingSection({
           const baseFee = parcelPricing ? Number(parcelPricing.baseFee) : 3500;
           // per-client 기준금액 우선, 없으면 90,000원 기본값
           const freeThreshold = clientInfo?.freeShippingThreshold ?? 90000;
-          // 상품금액이 무료배송 임계값 이상이면 0원
-          if (itemTotal != null && itemTotal >= freeThreshold) {
+          // 스튜디오배송 합계가 무료배송 임계값 이상이면 0원
+          if (studioTotal != null && studioTotal >= freeThreshold) {
             return { fee: 0, feeType: 'free' };
           }
           return { fee: baseFee, feeType: 'conditional' };
@@ -101,7 +101,7 @@ export function FolderShippingSection({
       }
       return { fee: Number(pricing.baseFee), feeType: 'standard' };
     },
-    [clientInfo, pricingMap, itemTotal]
+    [clientInfo, pricingMap, studioTotal]
   );
 
   // 변경 시 부모에게 전달
@@ -178,7 +178,7 @@ export function FolderShippingSection({
   // 상태 변경 시 자동 emit
   useEffect(() => {
     emitChange();
-  }, [senderType, receiverType, deliveryMethod, directRecipientName, directPhone, directPostalCode, directAddress, directAddressDetail, itemTotal]);
+  }, [senderType, receiverType, deliveryMethod, directRecipientName, directPhone, directPostalCode, directAddress, directAddressDetail, studioTotal]);
 
   // 배송지가 고객직배송이면 방문수령 비활성
   const availableMethods = receiverType === 'direct_customer'
@@ -200,15 +200,15 @@ export function FolderShippingSection({
     : null;
   const isConditionalFree = clientInfo?.shippingType === 'conditional'
     && parcelFreeThreshold != null
-    && itemTotal != null
-    && itemTotal >= parcelFreeThreshold;
+    && studioTotal != null
+    && studioTotal >= parcelFreeThreshold;
 
   const shippingTypeLabel = clientInfo?.shippingType === 'free' ? '(무료배송 회원)' :
     clientInfo?.shippingType === 'conditional'
       ? isConditionalFree
-        ? `(조건부 무료)`
+        ? `(스튜디오 합계 무료)`
         : parcelFreeThreshold != null
-          ? `(${parcelFreeThreshold.toLocaleString()}원 이상 무료)`
+          ? `(스튜디오 합계 ${parcelFreeThreshold.toLocaleString()}원 이상 무료)`
           : '(조건부 무료)'
       : clientInfo?.shippingType === 'cod' ? '(착불)' : '';
 
