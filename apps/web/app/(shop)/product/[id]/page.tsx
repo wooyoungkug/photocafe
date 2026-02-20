@@ -943,7 +943,7 @@ export default function ProductPage() {
               {product.detailImages.length > 0 && (
                 <div className="mt-8 grid grid-cols-2 gap-4">
                   {product.detailImages.map((img, idx) => (
-                    <img key={idx} src={normalizeImageUrl(img)} alt={`${product.productName} ${idx + 1}`} className="w-full rounded-lg" loading="lazy" />
+                    <img key={idx} src={normalizeImageUrl(img)} alt={`${product.productName} ${idx + 1}`} className="w-full rounded-lg" loading="lazy" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                   ))}
                 </div>
               )}

@@ -59,6 +59,10 @@ interface CopperPlateChanges {
   changes: CopperPlateChangeItem[];
 }
 
+// base64 데이터 URL 필터링 (백엔드 전송 금지)
+const safeUrl = (url?: string) =>
+  url && !url.startsWith('data:') ? url : undefined;
+
 // FolderShippingInfo → CartShippingInfo 변환
 const folderToCartShipping = (s: FolderShippingInfo): CartShippingInfo => ({
   senderType: s.senderType,
@@ -552,7 +556,7 @@ export default function OrderPage() {
           coverMaterial: albumInfo.coverMaterial || undefined,
           quantity: item.quantity,
           unitPrice: item.basePrice,
-          thumbnailUrl: item.thumbnailUrl || item.thumbnailUrls?.[0] || undefined,
+          thumbnailUrl: safeUrl(item.thumbnailUrl) || safeUrl(item.thumbnailUrls?.[0]),
           totalFileSize: albumInfo.totalSize || 0,
           colorMode: albumInfo.colorMode,
           pageLayout: albumInfo.pageLayout,
@@ -565,7 +569,7 @@ export default function OrderPage() {
             colorName: albumInfo.fabricColorName,
             category: albumInfo.fabricCategory,
             basePrice: albumInfo.fabricBasePrice,
-            thumbnailUrl: albumInfo.fabricThumbnail,
+            thumbnailUrl: safeUrl(albumInfo.fabricThumbnail),
           } : undefined,
           foilName: albumInfo.foilName || undefined,
           foilColor: albumInfo.foilColor || undefined,
@@ -600,7 +604,7 @@ export default function OrderPage() {
           bindingType: item.options.find(o => o.name === '제본')?.value || '',
           quantity: item.quantity,
           unitPrice: item.basePrice,
-          thumbnailUrl: item.thumbnailUrl || item.thumbnailUrls?.[0] || undefined,
+          thumbnailUrl: safeUrl(item.thumbnailUrl) || safeUrl(item.thumbnailUrls?.[0]),
           totalFileSize: 0,
           ...(shippingDto ? { shipping: shippingDto } : {}),
         };

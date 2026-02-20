@@ -8,26 +8,39 @@ interface ProductImageGalleryProps {
   productName: string;
 }
 
+function ImagePlaceholder({ className }: { className?: string }) {
+  return (
+    <div className={cn('flex items-center justify-center bg-gray-50', className)}>
+      <div className="text-center text-gray-400">
+        <div className="text-5xl mb-2">📦</div>
+        <p className="text-sm">No Image</p>
+      </div>
+    </div>
+  );
+}
+
 export function ProductImageGallery({ images, productName }: ProductImageGalleryProps) {
   const [selectedImage, setSelectedImage] = useState(0);
+  const [mainError, setMainError] = useState(false);
+  const [thumbErrors, setThumbErrors] = useState<Record<number, boolean>>({});
+
+  const handleThumbError = (idx: number) => {
+    setThumbErrors(prev => ({ ...prev, [idx]: true }));
+  };
 
   return (
     <div className="space-y-3">
       {/* Main Image */}
       <div className="aspect-square bg-white rounded-lg border overflow-hidden shadow-sm">
-        {images.length > 0 ? (
+        {images.length > 0 && !mainError ? (
           <img
             src={images[selectedImage]}
             alt={productName}
             className="w-full h-full object-contain"
+            onError={() => setMainError(true)}
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gray-50">
-            <div className="text-center text-gray-400">
-              <div className="text-5xl mb-2">📦</div>
-              <p className="text-sm">No Image</p>
-            </div>
-          </div>
+          <ImagePlaceholder className="w-full h-full" />
         )}
       </div>
 
@@ -37,7 +50,8 @@ export function ProductImageGallery({ images, productName }: ProductImageGallery
           {images.map((img, idx) => (
             <button
               key={idx}
-              onClick={() => setSelectedImage(idx)}
+              type="button"
+              onClick={() => { setSelectedImage(idx); setMainError(false); }}
               className={cn(
                 'w-16 h-16 md:w-[72px] md:h-[72px] flex-shrink-0 rounded-lg border-2 overflow-hidden transition-all',
                 selectedImage === idx
@@ -45,7 +59,11 @@ export function ProductImageGallery({ images, productName }: ProductImageGallery
                   : 'border-gray-200 hover:border-gray-300'
               )}
             >
-              <img src={img} alt="" className="w-full h-full object-cover" />
+              {thumbErrors[idx] ? (
+                <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-300 text-xl">📦</div>
+              ) : (
+                <img src={img} alt="" className="w-full h-full object-cover" onError={() => handleThumbError(idx)} />
+              )}
             </button>
           ))}
         </div>
