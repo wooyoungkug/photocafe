@@ -236,7 +236,7 @@ export interface ConsultationChannel {
 // ==================== DTO 타입 ====================
 
 export interface CreateConsultationDto {
-  clientId: string;
+  clientId?: string;
   categoryId: string;
   title: string;
   content: string;

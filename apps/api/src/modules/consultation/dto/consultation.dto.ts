@@ -33,9 +33,10 @@ export enum FollowUpActionType {
 }
 
 export class CreateConsultationDto {
-  @ApiProperty({ description: '고객 ID' })
+  @ApiPropertyOptional({ description: '고객 ID (비회원인 경우 생략)' })
   @IsString()
-  clientId: string;
+  @IsOptional()
+  clientId?: string;
 
   @ApiProperty({ description: '상담 분류 ID' })
   @IsString()

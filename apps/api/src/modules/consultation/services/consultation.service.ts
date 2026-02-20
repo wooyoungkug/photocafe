@@ -160,7 +160,7 @@ export class ConsultationService {
     return this.prisma.consultation.create({
       data: {
         consultNumber,
-        clientId: data.clientId,
+        clientId: data.clientId || null,
         categoryId: data.categoryId,
         title: data.title,
         content: data.content,
