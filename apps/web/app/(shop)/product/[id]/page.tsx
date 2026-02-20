@@ -330,7 +330,7 @@ export default function ProductPage() {
       copperPlateType: opts.copperPlateType,
       ownedCopperPlate: opts.copperPlateType === 'owned' ? ownedCopperPlates?.find(cp => cp.id === opts.copperPlateId) : undefined,
       publicCopperPlate: opts.copperPlateType === 'public'
-        ? product.publicCopperPlates?.find(p => p.id === opts.copperPlateId)?.publicCopperPlate : undefined,
+        ? product.publicCopperPlates?.find(p => p.publicCopperPlate?.id === opts.copperPlateId)?.publicCopperPlate : undefined,
       foilColor: opts.foilColor, foilPosition: opts.foilPosition,
     });
     if (opts.coverSourceType) applyGlobalCoverSource(opts.coverSourceType);
@@ -492,7 +492,7 @@ export default function ProductPage() {
       finishings: product?.finishings?.filter(f => opts.finishingIds?.includes(f.id)) || [],
       printSide: opts.printSide, copperPlateType: opts.copperPlateType,
       ownedCopperPlate: opts.copperPlateType === 'owned' ? ownedCopperPlates?.find(cp => cp.id === opts.copperPlateId) : undefined,
-      publicCopperPlate: opts.copperPlateType === 'public' ? product?.publicCopperPlates?.find(p => p.id === opts.copperPlateId)?.publicCopperPlate : undefined,
+      publicCopperPlate: opts.copperPlateType === 'public' ? product?.publicCopperPlates?.find(p => p.publicCopperPlate?.id === opts.copperPlateId)?.publicCopperPlate : undefined,
       foilColor: opts.foilColor, foilPosition: opts.foilPosition,
     });
     if (opts.coverSourceType) applyGlobalCoverSource(opts.coverSourceType);
@@ -604,7 +604,7 @@ export default function ProductPage() {
                 effectiveFabricInfo?.id && !isEditingFabric ? (
                   <OptionCard title={t('albumCover')} inline>
                     <div className="flex items-center gap-1.5 flex-1">
-                      <div className="flex items-center gap-1.5 border border-primary bg-primary/10 text-primary rounded px-2 h-9 text-[10pt]">
+                      <div className="flex items-center gap-1.5 border border-gray-900 bg-transparent text-gray-900 rounded px-2 h-9 text-[10pt]">
                         {effectiveFabricInfo.thumbnail && (
                           <img src={normalizeImageUrl(effectiveFabricInfo.thumbnail)} alt={effectiveFabricInfo.name ?? ''}
                             className="w-5 h-5 rounded border object-cover flex-shrink-0" />

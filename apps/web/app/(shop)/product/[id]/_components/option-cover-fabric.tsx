@@ -92,8 +92,8 @@ export function OptionCoverFabric({
         type="button"
         onClick={() => setIsOpen(prev => !prev)}
         className={cn(
-          'flex items-center gap-2 px-3 py-2 border rounded-md text-sm transition-colors text-left',
-          isOpen ? 'border-primary ring-1 ring-primary' : selectedFabric ? 'border-primary bg-transparent' : 'border-gray-200 hover:border-blue-500'
+          'flex items-center gap-2 px-3 py-2 border rounded-md text-sm transition-colors text-left bg-transparent text-gray-900',
+          isOpen ? 'border-gray-900 ring-1 ring-gray-900' : selectedFabric ? 'border-gray-900' : 'border-gray-200 hover:border-gray-900'
         )}
       >
         {/* 선택된 원단 미리보기 */}
@@ -114,7 +114,7 @@ export function OptionCoverFabric({
                 <Palette className="w-3.5 h-3.5 text-gray-400" />
               </div>
             )}
-            <Check className="h-4 w-4 text-primary flex-shrink-0" />
+            <Check className="h-4 w-4 text-gray-900 flex-shrink-0" />
             <span className="whitespace-nowrap text-black">{selectedFabric.name}</span>
           </>
         ) : (

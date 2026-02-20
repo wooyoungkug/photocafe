@@ -339,7 +339,8 @@
       "Bash(git worktree remove:*)",
       "Bash(git worktree:*)",
       "WebFetch(domain:v0.app)",
-      "Bash(cmd /c:*)"
+      "Bash(cmd /c:*)",
+      "Bash(winget list:*)"
     ]
   }
 }

@@ -72,10 +72,10 @@ export function OptionCopperPlate({
 
   const selectClass = cn(
     'h-8 rounded border px-2 py-0 text-[10pt]',
-    'focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary',
+    'focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500',
     'appearance-none cursor-pointer min-w-0',
   );
-  const selectedClass = 'border-primary bg-transparent text-gray-900';
+  const selectedClass = 'border-blue-500 bg-transparent text-gray-900';
   const unselectedClass = 'border-gray-200 bg-white text-gray-700';
 
   return (

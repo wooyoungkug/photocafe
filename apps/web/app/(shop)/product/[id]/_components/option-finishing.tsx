@@ -189,7 +189,7 @@ export function OptionFinishing({
                 className={cn(
                   'flex items-center gap-1.5 px-3 py-1.5 rounded border text-[10pt] transition-colors',
                   isSelected
-                    ? 'border-primary bg-transparent text-gray-900 font-medium'
+                    ? 'border-yellow-400 bg-transparent text-gray-900 font-medium'
                     : 'border-gray-200 bg-white text-gray-700 hover:border-gray-400',
                 )}
               >
@@ -217,7 +217,7 @@ export function OptionFinishing({
               className={cn(
                 'flex items-center gap-1.5 px-3 py-1.5 rounded border text-[10pt] transition-colors',
                 selectedInGroup
-                  ? 'border-primary bg-transparent text-gray-900 font-medium'
+                  ? 'border-yellow-400 bg-transparent text-gray-900 font-medium'
                   : isExpanded
                     ? 'border-gray-400 bg-gray-50 text-gray-700'
                     : 'border-gray-200 bg-white text-gray-700 hover:border-gray-400',
@@ -238,7 +238,7 @@ export function OptionFinishing({
                       e.stopPropagation();
                       onToggle(selectedInGroup, false);
                     }}
-                    className="flex items-center justify-center h-4 w-4 rounded-sm hover:bg-primary/20 flex-shrink-0"
+                    className="flex items-center justify-center h-4 w-4 rounded-sm hover:bg-yellow-400/20 flex-shrink-0"
                   >
                     <X className="h-3 w-3" />
                   </span>
@@ -287,7 +287,7 @@ export function OptionFinishing({
                       className={cn(
                         'w-full flex items-center justify-between px-3 py-2.5 rounded-md border transition-colors text-left',
                         isSelected
-                          ? 'border-primary bg-transparent text-gray-900'
+                          ? 'border-yellow-400 bg-transparent text-gray-900'
                           : 'border-transparent bg-white text-gray-700 hover:border-gray-200 hover:bg-white',
                       )}
                     >
@@ -296,7 +296,7 @@ export function OptionFinishing({
                           className={cn(
                             'w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0',
                             isSelected
-                              ? 'border-primary bg-primary'
+                              ? 'border-yellow-400 bg-yellow-400'
                               : 'border-gray-300 bg-white',
                           )}
                         >
@@ -342,7 +342,7 @@ export function OptionFinishing({
                         className={cn(
                           'w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0',
                           isSelected
-                            ? 'border-primary bg-primary'
+                            ? 'border-yellow-400 bg-yellow-400'
                             : 'border-gray-300 bg-white',
                         )}
                       >
