@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 // 시스템 설정 타입
 export interface SystemSetting {
@@ -141,11 +141,7 @@ export function useUpdateSystemSetting() {
       queryClient.invalidateQueries({ queryKey: ["system-settings"] });
     },
     onError: (error: Error) => {
-      toast({
-        variant: "destructive",
-        title: "설정 저장 실패",
-        description: error.message,
-      });
+      toast.error("설정 저장 실패", { description: error.message });
     },
   });
 }
@@ -166,16 +162,10 @@ export function useBulkUpdateSettings() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["system-settings"] });
-      toast({
-        title: "설정이 저장되었습니다.",
-      });
+      toast.success("설정이 저장되었습니다.");
     },
     onError: (error: Error) => {
-      toast({
-        variant: "destructive",
-        title: "설정 저장 실패",
-        description: error.message,
-      });
+      toast.error("설정 저장 실패", { description: error.message });
     },
   });
 }

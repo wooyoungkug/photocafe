@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
 import { Building2, Printer, Truck, ListChecks, Server, Save, RotateCcw, HardDrive, FolderOpen, AlertTriangle } from "lucide-react";
 import DeliverySettingsContent from "@/components/settings/delivery-settings-content";
 import {
@@ -636,7 +635,6 @@ export default function BasicSettingsPage() {
                   </CardTitle>
                   <CardDescription>시놀로지 NAS 서버의 파일 저장 경로를 설정합니다.</CardDescription>
                 </div>
-                <Badge variant="outline" className="text-xs">Docker 볼륨 마운트</Badge>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
