@@ -242,11 +242,23 @@ export default function CartPage() {
   // Totals
   const selectedCartItems = items.filter((item) => selectedItems.includes(item.id));
   const selectedTotal = selectedCartItems.reduce((sum, item) => sum + item.totalPrice, 0);
-  const totalShippingFee = selectedCartItems.reduce((sum, item) => {
-    if (item.albumOrderInfo?.shippingInfo) return sum + (item.albumOrderInfo.shippingInfo.deliveryFee || 0);
-    if (item.shippingInfo) return sum + (item.shippingInfo.deliveryFee || 0);
-    return sum;
-  }, 0);
+  // shipping dedup: charge once per route
+  const totalShippingFee = (() => {
+    const seenRoutes = new Set();
+    let total = 0;
+    for (const item of selectedCartItems) {
+      const shipping = item.albumOrderInfo?.shippingInfo || item.shippingInfo;
+      if (!shipping) continue;
+      const fee = shipping.deliveryFee || 0;
+      if (fee === 0) continue;
+      const routeKey = shipping.deliveryMethod + "|" + shipping.senderType + "|" + shipping.receiverType + "|" + (shipping.recipientPostalCode || "");
+      if (!seenRoutes.has(routeKey)) {
+        seenRoutes.add(routeKey);
+        total += fee;
+      }
+    }
+    return total;
+  })();
 
   // 업로드 진행 중인 아이템이 있는지 확인
   const hasUploadInProgress = items.some(
@@ -381,6 +393,7 @@ export default function CartPage() {
                           companyInfo={companyInfo}
                           clientInfo={clientInfo}
                           pricingMap={pricingMap}
+                          cartTotal={selectedTotal}
                         />
                       );
                     });

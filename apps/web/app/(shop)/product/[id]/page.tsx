@@ -350,7 +350,8 @@ export default function ProductPage() {
         foilPosition: undefined,
       });
     }
-  }, [product, copperPlateLabels, allPublicCopperPlates]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.id]);
 
   // ===== 최근 주문 옵션 자동 적용 =====
   const [lastOptionsApplied, setLastOptionsApplied] = useState(false);
