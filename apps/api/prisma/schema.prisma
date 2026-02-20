@@ -1308,9 +1308,9 @@ model Consultation {
   id             String                 @id @default(cuid())
   consultNumber  String                 @unique
   clientId       String?
-  categoryId     String
-  title          String
-  content        String
+  categoryId     String?
+  title          String?
+  content        String?
   orderId        String?
   orderNumber    String?
   counselorId    String
@@ -1339,7 +1339,7 @@ model Consultation {
   openedBy       String?
   followUps      ConsultationFollowUp[]
   messages       ConsultationMessage[]
-  category       ConsultationCategory   @relation(fields: [categoryId], references: [id])
+  category       ConsultationCategory?  @relation(fields: [categoryId], references: [id])
   client         Client?                @relation(fields: [clientId], references: [id], onDelete: SetNull)
 
   @@index([clientId])

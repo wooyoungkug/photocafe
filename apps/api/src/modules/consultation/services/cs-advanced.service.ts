@@ -499,8 +499,10 @@ export class CSAdvancedService {
       },
     });
 
-    // 건강 점수 재계산
-    await this.calculateAndSaveHealthScore(consultation.clientId);
+    // 건강 점수 재계산 (clientId가 있는 경우에만)
+    if (consultation.clientId) {
+      await this.calculateAndSaveHealthScore(consultation.clientId);
+    }
 
     return survey;
   }

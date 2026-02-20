@@ -797,135 +797,6 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
         </CollapsibleContent>
       </Collapsible>
 
-      {/* 편집 · 제본 (한 줄) - 썸네일 아래 */}
-      <div className="flex items-center gap-2 text-xs text-gray-600 mt-3 mb-1 flex-wrap">
-        <div className="flex items-center gap-2">
-        {folder.isAutoDetected && (
-          <span className="text-[9px] text-blue-500 bg-blue-50 px-1 rounded">{tc('auto')}</span>
-        )}
-        <div className="flex border rounded overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setFolderPageLayout(folder.id, 'single')}
-            className={cn(
-              'px-1.5 py-0.5 text-[10px] flex items-center gap-0.5 transition-colors',
-              folder.pageLayout === 'single'
-                ? 'bg-blue-500 text-white'
-                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-            )}
-          >
-            <FileText className="w-2.5 h-2.5" />{t('single')}
-          </button>
-          <button
-            type="button"
-            onClick={() => setFolderPageLayout(folder.id, 'spread')}
-            className={cn(
-              'px-1.5 py-0.5 text-[10px] flex items-center gap-0.5 transition-colors',
-              folder.pageLayout === 'spread'
-                ? 'bg-blue-500 text-white'
-                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-            )}
-          >
-            <BookOpen className="w-2.5 h-2.5" />{t('spread')}
-          </button>
-        </div>
-        {folder.pageLayout === 'spread' && (
-          <>
-            <span className="text-gray-300">|</span>
-            <div className="flex gap-1">
-              {(['LEFT_START_RIGHT_END', 'LEFT_START_LEFT_END', 'RIGHT_START_LEFT_END', 'RIGHT_START_RIGHT_END'] as BindingDirection[]).map((dir) => {
-                const isSelected = (folder.bindingDirection || 'LEFT_START_RIGHT_END') === dir;
-                const startLeft = dir.startsWith('LEFT_START');
-                const endRight = dir.endsWith('RIGHT_END');
-                const label = dir === 'LEFT_START_RIGHT_END' ? '좌→우' : dir === 'LEFT_START_LEFT_END' ? '좌→좌' : dir === 'RIGHT_START_LEFT_END' ? '우→좌' : '우→우';
-                return (
-                  <button
-                    key={dir}
-                    type="button"
-                    onClick={() => setFolderBindingDirection(folder.id, dir)}
-                    className={cn(
-                      'flex flex-col items-center gap-0.5 px-1 py-0.5 rounded border transition-colors',
-                      isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:bg-gray-50'
-                    )}
-                  >
-                    <span className="flex items-center gap-1">
-                      <span className="flex gap-px">
-                        <span className={cn('w-4 h-6 rounded-sm', startLeft ? 'bg-blue-500' : 'bg-gray-200')} />
-                        <span className={cn('w-4 h-6 rounded-sm', startLeft ? 'bg-gray-200' : 'bg-blue-500')} />
-                      </span>
-                      <span className="flex gap-px">
-                        <span className={cn('w-4 h-6 rounded-sm', endRight ? 'bg-gray-200' : 'bg-blue-500')} />
-                        <span className={cn('w-4 h-6 rounded-sm', endRight ? 'bg-blue-500' : 'bg-gray-200')} />
-                      </span>
-                    </span>
-                    <span className={cn('text-[8px] leading-none', isSelected ? 'text-blue-600 font-medium' : 'text-gray-400')}>{label}</span>
-                  </button>
-                );
-              })}
-            </div>
-            {folder.autoBindingDetected && (
-              <span className="text-[9px] text-green-600 bg-green-50 px-1 rounded" title={`${t('firstPage')} ${folder.firstPageBlank ? t('blankPageLabel') : t('normalPageLabel')} / ${t('lastPage')} ${folder.lastPageBlank ? t('blankPageLabel') : t('normalPageLabel')}`}>
-                {t('autoDetected')}
-              </span>
-            )}
-          </>
-        )}
-        {folder.pageLayout === 'single' && (
-          <>
-            <span className="text-gray-300">|</span>
-            <div className="flex gap-1">
-              {(['LEFT', 'RIGHT'] as const).map((side) => {
-                const currentSide = (folder.bindingDirection || 'LEFT_START_RIGHT_END').startsWith('RIGHT') ? 'RIGHT' : 'LEFT';
-                const isSelected = currentSide === side;
-                const label = side === 'LEFT' ? '좌시작' : '우시작';
-                return (
-                  <button
-                    key={side}
-                    type="button"
-                    onClick={() => {
-                      const dir: BindingDirection = side === 'RIGHT' ? 'RIGHT_START_LEFT_END' : 'LEFT_START_RIGHT_END';
-                      setFolderBindingDirection(folder.id, dir);
-                    }}
-                    className={cn(
-                      'flex flex-col items-center gap-0.5 px-1 py-0.5 rounded border transition-colors',
-                      isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:bg-gray-50'
-                    )}
-                  >
-                    <span className="flex gap-px">
-                      <span className={cn('w-4 h-6 rounded-sm', side === 'LEFT' ? 'bg-blue-500' : 'bg-gray-200')} />
-                      <span className={cn('w-4 h-6 rounded-sm', side === 'RIGHT' ? 'bg-blue-500' : 'bg-gray-200')} />
-                    </span>
-                    <span className={cn('text-[8px] leading-none', isSelected ? 'text-blue-600 font-medium' : 'text-gray-400')}>{label}</span>
-                  </button>
-                );
-              })}
-            </div>
-            {folder.autoBindingDetected && (
-              <span className="text-[9px] text-green-600 bg-green-50 px-1 rounded">
-                {t('autoDetected')}
-              </span>
-            )}
-          </>
-        )}
-        {/* 업로드 시각 + 상태 배지 */}
-        {folder.uploadedAt && (
-          <span className="ml-auto flex items-center gap-1 text-[10px] text-gray-400">
-            <Clock className="h-3 w-3" />
-            {new Date(folder.uploadedAt).toLocaleString(undefined, {
-              month: '2-digit', day: '2-digit',
-              hour: '2-digit', minute: '2-digit',
-            })}
-          </span>
-        )}
-        <Badge className={cn(folder.uploadedAt ? '' : 'ml-auto', actualStatus.badgeColor)}>
-          {actualStatus.icon}
-          <span className="ml-1">
-            {folder.isApproved && folder.validationStatus === 'RATIO_MATCH' ? t('normalOrder') : statusLabels[folder.validationStatus]}
-          </span>
-        </Badge>
-        </div>
-      </div>
-
       {/* 헤더 (체크박스 + 제목 + 가격) */}
       <div className="flex items-start gap-3 mt-3">
         {/* 체크박스 */}
@@ -1002,43 +873,131 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
 
 
           </div>
+          {/* 편집 · 제본 (한 줄) */}
+          <div className="flex items-center gap-2 text-xs text-gray-600 mt-1 mb-1 flex-wrap">
+            <div className="flex border rounded overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setFolderPageLayout(folder.id, 'single')}
+                className={cn(
+                  'px-1.5 py-0.5 text-[10px] flex items-center gap-0.5 transition-colors',
+                  folder.pageLayout === 'single'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                )}
+              >
+                <FileText className="w-2.5 h-2.5" />{t('single')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setFolderPageLayout(folder.id, 'spread')}
+                className={cn(
+                  'px-1.5 py-0.5 text-[10px] flex items-center gap-0.5 transition-colors',
+                  folder.pageLayout === 'spread'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                )}
+              >
+                <BookOpen className="w-2.5 h-2.5" />{t('spread')}
+              </button>
+            </div>
+            {folder.pageLayout === 'spread' && (
+              <>
+                <span className="text-gray-300">|</span>
+                <select
+                  value={folder.bindingDirection || 'LEFT_START_RIGHT_END'}
+                  onChange={(e) => setFolderBindingDirection(folder.id, e.target.value as BindingDirection)}
+                  className="text-xs border rounded px-1.5 py-0.5 bg-white text-black"
+                  aria-label="제본순서"
+                >
+                  <option value="LEFT_START_LEFT_END">좌시작좌끝</option>
+                  <option value="LEFT_START_RIGHT_END">좌시작우끝</option>
+                  <option value="RIGHT_START_LEFT_END">우시작좌끝</option>
+                  <option value="RIGHT_START_RIGHT_END">우시작우끝</option>
+                </select>
+                {folder.autoBindingDetected && (
+                  <span className="text-[9px] text-green-600 bg-green-50 px-1 rounded" title={`${t('firstPage')} ${folder.firstPageBlank ? t('blankPageLabel') : t('normalPageLabel')} / ${t('lastPage')} ${folder.lastPageBlank ? t('blankPageLabel') : t('normalPageLabel')}`}>
+                    {t('autoDetected')}
+                  </span>
+                )}
+              </>
+            )}
+            {folder.pageLayout === 'single' && (
+              <>
+                <span className="text-gray-300">|</span>
+                <select
+                  value={folder.bindingDirection || 'LEFT_START_RIGHT_END'}
+                  onChange={(e) => setFolderBindingDirection(folder.id, e.target.value as BindingDirection)}
+                  className="text-xs border rounded px-1.5 py-0.5 bg-white text-black"
+                  aria-label="제본순서"
+                >
+                  <option value="LEFT_START_LEFT_END">좌시작좌끝</option>
+                  <option value="LEFT_START_RIGHT_END">좌시작우끝</option>
+                  <option value="RIGHT_START_LEFT_END">우시작좌끝</option>
+                  <option value="RIGHT_START_RIGHT_END">우시작우끝</option>
+                </select>
+                {folder.autoBindingDetected && (
+                  <span className="text-[9px] text-green-600 bg-green-50 px-1 rounded">
+                    {t('autoDetected')}
+                  </span>
+                )}
+              </>
+            )}
+            {/* 업로드 시각 + 상태 배지 */}
+            {folder.uploadedAt && (
+              <span className="ml-auto flex items-center gap-1 text-[10px] text-gray-400">
+                <Clock className="h-3 w-3" />
+                {new Date(folder.uploadedAt).toLocaleString(undefined, {
+                  month: '2-digit', day: '2-digit',
+                  hour: '2-digit', minute: '2-digit',
+                })}
+              </span>
+            )}
+            <Badge className={cn(folder.uploadedAt ? '' : 'ml-auto', actualStatus.badgeColor)}>
+              {actualStatus.icon}
+              <span className="ml-1">
+                {folder.isApproved && folder.validationStatus === 'RATIO_MATCH' ? t('normalOrder') : statusLabels[folder.validationStatus]}
+              </span>
+            </Badge>
+          </div>
           {/* 규격 · 페이지 · 부수 (제목 아래) */}
           {hasValidStatus && (
             <div className="flex items-center gap-2 flex-wrap mt-1">
               <span className="text-xs text-black">{t('specLabelShort')}</span>
-              <span className={cn(
-                'text-xs px-1 rounded border',
-                folder.specFoundInDB ? 'text-black border-transparent' : 'text-orange-700 border-red-400 bg-orange-50'
-              )}>{folder.albumLabel}</span>
-              {!folder.specFoundInDB && (
-                <span
-                  className="text-[9px] bg-orange-100 text-orange-700 border border-orange-300 px-1 py-0.5 rounded cursor-help"
-                  title="이 규격은 DB에 등록되지 않았습니다. 관리자 > 규격관리에서 해당 규격을 추가하거나, 아래 유사 규격을 선택하세요."
-                >
-                  ⚠ DB미등록
-                </span>
-              )}
-              {folder.availableSizes.length > 0 && (
-                <select
-                  value={folder.specFoundInDB ? `${folder.albumWidth}x${folder.albumHeight}` : ''}
-                  onChange={(e) => {
-                    const [w, h] = e.target.value.split('x').map(Number);
-                    const selectedSize = folder.availableSizes.find(s => s.width === w && s.height === h);
-                    if (selectedSize) changeFolderSpec(folder.id, selectedSize);
-                  }}
-                  className="text-xs border rounded px-1.5 py-0.5 bg-white text-black"
-                  aria-label="제작가능규격 선택"
-                >
-                  {!folder.specFoundInDB && (
-                    <option value="" disabled>─ 비율 일치 규격 선택 ─</option>
-                  )}
-                  {folder.availableSizes.map((size) => (
-                    <option key={size.label} value={`${size.width}x${size.height}`}>
-                      {size.label}
+              {(() => {
+                const currentKey = `${folder.albumWidth}x${folder.albumHeight}`;
+                // 현재 규격을 제외한 나머지 DB 규격 목록 (중복 방지)
+                const otherSizes = folder.availableSizes.filter(
+                  s => `${s.width}x${s.height}` !== currentKey
+                );
+                // 선택 가능한 다른 규격이 없으면 드롭다운 숨김
+                if (otherSizes.length === 0) return null;
+                return (
+                  <select
+                    value={currentKey}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === currentKey) return;
+                      const [w, h] = val.split('x').map(Number);
+                      const selectedSize = folder.availableSizes.find(s => s.width === w && s.height === h);
+                      if (selectedSize) changeFolderSpec(folder.id, selectedSize);
+                    }}
+                    className="text-xs border rounded px-1.5 py-0.5 bg-white text-black"
+                    aria-label="제작가능규격 선택"
+                  >
+                    {/* 현재 규격: DB미등록이면 표시 */}
+                    <option value={currentKey}>
+                      {folder.albumLabel}{!folder.specFoundInDB ? ' ⚠ DB미등록' : ''}
                     </option>
-                  ))}
-                </select>
-              )}
+                    {/* 비율 일치 DB 규격 목록 (현재 규격 중복 제외) */}
+                    {otherSizes.map((size) => (
+                      <option key={size.label} value={`${size.width}x${size.height}`}>
+                        {size.label}
+                      </option>
+                    ))}
+                  </select>
+                );
+              })()}
               <span className="text-gray-300">|</span>
               <span className="text-xs text-black">{t('pageLabelShort')}</span>
               <span className="text-xs text-black">{folder.pageCount}p</span>
@@ -1170,19 +1129,72 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                             <Folder className="h-3 w-3 text-orange-500" />
                             <span className="text-[10px] font-bold text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded">{t('additionalSetOrder')}</span>
                             <span className="text-xs font-normal text-black truncate">{folder.orderTitle}</span>
-                            <span className="text-gray-300">|</span>
-                            <span className="text-xs text-black">
-                              {folder.pageLayout === 'single' ? t('single') : t('spread')}
-                            </span>
-                            {folder.pageLayout === 'spread' && folder.bindingDirection && (
+                            <div className="flex border rounded overflow-hidden">
+                              <button
+                                type="button"
+                                onClick={() => setFolderPageLayout(folder.id, 'single')}
+                                className={cn(
+                                  'px-1.5 py-0.5 text-[10px] flex items-center gap-0.5 transition-colors',
+                                  folder.pageLayout === 'single'
+                                    ? 'bg-blue-500 text-white'
+                                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                                )}
+                              >
+                                <FileText className="w-2.5 h-2.5" />{t('single')}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setFolderPageLayout(folder.id, 'spread')}
+                                className={cn(
+                                  'px-1.5 py-0.5 text-[10px] flex items-center gap-0.5 transition-colors',
+                                  folder.pageLayout === 'spread'
+                                    ? 'bg-blue-500 text-white'
+                                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                                )}
+                              >
+                                <BookOpen className="w-2.5 h-2.5" />{t('spread')}
+                              </button>
+                            </div>
+                            {folder.pageLayout === 'spread' && (
                               <>
                                 <span className="text-gray-300">|</span>
-                                <span className="text-xs text-black">
-                                  {folder.bindingDirection === 'LEFT_START_RIGHT_END' ? t('bindingLeftRight') :
-                                    folder.bindingDirection === 'LEFT_START_LEFT_END' ? t('bindingLeftLeft') :
-                                      folder.bindingDirection === 'RIGHT_START_LEFT_END' ? t('bindingRightLeft') :
-                                        t('bindingRightRight')}
-                                </span>
+                                <select
+                                  value={folder.bindingDirection || 'LEFT_START_RIGHT_END'}
+                                  onChange={(e) => setFolderBindingDirection(folder.id, e.target.value as BindingDirection)}
+                                  className="text-xs border rounded px-1.5 py-0.5 bg-white text-black"
+                                  aria-label="제본순서"
+                                >
+                                  <option value="LEFT_START_LEFT_END">좌시작좌끝</option>
+                                  <option value="LEFT_START_RIGHT_END">좌시작우끝</option>
+                                  <option value="RIGHT_START_LEFT_END">우시작좌끝</option>
+                                  <option value="RIGHT_START_RIGHT_END">우시작우끝</option>
+                                </select>
+                                {folder.autoBindingDetected && (
+                                  <span className="text-[9px] text-green-600 bg-green-50 px-1 rounded" title={`${t('firstPage')} ${folder.firstPageBlank ? t('blankPageLabel') : t('normalPageLabel')} / ${t('lastPage')} ${folder.lastPageBlank ? t('blankPageLabel') : t('normalPageLabel')}`}>
+                                    {t('autoDetected')}
+                                  </span>
+                                )}
+                              </>
+                            )}
+                            {folder.pageLayout === 'single' && (
+                              <>
+                                <span className="text-gray-300">|</span>
+                                <select
+                                  value={folder.bindingDirection || 'LEFT_START_RIGHT_END'}
+                                  onChange={(e) => setFolderBindingDirection(folder.id, e.target.value as BindingDirection)}
+                                  className="text-xs border rounded px-1.5 py-0.5 bg-white text-black"
+                                  aria-label="제본순서"
+                                >
+                                  <option value="LEFT_START_LEFT_END">좌시작좌끝</option>
+                                  <option value="LEFT_START_RIGHT_END">좌시작우끝</option>
+                                  <option value="RIGHT_START_LEFT_END">우시작좌끝</option>
+                                  <option value="RIGHT_START_RIGHT_END">우시작우끝</option>
+                                </select>
+                                {folder.autoBindingDetected && (
+                                  <span className="text-[9px] text-green-600 bg-green-50 px-1 rounded">
+                                    {t('autoDetected')}
+                                  </span>
+                                )}
                               </>
                             )}
                           </div>

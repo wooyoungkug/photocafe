@@ -161,9 +161,9 @@ export class ConsultationService {
       data: {
         consultNumber,
         clientId: data.clientId || null,
-        categoryId: data.categoryId,
-        title: data.title,
-        content: data.content,
+        categoryId: data.categoryId || null,
+        title: data.title || null,
+        content: data.content || null,
         orderId: data.orderId,
         orderNumber: data.orderNumber,
         counselorId: data.counselorId,

@@ -303,7 +303,7 @@ export default function NewConsultationPage() {
   };
 
   const handleSubmit = async () => {
-    // 비회원인 경우 이름과 연락처 필수 체크
+    // 비회원인 경우 이름과 연락처만 필수
     if (isNonMember) {
       if (!nonMemberInfo.name.trim()) {
         toast({ title: '비회원 고객명을 입력해주세요.', variant: 'destructive' });
@@ -313,31 +313,45 @@ export default function NewConsultationPage() {
         toast({ title: '비회원 연락처를 입력해주세요.', variant: 'destructive' });
         return;
       }
-    } else if (!selectedClient) {
-      toast({ title: '고객을 선택해주세요.', variant: 'destructive' });
-      return;
-    }
-    if (!formData.categoryId) {
-      toast({ title: '상담 분류를 선택해주세요.', variant: 'destructive' });
-      return;
-    }
-    if (!formData.title?.trim()) {
-      toast({ title: '상담 제목을 입력해주세요.', variant: 'destructive' });
-      return;
-    }
-    if (!formData.content?.trim()) {
-      toast({ title: '상담 내용을 입력해주세요.', variant: 'destructive' });
-      return;
+    } else {
+      // 회원인 경우 기존 필수값 체크
+      if (!selectedClient) {
+        toast({ title: '고객을 선택해주세요.', variant: 'destructive' });
+        return;
+      }
+      if (!formData.categoryId) {
+        toast({ title: '상담 분류를 선택해주세요.', variant: 'destructive' });
+        return;
+      }
+      if (!formData.title?.trim()) {
+        toast({ title: '상담 제목을 입력해주세요.', variant: 'destructive' });
+        return;
+      }
+      if (!formData.content?.trim()) {
+        toast({ title: '상담 내용을 입력해주세요.', variant: 'destructive' });
+        return;
+      }
     }
 
     try {
-      // 비회원인 경우 비회원 정보를 internalMemo에 추가
+      // 비회원 정보를 internalMemo에 포함하고 title/content 자동 생성
+      const nonMemberMemo = isNonMember
+        ? `[비회원 고객 정보]\n이름: ${nonMemberInfo.name}\n연락처: ${nonMemberInfo.phone}${nonMemberInfo.email ? `\n이메일: ${nonMemberInfo.email}` : ''}${nonMemberInfo.memo ? `\n메모: ${nonMemberInfo.memo}` : ''}${formData.internalMemo ? `\n\n${formData.internalMemo}` : ''}`
+        : formData.internalMemo;
+
       const consultationData = {
         ...formData,
         clientId: isNonMember ? undefined : selectedClient?.id,
-        internalMemo: isNonMember
-          ? `[비회원 고객 정보]\n이름: ${nonMemberInfo.name}\n연락처: ${nonMemberInfo.phone}${nonMemberInfo.email ? `\n이메일: ${nonMemberInfo.email}` : ''}${nonMemberInfo.memo ? `\n메모: ${nonMemberInfo.memo}` : ''}${formData.internalMemo ? `\n\n${formData.internalMemo}` : ''}`
-          : formData.internalMemo,
+        // 비회원은 title/content 미입력 시 자동 생성
+        title: formData.title?.trim() || (isNonMember ? `${nonMemberInfo.name} 상담 문의` : undefined),
+        content: formData.content?.trim() || (isNonMember
+          ? `[비회원 문의]\n이름: ${nonMemberInfo.name}\n연락처: ${nonMemberInfo.phone}${nonMemberInfo.email ? `\n이메일: ${nonMemberInfo.email}` : ''}${nonMemberInfo.memo ? `\n메모: ${nonMemberInfo.memo}` : ''}`
+          : undefined),
+        internalMemo: nonMemberMemo,
+        // 빈 문자열은 @IsDateString() 검증 실패하므로 undefined로 처리
+        followUpDate: formData.followUpDate || undefined,
+        orderNumber: formData.orderNumber || undefined,
+        followUpNote: formData.followUpNote || undefined,
       };
 
       const result = await createConsultation.mutateAsync(consultationData as CreateConsultationDto);

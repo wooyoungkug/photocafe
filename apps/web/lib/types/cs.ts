@@ -70,8 +70,8 @@ export interface ConsultationFollowUp {
 export interface Consultation {
   id: string;
   consultNumber: string;
-  clientId: string;
-  client: {
+  clientId?: string | null;
+  client?: {
     id: string;
     clientCode: string;
     clientName: string;
@@ -82,11 +82,11 @@ export interface Consultation {
     representative?: string;
     address?: string;
     addressDetail?: string;
-  };
-  categoryId: string;
-  category: ConsultationCategory;
-  title: string;
-  content: string;
+  } | null;
+  categoryId?: string | null;
+  category?: ConsultationCategory | null;
+  title?: string | null;
+  content?: string | null;
   orderId?: string;
   orderNumber?: string;
   counselorId: string;
@@ -237,9 +237,9 @@ export interface ConsultationChannel {
 
 export interface CreateConsultationDto {
   clientId?: string;
-  categoryId: string;
-  title: string;
-  content: string;
+  categoryId?: string;
+  title?: string;
+  content?: string;
   orderId?: string;
   orderNumber?: string;
   counselorId: string;

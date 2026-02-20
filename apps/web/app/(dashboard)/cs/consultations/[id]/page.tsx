@@ -471,31 +471,39 @@ export default function ConsultationDetailPage() {
                   <User className="h-5 w-5 text-blue-600" />
                   고객 정보
                 </CardTitle>
-                <Link href={`/cs/clients/${consultation.clientId}/timeline`}>
-                  <Button variant="ghost" size="sm">
-                    360° 뷰 <ExternalLink className="h-3.5 w-3.5 ml-1" />
-                  </Button>
-                </Link>
+                {consultation.clientId && (
+                  <Link href={`/cs/clients/${consultation.clientId}/timeline`}>
+                    <Button variant="ghost" size="sm">
+                      360° 뷰 <ExternalLink className="h-3.5 w-3.5 ml-1" />
+                    </Button>
+                  </Link>
+                )}
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-semibold text-lg">{consultation.client.clientName}</span>
-                  <Badge variant="outline">{consultation.client.clientCode}</Badge>
-                </div>
-              </div>
-              {consultation.client.phone && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  {consultation.client.phone}
-                </div>
-              )}
-              {consultation.client.email && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  {consultation.client.email}
-                </div>
+              {consultation.client ? (
+                <>
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-lg">{consultation.client.clientName}</span>
+                      <Badge variant="outline">{consultation.client.clientCode}</Badge>
+                    </div>
+                  </div>
+                  {consultation.client.phone && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      {consultation.client.phone}
+                    </div>
+                  )}
+                  {consultation.client.email && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      {consultation.client.email}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">고객 정보가 없습니다.</p>
               )}
             </CardContent>
           </Card>

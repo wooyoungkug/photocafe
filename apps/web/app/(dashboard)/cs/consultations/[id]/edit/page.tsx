@@ -343,6 +343,10 @@ export default function EditConsultationPage() {
         internalMemo: isNonMember
           ? `[비회원 고객 정보]\n이름: ${nonMemberInfo.name}\n연락처: ${nonMemberInfo.phone}${nonMemberInfo.email ? `\n이메일: ${nonMemberInfo.email}` : ''}${nonMemberInfo.memo ? `\n메모: ${nonMemberInfo.memo}` : ''}${formData.internalMemo ? `\n\n${formData.internalMemo}` : ''}`
           : formData.internalMemo,
+        // 빈 문자열은 @IsDateString() 검증 실패하므로 undefined로 처리
+        followUpDate: formData.followUpDate || undefined,
+        orderNumber: formData.orderNumber || undefined,
+        followUpNote: formData.followUpNote || undefined,
       };
 
       await updateConsultation.mutateAsync({ id: consultationId, data: consultationData });

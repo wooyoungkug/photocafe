@@ -59,6 +59,17 @@ import {
 import { ConsultationStatus, ConsultationPriority } from '@/lib/types/cs';
 import Link from 'next/link';
 
+// 비회원 internalMemo에서 이름/연락처 파싱
+function parseNonMemberInfo(internalMemo?: string | null) {
+  if (!internalMemo?.includes('[비회원 고객 정보]')) return null;
+  const nameMatch = internalMemo.match(/이름:\s*(.+)/);
+  const phoneMatch = internalMemo.match(/연락처:\s*(.+)/);
+  return {
+    name: nameMatch?.[1]?.trim() || '',
+    phone: phoneMatch?.[1]?.trim() || '',
+  };
+}
+
 export default function ConsultationsPage() {
   const { toast } = useToast();
   const [page, setPage] = useState(1);
@@ -261,6 +272,7 @@ export default function ConsultationsPage() {
               <TableRow className="bg-slate-50/80">
                 <TableHead className="whitespace-nowrap">상담번호</TableHead>
                 <TableHead className="whitespace-nowrap">고객</TableHead>
+                <TableHead className="whitespace-nowrap">전화번호</TableHead>
                 <TableHead className="whitespace-nowrap">제목</TableHead>
                 <TableHead className="whitespace-nowrap">분류</TableHead>
                 <TableHead className="whitespace-nowrap">담당자</TableHead>
@@ -272,7 +284,7 @@ export default function ConsultationsPage() {
             <TableBody>
               {consultationsData?.data?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-12">
+                  <TableCell colSpan={9} className="text-center py-12">
                     <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-20" />
                     등록된 상담이 없습니다.
                   </TableCell>
@@ -284,7 +296,25 @@ export default function ConsultationsPage() {
                       {consultation.consultNumber}
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
-                      <span className="text-sm font-medium">{consultation.client.clientName}</span>
+                      {consultation.client?.clientName ? (
+                        <span className="text-sm font-medium">{consultation.client.clientName}</span>
+                      ) : (() => {
+                        const nm = parseNonMemberInfo(consultation.internalMemo);
+                        return nm?.name ? (
+                          <div className="flex items-center gap-1">
+                            <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 text-orange-600 border-orange-300 bg-orange-50">비회원</Badge>
+                            <span className="text-sm font-medium">{nm.name}</span>
+                          </div>
+                        ) : <span className="text-muted-foreground text-sm">-</span>;
+                      })()}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                      {consultation.client
+                        ? (consultation.client.mobile || consultation.client.phone || '-')
+                        : (() => {
+                            const nm = parseNonMemberInfo(consultation.internalMemo);
+                            return nm?.phone || '-';
+                          })()}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -301,11 +331,11 @@ export default function ConsultationsPage() {
                           href={`/cs/consultations/${consultation.id}`}
                           className="font-medium hover:text-blue-600 hover:underline"
                         >
-                          {consultation.title}
+                          {consultation.title || <span className="text-muted-foreground text-sm">(제목 없음)</span>}
                         </Link>
-                        {consultation._count?.followUps && consultation._count.followUps > 0 && (
+                        {(consultation._count?.followUps ?? 0) > 0 && (
                           <Badge variant="outline" className="text-xs flex-shrink-0">
-                            +{consultation._count.followUps}
+                            +{consultation._count!.followUps}
                           </Badge>
                         )}
                       </div>
@@ -404,7 +434,7 @@ export default function ConsultationsPage() {
                             className="text-destructive"
                             onClick={() => setDeleteConfirm({
                               id: consultation.id,
-                              title: consultation.title,
+                              title: consultation.title || '(제목 없음)',
                             })}
                           >
                             <Trash2 className="h-4 w-4 mr-2" />

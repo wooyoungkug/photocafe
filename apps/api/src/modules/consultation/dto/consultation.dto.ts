@@ -38,17 +38,20 @@ export class CreateConsultationDto {
   @IsOptional()
   clientId?: string;
 
-  @ApiProperty({ description: '상담 분류 ID' })
+  @ApiPropertyOptional({ description: '상담 분류 ID' })
   @IsString()
-  categoryId: string;
+  @IsOptional()
+  categoryId?: string;
 
-  @ApiProperty({ description: '상담 제목', example: '인쇄물 색상 오류 문의' })
+  @ApiPropertyOptional({ description: '상담 제목', example: '인쇄물 색상 오류 문의' })
   @IsString()
-  title: string;
+  @IsOptional()
+  title?: string;
 
-  @ApiProperty({ description: '상담 내용' })
+  @ApiPropertyOptional({ description: '상담 내용' })
   @IsString()
-  content: string;
+  @IsOptional()
+  content?: string;
 
   @ApiPropertyOptional({ description: '관련 주문 ID' })
   @IsString()
