@@ -1006,7 +1006,10 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
           {hasValidStatus && (
             <div className="flex items-center gap-2 flex-wrap mt-1">
               <span className="text-xs text-black">{t('specLabelShort')}</span>
-              <span className="text-xs text-black">{folder.albumLabel}</span>
+              <span className={cn(
+                'text-xs px-1 rounded border',
+                folder.specFoundInDB ? 'text-black border-transparent' : 'text-orange-700 border-red-400 bg-orange-50'
+              )}>{folder.albumLabel}</span>
               {!folder.specFoundInDB && (
                 <span
                   className="text-[9px] bg-orange-100 text-orange-700 border border-orange-300 px-1 py-0.5 rounded cursor-help"
@@ -1014,6 +1017,27 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                 >
                   ⚠ DB미등록
                 </span>
+              )}
+              {folder.availableSizes.length > 0 && (
+                <select
+                  value={folder.specFoundInDB ? `${folder.albumWidth}x${folder.albumHeight}` : ''}
+                  onChange={(e) => {
+                    const [w, h] = e.target.value.split('x').map(Number);
+                    const selectedSize = folder.availableSizes.find(s => s.width === w && s.height === h);
+                    if (selectedSize) changeFolderSpec(folder.id, selectedSize);
+                  }}
+                  className="text-xs border rounded px-1.5 py-0.5 bg-white text-black"
+                  aria-label="제작가능규격 선택"
+                >
+                  {!folder.specFoundInDB && (
+                    <option value="" disabled>─ 비율 일치 규격 선택 ─</option>
+                  )}
+                  {folder.availableSizes.map((size) => (
+                    <option key={size.label} value={`${size.width}x${size.height}`}>
+                      {size.label}
+                    </option>
+                  ))}
+                </select>
               )}
               <span className="text-gray-300">|</span>
               <span className="text-xs text-black">{t('pageLabelShort')}</span>
