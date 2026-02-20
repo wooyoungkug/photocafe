@@ -363,6 +363,11 @@ export class CreateOrderDto {
   @Min(0)
   shippingFee?: number;
 
+  @ApiPropertyOptional({ description: '조정금액 (합배송 배송비 환급 등, 음수=차감)' })
+  @IsOptional()
+  @IsNumber()
+  adjustmentAmount?: number;
+
   @ApiProperty({ description: '주문 항목' })
   @IsArray()
   @ValidateNested({ each: true })
@@ -658,4 +663,10 @@ export class CompleteInspectionDto {
   @IsOptional()
   @IsString()
   note?: string;
+}
+
+export class SameDayShippingQueryDto {
+  @ApiProperty({ description: '거래처 ID' })
+  @IsString()
+  clientId: string;
 }

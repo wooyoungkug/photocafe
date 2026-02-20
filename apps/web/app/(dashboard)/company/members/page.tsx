@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -71,6 +72,7 @@ import {
   ExternalLink,
   Key,
   UserCheck,
+  Truck,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -260,6 +262,8 @@ export default function MembersPage() {
     approvalManagerName: '',
     approvalManagerPhone: '',
     adminMemo: '',
+    shippingType: 'conditional',
+    freeShippingThreshold: 90000,
   });
 
   const handleOpenDialog = (member?: Client) => {
@@ -290,6 +294,8 @@ export default function MembersPage() {
         approvalManagerName: member.approvalManagerName || '',
         approvalManagerPhone: member.approvalManagerPhone || '',
         adminMemo: member.adminMemo || '',
+        shippingType: (member.shippingType as string) || 'conditional',
+        freeShippingThreshold: (member as any).freeShippingThreshold ?? 90000,
       });
     } else {
       setEditingMember(null);
@@ -320,6 +326,8 @@ export default function MembersPage() {
           approvalManagerName: '',
           approvalManagerPhone: '',
           adminMemo: '',
+          shippingType: 'conditional',
+          freeShippingThreshold: 90000,
         });
       });
     }
@@ -1100,6 +1108,53 @@ export default function MembersPage() {
                     </Select>
                   </div>
                 </div>
+              </div>
+
+              {/* 배송조건 섹션 */}
+              <div className="p-5 border rounded-xl bg-gradient-to-r from-blue-50/70 to-transparent">
+                <h3 className="font-semibold mb-4 text-blue-700 flex items-center gap-2">
+                  <Truck className="h-4 w-4" />
+                  배송조건
+                </h3>
+                <RadioGroup
+                  value={formData.shippingType || 'conditional'}
+                  onValueChange={(v) => setFormData(prev => ({ ...prev, shippingType: v }))}
+                  className="space-y-3"
+                >
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="prepaid" id="ship-direct" />
+                    <Label htmlFor="ship-direct" className="font-normal cursor-pointer">
+                      직배송 <span className="text-xs text-muted-foreground ml-1">— 항상 기본 배송비 청구</span>
+                    </Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="free" id="ship-free" />
+                    <Label htmlFor="ship-free" className="font-normal cursor-pointer">
+                      무료택배 <span className="text-xs text-muted-foreground ml-1">— 항상 무료</span>
+                    </Label>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <RadioGroupItem value="conditional" id="ship-cond" className="mt-1" />
+                    <div className="flex-1">
+                      <Label htmlFor="ship-cond" className="font-normal cursor-pointer">
+                        조건부택배 <span className="text-xs text-muted-foreground ml-1">— 기준금액 이상 시 무료</span>
+                      </Label>
+                      {formData.shippingType === 'conditional' && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <Input
+                            type="number"
+                            min={0}
+                            step={1000}
+                            value={formData.freeShippingThreshold ?? 90000}
+                            onChange={(e) => setFormData(prev => ({ ...prev, freeShippingThreshold: parseInt(e.target.value) || 0 }))}
+                            className="bg-white w-36 h-8 text-sm"
+                          />
+                          <span className="text-sm text-muted-foreground">원 이상 무료</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </RadioGroup>
               </div>
 
             </TabsContent>

@@ -218,6 +218,7 @@ model Client {
   creditBlockedAt         DateTime?
   lastPaymentDate         DateTime?
   shippingType            String                         @default("conditional")
+  freeShippingThreshold   Int                            @default(90000)
   creditGrade             String                         @default("B")
   paymentTerms            Int                            @default(30)
   paymentCondition        String?                        @default("당월말")

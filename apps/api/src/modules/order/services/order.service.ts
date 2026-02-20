@@ -476,6 +476,7 @@ export class OrderService {
 
       const tax = Math.round(productPrice * 0.1); // 부가세 10%
       const totalAmount = productPrice + tax;
+      const adjustmentAmount = dto.adjustmentAmount ?? 0;
 
       return tx.order.create({
         data: {
@@ -485,8 +486,9 @@ export class OrderService {
           productPrice,
           shippingFee: totalShippingFee,
           tax,
+          adjustmentAmount,
           totalAmount: totalAmount + totalShippingFee,
-          finalAmount: totalAmount + totalShippingFee,
+          finalAmount: Math.max(0, totalAmount + totalShippingFee + adjustmentAmount),
           paymentMethod: dto.paymentMethod || 'postpaid',
           isUrgent: dto.isUrgent || false,
           isDuplicateOverride: dto.isDuplicateOverride || false,
@@ -2155,5 +2157,63 @@ export class OrderService {
     }
 
     return { success: successCount, failed };
+  }
+
+  // ===== 합배송 체크: 당일 조건부 무료배송 적용 여부 =====
+  async getSameDayShipping(clientId: string) {
+    const client = await this.prisma.client.findUnique({
+      where: { id: clientId },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      select: { shippingType: true, freeShippingThreshold: true } as any,
+    }) as { shippingType: string; freeShippingThreshold: number } | null;
+
+    if (!client || client.shippingType !== 'conditional') {
+      return { applicable: false, totalProductAmount: 0, totalShippingCharged: 0, freeThreshold: 90000, ordersWithFee: [] };
+    }
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const orders = await this.prisma.order.findMany({
+      where: {
+        clientId,
+        orderedAt: { gte: todayStart, lte: todayEnd },
+        status: { not: 'cancelled' },
+      },
+      select: {
+        id: true,
+        orderNumber: true,
+        productPrice: true,
+        shippingFee: true,
+        items: { select: { shipping: { select: { receiverType: true } } } },
+      },
+    });
+
+    let totalProductAmount = 0;
+    let totalShippingCharged = 0;
+    const ordersWithFee: { orderId: string; orderNumber: string; shippingFee: number }[] = [];
+
+    for (const order of orders) {
+      // 고객직배송(receiverType=direct_customer) 포함 주문은 합배송 집계 제외
+      const hasDirectCustomer = order.items.some((i) => i.shipping?.receiverType === 'direct_customer');
+      if (!hasDirectCustomer) {
+        totalProductAmount += Number(order.productPrice);
+        const fee = Number(order.shippingFee);
+        if (fee > 0) {
+          totalShippingCharged += fee;
+          ordersWithFee.push({ orderId: order.id, orderNumber: order.orderNumber, shippingFee: fee });
+        }
+      }
+    }
+
+    return {
+      applicable: true,
+      totalProductAmount,
+      totalShippingCharged,
+      ordersWithFee,
+      freeThreshold: (client as any).freeShippingThreshold ?? 90000,
+    };
   }
 }

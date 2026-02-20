@@ -77,9 +77,10 @@ export function FolderShippingSection({
         if (shippingType === 'conditional') {
           const parcelPricing = pricingMap['parcel'];
           const baseFee = parcelPricing ? Number(parcelPricing.baseFee) : 3500;
-          const freeThreshold = parcelPricing?.freeThreshold != null ? Number(parcelPricing.freeThreshold) : null;
+          // per-client 기준금액 우선, 없으면 90,000원 기본값
+          const freeThreshold = clientInfo?.freeShippingThreshold ?? 90000;
           // 상품금액이 무료배송 임계값 이상이면 0원
-          if (freeThreshold != null && itemTotal != null && itemTotal >= freeThreshold) {
+          if (itemTotal != null && itemTotal >= freeThreshold) {
             return { fee: 0, feeType: 'free' };
           }
           return { fee: baseFee, feeType: 'conditional' };

@@ -38,6 +38,7 @@ export interface Client {
   group?: ClientGroup;
   memberType?: 'individual' | 'business';
   shippingType?: 'conditional' | 'free' | 'prepaid' | 'cod';
+  freeShippingThreshold?: number;
   creditGrade?: 'A' | 'B' | 'C' | 'D';
   paymentTerms?: number;
   paymentCondition?: '당월말' | '익월말' | '2개월여신';
@@ -73,6 +74,8 @@ export interface CreateClientDto {
   addressDetail?: string;
   groupId?: string;
   memberType?: 'individual' | 'business';
+  shippingType?: string;
+  freeShippingThreshold?: number;
   creditGrade?: 'A' | 'B' | 'C' | 'D';
   paymentTerms?: number;
   paymentCondition?: '당월말' | '익월말' | '2개월여신';

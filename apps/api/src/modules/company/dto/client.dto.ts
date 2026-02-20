@@ -110,10 +110,16 @@ export class CreateClientDto {
   creditPaymentDay?: number;
 
   // 배송 설정 (관리자 전용)
-  @ApiPropertyOptional({ description: '배송 타입', enum: ['conditional', 'free', 'prepaid', 'cod'], default: 'conditional' })
+  @ApiPropertyOptional({ description: '배송조건', enum: ['conditional', 'free', 'prepaid', 'cod'], default: 'conditional' })
   @IsOptional()
   @IsIn(['conditional', 'free', 'prepaid', 'cod'])
   shippingType?: string;
+
+  @ApiPropertyOptional({ description: '조건부 무료배송 기준금액 (조건부택배 시 적용)', default: 90000 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  freeShippingThreshold?: number;
 
   @ApiPropertyOptional({ description: '신용등급', enum: ['A', 'B', 'C', 'D'] })
   @IsOptional()

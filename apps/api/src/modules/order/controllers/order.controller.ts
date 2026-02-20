@@ -34,6 +34,7 @@ import {
   InspectFileDto,
   HoldInspectionDto,
   CompleteInspectionDto,
+  SameDayShippingQueryDto,
 } from '../dto';
 
 @ApiTags('주문')
@@ -126,6 +127,12 @@ export class OrderController {
   @ApiOperation({ summary: '원본 이미지 일괄 삭제 (배송완료 후)' })
   async bulkDeleteOriginals(@Body() dto: BulkOrderIdsDto, @Request() req: any) {
     return this.orderService.bulkDeleteOriginals(dto.orderIds, req.user.id);
+  }
+
+  @Get('same-day-shipping')
+  @ApiOperation({ summary: '당일 합배송 체크 (조건부 무료배송 적용 여부)' })
+  async getSameDayShipping(@Query() query: SameDayShippingQueryDto) {
+    return this.orderService.getSameDayShipping(query.clientId);
   }
 
   @Get('last-product-options')

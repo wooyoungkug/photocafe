@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { ArrowLeft, CreditCard, Wallet, Building2, Smartphone, AlertTriangle, CheckCircle2, AlertCircle, Copy, Truck } from 'lucide-react';
 import { useCartStore } from '@/stores/cart-store';
 import { useAuthStore } from '@/stores/auth-store';
@@ -128,6 +128,15 @@ export default function OrderPage() {
   const [copperPlateChanges, setCopperPlateChanges] = useState<CopperPlateChanges[]>([]);
   const [updateCopperPlateInfo, setUpdateCopperPlateInfo] = useState(true);
 
+  // 합배송 체크 상태
+  const [sameDayData, setSameDayData] = useState<{
+    applicable: boolean;
+    totalProductAmount: number;
+    totalShippingCharged: number;
+    freeThreshold: number;
+    ordersWithFee: { orderId: string; orderNumber: string; shippingFee: number }[];
+  } | null>(null);
+
   // 회원정보 로드 (ID 직접 조회 → 실패 시 email로 검색)
   const loadClientInfo = useCallback(async () => {
     if (!user?.id) return;
@@ -153,6 +162,15 @@ export default function OrderPage() {
       loadClientInfo();
     }
   }, [isAuthenticated, user?.id, loadClientInfo]);
+
+  // 합배송 체크: 조건부택배 회원만 해당 (당일 주문 누적 기준)
+  useEffect(() => {
+    const clientId = clientInfo?.id || (user?.clientId ?? null);
+    if (!clientId || shippingClientInfo?.shippingType !== 'conditional') return;
+    api.get<any>(`/orders/same-day-shipping?clientId=${clientId}`)
+      .then(data => setSameDayData(data))
+      .catch(() => {});
+  }, [clientInfo?.id, user?.clientId, shippingClientInfo?.shippingType]);
 
   // 건별 배송 핸들러
   const handleItemShippingChange = (itemId: string, shipping: FolderShippingInfo) => {
@@ -433,11 +451,26 @@ export default function OrderPage() {
   }
 
   const subtotal = getTotal();
+
+  // 합배송 적용 여부 계산
+  const combinedShipping = useMemo(() => {
+    if (!sameDayData?.applicable) return null;
+    const combinedTotal = sameDayData.totalProductAmount + subtotal;
+    // 당일 누적이 기준금액을 처음 넘는 경우에만 합배송 트리거
+    const isTriggered = combinedTotal >= sameDayData.freeThreshold
+      && sameDayData.totalProductAmount < sameDayData.freeThreshold;
+    return { ...sameDayData, isTriggered, cartSubtotal: subtotal, combinedTotal };
+  }, [sameDayData, subtotal]);
+
   const totalShippingFee = items.reduce((sum, item) => {
     const shipping = item.albumOrderInfo?.shippingInfo || itemShippingMap[item.id];
     return sum + (shipping?.deliveryFee || 0);
   }, 0);
-  const total = subtotal + totalShippingFee;
+
+  // 합배송 적용 시 배송비와 조정금액 반영
+  const effectiveShippingFee = combinedShipping?.isTriggered ? 0 : totalShippingFee;
+  const combinedShippingAdjustment = combinedShipping?.isTriggered ? -(combinedShipping.totalShippingCharged) : 0;
+  const total = subtotal + effectiveShippingFee + combinedShippingAdjustment;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -566,10 +599,27 @@ export default function OrderPage() {
         isDuplicateOverride: item.isDuplicateOverride || false,
         customerMemo: memo || undefined,
         shippingFee: itemShipping?.deliveryFee || 0,
+        adjustmentAmount: 0,
         items: [orderItem],
         shipping: orderLevelShipping,
       };
     });
+
+    // 합배송 적용: 비직배송 주문의 배송비 0원 처리 + 이전 배송비 차감
+    if (combinedShipping?.isTriggered) {
+      let creditApplied = false;
+      for (const od of orderDataList) {
+        const isDirectCustomer = od.items?.[0]?.shipping?.receiverType === 'direct_customer';
+        if (!isDirectCustomer) {
+          od.shippingFee = 0;
+          // 첫 번째 비직배송 주문에만 이전 배송비 차감 적용
+          if (!creditApplied && combinedShipping.totalShippingCharged > 0) {
+            od.adjustmentAmount = -(combinedShipping.totalShippingCharged);
+            creditApplied = true;
+          }
+        }
+      }
+    }
 
     // 동판 정보 변경사항 확인
     const cpChanges = detectCopperPlateChanges();
@@ -863,6 +913,21 @@ export default function OrderPage() {
                   <CardTitle>결제 금액</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {/* 합배송 적용 배너 */}
+                  {combinedShipping?.isTriggered && (
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-start gap-2 text-sm">
+                      <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="font-medium text-green-700">합배송 적용</p>
+                        <p className="text-green-600 text-xs mt-0.5">
+                          당일 누적 {combinedShipping.combinedTotal.toLocaleString()}원
+                          (기준 {combinedShipping.freeThreshold.toLocaleString()}원) —
+                          이전 배송비 {combinedShipping.totalShippingCharged.toLocaleString()}원 차감
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-gray-500">상품금액</span>
@@ -870,10 +935,16 @@ export default function OrderPage() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">배송비</span>
-                      <span className={cn(totalShippingFee === 0 && 'text-green-600')}>
-                        {totalShippingFee > 0 ? `${totalShippingFee.toLocaleString()}원` : '무료'}
+                      <span className={cn(effectiveShippingFee === 0 && 'text-green-600')}>
+                        {effectiveShippingFee > 0 ? `${effectiveShippingFee.toLocaleString()}원` : '무료'}
                       </span>
                     </div>
+                    {combinedShippingAdjustment < 0 && (
+                      <div className="flex justify-between text-green-600">
+                        <span className="text-gray-500">합배송 환급</span>
+                        <span>-{Math.abs(combinedShippingAdjustment).toLocaleString()}원</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="border-t pt-4">

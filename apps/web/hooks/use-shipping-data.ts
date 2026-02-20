@@ -25,6 +25,7 @@ export interface OrdererShippingInfo {
   address: string;
   addressDetail: string;
   shippingType: 'conditional' | 'free' | 'prepaid' | 'cod';
+  freeShippingThreshold: number;
 }
 
 /**
@@ -55,6 +56,7 @@ export function useShippingData() {
             address: response.address || '',
             addressDetail: response.addressDetail || '',
             shippingType: response.shippingType || 'conditional',
+            freeShippingThreshold: response.freeShippingThreshold ?? 90000,
           };
         } catch { /* fall through to email search */ }
       }
@@ -72,6 +74,7 @@ export function useShippingData() {
               address: client.address || '',
               addressDetail: client.addressDetail || '',
               shippingType: client.shippingType || 'conditional',
+              freeShippingThreshold: client.freeShippingThreshold ?? 90000,
             };
           }
         } catch { /* ignore */ }
