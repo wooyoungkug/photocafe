@@ -467,8 +467,32 @@ export default function OrderPage() {
     return sum + (shipping?.deliveryFee || 0);
   }, 0);
 
+  const freeShippingThreshold = shippingClientInfo?.freeShippingThreshold ?? 90000;
+
+  // 단일배치 복수주문: 조건부택배 + 2건이상 + 합계 < 기준금액 → 택배비 1회만 청구
+  const batchSingleShipping = useMemo(() => {
+    if (shippingClientInfo?.shippingType !== 'conditional') return false;
+    if (items.length < 2) return false;
+    if (subtotal >= freeShippingThreshold) return false;
+    return true;
+  }, [shippingClientInfo?.shippingType, shippingClientInfo?.freeShippingThreshold, items.length, subtotal, freeShippingThreshold]);
+
+  // 배치 배송비: 비직배송 첫 번째 아이템 배송비만 부과
+  const batchShippingFee = useMemo(() => {
+    if (!batchSingleShipping) return totalShippingFee;
+    for (const item of items) {
+      const shipping = item.albumOrderInfo?.shippingInfo || itemShippingMap[item.id];
+      if (shipping?.receiverType !== 'direct_customer') {
+        return shipping?.deliveryFee ?? 0;
+      }
+    }
+    return 0;
+  }, [batchSingleShipping, totalShippingFee, items, itemShippingMap]);
+
   // 합배송 적용 시 배송비와 조정금액 반영
-  const effectiveShippingFee = combinedShipping?.isTriggered ? 0 : totalShippingFee;
+  const effectiveShippingFee = combinedShipping?.isTriggered ? 0
+    : batchSingleShipping ? batchShippingFee
+    : totalShippingFee;
   const combinedShippingAdjustment = combinedShipping?.isTriggered ? -(combinedShipping.totalShippingCharged) : 0;
   const total = subtotal + effectiveShippingFee + combinedShippingAdjustment;
 
@@ -616,6 +640,21 @@ export default function OrderPage() {
           if (!creditApplied && combinedShipping.totalShippingCharged > 0) {
             od.adjustmentAmount = -(combinedShipping.totalShippingCharged);
             creditApplied = true;
+          }
+        }
+      }
+    }
+
+    // 단일배치 복수주문 배송비 1회 청구: 비직배송 첫 번째만 배송비 유지, 나머지 0원
+    if (batchSingleShipping && !combinedShipping?.isTriggered) {
+      let firstCharged = false;
+      for (const od of orderDataList) {
+        const isDirectCustomer = od.items?.[0]?.shipping?.receiverType === 'direct_customer';
+        if (!isDirectCustomer) {
+          if (firstCharged) {
+            od.shippingFee = 0;
+          } else {
+            firstCharged = true;
           }
         }
       }
@@ -913,7 +952,7 @@ export default function OrderPage() {
                   <CardTitle>결제 금액</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* 합배송 적용 배너 */}
+                  {/* 합배송 적용 배너 (당일 누적) */}
                   {combinedShipping?.isTriggered && (
                     <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-start gap-2 text-sm">
                       <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
@@ -925,6 +964,17 @@ export default function OrderPage() {
                           이전 배송비 {combinedShipping.totalShippingCharged.toLocaleString()}원 차감
                         </p>
                       </div>
+                    </div>
+                  )}
+
+                  {/* 단일배치 복수주문 배송비 1회 안내 */}
+                  {batchSingleShipping && !combinedShipping?.isTriggered && (
+                    <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-2 text-xs text-blue-700">
+                      <Truck className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span>
+                        {items.length}건 동시 주문 — 택배비 1회 적용
+                        ({freeShippingThreshold.toLocaleString()}원 미만)
+                      </span>
                     </div>
                   )}
 
