@@ -121,19 +121,42 @@ export default function ProductPage() {
   } = useMultiFolderUploadStore();
 
   const [selectedFabricCategory, setSelectedFabricCategory] = useState<FabricCategory | null>(null);
-  const [fabricSelection, setFabricSelection] = useState<{ id: string; name: string; thumbnail: string | null } | null>(null);
+  const [fabricSelection, setFabricSelection] = useState<{
+    id: string; name: string; thumbnail: string | null;
+    basePrice: number; category: string;
+    colorCode: string | null; colorName: string | null;
+  } | null>(null);
   const [isEditingFabric, setIsEditingFabric] = useState(false);
 
-  const selectedFabricInfo = uploadFolders.length > 0 ? {
-    id: uploadFolders[0].selectedFabricId,
-    name: uploadFolders[0].selectedFabricName,
-    thumbnail: uploadFolders[0].selectedFabricThumbnail,
-  } : null;
+  // 원단이 실제로 선택된 폴더에서만 읽어옴 (id가 없으면 null 반환)
+  const selectedFabricInfo = (() => {
+    const f = uploadFolders.find(folder => folder.selectedFabricId);
+    return f ? { id: f.selectedFabricId, name: f.selectedFabricName, thumbnail: f.selectedFabricThumbnail } : null;
+  })();
 
   const effectiveFabricInfo = selectedFabricInfo ?? fabricSelection;
 
+  // 새 폴더가 추가될 때 fabricSelection을 원단이 없는 폴더에 자동 적용
+  useEffect(() => {
+    if (!fabricSelection) return;
+    const foldersWithoutFabric = uploadFolders.filter(f => !f.selectedFabricId);
+    if (foldersWithoutFabric.length === 0) return;
+    foldersWithoutFabric.forEach(f => {
+      setFolderFabric(
+        f.id, fabricSelection.id, fabricSelection.name, fabricSelection.thumbnail,
+        fabricSelection.basePrice, fabricSelection.category,
+        fabricSelection.colorCode, fabricSelection.colorName
+      );
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uploadFolders.length]);
+
   const handleCoverFabricSelect = (fabric: { id: string; name: string; thumbnailUrl?: string | null; basePrice?: number; category: string; colorCode?: string | null; colorName?: string | null }) => {
-    setFabricSelection({ id: fabric.id, name: fabric.name, thumbnail: fabric.thumbnailUrl || null });
+    setFabricSelection({
+      id: fabric.id, name: fabric.name, thumbnail: fabric.thumbnailUrl || null,
+      basePrice: fabric.basePrice ?? 0, category: fabric.category,
+      colorCode: fabric.colorCode || null, colorName: fabric.colorName || null,
+    });
     uploadFolders.forEach(f => {
       setFolderFabric(f.id, fabric.id, fabric.name, fabric.thumbnailUrl || null, fabric.basePrice ?? 0, fabric.category, fabric.colorCode || null, fabric.colorName || null);
     });
@@ -220,6 +243,10 @@ export default function ProductPage() {
               fabricId: folder.selectedFabricId || undefined,
               fabricName: folder.selectedFabricName || undefined,
               fabricThumbnail: folder.selectedFabricThumbnail || undefined,
+              fabricColorCode: folder.selectedFabricColorCode || undefined,
+              fabricColorName: folder.selectedFabricColorName || undefined,
+              fabricCategory: folder.selectedFabricCategory || undefined,
+              fabricBasePrice: folder.selectedFabricPrice || undefined,
             },
             uploadStatus: 'pending', totalFileCount: folder.files.length, isDuplicateOverride,
           });
@@ -246,12 +273,18 @@ export default function ProductPage() {
                 specificationId: '', specificationName: additional.albumLabel,
                 bindingName: selectedOptions.binding?.name, paperName: selectedOptions.paper?.name,
                 coverMaterial: selectedOptions.cover?.name, totalSize: folder.totalFileSize || 0,
-                foilName: folder.foilName || undefined, foilColor: folder.foilColor || undefined,
-                foilPosition: folder.foilPosition || undefined, shippingInfo: shippingInfoData,
+                foilName: (additional.foilName ?? folder.foilName) || undefined,
+                foilColor: (additional.foilColor ?? folder.foilColor) || undefined,
+                foilPosition: (additional.foilPosition ?? folder.foilPosition) || undefined,
+                shippingInfo: shippingInfoData,
                 coverSourceType: folder.coverSourceType || undefined,
-                fabricId: folder.selectedFabricId || undefined,
-                fabricName: folder.selectedFabricName || undefined,
-                fabricThumbnail: folder.selectedFabricThumbnail || undefined,
+                fabricId: (additional.selectedFabricId ?? folder.selectedFabricId) || undefined,
+                fabricName: (additional.selectedFabricName ?? folder.selectedFabricName) || undefined,
+                fabricThumbnail: (additional.selectedFabricThumbnail ?? folder.selectedFabricThumbnail) || undefined,
+                fabricColorCode: (additional.selectedFabricColorCode ?? folder.selectedFabricColorCode) || undefined,
+                fabricColorName: (additional.selectedFabricColorName ?? folder.selectedFabricColorName) || undefined,
+                fabricCategory: (additional.selectedFabricCategory ?? folder.selectedFabricCategory) || undefined,
+                fabricBasePrice: (additional.selectedFabricPrice ?? folder.selectedFabricPrice) || undefined,
               },
               uploadStatus: 'pending', totalFileCount: folder.files.length, isDuplicateOverride,
             });
@@ -335,7 +368,7 @@ export default function ProductPage() {
     });
     if (opts.coverSourceType) applyGlobalCoverSource(opts.coverSourceType);
     if (opts.fabricId && opts.fabricName) {
-      setFabricSelection({ id: opts.fabricId, name: opts.fabricName, thumbnail: opts.fabricThumbnail || null });
+      setFabricSelection({ id: opts.fabricId, name: opts.fabricName, thumbnail: opts.fabricThumbnail || null, basePrice: 0, category: '', colorCode: null, colorName: null });
       uploadFolders.forEach(f => {
         setFolderFabric(f.id, opts.fabricId!, opts.fabricName!, opts.fabricThumbnail || null, 0, '', null, null);
       });
@@ -497,7 +530,7 @@ export default function ProductPage() {
     });
     if (opts.coverSourceType) applyGlobalCoverSource(opts.coverSourceType);
     if (opts.fabricId && opts.fabricName) {
-      setFabricSelection({ id: opts.fabricId, name: opts.fabricName, thumbnail: opts.fabricThumbnail || null });
+      setFabricSelection({ id: opts.fabricId, name: opts.fabricName, thumbnail: opts.fabricThumbnail || null, basePrice: 0, category: '', colorCode: null, colorName: null });
       uploadFolders.forEach(f => setFolderFabric(f.id, opts.fabricId!, opts.fabricName!, opts.fabricThumbnail || null, 0, '', null, null));
       setSelectedFabricCategory(null);
     }

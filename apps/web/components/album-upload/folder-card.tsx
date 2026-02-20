@@ -44,6 +44,7 @@ import {
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { ColorGroupBadge, ColorGroupHeader } from './color-group-badge';
+import { FabricPickerDialog } from './fabric-picker-dialog';
 
 import {
   type UploadedFolder,
@@ -83,7 +84,7 @@ const STATUS_CONFIG: Record<FolderValidationStatus, {
     borderColor: 'border-green-500',
     bgColor: 'bg-green-50/50',
     badgeVariant: 'default',
-    badgeColor: 'bg-green-500',
+    badgeColor: 'bg-transparent text-gray-900 border-0 shadow-none',
     icon: <CheckCircle className="w-4 h-4 text-green-500" />,
     label: '정상',
   },
@@ -158,6 +159,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
   const t = useTranslations('folder');
   const tc = useTranslations('common');
 
+
   // Status labels (translated)
   const statusLabels: Record<FolderValidationStatus, string> = {
     PENDING: tc('analyzing'),
@@ -178,6 +180,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitle, setEditTitle] = useState(folder.orderTitle);
   const [isThumbnailOpen, setIsThumbnailOpen] = useState(true);
+  const [fabricPickerOrderId, setFabricPickerOrderId] = useState<string | null>(null);
 
   // 외부 일괄 접기/펼치기 반영
   useEffect(() => {
@@ -373,6 +376,8 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     removeAdditionalOrder,
     updateAdditionalOrderQuantity,
     updateAdditionalOrderSpec,
+    updateAdditionalOrderFabric,
+    updateAdditionalOrderFoil,
     changeFolderSpec,
     setFolderPageLayout,
     setFolderBindingDirection,
@@ -527,12 +532,18 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
       <Collapsible open={isThumbnailOpen} onOpenChange={setIsThumbnailOpen} className="mt-3">
         <div className="flex items-center gap-1">
           <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="sm" className="flex-1 justify-between h-8 text-xs">
-              <span className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" className="flex-1 h-8 text-xs flex items-center">
+              <span className="flex items-center gap-1 flex-1">
                 <ImageIcon className="h-3 w-3" />
                 {t('thumbnailPreviewCount', { count: folder.files.length })}
+                <Badge className={cn('flex items-center gap-1 text-[10px]', actualStatus.badgeColor)}>
+                  {actualStatus.icon}
+                  <span>
+                    {folder.isApproved && folder.validationStatus === 'RATIO_MATCH' ? t('normalOrder') : statusLabels[folder.validationStatus]}
+                  </span>
+                </Badge>
               </span>
-              {isThumbnailOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              {isThumbnailOpen ? <ChevronUp className="h-3 w-3 shrink-0" /> : <ChevronDown className="h-3 w-3 shrink-0" />}
             </Button>
           </CollapsibleTrigger>
         </div>
@@ -849,25 +860,6 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                 >
                   <Edit2 className="h-3 w-3 text-gray-400" />
                 </Button>
-                {(folder.selectedFabricName || folder.foilName) && (
-                  <div className="flex items-center gap-1 text-[10px] text-gray-500">
-                    {folder.selectedFabricName && (
-                      <span className="bg-pink-50 text-pink-700 px-1.5 py-0.5 rounded border border-pink-200 flex items-center gap-1">
-                        <Palette className="w-2.5 h-2.5" />
-                        {folder.selectedFabricName}
-                      </span>
-                    )}
-                    {folder.foilName && (
-                      <span className="bg-violet-50 text-violet-700 px-1.5 py-0.5 rounded border border-violet-200">{folder.foilName}</span>
-                    )}
-                    {folder.foilColor && (
-                      <span className="bg-yellow-50 text-yellow-700 px-1.5 py-0.5 rounded border border-yellow-200">{folder.foilColor}</span>
-                    )}
-                    {folder.foilPosition && (
-                      <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-200">{folder.foilPosition}</span>
-                    )}
-                  </div>
-                )}
               </>
             )}
 
@@ -875,6 +867,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
           </div>
           {/* 편집 · 제본 (한 줄) */}
           <div className="flex items-center gap-2 text-xs text-gray-600 mt-1 mb-1 flex-wrap">
+            <span className="text-xs text-black">편집</span>
             <div className="flex border rounded overflow-hidden">
               <button
                 type="button"
@@ -903,7 +896,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
             </div>
             {folder.pageLayout === 'spread' && (
               <>
-                <span className="text-gray-300">|</span>
+                <span className="text-xs text-black ml-5">제본방향</span>
                 <select
                   value={folder.bindingDirection || 'LEFT_START_RIGHT_END'}
                   onChange={(e) => setFolderBindingDirection(folder.id, e.target.value as BindingDirection)}
@@ -924,7 +917,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
             )}
             {folder.pageLayout === 'single' && (
               <>
-                <span className="text-gray-300">|</span>
+                <span className="text-xs text-black ml-5">제본방향</span>
                 <select
                   value={folder.bindingDirection || 'LEFT_START_RIGHT_END'}
                   onChange={(e) => setFolderBindingDirection(folder.id, e.target.value as BindingDirection)}
@@ -945,7 +938,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
             )}
             {/* 업로드 시각 + 상태 배지 */}
             {folder.uploadedAt && (
-              <span className="ml-auto flex items-center gap-1 text-[10px] text-gray-400">
+              <span className="flex items-center gap-1 text-[10px] text-gray-400">
                 <Clock className="h-3 w-3" />
                 {new Date(folder.uploadedAt).toLocaleString(undefined, {
                   month: '2-digit', day: '2-digit',
@@ -953,24 +946,40 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                 })}
               </span>
             )}
-            <Badge className={cn(folder.uploadedAt ? '' : 'ml-auto', actualStatus.badgeColor)}>
-              {actualStatus.icon}
-              <span className="ml-1">
-                {folder.isApproved && folder.validationStatus === 'RATIO_MATCH' ? t('normalOrder') : statusLabels[folder.validationStatus]}
-              </span>
-            </Badge>
           </div>
-          {/* 규격 · 페이지 · 부수 (제목 아래) */}
+          {/* 패브릭/포일 태그 */}
+          {(folder.selectedFabricName || folder.foilName) && (
+            <div className="flex items-center gap-1 flex-wrap text-[10px] text-gray-500 mt-1 mb-1">
+              <span className="text-xs text-black">원단</span>
+              {folder.selectedFabricName && (
+                <span className="bg-pink-50 text-pink-700 px-1.5 py-0.5 rounded border border-pink-200 flex items-center gap-1">
+                  <Palette className="w-2.5 h-2.5" />
+                  {folder.selectedFabricName}
+                </span>
+              )}
+              {(folder.foilName || folder.foilColor || folder.foilPosition) && (
+                <span className="text-xs text-black ml-5">동판정보</span>
+              )}
+              {folder.foilColor && (
+                <span className="bg-yellow-50 text-yellow-700 px-1.5 py-0.5 rounded border border-yellow-200">{folder.foilColor}</span>
+              )}
+              {folder.foilName && (
+                <span className="bg-violet-50 text-violet-700 px-1.5 py-0.5 rounded border border-violet-200">{folder.foilName}</span>
+              )}
+              {folder.foilPosition && (
+                <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-200">{folder.foilPosition}</span>
+              )}
+            </div>
+          )}
+          {/* 규격 · 페이지 · 부수 */}
           {hasValidStatus && (
             <div className="flex items-center gap-2 flex-wrap mt-1">
               <span className="text-xs text-black">{t('specLabelShort')}</span>
               {(() => {
                 const currentKey = `${folder.albumWidth}x${folder.albumHeight}`;
-                // 현재 규격을 제외한 나머지 DB 규격 목록 (중복 방지)
                 const otherSizes = folder.availableSizes.filter(
                   s => `${s.width}x${s.height}` !== currentKey
                 );
-                // 선택 가능한 다른 규격이 없으면 드롭다운 숨김
                 if (otherSizes.length === 0) return null;
                 return (
                   <select
@@ -985,11 +994,9 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                     className="text-xs border rounded px-1.5 py-0.5 bg-white text-black"
                     aria-label="제작가능규격 선택"
                   >
-                    {/* 현재 규격: DB미등록이면 표시 */}
                     <option value={currentKey}>
                       {folder.albumLabel}{!folder.specFoundInDB ? ' ⚠ DB미등록' : ''}
                     </option>
-                    {/* 비율 일치 DB 규격 목록 (현재 규격 중복 제외) */}
                     {otherSizes.map((size) => (
                       <option key={size.label} value={`${size.width}x${size.height}`}>
                         {size.label}
@@ -1115,115 +1122,98 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                     s => !usedByOthers.has(`${s.width}x${s.height}`)
                   );
                   return (
-                    <div key={order.id} className="flex items-center gap-2 bg-white rounded border border-blue-100 px-3 py-2">
+                    <div key={order.id} className="flex items-start gap-2 bg-white rounded border border-blue-100 px-3 py-2">
+                      {/* 체크박스 */}
+                      <Checkbox
+                        checked={folder.isSelected}
+                        disabled={!canSelect}
+                        onCheckedChange={(checked) => setFolderSelected(folder.id, !!checked)}
+                        className="h-4 w-4 mt-0.5 data-[state=checked]:bg-blue-600 flex-shrink-0"
+                      />
+                      {/* 폴더 아이콘 */}
+                      <Folder className="h-3 w-3 text-orange-500 mt-1 flex-shrink-0" />
+                      {/* 콘텐츠 */}
                       <div className="flex-1 min-w-0">
-                        {/* 폴더명 + 가격 */}
-                        <div className="flex items-center justify-between mb-1.5">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <Checkbox
-                              checked={folder.isSelected}
-                              disabled={!canSelect}
-                              onCheckedChange={(checked) => setFolderSelected(folder.id, !!checked)}
-                              className="h-4 w-4 data-[state=checked]:bg-blue-600 flex-shrink-0"
-                            />
-                            <Folder className="h-3 w-3 text-orange-500" />
-                            <span className="text-[10px] font-bold text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded">{t('additionalSetOrder')}</span>
-                            <span className="text-xs font-normal text-black truncate">{folder.orderTitle}</span>
-                            <div className="flex border rounded overflow-hidden">
-                              <button
-                                type="button"
-                                onClick={() => setFolderPageLayout(folder.id, 'single')}
-                                className={cn(
-                                  'px-1.5 py-0.5 text-[10px] flex items-center gap-0.5 transition-colors',
-                                  folder.pageLayout === 'single'
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                                )}
-                              >
-                                <FileText className="w-2.5 h-2.5" />{t('single')}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setFolderPageLayout(folder.id, 'spread')}
-                                className={cn(
-                                  'px-1.5 py-0.5 text-[10px] flex items-center gap-0.5 transition-colors',
-                                  folder.pageLayout === 'spread'
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                                )}
-                              >
-                                <BookOpen className="w-2.5 h-2.5" />{t('spread')}
-                              </button>
-                            </div>
-                            {folder.pageLayout === 'spread' && (
-                              <>
-                                <span className="text-gray-300">|</span>
-                                <select
-                                  value={folder.bindingDirection || 'LEFT_START_RIGHT_END'}
-                                  onChange={(e) => setFolderBindingDirection(folder.id, e.target.value as BindingDirection)}
-                                  className="text-xs border rounded px-1.5 py-0.5 bg-white text-black"
-                                  aria-label="제본순서"
-                                >
-                                  <option value="LEFT_START_LEFT_END">좌시작좌끝</option>
-                                  <option value="LEFT_START_RIGHT_END">좌시작우끝</option>
-                                  <option value="RIGHT_START_LEFT_END">우시작좌끝</option>
-                                  <option value="RIGHT_START_RIGHT_END">우시작우끝</option>
-                                </select>
-                                {folder.autoBindingDetected && (
-                                  <span className="text-[9px] text-green-600 bg-green-50 px-1 rounded" title={`${t('firstPage')} ${folder.firstPageBlank ? t('blankPageLabel') : t('normalPageLabel')} / ${t('lastPage')} ${folder.lastPageBlank ? t('blankPageLabel') : t('normalPageLabel')}`}>
-                                    {t('autoDetected')}
-                                  </span>
-                                )}
-                              </>
-                            )}
-                            {folder.pageLayout === 'single' && (
-                              <>
-                                <span className="text-gray-300">|</span>
-                                <select
-                                  value={folder.bindingDirection || 'LEFT_START_RIGHT_END'}
-                                  onChange={(e) => setFolderBindingDirection(folder.id, e.target.value as BindingDirection)}
-                                  className="text-xs border rounded px-1.5 py-0.5 bg-white text-black"
-                                  aria-label="제본순서"
-                                >
-                                  <option value="LEFT_START_LEFT_END">좌시작좌끝</option>
-                                  <option value="LEFT_START_RIGHT_END">좌시작우끝</option>
-                                  <option value="RIGHT_START_LEFT_END">우시작좌끝</option>
-                                  <option value="RIGHT_START_RIGHT_END">우시작우끝</option>
-                                </select>
-                                {folder.autoBindingDetected && (
-                                  <span className="text-[9px] text-green-600 bg-green-50 px-1 rounded">
-                                    {t('autoDetected')}
-                                  </span>
-                                )}
-                              </>
-                            )}
-                          </div>
-                          <div className="text-right flex-shrink-0">
-                            <span className="text-sm font-bold text-primary">{t('priceWon', { price: orderPrice.totalPrice.toLocaleString() })}</span>
-                            <div className="text-[10px] text-gray-400">
-                              {t('priceFormulaUnit', {
-                                perPage: orderPrice.pricePerPage.toLocaleString(),
-                                pages: orderPrice.pageCount,
-                                printPrice: orderPrice.printPrice.toLocaleString(),
-                                cover: orderPrice.coverPrice.toLocaleString(),
-                                binding: orderPrice.bindingPrice.toLocaleString(),
-                                unitPrice: orderPrice.unitPrice.toLocaleString(),
-                              })}
-                            </div>
-                            <div className="text-[10px] text-gray-400">
-                              {t('priceFormulaTotal', {
-                                unitPrice: orderPrice.unitPrice.toLocaleString(),
-                                qty: order.quantity,
-                                subtotal: orderPrice.subtotal.toLocaleString(),
-                                tax: orderPrice.tax.toLocaleString(),
-                                total: orderPrice.totalPrice.toLocaleString(),
-                              })}
-                            </div>
-                          </div>
+                        {/* 폴더명 */}
+                        <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                          <span className="text-[10px] font-bold text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded">{t('additionalSetOrder')}</span>
+                          <span className="text-xs font-normal text-black truncate">{folder.orderTitle}</span>
                         </div>
+                        {/* 편집 · 제본 (읽기 전용 - 원본 따라감) */}
+                        <div className="flex items-center gap-2 text-xs text-gray-600 mb-1.5 flex-wrap">
+                          <span className="text-xs text-black">편집</span>
+                          <span className="px-1.5 py-0.5 text-[10px] flex items-center gap-0.5 bg-blue-500 text-white rounded">
+                            {folder.pageLayout === 'single'
+                              ? <><FileText className="w-2.5 h-2.5" />{t('single')}</>
+                              : <><BookOpen className="w-2.5 h-2.5" />{t('spread')}</>
+                            }
+                          </span>
+                          <span className="text-xs text-black ml-5">제본방향</span>
+                          <span className="text-xs text-black border rounded px-1.5 py-0.5 bg-gray-50">
+                            {{
+                              LEFT_START_LEFT_END: '좌시작좌끝',
+                              LEFT_START_RIGHT_END: '좌시작우끝',
+                              RIGHT_START_LEFT_END: '우시작좌끝',
+                              RIGHT_START_RIGHT_END: '우시작우끝',
+                            }[folder.bindingDirection || 'LEFT_START_RIGHT_END']}
+                          </span>
+                          {folder.autoBindingDetected && (
+                            <span className="text-[9px] text-green-600 bg-green-50 px-1 rounded">
+                              {t('autoDetected')}
+                            </span>
+                          )}
+                        </div>
+                        {/* 패브릭/포일 편집 */}
+                        {(order.selectedFabricName ?? folder.selectedFabricName ?? order.foilName ?? folder.foilName ?? order.foilColor ?? folder.foilColor) && (
+                          <div className="flex items-center gap-1 flex-wrap text-[10px] text-gray-500 mb-1">
+                            {/* 원단: 클릭 → FabricPickerDialog */}
+                            {(order.selectedFabricName ?? folder.selectedFabricName) && (
+                              <>
+                                <span className="text-xs text-black">원단</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setFabricPickerOrderId(order.id)}
+                                  className="bg-pink-50 text-pink-700 px-1.5 py-0.5 rounded border border-pink-200 flex items-center gap-1 hover:bg-pink-100 transition-colors"
+                                >
+                                  <Palette className="w-2.5 h-2.5" />
+                                  {order.selectedFabricName ?? folder.selectedFabricName}
+                                </button>
+                              </>
+                            )}
+                            {/* 동판: 항상 보이는 텍스트 입력 */}
+                            {(order.foilColor ?? folder.foilColor ?? order.foilName ?? folder.foilName ?? order.foilPosition ?? folder.foilPosition) && (
+                              <>
+                                <span className="text-xs text-black ml-5">동판정보</span>
+                                <span className="text-[10px] text-gray-400">색상</span>
+                                <input
+                                  type="text"
+                                  value={order.foilColor ?? folder.foilColor ?? ''}
+                                  onChange={(e) => updateAdditionalOrderFoil(folder.id, order.id, order.foilName ?? folder.foilName ?? null, e.target.value || null, order.foilPosition ?? folder.foilPosition ?? null)}
+                                  className="text-xs border rounded px-1.5 py-0.5 w-20 bg-yellow-50 text-yellow-700"
+                                  placeholder="색상"
+                                />
+                                <span className="text-[10px] text-gray-400">동판</span>
+                                <input
+                                  type="text"
+                                  value={order.foilName ?? folder.foilName ?? ''}
+                                  onChange={(e) => updateAdditionalOrderFoil(folder.id, order.id, e.target.value || null, order.foilColor ?? folder.foilColor ?? null, order.foilPosition ?? folder.foilPosition ?? null)}
+                                  className="text-xs border rounded px-1.5 py-0.5 w-20 bg-violet-50 text-violet-700"
+                                  placeholder="동판명"
+                                />
+                                <span className="text-[10px] text-gray-400">위치</span>
+                                <input
+                                  type="text"
+                                  value={order.foilPosition ?? folder.foilPosition ?? ''}
+                                  onChange={(e) => updateAdditionalOrderFoil(folder.id, order.id, order.foilName ?? folder.foilName ?? null, order.foilColor ?? folder.foilColor ?? null, e.target.value || null)}
+                                  className="text-xs border rounded px-1.5 py-0.5 w-16 bg-blue-50 text-blue-700"
+                                  placeholder="위치"
+                                />
+                              </>
+                            )}
+                          </div>
+                        )}
                         {/* 규격 · 페이지 · 부수 */}
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-xs text-black">{t('specLabelShort')}</span>
                             <select
                               value={`${order.albumWidth}x${order.albumHeight}`}
@@ -1257,7 +1247,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                               value={order.quantity}
                               aria-label={t('copiesLabelShort')}
                               onChange={(e) => updateAdditionalOrderQuantity(folder.id, order.id, Math.max(1, parseInt(e.target.value) || 1))}
-                              className="w-16 h-7 text-xs text-black text-center border rounded px-2"
+                              className="w-16 h-8 text-xs text-black text-center border rounded px-2"
                             />
                             {/* 같은 비율 앨범규격 - hidden (드롭다운과 중복) */}
                             {false && selectableSizes.length > 1 && (
@@ -1279,17 +1269,40 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                                 ))}
                               </div>
                             )}
-                          </div>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-7 w-7 text-red-500 flex-shrink-0"
-                            onClick={() => removeAdditionalOrder(folder.id, order.id)}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
                         </div>
                       </div>
+                      {/* 가격 */}
+                      <div className="text-right flex-shrink-0">
+                        <span className="text-sm font-bold text-primary">{t('priceWon', { price: orderPrice.totalPrice.toLocaleString() })}</span>
+                        <div className="text-[10px] text-gray-400">
+                          {t('priceFormulaUnit', {
+                            perPage: orderPrice.pricePerPage.toLocaleString(),
+                            pages: orderPrice.pageCount,
+                            printPrice: orderPrice.printPrice.toLocaleString(),
+                            cover: orderPrice.coverPrice.toLocaleString(),
+                            binding: orderPrice.bindingPrice.toLocaleString(),
+                            unitPrice: orderPrice.unitPrice.toLocaleString(),
+                          })}
+                        </div>
+                        <div className="text-[10px] text-gray-400">
+                          {t('priceFormulaTotal', {
+                            unitPrice: orderPrice.unitPrice.toLocaleString(),
+                            qty: order.quantity,
+                            subtotal: orderPrice.subtotal.toLocaleString(),
+                            tax: orderPrice.tax.toLocaleString(),
+                            total: orderPrice.totalPrice.toLocaleString(),
+                          })}
+                        </div>
+                      </div>
+                      {/* 삭제 버튼 */}
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-gray-400 hover:text-red-500 flex-shrink-0"
+                        onClick={() => removeAdditionalOrder(folder.id, order.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   );
                 })}
@@ -1454,6 +1467,30 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* 추가주문 원단 선택 다이얼로그 */}
+      {fabricPickerOrderId !== null && (() => {
+        const targetOrder = folder.additionalOrders.find(o => o.id === fabricPickerOrderId);
+        return (
+          <FabricPickerDialog
+            open={true}
+            onOpenChange={(open) => { if (!open) setFabricPickerOrderId(null); }}
+            selectedFabricId={targetOrder?.selectedFabricId ?? folder.selectedFabricId ?? null}
+            onSelect={(fabric) => {
+              updateAdditionalOrderFabric(folder.id, fabricPickerOrderId, {
+                id: fabric.id,
+                name: fabric.name,
+                thumbnail: fabric.thumbnailUrl ?? null,
+                price: fabric.basePrice,
+                category: fabric.category,
+                colorCode: fabric.colorCode ?? null,
+                colorName: fabric.colorName ?? null,
+              });
+              setFabricPickerOrderId(null);
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

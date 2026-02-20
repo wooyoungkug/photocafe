@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -249,9 +250,16 @@ export default function MembersPage() {
     memberType: 'individual',
     creditGrade: 'B',
     paymentTerms: 30,
+    paymentCondition: '당월말',
+    creditPaymentDay: undefined,
     status: 'active',
     fileRetentionMonths: 3,
     assignedManager: '',
+    practicalManagerName: '',
+    practicalManagerPhone: '',
+    approvalManagerName: '',
+    approvalManagerPhone: '',
+    adminMemo: '',
   });
 
   const handleOpenDialog = (member?: Client) => {
@@ -272,9 +280,16 @@ export default function MembersPage() {
         memberType: member.memberType || 'individual',
         creditGrade: member.creditGrade || 'B',
         paymentTerms: member.paymentTerms || 30,
+        paymentCondition: (member.paymentCondition as '당월말' | '익월말' | '2개월여신') || '당월말',
+        creditPaymentDay: member.creditPaymentDay,
         status: member.status || 'active',
         fileRetentionMonths: member.fileRetentionMonths ?? 3,
         assignedManager: member.assignedManager || '',
+        practicalManagerName: member.practicalManagerName || '',
+        practicalManagerPhone: member.practicalManagerPhone || '',
+        approvalManagerName: member.approvalManagerName || '',
+        approvalManagerPhone: member.approvalManagerPhone || '',
+        adminMemo: member.adminMemo || '',
       });
     } else {
       setEditingMember(null);
@@ -295,9 +310,16 @@ export default function MembersPage() {
           memberType: 'individual',
           creditGrade: 'B',
           paymentTerms: 30,
+          paymentCondition: '당월말',
+          creditPaymentDay: undefined,
           status: 'active',
           fileRetentionMonths: 3,
           assignedManager: '',
+          practicalManagerName: '',
+          practicalManagerPhone: '',
+          approvalManagerName: '',
+          approvalManagerPhone: '',
+          adminMemo: '',
         });
       });
     }
@@ -898,6 +920,75 @@ export default function MembersPage() {
                   </div>
                 </div>
               </div>
+
+              {/* 담당자 정보 섹션 */}
+              <div className="p-5 border rounded-xl bg-gradient-to-r from-orange-50/70 to-transparent">
+                <h3 className="font-semibold mb-4 text-orange-700 flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  담당자 정보
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 bg-white rounded-lg border space-y-3">
+                    <p className="text-xs font-semibold text-orange-600 uppercase tracking-wide">실무담당자</p>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">이름</Label>
+                      <Input
+                        value={formData.practicalManagerName || ''}
+                        onChange={(e) => setFormData({ ...formData, practicalManagerName: e.target.value })}
+                        placeholder="실무 담당자 이름"
+                        className="bg-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">연락처</Label>
+                      <PhoneInput
+                        value={formData.practicalManagerPhone || ''}
+                        onChange={(value) => setFormData({ ...formData, practicalManagerPhone: value })}
+                        placeholder="010-0000-0000"
+                        className="bg-white"
+                      />
+                    </div>
+                  </div>
+                  <div className="p-3 bg-white rounded-lg border space-y-3">
+                    <p className="text-xs font-semibold text-purple-600 uppercase tracking-wide">결재담당자</p>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">이름</Label>
+                      <Input
+                        value={formData.approvalManagerName || ''}
+                        onChange={(e) => setFormData({ ...formData, approvalManagerName: e.target.value })}
+                        placeholder="결재 담당자 이름"
+                        className="bg-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">연락처</Label>
+                      <PhoneInput
+                        value={formData.approvalManagerPhone || ''}
+                        onChange={(value) => setFormData({ ...formData, approvalManagerPhone: value })}
+                        placeholder="010-0000-0000"
+                        className="bg-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 관리자 메모 섹션 (고객 비공개) */}
+              <div className="p-5 border rounded-xl bg-gradient-to-r from-slate-50/70 to-transparent">
+                <h3 className="font-semibold mb-2 text-slate-700 flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  관리자 메모
+                  <span className="text-xs font-normal bg-red-100 text-red-600 px-2 py-0.5 rounded-full">고객 비공개</span>
+                </h3>
+                <p className="text-xs text-muted-foreground mb-3">이 메모는 관리자만 볼 수 있으며 고객에게는 표시되지 않습니다.</p>
+                <Textarea
+                  value={formData.adminMemo || ''}
+                  onChange={(e) => setFormData({ ...formData, adminMemo: e.target.value })}
+                  placeholder="내부 메모를 입력하세요 (특이사항, 주의사항 등)"
+                  className="bg-white resize-none"
+                  rows={4}
+                />
+              </div>
             </TabsContent>
 
             <TabsContent value="payment" className="space-y-6">
@@ -946,13 +1037,34 @@ export default function MembersPage() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="paymentTerms" className="text-sm font-medium">결제조건 (일)</Label>
+                    <Label htmlFor="paymentCondition" className="text-sm font-medium">결제조건</Label>
+                    <Select
+                      value={formData.paymentCondition || '당월말'}
+                      onValueChange={(v) => setFormData({ ...formData, paymentCondition: v as '당월말' | '익월말' | '2개월여신' })}
+                    >
+                      <SelectTrigger className="bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="당월말">당월말</SelectItem>
+                        <SelectItem value="익월말">익월말</SelectItem>
+                        <SelectItem value="2개월여신">2개월여신</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="creditPaymentDay" className="text-sm font-medium">결제일 (매월 N일)</Label>
                     <Input
-                      id="paymentTerms"
+                      id="creditPaymentDay"
                       type="number"
-                      value={formData.paymentTerms}
-                      onChange={(e) => setFormData({ ...formData, paymentTerms: parseInt(e.target.value) || 0 })}
-                      placeholder="30"
+                      min={1}
+                      max={31}
+                      value={formData.creditPaymentDay ?? ''}
+                      onChange={(e) => {
+                        const val = e.target.value ? parseInt(e.target.value) : undefined;
+                        setFormData({ ...formData, creditPaymentDay: val });
+                      }}
+                      placeholder="예: 25"
                       className="bg-white"
                     />
                   </div>

@@ -253,6 +253,20 @@ export class CreateOrderItemDto {
   @IsString()
   fabricName?: string;
 
+  @ApiPropertyOptional({ description: '원단 스냅샷 (주문 시점 정보 보존)' })
+  @IsOptional()
+  fabricSnapshot?: {
+    id: string;
+    code?: string;
+    name: string;
+    category?: string;
+    material?: string;
+    colorCode?: string;
+    colorName?: string;
+    basePrice?: number;
+    thumbnailUrl?: string;
+  };
+
   @ApiPropertyOptional({ description: '앨범 주문 폴더명' })
   @IsOptional()
   @IsString()
@@ -515,6 +529,20 @@ export class AdjustOrderItemDto {
   @IsOptional()
   @IsString()
   fabricName?: string;
+
+  @ApiPropertyOptional({ description: '원단 스냅샷 (주문 시점 정보 보존)' })
+  @IsOptional()
+  fabricSnapshot?: {
+    id: string;
+    code?: string;
+    name: string;
+    category?: string;
+    material?: string;
+    colorCode?: string;
+    colorName?: string;
+    basePrice?: number;
+    thumbnailUrl?: string;
+  };
 
   @ApiPropertyOptional({ description: '박 동판명' })
   @IsOptional()

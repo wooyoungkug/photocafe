@@ -206,6 +206,18 @@ export interface AdditionalOrder {
   albumHeight: number; // 앨범규격 세로
   albumLabel: string;
   quantity: number;
+  // 원단 정보 (원본 폴더에서 상속, 개별 변경 가능)
+  selectedFabricId?: string | null;
+  selectedFabricName?: string | null;
+  selectedFabricThumbnail?: string | null;
+  selectedFabricPrice?: number | null;
+  selectedFabricCategory?: string | null;
+  selectedFabricColorCode?: string | null;
+  selectedFabricColorName?: string | null;
+  // 동판 정보 (원본 폴더에서 상속, 개별 변경 가능)
+  foilName?: string | null;
+  foilColor?: string | null;
+  foilPosition?: string | null;
 }
 
 // 첫막장 분리 결과
@@ -364,6 +376,12 @@ interface MultiFolderUploadState {
   removeAdditionalOrder: (folderId: string, orderId: string) => void;
   updateAdditionalOrderQuantity: (folderId: string, orderId: string, quantity: number) => void;
   updateAdditionalOrderSpec: (folderId: string, orderId: string, spec: { width: number; height: number; label: string }) => void;
+  updateAdditionalOrderFabric: (folderId: string, orderId: string, fabric: {
+    id: string | null; name: string | null; thumbnail?: string | null;
+    price?: number | null; category?: string | null;
+    colorCode?: string | null; colorName?: string | null;
+  }) => void;
+  updateAdditionalOrderFoil: (folderId: string, orderId: string, foilName: string | null, foilColor: string | null, foilPosition: string | null) => void;
 
   // 규격 변경 (앨범규격 기준)
   changeFolderSpec: (folderId: string, spec: { width: number; height: number; label: string }) => void;
@@ -893,6 +911,17 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
           albumHeight: spec.height,
           albumLabel: spec.label,
           quantity: 1,
+          // 원본 폴더의 원단/동판 값 상속
+          selectedFabricId: f.selectedFabricId,
+          selectedFabricName: f.selectedFabricName,
+          selectedFabricThumbnail: f.selectedFabricThumbnail,
+          selectedFabricPrice: f.selectedFabricPrice,
+          selectedFabricCategory: f.selectedFabricCategory,
+          selectedFabricColorCode: f.selectedFabricColorCode,
+          selectedFabricColorName: f.selectedFabricColorName,
+          foilName: f.foilName,
+          foilColor: f.foilColor,
+          foilPosition: f.foilPosition,
         };
         return {
           ...f,
@@ -937,6 +966,47 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
               o.id === orderId
                 ? { ...o, albumWidth: spec.width, albumHeight: spec.height, albumLabel: spec.label }
                 : o
+            ),
+          }
+          : f
+      ),
+    }));
+  },
+
+  updateAdditionalOrderFabric: (folderId, orderId, fabric) => {
+    set(state => ({
+      folders: state.folders.map(f =>
+        f.id === folderId
+          ? {
+            ...f,
+            additionalOrders: f.additionalOrders.map(o =>
+              o.id === orderId
+                ? {
+                  ...o,
+                  selectedFabricId: fabric.id,
+                  selectedFabricName: fabric.name,
+                  selectedFabricThumbnail: fabric.thumbnail ?? null,
+                  selectedFabricPrice: fabric.price ?? null,
+                  selectedFabricCategory: fabric.category ?? null,
+                  selectedFabricColorCode: fabric.colorCode ?? null,
+                  selectedFabricColorName: fabric.colorName ?? null,
+                }
+                : o
+            ),
+          }
+          : f
+      ),
+    }));
+  },
+
+  updateAdditionalOrderFoil: (folderId, orderId, foilName, foilColor, foilPosition) => {
+    set(state => ({
+      folders: state.folders.map(f =>
+        f.id === folderId
+          ? {
+            ...f,
+            additionalOrders: f.additionalOrders.map(o =>
+              o.id === orderId ? { ...o, foilName, foilColor, foilPosition } : o
             ),
           }
           : f

@@ -127,6 +127,11 @@ export class CreateClientDto {
   @Max(365)
   paymentTerms?: number;
 
+  @ApiPropertyOptional({ description: '결제조건 구분', enum: ['당월말', '익월말', '2개월여신'] })
+  @IsOptional()
+  @IsIn(['당월말', '익월말', '2개월여신'])
+  paymentCondition?: string;
+
   @ApiPropertyOptional({ description: '상태', enum: ['active', 'inactive', 'suspended'] })
   @IsOptional()
   @IsIn(['active', 'inactive', 'suspended'])
@@ -149,6 +154,31 @@ export class CreateClientDto {
   @ApiPropertyOptional({ description: '영업담당자 (직원 ID)', nullable: true })
   @IsOptional()
   assignedManager?: string | null;
+
+  @ApiPropertyOptional({ description: '실무담당자 이름' })
+  @IsOptional()
+  @IsString()
+  practicalManagerName?: string;
+
+  @ApiPropertyOptional({ description: '실무담당자 연락처' })
+  @IsOptional()
+  @IsString()
+  practicalManagerPhone?: string;
+
+  @ApiPropertyOptional({ description: '결재담당자 이름' })
+  @IsOptional()
+  @IsString()
+  approvalManagerName?: string;
+
+  @ApiPropertyOptional({ description: '결재담당자 연락처' })
+  @IsOptional()
+  @IsString()
+  approvalManagerPhone?: string;
+
+  @ApiPropertyOptional({ description: '관리자 메모 (고객에게 비공개)' })
+  @IsOptional()
+  @IsString()
+  adminMemo?: string;
 }
 
 export class UpdateClientDto extends PartialType(CreateClientDto) { }

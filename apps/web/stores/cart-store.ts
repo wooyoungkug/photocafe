@@ -67,6 +67,10 @@ export interface AlbumOrderCartInfo {
   fabricId?: string;               // 원단 ID
   fabricName?: string;             // 원단명
   fabricThumbnail?: string;        // 원단 썸네일
+  fabricColorCode?: string;        // 원단 색상 코드
+  fabricColorName?: string;        // 원단 색상명
+  fabricCategory?: string;         // 원단 카테고리
+  fabricBasePrice?: number;        // 원단 단가 (주문 시점)
 }
 
 export interface CartItem {

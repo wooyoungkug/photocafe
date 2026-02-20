@@ -220,6 +220,7 @@ model Client {
   shippingType            String                         @default("conditional")
   creditGrade             String                         @default("B")
   paymentTerms            Int                            @default(30)
+  paymentCondition        String?                        @default("당월말")
   status                  String                         @default("active")
   createdAt               DateTime                       @default(now())
   updatedAt               DateTime                       @updatedAt
@@ -230,6 +231,11 @@ model Client {
   colorProfile            String?
   contactPerson           String?
   contactPhone            String?
+  practicalManagerName    String?
+  practicalManagerPhone   String?
+  approvalManagerName     String?
+  approvalManagerPhone    String?
+  adminMemo               String?
   deliveryNote            String?
   hasLogo                 Boolean                        @default(false)
   isBlacklist             Boolean                        @default(false)
@@ -845,6 +851,7 @@ model OrderItem {
   thumbnailUrl      String?
   totalFileSize     BigInt             @default(0)
   fabricName        String?
+  fabricSnapshot    Json?
   bindingDirection  String?
   pageLayout        String?
   pdfPath           String?
@@ -1874,6 +1881,8 @@ model PhotobookOrder {
   bindingDirection String          @default("LEFT_START_RIGHT_END")
   fabricId         String?
   coatingId        String?
+  fabricSnapshot   Json?
+  coatingSnapshot  Json?
   quantity         Int             @default(1)
   specWidth        Float?
   specHeight       Float?

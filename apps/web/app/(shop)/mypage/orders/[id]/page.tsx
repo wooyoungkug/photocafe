@@ -168,6 +168,33 @@ function formatFileSize(bytes?: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)}GB`;
 }
 
+// 펼침면 앨범의 파일 인덱스에 해당하는 실제 페이지 범위 라벨 반환
+function getSpreadPageLabel(
+  fileIndex: number,
+  totalFiles: number,
+  pageLayout: string | undefined,
+  bindingDirection: string | undefined,
+): string {
+  if (pageLayout !== 'spread') return `${fileIndex + 1}`;
+  const dir = bindingDirection || 'LEFT_START_RIGHT_END';
+  switch (dir) {
+    case 'LEFT_START_RIGHT_END':
+      return `${fileIndex * 2 + 1}-${fileIndex * 2 + 2}`;
+    case 'LEFT_START_LEFT_END':
+      if (fileIndex === totalFiles - 1) return `${fileIndex * 2 + 1}`;
+      return `${fileIndex * 2 + 1}-${fileIndex * 2 + 2}`;
+    case 'RIGHT_START_LEFT_END':
+      if (fileIndex === 0) return '1';
+      if (fileIndex === totalFiles - 1) return `${fileIndex * 2}`;
+      return `${fileIndex * 2}-${fileIndex * 2 + 1}`;
+    case 'RIGHT_START_RIGHT_END':
+      if (fileIndex === 0) return '1';
+      return `${fileIndex * 2}-${fileIndex * 2 + 1}`;
+    default:
+      return `${fileIndex * 2 + 1}-${fileIndex * 2 + 2}`;
+  }
+}
+
 export default function OrderDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -529,7 +556,7 @@ export default function OrderDetailPage() {
                               className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-900 px-2 py-1.5 rounded hover:bg-gray-100 transition-colors"
                             >
                               <ImageIcon className="h-3.5 w-3.5" />
-                              <span>전체 페이지 보기 ({thumbnailFiles.length}장)</span>
+                              <span>전체 페이지 보기 ({item.pages || thumbnailFiles.length}페이지)</span>
                               {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                             </button>
 
@@ -565,7 +592,9 @@ export default function OrderDetailPage() {
                                         }}
                                       />
                                       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-1 pb-0.5 pt-3">
-                                        <span className="text-white text-[10px] font-medium">{idx + 1}</span>
+                                        <span className="text-white text-[10px] font-medium">
+                                          {getSpreadPageLabel(idx, thumbnailFiles.length, item.pageLayout, item.bindingDirection)}
+                                        </span>
                                       </div>
                                       {file.storageStatus === 'deleted' && (
                                         <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
@@ -578,7 +607,7 @@ export default function OrderDetailPage() {
                                 </div>
                                 {/* 파일 정보 요약 */}
                                 <div className="flex items-center gap-4 mt-2 text-[11px] text-gray-400">
-                                  <span>총 {thumbnailFiles.length}페이지</span>
+                                  <span>총 {item.pages || thumbnailFiles.length}페이지</span>
                                   {thumbnailFiles[0] && (
                                     <span>{thumbnailFiles[0].width}x{thumbnailFiles[0].height}px / {thumbnailFiles[0].dpi}dpi</span>
                                   )}
