@@ -365,6 +365,8 @@ export default function ProductPage() {
       ? lastProductOptions.printMethod as 'indigo' | 'inkjet' : 'indigo';
 
     // 동판(박) 복원: foilName으로 보유 동판 또는 공용 동판 매칭
+    // 동판이 있는 경우 ownedCopperPlates 데이터가 로드될 때까지 대기
+    if (lastProductOptions.foilName && ownedCopperPlates === undefined) return;
     let copperPlateType: 'none' | 'public' | 'owned' = 'none';
     let matchedOwnedPlate: CopperPlate | undefined;
     let matchedPublicPlate: PublicCopperPlate | undefined;
@@ -409,6 +411,8 @@ export default function ProductPage() {
   useEffect(() => {
     if (!myProductIdParam || !myProductFromParam || !product || myProductApplied) return;
     const opts = myProductFromParam.options;
+    // 보유 동판을 사용하는 경우 ownedCopperPlates 데이터가 로드될 때까지 대기
+    if (opts.copperPlateType === 'owned' && ownedCopperPlates === undefined) return;
     setSelectedOptions({
       specification: undefined,
       binding: product.bindings?.find(b => b.id === opts.bindingId),
@@ -552,10 +556,10 @@ export default function ProductPage() {
       printSide: selectedOptions.printSide, copperPlateType: selectedOptions.copperPlateType,
       copperPlateId: selectedOptions.copperPlateType === 'owned' ? selectedOptions.ownedCopperPlate?.id : selectedOptions.copperPlateType === 'public' ? selectedOptions.publicCopperPlate?.id : undefined,
       copperPlateName: selectedOptions.copperPlateType === 'owned' ? selectedOptions.ownedCopperPlate?.plateName : selectedOptions.copperPlateType === 'public' ? selectedOptions.publicCopperPlate?.plateName : undefined,
-      foilColor: selectedOptions.foilColor,
-      foilColorName: copperPlateLabels?.foilColors?.find(c => c.code === selectedOptions.foilColor)?.name,
-      foilPosition: selectedOptions.foilPosition,
-      foilPositionName: copperPlateLabels?.platePositions?.find(p => p.code === selectedOptions.foilPosition)?.name,
+      foilColor: selectedOptions.foilColor ?? (selectedOptions.copperPlateType === 'owned' ? selectedOptions.ownedCopperPlate?.foilColor : undefined),
+      foilColorName: copperPlateLabels?.foilColors?.find(c => c.code === (selectedOptions.foilColor ?? selectedOptions.ownedCopperPlate?.foilColor))?.name,
+      foilPosition: selectedOptions.foilPosition ?? (selectedOptions.copperPlateType === 'owned' ? selectedOptions.ownedCopperPlate?.foilPosition : undefined),
+      foilPositionName: copperPlateLabels?.platePositions?.find(p => p.code === (selectedOptions.foilPosition ?? selectedOptions.ownedCopperPlate?.foilPosition))?.name,
       finishingIds: selectedOptions.finishings.map(f => f.id), finishingNames: selectedOptions.finishings.map(f => f.name),
       coverSourceType: uploadFolders[0]?.coverSourceType || undefined,
       fabricId: effectiveFabricInfo?.id || undefined, fabricName: effectiveFabricInfo?.name || undefined,
@@ -754,7 +758,7 @@ export default function ProductPage() {
                       }));
                     }}
                     onPublicPlateSelect={(plate) => setSelectedOptions(prev => ({ ...prev, publicCopperPlate: plate }))}
-                    onOwnedPlateSelect={(cp) => setSelectedOptions(prev => ({ ...prev, ownedCopperPlate: cp, foilColor: undefined, foilPosition: undefined }))}
+                    onOwnedPlateSelect={(cp) => setSelectedOptions(prev => ({ ...prev, ownedCopperPlate: cp, foilColor: cp.foilColor || undefined, foilPosition: cp.foilPosition || undefined }))}
                     onFoilColorChange={(code) => setSelectedOptions(prev => ({ ...prev, foilColor: code }))}
                     onFoilPositionChange={(code) => setSelectedOptions(prev => ({ ...prev, foilPosition: code }))}
                   />

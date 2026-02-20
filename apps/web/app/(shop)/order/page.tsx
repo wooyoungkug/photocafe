@@ -755,6 +755,7 @@ export default function OrderPage() {
                                       clientInfo={shippingClientInfo}
                                       pricingMap={pricingMap}
                                       onChange={(shipping) => handleItemShippingChange(item.id, shipping)}
+                                      itemTotal={item.totalPrice}
                                     />
 
                                     {/* 편의 버튼 */}

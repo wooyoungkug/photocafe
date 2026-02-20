@@ -36,6 +36,7 @@ interface FolderShippingSectionProps {
   clientInfo: OrdererShippingInfo | null;
   pricingMap: Record<string, DeliveryPricing>;
   onChange: (shipping: FolderShippingInfo) => void;
+  itemTotal?: number;
 }
 
 export function FolderShippingSection({
@@ -44,6 +45,7 @@ export function FolderShippingSection({
   clientInfo,
   pricingMap,
   onChange,
+  itemTotal,
 }: FolderShippingSectionProps) {
   // 로컬 상태
   const [senderType, setSenderType] = useState<SenderType>(shippingInfo?.senderType || 'company');
@@ -73,9 +75,13 @@ export function FolderShippingSection({
           return { fee: 0, feeType: 'free' };
         }
         if (shippingType === 'conditional') {
-          // 조건부 무료: freeThreshold 이상이면 무료 (여기서는 기본배송비 표시, 주문시 총액 기준으로 재계산)
           const parcelPricing = pricingMap['parcel'];
           const baseFee = parcelPricing ? Number(parcelPricing.baseFee) : 3500;
+          const freeThreshold = parcelPricing?.freeThreshold != null ? Number(parcelPricing.freeThreshold) : null;
+          // 상품금액이 무료배송 임계값 이상이면 0원
+          if (freeThreshold != null && itemTotal != null && itemTotal >= freeThreshold) {
+            return { fee: 0, feeType: 'free' };
+          }
           return { fee: baseFee, feeType: 'conditional' };
         }
         if (shippingType === 'prepaid') {
@@ -94,7 +100,7 @@ export function FolderShippingSection({
       }
       return { fee: Number(pricing.baseFee), feeType: 'standard' };
     },
-    [clientInfo, pricingMap]
+    [clientInfo, pricingMap, itemTotal]
   );
 
   // 변경 시 부모에게 전달
@@ -171,7 +177,7 @@ export function FolderShippingSection({
   // 상태 변경 시 자동 emit
   useEffect(() => {
     emitChange();
-  }, [senderType, receiverType, deliveryMethod, directRecipientName, directPhone, directPostalCode, directAddress, directAddressDetail]);
+  }, [senderType, receiverType, deliveryMethod, directRecipientName, directPhone, directPostalCode, directAddress, directAddressDetail, itemTotal]);
 
   // 배송지가 고객직배송이면 방문수령 비활성
   const availableMethods = receiverType === 'direct_customer'
@@ -187,9 +193,23 @@ export function FolderShippingSection({
 
   const { fee } = calculateDeliveryFee(deliveryMethod, receiverType);
   const feeLabel = fee === 0 ? '무료' : `${fee.toLocaleString()}원`;
+
+  const parcelFreeThreshold = pricingMap['parcel']?.freeThreshold != null
+    ? Number(pricingMap['parcel'].freeThreshold)
+    : null;
+  const isConditionalFree = clientInfo?.shippingType === 'conditional'
+    && parcelFreeThreshold != null
+    && itemTotal != null
+    && itemTotal >= parcelFreeThreshold;
+
   const shippingTypeLabel = clientInfo?.shippingType === 'free' ? '(무료배송 회원)' :
-    clientInfo?.shippingType === 'conditional' ? '(조건부 무료)' :
-    clientInfo?.shippingType === 'cod' ? '(착불)' : '';
+    clientInfo?.shippingType === 'conditional'
+      ? isConditionalFree
+        ? `(조건부 무료)`
+        : parcelFreeThreshold != null
+          ? `(${parcelFreeThreshold.toLocaleString()}원 이상 무료)`
+          : '(조건부 무료)'
+      : clientInfo?.shippingType === 'cod' ? '(착불)' : '';
 
   return (
     <div className="space-y-4">
@@ -237,7 +257,12 @@ export function FolderShippingSection({
           <MapPin className="h-3.5 w-3.5" />
           배송지
           {receiverType === 'orderer' && shippingTypeLabel && (
-            <Badge variant="outline" className="text-[10px] font-normal">{shippingTypeLabel}</Badge>
+            <Badge
+              variant="outline"
+              className={`text-[10px] font-normal ${isConditionalFree || clientInfo?.shippingType === 'free' ? 'border-green-400 text-green-700 bg-green-50' : ''}`}
+            >
+              {shippingTypeLabel}
+            </Badge>
           )}
         </div>
         <RadioGroup
