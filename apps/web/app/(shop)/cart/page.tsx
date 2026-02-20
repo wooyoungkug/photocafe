@@ -242,19 +242,40 @@ export default function CartPage() {
   // Totals
   const selectedCartItems = items.filter((item) => selectedItems.includes(item.id));
   const selectedTotal = selectedCartItems.reduce((sum, item) => sum + item.totalPrice, 0);
-  // shipping dedup: charge once per route
+  // 스튜디오배송 상품 합계 (조건부 무료배송 기준)
+  const studioItemsTotal = selectedCartItems
+    .filter((item) => {
+      const sh = item.albumOrderInfo?.shippingInfo || item.shippingInfo;
+      return sh?.receiverType === 'orderer';
+    })
+    .reduce((sum, item) => sum + item.totalPrice, 0);
+
+  // 배송비 합계
+  // - 고객직배송: 무조건 청구 (개별 배송)
+  // - 스튜디오배송: 스튜디오 합계가 무료배송 임계값 이상이면 전체 무료, 미달 시 배송방법별 1회 청구
   const totalShippingFee = (() => {
-    const seenRoutes = new Set();
+    const freeThreshold = clientInfo?.freeShippingThreshold
+      ?? (pricingMap['parcel']?.freeThreshold != null ? Number(pricingMap['parcel'].freeThreshold) : 90000);
+    const isStudioFree =
+      clientInfo?.shippingType === 'free' ||
+      (clientInfo?.shippingType === 'conditional' && studioItemsTotal >= freeThreshold);
+
     let total = 0;
+    const chargedStudioMethods = new Set<string>();
+
     for (const item of selectedCartItems) {
-      const shipping = item.albumOrderInfo?.shippingInfo || item.shippingInfo;
-      if (!shipping) continue;
-      const fee = shipping.deliveryFee || 0;
-      if (fee === 0) continue;
-      const routeKey = shipping.deliveryMethod + "|" + shipping.senderType + "|" + shipping.receiverType + "|" + (shipping.recipientPostalCode || "");
-      if (!seenRoutes.has(routeKey)) {
-        seenRoutes.add(routeKey);
-        total += fee;
+      const sh = item.albumOrderInfo?.shippingInfo || item.shippingInfo;
+      if (!sh || sh.deliveryMethod === 'pickup') continue;
+
+      if (sh.receiverType === 'direct_customer') {
+        // 고객직배송: 조건 없이 항목별 청구
+        total += sh.deliveryFee || 0;
+      } else if (sh.receiverType === 'orderer' && !isStudioFree) {
+        // 스튜디오배송: 동일 배송방법은 1회만 청구 (합배송)
+        if (!chargedStudioMethods.has(sh.deliveryMethod)) {
+          chargedStudioMethods.add(sh.deliveryMethod);
+          total += sh.deliveryFee || 0;
+        }
       }
     }
     return total;
@@ -393,7 +414,7 @@ export default function CartPage() {
                           companyInfo={companyInfo}
                           clientInfo={clientInfo}
                           pricingMap={pricingMap}
-                          cartTotal={selectedTotal}
+                          studioTotal={studioItemsTotal}
                         />
                       );
                     });

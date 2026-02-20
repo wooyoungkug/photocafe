@@ -106,7 +106,7 @@ export interface CartItemCardProps {
   companyInfo: CompanyShippingInfo | null;
   clientInfo: OrdererShippingInfo | null;
   pricingMap: Record<string, DeliveryPricing>;
-  cartTotal?: number;
+  studioTotal?: number;
 }
 
 export function CartItemCard({
@@ -124,7 +124,7 @@ export function CartItemCard({
   companyInfo,
   clientInfo,
   pricingMap,
-  cartTotal,
+  studioTotal,
 }: CartItemCardProps) {
   const t = useTranslations('cart');
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -641,7 +641,7 @@ export function CartItemCard({
                       clientInfo={clientInfo}
                       pricingMap={pricingMap}
                       onChange={(shipping) => onShippingChange(item.id, shipping)}
-                      itemTotal={cartTotal ?? item.totalPrice}
+                      studioTotal={studioTotal}
                     />
 
                     {onCopyFromPrevious && !isShippingComplete(itemShipping) && (
