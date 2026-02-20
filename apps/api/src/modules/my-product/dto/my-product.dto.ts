@@ -20,6 +20,7 @@ export interface MyProductOptions {
   foilPositionName?: string;
   finishingIds?: string[];
   finishingNames?: string[];
+  finishingSettingIds?: string[];
   // 원단 (앨범 표지)
   coverSourceType?: 'fabric' | 'design';
   fabricId?: string;

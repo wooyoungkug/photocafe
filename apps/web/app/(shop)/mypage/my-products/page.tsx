@@ -108,6 +108,9 @@ export default function MyProductsPage() {
                       {mp.options.foilPositionName && (
                         <Badge variant="outline" className="text-[10px] h-4 px-1">{mp.options.foilPositionName}</Badge>
                       )}
+                      {mp.options.finishingNames && mp.options.finishingNames.length > 0 && mp.options.finishingNames.map((name, idx) => (
+                        <Badge key={idx} variant="outline" className="text-[10px] h-4 px-1">{name}</Badge>
+                      ))}
                     </div>
                     <div className="flex items-center gap-1 mt-2">
                       <Link href={`/product/${mp.productId}?myProductId=${mp.id}`}>

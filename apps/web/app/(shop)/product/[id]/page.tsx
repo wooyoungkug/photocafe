@@ -418,7 +418,15 @@ export default function ProductPage() {
       binding: product.bindings?.find(b => b.id === opts.bindingId),
       paper: product.papers?.find(p => p.id === opts.paperId),
       cover: product.covers?.find(c => c.id === opts.coverId),
-      finishings: product.finishings?.filter(f => opts.finishingIds?.includes(f.id)) || [],
+      finishings: (opts.finishingIds || []).map((fId, idx) => {
+        const base = product.finishings?.find(f => f.id === fId);
+        if (!base) return null;
+        const savedName = opts.finishingNames?.[idx];
+        if (savedName && savedName !== base.name) {
+          return { ...base, name: savedName } as ProductFinishing;
+        }
+        return base;
+      }).filter((f): f is ProductFinishing => f !== null),
       printSide: opts.printSide,
       printMethod: (product.papers?.find(p => p.id === opts.paperId)?.printMethod === 'indigo' || product.papers?.find(p => p.id === opts.paperId)?.printMethod === 'inkjet')
         ? product.papers?.find(p => p.id === opts.paperId)?.printMethod as 'indigo' | 'inkjet' : 'indigo',
@@ -561,6 +569,13 @@ export default function ProductPage() {
       foilPosition: selectedOptions.foilPosition ?? (selectedOptions.copperPlateType === 'owned' ? selectedOptions.ownedCopperPlate?.foilPosition : undefined),
       foilPositionName: copperPlateLabels?.platePositions?.find(p => p.code === (selectedOptions.foilPosition ?? selectedOptions.ownedCopperPlate?.foilPosition))?.name,
       finishingIds: selectedOptions.finishings.map(f => f.id), finishingNames: selectedOptions.finishings.map(f => f.name),
+      finishingSettingIds: selectedOptions.finishings.map(f => {
+        // 후가공 설정(세팅)에서 선택된 경우, settingName이 finishing.name과 일치하는 setting의 ID를 저장
+        const settings = f.productionGroup?.settings;
+        if (!settings) return undefined;
+        const matched = settings.find(s => s.settingName === f.name);
+        return matched?.id;
+      }).filter((id): id is string => !!id),
       coverSourceType: uploadFolders[0]?.coverSourceType || undefined,
       fabricId: effectiveFabricInfo?.id || undefined, fabricName: effectiveFabricInfo?.name || undefined,
       fabricThumbnail: effectiveFabricInfo?.thumbnail || undefined,
@@ -584,7 +599,16 @@ export default function ProductPage() {
       binding: product?.bindings?.find(b => b.id === opts.bindingId),
       paper: product?.papers?.find(p => p.id === opts.paperId),
       cover: product?.covers?.find(c => c.id === opts.coverId),
-      finishings: product?.finishings?.filter(f => opts.finishingIds?.includes(f.id)) || [],
+      finishings: (opts.finishingIds || []).map((fId, idx) => {
+        const base = product?.finishings?.find(f => f.id === fId);
+        if (!base) return null;
+        // 저장된 이름이 있으면 virtual finishing으로 복원 (설정 세팅에서 선택된 경우)
+        const savedName = opts.finishingNames?.[idx];
+        if (savedName && savedName !== base.name) {
+          return { ...base, name: savedName } as ProductFinishing;
+        }
+        return base;
+      }).filter((f): f is ProductFinishing => f !== null),
       printSide: opts.printSide, copperPlateType: opts.copperPlateType,
       ownedCopperPlate: opts.copperPlateType === 'owned' ? ownedCopperPlates?.find(cp => cp.id === opts.copperPlateId) : undefined,
       publicCopperPlate: opts.copperPlateType === 'public' ? product?.publicCopperPlates?.find(p => p.publicCopperPlate?.id === opts.copperPlateId)?.publicCopperPlate : undefined,
@@ -1014,6 +1038,7 @@ export default function ProductPage() {
                       {mp.options.bindingName && <p>{t('binding')}: {mp.options.bindingName}</p>}
                       {mp.options.paperName && <p>{t('paper')}: {mp.options.paperName}</p>}
                       {mp.options.copperPlateName && <p>{t('copperPlate')}: {mp.options.copperPlateName}</p>}
+                      {mp.options.finishingNames && mp.options.finishingNames.length > 0 && <p>{t('finishing')}: {mp.options.finishingNames.join(', ')}</p>}
                       <p>{tc('quantity')}: {t('countUnit', { count: mp.defaultQuantity })}</p>
                     </div>
                   </div>

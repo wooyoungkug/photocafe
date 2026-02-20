@@ -110,7 +110,7 @@ export function OptionCopperPlate({
       </select>
 
       {/* 박 컬러 드롭다운 (동판 선택 시에만 표시) */}
-      {copperPlateType !== 'none' && hasColors && (
+      {!!selectedPlateValue && hasColors && (
         <select
           value={foilColor ?? ''}
           onChange={e => onFoilColorChange(e.target.value)}
@@ -125,7 +125,7 @@ export function OptionCopperPlate({
       )}
 
       {/* 박 위치 드롭다운 (동판 선택 시에만 표시) */}
-      {copperPlateType !== 'none' && hasPositions && (
+      {!!selectedPlateValue && hasPositions && (
         <select
           value={foilPosition ?? ''}
           onChange={e => onFoilPositionChange(e.target.value)}
