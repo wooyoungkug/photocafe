@@ -460,8 +460,7 @@ export default function ProductPage() {
         return base;
       }).filter((f): f is ProductFinishing => f !== null),
       printSide: opts.printSide,
-      printMethod: (product.papers?.find(p => p.id === opts.paperId)?.printMethod === 'indigo' || product.papers?.find(p => p.id === opts.paperId)?.printMethod === 'inkjet')
-        ? product.papers?.find(p => p.id === opts.paperId)?.printMethod as 'indigo' | 'inkjet' : 'indigo',
+      printMethod: (opts.printMethod as 'indigo' | 'inkjet') || 'indigo',
       copperPlateType: opts.copperPlateType,
       ownedCopperPlate: opts.copperPlateType === 'owned' ? ownedCopperPlates?.find(cp => cp.id === opts.copperPlateId) : undefined,
       publicCopperPlate: opts.copperPlateType === 'public'
@@ -643,6 +642,7 @@ export default function ProductPage() {
         }
         return base;
       }).filter((f): f is ProductFinishing => f !== null),
+      printMethod: (opts.printMethod as 'indigo' | 'inkjet') || 'indigo',
       printSide: opts.printSide, copperPlateType: opts.copperPlateType,
       ownedCopperPlate: opts.copperPlateType === 'owned' ? ownedCopperPlates?.find(cp => cp.id === opts.copperPlateId) : undefined,
       publicCopperPlate: opts.copperPlateType === 'public' ? allPublicCopperPlates?.data?.find(p => p.id === opts.copperPlateId) : undefined,
