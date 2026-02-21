@@ -18,6 +18,7 @@ import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { Public } from '@/common/decorators/public.decorator';
 import {
   LoginDto,
   RegisterDto,
@@ -38,6 +39,7 @@ export class AuthController {
     private configService: ConfigService,
   ) { }
 
+  @Public()
   @Post('login')
   @UseGuards(LocalAuthGuard)
   @ApiOperation({ summary: '로그인' })
@@ -45,12 +47,14 @@ export class AuthController {
     return this.authService.login(req.user);
   }
 
+  @Public()
   @Post('register')
   @ApiOperation({ summary: '회원가입' })
   async register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto);
   }
 
+  @Public()
   @Post('refresh')
   @ApiOperation({ summary: '토큰 갱신' })
   async refresh(@Body() refreshTokenDto: RefreshTokenDto) {
@@ -91,18 +95,21 @@ export class AuthController {
 
   // ========== 고객 회원가입/로그인 ==========
 
+  @Public()
   @Post('client/register/individual')
   @ApiOperation({ summary: '개인 고객 회원가입' })
   async registerIndividual(@Body() dto: RegisterIndividualDto) {
     return this.authService.registerIndividual(dto);
   }
 
+  @Public()
   @Post('client/register/studio')
   @ApiOperation({ summary: '스튜디오(B2B) 회원가입' })
   async registerStudio(@Body() dto: RegisterStudioDto) {
     return this.authService.registerStudio(dto);
   }
 
+  @Public()
   @Post('client/login')
   @ApiOperation({ summary: '고객 로그인' })
   async clientLogin(@Body() dto: ClientLoginDto) {
@@ -113,6 +120,7 @@ export class AuthController {
     return this.authService.loginClient(client);
   }
 
+  @Public()
   @Get('client/check-email')
   @ApiOperation({ summary: '이메일 중복 확인' })
   async checkEmail(@Query('email') email: string) {
@@ -120,6 +128,7 @@ export class AuthController {
     return { exists };
   }
 
+  @Public()
   @Get('client/check-business-number')
   @ApiOperation({ summary: '사업자등록번호 중복 확인' })
   async checkBusinessNumber(@Query('businessNumber') businessNumber: string) {
@@ -128,6 +137,7 @@ export class AuthController {
   }
 
   // 네이버 OAuth 로그인 시작
+  @Public()
   @Get('naver')
   @UseGuards(AuthGuard('naver'))
   @ApiOperation({ summary: '네이버 로그인' })
@@ -136,6 +146,7 @@ export class AuthController {
   }
 
   // 네이버 OAuth 콜백
+  @Public()
   @Get('naver/callback')
   @UseGuards(AuthGuard('naver'))
   @ApiOperation({ summary: '네이버 로그인 콜백' })
@@ -148,6 +159,7 @@ export class AuthController {
   }
 
   // 카카오 OAuth 로그인 시작
+  @Public()
   @Get('kakao')
   @UseGuards(AuthGuard('kakao'))
   @ApiOperation({ summary: '카카오 로그인' })
@@ -156,6 +168,7 @@ export class AuthController {
   }
 
   // 카카오 OAuth 콜백
+  @Public()
   @Get('kakao/callback')
   @UseGuards(AuthGuard('kakao'))
   @ApiOperation({ summary: '카카오 로그인 콜백' })
@@ -168,6 +181,7 @@ export class AuthController {
   }
 
   // OAuth 코드 → 토큰 교환
+  @Public()
   @Post('exchange-code')
   @ApiOperation({ summary: 'OAuth 인증 코드를 토큰으로 교환' })
   async exchangeCode(@Body('code') code: string) {

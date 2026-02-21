@@ -11,9 +11,13 @@ export class KakaoStrategy extends PassportStrategy(Strategy, 'kakao') {
     @Inject(forwardRef(() => AuthService))
     private authService: AuthService,
   ) {
-    const clientID = configService.get<string>('KAKAO_CLIENT_ID') || 'placeholder';
-    const clientSecret = configService.get<string>('KAKAO_CLIENT_SECRET') || 'placeholder';
-    const callbackURL = configService.get<string>('KAKAO_CALLBACK_URL') || 'http://localhost:3001/api/v1/auth/kakao/callback';
+    const clientID = configService.get<string>('KAKAO_CLIENT_ID');
+    const clientSecret = configService.get<string>('KAKAO_CLIENT_SECRET');
+    const callbackURL = configService.get<string>('KAKAO_CALLBACK_URL');
+
+    if (!clientID || !clientSecret) {
+      console.warn('KAKAO_CLIENT_ID 또는 KAKAO_CLIENT_SECRET이 설정되지 않았습니다. 카카오 로그인이 비활성화됩니다.');
+    }
 
     super({
       clientID,

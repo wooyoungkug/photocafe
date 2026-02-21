@@ -11,9 +11,13 @@ export class NaverStrategy extends PassportStrategy(Strategy, 'naver') {
     @Inject(forwardRef(() => AuthService))
     private authService: AuthService,
   ) {
-    const clientID = configService.get<string>('NAVER_CLIENT_ID') || 'placeholder';
-    const clientSecret = configService.get<string>('NAVER_CLIENT_SECRET') || 'placeholder';
-    const callbackURL = configService.get<string>('NAVER_CALLBACK_URL') || 'http://localhost:3001/auth/naver/callback';
+    const clientID = configService.get<string>('NAVER_CLIENT_ID');
+    const clientSecret = configService.get<string>('NAVER_CLIENT_SECRET');
+    const callbackURL = configService.get<string>('NAVER_CALLBACK_URL');
+
+    if (!clientID || !clientSecret) {
+      console.warn('NAVER_CLIENT_ID 또는 NAVER_CLIENT_SECRET이 설정되지 않았습니다. 네이버 로그인이 비활성화됩니다.');
+    }
 
     super({
       clientID,

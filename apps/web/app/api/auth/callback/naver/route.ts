@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
+const FRONTEND_URL = process.env.NEXT_PUBLIC_FRONTEND_URL || "http://localhost:3002";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
+
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
   const state = request.nextUrl.searchParams.get("state");
 
   if (!code) {
-    return NextResponse.redirect("http://1.212.201.147:3000/login?error=no_code");
+    return NextResponse.redirect(`${FRONTEND_URL}/login?error=no_code`);
   }
 
   try {
@@ -24,7 +27,7 @@ export async function GET(request: NextRequest) {
     const tokenData = await tokenRes.json();
 
     if (tokenData.error) {
-      return NextResponse.redirect("http://1.212.201.147:3000/login?error=token_error");
+      return NextResponse.redirect(`${FRONTEND_URL}/login?error=token_error`);
     }
 
     // 2. 네이버 사용자 정보 요청
@@ -34,13 +37,13 @@ export async function GET(request: NextRequest) {
     const userData = await userRes.json();
 
     if (userData.resultcode !== "00") {
-      return NextResponse.redirect("http://1.212.201.147:3000/login?error=user_error");
+      return NextResponse.redirect(`${FRONTEND_URL}/login?error=user_error`);
     }
 
     const naver = userData.response;
 
     // 3. 백엔드에 소셜 로그인 요청
-    const backendRes = await fetch("http://1.212.201.147:3001/api/v1/auth/social-login", {
+    const backendRes = await fetch(`${API_URL}/auth/social-login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -53,18 +56,18 @@ export async function GET(request: NextRequest) {
     });
 
     if (!backendRes.ok) {
-      return NextResponse.redirect("http://1.212.201.147:3000/login?error=backend_error");
+      return NextResponse.redirect(`${FRONTEND_URL}/login?error=backend_error`);
     }
 
     const authData = await backendRes.json();
 
-    // 4. 토큰을 쿠키나 URL로 전달
-    const url = new URL("http://1.212.201.147:3000/");
+    // 4. 토큰을 URL로 전달
+    const url = new URL(`${FRONTEND_URL}/`);
     url.searchParams.set("accessToken", authData.accessToken);
     url.searchParams.set("refreshToken", authData.refreshToken);
 
     return NextResponse.redirect(url.toString());
   } catch (error) {
-    return NextResponse.redirect("http://1.212.201.147:3000/login?error=server_error");
+    return NextResponse.redirect(`${FRONTEND_URL}/login?error=server_error`);
   }
 }
