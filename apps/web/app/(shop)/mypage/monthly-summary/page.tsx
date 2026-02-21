@@ -501,7 +501,7 @@ export default function MonthlySummaryPage() {
                 상품명
               </th>
               <th className="border border-gray-500 p-1.5 text-center font-semibold w-[60px]">
-                규격
+                페이지
               </th>
               <th className="border border-gray-500 p-1.5 text-center font-semibold w-[80px]">
                 금액
@@ -555,32 +555,40 @@ export default function MonthlySummaryPage() {
                           .filter(Boolean)
                           .join(' ');
                         return (
-                          <tr key={item.id}>
-                            <td className="border border-gray-400 p-1 text-[8pt] text-gray-600 align-top text-center">
-                              {iIdx === 0 ? order.orderNumber : ''}
-                            </td>
-                            <td className="border border-gray-400 p-1 align-top">
-                              {iIdx === 0
-                                ? item.folderName || order.orderNumber
-                                : subName}
-                            </td>
-                            <td className="border border-gray-400 p-1 align-top">
-                              {iIdx === 0 ? item.productName : item.size || '-'}
-                            </td>
-                            <td className="border border-gray-400 p-1 text-center tabular-nums align-top">
-                              {iIdx === 0 ? (
-                                <>
-                                  <div>{item.pages > 0 ? `${item.pages}p` : item.size || '-'}</div>
-                                  {item.quantity > 0 && (
-                                    <div className="text-gray-500">{item.quantity}부</div>
-                                  )}
-                                </>
-                              ) : ''}
-                            </td>
-                            <td className="border border-gray-400 p-1 text-right tabular-nums align-top">
-                              {iIdx === 0 ? formatAmount(Number(order.finalAmount)) + '원' : ''}
-                            </td>
-                          </tr>
+                          <Fragment key={item.id}>
+                            {/* 행 1: 주문번호 | 폴더명 | 상품명 | 페이지수 | 금액 */}
+                            <tr>
+                              <td className="border border-gray-400 p-1 text-[8pt] text-gray-600 align-top text-center">
+                                {iIdx === 0 ? order.orderNumber : ''}
+                              </td>
+                              <td className="border border-gray-400 p-1 align-top">
+                                {item.folderName || order.orderNumber}
+                              </td>
+                              <td className="border border-gray-400 p-1 align-top">
+                                {item.productName}
+                              </td>
+                              <td className="border border-gray-400 p-1 text-center tabular-nums align-top">
+                                {item.pages > 0 ? `${item.pages}p` : '-'}
+                              </td>
+                              <td className="border border-gray-400 p-1 text-right tabular-nums align-top">
+                                {iIdx === 0 ? formatAmount(Number(order.finalAmount)) + '원' : ''}
+                              </td>
+                            </tr>
+                            {/* 행 2: 없음 | 출력방식+용지 | 규격 | 부수 | 없음 */}
+                            <tr>
+                              <td className="border border-gray-400 p-1" />
+                              <td className="border border-gray-400 p-1 text-[8pt] text-gray-500">
+                                {subName || '-'}
+                              </td>
+                              <td className="border border-gray-400 p-1 text-[8pt] text-gray-500">
+                                {item.size || '-'}
+                              </td>
+                              <td className="border border-gray-400 p-1 text-center text-[8pt] text-gray-500 tabular-nums">
+                                {item.quantity > 0 ? `${item.quantity}부` : '-'}
+                              </td>
+                              <td className="border border-gray-400 p-1" />
+                            </tr>
+                          </Fragment>
                         );
                       })}
                     </Fragment>
