@@ -13,6 +13,7 @@ import {
   Truck,
   ArrowRightLeft,
   Download,
+  Printer,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -101,6 +102,10 @@ export default function MonthlySummaryPage() {
     setExpandedRow(expandedRow === date ? null : date);
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   const handleExport = () => {
     if (!dataWithBalance.length) {
       toast({ title: '다운로드할 데이터가 없습니다.', variant: 'destructive' });
@@ -155,7 +160,191 @@ export default function MonthlySummaryPage() {
   const carryForward = summary?.carryForwardBalance || 0;
   const closingBalance = summary?.closingBalance || 0;
 
+  const printYear = format(selectedDate, 'yyyy');
+  const printMonth = format(selectedDate, 'MM');
+  const printPeriodStart = format(startDate, 'yyyy년 MM월 dd일', { locale: ko });
+  const printPeriodEnd = format(endDate, 'yyyy년 MM월 dd일', { locale: ko });
+  const printToday = format(new Date(), 'yyyy년 MM월 dd일', { locale: ko });
+
+  // 인쇄용: 날짜 오름차순
+  const printRows = [...dataWithBalance];
+
+  const printCss = [
+    '@media print {',
+    '  body * { visibility: hidden !important; }',
+    '  #monthly-print-area, #monthly-print-area * { visibility: visible !important; }',
+    '  #monthly-print-area { position: fixed !important; top: 0; left: 0; width: 100%; padding: 24px 32px; background: white; }',
+    '  @page { size: A4 portrait; margin: 15mm; }',
+    '}',
+  ].join('\n');
+
   return (
+    <>
+    {/* ===== 인쇄 전용 영역 ===== */}
+    <style>{printCss}</style>
+
+    <div id="monthly-print-area" className="hidden print:block font-sans text-[11pt] text-black bg-white">
+      {/* 발행처 */}
+      <div className="text-center mb-1 text-[9pt] text-gray-500">포토카페 - 고품질 인쇄 서비스</div>
+
+      {/* 제목 */}
+      <h1 className="text-center text-[18pt] font-bold tracking-widest mb-4">
+        월 별 거 래 내 역
+      </h1>
+
+      {/* 기본 정보 */}
+      <div className="flex justify-between items-end mb-3 text-[10pt]">
+        <table className="border-collapse text-[10pt]">
+          <tbody>
+            <tr>
+              <td className="pr-2 font-semibold">거래처</td>
+              <td className="border-b border-black px-3 min-w-[160px]">
+                {user?.clientName || user?.name || '-'}
+              </td>
+            </tr>
+            <tr>
+              <td className="pr-2 font-semibold pt-1">사업자번호</td>
+              <td className="border-b border-black px-3 pt-1">
+                {user?.businessNumber || '-'}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div className="text-right text-[9pt] text-gray-600 space-y-0.5">
+          <div>기&nbsp;&nbsp;&nbsp;&nbsp;간: {printPeriodStart} ~ {printPeriodEnd}</div>
+          <div>출력일자: {printToday}</div>
+        </div>
+      </div>
+
+      {/* 요약 박스 */}
+      <table className="w-full border-collapse mb-4 text-[10pt]">
+        <thead>
+          <tr className="bg-gray-100">
+            <th className="border border-gray-400 p-2 text-center font-semibold w-1/4">이월잔액</th>
+            <th className="border border-gray-400 p-2 text-center font-semibold w-1/4">당월 주문금액</th>
+            <th className="border border-gray-400 p-2 text-center font-semibold w-1/4">당월 납부금액</th>
+            <th className="border border-gray-400 p-2 text-center font-semibold w-1/4">기말잔액</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td className="border border-gray-400 p-2 text-right tabular-nums">
+              {formatAmount(carryForward)}원
+            </td>
+            <td className="border border-gray-400 p-2 text-right tabular-nums">
+              {formatAmount(summary?.totalOrderAmount || 0)}원
+            </td>
+            <td className="border border-gray-400 p-2 text-right tabular-nums">
+              {formatAmount(summary?.totalDepositAmount || 0)}원
+            </td>
+            <td className={`border border-gray-400 p-2 text-right tabular-nums font-bold ${closingBalance > 0 ? 'text-red-700' : closingBalance < 0 ? 'text-blue-700' : ''}`}>
+              {closingBalance < 0 && '-'}{formatAmount(Math.abs(closingBalance))}원
+              {closingBalance > 0 && <span className="text-[8pt] ml-1">(미납)</span>}
+              {closingBalance < 0 && <span className="text-[8pt] ml-1">(선납)</span>}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      {/* 거래원장 테이블 */}
+      <table className="w-full border-collapse text-[10pt]">
+        <thead>
+          <tr className="bg-gray-200">
+            <th className="border border-gray-500 p-1.5 text-center font-semibold w-[70px]">일자</th>
+            <th className="border border-gray-500 p-1.5 text-center font-semibold">적&nbsp;&nbsp;요</th>
+            <th className="border border-gray-500 p-1.5 text-center font-semibold w-[110px]">차&nbsp;변<br/><span className="text-[8pt] font-normal">(주문금액)</span></th>
+            <th className="border border-gray-500 p-1.5 text-center font-semibold w-[110px]">대&nbsp;변<br/><span className="text-[8pt] font-normal">(납부금액)</span></th>
+            <th className="border border-gray-500 p-1.5 text-center font-semibold w-[110px]">잔&nbsp;&nbsp;액</th>
+          </tr>
+        </thead>
+        <tbody>
+          {/* 이월잔액 행 */}
+          <tr className="bg-blue-50">
+            <td className="border border-gray-400 p-1.5 text-center text-gray-500">
+              {printYear}.{printMonth}.01
+            </td>
+            <td className="border border-gray-400 p-1.5 text-center font-semibold text-blue-700">
+              전월 이월
+            </td>
+            <td className="border border-gray-400 p-1.5 text-right text-gray-400">-</td>
+            <td className="border border-gray-400 p-1.5 text-right text-gray-400">-</td>
+            <td className={`border border-gray-400 p-1.5 text-right tabular-nums font-semibold ${carryForward > 0 ? 'text-red-700' : carryForward < 0 ? 'text-blue-700' : ''}`}>
+              {carryForward < 0 && '-'}{formatAmount(Math.abs(carryForward))}원
+            </td>
+          </tr>
+
+          {/* 일별 거래 행 (날짜 오름차순) */}
+          {printRows.map((row) => (
+            <tr key={row.date}>
+              <td className="border border-gray-400 p-1.5 text-center">
+                {format(new Date(row.date + 'T00:00:00'), 'MM.dd (EEE)', { locale: ko })}
+              </td>
+              <td className="border border-gray-400 p-1.5 text-center text-gray-600">
+                주문 {row.orderCount}건
+              </td>
+              <td className="border border-gray-400 p-1.5 text-right tabular-nums">
+                {row.orderAmount > 0 ? formatAmount(row.orderAmount) + '원' : '-'}
+              </td>
+              <td className="border border-gray-400 p-1.5 text-right tabular-nums">
+                {row.depositAmount > 0 ? formatAmount(row.depositAmount) + '원' : '-'}
+              </td>
+              <td className={`border border-gray-400 p-1.5 text-right tabular-nums ${row.runningBalance > 0 ? 'text-red-700' : row.runningBalance < 0 ? 'text-blue-700' : ''}`}>
+                {row.runningBalance < 0 && '-'}{formatAmount(Math.abs(row.runningBalance))}원
+              </td>
+            </tr>
+          ))}
+
+          {/* 합계 행 */}
+          <tr className="bg-gray-100 font-bold">
+            <td className="border border-gray-500 p-1.5" />
+            <td className="border border-gray-500 p-1.5 text-center">
+              당 월 합 계
+            </td>
+            <td className="border border-gray-500 p-1.5 text-right tabular-nums">
+              {formatAmount(summary?.totalOrderAmount || 0)}원
+            </td>
+            <td className="border border-gray-500 p-1.5 text-right tabular-nums">
+              {formatAmount(summary?.totalDepositAmount || 0)}원
+            </td>
+            <td className="border border-gray-500 p-1.5" />
+          </tr>
+
+          {/* 차월이월 행 */}
+          <tr className="bg-gray-200 font-bold">
+            <td className="border border-gray-500 p-1.5" />
+            <td className="border border-gray-500 p-1.5 text-center text-primary">
+              차 월 이 월
+            </td>
+            <td className="border border-gray-500 p-1.5" />
+            <td className="border border-gray-500 p-1.5" />
+            <td className={`border border-gray-500 p-1.5 text-right tabular-nums ${closingBalance > 0 ? 'text-red-700' : closingBalance < 0 ? 'text-blue-700' : ''}`}>
+              {closingBalance < 0 && '-'}{formatAmount(Math.abs(closingBalance))}원
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      {/* 서명란 */}
+      <div className="flex justify-end mt-8 gap-8 text-[10pt]">
+        <div className="text-center">
+          <div className="mb-6 text-gray-600">확&nbsp;&nbsp;&nbsp;&nbsp;인</div>
+          <div className="border-b border-black w-32" />
+          <div className="text-gray-500 text-[8pt] mt-1">(인)</div>
+        </div>
+        <div className="text-center">
+          <div className="mb-6 text-gray-600">발&nbsp;&nbsp;&nbsp;&nbsp;행</div>
+          <div className="border-b border-black w-32" />
+          <div className="text-gray-500 text-[8pt] mt-1">포토카페 (인)</div>
+        </div>
+      </div>
+
+      {/* 하단 주석 */}
+      <div className="mt-6 pt-3 border-t border-gray-300 text-[8pt] text-gray-500 text-center">
+        본 거래내역서는 {printYear}년 {printMonth}월 기준으로 발행된 내역입니다.
+        문의: 포토카페 고객센터
+      </div>
+    </div>
+
     <div className="space-y-6">
       {/* 월 네비게이션 */}
       <Card>
@@ -181,6 +370,10 @@ export default function MonthlySummaryPage() {
             <Button variant="outline" size="sm" onClick={handleExport}>
               <Download className="h-4 w-4 mr-1" />
               내보내기
+            </Button>
+            <Button variant="outline" size="sm" onClick={handlePrint}>
+              <Printer className="h-4 w-4 mr-1" />
+              인쇄
             </Button>
           </div>
         </CardContent>
@@ -516,5 +709,6 @@ export default function MonthlySummaryPage() {
         </CardContent>
       </Card>
     </div>
+    </>
   );
 }
