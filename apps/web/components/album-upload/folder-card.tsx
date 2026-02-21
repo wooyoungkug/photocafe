@@ -175,6 +175,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
   const [editTitle, setEditTitle] = useState(folder.orderTitle);
   const [isThumbnailOpen, setIsThumbnailOpen] = useState(true);
   const [fabricPickerOrderId, setFabricPickerOrderId] = useState<string | null>(null);
+  const [fabricPickerFolderId, setFabricPickerFolderId] = useState<string | null>(null);
 
   // 외부 일괄 접기/펼치기 반영
   useEffect(() => {
@@ -376,6 +377,8 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     setFolderPageLayout,
     setFolderBindingDirection,
     reorderFolderFiles,
+    updateFolder,
+    setFolderFabric,
   } = useMultiFolderUploadStore();
 
   const config = STATUS_CONFIG[folder.validationStatus];
@@ -895,27 +898,52 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
               </span>
             )}
           </div>
-          {/* 패브릭/포일 태그 */}
-          {(folder.selectedFabricName || folder.foilName) && (
+          {/* 패브릭/포일 편집 */}
+          {(folder.selectedFabricName || folder.foilName || folder.foilColor || folder.foilPosition) && (
             <div className="flex items-center gap-1 flex-wrap text-[10px] text-gray-500 mt-1 mb-1">
-              <span className="text-xs text-black">원단</span>
+              {/* 원단: 클릭 → FabricPickerDialog */}
               {folder.selectedFabricName && (
-                <span className="bg-pink-50 text-pink-700 px-1.5 py-0.5 rounded border border-pink-200 flex items-center gap-1">
-                  <Palette className="w-2.5 h-2.5" />
-                  {folder.selectedFabricName}
-                </span>
+                <>
+                  <span className="text-xs text-black">원단</span>
+                  <button
+                    type="button"
+                    onClick={() => setFabricPickerFolderId(folder.id)}
+                    className="bg-pink-50 text-pink-700 px-1.5 py-0.5 rounded border border-pink-200 flex items-center gap-1 hover:bg-pink-100 transition-colors"
+                  >
+                    <Palette className="w-2.5 h-2.5" />
+                    {folder.selectedFabricName}
+                  </button>
+                </>
               )}
+              {/* 동판: 인라인 텍스트 입력 */}
               {(folder.foilName || folder.foilColor || folder.foilPosition) && (
-                <span className="text-xs text-black ml-5">동판정보</span>
-              )}
-              {folder.foilColor && (
-                <span className="bg-yellow-50 text-yellow-700 px-1.5 py-0.5 rounded border border-yellow-200">{folder.foilColor}</span>
-              )}
-              {folder.foilName && (
-                <span className="bg-violet-50 text-violet-700 px-1.5 py-0.5 rounded border border-violet-200">{folder.foilName}</span>
-              )}
-              {folder.foilPosition && (
-                <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-200">{folder.foilPosition}</span>
+                <>
+                  <span className="text-xs text-black ml-5">동판정보</span>
+                  <span className="text-[10px] text-gray-400">색상</span>
+                  <input
+                    type="text"
+                    value={folder.foilColor ?? ''}
+                    onChange={(e) => updateFolder(folder.id, { foilColor: e.target.value || null })}
+                    className="text-xs border rounded px-1.5 py-0.5 w-20 bg-yellow-50 text-yellow-700"
+                    placeholder="색상"
+                  />
+                  <span className="text-[10px] text-gray-400">동판</span>
+                  <input
+                    type="text"
+                    value={folder.foilName ?? ''}
+                    onChange={(e) => updateFolder(folder.id, { foilName: e.target.value || null })}
+                    className="text-xs border rounded px-1.5 py-0.5 w-20 bg-violet-50 text-violet-700"
+                    placeholder="동판명"
+                  />
+                  <span className="text-[10px] text-gray-400">위치</span>
+                  <input
+                    type="text"
+                    value={folder.foilPosition ?? ''}
+                    onChange={(e) => updateFolder(folder.id, { foilPosition: e.target.value || null })}
+                    className="text-xs border rounded px-1.5 py-0.5 w-16 bg-blue-50 text-blue-700"
+                    placeholder="위치"
+                  />
+                </>
               )}
             </div>
           )}
@@ -1439,6 +1467,28 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
           />
         );
       })()}
+
+      {/* 기본 폴더 원단 선택 다이얼로그 */}
+      {fabricPickerFolderId !== null && (
+        <FabricPickerDialog
+          open={true}
+          onOpenChange={(open) => { if (!open) setFabricPickerFolderId(null); }}
+          selectedFabricId={folder.selectedFabricId ?? null}
+          onSelect={(fabric) => {
+            setFolderFabric(
+              folder.id,
+              fabric.id,
+              fabric.name,
+              fabric.thumbnailUrl ?? null,
+              fabric.basePrice,
+              fabric.category,
+              fabric.colorCode ?? null,
+              fabric.colorName ?? null,
+            );
+            setFabricPickerFolderId(null);
+          }}
+        />
+      )}
     </div>
   );
 }

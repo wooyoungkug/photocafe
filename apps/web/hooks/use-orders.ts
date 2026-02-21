@@ -123,6 +123,7 @@ export interface Order {
   status: string;
   currentProcess: string;
   orderedAt: string;
+  createdAt?: string;
   items: OrderItem[];
   shipping: OrderShipping;
   processHistory: ProcessHistory[];
