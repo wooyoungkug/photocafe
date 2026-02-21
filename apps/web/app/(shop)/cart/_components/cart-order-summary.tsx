@@ -9,6 +9,13 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
 
+const DELIVERY_METHOD_LABELS: Record<string, string> = {
+  parcel: '택배',
+  motorcycle: '오토바이퀵',
+  freight: '화물',
+  pickup: '방문수령',
+};
+
 interface CartOrderSummaryProps {
   selectedCount: number;
   totalCount: number;
@@ -17,6 +24,7 @@ interface CartOrderSummaryProps {
   totalShippingFee: number;
   sameDayRefund?: number;
   freeShippingLabel?: string | null;
+  deliveryMethods?: string[];
   isAuthenticated: boolean;
   hasUploadInProgress?: boolean;
   hasUploadFailed?: boolean;
@@ -32,6 +40,7 @@ export function CartOrderSummary({
   totalShippingFee,
   sameDayRefund = 0,
   freeShippingLabel,
+  deliveryMethods,
   isAuthenticated,
   hasUploadInProgress,
   hasUploadFailed,
@@ -90,8 +99,13 @@ export function CartOrderSummary({
               <span className="font-medium">{Math.round(selectedTotal).toLocaleString()}원</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">
+              <span className="text-gray-500 flex items-center gap-1.5">
                 {sameDayRefund > 0 ? '합배송 환불' : t('shippingFee')}
+                {deliveryMethods && deliveryMethods.length > 0 && (
+                  <span className="text-xs text-gray-400">
+                    ({deliveryMethods.map((m) => DELIVERY_METHOD_LABELS[m] ?? m).join(', ')})
+                  </span>
+                )}
               </span>
               {sameDayRefund > 0 ? (
                 <span className="font-medium text-green-600">

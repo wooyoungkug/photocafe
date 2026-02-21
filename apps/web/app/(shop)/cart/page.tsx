@@ -312,6 +312,18 @@ export default function CartPage() {
     return null;
   })();
 
+  // 선택된 아이템의 고유 배송방법 목록
+  const selectedDeliveryMethods = [
+    ...new Set(
+      selectedCartItems
+        .map((item) => {
+          const sh = item.albumOrderInfo?.shippingInfo || item.shippingInfo;
+          return sh?.deliveryMethod;
+        })
+        .filter((m): m is string => !!m)
+    ),
+  ];
+
   // 업로드 진행 중인 아이템이 있는지 확인
   const hasUploadInProgress = items.some(
     (item) => item.uploadStatus === 'uploading' || item.uploadStatus === 'pending'
@@ -491,6 +503,7 @@ export default function CartPage() {
               totalShippingFee={totalShippingFee}
               sameDayRefund={sameDayRefund}
               freeShippingLabel={freeShippingLabel}
+              deliveryMethods={selectedDeliveryMethods}
               isAuthenticated={isAuthenticated}
               hasUploadInProgress={hasUploadInProgress}
               hasUploadFailed={hasUploadFailed}
