@@ -92,7 +92,7 @@ export function CartOrderSummary({
                   {isFree && (
                     <span className="ml-auto text-green-600 font-semibold flex items-center gap-0.5">
                       <CheckCircle2 className="w-3 h-3" />
-                      {isBundledFree && !isThresholdFree ? '묶음배송 무료' : '무료배송'}
+                      {isBundledFree && !isThresholdFree ? '묶음배송 무료' : '조건부 무료배송'}
                     </span>
                   )}
                 </div>
@@ -137,7 +137,7 @@ export function CartOrderSummary({
                         <span className="font-medium">{remaining.toLocaleString()}원 더 주문 시 환불</span>
                       </>
                     ) : (
-                      <span>기준 {freeThreshold.toLocaleString()}원 달성 — 배송비 무료</span>
+                      <span>기준 {freeThreshold.toLocaleString()}원 달성 — 조건부 무료배송</span>
                     )
                   ) : (
                     <>

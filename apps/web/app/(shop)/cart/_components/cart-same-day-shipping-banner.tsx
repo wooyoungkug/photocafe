@@ -61,15 +61,15 @@ export function CartSameDayShippingBanner({ info, newOrderTotal }: CartSameDaySh
         ) : isFreeEligible ? (
           <>
             <p className="font-semibold text-green-700">
-              합배송 무료배송 조건 달성!
+              합배송 조건부 무료배송 달성!
             </p>
             <p className="text-green-600 text-xs leading-relaxed">
               오늘 누적 주문{' '}
               <span className="font-medium">{Math.round(combinedTotal).toLocaleString()}원</span>
               {' '}(기준 {freeThreshold.toLocaleString()}원) —{' '}
-              이번 주문 배송비가{' '}
-              <span className="font-semibold">무료</span>
-              로 적용됩니다.
+              이번 주문에{' '}
+              <span className="font-semibold">조건부 무료배송</span>
+              이 적용됩니다.
             </p>
           </>
         ) : (
@@ -84,9 +84,9 @@ export function CartSameDayShippingBanner({ info, newOrderTotal }: CartSameDaySh
               <span className="font-medium text-blue-700">
                 {Math.round(remaining).toLocaleString()}원
               </span>
-              {' '}더 주문하면 배송비{' '}
-              <span className="font-semibold">무료</span>
-              가 적용됩니다.
+              {' '}더 주문하면{' '}
+              <span className="font-semibold">조건부 무료배송</span>
+              이 적용됩니다.
             </p>
             {/* 진행 바 */}
             <div className="mt-1.5 h-1.5 rounded-full bg-blue-100 overflow-hidden">
