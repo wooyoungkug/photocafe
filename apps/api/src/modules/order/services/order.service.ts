@@ -138,11 +138,17 @@ export class OrderService {
   }) {
     const { skip = 0, take = 20, search, clientId, status, startDate, endDate, isUrgent } = params;
 
-    // endDate가 날짜만 있으면 해당일 끝(23:59:59.999)까지 포함
-    let adjustedEndDate = endDate;
+    // 날짜 문자열("YYYY-MM-DD")을 KST 기준으로 해석
+    // new Date("2026-02-20") = UTC 자정이므로, KST 자정(UTC-9h)으로 보정
+    const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+    let adjustedStartDate: Date | undefined;
+    let adjustedEndDate: Date | undefined;
+    if (startDate) {
+      adjustedStartDate = new Date(startDate.getTime() - KST_OFFSET_MS);
+    }
     if (endDate) {
-      adjustedEndDate = new Date(endDate);
-      adjustedEndDate.setHours(23, 59, 59, 999);
+      // KST 해당일 자정 - 9h + 24h - 1ms = KST 23:59:59.999 in UTC
+      adjustedEndDate = new Date(endDate.getTime() - KST_OFFSET_MS + 24 * 60 * 60 * 1000 - 1);
     }
 
     const where: Prisma.OrderWhereInput = {
@@ -155,10 +161,10 @@ export class OrderService {
       ...(clientId && { clientId }),
       ...(status && { status }),
       ...(isUrgent !== undefined && { isUrgent }),
-      ...(startDate || adjustedEndDate
+      ...(adjustedStartDate || adjustedEndDate
         ? {
           orderedAt: {
-            ...(startDate && { gte: startDate }),
+            ...(adjustedStartDate && { gte: adjustedStartDate }),
             ...(adjustedEndDate && { lte: adjustedEndDate }),
           },
         }
