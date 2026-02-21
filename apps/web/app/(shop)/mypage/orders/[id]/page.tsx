@@ -771,12 +771,14 @@ export default function OrderDetailPage() {
                     <span>{taxAmount.toLocaleString()}원</span>
                   </div>
                 )}
-                {shippingFeeAmount > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">배송비{deliveryLabel ? ` (${deliveryLabel})` : ''}</span>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">배송비{deliveryLabel ? ` (${deliveryLabel})` : ''}</span>
+                  {shippingFeeAmount > 0 ? (
                     <span>{shippingFeeAmount.toLocaleString()}원</span>
-                  </div>
-                )}
+                  ) : (
+                    <span className="text-green-600 font-medium">무료배송</span>
+                  )}
+                </div>
                 {adjustmentAmount !== 0 && (
                   <div className={`flex justify-between text-sm ${adjustmentAmount > 0 ? 'text-green-600' : 'text-red-600'}`}>
                     <div>
