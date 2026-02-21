@@ -30,7 +30,8 @@ export function CartMobileCheckoutBar({
 }: CartMobileCheckoutBarProps) {
   const [expanded, setExpanded] = useState(false);
   const t = useTranslations('cart');
-  const grandTotal = selectedTotal + totalShippingFee - sameDayRefund;
+  const vatAmount = Math.round(selectedTotal * 0.1);
+  const grandTotal = Math.round(selectedTotal + vatAmount + totalShippingFee - sameDayRefund);
 
   return (
     <div className="bg-white border-t shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] safe-area-inset">
@@ -54,24 +55,32 @@ export function CartMobileCheckoutBar({
         <CollapsibleContent>
           <div className="px-4 pb-2 space-y-2 border-t">
             <div className="flex justify-between text-sm pt-2">
-              <span className="text-gray-500">
-                {t('selectedAmount')} ({selectedCount})
-              </span>
-              <span className="font-medium">{selectedTotal.toLocaleString()}원</span>
+              <span className="text-gray-500">상품금액 ({selectedCount})</span>
+              <span className="font-medium">{Math.round(selectedTotal).toLocaleString()}원</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">
-                {sameDayRefund > 0 ? '합배송 환불' : t('shippingFee')}
+              <span className="text-gray-500">부가세 (10%)</span>
+              <span className="font-medium">+{vatAmount.toLocaleString()}원</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500 flex items-center gap-1">
+                {t('shippingFee')}
+                {sameDayRefund > 0 && (
+                  <span className="text-xs text-green-600">(합배송 환불 적용)</span>
+                )}
               </span>
-              {sameDayRefund > 0 ? (
-                <span className="font-medium text-green-600">
-                  -{sameDayRefund.toLocaleString()}원
-                </span>
-              ) : (
-                <span className={cn('font-medium', totalShippingFee === 0 && 'text-green-600')}>
-                  {totalShippingFee === 0 ? t('free') : `+${totalShippingFee.toLocaleString()}원`}
-                </span>
-              )}
+              {(() => {
+                const netShipping = Math.round(totalShippingFee - sameDayRefund);
+                return (
+                  <span className={cn('font-medium', netShipping === 0 && 'text-green-600', netShipping < 0 && 'text-green-600')}>
+                    {netShipping === 0
+                      ? t('free')
+                      : netShipping < 0
+                        ? `-${Math.abs(netShipping).toLocaleString()}원`
+                        : `+${netShipping.toLocaleString()}원`}
+                  </span>
+                );
+              })()}
             </div>
           </div>
         </CollapsibleContent>

@@ -180,44 +180,57 @@ export function CartOrderSummary({
           <Separator />
 
           {/* Price breakdown */}
-          <div className="space-y-3">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">
-                {t('selectedAmount')} ({selectedCount})
-              </span>
-              <span className="font-medium">{Math.round(selectedTotal).toLocaleString()}원</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500 flex items-center gap-1.5">
-                {sameDayRefund > 0 ? '합배송 환불' : t('shippingFee')}
-                {deliveryMethods && deliveryMethods.length > 0 && (
-                  <span className="text-xs text-gray-400">
-                    ({deliveryMethods.map((m) => DELIVERY_METHOD_LABELS[m] ?? m).join(', ')})
+          {(() => {
+            const productAmount = Math.round(selectedTotal);
+            const vatAmount = Math.round(productAmount * 0.1);
+            const netShipping = Math.round(totalShippingFee - sameDayRefund);
+            return (
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">
+                    상품금액 ({selectedCount})
                   </span>
-                )}
-              </span>
-              {sameDayRefund > 0 ? (
-                <span className="font-medium text-green-600">
-                  -{Math.round(sameDayRefund).toLocaleString()}원
-                </span>
-              ) : (
-                <div className="text-right">
-                  <span className={cn('font-medium', totalShippingFee === 0 && 'text-black/80')}>
-                    {totalShippingFee === 0 ? t('free') : `+${Math.round(totalShippingFee).toLocaleString()}원`}
-                  </span>
-                  {totalShippingFee === 0 && freeShippingLabel && (
-                    <p className="text-[11px] text-black/80 mt-0.5">{freeShippingLabel}</p>
-                  )}
+                  <span className="font-medium">{productAmount.toLocaleString()}원</span>
                 </div>
-              )}
-            </div>
-          </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">부가세 (10%)</span>
+                  <span className="font-medium">+{vatAmount.toLocaleString()}원</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500 flex items-center gap-1.5">
+                    {t('shippingFee')}
+                    {deliveryMethods && deliveryMethods.length > 0 && (
+                      <span className="text-xs text-gray-400">
+                        ({deliveryMethods.map((m) => DELIVERY_METHOD_LABELS[m] ?? m).join(', ')})
+                      </span>
+                    )}
+                    {sameDayRefund > 0 && (
+                      <span className="text-xs text-green-600">(합배송 환불 적용)</span>
+                    )}
+                  </span>
+                  <div className="text-right">
+                    <span className={cn('font-medium', netShipping === 0 && 'text-black/80', netShipping < 0 && 'text-green-600')}>
+                      {netShipping === 0
+                        ? t('free')
+                        : netShipping < 0
+                          ? `-${Math.abs(netShipping).toLocaleString()}원`
+                          : `+${netShipping.toLocaleString()}원`}
+                    </span>
+                    {netShipping === 0 && freeShippingLabel && (
+                      <p className="text-[11px] text-black/80 mt-0.5">{freeShippingLabel}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           <Separator />
 
           {/* Total */}
           {(() => {
-            const grandTotal = Math.round(selectedTotal + totalShippingFee - sameDayRefund);
+            const vatAmount = Math.round(selectedTotal * 0.1);
+            const grandTotal = Math.round(selectedTotal + vatAmount + totalShippingFee - sameDayRefund);
             return (
               <div className="flex justify-between items-baseline">
                 <span className="text-base font-semibold">
