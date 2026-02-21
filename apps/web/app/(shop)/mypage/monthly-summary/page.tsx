@@ -243,49 +243,60 @@ export default function MonthlySummaryPage() {
   // ===== 공통 헤더 컴포넌트 (약식/상세 공용) =====
   const PrintHeader = ({ title }: { title: string }) => (
     <>
-      <div className="text-center mb-1 text-[9pt] text-gray-500">
-        포토카페 - 고품질 인쇄 서비스
+      {/* 상단: 회사명(우) + 출력일자 */}
+      <div className="flex justify-between items-start mb-2">
+        <div />
+        <div className="text-right">
+          <div className="text-[12pt] font-bold tracking-wide">포토카페</div>
+          <div className="text-[8pt] text-gray-500">고품질 인쇄 서비스</div>
+        </div>
       </div>
-      <h1 className="text-center text-[16pt] font-bold tracking-widest mb-3">{title}</h1>
+
+      {/* 타이틀 */}
+      <h1 className="text-center text-[17pt] font-bold tracking-widest mb-1">{title}</h1>
+      <div className="border-t-2 border-b border-black mb-3 pt-0.5" />
+
+      {/* 거래처 정보 + 기간 */}
       <div className="flex justify-between items-end mb-3 text-[10pt]">
         <table className="border-collapse text-[10pt]">
           <tbody>
             <tr>
-              <td className="pr-2 font-semibold">거래처</td>
-              <td className="border-b border-black px-3 min-w-[160px]">
+              <td className="pr-3 font-semibold whitespace-nowrap">거&nbsp;&nbsp;&nbsp;래&nbsp;&nbsp;&nbsp;처</td>
+              <td className="border-b border-black px-3 min-w-[180px]">
                 {user?.clientName || user?.name || '-'}
               </td>
             </tr>
             <tr>
-              <td className="pr-2 font-semibold pt-1">사업자번호</td>
-              <td className="border-b border-black px-3 pt-1">
+              <td className="pr-3 font-semibold pt-1.5 whitespace-nowrap">사업자번호</td>
+              <td className="border-b border-black px-3 pt-1.5">
                 {(user as any)?.businessNumber || '-'}
               </td>
             </tr>
           </tbody>
         </table>
-        <div className="text-right text-[9pt] text-gray-600 space-y-0.5">
+        <div className="text-right text-[9pt] text-gray-600 space-y-1">
           <div>
             기&nbsp;&nbsp;&nbsp;&nbsp;간: {printPeriodStart} ~ {printPeriodEnd}
           </div>
           <div>출력일자: {printToday}</div>
         </div>
       </div>
+
       {/* 요약 박스 */}
       <table className="w-full border-collapse mb-4 text-[10pt]">
         <thead>
-          <tr className="bg-gray-100">
-            <th className="border border-gray-400 p-2 text-center font-semibold w-1/4">
-              이월잔액
+          <tr style={{ backgroundColor: '#e5e7eb' }}>
+            <th className="border border-gray-500 p-2 text-center font-semibold w-1/4">
+              이 월 잔 액
             </th>
-            <th className="border border-gray-400 p-2 text-center font-semibold w-1/4">
+            <th className="border border-gray-500 p-2 text-center font-semibold w-1/4">
               당월 주문금액
             </th>
-            <th className="border border-gray-400 p-2 text-center font-semibold w-1/4">
+            <th className="border border-gray-500 p-2 text-center font-semibold w-1/4">
               당월 납부금액
             </th>
-            <th className="border border-gray-400 p-2 text-center font-semibold w-1/4">
-              기말잔액
+            <th className="border border-gray-500 p-2 text-center font-semibold w-1/4">
+              기 말 잔 액
             </th>
           </tr>
         </thead>
@@ -479,18 +490,18 @@ export default function MonthlySummaryPage() {
         {/* 상세 거래 테이블 */}
         <table className="w-full border-collapse text-[9pt]">
           <thead>
-            <tr className="bg-gray-200">
-              <th className="border border-gray-500 p-1.5 text-center font-semibold w-[105px]">
+            <tr style={{ backgroundColor: '#e5e7eb' }}>
+              <th className="border border-gray-500 p-1.5 text-center font-semibold w-[90px]">
                 주문번호
               </th>
               <th className="border border-gray-500 p-1.5 text-center font-semibold w-[28%]">
-                상품명
+                작업명
               </th>
               <th className="border border-gray-500 p-1.5 text-center font-semibold">
-                규격
+                상품명
               </th>
-              <th className="border border-gray-500 p-1.5 text-center font-semibold w-[36px]">
-                수량
+              <th className="border border-gray-500 p-1.5 text-center font-semibold w-[60px]">
+                규격
               </th>
               <th className="border border-gray-500 p-1.5 text-center font-semibold w-[80px]">
                 금액
@@ -499,12 +510,12 @@ export default function MonthlySummaryPage() {
           </thead>
           <tbody>
             {/* 전월이월 행 */}
-            <tr className="bg-blue-50">
+            <tr style={{ backgroundColor: '#eff6ff' }}>
               <td
                 colSpan={4}
                 className="border border-gray-400 p-1.5 text-right font-semibold text-blue-700"
               >
-                전월 이월
+                전 월 이 월
               </td>
               <td
                 className={`border border-gray-400 p-1.5 text-right tabular-nums font-semibold ${
@@ -521,7 +532,7 @@ export default function MonthlySummaryPage() {
               return (
                 <Fragment key={date}>
                   {/* 날짜 그룹 헤더 */}
-                  <tr className="bg-gray-100">
+                  <tr style={{ backgroundColor: '#f3f4f6' }}>
                     <td
                       colSpan={5}
                       className="border border-gray-500 p-1.5 font-bold text-[9pt]"
@@ -535,31 +546,45 @@ export default function MonthlySummaryPage() {
                   {/* 주문별 품목 */}
                   {orders.map((order) => (
                     <Fragment key={order.id}>
-                      {order.items.map((item, iIdx) => (
-                        <tr key={item.id}>
-                          <td className="border border-gray-400 p-1 text-[8pt] text-gray-600 align-top">
-                            {iIdx === 0 ? order.orderNumber : ''}
-                          </td>
-                          <td className="border border-gray-400 p-1 align-top">
-                            {item.productName}
-                          </td>
-                          <td className="border border-gray-400 p-1 text-[8pt] text-gray-600 align-top">
-                            {buildSpec(item)}
-                          </td>
-                          <td className="border border-gray-400 p-1 text-center tabular-nums align-top">
-                            {item.quantity}
-                          </td>
-                          <td className="border border-gray-400 p-1 text-right tabular-nums align-top">
-                            {formatAmount(item.totalPrice)}원
-                          </td>
-                        </tr>
-                      ))}
-
+                      {order.items.map((item, iIdx) => {
+                        const subName = [
+                          item.productName,
+                          item.paper,
+                          item.bindingDirection,
+                        ]
+                          .filter(Boolean)
+                          .join(' ');
+                        return (
+                          <tr key={item.id}>
+                            <td className="border border-gray-400 p-1 text-[8pt] text-gray-600 align-top text-center">
+                              {iIdx === 0 ? order.orderNumber : ''}
+                            </td>
+                            <td className="border border-gray-400 p-1 align-top">
+                              {iIdx === 0
+                                ? item.folderName || order.orderNumber
+                                : subName}
+                            </td>
+                            <td className="border border-gray-400 p-1 align-top">
+                              {iIdx === 0 ? item.productName : item.size || '-'}
+                            </td>
+                            <td className="border border-gray-400 p-1 text-center tabular-nums align-top">
+                              {iIdx === 0
+                                ? item.pages > 0
+                                  ? `${item.pages}p`
+                                  : item.size || '-'
+                                : `${item.quantity}부`}
+                            </td>
+                            <td className="border border-gray-400 p-1 text-right tabular-nums align-top">
+                              {iIdx === 0 ? formatAmount(Number(order.finalAmount)) + '원' : ''}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </Fragment>
                   ))}
 
                   {/* 일계 */}
-                  <tr className="bg-blue-50 font-bold">
+                  <tr style={{ backgroundColor: '#eff6ff' }} className="font-bold">
                     <td
                       colSpan={4}
                       className="border border-gray-500 p-1.5 text-right pr-3"
