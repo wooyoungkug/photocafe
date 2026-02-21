@@ -193,6 +193,7 @@ export class AuthController {
 
   // ========== 관리자(직원) 로그인 ==========
 
+  @Public()
   @Post('admin/login')
   @ApiOperation({ summary: '관리자(직원) 로그인' })
   async adminLogin(@Body() dto: AdminLoginDto, @Request() req: any) {
