@@ -568,13 +568,14 @@ export default function MonthlySummaryPage() {
                               {iIdx === 0 ? item.productName : item.size || '-'}
                             </td>
                             <td className="border border-gray-400 p-1 text-center tabular-nums align-top">
-                              {iIdx === 0
-                                ? item.pages > 0
-                                  ? `${item.pages}p`
-                                  : item.size || '-'
-                                : item.quantity > 0
-                                  ? `${item.quantity}부`
-                                  : ''}
+                              {iIdx === 0 ? (
+                                <>
+                                  <div>{item.pages > 0 ? `${item.pages}p` : item.size || '-'}</div>
+                                  {item.quantity > 0 && (
+                                    <div className="text-gray-500">{item.quantity}부</div>
+                                  )}
+                                </>
+                              ) : ''}
                             </td>
                             <td className="border border-gray-400 p-1 text-right tabular-nums align-top">
                               {iIdx === 0 ? formatAmount(Number(order.finalAmount)) + '원' : ''}
