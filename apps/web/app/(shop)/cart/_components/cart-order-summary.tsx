@@ -86,7 +86,7 @@ export function CartOrderSummary({
               )}>
                 <div className="flex items-center gap-1.5 font-medium mb-1">
                   <CalendarDays className={cn('w-3.5 h-3.5', isFree ? 'text-green-600' : 'text-blue-600')} />
-                  <span className={isFree ? 'text-green-700' : 'text-blue-700'}>스튜디오배송 주문합계</span>
+                  <span className={isFree ? 'text-green-700' : 'text-blue-700'}>당일 스튜디오배송 주문합계</span>
                   {isFree && (
                     <span className="ml-auto text-green-600 font-semibold flex items-center gap-0.5">
                       <CheckCircle2 className="w-3 h-3" /> 무료배송
