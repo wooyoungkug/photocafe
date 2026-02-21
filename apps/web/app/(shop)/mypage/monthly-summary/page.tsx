@@ -908,7 +908,7 @@ export default function MonthlySummaryPage() {
                                       <td className="p-2 sm:p-3 align-middle">
                                         <span>{displayName || '-'}</span>
                                         {order.items?.[0]?.size && (
-                                          <span className="text-[10pt] text-black font-normal ml-1 whitespace-nowrap">
+                                          <span className="text-[10pt] text-black font-bold ml-1 whitespace-nowrap">
                                             {order.items[0].size}
                                           </span>
                                         )}
