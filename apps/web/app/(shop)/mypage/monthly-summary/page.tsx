@@ -550,7 +550,6 @@ export default function MonthlySummaryPage() {
                         const subName = [
                           item.printMethod,
                           item.paper,
-                          item.bindingDirection,
                         ]
                           .filter(Boolean)
                           .join(' ');
