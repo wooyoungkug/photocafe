@@ -810,7 +810,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
         {/* 제목 및 정보 */}
         <div className="flex-1 min-w-0">
           {/* 제목 행 */}
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-[20px]">
             {isEditingTitle ? (
               <div className="flex items-center gap-1 flex-1">
                 <Input
@@ -1211,7 +1211,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                       {/* 콘텐츠 */}
                       <div className="flex-1 min-w-0">
                         {/* 폴더명 */}
-                        <div className="flex items-center gap-1.5 flex-wrap mb-[10px]">
+                        <div className="flex items-center gap-1.5 flex-wrap mb-[20px]">
                           <span className="text-[10px] font-bold text-pink-600 bg-pink-100 px-1.5 py-0.5 rounded">{t('additionalSetOrder')}</span>
                           <span className="text-[12pt] font-normal text-black truncate">{folder.orderTitle}</span>
                         </div>
