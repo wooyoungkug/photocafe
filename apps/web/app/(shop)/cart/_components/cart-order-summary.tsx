@@ -16,6 +16,7 @@ interface CartOrderSummaryProps {
   selectedTotal: number;
   totalShippingFee: number;
   sameDayRefund?: number;
+  freeShippingLabel?: string | null;
   isAuthenticated: boolean;
   hasUploadInProgress?: boolean;
   hasUploadFailed?: boolean;
@@ -30,6 +31,7 @@ export function CartOrderSummary({
   selectedTotal,
   totalShippingFee,
   sameDayRefund = 0,
+  freeShippingLabel,
   isAuthenticated,
   hasUploadInProgress,
   hasUploadFailed,
@@ -96,9 +98,14 @@ export function CartOrderSummary({
                   -{Math.round(sameDayRefund).toLocaleString()}원
                 </span>
               ) : (
-                <span className={cn('font-medium', totalShippingFee === 0 && 'text-green-600')}>
-                  {totalShippingFee === 0 ? t('free') : `+${Math.round(totalShippingFee).toLocaleString()}원`}
-                </span>
+                <div className="text-right">
+                  <span className={cn('font-medium', totalShippingFee === 0 && 'text-green-600')}>
+                    {totalShippingFee === 0 ? t('free') : `+${Math.round(totalShippingFee).toLocaleString()}원`}
+                  </span>
+                  {totalShippingFee === 0 && freeShippingLabel && (
+                    <p className="text-[11px] text-green-500 mt-0.5">{freeShippingLabel}</p>
+                  )}
+                </div>
               )}
             </div>
           </div>

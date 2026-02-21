@@ -269,14 +269,14 @@ export default function CartPage() {
   // - 고객직배송: 무조건 청구 (개별 배송)
   // - 스튜디오배송: 스튜디오 합계가 무료배송 임계값 이상이면 전체 무료, 미달 시 배송방법별 1회 청구
   // - 당일 합배송 조건 충족 시: 스튜디오 배송 전체 무료
-  const totalShippingFee = (() => {
-    const freeThreshold = clientInfo?.freeShippingThreshold
-      ?? (pricingMap['parcel']?.freeThreshold != null ? Number(pricingMap['parcel'].freeThreshold) : 90000);
-    const isStudioFree =
-      clientInfo?.shippingType === 'free' ||
-      (clientInfo?.shippingType === 'conditional' && studioItemsTotal >= freeThreshold) ||
-      sameDayFreeEligible; // 당일 합배송 조건 충족 시 스튜디오 배송 무료
+  const freeThreshold = clientInfo?.freeShippingThreshold
+    ?? (pricingMap['parcel']?.freeThreshold != null ? Number(pricingMap['parcel'].freeThreshold) : 90000);
+  const isStudioFree =
+    clientInfo?.shippingType === 'free' ||
+    (clientInfo?.shippingType === 'conditional' && studioItemsTotal >= freeThreshold) ||
+    sameDayFreeEligible;
 
+  const totalShippingFee = (() => {
     let total = 0;
     const chargedStudioMethods = new Set<string>();
 
@@ -296,6 +296,20 @@ export default function CartPage() {
       }
     }
     return total;
+  })();
+
+  // 무료배송 사유 레이블
+  const freeShippingLabel: string | null = (() => {
+    if (!isStudioFree) return null;
+    const hasStudioDelivery = selectedCartItems.some((item) => {
+      const sh = item.albumOrderInfo?.shippingInfo || item.shippingInfo;
+      return sh && sh.receiverType === 'orderer' && sh.deliveryMethod !== 'pickup';
+    });
+    if (!hasStudioDelivery) return null;
+    if (sameDayFreeEligible) return '합배송 무료배송 달성';
+    if (clientInfo?.shippingType === 'free') return '무료배송 거래처';
+    if (clientInfo?.shippingType === 'conditional') return `${freeThreshold.toLocaleString()}원 이상 무료`;
+    return null;
   })();
 
   // 업로드 진행 중인 아이템이 있는지 확인
@@ -476,6 +490,7 @@ export default function CartPage() {
               selectedTotal={selectedTotal}
               totalShippingFee={totalShippingFee}
               sameDayRefund={sameDayRefund}
+              freeShippingLabel={freeShippingLabel}
               isAuthenticated={isAuthenticated}
               hasUploadInProgress={hasUploadInProgress}
               hasUploadFailed={hasUploadFailed}
