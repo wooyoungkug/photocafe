@@ -1,5 +1,6 @@
 "use client";
 
+<<<<<<< Updated upstream
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Bell,
@@ -13,6 +14,10 @@ import {
   Store,
   X,
 } from "lucide-react";
+=======
+import { useState } from "react";
+import { Bell, Search, User, LogOut, ChevronDown, Key, Menu } from "lucide-react";
+>>>>>>> Stashed changes
 import { useLogout, useCurrentUser, useChangePassword } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import {
@@ -110,6 +115,7 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
   const shortcutLabel = isMac ? "\u2318K" : "Ctrl K";
 
   return (
+<<<<<<< Updated upstream
     <TooltipProvider delayDuration={300}>
       <header className="sticky top-0 z-30 flex h-14 sm:h-16 items-center justify-between border-b border-slate-200/80 bg-white/70 backdrop-blur-xl px-3 sm:px-4 lg:px-6 shadow-[0_1px_3px_0_rgba(0,0,0,0.04)]">
         {/* Left section */}
@@ -134,6 +140,28 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
           {/* Search bar - tablet and above */}
           <div className="relative group hidden md:block">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-colors duration-200 group-focus-within:text-indigo-500" />
+=======
+    <>
+      <header className="flex h-14 sm:h-16 items-center justify-between border-b bg-white/80 backdrop-blur-md px-3 sm:px-4 lg:px-6 shadow-sm">
+        {/* 좌측 영역 */}
+        <div className="flex items-center gap-2 sm:gap-4">
+          {/* 모바일 메뉴 버튼 */}
+          {showMenuButton && (
+            <button
+              type="button"
+              onClick={onMenuClick}
+              className="p-2 -ml-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors lg:hidden"
+              title="메뉴 열기"
+              aria-label="메뉴 열기"
+            >
+              <Menu className="h-6 w-6" />
+            </button>
+          )}
+
+          {/* 검색 영역 - 태블릿 이상에서만 표시 */}
+          <div className="relative group hidden md:block">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-indigo-500" />
+>>>>>>> Stashed changes
             <input
               ref={searchInputRef}
               type="text"
@@ -142,8 +170,12 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
               onFocus={() => setIsSearchFocused(true)}
               onBlur={() => setIsSearchFocused(false)}
               placeholder="검색어를 입력하세요..."
+<<<<<<< Updated upstream
               className="h-9 w-52 lg:w-64 rounded-lg border border-slate-200/80 bg-slate-50/80 pl-9 pr-20 text-sm text-slate-700 placeholder:text-slate-400 transition-all duration-300 ease-out focus:w-72 lg:focus:w-80 focus:border-indigo-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:shadow-sm"
               aria-label="검색"
+=======
+              className="h-10 w-48 lg:w-72 border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm transition-all duration-200 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 lg:focus:w-80"
+>>>>>>> Stashed changes
             />
             {/* Keyboard shortcut badge */}
             {!isSearchFocused && !searchQuery && (
@@ -169,6 +201,7 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
             )}
           </div>
 
+<<<<<<< Updated upstream
           {/* Mobile search button */}
           <Tooltip>
             <TooltipTrigger asChild>
@@ -300,6 +333,81 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
                 className="gap-2 cursor-pointer text-rose-600 focus:text-rose-600 focus:bg-rose-50"
               >
                 <LogOut className="h-4 w-4" />
+=======
+          {/* 모바일 검색 버튼 */}
+          <button
+            type="button"
+            className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors md:hidden"
+            title="검색"
+            aria-label="검색"
+          >
+            <Search className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* 우측 메뉴 영역 */}
+        <div className="flex items-center gap-1 sm:gap-2 lg:gap-4">
+          {/* 프론트엔드 바로가기 - 데스크톱에서만 표시 */}
+          <a
+            href="http://localhost:3002"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+            Frontend
+          </a>
+
+          {/* 알림 버튼 */}
+          <button
+            type="button"
+            className="relative p-2 sm:p-2.5 hover:bg-slate-100 transition-colors group"
+            title="알림"
+            aria-label="알림"
+          >
+            <Bell className="h-5 w-5 text-slate-500 group-hover:text-slate-700 transition-colors" />
+            <span className="absolute right-1 top-1 flex h-2 w-2 sm:h-2.5 sm:w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full bg-red-400 opacity-75"></span>
+              <span className="relative inline-flex h-2 w-2 sm:h-2.5 sm:w-2.5 bg-red-500"></span>
+            </span>
+          </button>
+
+          {/* 구분선 - 태블릿 이상에서만 표시 */}
+          <div className="hidden sm:block h-8 w-px bg-slate-200"></div>
+
+          {/* 사용자 정보 드롭다운 */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <div className="flex items-center gap-2 sm:gap-3 cursor-pointer hover:bg-slate-50 px-2 sm:px-3 py-2 transition-colors">
+                <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-md">
+                  <User className="h-4 w-4" />
+                </div>
+                {/* 사용자 이름 - 태블릿 이상에서만 표시 */}
+                <div className="hidden sm:flex flex-col">
+                  <span className="text-sm font-semibold text-slate-800">{user?.name || '사용자'}</span>
+                  <span className="text-xs text-slate-500">{user?.role === 'ADMIN' ? '관리자' : '사용자'}</span>
+                </div>
+                <ChevronDown className="hidden sm:block h-4 w-4 text-slate-400" />
+              </div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              {/* 모바일에서 사용자 정보 표시 */}
+              <div className="sm:hidden px-2 py-2 border-b">
+                <p className="text-sm font-semibold text-slate-800">{user?.name || '사용자'}</p>
+                <p className="text-xs text-slate-500">{user?.role === 'ADMIN' ? '관리자' : '사용자'}</p>
+              </div>
+              <DropdownMenuItem onClick={() => setIsPasswordDialogOpen(true)}>
+                <Key className="h-4 w-4 mr-2" />
+                비밀번호 변경
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={logout} className="text-red-600 focus:text-red-600">
+                <LogOut className="h-4 w-4 mr-2" />
+>>>>>>> Stashed changes
                 로그아웃
               </DropdownMenuItem>
             </DropdownMenuContent>

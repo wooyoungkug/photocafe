@@ -236,7 +236,10 @@ export interface CreateProductPaperDto {
   type: string;
   price?: number;
   isDefault?: boolean;
+<<<<<<< Updated upstream
   isActive?: boolean;
+=======
+>>>>>>> Stashed changes
   sortOrder?: number;
 }
 
@@ -259,7 +262,10 @@ export interface CreateProductFoilDto {
 
 export interface CreateProductFinishingDto {
   name: string;
+<<<<<<< Updated upstream
   productionGroupId?: string;
+=======
+>>>>>>> Stashed changes
   price?: number;
   isDefault?: boolean;
   sortOrder?: number;
@@ -284,7 +290,10 @@ export interface CreateProductDto {
   covers?: CreateProductCoverDto[];
   foils?: CreateProductFoilDto[];
   finishings?: CreateProductFinishingDto[];
+<<<<<<< Updated upstream
   fabricIds?: string[];
+=======
+>>>>>>> Stashed changes
 }
 
 export type UpdateProductDto = Partial<CreateProductDto>;

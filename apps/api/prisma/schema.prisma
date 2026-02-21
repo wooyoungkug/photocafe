@@ -1,6 +1,11 @@
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+<<<<<<< Updated upstream
+=======
+  previewFeatures = ["relationJoins", "fullTextSearch"]
+  engineType = "binary"
+>>>>>>> Stashed changes
 }
 
 datasource db {
@@ -170,6 +175,7 @@ model Branch {
 }
 
 model ClientGroup {
+<<<<<<< Updated upstream
   id                      String                        @id @default(cuid())
   groupCode               String                        @unique
   groupName               String
@@ -187,6 +193,29 @@ model ClientGroup {
   halfProductPrices       GroupHalfProductPrice[]
   productPrices           GroupProductPrice[]
   productionSettingPrices GroupProductionSettingPrice[]
+=======
+  id               String   @id @default(cuid())
+  groupCode        String   @unique
+  groupName        String
+  branchId         String
+  branch           Branch   @relation(fields: [branchId], references: [id])
+
+  // 품목별 할인율 (100 = 정가)
+  generalDiscount  Int      @default(100)
+  premiumDiscount  Int      @default(100)
+  importedDiscount Int      @default(100)
+
+  description      String?  @db.Text
+  isActive         Boolean  @default(true)
+  sortOrder        Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  clients                      Client[]
+  halfProductPrices            GroupHalfProductPrice[]
+  productPrices                GroupProductPrice[]
+  productionSettingPrices      GroupProductionSettingPrice[]
+>>>>>>> Stashed changes
 
   @@index([branchId])
   @@map("client_groups")
@@ -278,6 +307,9 @@ model Client {
   @@index([oauthProvider])
   @@index([mainGenre])
   @@index([memberGrade])
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
   @@map("clients")
 }
 
@@ -496,6 +528,10 @@ model Product {
   category            Category                   @relation(fields: [categoryId], references: [id])
 
   @@index([categoryId])
+  @@index([isActive])
+  @@index([categoryId, isActive])
+  @@index([isNew])
+  @@index([isBest])
   @@map("products")
 }
 
@@ -798,10 +834,17 @@ model Order {
   @@index([clientId])
   @@index([status])
   @@index([orderedAt])
+<<<<<<< Updated upstream
   @@index([clientId, orderedAt])
   @@index([clientId, status])
   @@index([status, orderedAt])
   @@index([paymentStatus, orderedAt])
+=======
+  @@index([paymentStatus])
+  @@index([currentProcess])
+  @@index([clientId, status])
+  @@index([clientId, orderedAt])
+>>>>>>> Stashed changes
   @@map("orders")
 }
 
@@ -1150,6 +1193,7 @@ model ProductionGroup {
 }
 
 model ProductionSetting {
+<<<<<<< Updated upstream
   id                  String                           @id @default(cuid())
   groupId             String
   codeName            String?
@@ -1190,6 +1234,90 @@ model ProductionSetting {
   prices              ProductionSettingPrice[]
   specifications      ProductionSettingSpecification[]
   group               ProductionGroup                  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+=======
+  id              String          @id @default(cuid())
+  groupId         String
+  group           ProductionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  // 코드명 (선택적)
+  codeName        String?
+
+  // 업체명 (본사, 외주 등)
+  vendorType      String          @default("in_house") // in_house: 본사, outsourced: 외주
+
+  // 가격 적용 단위
+  // paper_output_spec: [출력전용] 용지별출력단가/1p가격 (인쇄방식+규격)
+  // nup_page_range: [제본전용] 구간별 Nup/1p가격
+  pricingType     String          @default("paper_output_spec")
+
+  // 세팅명 (박Color 등 추가 설정명)
+  settingName     String?
+
+  // S코드 (추가 코드)
+  sCode           String?
+
+  // 잡세팅비 / 기본단가
+  settingFee      Decimal         @db.Decimal(12, 2) @default(0)  // 잡세팅비
+  basePrice       Decimal         @db.Decimal(12, 2) @default(0)  // 기본단가
+
+  // 작업시간 (일 단위, 소수점 1자리까지)
+  workDays        Decimal         @db.Decimal(5, 1)  @default(0)
+
+  // 가중치 구분 정보 (텍스트로 저장, 예: "1\n2\n3")
+  weightInfo      String?         @db.Text
+
+  // 용지별 출력단가 설정
+  printMethod     String?         // indigo, inkjet
+  paperIds        String[]        @default([]) // 선택된 용지 ID 목록
+
+  // 규격 용도 선택 (all, indigo, inkjet, album, frame, booklet)
+  specUsageType   String          @default("all")
+
+  // 양면/단면 가격
+  singleSidedPrice  Decimal?      @db.Decimal(12, 2) // 단면 단가
+  doubleSidedPrice  Decimal?      @db.Decimal(12, 2) // 양면 단가
+
+  // 잉크젯 기준규격 설정 (sq inch 가격 계산용)
+  baseSpecificationId String?     // 기준규격 ID
+  basePricePerSqInch  Decimal?    @db.Decimal(12, 6) // sq inch당 기준가격 (자동 계산됨)
+
+  // 용지 단가 그룹 설정 (인디고용)
+  // priceGroups: [{ id, color, upPrices: [{ up, weight, fourColorSinglePrice, ... }] }]
+  priceGroups         Json?       // 단가 그룹 배열 (최대 5개)
+  // paperPriceGroupMap: { paperId: priceGroupId | null }
+  paperPriceGroupMap  Json?       // 용지별 그룹 할당 맵
+
+  // 구간별 Nup+면당가격 페이지 구간 설정
+  pageRanges          Json?       // 페이지 구간 배열 (예: [30, 40, 50, 60])
+
+  // [후가공전용] 길이별단가 설정
+  lengthUnit          String?     @default("cm") // cm, mm
+  lengthPriceRanges   Json?       // 길이별 구간 단가 배열 [{minLength, maxLength, price}]
+
+  // [후가공전용] 면적별단가 설정 (가로×세로 규격 기준)
+  areaUnit            String?     @default("mm") // mm, cm, m (길이 단위)
+  areaPriceRanges     Json?       // 가로×세로 규격별 단가 배열 [{maxWidth, maxHeight, price}]
+
+  // [배송비 전용] 거리별 단가 설정
+  surchargeType       String?     @default("none") // 할증조건: night30_weekend20, night20_weekend10, free_condition, none
+  distancePriceRanges Json?       // 거리 구간별 단가 배열 [{minDistance, maxDistance, price}]
+  extraPricePerKm     Decimal?    @db.Decimal(10, 2) // km당 추가요금
+  maxBaseDistance     Int?        // 기본요금 적용 최대거리 (km)
+  freeThreshold       Decimal?    @db.Decimal(10, 2) // 무료배송 기준금액 (택배용)
+  islandFee           Decimal?    @db.Decimal(10, 2) // 도서산간 추가요금 (택배용)
+
+  // 정렬 및 상태
+  sortOrder       Int             @default(0)
+  isActive        Boolean         @default(true)
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relations
+  specifications  ProductionSettingSpecification[]
+  prices          ProductionSettingPrice[]
+  groupPrices     GroupProductionSettingPrice[]
+>>>>>>> Stashed changes
 
   @@index([groupId])
   @@index([pricingType])
@@ -1237,6 +1365,7 @@ model ProductionSettingPrice {
   @@map("production_setting_prices")
 }
 
+<<<<<<< Updated upstream
 model GroupProductionSettingPrice {
   id                   String            @id @default(cuid())
   clientGroupId        String
@@ -1261,6 +1390,46 @@ model GroupProductionSettingPrice {
   priceGroupId         String?
   clientGroup          ClientGroup       @relation(fields: [clientGroupId], references: [id], onDelete: Cascade)
   productionSetting    ProductionSetting @relation(fields: [productionSettingId], references: [id], onDelete: Cascade)
+=======
+// 그룹별 생산설정 가격 (거래처 그룹별 특별 단가)
+model GroupProductionSettingPrice {
+  id                  String            @id @default(cuid())
+  clientGroupId       String
+  clientGroup         ClientGroup       @relation(fields: [clientGroupId], references: [id], onDelete: Cascade)
+  productionSettingId String
+  productionSetting   ProductionSetting @relation(fields: [productionSettingId], references: [id], onDelete: Cascade)
+
+  // 가격 조건 (ProductionSettingPrice와 동일한 구조)
+  specificationId     String?           // 규격별 가격인 경우
+  priceGroupId        String?           // 단가 그룹 ID (인디고 priceGroups용)
+  minQuantity         Int?              // 최소 수량 (수량별 가격인 경우) / Up값 (인디고)
+  maxQuantity         Int?              // 최대 수량
+
+  // 가중치 (Up별 가격 계산용)
+  weight              Decimal?          @db.Decimal(5, 2)
+
+  // 가격 (단면/양면)
+  price               Decimal           @db.Decimal(12, 2) @default(0)
+  singleSidedPrice    Decimal?          @db.Decimal(12, 2)
+  doubleSidedPrice    Decimal?          @db.Decimal(12, 2)
+
+  // 인디고 4도칼라 가격
+  fourColorSinglePrice   Decimal?       @db.Decimal(12, 2)
+  fourColorDoublePrice   Decimal?       @db.Decimal(12, 2)
+
+  // 인디고 6도칼라 가격
+  sixColorSinglePrice    Decimal?       @db.Decimal(12, 2)
+  sixColorDoublePrice    Decimal?       @db.Decimal(12, 2)
+
+  // 구간별 Nup+면당가격 (nup_page_range용)
+  basePages              Int?
+  basePrice              Decimal?        @db.Decimal(12, 2)
+  pricePerPage           Decimal?        @db.Decimal(12, 2)
+  rangePrices            Json?
+
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+>>>>>>> Stashed changes
 
   @@unique([clientGroupId, productionSettingId, specificationId, priceGroupId, minQuantity])
   @@index([clientGroupId])
@@ -1269,6 +1438,7 @@ model GroupProductionSettingPrice {
   @@map("group_production_setting_prices")
 }
 
+<<<<<<< Updated upstream
 model ClientProductionSettingPrice {
   id                   String            @id @default(cuid())
   clientId             String
@@ -1300,6 +1470,9 @@ model ClientProductionSettingPrice {
   @@index([priceGroupId])
   @@map("client_production_setting_prices")
 }
+=======
+// ==================== 고객 상담 관리 ====================
+>>>>>>> Stashed changes
 
 model ConsultationCategory {
   id            String         @id @default(cuid())

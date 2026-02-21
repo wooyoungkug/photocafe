@@ -433,6 +433,10 @@ export default function SchedulePage() {
       }
       setIsScheduleDialogOpen(false);
     } catch (error) {
+<<<<<<< Updated upstream
+=======
+      console.error('Schedule 저장 에러:', error);
+>>>>>>> Stashed changes
       const message = error instanceof Error ? error.message : '저장에 실패했습니다.';
       toast({ title: message, variant: 'destructive' });
     }

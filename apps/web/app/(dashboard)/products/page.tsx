@@ -186,7 +186,11 @@ export default function ProductsPage() {
             <Package className="h-5 w-5" />
             상품 목록
           </CardTitle>
+<<<<<<< Updated upstream
           <Button onClick={() => router.push('/products/new')} className="w-full sm:w-auto">
+=======
+          <Button onClick={() => router.push('/products/new')}>
+>>>>>>> Stashed changes
             <Plus className="h-4 w-4 mr-2" />
             상품 추가
           </Button>
@@ -312,8 +316,11 @@ export default function ProductsPage() {
                               variant="ghost"
                               size="sm"
                               onClick={() => router.push(`/products/${product.id}/edit`)}
+<<<<<<< Updated upstream
                               title="수정"
                               className="h-8 w-8 p-0 sm:h-9 sm:w-9"
+=======
+>>>>>>> Stashed changes
                             >
                               <Edit className="h-4 w-4" />
                             </Button>

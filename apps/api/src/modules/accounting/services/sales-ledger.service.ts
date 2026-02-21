@@ -804,14 +804,12 @@ export class SalesLedgerService {
     // 배치 단위로 처리하여 메모리 부담 방지
     while (true) {
       // 매출원장이 없는 주문만 NOT EXISTS로 조회 (배치 단위)
-      const orders = await this.prisma.$queryRawUnsafe<{ id: string }[]>(
-        `SELECT o.id FROM orders o
+      const orders = await this.prisma.$queryRaw<{ id: string }[]>(
+        Prisma.sql`SELECT o.id FROM orders o
          WHERE o.status != 'cancelled'
            AND NOT EXISTS (SELECT 1 FROM sales_ledgers sl WHERE sl."orderId" = o.id)
          ORDER BY o."orderedAt" ASC
-         LIMIT $1 OFFSET $2`,
-        BATCH_SIZE,
-        skip,
+         LIMIT ${BATCH_SIZE} OFFSET ${skip}`,
       );
 
       if (orders.length === 0) break;
@@ -875,8 +873,8 @@ export class SalesLedgerService {
 
   // ===== 고아 매출원장 정리 (삭제된 주문의 매출원장 제거) =====
   async cleanupOrphaned() {
-    const orphaned = await this.prisma.$queryRawUnsafe<{ id: string; ledgerNumber: string }[]>(
-      `SELECT sl.id, sl."ledgerNumber" FROM sales_ledgers sl
+    const orphaned = await this.prisma.$queryRaw<{ id: string; ledgerNumber: string }[]>(
+      Prisma.sql`SELECT sl.id, sl."ledgerNumber" FROM sales_ledgers sl
        WHERE NOT EXISTS (SELECT 1 FROM orders o WHERE o.id = sl."orderId")`,
     );
 
@@ -904,20 +902,19 @@ export class SalesLedgerService {
     const startDate = new Date(now.getFullYear(), now.getMonth() - months + 1, 1);
 
     // DB 수준 월별 집계
-    const rows = await this.prisma.$queryRawUnsafe<
+    const rows = await this.prisma.$queryRaw<
       { month: string; sales: number; received: number; outstanding: number; count: bigint }[]
     >(
-      `SELECT TO_CHAR("ledgerDate", 'YYYY-MM') as month,
+      Prisma.sql`SELECT TO_CHAR("ledgerDate", 'YYYY-MM') as month,
               COALESCE(SUM("totalAmount"), 0)::float as sales,
               COALESCE(SUM("receivedAmount"), 0)::float as received,
               COALESCE(SUM("outstandingAmount"), 0)::float as outstanding,
               COUNT(id) as count
        FROM sales_ledgers
-       WHERE "ledgerDate" >= $1
+       WHERE "ledgerDate" >= ${startDate}
          AND "salesStatus" != 'CANCELLED'
        GROUP BY month
        ORDER BY month ASC`,
-      startDate,
     );
 
     const dbData = new Map(rows.map(r => [r.month, r]));
@@ -954,26 +951,29 @@ export class SalesLedgerService {
     if (clientId) where.clientId = clientId;
 
     // Raw SQL로 날짜 범위별 집계
-    const whereClause = clientId
-      ? `sl."clientId" = $4 AND sl."paymentStatus" IN ('unpaid', 'partial', 'overdue') AND sl."salesStatus" != 'CANCELLED'`
-      : `sl."paymentStatus" IN ('unpaid', 'partial', 'overdue') AND sl."salesStatus" != 'CANCELLED'`;
+    const conditions: Prisma.Sql[] = [
+      Prisma.sql`sl."paymentStatus" IN ('unpaid', 'partial', 'overdue')`,
+      Prisma.sql`sl."salesStatus" != 'CANCELLED'`,
+    ];
+    if (clientId) {
+      conditions.push(Prisma.sql`sl."clientId" = ${clientId}`);
+    }
 
-    const params = clientId ? [date30, date60, date90, clientId] : [date30, date60, date90];
+    const whereClause = Prisma.join(conditions, ' AND ');
 
-    const rows = await this.prisma.$queryRawUnsafe<
+    const rows = await this.prisma.$queryRaw<
       { clientId: string; clientName: string; under30: number; days30to60: number; days60to90: number; over90: number }[]
     >(
-      `SELECT
+      Prisma.sql`SELECT
          sl."clientId",
          sl."clientName",
-         SUM(CASE WHEN sl."ledgerDate" >= $1 THEN sl."outstandingAmount" ELSE 0 END)::float as under30,
-         SUM(CASE WHEN sl."ledgerDate" >= $2 AND sl."ledgerDate" < $1 THEN sl."outstandingAmount" ELSE 0 END)::float as days30to60,
-         SUM(CASE WHEN sl."ledgerDate" >= $3 AND sl."ledgerDate" < $2 THEN sl."outstandingAmount" ELSE 0 END)::float as days60to90,
-         SUM(CASE WHEN sl."ledgerDate" < $3 THEN sl."outstandingAmount" ELSE 0 END)::float as over90
+         SUM(CASE WHEN sl."ledgerDate" >= ${date30} THEN sl."outstandingAmount" ELSE 0 END)::float as under30,
+         SUM(CASE WHEN sl."ledgerDate" >= ${date60} AND sl."ledgerDate" < ${date30} THEN sl."outstandingAmount" ELSE 0 END)::float as days30to60,
+         SUM(CASE WHEN sl."ledgerDate" >= ${date90} AND sl."ledgerDate" < ${date60} THEN sl."outstandingAmount" ELSE 0 END)::float as days60to90,
+         SUM(CASE WHEN sl."ledgerDate" < ${date90} THEN sl."outstandingAmount" ELSE 0 END)::float as over90
        FROM sales_ledgers sl
        WHERE ${whereClause}
        GROUP BY sl."clientId", sl."clientName"`,
-      ...params
     );
 
     return {
@@ -1064,22 +1064,20 @@ export class SalesLedgerService {
     const now = new Date();
     const startDate = new Date(now.getFullYear(), now.getMonth() - months + 1, 1);
 
-    const rows = await this.prisma.$queryRawUnsafe<
+    const rows = await this.prisma.$queryRaw<
       { month: string; sales: number; received: number; outstanding: number; count: bigint }[]
     >(
-      `SELECT TO_CHAR("ledgerDate", 'YYYY-MM') as month,
+      Prisma.sql`SELECT TO_CHAR("ledgerDate", 'YYYY-MM') as month,
               COALESCE(SUM("totalAmount"), 0)::float as sales,
               COALESCE(SUM("receivedAmount"), 0)::float as received,
               COALESCE(SUM("outstandingAmount"), 0)::float as outstanding,
               COUNT(id) as count
        FROM sales_ledgers
-       WHERE "ledgerDate" >= $1
+       WHERE "ledgerDate" >= ${startDate}
          AND "salesStatus" != 'CANCELLED'
-         AND "clientId" = $2
+         AND "clientId" = ${clientId}
        GROUP BY month
        ORDER BY month ASC`,
-      startDate,
-      clientId,
     );
 
     const dbData = new Map(rows.map(r => [r.month, r]));
@@ -1523,27 +1521,21 @@ export class SalesLedgerService {
 
   // ===== 영업담당자별 미수금 요약 =====
   async getSummaryByStaff(query: { startDate?: string; endDate?: string }) {
-    const conditions: string[] = [`sl."salesStatus" != 'CANCELLED'`];
-    const params: any[] = [];
-    let paramIdx = 1;
+    const conditions: Prisma.Sql[] = [Prisma.sql`sl."salesStatus" != 'CANCELLED'`];
 
     if (query.startDate) {
-      conditions.push(`sl."ledgerDate" >= $${paramIdx}`);
-      params.push(new Date(query.startDate));
-      paramIdx++;
+      conditions.push(Prisma.sql`sl."ledgerDate" >= ${new Date(query.startDate)}`);
     }
     if (query.endDate) {
       const end = new Date(query.endDate);
       end.setHours(23, 59, 59, 999);
-      conditions.push(`sl."ledgerDate" <= $${paramIdx}`);
-      params.push(end);
-      paramIdx++;
+      conditions.push(Prisma.sql`sl."ledgerDate" <= ${end}`);
     }
 
-    const whereClause = conditions.join(' AND ');
+    const joinCondition = Prisma.join(conditions, ' AND ');
 
     // 영업담당자별 집계 (StaffClient 중간 테이블 활용)
-    const rows = await this.prisma.$queryRawUnsafe<
+    const rows = await this.prisma.$queryRaw<
       {
         staffId: string;
         staffName: string;
@@ -1556,7 +1548,7 @@ export class SalesLedgerService {
         collectionRate: number;
       }[]
     >(
-      `SELECT s."id" as "staffId",
+      Prisma.sql`SELECT s."id" as "staffId",
               s."name" as "staffName",
               s."staffId" as "staffCode",
               COALESCE(SUM(sl."totalAmount"), 0)::float as "totalSales",
@@ -1570,11 +1562,10 @@ export class SalesLedgerService {
                 ELSE 0
               END as "collectionRate"
        FROM staff s
-       LEFT JOIN sales_ledgers sl ON sl."staffId" = s.id AND ${whereClause}
+       LEFT JOIN sales_ledgers sl ON sl."staffId" = s.id AND ${joinCondition}
        WHERE s."isActive" = true
        GROUP BY s.id, s.name, s."staffId"
        ORDER BY "totalSales" DESC`,
-      ...params,
     );
 
     return rows.map(r => ({
@@ -1592,27 +1583,21 @@ export class SalesLedgerService {
 
   // ===== 영업담당자별 수금 실적 =====
   async getCollectionByStaff(query: { startDate?: string; endDate?: string }) {
-    const conditions: string[] = [`s."isActive" = true`];
-    const params: any[] = [];
-    let paramIdx = 1;
+    const conditions: Prisma.Sql[] = [Prisma.sql`s."isActive" = true`];
 
     if (query.startDate) {
-      conditions.push(`sr."receiptDate" >= $${paramIdx}`);
-      params.push(new Date(query.startDate));
-      paramIdx++;
+      conditions.push(Prisma.sql`sr."receiptDate" >= ${new Date(query.startDate)}`);
     }
     if (query.endDate) {
       const end = new Date(query.endDate);
       end.setHours(23, 59, 59, 999);
-      conditions.push(`sr."receiptDate" <= $${paramIdx}`);
-      params.push(end);
-      paramIdx++;
+      conditions.push(Prisma.sql`sr."receiptDate" <= ${end}`);
     }
 
-    const whereClause = `WHERE ${conditions.join(' AND ')}`;
+    const whereClause = Prisma.join(conditions, ' AND ');
 
     // 영업담당자별 수금 실적 (수금방법별 집계 포함)
-    const rows = await this.prisma.$queryRawUnsafe<
+    const rows = await this.prisma.$queryRaw<
       {
         staffId: string;
         staffName: string;
@@ -1625,7 +1610,7 @@ export class SalesLedgerService {
         checkAmount: number;
       }[]
     >(
-      `SELECT s."id" as "staffId",
+      Prisma.sql`SELECT s."id" as "staffId",
               s."name" as "staffName",
               s."staffId" as "staffCode",
               COALESCE(SUM(sr.amount), 0)::float as "totalReceived",
@@ -1637,10 +1622,9 @@ export class SalesLedgerService {
        FROM staff s
        LEFT JOIN sales_ledgers sl ON sl."staffId" = s.id
        LEFT JOIN sales_receipts sr ON sr."salesLedgerId" = sl.id
-       ${whereClause}
+       WHERE ${whereClause}
        GROUP BY s.id, s.name, s."staffId"
        ORDER BY "totalReceived" DESC`,
-      ...params,
     );
 
     return rows.map(r => ({
@@ -1711,27 +1695,24 @@ export class SalesLedgerService {
 
   // ===== 영업담당자별 거래처 미수금 집계 =====
   async getClientsByStaff(staffId: string, query: { startDate?: string; endDate?: string }) {
-    const conditions: string[] = [`sl."salesStatus" != 'CANCELLED'`];
-    const params: any[] = [staffId];
-    let paramIdx = 2;
+    const conditions: Prisma.Sql[] = [
+      Prisma.sql`sl."staffId" = ${staffId}`,
+      Prisma.sql`sl."salesStatus" != 'CANCELLED'`,
+    ];
 
     if (query.startDate) {
-      conditions.push(`sl."ledgerDate" >= $${paramIdx}`);
-      params.push(new Date(query.startDate));
-      paramIdx++;
+      conditions.push(Prisma.sql`sl."ledgerDate" >= ${new Date(query.startDate)}`);
     }
     if (query.endDate) {
       const end = new Date(query.endDate);
       end.setHours(23, 59, 59, 999);
-      conditions.push(`sl."ledgerDate" <= $${paramIdx}`);
-      params.push(end);
-      paramIdx++;
+      conditions.push(Prisma.sql`sl."ledgerDate" <= ${end}`);
     }
 
-    const whereClause = conditions.join(' AND ');
+    const whereClause = Prisma.join(conditions, ' AND ');
 
     // 담당자의 거래처별 미수금 집계
-    const rows = await this.prisma.$queryRawUnsafe<
+    const rows = await this.prisma.$queryRaw<
       {
         clientId: string;
         clientName: string;
@@ -1743,7 +1724,7 @@ export class SalesLedgerService {
         lastLedgerDate: Date;
       }[]
     >(
-      `SELECT sl."clientId",
+      Prisma.sql`SELECT sl."clientId",
               sl."clientName",
               c."clientCode",
               COALESCE(SUM(sl."totalAmount"), 0)::float as "totalSales",
@@ -1753,10 +1734,9 @@ export class SalesLedgerService {
               MAX(sl."ledgerDate") as "lastLedgerDate"
        FROM sales_ledgers sl
        JOIN clients c ON c.id = sl."clientId"
-       WHERE sl."staffId" = $1 AND ${whereClause}
+       WHERE ${whereClause}
        GROUP BY sl."clientId", sl."clientName", c."clientCode"
        ORDER BY outstanding DESC`,
-      ...params,
     );
 
     return rows.map(r => ({

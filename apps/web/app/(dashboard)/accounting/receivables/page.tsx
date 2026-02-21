@@ -47,9 +47,13 @@ import { Progress } from '@/components/ui/progress';
 import { useCreatePayment } from '@/hooks/use-accounting';
 import { useAgingAnalysis, useClientSalesSummary, useSalesLedgers, useSalesLedgerSummary } from '@/hooks/use-sales-ledger';
 import { toast } from '@/hooks/use-toast';
+<<<<<<< Updated upstream
 import { AgingChart } from './components/aging-chart';
 import Link from 'next/link';
 import { Users } from 'lucide-react';
+=======
+import type { Receivable } from '@/lib/types/accounting';
+>>>>>>> Stashed changes
 
 export default function ReceivablesPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -393,6 +397,7 @@ export default function ReceivablesPage() {
                   </TableCell>
                 </TableRow>
               ) : (
+<<<<<<< Updated upstream
                 clientSummary
                   .filter((item: any) => item.outstanding > 0)
                   .filter((item: any) =>
@@ -455,6 +460,58 @@ export default function ReceivablesPage() {
                       </TableRow>
                     );
                   })
+=======
+                receivablesData.data.map((item: Receivable) => {
+                  const rate = getCollectionRate(item.paidAmount, item.totalAmount);
+                  return (
+                    <TableRow key={item.id} className="hover:bg-slate-50">
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{item.clientName}</div>
+                          <div className="text-xs text-muted-foreground">{item.clientCode}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {item.totalAmount.toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right text-green-600">
+                        {item.paidAmount.toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-orange-600">
+                        {item.remainingAmount.toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <Progress value={rate} className="w-16 h-2" />
+                          <span className="text-xs text-muted-foreground">{rate}%</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center font-mono text-sm">
+                        {item.dueDate ? format(new Date(item.dueDate), 'yyyy-MM-dd') : '-'}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {getStatusBadge(item.status)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenPaymentDialog(item)}
+                            disabled={item.status === 'paid'}
+                          >
+                            <Receipt className="h-3 w-3 mr-1" />
+                            수금
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+>>>>>>> Stashed changes
               )}
             </TableBody>
           </Table>

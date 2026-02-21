@@ -31,6 +31,10 @@ export function AuthGuard({ children, requireAdmin = false, loginPath = '/admin-
     // 즉시 체크 (딜레이 제거)
     const checkAuth = () => {
       try {
+<<<<<<< Updated upstream
+=======
+        // localStorage와 sessionStorage 모두 확인
+>>>>>>> Stashed changes
         const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
 
         if (!token) {

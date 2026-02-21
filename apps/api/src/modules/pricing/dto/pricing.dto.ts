@@ -131,6 +131,7 @@ export class SetGroupProductionSettingPricesDto {
   prices: GroupProductionSettingPriceDto[];
 }
 
+<<<<<<< Updated upstream
 // ==================== 거래처 개별 생산설정 단가 DTO ====================
 export class ClientProductionSettingPriceDto {
   @ApiPropertyOptional({ description: '규격 ID (규격별 가격인 경우)' })
@@ -229,6 +230,8 @@ export class SetClientProductionSettingPricesDto {
   prices: ClientProductionSettingPriceDto[];
 }
 
+=======
+>>>>>>> Stashed changes
 // ==================== 가격 계산 요청 DTO ====================
 export class OptionSelectionDto {
   @ApiProperty({ description: '옵션 타입 (specification, binding, paper, cover, foil, finishing)' })
