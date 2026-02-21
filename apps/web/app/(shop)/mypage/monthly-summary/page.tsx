@@ -219,11 +219,14 @@ export default function MonthlySummaryPage() {
   // 동적 인쇄 CSS (printType에 따라 해당 영역만 표시)
   const printAreaId =
     printType === 'detail' ? 'monthly-print-detail-area' : 'monthly-print-area';
+  const otherPrintAreaId =
+    printType === 'detail' ? 'monthly-print-area' : 'monthly-print-detail-area';
   const printCss = [
     '@media print {',
     '  body * { visibility: hidden !important; }',
     `  #${printAreaId}, #${printAreaId} * { visibility: visible !important; }`,
     `  #${printAreaId} { position: absolute !important; top: 0 !important; left: 0 !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }`,
+    `  #${otherPrintAreaId} { display: none !important; }`,
     '  @page { size: A4 portrait; margin: 15mm; }',
     '}',
   ].join('\n');
