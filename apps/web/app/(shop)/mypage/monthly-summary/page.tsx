@@ -235,7 +235,7 @@ export default function MonthlySummaryPage() {
       <div className="flex justify-between items-start mb-2">
         <div />
         <div className="text-right">
-          <div className="text-[12pt] font-bold tracking-wide">포토카페</div>
+          <div className="text-[12pt] font-bold tracking-wide">(주)프린팅솔루션즈</div>
           <div className="text-[8pt] text-gray-500">고품질 인쇄 서비스</div>
         </div>
       </div>
@@ -331,12 +331,12 @@ export default function MonthlySummaryPage() {
         <div className="text-center">
           <div className="mb-6 text-gray-600">발&nbsp;&nbsp;&nbsp;&nbsp;행</div>
           <div className="border-b border-black w-32" />
-          <div className="text-gray-500 text-[8pt] mt-1">포토카페 (인)</div>
+          <div className="text-gray-500 text-[8pt] mt-1">(주)프린팅솔루션즈 (인)</div>
         </div>
       </div>
       <div className="mt-4 pt-3 border-t border-gray-300 text-[8pt] text-gray-500 text-center">
         본 거래내역서는 {printYear}년 {printMonth}월 기준으로 발행된 내역입니다.&nbsp;
-        문의: 포토카페 고객센터
+        문의: (주)프린팅솔루션즈 고객센터
       </div>
     </>
   );
