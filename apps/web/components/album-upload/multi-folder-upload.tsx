@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
@@ -15,6 +15,7 @@ import {
   ChevronsUpDown,
   CheckSquare,
   Image as ImageIcon,
+  XCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
@@ -178,6 +179,13 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
   const [currentFolderIndex, setCurrentFolderIndex] = useState(0);
   const [totalFolderCount, setTotalFolderCount] = useState(0);
   const [overallProgress, setOverallProgress] = useState(0);
+
+  // 업로드 중단 플래그
+  const cancelRef = useRef(false);
+
+  const handleCancelUpload = useCallback(() => {
+    cancelRef.current = true;
+  }, []);
 
   // 모바일 감지 (Android/iOS에서 webkitdirectory 미지원)
   const [isMobile, setIsMobile] = useState(false);
