@@ -61,7 +61,7 @@ export function CartOrderSummary({
               <span
                 className={cn(
                   'font-medium',
-                  shippingCompleteCount === totalCount ? 'text-green-600' : 'text-primary'
+                  shippingCompleteCount === totalCount ? 'text-black/80' : 'text-primary'
                 )}
               >
                 {shippingCompleteCount}/{totalCount}
@@ -72,7 +72,7 @@ export function CartOrderSummary({
               className="h-1.5 rounded-full"
             />
             {shippingCompleteCount === totalCount && totalCount > 0 && (
-              <p className="text-[11px] text-green-600 mt-1.5 flex items-center gap-1">
+              <p className="text-[11px] text-black/80 mt-1.5 flex items-center gap-1">
                 <CheckCircle2 className="w-3 h-3" />
                 {t('allShippingComplete')}
               </p>
@@ -99,7 +99,7 @@ export function CartOrderSummary({
                 </span>
               ) : (
                 <div className="text-right">
-                  <span className={cn('font-medium', totalShippingFee === 0 && 'text-green-600')}>
+                  <span className={cn('font-medium', totalShippingFee === 0 && 'text-black/80')}>
                     {totalShippingFee === 0 ? t('free') : `+${Math.round(totalShippingFee).toLocaleString()}원`}
                   </span>
                   {totalShippingFee === 0 && freeShippingLabel && (
