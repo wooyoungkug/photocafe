@@ -25,7 +25,6 @@ import {
   useOrders,
   ORDER_STATUS_LABELS,
   type Order,
-  type OrderItem,
 } from '@/hooks/use-orders';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -871,109 +870,85 @@ export default function MonthlySummaryPage() {
 
                           {/* 드릴다운: 건별 상세 */}
                           {isExpanded && (
-                            <tr>
-                              <td
-                                colSpan={6}
-                                className="bg-slate-50/80 p-0 border-b"
-                              >
-                                <div className="px-4 py-3 sm:px-8">
-                                  <p className="text-xs text-muted-foreground mb-2">
-                                    {format(
-                                      new Date(row.date + 'T00:00:00'),
-                                      'MM월 dd일 (EEE)',
-                                      { locale: ko },
-                                    )}{' '}
-                                    거래 내역
-                                  </p>
-                                  {isDetailFetching ? (
-                                    <div className="flex items-center justify-center py-6">
+                            <>
+                              {isDetailFetching ? (
+                                <tr>
+                                  <td colSpan={6} className="bg-slate-50/80 py-6 border-b">
+                                    <div className="flex items-center justify-center">
                                       <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                                     </div>
-                                  ) : detailData?.data &&
-                                    detailData.data.length > 0 ? (
-                                    <div className="space-y-2">
-                                      {detailData.data.map((order) => (
-                                        <div
-                                          key={order.id}
-                                          className="flex items-center gap-2 bg-white rounded-lg border px-3 py-2 text-sm"
-                                        >
-                                          <div className="flex-1 min-w-0 flex items-center gap-1.5 overflow-hidden">
-                                            <span className="text-xs text-muted-foreground shrink-0 whitespace-nowrap tabular-nums">
-                                              {order.orderNumber}
-                                            </span>
-                                            {order.createdAt && (
-                                              <span className="text-xs text-gray-400 shrink-0 whitespace-nowrap">
-                                                {format(new Date(order.createdAt), 'HH:mm')}
-                                              </span>
-                                            )}
-                                            <span className="text-gray-300 shrink-0">·</span>
-                                            <span className="truncate">
-                                              {(() => {
-                                                const folder = order.items?.[0]?.folderName;
-                                                const product = order.items?.[0]?.productName || '';
-                                                if (folder) {
-                                                  let base = product;
-                                                  if (product.includes(folder)) {
-                                                    base = product
-                                                      .substring(0, product.indexOf(folder))
-                                                      .replace(/\s*[-·]\s*$/, '')
-                                                      .trim();
-                                                  }
-                                                  return `${folder} · ${base || product}`;
-                                                }
-                                                return product || '-';
-                                              })()}
-                                              {order.items?.length > 1 && (
-                                                <span className="text-muted-foreground text-xs ml-1">
-                                                  외 {order.items.length - 1}건
-                                                </span>
-                                              )}
-                                            </span>
-                                            {order.items?.[0]?.size && (
-                                              <span className="text-xs text-gray-400 shrink-0 whitespace-nowrap">
-                                                {order.items[0].size}
-                                              </span>
-                                            )}
+                                  </td>
+                                </tr>
+                              ) : detailData?.data && detailData.data.length > 0 ? (
+                                detailData.data.map((order) => {
+                                  const folder = order.items?.[0]?.folderName;
+                                  const product = order.items?.[0]?.productName || '';
+                                  let displayName = product;
+                                  if (folder) {
+                                    let base = product;
+                                    if (product.includes(folder)) {
+                                      base = product
+                                        .substring(0, product.indexOf(folder))
+                                        .replace(/\s*[-·]\s*$/, '')
+                                        .trim();
+                                    }
+                                    displayName = `${folder} · ${base || product}`;
+                                  }
+                                  return (
+                                    <tr key={order.id} className="bg-slate-50/60 border-b hover:bg-slate-100/60 text-xs">
+                                      <td className="p-2 sm:p-3" />
+                                      <td className="p-2 sm:p-3 whitespace-nowrap text-muted-foreground align-middle">
+                                        <div className="tabular-nums">{order.orderNumber}</div>
+                                        {order.createdAt && (
+                                          <div className="text-gray-400">
+                                            {format(new Date(order.createdAt), 'HH:mm')}
                                           </div>
-                                          <div className="text-right shrink-0">
-                                            <p className="tabular-nums">
-                                              {formatAmount(Number(order.finalAmount))}원
-                                            </p>
-                                          </div>
-                                          <div className="shrink-0">
-                                            <Badge
-                                              variant={
-                                                STATUS_BADGE_VARIANT[order.status] ||
-                                                'outline'
-                                              }
-                                            >
-                                              {ORDER_STATUS_LABELS[order.status] ||
-                                                order.status}
-                                            </Badge>
-                                          </div>
-                                          <div className="shrink-0 w-16 text-center">
-                                            {renderShippingStatus(order)}
-                                          </div>
+                                        )}
+                                      </td>
+                                      <td className="p-2 sm:p-3 align-middle">
+                                        <span>{displayName || '-'}</span>
+                                        {order.items?.[0]?.size && (
+                                          <span className="text-gray-400 ml-1 whitespace-nowrap">
+                                            {order.items[0].size}
+                                          </span>
+                                        )}
+                                        {order.items?.length > 1 && (
+                                          <span className="text-muted-foreground ml-1">
+                                            외 {order.items.length - 1}건
+                                          </span>
+                                        )}
+                                      </td>
+                                      <td className="p-2 sm:p-3 text-right tabular-nums align-middle">
+                                        {formatAmount(Number(order.finalAmount))}원
+                                      </td>
+                                      <td className="p-2 sm:p-3 text-right text-muted-foreground align-middle">
+                                        {renderShippingStatus(order)}
+                                      </td>
+                                      <td className="p-2 sm:p-3 text-right align-middle">
+                                        <div className="flex items-center justify-end gap-1">
+                                          <Badge
+                                            variant={STATUS_BADGE_VARIANT[order.status] || 'outline'}
+                                          >
+                                            {ORDER_STATUS_LABELS[order.status] || order.status}
+                                          </Badge>
                                           <Link href={`/mypage/orders/${order.id}`}>
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              className="h-8 w-8 p-0"
-                                            >
-                                              <Eye className="h-4 w-4" />
+                                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                                              <Eye className="h-3.5 w-3.5" />
                                             </Button>
                                           </Link>
                                         </div>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <p className="text-center text-muted-foreground text-xs py-4">
-                                      거래 내역이 없습니다
-                                    </p>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
+                                      </td>
+                                    </tr>
+                                  );
+                                })
+                              ) : (
+                                <tr>
+                                  <td colSpan={6} className="bg-slate-50/80 py-4 border-b text-center">
+                                    <p className="text-xs text-muted-foreground">거래 내역이 없습니다</p>
+                                  </td>
+                                </tr>
+                              )}
+                            </>
                           )}
                         </Fragment>
                       );
