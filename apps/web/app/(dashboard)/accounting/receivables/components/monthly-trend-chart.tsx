@@ -50,7 +50,7 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
                 };
                 return [formatCurrency(value as number), labels[name as string] || name];
               }}
-              labelFormatter={formatMonth}
+              labelFormatter={(label) => formatMonth(label as string)}
               contentStyle={{
                 backgroundColor: 'white',
                 border: '1px solid #e2e8f0',

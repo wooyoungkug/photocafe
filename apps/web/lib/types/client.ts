@@ -54,6 +54,11 @@ export interface Client {
   status: 'active' | 'inactive' | 'suspended';
   createdAt: string;
   updatedAt: string;
+  assignedStaff?: Array<{
+    id: string;
+    isPrimary: boolean;
+    staff: { id: string; name: string };
+  }>;
   _count?: {
     consultations: number;
     openConsultations: number;

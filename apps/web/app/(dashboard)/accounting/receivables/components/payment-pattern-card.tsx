@@ -71,7 +71,7 @@ export function PaymentPatternCard({ data }: PaymentPatternCardProps) {
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value: number) => [`${value.toFixed(1)}%`, '']}
+                formatter={(value) => [`${(value as number).toFixed(1)}%`, '']}
                 contentStyle={{
                   backgroundColor: 'white',
                   border: '1px solid #e2e8f0',
@@ -100,7 +100,7 @@ export function PaymentPatternCard({ data }: PaymentPatternCardProps) {
                 <XAxis dataKey="month" stroke="#64748b" fontSize={12} tickFormatter={(val) => `${val}월`} />
                 <YAxis stroke="#64748b" fontSize={12} />
                 <Tooltip
-                  formatter={(value: number) => [`${value.toFixed(1)}일`, '평균 결제일']}
+                  formatter={(value) => [`${(value as number).toFixed(1)}일`, '평균 결제일']}
                   labelFormatter={(val) => `${val}월`}
                   contentStyle={{
                     backgroundColor: 'white',
