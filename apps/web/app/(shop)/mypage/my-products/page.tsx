@@ -28,12 +28,14 @@ export default function MyProductsPage() {
   const [deleteTarget, setDeleteTarget] = useState<MyProduct | null>(null);
 
   const handleDelete = async () => {
+    console.log('[handleDelete] called, deleteTarget:', deleteTarget?.id, 'isPending:', deleteMyProduct.isPending);
     if (!deleteTarget) return;
     try {
       await deleteMyProduct.mutateAsync(deleteTarget.id);
       toast({ title: '마이상품이 삭제되었습니다.' });
       setDeleteTarget(null);
-    } catch {
+    } catch (e) {
+      console.error('[handleDelete] error:', e);
       toast({ title: '삭제에 실패했습니다.', variant: 'destructive' });
     }
   };
