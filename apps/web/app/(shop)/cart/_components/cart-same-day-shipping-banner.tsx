@@ -20,6 +20,10 @@ export function CartSameDayShippingBanner({ info, newOrderTotal }: CartSameDaySh
   // 오늘 주문이 없으면 배너 불필요
   if (totalProductAmount === 0) return null;
 
+  // 현재 장바구니에 스튜디오 배송 상품이 없으면 배너 불필요
+  // (고객직배송만 있으면 합배송 무료 조건이 적용되지 않음)
+  if (newOrderTotal === 0) return null;
+
   return (
     <div
       className={cn(
