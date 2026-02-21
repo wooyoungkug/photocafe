@@ -173,7 +173,7 @@ export default function MonthlySummaryPage() {
     '@media print {',
     '  body * { visibility: hidden !important; }',
     '  #monthly-print-area, #monthly-print-area * { visibility: visible !important; }',
-    '  #monthly-print-area { position: fixed !important; top: 0; left: 0; width: 100%; padding: 24px 32px; background: white; }',
+    '  #monthly-print-area { visibility: visible !important; position: static !important; width: 100% !important; padding: 0 !important; }',
     '  @page { size: A4 portrait; margin: 15mm; }',
     '}',
   ].join('\n');
