@@ -727,26 +727,20 @@ export class SalesLedgerService {
   // ===== 거래처별 매출 집계 =====
   async getClientSummary(query: { startDate?: string; endDate?: string }) {
     // DB 수준 GROUP BY 집계
-    const conditions: string[] = [`sl."salesStatus" != 'CANCELLED'`];
-    const params: any[] = [];
-    let paramIdx = 1;
+    const conditions: Prisma.Sql[] = [Prisma.sql`sl."salesStatus" != 'CANCELLED'`];
 
     if (query.startDate) {
-      conditions.push(`sl."ledgerDate" >= $${paramIdx}`);
-      params.push(new Date(query.startDate));
-      paramIdx++;
+      conditions.push(Prisma.sql`sl."ledgerDate" >= ${new Date(query.startDate)}`);
     }
     if (query.endDate) {
       const end = new Date(query.endDate);
       end.setHours(23, 59, 59, 999);
-      conditions.push(`sl."ledgerDate" <= $${paramIdx}`);
-      params.push(end);
-      paramIdx++;
+      conditions.push(Prisma.sql`sl."ledgerDate" <= ${end}`);
     }
 
-    const whereClause = conditions.join(' AND ');
+    const whereClause = Prisma.join(conditions, ' AND ');
 
-    const rows = await this.prisma.$queryRawUnsafe<
+    const rows = await this.prisma.$queryRaw<
       {
         clientId: string;
         clientName: string;
@@ -758,7 +752,7 @@ export class SalesLedgerService {
         lastOrderDate: Date;
       }[]
     >(
-      `SELECT sl."clientId",
+      Prisma.sql`SELECT sl."clientId",
               sl."clientName",
               c."clientCode",
               COALESCE(SUM(sl."totalAmount"), 0)::float as "totalSales",
@@ -771,7 +765,6 @@ export class SalesLedgerService {
        WHERE ${whereClause}
        GROUP BY sl."clientId", sl."clientName", c."clientCode"
        ORDER BY "totalSales" DESC`,
-      ...params,
     );
 
     return rows.map(r => ({
