@@ -107,7 +107,7 @@ export default function MonthlySummaryPage() {
       return;
     }
     const carryForward = dailyData?.summary?.carryForwardBalance || 0;
-    const headers = ['일자', '적요', '주문건수', '매출(차변)', '수금(대변)', '잔액'];
+    const headers = ['일자', '적요', '주문건수', '주문금액', '입금금액', '잔액'];
     const rows: string[][] = [
       ['', '전월이월', '', '', '', Math.round(carryForward).toString()],
       ...dataWithBalance.map((d) => [
@@ -281,10 +281,10 @@ export default function MonthlySummaryPage() {
                     <th className="p-2 sm:p-3 text-left font-medium">일자</th>
                     <th className="p-2 sm:p-3 text-left font-medium">적요</th>
                     <th className="p-2 sm:p-3 text-right font-medium">
-                      차변<span className="hidden sm:inline">(매출)</span>
+                      주문<span className="hidden sm:inline">금액</span>
                     </th>
                     <th className="p-2 sm:p-3 text-right font-medium">
-                      대변<span className="hidden sm:inline">(수금)</span>
+                      입금<span className="hidden sm:inline">금액</span>
                     </th>
                     <th className="p-2 sm:p-3 text-right font-medium">잔액</th>
                   </tr>

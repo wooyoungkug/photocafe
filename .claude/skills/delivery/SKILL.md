@@ -248,32 +248,26 @@ interface FolderShippingInfo {
 
 ## 데이터베이스 스키마
 
-### Enum 정의
+### 실제 사용 코드값 (Enum 없이 String으로 관리)
 
-```prisma
-enum DeliveryStatus {
-  PENDING           // 배송대기
-  PACKAGING         // 포장중
-  READY             // 출고대기
-  SHIPPED           // 배송중
-  DELIVERED         // 배송완료
-  RETURNED          // 반송
-  PICKUP_WAITING    // 수령대기
-  PICKED_UP         // 수령완료
-}
+> ⚠️ Prisma schema에 `DeliveryMethod`, `DeliveryStatus`, `PaymentType` enum은 정의되어 있지 않습니다.
+> 모든 필드는 `String` 타입으로 아래 문자열 값을 직접 사용합니다.
 
-enum DeliveryMethod {
-  PARCEL            // 택배
-  QUICK             // 퀵서비스
-  SELF_PICKUP       // 직접수령
-  OWN_DELIVERY      // 자체배송
-}
+```typescript
+// 배송방법 코드 (DeliveryPricing.deliveryMethod, OrderItemShipping.deliveryMethod)
+type DeliveryMethodCode = 'parcel' | 'motorcycle' | 'damas' | 'freight' | 'pickup';
 
-enum PaymentType {
-  PREPAID           // 선불
-  COD               // 착불 (Cash on Delivery)
-  FREE              // 무료
-}
+// 배송 상태 관련 코드 (String 필드에서 사용되는 값)
+const DELIVERY_STATUS_VALUES = {
+  PENDING:        'pending',         // 배송대기
+  PACKAGING:      'packaging',       // 포장중
+  READY:          'ready',           // 출고대기
+  SHIPPED:        'shipped',         // 배송중
+  DELIVERED:      'delivered',       // 배송완료
+  RETURNED:       'returned',        // 반송
+  PICKUP_WAITING: 'pickup_waiting',  // 수령대기
+  PICKED_UP:      'picked_up',       // 수령완료
+};
 ```
 
 ### 배송 모델
