@@ -84,7 +84,7 @@ export class AuthController {
   @Patch('reset-client-password/:clientId')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: '관리자용: 회원 비밀번호 초기화 (123456으로 초기화)' })
+  @ApiOperation({ summary: '관리자용: 회원 비밀번호 초기화 (랜덤 임시 비밀번호)' })
   async resetClientPassword(@Param('clientId') clientId: string, @Request() req: any) {
     // 관리자 권한 확인
     if (req.user.type !== 'staff' && req.user.role !== 'admin') {
