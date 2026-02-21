@@ -918,7 +918,7 @@ export default function MonthlySummaryPage() {
                                           </span>
                                         )}
                                       </td>
-                                      <td className="p-2 sm:p-3 text-right tabular-nums align-middle">
+                                      <td className="p-2 sm:p-3 text-right tabular-nums align-middle text-[10pt]">
                                         {formatAmount(Number(order.finalAmount))}원
                                       </td>
                                       <td className="p-2 sm:p-3 text-right text-muted-foreground align-middle">
