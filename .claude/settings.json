@@ -12,7 +12,20 @@
       "Bash(git -C \"c:/dev/printing114\" diff \"apps/web/app/\\(shop\\)/product/[id]/page.tsx\")",
       "Bash(git -C \"c:/dev/printing114\" status --short)",
       "Bash(node_modules/.bin/next build)",
-      "Bash(EC=$?)"
+      "Bash(EC=$?)",
+      "Bash(PGPASSWORD=postgres \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\":*)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /c/dev/printing114 && git diff --quiet HEAD 2>/dev/null || git commit -am \"auto: $(date '+%Y%m%d %H:%M')\""
+          }
+        ]
+      }
     ]
   }
 }

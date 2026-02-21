@@ -86,6 +86,118 @@ description: 배송 관리. 배송 준비, 출고, 택배 연동, 배송 추적 
 - 방문수령은 항상 무료
 - 거래처별 배송비 정책(무료배송, 조건부무료, 착불 등) 적용 가능
 
+### 거래처별 배송비 정책 (shippingType)
+
+`Client` 모델의 `shippingType` 필드로 거래처별 정책을 관리한다. 기본값: `conditional`, 기준금액 기본값: `90,000원`
+
+| 타입 코드 | 이름 | 동작 |
+|-----------|------|------|
+| `conditional` | 조건부택배 | 기준금액(`freeShippingThreshold`) 이상이면 무료, 미만이면 기본 배송비 청구 |
+| `free` | 무료택배 | 항상 무료 |
+| `prepaid` | 직배송(선불) | 항상 기본 배송비 청구 |
+| `cod` | 착불 | 주문 시 0원, 배송사가 수령인에게 직접 징수 |
+
+#### 배송비 계산 흐름
+
+```
+배송방법 == pickup(방문수령)?
+  └─ YES → 0원
+
+receiverType == direct_customer(고객직배송)?
+  └─ YES → DeliveryPricing.baseFee 그대로 청구 (정책 미적용)
+
+shippingType == 'free'?
+  └─ YES → 0원
+
+shippingType == 'conditional'?
+  └─ 당일 누적 합산 + 현재 >= freeShippingThreshold?
+       ├─ YES → 0원 (이전 주문 배송비 환급도 처리)
+       └─ NO  → DeliveryPricing.baseFee 청구
+
+shippingType == 'prepaid'?
+  └─ DeliveryPricing.baseFee 항상 청구
+
+shippingType == 'cod'?
+  └─ 주문 시 0원 (배송사 수령인 징수)
+```
+
+#### 당일 합배송 (조건부택배 핵심 기능)
+
+- 조건부택배(`conditional`) 거래처 전용
+- 당일(00:00~23:59) 누적 주문 합산으로 기준금액 충족 여부 판단
+- 기준금액 충족 시: 현재 주문 배송비 0원 + 이전 주문 배송비 자동 환급(`adjustmentAmount`)
+- `receiverType: 'direct_customer'` 주문은 합산에서 **제외**
+- 중복 환급 방지: `adjustmentAmount` 필드로 이미 환급된 금액 추적
+
+**예시:**
+> 기준금액 90,000원 거래처
+> 1차 주문 60,000원 → 배송비 3,500원 청구
+> 2차 주문 40,000원 → 합산 100,000원 ≥ 90,000원
+> → 2차 주문 배송비 0원 + 1차 배송비 3,500원 자동 환급
+
+#### 합배송 조정금액(adjustmentAmount) 메커니즘 상세
+
+**adjustmentAmount 의미**: 양수 = 할인(환급). 주문 최종금액에서 차감.
+
+```
+finalAmount = totalAmount(상품+세금+배송비) - adjustmentAmount
+```
+
+**환급 처리 흐름** (프론트엔드 주도 방식):
+
+1. 주문 페이지 진입 시 `GET /orders/same-day-shipping?clientId=...` 호출
+2. 백엔드 `getSameDayShipping()` → 당일 이전 주문의 배송비 합계(`totalShippingCharged`) 반환
+3. 프론트엔드 `combinedShipping` useMemo에서 조건 판단:
+   - `combinedTotal(당일누적+현재카트) >= freeShippingThreshold` → `isTriggered = true`
+   - `shouldRefundPrevious = isTriggered && totalShippingCharged > 0`
+4. 주문 생성 DTO에 직접 포함 (`apps/web/app/(shop)/order/page.tsx:652`):
+   ```js
+   od.adjustmentAmount = combinedShipping.totalShippingCharged; // 이전 배송비 합계
+   ```
+5. 백엔드 `createOrder()` → `dto.adjustmentAmount ?? 0` 그대로 DB 저장
+
+**⚠️ process_history에 `admin_adjustment` 이력이 생성되지 않음**
+→ 주문 생성 시 DTO에 이미 포함된 값이므로 `order_created` 이력만 기록됨
+→ 관리자가 수동 조정한 경우만 `admin_adjustment` 이력 생성됨
+
+**실제 사례 (260221 주문, 아마레스튜디오):**
+
+| 주문번호 | 배송비 | 조정금액 | 최종금액 |
+|---------|--------|---------|---------|
+| 260221-001~005 | 5,500 × 5건 | 0 | 각 정상 |
+| **260221-006** | **0** | **27,500** | **-6,600** |
+
+→ 27,500 = 5,500원 × 5건 (이전 5개 주문 배송비 합계)
+→ 19,000 + 1,900(세금) - 27,500 = **-6,600원** (마이너스 = 선 환급)
+
+**중복 환급 방지** (`getSameDayShipping()` 내):
+```
+netShippingCharged = max(0, totalShippingCharged - totalAdjustmentApplied)
+```
+이미 다른 주문에서 adjustmentAmount로 환급된 금액을 차감하여 중복 공제 방지.
+
+**관련 함수**:
+- `applySameDayShippingRefund()` - 정의만 있고 현재 자동 호출 안 됨 (dead code, 2026-02 기준)
+- `getSameDayShipping()` - API: `GET /orders/same-day-shipping`
+- 실제 환급은 프론트 `order/page.tsx`에서 DTO에 담아 주문 생성 시 처리
+
+#### 배치 배송 (단일 주문 내 복수 아이템)
+
+```
+조건부택배 + 동일 주문 내 스튜디오 배송 아이템 2건 이상 + 합계 < 기준금액
+→ 첫 번째 스튜디오 배송 아이템 배송비만 1회 청구
+```
+
+#### 관련 구현 파일
+
+| 파일 | 역할 |
+|------|------|
+| `apps/api/src/modules/order/services/order.service.ts` | `applySameDayShippingRefund()`, `getSameDayShipping()` |
+| `apps/web/components/album-upload/folder-shipping-section.tsx` | `calculateDeliveryFee()` 함수 - 타입별 배송비 계산 |
+| `apps/web/app/(shop)/order/page.tsx` | `combinedShipping`, `batchSingleShipping` useMemo |
+| `apps/web/app/(dashboard)/company/members/page.tsx` | 관리자 배송조건 설정 UI |
+| `apps/api/prisma/schema.prisma` | `Client.shippingType`, `Client.freeShippingThreshold` |
+
 ### 프론트엔드 구현 파일
 
 | 파일 | 설명 |
@@ -495,10 +607,64 @@ async function calculateShippingFee(params: ShippingFeeParams): Promise<number> 
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
+## 배송비 설정 페이지 (기초정보설정 > 배송비)
+
+**파일**: `apps/web/app/(dashboard)/settings/delivery/page.tsx`
+
+### 배송방법별 설정 항목
+
+| 방법 | 설정 항목 |
+|------|-----------|
+| 오토바이(퀵) | 거리별 단가(구간), 초과 km당 추가요금, 최대 기본거리, 야간/주말 할증률, 야간 시간 |
+| 다마스 | 거리별 단가(구간), 초과 km당 추가요금, 최대 기본거리, 야간/주말 할증률 |
+| 택배 | 기본요금, 도서산간 추가요금, 무료배송 기준금액 |
+| 화물 | 기본요금, 크기별 단가(소형/중형/대형/특대형), 야간/주말 할증률 |
+| 방문수령 | 기본요금(항상 0원) |
+
+### 배송비 설정 API 엔드포인트
+
+```
+GET  /delivery-pricing              # 전체 배송비 설정 조회
+GET  /delivery-pricing/{method}     # 특정 방법 설정 조회
+PUT  /delivery-pricing/{method}     # 배송비 설정 저장
+POST /delivery-pricing/initialize   # 기본값 초기화
+POST /delivery-pricing/calculate    # 배송비 계산 (시뮬레이션)
+POST /delivery-pricing/calculate-by-address  # 주소 기반 배송비 계산
+```
+
+### CSV 다운로드 기능 (구현 완료)
+
+배송비 설정 페이지 헤더에 "CSV 다운로드" 버튼이 있다. 클릭 시 현재 `formData` 기준으로 5개 섹션의 CSV 파일 생성.
+
+**CSV 섹션 구성:**
+1. `[배송방법 기본 요약]` — 방법별 기본요금·활성화
+2. `[거리별 단가 - 오토바이(퀵)]` / `[거리별 단가 - 다마스]` — 구간별 요금
+3. `[할증 설정]` — 야간/주말 할증률
+4. `[택배 설정]` — 도서산간 추가요금, 무료배송 기준금액
+5. `[화물 크기별 단가]` — 크기별 추가요금
+
+**파일명**: `배송비정책_YYYYMMDD.csv` (BOM 포함, 엑셀 한글 정상 표시)
+
+**CSV 다운로드 공통 패턴** (프로젝트 전반에 동일하게 적용):
+```typescript
+const csvContent = '\uFEFF' + rows.join('\n'); // BOM 포함
+const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+const link = document.createElement('a');
+link.href = URL.createObjectURL(blob);
+link.download = `파일명_${format(new Date(), 'yyyyMMdd')}.csv`;
+document.body.appendChild(link);
+link.click();
+document.body.removeChild(link);
+```
+
 ## 체크리스트
 
 배송 관리 기능 구현 시 확인사항:
 
+- [x] 거래처별 배송비 정책 (conditional/free/prepaid/cod)
+- [x] 당일 합배송 자동 환급
+- [x] 배치 배송 (복수 아이템 1회 청구)
+- [x] 배송비 설정 CSV 다운로드
 - [ ] 배송 CRUD
 - [ ] 배송 방법 선택 (택배/퀵/직접수령)
 - [ ] 택배사 연동
@@ -506,7 +672,6 @@ async function calculateShippingFee(params: ShippingFeeParams): Promise<number> 
   - [ ] 배송 조회 API
 - [ ] 송장 출력 (PDF)
 - [ ] 대량 발송 처리
-- [ ] 배송비 계산
 - [ ] 주소 검색 (다음 주소 API)
 - [ ] 배송 상태 자동 업데이트
 - [ ] 배송 알림 (SMS/카카오)

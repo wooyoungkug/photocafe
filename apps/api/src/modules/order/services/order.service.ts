@@ -476,7 +476,26 @@ export class OrderService {
 
       const tax = Math.round(productPrice * 0.1); // 부가세 10%
       const totalAmount = productPrice + tax;
-      const adjustmentAmount = dto.adjustmentAmount ?? 0;
+
+      // Race condition 방어: adjustmentAmount > 0 (합배송 환급)인 경우
+      // 트랜잭션 안에서 당일 이미 적용된 환급 누계를 재확인하여 중복 환급 차단
+      let adjustmentAmount = dto.adjustmentAmount ?? 0;
+      if (adjustmentAmount > 0) {
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const todayEnd = new Date();
+        todayEnd.setHours(23, 59, 59, 999);
+        const alreadyRefunded = await tx.order.aggregate({
+          where: {
+            clientId: dto.clientId,
+            orderedAt: { gte: todayStart, lte: todayEnd },
+            status: { not: 'cancelled' },
+          },
+          _sum: { adjustmentAmount: true },
+        });
+        const alreadyRefundedTotal = Number(alreadyRefunded._sum.adjustmentAmount ?? 0);
+        adjustmentAmount = Math.max(0, adjustmentAmount - alreadyRefundedTotal);
+      }
 
       return tx.order.create({
         data: {
@@ -2158,114 +2177,6 @@ export class OrderService {
     }
 
     return { success: successCount, failed };
-  }
-
-  // ===== 합배송 배송비 자동 환불: 당일 주문 합산 무료배송 조건 충족 시 =====
-  async applySameDayShippingRefund(clientId: string, userId: string, newOrderId: string): Promise<void> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const client = await this.prisma.client.findUnique({
-      where: { id: clientId },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      select: { shippingType: true, freeShippingThreshold: true } as any,
-    }) as { shippingType: string; freeShippingThreshold: number } | null;
-
-    // 조건부 무료배송 거래처에만 적용
-    if (!client || (client as any).shippingType !== 'conditional') return;
-
-    const freeThreshold = (client as any).freeShippingThreshold ?? 90000;
-
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
-
-    const orders = await this.prisma.order.findMany({
-      where: {
-        clientId,
-        orderedAt: { gte: todayStart, lte: todayEnd },
-        status: { not: 'cancelled' },
-      },
-      select: {
-        id: true,
-        orderNumber: true,
-        status: true,
-        productPrice: true,
-        shippingFee: true,
-        adjustmentAmount: true,
-        totalAmount: true,
-        finalAmount: true,
-        tax: true,
-        items: { select: { shipping: { select: { receiverType: true } } } },
-      },
-    });
-
-    // 고객직배송 포함 주문은 합배송 집계 제외 (스튜디오 배송 주문만)
-    const studioOrders = orders.filter(
-      (o) => !o.items.some((i) => i.shipping?.receiverType === 'direct_customer'),
-    );
-
-    const combinedTotal = studioOrders.reduce((sum, o) => sum + Number(o.productPrice), 0);
-
-    // 합산 금액이 무료배송 기준 미달 → 환불 없음
-    if (combinedTotal < freeThreshold) return;
-
-    // 배송비가 청구된 주문 중 아직 환불되지 않은 것만 처리
-    // (adjustmentAmount >= shippingFee 이면 이미 환불된 것으로 간주 → 중복 환불 방지)
-    const ordersToRefund = studioOrders.filter(
-      (o) => Number(o.shippingFee) > 0 && Number(o.adjustmentAmount) < Number(o.shippingFee),
-    );
-    if (ordersToRefund.length === 0) return;
-
-    for (const order of ordersToRefund) {
-      const shippingFee = Number(order.shippingFee);
-      const currentAdjustment = Number(order.adjustmentAmount);
-      const newAdjustment = currentAdjustment + shippingFee;
-      const newFinalAmount = Math.max(0, Number(order.totalAmount) - newAdjustment);
-
-      try {
-        await this.prisma.$transaction(async (tx) => {
-          await tx.order.update({
-            where: { id: order.id },
-            data: {
-              adjustmentAmount: newAdjustment,
-              finalAmount: newFinalAmount,
-              processHistory: {
-                create: {
-                  fromStatus: order.status,
-                  toStatus: order.status,
-                  processType: 'admin_adjustment',
-                  note: `합배송 배송비 환불: -${shippingFee.toLocaleString()}원 (당일 누적 ${Math.round(combinedTotal).toLocaleString()}원 ≥ 무료배송 기준 ${freeThreshold.toLocaleString()}원)`,
-                  processedBy: userId,
-                },
-              },
-            },
-          });
-
-          // 매출원장도 연동 업데이트
-          const ledger = await tx.salesLedger.findUnique({ where: { orderId: order.id } });
-          if (ledger) {
-            const productPrice = Number(order.productPrice);
-            const tax = Number(order.tax);
-            const ledgerTotal = productPrice + tax + shippingFee - newAdjustment;
-            await tx.salesLedger.update({
-              where: { orderId: order.id },
-              data: {
-                adjustmentAmount: newAdjustment,
-                totalAmount: Math.max(0, ledgerTotal),
-                outstandingAmount: Math.max(0, ledgerTotal - Number(ledger.receivedAmount)),
-              },
-            });
-          }
-        });
-
-        const isNewOrder = order.id === newOrderId;
-        this.logger.log(
-          `합배송 배송비 환불 완료: 주문 ${order.orderNumber} -${shippingFee.toLocaleString()}원${isNewOrder ? ' (신규)' : ' (기존)'}`,
-        );
-      } catch (err) {
-        this.logger.warn(`합배송 배송비 환불 실패 (주문: ${order.orderNumber}): ${err.message}`);
-      }
-    }
   }
 
   // ===== 합배송 체크: 당일 조건부 무료배송 적용 여부 =====

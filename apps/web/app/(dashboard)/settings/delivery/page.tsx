@@ -9,7 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Save, Plus, Trash2, Calculator, RotateCcw, Bike, Truck, Package, Box, MapPin, Navigation, Loader2 } from 'lucide-react';
+import { Save, Plus, Trash2, Calculator, RotateCcw, Bike, Truck, Package, Box, MapPin, Navigation, Loader2, Download } from 'lucide-react';
+import { format } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
 import {
   useDeliveryPricings,
@@ -170,6 +171,73 @@ export default function DeliverySettingsPage() {
     }
   };
 
+  const handleExportCSV = () => {
+    const rows: string[] = [];
+
+    // 섹션 1 — 배송방법 기본 요약
+    rows.push('[배송방법 기본 요약]');
+    rows.push('배송방법,기본요금(원),활성화');
+    (['motorcycle', 'damas', 'parcel', 'freight', 'pickup'] as DeliveryMethod[]).forEach((method) => {
+      const d = formData[method];
+      rows.push([DELIVERY_METHOD_LABELS[method], d.baseFee ?? 0, d.isActive ? 'Y' : 'N'].join(','));
+    });
+
+    // 섹션 2 — 거리별 단가 (오토바이, 다마스)
+    (['motorcycle', 'damas'] as DeliveryMethod[]).forEach((method) => {
+      const d = formData[method];
+      const ranges: DistanceRange[] = d.distanceRanges || [];
+      rows.push('');
+      rows.push(`[거리별 단가 - ${DELIVERY_METHOD_LABELS[method]}]`);
+      rows.push('구간,최소거리(km),최대거리(km),요금(원)');
+      ranges.forEach((r, i) => {
+        rows.push([`${i + 1}구간`, r.minDistance, r.maxDistance, r.price].join(','));
+      });
+      rows.push(`초과 km당 추가요금,,,${d.extraPricePerKm ?? 0}`);
+      rows.push(`최대 기본거리(km),,,${d.maxBaseDistance ?? 0}`);
+    });
+
+    // 섹션 3 — 할증 설정 (오토바이, 다마스, 화물)
+    rows.push('');
+    rows.push('[할증 설정]');
+    rows.push('배송방법,야간할증(%),주말할증(%),야간시작(시),야간종료(시)');
+    (['motorcycle', 'damas', 'freight'] as DeliveryMethod[]).forEach((method) => {
+      const d = formData[method];
+      const night = d.nightSurchargeRate != null ? Math.round(d.nightSurchargeRate * 100) : '-';
+      const weekend = d.weekendSurchargeRate != null ? Math.round(d.weekendSurchargeRate * 100) : '-';
+      const nightStart = d.nightStartHour ?? '-';
+      const nightEnd = d.nightEndHour ?? '-';
+      rows.push([DELIVERY_METHOD_LABELS[method], night, weekend, nightStart, nightEnd].join(','));
+    });
+
+    // 섹션 4 — 택배 상세
+    const parcel = formData['parcel'];
+    rows.push('');
+    rows.push('[택배 설정]');
+    rows.push('항목,금액(원)');
+    rows.push(`도서산간 추가요금,${parcel.islandFee ?? 0}`);
+    rows.push(`무료배송 기준금액,${parcel.freeThreshold ?? 0}`);
+
+    // 섹션 5 — 화물 크기별 단가
+    const freight = formData['freight'];
+    const sizeRanges: SizeRange[] = freight.sizeRanges || [];
+    rows.push('');
+    rows.push('[화물 크기별 단가]');
+    rows.push('구분,최대무게(kg),최대부피(㎥),추가요금(원)');
+    sizeRanges.forEach((r) => {
+      rows.push([r.name, r.maxWeight ?? '제한없음', r.maxVolume ?? '제한없음', r.price].join(','));
+    });
+
+    const csvContent = '\uFEFF' + rows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `배송비정책_${format(new Date(), 'yyyyMMdd')}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({ title: 'CSV 파일이 다운로드되었습니다.' });
+  };
+
   const handleInitialize = async () => {
     try {
       await initializePricing.mutateAsync();
@@ -281,10 +349,16 @@ export default function DeliverySettingsPage() {
           <h1 className="text-2xl font-bold">배송비 설정</h1>
           <p className="text-muted-foreground">배송방법별 요금을 설정합니다</p>
         </div>
-        <Button variant="outline" onClick={handleInitialize}>
-          <RotateCcw className="h-4 w-4 mr-2" />
-          기본값 초기화
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handleExportCSV} disabled={isLoading}>
+            <Download className="h-4 w-4 mr-2" />
+            CSV 다운로드
+          </Button>
+          <Button variant="outline" onClick={handleInitialize}>
+            <RotateCcw className="h-4 w-4 mr-2" />
+            기본값 초기화
+          </Button>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as DeliveryMethod)}>

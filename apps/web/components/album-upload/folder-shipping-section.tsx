@@ -78,8 +78,9 @@ export function FolderShippingSection({
         if (shippingType === 'conditional') {
           const parcelPricing = pricingMap['parcel'];
           const baseFee = parcelPricing ? Number(parcelPricing.baseFee) : 3500;
-          // per-client 기준금액 우선, 없으면 90,000원 기본값
-          const freeThreshold = clientInfo?.freeShippingThreshold ?? 90000;
+          // 기준금액: Client 설정 → DeliveryPricing['parcel'].freeThreshold → 90,000원 순 fallback
+          const freeThreshold = clientInfo?.freeShippingThreshold
+            ?? (parcelPricing?.freeThreshold != null ? Number(parcelPricing.freeThreshold) : 90000);
           // 스튜디오배송 합계가 무료배송 임계값 이상이면 0원
           if (studioTotal != null && studioTotal >= freeThreshold) {
             return { fee: 0, feeType: 'free' };
@@ -196,11 +197,9 @@ export function FolderShippingSection({
   const { fee } = calculateDeliveryFee(deliveryMethod, receiverType);
   const feeLabel = fee === 0 ? '무료' : `${fee.toLocaleString()}원`;
 
-  const parcelFreeThreshold = pricingMap['parcel']?.freeThreshold != null
-    ? Number(pricingMap['parcel'].freeThreshold)
-    : null;
+  const parcelFreeThreshold = clientInfo?.freeShippingThreshold
+    ?? (pricingMap['parcel']?.freeThreshold != null ? Number(pricingMap['parcel'].freeThreshold) : 90000);
   const isConditionalFree = clientInfo?.shippingType === 'conditional'
-    && parcelFreeThreshold != null
     && studioTotal != null
     && studioTotal >= parcelFreeThreshold;
 
