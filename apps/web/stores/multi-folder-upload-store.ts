@@ -219,6 +219,11 @@ export interface AdditionalOrder {
   selectedFabricCategory?: string | null;
   selectedFabricColorCode?: string | null;
   selectedFabricColorName?: string | null;
+  // 출력방법/용지 (원본 폴더에서 상속, 개별 변경 가능)
+  printMethod?: string | null;
+  colorMode?: string | null;
+  selectedPaperId?: string | null;
+  selectedPaperName?: string | null;
   // 동판 정보 (원본 폴더에서 상속, 개별 변경 가능)
   foilName?: string | null;
   foilColor?: string | null;
@@ -398,6 +403,7 @@ interface MultiFolderUploadState {
     price?: number | null; category?: string | null;
     colorCode?: string | null; colorName?: string | null;
   }) => void;
+  updateAdditionalOrderPrint: (folderId: string, orderId: string, printMethod: string, colorMode: string, paperId: string | null, paperName: string | null) => void;
   updateAdditionalOrderFoil: (folderId: string, orderId: string, foilName: string | null, foilColor: string | null, foilPosition: string | null) => void;
 
   // 규격 변경 (앨범규격 기준)
@@ -938,6 +944,10 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
           selectedFabricCategory: f.selectedFabricCategory,
           selectedFabricColorCode: f.selectedFabricColorCode,
           selectedFabricColorName: f.selectedFabricColorName,
+          printMethod: f.printMethod,
+          colorMode: f.colorMode,
+          selectedPaperId: f.selectedPaperId,
+          selectedPaperName: f.selectedPaperName,
           foilName: f.foilName,
           foilColor: f.foilColor,
           foilPosition: f.foilPosition,
@@ -1011,6 +1021,21 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
                   selectedFabricColorName: fabric.colorName ?? null,
                 }
                 : o
+            ),
+          }
+          : f
+      ),
+    }));
+  },
+
+  updateAdditionalOrderPrint: (folderId, orderId, printMethod, colorMode, paperId, paperName) => {
+    set(state => ({
+      folders: state.folders.map(f =>
+        f.id === folderId
+          ? {
+            ...f,
+            additionalOrders: f.additionalOrders.map(o =>
+              o.id === orderId ? { ...o, printMethod, colorMode, selectedPaperId: paperId, selectedPaperName: paperName } : o
             ),
           }
           : f

@@ -388,6 +388,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     updateAdditionalOrderQuantity,
     updateAdditionalOrderSpec,
     updateAdditionalOrderFabric,
+    updateAdditionalOrderPrint,
     updateAdditionalOrderFoil,
     changeFolderSpec,
     setFolderPageLayout,
@@ -1238,21 +1239,67 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                             </span>
                           )}
                         </div>
-                        {/* 출력방법 · 용지 (읽기 전용 - 원본 따라감) */}
-                        {folder.printMethod && (
-                          <div className="flex items-center gap-1 flex-wrap text-[10px] text-gray-500 mb-1">
-                            <span className="text-xs text-black">출력</span>
-                            <span className="text-[12px] border rounded px-1.5 py-0.5 bg-orange-50 text-black">
-                              {folder.printMethod === 'indigo'
-                                ? `인디고 ${folder.colorMode === '6c' ? '6도' : '4도'}`
-                                : '잉크젯'}
-                            </span>
-                            <span className="text-xs text-black ml-3">용지</span>
-                            <span className="text-[12px] border rounded px-1.5 py-0.5 bg-emerald-50 text-black">
-                              {folder.selectedPaperName || '-'}
-                            </span>
-                          </div>
-                        )}
+                        {/* 출력방법 · 용지 (개별 변경 가능) */}
+                        {(order.printMethod ?? folder.printMethod) && (() => {
+                          const orderPrintMethod = order.printMethod ?? folder.printMethod;
+                          const orderColorMode = order.colorMode ?? folder.colorMode;
+                          const filteredPapersForOrder = availablePapers.filter(p => {
+                            if (p.printMethod !== orderPrintMethod) return false;
+                            if (p.printMethod === 'indigo') {
+                              return orderColorMode === '6c' ? p.isActive6 !== false : p.isActive4 !== false;
+                            }
+                            return p.isActive !== false;
+                          });
+                          return (
+                            <div className="flex items-center gap-1 flex-wrap text-[10px] text-gray-500 mb-1">
+                              <span className="text-xs text-black">출력</span>
+                              <select
+                                value={orderPrintMethod === 'inkjet' ? 'inkjet' : `indigo_${orderColorMode || '4c'}`}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  if (val === 'inkjet') {
+                                    const inkjetPapers = availablePapers.filter(p => p.printMethod === 'inkjet' && p.isActive !== false);
+                                    const defaultPaper = inkjetPapers.find(p => p.isDefault) || inkjetPapers[0];
+                                    updateAdditionalOrderPrint(folder.id, order.id, 'inkjet', '4c', defaultPaper?.id || null, defaultPaper?.name || null);
+                                  } else {
+                                    const [, cm] = val.split('_') as [string, '4c' | '6c'];
+                                    const indigoPapers = availablePapers.filter(p =>
+                                      p.printMethod === 'indigo' && (cm === '6c' ? p.isActive6 !== false : p.isActive4 !== false)
+                                    );
+                                    const defaultPaper = indigoPapers.find(p => p.isDefault) || indigoPapers[0];
+                                    updateAdditionalOrderPrint(folder.id, order.id, 'indigo', cm, defaultPaper?.id || null, defaultPaper?.name || null);
+                                  }
+                                }}
+                                className="text-[12px] border rounded px-1.5 py-0.5 bg-orange-50 text-black"
+                              >
+                                {availablePapers.some(p => p.printMethod === 'indigo' && p.isActive4 !== false) && (
+                                  <option value="indigo_4c">인디고 4도</option>
+                                )}
+                                {availablePapers.some(p => p.printMethod === 'indigo' && p.isActive6 !== false) && (
+                                  <option value="indigo_6c">인디고 6도</option>
+                                )}
+                                {availablePapers.some(p => p.printMethod === 'inkjet' && p.isActive !== false) && (
+                                  <option value="inkjet">잉크젯</option>
+                                )}
+                              </select>
+                              <span className="text-xs text-black ml-3">용지</span>
+                              <select
+                                value={order.selectedPaperId ?? folder.selectedPaperId ?? ''}
+                                onChange={(e) => {
+                                  const paper = availablePapers.find(p => p.id === e.target.value);
+                                  if (paper) {
+                                    updateAdditionalOrderPrint(folder.id, order.id, orderPrintMethod!, orderColorMode || '4c', paper.id, paper.name);
+                                  }
+                                }}
+                                className="text-[12px] border rounded px-1.5 py-0.5 bg-emerald-50 text-black"
+                              >
+                                {filteredPapersForOrder.map(p => (
+                                  <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                          );
+                        })()}
                         {/* 패브릭/포일 편집 */}
                         {(order.selectedFabricName ?? folder.selectedFabricName ?? order.foilName ?? folder.foilName ?? order.foilColor ?? folder.foilColor) && (
                           <div className="flex items-center gap-1 flex-wrap text-[10px] text-gray-500 mb-1">
