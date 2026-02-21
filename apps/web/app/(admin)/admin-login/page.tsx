@@ -38,8 +38,46 @@ export default function AdminLoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 컴포넌트 마운트 시 저장된 로그인 정보 불러오기
+  // 개발 환경 자동 로그인
   useEffect(() => {
+    if (
+      process.env.NODE_ENV === 'development' &&
+      process.env.NEXT_PUBLIC_DEV_AUTO_LOGIN === 'true'
+    ) {
+      const autoLogin = async () => {
+        try {
+          setIsLoading(true);
+          const response = await api.post<StaffLoginResponse>('/auth/admin/login', {
+            staffId: 'admin',
+            password: 'admin',
+            rememberMe: true,
+          });
+
+          setAuth({
+            user: {
+              id: response.user.id,
+              email: response.user.email || response.user.staffId,
+              name: response.user.name,
+              role: response.user.role,
+              staffId: response.user.staffId,
+              isSuperAdmin: response.user.isSuperAdmin ?? false,
+            },
+            accessToken: response.accessToken,
+            refreshToken: response.refreshToken,
+            rememberMe: true,
+          });
+
+          router.push('/dashboard');
+        } catch {
+          // 자동 로그인 실패 시 수동 로그인 폼 표시
+          setIsLoading(false);
+        }
+      };
+      autoLogin();
+      return;
+    }
+
+    // 컴포넌트 마운트 시 저장된 로그인 정보 불러오기
     if (typeof window !== 'undefined') {
       const savedStaffId = localStorage.getItem('savedStaffId');
       const savedRememberMe = localStorage.getItem('savedRememberMe') === 'true';

@@ -599,30 +599,31 @@ export class OrderService {
       this.logger.error(`임시 파일 이동 최종 실패 (주문: ${order.orderNumber}):`, err.message);
     });
 
-    // 매출원장 자동 등록 (합배송 배송비 자동환불 기능 제거 - 당일 배송비합계는 별도 조회로 관리)
-    this.salesLedgerService.createFromOrder({
-      id: order.id,
-      orderNumber: order.orderNumber,
-      clientId: order.clientId,
-      productPrice: Number(order.productPrice),
-      shippingFee: Number(order.shippingFee),
-      tax: Number(order.tax),
-      totalAmount: Number(order.totalAmount),
-      finalAmount: Number(order.finalAmount),
-      paymentMethod: order.paymentMethod,
-      items: order.items.map(item => ({
-        id: item.id,
-        productId: item.productId,
-        productName: item.productName,
-        size: item.size,
-        quantity: item.quantity,
-        unitPrice: Number(item.unitPrice),
-        totalPrice: Number(item.totalPrice),
-      })),
-    }, userId)
-      .catch(() => {
-        // 매출원장 자동등록 실패 시 주문 생성은 계속 진행
-      });
+    // 매출원장 자동 등록 (await로 동기 처리하여 누락 방지)
+    try {
+      await this.salesLedgerService.createFromOrder({
+        id: order.id,
+        orderNumber: order.orderNumber,
+        clientId: order.clientId,
+        productPrice: Number(order.productPrice),
+        shippingFee: Number(order.shippingFee),
+        tax: Number(order.tax),
+        totalAmount: Number(order.totalAmount),
+        finalAmount: Number(order.finalAmount),
+        paymentMethod: order.paymentMethod,
+        items: order.items.map(item => ({
+          id: item.id,
+          productId: item.productId,
+          productName: item.productName,
+          size: item.size,
+          quantity: item.quantity,
+          unitPrice: Number(item.unitPrice),
+          totalPrice: Number(item.totalPrice),
+        })),
+      }, userId);
+    } catch (err) {
+      this.logger.error(`매출원장 자동등록 실패 (주문번호: ${order.orderNumber}):`, (err as Error).message);
+    }
 
     return order;
   }
@@ -833,6 +834,13 @@ export class OrderService {
       throw new BadRequestException('접수대기 또는 취소 상태의 주문만 삭제할 수 있습니다');
     }
 
+    // 매출원장 먼저 삭제 (items → ledger 순서)
+    const ledger = await this.prisma.salesLedger.findUnique({ where: { orderId: id } });
+    if (ledger) {
+      await this.prisma.salesLedgerItem.deleteMany({ where: { salesLedgerId: ledger.id } });
+      await this.prisma.salesLedger.delete({ where: { id: ledger.id } });
+    }
+
     // 디스크 파일 삭제 (DB 삭제 전에 경로 수집)
     const orderDirs = await this.getOrderDirectories([id]);
     for (const dir of orderDirs) {
@@ -1031,6 +1039,13 @@ export class OrderService {
               },
             },
           });
+
+          // 매출원장도 취소 처리
+          await tx.salesLedger.updateMany({
+            where: { orderId },
+            data: { salesStatus: 'CANCELLED' },
+          });
+
           results.success++;
           cancelledOrderIds.push(orderId);
         } catch { results.failed.push(orderId); }
@@ -1073,6 +1088,13 @@ export class OrderService {
           if (order.status !== ORDER_STATUS.PENDING_RECEIPT && order.status !== ORDER_STATUS.CANCELLED) {
             results.skipped.push(orderId);
             continue;
+          }
+
+          // 매출원장 먼저 삭제
+          const ledger = await tx.salesLedger.findUnique({ where: { orderId } });
+          if (ledger) {
+            await tx.salesLedgerItem.deleteMany({ where: { salesLedgerId: ledger.id } });
+            await tx.salesLedger.delete({ where: { id: ledger.id } });
           }
 
           await tx.order.delete({ where: { id: orderId } });

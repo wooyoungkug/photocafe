@@ -219,6 +219,35 @@ export default function SalesLedgerPage() {
   // ===== 목록 데이터 =====
   const ledgers = ledgerData?.data || [];
 
+  // ===== 거래처별 미수금 누적 잔액 계산 =====
+  const runningBalanceMap = useMemo(() => {
+    const map = new Map<string, number>();
+
+    // 거래처별 그룹핑
+    const clientGroups = new Map<string, SalesLedger[]>();
+    ledgers.forEach((l) => {
+      const group = clientGroups.get(l.clientId) || [];
+      group.push(l);
+      clientGroups.set(l.clientId, group);
+    });
+
+    // 거래처별로 날짜 오름차순 정렬 후 누적 계산
+    clientGroups.forEach((group) => {
+      const sorted = [...group].sort(
+        (a, b) =>
+          new Date(a.ledgerDate).getTime() - new Date(b.ledgerDate).getTime() ||
+          a.ledgerNumber.localeCompare(b.ledgerNumber)
+      );
+      let cumulative = 0;
+      sorted.forEach((l) => {
+        cumulative += Number(l.outstandingAmount);
+        map.set(l.id, cumulative);
+      });
+    });
+
+    return map;
+  }, [ledgers]);
+
   return (
     <div className="space-y-4">
       {/* 헤더: 제목 + 필터 인라인 */}
@@ -468,8 +497,8 @@ export default function SalesLedgerPage() {
                   <TableHead className="text-right w-[80px] text-xs">부가세</TableHead>
                   <TableHead className="text-right w-[80px] text-xs">할인금액</TableHead>
                   <TableHead className="text-right w-[100px] text-xs">합계금액</TableHead>
-                  <TableHead className="text-right w-[100px] text-xs">미입금액</TableHead>
-                  <TableHead className="text-right w-[100px] text-xs">거래처미수합계</TableHead>
+                  <TableHead className="text-right w-[100px] text-xs">미수금액</TableHead>
+                  <TableHead className="text-right w-[100px] text-xs">미수금누적</TableHead>
                   <TableHead className="text-center w-[70px] text-xs">결제상태</TableHead>
                   <TableHead className="text-center w-[80px] text-xs">입금처리</TableHead>
                 </TableRow>
@@ -509,7 +538,7 @@ export default function SalesLedgerPage() {
                       {Number(ledger.outstandingAmount) > 0 ? Number(ledger.outstandingAmount).toLocaleString() : '0'}
                     </TableCell>
                     <TableCell className="text-right text-xs py-2 whitespace-nowrap text-red-600 font-bold">
-                      {(clientOutstandingMap.get(ledger.clientId) || 0).toLocaleString()}
+                      {(runningBalanceMap.get(ledger.id) || 0).toLocaleString()}
                     </TableCell>
                     <TableCell className="text-center py-2">
                       {getPaymentStatusBadge(ledger.paymentStatus)}

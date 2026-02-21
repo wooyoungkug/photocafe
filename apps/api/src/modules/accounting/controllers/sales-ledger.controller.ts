@@ -249,6 +249,13 @@ export class SalesLedgerController {
     return this.salesLedgerService.backfillFromOrders();
   }
 
+  // ===== 고아 매출원장 정리 =====
+  @Post('cleanup-orphaned')
+  @ApiOperation({ summary: '삭제된 주문의 고아 매출원장 정리' })
+  async cleanupOrphaned() {
+    return this.salesLedgerService.cleanupOrphaned();
+  }
+
   // ===== 연체 일괄 처리 =====
   @Post('batch/update-overdue')
   @UseGuards(JwtAuthGuard)

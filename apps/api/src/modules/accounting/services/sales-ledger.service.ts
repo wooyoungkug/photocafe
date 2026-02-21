@@ -880,6 +880,31 @@ export class SalesLedgerService {
     return { total: totalToProcess, created, failed };
   }
 
+  // ===== 고아 매출원장 정리 (삭제된 주문의 매출원장 제거) =====
+  async cleanupOrphaned() {
+    const orphaned = await this.prisma.$queryRawUnsafe<{ id: string; ledgerNumber: string }[]>(
+      `SELECT sl.id, sl."ledgerNumber" FROM sales_ledgers sl
+       WHERE NOT EXISTS (SELECT 1 FROM orders o WHERE o.id = sl."orderId")`,
+    );
+
+    if (orphaned.length === 0) return { deleted: 0 };
+
+    const orphanedIds = orphaned.map(o => o.id);
+
+    // items 먼저 삭제 후 ledger 삭제
+    await this.prisma.salesLedgerItem.deleteMany({
+      where: { salesLedgerId: { in: orphanedIds } },
+    });
+    const result = await this.prisma.salesLedger.deleteMany({
+      where: { id: { in: orphanedIds } },
+    });
+
+    return {
+      deleted: result.count,
+      ledgerNumbers: orphaned.map(o => o.ledgerNumber),
+    };
+  }
+
   // ===== 월별 매출 추이 =====
   async getMonthlyTrend(months: number = 12) {
     const now = new Date();
