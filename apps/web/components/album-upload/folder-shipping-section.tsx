@@ -292,7 +292,7 @@ export function FolderShippingSection({
           </div>
         ) : receiverType === 'direct_customer' ? (
           <div className="space-y-2 border rounded-md p-3">
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <div>
                 <Label className="text-xs text-gray-500">수령인 <span className="text-red-500">*</span></Label>
                 <Input
@@ -303,7 +303,7 @@ export function FolderShippingSection({
                 />
               </div>
               <div>
-                <Label className="text-xs text-gray-500">연락처 <span className="text-red-500">*</span></Label>
+                <Label className="text-xs text-gray-500">연락처1 <span className="text-red-500">*</span></Label>
                 <PhoneInput
                   placeholder="010-0000-0000"
                   value={directPhone}
@@ -311,15 +311,15 @@ export function FolderShippingSection({
                   className={`h-8 text-sm ${!directPhone.trim() ? 'border-red-300 focus-visible:ring-red-400' : ''}`}
                 />
               </div>
-            </div>
-            <div>
-              <Label className="text-xs text-gray-500">연락처2 (백업)</Label>
-              <PhoneInput
-                placeholder="010-0000-0000"
-                value={directPhone2}
-                onChange={(value) => setDirectPhone2(value)}
-                className="h-8 text-sm"
-              />
+              <div>
+                <Label className="text-xs text-gray-500">연락처2 (백업)</Label>
+                <PhoneInput
+                  placeholder="010-0000-0000"
+                  value={directPhone2}
+                  onChange={(value) => setDirectPhone2(value)}
+                  className="h-8 text-sm"
+                />
+              </div>
             </div>
             <div>
               <Label className="text-xs text-gray-500">주소 <span className="text-red-500">*</span></Label>
