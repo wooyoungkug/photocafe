@@ -37,6 +37,7 @@ interface FolderShippingSectionProps {
   pricingMap: Record<string, DeliveryPricing>;
   onChange: (shipping: FolderShippingInfo) => void;
   studioTotal?: number;
+  isCombinedShipping?: boolean;
 }
 
 export function FolderShippingSection({
@@ -46,6 +47,7 @@ export function FolderShippingSection({
   pricingMap,
   onChange,
   studioTotal,
+  isCombinedShipping,
 }: FolderShippingSectionProps) {
   // 로컬 상태
   const [senderType, setSenderType] = useState<SenderType>(shippingInfo?.senderType || 'company');
@@ -197,7 +199,8 @@ export function FolderShippingSection({
   }, [receiverType, deliveryMethod]);
 
   const { fee } = calculateDeliveryFee(deliveryMethod, receiverType);
-  const feeLabel = fee === 0 ? '무료' : `${fee.toLocaleString()}원`;
+  const isThisCombined = isCombinedShipping && receiverType === 'orderer' && deliveryMethod !== 'pickup';
+  const feeLabel = isThisCombined ? '무료(합배송)' : fee === 0 ? '무료' : `${fee.toLocaleString()}원`;
 
   const parcelFreeThreshold = clientInfo?.freeShippingThreshold
     ?? (pricingMap['parcel']?.freeThreshold != null ? Number(pricingMap['parcel'].freeThreshold) : 90000);
@@ -371,7 +374,7 @@ export function FolderShippingSection({
           <div className="flex items-center gap-1.5">
             <Package className="h-3.5 w-3.5 text-gray-400" />
             <span className="text-sm font-medium">
-              배송비: <span className={fee === 0 ? 'text-green-600' : 'text-blue-600'}>{feeLabel}</span>
+              배송비: <span className={fee === 0 || isThisCombined ? 'text-green-600' : 'text-blue-600'}>{feeLabel}</span>
             </span>
           </div>
         </div>

@@ -697,6 +697,7 @@ export function CartItemCard({
                       pricingMap={pricingMap}
                       onChange={(shipping) => onShippingChange(item.id, shipping)}
                       studioTotal={studioTotal}
+                      isCombinedShipping={isCombinedShipping}
                     />
 
                     {onCopyFromPrevious && !isShippingComplete(itemShipping) && (
