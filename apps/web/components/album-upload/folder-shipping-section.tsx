@@ -327,13 +327,7 @@ export function FolderShippingSection({
                 placeholder="주소"
                 value={directAddress}
                 onChange={(e) => setDirectAddress(e.target.value)}
-                className={`h-8 text-sm mb-1 ${!directAddress.trim() ? 'border-red-300 focus-visible:ring-red-400' : ''}`}
-              />
-              <Input
-                placeholder="상세주소"
-                value={directAddressDetail}
-                onChange={(e) => setDirectAddressDetail(e.target.value)}
-                className="h-8 text-sm"
+                className={`h-8 text-sm ${!directAddress.trim() ? 'border-red-300 focus-visible:ring-red-400' : ''}`}
               />
             </div>
             {(!directRecipientName.trim() || !directPhone.trim() || !directAddress.trim()) && (
