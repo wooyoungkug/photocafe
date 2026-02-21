@@ -908,9 +908,21 @@ export default function MonthlySummaryPage() {
                                             )}
                                             <span className="text-gray-300 shrink-0">·</span>
                                             <span className="truncate">
-                                              {order.items?.[0]?.folderName
-                                                ? `${order.items[0].folderName} · ${order.items[0].productName || ''}`
-                                                : order.items?.[0]?.productName || '-'}
+                                              {(() => {
+                                                const folder = order.items?.[0]?.folderName;
+                                                const product = order.items?.[0]?.productName || '';
+                                                if (folder) {
+                                                  let base = product;
+                                                  if (product.includes(folder)) {
+                                                    base = product
+                                                      .substring(0, product.indexOf(folder))
+                                                      .replace(/\s*[-·]\s*$/, '')
+                                                      .trim();
+                                                  }
+                                                  return `${folder} · ${base || product}`;
+                                                }
+                                                return product || '-';
+                                              })()}
                                               {order.items?.length > 1 && (
                                                 <span className="text-muted-foreground text-xs ml-1">
                                                   외 {order.items.length - 1}건
