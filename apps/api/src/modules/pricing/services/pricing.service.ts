@@ -7,10 +7,7 @@ import {
   SetGroupProductPriceDto,
   SetGroupHalfProductPriceDto,
   SetGroupProductionSettingPricesDto,
-<<<<<<< Updated upstream
   SetClientProductionSettingPricesDto,
-=======
->>>>>>> Stashed changes
 } from '../dto';
 
 /**
@@ -455,66 +452,6 @@ export class PricingService {
 
       return results;
     });
-=======
-   * 그룹별 생산설정 단가 설정 (upsert)
-   */
-  async setGroupProductionSettingPrices(dto: SetGroupProductionSettingPricesDto) {
-    const results = [];
-
-    for (const priceData of dto.prices) {
-      // 고유 키 구성 (priceGroupId 포함)
-      const uniqueKey = {
-        clientGroupId: dto.clientGroupId,
-        productionSettingId: dto.productionSettingId,
-        specificationId: priceData.specificationId || null,
-        priceGroupId: priceData.priceGroupId || null,
-        minQuantity: priceData.minQuantity || null,
-      };
-
-      const data = {
-        clientGroupId: dto.clientGroupId,
-        productionSettingId: dto.productionSettingId,
-        specificationId: priceData.specificationId,
-        priceGroupId: priceData.priceGroupId,
-        minQuantity: priceData.minQuantity,
-        maxQuantity: priceData.maxQuantity,
-        weight: priceData.weight,
-        price: priceData.price || 0,
-        singleSidedPrice: priceData.singleSidedPrice,
-        doubleSidedPrice: priceData.doubleSidedPrice,
-        fourColorSinglePrice: priceData.fourColorSinglePrice,
-        fourColorDoublePrice: priceData.fourColorDoublePrice,
-        sixColorSinglePrice: priceData.sixColorSinglePrice,
-        sixColorDoublePrice: priceData.sixColorDoublePrice,
-        basePages: priceData.basePages,
-        basePrice: priceData.basePrice,
-        pricePerPage: priceData.pricePerPage,
-        rangePrices: priceData.rangePrices,
-      };
-
-      // 기존 레코드 찾기
-      const existing = await this.prisma.groupProductionSettingPrice.findFirst({
-        where: uniqueKey,
-      });
-
-      if (existing) {
-        // 업데이트
-        const updated = await this.prisma.groupProductionSettingPrice.update({
-          where: { id: existing.id },
-          data,
-        });
-        results.push(updated);
-      } else {
-        // 생성
-        const created = await this.prisma.groupProductionSettingPrice.create({
-          data,
-        });
-        results.push(created);
-      }
-    }
-
-    return results;
->>>>>>> Stashed changes
   }
 
   /**
@@ -537,8 +474,6 @@ export class PricingService {
       },
     });
   }
-<<<<<<< Updated upstream
-
   // ==================== 거래처 개별 생산설정 단가 관리 ====================
 
   /**
@@ -719,6 +654,4 @@ export class PricingService {
       ...p.productionSetting,
     }));
   }
-=======
->>>>>>> Stashed changes
 }

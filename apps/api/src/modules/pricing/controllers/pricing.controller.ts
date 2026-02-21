@@ -17,10 +17,7 @@ import {
   SetGroupProductPriceDto,
   SetGroupHalfProductPriceDto,
   SetGroupProductionSettingPricesDto,
-<<<<<<< Updated upstream
   SetClientProductionSettingPricesDto,
-=======
->>>>>>> Stashed changes
 } from '../dto';
 
 @ApiTags('가격관리')
@@ -122,7 +119,6 @@ export class PricingController {
   async deleteGroupProductionSettingPrice(@Param('id') id: string) {
     return this.pricingService.deleteGroupProductionSettingPrice(id);
   }
-<<<<<<< Updated upstream
 
   // ==================== 거래처 개별 생산설정 단가 관리 ====================
 
@@ -162,6 +158,4 @@ export class PricingController {
   async deleteClientProductionSettingPrice(@Param('id') id: string) {
     return this.pricingService.deleteClientProductionSettingPrice(id);
   }
-=======
->>>>>>> Stashed changes
 }
