@@ -500,7 +500,40 @@ export class OrderService {
           _sum: { adjustmentAmount: true },
         });
         const alreadyRefundedTotal = Number(alreadyRefunded._sum.adjustmentAmount ?? 0);
-        adjustmentAmount = Math.max(0, adjustmentAmount - alreadyRefundedTotal);
+        const cappedAdjustment = Math.max(0, adjustmentAmount - alreadyRefundedTotal);
+
+        // 잘린 초과분 → 고객 부채(음수)로 pending에 이월 저장
+        const excess = adjustmentAmount - cappedAdjustment;
+        if (excess > 0) {
+          const today = new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' });
+          await tx.client.update({
+            where: { id: dto.clientId },
+            data: {
+              pendingAdjustmentAmount: { decrement: excess },
+              pendingAdjustmentReason: `${today} 합배송 환급 중 중복 발생 (다음 주문 복구: ${excess.toLocaleString()}원)`,
+              pendingAdjustmentAt: new Date(),
+            } as any,
+          });
+          this.logger.warn(`합배송 중복환급 감지 → pending 이월: 거래처 ${dto.clientId}, 금액 -${excess}원`);
+        }
+
+        adjustmentAmount = cappedAdjustment;
+      }
+
+      // 미결 조정금액(pendingAdjustment) 자동 적용 후 초기화
+      // 양수: 다음 주문 할인(크레딧), 음수: 다음 주문 추가청구(부채)
+      const clientForPending = await tx.client.findUnique({
+        where: { id: dto.clientId },
+        select: { pendingAdjustmentAmount: true, pendingAdjustmentReason: true } as any,
+      }) as { pendingAdjustmentAmount: any; pendingAdjustmentReason: string | null } | null;
+      const pendingAdj = Number(clientForPending?.pendingAdjustmentAmount ?? 0);
+      if (pendingAdj !== 0) {
+        adjustmentAmount += pendingAdj;
+        await tx.client.update({
+          where: { id: dto.clientId },
+          data: { pendingAdjustmentAmount: 0, pendingAdjustmentReason: null, pendingAdjustmentAt: null } as any,
+        });
+        this.logger.log(`미결 조정금액 적용 완료: 거래처 ${dto.clientId}, 금액 ${pendingAdj}원`);
       }
 
       return tx.order.create({
@@ -2190,11 +2223,19 @@ export class OrderService {
     const client = await this.prisma.client.findUnique({
       where: { id: clientId },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      select: { shippingType: true, freeShippingThreshold: true } as any,
-    }) as { shippingType: string; freeShippingThreshold: number } | null;
+      select: { shippingType: true, freeShippingThreshold: true, pendingAdjustmentAmount: true, pendingAdjustmentReason: true } as any,
+    }) as { shippingType: string; freeShippingThreshold: number; pendingAdjustmentAmount: any; pendingAdjustmentReason: string | null } | null;
 
     if (!client || client.shippingType !== 'conditional') {
-      return { applicable: false, totalProductAmount: 0, totalShippingCharged: 0, freeThreshold: 90000, ordersWithFee: [] };
+      return {
+        applicable: false,
+        totalProductAmount: 0,
+        totalShippingCharged: 0,
+        freeThreshold: 90000,
+        ordersWithFee: [],
+        pendingAdjustmentAmount: Number((client as any)?.pendingAdjustmentAmount ?? 0),
+        pendingAdjustmentReason: (client as any)?.pendingAdjustmentReason ?? null,
+      };
     }
 
     const todayStart = new Date();
@@ -2248,6 +2289,8 @@ export class OrderService {
       totalShippingCharged: netShippingCharged,
       ordersWithFee: netShippingCharged > 0 ? ordersWithFee : [],
       freeThreshold: (client as any).freeShippingThreshold ?? 90000,
+      pendingAdjustmentAmount: Number((client as any).pendingAdjustmentAmount ?? 0),
+      pendingAdjustmentReason: (client as any).pendingAdjustmentReason ?? null,
     };
   }
 }

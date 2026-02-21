@@ -141,6 +141,8 @@ export default function OrderPage() {
     totalShippingCharged: number;
     freeThreshold: number;
     ordersWithFee: { orderId: string; orderNumber: string; shippingFee: number }[];
+    pendingAdjustmentAmount: number;
+    pendingAdjustmentReason: string | null;
   } | null>(null);
 
   // 회원정보 로드 (ID 직접 조회 → 실패 시 email로 검색)
@@ -474,7 +476,9 @@ export default function OrderPage() {
     : totalShippingFee;
   // 이전 배송비 환급: 이번 주문으로 처음 기준을 넘는 경우에만 차감
   const combinedShippingAdjustment = combinedShipping?.shouldRefundPrevious ? -(combinedShipping.totalShippingCharged) : 0;
-  const total = subtotal + effectiveShippingFee + combinedShippingAdjustment;
+  // 미결 조정금액: 양수=크레딧(차감), 음수=부채(추가청구) → total에 반대 부호로 반영
+  const pendingAdjustmentAmount = sameDayData?.pendingAdjustmentAmount ?? 0;
+  const total = subtotal + effectiveShippingFee + combinedShippingAdjustment - pendingAdjustmentAmount;
 
   // Redirect to login if not authenticated
   if (!isAuthenticated) {
@@ -654,6 +658,18 @@ export default function OrderPage() {
             od.adjustmentAmount = combinedShipping.totalShippingCharged;
             creditApplied = true;
           }
+        }
+      }
+    }
+
+    // 미결 조정금액(pendingAdjustment) 첫 번째 비직배송 주문 DTO에 합산
+    // 백엔드 create()에서 DB의 실제 pending 값을 트랜잭션 내 재확인 후 적용 → 여기선 UI 표시용
+    if (pendingAdjustmentAmount !== 0) {
+      for (const od of orderDataList) {
+        const isDirectCustomer = od.items?.[0]?.shipping?.receiverType === 'direct_customer';
+        if (!isDirectCustomer) {
+          od.adjustmentAmount = (od.adjustmentAmount ?? 0) + pendingAdjustmentAmount;
+          break;
         }
       }
     }

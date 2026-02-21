@@ -219,6 +219,9 @@ model Client {
   lastPaymentDate         DateTime?
   shippingType            String                         @default("conditional")
   freeShippingThreshold   Int                            @default(90000)
+  pendingAdjustmentAmount Decimal                        @default(0) @db.Decimal(10, 2)
+  pendingAdjustmentReason String?
+  pendingAdjustmentAt     DateTime?
   creditGrade             String                         @default("B")
   paymentTerms            Int                            @default(30)
   paymentCondition        String?                        @default("당월말")
