@@ -140,14 +140,11 @@ export class AuthController {
   @UseGuards(AuthGuard('naver'))
   @ApiOperation({ summary: '네이버 로그인 콜백' })
   async naverAuthCallback(@Request() req: any, @Res() res: Response) {
-    // 네이버 로그인 성공 시 JWT 토큰 발급
     const tokens = await this.authService.loginClient(req.user);
+    const code = this.authService.generateOAuthCode(tokens);
 
-    // 프론트엔드로 토큰과 함께 리다이렉트
     const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3002';
-    const redirectUrl = `${frontendUrl}/auth/callback?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}&userId=${tokens.user.id}&userName=${encodeURIComponent(tokens.user.name)}&userEmail=${encodeURIComponent(tokens.user.email)}&clientId=${tokens.user.clientId || tokens.user.id}`;
-
-    return res.redirect(redirectUrl);
+    return res.redirect(`${frontendUrl}/auth/callback?code=${code}`);
   }
 
   // 카카오 OAuth 로그인 시작
@@ -163,14 +160,21 @@ export class AuthController {
   @UseGuards(AuthGuard('kakao'))
   @ApiOperation({ summary: '카카오 로그인 콜백' })
   async kakaoAuthCallback(@Request() req: any, @Res() res: Response) {
-    // 카카오 로그인 성공 시 JWT 토큰 발급
     const tokens = await this.authService.loginClient(req.user);
+    const code = this.authService.generateOAuthCode(tokens);
 
-    // 프론트엔드로 토큰과 함께 리다이렉트
     const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3002';
-    const redirectUrl = `${frontendUrl}/auth/callback?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}&userId=${tokens.user.id}&userName=${encodeURIComponent(tokens.user.name)}&userEmail=${encodeURIComponent(tokens.user.email)}&clientId=${tokens.user.clientId || tokens.user.id}`;
+    return res.redirect(`${frontendUrl}/auth/callback?code=${code}`);
+  }
 
-    return res.redirect(redirectUrl);
+  // OAuth 코드 → 토큰 교환
+  @Post('exchange-code')
+  @ApiOperation({ summary: 'OAuth 인증 코드를 토큰으로 교환' })
+  async exchangeCode(@Body('code') code: string) {
+    if (!code) {
+      throw new UnauthorizedException('인증 코드가 필요합니다.');
+    }
+    return this.authService.exchangeOAuthCode(code);
   }
 
   // ========== 관리자(직원) 로그인 ==========

@@ -219,8 +219,8 @@ function LoginForm() {
                     accessToken: string;
                     refreshToken: string;
                   }>('/auth/client/login', {
-                    email: 'wooceo@gmail.com',
-                    password: 'color060',
+                    email: process.env.NEXT_PUBLIC_DEV_CLIENT_EMAIL || '',
+                    password: process.env.NEXT_PUBLIC_DEV_CLIENT_PASSWORD || '',
                   });
                   setAuth({
                     user: response.user,

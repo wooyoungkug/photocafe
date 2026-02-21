@@ -1,17 +1,65 @@
-import { Injectable, UnauthorizedException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, ConflictException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { RegisterIndividualDto, RegisterStudioDto } from './dto/auth.dto';
 
+interface OAuthTokenData {
+  accessToken: string;
+  refreshToken: string;
+  user: any;
+  expiresAt: number;
+}
+
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+  // OAuth 일회용 코드 → 토큰 교환 저장소 (TTL 60초)
+  private readonly oauthCodeStore = new Map<string, OAuthTokenData>();
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
     private configService: ConfigService,
   ) { }
+
+  /** OAuth 콜백용: 토큰을 임시 코드로 저장 (60초 TTL) */
+  generateOAuthCode(tokens: { accessToken: string; refreshToken: string; user: any }): string {
+    const code = crypto.randomBytes(32).toString('hex');
+    this.oauthCodeStore.set(code, {
+      ...tokens,
+      expiresAt: Date.now() + 60_000,
+    });
+    // 만료된 코드 정리
+    this.cleanupExpiredCodes();
+    return code;
+  }
+
+  /** OAuth 코드 → 토큰 교환 (1회 사용) */
+  exchangeOAuthCode(code: string): { accessToken: string; refreshToken: string; user: any } {
+    const data = this.oauthCodeStore.get(code);
+    if (!data) {
+      throw new UnauthorizedException('유효하지 않은 인증 코드입니다.');
+    }
+    if (Date.now() > data.expiresAt) {
+      this.oauthCodeStore.delete(code);
+      throw new UnauthorizedException('인증 코드가 만료되었습니다.');
+    }
+    // 1회 사용 후 삭제
+    this.oauthCodeStore.delete(code);
+    return { accessToken: data.accessToken, refreshToken: data.refreshToken, user: data.user };
+  }
+
+  private cleanupExpiredCodes() {
+    const now = Date.now();
+    for (const [key, value] of this.oauthCodeStore.entries()) {
+      if (now > value.expiresAt) {
+        this.oauthCodeStore.delete(key);
+      }
+    }
+  }
 
   async validateUser(email: string, password: string): Promise<any> {
     const user = await this.prisma.user.findUnique({

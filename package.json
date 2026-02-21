@@ -28,6 +28,8 @@
     "db:push": "npm -w apps/api run db:push",
     "db:migrate": "npm -w apps/api run db:migrate",
     "db:studio": "npm -w apps/api run db:studio",
+    "db:dump": "npm -w apps/api run db:dump",
+    "db:restore": "npm -w apps/api run db:restore",
     "lint": "npm run lint --workspaces",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\""
   },

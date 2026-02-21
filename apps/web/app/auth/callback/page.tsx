@@ -11,70 +11,72 @@ function AuthCallbackContent() {
     const processedRef = useRef(false);
 
     useEffect(() => {
-        // 이미 처리됐으면 스킵
         if (processedRef.current) return;
         processedRef.current = true;
 
         const processAuth = async () => {
             try {
-                // 'token' 또는 'accessToken' 둘 다 지원
-                const token = searchParams.get('token') || searchParams.get('accessToken');
-                const userParam = searchParams.get('user');
+                const oauthCode = searchParams.get('code');
                 const isImpersonated = searchParams.get('impersonated') === 'true';
 
-                // URL 파라미터에서 사용자 정보 가져오기
-                const userId = searchParams.get('userId') || '';
-                const userName = searchParams.get('userName') || '';
-                const userEmail = searchParams.get('userEmail') || '';
-                const clientId = searchParams.get('clientId') || '';
+                let token = '';
+                let refreshToken = '';
+                let userData = { id: '', email: '', name: '관리자', role: 'admin' };
+                let clientId = '';
 
-                if (!token) {
-                    setError('토큰이 없습니다');
-                    return;
+                if (oauthCode && !isImpersonated) {
+                    // OAuth 코드 교환 방식 (네이버/카카오) — JWT가 URL에 노출되지 않음
+                    setStatus('인증 처리 중...');
+                    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+                    const res = await fetch(`${apiUrl}/auth/exchange-code`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ code: oauthCode }),
+                    });
+                    if (!res.ok) {
+                        throw new Error('인증 코드 교환에 실패했습니다.');
+                    }
+                    const data = await res.json();
+                    token = data.accessToken;
+                    refreshToken = data.refreshToken;
+                    userData = {
+                        id: data.user?.id || '',
+                        email: data.user?.email || '',
+                        name: data.user?.name || '회원',
+                        role: 'client',
+                    };
+                    clientId = data.user?.clientId || data.user?.id || '';
+                    setStatus('로그인 성공! 쇼핑몰로 이동합니다...');
+                } else {
+                    // 대리 로그인 등 기존 방식 (토큰 직접 전달)
+                    token = searchParams.get('token') || searchParams.get('accessToken') || '';
+                    refreshToken = searchParams.get('refreshToken') || '';
+                    const userId = searchParams.get('userId') || '';
+                    const userName = searchParams.get('userName') || '';
+                    const userEmail = searchParams.get('userEmail') || '';
+                    clientId = searchParams.get('clientId') || '';
+                    const userParam = searchParams.get('user');
+
+                    if (!token) {
+                        setError('토큰이 없습니다');
+                        return;
+                    }
+
+                    if (isImpersonated) {
+                        userData = { id: userId, email: userEmail, name: userName || '회원', role: 'client' };
+                        setStatus('회원으로 로그인 중...');
+                    } else if (userId && userEmail) {
+                        userData = { id: userId, email: userEmail, name: userName || '회원', role: 'client' };
+                        setStatus('로그인 성공!');
+                    } else if (userParam) {
+                        try { userData = JSON.parse(userParam); } catch { /* ignore */ }
+                        setStatus('대시보드로 이동합니다...');
+                    }
                 }
 
-                // Store token in localStorage
                 localStorage.setItem('accessToken', token);
 
-                // Parse user data
-                let userData = { id: '', email: '', name: '관리자', role: 'admin' };
-
-                if (isImpersonated) {
-                    // 대리 로그인: URL 파라미터에서 사용자 정보 구성
-                    userData = {
-                        id: userId,
-                        email: userEmail,
-                        name: userName || '회원',
-                        role: 'client',
-                    };
-                    setStatus('회원으로 로그인 중...');
-                } else if (userId && userEmail) {
-                    // OAuth 로그인 (네이버, 카카오): URL 파라미터 사용
-                    userData = {
-                        id: userId,
-                        email: userEmail,
-                        name: userName || '회원',
-                        role: 'client',
-                    };
-                    localStorage.setItem('user', JSON.stringify(userData));
-                    setStatus('로그인 성공! 쇼핑몰로 이동합니다...');
-                } else if (userParam) {
-                    // 기존 방식 (JSON 파라미터)
-                    try {
-                        userData = JSON.parse(userParam);
-                        localStorage.setItem('user', JSON.stringify(userData));
-                        setStatus('로그인 성공! 대시보드로 이동합니다...');
-                    } catch {
-                        setStatus('사용자 정보 파싱 실패, 대시보드로 이동합니다...');
-                    }
-                } else {
-                    // 사용자 정보 없음
-                    // No user information found in URL params
-                }
-
-                const refreshToken = searchParams.get('refreshToken') || '';
-
-                // Zustand persist store 직접 업데이트 (AuthGuard에서 확인하는 auth-storage)
+                // Zustand persist store 직접 업데이트
                 const authStorageData = {
                     state: {
                         user: {
@@ -82,7 +84,7 @@ function AuthCallbackContent() {
                             email: userData.email || '',
                             name: userData.name || (isImpersonated ? '회원' : '관리자'),
                             role: userData.role || (isImpersonated ? 'client' : 'admin'),
-                            ...(clientId && { clientId }), // 대리 로그인 시 clientId 추가
+                            ...(clientId && { clientId }),
                         },
                         accessToken: token,
                         refreshToken: refreshToken,
@@ -94,10 +96,6 @@ function AuthCallbackContent() {
                 localStorage.setItem('auth-storage', JSON.stringify(authStorageData));
                 localStorage.setItem('refreshToken', refreshToken);
 
-                // 리다이렉트 URL 결정
-                // 1. 대리 로그인 → 쇼핑몰(/)
-                // 2. OAuth 로그인 (role: client) → 쇼핑몰(/)
-                // 3. 관리자 로그인 → 대시보드(/dashboard)
                 const isClient = userData.role === 'client';
                 const redirectUrl = (isImpersonated || isClient) ? '/' : '/dashboard';
                 setStatus((isImpersonated || isClient) ? '쇼핑몰로 이동합니다...' : '대시보드로 이동합니다...');

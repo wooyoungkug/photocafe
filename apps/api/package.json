@@ -18,7 +18,9 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
-    "db:seed": "ts-node prisma/seed.ts"
+    "db:seed": "ts-node prisma/seed.ts",
+    "db:dump": "PGPASSWORD=postgres pg_dump -U postgres -h localhost -p 5432 -d printing_erp --data-only --no-owner --no-acl --exclude-table=order_files --exclude-table=photobook_files --exclude-table=photobook_orders -f prisma/testdata.sql && echo 'DB 덤프 완료: prisma/testdata.sql'",
+    "db:restore": "prisma db push --force-reset && PGPASSWORD=postgres psql -U postgres -h localhost -p 5432 -d printing_erp -f prisma/testdata.sql && echo 'DB 복원 완료'"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.12",

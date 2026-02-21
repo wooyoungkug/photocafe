@@ -60,7 +60,8 @@ sudo docker logs printing114-api --tail 50
 nano /volume1/docker/printing114/.env.production
 
 # 다음 내용 확인/추가:
-DATABASE_URL="postgresql://postgres:photocafe2024!@192.168.0.67:5433/postgres?connection_limit=30&pool_timeout=20&connect_timeout=10"
+DATABASE_URL="postgresql://postgres:<PASSWORD>@<DB_HOST>:5433/postgres?connection_limit=30&pool_timeout=20&connect_timeout=10"
+# 실제 패스워드와 호스트는 .env.production 파일에서 설정
 ```
 
 **커넥션 풀 파라미터 설명:**

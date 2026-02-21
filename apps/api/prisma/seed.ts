@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 
 const prisma = new PrismaClient();
 
@@ -9,7 +10,9 @@ async function seedUsers() {
   });
 
   if (!existingAdmin) {
-    const hashedPassword = await bcrypt.hash('color060', 10);
+    const defaultPassword = process.env.ADMIN_DEFAULT_PASSWORD || crypto.randomBytes(8).toString('hex');
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+    console.log(`Admin password: ${process.env.ADMIN_DEFAULT_PASSWORD ? '(from env)' : defaultPassword} — 반드시 변경하세요!`);
 
     const admin = await prisma.user.create({
       data: {
@@ -470,7 +473,9 @@ async function seedStaff() {
     where: { code: 'ADMIN' },
   });
 
-  const hashedPassword = await bcrypt.hash('admin', 10);
+  const staffDefaultPassword = process.env.ADMIN_DEFAULT_PASSWORD || crypto.randomBytes(8).toString('hex');
+  const hashedPassword = await bcrypt.hash(staffDefaultPassword, 10);
+  console.log(`Staff admin password: ${process.env.ADMIN_DEFAULT_PASSWORD ? '(from env)' : staffDefaultPassword} — 반드시 변경하세요!`);
 
   await prisma.staff.create({
     data: {

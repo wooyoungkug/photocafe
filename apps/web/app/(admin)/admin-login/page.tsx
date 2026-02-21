@@ -201,8 +201,8 @@ export default function AdminLoginPage() {
                   setIsLoading(true);
                   try {
                     const response = await api.post<StaffLoginResponse>('/auth/admin/login', {
-                      staffId: 'admin',
-                      password: 'color060',
+                      staffId: process.env.NEXT_PUBLIC_DEV_ADMIN_ID || '',
+                      password: process.env.NEXT_PUBLIC_DEV_ADMIN_PASSWORD || '',
                       rememberMe: true,
                     });
                     setAuth({

@@ -39,21 +39,19 @@ npm run db:studio    # Prisma Studio
 ### 관리자(직원) 로그인
 **중요**: 관리자 로그인 시 이메일이 아닌 **직원 ID**를 입력해야 합니다.
 
-| 직원 ID | 이름 | 이메일 | 비밀번호 |
-|---------|------|--------|----------|
-| admin | 우영국 | wooceo@gmail.com | color060 |
-| song | 송만석 | - | (문의 필요) |
+| 직원 ID | 이름 | 비밀번호 |
+|---------|------|----------|
+| admin | 우영국 | .env 참조 또는 관리자 문의 |
+| song | 송만석 | 관리자 문의 |
 
 ## 환경변수 (apps/api/.env)
 
-```env
-# 로컬
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/printing_erp"
-JWT_SECRET="your-secret-key"
-FRONTEND_URL="http://localhost:3002"
+> **주의**: 실제 시크릿 값은 절대 문서에 기록하지 마세요. `apps/api/.env.example` 참조.
 
-# 운영
-DATABASE_URL="postgresql://postgres:photocafe2024!@192.168.0.67:5433/postgres"
+```env
+DATABASE_URL=환경변수(.env) 참조
+JWT_SECRET=환경변수(.env) 참조 (최소 32자 랜덤 문자열)
+FRONTEND_URL="http://localhost:3002"
 ```
 
 ## API 문서

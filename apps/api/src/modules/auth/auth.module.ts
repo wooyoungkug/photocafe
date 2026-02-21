@@ -16,7 +16,13 @@ import { KakaoStrategy } from './strategies/kakao.strategy';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET') || 'default-secret-key',
+        secret: (() => {
+          const secret = configService.get<string>('JWT_SECRET');
+          if (!secret || secret.length < 32) {
+            throw new Error('JWT_SECRET 환경변수가 설정되지 않았거나 32자 미만입니다. 앱을 시작할 수 없습니다.');
+          }
+          return secret;
+        })(),
         signOptions: {
           expiresIn: '24h' as const,
         },
