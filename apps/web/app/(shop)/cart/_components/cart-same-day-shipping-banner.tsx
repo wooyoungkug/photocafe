@@ -15,7 +15,8 @@ export function CartSameDayShippingBanner({ info, newOrderTotal }: CartSameDaySh
   const { totalProductAmount, totalShippingCharged, freeThreshold, ordersWithFee } = info;
   const combinedTotal = totalProductAmount + newOrderTotal;
   const remaining = freeThreshold - combinedTotal;
-  const isFreeEligible = combinedTotal >= freeThreshold;
+  const isBundleFree = ordersWithFee.length > 0; // 당일 이미 배송비 청구됨 → 묶음배송 무료
+  const isFreeEligible = !isBundleFree && combinedTotal >= freeThreshold; // 임계값 달성
 
   // 오늘 주문이 없으면 배너 불필요
   if (totalProductAmount === 0) return null;
@@ -28,13 +29,13 @@ export function CartSameDayShippingBanner({ info, newOrderTotal }: CartSameDaySh
     <div
       className={cn(
         'rounded-xl border px-4 py-3 text-sm flex items-start gap-3',
-        isFreeEligible
+        isBundleFree || isFreeEligible
           ? 'bg-green-50 border-green-200'
           : 'bg-blue-50 border-blue-200',
       )}
     >
       <div className="mt-0.5 shrink-0">
-        {isFreeEligible ? (
+        {isBundleFree || isFreeEligible ? (
           <Gift className="w-4 h-4 text-green-600" />
         ) : (
           <Truck className="w-4 h-4 text-blue-500" />
@@ -42,7 +43,22 @@ export function CartSameDayShippingBanner({ info, newOrderTotal }: CartSameDaySh
       </div>
 
       <div className="flex-1 space-y-1">
-        {isFreeEligible ? (
+        {isBundleFree ? (
+          <>
+            <p className="font-semibold text-green-700">
+              묶음배송 — 배송비 무료 적용!
+            </p>
+            <p className="text-green-600 text-xs leading-relaxed">
+              오늘 이미 배송비가 청구된 주문이 있어 이번 주문은 배송비가{' '}
+              <span className="font-semibold">무료</span>
+              로 적용됩니다.
+            </p>
+            <p className="text-[11px] text-green-500">
+              묶음배송 기준 주문: {ordersWithFee.map((o) => o.orderNumber).join(', ')}{' '}
+              ({totalShippingCharged.toLocaleString()}원 청구됨)
+            </p>
+          </>
+        ) : isFreeEligible ? (
           <>
             <p className="font-semibold text-green-700">
               합배송 무료배송 조건 달성!
@@ -55,11 +71,6 @@ export function CartSameDayShippingBanner({ info, newOrderTotal }: CartSameDaySh
               <span className="font-semibold">무료</span>
               로 적용됩니다.
             </p>
-            {ordersWithFee.length > 0 && (
-              <p className="text-[11px] text-green-500">
-                오늘 배송비 합계: {totalShippingCharged.toLocaleString()}원 ({ordersWithFee.map((o) => o.orderNumber).join(', ')})
-              </p>
-            )}
           </>
         ) : (
           <>

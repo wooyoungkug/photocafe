@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { ShoppingBag, ChevronRight, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { ShoppingBag, ChevronRight, CheckCircle2, AlertCircle, Loader2, CalendarDays } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
+import type { SameDayShippingInfo } from '@/hooks/use-same-day-shipping';
 
 const DELIVERY_METHOD_LABELS: Record<string, string> = {
   parcel: '택배',
@@ -30,6 +31,10 @@ interface CartOrderSummaryProps {
   hasUploadFailed?: boolean;
   hasFileMissing?: boolean;
   onCheckout: () => void;
+  /** 당일 합배송 현황 (조건부 배송 거래처에만 제공) */
+  sameDayInfo?: SameDayShippingInfo | null;
+  /** 현재 장바구니의 스튜디오배송 상품 합계 */
+  newOrderStudioTotal?: number;
 }
 
 export function CartOrderSummary({
@@ -46,6 +51,8 @@ export function CartOrderSummary({
   hasUploadFailed,
   hasFileMissing,
   onCheckout,
+  sameDayInfo,
+  newOrderStudioTotal = 0,
 }: CartOrderSummaryProps) {
   const t = useTranslations('cart');
   const incompleteCount = totalCount - shippingCompleteCount;
@@ -63,6 +70,78 @@ export function CartOrderSummary({
         </CardHeader>
 
         <CardContent className="space-y-4">
+          {/* 당일 주문합계 (조건부 무료배송 거래처) */}
+          {sameDayInfo?.applicable && (() => {
+            const prevTotal = sameDayInfo.totalProductAmount;
+            const combinedTotal = prevTotal + newOrderStudioTotal;
+            const { freeThreshold } = sameDayInfo;
+            const isFree = combinedTotal >= freeThreshold;
+            const remaining = freeThreshold - combinedTotal;
+            const progress = Math.min(100, (combinedTotal / freeThreshold) * 100);
+
+            return (
+              <div className={cn(
+                'rounded-lg p-3 space-y-2 text-xs',
+                isFree ? 'bg-green-50 border border-green-200' : 'bg-blue-50/70 border border-blue-100',
+              )}>
+                <div className="flex items-center gap-1.5 font-medium mb-1">
+                  <CalendarDays className={cn('w-3.5 h-3.5', isFree ? 'text-green-600' : 'text-blue-600')} />
+                  <span className={isFree ? 'text-green-700' : 'text-blue-700'}>당일 주문합계</span>
+                  {isFree && (
+                    <span className="ml-auto text-green-600 font-semibold flex items-center gap-0.5">
+                      <CheckCircle2 className="w-3 h-3" /> 무료배송
+                    </span>
+                  )}
+                </div>
+
+                {prevTotal > 0 && (
+                  <div className="flex justify-between text-gray-500">
+                    <span>기존 주문</span>
+                    <span>{prevTotal.toLocaleString()}원</span>
+                  </div>
+                )}
+                {newOrderStudioTotal > 0 && (
+                  <div className="flex justify-between text-gray-500">
+                    <span>이번 주문</span>
+                    <span>+{newOrderStudioTotal.toLocaleString()}원</span>
+                  </div>
+                )}
+
+                <div className={cn(
+                  'flex justify-between font-semibold pt-0.5 border-t',
+                  isFree ? 'text-green-700 border-green-200' : 'text-blue-700 border-blue-100',
+                )}>
+                  <span>누적 합계</span>
+                  <span>{combinedTotal.toLocaleString()}원</span>
+                </div>
+
+                {/* 진행 바 */}
+                <Progress
+                  value={progress}
+                  className={cn(
+                    'h-1.5 mt-1',
+                    isFree ? '[&>div]:bg-green-400' : '[&>div]:bg-blue-400',
+                  )}
+                />
+                <div className={cn(
+                  'flex justify-between text-[10px] mt-0.5',
+                  isFree ? 'text-green-500' : 'text-blue-400',
+                )}>
+                  {isFree ? (
+                    <span>기준 {freeThreshold.toLocaleString()}원 달성 — 배송비 무료</span>
+                  ) : (
+                    <>
+                      <span>{combinedTotal.toLocaleString()}원</span>
+                      <span className="font-medium">
+                        {remaining.toLocaleString()}원 더 주문 시 무료
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Shipping completion progress */}
           <div className="bg-gray-50 rounded-lg p-3">
             <div className="flex items-center justify-between text-xs mb-2">
