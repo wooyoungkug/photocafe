@@ -928,6 +928,8 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       const splitCoverResults: SplitCoverResult[] = [];
 
       for (let i = 0; i < files.length; i++) {
+        if (cancelRef.current) return null;
+
         const file = files[i];
         const result = await extractFileMetadata(file, i + 1, fullPath, pageLayout);
 
@@ -1094,6 +1096,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       setIsDragging(false);
       setUploading(true);
       setUploadProgress(0);
+      cancelRef.current = false;
 
       // 업로드 전 폴더 개수 저장
       const initialFolderCount = useMultiFolderUploadStore.getState().folders.length;
@@ -1119,6 +1122,8 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
 
       const duplicateMessages: string[] = [];
       for (let i = 0; i < allFolders.length; i++) {
+        if (cancelRef.current) break;
+
         const { entry, fullPath, depth } = allFolders[i];
         setCurrentFolderIndex(i + 1);
         setProcessingMessage(tu('processingProgress', { current: i + 1, total: allFolders.length, name: fullPath }));
@@ -1165,7 +1170,9 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         setOverallProgress(overall);
       }
 
-      if (duplicateMessages.length > 0) {
+      if (cancelRef.current) {
+        toast({ title: '업로드 중단', description: '업로드가 중단되었습니다.', variant: 'destructive' });
+      } else if (duplicateMessages.length > 0) {
         toast({
           title: tu('duplicateFolderDetected'),
           description: duplicateMessages.join('\n'),
@@ -1178,6 +1185,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       setCurrentFolderIndex(0);
       setTotalFolderCount(0);
       setOverallProgress(0);
+      cancelRef.current = false;
 
       // 새 폴더로 스크롤
       scrollToNewFolder(initialFolderCount);
@@ -1193,6 +1201,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
 
       setUploading(true);
       setUploadProgress(0);
+      cancelRef.current = false;
 
       // 업로드 전 폴더 개수 저장
       const initialFolderCount = useMultiFolderUploadStore.getState().folders.length;
@@ -1224,6 +1233,8 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
 
       const duplicateMessages: string[] = [];
       for (let i = 0; i < entries.length; i++) {
+        if (cancelRef.current) break;
+
         const [folderPath, { files: folderFiles, depth, folderName }] = entries[i];
         setCurrentFolderIndex(i + 1);
         setProcessingMessage(tu('processingProgress', { current: i + 1, total: entries.length, name: folderPath }));
@@ -1250,6 +1261,8 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         const splitCoverResults: SplitCoverResult[] = [];
 
         for (let j = 0; j < folderFiles.length; j++) {
+          if (cancelRef.current) break;
+
           const file = folderFiles[j];
           const result = await extractFileMetadata(file, j + 1, folderPath, pageLayout);
 
@@ -1413,7 +1426,9 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         setOverallProgress(overall);
       }
 
-      if (duplicateMessages.length > 0) {
+      if (cancelRef.current) {
+        toast({ title: '업로드 중단', description: '업로드가 중단되었습니다.', variant: 'destructive' });
+      } else if (duplicateMessages.length > 0) {
         toast({
           title: tu('duplicateFolderDetected'),
           description: duplicateMessages.join('\n'),
@@ -1426,6 +1441,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       setCurrentFolderIndex(0);
       setTotalFolderCount(0);
       setOverallProgress(0);
+      cancelRef.current = false;
       e.target.value = '';
 
       // 새 폴더로 스크롤
@@ -1466,6 +1482,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       setUploading(true);
       setUploadProgress(0);
       setShowMobileFolderNameDialog(false);
+      cancelRef.current = false;
 
       // 업로드 전 폴더 개수 저장
       const initialFolderCount = useMultiFolderUploadStore.getState().folders.length;
@@ -1498,6 +1515,8 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       const splitCoverResults: SplitCoverResult[] = [];
 
       for (let j = 0; j < files.length; j++) {
+        if (cancelRef.current) break;
+
         const file = files[j];
         const result = await extractFileMetadata(file, j + 1, folderPath, pageLayout);
 
@@ -1516,6 +1535,18 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         const progress = Math.round(((j + 1) / files.length) * 100);
         setUploadProgress(progress);
         setOverallProgress(progress);
+      }
+
+      if (cancelRef.current) {
+        toast({ title: '업로드 중단', description: '업로드가 중단되었습니다.', variant: 'destructive' });
+        setUploading(false);
+        setProcessingMessage('');
+        setCurrentFolderIndex(0);
+        setTotalFolderCount(0);
+        setOverallProgress(0);
+        setPendingMobileFiles([]);
+        cancelRef.current = false;
+        return;
       }
 
       if (processedFiles.length === 0) {
@@ -1798,6 +1829,17 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
                 <Progress value={overallProgress} className="h-3 bg-gray-200" />
               </div>
             )}
+
+            {/* 업로드 중단 버튼 */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCancelUpload}
+              className="mt-2 gap-1.5 text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700"
+            >
+              <XCircle className="w-4 h-4" />
+              업로드 중단
+            </Button>
           </div>
         ) : isMobile ? (
           /* 모바일: 다중 파일 선택 (webkitdirectory 미지원) */
