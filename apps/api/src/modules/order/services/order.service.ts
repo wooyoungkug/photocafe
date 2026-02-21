@@ -1434,9 +1434,10 @@ export class OrderService {
   }
 
   // ==================== 통계 조회 ====================
-  async getStatusCounts() {
+  async getStatusCounts(clientId?: string) {
     const counts = await this.prisma.order.groupBy({
       by: ['status'],
+      ...(clientId && { where: { clientId } }),
       _count: { id: true },
     });
 

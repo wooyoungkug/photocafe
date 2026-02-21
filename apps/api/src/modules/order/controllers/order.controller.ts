@@ -55,8 +55,8 @@ export class OrderController {
 
   @Get('status-counts')
   @ApiOperation({ summary: '주문 상태별 건수' })
-  async getStatusCounts() {
-    return this.orderService.getStatusCounts();
+  async getStatusCounts(@Query('clientId') clientId?: string) {
+    return this.orderService.getStatusCounts(clientId);
   }
 
   @Get('monthly-summary')

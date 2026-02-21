@@ -164,13 +164,12 @@ export default function MyOrdersPage() {
     enabled: isAuthenticated && !!user?.clientId,
   });
 
-  // 상태별 카운트
-  const { data: allOrders } = useQuery({
-    queryKey: ['orders', user?.clientId, 'counts'],
+  // 상태별 카운트 (전용 엔드포인트 사용)
+  const { data: statusCounts } = useQuery({
+    queryKey: ['order-status-counts', user?.clientId],
     queryFn: async () => {
-      return api.get<{ data: Order[]; meta: any }>('/orders', {
+      return api.get<Record<string, number>>('/orders/status-counts', {
         clientId: user?.clientId || '',
-        limit: '1000',
       });
     },
     enabled: isAuthenticated && !!user?.clientId,
@@ -179,16 +178,11 @@ export default function MyOrdersPage() {
   const orders = ordersResponse?.data ?? [];
   const meta = ordersResponse?.meta;
 
-  // 상태별 카운트 계산
-  const statusCounts: Record<string, number> = {};
-  let totalCount = 0;
-  if (allOrders?.data) {
-    allOrders.data.forEach((order) => {
-      statusCounts[order.status] = (statusCounts[order.status] || 0) + 1;
-      totalCount++;
-    });
-  }
-  const getCount = (key: string) => key === 'all' ? totalCount : (statusCounts[key] || 0);
+  const getCount = (key: string) => {
+    if (!statusCounts) return 0;
+    if (key === 'all') return Object.values(statusCounts).reduce((sum, c) => sum + c, 0);
+    return statusCounts[key] || 0;
+  };
 
   // 취소 가능한 선택된 주문
   const cancellableSelected = useMemo(() => {
