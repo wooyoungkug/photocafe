@@ -963,7 +963,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                   <select
                     value={folder.foilName ?? ''}
                     onChange={(e) => updateFolder(folder.id, { foilName: e.target.value || null })}
-                    className="text-xs border rounded px-1.5 py-0.5 w-24 bg-violet-50 text-violet-700"
+                    className="text-xs border rounded px-1.5 py-0.5 bg-violet-50 text-violet-700"
                   >
                     <option value="">동판 선택</option>
                     {availablePlateNames.map(name => (
@@ -1274,7 +1274,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                                 <select
                                   value={order.foilName ?? folder.foilName ?? ''}
                                   onChange={(e) => updateAdditionalOrderFoil(folder.id, order.id, e.target.value || null, order.foilColor ?? folder.foilColor ?? null, order.foilPosition ?? folder.foilPosition ?? null)}
-                                  className="text-xs border rounded px-1.5 py-0.5 w-24 bg-violet-50 text-violet-700"
+                                  className="text-xs border rounded px-1.5 py-0.5 bg-violet-50 text-violet-700"
                                 >
                                   <option value="">동판 선택</option>
                                   {availablePlateNames.map(name => (
