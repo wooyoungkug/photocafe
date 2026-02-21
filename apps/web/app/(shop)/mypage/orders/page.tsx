@@ -468,7 +468,7 @@ export default function MyOrdersPage() {
                     <TableHead className="text-center w-[70px] text-xs">페이지<br />/ 부수</TableHead>
                     <TableHead className="text-center w-[65px] text-xs">용량</TableHead>
                     <TableHead className="text-right w-[100px] text-xs">주문금액</TableHead>
-                    <TableHead className="text-center w-[100px] text-xs">진행상황</TableHead>
+                    <TableHead className="text-center w-[110px] text-xs">진행상황</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
