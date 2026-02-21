@@ -83,10 +83,10 @@ description: 배송 관리. 배송 준비, 출고, 택배 연동, 배송 추적 
 
 | 배송방법 | 고객 주문 화면 선택 | 내부(관리자) 사용 | 비고 |
 |----------|:-----------------:|:---------------:|------|
-| `parcel` (택배) | ✓ 기본 선택 | ✓ | 조건부/무료배송 정책 적용 대상 |
-| `motorcycle` (오토바이퀵) | ✓ | ✓ | 고객이 직접 선택 가능. 배송비는 DeliveryPricing.baseFee 적용 |
-| `damas` (다마스) | ✗ 관리자 전용 | ✓ | 고객 주문 UI 미노출. 관리자 배송비 설정 및 내부 처리에만 사용 |
-| `freight` (화물) | ✓ | ✓ | 고객이 직접 선택 가능. 배송비는 DeliveryPricing.baseFee 적용 |
+| `parcel` (택배) | ✓ 기본 선택 | ✓ | **거래처 배송정책(conditional/free/prepaid/cod) 적용 대상** |
+| `motorcycle` (오토바이퀵) | ✓ | ✓ | 고객이 직접 선택 가능. **거래처 배송정책 미적용. 항상 `baseFee` 청구** |
+| `damas` (다마스) | ✗ 관리자 전용 | ✓ | 고객 주문 UI 미노출. 관리자 배송비 설정 및 내부 처리에만 사용. **거래처 배송정책 미적용** |
+| `freight` (화물) | ✓ | ✓ | 고객이 직접 선택 가능. **거래처 배송정책 미적용. 항상 `baseFee` 청구** |
 | `pickup` (방문수령) | ✓ | ✓ | 항상 무료 |
 
 > **damas 특이사항**: `use-delivery-pricing.ts`와 `delivery-settings-content.tsx`(관리자)에는 포함되어 있으나,
@@ -111,14 +111,24 @@ description: 배송 관리. 배송 준비, 출고, 택배 연동, 배송 추적 
 | `prepaid` | 직배송(선불) | 항상 기본 배송비 청구 |
 | `cod` | 착불 | 주문 시 0원, 배송사가 수령인에게 직접 징수 |
 
+> ⚠️ **배송비 정책(`conditional`/`free`)은 택배(`parcel`)에만 적용됩니다.**
+> 오토바이퀵(`motorcycle`), 화물(`freight`) 등은 거래처 `shippingType`에 관계없이 항상 `DeliveryPricing.baseFee`를 청구합니다.
+
 #### 배송비 계산 흐름
 
 ```
 배송방법 == pickup(방문수령)?
   └─ YES → 0원
 
+배송방법 != parcel(택배)?  ← motorcycle / freight 등
+  └─ YES → DeliveryPricing[method].baseFee 그대로 청구 (거래처 정책 미적용)
+       ├─ motorcycle → motorcycle.baseFee
+       └─ freight   → freight.baseFee
+
+(이하는 parcel 전용 로직)
+
 receiverType == direct_customer(고객직배송)?
-  └─ YES → DeliveryPricing.baseFee 그대로 청구 (정책 미적용)
+  └─ YES → DeliveryPricing['parcel'].baseFee 그대로 청구 (정책 미적용)
 
 shippingType == 'free'?
   └─ YES → 0원
@@ -126,10 +136,10 @@ shippingType == 'free'?
 shippingType == 'conditional'?
   └─ 당일 누적 합산 + 현재 >= freeShippingThreshold?
        ├─ YES → 0원 (이전 주문 배송비 환급도 처리)
-       └─ NO  → DeliveryPricing.baseFee 청구
+       └─ NO  → DeliveryPricing['parcel'].baseFee 청구
 
 shippingType == 'prepaid'?
-  └─ DeliveryPricing.baseFee 항상 청구
+  └─ DeliveryPricing['parcel'].baseFee 항상 청구
 
 shippingType == 'cod'?
   └─ 주문 시 0원 (배송사 수령인 징수)
@@ -582,6 +592,13 @@ function calculateDeliveryFee(method, recvType) {
 
   // 2. 스튜디오(주문자) 배송
   if (recvType === 'orderer') {
+    // ⚠️ 택배(parcel)가 아닌 경우: 거래처 배송정책 미적용, baseFee 그대로 청구
+    // 오토바이퀵(motorcycle), 화물(freight) 등은 conditional/free 정책 대상 아님
+    if (method !== 'parcel') {
+      return { fee: pricingMap[method]?.baseFee ?? 0, feeType: 'standard' };
+    }
+
+    // 이하 택배(parcel) 전용 정책 로직
     // 기준금액 우선순위: Client → DeliveryPricing['parcel'].freeThreshold → 90,000원
     const freeThreshold = clientInfo?.freeShippingThreshold
       ?? (pricingMap['parcel']?.freeThreshold != null ? Number(pricingMap['parcel'].freeThreshold) : 90000);
