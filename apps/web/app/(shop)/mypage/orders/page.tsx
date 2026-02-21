@@ -520,17 +520,6 @@ export default function MyOrdersPage() {
                         )}
 
                         <TableCell className="align-top pt-3">
-                          <div className="flex flex-wrap gap-1">
-                            {item.bindingType && <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">{item.bindingType.replace(/\s*\([^)]+\)\s*$/, '')}</Badge>}
-                            {item.coverMaterial && <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">{item.coverMaterial}</Badge>}
-                            {item.fabricName && <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">원단:{item.fabricName}</Badge>}
-                            {item.foilColor && <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">박:{item.foilColor}</Badge>}
-                            {item.finishingOptions?.map((opt, i) => (
-                              <Badge key={i} variant="outline" className="text-[10px] px-1 py-0 h-4">{opt}</Badge>
-                            ))}
-                          </div>
-                        </TableCell>
-                        <TableCell className="align-top pt-3">
                           <div className="space-y-1">
                             <Link href={`/mypage/orders/${order.id}`} className="text-sm font-normal leading-tight line-clamp-2 hover:underline hover:text-primary block">
                               {item.folderName || item.productName}
