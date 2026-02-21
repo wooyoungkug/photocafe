@@ -47,18 +47,6 @@ function formatAmount(amount: number) {
   return Math.round(amount).toLocaleString();
 }
 
-/** 상품 규격 문자열 생성 */
-function buildSpec(item: OrderItem): string {
-  const parts: string[] = [
-    item.size,
-    item.pages > 0 ? `${item.pages}p` : '',
-    item.paper,
-    item.bindingType,
-    item.printMethod,
-    item.coverMaterial || '',
-  ].filter((p) => p && p !== '-');
-  return parts.join(' · ');
-}
 
 export default function MonthlySummaryPage() {
   const { user } = useAuthStore();
@@ -554,40 +542,26 @@ export default function MonthlySummaryPage() {
                           .filter(Boolean)
                           .join(' ');
                         return (
-                          <Fragment key={item.id}>
-                            {/* 행 1: 주문번호 | 폴더명 | 상품명 | 페이지수 | 금액 */}
-                            <tr>
-                              <td className="border border-gray-400 p-1 text-[8pt] text-gray-600 align-top text-center">
-                                {iIdx === 0 ? order.orderNumber : ''}
-                              </td>
-                              <td className="border border-gray-400 p-1 align-top">
-                                {item.folderName || order.orderNumber}
-                              </td>
-                              <td className="border border-gray-400 p-1 align-top">
-                                {item.productName?.split(' - ')[0] || item.productName}
-                              </td>
-                              <td className="border border-gray-400 p-1 text-center tabular-nums align-top">
-                                {item.pages > 0 ? `${item.pages}p` : '-'}
-                              </td>
-                              <td className="border border-gray-400 p-1 text-right tabular-nums align-top">
-                                {iIdx === 0 ? formatAmount(Number(order.finalAmount)) + '원' : ''}
-                              </td>
-                            </tr>
-                            {/* 행 2: 없음 | 출력방식+용지 | 규격 | 부수 | 없음 */}
-                            <tr>
-                              <td className="border border-gray-400 p-1" />
-                              <td className="border border-gray-400 p-1 text-[8pt] text-gray-500">
-                                {subName || '-'}
-                              </td>
-                              <td className="border border-gray-400 p-1 text-[8pt] text-gray-500">
-                                {item.size || '-'}
-                              </td>
-                              <td className="border border-gray-400 p-1 text-center text-[8pt] text-gray-500 tabular-nums">
-                                {item.quantity > 0 ? `${item.quantity}부` : '-'}
-                              </td>
-                              <td className="border border-gray-400 p-1" />
-                            </tr>
-                          </Fragment>
+                          <tr key={item.id}>
+                            <td className="border border-gray-400 p-1 text-[8pt] text-gray-600 align-middle text-center">
+                              {iIdx === 0 ? order.orderNumber : ''}
+                            </td>
+                            <td className="border border-gray-400 p-1">
+                              <div>{item.folderName || order.orderNumber}</div>
+                              <div className="text-[8pt] text-gray-500">{subName || '-'}</div>
+                            </td>
+                            <td className="border border-gray-400 p-1">
+                              <div>{item.productName?.split(' - ')[0] || item.productName}</div>
+                              <div className="text-[8pt] text-gray-500">{item.size || '-'}</div>
+                            </td>
+                            <td className="border border-gray-400 p-1 text-center tabular-nums">
+                              <div>{item.pages > 0 ? `${item.pages}p` : '-'}</div>
+                              <div className="text-[8pt] text-gray-500">{item.quantity > 0 ? `${item.quantity}부` : '-'}</div>
+                            </td>
+                            <td className="border border-gray-400 p-1 text-right tabular-nums align-middle">
+                              {iIdx === 0 ? formatAmount(Number(order.finalAmount)) + '원' : ''}
+                            </td>
+                          </tr>
                         );
                       })}
                     </Fragment>
