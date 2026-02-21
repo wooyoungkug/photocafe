@@ -47,5 +47,6 @@ nul
 .claude/settings.local.json
 .claude/worktrees/
 
-# Uploaded files (order images, etc.)
-apps/api/uploads/
+# Uploaded files - 고객 업로드 원본/썸네일만 제외 (시스템 이미지는 git 관리)
+apps/api/uploads/orders/
+apps/api/uploads/temp/
