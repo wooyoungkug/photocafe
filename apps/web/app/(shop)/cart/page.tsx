@@ -531,6 +531,8 @@ export default function CartPage() {
               hasUploadFailed={hasUploadFailed}
               hasFileMissing={hasFileMissing}
               onCheckout={handleCheckout}
+              sameDayInfo={sameDayInfo ?? null}
+              newOrderStudioTotal={studioItemsTotal}
             />
           </div>
         </div>
