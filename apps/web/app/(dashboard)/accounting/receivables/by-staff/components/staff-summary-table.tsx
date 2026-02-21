@@ -104,7 +104,7 @@ interface StaffRowProps {
   isExpanded: boolean;
   onToggle: () => void;
   dateRange?: { startDate: string; endDate: string };
-  getCollectionRateBadge: (rate: number) => JSX.Element;
+  getCollectionRateBadge: (rate: number) => React.ReactNode;
 }
 
 function StaffRow({ staff, isExpanded, onToggle, dateRange, getCollectionRateBadge }: StaffRowProps) {

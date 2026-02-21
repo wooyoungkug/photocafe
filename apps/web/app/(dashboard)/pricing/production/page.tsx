@@ -17,10 +17,7 @@ import {
   Trash2,
   Ruler,
   Users,
-<<<<<<< Updated upstream
   FolderInput,
-=======
->>>>>>> Stashed changes
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -3854,13 +3851,7 @@ export default function ProductionSettingPage() {
                         <div
                           className="grid gap-0 pb-2 border-b mb-2 text-xs font-medium text-gray-600 sticky top-0 bg-white items-center"
                           style={{
-<<<<<<< Updated upstream
                             gridTemplateColumns: `28px 60px minmax(120px, 1fr) 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
-=======
-                            gridTemplateColumns: settingForm.printMethod === 'indigo'
-                              ? `28px 60px 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
-                              : `28px 80px 50px 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
->>>>>>> Stashed changes
                           }}
                         >
                           <Checkbox
@@ -3978,13 +3969,7 @@ export default function ProductionSettingPage() {
                                     isSelected && "bg-amber-50/50"
                                   )}
                                   style={{
-<<<<<<< Updated upstream
                                     gridTemplateColumns: `28px 60px minmax(120px, 1fr) 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
-=======
-                                    gridTemplateColumns: settingForm.printMethod === 'indigo'
-                                      ? `28px 60px 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
-                                      : `28px 80px 50px 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
->>>>>>> Stashed changes
                                   }}
                                 >
                                   <Checkbox

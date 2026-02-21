@@ -477,26 +477,8 @@ export function useAccountingSummary() {
   return useQuery({
     queryKey: ['accounting-summary'],
     queryFn: async (): Promise<TransactionSummary> => {
-<<<<<<< Updated upstream
       const data = await api.get<TransactionSummary>(`${ACCOUNTING_API}/summary`);
       return data;
-=======
-      try {
-        const data = await api.get<TransactionSummary>(`${ACCOUNTING_API}/summary`);
-        return data;
-      } catch (error) {
-        // API 실패 시 샘플 데이터 사용
-        return {
-          totalSales: 850000,
-          totalPurchases: 220000,
-          totalIncome: 500000,
-          totalExpense: 200000,
-          receivablesBalance: 1800000,
-          payablesBalance: 300000,
-          netCashFlow: 300000,
-        };
-      }
->>>>>>> Stashed changes
     },
     staleTime: 30_000,
   });

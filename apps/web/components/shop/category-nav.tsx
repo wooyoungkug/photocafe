@@ -74,11 +74,7 @@ export function CategoryNav() {
                       ? `${API_BASE_URL}${category.iconUrl}`
                       : category.iconUrl}
                     alt=""
-<<<<<<< Updated upstream
                     className="h-4 w-auto object-contain"
-=======
-                    className="h-5 w-5 object-contain"
->>>>>>> Stashed changes
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = 'none';
                     }}
@@ -138,11 +134,7 @@ export function CategoryNav() {
                         ? `${API_BASE_URL}${category.iconUrl}`
                         : category.iconUrl}
                       alt=""
-<<<<<<< Updated upstream
                       className="h-3.5 w-auto object-contain mr-1"
-=======
-                      className="h-4 w-4 object-contain"
->>>>>>> Stashed changes
                       onError={(e) => {
                         (e.target as HTMLImageElement).style.display = 'none';
                       }}
@@ -183,11 +175,7 @@ function CategoryMenuItem({ category, level }: { category: Category; level: numb
                 ? `${API_BASE_URL}${category.iconUrl}`
                 : category.iconUrl}
               alt=""
-<<<<<<< Updated upstream
               className="h-4 w-auto object-contain"
-=======
-              className="h-4 w-4 object-contain"
->>>>>>> Stashed changes
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = 'none';
               }}

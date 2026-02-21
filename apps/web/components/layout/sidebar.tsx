@@ -16,34 +16,26 @@ import {
   Layers,
   LayoutDashboard,
   CalendarDays,
-<<<<<<< Updated upstream
   PenTool,
   PieChart,
   Receipt,
   RefreshCw,
   Server,
   ShoppingBag,
-=======
-  Wallet,
->>>>>>> Stashed changes
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
 
-<<<<<<< Updated upstream
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-=======
->>>>>>> Stashed changes
 interface SidebarProps {
   onClose?: () => void;
   isMobile?: boolean;
 }
 
-<<<<<<< Updated upstream
 interface NavChild {
   name: string;
   href: string;
@@ -74,9 +66,6 @@ const STORAGE_KEY = "sidebar-menu-order";
 const CHILDREN_STORAGE_KEY = "sidebar-children-order";
 
 const DEFAULT_NAVIGATION: NavItem[] = [
-=======
-const defaultNavigation = [
->>>>>>> Stashed changes
   {
     id: "dashboard",
     name: "대시보드",
@@ -249,39 +238,21 @@ function getRoleBadge(role?: string): { label: string; className: string } {
 function StatusDot({ status }: { status: ServerStatusInfo }) {
   if (status.status === "checking") {
     return (
-<<<<<<< Updated upstream
       <span
         className="inline-block h-2 w-2 rounded-full bg-yellow-400 animate-pulse"
         aria-label="확인중"
       />
-=======
-      <div className="flex items-center gap-1">
-        <div className="h-1.5 w-1.5 bg-yellow-500 animate-pulse" />
-        <span className="text-[9px] text-yellow-500">확인중</span>
-      </div>
->>>>>>> Stashed changes
     );
   }
   if (status.status === "connected") {
     return (
-<<<<<<< Updated upstream
       <span
         className="inline-block h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]"
         aria-label="연결됨"
       />
-=======
-      <div className="flex items-center gap-1">
-        <div className="h-1.5 w-1.5 bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.6)]" />
-        <span className="text-[9px] text-green-500">연결됨</span>
-        {status.responseTime !== null && (
-          <span className="text-[8px] text-slate-500 ml-0.5">{status.responseTime}ms</span>
-        )}
-      </div>
->>>>>>> Stashed changes
     );
   }
   return (
-<<<<<<< Updated upstream
     <span
       className="inline-block h-2 w-2 rounded-full bg-red-400 shadow-[0_0_6px_rgba(248,113,113,0.5)] animate-pulse"
       aria-label="연결안됨"
@@ -326,28 +297,13 @@ function ReorderButtons({
       >
         <ChevronDown className="h-3 w-3" />
       </button>
-=======
-    <div className="flex items-center gap-1">
-      <div className="h-1.5 w-1.5 bg-red-500 shadow-[0_0_4px_rgba(239,68,68,0.6)] animate-pulse" />
-      <span className="text-[9px] text-red-500">연결안됨</span>
->>>>>>> Stashed changes
     </div>
   );
 }
 
-<<<<<<< Updated upstream
 // ---------------------------------------------------------------------------
 // Sub-component: ChildReorderButtons
 // ---------------------------------------------------------------------------
-=======
-export function Sidebar({ onClose, isMobile }: SidebarProps) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  // 기본적으로 모든 메뉴 접힘 (빈 배열)
-  const [openMenu, setOpenMenu] = useState<string | null>(null);
-  const [navigation, setNavigation] = useState(defaultNavigation);
->>>>>>> Stashed changes
 
 function ChildReorderButtons({
   menuId,
@@ -653,7 +609,6 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
     setOpenMenu((prev) => (prev === name ? null : name));
   }, []);
 
-<<<<<<< Updated upstream
   const handleNavigation = useCallback(() => {
     if (isMobile && onClose) onClose();
   }, [isMobile, onClose]);
@@ -675,27 +630,6 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
           onClick={() => isMobile && onClose?.()}
           aria-label="대시보드로 이동"
         >
-=======
-  const isMenuOpen = (name: string) => openMenu === name;
-
-  // 빠른 네비게이션을 위한 핸들러
-  const handleNavigation = useCallback((href: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    startTransition(() => {
-      router.push(href);
-    });
-    // 모바일에서 네비게이션 후 사이드바 닫기
-    if (isMobile && onClose) {
-      onClose();
-    }
-  }, [router, isMobile, onClose]);
-
-  return (
-    <div className="flex h-full w-72 flex-col bg-[#0F172A] border-r border-slate-800 shadow-2xl">
-      {/* 로고 영역 */}
-      <div className="flex h-20 items-center justify-between px-4">
-        <Link href="/dashboard" className="flex items-center group" onClick={() => isMobile && onClose?.()}>
->>>>>>> Stashed changes
           <Image
             src="/images/logo.png"
             alt="Printing114 로고"
@@ -705,26 +639,14 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
             priority
           />
         </Link>
-<<<<<<< Updated upstream
-=======
-        {/* 모바일 닫기 버튼 */}
->>>>>>> Stashed changes
         {isMobile && (
           <button
             type="button"
             onClick={onClose}
-<<<<<<< Updated upstream
             className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06] transition-colors"
             aria-label="메뉴 닫기"
           >
             <X className="h-5 w-5" />
-=======
-            className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-            title="메뉴 닫기"
-            aria-label="메뉴 닫기"
-          >
-            <X className="h-6 w-6" />
->>>>>>> Stashed changes
           </button>
         )}
       </div>
@@ -761,7 +683,6 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
               );
               const Icon = item.icon;
 
-<<<<<<< Updated upstream
               return (
                 <li key={item.id}>
                   {item.href ? (
@@ -775,59 +696,6 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
                           isActive
                             ? "bg-indigo-600/15 text-indigo-300 border-l-[3px] border-indigo-400 pl-[9px]"
                             : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-200 border-l-[3px] border-transparent pl-[9px]"
-=======
-            // 하위 메뉴 중 활성화된 것이 있는지 확인 (부모 메뉴 스타일링용)
-            // const hasActiveChild = item.children?.some(child => pathname === child.href);
-
-            return (
-              <div key={item.id} className="space-y-1">
-                {item.href ? (
-                  <div className="flex items-center group/nav">
-                    <Link
-                      href={item.href}
-                      prefetch={true}
-                      onClick={(e) => handleNavigation(item.href!, e)}
-                      className={cn(
-                        "flex-1 flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-colors duration-100 relative overflow-hidden",
-                        isActive
-                          ? "bg-indigo-600 text-white shadow-md shadow-indigo-900/20"
-                          : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-100",
-                        isPending && "opacity-70"
-                      )}
-                    >
-                      <item.icon className={cn(
-                        "h-5 w-5 transition-colors duration-100",
-                        isActive ? "text-white" : "text-slate-500 group-hover/nav:text-slate-300"
-                      )} />
-                      <span className="relative z-10">{item.name}</span>
-                    </Link>
-                    {/* 이동 버튼 */}
-                    <div className="flex items-center gap-0.5 ml-1 opacity-0 group-hover/nav:opacity-100 transition-opacity">
-                      <button
-                        onClick={(e) => moveMenuUp(index, e)}
-                        className="p-1 hover:bg-slate-700 text-slate-500 hover:text-indigo-400 transition-colors"
-                        title="위로 이동"
-                      >
-                        <ChevronUp className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        onClick={(e) => moveMenuDown(index, e)}
-                        className="p-1 hover:bg-slate-700 text-slate-500 hover:text-indigo-400 transition-colors"
-                        title="아래로 이동"
-                      >
-                        <ChevronDown className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="group/nav">
-                    <div className="flex items-center">
-                      <button
-                        onClick={() => toggleMenu(item.name)}
-                        className={cn(
-                          "flex-1 flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-all duration-200 hover:bg-slate-800/50",
-                          isOpen ? "text-slate-200" : "text-slate-400"
->>>>>>> Stashed changes
                         )}
                       >
                         <Icon
@@ -838,7 +706,6 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
                               : "text-slate-500 group-hover/nav:text-slate-400"
                           )}
                         />
-<<<<<<< Updated upstream
                         <span>{item.name}</span>
                       </Link>
                       <ReorderButtons
@@ -847,26 +714,6 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
                         onMoveUp={moveMenuUp}
                         onMoveDown={moveMenuDown}
                       />
-=======
-                      </button>
-                      {/* 이동 버튼 */}
-                      <div className="flex items-center gap-0.5 ml-1 opacity-0 group-hover/nav:opacity-100 transition-opacity">
-                        <button
-                          onClick={(e) => moveMenuUp(index, e)}
-                          className="p-1 hover:bg-slate-700 text-slate-500 hover:text-indigo-400 transition-colors"
-                          title="위로 이동"
-                        >
-                          <ChevronUp className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={(e) => moveMenuDown(index, e)}
-                          className="p-1 hover:bg-slate-700 text-slate-500 hover:text-indigo-400 transition-colors"
-                          title="아래로 이동"
-                        >
-                          <ChevronDown className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
->>>>>>> Stashed changes
                     </div>
                   ) : (
                     /* ── Expandable menu item ── */
@@ -918,7 +765,6 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
                             {item.children?.map((child, childIndex) => {
                               const isChildActive = pathname === child.href;
 
-<<<<<<< Updated upstream
                               return (
                                 <li
                                   key={child.href}
@@ -956,47 +802,6 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
                               );
                             })}
                           </ul>
-=======
-                            return (
-                              <div key={child.href} className="flex items-center group/child">
-                                <Link
-                                  href={child.href}
-                                  prefetch={true}
-                                  onClick={(e) => handleNavigation(child.href, e)}
-                                  className={cn(
-                                    "flex-1 flex items-center justify-between px-3 py-2 text-sm transition-colors duration-100",
-                                    isChildActive
-                                      ? "bg-slate-800 text-indigo-400 font-medium translate-x-1"
-                                      : "text-slate-500 hover:text-slate-300 hover:bg-slate-800/30",
-                                    isPending && "opacity-70"
-                                  )}
-                                >
-                                  <span>{child.name}</span>
-                                  {isChildActive && (
-                                    <div className="h-1.5 w-1.5 bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
-                                  )}
-                                </Link>
-                                {/* 하위 메뉴 이동 버튼 */}
-                                <div className="flex items-center gap-0.5 ml-1 opacity-0 group-hover/child:opacity-100 transition-opacity">
-                                  <button
-                                    onClick={(e) => moveChildUp(item.id, childIndex, e)}
-                                    className="p-0.5 hover:bg-slate-700 text-slate-600 hover:text-indigo-400 transition-colors"
-                                    title="위로 이동"
-                                  >
-                                    <ChevronUp className="h-3 w-3" />
-                                  </button>
-                                  <button
-                                    onClick={(e) => moveChildDown(item.id, childIndex, item.children!.length, e)}
-                                    className="p-0.5 hover:bg-slate-700 text-slate-600 hover:text-indigo-400 transition-colors"
-                                    title="아래로 이동"
-                                  >
-                                    <ChevronDown className="h-3 w-3" />
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })}
->>>>>>> Stashed changes
                         </div>
                       </div>
                     </div>
@@ -1008,7 +813,6 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
         )}
       </nav>
 
-<<<<<<< Updated upstream
       {/* ── Footer ── */}
       <div className="p-4 border-t border-white/[0.04] space-y-3 bg-gradient-to-b from-transparent to-black/20">
         {/* Server status - compact single row */}
@@ -1016,14 +820,6 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
           type="button"
           onClick={checkAll}
           className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.05] hover:bg-white/[0.06] transition-colors group/status"
-=======
-      {/* 하단 정보 */}
-      <div className="p-4 bg-slate-900/50 border-t border-slate-800 space-y-3">
-        {/* 서버 상태 표시 영역 */}
-        <div
-          className="bg-slate-800/70 border border-slate-700/50 cursor-pointer hover:bg-slate-800 transition-colors overflow-hidden"
-          onClick={checkAllServers}
->>>>>>> Stashed changes
           title="클릭하여 서버 상태 새로고침"
           aria-label="서버 상태 새로고침"
         >
@@ -1057,7 +853,6 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
           />
         </button>
 
-<<<<<<< Updated upstream
         {/* DEV badge */}
         {process.env.NODE_ENV === "development" && (
           <div className="flex items-center justify-center gap-1.5 px-2 py-1 rounded-md bg-amber-900/20 border border-amber-700/30">
@@ -1075,20 +870,6 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
             <span className="text-[11px] font-bold text-white/90 tracking-tight">
               {initials}
             </span>
-=======
-        {/* DEV 환경 표시 */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="flex items-center justify-center gap-1.5 px-2 py-1 bg-amber-900/30 border border-amber-700/50">
-            <div className="h-1.5 w-1.5 bg-amber-500 animate-pulse" />
-            <span className="text-[10px] text-amber-500 font-medium">DEV MODE</span>
-          </div>
-        )}
-
-        {/* 사용자 정보 */}
-        <div className="flex items-center gap-3 px-2 py-2 bg-slate-800/50 border border-slate-700/50">
-          <div className="h-8 w-8 bg-slate-700 flex items-center justify-center">
-            <span className="text-xs font-bold text-slate-300">AD</span>
->>>>>>> Stashed changes
           </div>
           <div className="flex flex-col min-w-0 gap-0.5">
             <div className="flex items-center gap-2">

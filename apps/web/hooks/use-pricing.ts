@@ -14,12 +14,9 @@ import {
   HalfProductSummary,
   GroupProductionSettingPrice,
   SetGroupProductionSettingPricesDto,
-<<<<<<< Updated upstream
   ClientProductionSettingPrice,
   SetClientProductionSettingPricesDto,
   ClientProductionSettingSummary,
-=======
->>>>>>> Stashed changes
 } from '@/lib/types/pricing';
 import { PaginatedResponse } from '@/lib/types/client';
 
@@ -200,7 +197,6 @@ export function useDeleteGroupProductionSettingPrices() {
     },
   });
 }
-<<<<<<< Updated upstream
 
 // ==================== 거래처 개별 생산설정 단가 ====================
 
@@ -261,5 +257,3 @@ export function useDeleteClientProductionSettingPrices() {
     },
   });
 }
-=======
->>>>>>> Stashed changes

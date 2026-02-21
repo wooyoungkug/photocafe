@@ -147,7 +147,6 @@ export interface SetGroupProductionSettingPricesDto {
   productionSettingId: string;
   prices: GroupProductionSettingPriceDto[];
 }
-<<<<<<< Updated upstream
 
 // 거래처 개별 생산설정 단가
 export interface ClientProductionSettingPrice {
@@ -226,5 +225,3 @@ export interface ClientProductionSettingSummary {
     };
   };
 }
-=======
->>>>>>> Stashed changes

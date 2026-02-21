@@ -278,10 +278,7 @@ function CategoryPageContent() {
 function ProductCard({ product }: { product: Product }) {
   const { addItem } = useCartStore();
   const [imageError, setImageError] = useState(false);
-<<<<<<< Updated upstream
   const locale = useLocale();
-=======
->>>>>>> Stashed changes
 
   const handleQuickAdd = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -299,21 +296,14 @@ function ProductCard({ product }: { product: Product }) {
   };
 
   return (
-<<<<<<< Updated upstream
     <Link href={`/product/${product.id}`} className="group">
       <div className="bg-white overflow-hidden">
         {/* Image */}
         <div className="aspect-square bg-neutral-100 relative overflow-hidden">
-=======
-    <Link href={`/product/${product.id}`}>
-      <Card className="overflow-hidden hover:shadow-lg transition-shadow group h-full">
-        <div className="aspect-square bg-gray-100 relative">
->>>>>>> Stashed changes
           {product.thumbnailUrl && !imageError ? (
             <img
               src={normalizeImageUrl(product.thumbnailUrl)}
               alt={product.productName}
-<<<<<<< Updated upstream
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               onError={() => setImageError(true)}
             />
@@ -321,15 +311,6 @@ function ProductCard({ product }: { product: Product }) {
             <div className="w-full h-full flex items-center justify-center">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-=======
-              className="w-full h-full object-cover"
-              onError={() => setImageError(true)}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-4xl text-gray-400">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
->>>>>>> Stashed changes
               </svg>
             </div>
           )}
@@ -381,10 +362,7 @@ function ProductCard({ product }: { product: Product }) {
 function ProductListItem({ product }: { product: Product }) {
   const { addItem } = useCartStore();
   const [imageError, setImageError] = useState(false);
-<<<<<<< Updated upstream
   const locale = useLocale();
-=======
->>>>>>> Stashed changes
 
   const handleQuickAdd = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -402,7 +380,6 @@ function ProductListItem({ product }: { product: Product }) {
   };
 
   return (
-<<<<<<< Updated upstream
     <Link href={`/product/${product.id}`} className="group">
       <div className="flex border-b border-neutral-100 pb-3 hover:bg-neutral-50/50 transition-colors">
         <div className="w-28 h-28 md:w-36 md:h-36 bg-neutral-100 flex-shrink-0 relative overflow-hidden">
@@ -431,45 +408,6 @@ function ProductListItem({ product }: { product: Product }) {
                 <span className="bg-neutral-900 text-white text-[10px] tracking-wider uppercase font-medium px-2 py-0.5">
                   BEST
                 </span>
-=======
-    <Link href={`/product/${product.id}`}>
-      <Card className="overflow-hidden hover:shadow-md transition-shadow">
-        <div className="flex">
-          <div className="w-32 h-32 bg-gray-100 flex-shrink-0 relative">
-            {product.thumbnailUrl && !imageError ? (
-              <img
-                src={product.thumbnailUrl}
-                alt={product.productName}
-                className="w-full h-full object-cover"
-                onError={() => setImageError(true)}
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-gray-400">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-            )}
-            {(product.isNew || product.isBest) && (
-              <div className="absolute top-1 left-1 flex gap-1">
-                {product.isNew && (
-                  <Badge className="bg-green-500 text-xs">NEW</Badge>
-                )}
-                {product.isBest && (
-                  <Badge className="bg-red-500 text-xs">BEST</Badge>
-                )}
-              </div>
-            )}
-          </div>
-          <div className="flex-1 p-4 flex flex-col justify-between">
-            <div>
-              <p className="text-xs text-gray-500 mb-1">{product.category?.name}</p>
-              <h3 className="font-medium mb-2 hover:text-primary transition-colors">
-                {product.productName}
-              </h3>
-              {product.description && (
-                <p className="text-sm text-gray-500 line-clamp-2">{product.description}</p>
->>>>>>> Stashed changes
               )}
             </div>
           )}
