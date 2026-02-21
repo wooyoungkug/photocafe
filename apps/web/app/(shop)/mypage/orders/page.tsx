@@ -463,7 +463,7 @@ export default function MyOrdersPage() {
                         aria-label="전체 선택"
                       />
                     </TableHead>
-                    <TableHead className="text-center w-[150px] text-xs">주문일<br />(주문번호)</TableHead>
+                    <TableHead className="text-center w-[300px] text-xs">주문일<br />(주문번호)</TableHead>
                     <TableHead className="text-xs">상품명<br />규격</TableHead>
                     <TableHead className="text-center w-[70px] text-xs">페이지<br />/ 부수</TableHead>
                     <TableHead className="text-center w-[65px] text-xs">용량</TableHead>
