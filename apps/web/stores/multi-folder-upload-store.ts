@@ -189,6 +189,7 @@ export interface FolderShippingInfo {
   receiverType: ReceiverType;
   recipientName: string;
   recipientPhone: string;
+  recipientPhone2?: string;
   recipientPostalCode: string;
   recipientAddress: string;
   recipientAddressDetail: string;

@@ -13,8 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Truck, Building2, User, MapPin, Package } from 'lucide-react';
-import { AddressSearch } from '@/components/address-search';
+import { Truck, Building2, MapPin, Package } from 'lucide-react';
 import {
   type FolderShippingInfo,
   type SenderType,
@@ -56,7 +55,7 @@ export function FolderShippingSection({
   // 고객직배송 시 수동 입력 필드
   const [directRecipientName, setDirectRecipientName] = useState(shippingInfo?.receiverType === 'direct_customer' ? shippingInfo?.recipientName || '' : '');
   const [directPhone, setDirectPhone] = useState(shippingInfo?.receiverType === 'direct_customer' ? shippingInfo?.recipientPhone || '' : '');
-  const [directPostalCode, setDirectPostalCode] = useState(shippingInfo?.receiverType === 'direct_customer' ? shippingInfo?.recipientPostalCode || '' : '');
+  const [directPhone2, setDirectPhone2] = useState(shippingInfo?.receiverType === 'direct_customer' ? shippingInfo?.recipientPhone2 || '' : '');
   const [directAddress, setDirectAddress] = useState(shippingInfo?.receiverType === 'direct_customer' ? shippingInfo?.recipientAddress || '' : '');
   const [directAddressDetail, setDirectAddressDetail] = useState(shippingInfo?.receiverType === 'direct_customer' ? shippingInfo?.recipientAddressDetail || '' : '');
 
@@ -145,7 +144,7 @@ export function FolderShippingSection({
     } else if (receiverType === 'direct_customer') {
       recipientName = directRecipientName;
       recipientPhone = directPhone;
-      recipientPostalCode = directPostalCode;
+      recipientPostalCode = '';
       recipientAddress = directAddress;
       recipientAddressDetail = directAddressDetail;
     }
@@ -163,6 +162,7 @@ export function FolderShippingSection({
       receiverType,
       recipientName,
       recipientPhone,
+      recipientPhone2: receiverType === 'direct_customer' ? directPhone2 : undefined,
       recipientPostalCode,
       recipientAddress,
       recipientAddressDetail,
@@ -173,14 +173,14 @@ export function FolderShippingSection({
   }, [
     senderType, receiverType, deliveryMethod,
     companyInfo, clientInfo,
-    directRecipientName, directPhone, directPostalCode, directAddress, directAddressDetail,
+    directRecipientName, directPhone, directPhone2, directAddress, directAddressDetail,
     calculateDeliveryFee, onChange,
   ]);
 
   // 상태 변경 시 자동 emit
   useEffect(() => {
     emitChange();
-  }, [senderType, receiverType, deliveryMethod, directRecipientName, directPhone, directPostalCode, directAddress, directAddressDetail, studioTotal]);
+  }, [senderType, receiverType, deliveryMethod, directRecipientName, directPhone, directPhone2, directAddress, directAddressDetail, studioTotal]);
 
   // 배송지가 고객직배송이면 방문수령 비활성
   const availableMethods = receiverType === 'direct_customer'
@@ -311,23 +311,16 @@ export function FolderShippingSection({
               </div>
             </div>
             <div>
+              <Label className="text-xs text-gray-500">연락처2 (백업)</Label>
+              <PhoneInput
+                placeholder="010-0000-0000"
+                value={directPhone2}
+                onChange={(value) => setDirectPhone2(value)}
+                className="h-8 text-sm"
+              />
+            </div>
+            <div>
               <Label className="text-xs text-gray-500">주소 <span className="text-red-500">*</span></Label>
-              <div className="flex gap-2 mb-1">
-                <Input
-                  placeholder="우편번호"
-                  value={directPostalCode}
-                  onChange={(e) => setDirectPostalCode(e.target.value)}
-                  className="h-8 text-sm w-28"
-                />
-                <AddressSearch
-                  size="sm"
-                  inline
-                  onComplete={(data) => {
-                    setDirectPostalCode(data.postalCode);
-                    setDirectAddress(data.address);
-                  }}
-                />
-              </div>
               <Input
                 placeholder="주소"
                 value={directAddress}

@@ -34,6 +34,7 @@ export interface CartShippingInfo {
   receiverType: string;
   recipientName: string;
   recipientPhone: string;
+  recipientPhone2?: string;
   recipientPostalCode: string;
   recipientAddress: string;
   recipientAddressDetail: string;
