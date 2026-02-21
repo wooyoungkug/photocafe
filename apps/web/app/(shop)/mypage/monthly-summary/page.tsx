@@ -366,7 +366,7 @@ export default function MonthlySummaryPage() {
                                     {detailData.data.map((order) => (
                                       <div
                                         key={order.id}
-                                        className="flex items-center gap-3 bg-white rounded-lg border p-3 text-sm"
+                                        className="flex items-center gap-3 bg-white rounded-lg border p-3 text-[10pt]"
                                       >
                                         <div className="flex-1 min-w-0">
                                           <p className="truncate">
