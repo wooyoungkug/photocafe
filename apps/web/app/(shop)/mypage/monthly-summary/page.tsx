@@ -494,10 +494,10 @@ export default function MonthlySummaryPage() {
               <th className="border border-gray-500 p-1.5 text-center font-semibold w-[90px]">
                 주문번호
               </th>
-              <th className="border border-gray-500 p-1.5 text-center font-semibold w-[28%]">
+              <th className="border border-gray-500 p-1.5 text-center font-semibold w-[400px]">
                 작업명
               </th>
-              <th className="border border-gray-500 p-1.5 text-center font-semibold">
+              <th className="border border-gray-500 p-1.5 text-center font-semibold w-[200px]">
                 상품명
               </th>
               <th className="border border-gray-500 p-1.5 text-center font-semibold w-[60px]">
