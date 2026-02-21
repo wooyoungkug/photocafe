@@ -929,6 +929,11 @@ export default function MonthlySummaryPage() {
                                                 </span>
                                               )}
                                             </span>
+                                            {order.items?.[0]?.size && (
+                                              <span className="text-xs text-gray-400 shrink-0 whitespace-nowrap">
+                                                {order.items[0].size}
+                                              </span>
+                                            )}
                                           </div>
                                           <div className="text-right shrink-0">
                                             <p className="tabular-nums">
