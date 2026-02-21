@@ -528,7 +528,7 @@ export default function MyOrdersPage() {
                               {item.productName?.split(' - ')[0]} / {item.size} / {item.printMethod} / {item.paper}
                             </div>
                             <div className="flex flex-wrap gap-1">
-                              {item.bindingType && <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">{item.bindingType}</Badge>}
+                              {item.bindingType && <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">{item.bindingType.replace(/\s*\([^)]+\)\s*$/, '')}</Badge>}
                               {item.coverMaterial && <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">{item.coverMaterial}</Badge>}
                               {item.fabricName && <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">원단:{item.fabricName}</Badge>}
                               {item.foilColor && <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">박:{item.foilColor}</Badge>}
