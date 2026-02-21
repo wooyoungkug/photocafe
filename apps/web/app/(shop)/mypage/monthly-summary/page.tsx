@@ -244,30 +244,66 @@ export default function MonthlySummaryPage() {
       <h1 className="text-center text-[17pt] font-bold tracking-widest mb-1">{title}</h1>
       <div className="border-t-2 border-b border-black mb-3 pt-0.5" />
 
-      {/* 거래처 정보 + 기간 */}
-      <div className="flex justify-between items-end mb-3 text-[10pt]">
-        <table className="border-collapse text-[10pt]">
-          <tbody>
-            <tr>
-              <td className="pr-3 font-semibold whitespace-nowrap">거&nbsp;&nbsp;&nbsp;래&nbsp;&nbsp;&nbsp;처</td>
-              <td className="border-b border-black px-3 min-w-[180px]">
-                {user?.clientName || user?.name || '-'}
-              </td>
-            </tr>
-            <tr>
-              <td className="pr-3 font-semibold pt-1.5 whitespace-nowrap">사업자번호</td>
-              <td className="border-b border-black px-3 pt-1.5">
-                {(user as any)?.businessNumber || '-'}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <div className="text-right text-[9pt] text-gray-600 space-y-1">
-          <div>
-            기&nbsp;&nbsp;&nbsp;&nbsp;간: {printPeriodStart} ~ {printPeriodEnd}
+      {/* 공급받는자 + 공급자 */}
+      <div className="flex gap-4 mb-2 text-[9pt]">
+        {/* 공급받는자 */}
+        <div className="flex-1 border border-gray-500">
+          <div className="bg-gray-100 text-center font-bold py-0.5 text-[9pt] border-b border-gray-500">
+            공 급 받 는 자
           </div>
-          <div>출력일자: {printToday}</div>
+          <table className="border-collapse w-full text-[9pt]">
+            <tbody>
+              <tr>
+                <td className="pl-2 pr-1 py-1 font-semibold whitespace-nowrap w-[70px]">거&nbsp;&nbsp;래&nbsp;&nbsp;처</td>
+                <td className="py-1 border-b border-gray-300 pr-2">
+                  {user?.clientName || user?.name || '-'}
+                </td>
+              </tr>
+              <tr>
+                <td className="pl-2 pr-1 py-1 font-semibold whitespace-nowrap">사업자번호</td>
+                <td className="py-1 pr-2">
+                  {(user as any)?.businessNumber || '-'}
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
+        {/* 공급자 */}
+        <div className="flex-1 border border-gray-500">
+          <div className="bg-gray-100 text-center font-bold py-0.5 text-[9pt] border-b border-gray-500">
+            공 급 자
+          </div>
+          <table className="border-collapse w-full text-[9pt]">
+            <tbody>
+              <tr>
+                <td className="pl-2 pr-1 py-0.5 font-semibold whitespace-nowrap w-[55px]">상&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;호</td>
+                <td className="py-0.5 pr-2">(주)프린팅솔루션즈</td>
+              </tr>
+              <tr>
+                <td className="pl-2 pr-1 py-0.5 font-semibold whitespace-nowrap">대 표 이 사</td>
+                <td className="py-0.5 pr-2">우영국</td>
+              </tr>
+              <tr>
+                <td className="pl-2 pr-1 py-0.5 font-semibold whitespace-nowrap">주&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;소</td>
+                <td className="py-0.5 pr-2">성남시 중원구 둔촌대로 560 벽산테크노피아 310,311,312호</td>
+              </tr>
+              <tr>
+                <td className="pl-2 pr-1 py-0.5 font-semibold whitespace-nowrap">대 표 전 화</td>
+                <td className="py-0.5 pr-2">1800-7682</td>
+              </tr>
+              <tr>
+                <td className="pl-2 pr-1 py-0.5 font-semibold whitespace-nowrap">E-mail</td>
+                <td className="py-0.5 pr-2">pvotome5478@naver.com</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* 기간 + 출력일자 */}
+      <div className="flex justify-end text-[9pt] text-gray-600 space-x-6 mb-3">
+        <div>기&nbsp;&nbsp;&nbsp;&nbsp;간: {printPeriodStart} ~ {printPeriodEnd}</div>
+        <div>출력일자: {printToday}</div>
       </div>
 
       {/* 요약 박스 */}
