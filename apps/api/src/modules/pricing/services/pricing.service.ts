@@ -366,7 +366,6 @@ export class PricingService {
   }
 
   /**
-<<<<<<< Updated upstream
    * 그룹별 생산설정 단가 설정 (upsert) - 트랜잭션 배치 처리
    */
   async setGroupProductionSettingPrices(dto: SetGroupProductionSettingPricesDto) {
