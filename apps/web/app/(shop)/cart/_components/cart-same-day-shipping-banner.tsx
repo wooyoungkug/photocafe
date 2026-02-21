@@ -61,7 +61,7 @@ export function CartSameDayShippingBanner({ info, newOrderTotal }: CartSameDaySh
         ) : isFreeEligible ? (
           <>
             <p className="font-semibold text-green-700">
-              합배송 조건부 무료배송 달성!
+              묶음배송 조건부 무료배송 달성!
             </p>
             <p className="text-green-600 text-xs leading-relaxed">
               오늘 누적 주문{' '}

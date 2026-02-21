@@ -990,7 +990,7 @@ export default function OrderPage() {
                     <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-start gap-2 text-sm">
                       <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
                       <div>
-                        <p className="font-medium text-green-700">합배송 무료배송 적용</p>
+                        <p className="font-medium text-green-700">묶음배송 무료배송 적용</p>
                         <p className="text-green-600 text-xs mt-0.5">
                           당일 누적 {combinedShipping.combinedTotal.toLocaleString()}원
                           (기준 {combinedShipping.freeThreshold.toLocaleString()}원 이상)
@@ -1026,7 +1026,7 @@ export default function OrderPage() {
                     </div>
                     {combinedShippingAdjustment < 0 && (
                       <div className="flex justify-between text-green-600">
-                        <span className="text-gray-500">합배송 환급</span>
+                        <span className="text-gray-500">묶음배송 환급</span>
                         <span>-{Math.abs(combinedShippingAdjustment).toLocaleString()}원</span>
                       </div>
                     )}

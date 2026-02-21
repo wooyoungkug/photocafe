@@ -313,7 +313,7 @@ export default function CartPage() {
     });
     if (!hasStudioDelivery) return null;
     if (sameDayFreeEligible) {
-      return isSameDayThresholdMet ? '합배송 조건부 무료배송 달성' : '묶음배송 무료';
+      return isSameDayThresholdMet ? '묶음배송 조건부 무료배송 달성' : '묶음배송 무료';
     }
     if (clientInfo?.shippingType === 'free') return '무료배송 거래처';
     if (clientInfo?.shippingType === 'conditional') return '조건부 무료배송';

@@ -458,7 +458,7 @@ export function CartItemCard({
                       <span>·</span>
                       <span>
                         {isCombinedShipping
-                          ? '무료(합배송)'
+                          ? '무료(묶음배송)'
                           : item.albumOrderInfo.shippingInfo.deliveryFee === 0
                           ? '무료'
                           : `${item.albumOrderInfo.shippingInfo.deliveryFee.toLocaleString()}원`}
@@ -677,7 +677,7 @@ export function CartItemCard({
                               const info = itemShipping!;
                               const methodLabel = getDeliveryMethodLabel(info.deliveryMethod);
                               const senderLabel = info.senderType === 'company' ? '회사' : '주문자';
-                              return `${methodLabel} · ${senderLabel}→스튜디오 · 무료(합배송)`;
+                              return `${methodLabel} · ${senderLabel}→스튜디오 · 무료(묶음배송)`;
                             })()
                           : getCartShippingSummary(itemShipping!)}
                       </span>

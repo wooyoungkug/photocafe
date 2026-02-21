@@ -205,7 +205,7 @@ export function CartOrderSummary({
                       </span>
                     )}
                     {sameDayRefund > 0 && (
-                      <span className="text-xs text-green-600">(합배송 환불 적용)</span>
+                      <span className="text-xs text-green-600">(묶음배송 환불 적용)</span>
                     )}
                   </span>
                   <div className="text-right">

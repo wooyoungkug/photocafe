@@ -200,7 +200,7 @@ export function FolderShippingSection({
 
   const { fee } = calculateDeliveryFee(deliveryMethod, receiverType);
   const isThisCombined = isCombinedShipping && receiverType === 'orderer' && deliveryMethod !== 'pickup';
-  const feeLabel = isThisCombined ? '무료(합배송)' : fee === 0 ? '무료' : `${fee.toLocaleString()}원`;
+  const feeLabel = isThisCombined ? '무료(묶음배송)' : fee === 0 ? '무료' : `${fee.toLocaleString()}원`;
 
   const parcelFreeThreshold = clientInfo?.freeShippingThreshold
     ?? (pricingMap['parcel']?.freeThreshold != null ? Number(pricingMap['parcel'].freeThreshold) : 90000);
