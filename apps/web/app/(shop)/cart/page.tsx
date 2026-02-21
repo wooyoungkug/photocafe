@@ -312,6 +312,21 @@ export default function CartPage() {
     return null;
   })();
 
+  // 합배송: 스튜디오배송에서 동일 배송방법의 2번째 이상 아이템 ID 집합 (배송비 1회만 청구)
+  const combinedShippingIds = new Set<string>();
+  if (items.length > 1) {
+    const seenStudioMethods = new Set<string>();
+    for (const item of items) {
+      const sh = item.albumOrderInfo?.shippingInfo || item.shippingInfo;
+      if (!sh || sh.deliveryMethod === 'pickup' || sh.receiverType !== 'orderer') continue;
+      if (seenStudioMethods.has(sh.deliveryMethod)) {
+        combinedShippingIds.add(item.id);
+      } else {
+        seenStudioMethods.add(sh.deliveryMethod);
+      }
+    }
+  }
+
   // 선택된 아이템의 고유 배송방법 목록
   const selectedDeliveryMethods = [
     ...new Set(
@@ -461,6 +476,7 @@ export default function CartPage() {
                           onCopyFromPrevious={
                             hasPrevShipping ? () => handleCopyFromPrevious(item.id) : null
                           }
+                          isCombinedShipping={combinedShippingIds.has(item.id)}
                           itemsCount={noShippingCount}
                           companyInfo={companyInfo}
                           clientInfo={clientInfo}

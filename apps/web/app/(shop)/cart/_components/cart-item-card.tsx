@@ -104,6 +104,7 @@ export interface CartItemCardProps {
   onAlbumInfoChange?: (id: string, updates: Partial<import('@/stores/cart-store').AlbumOrderCartInfo>) => void;
   onApplyToAll: (id: string) => void;
   onCopyFromPrevious: (() => void) | null;
+  isCombinedShipping?: boolean;
   itemsCount: number;
   companyInfo: CompanyShippingInfo | null;
   clientInfo: OrdererShippingInfo | null;
@@ -122,6 +123,7 @@ export function CartItemCard({
   onAlbumInfoChange,
   onApplyToAll,
   onCopyFromPrevious,
+  isCombinedShipping,
   itemsCount,
   companyInfo,
   clientInfo,
@@ -455,7 +457,9 @@ export function CartItemCard({
                       </span>
                       <span>·</span>
                       <span>
-                        {item.albumOrderInfo.shippingInfo.deliveryFee === 0
+                        {isCombinedShipping
+                          ? '무료(합배송)'
+                          : item.albumOrderInfo.shippingInfo.deliveryFee === 0
                           ? '무료'
                           : `${item.albumOrderInfo.shippingInfo.deliveryFee.toLocaleString()}원`}
                       </span>
@@ -668,7 +672,14 @@ export function CartItemCard({
                     </div>
                     {isShippingComplete(itemShipping) ? (
                       <span className="text-sm text-gray-700">
-                        {getCartShippingSummary(itemShipping!)}
+                        {isCombinedShipping
+                          ? (() => {
+                              const info = itemShipping!;
+                              const methodLabel = getDeliveryMethodLabel(info.deliveryMethod);
+                              const senderLabel = info.senderType === 'company' ? '회사' : '주문자';
+                              return `${methodLabel} · ${senderLabel}→스튜디오 · 무료(합배송)`;
+                            })()
+                          : getCartShippingSummary(itemShipping!)}
                       </span>
                     ) : (
                       <span className="text-sm text-orange-600 font-medium">
