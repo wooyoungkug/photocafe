@@ -564,26 +564,6 @@ export default function MonthlySummaryPage() {
                         </tr>
                       ))}
 
-                      {/* 배송비 행 (있는 경우) */}
-                      {order.shippingFee > 0 && (
-                        <tr>
-                          <td className="border border-gray-400 p-1 text-[8pt] text-gray-400" />
-                          <td className="border border-gray-400 p-1 text-gray-500">
-                            배송비
-                          </td>
-                          <td className="border border-gray-400 p-1 text-[8pt] text-gray-400">
-                            -
-                          </td>
-                          <td className="border border-gray-400 p-1 text-center">1</td>
-                          <td className="border border-gray-400 p-1 text-right tabular-nums">
-                            {formatAmount(order.shippingFee)}원
-                          </td>
-                          <td className="border border-gray-400 p-1 text-right tabular-nums">
-                            {formatAmount(order.shippingFee)}원
-                          </td>
-                        </tr>
-                      )}
-
                       {/* 주문 소계 */}
                       <tr className="bg-gray-50">
                         <td
