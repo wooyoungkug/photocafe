@@ -103,7 +103,7 @@ export function CartOrderSummary({
                     {totalShippingFee === 0 ? t('free') : `+${Math.round(totalShippingFee).toLocaleString()}원`}
                   </span>
                   {totalShippingFee === 0 && freeShippingLabel && (
-                    <p className="text-[11px] text-green-500 mt-0.5">{freeShippingLabel}</p>
+                    <p className="text-[11px] text-black/80 mt-0.5">{freeShippingLabel}</p>
                   )}
                 </div>
               )}
