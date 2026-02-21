@@ -1,17 +1,14 @@
 'use client';
 
 import { useState, Fragment, useMemo, useEffect } from 'react';
-import Link from 'next/link';
 import {
   Calendar,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
   ChevronRight as ChevronRightIcon,
-  Eye,
   FileText,
   Loader2,
-  Truck,
   ArrowRightLeft,
   Download,
   Printer,
@@ -184,24 +181,6 @@ export default function MonthlySummaryPage() {
     link.click();
     document.body.removeChild(link);
     toast({ title: 'CSV 파일이 다운로드되었습니다.' });
-  };
-
-  const renderShippingStatus = (order: Order) => {
-    if (!order.shipping) return <span className="text-gray-400">-</span>;
-    if (order.shipping.deliveredAt) return <Badge variant="success">배송완료</Badge>;
-    if (order.shipping.shippedAt || order.shipping.trackingNumber) {
-      return (
-        <div className="flex items-center gap-1">
-          <Truck className="h-3 w-3 text-blue-500" />
-          <span className="text-blue-600 text-xs">
-            {order.shipping.trackingNumber || '배송중'}
-          </span>
-        </div>
-      );
-    }
-    if (order.status === 'ready_for_shipping')
-      return <Badge variant="secondary">배송준비</Badge>;
-    return <span className="text-gray-400">-</span>;
   };
 
   const summary = dailyData?.summary;
@@ -951,18 +930,6 @@ export default function MonthlySummaryPage() {
                                                 order.status}
                                             </Badge>
                                           </div>
-                                          <div className="shrink-0 w-16 text-center">
-                                            {renderShippingStatus(order)}
-                                          </div>
-                                          <Link href={`/mypage/orders/${order.id}`}>
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              className="h-8 w-8 p-0"
-                                            >
-                                              <Eye className="h-4 w-4" />
-                                            </Button>
-                                          </Link>
                                         </div>
                                       ))}
                                     </div>
