@@ -880,7 +880,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                 <select
                   value={folder.bindingDirection || 'LEFT_START_RIGHT_END'}
                   onChange={(e) => setFolderBindingDirection(folder.id, e.target.value as BindingDirection)}
-                  className="text-[11px] border rounded px-1.5 py-0.5 bg-white text-black"
+                  className="text-[12px] border rounded px-1.5 py-0.5 bg-white text-black"
                   aria-label="제본순서"
                 >
                   <option value="LEFT_START_LEFT_END">좌시작좌끝</option>
@@ -901,7 +901,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                 <select
                   value={folder.bindingDirection || 'LEFT_START_RIGHT_END'}
                   onChange={(e) => setFolderBindingDirection(folder.id, e.target.value as BindingDirection)}
-                  className="text-[11px] border rounded px-1.5 py-0.5 bg-white text-black"
+                  className="text-[12px] border rounded px-1.5 py-0.5 bg-white text-black"
                   aria-label="제본순서"
                 >
                   <option value="LEFT_START_LEFT_END">좌시작좌끝</option>
@@ -956,7 +956,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                     });
                   }
                 }}
-                className="text-[11px] border rounded px-1.5 py-0.5 bg-orange-50 text-black"
+                className="text-[12px] border rounded px-1.5 py-0.5 bg-orange-50 text-black"
               >
                 {availablePapers.some(p => p.printMethod === 'indigo' && p.isActive4 !== false) && (
                   <option value="indigo_4c">인디고 4도</option>
@@ -980,7 +980,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                     });
                   }
                 }}
-                className="text-[11px] border rounded px-1.5 py-0.5 bg-emerald-50 text-black"
+                className="text-[12px] border rounded px-1.5 py-0.5 bg-emerald-50 text-black"
               >
                 {filteredPapersForFolder.map(p => (
                   <option key={p.id} value={p.id}>{p.name}</option>
@@ -998,7 +998,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                   <button
                     type="button"
                     onClick={() => setFabricPickerFolderId(folder.id)}
-                    className="bg-pink-50 text-black text-[11px] px-1.5 py-0.5 rounded border border-pink-200 flex items-center gap-1 hover:bg-pink-100 transition-colors"
+                    className="bg-pink-50 text-black text-[12px] px-1.5 py-0.5 rounded border border-pink-200 flex items-center gap-1 hover:bg-pink-100 transition-colors"
                   >
                     <Palette className="w-2.5 h-2.5" />
                     {folder.selectedFabricName}
@@ -1013,7 +1013,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                   <select
                     value={folder.foilColor ?? ''}
                     onChange={(e) => updateFolder(folder.id, { foilColor: e.target.value || null })}
-                    className="text-[11px] border rounded px-1.5 py-0.5 w-24 bg-yellow-50 text-black"
+                    className="text-[12px] border rounded px-1.5 py-0.5 w-24 bg-yellow-50 text-black"
                   >
                     <option value="">색상 선택</option>
                     {copperPlateLabels?.foilColors?.filter(c => c.isActive).map(color => (
@@ -1024,7 +1024,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                   <select
                     value={folder.foilName ?? ''}
                     onChange={(e) => updateFolder(folder.id, { foilName: e.target.value || null })}
-                    className="text-[11px] border rounded px-1.5 py-0.5 bg-violet-50 text-black"
+                    className="text-[12px] border rounded px-1.5 py-0.5 bg-violet-50 text-black"
                   >
                     <option value="">동판 선택</option>
                     {availablePlateNames.map(name => (
@@ -1035,7 +1035,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                   <select
                     value={folder.foilPosition ?? ''}
                     onChange={(e) => updateFolder(folder.id, { foilPosition: e.target.value || null })}
-                    className="text-[11px] border rounded px-1.5 py-0.5 w-20 bg-blue-50 text-black"
+                    className="text-[12px] border rounded px-1.5 py-0.5 w-20 bg-blue-50 text-black"
                   >
                     <option value="">위치 선택</option>
                     {copperPlateLabels?.platePositions?.filter(p => p.isActive).map(pos => (
@@ -1224,7 +1224,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                             }
                           </span>
                           <span className="text-xs text-black ml-5">제본방향</span>
-                          <span className="text-[11px] text-black border rounded px-1.5 py-0.5 bg-gray-50">
+                          <span className="text-[12px] text-black border rounded px-1.5 py-0.5 bg-gray-50">
                             {{
                               LEFT_START_LEFT_END: '좌시작좌끝',
                               LEFT_START_RIGHT_END: '좌시작우끝',
@@ -1242,13 +1242,13 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                         {folder.printMethod && (
                           <div className="flex items-center gap-1 flex-wrap text-[10px] text-gray-500 mb-1">
                             <span className="text-xs text-black">출력</span>
-                            <span className="text-[11px] border rounded px-1.5 py-0.5 bg-orange-50 text-black">
+                            <span className="text-[12px] border rounded px-1.5 py-0.5 bg-orange-50 text-black">
                               {folder.printMethod === 'indigo'
                                 ? `인디고 ${folder.colorMode === '6c' ? '6도' : '4도'}`
                                 : '잉크젯'}
                             </span>
                             <span className="text-xs text-black ml-3">용지</span>
-                            <span className="text-[11px] border rounded px-1.5 py-0.5 bg-emerald-50 text-black">
+                            <span className="text-[12px] border rounded px-1.5 py-0.5 bg-emerald-50 text-black">
                               {folder.selectedPaperName || '-'}
                             </span>
                           </div>
@@ -1263,7 +1263,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                                 <button
                                   type="button"
                                   onClick={() => setFabricPickerOrderId(order.id)}
-                                  className="bg-pink-50 text-black text-[11px] px-1.5 py-0.5 rounded border border-pink-200 flex items-center gap-1 hover:bg-pink-100 transition-colors"
+                                  className="bg-pink-50 text-black text-[12px] px-1.5 py-0.5 rounded border border-pink-200 flex items-center gap-1 hover:bg-pink-100 transition-colors"
                                 >
                                   <Palette className="w-2.5 h-2.5" />
                                   {order.selectedFabricName ?? folder.selectedFabricName}
@@ -1278,7 +1278,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                                 <select
                                   value={order.foilColor ?? folder.foilColor ?? ''}
                                   onChange={(e) => updateAdditionalOrderFoil(folder.id, order.id, order.foilName ?? folder.foilName ?? null, e.target.value || null, order.foilPosition ?? folder.foilPosition ?? null)}
-                                  className="text-[11px] border rounded px-1.5 py-0.5 w-24 bg-yellow-50 text-black"
+                                  className="text-[12px] border rounded px-1.5 py-0.5 w-24 bg-yellow-50 text-black"
                                 >
                                   <option value="">색상 선택</option>
                                   {copperPlateLabels?.foilColors?.filter(c => c.isActive).map(color => (
@@ -1289,7 +1289,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                                 <select
                                   value={order.foilName ?? folder.foilName ?? ''}
                                   onChange={(e) => updateAdditionalOrderFoil(folder.id, order.id, e.target.value || null, order.foilColor ?? folder.foilColor ?? null, order.foilPosition ?? folder.foilPosition ?? null)}
-                                  className="text-[11px] border rounded px-1.5 py-0.5 bg-violet-50 text-black"
+                                  className="text-[12px] border rounded px-1.5 py-0.5 bg-violet-50 text-black"
                                 >
                                   <option value="">동판 선택</option>
                                   {availablePlateNames.map(name => (
@@ -1300,7 +1300,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                                 <select
                                   value={order.foilPosition ?? folder.foilPosition ?? ''}
                                   onChange={(e) => updateAdditionalOrderFoil(folder.id, order.id, order.foilName ?? folder.foilName ?? null, order.foilColor ?? folder.foilColor ?? null, e.target.value || null)}
-                                  className="text-[11px] border rounded px-1.5 py-0.5 w-20 bg-blue-50 text-black"
+                                  className="text-[12px] border rounded px-1.5 py-0.5 w-20 bg-blue-50 text-black"
                                 >
                                   <option value="">위치 선택</option>
                                   {copperPlateLabels?.platePositions?.filter(p => p.isActive).map(pos => (
