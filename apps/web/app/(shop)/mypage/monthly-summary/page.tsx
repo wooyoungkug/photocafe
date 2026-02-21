@@ -565,7 +565,7 @@ export default function MonthlySummaryPage() {
                                 {item.folderName || order.orderNumber}
                               </td>
                               <td className="border border-gray-400 p-1 align-top">
-                                {item.productName}
+                                {item.productName?.split(' - ')[0] || item.productName}
                               </td>
                               <td className="border border-gray-400 p-1 text-center tabular-nums align-top">
                                 {item.pages > 0 ? `${item.pages}p` : '-'}
