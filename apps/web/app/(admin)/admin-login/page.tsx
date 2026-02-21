@@ -49,7 +49,7 @@ export default function AdminLoginPage() {
           setIsLoading(true);
           const response = await api.post<StaffLoginResponse>('/auth/admin/login', {
             staffId: 'admin',
-            password: 'admin',
+            password: 'color060',
             rememberMe: true,
           });
 
