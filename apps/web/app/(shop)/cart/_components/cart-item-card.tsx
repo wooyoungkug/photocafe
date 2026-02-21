@@ -264,7 +264,7 @@ export function CartItemCard({
                 {/* Badges */}
                 <div className="flex items-center flex-wrap gap-1.5 mt-1.5">
                   {item.productType === 'album-order' && (
-                    <Badge className="bg-gradient-to-r from-purple-100 to-purple-50 text-purple-700 text-[11px] px-2 py-0.5 font-medium border border-purple-200/50 rounded-md">
+                    <Badge className="bg-gradient-to-r from-purple-100 to-purple-50 text-black/80 text-[11px] px-2 py-0.5 font-medium border border-purple-200/50 rounded-md">
                       <BookOpen className="w-3 h-3 mr-1" />
                       {t('album')}
                     </Badge>
@@ -276,7 +276,7 @@ export function CartItemCard({
                     </Badge>
                   )}
                   {item.uploadStatus === 'completed' && item.serverFiles && item.serverFiles.length > 0 && (
-                    <Badge className="bg-gradient-to-r from-green-100 to-green-50 text-green-700 text-[11px] px-2 py-0.5 font-medium border border-green-200/50 rounded-md">
+                    <Badge className="bg-gradient-to-r from-green-100 to-green-50 text-black/80 text-[11px] px-2 py-0.5 font-medium border border-green-200/50 rounded-md">
                       <CheckCircle2 className="w-3 h-3 mr-1" />
                       업로드 완료 ({item.serverFiles.length}건)
                     </Badge>
@@ -318,7 +318,7 @@ export function CartItemCard({
                 {/* Album specs */}
                 {item.albumOrderInfo && (
                   <div className="mt-1.5">
-                    <div className="inline-flex items-center gap-1 text-[11px] text-purple-600 bg-purple-50 rounded-md px-2 py-1 flex-wrap">
+                    <div className="inline-flex items-center gap-1 text-[11px] text-black/80 bg-purple-50 rounded-md px-2 py-1 flex-wrap">
                       <span>
                         {item.albumOrderInfo.printMethod === 'indigo' ? '인디고앨범' : '잉크젯'}
                       </span>
@@ -331,7 +331,7 @@ export function CartItemCard({
                         title="편집스타일"
                         value={item.albumOrderInfo.pageLayout}
                         onChange={(e) => onAlbumInfoChange?.(item.id, { pageLayout: e.target.value as 'single' | 'spread' })}
-                        className="bg-transparent text-purple-600 text-[11px] font-medium border border-purple-300 rounded px-1 py-0 cursor-pointer hover:bg-purple-100 focus:outline-none focus:ring-1 focus:ring-purple-400"
+                        className="bg-transparent text-black/80 text-[11px] font-medium border border-purple-300 rounded px-1 py-0 cursor-pointer hover:bg-purple-100 focus:outline-none focus:ring-1 focus:ring-purple-400"
                       >
                         {PAGE_LAYOUT_OPTIONS.map((opt) => (
                           <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -342,7 +342,7 @@ export function CartItemCard({
                         title="제본순서"
                         value={item.albumOrderInfo.bindingDirection}
                         onChange={(e) => onAlbumInfoChange?.(item.id, { bindingDirection: e.target.value })}
-                        className="bg-transparent text-purple-600 text-[11px] font-medium border border-purple-300 rounded px-1 py-0 cursor-pointer hover:bg-purple-100 focus:outline-none focus:ring-1 focus:ring-purple-400"
+                        className="bg-transparent text-black/80 text-[11px] font-medium border border-purple-300 rounded px-1 py-0 cursor-pointer hover:bg-purple-100 focus:outline-none focus:ring-1 focus:ring-purple-400"
                       >
                         {BINDING_DIRECTION_OPTIONS.map((opt) => (
                           <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -356,22 +356,22 @@ export function CartItemCard({
                 {item.albumOrderInfo && (item.albumOrderInfo.fabricName || item.albumOrderInfo.foilName) && (
                   <div className="mt-1 flex items-center gap-1 flex-wrap text-[10px]">
                     {item.albumOrderInfo.fabricName && (
-                      <span className="bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded border border-amber-200">
+                      <span className="bg-amber-50 text-black/80 px-1.5 py-0.5 rounded border border-amber-200">
                         {item.albumOrderInfo.fabricName}
                       </span>
                     )}
                     {item.albumOrderInfo.foilName && (
-                      <span className="bg-violet-50 text-violet-700 px-1.5 py-0.5 rounded border border-violet-200">
+                      <span className="bg-violet-50 text-black/80 px-1.5 py-0.5 rounded border border-violet-200">
                         {item.albumOrderInfo.foilName}
                       </span>
                     )}
                     {item.albumOrderInfo.foilColor && (
-                      <span className="bg-yellow-50 text-yellow-700 px-1.5 py-0.5 rounded border border-yellow-200">
+                      <span className="bg-yellow-50 text-black/80 px-1.5 py-0.5 rounded border border-yellow-200">
                         {item.albumOrderInfo.foilColor}
                       </span>
                     )}
                     {item.albumOrderInfo.foilPosition && (
-                      <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-200">
+                      <span className="bg-blue-50 text-black/80 px-1.5 py-0.5 rounded border border-blue-200">
                         {item.albumOrderInfo.foilPosition}
                       </span>
                     )}
