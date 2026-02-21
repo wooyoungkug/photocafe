@@ -119,27 +119,21 @@ export class StatisticsService {
         truncExpr = `TO_CHAR("orderedAt", 'YYYY-MM-DD')`;
     }
 
-    const conditions: string[] = [`status != 'cancelled'`];
-    const params: any[] = [];
-    let paramIdx = 1;
+    const conditions: Prisma.Sql[] = [Prisma.sql`status != 'cancelled'`];
 
     if (startDate) {
-      conditions.push(`"orderedAt" >= $${paramIdx}`);
-      params.push(startDate);
-      paramIdx++;
+      conditions.push(Prisma.sql`"orderedAt" >= ${startDate}`);
     }
     if (endDate) {
-      conditions.push(`"orderedAt" <= $${paramIdx}`);
-      params.push(endDate);
-      paramIdx++;
+      conditions.push(Prisma.sql`"orderedAt" <= ${endDate}`);
     }
 
-    const whereClause = conditions.join(' AND ');
+    const whereClause = Prisma.join(conditions, ' AND ');
 
-    const rows = await this.prisma.$queryRawUnsafe<
+    const rows = await this.prisma.$queryRaw<
       { period: string; revenue: number; count: bigint; tax: number }[]
     >(
-      `SELECT ${truncExpr} as period,
+      Prisma.sql`SELECT ${Prisma.raw(truncExpr)} as period,
               COALESCE(SUM("finalAmount"), 0)::float as revenue,
               COUNT(id) as count,
               COALESCE(SUM(tax), 0)::float as tax
@@ -147,7 +141,6 @@ export class StatisticsService {
        WHERE ${whereClause}
        GROUP BY period
        ORDER BY period ASC`,
-      ...params,
     );
 
     const data = rows.map(r => ({
@@ -331,42 +324,34 @@ export class StatisticsService {
     const { startDate, endDate, categoryId, level } = query;
 
     // DB 수준 JOIN + GROUP BY로 집계
-    const conditions: string[] = [`o.status != 'cancelled'`];
-    const params: any[] = [];
-    let paramIdx = 1;
+    const conditions: Prisma.Sql[] = [Prisma.sql`o.status != 'cancelled'`];
 
     if (startDate) {
-      conditions.push(`o."orderedAt" >= $${paramIdx}`);
-      params.push(startDate);
-      paramIdx++;
+      conditions.push(Prisma.sql`o."orderedAt" >= ${startDate}`);
     }
     if (endDate) {
-      conditions.push(`o."orderedAt" <= $${paramIdx}`);
-      params.push(endDate);
-      paramIdx++;
+      conditions.push(Prisma.sql`o."orderedAt" <= ${endDate}`);
     }
     if (categoryId) {
-      conditions.push(`p."categoryId" = $${paramIdx}`);
-      params.push(categoryId);
-      paramIdx++;
+      conditions.push(Prisma.sql`p."categoryId" = ${categoryId}`);
     }
 
-    const whereClause = conditions.join(' AND ');
+    conditions.push(Prisma.sql`p."categoryId" IS NOT NULL`);
+    const whereClause = Prisma.join(conditions, ' AND ');
 
-    const rows = await this.prisma.$queryRawUnsafe<
+    const rows = await this.prisma.$queryRaw<
       { categoryId: string; orderCount: bigint; quantity: bigint; revenue: number }[]
     >(
-      `SELECT p."categoryId",
+      Prisma.sql`SELECT p."categoryId",
               COUNT(oi.id) as "orderCount",
               COALESCE(SUM(oi.quantity), 0) as quantity,
               COALESCE(SUM(oi."totalPrice"), 0)::float as revenue
        FROM order_items oi
        JOIN orders o ON o.id = oi."orderId"
        JOIN products p ON p.id = oi."productId"
-       WHERE ${whereClause} AND p."categoryId" IS NOT NULL
+       WHERE ${whereClause}
        GROUP BY p."categoryId"
        ORDER BY revenue DESC`,
-      ...params,
     );
 
     const categoryIds = rows.map(r => r.categoryId);
@@ -426,36 +411,30 @@ export class StatisticsService {
     });
 
     // DB 수준 JOIN + GROUP BY로 카테고리별 집계
-    const conditions: string[] = [`o.status != 'cancelled'`];
-    const params: any[] = [];
-    let paramIdx = 1;
+    const conditions: Prisma.Sql[] = [Prisma.sql`o.status != 'cancelled'`];
 
     if (startDate) {
-      conditions.push(`o."orderedAt" >= $${paramIdx}`);
-      params.push(startDate);
-      paramIdx++;
+      conditions.push(Prisma.sql`o."orderedAt" >= ${startDate}`);
     }
     if (endDate) {
-      conditions.push(`o."orderedAt" <= $${paramIdx}`);
-      params.push(endDate);
-      paramIdx++;
+      conditions.push(Prisma.sql`o."orderedAt" <= ${endDate}`);
     }
 
-    const whereClause = conditions.join(' AND ');
+    conditions.push(Prisma.sql`p."categoryId" IS NOT NULL`);
+    const whereClause = Prisma.join(conditions, ' AND ');
 
-    const rows = await this.prisma.$queryRawUnsafe<
+    const rows = await this.prisma.$queryRaw<
       { categoryId: string; orderCount: bigint; quantity: bigint; revenue: number }[]
     >(
-      `SELECT p."categoryId",
+      Prisma.sql`SELECT p."categoryId",
               COUNT(oi.id) as "orderCount",
               COALESCE(SUM(oi.quantity), 0) as quantity,
               COALESCE(SUM(oi."totalPrice"), 0)::float as revenue
        FROM order_items oi
        JOIN orders o ON o.id = oi."orderId"
        JOIN products p ON p.id = oi."productId"
-       WHERE ${whereClause} AND p."categoryId" IS NOT NULL
+       WHERE ${whereClause}
        GROUP BY p."categoryId"`,
-      ...params,
     );
 
     // 소분류별 집계 Map
@@ -589,20 +568,18 @@ export class StatisticsService {
     startDate.setHours(0, 0, 0, 0);
 
     // DB 수준 월별 집계
-    const rows = await this.prisma.$queryRawUnsafe<
+    const rows = await this.prisma.$queryRaw<
       { month: string; revenue: number; count: bigint }[]
     >(
-      `SELECT TO_CHAR("orderedAt", 'YYYY-MM') as month,
+      Prisma.sql`SELECT TO_CHAR("orderedAt", 'YYYY-MM') as month,
               COALESCE(SUM("finalAmount"), 0)::float as revenue,
               COUNT(id) as count
        FROM orders
        WHERE status != 'cancelled'
-         AND "orderedAt" >= $1
-         AND "orderedAt" <= $2
+         AND "orderedAt" >= ${startDate}
+         AND "orderedAt" <= ${endDate}
        GROUP BY month
        ORDER BY month ASC`,
-      startDate,
-      endDate,
     );
 
     return rows.map(r => ({

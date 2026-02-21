@@ -346,7 +346,7 @@ export class AuthService {
     return { success: true, message: '비밀번호가 변경되었습니다' };
   }
 
-  // 관리자용: 회원 비밀번호 초기화 (123456으로 초기화)
+  // 관리자용: 회원 비밀번호 초기화 (랜덤 임시 비밀번호 생성)
   async resetClientPassword(clientId: string) {
     const client = await this.prisma.client.findUnique({
       where: { id: clientId },
@@ -356,9 +356,8 @@ export class AuthService {
       throw new BadRequestException('회원을 찾을 수 없습니다');
     }
 
-    // 비밀번호를 123456으로 초기화
-    const defaultPassword = '123456';
-    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+    const tempPassword = crypto.randomBytes(6).toString('hex'); // 12자 랜덤
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
     await this.prisma.client.update({
       where: { id: clientId },
@@ -367,8 +366,8 @@ export class AuthService {
 
     return {
       success: true,
-      message: '비밀번호가 123456으로 초기화되었습니다',
-      defaultPassword: '123456'
+      message: '임시 비밀번호가 생성되었습니다. 회원에게 전달해주세요.',
+      tempPassword,
     };
   }
 

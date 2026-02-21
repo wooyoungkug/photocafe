@@ -1,8 +1,10 @@
 import { Controller, Get, Redirect } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { PrismaService } from '@/common/prisma/prisma.service';
+import { Public } from '@/common/decorators/public.decorator';
 
 @ApiExcludeController()
+@Public()
 @Controller()
 export class AppController {
   constructor(private readonly prisma: PrismaService) {}

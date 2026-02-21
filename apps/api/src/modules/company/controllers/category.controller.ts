@@ -10,6 +10,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiQuery, ApiBody } from '@nestjs/swagger';
+import { Public } from '@/common/decorators/public.decorator';
 import { CategoryService } from '../services/category.service';
 import {
   CreateCategoryDto,
@@ -27,6 +28,7 @@ export class CategoryController {
   constructor(private categoryService: CategoryService) {}
 
   // 공개 API (인증 불필요)
+  @Public()
   @Get()
   @ApiOperation({ summary: '카테고리 목록 조회' })
   @ApiQuery({ name: 'level', required: false, enum: ['large', 'medium', 'small'] })
@@ -40,18 +42,21 @@ export class CategoryController {
     return this.categoryService.findAll(query);
   }
 
+  @Public()
   @Get('tree')
   @ApiOperation({ summary: '카테고리 트리 조회 (계층형)' })
   async findTree() {
     return this.categoryService.findTree();
   }
 
+  @Public()
   @Get('top-menu')
   @ApiOperation({ summary: '상단메뉴용 카테고리 조회' })
   async findTopMenu() {
     return this.categoryService.findTopMenuCategories();
   }
 
+  @Public()
   @Get('visible')
   @ApiOperation({ summary: '로그인 상태에 따른 노출 카테고리 조회' })
   @ApiQuery({ name: 'isLoggedIn', required: false, type: Boolean })
@@ -59,6 +64,7 @@ export class CategoryController {
     return this.categoryService.findVisibleCategories(isLoggedIn);
   }
 
+  @Public()
   @Get(':id')
   @ApiOperation({ summary: '카테고리 상세 조회' })
   async findOne(@Param('id') id: string) {

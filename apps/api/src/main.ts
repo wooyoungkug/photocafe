@@ -103,46 +103,49 @@ async function bootstrap() {
     }
   });
 
-  // Swagger
-  const config = new DocumentBuilder()
-    .setTitle('인쇄업 ERP API')
-    .setDescription('포토북/앨범 인쇄업체를 위한 통합 ERP 시스템 API')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .addTag('auth', '인증')
-    .addTag('clients', '거래처')
-    .addTag('client-groups', '거래처 그룹')
-    .addTag('products', '완제품')
-    .addTag('half-products', '반제품')
-    .addTag('orders', '주문')
-    .addTag('statistics', '통계')
-    .build();
-
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document, {
-    swaggerOptions: {
-      persistAuthorization: true,
-      docExpansion: 'list',
-      filter: true,
-      showRequestDuration: true,
-      syntaxHighlight: {
-        activate: true,
-        theme: 'monokai',
-      },
-    },
-    customSiteTitle: '인쇄업 ERP API 문서',
-    customCss: `
-      .swagger-ui .topbar { display: none }
-      .swagger-ui .info { margin: 20px 0 }
-      .swagger-ui .info .title { font-size: 28px }
-    `,
-  });
-
   const port = process.env.PORT || process.env.API_PORT || 3001;
+
+  // Swagger — 운영환경에서는 비활성화
+  if (process.env.NODE_ENV !== 'production') {
+    const config = new DocumentBuilder()
+      .setTitle('인쇄업 ERP API')
+      .setDescription('포토북/앨범 인쇄업체를 위한 통합 ERP 시스템 API')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .addTag('auth', '인증')
+      .addTag('clients', '거래처')
+      .addTag('client-groups', '거래처 그룹')
+      .addTag('products', '완제품')
+      .addTag('half-products', '반제품')
+      .addTag('orders', '주문')
+      .addTag('statistics', '통계')
+      .build();
+
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, document, {
+      swaggerOptions: {
+        persistAuthorization: true,
+        docExpansion: 'list',
+        filter: true,
+        showRequestDuration: true,
+        syntaxHighlight: {
+          activate: true,
+          theme: 'monokai',
+        },
+      },
+      customSiteTitle: '인쇄업 ERP API 문서',
+      customCss: `
+        .swagger-ui .topbar { display: none }
+        .swagger-ui .info { margin: 20px 0 }
+        .swagger-ui .info .title { font-size: 28px }
+      `,
+    });
+    logger.log(`📚 Swagger docs: http://localhost:${port}/api/docs`);
+  }
+
   await app.listen(port, '0.0.0.0');
 
   logger.log(`🚀 API Server running on http://localhost:${port}`);
-  logger.log(`📚 Swagger docs: http://localhost:${port}/api/docs`);
   logger.log(`💚 Health Check: http://localhost:${port}/health`);
   logger.log(`🔍 DB Health: http://localhost:${port}/health/db`);
 

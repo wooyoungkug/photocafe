@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { EmailService } from '../../../common/email/email.service';
 import {
@@ -27,42 +28,37 @@ export class ClientLedgerService {
       limit = 20,
     } = query;
 
-    // 기간 조건 생성
-    const dateConditions: string[] = [];
-    const params: any[] = [];
-    let paramIdx = 1;
+    // 기간 조건 생성 (Prisma.sql fragments)
+    const salesDateConditions: Prisma.Sql[] = [];
+    const purchaseDateConditions: Prisma.Sql[] = [];
 
     if (startDate) {
-      dateConditions.push(`$${paramIdx}`);
-      params.push(new Date(startDate));
-      paramIdx++;
-    } else {
-      dateConditions.push(`NULL`);
+      const start = new Date(startDate);
+      salesDateConditions.push(Prisma.sql`AND sl."ledgerDate" >= ${start}`);
+      purchaseDateConditions.push(Prisma.sql`AND pl."ledgerDate" >= ${start}`);
     }
 
     if (endDate) {
       const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
-      dateConditions.push(`$${paramIdx}`);
-      params.push(end);
-      paramIdx++;
-    } else {
-      dateConditions.push(`NULL`);
+      salesDateConditions.push(Prisma.sql`AND sl."ledgerDate" <= ${end}`);
+      purchaseDateConditions.push(Prisma.sql`AND pl."ledgerDate" <= ${end}`);
     }
+
+    const salesDateFragment = salesDateConditions.length > 0
+      ? Prisma.join(salesDateConditions, ' ')
+      : Prisma.empty;
+    const purchaseDateFragment = purchaseDateConditions.length > 0
+      ? Prisma.join(purchaseDateConditions, ' ')
+      : Prisma.empty;
 
     // 검색 조건
-    let searchCondition = '';
-    if (search) {
-      searchCondition = `AND (c."clientName" ILIKE $${paramIdx} OR c."clientCode" ILIKE $${paramIdx})`;
-      params.push(`%${search}%`);
-      paramIdx++;
-    }
-
-    const startDateParam = dateConditions[0];
-    const endDateParam = dateConditions[1];
+    const searchFragment = search
+      ? Prisma.sql`AND (c."clientName" ILIKE ${`%${search}%`} OR c."clientCode" ILIKE ${`%${search}%`})`
+      : Prisma.empty;
 
     // 매출 서브쿼리
-    const salesSubquery = `
+    const salesSubquery = Prisma.sql`
       SELECT sl."clientId",
              COALESCE(SUM(sl."totalAmount"), 0)::float as "totalSales",
              COALESCE(SUM(sl."receivedAmount"), 0)::float as "totalReceived",
@@ -71,13 +67,12 @@ export class ClientLedgerService {
              MAX(sl."ledgerDate") as "lastSalesDate"
       FROM sales_ledgers sl
       WHERE sl."salesStatus" != 'CANCELLED'
-        ${startDateParam !== 'NULL' ? `AND sl."ledgerDate" >= ${startDateParam}` : ''}
-        ${endDateParam !== 'NULL' ? `AND sl."ledgerDate" <= ${endDateParam}` : ''}
+        ${salesDateFragment}
       GROUP BY sl."clientId"
     `;
 
     // 매입 서브쿼리
-    const purchaseSubquery = `
+    const purchaseSubquery = Prisma.sql`
       SELECT pl."supplierId" as "clientId",
              COALESCE(SUM(pl."totalAmount"), 0)::float as "totalPurchases",
              COALESCE(SUM(pl."paidAmount"), 0)::float as "totalPaid",
@@ -86,68 +81,63 @@ export class ClientLedgerService {
              MAX(pl."ledgerDate") as "lastPurchaseDate"
       FROM purchase_ledgers pl
       WHERE pl."purchaseStatus" != 'CANCELLED'
-        ${startDateParam !== 'NULL' ? `AND pl."ledgerDate" >= ${startDateParam}` : ''}
-        ${endDateParam !== 'NULL' ? `AND pl."ledgerDate" <= ${endDateParam}` : ''}
+        ${purchaseDateFragment}
       GROUP BY pl."supplierId"
     `;
 
     // 거래처 유형 조건
-    let joinCondition = '';
+    let joinCondition: Prisma.Sql;
     if (clientType === ClientTypeEnum.SALES) {
-      joinCondition = 'AND s."clientId" IS NOT NULL';
+      joinCondition = Prisma.sql`AND s."clientId" IS NOT NULL`;
     } else if (clientType === ClientTypeEnum.PURCHASE) {
-      joinCondition = 'AND p."clientId" IS NOT NULL';
+      joinCondition = Prisma.sql`AND p."clientId" IS NOT NULL`;
     } else {
-      joinCondition = 'AND (s."clientId" IS NOT NULL OR p."clientId" IS NOT NULL)';
+      joinCondition = Prisma.sql`AND (s."clientId" IS NOT NULL OR p."clientId" IS NOT NULL)`;
     }
 
-    const countQuery = `
-      SELECT COUNT(DISTINCT c.id)::int as total
-      FROM clients c
-      LEFT JOIN (${salesSubquery}) s ON s."clientId" = c.id
-      LEFT JOIN (${purchaseSubquery}) p ON p."clientId" = c.id
-      WHERE c.status = 'active'
-        ${joinCondition}
-        ${searchCondition}
-    `;
-
-    const dataQuery = `
-      SELECT c.id as "clientId",
-             c."clientCode",
-             c."clientName",
-             c."businessNumber",
-             c.phone,
-             COALESCE(s."totalSales", 0) as "totalSales",
-             COALESCE(s."totalReceived", 0) as "totalReceived",
-             COALESCE(s."salesOutstanding", 0) as "salesOutstanding",
-             COALESCE(s."salesCount", 0) as "salesCount",
-             s."lastSalesDate",
-             COALESCE(p."totalPurchases", 0) as "totalPurchases",
-             COALESCE(p."totalPaid", 0) as "totalPaid",
-             COALESCE(p."purchaseOutstanding", 0) as "purchaseOutstanding",
-             COALESCE(p."purchaseCount", 0) as "purchaseCount",
-             p."lastPurchaseDate"
-      FROM clients c
-      LEFT JOIN (${salesSubquery}) s ON s."clientId" = c.id
-      LEFT JOIN (${purchaseSubquery}) p ON p."clientId" = c.id
-      WHERE c.status = 'active'
-        ${joinCondition}
-        ${searchCondition}
-      ORDER BY (COALESCE(s."totalSales", 0) + COALESCE(p."totalPurchases", 0)) DESC
-      LIMIT $${paramIdx} OFFSET $${paramIdx + 1}
-    `;
-
-    params.push(limit, (page - 1) * limit);
+    const offset = (page - 1) * limit;
 
     const [countResult, data] = await Promise.all([
-      this.prisma.$queryRawUnsafe<[{ total: number }]>(countQuery, ...params.slice(0, -2)),
-      this.prisma.$queryRawUnsafe<any[]>(dataQuery, ...params),
+      this.prisma.$queryRaw<[{ total: number }]>(Prisma.sql`
+        SELECT COUNT(DISTINCT c.id)::int as total
+        FROM clients c
+        LEFT JOIN (${salesSubquery}) s ON s."clientId" = c.id
+        LEFT JOIN (${purchaseSubquery}) p ON p."clientId" = c.id
+        WHERE c.status = 'active'
+          ${joinCondition}
+          ${searchFragment}
+      `),
+      this.prisma.$queryRaw<any[]>(Prisma.sql`
+        SELECT c.id as "clientId",
+               c."clientCode",
+               c."clientName",
+               c."businessNumber",
+               c.phone,
+               COALESCE(s."totalSales", 0) as "totalSales",
+               COALESCE(s."totalReceived", 0) as "totalReceived",
+               COALESCE(s."salesOutstanding", 0) as "salesOutstanding",
+               COALESCE(s."salesCount", 0) as "salesCount",
+               s."lastSalesDate",
+               COALESCE(p."totalPurchases", 0) as "totalPurchases",
+               COALESCE(p."totalPaid", 0) as "totalPaid",
+               COALESCE(p."purchaseOutstanding", 0) as "purchaseOutstanding",
+               COALESCE(p."purchaseCount", 0) as "purchaseCount",
+               p."lastPurchaseDate"
+        FROM clients c
+        LEFT JOIN (${salesSubquery}) s ON s."clientId" = c.id
+        LEFT JOIN (${purchaseSubquery}) p ON p."clientId" = c.id
+        WHERE c.status = 'active'
+          ${joinCondition}
+          ${searchFragment}
+        ORDER BY (COALESCE(s."totalSales", 0) + COALESCE(p."totalPurchases", 0)) DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `),
     ]);
 
     const total = countResult[0]?.total || 0;
 
     // KPI 집계
-    const summaryQuery = `
+    const summaryResult = await this.prisma.$queryRaw<any[]>(Prisma.sql`
       SELECT
         COUNT(DISTINCT c.id)::int as "clientCount",
         COALESCE(SUM(s."totalSales"), 0)::float as "totalSales",
@@ -161,13 +151,8 @@ export class ClientLedgerService {
       LEFT JOIN (${purchaseSubquery}) p ON p."clientId" = c.id
       WHERE c.status = 'active'
         ${joinCondition}
-        ${searchCondition}
-    `;
-
-    const summaryResult = await this.prisma.$queryRawUnsafe<any[]>(
-      summaryQuery,
-      ...params.slice(0, -2),
-    );
+        ${searchFragment}
+    `);
 
     const summary = summaryResult[0] || {};
 
@@ -233,22 +218,19 @@ export class ClientLedgerService {
     periodEnd.setHours(23, 59, 59, 999);
 
     // 전기이월: 기간 시작일 이전 잔액 (매출 미수금 - 매입 미지급금 누적)
-    const carryForwardResult = await this.prisma.$queryRawUnsafe<
+    const carryForwardResult = await this.prisma.$queryRaw<
       [{ salesBalance: number; purchaseBalance: number }]
-    >(
-      `SELECT
+    >(Prisma.sql`
+      SELECT
         COALESCE(
           (SELECT SUM("outstandingAmount")::float FROM sales_ledgers
-           WHERE "clientId" = $1 AND "ledgerDate" < $2 AND "salesStatus" != 'CANCELLED'), 0
+           WHERE "clientId" = ${clientId} AND "ledgerDate" < ${periodStart} AND "salesStatus" != 'CANCELLED'), 0
         ) as "salesBalance",
         COALESCE(
           (SELECT SUM("outstandingAmount")::float FROM purchase_ledgers
-           WHERE "supplierId" = $1 AND "ledgerDate" < $2 AND "purchaseStatus" != 'CANCELLED'), 0
+           WHERE "supplierId" = ${clientId} AND "ledgerDate" < ${periodStart} AND "purchaseStatus" != 'CANCELLED'), 0
         ) as "purchaseBalance"
-      `,
-      clientId,
-      periodStart,
-    );
+    `);
 
     const carryForward = {
       salesBalance: Number(carryForwardResult[0]?.salesBalance || 0),

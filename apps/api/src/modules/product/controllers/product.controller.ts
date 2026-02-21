@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
+import { Public } from '@/common/decorators/public.decorator';
 import { ProductService } from '../services/product.service';
 import {
   CreateProductDto,
@@ -30,6 +31,7 @@ export class ProductController {
   constructor(private productService: ProductService) { }
 
   // 공개 API (인증 불필요)
+  @Public()
   @Get()
   @ApiOperation({ summary: '상품 목록 조회' })
   async findAll(@Query() query: ProductQueryDto) {
@@ -39,6 +41,7 @@ export class ProductController {
     return this.productService.findAll({ skip, take: limit, ...filters });
   }
 
+  @Public()
   @Get(':id')
   @ApiOperation({ summary: '상품 상세 조회' })
   async findOne(@Param('id') id: string) {

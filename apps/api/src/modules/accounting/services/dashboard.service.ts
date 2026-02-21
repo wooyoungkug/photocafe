@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { subDays, startOfMonth, endOfMonth, startOfYear } from 'date-fns';
 
@@ -65,24 +66,21 @@ export class DashboardService {
     });
 
     // 6. Aging 분석
-    const agingData = await this.prisma.$queryRawUnsafe<
+    const agingData = await this.prisma.$queryRaw<
       { under30: number; days30to60: number; days60to90: number; over90: number }[]
     >(
-      `SELECT
-         SUM(CASE WHEN "ledgerDate" >= $1 THEN "outstandingAmount" ELSE 0 END)::float as under30,
-         SUM(CASE WHEN "ledgerDate" >= $2 AND "ledgerDate" < $1 THEN "outstandingAmount" ELSE 0 END)::float as days30to60,
-         SUM(CASE WHEN "ledgerDate" >= $3 AND "ledgerDate" < $2 THEN "outstandingAmount" ELSE 0 END)::float as days60to90,
-         SUM(CASE WHEN "ledgerDate" < $3 THEN "outstandingAmount" ELSE 0 END)::float as over90
+      Prisma.sql`SELECT
+         SUM(CASE WHEN "ledgerDate" >= ${date30} THEN "outstandingAmount" ELSE 0 END)::float as under30,
+         SUM(CASE WHEN "ledgerDate" >= ${date60} AND "ledgerDate" < ${date30} THEN "outstandingAmount" ELSE 0 END)::float as days30to60,
+         SUM(CASE WHEN "ledgerDate" >= ${date90} AND "ledgerDate" < ${date60} THEN "outstandingAmount" ELSE 0 END)::float as days60to90,
+         SUM(CASE WHEN "ledgerDate" < ${date90} THEN "outstandingAmount" ELSE 0 END)::float as over90
        FROM sales_ledgers
        WHERE "paymentStatus" IN ('unpaid', 'partial', 'overdue')
          AND "salesStatus" != 'CANCELLED'`,
-      date30,
-      date60,
-      date90,
     );
 
     // 7. 상위 미수금 거래처 (Top 10)
-    const topClients = await this.prisma.$queryRawUnsafe<
+    const topClients = await this.prisma.$queryRaw<
       {
         clientId: string;
         clientName: string;
@@ -91,7 +89,7 @@ export class DashboardService {
         ledgerCount: bigint;
       }[]
     >(
-      `SELECT sl."clientId",
+      Prisma.sql`SELECT sl."clientId",
               sl."clientName",
               c."clientCode",
               SUM(sl."outstandingAmount")::float as outstanding,
@@ -107,18 +105,17 @@ export class DashboardService {
 
     // 8. 월별 수금 추이 (최근 6개월)
     const sixMonthsAgo = subDays(now, 180);
-    const monthlyCollection = await this.prisma.$queryRawUnsafe<
+    const monthlyCollection = await this.prisma.$queryRaw<
       { month: string; received: number; count: bigint }[]
     >(
-      `SELECT TO_CHAR("ledgerDate", 'YYYY-MM') as month,
+      Prisma.sql`SELECT TO_CHAR("ledgerDate", 'YYYY-MM') as month,
               SUM("receivedAmount")::float as received,
               COUNT(id) as count
        FROM sales_ledgers
-       WHERE "ledgerDate" >= $1
+       WHERE "ledgerDate" >= ${sixMonthsAgo}
          AND "salesStatus" != 'CANCELLED'
        GROUP BY month
        ORDER BY month ASC`,
-      sixMonthsAgo,
     );
 
     // 9. 당월 수금 예정 (DueDate 기준)
