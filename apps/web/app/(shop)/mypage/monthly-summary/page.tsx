@@ -895,28 +895,28 @@ export default function MonthlySummaryPage() {
                                       {detailData.data.map((order) => (
                                         <div
                                           key={order.id}
-                                          className="flex items-center gap-3 bg-white rounded-lg border p-3 text-[10pt]"
+                                          className="flex items-center gap-2 bg-white rounded-lg border px-3 py-2 text-sm"
                                         >
-                                          <div className="flex-1 min-w-0">
-                                            <p className="truncate">
-                                              {order.items?.[0]?.productName || '-'}
+                                          <div className="flex-1 min-w-0 flex items-center gap-1.5 overflow-hidden">
+                                            <span className="text-xs text-muted-foreground shrink-0 whitespace-nowrap tabular-nums">
+                                              {order.orderNumber}
+                                            </span>
+                                            {order.createdAt && (
+                                              <span className="text-xs text-gray-400 shrink-0 whitespace-nowrap">
+                                                {format(new Date(order.createdAt), 'HH:mm')}
+                                              </span>
+                                            )}
+                                            <span className="text-gray-300 shrink-0">·</span>
+                                            <span className="truncate">
+                                              {order.items?.[0]?.folderName
+                                                ? `${order.items[0].folderName} · ${order.items[0].productName || ''}`
+                                                : order.items?.[0]?.productName || '-'}
                                               {order.items?.length > 1 && (
                                                 <span className="text-muted-foreground text-xs ml-1">
                                                   외 {order.items.length - 1}건
                                                 </span>
                                               )}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground mt-0.5">
-                                              {order.orderNumber}
-                                              {order.createdAt && (
-                                                <span className="ml-1.5 text-gray-400">
-                                                  {format(
-                                                    new Date(order.createdAt),
-                                                    'HH:mm',
-                                                  )}
-                                                </span>
-                                              )}
-                                            </p>
+                                            </span>
                                           </div>
                                           <div className="text-right shrink-0">
                                             <p className="tabular-nums">
