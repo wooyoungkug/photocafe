@@ -32,6 +32,14 @@ export function DataCleanupDialog({
   const [endDate, setEndDate] = useState('');
   const [deleteThumbnails, setDeleteThumbnails] = useState(false);
 
+  const isDateInvalid = startDate && endDate && startDate > endDate;
+
+  const handleConfirm = () => {
+    if (!startDate || !endDate || isDateInvalid) return;
+    if (!window.confirm(`${startDate} ~ ${endDate} 기간의 모든 주문 데이터를 삭제합니다.\n정말 실행하시겠습니까?`)) return;
+    onConfirm({ startDate, endDate, deleteThumbnails });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[450px]">
@@ -67,6 +75,9 @@ export function DataCleanupDialog({
               />
             </div>
           </div>
+          {isDateInvalid && (
+            <p className="text-sm text-red-500">종료일은 시작일 이후여야 합니다.</p>
+          )}
           <div className="flex items-center space-x-2">
             <Checkbox
               id="delete-thumbnails"
@@ -74,7 +85,7 @@ export function DataCleanupDialog({
               onCheckedChange={(checked) => setDeleteThumbnails(checked === true)}
             />
             <Label htmlFor="delete-thumbnails" className="text-sm cursor-pointer">
-              썸네일 파일도 함께 삭제
+              업로드 파일도 함께 삭제
             </Label>
           </div>
         </div>
@@ -84,8 +95,8 @@ export function DataCleanupDialog({
           </Button>
           <Button
             variant="destructive"
-            onClick={() => onConfirm({ startDate, endDate, deleteThumbnails })}
-            disabled={isLoading || !startDate || !endDate}
+            onClick={handleConfirm}
+            disabled={isLoading || !startDate || !endDate || !!isDateInvalid}
           >
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             삭제 실행

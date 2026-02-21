@@ -1396,10 +1396,14 @@ export class OrderService {
 
   // ==================== 벌크: 기간별 데이터 정리 ====================
   async dataCleanup(dto: BulkDataCleanupDto) {
+    // 종료일을 해당 일자 끝(23:59:59.999)으로 설정
+    const endDate = new Date(dto.endDate);
+    endDate.setHours(23, 59, 59, 999);
+
     const where: Prisma.OrderWhereInput = {
       orderedAt: {
         gte: dto.startDate,
-        lte: dto.endDate,
+        lte: endDate,
       },
     };
 
@@ -1409,20 +1413,15 @@ export class OrderService {
       select: { id: true },
     });
     const orderIds = ordersToDelete.map(o => o.id);
-    const orderDirs = orderIds.length > 0
+
+    // 디스크 파일 경로 수집 (썸네일 함께 삭제 옵션 시)
+    const orderDirs = dto.deleteThumbnails && orderIds.length > 0
       ? await this.getOrderDirectories(orderIds)
       : [];
 
-    if (dto.deleteThumbnails) {
-      await this.prisma.orderItem.updateMany({
-        where: { order: where },
-        data: { thumbnailUrl: null },
-      });
-    }
-
     const deleted = await this.prisma.order.deleteMany({ where });
 
-    // 디스크 파일 삭제
+    // 디스크 파일 삭제 (썸네일 파일도 함께 삭제 옵션)
     for (const dir of orderDirs) {
       try {
         this.fileStorage.deleteOrderDirectory(dir);
