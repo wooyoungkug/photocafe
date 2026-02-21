@@ -42,13 +42,13 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
             <XAxis dataKey="month" stroke="#64748b" fontSize={12} tickFormatter={formatMonth} />
             <YAxis stroke="#64748b" fontSize={12} tickFormatter={(val) => `${(val / 1000).toFixed(0)}K`} />
             <Tooltip
-              formatter={(value: number, name: string) => {
+              formatter={(value, name) => {
                 const labels: Record<string, string> = {
                   sales: '매출',
                   received: '입금',
                   outstanding: '미입금',
                 };
-                return [formatCurrency(value), labels[name] || name];
+                return [formatCurrency(value as number), labels[name as string] || name];
               }}
               labelFormatter={formatMonth}
               contentStyle={{
