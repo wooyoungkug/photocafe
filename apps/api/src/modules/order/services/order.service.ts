@@ -1516,6 +1516,7 @@ export class OrderService {
    */
   async getDailySummary(clientId: string, startDate: string, endDate: string) {
     // 전월이월잔액: startDate 이전의 총매출 - 총수금
+    // KST 기준 날짜 비교: orderedAt을 'Asia/Seoul' 타임존으로 변환 후 날짜 추출
     const carryForwardRaw = await this.prisma.$queryRaw<any[]>`
       SELECT
         COALESCE(SUM(o."totalAmount"), 0)::decimal as "totalOrderAmount",
@@ -1523,7 +1524,7 @@ export class OrderService {
       FROM orders o
       LEFT JOIN sales_ledgers sl ON o.id = sl."orderId"
       WHERE o."clientId" = ${clientId}
-        AND o."orderedAt" < ${startDate}::date
+        AND (o."orderedAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul')::date < ${startDate}::date
         AND o.status != 'cancelled'
     `;
 
@@ -1531,20 +1532,20 @@ export class OrderService {
       parseFloat(carryForwardRaw[0]?.totalOrderAmount || '0') -
       parseFloat(carryForwardRaw[0]?.totalDepositAmount || '0');
 
-    // 일자별 집계
+    // 일자별 집계 (KST 기준으로 날짜 그룹핑)
     const rawData = await this.prisma.$queryRaw<any[]>`
       SELECT
-        DATE(o."orderedAt") as date,
-        COUNT(o.id)::int as "orderCount",
+        DATE(o."orderedAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul') as date,
+        COUNT(DISTINCT o.id)::int as "orderCount",
         COALESCE(SUM(o."totalAmount"), 0)::decimal as "orderAmount",
         COALESCE(SUM(sl."receivedAmount"), 0)::decimal as "depositAmount"
       FROM orders o
       LEFT JOIN sales_ledgers sl ON o.id = sl."orderId"
       WHERE o."clientId" = ${clientId}
-        AND o."orderedAt" >= ${startDate}::date
-        AND o."orderedAt" < (${endDate}::date + interval '1 day')
+        AND (o."orderedAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul')::date >= ${startDate}::date
+        AND (o."orderedAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul')::date <= ${endDate}::date
         AND o.status != 'cancelled'
-      GROUP BY DATE(o."orderedAt")
+      GROUP BY DATE(o."orderedAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul')
       ORDER BY date ASC
     `;
 
