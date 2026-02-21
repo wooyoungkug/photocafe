@@ -39,6 +39,8 @@ import type { DeliveryPricing } from '@/hooks/use-delivery-pricing';
 import { useTranslations } from 'next-intl';
 import { retryBackgroundUpload, canRetryUpload, cancelUpload, canCancelUpload } from '@/lib/background-upload';
 import { useCartStore } from '@/stores/cart-store';
+import { useProduct } from '@/hooks/use-products';
+import type { ProductPaper } from '@/lib/types';
 
 const DELIVERY_METHODS = [
   { value: 'parcel', label: '택배' },
@@ -127,9 +129,31 @@ export function CartItemCard({
   studioTotal,
 }: CartItemCardProps) {
   const t = useTranslations('cart');
+  const { updateItemPrice } = useCartStore();
+  const { data: productData } = useProduct(item.productId);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
   });
+
+  // 앨범 아이템 용지 목록 (출력방식·도수에 맞게 필터링)
+  const availablePapers: ProductPaper[] = (() => {
+    if (!item.albumOrderInfo || !productData?.papers?.length) return [];
+    const { printMethod, colorMode } = item.albumOrderInfo;
+    return productData.papers.filter((p) => {
+      if (p.printMethod !== printMethod) return false;
+      if (printMethod === 'indigo') return colorMode === '6c' ? p.isActive6 !== false : p.isActive4 !== false;
+      return p.isActive !== false;
+    });
+  })();
+
+  const handlePaperChange = (paperId: string) => {
+    const paper = availablePapers.find((p) => p.id === paperId);
+    if (!paper || !item.albumOrderInfo) return;
+    const oldPaperPrice = item.albumOrderInfo.paperPrice ?? 0;
+    const newBasePrice = item.basePrice - oldPaperPrice + paper.price;
+    onAlbumInfoChange?.(item.id, { paperId: paper.id, paperName: paper.name, paperPrice: paper.price });
+    updateItemPrice(item.id, newBasePrice);
+  };
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -348,6 +372,26 @@ export function CartItemCard({
                           <option key={opt.value} value={opt.value}>{opt.label}</option>
                         ))}
                       </select>
+                      {availablePapers.length > 0 && (
+                        <>
+                          <Separator orientation="vertical" className="h-3 bg-purple-200" />
+                          <select
+                            title="용지"
+                            value={item.albumOrderInfo.paperId || ''}
+                            onChange={(e) => handlePaperChange(e.target.value)}
+                            className="bg-transparent text-black/80 text-[11px] font-medium border border-purple-300 rounded px-1 py-0 cursor-pointer hover:bg-purple-100 focus:outline-none focus:ring-1 focus:ring-purple-400"
+                          >
+                            {!item.albumOrderInfo.paperId && (
+                              <option value="" disabled>{item.albumOrderInfo.paperName || '용지'}</option>
+                            )}
+                            {availablePapers.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.name}{p.grammage && !p.name.includes(`${p.grammage}g`) ? ` ${p.grammage}g` : ''}{p.price > 0 ? ` (+${p.price.toLocaleString()}원)` : ''}
+                              </option>
+                            ))}
+                          </select>
+                        </>
+                      )}
                     </div>
                   </div>
                 )}

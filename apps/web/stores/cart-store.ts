@@ -58,6 +58,8 @@ export interface AlbumOrderCartInfo {
   specificationName: string;       // 규격명
   bindingName?: string;            // 제본방법명
   paperName?: string;              // 용지명
+  paperId?: string;                // 용지 ID
+  paperPrice?: number;             // 용지 추가단가 (가격 재계산용)
   coverMaterial?: string;          // 커버 재질
   foilName?: string;               // 박 동판명
   foilColor?: string;              // 박 색상
@@ -127,6 +129,7 @@ interface CartState {
   updateItemShipping: (id: string, shippingInfo: CartShippingInfo) => void;
   updateAllItemsShipping: (shippingInfo: CartShippingInfo) => void;
   updateAlbumInfo: (id: string, updates: Partial<AlbumOrderCartInfo>) => void;
+  updateItemPrice: (id: string, basePrice: number) => void;
   updateUploadStatus: (id: string, updates: Partial<Pick<CartItem, 'uploadStatus' | 'uploadProgress' | 'uploadedFileCount' | 'totalFileCount' | 'serverFiles' | 'tempFolderId'>>) => void;
   reorderItems: (items: CartItem[]) => void;
   clearCart: () => void;
@@ -360,6 +363,16 @@ export const useCartStore = create<CartState>()(
           items: state.items.map((item) =>
             item.id === id && item.albumOrderInfo
               ? { ...item, albumOrderInfo: { ...item.albumOrderInfo, ...updates } }
+              : item
+          ),
+        }));
+      },
+
+      updateItemPrice: (id, basePrice) => {
+        set((state) => ({
+          items: state.items.map((item) =>
+            item.id === id
+              ? { ...item, basePrice, totalPrice: calculateItemTotal(basePrice, item.quantity, item.options) }
               : item
           ),
         }));
