@@ -124,6 +124,7 @@ export default function ProductPage() {
     defaultPageLayout, defaultBindingDirection,
     folders: uploadFolders, clearFolders,
     applyGlobalCoverSource, setFolderFabric, setAllFoldersFoil,
+    setAvailablePapers, updateFolder: updateUploadFolder,
   } = useMultiFolderUploadStore();
 
   const [selectedFabricCategory, setSelectedFabricCategory] = useState<FabricCategory | null>(null);
@@ -352,6 +353,30 @@ export default function ProductPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product?.id]);
+
+  // 상품 용지 목록을 업로드 스토어에 전달 (폴더별 용지 변경용)
+  useEffect(() => {
+    if (product?.papers) {
+      setAvailablePapers(product.papers);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.papers]);
+
+  // 새 폴더가 추가될 때 현재 선택된 출력방법/용지를 자동 적용
+  useEffect(() => {
+    if (!selectedOptions.printMethod || !selectedOptions.paper) return;
+    const foldersWithoutPrint = uploadFolders.filter(f => !f.printMethod);
+    if (foldersWithoutPrint.length === 0) return;
+    foldersWithoutPrint.forEach(f => {
+      updateUploadFolder(f.id, {
+        printMethod: selectedOptions.printMethod,
+        colorMode: selectedOptions.colorMode || '4c',
+        selectedPaperId: selectedOptions.paper?.id || null,
+        selectedPaperName: selectedOptions.paper?.name || null,
+      });
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uploadFolders.length, selectedOptions.printMethod, selectedOptions.paper?.id]);
 
   // ===== 최근 주문 옵션 자동 적용 =====
   const [lastOptionsApplied, setLastOptionsApplied] = useState(false);

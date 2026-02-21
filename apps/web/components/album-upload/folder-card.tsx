@@ -42,6 +42,9 @@ import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { ColorGroupBadge } from './color-group-badge';
 import { FabricPickerDialog } from './fabric-picker-dialog';
+import { useCopperPlateLabels, useCopperPlatesByClient } from '@/hooks/use-copper-plates';
+import { usePublicCopperPlates } from '@/hooks/use-public-copper-plates';
+import { useAuthStore } from '@/stores/auth-store';
 
 import {
   type UploadedFolder,
@@ -169,6 +172,19 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     INNER_PAGE: t('innerPage'),
     COMBINED_COVER: t('combinedCover'),
   };
+
+  // 동판정보 드롭다운 데이터
+  const { data: copperPlateLabels } = useCopperPlateLabels();
+  const { data: allPublicCopperPlates } = usePublicCopperPlates({ status: 'active' });
+  const { user, isAuthenticated } = useAuthStore();
+  const { data: ownedCopperPlates } = useCopperPlatesByClient(isAuthenticated ? user?.clientId : undefined);
+
+  const availablePlateNames = useMemo(() => {
+    const names = new Set<string>();
+    allPublicCopperPlates?.data?.forEach(p => names.add(p.plateName));
+    ownedCopperPlates?.forEach(p => names.add(p.plateName));
+    return Array.from(names);
+  }, [allPublicCopperPlates, ownedCopperPlates]);
 
   const cardRef = useRef<HTMLDivElement>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -379,7 +395,20 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     reorderFolderFiles,
     updateFolder,
     setFolderFabric,
+    availablePapers,
   } = useMultiFolderUploadStore();
+
+  // 현재 폴더의 출력방법/도수에 맞는 용지 필터링
+  const filteredPapersForFolder = useMemo(() => {
+    if (!folder.printMethod || availablePapers.length === 0) return [];
+    return availablePapers.filter(p => {
+      if (p.printMethod !== folder.printMethod) return false;
+      if (p.printMethod === 'indigo') {
+        return folder.colorMode === '6c' ? p.isActive6 !== false : p.isActive4 !== false;
+      }
+      return p.isActive !== false;
+    });
+  }, [availablePapers, folder.printMethod, folder.colorMode]);
 
   const config = STATUS_CONFIG[folder.validationStatus];
   const actualStatus = folder.isApproved && folder.validationStatus === 'RATIO_MATCH'
@@ -915,36 +944,106 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                   </button>
                 </>
               )}
-              {/* 동판: 인라인 텍스트 입력 */}
+              {/* 동판: DB 데이터 기반 드롭다운 */}
               {(folder.foilName || folder.foilColor || folder.foilPosition) && (
                 <>
                   <span className="text-xs text-black ml-5">동판정보</span>
                   <span className="text-[10px] text-gray-400">색상</span>
-                  <input
-                    type="text"
+                  <select
                     value={folder.foilColor ?? ''}
                     onChange={(e) => updateFolder(folder.id, { foilColor: e.target.value || null })}
-                    className="text-xs border rounded px-1.5 py-0.5 w-20 bg-yellow-50 text-yellow-700"
-                    placeholder="색상"
-                  />
+                    className="text-xs border rounded px-1.5 py-0.5 w-24 bg-yellow-50 text-yellow-700"
+                  >
+                    <option value="">색상 선택</option>
+                    {copperPlateLabels?.foilColors?.filter(c => c.isActive).map(color => (
+                      <option key={color.id} value={color.name}>{color.name}</option>
+                    ))}
+                  </select>
                   <span className="text-[10px] text-gray-400">동판</span>
-                  <input
-                    type="text"
+                  <select
                     value={folder.foilName ?? ''}
                     onChange={(e) => updateFolder(folder.id, { foilName: e.target.value || null })}
-                    className="text-xs border rounded px-1.5 py-0.5 w-20 bg-violet-50 text-violet-700"
-                    placeholder="동판명"
-                  />
+                    className="text-xs border rounded px-1.5 py-0.5 w-24 bg-violet-50 text-violet-700"
+                  >
+                    <option value="">동판 선택</option>
+                    {availablePlateNames.map(name => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
                   <span className="text-[10px] text-gray-400">위치</span>
-                  <input
-                    type="text"
+                  <select
                     value={folder.foilPosition ?? ''}
                     onChange={(e) => updateFolder(folder.id, { foilPosition: e.target.value || null })}
-                    className="text-xs border rounded px-1.5 py-0.5 w-16 bg-blue-50 text-blue-700"
-                    placeholder="위치"
-                  />
+                    className="text-xs border rounded px-1.5 py-0.5 w-20 bg-blue-50 text-blue-700"
+                  >
+                    <option value="">위치 선택</option>
+                    {copperPlateLabels?.platePositions?.filter(p => p.isActive).map(pos => (
+                      <option key={pos.id} value={pos.name}>{pos.name}</option>
+                    ))}
+                  </select>
                 </>
               )}
+            </div>
+          )}
+          {/* 출력방법 · 용지 */}
+          {folder.printMethod && (
+            <div className="flex items-center gap-1 flex-wrap text-[10px] text-gray-500 mt-1 mb-1">
+              <span className="text-xs text-black">출력</span>
+              <select
+                value={`${folder.printMethod}_${folder.colorMode || '4c'}`}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === 'inkjet') {
+                    const inkjetPapers = availablePapers.filter(p => p.printMethod === 'inkjet' && p.isActive !== false);
+                    const defaultPaper = inkjetPapers.find(p => p.isDefault) || inkjetPapers[0];
+                    updateFolder(folder.id, {
+                      printMethod: 'inkjet', colorMode: '4c',
+                      selectedPaperId: defaultPaper?.id || null,
+                      selectedPaperName: defaultPaper?.name || null,
+                    });
+                  } else {
+                    const [, cm] = val.split('_') as [string, '4c' | '6c'];
+                    const indigoPapers = availablePapers.filter(p =>
+                      p.printMethod === 'indigo' && (cm === '6c' ? p.isActive6 !== false : p.isActive4 !== false)
+                    );
+                    const defaultPaper = indigoPapers.find(p => p.isDefault) || indigoPapers[0];
+                    updateFolder(folder.id, {
+                      printMethod: 'indigo', colorMode: cm,
+                      selectedPaperId: defaultPaper?.id || null,
+                      selectedPaperName: defaultPaper?.name || null,
+                    });
+                  }
+                }}
+                className="text-xs border rounded px-1.5 py-0.5 bg-orange-50 text-orange-700"
+              >
+                {availablePapers.some(p => p.printMethod === 'indigo' && p.isActive4 !== false) && (
+                  <option value="indigo_4c">인디고 4도</option>
+                )}
+                {availablePapers.some(p => p.printMethod === 'indigo' && p.isActive6 !== false) && (
+                  <option value="indigo_6c">인디고 6도</option>
+                )}
+                {availablePapers.some(p => p.printMethod === 'inkjet' && p.isActive !== false) && (
+                  <option value="inkjet">잉크젯</option>
+                )}
+              </select>
+              <span className="text-xs text-black ml-3">용지</span>
+              <select
+                value={folder.selectedPaperId ?? ''}
+                onChange={(e) => {
+                  const paper = availablePapers.find(p => p.id === e.target.value);
+                  if (paper) {
+                    updateFolder(folder.id, {
+                      selectedPaperId: paper.id,
+                      selectedPaperName: paper.name,
+                    });
+                  }
+                }}
+                className="text-xs border rounded px-1.5 py-0.5 bg-emerald-50 text-emerald-700"
+              >
+                {filteredPapersForFolder.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
             </div>
           )}
           {/* 규격 · 페이지 · 부수 */}
@@ -1156,34 +1255,43 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                                 </button>
                               </>
                             )}
-                            {/* 동판: 항상 보이는 텍스트 입력 */}
+                            {/* 동판: DB 데이터 기반 드롭다운 */}
                             {(order.foilColor ?? folder.foilColor ?? order.foilName ?? folder.foilName ?? order.foilPosition ?? folder.foilPosition) && (
                               <>
                                 <span className="text-xs text-black ml-5">동판정보</span>
                                 <span className="text-[10px] text-gray-400">색상</span>
-                                <input
-                                  type="text"
+                                <select
                                   value={order.foilColor ?? folder.foilColor ?? ''}
                                   onChange={(e) => updateAdditionalOrderFoil(folder.id, order.id, order.foilName ?? folder.foilName ?? null, e.target.value || null, order.foilPosition ?? folder.foilPosition ?? null)}
-                                  className="text-xs border rounded px-1.5 py-0.5 w-20 bg-yellow-50 text-yellow-700"
-                                  placeholder="색상"
-                                />
+                                  className="text-xs border rounded px-1.5 py-0.5 w-24 bg-yellow-50 text-yellow-700"
+                                >
+                                  <option value="">색상 선택</option>
+                                  {copperPlateLabels?.foilColors?.filter(c => c.isActive).map(color => (
+                                    <option key={color.id} value={color.name}>{color.name}</option>
+                                  ))}
+                                </select>
                                 <span className="text-[10px] text-gray-400">동판</span>
-                                <input
-                                  type="text"
+                                <select
                                   value={order.foilName ?? folder.foilName ?? ''}
                                   onChange={(e) => updateAdditionalOrderFoil(folder.id, order.id, e.target.value || null, order.foilColor ?? folder.foilColor ?? null, order.foilPosition ?? folder.foilPosition ?? null)}
-                                  className="text-xs border rounded px-1.5 py-0.5 w-20 bg-violet-50 text-violet-700"
-                                  placeholder="동판명"
-                                />
+                                  className="text-xs border rounded px-1.5 py-0.5 w-24 bg-violet-50 text-violet-700"
+                                >
+                                  <option value="">동판 선택</option>
+                                  {availablePlateNames.map(name => (
+                                    <option key={name} value={name}>{name}</option>
+                                  ))}
+                                </select>
                                 <span className="text-[10px] text-gray-400">위치</span>
-                                <input
-                                  type="text"
+                                <select
                                   value={order.foilPosition ?? folder.foilPosition ?? ''}
                                   onChange={(e) => updateAdditionalOrderFoil(folder.id, order.id, order.foilName ?? folder.foilName ?? null, order.foilColor ?? folder.foilColor ?? null, e.target.value || null)}
-                                  className="text-xs border rounded px-1.5 py-0.5 w-16 bg-blue-50 text-blue-700"
-                                  placeholder="위치"
-                                />
+                                  className="text-xs border rounded px-1.5 py-0.5 w-20 bg-blue-50 text-blue-700"
+                                >
+                                  <option value="">위치 선택</option>
+                                  {copperPlateLabels?.platePositions?.filter(p => p.isActive).map(pos => (
+                                    <option key={pos.id} value={pos.name}>{pos.name}</option>
+                                  ))}
+                                </select>
                               </>
                             )}
                           </div>

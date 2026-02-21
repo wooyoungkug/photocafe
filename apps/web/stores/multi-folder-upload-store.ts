@@ -3,6 +3,7 @@ import { calculateNormalizedRatio, type SizeMatchStatus } from '@/lib/album-util
 import { useCartStore } from '@/stores/cart-store';
 import type { PhotoColorInfo, ColorGroup } from '@/lib/color-analysis';
 import { analyzeAndGroupPhotos } from '@/lib/color-analysis';
+import type { ProductPaper } from '@/lib/types/product';
 
 // 비율 허용 오차
 const RATIO_TOLERANCE = 0.01;
@@ -327,6 +328,12 @@ export interface UploadedFolder {
   foilColor?: string | null;    // 박 색상
   foilPosition?: string | null; // 박 위치
 
+  // 출력방법 / 용지 (폴더별 개별 설정 가능)
+  printMethod?: 'indigo' | 'inkjet';
+  colorMode?: '4c' | '6c';
+  selectedPaperId?: string | null;
+  selectedPaperName?: string | null;
+
   // 업로드 시각
   uploadedAt: number; // Date.now()
 }
@@ -352,8 +359,14 @@ interface MultiFolderUploadState {
   // DB 인디고출력 규격 리스트
   indigoSpecs: StandardSize[];
 
+  // 상품 용지 목록 (폴더별 용지 변경용)
+  availablePapers: ProductPaper[];
+
   // 인디고 규격 설정
   setIndigoSpecs: (specs: StandardSize[]) => void;
+
+  // 용지 목록 설정
+  setAvailablePapers: (papers: ProductPaper[]) => void;
 
   // 액션
   addFolder: (folder: UploadedFolder) => { added: boolean; reason?: string };
@@ -437,6 +450,7 @@ const initialState = {
   targetSpecHeight: 12,
   targetSpecRatio: 1,
   indigoSpecs: [] as StandardSize[],
+  availablePapers: [] as ProductPaper[],
 };
 
 // 페이지 수 계산 (파일 수 + 편집스타일 + 제본방향 기반)
@@ -716,6 +730,7 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
   ...initialState,
 
   setIndigoSpecs: (specs) => set({ indigoSpecs: specs }),
+  setAvailablePapers: (papers) => set({ availablePapers: papers }),
 
   addFolder: (folder) => {
     const { folders } = get();
