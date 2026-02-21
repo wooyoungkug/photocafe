@@ -107,7 +107,7 @@ export default function MonthlySummaryPage() {
       return;
     }
     const carryForward = dailyData?.summary?.carryForwardBalance || 0;
-    const headers = ['일자', '적요', '주문건수', '주문금액', '입금금액', '잔액'];
+    const headers = ['일자', '적요', '주문건수', '주문금액', '납부금액', '잔액'];
     const rows: string[][] = [
       ['', '전월이월', '', '', '', Math.round(carryForward).toString()],
       ...dataWithBalance.map((d) => [
@@ -202,7 +202,7 @@ export default function MonthlySummaryPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <Card>
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground mb-1">전월이월</p>
+              <p className="text-xs text-muted-foreground mb-1">이월잔액</p>
               <p className="text-lg sm:text-2xl tabular-nums">
                 {formatAmount(carryForward)}
                 <span className="text-sm">원</span>
@@ -211,7 +211,7 @@ export default function MonthlySummaryPage() {
           </Card>
           <Card>
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground mb-1">당월매출</p>
+              <p className="text-xs text-muted-foreground mb-1">이번달 주문금액</p>
               <p className="text-lg sm:text-2xl tabular-nums">
                 {formatAmount(summary?.totalOrderAmount || 0)}
                 <span className="text-sm">원</span>
@@ -220,7 +220,7 @@ export default function MonthlySummaryPage() {
           </Card>
           <Card>
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground mb-1">당월수금</p>
+              <p className="text-xs text-muted-foreground mb-1">이번달 납부금액</p>
               <p className="text-lg sm:text-2xl tabular-nums text-green-600">
                 {formatAmount(summary?.totalDepositAmount || 0)}
                 <span className="text-sm">원</span>
@@ -229,7 +229,7 @@ export default function MonthlySummaryPage() {
           </Card>
           <Card>
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground mb-1">기말잔액</p>
+              <p className="text-xs text-muted-foreground mb-1">미결제 잔액</p>
               <p
                 className={`text-lg sm:text-2xl tabular-nums ${
                   closingBalance > 0
@@ -244,10 +244,10 @@ export default function MonthlySummaryPage() {
                 <span className="text-sm">원</span>
               </p>
               {closingBalance > 0 && (
-                <p className="text-[10px] text-red-500 mt-0.5">미수금</p>
+                <p className="text-[10px] text-red-500 mt-0.5">미납금</p>
               )}
               {closingBalance < 0 && (
-                <p className="text-[10px] text-blue-500 mt-0.5">선수금</p>
+                <p className="text-[10px] text-blue-500 mt-0.5">선납금</p>
               )}
             </CardContent>
           </Card>
@@ -259,7 +259,7 @@ export default function MonthlySummaryPage() {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <ArrowRightLeft className="h-4 w-4" />
-            거래원장
+            거래내역
           </CardTitle>
         </CardHeader>
         <CardContent className="px-0 sm:px-6">
@@ -284,7 +284,7 @@ export default function MonthlySummaryPage() {
                       주문<span className="hidden sm:inline">금액</span>
                     </th>
                     <th className="p-2 sm:p-3 text-right font-medium">
-                      입금<span className="hidden sm:inline">금액</span>
+                      납부<span className="hidden sm:inline">금액</span>
                     </th>
                     <th className="p-2 sm:p-3 text-right font-medium">잔액</th>
                   </tr>
@@ -445,7 +445,7 @@ export default function MonthlySummaryPage() {
                       {format(startDate, 'MM/01', { locale: ko })}
                     </td>
                     <td className="p-2 sm:p-3 font-medium text-blue-700">
-                      전월이월
+                      이월잔액
                     </td>
                     <td className="p-2 sm:p-3 text-right text-muted-foreground">
                       -
@@ -471,7 +471,7 @@ export default function MonthlySummaryPage() {
                   <tr className="bg-gray-100 text-sm border-t-2 font-semibold">
                     <td className="p-2 sm:p-3" />
                     <td className="p-2 sm:p-3" />
-                    <td className="p-2 sm:p-3">당월합계</td>
+                    <td className="p-2 sm:p-3">이번달 합계</td>
                     <td className="p-2 sm:p-3 text-right tabular-nums">
                       {formatAmount(summary?.totalOrderAmount || 0)}원
                     </td>
