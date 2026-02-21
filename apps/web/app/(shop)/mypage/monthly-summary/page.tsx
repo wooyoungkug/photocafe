@@ -380,6 +380,11 @@ export default function MonthlySummaryPage() {
                                           </p>
                                           <p className="text-xs text-muted-foreground mt-0.5">
                                             {order.orderNumber}
+                                            {order.createdAt && (
+                                              <span className="ml-1.5 text-gray-400">
+                                                {format(new Date(order.createdAt), 'HH:mm')}
+                                              </span>
+                                            )}
                                           </p>
                                         </div>
                                         <div className="text-right shrink-0">
