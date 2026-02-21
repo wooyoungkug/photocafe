@@ -173,10 +173,10 @@ export default function EditConsultationPage() {
   useEffect(() => {
     if (consultation) {
       setFormData({
-        title: consultation.title,
-        content: consultation.content,
+        title: consultation.title ?? undefined,
+        content: consultation.content ?? undefined,
         priority: consultation.priority,
-        categoryId: consultation.categoryId,
+        categoryId: consultation.categoryId ?? undefined,
         orderNumber: consultation.orderNumber || '',
         followUpDate: consultation.followUpDate?.split('T')[0] || '',
         followUpNote: consultation.followUpNote || '',

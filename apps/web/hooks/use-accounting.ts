@@ -188,10 +188,6 @@ export function useTransactions(params?: {
   return useQuery({
     queryKey: ['transactions', params],
     queryFn: async () => {
-      // TODO: 실제 API 연동
-      // const { data } = await api.get('/accounting/transactions', { params });
-      // return data;
-
       // 샘플 데이터 필터링
       let filtered = [...sampleTransactions];
       if (params?.type) {
@@ -212,9 +208,6 @@ export function useCreateTransaction() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (data: CreateTransactionDto) => {
-      // TODO: 실제 API 연동
-      // const { data: result } = await api.post('/accounting/transactions', data);
-      // return result;
       return { id: Date.now().toString(), ...data };
     },
     onSuccess: () => {

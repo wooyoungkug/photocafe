@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, Fragment } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -20,7 +20,6 @@ import {
   ChevronDown,
   ChevronUp,
   Folder,
-  FileImage,
   Trash2,
   Plus,
   X,
@@ -32,8 +31,6 @@ import {
   BookOpen,
   FileText,
   Scissors,
-  ArrowRight,
-  Expand,
   ZoomIn,
   ChevronLeft,
   ChevronRight as ChevronRightIcon,
@@ -43,20 +40,17 @@ import {
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
-import { ColorGroupBadge, ColorGroupHeader } from './color-group-badge';
+import { ColorGroupBadge } from './color-group-badge';
 import { FabricPickerDialog } from './fabric-picker-dialog';
 
 import {
   type UploadedFolder,
   type FolderValidationStatus,
-  type PageLayoutType,
   type BindingDirection,
-  type FolderShippingInfo,
   useMultiFolderUploadStore,
   calculateUploadedFolderPrice,
   calculateAdditionalOrderPrice,
 } from '@/stores/multi-folder-upload-store';
-import { formatFileSize } from '@/lib/album-utils';
 
 interface FolderCardProps {
   folder: UploadedFolder;
@@ -382,7 +376,6 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     setFolderPageLayout,
     setFolderBindingDirection,
     reorderFolderFiles,
-    toggleColorGrouping,
   } = useMultiFolderUploadStore();
 
   const config = STATUS_CONFIG[folder.validationStatus];
@@ -414,50 +407,6 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
         actualStatus.bgColor
       )}
     >
-      {/* 첫막장 분리 결과 표시 */}
-      {/* hidden
-      {folder.hasCombinedCover && folder.splitCoverResults.length > 0 && (
-        <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-          <div className="flex items-center gap-2 text-blue-700 text-sm font-medium mb-2">
-            <Scissors className="h-4 w-4" />
-            {t('combinedCoverSplitComplete')}
-          </div>
-          {folder.splitCoverResults.map((result, idx) => (
-            <div key={idx} className="bg-white rounded border border-blue-100 p-2 text-xs">
-              <div className="text-gray-600 mb-1">{t('originalFile')} {result.originalFileName}</div>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 p-1.5 bg-blue-50 rounded text-center">
-                  <Badge className="bg-blue-500 text-white text-[10px] mb-1">{t('frontCoverPosition')}</Badge>
-                  <div className="text-gray-500">{t('frontCoverDetail')}</div>
-                </div>
-                <ArrowRight className="w-4 h-4 text-gray-300" />
-                <div className="flex-1 p-1.5 bg-purple-50 rounded text-center">
-                  <Badge className="bg-purple-500 text-white text-[10px] mb-1">{t('backCoverPosition')}</Badge>
-                  <div className="text-gray-500">{t('backCoverDetail')}</div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      */}
-
-      {/* 빈페이지 자동감지 결과 */}
-      {/* hidden
-      {folder.autoBindingDetected && (folder.firstPageBlank || folder.lastPageBlank) && (
-        <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
-          <div className="flex items-center gap-2 text-green-700 text-sm font-medium">
-            <CheckCircle className="h-4 w-4" />
-            {t('blankPageDetected')}
-          </div>
-          <div className="mt-1 text-xs text-green-600">
-            {folder.firstPageBlank && <span className="mr-3">{t('blankPageFirstDetected')}</span>}
-            {folder.lastPageBlank && <span>{t('blankPageLastDetected')}</span>}
-          </div>
-        </div>
-      )}
-      */}
-
       {/* CMYK 파일 경고 */}
       {(() => {
         const cmykFiles = folder.files.filter(f => f.colorSpace === 'CMYK');
@@ -484,7 +433,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
             {t('rejectMismatchFiles', { count: folder.ratioMismatchCount })}
           </div>
           <div className="bg-white rounded border border-red-200 text-xs max-h-32 overflow-y-auto">
-            {folder.mismatchFiles.slice(0, 10).map((file, idx) => (
+            {folder.mismatchFiles.slice(0, 10).map((file) => (
               <div key={file.id} className="px-2 py-1 border-b last:border-b-0 flex justify-between">
                 <span className="truncate">{file.newFileName || file.fileName}</span>
                 <span className="text-gray-500 ml-2">
@@ -710,7 +659,6 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
               const isOdd = totalFiles % 2 === 1;
               // Rule 4: 홀수+우시작→우끝, 홀수+좌시작→좌끝
               // Rule 5: 짝수+우시작→좌끝, 짝수+좌시작→우끝
-              const endsLeft = startsRight ? !isOdd : isOdd;
 
               // 기본 종횡비 (첫 파일 기준)
               const defaultAspect = folder.files[0]
