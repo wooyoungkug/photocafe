@@ -41,6 +41,7 @@ export interface CartShippingInfo {
   deliveryMethod: string;
   deliveryFee: number;
   deliveryFeeType: string;
+  deliveryMemo?: string;
 }
 
 // 앨범/화보 주문 정보

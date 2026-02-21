@@ -58,6 +58,7 @@ export function FolderShippingSection({
   const [directPhone2, setDirectPhone2] = useState(shippingInfo?.receiverType === 'direct_customer' ? shippingInfo?.recipientPhone2 || '' : '');
   const [directAddress, setDirectAddress] = useState(shippingInfo?.receiverType === 'direct_customer' ? shippingInfo?.recipientAddress || '' : '');
   const [directAddressDetail, setDirectAddressDetail] = useState(shippingInfo?.receiverType === 'direct_customer' ? shippingInfo?.recipientAddressDetail || '' : '');
+  const [deliveryMemo, setDeliveryMemo] = useState(shippingInfo?.deliveryMemo || '');
 
   // 배송비 계산
   const calculateDeliveryFee = useCallback(
@@ -169,18 +170,19 @@ export function FolderShippingSection({
       deliveryMethod,
       deliveryFee: fee,
       deliveryFeeType: feeType,
+      deliveryMemo: deliveryMemo || undefined,
     });
   }, [
     senderType, receiverType, deliveryMethod,
     companyInfo, clientInfo,
     directRecipientName, directPhone, directPhone2, directAddress, directAddressDetail,
-    calculateDeliveryFee, onChange,
+    deliveryMemo, calculateDeliveryFee, onChange,
   ]);
 
   // 상태 변경 시 자동 emit
   useEffect(() => {
     emitChange();
-  }, [senderType, receiverType, deliveryMethod, directRecipientName, directPhone, directPhone2, directAddress, directAddressDetail, studioTotal]);
+  }, [senderType, receiverType, deliveryMethod, directRecipientName, directPhone, directPhone2, directAddress, directAddressDetail, deliveryMemo, studioTotal]);
 
   // 배송지가 고객직배송이면 방문수령 비활성
   const availableMethods = receiverType === 'direct_customer'
@@ -379,6 +381,20 @@ export function FolderShippingSection({
             </span>
           </div>
         </div>
+      </div>
+
+      {/* 배송메모 */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <Package className="h-3.5 w-3.5" />
+          배송메모
+        </div>
+        <Input
+          placeholder="배송 시 요청사항 (예: 부재 시 경비실 맡겨주세요)"
+          value={deliveryMemo}
+          onChange={(e) => setDeliveryMemo(e.target.value)}
+          className="h-8 text-sm"
+        />
       </div>
     </div>
   );

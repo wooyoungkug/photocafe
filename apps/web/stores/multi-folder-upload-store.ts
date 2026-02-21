@@ -198,6 +198,9 @@ export interface FolderShippingInfo {
   deliveryMethod: FolderDeliveryMethod;
   deliveryFee: number;
   deliveryFeeType: string; // 'free' | 'conditional' | 'standard'
+
+  // 배송 메모
+  deliveryMemo?: string;
 }
 
 // 추가 주문 정보
