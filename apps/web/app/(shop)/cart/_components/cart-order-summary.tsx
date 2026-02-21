@@ -75,7 +75,9 @@ export function CartOrderSummary({
             const prevTotal = sameDayInfo.totalProductAmount;
             const combinedTotal = prevTotal + newOrderStudioTotal;
             const { freeThreshold } = sameDayInfo;
-            const isFree = combinedTotal >= freeThreshold;
+            const isBundledFree = (sameDayInfo.ordersWithFee?.length ?? 0) > 0;
+            const isThresholdFree = combinedTotal >= freeThreshold;
+            const isFree = isThresholdFree || isBundledFree;
             const remaining = freeThreshold - combinedTotal;
             const progress = Math.min(100, (combinedTotal / freeThreshold) * 100);
 
@@ -89,7 +91,8 @@ export function CartOrderSummary({
                   <span className={isFree ? 'text-green-700' : 'text-blue-700'}>당일 스튜디오배송 주문합계</span>
                   {isFree && (
                     <span className="ml-auto text-green-600 font-semibold flex items-center gap-0.5">
-                      <CheckCircle2 className="w-3 h-3" /> 무료배송
+                      <CheckCircle2 className="w-3 h-3" />
+                      {isBundledFree && !isThresholdFree ? '묶음배송 무료' : '무료배송'}
                     </span>
                   )}
                 </div>
@@ -128,7 +131,14 @@ export function CartOrderSummary({
                   isFree ? 'text-green-500' : 'text-blue-400',
                 )}>
                   {isFree ? (
-                    <span>기준 {freeThreshold.toLocaleString()}원 달성 — 배송비 무료</span>
+                    isBundledFree && !isThresholdFree ? (
+                      <>
+                        <span>{combinedTotal.toLocaleString()}원</span>
+                        <span className="font-medium">{remaining.toLocaleString()}원 더 주문 시 환불</span>
+                      </>
+                    ) : (
+                      <span>기준 {freeThreshold.toLocaleString()}원 달성 — 배송비 무료</span>
+                    )
                   ) : (
                     <>
                       <span>{combinedTotal.toLocaleString()}원</span>

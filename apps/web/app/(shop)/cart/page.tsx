@@ -258,15 +258,18 @@ export default function CartPage() {
     .reduce((sum, item) => sum + item.totalPrice, 0);
 
   // 당일 합배송 조건 충족 여부 (이전 주문 누적 포함)
-  // - 당일 이미 배송비가 청구된 스튜디오 주문이 있으면 → 묶음배송 무료
-  // - 또는 누적 금액이 무료배송 임계값 이상이면 → 합배송 무료
-  const sameDayFreeEligible =
+  // - 묶음배송: 당일 이미 배송비가 청구된 주문이 있으면 → 이번 주문만 무료 (기존 주문 환불 없음)
+  // - 임계값 달성: 누적 금액이 무료배송 기준 이상이면 → 이번 주문 무료 + 기존 주문 배송비 환불
+  const isBundledFree =
+    !!sameDayInfo?.applicable &&
+    sameDayInfo.ordersWithFee.length > 0;
+  const isSameDayThresholdMet =
     !!sameDayInfo?.applicable &&
     sameDayInfo.totalProductAmount > 0 &&
-    (sameDayInfo.ordersWithFee.length > 0 ||
-      sameDayInfo.totalProductAmount + studioItemsTotal >= sameDayInfo.freeThreshold);
-  // 환불 대상 배송비 (기존 주문에서 이미 청구된 배송비)
-  const sameDayRefund = sameDayFreeEligible ? sameDayInfo!.totalShippingCharged : 0;
+    sameDayInfo.totalProductAmount + studioItemsTotal >= sameDayInfo.freeThreshold;
+  const sameDayFreeEligible = isBundledFree || isSameDayThresholdMet;
+  // 환불 대상 배송비: 임계값 달성 시에만 기존 주문 배송비 환불 (묶음배송은 이번 주문만 면제)
+  const sameDayRefund = isSameDayThresholdMet ? sameDayInfo!.totalShippingCharged : 0;
 
   // 배송비 합계
   // - 고객직배송: 무조건 청구 (개별 배송)
@@ -310,7 +313,7 @@ export default function CartPage() {
     });
     if (!hasStudioDelivery) return null;
     if (sameDayFreeEligible) {
-      return sameDayInfo!.ordersWithFee.length > 0 ? '묶음배송 무료' : '합배송 무료배송 달성';
+      return isSameDayThresholdMet ? '합배송 무료배송 달성' : '묶음배송 무료';
     }
     if (clientInfo?.shippingType === 'free') return '무료배송 거래처';
     if (clientInfo?.shippingType === 'conditional') return `${freeThreshold.toLocaleString()}원 이상 무료`;
