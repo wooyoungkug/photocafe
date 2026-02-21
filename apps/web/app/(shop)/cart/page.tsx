@@ -392,7 +392,7 @@ export default function CartPage() {
             {sameDayInfo && sameDayInfo.totalProductAmount > 0 && (
               <CartSameDayShippingBanner
                 info={sameDayInfo}
-                newOrderTotal={selectedTotal}
+                newOrderTotal={studioItemsTotal}
               />
             )}
 
