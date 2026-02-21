@@ -289,7 +289,7 @@ export default function CSDashboardPage() {
                         </div>
                         <p className="font-medium truncate">{consultation.title}</p>
                         <p className="text-sm text-muted-foreground truncate">
-                          {consultation.client.clientName} · {consultation.category?.name}
+                          {consultation.client?.clientName} · {consultation.category?.name}
                         </p>
                       </div>
                       <div className="text-right text-xs text-muted-foreground">
