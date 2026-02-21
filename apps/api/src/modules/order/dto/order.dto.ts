@@ -4,9 +4,11 @@ import {
   IsBoolean,
   IsNumber,
   IsArray,
+  ArrayMinSize,
   IsIn,
   IsDate,
   Min,
+  Max,
   ValidateNested,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
@@ -363,13 +365,15 @@ export class CreateOrderDto {
   @Min(0)
   shippingFee?: number;
 
-  @ApiPropertyOptional({ description: '조정금액 (합배송 배송비 환급 등, 음수=차감)' })
+  @ApiPropertyOptional({ description: '조정금액 (합배송 배송비 환급 등)' })
   @IsOptional()
   @IsNumber()
+  @Min(0)
   adjustmentAmount?: number;
 
   @ApiProperty({ description: '주문 항목' })
   @IsArray()
+  @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => CreateOrderItemDto)
   items: CreateOrderItemDto[];
@@ -434,6 +438,7 @@ export class OrderQueryDto {
   @IsOptional()
   @IsNumber()
   @Min(1)
+  @Max(500)
   limit?: number;
 
   @ApiPropertyOptional({ description: '검색어 (주문번호, 거래처명)' })

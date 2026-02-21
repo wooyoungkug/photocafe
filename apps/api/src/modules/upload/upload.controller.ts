@@ -65,7 +65,15 @@ export class UploadController {
                     if (!tempFolderId) {
                         return cb(new BadRequestException('tempFolderId가 필요합니다.'), '');
                     }
-                    const dir = join(getUploadBasePath(), 'temp', tempFolderId, 'originals');
+                    // 경로 탐색 공격 방지: ../ 및 경로 구분자 제거
+                    const safeTempFolderId = tempFolderId
+                        .replace(/\.\./g, '')
+                        .replace(/[/\\]/g, '')
+                        .trim();
+                    if (!safeTempFolderId) {
+                        return cb(new BadRequestException('유효하지 않은 tempFolderId입니다.'), '');
+                    }
+                    const dir = join(getUploadBasePath(), 'temp', safeTempFolderId, 'originals');
                     if (!existsSync(dir)) {
                         mkdirSync(dir, { recursive: true });
                     }

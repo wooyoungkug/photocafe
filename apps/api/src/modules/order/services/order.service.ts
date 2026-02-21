@@ -487,10 +487,13 @@ export class OrderService {
       // 트랜잭션 안에서 당일 이미 적용된 환급 누계를 재확인하여 중복 환급 차단
       let adjustmentAmount = dto.adjustmentAmount ?? 0;
       if (adjustmentAmount > 0) {
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-        const todayEnd = new Date();
-        todayEnd.setHours(23, 59, 59, 999);
+        // KST 기준 오늘 범위: UTC로 변환 (KST = UTC+9)
+        const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+        const nowUtc = Date.now();
+        const nowKst = nowUtc + KST_OFFSET_MS;
+        const kstMidnight = nowKst - (nowKst % (24 * 60 * 60 * 1000));
+        const todayStart = new Date(kstMidnight - KST_OFFSET_MS);
+        const todayEnd = new Date(kstMidnight - KST_OFFSET_MS + 24 * 60 * 60 * 1000 - 1);
         const alreadyRefunded = await tx.order.aggregate({
           where: {
             clientId: dto.clientId,
@@ -1454,7 +1457,7 @@ export class OrderService {
 
     // 총 주문 건수 및 금액
     const orderCount = orders.length;
-    const totalAmount = orders.reduce((sum, order) => sum + (Number(order.total) || 0), 0);
+    const totalAmount = orders.reduce((sum, order) => sum + (Number(order.totalAmount) || 0), 0);
 
     // 매출원장에서 입금완료 금액 조회 (해당 기간 주문에 대한 입금액)
     const orderIds = orders.map(o => o.id);
@@ -2238,10 +2241,13 @@ export class OrderService {
       };
     }
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
+    // KST 기준 오늘 범위: UTC로 변환 (KST = UTC+9)
+    const KST_OFFSET_MS_SD = 9 * 60 * 60 * 1000;
+    const nowUtcSD = Date.now();
+    const nowKstSD = nowUtcSD + KST_OFFSET_MS_SD;
+    const kstMidnightSD = nowKstSD - (nowKstSD % (24 * 60 * 60 * 1000));
+    const todayStart = new Date(kstMidnightSD - KST_OFFSET_MS_SD);
+    const todayEnd = new Date(kstMidnightSD - KST_OFFSET_MS_SD + 24 * 60 * 60 * 1000 - 1);
 
     const orders = await this.prisma.order.findMany({
       where: {
