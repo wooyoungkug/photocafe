@@ -13,6 +13,7 @@ export interface MyProductOptions {
   paperName?: string;
   coverId?: string;
   coverName?: string;
+  printMethod?: 'indigo' | 'inkjet';
   printSide?: 'single' | 'double';
   copperPlateType?: 'none' | 'public' | 'owned';
   copperPlateId?: string;

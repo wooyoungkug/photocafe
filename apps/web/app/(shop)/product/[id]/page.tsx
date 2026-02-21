@@ -590,9 +590,10 @@ export default function ProductPage() {
       return;
     }
     const opts: MyProductOptions = {
-      bindingId: selectedOptions.binding?.id, bindingName: selectedOptions.binding?.name,
+      bindingId: selectedOptions.binding?.id,
       paperId: selectedOptions.paper?.id, paperName: selectedOptions.paper?.name,
       coverId: selectedOptions.cover?.id, coverName: selectedOptions.cover?.name,
+      printMethod: selectedOptions.printMethod,
       printSide: selectedOptions.printSide, copperPlateType: selectedOptions.copperPlateType,
       copperPlateId: selectedOptions.copperPlateType === 'owned' ? selectedOptions.ownedCopperPlate?.id : selectedOptions.copperPlateType === 'public' ? selectedOptions.publicCopperPlate?.id : undefined,
       copperPlateName: selectedOptions.copperPlateType === 'owned' ? selectedOptions.ownedCopperPlate?.plateName : selectedOptions.copperPlateType === 'public' ? selectedOptions.publicCopperPlate?.plateName : undefined,
