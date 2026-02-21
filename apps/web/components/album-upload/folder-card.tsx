@@ -927,64 +927,6 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
               </span>
             )}
           </div>
-          {/* 패브릭/포일 편집 */}
-          {(folder.selectedFabricName || folder.foilName || folder.foilColor || folder.foilPosition) && (
-            <div className="flex items-center gap-1 flex-wrap text-[10px] text-gray-500 mt-1 mb-1">
-              {/* 원단: 클릭 → FabricPickerDialog */}
-              {folder.selectedFabricName && (
-                <>
-                  <span className="text-xs text-black">원단</span>
-                  <button
-                    type="button"
-                    onClick={() => setFabricPickerFolderId(folder.id)}
-                    className="bg-pink-50 text-pink-700 px-1.5 py-0.5 rounded border border-pink-200 flex items-center gap-1 hover:bg-pink-100 transition-colors"
-                  >
-                    <Palette className="w-2.5 h-2.5" />
-                    {folder.selectedFabricName}
-                  </button>
-                </>
-              )}
-              {/* 동판: DB 데이터 기반 드롭다운 */}
-              {(folder.foilName || folder.foilColor || folder.foilPosition) && (
-                <>
-                  <span className="text-xs text-black ml-5">동판정보</span>
-                  <span className="text-[10px] text-gray-400">색상</span>
-                  <select
-                    value={folder.foilColor ?? ''}
-                    onChange={(e) => updateFolder(folder.id, { foilColor: e.target.value || null })}
-                    className="text-xs border rounded px-1.5 py-0.5 w-24 bg-yellow-50 text-yellow-700"
-                  >
-                    <option value="">색상 선택</option>
-                    {copperPlateLabels?.foilColors?.filter(c => c.isActive).map(color => (
-                      <option key={color.id} value={color.name}>{color.name}</option>
-                    ))}
-                  </select>
-                  <span className="text-[10px] text-gray-400">동판</span>
-                  <select
-                    value={folder.foilName ?? ''}
-                    onChange={(e) => updateFolder(folder.id, { foilName: e.target.value || null })}
-                    className="text-xs border rounded px-1.5 py-0.5 bg-violet-50 text-violet-700"
-                  >
-                    <option value="">동판 선택</option>
-                    {availablePlateNames.map(name => (
-                      <option key={name} value={name}>{name}</option>
-                    ))}
-                  </select>
-                  <span className="text-[10px] text-gray-400">위치</span>
-                  <select
-                    value={folder.foilPosition ?? ''}
-                    onChange={(e) => updateFolder(folder.id, { foilPosition: e.target.value || null })}
-                    className="text-xs border rounded px-1.5 py-0.5 w-20 bg-blue-50 text-blue-700"
-                  >
-                    <option value="">위치 선택</option>
-                    {copperPlateLabels?.platePositions?.filter(p => p.isActive).map(pos => (
-                      <option key={pos.id} value={pos.name}>{pos.name}</option>
-                    ))}
-                  </select>
-                </>
-              )}
-            </div>
-          )}
           {/* 출력방법 · 용지 */}
           {folder.printMethod && (
             <div className="flex items-center gap-1 flex-wrap text-[10px] text-gray-500 mt-1 mb-1">
@@ -1044,6 +986,64 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
+            </div>
+          )}
+          {/* 패브릭/포일 편집 */}
+          {(folder.selectedFabricName || folder.foilName || folder.foilColor || folder.foilPosition) && (
+            <div className="flex items-center gap-1 flex-wrap text-[10px] text-gray-500 mt-1 mb-1">
+              {/* 원단: 클릭 → FabricPickerDialog */}
+              {folder.selectedFabricName && (
+                <>
+                  <span className="text-xs text-black">원단</span>
+                  <button
+                    type="button"
+                    onClick={() => setFabricPickerFolderId(folder.id)}
+                    className="bg-pink-50 text-pink-700 px-1.5 py-0.5 rounded border border-pink-200 flex items-center gap-1 hover:bg-pink-100 transition-colors"
+                  >
+                    <Palette className="w-2.5 h-2.5" />
+                    {folder.selectedFabricName}
+                  </button>
+                </>
+              )}
+              {/* 동판: DB 데이터 기반 드롭다운 */}
+              {(folder.foilName || folder.foilColor || folder.foilPosition) && (
+                <>
+                  <span className="text-xs text-black ml-5">동판정보</span>
+                  <span className="text-[10px] text-gray-400">색상</span>
+                  <select
+                    value={folder.foilColor ?? ''}
+                    onChange={(e) => updateFolder(folder.id, { foilColor: e.target.value || null })}
+                    className="text-xs border rounded px-1.5 py-0.5 w-24 bg-yellow-50 text-yellow-700"
+                  >
+                    <option value="">색상 선택</option>
+                    {copperPlateLabels?.foilColors?.filter(c => c.isActive).map(color => (
+                      <option key={color.id} value={color.name}>{color.name}</option>
+                    ))}
+                  </select>
+                  <span className="text-[10px] text-gray-400">동판</span>
+                  <select
+                    value={folder.foilName ?? ''}
+                    onChange={(e) => updateFolder(folder.id, { foilName: e.target.value || null })}
+                    className="text-xs border rounded px-1.5 py-0.5 bg-violet-50 text-violet-700"
+                  >
+                    <option value="">동판 선택</option>
+                    {availablePlateNames.map(name => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
+                  <span className="text-[10px] text-gray-400">위치</span>
+                  <select
+                    value={folder.foilPosition ?? ''}
+                    onChange={(e) => updateFolder(folder.id, { foilPosition: e.target.value || null })}
+                    className="text-xs border rounded px-1.5 py-0.5 w-20 bg-blue-50 text-blue-700"
+                  >
+                    <option value="">위치 선택</option>
+                    {copperPlateLabels?.platePositions?.filter(p => p.isActive).map(pos => (
+                      <option key={pos.id} value={pos.name}>{pos.name}</option>
+                    ))}
+                  </select>
+                </>
+              )}
             </div>
           )}
           {/* 규격 · 페이지 · 부수 */}
