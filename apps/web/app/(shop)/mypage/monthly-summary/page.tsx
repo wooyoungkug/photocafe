@@ -548,7 +548,7 @@ export default function MonthlySummaryPage() {
                     <Fragment key={order.id}>
                       {order.items.map((item, iIdx) => {
                         const subName = [
-                          item.productName,
+                          item.printMethod,
                           item.paper,
                           item.bindingDirection,
                         ]
@@ -572,7 +572,7 @@ export default function MonthlySummaryPage() {
                                 ? item.pages > 0
                                   ? `${item.pages}p`
                                   : item.size || '-'
-                                : `${item.quantity}부`}
+                                : ''}
                             </td>
                             <td className="border border-gray-400 p-1 text-right tabular-nums align-top">
                               {iIdx === 0 ? formatAmount(Number(order.finalAmount)) + '원' : ''}
