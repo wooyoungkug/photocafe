@@ -682,6 +682,10 @@ export default function OrderPage() {
         if (!isDirectCustomer) {
           if (firstCharged) {
             od.shippingFee = 0;
+            // 아이템 레벨 deliveryFee도 0으로 처리 (백엔드가 아이템 배송비를 우선 사용하므로)
+            if (od.items?.[0]?.shipping) {
+              od.items[0].shipping.deliveryFee = 0;
+            }
           } else {
             firstCharged = true;
           }
