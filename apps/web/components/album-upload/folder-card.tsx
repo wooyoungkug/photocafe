@@ -1238,6 +1238,21 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                             </span>
                           )}
                         </div>
+                        {/* 출력방법 · 용지 (읽기 전용 - 원본 따라감) */}
+                        {folder.printMethod && (
+                          <div className="flex items-center gap-1 flex-wrap text-[10px] text-gray-500 mb-1">
+                            <span className="text-xs text-black">출력</span>
+                            <span className="text-xs border rounded px-1.5 py-0.5 bg-orange-50 text-orange-700">
+                              {folder.printMethod === 'indigo'
+                                ? `인디고 ${folder.colorMode === '6c' ? '6도' : '4도'}`
+                                : '잉크젯'}
+                            </span>
+                            <span className="text-xs text-black ml-3">용지</span>
+                            <span className="text-xs border rounded px-1.5 py-0.5 bg-emerald-50 text-emerald-700">
+                              {folder.selectedPaperName || '-'}
+                            </span>
+                          </div>
+                        )}
                         {/* 패브릭/포일 편집 */}
                         {(order.selectedFabricName ?? folder.selectedFabricName ?? order.foilName ?? folder.foilName ?? order.foilColor ?? folder.foilColor) && (
                           <div className="flex items-center gap-1 flex-wrap text-[10px] text-gray-500 mb-1">
