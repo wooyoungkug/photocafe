@@ -1242,13 +1242,13 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                         {folder.printMethod && (
                           <div className="flex items-center gap-1 flex-wrap text-[10px] text-gray-500 mb-1">
                             <span className="text-xs text-black">출력</span>
-                            <span className="text-xs border rounded px-1.5 py-0.5 bg-orange-50 text-orange-700">
+                            <span className="text-xs border rounded px-1.5 py-0.5 bg-orange-50 text-black">
                               {folder.printMethod === 'indigo'
                                 ? `인디고 ${folder.colorMode === '6c' ? '6도' : '4도'}`
                                 : '잉크젯'}
                             </span>
                             <span className="text-xs text-black ml-3">용지</span>
-                            <span className="text-xs border rounded px-1.5 py-0.5 bg-emerald-50 text-emerald-700">
+                            <span className="text-xs border rounded px-1.5 py-0.5 bg-emerald-50 text-black">
                               {folder.selectedPaperName || '-'}
                             </span>
                           </div>
@@ -1263,7 +1263,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                                 <button
                                   type="button"
                                   onClick={() => setFabricPickerOrderId(order.id)}
-                                  className="bg-pink-50 text-pink-700 px-1.5 py-0.5 rounded border border-pink-200 flex items-center gap-1 hover:bg-pink-100 transition-colors"
+                                  className="bg-pink-50 text-black px-1.5 py-0.5 rounded border border-pink-200 flex items-center gap-1 hover:bg-pink-100 transition-colors"
                                 >
                                   <Palette className="w-2.5 h-2.5" />
                                   {order.selectedFabricName ?? folder.selectedFabricName}
@@ -1278,7 +1278,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                                 <select
                                   value={order.foilColor ?? folder.foilColor ?? ''}
                                   onChange={(e) => updateAdditionalOrderFoil(folder.id, order.id, order.foilName ?? folder.foilName ?? null, e.target.value || null, order.foilPosition ?? folder.foilPosition ?? null)}
-                                  className="text-xs border rounded px-1.5 py-0.5 w-24 bg-yellow-50 text-yellow-700"
+                                  className="text-xs border rounded px-1.5 py-0.5 w-24 bg-yellow-50 text-black"
                                 >
                                   <option value="">색상 선택</option>
                                   {copperPlateLabels?.foilColors?.filter(c => c.isActive).map(color => (
@@ -1289,7 +1289,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                                 <select
                                   value={order.foilName ?? folder.foilName ?? ''}
                                   onChange={(e) => updateAdditionalOrderFoil(folder.id, order.id, e.target.value || null, order.foilColor ?? folder.foilColor ?? null, order.foilPosition ?? folder.foilPosition ?? null)}
-                                  className="text-xs border rounded px-1.5 py-0.5 bg-violet-50 text-violet-700"
+                                  className="text-xs border rounded px-1.5 py-0.5 bg-violet-50 text-black"
                                 >
                                   <option value="">동판 선택</option>
                                   {availablePlateNames.map(name => (
@@ -1300,7 +1300,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                                 <select
                                   value={order.foilPosition ?? folder.foilPosition ?? ''}
                                   onChange={(e) => updateAdditionalOrderFoil(folder.id, order.id, order.foilName ?? folder.foilName ?? null, order.foilColor ?? folder.foilColor ?? null, e.target.value || null)}
-                                  className="text-xs border rounded px-1.5 py-0.5 w-20 bg-blue-50 text-blue-700"
+                                  className="text-xs border rounded px-1.5 py-0.5 w-20 bg-blue-50 text-black"
                                 >
                                   <option value="">위치 선택</option>
                                   {copperPlateLabels?.platePositions?.filter(p => p.isActive).map(pos => (
