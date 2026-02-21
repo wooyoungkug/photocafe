@@ -1,11 +1,6 @@
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
-<<<<<<< Updated upstream
-=======
-  previewFeatures = ["relationJoins", "fullTextSearch"]
-  engineType = "binary"
->>>>>>> Stashed changes
 }
 
 datasource db {
