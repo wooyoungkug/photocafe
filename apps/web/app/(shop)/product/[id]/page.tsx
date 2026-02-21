@@ -461,6 +461,7 @@ export default function ProductPage() {
       }).filter((f): f is ProductFinishing => f !== null),
       printSide: opts.printSide,
       printMethod: (opts.printMethod as 'indigo' | 'inkjet') || 'indigo',
+      colorMode: (opts.colorMode as '4c' | '6c') || '4c',
       copperPlateType: opts.copperPlateType,
       ownedCopperPlate: opts.copperPlateType === 'owned' ? ownedCopperPlates?.find(cp => cp.id === opts.copperPlateId) : undefined,
       publicCopperPlate: opts.copperPlateType === 'public'
@@ -594,6 +595,7 @@ export default function ProductPage() {
       paperId: selectedOptions.paper?.id, paperName: selectedOptions.paper?.name,
       coverId: selectedOptions.cover?.id, coverName: selectedOptions.cover?.name,
       printMethod: selectedOptions.printMethod,
+      colorMode: selectedOptions.colorMode,
       printSide: selectedOptions.printSide, copperPlateType: selectedOptions.copperPlateType,
       copperPlateId: selectedOptions.copperPlateType === 'owned' ? selectedOptions.ownedCopperPlate?.id : selectedOptions.copperPlateType === 'public' ? selectedOptions.publicCopperPlate?.id : undefined,
       copperPlateName: selectedOptions.copperPlateType === 'owned' ? selectedOptions.ownedCopperPlate?.plateName : selectedOptions.copperPlateType === 'public' ? selectedOptions.publicCopperPlate?.plateName : undefined,
@@ -643,6 +645,7 @@ export default function ProductPage() {
         return base;
       }).filter((f): f is ProductFinishing => f !== null),
       printMethod: (opts.printMethod as 'indigo' | 'inkjet') || 'indigo',
+      colorMode: (opts.colorMode as '4c' | '6c') || '4c',
       printSide: opts.printSide, copperPlateType: opts.copperPlateType,
       ownedCopperPlate: opts.copperPlateType === 'owned' ? ownedCopperPlates?.find(cp => cp.id === opts.copperPlateId) : undefined,
       publicCopperPlate: opts.copperPlateType === 'public' ? allPublicCopperPlates?.data?.find(p => p.id === opts.copperPlateId) : undefined,

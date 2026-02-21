@@ -98,7 +98,9 @@ export default function MyProductsPage() {
                       )}
                       {mp.options.printMethod && (
                         <Badge variant="outline" className="text-[10px] h-4 px-1">
-                          {mp.options.printMethod === 'indigo' ? '인디고출력' : '잉크젯출력'}
+                          {mp.options.printMethod === 'indigo'
+                            ? (mp.options.colorMode === '6c' ? '인디고6도' : '인디고4도')
+                            : '잉크젯출력'}
                         </Badge>
                       )}
                       {mp.options.paperName && (

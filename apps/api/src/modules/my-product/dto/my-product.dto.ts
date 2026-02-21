@@ -10,6 +10,8 @@ export interface MyProductOptions {
   paperName?: string;
   coverId?: string;
   coverName?: string;
+  printMethod?: 'indigo' | 'inkjet';
+  colorMode?: '4c' | '6c';
   printSide?: 'single' | 'double';
   copperPlateType?: 'none' | 'public' | 'owned';
   copperPlateId?: string;
