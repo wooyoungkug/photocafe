@@ -60,7 +60,7 @@ export default function OrderReceiptPage() {
   const { data: settings } = useSystemSettings('company');
   const companyMap = settings ? settingsToMap(settings) : {};
 
-  const companyName = companyMap.company_name || '포토카페';
+  const companyName = companyMap.company_name || '(주)프린팅솔루션즈';
   const companyCeo = companyMap.company_ceo || '';
   const companyBizNum = companyMap.company_business_number || '';
   const companyAddress = [companyMap.company_address, companyMap.company_address_detail].filter(Boolean).join(' ');

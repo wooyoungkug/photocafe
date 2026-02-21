@@ -264,7 +264,7 @@ export default function BasicSettingsPage() {
                     id="company_name"
                     value={companyInfo.name}
                     onChange={(e) => setCompanyInfo({ ...companyInfo, name: e.target.value })}
-                    placeholder="(주)포토카페"
+                    placeholder="(주)프린팅솔루션즈"
                   />
                 </div>
                 <div className="space-y-2">

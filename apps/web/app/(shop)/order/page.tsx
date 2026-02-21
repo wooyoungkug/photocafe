@@ -955,7 +955,7 @@ export default function OrderPage() {
                       <p className="font-medium mb-2">입금계좌 안내</p>
                       <p className="text-sm text-gray-600">
                         국민은행 123-456-789012<br />
-                        예금주: (주)포토카페
+                        예금주: (주)프린팅솔루션즈
                       </p>
                     </div>
                   )}
