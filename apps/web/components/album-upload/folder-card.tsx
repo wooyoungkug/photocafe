@@ -829,7 +829,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
               </div>
             ) : (
               <>
-                <span className="font-normal text-black text-xs truncate">{folder.orderTitle}</span>
+                <span className="font-normal text-black text-[12pt] truncate">{folder.orderTitle}</span>
                 <Button
                   size="icon"
                   variant="ghost"
@@ -1213,7 +1213,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                         {/* 폴더명 */}
                         <div className="flex items-center gap-1.5 flex-wrap mb-1">
                           <span className="text-[10px] font-bold text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded">{t('additionalSetOrder')}</span>
-                          <span className="text-xs font-normal text-black truncate">{folder.orderTitle}</span>
+                          <span className="text-[12pt] font-normal text-black truncate">{folder.orderTitle}</span>
                         </div>
                         {/* 편집 · 제본 (읽기 전용 - 원본 따라감) */}
                         <div className="flex items-center gap-2 text-xs text-gray-600 mb-1.5 flex-wrap">
