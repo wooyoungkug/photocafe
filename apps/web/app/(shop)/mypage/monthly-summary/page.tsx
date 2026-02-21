@@ -493,9 +493,6 @@ export default function MonthlySummaryPage() {
                 수량
               </th>
               <th className="border border-gray-500 p-1.5 text-center font-semibold w-[80px]">
-                단가
-              </th>
-              <th className="border border-gray-500 p-1.5 text-center font-semibold w-[80px]">
                 금액
               </th>
             </tr>
@@ -504,7 +501,7 @@ export default function MonthlySummaryPage() {
             {/* 전월이월 행 */}
             <tr className="bg-blue-50">
               <td
-                colSpan={5}
+                colSpan={4}
                 className="border border-gray-400 p-1.5 text-right font-semibold text-blue-700"
               >
                 전월 이월
@@ -526,7 +523,7 @@ export default function MonthlySummaryPage() {
                   {/* 날짜 그룹 헤더 */}
                   <tr className="bg-gray-100">
                     <td
-                      colSpan={6}
+                      colSpan={5}
                       className="border border-gray-500 p-1.5 font-bold text-[9pt]"
                     >
                       {format(new Date(date + 'T00:00:00'), 'yyyy년 MM월 dd일 (EEE)', {
@@ -553,9 +550,6 @@ export default function MonthlySummaryPage() {
                             {item.quantity}
                           </td>
                           <td className="border border-gray-400 p-1 text-right tabular-nums align-top">
-                            {formatAmount(item.unitPrice)}원
-                          </td>
-                          <td className="border border-gray-400 p-1 text-right tabular-nums align-top">
                             {formatAmount(item.totalPrice)}원
                           </td>
                         </tr>
@@ -567,7 +561,7 @@ export default function MonthlySummaryPage() {
                   {/* 일계 */}
                   <tr className="bg-blue-50 font-bold">
                     <td
-                      colSpan={5}
+                      colSpan={4}
                       className="border border-gray-500 p-1.5 text-right pr-3"
                     >
                       {format(new Date(date + 'T00:00:00'), 'MM월 dd일 합계', {
@@ -584,7 +578,7 @@ export default function MonthlySummaryPage() {
 
             {/* 당월 합계 */}
             <tr className="bg-gray-200 font-bold">
-              <td colSpan={5} className="border border-gray-500 p-1.5 text-right pr-3">
+              <td colSpan={4} className="border border-gray-500 p-1.5 text-right pr-3">
                 당 월 합 계
               </td>
               <td className="border border-gray-500 p-1.5 text-right tabular-nums">
@@ -594,7 +588,7 @@ export default function MonthlySummaryPage() {
 
             {/* 납부금액 합계 */}
             <tr className="bg-gray-100 font-bold">
-              <td colSpan={5} className="border border-gray-500 p-1.5 text-right pr-3">
+              <td colSpan={4} className="border border-gray-500 p-1.5 text-right pr-3">
                 납 부 합 계
               </td>
               <td className="border border-gray-500 p-1.5 text-right tabular-nums text-blue-700">
@@ -604,7 +598,7 @@ export default function MonthlySummaryPage() {
 
             {/* 차월이월 */}
             <tr className="bg-gray-300 font-bold">
-              <td colSpan={5} className="border border-gray-500 p-1.5 text-right pr-3 text-primary">
+              <td colSpan={4} className="border border-gray-500 p-1.5 text-right pr-3 text-primary">
                 차 월 이 월
               </td>
               <td
