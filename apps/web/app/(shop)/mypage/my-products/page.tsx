@@ -93,6 +93,9 @@ export default function MyProductsPage() {
                       {mp.options.specificationName && (
                         <Badge variant="outline" className="text-[10px] h-4 px-1">{mp.options.specificationName}</Badge>
                       )}
+                      {mp.options.bindingName && (
+                        <Badge variant="outline" className="text-[10px] h-4 px-1">{mp.options.bindingName}</Badge>
+                      )}
                       {mp.options.printMethod && (
                         <Badge variant="outline" className="text-[10px] h-4 px-1">
                           {mp.options.printMethod === 'indigo' ? '인디고출력' : '잉크젯출력'}

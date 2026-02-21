@@ -591,6 +591,7 @@ export default function ProductPage() {
     }
     const opts: MyProductOptions = {
       bindingId: selectedOptions.binding?.id,
+      bindingName: selectedOptions.binding?.name,
       paperId: selectedOptions.paper?.id, paperName: selectedOptions.paper?.name,
       coverId: selectedOptions.cover?.id, coverName: selectedOptions.cover?.name,
       printMethod: selectedOptions.printMethod,
