@@ -520,10 +520,7 @@ export default function MonthlySummaryPage() {
             </tr>
 
             {ordersByDate.map(([date, orders]) => {
-              const dateSubtotal = orders.reduce(
-                (sum, o) => sum + Number(o.finalAmount),
-                0,
-              );
+              const dateSubtotal = orders.reduce((sum, o) => sum + Number(o.finalAmount), 0);
               return (
                 <Fragment key={date}>
                   {/* 날짜 그룹 헤더 */}
@@ -564,18 +561,6 @@ export default function MonthlySummaryPage() {
                         </tr>
                       ))}
 
-                      {/* 주문 소계 */}
-                      <tr className="bg-gray-50">
-                        <td
-                          colSpan={5}
-                          className="border border-gray-400 p-1 text-right text-[8pt] text-gray-500 pr-2"
-                        >
-                          소계 ({order.orderNumber})
-                        </td>
-                        <td className="border border-gray-400 p-1 text-right tabular-nums font-semibold">
-                          {formatAmount(Number(order.finalAmount))}원
-                        </td>
-                      </tr>
                     </Fragment>
                   ))}
 
