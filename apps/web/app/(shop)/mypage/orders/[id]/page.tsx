@@ -520,7 +520,9 @@ export default function OrderDetailPage() {
                         {(item.bindingType || item.pageLayout || item.bindingDirection || item.printMethod) && (
                           <div className="flex items-center gap-2 text-xs text-gray-600 mb-1.5 flex-wrap">
                             {item.bindingType && (
-                              <span className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded border border-gray-200 text-[10px]">{item.bindingType}</span>
+                              <span className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded border border-gray-200 text-[10px]">
+                                {item.bindingType.split('_')[0].replace(/\s*\(.*?\)$/, '').trim() || item.bindingType}
+                              </span>
                             )}
                             {item.pageLayout && (
                               <>
