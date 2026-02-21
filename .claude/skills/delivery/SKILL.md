@@ -84,12 +84,14 @@ description: 배송 관리. 배송 준비, 출고, 택배 연동, 배송 추적 
 | 배송방법 | 고객 주문 화면 선택 | 내부(관리자) 사용 | 비고 |
 |----------|:-----------------:|:---------------:|------|
 | `parcel` (택배) | ✓ 기본 선택 | ✓ | 조건부/무료배송 정책 적용 대상 |
-| `motorcycle` (오토바이퀵) | ✗ | ✓ | 관리자가 거리 계산 후 배송비 산출, 고객에게 금액 전달 |
-| `damas` (다마스) | ✗ | ✓ | 관리자가 거리 계산 후 배송비 산출, 고객에게 금액 전달 |
-| `freight` (화물) | ✗ | ✓ | 관리자가 크기/무게 계산 후 배송비 산출, 고객에게 금액 전달 |
+| `motorcycle` (오토바이퀵) | ✓ | ✓ | 고객이 직접 선택 가능. 배송비는 DeliveryPricing.baseFee 적용 |
+| `damas` (다마스) | ✗ 관리자 전용 | ✓ | 고객 주문 UI 미노출. 관리자 배송비 설정 및 내부 처리에만 사용 |
+| `freight` (화물) | ✓ | ✓ | 고객이 직접 선택 가능. 배송비는 DeliveryPricing.baseFee 적용 |
 | `pickup` (방문수령) | ✓ | ✓ | 항상 무료 |
 
-> **향후 계획**: 배송 시스템 완성 후 고객이 직접 배송방법 선택 및 결제 가능하도록 자동화 예정 (현재 반자동 운영)
+> **damas 특이사항**: `use-delivery-pricing.ts`와 `delivery-settings-content.tsx`(관리자)에는 포함되어 있으나,
+> 고객 주문 폼(`folder-shipping-section.tsx`)의 `DELIVERY_METHOD_OPTIONS`에는 미포함.
+> `FolderDeliveryMethod` 타입: `'parcel' | 'motorcycle' | 'freight' | 'pickup'` (damas 없음)
 
 ### 배송비 산출 기준
 
@@ -198,8 +200,25 @@ netShippingCharged = max(0, totalShippingCharged - totalAdjustmentApplied)
 
 ```
 조건부택배 + 동일 주문 내 스튜디오 배송 아이템 2건 이상 + 합계 < 기준금액
-→ 첫 번째 스튜디오 배송 아이템 배송비만 1회 청구
+→ 첫 번째 스튜디오(orderer) 배송 아이템 배송비만 1회 청구
+→ direct_customer 아이템은 배치 대상 제외 (항상 별도 청구)
 ```
+
+#### 배송비 적용 우선순위 (order/page.tsx effectiveShippingFee)
+
+```
+1순위: combinedShipping.isTriggered (당일합배송 기준금액 충족)
+  → effectiveShippingFee = 0원
+
+2순위: batchSingleShipping (복수 아이템 배치배송)
+  → effectiveShippingFee = 첫 번째 스튜디오 아이템 배송비만
+
+3순위: 기본
+  → effectiveShippingFee = totalShippingFee (아이템별 합산)
+```
+
+> 당일합배송이 배치배송보다 **항상 우선** 적용된다.
+> 당일합배송이 발동하면 배치배송 여부와 무관하게 최종 배송비는 0원.
 
 #### 관련 구현 파일
 
@@ -263,8 +282,10 @@ interface FolderShippingInfo {
 
 ### 실제 사용 코드값 (Enum 없이 String으로 관리)
 
-> ⚠️ Prisma schema에 `DeliveryMethod`, `DeliveryStatus`, `PaymentType` enum은 정의되어 있지 않습니다.
-> 모든 필드는 `String` 타입으로 아래 문자열 값을 직접 사용합니다.
+> ⚠️ Prisma schema에 `DeliveryMethod`, `DeliveryStatus`, `PaymentType` **Enum 타입은 정의되어 있지 않습니다**.
+> 해당 필드들은 모두 `String` 타입으로 아래 문자열 값을 직접 사용합니다.
+>
+> ✅ **`DeliveryPricing` 모델 자체는 schema.prisma에 완전히 구현되어 있습니다** (baseFee, distanceRanges, sizeRanges, islandFee, freeThreshold 등 포함).
 
 ```typescript
 // 배송방법 코드 (DeliveryPricing.deliveryMethod, OrderItemShipping.deliveryMethod)
@@ -613,7 +634,9 @@ function calculateDeliveryFee(method, recvType) {
 
 ## 배송비 설정 페이지 (기초정보설정 > 배송비)
 
-**파일**: `apps/web/app/(dashboard)/settings/delivery/page.tsx`
+**파일**:
+- 페이지: `apps/web/app/(dashboard)/settings/delivery/page.tsx`
+- 핵심 컴포넌트: `apps/web/components/settings/delivery-settings-content.tsx` (실제 폼 로직)
 
 ### 배송방법별 설정 항목
 
