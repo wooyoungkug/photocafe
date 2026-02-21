@@ -79,6 +79,18 @@ description: 배송 관리. 배송 준비, 출고, 택배 연동, 배송 추적 
 | **화물** | freight | 화물 배송 | 기초정보설정 > 배송비 기준 |
 | **방문수령** | pickup | 고객 직접 방문 수령 | 무료 |
 
+#### 배송방법 역할 구분 (현재 정책)
+
+| 배송방법 | 고객 주문 화면 선택 | 내부(관리자) 사용 | 비고 |
+|----------|:-----------------:|:---------------:|------|
+| `parcel` (택배) | ✓ 기본 선택 | ✓ | 조건부/무료배송 정책 적용 대상 |
+| `motorcycle` (오토바이퀵) | ✗ | ✓ | 관리자가 거리 계산 후 배송비 산출, 고객에게 금액 전달 |
+| `damas` (다마스) | ✗ | ✓ | 관리자가 거리 계산 후 배송비 산출, 고객에게 금액 전달 |
+| `freight` (화물) | ✗ | ✓ | 관리자가 크기/무게 계산 후 배송비 산출, 고객에게 금액 전달 |
+| `pickup` (방문수령) | ✓ | ✓ | 항상 무료 |
+
+> **향후 계획**: 배송 시스템 완성 후 고객이 직접 배송방법 선택 및 결제 가능하도록 자동화 예정 (현재 반자동 운영)
+
 ### 배송비 산출 기준
 
 - 배송금액은 **기초정보설정(시스템설정) > 배송비** 에 등록된 금액을 기준으로 고객에게 청구
@@ -128,6 +140,7 @@ shippingType == 'cod'?
 - 기준금액 충족 시: 현재 주문 배송비 0원 + 이전 주문 배송비 자동 환급(`adjustmentAmount`)
 - `receiverType: 'direct_customer'` 주문은 합산에서 **제외**
 - 중복 환급 방지: `adjustmentAmount` 필드로 이미 환급된 금액 추적
+- **기준금액 우선순위**: `Client.freeShippingThreshold` → `DeliveryPricing['parcel'].freeThreshold` → 90,000원(기본값)
 
 **예시:**
 > 기준금액 90,000원 거래처
@@ -177,9 +190,9 @@ netShippingCharged = max(0, totalShippingCharged - totalAdjustmentApplied)
 이미 다른 주문에서 adjustmentAmount로 환급된 금액을 차감하여 중복 공제 방지.
 
 **관련 함수**:
-- `applySameDayShippingRefund()` - 정의만 있고 현재 자동 호출 안 됨 (dead code, 2026-02 기준)
 - `getSameDayShipping()` - API: `GET /orders/same-day-shipping`
 - 실제 환급은 프론트 `order/page.tsx`에서 DTO에 담아 주문 생성 시 처리
+- **Race condition 방어**: `create()` 트랜잭션 내부에서 당일 기적용 환급 누계를 재조회하여 초과 환급 차단
 
 #### 배치 배송 (단일 주문 내 복수 아이템)
 
@@ -192,7 +205,7 @@ netShippingCharged = max(0, totalShippingCharged - totalAdjustmentApplied)
 
 | 파일 | 역할 |
 |------|------|
-| `apps/api/src/modules/order/services/order.service.ts` | `applySameDayShippingRefund()`, `getSameDayShipping()` |
+| `apps/api/src/modules/order/services/order.service.ts` | `getSameDayShipping()`, `create()` 내 Race condition 방어 로직 |
 | `apps/web/components/album-upload/folder-shipping-section.tsx` | `calculateDeliveryFee()` 함수 - 타입별 배송비 계산 |
 | `apps/web/app/(shop)/order/page.tsx` | `combinedShipping`, `batchSingleShipping` useMemo |
 | `apps/web/app/(dashboard)/company/members/page.tsx` | 관리자 배송조건 설정 UI |
@@ -481,6 +494,7 @@ interface ShippingLabel {
 async function printShippingLabel(deliveryId: string): Promise<Buffer> {
   const delivery = await getDeliveryWithDetails(deliveryId);
 
+  // ⚠️ 아래 발송인 정보는 placeholder — 실제 구현 시 SystemSettings 또는 회사 기초정보에서 동적으로 로드해야 함
   const labelData: ShippingLabel = {
     senderName: 'PHOTOME 포토미',
     senderPhone: '02-1234-5678',
@@ -528,56 +542,52 @@ POST   /api/v1/deliveries/bulk-label           # 대량 송장 출력
 GET    /api/v1/address/search                  # 주소 검색 (다음 API)
 ```
 
-## 배송비 계산
+## 배송비 계산 (실제 구현)
+
+실제 배송비 계산은 `apps/web/components/album-upload/folder-shipping-section.tsx`의
+`calculateDeliveryFee()` 함수에서 처리됩니다.
 
 ```typescript
-interface ShippingFeeParams {
-  method: DeliveryMethod;
-  carrierId?: string;
-  weight?: number;        // kg
-  boxCount?: number;      // 박스 수
-  zipCode: string;
-  isIsland?: boolean;     // 도서산간
-}
+// 파라미터
+// - method: 'parcel' | 'motorcycle' | 'freight' | 'pickup'
+// - recvType: 'orderer'(스튜디오) | 'direct_customer'(신랑/신부 등)
+// - studioTotal: 현재 카트(폴더)의 스튜디오 배송 아이템 합계 (당일 누적 아님)
+// - clientInfo.shippingType: 거래처 배송 정책
+// - pricingMap: DeliveryPricing 테이블 데이터
 
-async function calculateShippingFee(params: ShippingFeeParams): Promise<number> {
-  const { method, carrierId, weight, boxCount, zipCode, isIsland } = params;
+function calculateDeliveryFee(method, recvType) {
+  // 1. 방문수령: 항상 무료
+  if (method === 'pickup') return { fee: 0, feeType: 'free' };
 
-  // 직접수령은 무료
-  if (method === 'SELF_PICKUP') {
-    return 0;
+  // 2. 스튜디오(주문자) 배송
+  if (recvType === 'orderer') {
+    // 기준금액 우선순위: Client → DeliveryPricing['parcel'].freeThreshold → 90,000원
+    const freeThreshold = clientInfo?.freeShippingThreshold
+      ?? (pricingMap['parcel']?.freeThreshold != null ? Number(pricingMap['parcel'].freeThreshold) : 90000);
+
+    if (shippingType === 'free')
+      return { fee: 0, feeType: 'free' };
+
+    if (shippingType === 'conditional') {
+      // studioTotal이 기준금액 이상이면 무료
+      if (studioTotal >= freeThreshold) return { fee: 0, feeType: 'free' };
+      return { fee: pricingMap['parcel'].baseFee, feeType: 'conditional' };
+    }
+
+    if (shippingType === 'prepaid')
+      return { fee: pricingMap['parcel'].baseFee, feeType: 'standard' };
+
+    // cod (착불): 주문 시 0원, 배송사가 수령인에게 직접 징수
+    return { fee: 0, feeType: 'free' };
   }
 
-  // 퀵서비스
-  if (method === 'QUICK') {
-    return calculateQuickServiceFee(zipCode);
-  }
-
-  // 택배
-  const carrier = await prisma.carrier.findUnique({
-    where: { id: carrierId },
-  });
-
-  let fee = carrier.basePrice;
-
-  // 무게 추가 요금
-  if (weight && weight > 2) {
-    fee += (weight - 2) * carrier.additionalPrice;
-  }
-
-  // 박스 추가
-  if (boxCount && boxCount > 1) {
-    fee += (boxCount - 1) * carrier.basePrice;
-  }
-
-  // 도서산간 추가
-  if (isIsland) {
-    fee += 3000;
-  }
-
-  return fee;
+  // 3. 고객직배송 (신랑/신부 등): 거래처 정책 미적용, 배송방법별 baseFee 그대로
+  return { fee: pricingMap[method]?.baseFee ?? 3500, feeType: 'standard' };
 }
 ```
+
+> **studioTotal 주의**: `calculateDeliveryFee()`의 `studioTotal`은 **현재 카트(폴더) 합계**입니다.
+> 당일 합배송(이전 주문 누적 + 현재 카트)은 별도로 `order/page.tsx`의 `combinedShipping` useMemo에서 처리합니다.
 
 ## 프론트엔드 - 배송 관리 UI
 
