@@ -224,6 +224,7 @@ export default function MonthlySummaryPage() {
   const printCss = [
     '@media print {',
     '  body * { visibility: hidden !important; }',
+    '  .min-h-screen { min-height: 0 !important; height: auto !important; }',
     `  #${printAreaId}, #${printAreaId} * { visibility: visible !important; }`,
     `  #${printAreaId} { position: absolute !important; top: 0 !important; left: 0 !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }`,
     `  #${otherPrintAreaId} { display: none !important; }`,
