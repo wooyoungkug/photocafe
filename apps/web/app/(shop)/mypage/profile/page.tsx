@@ -13,6 +13,23 @@ import { useAuthStore } from '@/stores/auth-store';
 import { api } from '@/lib/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+// 전화번호 자동 하이픈 포맷
+function formatPhone(value: string): string {
+  const nums = value.replace(/\D/g, '');
+  // 02 지역번호
+  if (nums.startsWith('02')) {
+    if (nums.length <= 2) return nums;
+    if (nums.length <= 6) return `${nums.slice(0, 2)}-${nums.slice(2)}`;
+    if (nums.length <= 9) return `${nums.slice(0, 2)}-${nums.slice(2, 5)}-${nums.slice(5)}`;
+    return `${nums.slice(0, 2)}-${nums.slice(2, 6)}-${nums.slice(6, 10)}`;
+  }
+  // 010, 011, 031 등 3자리
+  if (nums.length <= 3) return nums;
+  if (nums.length <= 7) return `${nums.slice(0, 3)}-${nums.slice(3)}`;
+  if (nums.length <= 10) return `${nums.slice(0, 3)}-${nums.slice(3, 6)}-${nums.slice(6)}`;
+  return `${nums.slice(0, 3)}-${nums.slice(3, 7)}-${nums.slice(7, 11)}`;
+}
+
 export default function ProfilePage() {
   const router = useRouter();
   const { user, isAuthenticated, updateUser } = useAuthStore();
@@ -331,13 +348,14 @@ export default function ProfilePage() {
                       id="mobile"
                       value={profileData.mobile}
                       onChange={(e) =>
-                        setProfileData({ ...profileData, mobile: e.target.value })
+                        setProfileData({ ...profileData, mobile: formatPhone(e.target.value) })
                       }
                       placeholder="010-0000-0000"
+                      maxLength={13}
                     />
                   ) : (
                     <p className="text-sm font-medium p-2 bg-gray-50 rounded">
-                      {profile?.mobile || '-'}
+                      {formatPhone(profile?.mobile || '') || '-'}
                     </p>
                   )}
                 </div>
@@ -349,13 +367,14 @@ export default function ProfilePage() {
                       id="phone"
                       value={profileData.phone}
                       onChange={(e) =>
-                        setProfileData({ ...profileData, phone: e.target.value })
+                        setProfileData({ ...profileData, phone: formatPhone(e.target.value) })
                       }
                       placeholder="02-0000-0000"
+                      maxLength={13}
                     />
                   ) : (
                     <p className="text-sm font-medium p-2 bg-gray-50 rounded">
-                      {profile?.phone || '-'}
+                      {formatPhone(profile?.phone || '') || '-'}
                     </p>
                   )}
                 </div>
