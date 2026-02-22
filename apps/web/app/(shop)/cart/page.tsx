@@ -39,7 +39,6 @@ import { CartItemDragOverlay } from './_components/cart-item-drag-overlay';
 import { CartOrderSummary } from './_components/cart-order-summary';
 import { CartMobileCheckoutBar } from './_components/cart-mobile-checkout-bar';
 import { CartDeleteDialog } from './_components/cart-delete-dialog';
-import { CartSameDayShippingBanner } from './_components/cart-same-day-shipping-banner';
 import { canCancelUpload } from '@/lib/background-upload';
 
 export default function CartPage() {
@@ -423,14 +422,6 @@ export default function CartPage() {
               onDeleteSelected={() => selectedItems.length > 0 && setBulkDeleteOpen(true)}
               onClearCart={() => setClearCartOpen(true)}
             />
-
-            {/* 당일 합배송 안내 배너 */}
-            {sameDayInfo && sameDayInfo.totalProductAmount > 0 && (
-              <CartSameDayShippingBanner
-                info={sameDayInfo}
-                newOrderTotal={studioItemsTotal}
-              />
-            )}
 
             {/* Global Shipping */}
             {items.filter((i) => !i.albumOrderInfo?.shippingInfo).length > 1 && (
