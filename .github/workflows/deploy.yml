@@ -37,50 +37,68 @@ jobs:
 
             # 1. Git Fetch & Reset
             echo ""
-            echo "=== [1/5] Git Fetch & Reset ==="
+            echo "=== [1/6] Git Fetch & Reset ==="
             git fetch origin main
             git reset --hard origin/main
             echo "현재 커밋: $(git log --oneline -1)"
 
-            # 2. Docker 빌드 & 재시작
+            # 2. 네트워크 & DB 사전 점검
             echo ""
-            if [ "${{ inputs.skip_build }}" = "true" ]; then
-              echo "=== [2/5] Docker 재시작 (빌드 스킵) ==="
-              sudo /usr/local/bin/docker-compose -f docker-compose.prod.yml restart api web
+            echo "=== [2/6] 네트워크 & DB 점검 ==="
+            # 네트워크가 없으면 생성
+            sudo docker network create photocafe-network 2>/dev/null && echo "네트워크 생성됨" || echo "네트워크 이미 존재"
+            # DB 컨테이너가 해당 네트워크에 연결되어 있는지 확인
+            if sudo docker inspect photocafe-db > /dev/null 2>&1; then
+              sudo docker network connect --alias postgres photocafe-network photocafe-db 2>/dev/null && echo "DB를 네트워크에 연결" || echo "DB 이미 네트워크에 연결됨"
+              echo "DB 상태: $(sudo docker inspect --format='{{.State.Status}}' photocafe-db)"
             else
-              echo "=== [2/5] Docker 빌드 & 재시작 ==="
-              # 오래된 빌드 캐시 정리 (Dockerfile 변경 시 stale 캐시 방지)
-              sudo docker builder prune -f --filter "until=24h" 2>/dev/null || true
-              sudo /usr/local/bin/docker-compose -f docker-compose.prod.yml up -d --build api web
+              echo "경고: photocafe-db 컨테이너가 없습니다. DB를 먼저 시작하세요."
+              exit 1
             fi
 
-            # 3. 시작 대기
+            # 3. Docker 빌드 & 재시작 (DB 제외, api/web만)
             echo ""
-            echo "=== [3/5] 서버 시작 대기 ==="
-            for i in $(seq 1 12); do
+            if [ "${{ inputs.skip_build }}" = "true" ]; then
+              echo "=== [3/6] Docker 재시작 (빌드 스킵) ==="
+              sudo /usr/local/bin/docker-compose -f docker-compose.prod.yml restart api web
+            else
+              echo "=== [3/6] Docker 빌드 & 재시작 (api + web only) ==="
+              sudo docker builder prune -f --filter "until=24h" 2>/dev/null || true
+              sudo /usr/local/bin/docker-compose -f docker-compose.prod.yml up -d --build --no-deps api web
+            fi
+
+            # 4. 시작 대기
+            echo ""
+            echo "=== [4/6] 서버 시작 대기 ==="
+            for i in $(seq 1 24); do
               sleep 5
               if curl -sf http://localhost:3001/health > /dev/null 2>&1; then
-                echo "API 서버 준비 완료! (${i}x5 = $((i*5))초)"
+                echo "API 서버 준비 완료! ($((i*5))초)"
                 break
               fi
               echo "대기 중... ($((i*5))초)"
+              if [ "$i" = "24" ]; then
+                echo "API 시작 타임아웃 (120초). 로그 확인:"
+                sudo /usr/local/bin/docker logs photocafe-api --tail 30
+                exit 1
+              fi
             done
 
-            # 4. 컨테이너 상태
+            # 5. 컨테이너 상태
             echo ""
-            echo "=== [4/5] 컨테이너 상태 ==="
-            sudo /usr/local/bin/docker ps --filter 'name=printing114' --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+            echo "=== [5/6] 컨테이너 상태 ==="
+            sudo /usr/local/bin/docker ps --filter 'name=photocafe' --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
 
-            # 5. Health Check
+            # 6. Health Check
             echo ""
-            echo "=== [5/5] Health Check ==="
+            echo "=== [6/6] Health Check ==="
             API_HEALTH=$(curl -sf http://localhost:3001/health 2>&1) && {
               echo "API: OK"
               echo "$API_HEALTH"
             } || {
               echo "API: FAILED"
               echo "최근 로그:"
-              sudo /usr/local/bin/docker logs printing114-api --tail 30
+              sudo /usr/local/bin/docker logs photocafe-api --tail 30
               exit 1
             }
 

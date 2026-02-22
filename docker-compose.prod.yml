@@ -143,6 +143,7 @@ services:
 
 networks:
   photocafe-network:
+    name: photocafe-network   # 고정 이름 (프로젝트명 프리픽스 방지)
     driver: bridge
 
 volumes:
