@@ -181,6 +181,16 @@ export class CreateClientDto {
   @IsString()
   approvalManagerPhone?: string;
 
+  @ApiPropertyOptional({ description: '담당자' })
+  @IsOptional()
+  @IsString()
+  contactPerson?: string;
+
+  @ApiPropertyOptional({ description: '담당자 연락처' })
+  @IsOptional()
+  @IsString()
+  contactPhone?: string;
+
   @ApiPropertyOptional({ description: '관리자 메모 (고객에게 비공개)' })
   @IsOptional()
   @IsString()

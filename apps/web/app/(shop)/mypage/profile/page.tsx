@@ -29,6 +29,8 @@ export default function ProfilePage() {
     address: '',
     addressDetail: '',
     businessNumber: '',
+    representative: '',
+    contactPerson: '',
   });
 
   // 비밀번호 변경 상태
@@ -57,6 +59,8 @@ export default function ProfilePage() {
         address: data.address || '',
         addressDetail: data.addressDetail || '',
         businessNumber: data.businessNumber || '',
+        representative: data.representative || '',
+        contactPerson: data.contactPerson || '',
       });
 
       return data;
@@ -141,6 +145,8 @@ export default function ProfilePage() {
         address: profile.address || '',
         addressDetail: profile.addressDetail || '',
         businessNumber: profile.businessNumber || '',
+        representative: profile.representative || '',
+        contactPerson: profile.contactPerson || '',
       });
     }
     setIsEditMode(false);
@@ -420,20 +426,58 @@ export default function ProfilePage() {
             {/* 사업자 정보 */}
             <div className="space-y-4">
               <h3 className="text-sm font-medium text-gray-700">사업자 정보 (선택)</h3>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="businessNumber">사업자등록번호</Label>
+                  {isEditMode ? (
+                    <Input
+                      id="businessNumber"
+                      value={profileData.businessNumber}
+                      onChange={(e) =>
+                        setProfileData({ ...profileData, businessNumber: e.target.value })
+                      }
+                      placeholder="000-00-00000"
+                    />
+                  ) : (
+                    <p className="text-sm font-medium p-2 bg-gray-50 rounded">
+                      {profile?.businessNumber || '-'}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="representative">대표자명</Label>
+                  {isEditMode ? (
+                    <Input
+                      id="representative"
+                      value={profileData.representative}
+                      onChange={(e) =>
+                        setProfileData({ ...profileData, representative: e.target.value })
+                      }
+                      placeholder="대표자명을 입력하세요"
+                    />
+                  ) : (
+                    <p className="text-sm font-medium p-2 bg-gray-50 rounded">
+                      {profile?.representative || '-'}
+                    </p>
+                  )}
+                </div>
+              </div>
+
               <div className="space-y-2">
-                <Label htmlFor="businessNumber">사업자등록번호</Label>
+                <Label htmlFor="contactPerson">담당자</Label>
                 {isEditMode ? (
                   <Input
-                    id="businessNumber"
-                    value={profileData.businessNumber}
+                    id="contactPerson"
+                    value={profileData.contactPerson}
                     onChange={(e) =>
-                      setProfileData({ ...profileData, businessNumber: e.target.value })
+                      setProfileData({ ...profileData, contactPerson: e.target.value })
                     }
-                    placeholder="000-00-00000"
+                    placeholder="담당자명을 입력하세요"
                   />
                 ) : (
                   <p className="text-sm font-medium p-2 bg-gray-50 rounded">
-                    {profile?.businessNumber || '-'}
+                    {profile?.contactPerson || '-'}
                   </p>
                 )}
               </div>
