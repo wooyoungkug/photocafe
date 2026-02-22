@@ -1083,29 +1083,27 @@ export class OrderService {
         }
 
         // 파일 경로 수집 (DB 삭제 전)
-        const dirs = await this.getOrderDirectories([orderId]);
+        let dirs: string[] = [];
+        try {
+          dirs = await this.getOrderDirectories([orderId]);
+        } catch (err) {
+          this.logger.warn(`파일 경로 수집 실패 (${orderId}): ${(err as Error).message}`);
+        }
 
-        // 주문별 개별 트랜잭션으로 삭제
-        await this.prisma.$transaction(async (tx) => {
-          // 매출원장 먼저 삭제
-          const ledger = await tx.salesLedger.findUnique({ where: { orderId } });
-          if (ledger) {
-            await tx.salesLedgerItem.deleteMany({ where: { salesLedgerId: ledger.id } });
-            await tx.salesLedger.delete({ where: { id: ledger.id } });
-          }
-          await tx.order.delete({ where: { id: orderId } });
-        });
+        // 매출원장 먼저 삭제
+        const ledger = await this.prisma.salesLedger.findUnique({ where: { orderId } });
+        if (ledger) {
+          await this.prisma.salesLedgerItem.deleteMany({ where: { salesLedgerId: ledger.id } });
+          await this.prisma.salesLedger.delete({ where: { id: ledger.id } });
+        }
+
+        // 주문 삭제 (cascade로 관련 레코드 자동 삭제)
+        await this.prisma.order.delete({ where: { id: orderId } });
 
         results.success++;
 
-        // DB 삭제 성공 후 디스크 파일 삭제
-        for (const dir of dirs) {
-          try {
-            this.fileStorage.deleteOrderDirectory(dir);
-          } catch (err) {
-            this.logger.warn(`디스크 파일 삭제 실패 (${orderId}): ${(err as Error).message}`);
-          }
-        }
+        // TODO: 디스크 파일 삭제는 별도 처리 (크래시 원인 분석 후 복원)
+        // dirs에 수집된 경로의 파일은 나중에 정리 필요
       } catch (err) {
         this.logger.error(`주문 삭제 실패 (${orderId}): ${(err as Error).message}`);
         results.failed.push(orderId);

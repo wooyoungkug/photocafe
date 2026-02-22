@@ -342,6 +342,9 @@
       "Bash(cmd /c:*)",
       "Bash(winget list:*)",
       "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\" -h localhost -U postgres -d printing_erp -f \"C:/dev/printing114/fix_urls.sql\")"
+    ],
+    "additionalDirectories": [
+      "C:\\dev\\printing114\\apps\\api\\dist"
     ]
   }
 }
