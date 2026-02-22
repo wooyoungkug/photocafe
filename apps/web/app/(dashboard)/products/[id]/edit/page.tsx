@@ -928,8 +928,8 @@ export default function EditProductPage() {
                     </label>
                   ))}
                 </div>
-              </div>
-            </div>)}
+              </div>)}
+            </div>
 
             {/* 출력단가 선택 (새로운 방식) */}
             <div className="space-y-3">
