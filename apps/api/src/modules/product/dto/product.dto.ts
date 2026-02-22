@@ -363,6 +363,11 @@ export class CreateProductDto {
   @IsBoolean()
   useCopperPlate?: boolean;
 
+  @ApiPropertyOptional({ description: '표지원단 사용유무', default: false })
+  @IsOptional()
+  @IsBoolean()
+  hasCoverFabric?: boolean;
+
   @ApiPropertyOptional({ description: '제본 방향', enum: ['left', 'right', 'customer'] })
   @IsOptional()
   @IsIn(['left', 'right', 'customer'])

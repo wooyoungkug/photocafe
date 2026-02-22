@@ -490,6 +490,7 @@ model Product {
   outputPriceSettings Json?
   requiresUpload      Boolean                    @default(false)
   useCopperPlate      Boolean                    @default(false)
+  hasCoverFabric      Boolean                    @default(false)
   productType         String?
   customOptions       CustomOption[]
   groupPrices         GroupProductPrice[]
