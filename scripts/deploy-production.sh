@@ -6,7 +6,7 @@
 
 set -e  # 에러 발생 시 중단
 
-SERVER="root@1.212.201.147"
+SERVER="admin@1.212.201.147"
 PROJECT_DIR="/volume1/docker/printing114"
 
 echo "=========================================="

@@ -6,7 +6,7 @@
 
 SERVER_IP="1.212.201.147"
 SSH_PORT="22"
-SSH_USER="root"
+SSH_USER="admin"
 SSH_KEY_PATH="$HOME/.ssh/id_ed25519"
 REPO_URL="https://github.com/wooyoungkug/photocafe"
 
