@@ -841,19 +841,21 @@ export class OrderService {
       await this.prisma.salesLedger.delete({ where: { id: ledger.id } });
     }
 
-    // 디스크 파일 삭제 (DB 삭제 전에 경로 수집)
+    // 디스크 파일 경로 수집 (DB 삭제 전)
     const orderDirs = await this.getOrderDirectories([id]);
-    for (const dir of orderDirs) {
-      try {
-        this.fileStorage.deleteOrderDirectory(dir);
-      } catch (err) {
-        this.logger.warn(`디스크 파일 삭제 실패 (${id}): ${(err as Error).message}`);
-      }
-    }
 
-    return this.prisma.order.delete({
+    const result = await this.prisma.order.delete({
       where: { id },
     });
+
+    // DB 삭제 후 디스크 파일 비동기 삭제 (Windows rmSync 크래시 방지)
+    for (const dir of orderDirs) {
+      this.fileStorage.deleteOrderDirectoryAsync(dir).catch((err) => {
+        this.logger.warn(`디스크 파일 삭제 실패 (${id}): ${(err as Error).message}`);
+      });
+    }
+
+    return result;
   }
 
   // ==================== 관리자 금액/수량 조정 ====================
@@ -1102,8 +1104,12 @@ export class OrderService {
 
         results.success++;
 
-        // TODO: 디스크 파일 삭제는 별도 처리 (크래시 원인 분석 후 복원)
-        // dirs에 수집된 경로의 파일은 나중에 정리 필요
+        // DB 삭제 성공 후 디스크 파일 비동기 삭제 (Windows rmSync 크래시 방지)
+        for (const dir of dirs) {
+          this.fileStorage.deleteOrderDirectoryAsync(dir).catch((err) => {
+            this.logger.warn(`디스크 파일 삭제 실패 (${orderId}): ${(err as Error).message}`);
+          });
+        }
       } catch (err) {
         this.logger.error(`주문 삭제 실패 (${orderId}): ${(err as Error).message}`);
         results.failed.push(orderId);
@@ -1416,11 +1422,9 @@ export class OrderService {
 
     // 디스크 파일 삭제 (썸네일 파일도 함께 삭제 옵션)
     for (const dir of orderDirs) {
-      try {
-        this.fileStorage.deleteOrderDirectory(dir);
-      } catch (err) {
+      this.fileStorage.deleteOrderDirectoryAsync(dir).catch((err) => {
         this.logger.warn(`데이터정리 디스크 삭제 실패: ${(err as Error).message}`);
-      }
+      });
     }
 
     return { success: deleted.count, deleted: deleted.count };

@@ -59,8 +59,8 @@ function AuthCallbackContent() {
                         user: {
                             id: userData.id || '',
                             email: userData.email || '',
-                            name: userData.name || (isImpersonated ? '회원' : '관리자'),
-                            role: userData.role || (isImpersonated ? 'client' : 'admin'),
+                            name: userData.name || '회원',
+                            role: userData.role || 'client',
                             ...(clientId && { clientId }),
                         },
                         accessToken: token,

@@ -242,7 +242,7 @@ export class FileStorageService implements OnModuleInit {
     return { deletedCount, freedBytes };
   }
 
-  /** 주문 전체 디렉토리 삭제 (originals + thumbnails + pdf) */
+  /** 주문 전체 디렉토리 삭제 (originals + thumbnails + pdf) - 동기 버전 */
   deleteOrderDirectory(orderDir: string): { deletedCount: number; freedBytes: number } {
     if (!existsSync(orderDir)) {
       return { deletedCount: 0, freedBytes: 0 };
@@ -281,6 +281,17 @@ export class FileStorageService implements OnModuleInit {
     }
 
     return { deletedCount, freedBytes };
+  }
+
+  /** 주문 전체 디렉토리 삭제 - 비동기 버전 (서버 크래시 방지) */
+  async deleteOrderDirectoryAsync(orderDir: string): Promise<void> {
+    if (!existsSync(orderDir)) return;
+    try {
+      await rm(orderDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+      this.logger.log(`주문 디렉토리 삭제 완료: ${orderDir}`);
+    } catch (err) {
+      this.logger.warn(`주문 디렉토리 삭제 실패: ${orderDir} - ${(err as Error).message}`);
+    }
   }
 
   /** 상대 URL 경로 생성 (프론트엔드용) */
