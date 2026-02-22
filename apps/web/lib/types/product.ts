@@ -155,6 +155,7 @@ export interface Product {
   outputPriceSettings?: any[];
   productType?: string;
   printType?: 'single' | 'double' | 'customer';
+  useCopperPlate?: boolean;
   createdAt: string;
   updatedAt: string;
 
@@ -320,6 +321,7 @@ export interface CreateProductDto {
   detailImages?: string[];
   description?: string;
   sortOrder?: number;
+  useCopperPlate?: boolean;
   specifications?: CreateProductSpecificationDto[];
   bindings?: CreateProductBindingDto[];
   papers?: CreateProductPaperDto[];

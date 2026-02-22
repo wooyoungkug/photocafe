@@ -358,6 +358,11 @@ export class CreateProductDto {
   @IsBoolean()
   requiresUpload?: boolean;
 
+  @ApiPropertyOptional({ description: '동판 사용유무', default: false })
+  @IsOptional()
+  @IsBoolean()
+  useCopperPlate?: boolean;
+
   @ApiPropertyOptional({ description: '제본 방향', enum: ['left', 'right', 'customer'] })
   @IsOptional()
   @IsIn(['left', 'right', 'customer'])
