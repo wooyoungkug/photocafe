@@ -488,6 +488,7 @@ model Product {
   orderCount          Int                        @default(0)
   viewCount           Int                        @default(0)
   outputPriceSettings Json?
+  productType         String?
   customOptions       CustomOption[]
   groupPrices         GroupProductPrice[]
   myProducts          MyProduct[]
@@ -2527,6 +2528,27 @@ model QualityControl {
 
   @@index([isActive])
   @@map("quality_controls")
+}
+
+// 상품별 공정 프로세스 템플릿
+model ProcessTemplate {
+  id             String   @id @default(cuid())
+  productType    String // compressed_album, pictorial_album, original_compressed, photobook, acrylic_frame, double_mat_frame, copper_plate
+  stepOrder      Int
+  stepCode       String // order_receipt, file_correction, indigo_print, coating, cutting, compressed_binding 등
+  stepName       String // 수주, 파일보정, 인디고출력 등
+  stepNameEn     String?
+  department     String? // CS, DESIGN, PROD
+  estimatedHours Decimal? @db.Decimal(5, 1)
+  isCheckpoint   Boolean  @default(false)
+  description    String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([productType, stepOrder])
+  @@index([productType])
+  @@map("process_templates")
 }
 
 enum AccountType {

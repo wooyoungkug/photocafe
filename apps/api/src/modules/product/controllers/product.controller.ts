@@ -24,11 +24,51 @@ import {
   ProductFoilDto,
   ProductFinishingDto,
 } from '../dto';
+import {
+  PRODUCT_TYPES,
+  PRODUCT_TYPE_LABELS,
+  PRODUCT_PROCESS_TEMPLATES,
+} from '../constants/process-templates';
+import { PRODUCT_TYPE_OPTIONS } from '../constants/product-type-options';
 
 @ApiTags('상품')
 @Controller('products')
 export class ProductController {
   constructor(private productService: ProductService) { }
+
+  // ==================== 공정 템플릿 / 상품유형 API ====================
+
+  @Public()
+  @Get('product-types')
+  @ApiOperation({ summary: '상품 유형 목록 조회' })
+  async getProductTypes() {
+    return Object.entries(PRODUCT_TYPE_LABELS).map(([value, label]) => ({
+      value,
+      label,
+      stepCount: PRODUCT_PROCESS_TEMPLATES[value]?.length || 0,
+    }));
+  }
+
+  @Public()
+  @Get('process-templates')
+  @ApiOperation({ summary: '전체 공정 템플릿 조회' })
+  async getAllProcessTemplates() {
+    return PRODUCT_PROCESS_TEMPLATES;
+  }
+
+  @Public()
+  @Get('process-templates/:productType')
+  @ApiOperation({ summary: '상품유형별 공정 템플릿 조회' })
+  async getProcessTemplate(@Param('productType') productType: string) {
+    return PRODUCT_PROCESS_TEMPLATES[productType] || [];
+  }
+
+  @Public()
+  @Get('type-options/:productType')
+  @ApiOperation({ summary: '상품유형별 옵션 매트릭스 조회' })
+  async getTypeOptions(@Param('productType') productType: string) {
+    return PRODUCT_TYPE_OPTIONS[productType] || null;
+  }
 
   // 공개 API (인증 불필요)
   @Public()

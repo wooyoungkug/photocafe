@@ -153,6 +153,7 @@ export interface Product {
   viewCount: number;
   orderCount?: number;
   outputPriceSettings?: any[];
+  productType?: string;
   createdAt: string;
   updatedAt: string;
 
@@ -266,7 +267,46 @@ export interface CreateProductFinishingDto {
   sortOrder?: number;
 }
 
+// 공정 프로세스 템플릿
+export interface ProcessTemplateStep {
+  stepOrder: number;
+  stepCode: string;
+  stepName: string;
+  stepNameEn?: string;
+  department?: string;
+  estimatedHours?: number;
+  isCheckpoint?: boolean;
+  description?: string;
+}
+
+// 상품 유형 정보
+export interface ProductTypeInfo {
+  value: string;
+  label: string;
+  stepCount: number;
+}
+
+// 상품 유형별 옵션 매트릭스
+export interface ProductTypeOptions {
+  printType: 'single' | 'double' | null;
+  bindingDirection: 'left' | 'right' | 'customer' | null;
+  specFilterType: 'indigoAlbum' | 'inkjet' | 'frame' | 'booklet' | null;
+  defaultBinding: string | null;
+  showSpecification: boolean;
+  showBinding: boolean;
+  showPaper: boolean;
+  showCover: boolean;
+  showFoil: boolean;
+  showFabric: boolean;
+  showFinishing: boolean;
+  showOutputPrice: boolean;
+  showCopperPlate: boolean;
+  showBindingDirection: boolean;
+  paperPrintMethod: 'indigo' | 'inkjet' | null;
+}
+
 export interface CreateProductDto {
+  productType?: string;
   productCode: string;
   productName: string;
   categoryId: string;

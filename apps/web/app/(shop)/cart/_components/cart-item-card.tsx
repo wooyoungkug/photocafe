@@ -93,6 +93,30 @@ const BINDING_DIRECTION_OPTIONS = [
   { value: 'RIGHT_START_RIGHT_END', label: '우시우끝' },
 ] as const;
 
+function CartItemThumbnail({ item }: { item: CartItem }) {
+  const [imgError, setImgError] = useState(false);
+  // serverFiles 썸네일 우선 (blob URL 대신 서버 URL), 그 다음 item.thumbnailUrl
+  const thumbUrl = item.serverFiles?.[0]?.thumbnailUrl || item.thumbnailUrl;
+
+  return (
+    <div className="w-20 h-20 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 m-2.5 sm:m-3">
+      {thumbUrl && !imgError ? (
+        <img
+          src={normalizeImageUrl(thumbUrl)}
+          alt={item.name}
+          className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+          loading="lazy"
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center">
+          <Package className="w-8 h-8 text-gray-300" />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export interface CartItemCardProps {
   item: CartItem;
   isSelected: boolean;
@@ -260,20 +284,7 @@ export function CartItemCard({
           </div>
 
           {/* Product Image */}
-          <div className="w-20 h-20 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 m-2.5 sm:m-3">
-            {item.thumbnailUrl ? (
-              <img
-                src={normalizeImageUrl(item.thumbnailUrl)}
-                alt={item.name}
-                className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
-                loading="lazy"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <Package className="w-8 h-8 text-gray-300" />
-              </div>
-            )}
-          </div>
+          <CartItemThumbnail item={item} />
 
           {/* Product Info */}
           <div className="flex-1 py-2.5 sm:py-3 pr-3 sm:pr-4 min-w-0">

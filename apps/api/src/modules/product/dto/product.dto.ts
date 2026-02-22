@@ -279,6 +279,22 @@ export class ProductOutputPriceSettingDto {
 
 // ==================== 상품 생성 DTO ====================
 export class CreateProductDto {
+  @ApiPropertyOptional({
+    description: '상품 유형',
+    enum: [
+      'compressed_album',
+      'pictorial_album',
+      'original_compressed',
+      'photobook',
+      'acrylic_frame',
+      'double_mat_frame',
+      'copper_plate',
+    ],
+  })
+  @IsOptional()
+  @IsString()
+  productType?: string;
+
   @ApiProperty({ description: '상품 코드' })
   @IsString()
   productCode: string;

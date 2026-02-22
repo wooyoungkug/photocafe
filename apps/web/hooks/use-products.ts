@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import type { Product, ProductListResponse, ProductQueryParams, CreateProductDto, UpdateProductDto } from '@/lib/types';
+import type { Product, ProductListResponse, ProductQueryParams, CreateProductDto, UpdateProductDto, ProcessTemplateStep, ProductTypeInfo, ProductTypeOptions } from '@/lib/types';
 
 const PRODUCTS_KEY = 'products';
 
@@ -92,6 +92,40 @@ export function useDeleteProduct() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [PRODUCTS_KEY] });
     },
+  });
+}
+
+// ==================== 상품 유형 / 공정 템플릿 ====================
+
+export function useProductTypes() {
+  return useQuery({
+    queryKey: [PRODUCTS_KEY, 'product-types'],
+    queryFn: () => api.get<ProductTypeInfo[]>('/products/product-types'),
+    staleTime: 30 * 60 * 1000, // 30분 캐시 (거의 변하지 않는 데이터)
+  });
+}
+
+export function useProcessTemplates(productType?: string) {
+  return useQuery({
+    queryKey: [PRODUCTS_KEY, 'process-templates', productType],
+    queryFn: () =>
+      api.get<ProcessTemplateStep[]>(
+        `/products/process-templates/${productType}`,
+      ),
+    enabled: !!productType,
+    staleTime: 30 * 60 * 1000,
+  });
+}
+
+export function useProductTypeOptions(productType?: string) {
+  return useQuery({
+    queryKey: [PRODUCTS_KEY, 'type-options', productType],
+    queryFn: () =>
+      api.get<ProductTypeOptions>(
+        `/products/type-options/${productType}`,
+      ),
+    enabled: !!productType,
+    staleTime: 30 * 60 * 1000,
   });
 }
 
