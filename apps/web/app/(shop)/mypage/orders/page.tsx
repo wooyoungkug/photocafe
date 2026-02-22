@@ -252,10 +252,14 @@ export default function MyOrdersPage() {
     if (deletableSelected.length === 0) return;
     setIsDeleting(true);
     try {
-      await api.post('/orders/bulk/delete', {
+      const result = await api.post<{ success: number; failed: string[]; skipped: string[] }>('/orders/bulk/delete', {
         orderIds: deletableSelected.map(o => o.id),
       });
-      toast({ title: '주문 삭제 완료', description: `${deletableSelected.length}건의 주문이 삭제되었습니다.` });
+      if (result.success > 0) {
+        toast({ title: '주문 삭제 완료', description: `${result.success}건의 주문이 삭제되었습니다.` });
+      } else {
+        toast({ title: '삭제 실패', description: '주문을 삭제할 수 없습니다. 상태를 확인해주세요.', variant: 'destructive' });
+      }
       setSelectedOrders(new Set());
       setShowDeleteDialog(false);
       queryClient.invalidateQueries({ queryKey: ['orders'] });

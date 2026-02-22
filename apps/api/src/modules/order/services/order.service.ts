@@ -1073,40 +1073,32 @@ export class OrderService {
   async bulkDelete(orderIds: string[]) {
     const results = { success: 0, failed: [] as string[], skipped: [] as string[] };
 
-    // 삭제 대상 주문의 파일 경로 미리 수집
-    const orderDirsMap = new Map<string, string[]>();
     for (const orderId of orderIds) {
-      const dirs = await this.getOrderDirectories([orderId]);
-      if (dirs.length > 0) orderDirsMap.set(orderId, dirs);
-    }
+      try {
+        const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+        if (!order) { results.failed.push(orderId); continue; }
+        if (order.status !== ORDER_STATUS.PENDING_RECEIPT && order.status !== ORDER_STATUS.CANCELLED) {
+          results.skipped.push(orderId);
+          continue;
+        }
 
-    await this.prisma.$transaction(async (tx) => {
-      for (const orderId of orderIds) {
-        try {
-          const order = await tx.order.findUnique({ where: { id: orderId } });
-          if (!order) { results.failed.push(orderId); continue; }
-          if (order.status !== ORDER_STATUS.PENDING_RECEIPT && order.status !== ORDER_STATUS.CANCELLED) {
-            results.skipped.push(orderId);
-            continue;
-          }
+        // 파일 경로 수집 (DB 삭제 전)
+        const dirs = await this.getOrderDirectories([orderId]);
 
+        // 주문별 개별 트랜잭션으로 삭제
+        await this.prisma.$transaction(async (tx) => {
           // 매출원장 먼저 삭제
           const ledger = await tx.salesLedger.findUnique({ where: { orderId } });
           if (ledger) {
             await tx.salesLedgerItem.deleteMany({ where: { salesLedgerId: ledger.id } });
             await tx.salesLedger.delete({ where: { id: ledger.id } });
           }
-
           await tx.order.delete({ where: { id: orderId } });
-          results.success++;
-        } catch { results.failed.push(orderId); }
-      }
-    });
+        });
 
-    // DB 삭제 성공한 주문만 디스크 파일 삭제
-    for (const orderId of orderIds) {
-      if (!results.failed.includes(orderId) && !results.skipped.includes(orderId)) {
-        const dirs = orderDirsMap.get(orderId) || [];
+        results.success++;
+
+        // DB 삭제 성공 후 디스크 파일 삭제
         for (const dir of dirs) {
           try {
             this.fileStorage.deleteOrderDirectory(dir);
@@ -1114,6 +1106,9 @@ export class OrderService {
             this.logger.warn(`디스크 파일 삭제 실패 (${orderId}): ${(err as Error).message}`);
           }
         }
+      } catch (err) {
+        this.logger.error(`주문 삭제 실패 (${orderId}): ${(err as Error).message}`);
+        results.failed.push(orderId);
       }
     }
 
