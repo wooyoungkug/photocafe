@@ -34,7 +34,7 @@
     "lint": "npm run lint --workspaces",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
     "deploy": "bash scripts/deploy-production.sh",
-    "deploy:setup": "pwsh scripts/setup-synology-deploy.ps1"
+    "deploy:setup": "powershell -ExecutionPolicy Bypass -File scripts/setup-synology-deploy.ps1"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
