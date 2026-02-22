@@ -318,6 +318,10 @@ export class AuthService {
         clientName: client.clientName,
         mobile: client.mobile,
         businessNumber: client.businessNumber,
+        representative: client.representative,
+        address: client.address,
+        addressDetail: client.addressDetail,
+        contactPerson: client.contactPerson,
       },
     };
   }
@@ -696,8 +700,15 @@ export class AuthService {
         email: client.email,
         name: client.clientName,
         role: 'client',
-        clientId: client.id, // 주문 조회 등에 필요한 clientId 추가
+        clientId: client.id,
+        clientName: client.clientName,
         clientCode: client.clientCode,
+        mobile: client.mobile,
+        businessNumber: client.businessNumber,
+        representative: client.representative,
+        address: client.address,
+        addressDetail: client.addressDetail,
+        contactPerson: client.contactPerson,
         group: client.group,
       },
       impersonated: true,

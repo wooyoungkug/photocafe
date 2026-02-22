@@ -14,6 +14,10 @@ interface User {
   clientName?: string;
   mobile?: string;
   businessNumber?: string;
+  representative?: string;
+  address?: string;
+  addressDetail?: string;
+  contactPerson?: string;
 }
 
 interface AuthState {

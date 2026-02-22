@@ -263,24 +263,48 @@ export default function MonthlySummaryPage() {
       <div className="border-t-2 border-b border-black mb-3 pt-0.5" />
 
       {/* 공급받는자 + 공급자 */}
-      <div className="flex gap-4 mb-2 text-[9pt]">
+      <div className="flex gap-4 mb-2 text-[10pt]">
         {/* 공급받는자 */}
         <div className="flex-1 border border-gray-500">
-          <div className="bg-gray-100 text-center font-bold py-0.5 text-[9pt] border-b border-gray-500">
+          <div className="bg-gray-100 text-center font-bold py-0.5 text-[10pt] border-b border-gray-500">
             공 급 받 는 자
           </div>
-          <table className="border-collapse w-full text-[9pt]">
+          <table className="border-collapse w-full text-[10pt]">
             <tbody>
               <tr>
-                <td className="pl-2 pr-1 py-1 font-semibold whitespace-nowrap w-[70px]">거&nbsp;&nbsp;래&nbsp;&nbsp;처</td>
-                <td className="py-1 border-b border-gray-300 pr-2">
+                <td className="pl-2 pr-1 py-0.5 font-semibold whitespace-nowrap w-[70px]">거&nbsp;&nbsp;래&nbsp;&nbsp;처</td>
+                <td className="py-0.5 border-b border-gray-300 pr-2">
                   {user?.clientName || user?.name || '-'}
                 </td>
               </tr>
               <tr>
-                <td className="pl-2 pr-1 py-1 font-semibold whitespace-nowrap">사업자번호</td>
-                <td className="py-1 pr-2">
-                  {(user as any)?.businessNumber || '-'}
+                <td className="pl-2 pr-1 py-0.5 font-semibold whitespace-nowrap">대 표 자 명</td>
+                <td className="py-0.5 border-b border-gray-300 pr-2">
+                  {user?.representative || '-'}
+                </td>
+              </tr>
+              <tr>
+                <td className="pl-2 pr-1 py-0.5 font-semibold whitespace-nowrap">사업자번호</td>
+                <td className="py-0.5 border-b border-gray-300 pr-2">
+                  {user?.businessNumber || '-'}
+                </td>
+              </tr>
+              <tr>
+                <td className="pl-2 pr-1 py-0.5 font-semibold whitespace-nowrap">주&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;소</td>
+                <td className="py-0.5 border-b border-gray-300 pr-2">
+                  {[user?.address, user?.addressDetail].filter(Boolean).join(' ') || '-'}
+                </td>
+              </tr>
+              <tr>
+                <td className="pl-2 pr-1 py-0.5 font-semibold whitespace-nowrap">E-mail</td>
+                <td className="py-0.5 border-b border-gray-300 pr-2">
+                  {user?.email || '-'}
+                </td>
+              </tr>
+              <tr>
+                <td className="pl-2 pr-1 py-0.5 font-semibold whitespace-nowrap">담&nbsp;&nbsp;당&nbsp;&nbsp;자</td>
+                <td className="py-0.5 pr-2">
+                  {user?.contactPerson || '-'}
                 </td>
               </tr>
             </tbody>
@@ -288,10 +312,10 @@ export default function MonthlySummaryPage() {
         </div>
         {/* 공급자 */}
         <div className="flex-1 border border-gray-500">
-          <div className="bg-gray-100 text-center font-bold py-0.5 text-[9pt] border-b border-gray-500">
+          <div className="bg-gray-100 text-center font-bold py-0.5 text-[10pt] border-b border-gray-500">
             공 급 자
           </div>
-          <table className="border-collapse w-full text-[9pt]">
+          <table className="border-collapse w-full text-[10pt]">
             <tbody>
               <tr>
                 <td className="pl-2 pr-1 py-0.5 font-semibold whitespace-nowrap w-[55px]">상&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;호</td>
