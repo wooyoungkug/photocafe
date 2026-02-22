@@ -1888,7 +1888,10 @@ export class OrderService {
         const updates: { id: string; fileUrl: string; originalPath: string; thumbnailUrl: string; thumbnailPath: string | null }[] = [];
         for (const moved of movedFiles) {
           const matchingFile = item.files.find(
-            (f: any) => f.fileUrl.includes(moved.fileName),
+            (f: any) => {
+              const decodedUrl = decodeURIComponent(f.fileUrl);
+              return decodedUrl.includes(moved.fileName) || f.fileUrl.includes(moved.fileName);
+            },
           );
           if (matchingFile) {
             updates.push({
