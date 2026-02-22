@@ -94,6 +94,11 @@ export const useAuthStore = create<AuthState>()(
           // 다른 스토리지에서 제거
           otherStorage.removeItem('accessToken');
           otherStorage.removeItem('refreshToken');
+
+          // 관리자/직원 로그인 시 미들웨어 인증 쿠키 설정
+          if (user.role === 'admin' || user.role === 'staff') {
+            document.cookie = 'auth-verified=true; path=/; max-age=86400; SameSite=Lax';
+          }
         }
         set({
           user,
@@ -118,6 +123,8 @@ export const useAuthStore = create<AuthState>()(
           sessionStorage.removeItem('refreshToken');
           localStorage.removeItem('auth-storage');
           sessionStorage.removeItem('auth-storage');
+          // 미들웨어 인증 쿠키 제거
+          document.cookie = 'auth-verified=; path=/; max-age=0';
         }
         set({
           user: null,

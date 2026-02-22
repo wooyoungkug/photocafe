@@ -47,9 +47,12 @@ export default function AdminLoginPage() {
       const autoLogin = async () => {
         try {
           setIsLoading(true);
+          const devId = process.env.NEXT_PUBLIC_DEV_ADMIN_ID;
+          const devPw = process.env.NEXT_PUBLIC_DEV_ADMIN_PASSWORD;
+          if (!devId || !devPw) { setIsLoading(false); return; }
           const response = await api.post<StaffLoginResponse>('/auth/admin/login', {
-            staffId: 'admin',
-            password: 'color060',
+            staffId: devId,
+            password: devPw,
             rememberMe: true,
           });
 

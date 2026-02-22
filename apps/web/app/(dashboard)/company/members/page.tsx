@@ -421,9 +421,13 @@ export default function MembersPage() {
         user: { id: string; name: string; email: string; clientId?: string };
       }>(`/auth/impersonate/${member.id}`);
 
-      // 새 창에서 쇼핑몰 열기 (토큰을 URL 파라미터로 전달)
-      const shopUrl = `/auth/callback?accessToken=${result.accessToken}&refreshToken=${result.refreshToken}&userId=${result.user.id}&userName=${encodeURIComponent(result.user.name)}&userEmail=${encodeURIComponent(result.user.email || '')}&clientId=${result.user.clientId || result.user.id}&impersonated=true`;
-      window.open(shopUrl, '_blank');
+      // localStorage를 통해 토큰 전달 (URL 노출 방지)
+      localStorage.setItem('impersonate-data', JSON.stringify({
+        user: { id: result.user.id, email: result.user.email, name: result.user.name, role: 'client', clientId: result.user.clientId || result.user.id },
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+      }));
+      window.open('/', '_blank');
     } catch (err) {
       toast({ title: '대리 로그인에 실패했습니다.', variant: 'destructive' });
     }

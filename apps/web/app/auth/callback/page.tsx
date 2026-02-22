@@ -17,62 +17,39 @@ function AuthCallbackContent() {
         const processAuth = async () => {
             try {
                 const oauthCode = searchParams.get('code');
-                const isImpersonated = searchParams.get('impersonated') === 'true';
 
                 let token = '';
                 let refreshToken = '';
-                let userData = { id: '', email: '', name: '관리자', role: 'admin' };
+                let userData = { id: '', email: '', name: '회원', role: 'client' };
                 let clientId = '';
 
-                if (oauthCode && !isImpersonated) {
-                    // OAuth 코드 교환 방식 (네이버/카카오) — JWT가 URL에 노출되지 않음
-                    setStatus('인증 처리 중...');
-                    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
-                    const res = await fetch(`${apiUrl}/auth/exchange-code`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ code: oauthCode }),
-                    });
-                    if (!res.ok) {
-                        throw new Error('인증 코드 교환에 실패했습니다.');
-                    }
-                    const data = await res.json();
-                    token = data.accessToken;
-                    refreshToken = data.refreshToken;
-                    userData = {
-                        id: data.user?.id || '',
-                        email: data.user?.email || '',
-                        name: data.user?.name || '회원',
-                        role: 'client',
-                    };
-                    clientId = data.user?.clientId || data.user?.id || '';
-                    setStatus('로그인 성공! 쇼핑몰로 이동합니다...');
-                } else {
-                    // 대리 로그인 등 기존 방식 (토큰 직접 전달)
-                    token = searchParams.get('token') || searchParams.get('accessToken') || '';
-                    refreshToken = searchParams.get('refreshToken') || '';
-                    const userId = searchParams.get('userId') || '';
-                    const userName = searchParams.get('userName') || '';
-                    const userEmail = searchParams.get('userEmail') || '';
-                    clientId = searchParams.get('clientId') || '';
-                    const userParam = searchParams.get('user');
-
-                    if (!token) {
-                        setError('토큰이 없습니다');
-                        return;
-                    }
-
-                    if (isImpersonated) {
-                        userData = { id: userId, email: userEmail, name: userName || '회원', role: 'client' };
-                        setStatus('회원으로 로그인 중...');
-                    } else if (userId && userEmail) {
-                        userData = { id: userId, email: userEmail, name: userName || '회원', role: 'client' };
-                        setStatus('로그인 성공!');
-                    } else if (userParam) {
-                        try { userData = JSON.parse(userParam); } catch { /* ignore */ }
-                        setStatus('대시보드로 이동합니다...');
-                    }
+                if (!oauthCode) {
+                    // OAuth 코드 없이 접근 — 차단 (토큰 직접 전달 금지)
+                    setError('잘못된 접근입니다. 로그인 페이지를 이용해주세요.');
+                    return;
                 }
+
+                // OAuth 코드 교환 방식만 허용 (네이버/카카오)
+                setStatus('인증 처리 중...');
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+                const res = await fetch(`${apiUrl}/auth/exchange-code`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: oauthCode }),
+                });
+                if (!res.ok) {
+                    throw new Error('인증 코드 교환에 실패했습니다.');
+                }
+                const data = await res.json();
+                token = data.accessToken;
+                refreshToken = data.refreshToken;
+                userData = {
+                    id: data.user?.id || '',
+                    email: data.user?.email || '',
+                    name: data.user?.name || '회원',
+                    role: 'client',
+                };
+                clientId = data.user?.clientId || data.user?.id || '';
 
                 localStorage.setItem('accessToken', token);
 
@@ -96,9 +73,8 @@ function AuthCallbackContent() {
                 localStorage.setItem('auth-storage', JSON.stringify(authStorageData));
                 localStorage.setItem('refreshToken', refreshToken);
 
-                const isClient = userData.role === 'client';
-                const redirectUrl = (isImpersonated || isClient) ? '/' : '/dashboard';
-                setStatus((isImpersonated || isClient) ? '쇼핑몰로 이동합니다...' : '대시보드로 이동합니다...');
+                setStatus('로그인 성공! 쇼핑몰로 이동합니다...');
+                const redirectUrl = '/';
 
                 setTimeout(() => {
                     window.location.href = redirectUrl;
