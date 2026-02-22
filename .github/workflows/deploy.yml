@@ -14,7 +14,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
 
     steps:
       - name: Deploy via SSH
@@ -24,7 +24,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT }}
-          command_timeout: 10m
+          command_timeout: 20m
           script: |
             set -e
             export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
