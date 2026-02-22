@@ -1,14 +1,54 @@
-node_modules
-npm-debug.log
-.next
-.env*.local
-dist
-build
+# Dependencies (all levels)
+**/node_modules
+**/.pnp
+**/.pnp.js
+
+# Build outputs
+**/.next
+**/dist
+**/build
+**/out
+**/coverage
+**/.nyc_output
+**/.turbo
+**/*.tsbuildinfo
+
+# Git
 .git
 .gitignore
-README.md
+
+# Environment
+**/.env
+**/.env.*
+
+# IDE & Editor
 .vscode
 .idea
-*.log
-coverage
+**/*.swp
+**/*.swo
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Logs
+**/*.log
+**/npm-debug.log*
+
+# Claude Code (worktrees can be very large)
+.claude
+
+# Uploads (production data)
+**/uploads/orders
+**/uploads/temp
+
+# Documentation (not needed for build)
+*.md
+LICENSE
+
+# Scripts
+scripts
+deploy.sh
+
+# Nginx config (not needed for app build)
+nginx
