@@ -27,6 +27,7 @@ jobs:
           command_timeout: 10m
           script: |
             set -e
+            export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
             cd /volume1/docker/printing114
 
             echo "=========================================="
@@ -44,10 +45,10 @@ jobs:
             echo ""
             if [ "${{ inputs.skip_build }}" = "true" ]; then
               echo "=== [2/5] Docker 재시작 (빌드 스킵) ==="
-              sudo docker-compose -f docker-compose.prod.yml restart api web
+              sudo /usr/local/bin/docker-compose -f docker-compose.prod.yml restart api web
             else
               echo "=== [2/5] Docker 빌드 & 재시작 ==="
-              sudo docker-compose -f docker-compose.prod.yml up -d --build api web
+              sudo /usr/local/bin/docker-compose -f docker-compose.prod.yml up -d --build api web
             fi
 
             # 3. 시작 대기
@@ -65,7 +66,7 @@ jobs:
             # 4. 컨테이너 상태
             echo ""
             echo "=== [4/5] 컨테이너 상태 ==="
-            sudo docker ps --filter 'name=photocafe' --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+            sudo /usr/local/bin/docker ps --filter 'name=printing114' --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
 
             # 5. Health Check
             echo ""
@@ -76,7 +77,7 @@ jobs:
             } || {
               echo "API: FAILED"
               echo "최근 로그:"
-              sudo docker logs photocafe-api --tail 30
+              sudo /usr/local/bin/docker logs printing114-api --tail 30
               exit 1
             }
 
