@@ -28,7 +28,7 @@ jobs:
           script: |
             set -e
             export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
-            cd /volume1/docker/printing114
+            cd /volume1/docker
 
             echo "=========================================="
             echo "  Printing114 배포 시작"
