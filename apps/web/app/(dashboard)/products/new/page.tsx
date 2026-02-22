@@ -467,7 +467,7 @@ export default function NewProductPage() {
       <Card className="overflow-hidden border-0 shadow-sm ring-1 ring-slate-200/80 rounded-xl">
         <SectionHeader icon={Factory} title="상품 유형" subtitle="등록할 상품 유형을 선택하면 필요한 옵션만 표시됩니다" theme="violet" />
         <CardContent className="px-6 pb-5 pt-2">
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-5 gap-3">
             {/* 범용(직접설정) 옵션 */}
             <button
               type="button"
