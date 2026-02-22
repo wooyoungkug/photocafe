@@ -14,6 +14,7 @@ export const PRODUCT_TYPES = {
   ACRYLIC_FRAME: 'acrylic_frame',
   DOUBLE_MAT_FRAME: 'double_mat_frame',
   COPPER_PLATE: 'copper_plate',
+  SINGLE_PRINT: 'single_print',
 } as const;
 
 export type ProductType = (typeof PRODUCT_TYPES)[keyof typeof PRODUCT_TYPES];
@@ -27,6 +28,7 @@ export const PRODUCT_TYPE_LABELS: Record<ProductType, string> = {
   acrylic_frame: '아크릴액자',
   double_mat_frame: '더블마트액자',
   copper_plate: '동판',
+  single_print: '단품출력',
 };
 
 // 공정 단계 코드
