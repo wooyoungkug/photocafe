@@ -1037,6 +1037,13 @@ export default function ProductionSettingPage() {
   const [deletingItem, setDeletingItem] = useState<{ type: "group" | "setting"; item: any } | null>(null);
   const [parentGroupId, setParentGroupId] = useState<string | null>(null);
 
+  // 그룹 다이얼로그 제목/설명용 부모 그룹 depth 캐싱
+  const parentGroupDepth = useMemo(() => {
+    if (!parentGroupId || !groupTree) return null;
+    const parentGroup = findGroupInTree(groupTree, parentGroupId);
+    return parentGroup?.depth ?? null;
+  }, [parentGroupId, groupTree]);
+
   // 이동 다이얼로그 상태
   const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
   const [moveTarget, setMoveTarget] = useState<{
@@ -2348,41 +2355,17 @@ export default function ProductionSettingPage() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {editingGroup ? "그룹 수정" : (() => {
-                if (!parentGroupId) return "대분류 추가";
-                // 재귀적으로 모든 그룹에서 부모 찾기
-                const findGroup = (groups: ProductionGroup[] | undefined, id: string): ProductionGroup | null => {
-                  if (!groups) return null;
-                  for (const g of groups) {
-                    if (g.id === id) return g;
-                    const found = findGroup(g.children, id);
-                    if (found) return found;
-                  }
-                  return null;
-                };
-                const parentGroup = findGroup(groupTree, parentGroupId);
-                if (parentGroup?.depth === 1) return "중분류 추가";
-                if (parentGroup?.depth === 2) return "소분류 추가";
-                return "하위 그룹 추가";
-              })()}
+              {editingGroup ? "그룹 수정" :
+                !parentGroupId ? "대분류 추가" :
+                parentGroupDepth === 1 ? "중분류 추가" :
+                parentGroupDepth === 2 ? "소분류 추가" :
+                "하위 그룹 추가"}
             </DialogTitle>
             <DialogDescription>
-              {(() => {
-                if (!parentGroupId) return "대분류";
-                const findGroup = (groups: ProductionGroup[] | undefined, id: string): ProductionGroup | null => {
-                  if (!groups) return null;
-                  for (const g of groups) {
-                    if (g.id === id) return g;
-                    const found = findGroup(g.children, id);
-                    if (found) return found;
-                  }
-                  return null;
-                };
-                const parentGroup = findGroup(groupTree, parentGroupId);
-                if (parentGroup?.depth === 1) return "중분류";
-                if (parentGroup?.depth === 2) return "소분류";
-                return "하위 그룹";
-              })()} 그룹 정보를 입력하세요.
+              {!parentGroupId ? "대분류" :
+                parentGroupDepth === 1 ? "중분류" :
+                parentGroupDepth === 2 ? "소분류" :
+                "하위 그룹"} 그룹 정보를 입력하세요.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
