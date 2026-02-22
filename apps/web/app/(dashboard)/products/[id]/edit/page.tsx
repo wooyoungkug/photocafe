@@ -38,7 +38,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCategories } from '@/hooks/use-categories';
 import { useSpecifications } from '@/hooks/use-specifications';
 import { useHalfProducts } from '@/hooks/use-half-products';
-import { useProduct, useUpdateProduct, useSyncProductPapers } from '@/hooks/use-products';
+import { useProduct, useUpdateProduct, useSyncProductPapers, useProcessTemplates, useProductTypeOptions } from '@/hooks/use-products';
+import { ProcessFlowSection } from '../../components/ProcessFlowSection';
 import { useProductionGroupTree, useProductionSettings, type ProductionGroup, type ProductionSetting, type OutputPriceSelection, type IndigoUpPrice, type InkjetSpecPrice } from '@/hooks/use-production';
 import { useFoilColors, type FoilColorItem } from '@/hooks/use-copper-plates';
 import { useFabrics, FABRIC_CATEGORY_LABELS, type FabricCategory } from '@/hooks/use-fabrics';
@@ -170,6 +171,17 @@ export default function EditProductPage() {
   const updateProduct = useUpdateProduct();
   const syncPapers = useSyncProductPapers();
   const { data: fabricsData } = useFabrics({ forAlbumCover: true, isActive: true, limit: 200 });
+
+  // 상품 유형 기반 공정/옵션 설정
+  const productType = product?.productType || '';
+  const { data: processSteps } = useProcessTemplates(productType || undefined);
+  const { data: typeOptions } = useProductTypeOptions(productType || undefined);
+
+  // 섹션 표시 여부 판단 (productType이 없으면 모두 표시)
+  const shouldShow = (option: string): boolean => {
+    if (!productType || !typeOptions) return true;
+    return typeOptions[`show${option.charAt(0).toUpperCase()}${option.slice(1)}` as keyof typeof typeOptions] as boolean;
+  };
 
   // 후가공옵션 카테고리 (ProductionGroup 트리에서 동적 로딩)
   const finishingGroup = useMemo(() => {
@@ -620,6 +632,7 @@ export default function EditProductPage() {
         : undefined;
 
       const productData = {
+        productType: productType || undefined,
         productCode,
         productName,
         categoryId: finalCategoryId,
@@ -737,8 +750,15 @@ export default function EditProductPage() {
 
   return (
     <div className="space-y-5 pb-10 max-w-[1200px] mx-auto">
+      {/* 공정 프로세스 시각화 (productType이 있는 상품만) */}
+      {processSteps && processSteps.length > 0 && (
+        <ProcessFlowSection steps={processSteps} />
+      )}
+
       <PageHeader
-        title="앨범상품 수정"
+        title={productType
+          ? `${product?.productName || ''} 수정`
+          : '상품 수정'}
         description="상품 정보를 수정합니다."
         breadcrumbs={[
           { label: '홈', href: '/' },
@@ -891,7 +911,7 @@ export default function EditProductPage() {
                   ))}
                 </div>
               )}
-              <div className="flex gap-4 pt-2">
+              {shouldShow('bindingDirection') && (<div className="flex gap-4 pt-2">
                 <Label className="text-xs text-slate-500">제본방향</Label>
                 <div className="flex gap-3">
                   {BINDING_DIRECTION_OPTIONS.map(opt => (
@@ -909,7 +929,7 @@ export default function EditProductPage() {
                   ))}
                 </div>
               </div>
-            </div>
+            </div>)}
 
             {/* 출력단가 선택 (새로운 방식) */}
             <div className="space-y-3">
@@ -1062,7 +1082,7 @@ export default function EditProductPage() {
           </div>
 
           {/* 앨범 표지 원단 선택 */}
-          <div className="space-y-3">
+          {shouldShow('fabric') && (<div className="space-y-3">
             <Label className="text-[13px] font-medium text-slate-600 flex items-center gap-1.5">
               <Palette className="h-4 w-4 text-slate-400" />
               앨범 표지 원단
@@ -1218,7 +1238,7 @@ export default function EditProductPage() {
                 </div>
               );
             })()}
-          </div>
+          </div>)}
 
           {/* 용지 사용 여부 - 출력방식별 그룹화 */}
           {product?.papers && product.papers.length > 0 && (
@@ -1425,7 +1445,7 @@ export default function EditProductPage() {
           <Separator />
 
           {/* 후가공 옵션 */}
-          <div className="space-y-3">
+          {shouldShow('finishing') && (<div className="space-y-3">
             <Label className="text-[13px] font-medium text-slate-600 flex items-center gap-1.5">
               <Settings className="h-4 w-4 text-slate-400" />
               후가공 옵션
@@ -1512,7 +1532,7 @@ export default function EditProductPage() {
                 {isTreeLoading ? '로딩 중...' : '후가공 옵션이 설정되지 않았습니다. 기초정보 > 가격관리에서 후가공옵션 그룹을 추가하세요.'}
               </p>
             )}
-          </div>
+          </div>)}
         </CardContent>
       </Card>
 
