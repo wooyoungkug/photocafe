@@ -67,6 +67,7 @@ import {
   Eye,
   EyeOff,
   Factory,
+  Printer,
 } from 'lucide-react';
 
 // 제본방향 옵션
@@ -81,6 +82,12 @@ const PRINT_TYPE_OPTIONS = [
   { value: 'single', label: '단면출력' },
   { value: 'double', label: '양면출력' },
   { value: 'customer', label: '단면/양면 고객선택' },
+];
+
+// 출력방법 옵션 (단품출력용)
+const OUTPUT_METHOD_OPTIONS = [
+  { value: 'inkjet', label: '잉크젯' },
+  { value: 'indigo', label: '인디고' },
 ];
 
 
@@ -221,6 +228,7 @@ export default function NewProductPage() {
   const [selectedBindings, setSelectedBindings] = useState<{ id: string; name: string; price: number }[]>([]);
   const [bindingDirection, setBindingDirection] = useState('left');
   const [printType, setPrintType] = useState('double');
+  const [outputMethod, setOutputMethod] = useState<'inkjet' | 'indigo'>('inkjet');
   const [selectedCovers, setSelectedCovers] = useState<{ id: string; name: string; price: number }[]>([]);
   const [selectedFoils, setSelectedFoils] = useState<{ id: string; name: string; color: string; price: number }[]>([]);
 
@@ -285,6 +293,7 @@ export default function NewProductPage() {
     if (typeOptions) {
       if (typeOptions.printType) setPrintType(typeOptions.printType);
       if (typeOptions.bindingDirection) setBindingDirection(typeOptions.bindingDirection);
+      if (typeOptions.paperPrintMethod) setOutputMethod(typeOptions.paperPrintMethod);
       // 규격 탭 자동 전환
       if (typeOptions.specFilterType) {
         const specTabMap: Record<string, typeof specType> = {
@@ -770,6 +779,7 @@ export default function NewProductPage() {
           {/* 제본/용지 선택 - 2열 그리드 */}
           <div className="grid grid-cols-2 gap-6">
             {/* 제본 선택 */}
+            {shouldShow('binding') && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="text-[13px] font-semibold text-slate-700 flex items-center gap-2">
@@ -819,6 +829,38 @@ export default function NewProductPage() {
                 </div>
               )}
             </div>
+            )}
+
+            {/* 출력방법 (단품출력 등) */}
+            {shouldShow('outputMethod') && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-[13px] font-semibold text-slate-700 flex items-center gap-2">
+                  <Printer className="h-4 w-4 text-emerald-500" />
+                  출력방법
+                </Label>
+              </div>
+              <div className="pt-2 space-y-1">
+                <div className="flex gap-4 items-center">
+                  <div className="flex gap-3">
+                    {OUTPUT_METHOD_OPTIONS.map(opt => (
+                      <label key={opt.value} className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="outputMethod"
+                          value={opt.value}
+                          checked={outputMethod === opt.value}
+                          onChange={(e) => setOutputMethod(e.target.value as 'inkjet' | 'indigo')}
+                          className="w-3.5 h-3.5 text-emerald-600"
+                        />
+                        <span className="text-xs">{opt.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+            )}
 
             {/* 출력구분 */}
             {shouldShow('binding') && (

@@ -33,6 +33,7 @@ export interface ProductTypeOptions {
   showOutputPrice: boolean;
   showCopperPlate: boolean;
   showBindingDirection: boolean;
+  showOutputMethod: boolean; // 출력방법 선택 (잉크젯/인디고)
 
   // 용지 출력방식 필터
   paperPrintMethod: 'indigo' | 'inkjet' | null;
@@ -56,6 +57,7 @@ export const PRODUCT_TYPE_OPTIONS: Record<ProductType, ProductTypeOptions> = {
     showOutputPrice: true,
     showCopperPlate: false,
     showBindingDirection: true,
+    showOutputMethod: false,
     paperPrintMethod: 'indigo',
   },
 
@@ -75,6 +77,7 @@ export const PRODUCT_TYPE_OPTIONS: Record<ProductType, ProductTypeOptions> = {
     showOutputPrice: true,
     showCopperPlate: false,
     showBindingDirection: true,
+    showOutputMethod: false,
     paperPrintMethod: 'indigo',
   },
 
@@ -94,6 +97,7 @@ export const PRODUCT_TYPE_OPTIONS: Record<ProductType, ProductTypeOptions> = {
     showOutputPrice: true,
     showCopperPlate: false,
     showBindingDirection: true,
+    showOutputMethod: false,
     paperPrintMethod: 'indigo',
   },
 
@@ -113,6 +117,7 @@ export const PRODUCT_TYPE_OPTIONS: Record<ProductType, ProductTypeOptions> = {
     showOutputPrice: true,
     showCopperPlate: false,
     showBindingDirection: true,
+    showOutputMethod: false,
     paperPrintMethod: 'indigo',
   },
 
@@ -132,6 +137,7 @@ export const PRODUCT_TYPE_OPTIONS: Record<ProductType, ProductTypeOptions> = {
     showOutputPrice: true,
     showCopperPlate: false,
     showBindingDirection: false,
+    showOutputMethod: false,
     paperPrintMethod: 'inkjet',
   },
 
@@ -151,10 +157,11 @@ export const PRODUCT_TYPE_OPTIONS: Record<ProductType, ProductTypeOptions> = {
     showOutputPrice: true,
     showCopperPlate: false,
     showBindingDirection: false,
+    showOutputMethod: false,
     paperPrintMethod: 'inkjet',
   },
 
-  // 단품출력: 잉크젯 단면, 제본/커버/박/원단 숨김
+  // 단품출력: 제본 숨김, 출력방법 선택(잉크젯/인디고)
   single_print: {
     printType: 'single',
     bindingDirection: null,
@@ -170,7 +177,8 @@ export const PRODUCT_TYPE_OPTIONS: Record<ProductType, ProductTypeOptions> = {
     showOutputPrice: true,
     showCopperPlate: false,
     showBindingDirection: false,
-    paperPrintMethod: 'inkjet',
+    showOutputMethod: true,
+    paperPrintMethod: null, // 출력방법 선택에 따라 결정
   },
 
   // 동판: 대부분 숨김, 동판 연결만 표시
@@ -189,6 +197,7 @@ export const PRODUCT_TYPE_OPTIONS: Record<ProductType, ProductTypeOptions> = {
     showOutputPrice: false,
     showCopperPlate: true,
     showBindingDirection: false,
+    showOutputMethod: false,
     paperPrintMethod: null,
   },
 };
