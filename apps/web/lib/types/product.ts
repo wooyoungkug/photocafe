@@ -154,6 +154,7 @@ export interface Product {
   orderCount?: number;
   outputPriceSettings?: any[];
   productType?: string;
+  printType?: 'single' | 'double' | 'customer';
   createdAt: string;
   updatedAt: string;
 

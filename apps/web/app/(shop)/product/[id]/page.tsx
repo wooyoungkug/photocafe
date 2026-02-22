@@ -347,7 +347,10 @@ export default function ProductPage() {
         cover: product.covers?.find(c => c.isDefault) || product.covers?.[0],
         foil: product.foils?.find(f => f.isDefault) || product.foils?.[0],
         finishings: product.finishings?.filter(f => f.isDefault) || [],
-        printSide: defaultBinding ? getDefaultPrintSideByBinding(defaultBinding.name) : 'double',
+        printSide: product.printType === 'customer'
+          ? 'double' // 고객선택: 기본값 양면, 고객이 변경 가능
+          : defaultBinding ? getDefaultPrintSideByBinding(defaultBinding.name)
+          : (product.printType === 'single' ? 'single' : 'double'),
         copperPlateType: 'none',
         publicCopperPlate: undefined,
         ownedCopperPlate: undefined,
@@ -796,7 +799,12 @@ export default function ProductPage() {
                     colorMode={selectedOptions.colorMode || '4c'}
                     onSelectPaper={(paper) => setSelectedOptions(prev => ({ ...prev, paper }))}
                     onChangePrintMethod={(method, colorMode, defaultPaper) => setSelectedOptions(prev => ({ ...prev, printMethod: method, colorMode, paper: defaultPaper }))} />
-                  <OptionPrintSide printSide={selectedOptions.printSide} bindingName={selectedOptions.binding?.name} />
+                  <OptionPrintSide
+                    printSide={selectedOptions.printSide}
+                    bindingName={selectedOptions.binding?.name}
+                    customerSelectable={product.printType === 'customer'}
+                    onChangePrintSide={(side) => setSelectedOptions(prev => ({ ...prev, printSide: side }))}
+                  />
                 </OptionCard>
               )}
 
