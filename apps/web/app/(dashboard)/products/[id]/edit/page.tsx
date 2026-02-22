@@ -1301,7 +1301,7 @@ export default function EditProductPage() {
                           onClick={() => setDefaultPaperId(paper.id)}
                           className={`transition-colors leading-none ${isDefault ? 'text-amber-300' : 'text-slate-300 hover:text-amber-400'}`}
                         >
-                          ★
+                          {isDefault ? '★' : '☆'}
                         </button>
                       )}
                     </div>
