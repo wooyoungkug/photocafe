@@ -821,190 +821,202 @@ export default function NewProductPage() {
             </div>
 
             {/* 출력구분 */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-[13px] font-semibold text-slate-700 flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-emerald-500" />
-                  출력구분
-                </Label>
-              </div>
-              <div className="pt-2 space-y-1">
-                <div className="flex gap-4 items-center">
-                  <div className="flex gap-3">
-                    {PRINT_TYPE_OPTIONS.map(opt => (
-                      <label key={opt.value} className="flex items-center gap-1.5 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="printType"
-                          value={opt.value}
-                          checked={printType === opt.value}
-                          onChange={(e) => setPrintType(e.target.value)}
-                          className="w-3.5 h-3.5 text-emerald-600"
-                        />
-                        <span className="text-xs">{opt.label}</span>
-                      </label>
-                    ))}
+            {shouldShow('binding') && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-[13px] font-semibold text-slate-700 flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-emerald-500" />
+                    출력구분
+                  </Label>
+                </div>
+                <div className="pt-2 space-y-1">
+                  <div className="flex gap-4 items-center">
+                    <div className="flex gap-3">
+                      {PRINT_TYPE_OPTIONS.map(opt => (
+                        <label key={opt.value} className="flex items-center gap-1.5 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="printType"
+                            value={opt.value}
+                            checked={printType === opt.value}
+                            onChange={(e) => setPrintType(e.target.value)}
+                            className="w-3.5 h-3.5 text-emerald-600"
+                          />
+                          <span className="text-xs">{opt.label}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* 커버 선택 */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-[13px] font-semibold text-slate-700 flex items-center gap-2">
-                  <Palette className="h-4 w-4 text-emerald-500" />
-                  커버 선택
-                </Label>
-                <Button type="button" variant="outline" size="sm" onClick={() => setCoverDialogOpen(true)} className="gap-1.5 h-7 text-xs border-slate-200">
-                  <Plus className="h-3.5 w-3.5" />
-                  커버선택
-                </Button>
-              </div>
-              {selectedCovers.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {selectedCovers.map((c, idx) => (
-                    <Badge key={idx} variant="outline" className="bg-white">{c.name}</Badge>
-                  ))}
+            {shouldShow('cover') && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-[13px] font-semibold text-slate-700 flex items-center gap-2">
+                    <Palette className="h-4 w-4 text-emerald-500" />
+                    커버 선택
+                  </Label>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setCoverDialogOpen(true)} className="gap-1.5 h-7 text-xs border-slate-200">
+                    <Plus className="h-3.5 w-3.5" />
+                    커버선택
+                  </Button>
                 </div>
-              )}
-            </div>
+                {selectedCovers.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {selectedCovers.map((c, idx) => (
+                      <Badge key={idx} variant="outline" className="bg-white">{c.name}</Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* 박 선택 */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-[13px] font-semibold text-slate-700 flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-emerald-500" />
-                  박 선택
-                </Label>
-                <Button type="button" variant="outline" size="sm" onClick={() => setFoilDialogOpen(true)} className="gap-1.5 h-7 text-xs border-slate-200">
-                  <Plus className="h-3.5 w-3.5" />
-                  등판선택
-                </Button>
-              </div>
-              {selectedFoils.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {selectedFoils.map((f, idx) => (
-                    <Badge key={idx} variant="outline" className="bg-white">{f.name}</Badge>
-                  ))}
+            {shouldShow('foil') && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-[13px] font-semibold text-slate-700 flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-emerald-500" />
+                    박 선택
+                  </Label>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setFoilDialogOpen(true)} className="gap-1.5 h-7 text-xs border-slate-200">
+                    <Plus className="h-3.5 w-3.5" />
+                    등판선택
+                  </Button>
                 </div>
-              )}
-            </div>
+                {selectedFoils.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {selectedFoils.map((f, idx) => (
+                      <Badge key={idx} variant="outline" className="bg-white">{f.name}</Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* 앨범 표지 원단 선택 */}
-            <div className="col-span-2 space-y-3">
-              <Label className="text-[13px] font-semibold text-slate-700 flex items-center gap-2">
-                <Palette className="h-4 w-4 text-emerald-500" />
-                앨범 표지 원단
-                {selectedFabricIds.length > 0 && (
-                  <Badge variant="secondary" className="text-[10px] h-4 px-1.5">{selectedFabricIds.length}개 선택</Badge>
-                )}
-              </Label>
-              {(() => {
-                const allFabrics = fabricsData?.data || [];
-                const categories = [...new Set(allFabrics.map(f => f.category))] as FabricCategory[];
-                if (allFabrics.length === 0) {
-                  return <p className="text-xs text-slate-400 py-2">등록된 앨범 커버용 원단이 없습니다. 기초정보 &gt; 표지원단 관리에서 원단을 등록하세요.</p>;
-                }
-                return (
-                  <div className="space-y-3 p-3 bg-slate-50/60 rounded-lg border border-slate-200/60">
-                    {categories.map(cat => {
-                      const catFabrics = allFabrics.filter(f => f.category === cat);
-                      const allCatSelected = catFabrics.every(f => selectedFabricIds.includes(f.id));
-                      return (
-                        <div key={cat} className="space-y-1.5">
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const catIds = catFabrics.map(f => f.id);
-                                if (allCatSelected) {
-                                  setSelectedFabricIds(prev => prev.filter(id => !catIds.includes(id)));
-                                } else {
-                                  setSelectedFabricIds(prev => [...new Set([...prev, ...catIds])]);
-                                }
-                              }}
-                              className="text-[11px] font-semibold text-slate-500 hover:text-slate-700 px-2 py-0.5 rounded border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
-                            >
-                              {FABRIC_CATEGORY_LABELS[cat] || cat}
-                            </button>
-                            <span className="text-[10px] text-slate-400">{catFabrics.filter(f => selectedFabricIds.includes(f.id)).length}/{catFabrics.length}</span>
+            {shouldShow('fabric') && (
+              <div className="col-span-2 space-y-3">
+                <Label className="text-[13px] font-semibold text-slate-700 flex items-center gap-2">
+                  <Palette className="h-4 w-4 text-emerald-500" />
+                  앨범 표지 원단
+                  {selectedFabricIds.length > 0 && (
+                    <Badge variant="secondary" className="text-[10px] h-4 px-1.5">{selectedFabricIds.length}개 선택</Badge>
+                  )}
+                </Label>
+                {(() => {
+                  const allFabrics = fabricsData?.data || [];
+                  const categories = [...new Set(allFabrics.map(f => f.category))] as FabricCategory[];
+                  if (allFabrics.length === 0) {
+                    return <p className="text-xs text-slate-400 py-2">등록된 앨범 커버용 원단이 없습니다. 기초정보 &gt; 표지원단 관리에서 원단을 등록하세요.</p>;
+                  }
+                  return (
+                    <div className="space-y-3 p-3 bg-slate-50/60 rounded-lg border border-slate-200/60">
+                      {categories.map(cat => {
+                        const catFabrics = allFabrics.filter(f => f.category === cat);
+                        const allCatSelected = catFabrics.every(f => selectedFabricIds.includes(f.id));
+                        return (
+                          <div key={cat} className="space-y-1.5">
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const catIds = catFabrics.map(f => f.id);
+                                  if (allCatSelected) {
+                                    setSelectedFabricIds(prev => prev.filter(id => !catIds.includes(id)));
+                                  } else {
+                                    setSelectedFabricIds(prev => [...new Set([...prev, ...catIds])]);
+                                  }
+                                }}
+                                className="text-[11px] font-semibold text-slate-500 hover:text-slate-700 px-2 py-0.5 rounded border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+                              >
+                                {FABRIC_CATEGORY_LABELS[cat] || cat}
+                              </button>
+                              <span className="text-[10px] text-slate-400">{catFabrics.filter(f => selectedFabricIds.includes(f.id)).length}/{catFabrics.length}</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {catFabrics.map(fabric => {
+                                const isSelected = selectedFabricIds.includes(fabric.id);
+                                return (
+                                  <button
+                                    key={fabric.id}
+                                    type="button"
+                                    onClick={() => setSelectedFabricIds(prev =>
+                                      isSelected ? prev.filter(id => id !== fabric.id) : [...prev, fabric.id]
+                                    )}
+                                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] border transition-all ${
+                                      isSelected
+                                        ? 'bg-emerald-500 text-white border-emerald-500'
+                                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+                                    }`}
+                                  >
+                                    {fabric.colorCode && (
+                                      <span className="w-3 h-3 rounded-full border border-white/50 flex-shrink-0" style={{ backgroundColor: fabric.colorCode }} />
+                                    )}
+                                    {fabric.name}
+                                  </button>
+                                );
+                              })}
+                            </div>
                           </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            {catFabrics.map(fabric => {
-                              const isSelected = selectedFabricIds.includes(fabric.id);
-                              return (
-                                <button
-                                  key={fabric.id}
-                                  type="button"
-                                  onClick={() => setSelectedFabricIds(prev =>
-                                    isSelected ? prev.filter(id => id !== fabric.id) : [...prev, fabric.id]
-                                  )}
-                                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] border transition-all ${
-                                    isSelected
-                                      ? 'bg-emerald-500 text-white border-emerald-500'
-                                      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
-                                  }`}
-                                >
-                                  {fabric.colorCode && (
-                                    <span className="w-3 h-3 rounded-full border border-white/50 flex-shrink-0" style={{ backgroundColor: fabric.colorCode }} />
-                                  )}
-                                  {fabric.name}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
-            </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
           </div>
 
-          <Separator />
+          {shouldShow('finishing') && (
+            <>
+              <Separator />
 
-          {/* 후가공 옵션 */}
-          <div className="space-y-3">
-            <Label className="text-[13px] font-semibold text-slate-700 flex items-center gap-2">
-              <Settings className="h-4 w-4 text-emerald-500" />
-              후가공 옵션
-            </Label>
-            <div className="grid grid-cols-3 gap-2">
-              {finishingChildren.length > 0 ? (
-                finishingChildren.map(group => (
-                  <label
-                    key={group.id}
-                    className={`
-                      flex items-center gap-2.5 px-3 py-2.5 rounded-lg border cursor-pointer transition-all
-                      ${finishingOptions[group.id]
-                        ? 'border-emerald-300 bg-emerald-50/70 ring-1 ring-emerald-100'
-                        : 'border-slate-200 bg-white hover:bg-slate-50/80 hover:border-slate-300'
-                      }
-                    `}
-                  >
-                    <Checkbox
-                      id={group.id}
-                      checked={finishingOptions[group.id] || false}
-                      onCheckedChange={(checked) => setFinishingOptions(prev => ({ ...prev, [group.id]: !!checked }))}
-                      className="data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
-                    />
-                    <span className="text-[13px] font-medium text-slate-700">{group.name}</span>
-                    {(group._count?.children ?? 0) > 0 && (
-                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 ml-auto">
-                        {group._count?.children}
-                      </Badge>
-                    )}
-                  </label>
-                ))
-              ) : (
-                <p className="text-xs text-slate-400 col-span-3 text-center py-4">
-                  {isTreeLoading ? '로딩 중...' : '후가공 옵션이 설정되지 않았습니다. 기초정보 > 가격관리에서 후가공옵션 그룹을 추가하세요.'}
-                </p>
-              )}
-            </div>
-          </div>
+              {/* 후가공 옵션 */}
+              <div className="space-y-3">
+                <Label className="text-[13px] font-semibold text-slate-700 flex items-center gap-2">
+                  <Settings className="h-4 w-4 text-emerald-500" />
+                  후가공 옵션
+                </Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {finishingChildren.length > 0 ? (
+                    finishingChildren.map(group => (
+                      <label
+                        key={group.id}
+                        className={`
+                          flex items-center gap-2.5 px-3 py-2.5 rounded-lg border cursor-pointer transition-all
+                          ${finishingOptions[group.id]
+                            ? 'border-emerald-300 bg-emerald-50/70 ring-1 ring-emerald-100'
+                            : 'border-slate-200 bg-white hover:bg-slate-50/80 hover:border-slate-300'
+                          }
+                        `}
+                      >
+                        <Checkbox
+                          id={group.id}
+                          checked={finishingOptions[group.id] || false}
+                          onCheckedChange={(checked) => setFinishingOptions(prev => ({ ...prev, [group.id]: !!checked }))}
+                          className="data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
+                        />
+                        <span className="text-[13px] font-medium text-slate-700">{group.name}</span>
+                        {(group._count?.children ?? 0) > 0 && (
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 ml-auto">
+                            {group._count?.children}
+                          </Badge>
+                        )}
+                      </label>
+                    ))
+                  ) : (
+                    <p className="text-xs text-slate-400 col-span-3 text-center py-4">
+                      {isTreeLoading ? '로딩 중...' : '후가공 옵션이 설정되지 않았습니다. 기초정보 > 가격관리에서 후가공옵션 그룹을 추가하세요.'}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 

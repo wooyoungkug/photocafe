@@ -52,6 +52,8 @@ import { cn } from '@/lib/utils';
 
 // 취소 가능 상태 (출력 전 단계)
 const CANCELLABLE_STATUSES = ['pending_receipt', 'receipt_completed'];
+// 삭제 가능 상태
+const DELETABLE_STATUSES = ['pending_receipt', 'cancelled'];
 
 // 진행단계별 아이콘 상태 설정
 const STAGE_ITEMS = [
@@ -140,6 +142,8 @@ export default function MyOrdersPage() {
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // 공정 이력 다이얼로그
   const [historyOrderId, setHistoryOrderId] = useState<string | null>(null);
@@ -189,9 +193,14 @@ export default function MyOrdersPage() {
     return orders.filter(o => selectedOrders.has(o.id) && CANCELLABLE_STATUSES.includes(o.status));
   }, [orders, selectedOrders]);
 
-  // 전체 취소 가능 주문
-  const allCancellable = useMemo(() => {
-    return orders.filter(o => CANCELLABLE_STATUSES.includes(o.status));
+  // 삭제 가능한 선택된 주문
+  const deletableSelected = useMemo(() => {
+    return orders.filter(o => selectedOrders.has(o.id) && DELETABLE_STATUSES.includes(o.status));
+  }, [orders, selectedOrders]);
+
+  // 체크박스 표시 가능한 주문 (취소 가능 OR 삭제 가능)
+  const selectableOrders = useMemo(() => {
+    return orders.filter(o => CANCELLABLE_STATUSES.includes(o.status) || DELETABLE_STATUSES.includes(o.status));
   }, [orders]);
 
   // 기간 단축 버튼
@@ -231,10 +240,30 @@ export default function MyOrdersPage() {
     });
   };
   const toggleAll = () => {
-    if (selectedOrders.size === allCancellable.length && allCancellable.length > 0) {
+    if (selectedOrders.size === selectableOrders.length && selectableOrders.length > 0) {
       setSelectedOrders(new Set());
     } else {
-      setSelectedOrders(new Set(allCancellable.map(o => o.id)));
+      setSelectedOrders(new Set(selectableOrders.map(o => o.id)));
+    }
+  };
+
+  // 주문 삭제 실행
+  const handleDeleteOrders = async () => {
+    if (deletableSelected.length === 0) return;
+    setIsDeleting(true);
+    try {
+      await api.post('/orders/bulk/delete', {
+        orderIds: deletableSelected.map(o => o.id),
+      });
+      toast({ title: '주문 삭제 완료', description: `${deletableSelected.length}건의 주문이 삭제되었습니다.` });
+      setSelectedOrders(new Set());
+      setShowDeleteDialog(false);
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['order-status-counts'] });
+    } catch (error) {
+      toast({ title: '삭제 실패', description: '주문 삭제 중 오류가 발생했습니다.', variant: 'destructive' });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -422,6 +451,18 @@ export default function MyOrdersPage() {
               선택 주문취소 ({cancellableSelected.length}건)
             </Button>
           )}
+          {deletableSelected.length > 0 && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs border-red-300 text-red-600 hover:bg-red-50"
+              onClick={() => setShowDeleteDialog(true)}
+            >
+              <XCircle className="h-3.5 w-3.5 mr-1" />
+              선택 삭제 ({deletableSelected.length}건)
+            </Button>
+          )}
           <select
             value={limit}
             onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
@@ -452,7 +493,7 @@ export default function MyOrdersPage() {
                   <TableRow className="bg-muted/60">
                     <TableHead className="text-center w-[40px]">
                       <Checkbox
-                        checked={allCancellable.length > 0 && selectedOrders.size === allCancellable.length}
+                        checked={selectableOrders.length > 0 && selectedOrders.size === selectableOrders.length}
                         onCheckedChange={toggleAll}
                         aria-label="전체 선택"
                       />
@@ -484,7 +525,7 @@ export default function MyOrdersPage() {
                         {/* 체크박스 - 첫 번째 항목에만 */}
                         {idx === 0 && (
                           <TableCell className="text-center align-top pt-3" rowSpan={items.length}>
-                            {isCancellable ? (
+                            {(isCancellable || DELETABLE_STATUSES.includes(order.status)) ? (
                               <Checkbox
                                 checked={selectedOrders.has(order.id)}
                                 onCheckedChange={() => toggleOrder(order.id)}
@@ -620,6 +661,46 @@ export default function MyOrdersPage() {
             </Button>
             <Button variant="destructive" onClick={handleCancelOrders} disabled={isCancelling}>
               {isCancelling ? '취소 처리 중...' : '주문 취소'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 주문 삭제 확인 다이얼로그 */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>주문 삭제 확인</DialogTitle>
+            <DialogDescription>
+              선택한 {deletableSelected.length}건의 주문을 삭제하시겠습니까?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 max-h-[300px] overflow-y-auto">
+            {deletableSelected.map((order) => (
+              <div key={order.id} className="flex items-center justify-between p-2 bg-muted/50 rounded text-sm">
+                <div>
+                  <span className="font-medium">{order.orderNumber}</span>
+                  <Badge className={cn('text-[10px] ml-2', STATUS_BADGE[order.status]?.className)}>
+                    {STATUS_BADGE[order.status]?.label}
+                  </Badge>
+                  <span className="text-muted-foreground ml-2">
+                    {order.items?.[0]?.productName}
+                    {(order.items?.length || 0) > 1 && ` 외 ${(order.items?.length || 0) - 1}건`}
+                  </span>
+                </div>
+                <span className="font-bold">{Number(order.finalAmount).toLocaleString()}원</span>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-destructive font-medium">
+            * 삭제된 주문은 복구할 수 없으며, 업로드된 파일도 함께 삭제됩니다.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} disabled={isDeleting}>
+              닫기
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteOrders} disabled={isDeleting}>
+              {isDeleting ? '삭제 처리 중...' : '주문 삭제'}
             </Button>
           </DialogFooter>
         </DialogContent>
