@@ -249,15 +249,6 @@ export default function MonthlySummaryPage() {
   // ===== 공통 헤더 컴포넌트 (약식/상세 공용) =====
   const PrintHeader = ({ title }: { title: string }) => (
     <>
-      {/* 상단: 회사명(우) + 출력일자 */}
-      <div className="flex justify-between items-start mb-2">
-        <div />
-        <div className="text-right">
-          <div className="text-[12pt] font-bold tracking-wide">(주)프린팅솔루션즈</div>
-          <div className="text-[8pt] text-gray-500">고품질 인쇄 서비스</div>
-        </div>
-      </div>
-
       {/* 타이틀 */}
       <h1 className="text-center text-[17pt] font-bold tracking-widest mb-1">{title}</h1>
       <div className="border-t-2 border-b border-black mb-3 pt-0.5" />
