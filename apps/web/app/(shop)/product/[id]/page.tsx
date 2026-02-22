@@ -323,6 +323,7 @@ export default function ProductPage() {
   }, [product, addItem, clearFolders, router, toast, defaultPageLayout, defaultBindingDirection, selectedOptions, copperPlateLabels]);
 
   const isAlbum = useMemo(() => isAlbumProduct(product?.bindings, product?.category?.name), [product?.bindings, product?.category?.name]);
+  const needsUpload = isAlbum || product?.requiresUpload;
 
   useEffect(() => {
     if (product) {

@@ -156,6 +156,7 @@ export interface Product {
   productType?: string;
   printType?: 'single' | 'double' | 'customer';
   useCopperPlate?: boolean;
+  requiresUpload?: boolean;
   createdAt: string;
   updatedAt: string;
 
