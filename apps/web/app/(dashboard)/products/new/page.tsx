@@ -37,7 +37,8 @@ import {
 import { useCategories } from '@/hooks/use-categories';
 import { useSpecifications } from '@/hooks/use-specifications';
 import { useHalfProducts } from '@/hooks/use-half-products';
-import { useCreateProduct } from '@/hooks/use-products';
+import { useCreateProduct, useProductTypes, useProcessTemplates, useProductTypeOptions } from '@/hooks/use-products';
+import { ProcessFlowSection } from '../components/ProcessFlowSection';
 import { useProductionGroupTree, type ProductionGroup } from '@/hooks/use-production';
 import { useFabrics, FABRIC_CATEGORY_LABELS, type FabricCategory } from '@/hooks/use-fabrics';
 import { useToast } from '@/hooks/use-toast';
@@ -65,6 +66,7 @@ import {
   Star,
   Eye,
   EyeOff,
+  Factory,
 } from 'lucide-react';
 
 // 제본방향 옵션
@@ -180,6 +182,12 @@ export default function NewProductPage() {
   const { data: productionGroupTree, isLoading: isTreeLoading } = useProductionGroupTree();
   const { data: fabricsData } = useFabrics({ forAlbumCover: true, isActive: true, limit: 200 });
 
+  // 상품 유형 선택
+  const [selectedProductType, setSelectedProductType] = useState<string>('');
+  const { data: productTypes } = useProductTypes();
+  const { data: processSteps } = useProcessTemplates(selectedProductType || undefined);
+  const { data: typeOptions } = useProductTypeOptions(selectedProductType || undefined);
+
   // 후가공옵션 카테고리 (ProductionGroup 트리에서 동적 로딩)
   const finishingGroup = useMemo(() => {
     if (!productionGroupTree) return null;
@@ -272,6 +280,30 @@ export default function NewProductPage() {
     }
   }, []);
 
+  // 상품 유형 변경 시 기본값 자동 설정
+  useEffect(() => {
+    if (typeOptions) {
+      if (typeOptions.printType) setPrintType(typeOptions.printType);
+      if (typeOptions.bindingDirection) setBindingDirection(typeOptions.bindingDirection);
+      // 규격 탭 자동 전환
+      if (typeOptions.specFilterType) {
+        const specTabMap: Record<string, typeof specType> = {
+          indigoAlbum: 'album',
+          inkjet: 'inkjet',
+          frame: 'frame',
+          booklet: 'booklet',
+        };
+        setSpecType(specTabMap[typeOptions.specFilterType] || 'album');
+      }
+    }
+  }, [typeOptions]);
+
+  // 섹션 표시 여부 판단 (범용 모드이면 모두 표시)
+  const shouldShow = (option: string): boolean => {
+    if (!selectedProductType || !typeOptions) return true; // 범용 모드
+    return typeOptions[`show${option.charAt(0).toUpperCase()}${option.slice(1)}` as keyof typeof typeOptions] as boolean;
+  };
+
   const handleImageUpload = async (file: File, index: number) => {
     const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
     if (!token) {
@@ -351,6 +383,7 @@ export default function NewProductPage() {
 
     try {
       const productData = {
+        productType: selectedProductType || undefined,
         productCode,
         productName,
         categoryId: finalCategoryId,
@@ -413,8 +446,10 @@ export default function NewProductPage() {
   return (
     <div className="space-y-5 pb-10 max-w-[1200px] mx-auto">
       <PageHeader
-        title="앨범상품 등록"
-        description="새로운 앨범 상품을 등록합니다."
+        title={selectedProductType
+          ? `${productTypes?.find(pt => pt.value === selectedProductType)?.label || ''} 상품 등록`
+          : '상품 등록'}
+        description="새로운 상품을 등록합니다."
         breadcrumbs={[
           { label: '홈', href: '/' },
           { label: '상품관리', href: '/products' },
@@ -427,6 +462,45 @@ export default function NewProductPage() {
           </Button>
         }
       />
+
+      {/* 상품 유형 선택 */}
+      <Card className="overflow-hidden border-0 shadow-sm ring-1 ring-slate-200/80 rounded-xl">
+        <SectionHeader icon={Factory} title="상품 유형" subtitle="등록할 상품 유형을 선택하면 필요한 옵션만 표시됩니다" theme="violet" />
+        <CardContent className="px-6 pb-5 pt-2">
+          <div className="grid grid-cols-4 gap-3">
+            {/* 범용(직접설정) 옵션 */}
+            <button
+              type="button"
+              onClick={() => setSelectedProductType('')}
+              className={`p-3 rounded-lg border-2 text-left transition-all ${
+                selectedProductType === '' ? 'border-violet-500 bg-violet-50' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <div className="font-medium text-sm text-slate-700">범용 (직접설정)</div>
+              <div className="text-xs text-slate-400 mt-0.5">모든 옵션 표시</div>
+            </button>
+            {/* 상품 유형 버튼들 */}
+            {productTypes?.map((pt) => (
+              <button
+                key={pt.value}
+                type="button"
+                onClick={() => setSelectedProductType(pt.value)}
+                className={`p-3 rounded-lg border-2 text-left transition-all ${
+                  selectedProductType === pt.value ? 'border-violet-500 bg-violet-50' : 'border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <div className="font-medium text-sm text-slate-700">{pt.label}</div>
+                <div className="text-xs text-slate-400 mt-0.5">{pt.stepCount}단계 공정</div>
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 공정 프로세스 시각화 */}
+      {processSteps && processSteps.length > 0 && (
+        <ProcessFlowSection steps={processSteps} />
+      )}
 
       {/* 기본정보 섹션 */}
       <Card className="overflow-hidden border-0 shadow-sm ring-1 ring-slate-200/80 rounded-xl">
@@ -724,24 +798,26 @@ export default function NewProductPage() {
                   ))}
                 </div>
               )}
-              <div className="flex gap-4 pt-2">
-                <Label className="text-xs text-slate-500">제본방향</Label>
-                <div className="flex gap-3">
-                  {BINDING_DIRECTION_OPTIONS.map(opt => (
-                    <label key={opt.value} className="flex items-center gap-1.5 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="bindingDirection"
-                        value={opt.value}
-                        checked={bindingDirection === opt.value}
-                        onChange={(e) => setBindingDirection(e.target.value)}
-                        className="w-3.5 h-3.5 text-emerald-600"
-                      />
-                      <span className="text-xs">{opt.label}</span>
-                    </label>
-                  ))}
+              {shouldShow('bindingDirection') && (
+                <div className="flex gap-4 pt-2">
+                  <Label className="text-xs text-slate-500">제본방향</Label>
+                  <div className="flex gap-3">
+                    {BINDING_DIRECTION_OPTIONS.map(opt => (
+                      <label key={opt.value} className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="bindingDirection"
+                          value={opt.value}
+                          checked={bindingDirection === opt.value}
+                          onChange={(e) => setBindingDirection(e.target.value)}
+                          className="w-3.5 h-3.5 text-emerald-600"
+                        />
+                        <span className="text-xs">{opt.label}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* 출력구분 */}
