@@ -1,0 +1,34 @@
+name: Deploy to Synology
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            cd /volume1/docker/printing114
+
+            echo "=== Git Pull ==="
+            git pull origin main
+
+            echo "=== Docker Rebuild & Restart ==="
+            sudo docker-compose -f docker-compose.prod.yml up -d --build
+
+            echo "=== Waiting for startup (30s) ==="
+            sleep 30
+
+            echo "=== Container Status ==="
+            sudo docker ps --filter 'name=photocafe' --format 'table {{.Names}}\t{{.Status}}'
+
+            echo "=== Health Check ==="
+            curl -sf http://localhost:3001/health || echo "API health check failed"
