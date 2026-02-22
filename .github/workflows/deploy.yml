@@ -1,12 +1,19 @@
 name: Deploy to Synology
 
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
+    inputs:
+      skip_build:
+        description: '빌드 없이 재시작만 (코드 변경 없을 때)'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -15,20 +22,78 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT }}
+          command_timeout: 10m
           script: |
+            set -e
             cd /volume1/docker/printing114
 
-            echo "=== Git Pull ==="
+            echo "=========================================="
+            echo "  Printing114 배포 시작"
+            echo "  시각: $(date '+%Y-%m-%d %H:%M:%S')"
+            echo "=========================================="
+
+            # 1. Git Pull
+            echo ""
+            echo "=== [1/5] Git Pull ==="
             git pull origin main
+            echo "현재 커밋: $(git log --oneline -1)"
 
-            echo "=== Docker Rebuild & Restart ==="
-            sudo docker-compose -f docker-compose.prod.yml up -d --build
+            # 2. Docker 빌드 & 재시작
+            echo ""
+            if [ "${{ inputs.skip_build }}" = "true" ]; then
+              echo "=== [2/5] Docker 재시작 (빌드 스킵) ==="
+              sudo docker-compose -f docker-compose.prod.yml restart api web
+            else
+              echo "=== [2/5] Docker 빌드 & 재시작 ==="
+              sudo docker-compose -f docker-compose.prod.yml up -d --build api web
+            fi
 
-            echo "=== Waiting for startup (30s) ==="
-            sleep 30
+            # 3. 시작 대기
+            echo ""
+            echo "=== [3/5] 서버 시작 대기 ==="
+            for i in $(seq 1 12); do
+              sleep 5
+              if curl -sf http://localhost:3001/health > /dev/null 2>&1; then
+                echo "API 서버 준비 완료! (${i}x5 = $((i*5))초)"
+                break
+              fi
+              echo "대기 중... ($((i*5))초)"
+            done
 
-            echo "=== Container Status ==="
-            sudo docker ps --filter 'name=photocafe' --format 'table {{.Names}}\t{{.Status}}'
+            # 4. 컨테이너 상태
+            echo ""
+            echo "=== [4/5] 컨테이너 상태 ==="
+            sudo docker ps --filter 'name=photocafe' --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
 
-            echo "=== Health Check ==="
-            curl -sf http://localhost:3001/health || echo "API health check failed"
+            # 5. Health Check
+            echo ""
+            echo "=== [5/5] Health Check ==="
+            API_HEALTH=$(curl -sf http://localhost:3001/health 2>&1) && {
+              echo "API: OK"
+              echo "$API_HEALTH"
+            } || {
+              echo "API: FAILED"
+              echo "최근 로그:"
+              sudo docker logs photocafe-api --tail 30
+              exit 1
+            }
+
+            echo ""
+            echo "=========================================="
+            echo "  배포 완료! $(date '+%Y-%m-%d %H:%M:%S')"
+            echo "=========================================="
+
+      - name: Deployment Summary
+        if: always()
+        run: |
+          echo "## Deployment Result" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Time**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "- **Triggered by**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Skip build**: ${{ inputs.skip_build }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Links" >> $GITHUB_STEP_SUMMARY
+          echo "- API: http://1.212.201.147:3001" >> $GITHUB_STEP_SUMMARY
+          echo "- WEB: http://1.212.201.147:3000" >> $GITHUB_STEP_SUMMARY
+          echo "- Swagger: http://1.212.201.147:3001/api/docs" >> $GITHUB_STEP_SUMMARY

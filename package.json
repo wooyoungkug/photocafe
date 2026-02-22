@@ -32,7 +32,9 @@
     "db:dump": "npm -w apps/api run db:dump",
     "db:restore": "npm -w apps/api run db:restore",
     "lint": "npm run lint --workspaces",
-    "format": "prettier --write \"**/*.{ts,tsx,json,md}\""
+    "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
+    "deploy": "bash scripts/deploy-production.sh",
+    "deploy:setup": "pwsh scripts/setup-synology-deploy.ps1"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
