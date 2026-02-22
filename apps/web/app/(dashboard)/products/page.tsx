@@ -42,6 +42,7 @@ import {
   useDeleteProduct,
 } from '@/hooks/use-products';
 import { useCategories } from '@/hooks/use-categories';
+import { useToast } from '@/hooks/use-toast';
 import { normalizeImageUrl } from '@/lib/utils';
 import type { Product, CreateProductDto } from '@/lib/types';
 import {
@@ -76,6 +77,7 @@ export default function ProductsPage() {
   });
 
   const { data: categoriesData } = useCategories();
+  const { toast } = useToast();
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
@@ -130,18 +132,37 @@ export default function ProductsPage() {
   };
 
   const handleSubmit = async () => {
-    if (editingProduct) {
-      await updateProduct.mutateAsync({ id: editingProduct.id, data: formData });
-    } else {
-      await createProduct.mutateAsync(formData);
+    try {
+      if (editingProduct) {
+        await updateProduct.mutateAsync({ id: editingProduct.id, data: formData });
+        toast({ title: '상품이 수정되었습니다.' });
+      } else {
+        await createProduct.mutateAsync(formData);
+        toast({ title: formData.productCode.includes('_복사') ? '상품이 복사되었습니다.' : '상품이 추가되었습니다.' });
+      }
+      setIsDialogOpen(false);
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: '오류',
+        description: error instanceof Error ? error.message : '상품 저장에 실패했습니다.',
+      });
     }
-    setIsDialogOpen(false);
   };
 
   const handleDelete = async () => {
     if (deleteConfirm) {
-      await deleteProduct.mutateAsync(deleteConfirm.id);
-      setDeleteConfirm(null);
+      try {
+        await deleteProduct.mutateAsync(deleteConfirm.id);
+        setDeleteConfirm(null);
+        toast({ title: '상품이 삭제되었습니다.' });
+      } catch (error) {
+        toast({
+          variant: 'destructive',
+          title: '삭제 실패',
+          description: error instanceof Error ? error.message : '상품 삭제에 실패했습니다.',
+        });
+      }
     }
   };
 
