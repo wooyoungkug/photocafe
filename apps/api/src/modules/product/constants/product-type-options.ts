@@ -154,6 +154,25 @@ export const PRODUCT_TYPE_OPTIONS: Record<ProductType, ProductTypeOptions> = {
     paperPrintMethod: 'inkjet',
   },
 
+  // 단품출력: 잉크젯 단면, 제본/커버/박/원단 숨김
+  single_print: {
+    printType: 'single',
+    bindingDirection: null,
+    specFilterType: 'inkjet',
+    defaultBinding: null,
+    showSpecification: true,
+    showBinding: false,
+    showPaper: true,
+    showCover: false,
+    showFoil: false,
+    showFabric: false,
+    showFinishing: false,
+    showOutputPrice: true,
+    showCopperPlate: false,
+    showBindingDirection: false,
+    paperPrintMethod: 'inkjet',
+  },
+
   // 동판: 대부분 숨김, 동판 연결만 표시
   copper_plate: {
     printType: null,

@@ -497,6 +497,53 @@ export const PRODUCT_PROCESS_TEMPLATES: Record<
     },
   ],
 
+  // 단품출력: 수주→파일보정→잉크젯출력→재단→QC→출하
+  single_print: [
+    {
+      stepOrder: 1,
+      stepCode: 'order_receipt',
+      stepName: '수주',
+      stepNameEn: 'Order Receipt',
+      department: 'CS',
+    },
+    {
+      stepOrder: 2,
+      stepCode: 'file_correction',
+      stepName: '파일보정',
+      stepNameEn: 'File Correction',
+      department: 'DESIGN',
+    },
+    {
+      stepOrder: 3,
+      stepCode: 'inkjet_print',
+      stepName: '잉크젯출력',
+      stepNameEn: 'Inkjet Print',
+      department: 'PROD',
+    },
+    {
+      stepOrder: 4,
+      stepCode: 'cutting',
+      stepName: '재단',
+      stepNameEn: 'Cutting',
+      department: 'PROD',
+    },
+    {
+      stepOrder: 5,
+      stepCode: 'qc',
+      stepName: 'QC',
+      stepNameEn: 'Quality Check',
+      department: 'PROD',
+      isCheckpoint: true,
+    },
+    {
+      stepOrder: 6,
+      stepCode: 'shipping',
+      stepName: '출하',
+      stepNameEn: 'Shipping',
+      department: 'CS',
+    },
+  ],
+
   // 동판: 수주→도안확인→레이저각인→QC→출하
   copper_plate: [
     {
