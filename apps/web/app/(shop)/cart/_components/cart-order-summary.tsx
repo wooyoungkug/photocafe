@@ -118,6 +118,46 @@ export function CartOrderSummary({
                   <span>{combinedTotal.toLocaleString()}원</span>
                 </div>
 
+                {/* 이전 배송비 환불 상태 */}
+                {(() => {
+                  const origFee = sameDayInfo.totalShippingOriginal ?? 0;
+                  const refunded = sameDayInfo.totalShippingRefunded ?? 0;
+                  const pending = sameDayInfo.totalShippingCharged; // net = original - refunded
+                  if (origFee === 0) return null;
+                  return (
+                    <div className="pt-1 border-t border-dashed border-green-200 text-[11px] space-y-0.5">
+                      <div className="flex justify-between text-gray-400">
+                        <span>이전 배송비</span>
+                        <span>{origFee.toLocaleString()}원</span>
+                      </div>
+                      {refunded > 0 && (
+                        <div className="flex justify-between text-green-600">
+                          <span>환불 완료</span>
+                          <span>-{refunded.toLocaleString()}원</span>
+                        </div>
+                      )}
+                      {isFree && pending > 0 && (
+                        <div className="flex justify-between text-green-600 font-medium">
+                          <span>주문 시 환불 예정</span>
+                          <span>-{pending.toLocaleString()}원</span>
+                        </div>
+                      )}
+                      {!isFree && pending > 0 && (
+                        <div className="flex justify-between text-gray-400">
+                          <span>미환불</span>
+                          <span>{pending.toLocaleString()}원</span>
+                        </div>
+                      )}
+                      {origFee > 0 && refunded >= origFee && pending === 0 && (
+                        <div className="flex justify-between text-green-600 font-medium">
+                          <span>전액 환불 완료</span>
+                          <span>-{origFee.toLocaleString()}원</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 {/* 진행 바 */}
                 <Progress
                   value={progress}

@@ -12,11 +12,15 @@ interface CartSameDayShippingBannerProps {
 export function CartSameDayShippingBanner({ info, newOrderTotal }: CartSameDayShippingBannerProps) {
   if (!info.applicable) return null;
 
-  const { totalProductAmount, totalShippingCharged, freeThreshold, ordersWithFee } = info;
+  const { totalProductAmount, totalShippingCharged, totalShippingOriginal = 0, totalShippingRefunded = 0, freeThreshold, ordersWithFee } = info;
   const combinedTotal = totalProductAmount + newOrderTotal;
   const remaining = freeThreshold - combinedTotal;
   const isBundleFree = ordersWithFee.length > 0; // 당일 이미 배송비 청구됨 → 묶음배송 무료
   const isFreeEligible = !isBundleFree && combinedTotal >= freeThreshold; // 임계값 달성
+  // 환불 상태: 원래 배송비가 있었고 이미 환불 처리된 경우
+  const hasRefundCompleted = totalShippingOriginal > 0 && totalShippingRefunded > 0;
+  // 미환불 배송비: 아직 환불 안 된 금액 (이번 주문 시 환불 예정)
+  const pendingRefundAmount = totalShippingCharged; // net = original - refunded
 
   // 오늘 주문이 없으면 배너 불필요
   if (totalProductAmount === 0) return null;
@@ -71,6 +75,22 @@ export function CartSameDayShippingBanner({ info, newOrderTotal }: CartSameDaySh
               <span className="font-semibold">조건부 무료배송</span>
               이 적용됩니다.
             </p>
+            {/* 이전 배송비 환불 상태 */}
+            {hasRefundCompleted && (
+              <p className="text-[11px] text-green-500 mt-0.5">
+                이전 배송비 {totalShippingOriginal.toLocaleString()}원 중{' '}
+                <span className="font-semibold">{totalShippingRefunded.toLocaleString()}원 환불 완료</span>
+                {pendingRefundAmount > 0 && (
+                  <> · {pendingRefundAmount.toLocaleString()}원 주문 시 환불 예정</>
+                )}
+              </p>
+            )}
+            {!hasRefundCompleted && pendingRefundAmount > 0 && (
+              <p className="text-[11px] text-green-500 mt-0.5">
+                이전 배송비 {pendingRefundAmount.toLocaleString()}원{' '}
+                <span className="font-semibold">주문 시 환불 예정</span>
+              </p>
+            )}
           </>
         ) : (
           <>

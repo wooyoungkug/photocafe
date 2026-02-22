@@ -2316,7 +2316,10 @@ export class OrderService {
       applicable: true,
       totalProductAmount,
       totalShippingCharged: netShippingCharged,
-      ordersWithFee: netShippingCharged > 0 ? ordersWithFee : [],
+      // 환불 상세: 원래 청구된 배송비 vs 이미 환불된 금액
+      totalShippingOriginal: totalShippingCharged,
+      totalShippingRefunded: Math.min(totalAdjustmentApplied, totalShippingCharged),
+      ordersWithFee,
       freeThreshold: (client as any).freeShippingThreshold ?? 90000,
       pendingAdjustmentAmount: Number((client as any).pendingAdjustmentAmount ?? 0),
       pendingAdjustmentReason: (client as any).pendingAdjustmentReason ?? null,

@@ -13,6 +13,10 @@ export interface SameDayShippingInfo {
   applicable: boolean;
   totalProductAmount: number;
   totalShippingCharged: number;
+  /** 원래 청구된 배송비 총액 (환불 전) */
+  totalShippingOriginal: number;
+  /** 이미 환불 처리된 배송비 금액 */
+  totalShippingRefunded: number;
   freeThreshold: number;
   ordersWithFee: SameDayOrderWithFee[];
 }
