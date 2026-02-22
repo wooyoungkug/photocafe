@@ -432,48 +432,66 @@ export default function OrderPage() {
 
   const subtotal = getTotal();
 
-  // 합배송 적용 여부 계산 (hooks는 early return 전에 선언해야 함)
-  const combinedShipping = useMemo(() => {
-    if (!sameDayData?.applicable) return null;
-    const combinedTotal = sameDayData.totalProductAmount + subtotal;
-    // 당일 누적(이전 주문 + 현재 카트)이 기준금액 이상이면 이번 주문 무료
-    const isTriggered = combinedTotal >= sameDayData.freeThreshold;
-    // 합배송 조건 충족 + 이전 주문에 청구된 배송비가 있으면 환급
-    const shouldRefundPrevious = isTriggered && sameDayData.totalShippingCharged > 0;
-    return { ...sameDayData, isTriggered, shouldRefundPrevious, cartSubtotal: subtotal, combinedTotal };
-  }, [sameDayData, subtotal]);
-
-  const totalShippingFee = items.reduce((sum, item) => {
-    const shipping = item.albumOrderInfo?.shippingInfo || itemShippingMap[item.id];
-    return sum + (shipping?.deliveryFee || 0);
-  }, 0);
+  // 스튜디오배송 상품 합계 (무료배송 기준 비교용 - 고객직배송 제외)
+  const studioItemsTotal = useMemo(() => {
+    return items
+      .filter((item) => {
+        const sh = item.albumOrderInfo?.shippingInfo || itemShippingMap[item.id];
+        return sh?.receiverType === 'orderer';
+      })
+      .reduce((sum, item) => sum + item.totalPrice, 0);
+  }, [items, itemShippingMap]);
 
   const freeShippingThreshold = shippingClientInfo?.freeShippingThreshold ?? 90000;
 
-  // 단일배치 복수주문: 조건부택배 + 2건이상 + 합계 < 기준금액 → 택배비 1회만 청구
-  const batchSingleShipping = useMemo(() => {
-    if (shippingClientInfo?.shippingType !== 'conditional') return false;
-    if (items.length < 2) return false;
-    if (subtotal >= freeShippingThreshold) return false;
-    return true;
-  }, [shippingClientInfo?.shippingType, shippingClientInfo?.freeShippingThreshold, items.length, subtotal, freeShippingThreshold]);
+  // 합배송 적용 여부 계산 (hooks는 early return 전에 선언해야 함)
+  // 스튜디오배송 상품만 기준으로 판단 (고객직배송은 합배송 대상 아님)
+  const combinedShipping = useMemo(() => {
+    if (!sameDayData?.applicable) return null;
+    const combinedTotal = sameDayData.totalProductAmount + studioItemsTotal;
+    // 당일 누적(이전 주문 + 현재 스튜디오배송)이 기준금액 이상이면 스튜디오배송 무료
+    const isTriggered = combinedTotal >= sameDayData.freeThreshold;
+    // 묶음배송: 당일 이미 배송비가 청구된 주문이 있으면 이번 주문 스튜디오배송 무료
+    const isBundledFree = sameDayData.ordersWithFee?.length > 0;
+    const isStudioFree = isTriggered || isBundledFree;
+    // 합배송 조건 충족 + 이전 주문에 청구된 배송비가 있으면 환급 (임계값 달성 시에만)
+    const shouldRefundPrevious = isTriggered && sameDayData.totalShippingCharged > 0;
+    return { ...sameDayData, isTriggered, isBundledFree, isStudioFree, shouldRefundPrevious, studioTotal: studioItemsTotal, combinedTotal };
+  }, [sameDayData, studioItemsTotal]);
 
-  // 배치 배송비: 비직배송 첫 번째 아이템 배송비만 부과
-  const batchShippingFee = useMemo(() => {
-    if (!batchSingleShipping) return totalShippingFee;
+  // 스튜디오배송 무료 여부 (거래처 배송타입 + 합배송 포함)
+  const isStudioFree = useMemo(() => {
+    return shippingClientInfo?.shippingType === 'free' ||
+      (shippingClientInfo?.shippingType === 'conditional' && studioItemsTotal >= freeShippingThreshold) ||
+      !!combinedShipping?.isStudioFree;
+  }, [shippingClientInfo?.shippingType, studioItemsTotal, freeShippingThreshold, combinedShipping?.isStudioFree]);
+
+  // 배송비 합계: 장바구니와 동일한 로직
+  // - 고객직배송: 무조건 청구 (개별 배송)
+  // - 스튜디오배송: 무료 조건 미달 시 배송방법별 1회만 청구
+  const totalShippingFee = useMemo(() => {
+    let total = 0;
+    const chargedStudioMethods = new Set<string>();
+
     for (const item of items) {
-      const shipping = item.albumOrderInfo?.shippingInfo || itemShippingMap[item.id];
-      if (shipping?.receiverType !== 'direct_customer') {
-        return shipping?.deliveryFee ?? 0;
+      const sh = item.albumOrderInfo?.shippingInfo || itemShippingMap[item.id];
+      if (!sh || sh.deliveryMethod === 'pickup') continue;
+
+      if (sh.receiverType === 'direct_customer') {
+        // 고객직배송: 조건 없이 항목별 청구
+        total += sh.deliveryFee || 0;
+      } else if (sh.receiverType === 'orderer' && !isStudioFree) {
+        // 스튜디오배송: 동일 배송방법은 1회만 청구 (합배송)
+        if (!chargedStudioMethods.has(sh.deliveryMethod)) {
+          chargedStudioMethods.add(sh.deliveryMethod);
+          total += sh.deliveryFee || 0;
+        }
       }
     }
-    return 0;
-  }, [batchSingleShipping, totalShippingFee, items, itemShippingMap]);
+    return total;
+  }, [items, itemShippingMap, isStudioFree]);
 
-  // 합배송 적용 시 배송비와 조정금액 반영
-  const effectiveShippingFee = combinedShipping?.isTriggered ? 0
-    : batchSingleShipping ? batchShippingFee
-    : totalShippingFee;
+  const effectiveShippingFee = totalShippingFee;
   // 이전 배송비 환급: 이번 주문으로 처음 기준을 넘는 경우에만 차감
   const combinedShippingAdjustment = combinedShipping?.shouldRefundPrevious ? -(combinedShipping.totalShippingCharged) : 0;
   // 미결 조정금액: 양수=크레딧(차감), 음수=부채(추가청구) → total에 반대 부호로 반영
@@ -642,21 +660,38 @@ export default function OrderPage() {
       };
     });
 
-    // 합배송 적용: 비직배송 주문의 배송비 0원 처리 (당일 기준금액 달성 시 이번 주문 무료)
-    if (combinedShipping?.isTriggered) {
+    // 배송비 조정: 장바구니와 동일한 로직 적용
+    // - 고객직배송(direct_customer): 항상 개별 청구
+    // - 스튜디오배송(orderer): 무료 조건 충족 시 0원, 미달 시 배송방법별 1회만 청구
+    {
+      const chargedStudioMethods = new Set<string>();
       let creditApplied = false;
       for (const od of orderDataList) {
-        const isDirectCustomer = od.items?.[0]?.shipping?.receiverType === 'direct_customer';
-        if (!isDirectCustomer) {
-          od.shippingFee = 0;
-          // 아이템 레벨 deliveryFee도 0으로 처리 (백엔드가 아이템 배송비를 우선 사용하므로)
-          if (od.items?.[0]?.shipping) {
-            od.items[0].shipping.deliveryFee = 0;
-          }
-          // 이전 주문 배송비 환급: adjustmentAmount에 양수로 설정 (양수=할인)
-          if (combinedShipping.shouldRefundPrevious && !creditApplied && combinedShipping.totalShippingCharged > 0) {
-            od.adjustmentAmount = combinedShipping.totalShippingCharged;
-            creditApplied = true;
+        const receiverType = od.items?.[0]?.shipping?.receiverType;
+        const deliveryMethod = od.items?.[0]?.shipping?.deliveryMethod;
+
+        if (receiverType === 'direct_customer') {
+          // 고객직배송: 배송비 그대로 유지
+        } else if (receiverType === 'orderer') {
+          if (isStudioFree) {
+            // 스튜디오 무료배송: 배송비 0원
+            od.shippingFee = 0;
+            if (od.items?.[0]?.shipping) {
+              od.items[0].shipping.deliveryFee = 0;
+            }
+            // 이전 주문 배송비 환급 (임계값 달성 시에만)
+            if (combinedShipping?.shouldRefundPrevious && !creditApplied && combinedShipping.totalShippingCharged > 0) {
+              od.adjustmentAmount = combinedShipping.totalShippingCharged;
+              creditApplied = true;
+            }
+          } else if (deliveryMethod && chargedStudioMethods.has(deliveryMethod)) {
+            // 동일 배송방법 중복: 2번째부터 0원
+            od.shippingFee = 0;
+            if (od.items?.[0]?.shipping) {
+              od.items[0].shipping.deliveryFee = 0;
+            }
+          } else if (deliveryMethod) {
+            chargedStudioMethods.add(deliveryMethod);
           }
         }
       }
@@ -670,25 +705,6 @@ export default function OrderPage() {
         if (!isDirectCustomer) {
           od.adjustmentAmount = (od.adjustmentAmount ?? 0) + pendingAdjustmentAmount;
           break;
-        }
-      }
-    }
-
-    // 단일배치 복수주문 배송비 1회 청구: 비직배송 첫 번째만 배송비 유지, 나머지 0원
-    if (batchSingleShipping && !combinedShipping?.isTriggered) {
-      let firstCharged = false;
-      for (const od of orderDataList) {
-        const isDirectCustomer = od.items?.[0]?.shipping?.receiverType === 'direct_customer';
-        if (!isDirectCustomer) {
-          if (firstCharged) {
-            od.shippingFee = 0;
-            // 아이템 레벨 deliveryFee도 0으로 처리 (백엔드가 아이템 배송비를 우선 사용하므로)
-            if (od.items?.[0]?.shipping) {
-              od.items[0].shipping.deliveryFee = 0;
-            }
-          } else {
-            firstCharged = true;
-          }
         }
       }
     }
@@ -985,8 +1001,8 @@ export default function OrderPage() {
                   <CardTitle>결제 금액</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* 합배송 적용 배너 (당일 누적) */}
-                  {combinedShipping?.isTriggered && (
+                  {/* 합배송 무료배송 배너 (스튜디오배송 대상만) */}
+                  {combinedShipping?.isStudioFree && studioItemsTotal > 0 && (
                     <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-start gap-2 text-sm">
                       <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
                       <div>
@@ -996,20 +1012,9 @@ export default function OrderPage() {
                           (기준 {combinedShipping.freeThreshold.toLocaleString()}원 이상)
                           {combinedShipping.shouldRefundPrevious && combinedShipping.totalShippingCharged > 0
                             ? ` — 이전 배송비 ${combinedShipping.totalShippingCharged.toLocaleString()}원 차감`
-                            : ' — 배송비 무료'}
+                            : ' — 스튜디오배송 무료'}
                         </p>
                       </div>
-                    </div>
-                  )}
-
-                  {/* 단일배치 복수주문 배송비 1회 안내 */}
-                  {batchSingleShipping && !combinedShipping?.isTriggered && (
-                    <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-2 text-xs text-blue-700">
-                      <Truck className="h-3.5 w-3.5 flex-shrink-0" />
-                      <span>
-                        {items.length}건 동시 주문 — 택배비 1회 적용
-                        ({freeShippingThreshold.toLocaleString()}원 미만)
-                      </span>
                     </div>
                   )}
 
