@@ -101,16 +101,16 @@ export default function MonthlySummaryPage() {
     return Array.from(groups.entries());
   }, [allMonthOrders]);
 
-  // 일자별 적요 (대표 상품명 + 외 N건)
+  // 일자별 적요 (대표 상품명 + 외 주문N건)
   const dateDescriptions = useMemo(() => {
     const map = new Map<string, string>();
     ordersByDate.forEach(([date, orders]) => {
       const firstItem = orders[0]?.items?.[0];
-      const firstName = firstItem?.folderName || firstItem?.productName?.split(' - ')[0] || '주문';
+      const productName = firstItem?.productName?.split(' - ')[0] || '주문';
       if (orders.length === 1) {
-        map.set(date, firstName);
+        map.set(date, productName);
       } else {
-        map.set(date, `${firstName} 외 ${orders.length - 1}건`);
+        map.set(date, `${productName} 외 주문 ${orders.length - 1}건`);
       }
     });
     return map;
