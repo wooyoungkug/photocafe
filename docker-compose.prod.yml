@@ -58,11 +58,10 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    # ⚡ 메모리 제한 (PDF 생성용 2GB 증설)
+    # ⚡ 메모리 제한 (PDF 생성용 2GB 증설, Synology NAS는 CPU CFS 미지원이라 cpus 제외)
     deploy:
       resources:
         limits:
-          cpus: '2'
           memory: 2G
         reservations:
           memory: 1G
@@ -102,11 +101,10 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-    # ⚡ 메모리 제한 추가
+    # ⚡ 메모리 제한 추가 (Synology NAS는 CPU CFS 미지원이라 cpus 제외)
     deploy:
       resources:
         limits:
-          cpus: '2'
           memory: 1G
         reservations:
           memory: 512M

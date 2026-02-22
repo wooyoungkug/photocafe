@@ -988,14 +988,18 @@ export default function EditProductPage() {
                 <div className="flex gap-4 items-center">
                   <Label className="text-xs text-slate-500">출력구분</Label>
                   <div className="flex gap-3">
-                    {PRINT_TYPE_OPTIONS.filter(opt => opt.value !== 'customer').map(opt => (
-                      <label key={opt.value} className={`flex items-center gap-1.5 ${selectedBindings.length === 0 ? 'opacity-50' : ''}`}>
+                    {(selectedBindings.length > 0
+                      ? PRINT_TYPE_OPTIONS.filter(opt => opt.value !== 'customer')
+                      : PRINT_TYPE_OPTIONS
+                    ).map(opt => (
+                      <label key={opt.value} className="flex items-center gap-1.5 cursor-pointer">
                         <input
                           type="radio"
                           name="printType"
                           value={opt.value}
                           checked={printType === opt.value}
-                          disabled
+                          disabled={selectedBindings.length > 0}
+                          onChange={(e) => setPrintType(e.target.value)}
                           className="w-3.5 h-3.5 text-emerald-600"
                         />
                         <span className="text-xs">{opt.label}</span>
@@ -1004,7 +1008,9 @@ export default function EditProductPage() {
                   </div>
                 </div>
                 <p className="text-[10px] text-slate-400">
-                  ※ 제본방법에 따라 자동으로 설정됩니다
+                  {selectedBindings.length > 0
+                    ? '※ 제본방법에 따라 자동으로 설정됩니다'
+                    : '※ 제본 없이 출력만 하는 상품은 직접 선택하세요'}
                 </p>
               </div>
             </div>
