@@ -2365,79 +2365,68 @@ function OutputPriceSelectionForm({
 
       {/* Step 1: 출력방식 선택 */}
       {step === 1 && (
-        <div className="flex-1 overflow-y-auto p-4">
-          <p className="text-sm text-slate-500 mb-4">출력방식을 선택해주세요.</p>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-3">
-              <button
-                type="button"
-                className={`w-full p-6 rounded-xl border-2 transition-all ${outputMethod === 'INDIGO'
-                  ? 'border-emerald-500 bg-emerald-50'
-                  : 'border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50'
-                  }`}
-                onClick={() => {
-                  setOutputMethod(outputMethod === 'INDIGO' ? null : 'INDIGO');
-                  setSelectedSetting(null);
-                  setSelectedSettingId('');
-                }}
-              >
-                <div className="text-3xl mb-2">🖨️</div>
-                <div className="font-semibold text-lg">인디고 출력</div>
-                <div className="text-sm text-slate-500 mt-1">4도/6도 선택, Up별 가격</div>
-              </button>
-              {/* 인디고 출력 선택 시 하단에 세팅 목록 표시 */}
-              {outputMethod === 'INDIGO' && (
-                <div className="border rounded-lg p-3 bg-emerald-50/50 max-h-[250px] overflow-y-auto">
-                  <p className="text-xs font-medium text-slate-600 mb-2">단가설정 선택</p>
-                  {productionGroupTree && productionGroupTree.length > 0 ? (
-                    <div className="space-y-1">
-                      {renderGroupTreeCompact(productionGroupTree, 'INDIGO')}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-slate-400 text-center py-4">등록된 단가설정이 없습니다.</p>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className="space-y-3">
-              <button
-                type="button"
-                disabled={isHwaboBinding}
-                className={`w-full p-6 rounded-xl border-2 transition-all ${isHwaboBinding
-                  ? 'border-slate-200 bg-slate-100 opacity-50 cursor-not-allowed'
-                  : outputMethod === 'INKJET'
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-slate-200 hover:border-blue-300 hover:bg-blue-50/50'
-                  }`}
-                onClick={() => {
-                  if (isHwaboBinding) return;
-                  setOutputMethod(outputMethod === 'INKJET' ? null : 'INKJET');
-                  setSelectedSetting(null);
-                  setSelectedSettingId('');
-                }}
-              >
-                <div className="text-3xl mb-2">💧</div>
-                <div className="font-semibold text-lg">잉크젯 출력</div>
-                <div className="text-sm text-slate-500 mt-1">규격별 가격</div>
-                {isHwaboBinding && (
-                  <div className="text-xs text-red-500 mt-2">※ 화보/스타제본/포토북은 인디고만 가능</div>
-                )}
-              </button>
-              {/* 잉크젯 출력 선택 시 하단에 세팅 목록 표시 */}
-              {outputMethod === 'INKJET' && !isHwaboBinding && (
-                <div className="border rounded-lg p-3 bg-blue-50/50 max-h-[250px] overflow-y-auto">
-                  <p className="text-xs font-medium text-slate-600 mb-2">단가설정 선택</p>
-                  {productionGroupTree && productionGroupTree.length > 0 ? (
-                    <div className="space-y-1">
-                      {renderGroupTreeCompact(productionGroupTree, 'INKJET')}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-slate-400 text-center py-4">등록된 단가설정이 없습니다.</p>
-                  )}
-                </div>
-              )}
-            </div>
+        <div className="flex-1 overflow-y-auto px-4 pb-4">
+          {/* 출력방식 탭 버튼 */}
+          <div className="flex gap-2 mb-3">
+            <button
+              type="button"
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-all ${outputMethod === 'INDIGO'
+                ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm'
+                : 'border-slate-200 text-slate-600 hover:border-emerald-300 hover:bg-emerald-50/50'
+                }`}
+              onClick={() => {
+                setOutputMethod(outputMethod === 'INDIGO' ? null : 'INDIGO');
+                setSelectedSetting(null);
+                setSelectedSettingId('');
+              }}
+            >
+              <span className="text-base">🖨️</span>
+              <span>인디고 출력</span>
+              <span className="text-xs text-slate-400 font-normal">4도/6도, Up별</span>
+            </button>
+            <button
+              type="button"
+              disabled={isHwaboBinding}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-all ${isHwaboBinding
+                ? 'border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed'
+                : outputMethod === 'INKJET'
+                  ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
+                  : 'border-slate-200 text-slate-600 hover:border-blue-300 hover:bg-blue-50/50'
+                }`}
+              onClick={() => {
+                if (isHwaboBinding) return;
+                setOutputMethod(outputMethod === 'INKJET' ? null : 'INKJET');
+                setSelectedSetting(null);
+                setSelectedSettingId('');
+              }}
+            >
+              <span className="text-base">💧</span>
+              <span>잉크젯 출력</span>
+              <span className="text-xs text-slate-400 font-normal">규격별</span>
+            </button>
+            {isHwaboBinding && (
+              <span className="text-xs text-red-500 self-center ml-1">※ 화보/스타제본/포토북은 인디고만 가능</span>
+            )}
           </div>
+
+          {/* 단가설정 트리 */}
+          {outputMethod && (
+            <div className={`border rounded-lg p-3 flex-1 overflow-y-auto ${outputMethod === 'INDIGO' ? 'bg-emerald-50/30 border-emerald-200' : 'bg-blue-50/30 border-blue-200'}`}>
+              <p className="text-xs font-medium text-slate-500 mb-2">단가설정을 선택하세요</p>
+              {productionGroupTree && productionGroupTree.length > 0 ? (
+                <div className="space-y-0.5">
+                  {renderGroupTreeCompact(productionGroupTree, outputMethod)}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400 text-center py-6">등록된 단가설정이 없습니다.</p>
+              )}
+            </div>
+          )}
+          {!outputMethod && (
+            <div className="flex items-center justify-center py-12 text-slate-400 text-sm">
+              출력방식을 선택해주세요.
+            </div>
+          )}
         </div>
       )}
 
