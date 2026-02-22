@@ -35,10 +35,11 @@ jobs:
             echo "  시각: $(date '+%Y-%m-%d %H:%M:%S')"
             echo "=========================================="
 
-            # 1. Git Pull
+            # 1. Git Fetch & Reset
             echo ""
-            echo "=== [1/5] Git Pull ==="
-            git pull origin main
+            echo "=== [1/5] Git Fetch & Reset ==="
+            git fetch origin main
+            git reset --hard origin/main
             echo "현재 커밋: $(git log --oneline -1)"
 
             # 2. Docker 빌드 & 재시작
