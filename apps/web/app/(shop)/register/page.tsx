@@ -919,7 +919,7 @@ export default function RegisterPage() {
             className="w-full bg-[#03C75A] hover:bg-[#02b351] text-white hover:text-white border-0"
             size="lg"
             onClick={() => {
-              window.location.href = 'http://localhost:3001/api/v1/auth/naver';
+              window.location.href = `${process.env.NEXT_PUBLIC_API_URL || '/api/v1'}/auth/naver`;
             }}
           >
             <svg
