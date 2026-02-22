@@ -54,6 +54,7 @@ import {
   Package,
   Image as ImageIcon,
   Copy,
+  ExternalLink,
 } from 'lucide-react';
 
 export default function ProductsPage() {
@@ -267,25 +268,36 @@ export default function ProductsPage() {
                     </TableRow>
                   ) : (
                     productsData?.data?.map((product) => (
-                      <TableRow key={product.id}>
-                        <TableCell className="text-center">
+                      <TableRow key={product.id} className="group">
+                        <TableCell
+                          className="text-center cursor-pointer"
+                          onClick={() => window.open(`/product/${product.id}`, '_blank')}
+                          title="상품 주문 페이지 열기"
+                        >
                           <div className="flex justify-center">
                             {product.thumbnailUrl ? (
                               <img
                                 src={normalizeImageUrl(product.thumbnailUrl)}
                                 alt={product.productName}
-                                className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded"
+                                className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded hover:ring-2 hover:ring-primary transition-all"
                               />
                             ) : (
-                              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 rounded flex items-center justify-center">
+                              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 rounded flex items-center justify-center hover:ring-2 hover:ring-primary transition-all">
                                 <ImageIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
                               </div>
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="text-center font-medium">
+                        <TableCell
+                          className="text-center font-medium cursor-pointer hover:text-primary transition-colors"
+                          onClick={() => window.open(`/product/${product.id}`, '_blank')}
+                          title="상품 주문 페이지 열기"
+                        >
                           <div className="flex flex-col items-center">
-                            <span className="truncate max-w-[120px] sm:max-w-none">{product.productName}</span>
+                            <span className="truncate max-w-[120px] sm:max-w-none flex items-center gap-1">
+                              {product.productName}
+                              <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100" />
+                            </span>
                             <span className="md:hidden text-xs text-muted-foreground">{product.category?.name}</span>
                           </div>
                         </TableCell>
