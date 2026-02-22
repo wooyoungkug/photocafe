@@ -1,3 +1,8 @@
+# ===========================================
+# Docker Build Context 최적화
+# 목표: 빌드에 필요한 소스코드만 포함 (~20MB)
+# ===========================================
+
 # Dependencies (all levels)
 **/node_modules
 **/.pnp
@@ -16,10 +21,12 @@
 # Git
 .git
 .gitignore
+.gitattributes
 
 # Environment
 **/.env
 **/.env.*
+.env.production.example
 
 # IDE & Editor
 .vscode
@@ -30,6 +37,7 @@
 # OS
 .DS_Store
 Thumbs.db
+nul
 
 # Logs
 **/*.log
@@ -38,16 +46,29 @@ Thumbs.db
 # Claude Code (worktrees can be very large)
 .claude
 
-# Uploads (production data - can be very large on server)
+# Uploads (production data - can be GB+ on server)
 **/uploads
 
 # Documentation (not needed for build)
-*.md
+**/*.md
 LICENSE
 
-# Scripts
+# Scripts & tools (not needed for build)
 scripts
 deploy.sh
+tools
+docs
 
-# Nginx config (not needed for app build)
-nginx
+# Docker & CI config (prevent recursive inclusion)
+docker-compose*.yml
+Dockerfile
+.dockerignore
+.github
+
+# Windows/misc files
+*.ps1
+*.bat
+*.sql
+*.code-workspace
+railway.json
+.npmrc
