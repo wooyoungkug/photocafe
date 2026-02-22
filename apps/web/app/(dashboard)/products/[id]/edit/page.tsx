@@ -317,8 +317,8 @@ export default function EditProductPage() {
         setIsActive(product.isActive);
         setIsNew(product.isNew);
         setIsBest(product.isBest);
-        setRequiresUpload((product as any).requiresUpload ?? false);
-        setUseCopperPlate((product as any).useCopperPlate ?? false);
+        setRequiresUpload(product.requiresUpload ?? false);
+        setUseCopperPlate(product.useCopperPlate ?? false);
         setMemberType(product.memberType);
         setSortOrder(product.sortOrder);
         setBasePrice(Number(product.basePrice));

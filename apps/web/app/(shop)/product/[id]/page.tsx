@@ -874,8 +874,8 @@ export default function ProductPage() {
           </div>
         </div>
 
-        {/* Data upload (album only) */}
-        {isAlbum && (
+        {/* Data upload (album or requiresUpload products) */}
+        {needsUpload && (
           <div ref={uploadSectionRef} className="mt-8 border rounded-lg p-4 md:p-6 bg-white">
             <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
               <Upload className="h-5 w-5" />{t('dataUpload')}
