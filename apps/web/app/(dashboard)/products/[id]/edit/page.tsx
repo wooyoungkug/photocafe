@@ -232,9 +232,6 @@ export default function EditProductPage() {
   const [outputPriceSelections, setOutputPriceSelections] = useState<OutputPriceSelection[]>([]);
   const [outputPriceDialogOpen, setOutputPriceDialogOpen] = useState(false);
   const [printType, setPrintType] = useState('double');
-  const [selectedCovers, setSelectedCovers] = useState<{ id: string; name: string; price: number }[]>([]);
-  const [newCoverName, setNewCoverName] = useState('');
-  const [newCoverPrice, setNewCoverPrice] = useState(0);
   const [selectedFoils, setSelectedFoils] = useState<{ id: string; name: string; color: string; price: number }[]>([]);
   // 용지 사용 여부 관리
   const [paperActiveMap, setPaperActiveMap] = useState<Record<string, boolean>>({});
@@ -359,11 +356,6 @@ export default function EditProductPage() {
           })));
         }
 
-        if (product.covers && Array.isArray(product.covers)) {
-          setSelectedCovers(product.covers.map((c: { id: string; name: string; price: number }) => ({
-            id: c.id, name: c.name, price: Number(c.price),
-          })));
-        }
 
         if (product.foils && Array.isArray(product.foils)) {
           setSelectedFoils(product.foils.map((f: { id: string; name: string; color?: string; price: number }) => ({
@@ -682,9 +674,6 @@ export default function EditProductPage() {
           isActive6: paperActive6Map[p.id] !== false,
           sortOrder: p.sortOrder ?? idx,
         })),
-        covers: selectedCovers.map((c, idx) => ({
-          name: c.name, price: c.price, isDefault: idx === 0, sortOrder: idx,
-        })),
         foils: selectedFoils.map((f, idx) => ({
           name: f.name, color: f.color, price: f.price, isDefault: idx === 0, sortOrder: idx,
         })),
@@ -831,42 +820,6 @@ export default function EditProductPage() {
               />
             </FormRow>
 
-            {/* 상태 토글 */}
-            <FormRow label="상품상태">
-              <div className="flex gap-6">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <Switch checked={isActive} onCheckedChange={setIsActive} />
-                  <span className="text-[13px] text-slate-600">활성화</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <Switch checked={isNew} onCheckedChange={setIsNew} />
-                  <span className="text-[13px] text-slate-600">신상품</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <Switch checked={isBest} onCheckedChange={setIsBest} />
-                  <span className="text-[13px] text-slate-600">베스트</span>
-                </label>
-              </div>
-            </FormRow>
-
-            {/* 회원적용 / 정렬순서 */}
-            <FormRow label="회원적용">
-              <div className="flex gap-6 items-center">
-                <Button type="button" variant="outline" size="sm" className="gap-2 h-8 text-xs">
-                  <Users className="h-3.5 w-3.5" />
-                  회원선택
-                </Button>
-                <div className="flex items-center gap-2">
-                  <Label className="text-xs text-slate-500 whitespace-nowrap">정렬순서</Label>
-                  <Input
-                    type="number"
-                    value={sortOrder}
-                    onChange={(e) => setSortOrder(Number(e.target.value))}
-                    className="w-20 h-8 text-center text-[13px]"
-                  />
-                </div>
-              </div>
-            </FormRow>
           </div>
         </CardContent>
       </Card>
@@ -1009,76 +962,6 @@ export default function EditProductPage() {
             </div>
           </div>
 
-          {/* 앨범표지 옵션 */}
-          <div className="space-y-3">
-            <Label className="text-[13px] font-medium text-slate-600 flex items-center gap-1.5">
-              <Palette className="h-4 w-4 text-slate-400" />
-              앨범표지 옵션
-              {selectedCovers.length > 0 && (
-                <Badge variant="secondary" className="text-[10px] h-4 px-1.5">{selectedCovers.length}개</Badge>
-              )}
-            </Label>
-            {selectedCovers.length > 0 && (
-              <div className="border rounded-md divide-y">
-                {selectedCovers.map((cover, idx) => (
-                  <div key={cover.id || idx} className="flex items-center gap-2 px-3 py-2">
-                    <span className="flex-1 text-[13px] text-slate-700">{cover.name}</span>
-                    <span className="text-[12px] text-slate-500">
-                      {cover.price > 0 ? `+${cover.price.toLocaleString()}원` : '기본'}
-                    </span>
-                    {idx === 0 && (
-                      <Badge variant="outline" className="text-[10px] h-4 px-1.5">기본</Badge>
-                    )}
-                    <button
-                      type="button"
-                      title="삭제"
-                      onClick={() => setSelectedCovers(prev => prev.filter((_, i) => i !== idx))}
-                      className="p-1 hover:bg-red-50 rounded text-slate-400 hover:text-red-500 transition-colors"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div className="flex items-center gap-2">
-              <Input
-                placeholder="표지명 (예: 기본커버, 고급커버)"
-                value={newCoverName}
-                onChange={e => setNewCoverName(e.target.value)}
-                className="flex-1 h-8 text-[12px]"
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && newCoverName.trim()) {
-                    setSelectedCovers(prev => [...prev, { id: `new-${Date.now()}`, name: newCoverName.trim(), price: newCoverPrice }]);
-                    setNewCoverName('');
-                    setNewCoverPrice(0);
-                  }
-                }}
-              />
-              <Input
-                type="number"
-                placeholder="추가금액"
-                value={newCoverPrice || ''}
-                onChange={e => setNewCoverPrice(Number(e.target.value))}
-                className="w-24 h-8 text-[12px]"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 text-[12px] whitespace-nowrap"
-                disabled={!newCoverName.trim()}
-                onClick={() => {
-                  setSelectedCovers(prev => [...prev, { id: `new-${Date.now()}`, name: newCoverName.trim(), price: newCoverPrice }]);
-                  setNewCoverName('');
-                  setNewCoverPrice(0);
-                }}
-              >
-                <Plus className="h-3.5 w-3.5 mr-1" />
-                추가
-              </Button>
-            </div>
-          </div>
 
           {/* 앨범 표지 원단 선택 */}
           {shouldShow('fabric') && (<div className="space-y-3">
