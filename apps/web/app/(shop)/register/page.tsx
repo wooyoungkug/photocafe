@@ -208,7 +208,7 @@ export default function RegisterPage() {
         mobile: individualForm.mobile || undefined,
       });
 
-      router.push('/login?registered=true');
+      window.location.href = '/login?registered=true';
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || '회원가입에 실패했습니다.');
     } finally {
@@ -276,7 +276,7 @@ export default function RegisterPage() {
         deliveryNote: studioForm.deliveryNote || undefined,
       });
 
-      router.push('/login?registered=true&type=studio');
+      window.location.href = '/login?registered=true&type=studio';
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || '회원가입에 실패했습니다.');
     } finally {
@@ -913,14 +913,9 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full bg-[#03C75A] hover:bg-[#02b351] text-white hover:text-white border-0"
-            size="lg"
-            onClick={() => {
-              window.location.href = `${process.env.NEXT_PUBLIC_API_URL || '/api/v1'}/auth/naver`;
-            }}
+          <a
+            href={`${process.env.NEXT_PUBLIC_API_URL || '/api/v1'}/auth/naver`}
+            className="inline-flex items-center justify-center w-full h-11 rounded-md text-sm font-medium bg-[#03C75A] hover:bg-[#02b351] text-white transition-colors"
           >
             <svg
               viewBox="0 0 24 24"
@@ -930,7 +925,7 @@ export default function RegisterPage() {
               <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z" />
             </svg>
             네이버로 간편 가입
-          </Button>
+          </a>
 
           <p className="text-sm text-muted-foreground text-center">
             이미 계정이 있으신가요?{' '}
