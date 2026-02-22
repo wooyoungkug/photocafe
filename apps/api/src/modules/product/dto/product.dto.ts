@@ -353,6 +353,11 @@ export class CreateProductDto {
   @IsNumber()
   sortOrder?: number;
 
+  @ApiPropertyOptional({ description: '업로드 컴포넌트 사용 여부', default: false })
+  @IsOptional()
+  @IsBoolean()
+  requiresUpload?: boolean;
+
   @ApiPropertyOptional({ description: '제본 방향', enum: ['left', 'right', 'customer'] })
   @IsOptional()
   @IsIn(['left', 'right', 'customer'])

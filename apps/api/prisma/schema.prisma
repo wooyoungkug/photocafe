@@ -488,6 +488,8 @@ model Product {
   orderCount          Int                        @default(0)
   viewCount           Int                        @default(0)
   outputPriceSettings Json?
+  requiresUpload      Boolean                    @default(false)
+  useCopperPlate      Boolean                    @default(false)
   productType         String?
   customOptions       CustomOption[]
   groupPrices         GroupProductPrice[]

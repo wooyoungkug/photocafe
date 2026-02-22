@@ -219,6 +219,7 @@ export default function EditProductPage() {
   const [isActive, setIsActive] = useState(true);
   const [isNew, setIsNew] = useState(false);
   const [isBest, setIsBest] = useState(false);
+  const [requiresUpload, setRequiresUpload] = useState(false);
   const [memberType, setMemberType] = useState<'all' | 'member_only' | 'specific_groups'>('all');
   const [sortOrder, setSortOrder] = useState(0);
 
@@ -315,6 +316,7 @@ export default function EditProductPage() {
         setIsActive(product.isActive);
         setIsNew(product.isNew);
         setIsBest(product.isBest);
+        setRequiresUpload((product as any).requiresUpload ?? false);
         setMemberType(product.memberType);
         setSortOrder(product.sortOrder);
         setBasePrice(Number(product.basePrice));
@@ -632,6 +634,7 @@ export default function EditProductPage() {
         isActive,
         isNew,
         isBest,
+        requiresUpload,
         memberType: memberType as 'all' | 'member_only' | 'specific_groups',
         sortOrder,
         thumbnailUrl: thumbnailUrl || undefined,
@@ -818,6 +821,72 @@ export default function EditProductPage() {
                 placeholder="상품명을 입력하세요"
                 className="max-w-2xl h-9 text-[14px]"
               />
+            </FormRow>
+
+            {/* 상품상태 */}
+            <FormRow label="상품상태">
+              <div className="flex gap-3">
+                <label
+                  className={`
+                    flex items-center gap-2.5 px-4 py-2 rounded-lg border cursor-pointer transition-all
+                    ${isActive
+                      ? 'bg-emerald-50/80 border-emerald-200 ring-1 ring-emerald-100'
+                      : 'bg-white border-slate-200 hover:bg-slate-50'
+                    }
+                  `}
+                >
+                  <div className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isActive ? 'bg-emerald-500' : 'bg-slate-200'}`}>
+                    {isActive ? <Eye className="h-3.5 w-3.5 text-white" /> : <EyeOff className="h-3.5 w-3.5 text-slate-400" />}
+                  </div>
+                  <span className={`text-[13px] font-medium ${isActive ? 'text-emerald-700' : 'text-slate-500'}`}>활성화</span>
+                  <Switch checked={isActive} onCheckedChange={setIsActive} className="ml-1 data-[state=checked]:bg-emerald-500" />
+                </label>
+                <label
+                  className={`
+                    flex items-center gap-2.5 px-4 py-2 rounded-lg border cursor-pointer transition-all
+                    ${isNew
+                      ? 'bg-blue-50/80 border-blue-200 ring-1 ring-blue-100'
+                      : 'bg-white border-slate-200 hover:bg-slate-50'
+                    }
+                  `}
+                >
+                  <div className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isNew ? 'bg-blue-500' : 'bg-slate-200'}`}>
+                    <Sparkles className={`h-3.5 w-3.5 ${isNew ? 'text-white' : 'text-slate-400'}`} />
+                  </div>
+                  <span className={`text-[13px] font-medium ${isNew ? 'text-blue-700' : 'text-slate-500'}`}>신상품</span>
+                  <Switch checked={isNew} onCheckedChange={setIsNew} className="ml-1 data-[state=checked]:bg-blue-500" />
+                </label>
+                <label
+                  className={`
+                    flex items-center gap-2.5 px-4 py-2 rounded-lg border cursor-pointer transition-all
+                    ${isBest
+                      ? 'bg-amber-50/80 border-amber-200 ring-1 ring-amber-100'
+                      : 'bg-white border-slate-200 hover:bg-slate-50'
+                    }
+                  `}
+                >
+                  <div className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isBest ? 'bg-amber-500' : 'bg-slate-200'}`}>
+                    <Star className={`h-3.5 w-3.5 ${isBest ? 'text-white' : 'text-slate-400'}`} />
+                  </div>
+                  <span className={`text-[13px] font-medium ${isBest ? 'text-amber-700' : 'text-slate-500'}`}>베스트</span>
+                  <Switch checked={isBest} onCheckedChange={setIsBest} className="ml-1 data-[state=checked]:bg-amber-500" />
+                </label>
+                <label
+                  className={`
+                    flex items-center gap-2.5 px-4 py-2 rounded-lg border cursor-pointer transition-all
+                    ${requiresUpload
+                      ? 'bg-violet-50/80 border-violet-200 ring-1 ring-violet-100'
+                      : 'bg-white border-slate-200 hover:bg-slate-50'
+                    }
+                  `}
+                >
+                  <div className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${requiresUpload ? 'bg-violet-500' : 'bg-slate-200'}`}>
+                    <Upload className={`h-3.5 w-3.5 ${requiresUpload ? 'text-white' : 'text-slate-400'}`} />
+                  </div>
+                  <span className={`text-[13px] font-medium ${requiresUpload ? 'text-violet-700' : 'text-slate-500'}`}>업로드</span>
+                  <Switch checked={requiresUpload} onCheckedChange={setRequiresUpload} className="ml-1 data-[state=checked]:bg-violet-500" />
+                </label>
+              </div>
             </FormRow>
 
           </div>

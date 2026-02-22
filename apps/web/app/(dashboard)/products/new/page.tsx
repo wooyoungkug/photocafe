@@ -218,6 +218,7 @@ export default function NewProductPage() {
   const [isActive, setIsActive] = useState(true);
   const [isNew, setIsNew] = useState(false);
   const [isBest, setIsBest] = useState(false);
+  const [requiresUpload, setRequiresUpload] = useState(false);
   const [memberType, setMemberType] = useState<'all' | 'member_only' | 'specific_groups'>('all');
   const [sortOrder, setSortOrder] = useState(0);
 
@@ -400,6 +401,7 @@ export default function NewProductPage() {
         isActive,
         isNew,
         isBest,
+        requiresUpload,
         memberType,
         sortOrder,
         thumbnailUrl: thumbnailUrl || undefined,
@@ -616,6 +618,21 @@ export default function NewProductPage() {
                   </div>
                   <span className={`text-[13px] font-medium ${isBest ? 'text-amber-700' : 'text-slate-500'}`}>베스트</span>
                   <Switch checked={isBest} onCheckedChange={setIsBest} className="ml-1 data-[state=checked]:bg-amber-500" />
+                </label>
+                <label
+                  className={`
+                    flex items-center gap-2.5 px-4 py-2 rounded-lg border cursor-pointer transition-all
+                    ${requiresUpload
+                      ? 'bg-violet-50/80 border-violet-200 ring-1 ring-violet-100'
+                      : 'bg-white border-slate-200 hover:bg-slate-50'
+                    }
+                  `}
+                >
+                  <div className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${requiresUpload ? 'bg-violet-500' : 'bg-slate-200'}`}>
+                    <Upload className={`h-3.5 w-3.5 ${requiresUpload ? 'text-white' : 'text-slate-400'}`} />
+                  </div>
+                  <span className={`text-[13px] font-medium ${requiresUpload ? 'text-violet-700' : 'text-slate-500'}`}>업로드</span>
+                  <Switch checked={requiresUpload} onCheckedChange={setRequiresUpload} className="ml-1 data-[state=checked]:bg-violet-500" />
                 </label>
               </div>
             </FormRow>
