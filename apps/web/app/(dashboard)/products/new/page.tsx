@@ -863,7 +863,7 @@ export default function NewProductPage() {
             )}
 
             {/* 출력구분 */}
-            {shouldShow('binding') && (
+            {(shouldShow('binding') || shouldShow('paper')) && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <Label className="text-[13px] font-semibold text-slate-700 flex items-center gap-2">

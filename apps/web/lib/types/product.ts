@@ -289,7 +289,7 @@ export interface ProductTypeInfo {
 
 // 상품 유형별 옵션 매트릭스
 export interface ProductTypeOptions {
-  printType: 'single' | 'double' | null;
+  printType: 'single' | 'double' | 'customer' | null;
   bindingDirection: 'left' | 'right' | 'customer' | null;
   specFilterType: 'indigoAlbum' | 'inkjet' | 'frame' | 'booklet' | null;
   defaultBinding: string | null;

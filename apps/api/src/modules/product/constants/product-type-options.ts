@@ -17,7 +17,7 @@ export type SpecFilterType =
 // 상품 유형별 옵션 설정 타입
 export interface ProductTypeOptions {
   // 기본값 자동 설정
-  printType: 'single' | 'double' | null; // null = 해당없음
+  printType: 'single' | 'double' | 'customer' | null; // null = 해당없음, customer = 고객선택
   bindingDirection: 'left' | 'right' | 'customer' | null;
   specFilterType: SpecFilterType; // 규격 필터링 탭
   defaultBinding: string | null; // 기본 제본 (null = 선택 가능)
