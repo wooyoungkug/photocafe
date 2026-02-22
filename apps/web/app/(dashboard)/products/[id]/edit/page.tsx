@@ -1275,7 +1275,16 @@ export default function EditProductPage() {
                   etc: 'bg-slate-50 text-slate-600 border-slate-200',
                 };
 
-                const sortedMethods = methodOrder.filter(m => printMethodGroups[m]);
+                // 출력단가설정에서 실제 선택된 출력방법 집합
+                const activeOutputMethods = new Set(
+                  outputPriceSelections.map(s => s.outputMethod?.toLowerCase())
+                );
+                const sortedMethods = methodOrder.filter(m =>
+                  printMethodGroups[m] && (
+                    // indigo/inkjet은 해당 출력방법이 선택되어 있을 때만 표시
+                    m === 'etc' || m === 'offset' || activeOutputMethods.has(m)
+                  )
+                );
 
                 const getPaperType = (name: string) =>
                   name.replace(/\s*\d+g?$/i, '').replace(/\s+\d+$/, '').trim();
