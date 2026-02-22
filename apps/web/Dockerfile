@@ -6,20 +6,22 @@ WORKDIR /app
 
 RUN apk add --no-cache libc6-compat
 
-# Copy package files (when build context is apps/web)
+# Copy all package.json files for workspace dependency resolution
 COPY package.json ./
+COPY apps/web/package.json ./apps/web/
+COPY apps/api/package.json ./apps/api/
 
-# Install dependencies and upgrade next to fix security vulnerabilities
-RUN npm install && npm install next@15.5.9
+# Install all workspace dependencies (next-intl etc.)
+RUN npm install
 
-# Copy source code
+# Copy source code (filtered by .dockerignore)
 COPY . .
 
 # Set build-time environment variables
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
-# Build the web application only
+# Build the web application
 RUN npm run build:web
 
 # ================================
@@ -35,10 +37,10 @@ ENV TZ=Asia/Seoul
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Copy built application
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
+# Copy standalone output (monorepo structure preserved by outputFileTracingRoot)
+COPY --from=builder /app/apps/web/public ./apps/web/public
+COPY --from=builder /app/apps/web/.next/standalone ./
+COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
 
 # Set ownership
 RUN chown -R nextjs:nodejs /app
@@ -50,4 +52,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+CMD ["node", "apps/web/server.js"]
