@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { join, extname } from 'path';
 import { existsSync, mkdirSync, renameSync, unlinkSync, readdirSync, statSync, rmSync, copyFileSync } from 'fs';
+import { rm } from 'fs/promises';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 
 // 모듈 레벨 base path (multer 콜백에서 접근용)
