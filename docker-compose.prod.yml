@@ -143,8 +143,7 @@ services:
 
 networks:
   photocafe-network:
-    name: photocafe-network   # 고정 이름 (프로젝트명 프리픽스 방지)
-    driver: bridge
+    external: true            # 미리 생성된 외부 네트워크 사용
 
 volumes:
   postgres_data:
