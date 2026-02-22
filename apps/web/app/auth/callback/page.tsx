@@ -74,11 +74,11 @@ function AuthCallbackContent() {
                 localStorage.setItem('refreshToken', refreshToken);
 
                 setStatus('로그인 성공! 쇼핑몰로 이동합니다...');
-                const redirectUrl = '/';
+                const redirectUrl = '/?login=success';
 
                 setTimeout(() => {
                     window.location.href = redirectUrl;
-                }, 300);
+                }, 1000);
 
             } catch (e) {
                 setError(e instanceof Error ? e.message : '알 수 없는 오류가 발생했습니다.');
