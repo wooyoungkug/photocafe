@@ -1336,7 +1336,7 @@ export default function EditProductPage() {
           <Separator />
 
           {/* 후가공 옵션 */}
-          {shouldShow('finishing') && (<div className="space-y-3">
+          <div className="space-y-3">
             <Label className="text-[13px] font-medium text-slate-600 flex items-center gap-1.5">
               <Settings className="h-4 w-4 text-slate-400" />
               후가공 옵션
@@ -1423,7 +1423,7 @@ export default function EditProductPage() {
                 {isTreeLoading ? '로딩 중...' : '후가공 옵션이 설정되지 않았습니다. 기초정보 > 가격관리에서 후가공옵션 그룹을 추가하세요.'}
               </p>
             )}
-          </div>)}
+          </div>
         </CardContent>
       </Card>
 
