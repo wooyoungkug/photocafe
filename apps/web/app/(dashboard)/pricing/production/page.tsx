@@ -1037,13 +1037,6 @@ export default function ProductionSettingPage() {
   const [deletingItem, setDeletingItem] = useState<{ type: "group" | "setting"; item: any } | null>(null);
   const [parentGroupId, setParentGroupId] = useState<string | null>(null);
 
-  // 그룹 다이얼로그 제목/설명용 부모 그룹 depth 캐싱
-  const parentGroupDepth = useMemo(() => {
-    if (!parentGroupId || !groupTree) return null;
-    const parentGroup = findGroupInTree(groupTree, parentGroupId);
-    return parentGroup?.depth ?? null;
-  }, [parentGroupId, groupTree]);
-
   // 이동 다이얼로그 상태
   const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
   const [moveTarget, setMoveTarget] = useState<{
@@ -1227,6 +1220,13 @@ export default function ProductionSettingPage() {
       }
     }
   }, [groupTree]);
+
+  // 그룹 다이얼로그 제목/설명용 부모 그룹 depth 캐싱
+  const parentGroupDepth = useMemo(() => {
+    if (!parentGroupId || !groupTree) return null;
+    const parentGroup = findGroupInTree(groupTree, parentGroupId);
+    return parentGroup?.depth ?? null;
+  }, [parentGroupId, groupTree]);
 
   // 선택된 그룹의 설정 목록
   const selectedSettings = useMemo(() => {
