@@ -10,6 +10,7 @@
   "scripts": {
     "predev": "npm run clean:ports",
     "dev": "concurrently -n \"API,WEB\" -c \"blue,green\" --restart-tries -1 --restart-after 3000 \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:auto": "concurrently -n \"API,WEB,GIT\" -c \"blue,green,yellow\" --restart-tries -1 --restart-after 3000 \"npm run dev:api\" \"npm run dev:web\" \"bash scripts/auto-commit-watch.sh\"",
     "dev:api": "cross-env NODE_OPTIONS=--max-old-space-size=2048 npm -w apps/api run start:dev",
     "dev:web": "cross-env NODE_OPTIONS=--max-old-space-size=2048 npm -w apps/web run dev",
     "dev:clean": "npm run clean:all && npm run dev",
