@@ -38,9 +38,8 @@ Thumbs.db
 # Claude Code (worktrees can be very large)
 .claude
 
-# Uploads (production data)
-**/uploads/orders
-**/uploads/temp
+# Uploads (production data - can be very large on server)
+**/uploads
 
 # Documentation (not needed for build)
 *.md

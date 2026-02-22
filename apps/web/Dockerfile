@@ -6,13 +6,13 @@ WORKDIR /app
 
 RUN apk add --no-cache libc6-compat
 
-# Copy all package.json files for workspace dependency resolution
-COPY package.json ./
+# Copy package files for workspace dependency resolution
+COPY package.json package-lock.json ./
 COPY apps/web/package.json ./apps/web/
 COPY apps/api/package.json ./apps/api/
 
 # Install all workspace dependencies (next-intl etc.)
-RUN npm install
+RUN npm ci
 
 # Copy source code (filtered by .dockerignore)
 COPY . .
