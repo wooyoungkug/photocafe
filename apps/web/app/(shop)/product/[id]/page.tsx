@@ -538,7 +538,7 @@ export default function ProductPage() {
 
   const hasPublicPlates = allPublicCopperPlates?.data && allPublicCopperPlates.data.length > 0;
   const hasOwnedPlates = isAuthenticated && ownedCopperPlates && ownedCopperPlates.length > 0;
-  const hasCopperPlates = hasPublicPlates || hasOwnedPlates;
+  const hasCopperPlates = product.useCopperPlate && (hasPublicPlates || hasOwnedPlates);
 
   // --- handleAddToCart ---
   const handleAddToCart = () => {
@@ -551,8 +551,8 @@ export default function ProductPage() {
     for (const finishing of selectedOptions.finishings) options.push({ name: t('finishing'), value: finishing.name, price: finishing.price });
     options.push({ name: t('printSection'), value: selectedOptions.printSide === 'single' ? t('singleSided') : t('doubleSided'), price: 0 });
 
-    if (selectedOptions.copperPlateType === 'none' || !selectedOptions.copperPlateType) {
-      options.push({ name: t('copperPlate'), value: t('none'), price: 0 });
+    if (!product.useCopperPlate || selectedOptions.copperPlateType === 'none' || !selectedOptions.copperPlateType) {
+      if (product.useCopperPlate) options.push({ name: t('copperPlate'), value: t('none'), price: 0 });
     } else if (selectedOptions.copperPlateType === 'public' && selectedOptions.publicCopperPlate) {
       const plate = selectedOptions.publicCopperPlate;
       options.push({ name: t('copperPlate'), value: `${t('publicCopperPlate')} - ${plate.plateName}`, price: 0 });
