@@ -880,9 +880,10 @@ export default function EditProductPage() {
           theme="emerald"
         />
         <CardContent className="px-6 pb-6 pt-2 space-y-5">
-          {/* 제본/용지 선택 - 2열 그리드 */}
-          <div className="grid grid-cols-2 gap-6">
-            {/* 제본 선택 */}
+          {/* 제본/출력단가 선택 */}
+          <div className={`grid gap-6 ${shouldShow('binding') && (selectedBindings.length > 0 || product?.bindings?.length) ? 'grid-cols-2' : 'grid-cols-1'}`}>
+            {/* 제본 선택 - 상품유형에서 binding 표시 + 기존 제본 데이터가 있을 때만 */}
+            {shouldShow('binding') && (selectedBindings.length > 0 || product?.bindings?.length) && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="text-[13px] font-medium text-slate-600 flex items-center gap-1.5">
@@ -930,6 +931,7 @@ export default function EditProductPage() {
                 </div>
               </div>)}
             </div>
+            )}
 
             {/* 출력단가 선택 (새로운 방식) */}
             <div className="space-y-3">
