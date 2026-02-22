@@ -101,6 +101,21 @@ export default function MonthlySummaryPage() {
     return Array.from(groups.entries());
   }, [allMonthOrders]);
 
+  // 일자별 적요 (대표 상품명 + 외 N건)
+  const dateDescriptions = useMemo(() => {
+    const map = new Map<string, string>();
+    ordersByDate.forEach(([date, orders]) => {
+      const firstItem = orders[0]?.items?.[0];
+      const firstName = firstItem?.folderName || firstItem?.productName?.split(' - ')[0] || '주문';
+      if (orders.length === 1) {
+        map.set(date, firstName);
+      } else {
+        map.set(date, `${firstName} 외 ${orders.length - 1}건`);
+      }
+    });
+    return map;
+  }, [ordersByDate]);
+
   // 누계잔액 계산
   const dataWithBalance = useMemo(() => {
     if (!dailyData?.data) return [];
@@ -446,7 +461,7 @@ export default function MonthlySummaryPage() {
                   {format(new Date(row.date + 'T00:00:00'), 'MM.dd (EEE)', { locale: ko })}
                 </td>
                 <td className="border border-gray-400 p-1.5 text-center text-gray-600">
-                  주문 {row.orderCount}건
+                  {dateDescriptions.get(row.date) || `주문 ${row.orderCount}건`}
                 </td>
                 <td className="border border-gray-400 p-1.5 text-right tabular-nums">
                   {row.orderAmount > 0 ? formatAmount(row.orderAmount) + '원' : '-'}
@@ -842,7 +857,7 @@ export default function MonthlySummaryPage() {
                               )}
                             </td>
                             <td className="p-2 sm:p-3 text-muted-foreground">
-                              {row.orderCount}건
+                              {dateDescriptions.get(row.date) || `${row.orderCount}건`}
                             </td>
                             <td className="p-2 sm:p-3 text-right tabular-nums">
                               {row.orderAmount > 0
