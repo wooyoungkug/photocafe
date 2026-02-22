@@ -301,12 +301,6 @@ export default function MonthlySummaryPage() {
                   {user?.email || '-'}
                 </td>
               </tr>
-              <tr>
-                <td className="pl-2 pr-1 py-0.5 font-semibold whitespace-nowrap">담&nbsp;&nbsp;당&nbsp;&nbsp;자</td>
-                <td className="py-0.5 pr-2">
-                  {user?.contactPerson || '-'}
-                </td>
-              </tr>
             </tbody>
           </table>
         </div>

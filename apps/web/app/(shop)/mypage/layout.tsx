@@ -16,36 +16,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useAuthStore } from '@/stores/auth-store';
 
 const MENU_ITEMS = [
-  {
-    icon: User,
-    label: '회원정보',
-    href: '/mypage/profile',
-  },
-  {
-    icon: MapPin,
-    label: '배송지 관리',
-    href: '/mypage/addresses',
-  },
-  {
-    icon: Star,
-    label: '마이상품',
-    href: '/mypage/my-products',
-  },
-  {
-    icon: ShoppingBag,
-    label: '주문내역',
-    href: '/mypage/orders',
-  },
-  {
-    icon: Calendar,
-    label: '월거래집계',
-    href: '/mypage/monthly-summary',
-  },
-  {
-    icon: Wallet,
-    label: '입금내역',
-    href: '/mypage/deposits',
-  },
+  { icon: User, label: '회원정보', href: '/mypage/profile' },
+  { icon: MapPin, label: '배송지 관리', href: '/mypage/addresses' },
+  { icon: Star, label: '마이상품', href: '/mypage/my-products' },
+  { icon: ShoppingBag, label: '주문내역', href: '/mypage/orders' },
+  { icon: Calendar, label: '월거래집계', href: '/mypage/monthly-summary' },
+  { icon: Wallet, label: '입금내역', href: '/mypage/deposits' },
 ];
 
 export default function MyPageLayout({
@@ -62,12 +38,11 @@ export default function MyPageLayout({
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <Card className="w-full max-w-md mx-4">
           <CardContent className="pt-6 text-center">
-            <div className="text-6xl mb-4">🔒</div>
-            <h2 className="text-xl font-bold mb-2">로그인이 필요합니다</h2>
-            <p className="text-gray-600 mb-6">
+            <h2 className="text-[15px] font-medium mb-2">로그인이 필요합니다</h2>
+            <p className="text-[13px] font-normal text-gray-600 mb-4">
               마이페이지를 이용하려면 로그인이 필요합니다.
             </p>
-            <Button onClick={() => router.push('/login?redirect=/mypage/orders')}>
+            <Button size="sm" onClick={() => router.push('/login?redirect=/mypage/orders')}>
               로그인하기
             </Button>
           </CardContent>
@@ -77,27 +52,27 @@ export default function MyPageLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 text-[13px] font-normal">
       {/* Header */}
       <div className="bg-white border-b">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center gap-3 mb-2">
-            <User className="h-8 w-8 text-primary" />
-            <h1 className="text-2xl font-bold">마이페이지</h1>
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center gap-2">
+            <User className="h-5 w-5 text-primary" />
+            <h1 className="text-[16px] font-medium">마이페이지</h1>
           </div>
-          <p className="text-gray-500 ml-11">
+          <p className="text-[12px] text-gray-500 ml-7 mt-0.5">
             {user?.clientName || user?.email}님, 환영합니다
           </p>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid lg:grid-cols-4 gap-6">
+      <div className="container mx-auto px-4 py-6">
+        <div className="grid lg:grid-cols-4 gap-5">
           {/* Sidebar Navigation */}
           <aside className="lg:col-span-1">
             <Card className="sticky top-4">
               <CardContent className="p-0">
-                <nav className="space-y-1">
+                <nav>
                   {MENU_ITEMS.map((item) => {
                     const Icon = item.icon;
                     const isActive =
@@ -107,17 +82,17 @@ export default function MyPageLayout({
                     return (
                       <Link key={item.href} href={item.href}>
                         <button
-                          className={`w-full flex items-center justify-between px-4 py-3 text-left transition-colors ${
+                          className={`w-full flex items-center justify-between px-3.5 py-2.5 text-left text-[13px] font-normal transition-colors ${
                             isActive
                               ? 'bg-primary text-white font-medium'
                               : 'hover:bg-gray-50 text-gray-700'
                           }`}
                         >
-                          <div className="flex items-center gap-3">
-                            <Icon className="h-5 w-5" />
+                          <div className="flex items-center gap-2.5">
+                            <Icon className="h-4 w-4" />
                             <span>{item.label}</span>
                           </div>
-                          {isActive && <ChevronRight className="h-4 w-4" />}
+                          {isActive && <ChevronRight className="h-3.5 w-3.5" />}
                         </button>
                       </Link>
                     );
@@ -126,14 +101,13 @@ export default function MyPageLayout({
               </CardContent>
             </Card>
 
-            {/* User Info Card (Mobile Hidden) */}
-            <Card className="mt-4 hidden lg:block">
-              <CardContent className="p-4">
-                <h3 className="font-medium mb-2">회원 정보</h3>
-                <div className="text-sm text-gray-600 space-y-1">
+            {/* User Info Card */}
+            <Card className="mt-3 hidden lg:block">
+              <CardContent className="p-3">
+                <h3 className="text-[12px] font-medium text-gray-500 mb-1.5">회원 정보</h3>
+                <div className="text-[12px] text-gray-600 space-y-0.5">
                   <p>{user?.clientName}</p>
-                  {user?.email && <p className="text-xs">{user.email}</p>}
-                  {user?.mobile && <p className="text-xs">{user.mobile}</p>}
+                  {user?.email && <p>{user.email}</p>}
                 </div>
               </CardContent>
             </Card>
