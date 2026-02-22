@@ -1,35 +1,30 @@
 'use client';
 
-import { useEffect, Suspense, useState, useRef } from 'react';
+import { useEffect, Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useAuthStore } from '@/stores/auth-store';
 
 function AuthCallbackContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [status, setStatus] = useState('처리 중...');
     const [error, setError] = useState<string | null>(null);
-    const processedRef = useRef(false);
 
     useEffect(() => {
-        if (processedRef.current) return;
-        processedRef.current = true;
+        const oauthCode = searchParams.get('code');
+
+        if (!oauthCode) {
+            setError('잘못된 접근입니다. 로그인 페이지를 이용해주세요.');
+            return;
+        }
+
+        // React Strict Mode 이중 실행 방지 (같은 코드로 중복 처리 차단)
+        const processKey = `auth-processing-${oauthCode}`;
+        if (sessionStorage.getItem(processKey)) return;
+        sessionStorage.setItem(processKey, 'true');
 
         const processAuth = async () => {
             try {
-                const oauthCode = searchParams.get('code');
-
-                let token = '';
-                let refreshToken = '';
-                let userData = { id: '', email: '', name: '회원', role: 'client' };
-                let clientId = '';
-
-                if (!oauthCode) {
-                    // OAuth 코드 없이 접근 — 차단 (토큰 직접 전달 금지)
-                    setError('잘못된 접근입니다. 로그인 페이지를 이용해주세요.');
-                    return;
-                }
-
-                // OAuth 코드 교환 방식만 허용 (네이버/카카오)
                 setStatus('인증 처리 중...');
                 const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
                 const res = await fetch(`${apiUrl}/auth/exchange-code`, {
@@ -41,46 +36,33 @@ function AuthCallbackContent() {
                     throw new Error('인증 코드 교환에 실패했습니다.');
                 }
                 const data = await res.json();
-                token = data.accessToken;
-                refreshToken = data.refreshToken;
-                userData = {
-                    id: data.user?.id || '',
-                    email: data.user?.email || '',
-                    name: data.user?.name || '회원',
-                    role: 'client',
-                };
-                clientId = data.user?.clientId || data.user?.id || '';
 
-                localStorage.setItem('accessToken', token);
-
-                // Zustand persist store 직접 업데이트
-                const authStorageData = {
-                    state: {
-                        user: {
-                            id: userData.id || '',
-                            email: userData.email || '',
-                            name: userData.name || '회원',
-                            role: userData.role || 'client',
-                            ...(clientId && { clientId }),
-                        },
-                        accessToken: token,
-                        refreshToken: refreshToken,
-                        isAuthenticated: true,
-                        rememberMe: true,
+                // Zustand setAuth로 인증 상태 설정 (스토어 + persist 동시 처리)
+                useAuthStore.getState().setAuth({
+                    user: {
+                        id: data.user?.id || '',
+                        email: data.user?.email || '',
+                        name: data.user?.name || '회원',
+                        role: 'client',
+                        ...(data.user?.clientId && { clientId: data.user.clientId }),
+                        ...(data.user?.clientName && { clientName: data.user.clientName }),
+                        ...(data.user?.mobile && { mobile: data.user.mobile }),
                     },
-                    version: 0,
-                };
-                localStorage.setItem('auth-storage', JSON.stringify(authStorageData));
-                localStorage.setItem('refreshToken', refreshToken);
+                    accessToken: data.accessToken,
+                    refreshToken: data.refreshToken,
+                    rememberMe: true,
+                });
 
+                sessionStorage.removeItem(processKey);
                 setStatus('로그인 성공! 쇼핑몰로 이동합니다...');
-                const redirectUrl = '/?login=success';
 
+                // 클라이언트 사이드 내비게이션 (Zustand 인메모리 상태 유지)
                 setTimeout(() => {
-                    window.location.href = redirectUrl;
-                }, 1000);
+                    router.push('/');
+                }, 500);
 
             } catch (e) {
+                sessionStorage.removeItem(processKey);
                 setError(e instanceof Error ? e.message : '알 수 없는 오류가 발생했습니다.');
             }
         };
