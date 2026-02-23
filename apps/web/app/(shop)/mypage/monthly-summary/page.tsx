@@ -612,7 +612,7 @@ export default function MonthlySummaryPage() {
                               <div>{item.folderName || order.orderNumber}</div>
                               <div className="text-[8pt] text-gray-500">{subName || '-'}</div>
                             </td>
-                            <td className="border border-gray-400 p-1">
+                            <td className="border border-gray-400 p-1 text-center">
                               <div>{item.productName?.split(' - ')[0] || item.productName}</div>
                               <div className="text-[8pt] text-gray-500">{item.size || '-'}</div>
                             </td>
