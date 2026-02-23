@@ -113,7 +113,7 @@ jobs:
 
             # 1. GHCR 로그인
             echo "=== [1/6] GHCR 로그인 ==="
-            echo "$GHCR_TOKEN" | run_sudo $DOCKER login ghcr.io -u wooyoungkug --password-stdin
+            run_sudo $DOCKER login ghcr.io -u wooyoungkug --password "$GHCR_TOKEN"
 
             # 2. 최신 이미지 Pull
             echo "=== [2/6] 이미지 Pull ==="
