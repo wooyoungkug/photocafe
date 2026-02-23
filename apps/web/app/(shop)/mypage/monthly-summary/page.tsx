@@ -541,9 +541,6 @@ export default function MonthlySummaryPage() {
         <table className="w-full border-collapse text-[9pt]">
           <thead>
             <tr style={{ backgroundColor: '#e5e7eb' }}>
-              <th className="border border-gray-500 p-1.5 text-center font-semibold w-[90px]">
-                주문번호
-              </th>
               <th className="border border-gray-500 p-1.5 text-center font-semibold w-[400px]">
                 작업명
               </th>
@@ -562,7 +559,7 @@ export default function MonthlySummaryPage() {
             {/* 전월이월 행 */}
             <tr style={{ backgroundColor: '#eff6ff' }}>
               <td
-                colSpan={4}
+                colSpan={3}
                 className="border border-gray-400 p-1.5 text-right font-semibold text-blue-700"
               >
                 전 월 이 월
@@ -584,7 +581,7 @@ export default function MonthlySummaryPage() {
                   {/* 날짜 그룹 헤더 */}
                   <tr style={{ backgroundColor: '#f3f4f6' }}>
                     <td
-                      colSpan={5}
+                      colSpan={4}
                       className="border border-gray-500 p-1.5 font-bold text-[9pt]"
                     >
                       {format(new Date(date + 'T00:00:00'), 'yyyy년 MM월 dd일 (EEE)', {
@@ -605,9 +602,6 @@ export default function MonthlySummaryPage() {
                           .join(' ');
                         return (
                           <tr key={item.id}>
-                            <td className="border border-gray-400 p-1 text-[8pt] text-gray-600 align-middle text-center">
-                              {iIdx === 0 ? order.orderNumber : ''}
-                            </td>
                             <td className="border border-gray-400 p-1">
                               <div>{item.folderName || order.orderNumber}</div>
                               <div className="text-[8pt] text-gray-500">{subName || '-'}</div>
@@ -632,7 +626,7 @@ export default function MonthlySummaryPage() {
                   {/* 일계 */}
                   <tr style={{ backgroundColor: '#eff6ff' }} className="font-bold">
                     <td
-                      colSpan={4}
+                      colSpan={3}
                       className="border border-gray-500 p-1.5 text-right pr-3"
                     >
                       {format(new Date(date + 'T00:00:00'), 'MM월 dd일 합계', {
@@ -649,7 +643,7 @@ export default function MonthlySummaryPage() {
 
             {/* 당월 합계 */}
             <tr className="bg-gray-200 font-bold">
-              <td colSpan={4} className="border border-gray-500 p-1.5 text-right pr-3">
+              <td colSpan={3} className="border border-gray-500 p-1.5 text-right pr-3">
                 당 월 합 계
               </td>
               <td className="border border-gray-500 p-1.5 text-right tabular-nums">
@@ -659,7 +653,7 @@ export default function MonthlySummaryPage() {
 
             {/* 납부금액 합계 */}
             <tr className="bg-gray-100 font-bold">
-              <td colSpan={4} className="border border-gray-500 p-1.5 text-right pr-3">
+              <td colSpan={3} className="border border-gray-500 p-1.5 text-right pr-3">
                 납 부 합 계
               </td>
               <td className="border border-gray-500 p-1.5 text-right tabular-nums text-blue-700">
@@ -669,7 +663,7 @@ export default function MonthlySummaryPage() {
 
             {/* 차월이월 */}
             <tr className="bg-gray-300 font-bold">
-              <td colSpan={4} className="border border-gray-500 p-1.5 text-right pr-3 text-primary">
+              <td colSpan={3} className="border border-gray-500 p-1.5 text-right pr-3 text-primary">
                 차 월 이 월
               </td>
               <td
