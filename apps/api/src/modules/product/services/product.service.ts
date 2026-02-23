@@ -130,7 +130,7 @@ export class ProductService {
         specifications: {
           include: {
             specification: {
-              select: { id: true, isActive: true, forIndigo: true, forInkjet: true, forAlbum: true, forFrame: true, forBooklet: true },
+              select: { id: true, isActive: true, forIndigoAlbum: true, forIndigo: true, forInkjet: true, forAlbum: true, forFrame: true, forBooklet: true },
             },
           },
           orderBy: { sortOrder: 'asc' },
@@ -204,7 +204,7 @@ export class ProductService {
         .filter((ps: any) => {
           if (!ps.specification) return false;
           if (!ps.specification.isActive) return false;
-          if (hasIndigo && !hasInkjet) return ps.specification.forIndigo;
+          if (hasIndigo && !hasInkjet) return ps.specification.forIndigo || ps.specification.forIndigoAlbum;
           if (hasInkjet && !hasIndigo) {
             return ps.specification.forInkjet || ps.specification.forAlbum ||
                    ps.specification.forFrame || ps.specification.forBooklet;
@@ -213,6 +213,7 @@ export class ProductService {
         })
         .map(({ specification, ...rest }: any) => ({
           ...rest,
+          forIndigoAlbum: specification?.forIndigoAlbum ?? false,
           forIndigo: specification?.forIndigo ?? false,
           forInkjet: specification?.forInkjet ?? false,
         }));
@@ -221,6 +222,7 @@ export class ProductService {
         .filter((ps: any) => !ps.specification || ps.specification.isActive)
         .map(({ specification, ...rest }: any) => ({
           ...rest,
+          forIndigoAlbum: specification?.forIndigoAlbum ?? false,
           forIndigo: specification?.forIndigo ?? false,
           forInkjet: specification?.forInkjet ?? false,
         }));
@@ -642,7 +644,7 @@ export class ProductService {
 
   /**
    * 상품의 outputPriceSettings(출력방식)에 맞는 규격만 남기고 나머지 삭제
-   * - INDIGO 전용 상품 → forIndigo인 규격만 유지
+   * - INDIGO 전용 상품 → forIndigo/forIndigoAlbum인 규격만 유지
    * - INKJET 전용 상품 → forInkjet/forAlbum/forFrame/forBooklet인 규격만 유지
    */
   async cleanupProductSpecifications(productId?: string) {
@@ -676,7 +678,7 @@ export class ProductService {
       if ((hasIndigo && hasInkjet) || (!hasIndigo && !hasInkjet)) continue;
 
       const isRelevant = hasIndigo
-        ? (gs: any) => gs.forIndigo === true
+        ? (gs: any) => gs.forIndigo === true || gs.forIndigoAlbum === true
         : (gs: any) => gs.forInkjet === true || gs.forAlbum === true || gs.forFrame === true || gs.forBooklet === true;
 
       const specsToDelete: string[] = [];

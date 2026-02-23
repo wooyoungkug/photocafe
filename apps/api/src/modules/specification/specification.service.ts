@@ -444,12 +444,15 @@ export class SpecificationService {
     }
 
     // 용도별로 규격 목록 가져오기 (상품 등록 시 사용)
-    async findByUsage(usage: 'indigo' | 'inkjet' | 'album' | 'frame' | 'booklet') {
+    async findByUsage(usage: 'indigoAlbum' | 'indigo' | 'inkjet' | 'album' | 'frame' | 'booklet') {
         const where: Prisma.SpecificationWhereInput = {
             isActive: true,
         };
 
         switch (usage) {
+            case 'indigoAlbum':
+                where.forIndigoAlbum = true;
+                break;
             case 'indigo':
                 where.forIndigo = true;
                 break;

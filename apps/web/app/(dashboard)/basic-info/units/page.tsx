@@ -43,6 +43,7 @@ import { Specification, CreateSpecificationRequest } from "@/lib/types/specifica
 export default function SpecificationsPage() {
     const { toast } = useToast();
     const [searchTerm, setSearchTerm] = useState("");
+    const [filterIndigoAlbum, setFilterIndigoAlbum] = useState(false);
     const [filterIndigo, setFilterIndigo] = useState(false);
     const [filterInkjet, setFilterInkjet] = useState(false);
     const [filterAlbum, setFilterAlbum] = useState(false);
@@ -61,6 +62,7 @@ export default function SpecificationsPage() {
         heightInch: 0,
         widthMm: 0,
         heightMm: 0,
+        forIndigoAlbum: false,
         forIndigo: false,
         forInkjet: false,
         forAlbum: false,
@@ -74,6 +76,7 @@ export default function SpecificationsPage() {
     // Queries and mutations
     const { data: rawSpecifications, isLoading } = useBasicSpecifications({
         search: searchTerm || undefined,
+        forIndigoAlbum: filterIndigoAlbum || undefined,
         forIndigo: filterIndigo || undefined,
         forInkjet: filterInkjet || undefined,
         forAlbum: filterAlbum || undefined,
@@ -154,6 +157,7 @@ export default function SpecificationsPage() {
             heightInch: 0,
             widthMm: 0,
             heightMm: 0,
+            forIndigoAlbum: false,
             forIndigo: false,
             forInkjet: false,
             forAlbum: false,
@@ -179,6 +183,7 @@ export default function SpecificationsPage() {
             heightInch: Number(spec.heightInch),
             widthMm: Number(spec.widthMm),
             heightMm: Number(spec.heightMm),
+            forIndigoAlbum: spec.forIndigoAlbum,
             forIndigo: spec.forIndigo,
             forInkjet: spec.forInkjet,
             forAlbum: spec.forAlbum,
@@ -318,6 +323,13 @@ export default function SpecificationsPage() {
                 <div className="flex items-center gap-4">
                     <label className="flex items-center gap-2 text-sm">
                         <Checkbox
+                            checked={filterIndigoAlbum}
+                            onCheckedChange={(checked) => setFilterIndigoAlbum(checked === true)}
+                        />
+                        인디고앨범
+                    </label>
+                    <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
                             checked={filterIndigo}
                             onCheckedChange={(checked) => setFilterIndigo(checked === true)}
                         />
@@ -335,21 +347,21 @@ export default function SpecificationsPage() {
                             checked={filterAlbum}
                             onCheckedChange={(checked) => setFilterAlbum(checked === true)}
                         />
-                        앨범전용
+                        잉크젯앨범
                     </label>
                     <label className="flex items-center gap-2 text-sm">
                         <Checkbox
                             checked={filterFrame}
                             onCheckedChange={(checked) => setFilterFrame(checked === true)}
                         />
-                        액자전용
+                        액자
                     </label>
                     <label className="flex items-center gap-2 text-sm">
                         <Checkbox
                             checked={filterBooklet}
                             onCheckedChange={(checked) => setFilterBooklet(checked === true)}
                         />
-                        인쇄책자전용
+                        책자
                     </label>
                 </div>
             </div>
@@ -365,24 +377,25 @@ export default function SpecificationsPage() {
                             <TableHead className="text-center">가로×세로(mm)</TableHead>
                             <TableHead className="text-center">가로×세로(inch)</TableHead>
                             <TableHead className="text-center w-[80px]">평방m</TableHead>
-                            <TableHead className="text-center w-[70px]">인디고</TableHead>
-                            <TableHead className="text-center w-[70px]">잉크젯</TableHead>
-                            <TableHead className="text-center w-[70px]">앨범전용</TableHead>
-                            <TableHead className="text-center w-[70px]">액자전용</TableHead>
-                            <TableHead className="text-center w-[70px]">인쇄책자</TableHead>
+                            <TableHead className="text-center w-[75px]">인디고앨범</TableHead>
+                            <TableHead className="text-center w-[70px]">인디고출력</TableHead>
+                            <TableHead className="text-center w-[70px]">잉크젯출력</TableHead>
+                            <TableHead className="text-center w-[75px]">잉크젯앨범</TableHead>
+                            <TableHead className="text-center w-[70px]">액자</TableHead>
+                            <TableHead className="text-center w-[70px]">책자</TableHead>
                             <TableHead className="text-center w-[100px]">관리</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {isLoading ? (
                             <TableRow>
-                                <TableCell colSpan={12} className="text-center py-8">
+                                <TableCell colSpan={13} className="text-center py-8">
                                     로딩 중...
                                 </TableCell>
                             </TableRow>
                         ) : specifications?.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={12} className="text-center py-8 text-gray-500">
+                                <TableCell colSpan={13} className="text-center py-8 text-gray-500">
                                     등록된 규격이 없습니다
                                 </TableCell>
                             </TableRow>
@@ -421,6 +434,13 @@ export default function SpecificationsPage() {
                                     </TableCell>
                                     <TableCell className="text-center">
                                         {spec.squareMeters ? Number(spec.squareMeters).toFixed(2) : "-"}
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                        {spec.forIndigoAlbum ? (
+                                            <Check className="h-4 w-4 text-green-500 mx-auto" />
+                                        ) : (
+                                            <X className="h-4 w-4 text-gray-300 mx-auto" />
+                                        )}
                                     </TableCell>
                                     <TableCell className="text-center">
                                         {spec.forIndigo ? (
@@ -613,6 +633,15 @@ export default function SpecificationsPage() {
                             <div className="col-span-3 grid grid-cols-2 gap-x-8 gap-y-3">
                                 <label className="flex items-center gap-2">
                                     <Checkbox
+                                        checked={formData.forIndigoAlbum}
+                                        onCheckedChange={(checked) =>
+                                            setFormData({ ...formData, forIndigoAlbum: checked === true })
+                                        }
+                                    />
+                                    <span className="text-sm">인디고앨범</span>
+                                </label>
+                                <label className="flex items-center gap-2">
+                                    <Checkbox
                                         checked={formData.forIndigo}
                                         onCheckedChange={(checked) =>
                                             setFormData({ ...formData, forIndigo: checked === true })
@@ -636,7 +665,7 @@ export default function SpecificationsPage() {
                                             setFormData({ ...formData, forAlbum: checked === true })
                                         }
                                     />
-                                    <span className="text-sm">앨범전용</span>
+                                    <span className="text-sm">잉크젯앨범</span>
                                 </label>
                                 <label className="flex items-center gap-2">
                                     <Checkbox
@@ -645,7 +674,7 @@ export default function SpecificationsPage() {
                                             setFormData({ ...formData, forFrame: checked === true })
                                         }
                                     />
-                                    <span className="text-sm">액자전용</span>
+                                    <span className="text-sm">액자</span>
                                 </label>
                                 <label className="flex items-center gap-2">
                                     <Checkbox
@@ -654,7 +683,7 @@ export default function SpecificationsPage() {
                                             setFormData({ ...formData, forBooklet: checked === true })
                                         }
                                     />
-                                    <span className="text-sm">인쇄책자전용</span>
+                                    <span className="text-sm">책자</span>
                                 </label>
                             </div>
                         </div>

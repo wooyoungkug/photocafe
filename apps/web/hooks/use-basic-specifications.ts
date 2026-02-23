@@ -33,7 +33,7 @@ export function useBasicSpecification(id: string) {
 }
 
 export function useSpecificationsByUsage(
-    usage: "indigo" | "inkjet" | "album" | "frame" | "booklet"
+    usage: "indigoAlbum" | "indigo" | "inkjet" | "album" | "frame" | "booklet"
 ) {
     return useQuery({
         queryKey: [BASIC_SPECIFICATIONS_KEY, "usage", usage],

@@ -56,8 +56,9 @@ const formatNumber = (num: number | string | undefined | null): string => {
 
 // 인쇄방식 라벨
 const PRINT_METHOD_LABELS: Record<string, string> = {
-  indigo: '인디고앨범',
-  inkjet: '잉크젯',
+  indigoAlbum: '인디고앨범',
+  indigo: '인디고출력',
+  inkjet: '잉크젯출력',
   album: '잉크젯앨범',
   frame: '액자',
   booklet: '책자',
