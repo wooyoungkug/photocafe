@@ -76,7 +76,29 @@ import {
   Shirt,
   MessageSquare,
   Printer,
+  Droplets,
 } from 'lucide-react';
+
+// 후가공 옵션 색상 팔레트
+const FINISHING_COLORS = [
+  { bg: 'bg-rose-500', bgLight: 'bg-rose-50/80', border: 'border-rose-200', ring: 'ring-rose-100', text: 'text-rose-700', switchCls: 'data-[state=checked]:bg-rose-500' },
+  { bg: 'bg-violet-500', bgLight: 'bg-violet-50/80', border: 'border-violet-200', ring: 'ring-violet-100', text: 'text-violet-700', switchCls: 'data-[state=checked]:bg-violet-500' },
+  { bg: 'bg-teal-500', bgLight: 'bg-teal-50/80', border: 'border-teal-200', ring: 'ring-teal-100', text: 'text-teal-700', switchCls: 'data-[state=checked]:bg-teal-500' },
+  { bg: 'bg-amber-500', bgLight: 'bg-amber-50/80', border: 'border-amber-200', ring: 'ring-amber-100', text: 'text-amber-700', switchCls: 'data-[state=checked]:bg-amber-500' },
+  { bg: 'bg-cyan-500', bgLight: 'bg-cyan-50/80', border: 'border-cyan-200', ring: 'ring-cyan-100', text: 'text-cyan-700', switchCls: 'data-[state=checked]:bg-cyan-500' },
+  { bg: 'bg-indigo-500', bgLight: 'bg-indigo-50/80', border: 'border-indigo-200', ring: 'ring-indigo-100', text: 'text-indigo-700', switchCls: 'data-[state=checked]:bg-indigo-500' },
+  { bg: 'bg-pink-500', bgLight: 'bg-pink-50/80', border: 'border-pink-200', ring: 'ring-pink-100', text: 'text-pink-700', switchCls: 'data-[state=checked]:bg-pink-500' },
+  { bg: 'bg-emerald-500', bgLight: 'bg-emerald-50/80', border: 'border-emerald-200', ring: 'ring-emerald-100', text: 'text-emerald-700', switchCls: 'data-[state=checked]:bg-emerald-500' },
+];
+
+// 후가공 그룹명 → 아이콘 매핑
+function getFinishingIcon(name: string) {
+  if (/코팅|용지/.test(name)) return Droplets;
+  if (/동판|연판/.test(name)) return Sparkles;
+  if (/제본/.test(name)) return Layers;
+  if (/커버|표지/.test(name)) return Palette;
+  return Settings;
+}
 
 // 제본방향 옵션
 const BINDING_DIRECTION_OPTIONS = [
@@ -1597,164 +1619,154 @@ export default function EditProductPage() {
               후가공 옵션
             </Label>
             {finishingChildren.length > 0 ? (
-              <div className="space-y-2">
-                {finishingChildren.map(group => {
-                  const activeChildren = (group.children ?? []).filter(c => c.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
-                  const groupSettings = finishingGroupSettings[group.id] ?? [];
-                  const selectedValues = finishingOptions[group.id] ?? [];
+              <div className="space-y-3">
+                {(() => {
+                  let colorIdx = 0;
+                  return finishingChildren.map(group => {
+                    const activeChildren = (group.children ?? []).filter(c => c.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
+                    const groupSettings = finishingGroupSettings[group.id] ?? [];
+                    const selectedValues = finishingOptions[group.id] ?? [];
 
-                  // Case 1: 하위 그룹이 있는 경우 (예: 코팅 > 용지코팅, 동판구매)
-                  if (activeChildren.length > 0) {
-                    return (
-                      <div key={group.id} className="rounded border border-slate-200 bg-white overflow-hidden">
-                        <div className="px-3 py-2 bg-slate-50 border-b border-slate-200">
-                          <span className="text-[13px] font-medium text-slate-700">{group.name}</span>
+                    // Case 1: 하위 그룹이 있는 경우 (예: 코팅 > 용지코팅, 동판구매)
+                    if (activeChildren.length > 0) {
+                      return (
+                        <div key={group.id} className="space-y-2">
+                          {activeChildren.map(child => {
+                            const childSettings = finishingGroupSettings[child.id] ?? [];
+                            const childSelected = finishingOptions[child.id] ?? [];
+                            const color = FINISHING_COLORS[colorIdx++ % FINISHING_COLORS.length];
+                            const IconComp = getFinishingIcon(child.name);
+
+                            if (childSettings.length === 0) {
+                              const isOn = childSelected.includes('__enabled__');
+                              return (
+                                <div key={child.id}>
+                                  <span className="text-[11px] text-slate-400 font-medium mb-1 block">{group.name} &gt; {child.name}</span>
+                                  <div className="flex flex-wrap gap-2">
+                                    <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${isOn ? `${color.bgLight} ${color.border} ring-1 ${color.ring}` : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                                      <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${isOn ? color.bg : 'bg-slate-200'}`}>
+                                        <IconComp className={`h-3 w-3 ${isOn ? 'text-white' : 'text-slate-400'}`} />
+                                      </div>
+                                      <span className={`text-[12px] font-medium ${isOn ? color.text : 'text-slate-500'}`}>{child.name}</span>
+                                      <Switch
+                                        checked={isOn}
+                                        onCheckedChange={(checked) => setFinishingOptions(prev => ({ ...prev, [child.id]: checked ? ['__enabled__'] : [] }))}
+                                        className={`ml-0.5 scale-90 ${color.switchCls}`}
+                                      />
+                                    </label>
+                                  </div>
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div key={child.id}>
+                                <span className="text-[11px] text-slate-400 font-medium mb-1 block">{group.name} &gt; {child.name}</span>
+                                <div className="flex flex-wrap gap-2">
+                                  {childSettings.map(setting => {
+                                    const isChecked = childSelected.includes(setting.id);
+                                    return (
+                                      <label
+                                        key={setting.id}
+                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${isChecked ? `${color.bgLight} ${color.border} ring-1 ${color.ring}` : 'bg-white border-slate-200 hover:bg-slate-50'}`}
+                                      >
+                                        <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${isChecked ? color.bg : 'bg-slate-200'}`}>
+                                          <IconComp className={`h-3 w-3 ${isChecked ? 'text-white' : 'text-slate-400'}`} />
+                                        </div>
+                                        <span className={`text-[12px] font-medium ${isChecked ? color.text : 'text-slate-500'}`}>
+                                          {setting.settingName ?? setting.codeName ?? '-'}
+                                        </span>
+                                        <Switch
+                                          checked={isChecked}
+                                          onCheckedChange={(checked) =>
+                                            setFinishingOptions(prev => {
+                                              const current = prev[child.id] ?? [];
+                                              return {
+                                                ...prev,
+                                                [child.id]: checked
+                                                  ? [...current, setting.id]
+                                                  : current.filter(id => id !== setting.id),
+                                              };
+                                            })
+                                          }
+                                          className={`ml-0.5 scale-90 ${color.switchCls}`}
+                                        />
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
-                        {activeChildren.map(child => {
-                          const childSettings = finishingGroupSettings[child.id] ?? [];
-                          const childSelected = finishingOptions[child.id] ?? [];
+                      );
+                    }
 
-                          if (childSettings.length === 0) {
+                    // Case 2: 세팅 없는 그룹: 토글 버튼
+                    if (groupSettings.length === 0) {
+                      const color = FINISHING_COLORS[colorIdx++ % FINISHING_COLORS.length];
+                      const IconComp = getFinishingIcon(group.name);
+                      const isOn = selectedValues.includes('__enabled__');
+                      return (
+                        <div key={group.id} className="flex flex-wrap gap-2">
+                          <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${isOn ? `${color.bgLight} ${color.border} ring-1 ${color.ring}` : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                            <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${isOn ? color.bg : 'bg-slate-200'}`}>
+                              <IconComp className={`h-3 w-3 ${isOn ? 'text-white' : 'text-slate-400'}`} />
+                            </div>
+                            <span className={`text-[12px] font-medium ${isOn ? color.text : 'text-slate-500'}`}>{group.name}</span>
+                            <Switch
+                              checked={isOn}
+                              onCheckedChange={(checked) => setFinishingOptions(prev => ({ ...prev, [group.id]: checked ? ['__enabled__'] : [] }))}
+                              className={`ml-0.5 scale-90 ${color.switchCls}`}
+                            />
+                          </label>
+                        </div>
+                      );
+                    }
+
+                    // Case 3: 직접 세팅 있는 그룹: 그룹명 라벨 + 토글 버튼
+                    const color = FINISHING_COLORS[colorIdx++ % FINISHING_COLORS.length];
+                    const IconComp = getFinishingIcon(group.name);
+                    return (
+                      <div key={group.id}>
+                        <span className="text-[11px] text-slate-400 font-medium mb-1 block">{group.name}</span>
+                        <div className="flex flex-wrap gap-2">
+                          {groupSettings.map(setting => {
+                            const isChecked = selectedValues.includes(setting.id);
                             return (
                               <label
-                                key={child.id}
-                                className="flex items-center gap-2.5 px-4 py-2 border-b border-slate-100 last:border-0 cursor-pointer hover:bg-slate-50 transition-colors"
+                                key={setting.id}
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${isChecked ? `${color.bgLight} ${color.border} ring-1 ${color.ring}` : 'bg-white border-slate-200 hover:bg-slate-50'}`}
                               >
-                                <Checkbox
-                                  checked={childSelected.includes('__enabled__')}
+                                <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${isChecked ? color.bg : 'bg-slate-200'}`}>
+                                  <IconComp className={`h-3 w-3 ${isChecked ? 'text-white' : 'text-slate-400'}`} />
+                                </div>
+                                <span className={`text-[12px] font-medium ${isChecked ? color.text : 'text-slate-500'}`}>
+                                  {setting.settingName ?? setting.codeName ?? '-'}
+                                </span>
+                                <Switch
+                                  checked={isChecked}
                                   onCheckedChange={(checked) =>
-                                    setFinishingOptions(prev => ({ ...prev, [child.id]: checked ? ['__enabled__'] : [] }))
+                                    setFinishingOptions(prev => {
+                                      const current = prev[group.id] ?? [];
+                                      return {
+                                        ...prev,
+                                        [group.id]: checked
+                                          ? [...current, setting.id]
+                                          : current.filter(id => id !== setting.id),
+                                      };
+                                    })
                                   }
+                                  className={`ml-0.5 scale-90 ${color.switchCls}`}
                                 />
-                                <span className="text-[12px] text-slate-600">{child.name}</span>
                               </label>
                             );
-                          }
-
-                          return (
-                            <div key={child.id} className="border-b border-slate-100 last:border-0">
-                              <div className="px-4 py-1.5 flex items-center justify-between">
-                                <span className="text-[12px] font-medium text-slate-600">{child.name}</span>
-                                {childSelected.length > 0 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => setFinishingOptions(prev => ({ ...prev, [child.id]: [] }))}
-                                    className="text-slate-400 hover:text-slate-600 transition-colors"
-                                    title="전체 해제"
-                                  >
-                                    <X className="h-3.5 w-3.5" />
-                                  </button>
-                                )}
-                              </div>
-                              <div className="flex flex-wrap gap-1 px-4 pb-2">
-                                {childSettings.map(setting => {
-                                  const isChecked = childSelected.includes(setting.id);
-                                  return (
-                                    <label
-                                      key={setting.id}
-                                      className={cn(
-                                        'flex items-center gap-1.5 px-2.5 py-1.5 rounded cursor-pointer transition-colors text-[12px]',
-                                        isChecked
-                                          ? 'bg-primary/10 text-primary font-medium'
-                                          : 'hover:bg-slate-100 text-slate-700'
-                                      )}
-                                    >
-                                      <Checkbox
-                                        checked={isChecked}
-                                        onCheckedChange={(checked) =>
-                                          setFinishingOptions(prev => {
-                                            const current = prev[child.id] ?? [];
-                                            return {
-                                              ...prev,
-                                              [child.id]: checked
-                                                ? [...current, setting.id]
-                                                : current.filter(id => id !== setting.id),
-                                            };
-                                          })
-                                        }
-                                      />
-                                      {setting.settingName ?? setting.codeName ?? '-'}
-                                    </label>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          );
-                        })}
+                          })}
+                        </div>
                       </div>
                     );
-                  }
-
-                  // Case 2: 세팅 없는 그룹: 체크박스 방식
-                  if (groupSettings.length === 0) {
-                    return (
-                      <label
-                        key={group.id}
-                        className="flex items-center gap-2.5 px-3 py-2 rounded border border-slate-200 bg-white cursor-pointer hover:bg-slate-50 transition-colors"
-                      >
-                        <Checkbox
-                          id={group.id}
-                          checked={selectedValues.includes('__enabled__')}
-                          onCheckedChange={(checked) =>
-                            setFinishingOptions(prev => ({ ...prev, [group.id]: checked ? ['__enabled__'] : [] }))
-                          }
-                        />
-                        <span className="text-[13px] text-slate-700">{group.name}</span>
-                      </label>
-                    );
-                  }
-
-                  // Case 3: 직접 세팅 있는 그룹: 중분류명 헤더 + 세팅값 체크박스
-                  return (
-                    <div key={group.id} className="rounded border border-slate-200 bg-white overflow-hidden">
-                      <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-                        <span className="text-[13px] font-medium text-slate-700">{group.name}</span>
-                        {selectedValues.length > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => setFinishingOptions(prev => ({ ...prev, [group.id]: [] }))}
-                            className="text-slate-400 hover:text-slate-600 transition-colors"
-                            title="전체 해제"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-1 p-2">
-                        {groupSettings.map(setting => {
-                          const isChecked = selectedValues.includes(setting.id);
-                          return (
-                            <label
-                              key={setting.id}
-                              className={cn(
-                                'flex items-center gap-1.5 px-2.5 py-1.5 rounded cursor-pointer transition-colors text-[12px]',
-                                isChecked
-                                  ? 'bg-primary/10 text-primary font-medium'
-                                  : 'hover:bg-slate-100 text-slate-700'
-                              )}
-                            >
-                              <Checkbox
-                                checked={isChecked}
-                                onCheckedChange={(checked) =>
-                                  setFinishingOptions(prev => {
-                                    const current = prev[group.id] ?? [];
-                                    return {
-                                      ...prev,
-                                      [group.id]: checked
-                                        ? [...current, setting.id]
-                                        : current.filter(id => id !== setting.id),
-                                    };
-                                  })
-                                }
-                              />
-                              {setting.settingName ?? setting.codeName ?? '-'}
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
+                  });
+                })()}
               </div>
             ) : (
               <p className="text-xs text-slate-400 text-center py-4">
