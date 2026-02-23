@@ -120,7 +120,7 @@ export function ShopHeader() {
               {/* User */}
               {isAuthenticated ? (
                 <div className="hidden md:flex items-center gap-2 ml-2">
-                  <Link href="/mypage/orders" className="flex items-center gap-1.5 p-2 hover:opacity-60 transition-opacity">
+                  <Link href="/mypage/profile" className="flex items-center gap-1.5 p-2 hover:opacity-60 transition-opacity">
                     <User className="h-4 w-4 text-neutral-600" />
                     <span className="text-sm text-neutral-700">{user?.name}{th('honorific')}</span>
                   </Link>
