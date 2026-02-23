@@ -939,7 +939,7 @@ export default function EditProductPage() {
                   </label>
                 </div>
                 {/* 3행: 가격/후가공 옵션 */}
-                <div className="flex gap-2 justify-end">
+                <div className="flex gap-2 pl-14">
                   <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${showOutputPrice ? 'bg-orange-50/80 border-orange-200 ring-1 ring-orange-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
                     <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${showOutputPrice ? 'bg-orange-500' : 'bg-slate-200'}`}>
                       <Printer className={`h-3 w-3 ${showOutputPrice ? 'text-white' : 'text-slate-400'}`} />
