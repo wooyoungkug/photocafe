@@ -1196,38 +1196,44 @@ export default function EditProductPage() {
                     </button>
                   </div>
 
-                  {/* 검색 결과 (평면 리스트) */}
+                  {/* 검색 결과 (칩 형태) */}
                   {filteredFabrics ? (
-                    <div className="border rounded-md divide-y max-h-[280px] overflow-y-auto">
+                    <div className="border rounded-md p-2 max-h-[280px] overflow-y-auto">
                       {filteredFabrics.length === 0 ? (
                         <p className="text-xs text-slate-400 py-3 text-center">검색 결과가 없습니다.</p>
-                      ) : filteredFabrics.map(fabric => {
-                        const isSelected = selectedFabricIds.includes(fabric.id);
-                        return (
-                          <label key={fabric.id}
-                            className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-50 cursor-pointer">
-                            <Checkbox
-                              checked={isSelected}
-                              onCheckedChange={checked =>
-                                setSelectedFabricIds(prev =>
-                                  checked ? [...prev, fabric.id] : prev.filter(id => id !== fabric.id)
-                                )
-                              }
-                            />
-                            {fabric.thumbnailUrl && (
-                              <div className="w-5 h-5 rounded border bg-cover bg-center flex-shrink-0"
-                                style={{ backgroundImage: `url(${normalizeImageUrl(fabric.thumbnailUrl)})` }} />
-                            )}
-                            <span className="text-[12px] text-slate-700">{fabric.name}</span>
-                            <span className="text-[10px] text-slate-400 ml-auto">{FABRIC_CATEGORY_LABELS[fabric.category as FabricCategory] || fabric.category}</span>
-                          </label>
-                        );
-                      })}
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5">
+                          {filteredFabrics.map(fabric => {
+                            const isSelected = selectedFabricIds.includes(fabric.id);
+                            return (
+                              <button key={fabric.id} type="button"
+                                onClick={() => setSelectedFabricIds(prev =>
+                                  isSelected ? prev.filter(id => id !== fabric.id) : [...prev, fabric.id]
+                                )}
+                                className={cn(
+                                  'inline-flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-full text-[11px] border transition-all duration-150',
+                                  isSelected
+                                    ? 'bg-blue-50 border-blue-300 text-blue-700 shadow-sm'
+                                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
+                                )}>
+                                {fabric.thumbnailUrl ? (
+                                  <div className="w-4 h-4 rounded-full border bg-cover bg-center flex-shrink-0"
+                                    style={{ backgroundImage: `url(${normalizeImageUrl(fabric.thumbnailUrl)})` }} />
+                                ) : (
+                                  <div className="w-4 h-4 rounded-full border bg-slate-100 flex-shrink-0" />
+                                )}
+                                <span>{fabric.name}</span>
+                                {isSelected && <Check className="h-3 w-3 ml-0.5" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   ) : (
-                    /* 카테고리 Accordion */
-                    <div className="space-y-1">
-                      {categories.map(cat => {
+                    /* 커튼 블라인드 스타일 */
+                    <div className="space-y-0">
+                      {categories.map((cat, idx) => {
                         const catFabrics = allFabrics.filter(f => f.category === cat);
                         const selectedCount = catFabrics.filter(f => selectedFabricIds.includes(f.id)).length;
                         const allSelected = selectedCount === catFabrics.length;
@@ -1235,9 +1241,20 @@ export default function EditProductPage() {
                         const isCollapsed = collapsedFabricCats.has(cat);
 
                         return (
-                          <div key={cat} className="border rounded-md overflow-hidden">
-                            {/* 카테고리 헤더 */}
-                            <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 hover:bg-slate-100 transition-colors">
+                          <div key={cat}>
+                            {/* 블라인드 슬랫 */}
+                            <div
+                              className={cn(
+                                'flex items-center gap-2 px-3 py-2 cursor-pointer select-none transition-all duration-200',
+                                'border border-slate-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)]',
+                                idx === 0 && 'rounded-t-md',
+                                idx === categories.length - 1 && isCollapsed && 'rounded-b-md',
+                                !isCollapsed
+                                  ? 'bg-gradient-to-r from-blue-50/80 to-slate-50 shadow-[0_1px_3px_rgba(0,0,0,0.06)]'
+                                  : 'bg-gradient-to-r from-slate-50 to-white',
+                                idx > 0 && '-mt-px'
+                              )}
+                            >
                               <Checkbox
                                 checked={someSelected ? 'indeterminate' : allSelected}
                                 onCheckedChange={checked => {
@@ -1250,48 +1267,69 @@ export default function EditProductPage() {
                                 }}
                               />
                               <button type="button"
-                                className="flex-1 flex items-center gap-2 text-left"
+                                className="flex-1 flex items-center gap-2 text-left min-w-0"
                                 onClick={() => setCollapsedFabricCats(prev => {
                                   const next = new Set(prev);
                                   next.has(cat) ? next.delete(cat) : next.add(cat);
                                   return next;
                                 })}>
-                                <span className="text-[12px] font-medium text-slate-700">
+                                <span className="text-[12px] font-semibold text-slate-700 truncate">
                                   {FABRIC_CATEGORY_LABELS[cat] || cat}
                                 </span>
-                                <span className="text-[10px] text-slate-400">
-                                  {selectedCount}/{catFabrics.length}
-                                </span>
-                                <ChevronDown className={`h-3.5 w-3.5 text-slate-400 ml-auto transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
+                                {selectedCount > 0 ? (
+                                  <Badge variant="default" className="text-[9px] h-4 px-1.5 rounded-full bg-blue-500">
+                                    {selectedCount}/{catFabrics.length}
+                                  </Badge>
+                                ) : (
+                                  <span className="text-[10px] text-slate-400">{catFabrics.length}</span>
+                                )}
+                                <ChevronDown className={cn(
+                                  'h-3.5 w-3.5 text-slate-400 ml-auto transition-transform duration-300',
+                                  isCollapsed ? '-rotate-90' : 'rotate-0'
+                                )} />
                               </button>
                             </div>
 
-                            {/* 원단 목록 */}
-                            {!isCollapsed && (
-                              <div className="divide-y max-h-[200px] overflow-y-auto">
-                                {catFabrics.map(fabric => {
-                                  const isSelected = selectedFabricIds.includes(fabric.id);
-                                  return (
-                                    <label key={fabric.id}
-                                      className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-50 cursor-pointer">
-                                      <Checkbox
-                                        checked={isSelected}
-                                        onCheckedChange={checked =>
-                                          setSelectedFabricIds(prev =>
-                                            checked ? [...prev, fabric.id] : prev.filter(id => id !== fabric.id)
-                                          )
-                                        }
-                                      />
-                                      {fabric.thumbnailUrl && (
-                                        <div className="w-5 h-5 rounded border bg-cover bg-center flex-shrink-0"
-                                          style={{ backgroundImage: `url(${normalizeImageUrl(fabric.thumbnailUrl)})` }} />
-                                      )}
-                                      <span className="text-[12px] text-slate-700">{fabric.name}</span>
-                                    </label>
-                                  );
-                                })}
+                            {/* 블라인드 펼침 영역 - 커튼 내려가듯 */}
+                            <div
+                              className={cn(
+                                'overflow-hidden transition-all duration-300 ease-in-out',
+                                isCollapsed ? 'max-h-0 opacity-0' : 'max-h-[300px] opacity-100'
+                              )}
+                            >
+                              <div className="px-2.5 py-2 border-x border-slate-200 bg-white -mt-px">
+                                <div className="flex flex-wrap gap-1.5">
+                                  {catFabrics.map(fabric => {
+                                    const isSelected = selectedFabricIds.includes(fabric.id);
+                                    return (
+                                      <button key={fabric.id} type="button"
+                                        onClick={() => setSelectedFabricIds(prev =>
+                                          isSelected ? prev.filter(id => id !== fabric.id) : [...prev, fabric.id]
+                                        )}
+                                        className={cn(
+                                          'inline-flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-full text-[11px] border transition-all duration-150',
+                                          isSelected
+                                            ? 'bg-blue-50 border-blue-300 text-blue-700 shadow-sm'
+                                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
+                                        )}>
+                                        {fabric.thumbnailUrl ? (
+                                          <div className="w-4 h-4 rounded-full border bg-cover bg-center flex-shrink-0"
+                                            style={{ backgroundImage: `url(${normalizeImageUrl(fabric.thumbnailUrl)})` }} />
+                                        ) : (
+                                          <div className="w-4 h-4 rounded-full border bg-slate-100 flex-shrink-0" />
+                                        )}
+                                        <span>{fabric.name}</span>
+                                        {isSelected && <Check className="h-3 w-3 ml-0.5 text-blue-500" />}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
                               </div>
-                            )}
+                              {/* 블라인드 하단 그림자 라인 */}
+                              {idx === categories.length - 1 && !isCollapsed && (
+                                <div className="h-px border-b border-slate-200 rounded-b-md" />
+                              )}
+                            </div>
                           </div>
                         );
                       })}
