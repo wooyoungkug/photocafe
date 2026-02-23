@@ -1249,6 +1249,43 @@ export default function EditProductPage() {
             })()}
           </div>)}
 
+          {/* 박(Foil) 선택 - 동판 토글이 켜져있을 때만 표시 */}
+          {useCopperPlate && (<div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-[13px] font-medium text-slate-600 flex items-center gap-1.5">
+                <Sparkles className="h-4 w-4 text-slate-400" />
+                박 컬러 선택
+                {selectedFoils.length > 0 && (
+                  <Badge variant="secondary" className="text-[10px] h-4 px-1.5">{selectedFoils.length}개 선택</Badge>
+                )}
+              </Label>
+              <Button type="button" variant="outline" size="sm" className="h-7 text-[11px] gap-1"
+                onClick={() => setFoilDialogOpen(true)}>
+                <Plus className="h-3 w-3" />
+                박 추가
+              </Button>
+            </div>
+            {selectedFoils.length === 0 ? (
+              <p className="text-xs text-slate-400 py-2">선택된 박 컬러가 없습니다. &apos;박 추가&apos; 버튼으로 거래처에 등록된 박 컬러를 선택하세요.</p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {selectedFoils.map((foil) => (
+                  <Badge key={foil.id} variant="outline" className="flex items-center gap-1.5 px-2 py-1 bg-white">
+                    {foil.color && (
+                      <div className="w-3 h-3 rounded-full border border-slate-200 flex-shrink-0"
+                        style={{ backgroundColor: foil.color }} />
+                    )}
+                    <span className="text-[11px]">{foil.name}</span>
+                    <button type="button" title="삭제" className="ml-0.5 hover:text-red-500 transition-colors"
+                      onClick={() => setSelectedFoils(prev => prev.filter(f => f.id !== foil.id))}>
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>)}
+
           {/* 용지 사용 여부 - 출력방식별 그룹화 (출력단가 토글이 켜져있을 때만 표시) */}
           {showOutputPrice && product?.papers && product.papers.length > 0 && (
             <div className="space-y-3">
