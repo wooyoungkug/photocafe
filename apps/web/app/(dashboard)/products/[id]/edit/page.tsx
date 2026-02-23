@@ -930,15 +930,8 @@ export default function EditProductPage() {
                     <span className={`text-[12px] font-medium ${showCover ? 'text-pink-700' : 'text-slate-500'}`}>커버</span>
                     <Switch checked={showCover} onCheckedChange={setShowCover} className="ml-0.5 scale-90 data-[state=checked]:bg-pink-500" />
                   </label>
-                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all min-w-[160px] ${showOrderMemo ? 'bg-cyan-50/80 border-cyan-200 ring-1 ring-cyan-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
-                    <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${showOrderMemo ? 'bg-cyan-500' : 'bg-slate-200'}`}>
-                      <MessageSquare className={`h-3 w-3 ${showOrderMemo ? 'text-white' : 'text-slate-400'}`} />
-                    </div>
-                    <span className={`text-[12px] font-medium ${showOrderMemo ? 'text-cyan-700' : 'text-slate-500'}`}>주문메모</span>
-                    <Switch checked={showOrderMemo} onCheckedChange={setShowOrderMemo} className="ml-0.5 scale-90 data-[state=checked]:bg-cyan-500" />
-                  </label>
                 </div>
-                {/* 3행: 가격/후가공 옵션 */}
+                {/* 3행: 가격/후가공/주문메모 옵션 */}
                 <div className="flex gap-2 pl-14">
                   <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all min-w-[160px] ${showOutputPrice ? 'bg-orange-50/80 border-orange-200 ring-1 ring-orange-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
                     <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${showOutputPrice ? 'bg-orange-500' : 'bg-slate-200'}`}>
@@ -953,6 +946,13 @@ export default function EditProductPage() {
                     </div>
                     <span className={`text-[12px] font-medium ${showFinishing ? 'text-lime-700' : 'text-slate-500'}`}>후가공</span>
                     <Switch checked={showFinishing} onCheckedChange={setShowFinishing} className="ml-0.5 scale-90 data-[state=checked]:bg-lime-500" />
+                  </label>
+                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all min-w-[160px] ${showOrderMemo ? 'bg-cyan-50/80 border-cyan-200 ring-1 ring-cyan-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                    <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${showOrderMemo ? 'bg-cyan-500' : 'bg-slate-200'}`}>
+                      <MessageSquare className={`h-3 w-3 ${showOrderMemo ? 'text-white' : 'text-slate-400'}`} />
+                    </div>
+                    <span className={`text-[12px] font-medium ${showOrderMemo ? 'text-cyan-700' : 'text-slate-500'}`}>주문메모</span>
+                    <Switch checked={showOrderMemo} onCheckedChange={setShowOrderMemo} className="ml-0.5 scale-90 data-[state=checked]:bg-cyan-500" />
                   </label>
                 </div>
 
