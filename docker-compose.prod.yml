@@ -41,6 +41,9 @@ services:
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1h}
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      NAVER_CLIENT_ID: ${NAVER_CLIENT_ID:-}
+      NAVER_CLIENT_SECRET: ${NAVER_CLIENT_SECRET:-}
+      NAVER_CALLBACK_URL: ${NAVER_CALLBACK_URL:-}
       TZ: Asia/Seoul
       NODE_OPTIONS: "--max-old-space-size=1536"
       UPLOAD_BASE_PATH: /app/uploads

@@ -20,9 +20,9 @@ export class NaverStrategy extends PassportStrategy(Strategy, 'naver') {
     }
 
     super({
-      clientID,
-      clientSecret,
-      callbackURL,
+      clientID: clientID || 'disabled',
+      clientSecret: clientSecret || 'disabled',
+      callbackURL: callbackURL || 'http://localhost:3001/api/v1/auth/naver/callback',
     });
   }
 
