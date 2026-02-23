@@ -614,7 +614,10 @@ export default function MonthlySummaryPage() {
                             </td>
                             <td className="border border-gray-400 p-1 text-center">
                               <div>{item.productName?.split(' - ')[0] || item.productName}</div>
-                              <div className="text-[8pt] text-gray-500">{item.size || '-'}</div>
+                              <div className="text-[8pt] text-gray-500">
+                                {item.size || '-'}{' '}
+                                {/앨범|잉크젯/i.test(item.printMethod) ? '양면' : '단면'}
+                              </div>
                             </td>
                             <td className="border border-gray-400 p-1 text-center tabular-nums">
                               <div>{item.pages > 0 ? `${item.pages}p` : '-'}</div>
