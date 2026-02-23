@@ -76,6 +76,8 @@ import {
   Shirt,
   MessageSquare,
   Printer,
+  BookOpen,
+  FileImage,
 } from 'lucide-react';
 
 // 제본방향 옵션
@@ -1911,6 +1913,50 @@ export default function EditProductPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* 데이터 업로드 미리보기 - 업로드 토글 ON 시 표시 */}
+      {requiresUpload && (
+        <Card className="overflow-hidden border border-violet-200 shadow-none rounded-lg">
+          <SectionHeader
+            icon={Upload}
+            title="데이터 업로드"
+            subtitle="고객이 쇼핑몰에서 보게 될 파일 업로드 영역입니다"
+            theme="violet"
+          />
+          <CardContent className="px-6 pb-6 pt-4">
+            <Badge variant="outline" className="mb-3 text-[10px] text-violet-600 border-violet-300 bg-violet-50">
+              미리보기
+            </Badge>
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center bg-white">
+              <div className="flex justify-center gap-4 mb-3">
+                <Folder className="w-12 h-12 text-gray-400" />
+                <FileImage className="w-12 h-12 text-gray-400" />
+              </div>
+              <p className="text-gray-600 mb-3">
+                여러 개의 폴더를 <strong>드래그</strong>하여 업로드하거나
+              </p>
+              <Button variant="outline" disabled className="pointer-events-none">
+                <Upload className="w-4 h-4 mr-2" />
+                폴더 선택
+              </Button>
+              <p className="text-xs text-gray-400 mt-3">
+                JPG, PNG, TIFF 지원 | 최대 하위 4단계 | 첫장/막장 자동 감지 | 첫익장 합본 자동 분리 | 편집스타일 자동감지 | 빈페이지 자동감지
+              </p>
+            </div>
+            <div className="bg-pink-50 border border-pink-200 rounded-lg p-4 mt-4">
+              <div className="flex items-start gap-3">
+                <BookOpen className="h-5 w-5 text-pink-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h4 className="font-medium text-pink-900">화보/앨범 주문 안내</h4>
+                  <p className="text-sm text-pink-700 mt-1">
+                    &quot;데이터 업로드 주문&quot; 버튼을 클릭하면 폴더별로 파일을 업로드하고 규격을 자동으로 분석하여 주문할 수 있습니다.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* 상세이미지 섹션 */}
       <Card className="overflow-hidden border border-slate-200 shadow-none rounded-lg">
