@@ -97,7 +97,7 @@ jobs:
             echo "=========================================="
 
             # 0. .env 파일 확인
-            echo "=== [0/6] 환경설정 확인 ==="
+            echo "=== [0/7] 환경설정 확인 ==="
             cd "$DEPLOY_DIR"
             if [ ! -f .env ]; then
               echo "ERROR: $DEPLOY_DIR/.env 파일이 없습니다!"
@@ -112,16 +112,16 @@ jobs:
             echo ".env 확인 완료"
 
             # 1. GHCR 로그인
-            echo "=== [1/6] GHCR 로그인 ==="
+            echo "=== [1/7] GHCR 로그인 ==="
             run_sudo $DOCKER login ghcr.io -u wooyoungkug --password "$GHCR_TOKEN"
 
             # 2. 최신 이미지 Pull
-            echo "=== [2/6] 이미지 Pull ==="
+            echo "=== [2/7] 이미지 Pull ==="
             run_sudo $DOCKER pull ghcr.io/wooyoungkug/photocafe-api:latest
             run_sudo $DOCKER pull ghcr.io/wooyoungkug/photocafe-web:latest
 
             # 3. 설정 파일 동기화
-            echo "=== [3/6] 설정 동기화 ==="
+            echo "=== [3/7] 설정 동기화 ==="
             git fetch origin main
             git checkout origin/main -- docker-compose.prod.yml
 
