@@ -5,8 +5,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { PrismaService } from './common/prisma/prisma.service';
-import { FileStorageService } from './modules/upload/services/file-storage.service';
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 
 // BigInt JSON 직렬화 지원 (Prisma BigInt 필드)
@@ -29,8 +28,18 @@ async function bootstrap() {
   app.enableShutdownHooks();
 
   // Static file serving (uploads) - DB 설정 경로 반영
-  const fileStorage = app.get(FileStorageService);
-  const uploadPath = fileStorage.uploadBasePath;
+  const prisma = app.get(PrismaService);
+  let uploadPath = join(process.cwd(), process.env.UPLOAD_BASE_PATH || 'uploads');
+  try {
+    const setting = await prisma.systemSetting.findUnique({ where: { key: 'server_upload_base_path' } });
+    if (setting?.value) {
+      const dbPath = setting.value;
+      const resolved = (dbPath.startsWith('/') || /^[A-Z]:/i.test(dbPath)) ? dbPath : join(process.cwd(), dbPath);
+      if (existsSync(resolved)) {
+        uploadPath = resolved;
+      }
+    }
+  } catch {}
   app.useStaticAssets(uploadPath, { prefix: '/uploads/' });
   app.useStaticAssets(uploadPath, { prefix: '/upload/' });
   logger.log(`Static file serving: ${uploadPath}`);
