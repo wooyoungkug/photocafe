@@ -38,7 +38,7 @@ import {
     useUpdateBasicSpecification,
     useDeleteBasicSpecification,
 } from "@/hooks/use-basic-specifications";
-import { Specification, CreateSpecificationRequest } from "@/lib/types/specification";
+import { Specification, CreateSpecificationRequest, SPEC_PURPOSE_OPTIONS, SPEC_PURPOSE_LABELS, type SpecPurposeKey } from "@/lib/types/specification";
 
 export default function SpecificationsPage() {
     const { toast } = useToast();
@@ -377,12 +377,9 @@ export default function SpecificationsPage() {
                             <TableHead className="text-center">가로×세로(mm)</TableHead>
                             <TableHead className="text-center">가로×세로(inch)</TableHead>
                             <TableHead className="text-center w-[80px]">평방m</TableHead>
-                            <TableHead className="text-center w-[75px]">인디고앨범</TableHead>
-                            <TableHead className="text-center w-[70px]">인디고출력</TableHead>
-                            <TableHead className="text-center w-[70px]">잉크젯출력</TableHead>
-                            <TableHead className="text-center w-[75px]">잉크젯앨범</TableHead>
-                            <TableHead className="text-center w-[70px]">액자</TableHead>
-                            <TableHead className="text-center w-[70px]">책자</TableHead>
+                            {SPEC_PURPOSE_OPTIONS.map(({ key, label }) => (
+                                <TableHead key={key} className="text-center w-[75px]">{label}</TableHead>
+                            ))}
                             <TableHead className="text-center w-[100px]">관리</TableHead>
                         </TableRow>
                     </TableHeader>

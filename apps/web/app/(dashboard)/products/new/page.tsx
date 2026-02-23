@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/table';
 import { useCategories } from '@/hooks/use-categories';
 import { useSpecifications } from '@/hooks/use-specifications';
+import { SPEC_PURPOSE_OPTIONS } from '@/lib/types/specification';
 import { useHalfProducts } from '@/hooks/use-half-products';
 import { useCreateProduct, useProductTypes, useProcessTemplates, useProductTypeOptions } from '@/hooks/use-products';
 import { ProcessFlowSection } from '../components/ProcessFlowSection';
@@ -750,14 +751,7 @@ export default function NewProductPage() {
 
             {/* 규격 타입 탭 */}
             <div className="flex gap-0.5 p-0.5 bg-slate-100/80 rounded-lg w-fit border border-slate-200/60">
-              {[
-                { key: 'indigoAlbum', label: '인디고앨범' },
-                { key: 'indigo', label: '인디고출력' },
-                { key: 'inkjet', label: '잉크젯출력' },
-                { key: 'album', label: '잉크젯앨범' },
-                { key: 'frame', label: '액자' },
-                { key: 'booklet', label: '책자' },
-              ].map(tab => {
+              {SPEC_PURPOSE_OPTIONS.map(tab => {
                 const tabSpecs = getFilteredSpecs(tab.key as typeof specType);
                 const tabSelectedCount = selectedSpecs.filter(specId => tabSpecs.some(s => s.id === specId)).length;
                 const isTabActive = specType === tab.key;
@@ -1554,14 +1548,7 @@ export default function NewProductPage() {
             </DialogTitle>
           </DialogHeader>
           <div className="flex gap-1 p-1 bg-slate-100 rounded-lg w-fit">
-            {[
-              { key: 'indigoAlbum', label: '인디고앨범' },
-              { key: 'indigo', label: '인디고출력' },
-              { key: 'inkjet', label: '잉크젯출력' },
-              { key: 'album', label: '잉크젯앨범' },
-              { key: 'frame', label: '액자' },
-              { key: 'booklet', label: '책자' },
-            ].map(tab => (
+            {SPEC_PURPOSE_OPTIONS.map(tab => (
               <Button
                 key={tab.key}
                 type="button"

@@ -6,10 +6,12 @@
  */
 import { ProductType } from './process-templates';
 
-// 규격 필터링 탭 타입
+// 규격 필터링 탭 타입 (용도별규격 6종)
 export type SpecFilterType =
   | 'indigoAlbum'
+  | 'indigo'
   | 'inkjet'
+  | 'album'
   | 'frame'
   | 'booklet'
   | null;
