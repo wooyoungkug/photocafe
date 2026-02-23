@@ -1249,8 +1249,8 @@ export default function EditProductPage() {
             })()}
           </div>)}
 
-          {/* 용지 사용 여부 - 출력방식별 그룹화 */}
-          {product?.papers && product.papers.length > 0 && (
+          {/* 용지 사용 여부 - 출력방식별 그룹화 (출력단가 토글이 켜져있을 때만 표시) */}
+          {showOutputPrice && product?.papers && product.papers.length > 0 && (
             <div className="space-y-3">
               <Label className="text-[13px] font-medium text-slate-600 flex items-center gap-1.5">
                 <FileText className="h-4 w-4 text-slate-400" />
