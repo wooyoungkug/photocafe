@@ -1186,8 +1186,8 @@ export default function EditProductPage() {
                           linkedOutput ? 'border-orange-200 bg-orange-50/50' : ''
                         )}
                       >
-                        <span className="text-[11px]">{spec.name}</span>
-                        <span className="text-[11px] text-slate-400">{spec.widthMm}×{spec.heightMm}mm</span>
+                        <span className="text-[12px]">{spec.name}</span>
+                        <span className="text-[12px] text-slate-400">{spec.widthMm}×{spec.heightMm}mm</span>
                         {linkedOutput && (
                           <span className="text-[9px] text-orange-500 font-medium">
                             {linkedOutput.outputMethod === 'INKJET' ? '잉크젯' : '인디고'}
