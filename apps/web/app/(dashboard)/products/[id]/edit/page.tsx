@@ -76,29 +76,7 @@ import {
   Shirt,
   MessageSquare,
   Printer,
-  Droplets,
 } from 'lucide-react';
-
-// 후가공 옵션 색상 팔레트
-const FINISHING_COLORS = [
-  { bg: 'bg-rose-500', bgLight: 'bg-rose-50/80', border: 'border-rose-200', ring: 'ring-rose-100', text: 'text-rose-700', switchCls: 'data-[state=checked]:bg-rose-500' },
-  { bg: 'bg-violet-500', bgLight: 'bg-violet-50/80', border: 'border-violet-200', ring: 'ring-violet-100', text: 'text-violet-700', switchCls: 'data-[state=checked]:bg-violet-500' },
-  { bg: 'bg-teal-500', bgLight: 'bg-teal-50/80', border: 'border-teal-200', ring: 'ring-teal-100', text: 'text-teal-700', switchCls: 'data-[state=checked]:bg-teal-500' },
-  { bg: 'bg-amber-500', bgLight: 'bg-amber-50/80', border: 'border-amber-200', ring: 'ring-amber-100', text: 'text-amber-700', switchCls: 'data-[state=checked]:bg-amber-500' },
-  { bg: 'bg-cyan-500', bgLight: 'bg-cyan-50/80', border: 'border-cyan-200', ring: 'ring-cyan-100', text: 'text-cyan-700', switchCls: 'data-[state=checked]:bg-cyan-500' },
-  { bg: 'bg-indigo-500', bgLight: 'bg-indigo-50/80', border: 'border-indigo-200', ring: 'ring-indigo-100', text: 'text-indigo-700', switchCls: 'data-[state=checked]:bg-indigo-500' },
-  { bg: 'bg-pink-500', bgLight: 'bg-pink-50/80', border: 'border-pink-200', ring: 'ring-pink-100', text: 'text-pink-700', switchCls: 'data-[state=checked]:bg-pink-500' },
-  { bg: 'bg-emerald-500', bgLight: 'bg-emerald-50/80', border: 'border-emerald-200', ring: 'ring-emerald-100', text: 'text-emerald-700', switchCls: 'data-[state=checked]:bg-emerald-500' },
-];
-
-// 후가공 그룹명 → 아이콘 매핑
-function getFinishingIcon(name: string) {
-  if (/코팅|용지/.test(name)) return Droplets;
-  if (/동판|연판/.test(name)) return Sparkles;
-  if (/제본/.test(name)) return Layers;
-  if (/커버|표지/.test(name)) return Palette;
-  return Settings;
-}
 
 // 제본방향 옵션
 const BINDING_DIRECTION_OPTIONS = [
@@ -267,6 +245,7 @@ export default function EditProductPage() {
   const [showBinding, setShowBinding] = useState(true);
   const [showCover, setShowCover] = useState(false);
   const [showOutputPrice, setShowOutputPrice] = useState(false);
+  const [showFinishing, setShowFinishing] = useState(false);
   const [memberType, setMemberType] = useState<'all' | 'member_only' | 'specific_groups'>('all');
   const [sortOrder, setSortOrder] = useState(0);
 
@@ -965,7 +944,54 @@ export default function EditProductPage() {
                     <span className={`text-[12px] font-medium ${showOutputPrice ? 'text-orange-700' : 'text-slate-500'}`}>출력단가</span>
                     <Switch checked={showOutputPrice} onCheckedChange={setShowOutputPrice} className="ml-0.5 scale-90 data-[state=checked]:bg-orange-500" />
                   </label>
+                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${showFinishing ? 'bg-lime-50/80 border-lime-200 ring-1 ring-lime-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                    <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${showFinishing ? 'bg-lime-500' : 'bg-slate-200'}`}>
+                      <Settings className={`h-3 w-3 ${showFinishing ? 'text-white' : 'text-slate-400'}`} />
+                    </div>
+                    <span className={`text-[12px] font-medium ${showFinishing ? 'text-lime-700' : 'text-slate-500'}`}>후가공</span>
+                    <Switch checked={showFinishing} onCheckedChange={setShowFinishing} className="ml-0.5 scale-90 data-[state=checked]:bg-lime-500" />
+                  </label>
                 </div>
+
+                {/* 출력단가 ON → 연동 규격 요약 표시 */}
+                {showOutputPrice && outputPriceSelections.length > 0 && (() => {
+                  const groups = new Map<string, { name: string; method: string; details: string[] }>();
+                  outputPriceSelections.forEach(sel => {
+                    const key = `${sel.productionSettingId}-${sel.outputMethod}`;
+                    if (!groups.has(key)) {
+                      groups.set(key, { name: sel.productionSettingName, method: sel.outputMethod, details: [] });
+                    }
+                    const g = groups.get(key)!;
+                    if (sel.outputMethod === 'INDIGO' && sel.colorType) {
+                      if (!g.details.includes(sel.colorType)) g.details.push(sel.colorType);
+                    } else if (sel.specificationName) {
+                      g.details.push(sel.specificationName);
+                    }
+                  });
+                  return (
+                    <div className="flex items-start gap-2 pl-14">
+                      <Printer className="h-3.5 w-3.5 text-orange-400 mt-0.5 shrink-0" />
+                      <div className="flex flex-wrap gap-1.5">
+                        {Array.from(groups.entries()).map(([key, g]) => (
+                          <div key={key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-orange-50 border border-orange-200 text-[11px]">
+                            <span className="font-medium text-orange-700">{g.name}</span>
+                            <span className="text-orange-300">|</span>
+                            <span className="text-orange-600">
+                              {g.method === 'INDIGO'
+                                ? `인디고 ${g.details.join('/')}`
+                                : `잉크젯`}
+                            </span>
+                            {g.method === 'INKJET' && g.details.length > 0 && (
+                              <span className="text-orange-500 text-[10px]">
+                                ({g.details.join(', ')})
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </FormRow>
 
