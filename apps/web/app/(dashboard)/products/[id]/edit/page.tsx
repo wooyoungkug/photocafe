@@ -893,7 +893,7 @@ export default function EditProductPage() {
                   </label>
                 </div>
                 {/* 2행: 제작 옵션 */}
-                <div className="flex flex-wrap gap-2">
+                <div className="flex gap-2">
                   <span className="text-[11px] text-slate-400 font-medium self-center w-12 shrink-0">제작</span>
                   <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${showBinding ? 'bg-indigo-50/80 border-indigo-200 ring-1 ring-indigo-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
                     <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${showBinding ? 'bg-indigo-500' : 'bg-slate-200'}`}>
@@ -937,6 +937,9 @@ export default function EditProductPage() {
                     <span className={`text-[12px] font-medium ${showOrderMemo ? 'text-cyan-700' : 'text-slate-500'}`}>주문메모</span>
                     <Switch checked={showOrderMemo} onCheckedChange={setShowOrderMemo} className="ml-0.5 scale-90 data-[state=checked]:bg-cyan-500" />
                   </label>
+                </div>
+                {/* 3행: 가격/후가공 옵션 */}
+                <div className="flex gap-2 justify-end">
                   <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${showOutputPrice ? 'bg-orange-50/80 border-orange-200 ring-1 ring-orange-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
                     <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${showOutputPrice ? 'bg-orange-500' : 'bg-slate-200'}`}>
                       <Printer className={`h-3 w-3 ${showOutputPrice ? 'text-white' : 'text-slate-400'}`} />
@@ -953,45 +956,6 @@ export default function EditProductPage() {
                   </label>
                 </div>
 
-                {/* 출력단가 ON → 연동 규격 요약 표시 */}
-                {showOutputPrice && outputPriceSelections.length > 0 && (() => {
-                  const groups = new Map<string, { name: string; method: string; details: string[] }>();
-                  outputPriceSelections.forEach(sel => {
-                    const key = `${sel.productionSettingId}-${sel.outputMethod}`;
-                    if (!groups.has(key)) {
-                      groups.set(key, { name: sel.productionSettingName, method: sel.outputMethod, details: [] });
-                    }
-                    const g = groups.get(key)!;
-                    if (sel.outputMethod === 'INDIGO' && sel.colorType) {
-                      if (!g.details.includes(sel.colorType)) g.details.push(sel.colorType);
-                    } else if (sel.specificationName) {
-                      g.details.push(sel.specificationName);
-                    }
-                  });
-                  return (
-                    <div className="flex items-start gap-2 pl-14">
-                      <Printer className="h-3.5 w-3.5 text-orange-400 mt-0.5 shrink-0" />
-                      <div className="flex flex-wrap gap-1.5">
-                        {Array.from(groups.entries()).map(([key, g]) => (
-                          <div key={key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-orange-50 border border-orange-200 text-[11px]">
-                            <span className="font-medium text-orange-700">{g.name}</span>
-                            <span className="text-orange-300">|</span>
-                            <span className="text-orange-600">
-                              {g.method === 'INDIGO'
-                                ? `인디고 ${g.details.join('/')}`
-                                : `잉크젯`}
-                            </span>
-                            {g.method === 'INKJET' && g.details.length > 0 && (
-                              <span className="text-orange-500 text-[10px]">
-                                ({g.details.join(', ')})
-                              </span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
               </div>
             </FormRow>
 
