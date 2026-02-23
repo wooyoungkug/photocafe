@@ -1040,29 +1040,82 @@ export default function EditProductPage() {
                 });
                 return (
                   <div className="space-y-2 p-3 bg-slate-50 rounded border border-slate-200">
-                    {Array.from(groups.values()).map((g, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-2 bg-white rounded-lg border">
-                        <div className="flex items-center gap-2">
-                          <span className="text-base">{g.method === 'INDIGO' ? '🖨️' : '💧'}</span>
-                          <div>
-                            <p className="font-medium text-[13px]">{g.name}</p>
-                            <p className="text-[12px] text-slate-500">
-                              {g.method === 'INDIGO'
-                                ? `인디고 ${g.colorTypes.join('/')}`
-                                : `잉크젯 (${g.specCount}개 규격)`}
-                            </p>
+                    {Array.from(groups.entries()).map(([key, g]) => {
+                      // INKJET 그룹의 규격 목록
+                      const groupSpecs = g.method === 'INKJET'
+                        ? outputPriceSelections.filter(sel =>
+                            g.ids.includes(sel.id) && sel.specificationId
+                          )
+                        : [];
+                      const checkedSpecCount = groupSpecs.filter(sel => selectedSpecs.includes(sel.specificationId!)).length;
+
+                      return (
+                        <div key={key} className="bg-white rounded-lg border overflow-hidden">
+                          <div className="flex items-center justify-between p-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-base">{g.method === 'INDIGO' ? '🖨️' : '💧'}</span>
+                              <div>
+                                <p className="font-medium text-[13px]">{g.name}</p>
+                                <p className="text-[12px] text-slate-500">
+                                  {g.method === 'INDIGO'
+                                    ? `인디고 ${g.colorTypes.join('/')}`
+                                    : `잉크젯 (${checkedSpecCount}/${g.specCount}개 규격)`}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              title="제거"
+                              className="p-1 hover:bg-red-100 rounded-full"
+                              onClick={() => {
+                                // 삭제되는 선택들의 specId도 selectedSpecs에서 제거
+                                const removedSpecIds = outputPriceSelections
+                                  .filter(p => g.ids.includes(p.id) && p.specificationId)
+                                  .map(p => p.specificationId!);
+                                setOutputPriceSelections(prev => prev.filter(p => !g.ids.includes(p.id)));
+                                if (removedSpecIds.length > 0) {
+                                  setSelectedSpecs(prev => prev.filter(id => !removedSpecIds.includes(id)));
+                                }
+                              }}
+                            >
+                              <X className="h-4 w-4 text-red-500" />
+                            </button>
                           </div>
+
+                          {/* INKJET: 규격 체크박스 */}
+                          {groupSpecs.length > 0 && (
+                            <div className="flex flex-wrap gap-1 px-3 pb-2 border-t border-slate-100 pt-2">
+                              {groupSpecs.map(sel => {
+                                const isChecked = selectedSpecs.includes(sel.specificationId!);
+                                return (
+                                  <label
+                                    key={sel.id}
+                                    className={cn(
+                                      'flex items-center gap-1.5 px-2.5 py-1.5 rounded cursor-pointer transition-colors text-[12px]',
+                                      isChecked
+                                        ? 'bg-blue-50 text-blue-700 font-medium'
+                                        : 'hover:bg-slate-100 text-slate-500'
+                                    )}
+                                  >
+                                    <Checkbox
+                                      checked={isChecked}
+                                      onCheckedChange={(checked) => {
+                                        if (checked) {
+                                          setSelectedSpecs(prev => [...new Set([...prev, sel.specificationId!])]);
+                                        } else {
+                                          setSelectedSpecs(prev => prev.filter(id => id !== sel.specificationId));
+                                        }
+                                      }}
+                                    />
+                                    {sel.specificationName || sel.specificationId}
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
-                        <button
-                          type="button"
-                          title="제거"
-                          className="p-1 hover:bg-red-100 rounded-full"
-                          onClick={() => setOutputPriceSelections(prev => prev.filter(p => !g.ids.includes(p.id)))}
-                        >
-                          <X className="h-4 w-4 text-red-500" />
-                        </button>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 );
               })()}
