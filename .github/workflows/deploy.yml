@@ -67,14 +67,24 @@ jobs:
     steps:
       - name: Deploy to Synology NAS
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          SUDO_PASS: ${{ secrets.SSH_SUDO_PASS }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT }}
           command_timeout: 5m
+          envs: GHCR_TOKEN,SUDO_PASS
           script: |
             set -e
+
+            # sudo wrapper for non-interactive session
+            run_sudo() {
+              echo "$SUDO_PASS" | sudo -S "$@"
+            }
+
             echo "=========================================="
             echo "  Printing114 배포 시작"
             echo "  시각: $(date '+%Y-%m-%d %H:%M:%S')"
@@ -82,14 +92,12 @@ jobs:
 
             # 1. GHCR 로그인
             echo "=== [1/5] GHCR 로그인 ==="
-            echo "${{ secrets.GHCR_TOKEN }}" > /tmp/.ghcr_token
-            sudo docker login ghcr.io -u wooyoungkug --password-stdin < /tmp/.ghcr_token
-            rm -f /tmp/.ghcr_token
+            echo "$GHCR_TOKEN" | run_sudo docker login ghcr.io -u wooyoungkug --password-stdin
 
             # 2. 최신 이미지 Pull
             echo "=== [2/5] 이미지 Pull ==="
-            sudo docker pull ghcr.io/wooyoungkug/photocafe-api:latest
-            sudo docker pull ghcr.io/wooyoungkug/photocafe-web:latest
+            run_sudo docker pull ghcr.io/wooyoungkug/photocafe-api:latest
+            run_sudo docker pull ghcr.io/wooyoungkug/photocafe-web:latest
 
             # 3. 설정 파일 동기화
             echo "=== [3/5] 설정 동기화 ==="
@@ -99,9 +107,9 @@ jobs:
 
             # 4. 컨테이너 교체
             echo "=== [4/5] 컨테이너 교체 ==="
-            sudo /usr/local/bin/docker-compose -f docker-compose.prod.yml stop api web 2>/dev/null || true
-            sudo /usr/local/bin/docker-compose -f docker-compose.prod.yml rm -f api web 2>/dev/null || true
-            sudo /usr/local/bin/docker-compose -f docker-compose.prod.yml up -d api web
+            run_sudo /usr/local/bin/docker-compose -f docker-compose.prod.yml stop api web 2>/dev/null || true
+            run_sudo /usr/local/bin/docker-compose -f docker-compose.prod.yml rm -f api web 2>/dev/null || true
+            run_sudo /usr/local/bin/docker-compose -f docker-compose.prod.yml up -d api web
 
             # 5. Health Check
             echo "=== [5/5] Health Check ==="
@@ -114,15 +122,15 @@ jobs:
               echo "대기 중... ($((i*5))초)"
               if [ "$i" = "24" ]; then
                 echo "API 시작 타임아웃"
-                sudo docker logs photocafe-api --tail 30
+                run_sudo docker logs photocafe-api --tail 30
                 exit 1
               fi
             done
 
-            sudo docker ps --filter 'name=photocafe' --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+            run_sudo docker ps --filter 'name=photocafe' --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
 
             # 오래된 이미지 정리
-            sudo docker image prune -f
+            run_sudo docker image prune -f
 
             echo "=========================================="
             echo "  배포 완료! $(date '+%Y-%m-%d %H:%M:%S')"

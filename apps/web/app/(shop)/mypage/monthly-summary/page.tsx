@@ -330,7 +330,7 @@ export default function MonthlySummaryPage() {
       {/* 기간 + 출력일자 */}
       <div className="flex justify-end text-[9pt] text-gray-600 space-x-6 mb-3">
         <div>기&nbsp;&nbsp;&nbsp;&nbsp;간: {printPeriodStart} ~ {printPeriodEnd}</div>
-        <div>출력날짜: {printToday}</div>
+        <div>출력일자: {printToday}</div>
       </div>
 
       {/* 요약 박스 */}
