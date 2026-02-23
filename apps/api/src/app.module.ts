@@ -22,6 +22,7 @@ import { AccountingModule } from './modules/accounting/accounting.module';
 import { JdfModule } from './modules/jdf/jdf.module';
 import { PublicCopperPlateModule } from './modules/public-copper-plate/public-copper-plate.module';
 import { MyProductModule } from './modules/my-product/my-product.module';
+import { ToolUsageModule } from './modules/tool-usage/tool-usage.module';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { EmailModule } from './common/email/email.module';
 import { HealthModule } from './health/health.module';
@@ -63,6 +64,7 @@ import { AppController } from './app.controller';
     JdfModule,
     PublicCopperPlateModule,
     MyProductModule,
+    ToolUsageModule,
   ],
 })
 export class AppModule { }

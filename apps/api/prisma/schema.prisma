@@ -2557,6 +2557,16 @@ model ProcessTemplate {
   @@map("process_templates")
 }
 
+model ToolUsageStat {
+  id          String   @id @default(cuid())
+  toolId      String   @unique
+  accessCount Int      @default(0)
+  useCount    Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@map("tool_usage_stats")
+}
+
 enum AccountType {
   ASSET
   LIABILITY
