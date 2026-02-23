@@ -201,6 +201,8 @@
     "copperType": "銅版",
     "leadType": "鉛版",
     "memo": "メモ",
+    "orderMemo": "注文メモ",
+    "orderMemoPlaceholder": "制作時の参考メモを入力してください。",
     "none": "なし",
     "engraving": "刻印:",
     "change": "変更",

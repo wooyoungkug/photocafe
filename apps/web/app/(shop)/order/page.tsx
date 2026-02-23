@@ -653,6 +653,7 @@ export default function OrderPage() {
         isUrgent: false,
         isDuplicateOverride: item.isDuplicateOverride || false,
         customerMemo: memo || undefined,
+        productMemo: item.orderMemo || undefined,
         shippingFee: itemShipping?.deliveryFee || 0,
         adjustmentAmount: 0,
         items: [orderItem],
@@ -827,6 +828,11 @@ export default function OrderPage() {
                                   <span>박위치: <span className="text-gray-700">{item.albumOrderInfo?.foilPosition || item.copperPlateInfo?.selectedFoilPositionName}</span></span>
                                 )}
                               </div>
+                            )}
+                            {item.orderMemo && (
+                              <p className="text-xs text-amber-700 bg-amber-50 rounded px-2 py-0.5 mt-1 inline-block">
+                                메모: {item.orderMemo}
+                              </p>
                             )}
                             <div className="flex justify-between items-center mt-2">
                               <span className="text-sm text-gray-500">

@@ -452,6 +452,14 @@ export function CartItemCard({
                   </div>
                 )}
 
+                {/* Order memo */}
+                {item.orderMemo && (
+                  <div className="mt-1.5 text-xs text-amber-700 bg-amber-50 rounded-md px-2 py-1 inline-flex items-center gap-1">
+                    <span className="font-medium">메모:</span>
+                    <span>{item.orderMemo}</span>
+                  </div>
+                )}
+
                 {/* Album shipping info badge */}
                 {hasAlbumShipping && item.albumOrderInfo?.shippingInfo && (
                   <div className="mt-1.5">

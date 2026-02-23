@@ -202,6 +202,8 @@
     "copperType": "동판",
     "leadType": "연판",
     "memo": "메모",
+    "orderMemo": "주문메모",
+    "orderMemoPlaceholder": "제작 시 참고할 메모를 입력해주세요.",
     "none": "없음",
     "engraving": "각인:",
     "change": "변경",

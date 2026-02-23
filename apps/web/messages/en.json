@@ -201,6 +201,8 @@
     "copperType": "Copper",
     "leadType": "Lead",
     "memo": "Memo",
+    "orderMemo": "Order Memo",
+    "orderMemoPlaceholder": "Enter notes for production reference.",
     "none": "None",
     "engraving": "Engraving:",
     "change": "Change",

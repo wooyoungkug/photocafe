@@ -120,6 +120,7 @@ export default function ProductPage() {
   const [showSaveMyProductModal, setShowSaveMyProductModal] = useState(false);
   const [showLoadMyProductModal, setShowLoadMyProductModal] = useState(false);
   const [myProductName, setMyProductName] = useState('');
+  const [orderMemo, setOrderMemo] = useState('');
 
   const {
     defaultPageLayout, defaultBindingDirection,
@@ -259,6 +260,7 @@ export default function ProductPage() {
               fabricBasePrice: folder.selectedFabricPrice || undefined,
             },
             uploadStatus: 'pending', totalFileCount: folder.files.length, isDuplicateOverride,
+            orderMemo: orderMemo || undefined,
           });
 
           folder.additionalOrders.forEach((additional) => {
@@ -583,7 +585,7 @@ export default function ProductPage() {
       selectedFoilPositionName: copperPlateLabels?.platePositions?.find(p => p.code === (selectedOptions.foilPosition || selectedOptions.ownedCopperPlate?.foilPosition))?.name || '',
     } : undefined;
 
-    addItem({ productId: product.id, productType: 'product', name: product.productName, thumbnailUrl: product.thumbnailUrl, basePrice: product.basePrice, quantity, options, totalPrice, copperPlateInfo });
+    addItem({ productId: product.id, productType: 'product', name: product.productName, thumbnailUrl: product.thumbnailUrl, basePrice: product.basePrice, quantity, options, totalPrice, copperPlateInfo, orderMemo: orderMemo || undefined });
     toast({ title: t('addedToCart'), description: t('addedToCartDesc', { name: product.productName, qty: quantity }) });
     router.push('/cart');
   };
@@ -845,6 +847,18 @@ export default function ProductPage() {
                     onToggle={(finishing, checked) => setSelectedOptions(prev => ({
                       ...prev, finishings: checked ? [...prev.finishings, finishing] : prev.finishings.filter(f => f.id !== finishing.id),
                     }))}
+                  />
+                </OptionCard>
+              )}
+
+              {product.showOrderMemo && (
+                <OptionCard title={t('orderMemo')}>
+                  <Textarea
+                    value={orderMemo}
+                    onChange={(e) => setOrderMemo(e.target.value)}
+                    placeholder={t('orderMemoPlaceholder')}
+                    rows={2}
+                    className="text-sm resize-none"
                   />
                 </OptionCard>
               )}
