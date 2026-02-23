@@ -82,7 +82,9 @@ jobs:
 
             # 1. GHCR 로그인
             echo "=== [1/5] GHCR 로그인 ==="
-            echo "${{ secrets.GHCR_TOKEN }}" | sudo docker login ghcr.io -u wooyoungkug --password-stdin
+            echo "${{ secrets.GHCR_TOKEN }}" > /tmp/.ghcr_token
+            sudo docker login ghcr.io -u wooyoungkug --password-stdin < /tmp/.ghcr_token
+            rm -f /tmp/.ghcr_token
 
             # 2. 최신 이미지 Pull
             echo "=== [2/5] 이미지 Pull ==="
