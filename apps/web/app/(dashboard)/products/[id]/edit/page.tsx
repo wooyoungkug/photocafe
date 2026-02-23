@@ -893,7 +893,7 @@ export default function EditProductPage() {
                   </label>
                 </div>
                 {/* 2행: 제작 옵션 */}
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <span className="text-[11px] text-slate-400 font-medium self-center w-12 shrink-0">제작</span>
                   <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${showBinding ? 'bg-indigo-50/80 border-indigo-200 ring-1 ring-indigo-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
                     <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${showBinding ? 'bg-indigo-500' : 'bg-slate-200'}`}>
