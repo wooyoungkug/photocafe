@@ -75,6 +75,7 @@ import {
   Search,
   Shirt,
   MessageSquare,
+  Printer,
 } from 'lucide-react';
 
 // 제본방향 옵션
@@ -199,16 +200,32 @@ export default function EditProductPage() {
   // 후가공 중분류별 세팅값 로딩
   const { data: allFinishingSettings } = useProductionSettings({ isActive: true });
 
+  // 후가공 하위 모든 그룹 (자손 포함) 평탄화
+  const allFinishingDescendants: ProductionGroup[] = useMemo(() => {
+    const result: ProductionGroup[] = [];
+    const collect = (groups: ProductionGroup[]) => {
+      for (const g of groups) {
+        result.push(g);
+        if (g.children?.length) collect(g.children.filter(c => c.isActive));
+      }
+    };
+    collect(finishingChildren);
+    return result;
+  }, [finishingChildren]);
+
+  // 트리 데이터에서 세팅값 수집 (자손 그룹 포함)
   const finishingGroupSettings = useMemo(() => {
-    if (!allFinishingSettings || !finishingChildren.length) return {} as Record<string, ProductionSetting[]>;
     const result: Record<string, ProductionSetting[]> = {};
-    for (const group of finishingChildren) {
-      result[group.id] = allFinishingSettings
-        .filter(s => s.groupId === group.id)
-        .sort((a, b) => a.sortOrder - b.sortOrder);
+    for (const group of allFinishingDescendants) {
+      const settings = ((group as any).settings ?? [])
+        .filter((s: any) => s.isActive)
+        .sort((a: any, b: any) => a.sortOrder - b.sortOrder);
+      if (settings.length > 0) {
+        result[group.id] = settings;
+      }
     }
     return result;
-  }, [allFinishingSettings, finishingChildren]);
+  }, [allFinishingDescendants]);
 
   // 카테고리 분류
   const [largeCategoryId, setLargeCategoryId] = useState('');
@@ -227,6 +244,7 @@ export default function EditProductPage() {
   const [showOrderMemo, setShowOrderMemo] = useState(false);
   const [showBinding, setShowBinding] = useState(true);
   const [showCover, setShowCover] = useState(false);
+  const [showOutputPrice, setShowOutputPrice] = useState(false);
   const [memberType, setMemberType] = useState<'all' | 'member_only' | 'specific_groups'>('all');
   const [sortOrder, setSortOrder] = useState(0);
 
@@ -413,6 +431,9 @@ export default function EditProductPage() {
         // 출력단가 설정 로드
         if ((product as any).outputPriceSettings && Array.isArray((product as any).outputPriceSettings)) {
           setOutputPriceSelections((product as any).outputPriceSettings);
+          if ((product as any).outputPriceSettings.length > 0) {
+            setShowOutputPrice(true);
+          }
           // 규격이 없는 경우에만 outputMethod 기반 specType fallback
           if (!product.specifications || product.specifications.length === 0) {
             const hasIndigo = (product as any).outputPriceSettings.some((s: any) => s?.outputMethod === 'INDIGO');
@@ -451,12 +472,12 @@ export default function EditProductPage() {
         if (!opts[f.productionGroupId]) opts[f.productionGroupId] = [];
         if (!opts[f.productionGroupId].includes(id)) opts[f.productionGroupId].push(id);
       } else {
-        const group = finishingChildren.find(c => c.name === f.name);
+        const group = allFinishingDescendants.find(c => c.name === f.name);
         if (group) opts[group.id] = ['__enabled__'];
       }
     });
     setFinishingOptions(opts);
-  }, [product?.finishings, finishingChildren, allFinishingSettings]);
+  }, [product?.finishings, finishingChildren, allFinishingDescendants, allFinishingSettings]);
 
   // 규격 매칭 (specifications가 로드된 후 실행)
   useEffect(() => {
@@ -702,7 +723,7 @@ export default function EditProductPage() {
         finishings: Object.entries(finishingOptions)
           .filter(([, values]) => values.length > 0)
           .flatMap(([groupId, values]) => {
-            const group = finishingChildren.find(c => c.id === groupId);
+            const group = allFinishingDescendants.find(c => c.id === groupId);
             return values.map((value) => {
               if (value === '__enabled__') {
                 // 세팅 없는 그룹 또는 기존 데이터
@@ -915,6 +936,13 @@ export default function EditProductPage() {
                     <span className={`text-[12px] font-medium ${showOrderMemo ? 'text-cyan-700' : 'text-slate-500'}`}>주문메모</span>
                     <Switch checked={showOrderMemo} onCheckedChange={setShowOrderMemo} className="ml-0.5 scale-90 data-[state=checked]:bg-cyan-500" />
                   </label>
+                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${showOutputPrice ? 'bg-orange-50/80 border-orange-200 ring-1 ring-orange-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                    <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${showOutputPrice ? 'bg-orange-500' : 'bg-slate-200'}`}>
+                      <Printer className={`h-3 w-3 ${showOutputPrice ? 'text-white' : 'text-slate-400'}`} />
+                    </div>
+                    <span className={`text-[12px] font-medium ${showOutputPrice ? 'text-orange-700' : 'text-slate-500'}`}>출력단가</span>
+                    <Switch checked={showOutputPrice} onCheckedChange={setShowOutputPrice} className="ml-0.5 scale-90 data-[state=checked]:bg-orange-500" />
+                  </label>
                 </div>
               </div>
             </FormRow>
@@ -986,7 +1014,7 @@ export default function EditProductPage() {
             )}
 
             {/* 출력단가 선택 (새로운 방식) */}
-            <div className="space-y-3">
+            {showOutputPrice && (<div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="text-[13px] font-medium text-slate-600 flex items-center gap-1.5">
                   <FileText className="h-4 w-4 text-slate-400" />
@@ -1058,7 +1086,7 @@ export default function EditProductPage() {
                   </div>
                 </div>
               </div>
-            </div>
+            </div>)}
           </div>
 
 
