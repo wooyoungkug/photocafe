@@ -1593,17 +1593,21 @@ export default function EditProductPage() {
                       )}
                       <div className={`divide-y ${sortedMethods.length > 1 && !showIndigoSubGroups && !singleIndigoColor ? 'border-t' : ''}`}>
                         {showIndigoSubGroups
-                          ? indigoColorOrder.map(ct => (
-                              <div key={ct}>
-                                <div className="px-3 py-1 text-[11px] font-semibold text-indigo-600 bg-indigo-50/60 border-b border-indigo-100">
-                                  인디고{ct}
-                                  <span className="ml-1 font-normal opacity-70">({papers.length}개)</span>
-                                </div>
-                                <div className="divide-y">
-                                  {renderPaperTypeRows(papers, ct)}
-                                </div>
+                          ? (
+                              <div className="grid grid-cols-2">
+                                {indigoColorOrder.map(ct => (
+                                  <div key={ct} className={ct === '4도' ? 'border-r border-indigo-100' : ''}>
+                                    <div className="px-3 py-1 text-[11px] font-semibold text-indigo-600 bg-indigo-50/60 border-b border-indigo-100">
+                                      인디고{ct}
+                                      <span className="ml-1 font-normal opacity-70">({papers.length}개)</span>
+                                    </div>
+                                    <div className="divide-y">
+                                      {renderPaperTypeRows(papers, ct)}
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
-                            ))
+                            )
                           : singleIndigoColor
                             ? (
                               <div>
