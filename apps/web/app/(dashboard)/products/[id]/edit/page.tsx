@@ -78,6 +78,7 @@ import {
   Printer,
   BookOpen,
   FileImage,
+  ListChecks,
 } from 'lucide-react';
 
 // 제본방향 옵션
@@ -248,6 +249,7 @@ export default function EditProductPage() {
   const [showCover, setShowCover] = useState(false);
   const [showOutputPrice, setShowOutputPrice] = useState(false);
   const [showFinishing, setShowFinishing] = useState(false);
+  const [showCustomOptions, setShowCustomOptions] = useState(false);
   const [memberType, setMemberType] = useState<'all' | 'member_only' | 'specific_groups'>('all');
   const [sortOrder, setSortOrder] = useState(0);
 
@@ -351,6 +353,7 @@ export default function EditProductPage() {
         setShowOrderMemo((product as any).showOrderMemo ?? false);
         setShowBinding((product as any).showBinding ?? true);
         setShowCover((product as any).showCover ?? false);
+        setShowCustomOptions((product as any).showCustomOptions ?? false);
         setMemberType(product.memberType);
         setSortOrder(product.sortOrder);
         setBasePrice(Number(product.basePrice));
@@ -678,6 +681,7 @@ export default function EditProductPage() {
         showOrderMemo,
         showBinding,
         showCover,
+        showCustomOptions,
         memberType: memberType as 'all' | 'member_only' | 'specific_groups',
         sortOrder,
         thumbnailUrl: thumbnailUrl || undefined,
@@ -955,6 +959,13 @@ export default function EditProductPage() {
                     </div>
                     <span className={`text-[12px] font-medium ${showOrderMemo ? 'text-cyan-700' : 'text-slate-500'}`}>주문메모</span>
                     <Switch checked={showOrderMemo} onCheckedChange={setShowOrderMemo} className="ml-0.5 scale-90 data-[state=checked]:bg-cyan-500" />
+                  </label>
+                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all min-w-[160px] ${showCustomOptions ? 'bg-violet-50/80 border-violet-200 ring-1 ring-violet-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                    <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${showCustomOptions ? 'bg-violet-500' : 'bg-slate-200'}`}>
+                      <ListChecks className={`h-3 w-3 ${showCustomOptions ? 'text-white' : 'text-slate-400'}`} />
+                    </div>
+                    <span className={`text-[12px] font-medium ${showCustomOptions ? 'text-violet-700' : 'text-slate-500'}`}>옵션</span>
+                    <Switch checked={showCustomOptions} onCheckedChange={setShowCustomOptions} className="ml-0.5 scale-90 data-[state=checked]:bg-violet-500" />
                   </label>
                 </div>
 
@@ -1844,7 +1855,8 @@ export default function EditProductPage() {
         </CardContent>
       </Card>
 
-      {/* 옵션정보 섹션 */}
+      {/* 옵션정보 섹션 - 옵션 토글 ON 시 표시 */}
+      {showCustomOptions && (
       <Card className="overflow-hidden border border-slate-200 shadow-none rounded-lg">
         <SectionHeader
           icon={Settings}
@@ -1913,6 +1925,7 @@ export default function EditProductPage() {
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* 데이터 업로드 미리보기 - 업로드 토글 ON 시 표시 */}
       {requiresUpload && (

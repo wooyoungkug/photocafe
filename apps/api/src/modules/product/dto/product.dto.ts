@@ -383,6 +383,11 @@ export class CreateProductDto {
   @IsBoolean()
   showCover?: boolean;
 
+  @ApiPropertyOptional({ description: '옵션정보 사용 여부', default: false })
+  @IsOptional()
+  @IsBoolean()
+  showCustomOptions?: boolean;
+
   @ApiPropertyOptional({ description: '제본 방향', enum: ['left', 'right', 'customer'] })
   @IsOptional()
   @IsIn(['left', 'right', 'customer'])

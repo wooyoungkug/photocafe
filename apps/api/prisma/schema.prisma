@@ -494,6 +494,7 @@ model Product {
   showOrderMemo       Boolean                    @default(false)
   showBinding         Boolean                    @default(true)
   showCover           Boolean                    @default(false)
+  showCustomOptions   Boolean                    @default(false)
   productType         String?
   customOptions       CustomOption[]
   groupPrices         GroupProductPrice[]
