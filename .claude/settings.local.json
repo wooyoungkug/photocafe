@@ -343,7 +343,9 @@
       "Bash(winget list:*)",
       "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\" -h localhost -U postgres -d printing_erp -f \"C:/dev/printing114/fix_urls.sql\")",
       "Bash(source:*)",
-      "Bash(GIT_CURL_VERBOSE=1 git push:*)"
+      "Bash(GIT_CURL_VERBOSE=1 git push:*)",
+      "Bash(git rev-list:*)",
+      "Bash(git cat-file:*)"
     ],
     "additionalDirectories": [
       "C:\\dev\\printing114\\apps\\api\\dist"
