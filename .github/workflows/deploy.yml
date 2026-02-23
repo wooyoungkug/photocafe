@@ -55,6 +55,7 @@ jobs:
             ${{ env.WEB_IMAGE }}:${{ github.sha }}
           build-args: |
             NEXT_PUBLIC_API_URL=
+            INTERNAL_API_URL=http://api:3001
           cache-from: type=gha,scope=web
           cache-to: type=gha,scope=web,mode=max
 
