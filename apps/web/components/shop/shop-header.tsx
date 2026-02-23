@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Search, ShoppingCart, User, Menu, X, Star } from 'lucide-react';
+import { Search, ShoppingCart, User, Menu, X, Star, ClipboardList, BarChart3, MapPin } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -85,6 +85,21 @@ export function ShopHeader() {
 
             {/* Actions */}
             <div className="flex items-center gap-1 md:gap-3">
+              {/* Quick Links - 로그인 시만 표시 */}
+              {isAuthenticated && (
+                <>
+                  <Link href="/mypage/orders" className="hidden md:flex relative p-2 hover:opacity-60 transition-opacity" title="주문내역">
+                    <ClipboardList className="h-5 w-5 text-neutral-700" />
+                  </Link>
+                  <Link href="/mypage/monthly-summary" className="hidden md:flex relative p-2 hover:opacity-60 transition-opacity" title="월거래집계">
+                    <BarChart3 className="h-5 w-5 text-neutral-700" />
+                  </Link>
+                  <Link href="/mypage/addresses" className="hidden md:flex relative p-2 hover:opacity-60 transition-opacity" title="배송지관리">
+                    <MapPin className="h-5 w-5 text-neutral-700" />
+                  </Link>
+                </>
+              )}
+
               {/* Cart */}
               <Link href="/cart" className="relative p-2 hover:opacity-60 transition-opacity">
                 <ShoppingCart className="h-5 w-5 text-neutral-700" />
