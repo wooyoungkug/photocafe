@@ -70,6 +70,7 @@ import {
   type PricingType,
 } from "@/hooks/use-production";
 import { useSpecifications, type Specification } from "@/hooks/use-specifications";
+import { SPEC_PURPOSE_LABELS } from "@/lib/types/specification";
 import { useClientGroups } from "@/hooks/use-clients";
 import { usePapersByPrintMethod } from "@/hooks/use-paper";
 import { Paper } from "@/lib/types/paper";
@@ -135,15 +136,8 @@ const VENDOR_TYPE_LABELS: Record<string, string> = {
   outsourced: "외주",
 };
 
-// 인쇄방식(용도) 라벨
-const PRINT_METHOD_LABELS: Record<string, string> = {
-  indigoAlbum: "인디고앨범",
-  indigo: "인디고출력",
-  inkjet: "잉크젯출력",
-  album: "잉크젯앨범",
-  frame: "액자",
-  booklet: "책자",
-};
+// 인쇄방식(용도) 라벨 - 공통 상수 사용
+const PRINT_METHOD_LABELS: Record<string, string> = SPEC_PURPOSE_LABELS;
 
 // 단가 그룹 컬러 순서 (자동 배정용)
 const PRICE_GROUP_COLORS = ['green', 'blue', 'yellow', 'red', 'purple'] as const;

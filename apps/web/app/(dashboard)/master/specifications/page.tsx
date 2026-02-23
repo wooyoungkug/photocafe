@@ -34,6 +34,7 @@ import {
 import { Plus, Pencil, Trash2, Search, ChevronUp, ChevronDown, RectangleHorizontal, RectangleVertical, Square, Ruler } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
+import { SPEC_PURPOSE_OPTIONS } from "@/lib/types/specification";
 import { Toaster } from "@/components/ui/toaster";
 
 // ==================== CIP4 JDF LayoutIntent 타입 ====================
@@ -593,14 +594,7 @@ export default function SpecificationsPage() {
               />
             </div>
             <div className="flex flex-wrap gap-1">
-              {[
-                { key: "indigoAlbum", label: "인디고앨범" },
-                { key: "indigo", label: "인디고출력" },
-                { key: "inkjet", label: "잉크젯출력" },
-                { key: "album", label: "잉크젯앨범" },
-                { key: "frame", label: "액자" },
-                { key: "booklet", label: "책자" },
-              ].map((usage) => (
+              {SPEC_PURPOSE_OPTIONS.map((usage) => (
                 <Button
                   key={usage.key}
                   variant={usageFilters.includes(usage.key) ? "secondary" : "ghost"}

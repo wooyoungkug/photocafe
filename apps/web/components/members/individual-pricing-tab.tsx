@@ -45,6 +45,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { SPEC_PURPOSE_LABELS } from '@/lib/types/specification';
 
 // 숫자 포맷팅 (3자리 콤마)
 const formatNumber = (num: number | string | undefined | null): string => {
@@ -54,15 +55,8 @@ const formatNumber = (num: number | string | undefined | null): string => {
   return n.toLocaleString('ko-KR');
 };
 
-// 인쇄방식 라벨
-const PRINT_METHOD_LABELS: Record<string, string> = {
-  indigoAlbum: '인디고앨범',
-  indigo: '인디고출력',
-  inkjet: '잉크젯출력',
-  album: '잉크젯앨범',
-  frame: '액자',
-  booklet: '책자',
-};
+// 인쇄방식 라벨 - 공통 상수 사용
+const PRINT_METHOD_LABELS: Record<string, string> = SPEC_PURPOSE_LABELS;
 
 // 단가 그룹 색상 스타일
 const PRICE_GROUP_STYLES: Record<string, { bg: string; border: string; text: string; dot: string; label: string }> = {

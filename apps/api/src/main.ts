@@ -5,6 +5,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { PrismaService } from './common/prisma/prisma.service';
+import { FileStorageService } from './modules/upload/services/file-storage.service';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -27,10 +28,12 @@ async function bootstrap() {
   // Enable shutdown hooks for graceful shutdown
   app.enableShutdownHooks();
 
-  // Static file serving (uploads)
-  const uploadPath = join(process.cwd(), process.env.UPLOAD_BASE_PATH || 'uploads');
+  // Static file serving (uploads) - DB 설정 경로 반영
+  const fileStorage = app.get(FileStorageService);
+  const uploadPath = fileStorage.uploadBasePath;
   app.useStaticAssets(uploadPath, { prefix: '/uploads/' });
   app.useStaticAssets(uploadPath, { prefix: '/upload/' });
+  logger.log(`Static file serving: ${uploadPath}`);
 
   // Global prefix
   app.setGlobalPrefix('api/v1');
