@@ -1154,6 +1154,62 @@ export default function EditProductPage() {
             </div>)}
           </div>
 
+          {/* 규격정보 - 출력단가 토글과 연동 */}
+          {showOutputPrice && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-[13px] font-medium text-slate-600 flex items-center gap-1.5">
+                  <Grid3X3 className="h-4 w-4 text-slate-400" />
+                  규격정보
+                  {selectedSpecs.length > 0 && (
+                    <Badge variant="secondary" className="text-[10px] h-4 px-1.5">{selectedSpecs.length}개</Badge>
+                  )}
+                </Label>
+                <Button type="button" variant="outline" size="sm" onClick={() => setSpecDialogOpen(true)} className="gap-1.5 h-7 text-xs border-slate-200">
+                  <Plus className="h-3.5 w-3.5" />
+                  규격 선택
+                </Button>
+              </div>
+              {selectedSpecs.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedSpecs.map(specId => {
+                    const spec = specifications?.find(s => s.id === specId);
+                    if (!spec) return null;
+                    // 출력단가에서 연결된 규격인지 표시
+                    const linkedOutput = outputPriceSelections.find(sel => sel.specificationId === specId);
+                    return (
+                      <Badge
+                        key={specId}
+                        variant="outline"
+                        className={cn(
+                          'flex items-center gap-1.5 px-2 py-1 bg-white',
+                          linkedOutput ? 'border-orange-200 bg-orange-50/50' : ''
+                        )}
+                      >
+                        <span className="text-[11px]">{spec.name}</span>
+                        <span className="text-[10px] text-slate-400">{spec.widthMm}×{spec.heightMm}mm</span>
+                        {linkedOutput && (
+                          <span className="text-[9px] text-orange-500 font-medium">
+                            {linkedOutput.outputMethod === 'INKJET' ? '잉크젯' : '인디고'}
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          title="삭제"
+                          className="ml-0.5 hover:text-red-500 transition-colors"
+                          onClick={() => setSelectedSpecs(prev => prev.filter(id => id !== specId))}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400 py-2">선택된 규격이 없습니다. 출력단가에서 잉크젯 규격을 선택하거나 &apos;규격 선택&apos; 버튼으로 추가하세요.</p>
+              )}
+            </div>
+          )}
 
           {/* 앨범 표지 원단 선택 */}
           {shouldShow('fabric') && hasCoverFabric && (<div className="space-y-3">
