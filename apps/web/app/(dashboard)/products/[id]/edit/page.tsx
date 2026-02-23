@@ -973,9 +973,9 @@ export default function EditProductPage() {
         />
         <CardContent className="px-6 pb-6 pt-2 space-y-5">
           {/* 제본/출력단가 선택 */}
-          <div className={`grid gap-6 ${shouldShow('binding') && showBinding && (selectedBindings.length > 0 || product?.bindings?.length) ? 'grid-cols-2' : 'grid-cols-1'}`}>
-            {/* 제본 선택 - 상품유형에서 binding 표시 + 제본 토글 ON + 기존 제본 데이터가 있을 때만 */}
-            {shouldShow('binding') && showBinding && (selectedBindings.length > 0 || product?.bindings?.length) && (
+          <div className={`grid gap-6 ${shouldShow('binding') && showBinding ? 'grid-cols-2' : 'grid-cols-1'}`}>
+            {/* 제본 선택 - 상품유형에서 binding 표시 + 제본 토글 ON */}
+            {shouldShow('binding') && showBinding && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="text-[13px] font-medium text-slate-600 flex items-center gap-1.5">
