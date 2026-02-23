@@ -80,10 +80,11 @@ jobs:
           script: |
             set -e
 
-            # Synology NAS PATH 설정 (docker, docker-compose가 /usr/local/bin에 위치)
+            # Synology NAS PATH 설정
             export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
             DOCKER="/usr/local/bin/docker"
             COMPOSE="/usr/local/bin/docker-compose"
+            DEPLOY_DIR="/volume1/docker"
 
             # sudo wrapper for non-interactive session
             run_sudo() {
@@ -95,42 +96,73 @@ jobs:
             echo "  시각: $(date '+%Y-%m-%d %H:%M:%S')"
             echo "=========================================="
 
-            # 1. GHCR 로그인 (--password로 직접 전달, stdin 충돌 방지)
-            echo "=== [1/5] GHCR 로그인 ==="
-            run_sudo $DOCKER login ghcr.io -u wooyoungkug --password "$GHCR_TOKEN"
+            # 0. .env 파일 확인
+            echo "=== [0/6] 환경설정 확인 ==="
+            cd "$DEPLOY_DIR"
+            if [ ! -f .env ]; then
+              echo "ERROR: $DEPLOY_DIR/.env 파일이 없습니다!"
+              echo "NAS에 .env 파일을 먼저 생성해주세요."
+              exit 1
+            fi
+            # JWT_SECRET 확인
+            if ! grep -q "^JWT_SECRET=" .env; then
+              echo "ERROR: .env에 JWT_SECRET이 설정되지 않았습니다!"
+              exit 1
+            fi
+            echo ".env 확인 완료"
+
+            # 1. GHCR 로그인
+            echo "=== [1/6] GHCR 로그인 ==="
+            echo "$GHCR_TOKEN" | run_sudo $DOCKER login ghcr.io -u wooyoungkug --password-stdin
 
             # 2. 최신 이미지 Pull
-            echo "=== [2/5] 이미지 Pull ==="
+            echo "=== [2/6] 이미지 Pull ==="
             run_sudo $DOCKER pull ghcr.io/wooyoungkug/photocafe-api:latest
             run_sudo $DOCKER pull ghcr.io/wooyoungkug/photocafe-web:latest
 
             # 3. 설정 파일 동기화
-            echo "=== [3/5] 설정 동기화 ==="
-            cd /volume1/docker
+            echo "=== [3/6] 설정 동기화 ==="
             git fetch origin main
             git checkout origin/main -- docker-compose.prod.yml
 
-            # 4. 컨테이너 교체
-            echo "=== [4/5] 컨테이너 교체 ==="
-            run_sudo $COMPOSE -f docker-compose.prod.yml stop api web 2>/dev/null || true
-            run_sudo $COMPOSE -f docker-compose.prod.yml rm -f api web 2>/dev/null || true
-            run_sudo $COMPOSE -f docker-compose.prod.yml up -d api web
+            # 4. DB 컨테이너 확인 (건드리지 않고 상태만 확인)
+            echo "=== [4/6] DB 상태 확인 ==="
+            DB_RUNNING=$(run_sudo $DOCKER ps --filter "name=photocafe-db" --filter "status=running" -q 2>/dev/null || true)
+            if [ -z "$DB_RUNNING" ]; then
+              echo "DB 컨테이너가 실행 중이 아닙니다. 시작합니다..."
+              # 기존 정지된 컨테이너 제거 후 시작
+              run_sudo $COMPOSE --env-file .env -f docker-compose.prod.yml rm -f postgres 2>/dev/null || true
+              run_sudo $COMPOSE --env-file .env -f docker-compose.prod.yml up -d postgres
+              echo "DB 시작 대기 (30초)..."
+              sleep 30
+            else
+              echo "DB 컨테이너 정상 실행 중"
+            fi
 
-            # 5. Health Check
-            echo "=== [5/5] Health Check ==="
+            # 5. API/Web 컨테이너만 교체 (--no-deps: DB 건드리지 않음)
+            echo "=== [5/6] 컨테이너 교체 (API + Web) ==="
+            run_sudo $COMPOSE --env-file .env -f docker-compose.prod.yml stop api web 2>/dev/null || true
+            run_sudo $COMPOSE --env-file .env -f docker-compose.prod.yml rm -f api web 2>/dev/null || true
+            run_sudo $COMPOSE --env-file .env -f docker-compose.prod.yml up -d --no-deps api web
+
+            # 6. Health Check
+            echo "=== [6/6] Health Check ==="
+            API_OK=false
             for i in $(seq 1 24); do
               sleep 5
               if curl -sf http://localhost:3001/health > /dev/null 2>&1; then
                 echo "API 서버 준비 완료! ($((i*5))초)"
+                API_OK=true
                 break
               fi
               echo "대기 중... ($((i*5))초)"
-              if [ "$i" = "24" ]; then
-                echo "API 시작 타임아웃"
-                run_sudo $DOCKER logs photocafe-api --tail 30
-                exit 1
-              fi
             done
+
+            if [ "$API_OK" = "false" ]; then
+              echo "API 시작 실패. 로그 확인:"
+              run_sudo $DOCKER logs photocafe-api --tail 50
+              exit 1
+            fi
 
             run_sudo $DOCKER ps --filter 'name=photocafe' --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
 

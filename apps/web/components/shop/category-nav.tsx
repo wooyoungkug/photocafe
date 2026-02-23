@@ -34,6 +34,15 @@ export function CategoryNav() {
 
   const sortedCategories = [...topCategories].sort((a, b) => a.sortOrder - b.sortOrder);
 
+  // 특수 카테고리: "이미지관리"는 전용 페이지로 연결
+  const getCategoryHref = (category: Category) => {
+    const name = category.name?.toLowerCase();
+    if (name === '이미지관리' || name === 'image management') {
+      return '/image-management';
+    }
+    return `/category/${category.id}`;
+  };
+
   return (
     <nav className="bg-white border-b border-neutral-100 relative z-40">
       <div className="container mx-auto px-4">
@@ -60,10 +69,10 @@ export function CategoryNav() {
               onMouseLeave={() => setActiveCategory(null)}
             >
               <Link
-                href={`/category/${category.id}`}
+                href={getCategoryHref(category)}
                 className={cn(
                   "flex items-center gap-1.5 px-4 py-2 text-xs tracking-wider uppercase font-medium transition-colors",
-                  pathname === `/category/${category.id}` || activeCategory === category.id
+                  pathname === getCategoryHref(category) || pathname.startsWith(getCategoryHref(category) + '/') || activeCategory === category.id
                     ? "text-gold"
                     : "text-neutral-500 hover:text-neutral-900"
                 )}
@@ -120,10 +129,10 @@ export function CategoryNav() {
             {sortedCategories.map((category) => (
               <li key={category.id}>
                 <Link
-                  href={`/category/${category.id}`}
+                  href={getCategoryHref(category)}
                   className={cn(
                     "flex items-center px-3 py-1 text-[11px] tracking-wider uppercase font-medium transition-colors whitespace-nowrap",
-                    pathname === `/category/${category.id}`
+                    pathname === getCategoryHref(category) || pathname.startsWith(getCategoryHref(category) + '/')
                       ? "text-gold border-b-2 border-gold"
                       : "text-neutral-500 hover:text-neutral-900"
                   )}
@@ -159,7 +168,7 @@ function CategoryMenuItem({ category, level }: { category: Category; level: numb
   return (
     <div className="relative">
       <Link
-        href={`/category/${category.id}`}
+        href={getCategoryHref(category)}
         className={cn(
           "flex items-center justify-between px-4 py-2 text-sm transition-colors",
           "text-neutral-600 hover:text-gold hover:bg-neutral-50",
