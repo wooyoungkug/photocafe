@@ -1186,7 +1186,7 @@ export default function EditProductPage() {
                           linkedOutput ? 'border-orange-200 bg-orange-50/50' : ''
                         )}
                       >
-                        <span className="text-[11px]">{spec.name}</span>
+                        <span className="text-[10px]">{spec.name}</span>
                         <span className="text-[10px] text-slate-400">{spec.widthMm}×{spec.heightMm}mm</span>
                         {linkedOutput && (
                           <span className="text-[9px] text-orange-500 font-medium">
