@@ -93,7 +93,7 @@ jobs:
             # 1. GHCR 로그인
             echo "=== [1/5] GHCR 로그인 ==="
             echo "$GHCR_TOKEN" > /tmp/.ghcr_token
-            echo "$SUDO_PASS" | sudo -S sh -c 'docker login ghcr.io -u wooyoungkug --password-stdin < /tmp/.ghcr_token'
+            echo "$SUDO_PASS" | sudo -S sh -c '/usr/local/bin/docker login ghcr.io -u wooyoungkug --password-stdin < /tmp/.ghcr_token'
             rm -f /tmp/.ghcr_token
 
             # 2. 최신 이미지 Pull
