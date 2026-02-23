@@ -159,6 +159,7 @@ export interface Product {
   useCopperPlate?: boolean;
   hasCoverFabric?: boolean;
   requiresUpload?: boolean;
+  showOrderMemo?: boolean;
   createdAt: string;
   updatedAt: string;
 

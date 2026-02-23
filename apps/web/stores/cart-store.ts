@@ -116,6 +116,7 @@ export interface CartItem {
     fileSize: number;
   }>;
   tempFolderId?: string;                 // 임시 폴더 ID
+  orderMemo?: string;                    // 주문메모 (상품별)
 }
 
 interface CartState {

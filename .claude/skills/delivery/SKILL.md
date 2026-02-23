@@ -701,12 +701,81 @@ link.click();
 document.body.removeChild(link);
 ```
 
+## 주문 취소/부분취소 시 배송비 재계산
+
+### 정책
+
+주문 취소 또는 항목 삭제로 당일 누적 상품금액이 변경되면, 조건부 무료배송 기준을 **재검사**하여 배송비/환급을 자동 조정한다.
+
+### 트리거 조건
+
+| 동작 | 트리거 | 영향 |
+|------|--------|------|
+| **주문 전체 취소** (`cancel()`) | 해당 주문 status → cancelled | 당일 누적금액 감소 (해당 주문 제외) |
+| **주문 항목 삭제** (`deleteItem()`) | 해당 주문 productPrice 감소 | 당일 누적금액 감소 (금액 변경) |
+| **주문 삭제** (`delete()`) | 해당 주문 DB에서 제거 | 당일 누적금액 감소 |
+
+### 재계산 로직 (`recalculateSameDayShipping`)
+
+```
+1. 거래처 조회 → shippingType !== 'conditional' → SKIP
+
+2. 당일(KST 00:00~23:59) 비취소 주문 조회 (status !== 'cancelled')
+   → 고객직배송(direct_customer) 주문은 합배송 제외
+
+3. 당일 누적 상품금액 계산 (스튜디오 배송만)
+
+4. 누적 >= 기준금액?
+   └─ YES → 조건부 무료배송 유지 (adjustmentAmount 그대로)
+   └─ NO  → 모든 당일 주문의 adjustmentAmount를 0으로 리셋
+            → finalAmount 재계산 (totalAmount - 0)
+            → 매출원장(SalesLedger)도 연동 업데이트
+            → processHistory에 'shipping_recalc' 이력 기록
+```
+
+### adjustmentAmount 리셋 시 처리
+
+```typescript
+// 기준금액 미달 시: 당일 주문 중 adjustmentAmount > 0인 주문들 리셋
+for (const order of todayOrders) {
+  if (Number(order.adjustmentAmount) > 0) {
+    const newFinal = Number(order.totalAmount); // adjustmentAmount = 0이므로
+    await tx.order.update({
+      where: { id: order.id },
+      data: {
+        adjustmentAmount: 0,
+        finalAmount: newFinal,
+      },
+    });
+    // 매출원장도 연동
+    // processHistory에 'shipping_recalc' 이력 추가
+  }
+}
+```
+
+### 관련 구현 파일
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `apps/api/src/modules/order/services/order.service.ts` | `recalculateSameDayShipping()` private 메서드 추가 |
+| 위 파일 `cancel()` | 취소 후 `recalculateSameDayShipping()` 호출 |
+| 위 파일 `deleteItem()` | 항목 삭제 후 `recalculateSameDayShipping()` 호출 |
+| 위 파일 `delete()` | 주문 삭제 후 `recalculateSameDayShipping()` 호출 |
+
+### 엣지 케이스
+
+1. **취소한 주문 자체에 adjustmentAmount가 있었던 경우**: 취소 시 해당 주문은 합산에서 제외되므로 영향 없음
+2. **당일 주문이 1건뿐인 경우**: 취소하면 남은 주문 없으므로 재계산 불필요
+3. **고객직배송만 남은 경우**: 합배송 대상이 아니므로 SKIP
+4. **여러 주문에 adjustmentAmount가 분산된 경우**: 모두 0으로 리셋 (전체 재검사)
+
 ## 체크리스트
 
 배송 관리 기능 구현 시 확인사항:
 
 - [x] 거래처별 배송비 정책 (conditional/free/prepaid/cod)
 - [x] 당일 합배송 자동 환급
+- [x] 주문 취소/부분취소 시 배송비 자동 재계산
 - [x] 배치 배송 (복수 아이템 1회 청구)
 - [x] 배송비 설정 CSV 다운로드
 - [ ] 배송 CRUD

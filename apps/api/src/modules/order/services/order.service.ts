@@ -761,6 +761,13 @@ export class OrderService {
       this.logger.warn(`주문 취소 시 매출원장 취소 실패 (${id}): ${(err as Error).message}`);
     }
 
+    // 당일 합배송 배송비 재계산 (취소로 누적금액 미달 시 환급 취소)
+    try {
+      await this.recalculateSameDayShipping(order.clientId);
+    } catch (err) {
+      this.logger.warn(`주문 취소 후 합배송 재계산 실패 (${id}): ${(err as Error).message}`);
+    }
+
     return updatedOrder;
   }
 
@@ -788,6 +795,10 @@ export class OrderService {
     const shippingFee = Number(order.shippingFee);
     const totalAmount = productPrice + tax + shippingFee;
 
+    // adjustmentAmount도 재계산에 반영
+    const adjustmentAmount = Number(order.adjustmentAmount);
+    const finalAmount = totalAmount - adjustmentAmount;
+
     await this.prisma.$transaction([
       this.prisma.orderItem.delete({ where: { id: itemId } }),
       this.prisma.order.update({
@@ -796,10 +807,17 @@ export class OrderService {
           productPrice,
           tax,
           totalAmount,
-          finalAmount: totalAmount,
+          finalAmount: Math.max(0, finalAmount),
         },
       }),
     ]);
+
+    // 당일 합배송 배송비 재계산 (항목 삭제로 누적금액 미달 시 환급 취소)
+    try {
+      await this.recalculateSameDayShipping(order.clientId);
+    } catch (err) {
+      this.logger.warn(`항목 삭제 후 합배송 재계산 실패 (${orderId}): ${(err as Error).message}`);
+    }
 
     return { message: '주문항목이 삭제되었습니다', deletedItemId: itemId };
   }
@@ -843,6 +861,7 @@ export class OrderService {
 
     // 디스크 파일 경로 수집 (DB 삭제 전)
     const orderDirs = await this.getOrderDirectories([id]);
+    const clientId = order.clientId;
 
     const result = await this.prisma.order.delete({
       where: { id },
@@ -853,6 +872,13 @@ export class OrderService {
       this.fileStorage.deleteOrderDirectoryAsync(dir).catch((err) => {
         this.logger.warn(`디스크 파일 삭제 실패 (${id}): ${(err as Error).message}`);
       });
+    }
+
+    // 당일 합배송 배송비 재계산 (주문 삭제로 누적금액 미달 시 환급 취소)
+    try {
+      await this.recalculateSameDayShipping(clientId);
+    } catch (err) {
+      this.logger.warn(`주문 삭제 후 합배송 재계산 실패 (${id}): ${(err as Error).message}`);
     }
 
     return result;
@@ -2242,6 +2268,130 @@ export class OrderService {
     }
 
     return { success: successCount, failed };
+  }
+
+  // ===== 주문 취소/삭제 시 당일 합배송 배송비 재계산 =====
+  // 취소로 인해 당일 누적금액이 기준금액 미만으로 떨어지면
+  // 이전 주문들의 adjustmentAmount(배송비 환급)를 0으로 리셋
+  private async recalculateSameDayShipping(clientId: string, excludeOrderId?: string) {
+    // 1. 거래처 조회 - conditional이 아니면 skip
+    const client = await this.prisma.client.findUnique({
+      where: { id: clientId },
+      select: { shippingType: true, freeShippingThreshold: true } as any,
+    }) as { shippingType: string; freeShippingThreshold: number | null } | null;
+
+    if (!client || client.shippingType !== 'conditional') return;
+
+    const freeThreshold = client.freeShippingThreshold ?? 90000;
+
+    // 2. KST 기준 오늘 범위
+    const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+    const nowUtc = Date.now();
+    const nowKst = nowUtc + KST_OFFSET_MS;
+    const kstMidnight = nowKst - (nowKst % (24 * 60 * 60 * 1000));
+    const todayStart = new Date(kstMidnight - KST_OFFSET_MS);
+    const todayEnd = new Date(kstMidnight - KST_OFFSET_MS + 24 * 60 * 60 * 1000 - 1);
+
+    // 3. 당일 비취소 주문 조회 (excludeOrderId가 있으면 삭제 예정 주문 제외)
+    const whereClause: any = {
+      clientId,
+      orderedAt: { gte: todayStart, lte: todayEnd },
+      status: { not: 'cancelled' },
+    };
+    if (excludeOrderId) {
+      whereClause.id = { not: excludeOrderId };
+    }
+
+    const orders = await this.prisma.order.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        orderNumber: true,
+        productPrice: true,
+        shippingFee: true,
+        tax: true,
+        totalAmount: true,
+        adjustmentAmount: true,
+        status: true,
+        items: { select: { shipping: { select: { receiverType: true } } } },
+      },
+    });
+
+    // 4. 스튜디오 배송 주문만 누적 (direct_customer 제외)
+    let totalProductAmount = 0;
+    const studioOrders: typeof orders = [];
+
+    for (const order of orders) {
+      const hasDirectCustomer = order.items.some(
+        (i) => i.shipping?.receiverType === 'direct_customer',
+      );
+      if (!hasDirectCustomer) {
+        totalProductAmount += Number(order.productPrice);
+        studioOrders.push(order);
+      }
+    }
+
+    // 5. 누적금액이 기준금액 이상이면 환급 유지 → 재계산 불필요
+    if (totalProductAmount >= freeThreshold) return;
+
+    // 6. 기준금액 미만 → adjustmentAmount가 0보다 큰 주문들의 환급을 리셋
+    const ordersToReset = studioOrders.filter(
+      (o) => Number(o.adjustmentAmount) > 0,
+    );
+
+    if (ordersToReset.length === 0) return;
+
+    // 7. 트랜잭션으로 일괄 업데이트
+    await this.prisma.$transaction(async (tx) => {
+      for (const order of ordersToReset) {
+        const shippingFee = Number(order.shippingFee);
+        const productPrice = Number(order.productPrice);
+        const tax = Number(order.tax);
+        const totalAmount = productPrice + tax + shippingFee;
+        const finalAmount = totalAmount; // adjustmentAmount = 0이므로
+
+        await tx.order.update({
+          where: { id: order.id },
+          data: {
+            adjustmentAmount: 0,
+            finalAmount: Math.max(0, finalAmount),
+            processHistory: {
+              create: {
+                fromStatus: order.status,
+                toStatus: order.status,
+                processType: 'shipping_recalc',
+                note: `합배송 환급 취소: 당일 누적 ${totalProductAmount.toLocaleString()}원 < 기준 ${freeThreshold.toLocaleString()}원`,
+                processedBy: 'system',
+              },
+            },
+          },
+        });
+
+        // 매출원장 연동 업데이트
+        try {
+          const ledger = await tx.salesLedger.findUnique({
+            where: { orderId: order.id },
+          });
+          if (ledger) {
+            const ledgerTotal = productPrice + tax + shippingFee; // adjustmentAmount = 0
+            await tx.salesLedger.update({
+              where: { orderId: order.id },
+              data: {
+                adjustmentAmount: 0,
+                totalAmount: Math.max(0, ledgerTotal),
+                outstandingAmount: Math.max(0, ledgerTotal - Number(ledger.receivedAmount)),
+              },
+            });
+          }
+        } catch (err) {
+          this.logger.warn(`합배송 재계산 매출원장 업데이트 실패 (${order.id}): ${(err as Error).message}`);
+        }
+      }
+    });
+
+    this.logger.log(
+      `합배송 배송비 재계산: 거래처 ${clientId}, 당일누적 ${totalProductAmount}원 < 기준 ${freeThreshold}원 → ${ordersToReset.length}건 환급 취소`,
+    );
   }
 
   // ===== 합배송 체크: 당일 조건부 무료배송 적용 여부 =====
