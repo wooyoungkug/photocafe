@@ -11,6 +11,15 @@ import type { Category } from '@/lib/types/category';
 import { useTranslations, useLocale } from 'next-intl';
 import { getLocalizedName } from '@/lib/utils';
 
+// 특수 카테고리: "이미지관리"는 전용 페이지로 연결
+function getCategoryHref(category: Category): string {
+  const name = category.name?.toLowerCase();
+  if (name === '이미지관리' || name === 'image management') {
+    return '/image-management';
+  }
+  return `/category/${category.id}`;
+}
+
 export function CategoryNav() {
   const pathname = usePathname();
   const { data: topCategories = [], isLoading } = useTopMenuCategories();
@@ -33,15 +42,6 @@ export function CategoryNav() {
   }
 
   const sortedCategories = [...topCategories].sort((a, b) => a.sortOrder - b.sortOrder);
-
-  // 특수 카테고리: "이미지관리"는 전용 페이지로 연결
-  const getCategoryHref = (category: Category) => {
-    const name = category.name?.toLowerCase();
-    if (name === '이미지관리' || name === 'image management') {
-      return '/image-management';
-    }
-    return `/category/${category.id}`;
-  };
 
   return (
     <nav className="bg-white border-b border-neutral-100 relative z-40">
