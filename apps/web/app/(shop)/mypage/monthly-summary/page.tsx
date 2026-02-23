@@ -398,7 +398,7 @@ export default function MonthlySummaryPage() {
         </div>
       </div>
       <div className="mt-4 pt-3 border-t border-gray-300 text-[8pt] text-gray-500 text-center">
-        {printToday}기준 거래내역 입니다.&nbsp;&nbsp;|&nbsp;&nbsp;문의: (주)프린팅솔루션즈 고객지원부
+        {printToday}기준 거래내역 입니다.&nbsp;&nbsp;|&nbsp;&nbsp;문의: (주)프린팅솔루션즈 고객지원부(1800-7682)
       </div>
     </>
   );
