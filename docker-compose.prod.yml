@@ -29,10 +29,7 @@ services:
   # NestJS API Server
   # ================================
   api:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
-    image: photocafe-api:latest
+    image: ghcr.io/wooyoungkug/photocafe-api:latest
     container_name: photocafe-api
     restart: always  # ⚡ unless-stopped → always 변경 (크래시 시 무조건 재시작)
     ports:
@@ -78,12 +75,7 @@ services:
   # Next.js Web Application
   # ================================
   web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-      args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://api:3001}
-    image: photocafe-web:latest
+    image: ghcr.io/wooyoungkug/photocafe-web:latest
     container_name: photocafe-web
     restart: always  # ⚡ unless-stopped → always 변경
     ports:
