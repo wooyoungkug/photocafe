@@ -870,21 +870,21 @@ export default function EditProductPage() {
                 {/* 1행: 판매 설정 */}
                 <div className="flex gap-2">
                   <span className="text-[11px] text-slate-400 font-medium self-center w-12 shrink-0">판매</span>
-                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${isActive ? 'bg-emerald-50/80 border-emerald-200 ring-1 ring-emerald-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all min-w-[130px] ${isActive ? 'bg-emerald-50/80 border-emerald-200 ring-1 ring-emerald-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
                     <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${isActive ? 'bg-emerald-500' : 'bg-slate-200'}`}>
                       {isActive ? <Eye className="h-3 w-3 text-white" /> : <EyeOff className="h-3 w-3 text-slate-400" />}
                     </div>
                     <span className={`text-[12px] font-medium ${isActive ? 'text-emerald-700' : 'text-slate-500'}`}>활성화</span>
                     <Switch checked={isActive} onCheckedChange={setIsActive} className="ml-0.5 scale-90 data-[state=checked]:bg-emerald-500" />
                   </label>
-                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${isNew ? 'bg-blue-50/80 border-blue-200 ring-1 ring-blue-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all min-w-[130px] ${isNew ? 'bg-blue-50/80 border-blue-200 ring-1 ring-blue-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
                     <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${isNew ? 'bg-blue-500' : 'bg-slate-200'}`}>
                       <Sparkles className={`h-3 w-3 ${isNew ? 'text-white' : 'text-slate-400'}`} />
                     </div>
                     <span className={`text-[12px] font-medium ${isNew ? 'text-blue-700' : 'text-slate-500'}`}>신상품</span>
                     <Switch checked={isNew} onCheckedChange={setIsNew} className="ml-0.5 scale-90 data-[state=checked]:bg-blue-500" />
                   </label>
-                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${isBest ? 'bg-amber-50/80 border-amber-200 ring-1 ring-amber-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all min-w-[130px] ${isBest ? 'bg-amber-50/80 border-amber-200 ring-1 ring-amber-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
                     <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${isBest ? 'bg-amber-500' : 'bg-slate-200'}`}>
                       <Star className={`h-3 w-3 ${isBest ? 'text-white' : 'text-slate-400'}`} />
                     </div>
@@ -895,42 +895,42 @@ export default function EditProductPage() {
                 {/* 2행: 제작 옵션 */}
                 <div className="flex gap-2">
                   <span className="text-[11px] text-slate-400 font-medium self-center w-12 shrink-0">제작</span>
-                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${showBinding ? 'bg-indigo-50/80 border-indigo-200 ring-1 ring-indigo-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all min-w-[130px] ${showBinding ? 'bg-indigo-50/80 border-indigo-200 ring-1 ring-indigo-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
                     <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${showBinding ? 'bg-indigo-500' : 'bg-slate-200'}`}>
                       <Layers className={`h-3 w-3 ${showBinding ? 'text-white' : 'text-slate-400'}`} />
                     </div>
                     <span className={`text-[12px] font-medium ${showBinding ? 'text-indigo-700' : 'text-slate-500'}`}>제본</span>
                     <Switch checked={showBinding} onCheckedChange={setShowBinding} className="ml-0.5 scale-90 data-[state=checked]:bg-indigo-500" />
                   </label>
-                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${requiresUpload ? 'bg-violet-50/80 border-violet-200 ring-1 ring-violet-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all min-w-[130px] ${requiresUpload ? 'bg-violet-50/80 border-violet-200 ring-1 ring-violet-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
                     <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${requiresUpload ? 'bg-violet-500' : 'bg-slate-200'}`}>
                       <Upload className={`h-3 w-3 ${requiresUpload ? 'text-white' : 'text-slate-400'}`} />
                     </div>
                     <span className={`text-[12px] font-medium ${requiresUpload ? 'text-violet-700' : 'text-slate-500'}`}>업로드</span>
                     <Switch checked={requiresUpload} onCheckedChange={setRequiresUpload} className="ml-0.5 scale-90 data-[state=checked]:bg-violet-500" />
                   </label>
-                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${useCopperPlate ? 'bg-rose-50/80 border-rose-200 ring-1 ring-rose-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all min-w-[130px] ${useCopperPlate ? 'bg-rose-50/80 border-rose-200 ring-1 ring-rose-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
                     <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${useCopperPlate ? 'bg-rose-500' : 'bg-slate-200'}`}>
                       <Sparkles className={`h-3 w-3 ${useCopperPlate ? 'text-white' : 'text-slate-400'}`} />
                     </div>
                     <span className={`text-[12px] font-medium ${useCopperPlate ? 'text-rose-700' : 'text-slate-500'}`}>동판</span>
                     <Switch checked={useCopperPlate} onCheckedChange={setUseCopperPlate} className="ml-0.5 scale-90 data-[state=checked]:bg-rose-500" />
                   </label>
-                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${hasCoverFabric ? 'bg-teal-50/80 border-teal-200 ring-1 ring-teal-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all min-w-[130px] ${hasCoverFabric ? 'bg-teal-50/80 border-teal-200 ring-1 ring-teal-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
                     <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${hasCoverFabric ? 'bg-teal-500' : 'bg-slate-200'}`}>
                       <Shirt className={`h-3 w-3 ${hasCoverFabric ? 'text-white' : 'text-slate-400'}`} />
                     </div>
                     <span className={`text-[12px] font-medium ${hasCoverFabric ? 'text-teal-700' : 'text-slate-500'}`}>표지원단</span>
                     <Switch checked={hasCoverFabric} onCheckedChange={setHasCoverFabric} className="ml-0.5 scale-90 data-[state=checked]:bg-teal-500" />
                   </label>
-                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${showCover ? 'bg-pink-50/80 border-pink-200 ring-1 ring-pink-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all min-w-[130px] ${showCover ? 'bg-pink-50/80 border-pink-200 ring-1 ring-pink-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
                     <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${showCover ? 'bg-pink-500' : 'bg-slate-200'}`}>
                       <Palette className={`h-3 w-3 ${showCover ? 'text-white' : 'text-slate-400'}`} />
                     </div>
                     <span className={`text-[12px] font-medium ${showCover ? 'text-pink-700' : 'text-slate-500'}`}>커버</span>
                     <Switch checked={showCover} onCheckedChange={setShowCover} className="ml-0.5 scale-90 data-[state=checked]:bg-pink-500" />
                   </label>
-                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${showOrderMemo ? 'bg-cyan-50/80 border-cyan-200 ring-1 ring-cyan-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all min-w-[130px] ${showOrderMemo ? 'bg-cyan-50/80 border-cyan-200 ring-1 ring-cyan-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
                     <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${showOrderMemo ? 'bg-cyan-500' : 'bg-slate-200'}`}>
                       <MessageSquare className={`h-3 w-3 ${showOrderMemo ? 'text-white' : 'text-slate-400'}`} />
                     </div>
@@ -940,14 +940,14 @@ export default function EditProductPage() {
                 </div>
                 {/* 3행: 가격/후가공 옵션 */}
                 <div className="flex gap-2 pl-14">
-                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${showOutputPrice ? 'bg-orange-50/80 border-orange-200 ring-1 ring-orange-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all min-w-[130px] ${showOutputPrice ? 'bg-orange-50/80 border-orange-200 ring-1 ring-orange-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
                     <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${showOutputPrice ? 'bg-orange-500' : 'bg-slate-200'}`}>
                       <Printer className={`h-3 w-3 ${showOutputPrice ? 'text-white' : 'text-slate-400'}`} />
                     </div>
                     <span className={`text-[12px] font-medium ${showOutputPrice ? 'text-orange-700' : 'text-slate-500'}`}>출력단가</span>
                     <Switch checked={showOutputPrice} onCheckedChange={setShowOutputPrice} className="ml-0.5 scale-90 data-[state=checked]:bg-orange-500" />
                   </label>
-                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${showFinishing ? 'bg-lime-50/80 border-lime-200 ring-1 ring-lime-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all min-w-[130px] ${showFinishing ? 'bg-lime-50/80 border-lime-200 ring-1 ring-lime-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
                     <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${showFinishing ? 'bg-lime-500' : 'bg-slate-200'}`}>
                       <Settings className={`h-3 w-3 ${showFinishing ? 'text-white' : 'text-slate-400'}`} />
                     </div>
