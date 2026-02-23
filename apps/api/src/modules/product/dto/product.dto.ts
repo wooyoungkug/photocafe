@@ -368,6 +368,21 @@ export class CreateProductDto {
   @IsBoolean()
   hasCoverFabric?: boolean;
 
+  @ApiPropertyOptional({ description: '주문메모 표시 여부', default: false })
+  @IsOptional()
+  @IsBoolean()
+  showOrderMemo?: boolean;
+
+  @ApiPropertyOptional({ description: '제본 사용 여부', default: true })
+  @IsOptional()
+  @IsBoolean()
+  showBinding?: boolean;
+
+  @ApiPropertyOptional({ description: '커버 사용 여부', default: false })
+  @IsOptional()
+  @IsBoolean()
+  showCover?: boolean;
+
   @ApiPropertyOptional({ description: '제본 방향', enum: ['left', 'right', 'customer'] })
   @IsOptional()
   @IsIn(['left', 'right', 'customer'])

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { AuthGuard } from "@/components/auth/auth-guard";
+import { Toaster } from "@/components/ui/toaster";
 import { PanelLeftClose, PanelLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -127,6 +128,7 @@ export default function DashboardLayout({
           </main>
         </div>
       </div>
+      <Toaster />
     </AuthGuard>
   );
 }

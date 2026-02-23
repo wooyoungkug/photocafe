@@ -22,6 +22,7 @@ export interface Specification {
   forIndigo: boolean;   // 인디고출력전용
   forInkjet: boolean;   // 잉크젯출력전용
   forAlbum: boolean;    // 앨범전용
+  forIndigoAlbum: boolean; // 인디고앨범전용
   forFrame: boolean;    // 액자전용
   forBooklet: boolean;  // 인쇄책자전용
   nup?: string | null;  // "1++up" | "1+up" | "1up" | "2up" | "4up" | "8up"
@@ -56,6 +57,7 @@ export interface CreateGlobalSpecificationDto {
   forIndigo?: boolean;   // 인디고출력전용
   forInkjet?: boolean;   // 잉크젯출력전용
   forAlbum?: boolean;
+  forIndigoAlbum?: boolean; // 인디고앨범전용
   forFrame?: boolean;
   forBooklet?: boolean;
   squareMeters?: number;
@@ -92,6 +94,7 @@ export function useSpecifications(params?: {
   forIndigo?: boolean;
   forInkjet?: boolean;
   forAlbum?: boolean;
+  forIndigoAlbum?: boolean;
   forFrame?: boolean;
   forBooklet?: boolean;
   isActive?: boolean;

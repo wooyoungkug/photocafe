@@ -594,9 +594,9 @@ export default function SpecificationsPage() {
             </div>
             <div className="flex flex-wrap gap-1">
               {[
+                { key: "indigoAlbum", label: "인디고앨범" },
                 { key: "indigo", label: "인디고출력" },
                 { key: "inkjet", label: "잉크젯출력" },
-                { key: "indigoAlbum", label: "인디고앨범" },
                 { key: "album", label: "잉크젯앨범" },
                 { key: "frame", label: "액자" },
                 { key: "booklet", label: "책자" },
@@ -676,9 +676,9 @@ export default function SpecificationsPage() {
                 {/* 3. 용도 및 액션 */}
                 <div className="flex items-center gap-4 ml-auto">
                   <div className="flex flex-wrap gap-1 justify-end min-w-[120px]">
+                    {spec.usageIndigoAlbum && <Badge variant="outline" className="text-[10px] px-1.5 bg-violet-50/50 text-violet-700 border-violet-200">인디고앨범</Badge>}
                     {spec.usageIndigo && <Badge variant="outline" className="text-[10px] px-1.5 bg-indigo-50/50 text-indigo-700 border-indigo-200">인디고출력</Badge>}
                     {spec.usageInkjet && <Badge variant="outline" className="text-[10px] px-1.5 bg-orange-50/50 text-orange-700 border-orange-200">잉크젯출력</Badge>}
-                    {spec.usageIndigoAlbum && <Badge variant="outline" className="text-[10px] px-1.5 bg-violet-50/50 text-violet-700 border-violet-200">인디고앨범</Badge>}
                     {spec.usageAlbum && <Badge variant="outline" className="text-[10px] px-1.5 bg-pink-50/50 text-pink-700 border-pink-200">잉크젯앨범</Badge>}
                     {spec.usageFrame && <Badge variant="outline" className="text-[10px] px-1.5 bg-stone-50/50 text-stone-700 border-stone-200">액자</Badge>}
                     {spec.usageBooklet && <Badge variant="outline" className="text-[10px] px-1.5 bg-blue-50/50 text-blue-700 border-blue-200">책자</Badge>}
@@ -817,6 +817,14 @@ export default function SpecificationsPage() {
               <div className="flex flex-wrap gap-4">
                 <div className="flex items-center space-x-2">
                   <Checkbox
+                    id="usageIndigoAlbum"
+                    checked={form.usageIndigoAlbum}
+                    onCheckedChange={(checked) => setForm({ ...form, usageIndigoAlbum: !!checked })}
+                  />
+                  <Label htmlFor="usageIndigoAlbum" className="cursor-pointer">인디고앨범</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
                     id="usageIndigo"
                     checked={form.usageIndigo}
                     onCheckedChange={(checked) => handleIndigoChange(!!checked)}
@@ -830,14 +838,6 @@ export default function SpecificationsPage() {
                     onCheckedChange={(checked) => handleInkjetChange(!!checked)}
                   />
                   <Label htmlFor="usageInkjet" className="cursor-pointer">잉크젯출력</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="usageIndigoAlbum"
-                    checked={form.usageIndigoAlbum}
-                    onCheckedChange={(checked) => setForm({ ...form, usageIndigoAlbum: !!checked })}
-                  />
-                  <Label htmlFor="usageIndigoAlbum" className="cursor-pointer">인디고앨범</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Checkbox
@@ -861,7 +861,7 @@ export default function SpecificationsPage() {
                     checked={form.usageBooklet}
                     onCheckedChange={(checked) => setForm({ ...form, usageBooklet: !!checked })}
                   />
-                  <Label htmlFor="usageBooklet" className="cursor-pointer">인쇄책자</Label>
+                  <Label htmlFor="usageBooklet" className="cursor-pointer">책자</Label>
                 </div>
               </div>
             </div>
@@ -1199,7 +1199,6 @@ export default function SpecificationsPage() {
         </DialogContent>
       </Dialog>
 
-      <Toaster />
     </div>
   );
 }

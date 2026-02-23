@@ -491,6 +491,9 @@ model Product {
   requiresUpload      Boolean                    @default(false)
   useCopperPlate      Boolean                    @default(false)
   hasCoverFabric      Boolean                    @default(false)
+  showOrderMemo       Boolean                    @default(false)
+  showBinding         Boolean                    @default(true)
+  showCover           Boolean                    @default(false)
   productType         String?
   customOptions       CustomOption[]
   groupPrices         GroupProductPrice[]

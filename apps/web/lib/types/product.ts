@@ -155,7 +155,9 @@ export interface Product {
   outputPriceSettings?: any[];
   productType?: string;
   printType?: 'single' | 'double' | 'customer';
+  bindingDirection?: 'left' | 'right' | 'customer';
   useCopperPlate?: boolean;
+  hasCoverFabric?: boolean;
   requiresUpload?: boolean;
   createdAt: string;
   updatedAt: string;
@@ -317,12 +319,16 @@ export interface CreateProductDto {
   isActive?: boolean;
   isNew?: boolean;
   isBest?: boolean;
+  requiresUpload?: boolean;
+  useCopperPlate?: boolean;
+  hasCoverFabric?: boolean;
   memberType?: 'all' | 'member_only' | 'specific_groups';
   thumbnailUrl?: string;
   detailImages?: string[];
   description?: string;
   sortOrder?: number;
-  useCopperPlate?: boolean;
+  bindingDirection?: 'left' | 'right' | 'customer';
+  printType?: 'single' | 'double' | 'customer';
   specifications?: CreateProductSpecificationDto[];
   bindings?: CreateProductBindingDto[];
   papers?: CreateProductPaperDto[];

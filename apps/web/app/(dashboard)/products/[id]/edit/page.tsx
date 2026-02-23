@@ -74,6 +74,7 @@ import {
   Folder,
   Search,
   Shirt,
+  MessageSquare,
 } from 'lucide-react';
 
 // 제본방향 옵션
@@ -223,6 +224,9 @@ export default function EditProductPage() {
   const [requiresUpload, setRequiresUpload] = useState(false);
   const [useCopperPlate, setUseCopperPlate] = useState(false);
   const [hasCoverFabric, setHasCoverFabric] = useState(false);
+  const [showOrderMemo, setShowOrderMemo] = useState(false);
+  const [showBinding, setShowBinding] = useState(true);
+  const [showCover, setShowCover] = useState(false);
   const [memberType, setMemberType] = useState<'all' | 'member_only' | 'specific_groups'>('all');
   const [sortOrder, setSortOrder] = useState(0);
 
@@ -231,11 +235,11 @@ export default function EditProductPage() {
   const [selectedSpecs, setSelectedSpecs] = useState<string[]>([]);
   const [selectedHalfProductId, setSelectedHalfProductId] = useState('');
   const [selectedBindings, setSelectedBindings] = useState<{ id: string; name: string; price: number; productionSettingId?: string; pricingType?: string }[]>([]);
-  const [bindingDirection, setBindingDirection] = useState('left');
+  const [bindingDirection, setBindingDirection] = useState<'left' | 'right' | 'customer'>('left');
   // 출력단가 선택 (새로운 방식)
   const [outputPriceSelections, setOutputPriceSelections] = useState<OutputPriceSelection[]>([]);
   const [outputPriceDialogOpen, setOutputPriceDialogOpen] = useState(false);
-  const [printType, setPrintType] = useState('double');
+  const [printType, setPrintType] = useState<'single' | 'double' | 'customer'>('double');
   const [selectedFoils, setSelectedFoils] = useState<{ id: string; name: string; color: string; price: number }[]>([]);
   // 용지 사용 여부 관리
   const [paperActiveMap, setPaperActiveMap] = useState<Record<string, boolean>>({});
@@ -272,7 +276,7 @@ export default function EditProductPage() {
   const [foilDialogOpen, setFoilDialogOpen] = useState(false);
 
   // 규격 타입 선택
-  const [specType, setSpecType] = useState<'indigo' | 'inkjet' | 'album' | 'frame' | 'booklet'>('album');
+  const [specType, setSpecType] = useState<'indigo' | 'indigoAlbum' | 'inkjet' | 'album' | 'frame' | 'booklet'>('album');
 
   // 규격 타입별 필터링
   const getFilteredSpecs = (type: typeof specType) => {
@@ -280,6 +284,7 @@ export default function EditProductPage() {
     let filtered: typeof specifications = [];
     switch (type) {
       case 'indigo': filtered = specifications.filter(s => s.forIndigo); break;
+      case 'indigoAlbum': filtered = specifications.filter(s => s.forIndigoAlbum); break;
       case 'inkjet': filtered = specifications.filter(s => s.forInkjet); break;
       case 'album': filtered = specifications.filter(s => s.forAlbum); break;
       case 'frame': filtered = specifications.filter(s => s.forFrame); break;
@@ -322,6 +327,9 @@ export default function EditProductPage() {
         setRequiresUpload(product.requiresUpload ?? false);
         setUseCopperPlate(product.useCopperPlate ?? false);
         setHasCoverFabric(product.hasCoverFabric ?? false);
+        setShowOrderMemo((product as any).showOrderMemo ?? false);
+        setShowBinding((product as any).showBinding ?? true);
+        setShowCover((product as any).showCover ?? false);
         setMemberType(product.memberType);
         setSortOrder(product.sortOrder);
         setBasePrice(Number(product.basePrice));
@@ -396,11 +404,11 @@ export default function EditProductPage() {
         // 후가공 옵션은 별도 useEffect에서 처리 (productionGroupTree 로딩 타이밍 대응)
 
         // 제본 방향 및 출력 타입 로드
-        if ((product as any).bindingDirection) {
-          setBindingDirection((product as any).bindingDirection);
+        if (product.bindingDirection) {
+          setBindingDirection(product.bindingDirection);
         }
-        if ((product as any).printType) {
-          setPrintType((product as any).printType);
+        if (product.printType) {
+          setPrintType(product.printType);
         }
         // 출력단가 설정 로드
         if ((product as any).outputPriceSettings && Array.isArray((product as any).outputPriceSettings)) {
@@ -480,6 +488,7 @@ export default function EditProductPage() {
 
         const typeCounts = [
           { key: 'indigo' as const, count: matchedGlobalSpecs.filter(s => s.forIndigo).length },
+          { key: 'indigoAlbum' as const, count: matchedGlobalSpecs.filter(s => s.forIndigoAlbum).length },
           { key: 'inkjet' as const, count: matchedGlobalSpecs.filter(s => s.forInkjet).length },
           { key: 'album' as const, count: matchedGlobalSpecs.filter(s => s.forAlbum).length },
           { key: 'frame' as const, count: matchedGlobalSpecs.filter(s => s.forFrame).length },
@@ -642,6 +651,9 @@ export default function EditProductPage() {
         requiresUpload,
         useCopperPlate,
         hasCoverFabric,
+        showOrderMemo,
+        showBinding,
+        showCover,
         memberType: memberType as 'all' | 'member_only' | 'specific_groups',
         sortOrder,
         thumbnailUrl: thumbnailUrl || undefined,
@@ -832,97 +844,78 @@ export default function EditProductPage() {
 
             {/* 상품상태 */}
             <FormRow label="상품상태">
-              <div className="flex gap-3">
-                <label
-                  className={`
-                    flex items-center gap-2.5 px-4 py-2 rounded-lg border cursor-pointer transition-all
-                    ${isActive
-                      ? 'bg-emerald-50/80 border-emerald-200 ring-1 ring-emerald-100'
-                      : 'bg-white border-slate-200 hover:bg-slate-50'
-                    }
-                  `}
-                >
-                  <div className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isActive ? 'bg-emerald-500' : 'bg-slate-200'}`}>
-                    {isActive ? <Eye className="h-3.5 w-3.5 text-white" /> : <EyeOff className="h-3.5 w-3.5 text-slate-400" />}
-                  </div>
-                  <span className={`text-[13px] font-medium ${isActive ? 'text-emerald-700' : 'text-slate-500'}`}>활성화</span>
-                  <Switch checked={isActive} onCheckedChange={setIsActive} className="ml-1 data-[state=checked]:bg-emerald-500" />
-                </label>
-                <label
-                  className={`
-                    flex items-center gap-2.5 px-4 py-2 rounded-lg border cursor-pointer transition-all
-                    ${isNew
-                      ? 'bg-blue-50/80 border-blue-200 ring-1 ring-blue-100'
-                      : 'bg-white border-slate-200 hover:bg-slate-50'
-                    }
-                  `}
-                >
-                  <div className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isNew ? 'bg-blue-500' : 'bg-slate-200'}`}>
-                    <Sparkles className={`h-3.5 w-3.5 ${isNew ? 'text-white' : 'text-slate-400'}`} />
-                  </div>
-                  <span className={`text-[13px] font-medium ${isNew ? 'text-blue-700' : 'text-slate-500'}`}>신상품</span>
-                  <Switch checked={isNew} onCheckedChange={setIsNew} className="ml-1 data-[state=checked]:bg-blue-500" />
-                </label>
-                <label
-                  className={`
-                    flex items-center gap-2.5 px-4 py-2 rounded-lg border cursor-pointer transition-all
-                    ${isBest
-                      ? 'bg-amber-50/80 border-amber-200 ring-1 ring-amber-100'
-                      : 'bg-white border-slate-200 hover:bg-slate-50'
-                    }
-                  `}
-                >
-                  <div className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isBest ? 'bg-amber-500' : 'bg-slate-200'}`}>
-                    <Star className={`h-3.5 w-3.5 ${isBest ? 'text-white' : 'text-slate-400'}`} />
-                  </div>
-                  <span className={`text-[13px] font-medium ${isBest ? 'text-amber-700' : 'text-slate-500'}`}>베스트</span>
-                  <Switch checked={isBest} onCheckedChange={setIsBest} className="ml-1 data-[state=checked]:bg-amber-500" />
-                </label>
-                <label
-                  className={`
-                    flex items-center gap-2.5 px-4 py-2 rounded-lg border cursor-pointer transition-all
-                    ${requiresUpload
-                      ? 'bg-violet-50/80 border-violet-200 ring-1 ring-violet-100'
-                      : 'bg-white border-slate-200 hover:bg-slate-50'
-                    }
-                  `}
-                >
-                  <div className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${requiresUpload ? 'bg-violet-500' : 'bg-slate-200'}`}>
-                    <Upload className={`h-3.5 w-3.5 ${requiresUpload ? 'text-white' : 'text-slate-400'}`} />
-                  </div>
-                  <span className={`text-[13px] font-medium ${requiresUpload ? 'text-violet-700' : 'text-slate-500'}`}>업로드</span>
-                  <Switch checked={requiresUpload} onCheckedChange={setRequiresUpload} className="ml-1 data-[state=checked]:bg-violet-500" />
-                </label>
-                <label
-                  className={`
-                    flex items-center gap-2.5 px-4 py-2 rounded-lg border cursor-pointer transition-all
-                    ${useCopperPlate
-                      ? 'bg-rose-50/80 border-rose-200 ring-1 ring-rose-100'
-                      : 'bg-white border-slate-200 hover:bg-slate-50'
-                    }
-                  `}
-                >
-                  <div className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${useCopperPlate ? 'bg-rose-500' : 'bg-slate-200'}`}>
-                    <Sparkles className={`h-3.5 w-3.5 ${useCopperPlate ? 'text-white' : 'text-slate-400'}`} />
-                  </div>
-                  <span className={`text-[13px] font-medium ${useCopperPlate ? 'text-rose-700' : 'text-slate-500'}`}>동판</span>
-                  <Switch checked={useCopperPlate} onCheckedChange={setUseCopperPlate} className="ml-1 data-[state=checked]:bg-rose-500" />
-                </label>
-                <label
-                  className={`
-                    flex items-center gap-2.5 px-4 py-2 rounded-lg border cursor-pointer transition-all
-                    ${hasCoverFabric
-                      ? 'bg-teal-50/80 border-teal-200 ring-1 ring-teal-100'
-                      : 'bg-white border-slate-200 hover:bg-slate-50'
-                    }
-                  `}
-                >
-                  <div className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${hasCoverFabric ? 'bg-teal-500' : 'bg-slate-200'}`}>
-                    <Shirt className={`h-3.5 w-3.5 ${hasCoverFabric ? 'text-white' : 'text-slate-400'}`} />
-                  </div>
-                  <span className={`text-[13px] font-medium ${hasCoverFabric ? 'text-teal-700' : 'text-slate-500'}`}>표지원단</span>
-                  <Switch checked={hasCoverFabric} onCheckedChange={setHasCoverFabric} className="ml-1 data-[state=checked]:bg-teal-500" />
-                </label>
+              <div className="space-y-2">
+                {/* 1행: 판매 설정 */}
+                <div className="flex gap-2">
+                  <span className="text-[11px] text-slate-400 font-medium self-center w-12 shrink-0">판매</span>
+                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${isActive ? 'bg-emerald-50/80 border-emerald-200 ring-1 ring-emerald-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                    <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${isActive ? 'bg-emerald-500' : 'bg-slate-200'}`}>
+                      {isActive ? <Eye className="h-3 w-3 text-white" /> : <EyeOff className="h-3 w-3 text-slate-400" />}
+                    </div>
+                    <span className={`text-[12px] font-medium ${isActive ? 'text-emerald-700' : 'text-slate-500'}`}>활성화</span>
+                    <Switch checked={isActive} onCheckedChange={setIsActive} className="ml-0.5 scale-90 data-[state=checked]:bg-emerald-500" />
+                  </label>
+                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${isNew ? 'bg-blue-50/80 border-blue-200 ring-1 ring-blue-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                    <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${isNew ? 'bg-blue-500' : 'bg-slate-200'}`}>
+                      <Sparkles className={`h-3 w-3 ${isNew ? 'text-white' : 'text-slate-400'}`} />
+                    </div>
+                    <span className={`text-[12px] font-medium ${isNew ? 'text-blue-700' : 'text-slate-500'}`}>신상품</span>
+                    <Switch checked={isNew} onCheckedChange={setIsNew} className="ml-0.5 scale-90 data-[state=checked]:bg-blue-500" />
+                  </label>
+                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${isBest ? 'bg-amber-50/80 border-amber-200 ring-1 ring-amber-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                    <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${isBest ? 'bg-amber-500' : 'bg-slate-200'}`}>
+                      <Star className={`h-3 w-3 ${isBest ? 'text-white' : 'text-slate-400'}`} />
+                    </div>
+                    <span className={`text-[12px] font-medium ${isBest ? 'text-amber-700' : 'text-slate-500'}`}>베스트</span>
+                    <Switch checked={isBest} onCheckedChange={setIsBest} className="ml-0.5 scale-90 data-[state=checked]:bg-amber-500" />
+                  </label>
+                </div>
+                {/* 2행: 제작 옵션 */}
+                <div className="flex gap-2">
+                  <span className="text-[11px] text-slate-400 font-medium self-center w-12 shrink-0">제작</span>
+                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${showBinding ? 'bg-indigo-50/80 border-indigo-200 ring-1 ring-indigo-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                    <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${showBinding ? 'bg-indigo-500' : 'bg-slate-200'}`}>
+                      <Layers className={`h-3 w-3 ${showBinding ? 'text-white' : 'text-slate-400'}`} />
+                    </div>
+                    <span className={`text-[12px] font-medium ${showBinding ? 'text-indigo-700' : 'text-slate-500'}`}>제본</span>
+                    <Switch checked={showBinding} onCheckedChange={setShowBinding} className="ml-0.5 scale-90 data-[state=checked]:bg-indigo-500" />
+                  </label>
+                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${requiresUpload ? 'bg-violet-50/80 border-violet-200 ring-1 ring-violet-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                    <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${requiresUpload ? 'bg-violet-500' : 'bg-slate-200'}`}>
+                      <Upload className={`h-3 w-3 ${requiresUpload ? 'text-white' : 'text-slate-400'}`} />
+                    </div>
+                    <span className={`text-[12px] font-medium ${requiresUpload ? 'text-violet-700' : 'text-slate-500'}`}>업로드</span>
+                    <Switch checked={requiresUpload} onCheckedChange={setRequiresUpload} className="ml-0.5 scale-90 data-[state=checked]:bg-violet-500" />
+                  </label>
+                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${useCopperPlate ? 'bg-rose-50/80 border-rose-200 ring-1 ring-rose-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                    <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${useCopperPlate ? 'bg-rose-500' : 'bg-slate-200'}`}>
+                      <Sparkles className={`h-3 w-3 ${useCopperPlate ? 'text-white' : 'text-slate-400'}`} />
+                    </div>
+                    <span className={`text-[12px] font-medium ${useCopperPlate ? 'text-rose-700' : 'text-slate-500'}`}>동판</span>
+                    <Switch checked={useCopperPlate} onCheckedChange={setUseCopperPlate} className="ml-0.5 scale-90 data-[state=checked]:bg-rose-500" />
+                  </label>
+                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${hasCoverFabric ? 'bg-teal-50/80 border-teal-200 ring-1 ring-teal-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                    <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${hasCoverFabric ? 'bg-teal-500' : 'bg-slate-200'}`}>
+                      <Shirt className={`h-3 w-3 ${hasCoverFabric ? 'text-white' : 'text-slate-400'}`} />
+                    </div>
+                    <span className={`text-[12px] font-medium ${hasCoverFabric ? 'text-teal-700' : 'text-slate-500'}`}>표지원단</span>
+                    <Switch checked={hasCoverFabric} onCheckedChange={setHasCoverFabric} className="ml-0.5 scale-90 data-[state=checked]:bg-teal-500" />
+                  </label>
+                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${showCover ? 'bg-pink-50/80 border-pink-200 ring-1 ring-pink-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                    <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${showCover ? 'bg-pink-500' : 'bg-slate-200'}`}>
+                      <Palette className={`h-3 w-3 ${showCover ? 'text-white' : 'text-slate-400'}`} />
+                    </div>
+                    <span className={`text-[12px] font-medium ${showCover ? 'text-pink-700' : 'text-slate-500'}`}>커버</span>
+                    <Switch checked={showCover} onCheckedChange={setShowCover} className="ml-0.5 scale-90 data-[state=checked]:bg-pink-500" />
+                  </label>
+                  <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${showOrderMemo ? 'bg-cyan-50/80 border-cyan-200 ring-1 ring-cyan-100' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                    <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${showOrderMemo ? 'bg-cyan-500' : 'bg-slate-200'}`}>
+                      <MessageSquare className={`h-3 w-3 ${showOrderMemo ? 'text-white' : 'text-slate-400'}`} />
+                    </div>
+                    <span className={`text-[12px] font-medium ${showOrderMemo ? 'text-cyan-700' : 'text-slate-500'}`}>주문메모</span>
+                    <Switch checked={showOrderMemo} onCheckedChange={setShowOrderMemo} className="ml-0.5 scale-90 data-[state=checked]:bg-cyan-500" />
+                  </label>
+                </div>
               </div>
             </FormRow>
 
@@ -940,9 +933,9 @@ export default function EditProductPage() {
         />
         <CardContent className="px-6 pb-6 pt-2 space-y-5">
           {/* 제본/출력단가 선택 */}
-          <div className={`grid gap-6 ${shouldShow('binding') && (selectedBindings.length > 0 || product?.bindings?.length) ? 'grid-cols-2' : 'grid-cols-1'}`}>
-            {/* 제본 선택 - 상품유형에서 binding 표시 + 기존 제본 데이터가 있을 때만 */}
-            {shouldShow('binding') && (selectedBindings.length > 0 || product?.bindings?.length) && (
+          <div className={`grid gap-6 ${shouldShow('binding') && showBinding && (selectedBindings.length > 0 || product?.bindings?.length) ? 'grid-cols-2' : 'grid-cols-1'}`}>
+            {/* 제본 선택 - 상품유형에서 binding 표시 + 제본 토글 ON + 기존 제본 데이터가 있을 때만 */}
+            {shouldShow('binding') && showBinding && (selectedBindings.length > 0 || product?.bindings?.length) && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="text-[13px] font-medium text-slate-600 flex items-center gap-1.5">
@@ -981,7 +974,7 @@ export default function EditProductPage() {
                         name="bindingDirection"
                         value={opt.value}
                         checked={bindingDirection === opt.value}
-                        onChange={(e) => setBindingDirection(e.target.value)}
+                        onChange={(e) => setBindingDirection(e.target.value as 'left' | 'right' | 'customer')}
                         className="w-3.5 h-3.5 text-emerald-600"
                       />
                       <span className="text-xs">{opt.label}</span>
@@ -1056,7 +1049,7 @@ export default function EditProductPage() {
                           name="printType"
                           value={opt.value}
                           checked={printType === opt.value}
-                          onChange={(e) => setPrintType(e.target.value)}
+                          onChange={(e) => setPrintType(e.target.value as 'single' | 'double' | 'customer')}
                           className="w-3.5 h-3.5 text-emerald-600"
                         />
                         <span className="text-xs">{opt.label}</span>
@@ -1070,7 +1063,7 @@ export default function EditProductPage() {
 
 
           {/* 앨범 표지 원단 선택 */}
-          {shouldShow('fabric') && (<div className="space-y-3">
+          {shouldShow('fabric') && hasCoverFabric && (<div className="space-y-3">
             <Label className="text-[13px] font-medium text-slate-600 flex items-center gap-1.5">
               <Palette className="h-4 w-4 text-slate-400" />
               앨범 표지 원단
@@ -1795,8 +1788,9 @@ export default function EditProductPage() {
           </DialogHeader>
           <div className="flex gap-1 p-1 bg-slate-100 rounded-lg w-fit">
             {[
-              { key: 'indigo', label: '인디고앨범' },
-              { key: 'inkjet', label: '잉크젯' },
+              { key: 'indigoAlbum', label: '인디고앨범' },
+              { key: 'indigo', label: '인디고출력' },
+              { key: 'inkjet', label: '잉크젯출력' },
               { key: 'album', label: '잉크젯앨범' },
               { key: 'frame', label: '액자' },
               { key: 'booklet', label: '책자' },
