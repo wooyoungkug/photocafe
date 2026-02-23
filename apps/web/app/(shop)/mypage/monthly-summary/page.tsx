@@ -547,7 +547,7 @@ export default function MonthlySummaryPage() {
               <th className="border border-gray-500 p-1.5 text-center font-semibold w-[400px]">
                 작업명
               </th>
-              <th className="border border-gray-500 p-1.5 text-center font-semibold w-[160px]">
+              <th className="border border-gray-500 p-1.5 text-center font-semibold w-[150px]">
                 상품명
               </th>
               <th className="border border-gray-500 p-1.5 text-center font-semibold w-[60px]">
