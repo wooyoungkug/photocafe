@@ -264,8 +264,8 @@ export default function EditProductPage() {
   const [paperActiveMap, setPaperActiveMap] = useState<Record<string, boolean>>({});
   const [paperActive4Map, setPaperActive4Map] = useState<Record<string, boolean>>({});
   const [paperActive6Map, setPaperActive6Map] = useState<Record<string, boolean>>({});
-  // 기본 용지 ID
-  const [defaultPaperId, setDefaultPaperId] = useState<string>('');
+  // 기본 용지 키 (paperId 또는 paperId:colorType 형태, 대표용지 1개만 선택)
+  const [defaultPaperKey, setDefaultPaperKey] = useState<string>('');
 
   // 후가공정보: groupId → settingId[] (복수 선택, '__enabled__' = 세팅 없는 그룹용)
   const [finishingOptions, setFinishingOptions] = useState<Record<string, string[]>>({});
@@ -412,7 +412,7 @@ export default function EditProductPage() {
           setPaperActiveMap(activeMap);
           setPaperActive4Map(active4Map);
           setPaperActive6Map(active6Map);
-          setDefaultPaperId(foundDefaultId || (product.papers[0] as any)?.id || '');
+          setDefaultPaperKey(foundDefaultId || (product.papers[0] as any)?.id || '');
         }
 
         // 앨범 표지 원단 로드
@@ -712,7 +712,7 @@ export default function EditProductPage() {
           frontCoating: p.frontCoating,
           grade: p.grade,
           price: Number(p.price) || 0,
-          isDefault: p.id === defaultPaperId,
+          isDefault: defaultPaperKey === p.id || defaultPaperKey.startsWith(p.id + ':'),
           isActive: paperActiveMap[p.id] !== false,
           isActive4: paperActive4Map[p.id] !== false,
           isActive6: paperActive6Map[p.id] !== false,
@@ -1507,7 +1507,8 @@ export default function EditProductPage() {
                     isActive = paperActiveMap[paper.id] !== false;
                     toggleActive = (val) => setPaperActiveMap(prev => ({ ...prev, [paper.id]: val }));
                   }
-                  const isDefault = defaultPaperId === paper.id;
+                  const chipKey = colorType ? `${paper.id}:${colorType}` : paper.id;
+                  const isDefault = defaultPaperKey === chipKey;
                   return (
                     <div
                       key={`${paper.id}-${colorType ?? 'common'}`}
@@ -1534,7 +1535,7 @@ export default function EditProductPage() {
                         <button
                           type="button"
                           title={isDefault ? '기본용지' : '기본용지로 설정'}
-                          onClick={() => setDefaultPaperId(paper.id)}
+                          onClick={() => setDefaultPaperKey(chipKey)}
                           className={`transition-colors leading-none ${isDefault ? 'text-amber-300' : 'text-slate-300 hover:text-amber-400'}`}
                         >
                           {isDefault ? '★' : '☆'}
