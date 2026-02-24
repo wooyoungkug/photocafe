@@ -306,29 +306,29 @@ export default function MonthlySummaryPage() {
             alt="법인도장"
             width={55}
             height={55}
-            className="absolute top-[20px] right-[2px] z-10"
+            className="absolute top-[50px] right-[2px] z-10"
           />
           <table className="border-collapse w-full text-[10pt]">
             <tbody>
               <tr>
-                <td className="pl-2 pr-1 py-0.5 font-semibold whitespace-nowrap w-[55px]">상&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;호</td>
-                <td className="py-0.5 pr-2">(주)프린팅솔루션즈</td>
+                <td className="pl-2 pr-1 py-0.5 font-semibold whitespace-nowrap w-[70px]">상&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;호</td>
+                <td className="py-0.5 border-b border-gray-300 pr-2">(주)프린팅솔루션즈</td>
               </tr>
               <tr>
                 <td className="pl-2 pr-1 py-0.5 font-semibold whitespace-nowrap">대 표 이 사</td>
-                <td className="py-0.5 pr-2">우영국</td>
+                <td className="py-0.5 border-b border-gray-300 pr-2">우영국</td>
+              </tr>
+              <tr>
+                <td className="pl-2 pr-1 py-0.5 font-semibold whitespace-nowrap">사업자번호</td>
+                <td className="py-0.5 border-b border-gray-300 pr-2">201-86-02186</td>
               </tr>
               <tr>
                 <td className="pl-2 pr-1 py-0.5 font-semibold whitespace-nowrap">주&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;소</td>
-                <td className="py-0.5 pr-2">성남시 중원구 둔촌대로 560 벽산테크노피아 310,311,312호</td>
-              </tr>
-              <tr>
-                <td className="pl-2 pr-1 py-0.5 font-semibold whitespace-nowrap">대 표 전 화</td>
-                <td className="py-0.5 pr-2">1800-7682</td>
+                <td className="py-0.5 border-b border-gray-300 pr-2">성남시 중원구 둔촌대로 560 벽산테크노피아 310,311,312호</td>
               </tr>
               <tr>
                 <td className="pl-2 pr-1 py-0.5 font-semibold whitespace-nowrap">E-mail</td>
-                <td className="py-0.5 pr-2">pvotome5478@naver.com</td>
+                <td className="py-0.5 border-b border-gray-300 pr-2">pvotome5478@naver.com</td>
               </tr>
             </tbody>
           </table>
