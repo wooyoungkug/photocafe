@@ -5,6 +5,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# 같은 브랜치에 새 push가 오면 진행 중인 빌드를 취소하고 최신만 실행
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   REGISTRY: ghcr.io
   API_IMAGE: ghcr.io/wooyoungkug/photocafe-api
