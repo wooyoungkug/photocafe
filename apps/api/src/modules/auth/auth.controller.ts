@@ -15,6 +15,7 @@ import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -42,6 +43,7 @@ export class AuthController {
   @Public()
   @Post('login')
   @UseGuards(LocalAuthGuard)
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   @ApiOperation({ summary: '로그인' })
   async login(@Request() req: any, @Body() loginDto: LoginDto) {
     return this.authService.login(req.user);
@@ -49,6 +51,7 @@ export class AuthController {
 
   @Public()
   @Post('register')
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
   @ApiOperation({ summary: '회원가입' })
   async register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto);
@@ -56,6 +59,7 @@ export class AuthController {
 
   @Public()
   @Post('refresh')
+  @Throttle({ default: { ttl: 60000, limit: 20 } })
   @ApiOperation({ summary: '토큰 갱신' })
   async refresh(@Body() refreshTokenDto: RefreshTokenDto) {
     return this.authService.refreshToken(refreshTokenDto.refreshToken);
@@ -111,6 +115,7 @@ export class AuthController {
 
   @Public()
   @Post('client/login')
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   @ApiOperation({ summary: '고객 로그인' })
   async clientLogin(@Body() dto: ClientLoginDto) {
     const client = await this.authService.validateClient(dto.email, dto.password);
@@ -195,6 +200,7 @@ export class AuthController {
 
   @Public()
   @Post('admin/login')
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   @ApiOperation({ summary: '관리자(직원) 로그인' })
   async adminLogin(@Body() dto: AdminLoginDto, @Request() req: any) {
     const staff = await this.authService.validateStaff(dto.staffId, dto.password);

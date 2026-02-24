@@ -7,6 +7,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { PrismaService } from './common/prisma/prisma.service';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
+import helmet from 'helmet';
 
 // BigInt JSON 직렬화 지원 (Prisma BigInt 필드)
 (BigInt.prototype as any).toJSON = function () {
@@ -17,13 +18,21 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // Body parser 크기 제한 (기본 100KB → 50MB)
-  app.useBodyParser('json', { limit: '50mb' });
-  app.useBodyParser('urlencoded', { limit: '50mb' });
+  // Body parser 크기 제한 (50MB → 10MB, 파일 업로드는 Multer에서 별도 제어)
+  app.useBodyParser('json', { limit: '10mb' });
+  app.useBodyParser('urlencoded', { limit: '10mb' });
 
   // Nginx 리버스 프록시 신뢰 설정 (req.ip가 올바른 클라이언트 IP를 반환하도록)
   // 운영 환경에서 Nginx가 X-Forwarded-For를 설정하므로 1단계 프록시 신뢰
   app.set('trust proxy', 1);
+
+  // HTTP 보안 헤더 (XSS, 클릭재킹, MIME 스니핑, HSTS 등)
+  app.use(
+    helmet({
+      contentSecurityPolicy: false, // Swagger UI와 호환을 위해 비활성화 (필요 시 세부 설정)
+      crossOriginEmbedderPolicy: false, // 프론트엔드 리소스 로딩 호환
+    }),
+  );
 
   // Global Exception Filter
   app.useGlobalFilters(new AllExceptionsFilter());
@@ -62,11 +71,11 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // Validation pipe
+  // Validation pipe - 화이트리스트 외 필드 차단 활성화
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
-      forbidNonWhitelisted: false, // 디버깅용으로 임시 비활성화
+      forbidNonWhitelisted: true,
       transform: true,
       transformOptions: {
         enableImplicitConversion: true,
@@ -109,12 +118,11 @@ async function bootstrap() {
         service: 'PostgreSQL',
         responseTime: Date.now() - startTime,
       });
-    } catch (error: any) {
-      res.json({
+    } catch {
+      res.status(503).json({
         status: 'error',
         timestamp: new Date().toISOString(),
         service: 'PostgreSQL',
-        error: error?.message || 'Unknown error',
       });
     }
   });
