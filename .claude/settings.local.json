@@ -347,10 +347,14 @@
       "Bash(git rev-list:*)",
       "Bash(git cat-file:*)",
       "Bash(test:*)",
-      "Bash(PGPASSWORD=postgres PGCLIENTENCODING=UTF8 \"/c/Program Files/PostgreSQL/16/bin/psql.exe\":*)"
+      "Bash(PGPASSWORD=postgres PGCLIENTENCODING=UTF8 \"/c/Program Files/PostgreSQL/16/bin/psql.exe\":*)",
+      "Bash(for i in 1 2 3 4 5 6)",
+      "Bash(do sleep 5)",
+      "Bash(break)"
     ],
     "additionalDirectories": [
-      "C:\\dev\\printing114\\apps\\api\\dist"
+      "C:\\dev\\printing114\\apps\\api\\dist",
+      "c:\\dev\\printing114\\apps\\api"
     ]
   }
 }

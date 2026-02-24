@@ -1327,11 +1327,21 @@ export class OrderService {
               ...(order.shipping ? {
                 shipping: {
                   create: {
+                    senderType: order.shipping.senderType,
+                    senderName: order.shipping.senderName,
+                    senderPhone: order.shipping.senderPhone,
+                    senderPostalCode: order.shipping.senderPostalCode,
+                    senderAddress: order.shipping.senderAddress,
+                    senderAddressDetail: order.shipping.senderAddressDetail,
+                    receiverType: order.shipping.receiverType,
                     recipientName: order.shipping.recipientName,
                     phone: order.shipping.phone,
                     postalCode: order.shipping.postalCode,
                     address: order.shipping.address,
                     addressDetail: order.shipping.addressDetail,
+                    deliveryMethod: order.shipping.deliveryMethod,
+                    deliveryFee: order.shipping.deliveryFee,
+                    deliveryFeeType: order.shipping.deliveryFeeType,
                   },
                 },
               } : {}),

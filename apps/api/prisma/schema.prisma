@@ -827,23 +827,33 @@ model Order {
 }
 
 model OrderShipping {
-  id             String          @id @default(cuid())
-  orderId        String          @unique
-  recipientName  String
-  phone          String
-  postalCode     String
-  address        String
-  addressDetail  String?
-  courierCode    String?
-  trackingNumber String?
-  shippedAt      DateTime?
-  deliveredAt    DateTime?
-  bundleId       String?
-  bundleSeq      Int?
-  labelPdfPath   String?
-  labelPrintedAt DateTime?
-  order          Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  bundle         ShipmentBundle? @relation(fields: [bundleId], references: [id], onDelete: SetNull)
+  id                  String          @id @default(cuid())
+  orderId             String          @unique
+  senderType          String?
+  senderName          String?
+  senderPhone         String?
+  senderPostalCode    String?
+  senderAddress       String?
+  senderAddressDetail String?
+  receiverType        String?
+  recipientName       String
+  phone               String
+  postalCode          String
+  address             String
+  addressDetail       String?
+  deliveryMethod      String?
+  deliveryFee         Decimal?        @db.Decimal(10, 2)
+  deliveryFeeType     String?
+  courierCode         String?
+  trackingNumber      String?
+  shippedAt           DateTime?
+  deliveredAt         DateTime?
+  bundleId            String?
+  bundleSeq           Int?
+  labelPdfPath        String?
+  labelPrintedAt      DateTime?
+  order               Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  bundle              ShipmentBundle? @relation(fields: [bundleId], references: [id], onDelete: SetNull)
 
   @@index([bundleId])
   @@map("order_shippings")

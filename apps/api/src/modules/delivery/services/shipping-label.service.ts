@@ -3,21 +3,35 @@ import { PrismaService } from '../../../common/prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import * as path from 'path';
 import * as fs from 'fs';
-import { COURIER_CODES } from '../dto/delivery-pricing.dto';
+import { COURIER_CODES, DELIVERY_METHOD_LABELS } from '../dto/delivery-pricing.dto';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PDFDocument = require('pdfkit');
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const bwipjs = require('bwip-js');
 
+// 한글 폰트 경로
+const FONT_DIR = path.resolve(__dirname, '../../../../fonts');
+const FONT_REGULAR = path.join(FONT_DIR, 'NanumGothic.ttf');
+const FONT_BOLD = path.join(FONT_DIR, 'NanumGothicBold.ttf');
+
 @Injectable()
 export class ShippingLabelService {
   private readonly logger = new Logger(ShippingLabelService.name);
+  private fontsAvailable = false;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
-  ) {}
+  ) {
+    this.fontsAvailable =
+      fs.existsSync(FONT_REGULAR) && fs.existsSync(FONT_BOLD);
+    if (!this.fontsAvailable) {
+      this.logger.warn(
+        `한글 폰트 파일을 찾을 수 없습니다. 경로: ${FONT_DIR} — 택배전표에 한글이 깨질 수 있습니다.`,
+      );
+    }
+  }
 
   /**
    * 운송장 라벨 PDF 생성
@@ -40,18 +54,32 @@ export class ShippingLabelService {
     if (!order) throw new NotFoundException('주문을 찾을 수 없습니다.');
     if (!order.shipping) throw new NotFoundException('배송정보가 없습니다.');
 
-    // 발송인 정보 (회사 시스템설정에서)
-    const companyInfo = await this.prisma.systemSetting
-      .findFirst({ where: { key: 'company' } })
-      .catch(() => null);
+    // 발송인 정보: OrderShipping에 저장된 값 우선, 없으면 회사 시스템설정 폴백
+    let senderName = (order.shipping as any).senderName;
+    let senderPhone = (order.shipping as any).senderPhone;
+    let senderAddr = (order.shipping as any).senderAddress;
+    const senderAddrDetail = (order.shipping as any).senderAddressDetail;
 
-    let company: any = null;
-    if (companyInfo?.value) {
-      try {
-        company = JSON.parse(companyInfo.value);
-      } catch {
-        // JSON 파싱 실패 시 무시
+    if (!senderName) {
+      const companyInfo = await this.prisma.systemSetting
+        .findFirst({ where: { key: 'company' } })
+        .catch(() => null);
+
+      let company: any = null;
+      if (companyInfo?.value) {
+        try {
+          company = JSON.parse(companyInfo.value);
+        } catch {
+          // ignore
+        }
       }
+      senderName = company?.companyName || '포토미';
+      senderPhone = senderPhone || company?.phone || '';
+      senderAddr = senderAddr || company?.address || '';
+    }
+
+    if (senderAddrDetail) {
+      senderAddr = `${senderAddr || ''} ${senderAddrDetail}`.trim();
     }
 
     const uploadBase =
@@ -65,7 +93,9 @@ export class ShippingLabelService {
     await this.renderLabelPdf({
       filePath,
       order,
-      company,
+      senderName,
+      senderPhone,
+      senderAddr,
     });
 
     const pdfUrl = `/uploads/labels/${fileName}`;
@@ -83,19 +113,46 @@ export class ShippingLabelService {
     return { pdfPath: filePath, pdfUrl };
   }
 
+  /** PDFKit 폰트 등록 헬퍼 */
+  private registerFonts(doc: any) {
+    if (this.fontsAvailable) {
+      doc.registerFont('Korean', FONT_REGULAR);
+      doc.registerFont('Korean-Bold', FONT_BOLD);
+    }
+  }
+
+  /** 일반 폰트 적용 */
+  private fontRegular(doc: any) {
+    return this.fontsAvailable
+      ? doc.font('Korean')
+      : doc.font('Helvetica');
+  }
+
+  /** 볼드 폰트 적용 */
+  private fontBold(doc: any) {
+    return this.fontsAvailable
+      ? doc.font('Korean-Bold')
+      : doc.font('Helvetica-Bold');
+  }
+
   /**
    * 운송장 라벨 PDF 렌더링
    * - A5 사이즈 (420x595pt)
+   * - 나눔고딕 한글 폰트 사용
    * - 택배사명 헤더, 운송장 바코드, 발송인/수령인 정보, 상품/주문번호
    */
   private async renderLabelPdf({
     filePath,
     order,
-    company,
+    senderName,
+    senderPhone,
+    senderAddr,
   }: {
     filePath: string;
     order: any;
-    company: any;
+    senderName: string;
+    senderPhone: string;
+    senderAddr: string;
   }) {
     return new Promise<void>(async (resolve, reject) => {
       try {
@@ -103,23 +160,27 @@ export class ShippingLabelService {
         const stream = fs.createWriteStream(filePath);
         doc.pipe(stream);
 
+        // 한글 폰트 등록
+        this.registerFonts(doc);
+
         const shipping = order.shipping;
         const courierName =
           COURIER_CODES[shipping.courierCode] ||
           shipping.courierCode ||
-          'Parcel';
+          '택배';
+        const deliveryMethod =
+          (DELIVERY_METHOD_LABELS as Record<string, string>)[shipping.deliveryMethod] || '';
         const productName = order.items
           .map((i: any) => i.folderName || i.productName)
           .join(', ');
-        const senderName = company?.companyName || 'Photomi';
-        const senderPhone = company?.phone || '';
-        const senderAddr = company?.address || '';
 
         // 헤더: 택배사명
-        doc
-          .fontSize(18)
-          .font('Helvetica-Bold')
-          .text(courierName, { align: 'center' });
+        this.fontBold(doc).fontSize(18);
+        doc.text(courierName, { align: 'center' });
+        if (deliveryMethod && deliveryMethod !== '택배') {
+          this.fontRegular(doc).fontSize(10);
+          doc.text(`(${deliveryMethod})`, { align: 'center' });
+        }
         doc.moveDown(0.3);
 
         // 바코드 (trackingNumber가 있으면 바코드 생성)
@@ -141,12 +202,10 @@ export class ShippingLabelService {
             this.logger.warn(
               `Barcode generation failed: ${barcodeErr}. Falling back to text.`,
             );
-            doc
-              .fontSize(10)
-              .font('Helvetica')
-              .text(`Tracking: ${shipping.trackingNumber}`, {
-                align: 'center',
-              });
+            this.fontRegular(doc).fontSize(10);
+            doc.text(`송장번호: ${shipping.trackingNumber}`, {
+              align: 'center',
+            });
           }
           doc.moveDown(0.3);
         }
@@ -163,41 +222,31 @@ export class ShippingLabelService {
         const startY = doc.y;
 
         // 발송인 (좌측)
-        doc
-          .fontSize(8)
-          .font('Helvetica')
-          .text('FROM', 15, startY, { width: colW });
-        doc
-          .fontSize(11)
-          .font('Helvetica-Bold')
-          .text(senderName, 15, doc.y, { width: colW });
-        doc
-          .fontSize(9)
-          .font('Helvetica')
-          .text(senderAddr || '-', 15, doc.y, { width: colW });
+        this.fontRegular(doc).fontSize(8);
+        doc.text('보내는 분', 15, startY, { width: colW });
+        this.fontBold(doc).fontSize(11);
+        doc.text(senderName, 15, doc.y, { width: colW });
+        this.fontRegular(doc).fontSize(9);
+        doc.text(senderAddr || '-', 15, doc.y, { width: colW });
         doc.text(senderPhone, 15, doc.y, { width: colW });
 
         const addrEndY = doc.y;
 
         // 수령인 (우측)
         const rightX = 15 + colW + 10;
-        doc
-          .fontSize(8)
-          .font('Helvetica')
-          .text('TO', rightX, startY, { width: colW });
-        doc
-          .fontSize(14)
-          .font('Helvetica-Bold')
-          .text(shipping.recipientName, rightX, startY + 14, { width: colW });
-        doc
-          .fontSize(9)
-          .font('Helvetica')
-          .text(
-            `[${shipping.postalCode}] ${shipping.address} ${shipping.addressDetail || ''}`,
-            rightX,
-            doc.y,
-            { width: colW },
-          );
+        this.fontRegular(doc).fontSize(8);
+        doc.text('받는 분', rightX, startY, { width: colW });
+        this.fontBold(doc).fontSize(14);
+        doc.text(shipping.recipientName, rightX, startY + 14, {
+          width: colW,
+        });
+        this.fontRegular(doc).fontSize(9);
+        doc.text(
+          `[${shipping.postalCode}] ${shipping.address} ${shipping.addressDetail || ''}`,
+          rightX,
+          doc.y,
+          { width: colW },
+        );
         doc.text(shipping.phone, rightX, doc.y, { width: colW });
 
         doc.y = Math.max(addrEndY, doc.y) + 5;
@@ -210,17 +259,14 @@ export class ShippingLabelService {
         doc.moveDown(0.5);
 
         // 상품 정보
-        doc.fontSize(9).font('Helvetica').text(`Product: ${productName}`);
-        doc.text(
-          `Order: ${order.orderNumber}  Barcode: ${order.barcode}`,
-        );
+        this.fontRegular(doc).fontSize(9);
+        doc.text(`상품: ${productName}`);
+        doc.text(`주문번호: ${order.orderNumber}  바코드: ${order.barcode}`);
 
         // 취급주의 표시
         doc.moveDown(0.3);
-        doc
-          .fontSize(11)
-          .font('Helvetica-Bold')
-          .text('FRAGILE - HANDLE WITH CARE', { align: 'center' });
+        this.fontBold(doc).fontSize(11);
+        doc.text('*** 취급주의 - 파손주의 ***', { align: 'center' });
 
         doc.end();
         stream.on('finish', resolve);

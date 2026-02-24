@@ -97,7 +97,13 @@ export class ShippingMgmtService {
   async detectBundles() {
     const orders = await this.prisma.order.findMany({
       where: { status: 'ready_for_shipping' },
-      include: { shipping: true },
+      include: {
+        shipping: true,
+        client: { select: { clientCode: true, clientName: true } },
+        items: {
+          select: { productName: true, quantity: true, folderName: true },
+        },
+      },
     });
 
     const groups = new Map<string, typeof orders>();
@@ -112,17 +118,20 @@ export class ShippingMgmtService {
       groups.get(key)!.push(order);
     }
 
-    return Array.from(groups.entries())
+    const candidates = Array.from(groups.entries())
       .filter(([, groupOrders]) => groupOrders.length > 1)
-      .map(([key, groupOrders]) => ({
-        key,
+      .map(([, groupOrders]) => ({
         recipientName: groupOrders[0].shipping!.recipientName,
-        recipientPhone: groupOrders[0].shipping!.phone,
         address: groupOrders[0].shipping!.address,
-        orderIds: groupOrders.map((o) => o.id),
-        orderNumbers: groupOrders.map((o) => o.orderNumber),
-        count: groupOrders.length,
+        orders: groupOrders,
       }));
+
+    const totalBundleable = candidates.reduce(
+      (sum, c) => sum + c.orders.length,
+      0,
+    );
+
+    return { candidates, totalBundleable };
   }
 
   /**

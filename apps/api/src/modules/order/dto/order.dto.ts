@@ -305,6 +305,41 @@ export class CheckDuplicateOrderDto {
 
 // ==================== 배송 정보 DTO ====================
 export class OrderShippingDto {
+  @ApiPropertyOptional({ description: '발송지 유형', enum: ['company', 'orderer'] })
+  @IsOptional()
+  @IsString()
+  senderType?: string;
+
+  @ApiPropertyOptional({ description: '발송인명' })
+  @IsOptional()
+  @IsString()
+  senderName?: string;
+
+  @ApiPropertyOptional({ description: '발송인 연락처' })
+  @IsOptional()
+  @IsString()
+  senderPhone?: string;
+
+  @ApiPropertyOptional({ description: '발송지 우편번호' })
+  @IsOptional()
+  @IsString()
+  senderPostalCode?: string;
+
+  @ApiPropertyOptional({ description: '발송지 주소' })
+  @IsOptional()
+  @IsString()
+  senderAddress?: string;
+
+  @ApiPropertyOptional({ description: '발송지 상세주소' })
+  @IsOptional()
+  @IsString()
+  senderAddressDetail?: string;
+
+  @ApiPropertyOptional({ description: '배송지 유형', enum: ['orderer', 'direct_customer'] })
+  @IsOptional()
+  @IsString()
+  receiverType?: string;
+
   @ApiProperty({ description: '수령인명' })
   @IsString()
   recipientName: string;
@@ -325,6 +360,21 @@ export class OrderShippingDto {
   @IsOptional()
   @IsString()
   addressDetail?: string;
+
+  @ApiPropertyOptional({ description: '배송 방법', enum: ['parcel', 'motorcycle', 'freight', 'pickup'] })
+  @IsOptional()
+  @IsString()
+  deliveryMethod?: string;
+
+  @ApiPropertyOptional({ description: '배송비' })
+  @IsOptional()
+  @IsNumber()
+  deliveryFee?: number;
+
+  @ApiPropertyOptional({ description: '배송비 유형', enum: ['free', 'conditional', 'standard'] })
+  @IsOptional()
+  @IsString()
+  deliveryFeeType?: string;
 }
 
 // ==================== 주문 생성 DTO ====================

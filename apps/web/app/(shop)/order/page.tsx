@@ -634,13 +634,23 @@ export default function OrderPage() {
         };
       }
 
-      // order-level shipping (백엔드 필수 필드) - 건별 배송의 수신자 정보로 채움
+      // order-level shipping - 발송인/수령인/배송방법 정보 모두 포함
       const orderLevelShipping = itemShipping ? {
+        senderType: itemShipping.senderType,
+        senderName: itemShipping.senderName,
+        senderPhone: itemShipping.senderPhone,
+        senderPostalCode: itemShipping.senderPostalCode,
+        senderAddress: itemShipping.senderAddress,
+        senderAddressDetail: itemShipping.senderAddressDetail,
+        receiverType: itemShipping.receiverType,
         recipientName: itemShipping.recipientName,
         phone: itemShipping.recipientPhone,
         postalCode: itemShipping.recipientPostalCode,
         address: itemShipping.recipientAddress,
         addressDetail: itemShipping.recipientAddressDetail,
+        deliveryMethod: itemShipping.deliveryMethod,
+        deliveryFee: itemShipping.deliveryFee || 0,
+        deliveryFeeType: itemShipping.deliveryFeeType,
       } : {
         recipientName: shippingClientInfo?.clientName || user?.name || '',
         phone: shippingClientInfo?.phone || '',
