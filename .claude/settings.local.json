@@ -346,7 +346,8 @@
       "Bash(GIT_CURL_VERBOSE=1 git push:*)",
       "Bash(git rev-list:*)",
       "Bash(git cat-file:*)",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "Bash(PGPASSWORD=postgres PGCLIENTENCODING=UTF8 \"/c/Program Files/PostgreSQL/16/bin/psql.exe\":*)"
     ],
     "additionalDirectories": [
       "C:\\dev\\printing114\\apps\\api\\dist"
