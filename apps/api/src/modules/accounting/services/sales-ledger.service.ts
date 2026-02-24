@@ -658,6 +658,18 @@ export class SalesLedgerService {
     });
   }
 
+  // ===== 배송비 재청구 전표 생성 (합배송 조건 미달 시) =====
+  async createShippingRechargeEntry(params: {
+    salesLedgerId: string;
+    clientId: string;
+    clientName: string;
+    shippingFee: number;
+    orderId?: string;
+    orderNumber?: string;
+  }) {
+    return this.journalEngine.createShippingRechargeJournal(params);
+  }
+
   // ===== 매출원장 요약 (대시보드) =====
   async getSummary() {
     const now = new Date();

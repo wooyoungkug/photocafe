@@ -53,6 +53,16 @@ interface CreatePaymentJournalParams {
   description?: string;
 }
 
+interface CreateShippingRechargeJournalParams {
+  salesLedgerId: string;
+  clientId: string;
+  clientName: string;
+  shippingFee: number; // VAT 포함 금액 (예: 5500)
+  orderId?: string;
+  orderNumber?: string;
+  description?: string;
+}
+
 interface JournalEntryInput {
   accountId: string;
   transactionType: 'DEBIT' | 'CREDIT';
@@ -582,6 +592,107 @@ export class JournalEngineService {
 
     this.logger.log(
       `취소전표 생성: ${voucherNo} (원전표: ${originalJournal.voucherNo}, 금액: ${originalJournal.totalAmount})`,
+    );
+
+    return journal;
+  }
+
+  // ===== 배송비 재청구 전표 생성 =====
+  // 합배송 조건 미달로 배송비 환급을 취소하고 재청구할 때 호출
+  // 차변: 외상매출금(110) = shippingFee
+  // 대변: 용역매출(404)   = supplyAmount (VAT 제외)
+  // 대변: 예수금-부가세(204) = vatAmount
+  async createShippingRechargeJournal(
+    params: CreateShippingRechargeJournalParams,
+  ) {
+    const {
+      salesLedgerId,
+      clientId,
+      clientName,
+      shippingFee,
+      orderId,
+      orderNumber,
+      description,
+    } = params;
+
+    const supplyAmount = Math.round(shippingFee / 1.1);
+    const vatAmount = shippingFee - supplyAmount;
+
+    const [accountReceivable, serviceAccount, vatAccount] = await Promise.all([
+      this.findAccountByCode('110'), // 외상매출금
+      this.findAccountByCode('404'), // 용역매출
+      this.findAccountByCode('204'), // 예수금-부가세
+    ]);
+
+    const entries: JournalEntryInput[] = [
+      {
+        accountId: accountReceivable.id,
+        transactionType: 'DEBIT',
+        amount: shippingFee,
+        description: `외상매출금(배송비) - ${clientName}`,
+        sortOrder: 0,
+      },
+      {
+        accountId: serviceAccount.id,
+        transactionType: 'CREDIT',
+        amount: supplyAmount,
+        description: `배송비 재청구 - ${clientName}`,
+        sortOrder: 1,
+      },
+    ];
+
+    if (vatAmount > 0) {
+      entries.push({
+        accountId: vatAccount.id,
+        transactionType: 'CREDIT',
+        amount: vatAmount,
+        description: `부가세 예수금(배송비) - ${clientName}`,
+        sortOrder: 2,
+      });
+    }
+
+    this.validateBalance(entries);
+
+    const voucherNo = await this.generateJournalNo();
+
+    const journal = await this.prisma.$transaction(async (tx) => {
+      return tx.journal.create({
+        data: {
+          voucherNo,
+          voucherType: 'TRANSFER',
+          journalDate: new Date(),
+          clientId,
+          clientName,
+          description:
+            description ||
+            `배송비 재청구 - ${clientName} (합배송 조건 미달)`,
+          totalAmount: shippingFee,
+          orderId: orderId || null,
+          orderNumber: orderNumber || null,
+          sourceType: 'SHIPPING_RECHARGE',
+          sourceId: salesLedgerId,
+          createdBy: 'system',
+          entries: {
+            create: entries.map((entry) => ({
+              accountId: entry.accountId,
+              transactionType: entry.transactionType,
+              amount: entry.amount,
+              description: entry.description,
+              sortOrder: entry.sortOrder,
+            })),
+          },
+        },
+        include: {
+          entries: {
+            include: { account: true },
+            orderBy: { sortOrder: 'asc' },
+          },
+        },
+      });
+    });
+
+    this.logger.log(
+      `배송비 재청구 전표 생성: ${voucherNo} (매출원장: ${salesLedgerId}, 배송비: ${shippingFee})`,
     );
 
     return journal;

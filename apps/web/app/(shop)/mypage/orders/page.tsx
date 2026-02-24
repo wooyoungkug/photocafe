@@ -145,6 +145,14 @@ export default function MyOrdersPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // 취소 사전 조회 (배송비 재청구 미리보기)
+  const [cancelPreview, setCancelPreview] = useState<{
+    shippingRecharged: boolean;
+    shippingRechargeAmount: number;
+    effectiveRefundAmount: number;
+    orderAmount: number;
+  } | null>(null);
+
   // 공정 이력 다이얼로그
   const [historyOrderId, setHistoryOrderId] = useState<string | null>(null);
   const [historyOrderNumber, setHistoryOrderNumber] = useState<string>('');
@@ -284,6 +292,7 @@ export default function MyOrdersPage() {
       toast({ title: '주문 취소 완료', description: `${cancellableSelected.length}건의 주문이 취소되었습니다.` });
       setSelectedOrders(new Set());
       setShowCancelDialog(false);
+      setCancelPreview(null);
       queryClient.invalidateQueries({ queryKey: ['orders'] });
     } catch (error) {
       toast({ title: '취소 실패', description: '주문 취소 중 오류가 발생했습니다.', variant: 'destructive' });
@@ -449,7 +458,25 @@ export default function MyOrdersPage() {
               variant="destructive"
               size="sm"
               className="h-8 text-xs"
-              onClick={() => setShowCancelDialog(true)}
+              onClick={async () => {
+                // 단일 주문 취소 시 사전 조회
+                if (cancellableSelected.length === 1) {
+                  try {
+                    const preview = await api.get<{
+                      shippingRecharged: boolean;
+                      shippingRechargeAmount: number;
+                      effectiveRefundAmount: number;
+                      orderAmount: number;
+                    }>(`/orders/${cancellableSelected[0].id}/cancel-preview`);
+                    setCancelPreview(preview);
+                  } catch {
+                    setCancelPreview(null);
+                  }
+                } else {
+                  setCancelPreview(null);
+                }
+                setShowCancelDialog(true);
+              }}
             >
               <Ban className="h-3.5 w-3.5 mr-1" />
               선택 주문취소 ({cancellableSelected.length}건)
@@ -656,11 +683,31 @@ export default function MyOrdersPage() {
               </div>
             ))}
           </div>
+          {cancelPreview?.shippingRecharged && (
+            <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm space-y-1">
+              <p className="font-semibold text-amber-800">무료배송 조건 미달 안내</p>
+              <p className="text-xs text-amber-700 mb-2">
+                취소 후 당일 누적 주문금액이 무료배송 기준에 미달하여 배송비가 재청구됩니다.
+              </p>
+              <div className="flex justify-between text-muted-foreground">
+                <span>주문 취소 환불</span>
+                <span className="text-destructive font-medium">-{cancelPreview.orderAmount.toLocaleString()}원</span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>배송비 재청구</span>
+                <span className="text-amber-700 font-medium">+{cancelPreview.shippingRechargeAmount.toLocaleString()}원</span>
+              </div>
+              <div className="flex justify-between font-semibold border-t border-amber-200 pt-1 mt-1">
+                <span>실제 환불/감액</span>
+                <span className="text-destructive">-{cancelPreview.effectiveRefundAmount.toLocaleString()}원</span>
+              </div>
+            </div>
+          )}
           <p className="text-xs text-destructive">
             * 출력(생산) 진행 전 주문만 취소 가능합니다. 취소 후에는 복구할 수 없습니다.
           </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCancelDialog(false)} disabled={isCancelling}>
+            <Button variant="outline" onClick={() => { setShowCancelDialog(false); setCancelPreview(null); }} disabled={isCancelling}>
               닫기
             </Button>
             <Button variant="destructive" onClick={handleCancelOrders} disabled={isCancelling}>

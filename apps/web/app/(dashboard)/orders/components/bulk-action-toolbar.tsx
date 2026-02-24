@@ -110,9 +110,16 @@ export function BulkActionToolbar({
   const handleCancel = () => {
     bulkCancel.mutate({ orderIds, reason: cancelReason || undefined }, {
       onSuccess: (result) => {
-        handleResult(result, '주문취소');
+        const failCount = result.failed?.length || 0;
+        const skipped = result.skipped?.length || 0;
+        let msg = `주문취소: ${result.success}건 완료`;
+        if (skipped > 0) msg += `, ${skipped}건 스킵(배송완료)`;
+        if (failCount > 0) msg += `, ${failCount}건 실패`;
+        msg += '\n조건부 무료배송 거래처의 배송비 재청구 전표가 자동 생성되었습니다.';
+        alert(msg);
         setCancelDialog(false);
         setCancelReason('');
+        onActionComplete();
       },
     });
   };
@@ -289,6 +296,10 @@ export function BulkActionToolbar({
           onChange={(e) => setCancelReason(e.target.value)}
           rows={2}
         />
+        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+          조건부 무료배송 거래처의 경우 취소 후 당일 누적금액이 기준에 미달하면
+          배송비 재청구 전표가 자동 생성됩니다.
+        </p>
       </ConfirmActionDialog>
 
       {/* 주문삭제 다이얼로그 */}

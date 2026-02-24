@@ -212,6 +212,12 @@ export class OrderController {
     return this.orderService.markAsDelivered(id, req.user.id);
   }
 
+  @Get(':id/cancel-preview')
+  @ApiOperation({ summary: '주문 취소 사전 조회 (배송비 재청구 여부)' })
+  async getCancelPreview(@Param('id') id: string) {
+    return this.orderService.getCancelPreview(id);
+  }
+
   @Patch(':id/cancel')
   @ApiOperation({ summary: '주문 취소' })
   async cancel(

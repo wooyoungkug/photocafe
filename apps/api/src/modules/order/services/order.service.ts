@@ -761,14 +761,23 @@ export class OrderService {
       this.logger.warn(`주문 취소 시 매출원장 취소 실패 (${id}): ${(err as Error).message}`);
     }
 
-    // 당일 합배송 배송비 재계산 (취소로 누적금액 미달 시 환급 취소)
+    // 당일 합배송 배송비 재계산 (취소로 누적금액 미달 시 환급 취소 + 재청구 전표 생성)
+    let shippingRecharged = false;
+    let shippingRechargeAmount = 0;
     try {
-      await this.recalculateSameDayShipping(order.clientId);
+      const rechargeResult = await this.recalculateSameDayShipping(order.clientId);
+      shippingRecharged = rechargeResult.recharged;
+      shippingRechargeAmount = rechargeResult.rechargeAmount;
     } catch (err) {
       this.logger.warn(`주문 취소 후 합배송 재계산 실패 (${id}): ${(err as Error).message}`);
     }
 
-    return updatedOrder;
+    return {
+      ...updatedOrder,
+      shippingRecharged,
+      shippingRechargeAmount,
+      effectiveRefundAmount: Math.max(0, Number(order.finalAmount) - shippingRechargeAmount),
+    };
   }
 
   // ==================== 주문항목 개별 삭제 ====================
@@ -1044,6 +1053,7 @@ export class OrderService {
   async bulkCancel(dto: BulkCancelDto, userId: string) {
     const results = { success: 0, failed: [] as string[], skipped: [] as string[] };
     const cancelledOrderIds: string[] = [];
+    const cancelledClientIds = new Set<string>();
 
     await this.prisma.$transaction(async (tx) => {
       for (const orderId of dto.orderIds) {
@@ -1076,6 +1086,7 @@ export class OrderService {
 
           results.success++;
           cancelledOrderIds.push(orderId);
+          cancelledClientIds.add(order.clientId);
         } catch { results.failed.push(orderId); }
       }
     });
@@ -1091,6 +1102,15 @@ export class OrderService {
         }
       } catch (err) {
         this.logger.warn(`일괄취소 매출원장 취소 실패 (${orderId}): ${(err as Error).message}`);
+      }
+    }
+
+    // 거래처별 합배송 배송비 재계산 (배송비 환급 취소 + 재청구 전표 생성)
+    for (const clientId of cancelledClientIds) {
+      try {
+        await this.recalculateSameDayShipping(clientId);
+      } catch (err) {
+        this.logger.warn(`일괄취소 합배송 재계산 실패 (거래처: ${clientId}): ${(err as Error).message}`);
       }
     }
 
@@ -2272,15 +2292,20 @@ export class OrderService {
 
   // ===== 주문 취소/삭제 시 당일 합배송 배송비 재계산 =====
   // 취소로 인해 당일 누적금액이 기준금액 미만으로 떨어지면
-  // 이전 주문들의 adjustmentAmount(배송비 환급)를 0으로 리셋
-  private async recalculateSameDayShipping(clientId: string, excludeOrderId?: string) {
+  // 이전 주문들의 adjustmentAmount(배송비 환급)를 0으로 리셋하고 배송비 재청구 전표 생성
+  private async recalculateSameDayShipping(
+    clientId: string,
+    excludeOrderId?: string,
+  ): Promise<{ recharged: boolean; rechargeAmount: number }> {
     // 1. 거래처 조회 - conditional이 아니면 skip
     const client = await this.prisma.client.findUnique({
       where: { id: clientId },
       select: { shippingType: true, freeShippingThreshold: true } as any,
     }) as { shippingType: string; freeShippingThreshold: number | null } | null;
 
-    if (!client || client.shippingType !== 'conditional') return;
+    if (!client || client.shippingType !== 'conditional') {
+      return { recharged: false, rechargeAmount: 0 };
+    }
 
     const freeThreshold = client.freeShippingThreshold ?? 90000;
 
@@ -2332,16 +2357,32 @@ export class OrderService {
     }
 
     // 5. 누적금액이 기준금액 이상이면 환급 유지 → 재계산 불필요
-    if (totalProductAmount >= freeThreshold) return;
+    if (totalProductAmount >= freeThreshold) {
+      return { recharged: false, rechargeAmount: 0 };
+    }
 
     // 6. 기준금액 미만 → adjustmentAmount가 0보다 큰 주문들의 환급을 리셋
     const ordersToReset = studioOrders.filter(
       (o) => Number(o.adjustmentAmount) > 0,
     );
 
-    if (ordersToReset.length === 0) return;
+    if (ordersToReset.length === 0) {
+      return { recharged: false, rechargeAmount: 0 };
+    }
 
-    // 7. 트랜잭션으로 일괄 업데이트
+    // 7. 재청구 대상 수집 (트랜잭션 후 전표 생성용)
+    type RechargeTarget = {
+      salesLedgerId: string;
+      clientId: string;
+      clientName: string;
+      shippingFee: number;
+      orderId: string;
+      orderNumber: string;
+    };
+    const shippingRechargeTargets: RechargeTarget[] = [];
+    let totalRechargeAmount = 0;
+
+    // 8. 트랜잭션으로 일괄 업데이트
     await this.prisma.$transaction(async (tx) => {
       for (const order of ordersToReset) {
         const shippingFee = Number(order.shippingFee);
@@ -2367,10 +2408,11 @@ export class OrderService {
           },
         });
 
-        // 매출원장 연동 업데이트
+        // 매출원장 연동 업데이트 + 재청구 대상 수집
         try {
           const ledger = await tx.salesLedger.findUnique({
             where: { orderId: order.id },
+            select: { id: true, clientId: true, clientName: true, receivedAmount: true },
           });
           if (ledger) {
             const ledgerTotal = productPrice + tax + shippingFee; // adjustmentAmount = 0
@@ -2382,6 +2424,17 @@ export class OrderService {
                 outstandingAmount: Math.max(0, ledgerTotal - Number(ledger.receivedAmount)),
               },
             });
+            if (shippingFee > 0) {
+              shippingRechargeTargets.push({
+                salesLedgerId: ledger.id,
+                clientId: ledger.clientId,
+                clientName: ledger.clientName,
+                shippingFee,
+                orderId: order.id,
+                orderNumber: order.orderNumber,
+              });
+              totalRechargeAmount += shippingFee;
+            }
           }
         } catch (err) {
           this.logger.warn(`합배송 재계산 매출원장 업데이트 실패 (${order.id}): ${(err as Error).message}`);
@@ -2389,9 +2442,20 @@ export class OrderService {
       }
     });
 
+    // 9. 배송비 재청구 회계 전표 생성 (트랜잭션 외부 — 실패 시 warn만)
+    for (const target of shippingRechargeTargets) {
+      try {
+        await this.salesLedgerService.createShippingRechargeEntry(target);
+      } catch (err) {
+        this.logger.warn(`배송비 재청구 전표 생성 실패 (${target.orderId}): ${(err as Error).message}`);
+      }
+    }
+
     this.logger.log(
-      `합배송 배송비 재계산: 거래처 ${clientId}, 당일누적 ${totalProductAmount}원 < 기준 ${freeThreshold}원 → ${ordersToReset.length}건 환급 취소`,
+      `합배송 배송비 재계산: 거래처 ${clientId}, 당일누적 ${totalProductAmount}원 < 기준 ${freeThreshold}원 → ${ordersToReset.length}건 환급 취소, 재청구 ${totalRechargeAmount}원`,
     );
+
+    return { recharged: shippingRechargeTargets.length > 0, rechargeAmount: totalRechargeAmount };
   }
 
   // ===== 합배송 체크: 당일 조건부 무료배송 적용 여부 =====
@@ -2473,6 +2537,81 @@ export class OrderService {
       freeThreshold: (client as any).freeShippingThreshold ?? 90000,
       pendingAdjustmentAmount: Number((client as any).pendingAdjustmentAmount ?? 0),
       pendingAdjustmentReason: (client as any).pendingAdjustmentReason ?? null,
+    };
+  }
+
+  // ===== 주문 취소 사전 조회 (배송비 재청구 여부 시뮬레이션) =====
+  // DB 변경 없이 취소 시 배송비 재청구 여부와 실제 환불 금액을 계산하여 반환
+  async getCancelPreview(orderId: string) {
+    const order = await this.findOne(orderId);
+    const orderAmount = Number(order.finalAmount);
+
+    const client = await this.prisma.client.findUnique({
+      where: { id: order.clientId },
+      select: { shippingType: true, freeShippingThreshold: true } as any,
+    }) as { shippingType: string; freeShippingThreshold: number | null } | null;
+
+    if (!client || client.shippingType !== 'conditional') {
+      return {
+        orderAmount,
+        shippingRecharged: false,
+        shippingRechargeAmount: 0,
+        effectiveRefundAmount: orderAmount,
+      };
+    }
+
+    const freeThreshold = client.freeShippingThreshold ?? 90000;
+
+    // KST 기준 오늘 범위
+    const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+    const nowUtc = Date.now();
+    const nowKst = nowUtc + KST_OFFSET_MS;
+    const kstMidnight = nowKst - (nowKst % (24 * 60 * 60 * 1000));
+    const todayStart = new Date(kstMidnight - KST_OFFSET_MS);
+    const todayEnd = new Date(kstMidnight - KST_OFFSET_MS + 24 * 60 * 60 * 1000 - 1);
+
+    // 해당 주문 제외 후 당일 나머지 주문의 누적 상품금액 계산
+    const orders = await this.prisma.order.findMany({
+      where: {
+        clientId: order.clientId,
+        orderedAt: { gte: todayStart, lte: todayEnd },
+        status: { not: 'cancelled' },
+        id: { not: orderId },
+      },
+      select: {
+        id: true,
+        productPrice: true,
+        adjustmentAmount: true,
+        shippingFee: true,
+        items: { select: { shipping: { select: { receiverType: true } } } },
+      },
+    });
+
+    let remainingProductAmount = 0;
+    let rechargeAmount = 0;
+
+    for (const o of orders) {
+      const hasDirectCustomer = o.items.some(
+        (i) => i.shipping?.receiverType === 'direct_customer',
+      );
+      if (!hasDirectCustomer) {
+        remainingProductAmount += Number(o.productPrice);
+        // 현재 adjustmentAmount(환급)가 있는 주문 = 취소 후 재청구 대상
+        if (Number(o.adjustmentAmount) > 0 && Number(o.shippingFee) > 0) {
+          rechargeAmount += Number(o.shippingFee);
+        }
+      }
+    }
+
+    const willBeBelowThreshold = remainingProductAmount < freeThreshold;
+
+    return {
+      orderAmount,
+      shippingRecharged: willBeBelowThreshold && rechargeAmount > 0,
+      shippingRechargeAmount: willBeBelowThreshold ? rechargeAmount : 0,
+      effectiveRefundAmount: willBeBelowThreshold
+        ? Math.max(0, orderAmount - rechargeAmount)
+        : orderAmount,
     };
   }
 }
