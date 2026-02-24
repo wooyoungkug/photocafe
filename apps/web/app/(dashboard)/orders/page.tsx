@@ -330,7 +330,7 @@ export default function OrderListPage() {
                                 href={`/mypage/orders/${order.id}`}
                                 className="text-xs font-semibold text-primary hover:underline"
                               >
-                                {order.orderNumber?.replace(/^ORD-\d{8}-/, '') || order.orderNumber}
+                                {order.orderNumber}
                               </Link>
                               {order.isUrgent && (
                                 <Badge variant="destructive" className="text-[10px] px-1 py-0">긴급</Badge>

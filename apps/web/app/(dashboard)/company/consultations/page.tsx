@@ -586,7 +586,7 @@ export default function ConsultationsPage() {
                       id="orderNumber"
                       value={formData.orderNumber || ''}
                       onChange={(e) => setFormData({ ...formData, orderNumber: e.target.value })}
-                      placeholder="ORD-20260120-001"
+                      placeholder="260120-001"
                       className="bg-white"
                     />
                   </div>

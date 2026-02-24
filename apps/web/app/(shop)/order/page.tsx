@@ -348,8 +348,10 @@ export default function OrderPage() {
   ) => {
     try {
       // 주문번호 충돌 방지를 위해 순차 처리
+      let firstOrderNumber: string | undefined;
       for (const orderData of orderDataList) {
-        await api.post('/orders', orderData);
+        const res = await api.post<{ orderNumber: string }>('/orders', orderData);
+        if (!firstOrderNumber) firstOrderNumber = res.orderNumber;
       }
 
       if (cpChanges.length > 0) {
@@ -388,7 +390,7 @@ export default function OrderPage() {
 
       queryClient.invalidateQueries({ queryKey: ['orders'] });
       clearCart();
-      router.push('/order/complete');
+      router.push(`/order/complete${firstOrderNumber ? `?orderNumber=${firstOrderNumber}` : ''}`);
     } catch (error) {
       toast.error('주문 실패', { description: error instanceof Error ? error.message : '주문 처리 중 오류가 발생했습니다.' });
     }

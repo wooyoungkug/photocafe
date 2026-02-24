@@ -30,7 +30,7 @@ const sampleTransactions: Transaction[] = [
     paymentMethod: 'bank_transfer',
     clientId: '1',
     clientName: '웨딩스튜디오',
-    orderCode: 'ORD-2026-0001',
+    orderCode: '260120-001',
     createdAt: '2026-01-20T10:00:00Z',
     updatedAt: '2026-01-20T10:00:00Z',
   },

@@ -1,5 +1,3 @@
-'use client';
-
 import Link from 'next/link';
 import { CheckCircle2, Home, FileText, ArrowRight, Search, Printer, Scissors, BookOpen, PackageCheck, Package, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -17,7 +15,12 @@ const processSteps = [
   { label: '배송', icon: Truck, status: 'pending' as const },
 ];
 
-export default function OrderCompletePage() {
+export default async function OrderCompletePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ orderNumber?: string }>;
+}) {
+  const { orderNumber } = await searchParams;
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-lg">
@@ -70,7 +73,7 @@ export default function OrderCompletePage() {
           <div className="bg-gray-50 rounded-lg p-4 mb-8 text-left">
             <div className="flex justify-between mb-2">
               <span className="text-gray-500">주문번호</span>
-              <span className="font-medium">ORD-{Date.now().toString().slice(-8)}</span>
+              <span className="font-medium">{orderNumber || '-'}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-500">예상 제작일</span>

@@ -618,7 +618,7 @@ export default function MonthlySummaryPage() {
                         return (
                           <tr key={item.id}>
                             <td className="border border-gray-400 p-1 text-[8pt] text-gray-600 align-middle text-center">
-                              {iIdx === 0 ? order.orderNumber.replace(/^ORD-/i, '') : ''}
+                              {iIdx === 0 ? order.orderNumber : ''}
                             </td>
                             <td className="border border-gray-400 p-1">
                               <div>{item.folderName || order.orderNumber}</div>

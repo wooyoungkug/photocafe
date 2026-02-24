@@ -26,7 +26,7 @@ import { CheckCircle2, Search, User, FileImage, Calendar, ArrowRight, Download, 
 const sampleOrders = [
   {
     id: "1",
-    orderNumber: "ORD-2026-0010",
+    orderNumber: "260127-010",
     productionNumber: "P-2026-0010-01",
     clientName: "웨딩스튜디오 로맨스",
     productName: "프리미엄 웨딩앨범 12x12",
@@ -40,7 +40,7 @@ const sampleOrders = [
   },
   {
     id: "2",
-    orderNumber: "ORD-2026-0011",
+    orderNumber: "260127-011",
     productionNumber: "P-2026-0011-01",
     clientName: "포토그래피 아트",
     productName: "아트프린트 A3",
@@ -54,7 +54,7 @@ const sampleOrders = [
   },
   {
     id: "3",
-    orderNumber: "ORD-2026-0012",
+    orderNumber: "260127-012",
     productionNumber: "P-2026-0012-01",
     clientName: "스냅스 스튜디오",
     productName: "포토북 A4 하드커버",
@@ -68,7 +68,7 @@ const sampleOrders = [
   },
   {
     id: "4",
-    orderNumber: "ORD-2026-0013",
+    orderNumber: "260127-013",
     productionNumber: "P-2026-0013-01",
     clientName: "메모리즈 포토",
     productName: "캔버스 액자 50x70",

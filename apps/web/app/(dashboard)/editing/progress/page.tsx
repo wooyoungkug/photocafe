@@ -20,7 +20,7 @@ import { Pencil, Search, PlayCircle, User, FileImage, CheckCircle, Clock, PauseC
 const sampleOrders = [
   {
     id: "1",
-    orderNumber: "ORD-2026-0004",
+    orderNumber: "260128-004",
     productionNumber: "P-2026-0004-01",
     clientName: "스튜디오 해피",
     productName: "프리미엄 웨딩앨범 10x10",
@@ -35,7 +35,7 @@ const sampleOrders = [
   },
   {
     id: "2",
-    orderNumber: "ORD-2026-0005",
+    orderNumber: "260128-005",
     productionNumber: "P-2026-0005-01",
     clientName: "스냅샷 스튜디오",
     productName: "포토북 A4 소프트커버",
@@ -50,7 +50,7 @@ const sampleOrders = [
   },
   {
     id: "3",
-    orderNumber: "ORD-2026-0006",
+    orderNumber: "260128-006",
     productionNumber: "P-2026-0006-01",
     clientName: "메모리 포토",
     productName: "베이비앨범 8x8",
