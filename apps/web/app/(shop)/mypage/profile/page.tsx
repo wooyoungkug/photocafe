@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Lock, User as UserIcon, AlertCircle, CheckCircle, Edit, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -66,23 +66,28 @@ export default function ProfilePage() {
     queryKey: ['profile', user?.id],
     queryFn: async () => {
       if (!user?.id) throw new Error('User ID가 없습니다');
-      const data = await api.get<any>(`/clients/${user.id}`);
-      setProfileData({
-        clientName: data.clientName || '',
-        email: data.email || '',
-        mobile: data.mobile || '',
-        phone: data.phone || '',
-        postalCode: data.postalCode || '',
-        address: data.address || '',
-        addressDetail: data.addressDetail || '',
-        businessNumber: data.businessNumber || '',
-        representative: data.representative || '',
-        contactPerson: data.contactPerson || '',
-      });
-      return data;
+      return await api.get<any>(`/clients/${user.id}`);
     },
     enabled: isAuthenticated && !!user?.id,
   });
+
+  // profile 데이터가 로드/변경되면 편집용 상태에 동기화
+  useEffect(() => {
+    if (profile) {
+      setProfileData({
+        clientName: profile.clientName || '',
+        email: profile.email || '',
+        mobile: profile.mobile || '',
+        phone: profile.phone || '',
+        postalCode: profile.postalCode || '',
+        address: profile.address || '',
+        addressDetail: profile.addressDetail || '',
+        businessNumber: profile.businessNumber || '',
+        representative: profile.representative || '',
+        contactPerson: profile.contactPerson || '',
+      });
+    }
+  }, [profile]);
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: typeof profileData) => {
