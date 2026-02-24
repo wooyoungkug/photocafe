@@ -180,8 +180,11 @@ const DEFAULT_NAVIGATION: NavItem[] = [
   {
     id: "analytics",
     name: "접속 통계",
-    href: "/analytics",
     icon: BarChart2,
+    children: [
+      { name: "방문 통계", href: "/analytics" },
+      { name: "의심 IP 관리", href: "/analytics/suspicious-ips" },
+    ],
   },
   {
     id: "settings",

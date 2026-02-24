@@ -37,6 +37,7 @@ import { AppController } from './app.controller';
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
     },
+    IpBlockMiddleware,
   ],
   imports: [
     ConfigModule.forRoot({
