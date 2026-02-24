@@ -301,12 +301,16 @@ export default function ProductsPage() {
                                 src={normalizeImageUrl(product.thumbnailUrl)}
                                 alt={product.productName}
                                 className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded hover:ring-2 hover:ring-primary transition-all"
+                                onError={(e) => {
+                                  const target = e.currentTarget;
+                                  target.style.display = 'none';
+                                  target.nextElementSibling?.classList.remove('hidden');
+                                }}
                               />
-                            ) : (
-                              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 rounded flex items-center justify-center hover:ring-2 hover:ring-primary transition-all">
-                                <ImageIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
-                              </div>
-                            )}
+                            ) : null}
+                            <div className={`w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 rounded flex items-center justify-center hover:ring-2 hover:ring-primary transition-all ${product.thumbnailUrl ? 'hidden' : ''}`}>
+                              <ImageIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell
