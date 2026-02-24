@@ -117,19 +117,94 @@ function getCountryLabel(country: string): string {
 }
 
 const PAGE_LABELS: Record<string, string> = {
+  // 대시보드
   '/dashboard': '대시보드',
+  // 주문
   '/orders': '주문 관리',
-  '/products': '상품 관리',
-  '/accounting/sales': '매출원장',
+  // 상품
+  '/products/new': '상품 등록',
+  '/products': '상품 목록',
+  '/half-products': '반제품',
+  // 단가
+  '/pricing/standard': '표준단가',
+  '/pricing/group': '그룹단가',
+  '/pricing/production': '생산단가',
+  '/pricing/rounding': '단가 반올림',
+  '/pricing': '단가 관리',
+  // 편집
+  '/editing/pending': '편집 접수',
+  '/editing/progress': '편집 진행',
+  '/editing/completed': '편집 완료',
+  '/editing': '편집 관리',
+  // 회계
   '/accounting/dashboard': '회계 대시보드',
-  '/statistics': '통계',
+  '/accounting/sales': '매출원장',
+  '/accounting/purchases': '매입원장',
+  '/accounting/journals': '전표',
+  '/accounting/receivables': '미수금',
+  '/accounting/payables': '미지급금',
+  '/accounting/deposits': '입금 관리',
+  '/accounting/settlements': '정산 관리',
+  '/accounting/client-ledger': '거래처 원장',
+  '/accounting/accounts': '계정과목',
+  '/accounting/tax-invoices': '세금계산서',
+  '/accounting/reports': '재무보고서',
+  '/accounting': '회계관리',
+  // CS
+  '/cs/consultations': 'CS 상담',
+  '/cs/clients': 'CS 고객',
+  '/cs/guides': 'CS 가이드',
+  '/cs/categories': 'CS 카테고리',
+  '/cs': 'CS 관리',
+  // 거래처/회원
+  '/company/members': '회원 관리',
+  '/company/clients': '거래처 관리',
+  '/company/employees': '직원 관리',
+  '/company/member-groups': '회원 그룹',
+  '/company/categories': '거래처 분류',
+  '/company/sales-categories': '매출 분류',
+  '/company/consultations': '거래처 상담',
   '/company': '거래처',
-  '/settings': '설정',
+  // 통계
+  '/statistics/sales-categories': '매출 분류 통계',
+  '/statistics': '통계',
+  // 일정
+  '/schedule': '일정 관리',
+  // 접속통계
   '/analytics': '접속 통계',
+  // 설정
+  '/settings/basic': '기본 설정',
+  '/settings/delivery': '배송비 설정',
+  '/settings/functions': '기능 설정',
+  '/settings/public-copper-plates': '공용원판 설정',
+  '/settings': '설정',
+  // 기준정보
+  '/master/specifications': '규격 관리',
+  '/master/papers': '용지 관리',
+  '/master/fabrics': '원단 관리',
+  '/master/jdf': 'JDF 관리',
+  '/master': '기준정보',
+  // 이미지
+  '/image-management/quality-analysis': '이미지 품질 분석',
+  '/image-management': '이미지 관리',
+  // 기초정보
+  '/basic-info/units': '기초정보 단위',
+  '/basic-info': '기초정보',
 };
 
 function getPageLabel(path: string): string {
-  return PAGE_LABELS[path] || path;
+  // 1. 정확한 매칭
+  if (PAGE_LABELS[path]) return PAGE_LABELS[path];
+  // 2. 가장 긴 prefix 매칭 (예: /company/members/123 → /company/members)
+  let bestMatch = '';
+  let bestLabel = path;
+  for (const [key, label] of Object.entries(PAGE_LABELS)) {
+    if (path.startsWith(key) && key.length > bestMatch.length) {
+      bestMatch = key;
+      bestLabel = label;
+    }
+  }
+  return bestLabel;
 }
 
 const GRANULARITY_LABELS: Record<TrendGranularity, string> = {

@@ -250,4 +250,61 @@ export class AnalyticsService {
       count: Number(r.count),
     }));
   }
+
+  async getIpStats(query: AnalyticsQueryDto) {
+    const { start, end } = this.getDateRange(query);
+    const limit = parseInt(query.limit || '50', 10);
+
+    const result = await this.prisma.$queryRaw<
+      Array<{
+        ip: string;
+        count: bigint;
+        last_visit: Date;
+        country: string | null;
+        city: string | null;
+        is_korea: boolean;
+        os: string | null;
+        browser: string | null;
+      }>
+    >`
+      SELECT
+        ip,
+        COUNT(*) as count,
+        MAX("createdAt") as last_visit,
+        (array_agg(country ORDER BY "createdAt" DESC))[1] as country,
+        (array_agg(city ORDER BY "createdAt" DESC))[1] as city,
+        (array_agg("isKorea" ORDER BY "createdAt" DESC))[1] as is_korea,
+        (array_agg(os ORDER BY "createdAt" DESC))[1] as os,
+        (array_agg(browser ORDER BY "createdAt" DESC))[1] as browser
+      FROM page_views
+      WHERE "createdAt" >= ${start} AND "createdAt" <= ${end}
+        AND ip IS NOT NULL
+      GROUP BY ip
+      ORDER BY count DESC
+      LIMIT ${limit}
+    `;
+
+    const ips = result.map((r) => r.ip);
+    const suspiciousIps =
+      ips.length > 0
+        ? await this.prisma.suspiciousIp.findMany({
+            where: { ip: { in: ips } },
+            select: { ip: true, action: true, isActive: true, reason: true },
+          })
+        : [];
+
+    const suspiciousMap = new Map(suspiciousIps.map((s) => [s.ip, s]));
+
+    return result.map((r) => ({
+      ip: r.ip,
+      count: Number(r.count),
+      lastVisit: r.last_visit,
+      country: r.country,
+      city: r.city,
+      isKorea: r.is_korea,
+      os: r.os,
+      browser: r.browser,
+      suspicious: suspiciousMap.get(r.ip) || null,
+    }));
+  }
 }

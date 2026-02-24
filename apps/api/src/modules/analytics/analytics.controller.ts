@@ -60,4 +60,10 @@ export class AnalyticsController {
   async getTrend(@Query() query: AnalyticsQueryDto) {
     return this.analyticsService.getTrend(query);
   }
+
+  @Get('ip-stats')
+  @ApiOperation({ summary: 'IP별 방문 통계' })
+  async getIpStats(@Query() query: AnalyticsQueryDto) {
+    return this.analyticsService.getIpStats(query);
+  }
 }

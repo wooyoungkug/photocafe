@@ -2593,6 +2593,27 @@ model PageView {
   @@map("page_views")
 }
 
+model SuspiciousIp {
+  id         String    @id @default(cuid())
+  ip         String    @unique
+  reason     String?
+  action     String    @default("monitor") // "block" | "monitor"
+  country    String?
+  city       String?
+  isKorea    Boolean   @default(false)
+  visitCount Int       @default(0)
+  memo       String?
+  isActive   Boolean   @default(true)
+  blockedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([ip])
+  @@index([action])
+  @@index([isActive])
+  @@map("suspicious_ips")
+}
+
 enum AccountType {
   ASSET
   LIABILITY
