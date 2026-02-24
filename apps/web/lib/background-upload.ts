@@ -3,7 +3,7 @@ import { useCartStore } from '@/stores/cart-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { toast } from 'sonner';
 
-const CONCURRENCY = 8;          // 동시 업로드 수 (20+ 파일 대응)
+const CONCURRENCY = 3;          // 동시 업로드 수 (NAS 디스크 I/O 과부하 방지)
 const THROTTLE_MS = 200;        // progress 업데이트 최소 간격
 
 function generateTempFolderId(): string {

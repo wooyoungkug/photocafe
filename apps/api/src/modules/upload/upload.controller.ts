@@ -97,13 +97,15 @@ export class UploadController {
                 },
             }),
             fileFilter: (_req, file, cb) => {
-                if (!file.mimetype.match(/^image\/(jpg|jpeg|png|tiff|webp)$/)) {
-                    return cb(new BadRequestException('이미지 파일만 업로드 가능합니다.'), false);
+                // image/tif (단수)도 허용 (일부 시스템이 tif로 전송)
+                if (!file.mimetype.match(/^image\/(jpg|jpeg|png|tif|tiff|webp)$/)) {
+                    return cb(new BadRequestException('이미지 파일만 업로드 가능합니다. (jpg, jpeg, png, tif, tiff, webp)'), false);
                 }
                 cb(null, true);
             },
             limits: {
-                fileSize: parseInt(process.env.UPLOAD_MAX_FILE_SIZE || '52428800', 10),
+                // 기본값 200MB - 인쇄용 고해상도 TIFF 파일 지원 (env: UPLOAD_MAX_FILE_SIZE)
+                fileSize: parseInt(process.env.UPLOAD_MAX_FILE_SIZE || '209715200', 10),
             },
         }),
     )

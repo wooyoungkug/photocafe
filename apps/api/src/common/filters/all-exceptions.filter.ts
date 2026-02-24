@@ -32,11 +32,28 @@ export class AllExceptionsFilter implements ExceptionFilter {
         details = exceptionResponse;
       }
     } else if (exception instanceof Error) {
-      message = exception.message;
-      details = {
-        name: exception.name,
-        stack: process.env.NODE_ENV === 'development' ? exception.stack : undefined,
-      };
+      // multer의 MulterError 처리 (파일 크기 초과 등)
+      const code = (exception as any).code as string | undefined;
+      if (code === 'LIMIT_FILE_SIZE') {
+        status = HttpStatus.PAYLOAD_TOO_LARGE;
+        const maxMb = Math.round(parseInt(process.env.UPLOAD_MAX_FILE_SIZE || '209715200', 10) / 1024 / 1024);
+        message = `파일 크기가 제한(${maxMb}MB)을 초과했습니다.`;
+      } else if (code === 'LIMIT_FILE_COUNT') {
+        status = HttpStatus.BAD_REQUEST;
+        message = '업로드 파일 수가 제한을 초과했습니다.';
+      } else if (code === 'LIMIT_UNEXPECTED_FILE') {
+        status = HttpStatus.BAD_REQUEST;
+        message = '예상치 않은 파일 필드입니다.';
+      } else if (code?.startsWith('LIMIT_')) {
+        status = HttpStatus.BAD_REQUEST;
+        message = `파일 업로드 제한 초과: ${code}`;
+      } else {
+        message = exception.message;
+        details = {
+          name: exception.name,
+          stack: process.env.NODE_ENV === 'development' ? exception.stack : undefined,
+        };
+      }
     }
 
     // 심각한 에러는 로그에 남김
