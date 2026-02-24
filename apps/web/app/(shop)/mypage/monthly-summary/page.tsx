@@ -306,7 +306,7 @@ export default function MonthlySummaryPage() {
             alt="법인도장"
             width={55}
             height={55}
-            className="absolute top-[25px] right-[80px] z-10"
+            className="absolute top-[25px] right-[100px] z-10"
           />
           <table className="border-collapse w-full text-[10pt]">
             <tbody>
