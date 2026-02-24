@@ -296,10 +296,18 @@ export default function MonthlySummaryPage() {
           </table>
         </div>
         {/* 공급자 */}
-        <div className="flex-1 border border-gray-500">
+        <div className="flex-1 border border-gray-500 relative">
           <div className="bg-gray-100 text-center font-bold py-0.5 text-[10pt] border-b border-gray-500">
             공 급 자
           </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/company-seal.png"
+            alt="법인도장"
+            width={55}
+            height={55}
+            className="absolute top-[2px] right-[10px] z-10"
+          />
           <table className="border-collapse w-full text-[10pt]">
             <tbody>
               <tr>
@@ -308,17 +316,7 @@ export default function MonthlySummaryPage() {
               </tr>
               <tr>
                 <td className="pl-2 pr-1 py-0.5 font-semibold whitespace-nowrap">대 표 이 사</td>
-                <td className="py-0.5 pr-2 relative">
-                  우영국
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="/images/company-seal.png"
-                    alt="법인도장"
-                    width={55}
-                    height={55}
-                    className="inline-block ml-1 -mt-2 -mb-4"
-                  />
-                </td>
+                <td className="py-0.5 pr-2">우영국</td>
               </tr>
               <tr>
                 <td className="pl-2 pr-1 py-0.5 font-semibold whitespace-nowrap">주&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;소</td>
