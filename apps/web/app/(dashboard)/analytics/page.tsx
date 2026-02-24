@@ -383,7 +383,7 @@ export default function AnalyticsPage() {
                   <YAxis stroke="#64748b" fontSize={11} allowDecimals={false} />
                   <Tooltip
                     formatter={(value: number | undefined) => [`${(value ?? 0).toLocaleString()}회`, '방문 수']}
-                    labelFormatter={(label: string) => `날짜: ${label}`}
+                    labelFormatter={(label) => `날짜: ${label}`}
                     contentStyle={{
                       backgroundColor: 'white',
                       border: '1px solid #e2e8f0',
