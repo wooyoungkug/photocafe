@@ -41,6 +41,7 @@
     "class-validator": "^0.14.1",
     "date-fns": "^4.1.0",
     "geoip-lite": "^2.0.0",
+    "helmet": "^8.0.0",
     "nodemailer": "^8.0.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
