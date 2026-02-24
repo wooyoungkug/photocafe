@@ -296,7 +296,7 @@ export default function MonthlySummaryPage() {
           </table>
         </div>
         {/* 공급자 */}
-        <div className="flex-1 border border-gray-500">
+        <div className="flex-1 border border-gray-500 relative">
           <div className="bg-gray-100 text-center font-bold py-0.5 text-[10pt] border-b border-gray-500">
             공 급 자
           </div>
@@ -324,6 +324,12 @@ export default function MonthlySummaryPage() {
               </tr>
             </tbody>
           </table>
+          {/* 법인도장 */}
+          <img
+            src="/images/company-seal.png"
+            alt="법인도장"
+            className="absolute bottom-1 right-2 w-[60px] h-[60px] opacity-90"
+          />
         </div>
       </div>
 
