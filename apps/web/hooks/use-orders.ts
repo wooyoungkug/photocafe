@@ -456,3 +456,28 @@ export function useDailyOrderSummary(params: {
     enabled: !!params.clientId,
   });
 }
+
+// 배송 정보 업데이트 (송장 입력)
+export function useUpdateShipping() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      orderId,
+      courierCode,
+      trackingNumber,
+    }: {
+      orderId: string;
+      courierCode: string;
+      trackingNumber: string;
+    }) =>
+      api.patch<OrderShipping>(`/orders/${orderId}/shipping`, {
+        courierCode,
+        trackingNumber,
+      }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY] });
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY, variables.orderId] });
+    },
+  });
+}

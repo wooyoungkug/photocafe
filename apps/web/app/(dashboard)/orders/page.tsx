@@ -13,6 +13,7 @@ import {
   ExternalLink,
   Download,
   Trash2,
+  Truck,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -39,6 +40,7 @@ import { BulkActionToolbar } from './components/bulk-action-toolbar';
 import { OrderQuickEditDialog } from './components/order-quick-edit-dialog';
 import { ConfirmActionDialog } from './components/confirm-action-dialog';
 import { ProcessHistoryDialog } from '@/components/order/process-history-dialog';
+import { ShippingInputDialog } from '@/components/order/shipping-input-dialog';
 import { useDeleteOrderOriginals } from '@/hooks/use-order-bulk-actions';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -111,6 +113,10 @@ export default function OrderListPage() {
   const [historyOrderId, setHistoryOrderId] = useState<string | null>(null);
   const [historyOrderNumber, setHistoryOrderNumber] = useState<string>('');
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+
+  // 송장 입력 다이얼로그
+  const [shippingOrder, setShippingOrder] = useState<Order | null>(null);
+  const [isShippingDialogOpen, setIsShippingDialogOpen] = useState(false);
 
   // 원본 이미지 다운로드/삭제
   const [isDownloading, setIsDownloading] = useState<string | null>(null);
@@ -492,6 +498,20 @@ export default function OrderListPage() {
                                 <Receipt className="h-3 w-3 mr-1" />
                                 거래명세
                               </Button>
+                              {(order.status === 'ready_for_shipping' || order.status === 'shipped') && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="w-full text-xs h-7 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                  onClick={() => {
+                                    setShippingOrder(order);
+                                    setIsShippingDialogOpen(true);
+                                  }}
+                                >
+                                  <Truck className="h-3 w-3 mr-1" />
+                                  {order.shipping?.trackingNumber ? '송장확인' : '송장입력'}
+                                </Button>
+                              )}
                             </div>
                           </TableCell>
                         )}
@@ -589,6 +609,18 @@ export default function OrderListPage() {
         isLoading={deleteOrderOriginals.isPending}
         onConfirm={handleDeleteOriginals}
       />
+
+      {/* 송장 입력 다이얼로그 */}
+      {shippingOrder && (
+        <ShippingInputDialog
+          open={isShippingDialogOpen}
+          onOpenChange={setIsShippingDialogOpen}
+          orderId={shippingOrder.id}
+          orderNumber={shippingOrder.orderNumber}
+          currentCourierCode={shippingOrder.shipping?.courierCode}
+          currentTrackingNumber={shippingOrder.shipping?.trackingNumber}
+        />
+      )}
     </div>
   );
 }

@@ -15,6 +15,20 @@ export const DELIVERY_METHOD_LABELS: Record<DeliveryMethod, string> = {
   pickup: '방문수령',
 };
 
+// ==================== 택배사 코드 (스마트택배 기준) ====================
+
+export const COURIER_CODES: Record<string, string> = {
+  '01': '우체국택배',
+  '04': 'CJ대한통운',
+  '05': '한진택배',
+  '06': '로젠택배',
+  '08': '롯데택배',
+  '11': '일양로지스',
+  '23': '경동택배',
+  '32': '합동택배',
+  '88': '대신택배',
+};
+
 // ==================== 거리 구간 단가 DTO ====================
 
 export class DistanceRangeDto {

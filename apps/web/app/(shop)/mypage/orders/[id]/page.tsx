@@ -43,6 +43,7 @@ import { api } from '@/lib/api';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { TrackingTimeline } from '@/components/order/tracking-timeline';
 
 // 주문 상태 타입 (orders/page.tsx와 동일)
 const ORDER_STATUS = {
@@ -133,6 +134,8 @@ interface OrderDetail {
     address: string;
     addressDetail?: string;
     deliveryMethod: string;
+    courierCode?: string;
+    trackingNumber?: string;
   };
   items: {
     id: string;
@@ -715,6 +718,17 @@ export default function OrderDetailPage() {
                     </p>
                   </div>
                 </div>
+
+                {/* 배송 추적 */}
+                {order.shipping.courierCode && order.shipping.trackingNumber && (
+                  <>
+                    <div className="border-t pt-3 mt-1" />
+                    <TrackingTimeline
+                      courierCode={order.shipping.courierCode}
+                      trackingNumber={order.shipping.trackingNumber}
+                    />
+                  </>
+                )}
               </CardContent>
             </Card>
 
