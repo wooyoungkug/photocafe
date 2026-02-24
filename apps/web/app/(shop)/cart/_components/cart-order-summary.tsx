@@ -222,7 +222,6 @@ export function CartOrderSummary({
           {/* Price breakdown */}
           {(() => {
             const productAmount = Math.round(selectedTotal);
-            const vatAmount = Math.round(productAmount * 0.1);
             const netShipping = Math.round(totalShippingFee - sameDayRefund);
             return (
               <div className="space-y-3">
@@ -231,10 +230,6 @@ export function CartOrderSummary({
                     상품금액 ({selectedCount})
                   </span>
                   <span className="font-medium">{productAmount.toLocaleString()}원</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">부가세 (10%)</span>
-                  <span className="font-medium">+{vatAmount.toLocaleString()}원</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500 flex items-center gap-1.5">
@@ -269,8 +264,7 @@ export function CartOrderSummary({
 
           {/* Total */}
           {(() => {
-            const vatAmount = Math.round(selectedTotal * 0.1);
-            const grandTotal = Math.round(selectedTotal + vatAmount + totalShippingFee - sameDayRefund);
+            const grandTotal = Math.round(selectedTotal + totalShippingFee - sameDayRefund);
             return (
               <div className="flex justify-between items-baseline">
                 <span className="text-base font-semibold">
