@@ -1521,7 +1521,8 @@ export default function EditProductPage() {
                     toggleActive = (val) => setPaperActiveMap(prev => ({ ...prev, [paper.id]: val }));
                   }
                   const chipKey = colorType ? `${paper.id}:${colorType}` : paper.id;
-                  const isDefault = defaultPaperKey === chipKey;
+                  // DB 로드 시 defaultPaperKey에 colorType 접미사가 없으므로 paperId 직접 비교도 허용
+                  const isDefault = defaultPaperKey === chipKey || (!!colorType && defaultPaperKey === paper.id);
                   return (
                     <div
                       key={`${paper.id}-${colorType ?? 'common'}`}
