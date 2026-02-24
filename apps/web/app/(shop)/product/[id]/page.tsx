@@ -184,11 +184,20 @@ export default function ProductPage() {
   // --- addFoldersToCart (unchanged logic) ---
   const addFoldersToCart = useCallback((folders: UploadedFolder[], isDuplicateOverride = false) => {
     if (!product) return;
+    // 파일이 없는 폴더 필터링
+    const validFolders = folders.filter(f => f.files.length > 0);
+    if (validFolders.length === 0) {
+      toast({ title: '데이터 업로드 필요', description: '파일이 업로드되지 않은 주문은 장바구니에 담을 수 없습니다.', variant: 'destructive' });
+      return;
+    }
+    if (validFolders.length < folders.length) {
+      toast({ title: '일부 폴더 제외', description: `파일이 없는 ${folders.length - validFolders.length}개 폴더가 제외되었습니다.` });
+    }
     setTimeout(() => {
       try {
         const itemIdsBefore = new Set(useCartStore.getState().items.map(i => i.id));
         const folderUploadMap = new Map<string, FolderUploadData>();
-        folders.forEach((folder) => {
+        validFolders.forEach((folder) => {
           if (!folderUploadMap.has(folder.id)) {
             folderUploadMap.set(folder.id, {
               folderId: folder.id, folderName: folder.orderTitle,
@@ -207,13 +216,13 @@ export default function ProductPage() {
         const foilColorName = copperPlateLabels?.foilColors?.find(c => c.code === selectedOptions.foilColor)?.name;
         const foilPositionName = copperPlateLabels?.platePositions?.find(p => p.code === selectedOptions.foilPosition)?.name;
 
-        folders.forEach((folder) => {
+        validFolders.forEach((folder) => {
           folder.foilName = copperPlateName || null;
           folder.foilColor = foilColorName || null;
           folder.foilPosition = foilPositionName || null;
         });
 
-        folders.forEach((folder) => {
+        validFolders.forEach((folder) => {
           const options: CartItemOption[] = [
             { name: '규격', value: folder.specLabel, price: 0 },
             { name: '페이지', value: `${folder.pageCount}p`, price: 0 },
@@ -880,8 +889,8 @@ export default function ProductPage() {
               )}
             </div>
 
-            {/* Add to cart (non-album) */}
-            {!isAlbum && (
+            {/* Add to cart (non-album, no upload required) */}
+            {!isAlbum && !needsUpload && (
               <Button size="lg" className="w-full mt-4" onClick={handleAddToCart}>
                 <ShoppingCart className="h-4 w-4 mr-2" />{t('addToCart')}
               </Button>

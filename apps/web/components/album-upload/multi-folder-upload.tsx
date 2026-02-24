@@ -1722,7 +1722,13 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
   const handleAddToCart = () => {
     const selected = getSelectedFolders();
     if (selected.length === 0) return;
-    onAddToCart?.(selected);
+    // 파일이 없는 폴더 제외
+    const withFiles = selected.filter(f => f.files.length > 0);
+    if (withFiles.length === 0) {
+      toast({ title: '데이터 업로드 필요', description: '파일이 업로드되지 않은 주문은 장바구니에 담을 수 없습니다.', variant: 'destructive' });
+      return;
+    }
+    onAddToCart?.(withFiles);
   };
 
   const stats = {
