@@ -565,7 +565,7 @@ export default function MonthlySummaryPage() {
               <th className="border border-gray-500 p-1.5 text-center font-semibold w-[60px]">
                 페이지
               </th>
-              <th className="border border-gray-500 p-1.5 text-center font-semibold w-[80px]">
+              <th className="border border-gray-500 p-1.5 text-center font-semibold w-[100px]">
                 금액
               </th>
             </tr>
