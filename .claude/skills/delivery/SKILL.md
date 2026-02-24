@@ -705,69 +705,86 @@ document.body.removeChild(link);
 
 ### 정책
 
-주문 취소 또는 항목 삭제로 당일 누적 상품금액이 변경되면, 조건부 무료배송 기준을 **재검사**하여 배송비/환급을 자동 조정한다.
+주문 취소로 당일 누적금액이 변경되면 조건부 무료배송 기준을 재검사하여 배송비/환급을 자동 조정한다.
+
+#### 회계 처리 원칙 (2026-02-24 확정)
+
+- **고객 화면**: 취소 환불 순액(예: 24,500원) 1건 표시
+- **내부 회계**: 상품 취소 전표(-30,000) + 배송비 재청구 전표(+5,500) 2건 분리
+
+한국 부가가치세법, K-IFRS 1115, 감사 추적 요구사항 준수.
+
+**시나리오 예시:**
+- 조건부 무료배송 거래처 (기준금액 90,000원)
+- 오전: 총 105,000원 주문 → 배송비 5,500원 환급됨
+- 오후: 30,000원 주문 취소 → 잔여 75,000원 < 90,000원
+- 결과: 상품 취소 전표(-30,000) + 배송비 재청구 전표(+5,500) 자동 생성
 
 ### 트리거 조건
 
 | 동작 | 트리거 | 영향 |
 |------|--------|------|
-| **주문 전체 취소** (`cancel()`) | 해당 주문 status → cancelled | 당일 누적금액 감소 (해당 주문 제외) |
-| **주문 항목 삭제** (`deleteItem()`) | 해당 주문 productPrice 감소 | 당일 누적금액 감소 (금액 변경) |
-| **주문 삭제** (`delete()`) | 해당 주문 DB에서 제거 | 당일 누적금액 감소 |
+| **주문 전체 취소** (cancel()) | status → cancelled | 당일 누적금액 감소 |
+| **일괄 취소** (bulkCancel()) | 복수 주문 cancelled | clientId별 재계산 호출 |
+| **항목 삭제** (deleteItem()) | productPrice 감소 | 당일 누적금액 감소 |
+| **주문 삭제** (delete()) | DB에서 제거 | 당일 누적금액 감소 |
 
-### 재계산 로직 (`recalculateSameDayShipping`)
+### 재계산 로직 (recalculateSameDayShipping)
 
-```
-1. 거래처 조회 → shippingType !== 'conditional' → SKIP
+반환 타입: Promise<{ recharged: boolean; rechargeAmount: number }>
 
-2. 당일(KST 00:00~23:59) 비취소 주문 조회 (status !== 'cancelled')
-   → 고객직배송(direct_customer) 주문은 합배송 제외
+1. shippingType !== conditional → { recharged: false, rechargeAmount: 0 }
+2. 당일 비취소 주문 조회 (direct_customer 제외)
+3. 누적 >= 기준금액? YES → { recharged: false } / NO → 리셋 후 전표 생성
 
-3. 당일 누적 상품금액 계산 (스튜디오 배송만)
+### 배송비 재청구 전표
 
-4. 누적 >= 기준금액?
-   └─ YES → 조건부 무료배송 유지 (adjustmentAmount 그대로)
-   └─ NO  → 모든 당일 주문의 adjustmentAmount를 0으로 리셋
-            → finalAmount 재계산 (totalAmount - 0)
-            → 매출원장(SalesLedger)도 연동 업데이트
-            → processHistory에 'shipping_recalc' 이력 기록
-```
+차변: 외상매출금(110) = shippingFee
+대변: 용역매출(404) = round(shippingFee/1.1)
+대변: 예수금-부가세(204) = 나머지
 
-### adjustmentAmount 리셋 시 처리
+sourceType: SHIPPING_RECHARGE
+구현: journal-engine.service.ts createShippingRechargeJournal()
+래퍼: sales-ledger.service.ts createShippingRechargeEntry()
 
-```typescript
-// 기준금액 미달 시: 당일 주문 중 adjustmentAmount > 0인 주문들 리셋
-for (const order of todayOrders) {
-  if (Number(order.adjustmentAmount) > 0) {
-    const newFinal = Number(order.totalAmount); // adjustmentAmount = 0이므로
-    await tx.order.update({
-      where: { id: order.id },
-      data: {
-        adjustmentAmount: 0,
-        finalAmount: newFinal,
-      },
-    });
-    // 매출원장도 연동
-    // processHistory에 'shipping_recalc' 이력 추가
-  }
-}
-```
+### cancel() 반환값 확장
+
+shippingRecharged: boolean
+shippingRechargeAmount: number
+effectiveRefundAmount: number (orderAmount - rechargeAmount)
+
+### bulkCancel() 재계산
+
+취소 루프에서 clientId 수집 후 recalculateSameDayShipping(clientId) 호출
+
+### getCancelPreview API (신규 2026-02-24)
+
+GET /orders/:id/cancel-preview
+
+반환: { orderAmount, shippingRecharged, shippingRechargeAmount, effectiveRefundAmount }
+
+고객 취소 다이얼로그에서 호출. shippingRecharged=true이면 분리 내역 UI 표시.
 
 ### 관련 구현 파일
 
 | 파일 | 변경 내용 |
 |------|-----------|
-| `apps/api/src/modules/order/services/order.service.ts` | `recalculateSameDayShipping()` private 메서드 추가 |
-| 위 파일 `cancel()` | 취소 후 `recalculateSameDayShipping()` 호출 |
-| 위 파일 `deleteItem()` | 항목 삭제 후 `recalculateSameDayShipping()` 호출 |
-| 위 파일 `delete()` | 주문 삭제 후 `recalculateSameDayShipping()` 호출 |
+| journal-engine.service.ts | createShippingRechargeJournal() 추가 |
+| sales-ledger.service.ts | createShippingRechargeEntry() 래퍼 추가 |
+| order.service.ts | 반환값 확장, bulkCancel 재계산, getCancelPreview 신규 |
+| order.controller.ts | GET :id/cancel-preview 엔드포인트 추가 |
+| mypage/orders/page.tsx | 취소 다이얼로그 배송비 재청구 UI 추가 |
+| bulk-action-toolbar.tsx | 취소 다이얼로그 안내 문구 개선 |
 
 ### 엣지 케이스
 
-1. **취소한 주문 자체에 adjustmentAmount가 있었던 경우**: 취소 시 해당 주문은 합산에서 제외되므로 영향 없음
-2. **당일 주문이 1건뿐인 경우**: 취소하면 남은 주문 없으므로 재계산 불필요
-3. **고객직배송만 남은 경우**: 합배송 대상이 아니므로 SKIP
-4. **여러 주문에 adjustmentAmount가 분산된 경우**: 모두 0으로 리셋 (전체 재검사)
+1. 취소 주문에 adjustmentAmount 있었던 경우: 합산 제외되므로 영향 없음
+2. 당일 주문 1건뿐: 취소 후 남은 주문 없으므로 재계산 불필요
+3. 고객직배송만 남은 경우: SKIP
+4. 여러 주문에 adjustmentAmount 분산: 모두 0으로 리셋
+5. 전표 생성 실패 시: 주문 취소 완료, 전표 실패는 warn 로그만 (취소 롤백 안 함)
+6. bulk 취소: 개별 cancel-preview 미제공, 다이얼로그에 일반 안내 문구 표시
+
 
 ## 체크리스트
 
@@ -776,6 +793,8 @@ for (const order of todayOrders) {
 - [x] 거래처별 배송비 정책 (conditional/free/prepaid/cod)
 - [x] 당일 합배송 자동 환급
 - [x] 주문 취소/부분취소 시 배송비 자동 재계산
+- [x] 취소 시 배송비 재청구 회계 전표 자동 생성 (SHIPPING_RECHARGE)
+- [x] 취소 미리보기 API (cancel-preview)
 - [x] 배치 배송 (복수 아이템 1회 청구)
 - [x] 배송비 설정 CSV 다운로드
 - [ ] 배송 CRUD
