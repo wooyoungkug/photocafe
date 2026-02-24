@@ -1584,7 +1584,7 @@ export class OrderService {
     // KST 기준 날짜 비교: orderedAt을 'Asia/Seoul' 타임존으로 변환 후 날짜 추출
     const carryForwardRaw = await this.prisma.$queryRaw<any[]>`
       SELECT
-        COALESCE(SUM(o."totalAmount"), 0)::decimal as "totalOrderAmount",
+        COALESCE(SUM(o."finalAmount"), 0)::decimal as "totalOrderAmount",
         COALESCE(SUM(sl."receivedAmount"), 0)::decimal as "totalDepositAmount"
       FROM orders o
       LEFT JOIN sales_ledgers sl ON o.id = sl."orderId"
@@ -1602,7 +1602,7 @@ export class OrderService {
       SELECT
         DATE(o."orderedAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul') as date,
         COUNT(DISTINCT o.id)::int as "orderCount",
-        COALESCE(SUM(o."totalAmount"), 0)::decimal as "orderAmount",
+        COALESCE(SUM(o."finalAmount"), 0)::decimal as "orderAmount",
         COALESCE(SUM(sl."receivedAmount"), 0)::decimal as "depositAmount"
       FROM orders o
       LEFT JOIN sales_ledgers sl ON o.id = sl."orderId"
