@@ -116,10 +116,25 @@ jobs:
             echo "=== [1/7] GHCR 로그인 ==="
             run_sudo $DOCKER login ghcr.io -u wooyoungkug --password "$GHCR_TOKEN"
 
-            # 2. 최신 이미지 Pull
+            # 2. 최신 이미지 Pull (재시도 로직 포함)
             echo "=== [2/7] 이미지 Pull ==="
-            run_sudo $DOCKER pull ghcr.io/wooyoungkug/photocafe-api:latest
-            run_sudo $DOCKER pull ghcr.io/wooyoungkug/photocafe-web:latest
+            pull_with_retry() {
+              local image=$1
+              local max_retries=3
+              for attempt in $(seq 1 $max_retries); do
+                echo "Pull $image (시도 $attempt/$max_retries)..."
+                if run_sudo $DOCKER pull "$image"; then
+                  echo "$image pull 성공!"
+                  return 0
+                fi
+                echo "Pull 실패. 10초 후 재시도..."
+                sleep 10
+              done
+              echo "ERROR: $image pull $max_retries회 모두 실패!"
+              return 1
+            }
+            pull_with_retry ghcr.io/wooyoungkug/photocafe-api:latest
+            pull_with_retry ghcr.io/wooyoungkug/photocafe-web:latest
 
             # 3. 설정 파일 동기화
             echo "=== [3/7] 설정 동기화 ==="
