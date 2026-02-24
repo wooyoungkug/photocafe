@@ -21,6 +21,10 @@ async function bootstrap() {
   app.useBodyParser('json', { limit: '50mb' });
   app.useBodyParser('urlencoded', { limit: '50mb' });
 
+  // Nginx 리버스 프록시 신뢰 설정 (req.ip가 올바른 클라이언트 IP를 반환하도록)
+  // 운영 환경에서 Nginx가 X-Forwarded-For를 설정하므로 1단계 프록시 신뢰
+  app.set('trust proxy', 1);
+
   // Global Exception Filter
   app.useGlobalFilters(new AllExceptionsFilter());
 
