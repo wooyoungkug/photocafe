@@ -81,3 +81,28 @@ export function useAnalyticsTrend(period: AnalyticsPeriod = '30d', granularity: 
     staleTime: STALE_TIME,
   });
 }
+
+export interface IpStat {
+  ip: string;
+  count: number;
+  lastVisit: string;
+  country: string | null;
+  city: string | null;
+  isKorea: boolean;
+  os: string | null;
+  browser: string | null;
+  suspicious: {
+    ip: string;
+    action: string;
+    isActive: boolean;
+    reason: string | null;
+  } | null;
+}
+
+export function useIpStats(period: AnalyticsPeriod = '30d', limit = 50) {
+  return useQuery({
+    queryKey: ['analytics', 'ip-stats', period, limit],
+    queryFn: () => api.get<IpStat[]>('/analytics/ip-stats', { period, limit }),
+    staleTime: STALE_TIME,
+  });
+}

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
@@ -24,6 +24,7 @@ import { PublicCopperPlateModule } from './modules/public-copper-plate/public-co
 import { MyProductModule } from './modules/my-product/my-product.module';
 import { ToolUsageModule } from './modules/tool-usage/tool-usage.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { IpBlockMiddleware } from './modules/analytics/ip-block.middleware';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { EmailModule } from './common/email/email.module';
 import { HealthModule } from './health/health.module';
@@ -69,5 +70,8 @@ import { AppController } from './app.controller';
     AnalyticsModule,
   ],
 })
-export class AppModule { }
-
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(IpBlockMiddleware).forRoutes('*');
+  }
+}
