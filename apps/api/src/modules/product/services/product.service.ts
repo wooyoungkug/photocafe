@@ -401,7 +401,7 @@ export class ProductService {
   async addPaper(productId: string, data: Prisma.ProductPaperCreateWithoutProductInput) {
     await this.findOne(productId);
     return this.prisma.productPaper.create({
-      data: { ...data, productId },
+      data: { ...data, productId } as any,
     });
   }
 

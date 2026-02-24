@@ -164,7 +164,7 @@ export class SalesLedgerService {
         items: {
           create: ledgerItems,
         },
-      },
+      } as any,
       include: {
         items: true,
         client: true,
@@ -353,7 +353,7 @@ export class SalesLedgerService {
         items: {
           create: ledgerItems,
         },
-      },
+      } as any,
       include: {
         items: true,
         client: true,

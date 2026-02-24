@@ -421,7 +421,7 @@ export class OrderService {
           foilPosition: item.foilPosition,
           finishingOptions: item.finishingOptions || [],
           fabricName: item.fabricName,
-          fabricSnapshot: item.fabricSnapshot ?? null,
+          fabricSnapshot: item.fabricSnapshot ?? Prisma.JsonNull,
           thumbnailUrl: item.thumbnailUrl,
           totalFileSize: item.totalFileSize ? BigInt(item.totalFileSize) : BigInt(0),
           folderName: item.folderName?.trim().replace(/\s+/g, ' '),
@@ -611,7 +611,7 @@ export class OrderService {
         totalAmount: Number(order.totalAmount),
         finalAmount: Number(order.finalAmount),
         paymentMethod: order.paymentMethod,
-        items: order.items.map(item => ({
+        items: (order as any).items.map((item: any) => ({
           id: item.id,
           productId: item.productId,
           productName: item.productName,
@@ -1299,7 +1299,7 @@ export class OrderService {
                   foilPosition: item.foilPosition,
                   finishingOptions: item.finishingOptions,
                   fabricName: item.fabricName,
-                  fabricSnapshot: item.fabricSnapshot ?? null,
+                  fabricSnapshot: item.fabricSnapshot ?? Prisma.JsonNull,
                   thumbnailUrl: item.thumbnailUrl,
                   totalFileSize: item.totalFileSize,
                   pageLayout: item.pageLayout,
@@ -1367,7 +1367,7 @@ export class OrderService {
           totalAmount: Number(newOrder.totalAmount),
           finalAmount: Number(newOrder.finalAmount),
           paymentMethod: newOrder.paymentMethod,
-          items: newOrder.items.map(item => ({
+          items: (newOrder as any).items.map((item: any) => ({
             id: item.id,
             productId: item.productId,
             productName: item.productName,
@@ -1818,7 +1818,7 @@ export class OrderService {
       include: {
         client: {
           select: {
-            name: true,
+            clientName: true,
             mobile: true,
           },
         },
@@ -1826,7 +1826,7 @@ export class OrderService {
     });
 
     // SMS 발송 (옵션)
-    if (dto.sendSms !== false && updatedOrder.client.mobile) {
+    if (dto.sendSms !== false && (updatedOrder as any).client.mobile) {
       const smsSent = await this.sendInspectionHoldSms(
         updatedOrder,
         dto.reason,
@@ -1840,7 +1840,7 @@ export class OrderService {
             fromStatus: '',
             toStatus: '',
             processType: INSPECTION_PROCESS_TYPES.INSPECTION_SMS_SENT,
-            note: `고객 통지 완료: ${updatedOrder.client.mobile}`,
+            note: `고객 통지 완료: ${(updatedOrder as any).client.mobile}`,
             processedBy: userId,
           },
         });

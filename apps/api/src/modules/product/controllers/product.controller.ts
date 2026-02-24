@@ -45,7 +45,7 @@ export class ProductController {
     return Object.entries(PRODUCT_TYPE_LABELS).map(([value, label]) => ({
       value,
       label,
-      stepCount: PRODUCT_PROCESS_TEMPLATES[value]?.length || 0,
+      stepCount: (PRODUCT_PROCESS_TEMPLATES as Record<string, any>)[value]?.length || 0,
     }));
   }
 
@@ -60,14 +60,14 @@ export class ProductController {
   @Get('process-templates/:productType')
   @ApiOperation({ summary: '상품유형별 공정 템플릿 조회' })
   async getProcessTemplate(@Param('productType') productType: string) {
-    return PRODUCT_PROCESS_TEMPLATES[productType] || [];
+    return (PRODUCT_PROCESS_TEMPLATES as Record<string, any>)[productType] || [];
   }
 
   @Public()
   @Get('type-options/:productType')
   @ApiOperation({ summary: '상품유형별 옵션 매트릭스 조회' })
   async getTypeOptions(@Param('productType') productType: string) {
-    return PRODUCT_TYPE_OPTIONS[productType] || null;
+    return (PRODUCT_TYPE_OPTIONS as Record<string, any>)[productType] || null;
   }
 
   // 공개 API (인증 불필요)

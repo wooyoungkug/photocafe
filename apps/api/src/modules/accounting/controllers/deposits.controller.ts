@@ -102,7 +102,7 @@ export class DepositsController {
   })
   async createDeposit(
     @Body() dto: CreateDepositDto,
-    @Request() req,
+    @Request() req: any,
   ): Promise<any> {
     return this.depositsService.createDeposit(dto, req.user.id);
   }
@@ -118,7 +118,7 @@ export class DepositsController {
   async updateDeposit(
     @Param('id') id: string,
     @Body() dto: UpdateDepositDto,
-    @Request() req,
+    @Request() req: any,
   ): Promise<any> {
     return this.depositsService.updateDeposit(id, dto, req.user.id);
   }
