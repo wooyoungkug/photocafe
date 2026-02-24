@@ -3,12 +3,13 @@
 import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { api } from '@/lib/api';
+import { generateUUID } from '@/lib/utils';
 
 function getOrCreateSessionId(): string {
   const KEY = 'analytics-session-id';
   let id = sessionStorage.getItem(KEY);
   if (!id) {
-    id = crypto.randomUUID();
+    id = generateUUID();
     sessionStorage.setItem(KEY, id);
   }
   return id;

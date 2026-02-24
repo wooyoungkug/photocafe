@@ -8,6 +8,7 @@ import type {
   IssueType,
 } from '@/lib/image-analysis/types';
 import { DEFAULT_THRESHOLDS } from '@/lib/image-analysis/types';
+import { generateUUID } from '@/lib/utils';
 
 interface ImageAnalysisState {
   images: ImageFile[];
@@ -96,7 +97,7 @@ export const useImageAnalysisStore = create<ImageAnalysisState>((set, get) => ({
         batch.map(async (file) => {
           const { url, width, height } = await generateThumbnail(file);
           return {
-            id: crypto.randomUUID(),
+            id: generateUUID(),
             file,
             fileName: file.name,
             fileSize: file.size,
