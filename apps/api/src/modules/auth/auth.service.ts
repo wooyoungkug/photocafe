@@ -171,6 +171,20 @@ export class AuthService {
         return {
           accessToken: this.jwtService.sign(newPayload),
           refreshToken: newRefreshToken,
+          user: {
+            id: client.id,
+            email: client.email,
+            name: client.clientName,
+            role: 'client',
+            clientId: client.id,
+            clientName: client.clientName,
+            mobile: client.mobile,
+            businessNumber: client.businessNumber,
+            representative: client.representative,
+            address: client.address,
+            addressDetail: client.addressDetail,
+            contactPerson: client.contactPerson,
+          },
         };
       }
 

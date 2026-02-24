@@ -103,6 +103,10 @@ async function refreshAccessToken(): Promise<string | null> {
             if (data.refreshToken) {
               parsed.state.refreshToken = data.refreshToken;
             }
+            // 서버에서 user 데이터도 반환한 경우 갱신
+            if (data.user) {
+              parsed.state.user = { ...parsed.state.user, ...data.user };
+            }
             storage.setItem(storageKey, JSON.stringify(parsed));
           }
         }
