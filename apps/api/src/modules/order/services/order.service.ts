@@ -1078,10 +1078,14 @@ export class OrderService {
             },
           });
 
-          // 매출원장도 취소 처리
+          // 매출원장도 완전 취소 처리 (주문취소와 atomic 커밋)
           await tx.salesLedger.updateMany({
             where: { orderId },
-            data: { salesStatus: 'CANCELLED' },
+            data: {
+              salesStatus: 'CANCELLED',
+              outstandingAmount: 0,
+              paymentStatus: 'unpaid',
+            },
           });
 
           results.success++;
@@ -1091,17 +1095,30 @@ export class OrderService {
       }
     });
 
-    // 매출원장 취소 + 취소전표 생성 (트랜잭션 밖)
+    // 취소전표 생성 + 누락된 매출원장 fallback 취소 처리 (트랜잭션 밖)
     for (const orderId of cancelledOrderIds) {
       try {
         const salesLedger = await this.prisma.salesLedger.findUnique({
           where: { orderId },
         });
-        if (salesLedger) {
+        if (!salesLedger) continue;
+
+        if (salesLedger.salesStatus !== 'CANCELLED') {
+          // 트랜잭션에서 누락된 경우: cancelSales로 완전 취소 + 취소전표 생성
           await this.salesLedgerService.cancelSales(salesLedger.id);
         }
+        // 이미 CANCELLED인 경우: 트랜잭션에서 정상 처리됨 (취소전표는 생략)
       } catch (err) {
-        this.logger.warn(`일괄취소 매출원장 취소 실패 (${orderId}): ${(err as Error).message}`);
+        this.logger.warn(`일괄취소 매출원장 처리 실패 (${orderId}): ${(err as Error).message}`);
+        // Fallback: 직접 업데이트로 반드시 취소 상태 보장
+        try {
+          await this.prisma.salesLedger.updateMany({
+            where: { orderId, salesStatus: { not: 'CANCELLED' } },
+            data: { salesStatus: 'CANCELLED', outstandingAmount: 0, paymentStatus: 'unpaid' },
+          });
+        } catch (fallbackErr) {
+          this.logger.error(`일괄취소 매출원장 fallback 실패 (${orderId}): ${(fallbackErr as Error).message}`);
+        }
       }
     }
 
