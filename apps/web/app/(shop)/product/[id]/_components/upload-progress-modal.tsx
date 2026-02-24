@@ -180,14 +180,8 @@ export function UploadProgressModal({
             </Button>
           )}
           {(anyFailed || anyCancelled) && (
-            <Button
-              size="sm"
-              onClick={() => {
-                onClose();
-                router.push('/cart');
-              }}
-            >
-              장바구니로 이동
+            <Button variant="outline" size="sm" onClick={onClose}>
+              닫기
             </Button>
           )}
         </div>

@@ -8,6 +8,7 @@ import { existsSync, mkdirSync } from 'fs';
 import { Response } from 'express';
 import { FileStorageService, getUploadBasePath } from './services/file-storage.service';
 import { ThumbnailService } from './services/thumbnail.service';
+import { Public } from '@/common/decorators/public.decorator';
 
 /** 동적 업로드 디렉토리 헬퍼 (DB 설정 반영) */
 function ensureDir(subPath: string): string {
@@ -36,6 +37,7 @@ export class UploadController {
 
     // ==================== 앨범 원본 파일 업로드 ====================
 
+    @Public()
     @Post('album-file')
     @ApiOperation({ summary: '앨범 원본 파일 업로드 (장바구니 단계)' })
     @ApiConsumes('multipart/form-data')
@@ -154,6 +156,7 @@ export class UploadController {
         };
     }
 
+    @Public()
     @Delete('temp/:tempFolderId')
     @ApiOperation({ summary: '임시 업로드 파일 삭제' })
     deleteTempFolder(@Param('tempFolderId') tempFolderId: string) {

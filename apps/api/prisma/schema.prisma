@@ -2568,6 +2568,29 @@ model ToolUsageStat {
   @@map("tool_usage_stats")
 }
 
+model PageView {
+  id        String   @id @default(cuid())
+  path      String
+  title     String?
+  ip        String?
+  country   String?
+  isKorea   Boolean  @default(false)
+  os        String?
+  browser   String?
+  device    String?
+  userAgent String?
+  referer   String?
+  sessionId String?
+  userId    String?
+  createdAt DateTime @default(now())
+
+  @@index([path])
+  @@index([createdAt])
+  @@index([isKorea])
+  @@index([os])
+  @@map("page_views")
+}
+
 enum AccountType {
   ASSET
   LIABILITY

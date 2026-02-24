@@ -7,6 +7,7 @@ import { AuthGuard } from "@/components/auth/auth-guard";
 import { Toaster } from "@/components/ui/toaster";
 import { PanelLeftClose, PanelLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePageView } from "@/hooks/use-page-view";
 
 const SIDEBAR_COLLAPSED_KEY = "sidebar-collapsed";
 
@@ -15,6 +16,8 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  usePageView();
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);

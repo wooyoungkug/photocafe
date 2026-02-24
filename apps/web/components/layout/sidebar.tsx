@@ -22,6 +22,7 @@ import {
   Server,
   ShoppingBag,
   X,
+  BarChart2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
@@ -175,6 +176,12 @@ const DEFAULT_NAVIGATION: NavItem[] = [
       { name: "회원별", href: "/statistics/members" },
       { name: "제본방법별", href: "/statistics/binding" },
     ],
+  },
+  {
+    id: "analytics",
+    name: "접속 통계",
+    href: "/analytics",
+    icon: BarChart2,
   },
   {
     id: "settings",

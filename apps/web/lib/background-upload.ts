@@ -306,9 +306,11 @@ export function startBackgroundUpload(
           });
           pendingFileRefs.delete(primaryId);
         } else {
-          // 부분 성공 파일이 있으면 상태만 표시
+          // 부분 성공 파일이 있으면 progress도 함께 업데이트
           updateAll({
             uploadStatus: 'failed',
+            uploadProgress: Math.round((serverFiles.length / uploadFiles.length) * 100),
+            uploadedFileCount: serverFiles.length,
             serverFiles: [...serverFiles],
           });
         }
