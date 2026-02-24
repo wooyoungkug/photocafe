@@ -1,6 +1,7 @@
 import { uploadAlbumFile, deleteTempFolder, type AlbumFileMetadata } from './file-upload';
 import { useCartStore } from '@/stores/cart-store';
 import { useAuthStore } from '@/stores/auth-store';
+import { toast } from 'sonner';
 
 const CONCURRENCY = 8;          // 동시 업로드 수 (20+ 파일 대응)
 const THROTTLE_MS = 200;        // progress 업데이트 최소 간격
@@ -94,7 +95,16 @@ export function startBackgroundUpload(
     })
     .filter((f): f is NonNullable<typeof f> => f !== null);
 
-  if (uploadFiles.length === 0) return;
+  if (uploadFiles.length === 0) {
+    // 업로드할 파일이 없으면 장바구니에서 제거
+    const { removeItem } = useCartStore.getState();
+    cartItemIds.forEach((id) => removeItem(id));
+    toast.error('업로드 실패', {
+      description: '업로드할 수 있는 파일이 없어 장바구니에서 제거되었습니다.',
+    });
+    pendingFileRefs.delete(primaryId);
+    return;
+  }
 
   // 관련 카트 아이템 모두 업데이트하는 헬퍼
   const updateAll = (updates: Parameters<typeof updateUploadStatus>[1]) => {
@@ -253,11 +263,14 @@ export function startBackgroundUpload(
         });
         // pendingFileRefs 유지 → 재시도 가능
       } else if (failedCount > 0) {
-        // 전체 실패
-        updateAll({
-          uploadStatus: 'failed',
-          serverFiles: [],
+        // 전체 실패 → 장바구니에서 제거
+        const { removeItem } = useCartStore.getState();
+        cartItemIds.forEach((id) => removeItem(id));
+        deleteTempFolder(tempFolderId, accessToken).catch(() => {});
+        toast.error('업로드 실패', {
+          description: '서버 업로드에 실패하여 장바구니에서 제거되었습니다. 다시 시도해주세요.',
         });
+        pendingFileRefs.delete(primaryId);
       } else {
         // 전체 성공
         updateAll({
@@ -268,26 +281,37 @@ export function startBackgroundUpload(
       }
     } catch (error) {
       if ((error as DOMException).name === 'AbortError') {
-        // 중단됨 → 성공한 파일이 있으면 유지, 없으면 임시폴더 삭제
+        // 중단됨 → 성공한 파일이 없으면 장바구니에서 제거
         if (serverFiles.length === 0) {
+          const { removeItem } = useCartStore.getState();
+          cartItemIds.forEach((id) => removeItem(id));
           deleteTempFolder(tempFolderId, accessToken).catch(() => {});
-        }
-        updateAll({
-          uploadStatus: 'cancelled' as any,
-          uploadProgress: serverFiles.length > 0
-            ? Math.round((serverFiles.length / uploadFiles.length) * 100)
-            : 0,
-          serverFiles: [...serverFiles], // 성공한 파일 유지
-        });
-        // 성공한 파일이 있으면 재시도 가능하도록 유지
-        if (serverFiles.length === 0) {
           pendingFileRefs.delete(primaryId);
+        } else {
+          // 부분 성공 파일이 있으면 상태만 표시
+          updateAll({
+            uploadStatus: 'cancelled' as any,
+            uploadProgress: Math.round((serverFiles.length / uploadFiles.length) * 100),
+            serverFiles: [...serverFiles],
+          });
         }
       } else {
-        updateAll({
-          uploadStatus: 'failed',
-          serverFiles: [...serverFiles],
-        });
+        // 예외 발생 + 성공 파일 없음 → 장바구니에서 제거
+        if (serverFiles.length === 0) {
+          const { removeItem } = useCartStore.getState();
+          cartItemIds.forEach((id) => removeItem(id));
+          deleteTempFolder(tempFolderId, accessToken).catch(() => {});
+          toast.error('업로드 실패', {
+            description: '서버 업로드에 실패하여 장바구니에서 제거되었습니다. 다시 시도해주세요.',
+          });
+          pendingFileRefs.delete(primaryId);
+        } else {
+          // 부분 성공 파일이 있으면 상태만 표시
+          updateAll({
+            uploadStatus: 'failed',
+            serverFiles: [...serverFiles],
+          });
+        }
       }
     } finally {
       activeAbortControllers.delete(primaryId);

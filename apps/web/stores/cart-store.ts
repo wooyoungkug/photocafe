@@ -410,6 +410,21 @@ export const useCartStore = create<CartState>()(
         items: state.items.map(({ thumbnailUrls, files, uploadProgress, uploadedFileCount, totalFileCount, ...rest }) => rest),
       }),
       storage: createCartStorage(),
+      onRehydrateStorage: () => (state) => {
+        if (!state) return;
+        // 업로드 미완료(pending/uploading/failed/cancelled) + 서버파일 없는 앨범 아이템 자동 제거
+        const invalidItems = state.items.filter(
+          (item) =>
+            item.productType === 'album-order' &&
+            item.uploadStatus &&
+            item.uploadStatus !== 'completed' &&
+            (!item.serverFiles || item.serverFiles.length === 0)
+        );
+        if (invalidItems.length > 0) {
+          const invalidIds = new Set(invalidItems.map((i) => i.id));
+          state.items = state.items.filter((i) => !invalidIds.has(i.id));
+        }
+      },
     }
   )
 );
