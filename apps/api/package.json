@@ -53,6 +53,7 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "sharp": "^0.33.0",
+    "bwip-js": "^4.8.0",
     "ua-parser-js": "^2.0.9"
   },
   "devDependencies": {

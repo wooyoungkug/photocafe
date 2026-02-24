@@ -2,15 +2,36 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { DeliveryPricingController } from './controllers/delivery-pricing.controller';
 import { TrackingController } from './controllers/tracking.controller';
+import { ShippingMgmtController } from './controllers/shipping-mgmt.controller';
+import { ShippingLabelController } from './controllers/shipping-label.controller';
 import { DeliveryPricingService } from './services/delivery-pricing.service';
 import { KakaoMapService } from './services/kakao-map.service';
 import { TrackingService } from './services/tracking.service';
+import { ShippingMgmtService } from './services/shipping-mgmt.service';
+import { ShippingLabelService } from './services/shipping-label.service';
 import { PrismaModule } from '../../common/prisma/prisma.module';
 
 @Module({
   imports: [PrismaModule, ConfigModule],
-  controllers: [DeliveryPricingController, TrackingController],
-  providers: [DeliveryPricingService, KakaoMapService, TrackingService],
-  exports: [DeliveryPricingService, KakaoMapService, TrackingService],
+  controllers: [
+    DeliveryPricingController,
+    TrackingController,
+    ShippingMgmtController,
+    ShippingLabelController,
+  ],
+  providers: [
+    DeliveryPricingService,
+    KakaoMapService,
+    TrackingService,
+    ShippingMgmtService,
+    ShippingLabelService,
+  ],
+  exports: [
+    DeliveryPricingService,
+    KakaoMapService,
+    TrackingService,
+    ShippingMgmtService,
+    ShippingLabelService,
+  ],
 })
 export class DeliveryModule {}

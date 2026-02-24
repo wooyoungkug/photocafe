@@ -827,8 +827,8 @@ model Order {
 }
 
 model OrderShipping {
-  id             String    @id @default(cuid())
-  orderId        String    @unique
+  id             String          @id @default(cuid())
+  orderId        String          @unique
   recipientName  String
   phone          String
   postalCode     String
@@ -838,8 +838,14 @@ model OrderShipping {
   trackingNumber String?
   shippedAt      DateTime?
   deliveredAt    DateTime?
-  order          Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  bundleId       String?
+  bundleSeq      Int?
+  labelPdfPath   String?
+  labelPrintedAt DateTime?
+  order          Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  bundle         ShipmentBundle? @relation(fields: [bundleId], references: [id], onDelete: SetNull)
 
+  @@index([bundleId])
   @@map("order_shippings")
 }
 
@@ -922,6 +928,24 @@ model OrderItemShipping {
   orderItem           OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
 
   @@map("order_item_shippings")
+}
+
+model ShipmentBundle {
+  id             String          @id @default(cuid())
+  bundleNumber   String          @unique
+  recipientName  String
+  recipientPhone String
+  address        String
+  courierCode    String?
+  trackingNumber String?
+  status         String          @default("pending")
+  totalFee       Decimal         @default(0) @db.Decimal(10, 2)
+  shippedAt      DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  shipments      OrderShipping[]
+
+  @@map("shipment_bundles")
 }
 
 model OrderFile {
