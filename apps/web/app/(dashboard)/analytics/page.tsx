@@ -25,17 +25,23 @@ import {
   Eye,
   Activity,
   RefreshCw,
+  Shield,
+  Network,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   useAnalyticsStats,
   useTopPages,
   useOsStats,
   useGeoStats,
   useAnalyticsTrend,
+  useIpStats,
   type AnalyticsPeriod,
   type TrendGranularity,
 } from '@/hooks/use-analytics';
+import { useCreateSuspiciousIp } from '@/hooks/use-suspicious-ip';
+import { toast } from 'sonner';
 
 const PERIOD_LABELS: Record<AnalyticsPeriod, string> = {
   today: '오늘',
@@ -52,7 +58,6 @@ const OS_COLORS: Record<string, string> = {
   Linux: '#ef4444',
   '알 수 없음': '#94a3b8',
 };
-
 
 const KOREA_CITY_LABELS: Record<string, string> = {
   Seoul: '서울',
@@ -117,94 +122,19 @@ function getCountryLabel(country: string): string {
 }
 
 const PAGE_LABELS: Record<string, string> = {
-  // 대시보드
   '/dashboard': '대시보드',
-  // 주문
   '/orders': '주문 관리',
-  // 상품
-  '/products/new': '상품 등록',
-  '/products': '상품 목록',
-  '/half-products': '반제품',
-  // 단가
-  '/pricing/standard': '표준단가',
-  '/pricing/group': '그룹단가',
-  '/pricing/production': '생산단가',
-  '/pricing/rounding': '단가 반올림',
-  '/pricing': '단가 관리',
-  // 편집
-  '/editing/pending': '편집 접수',
-  '/editing/progress': '편집 진행',
-  '/editing/completed': '편집 완료',
-  '/editing': '편집 관리',
-  // 회계
-  '/accounting/dashboard': '회계 대시보드',
+  '/products': '상품 관리',
   '/accounting/sales': '매출원장',
-  '/accounting/purchases': '매입원장',
-  '/accounting/journals': '전표',
-  '/accounting/receivables': '미수금',
-  '/accounting/payables': '미지급금',
-  '/accounting/deposits': '입금 관리',
-  '/accounting/settlements': '정산 관리',
-  '/accounting/client-ledger': '거래처 원장',
-  '/accounting/accounts': '계정과목',
-  '/accounting/tax-invoices': '세금계산서',
-  '/accounting/reports': '재무보고서',
-  '/accounting': '회계관리',
-  // CS
-  '/cs/consultations': 'CS 상담',
-  '/cs/clients': 'CS 고객',
-  '/cs/guides': 'CS 가이드',
-  '/cs/categories': 'CS 카테고리',
-  '/cs': 'CS 관리',
-  // 거래처/회원
-  '/company/members': '회원 관리',
-  '/company/clients': '거래처 관리',
-  '/company/employees': '직원 관리',
-  '/company/member-groups': '회원 그룹',
-  '/company/categories': '거래처 분류',
-  '/company/sales-categories': '매출 분류',
-  '/company/consultations': '거래처 상담',
-  '/company': '거래처',
-  // 통계
-  '/statistics/sales-categories': '매출 분류 통계',
+  '/accounting/dashboard': '회계 대시보드',
   '/statistics': '통계',
-  // 일정
-  '/schedule': '일정 관리',
-  // 접속통계
-  '/analytics': '접속 통계',
-  // 설정
-  '/settings/basic': '기본 설정',
-  '/settings/delivery': '배송비 설정',
-  '/settings/functions': '기능 설정',
-  '/settings/public-copper-plates': '공용원판 설정',
+  '/company': '거래처',
   '/settings': '설정',
-  // 기준정보
-  '/master/specifications': '규격 관리',
-  '/master/papers': '용지 관리',
-  '/master/fabrics': '원단 관리',
-  '/master/jdf': 'JDF 관리',
-  '/master': '기준정보',
-  // 이미지
-  '/image-management/quality-analysis': '이미지 품질 분석',
-  '/image-management': '이미지 관리',
-  // 기초정보
-  '/basic-info/units': '기초정보 단위',
-  '/basic-info': '기초정보',
+  '/analytics': '접속 통계',
 };
 
 function getPageLabel(path: string): string {
-  // 1. 정확한 매칭
-  if (PAGE_LABELS[path]) return PAGE_LABELS[path];
-  // 2. 가장 긴 prefix 매칭 (예: /company/members/123 → /company/members)
-  let bestMatch = '';
-  let bestLabel = path;
-  for (const [key, label] of Object.entries(PAGE_LABELS)) {
-    if (path.startsWith(key) && key.length > bestMatch.length) {
-      bestMatch = key;
-      bestLabel = label;
-    }
-  }
-  return bestLabel;
+  return PAGE_LABELS[path] || path;
 }
 
 const GRANULARITY_LABELS: Record<TrendGranularity, string> = {
@@ -213,15 +143,21 @@ const GRANULARITY_LABELS: Record<TrendGranularity, string> = {
   yearly: '년도별',
 };
 
+type ActiveTab = 'overview' | 'ip';
+
 export default function AnalyticsPage() {
   const [period, setPeriod] = useState<AnalyticsPeriod>('30d');
   const [granularity, setGranularity] = useState<TrendGranularity>('daily');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
 
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useAnalyticsStats(period);
   const { data: topPages, isLoading: pagesLoading } = useTopPages(period, 10);
   const { data: osStats, isLoading: osLoading } = useOsStats(period);
   const { data: geoStats, isLoading: geoLoading } = useGeoStats(period);
   const { data: trend, isLoading: trendLoading } = useAnalyticsTrend(period, granularity);
+  const { data: ipStats, isLoading: ipLoading, refetch: refetchIp } = useIpStats(period, 50);
+
+  const createSuspiciousIp = useCreateSuspiciousIp();
 
   const isLoading = statsLoading || pagesLoading || osLoading || geoLoading || trendLoading;
 
@@ -276,10 +212,33 @@ export default function AnalyticsPage() {
   }));
 
   const trendTickFormatter = (v: string) => {
-    if (granularity === 'daily') return v.slice(5); // MM-DD
-    if (granularity === 'monthly') return v.slice(2); // YY-MM
-    return v; // YYYY
+    if (granularity === 'daily') return v.slice(5);
+    if (granularity === 'monthly') return v.slice(2);
+    return v;
   };
+
+  async function handleRegisterSuspicious(ip: string, visitCount: number) {
+    try {
+      await createSuspiciousIp.mutateAsync({ ip, visitCount, action: 'monitor' });
+      toast.success(`${ip} 를 의심 IP(모니터링)로 등록했습니다.`);
+    } catch {
+      toast.error('이미 등록된 IP이거나 등록에 실패했습니다.');
+    }
+  }
+
+  async function handleBlockIp(ip: string, visitCount: number) {
+    try {
+      await createSuspiciousIp.mutateAsync({
+        ip,
+        visitCount,
+        action: 'block',
+        reason: 'IP 통계에서 직접 차단',
+      });
+      toast.success(`${ip} 를 차단했습니다.`);
+    } catch {
+      toast.error('이미 등록된 IP이거나 차단에 실패했습니다.');
+    }
+  }
 
   return (
     <div className="space-y-6 p-4 sm:p-6">
@@ -292,11 +251,11 @@ export default function AnalyticsPage() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => refetchStats()}
-          disabled={isLoading}
+          onClick={() => { refetchStats(); refetchIp(); }}
+          disabled={isLoading || ipLoading}
           className="gap-2"
         >
-          <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-4 w-4 ${(isLoading || ipLoading) ? 'animate-spin' : ''}`} />
           새로고침
         </Button>
       </div>
@@ -337,251 +296,387 @@ export default function AnalyticsPage() {
         ))}
       </div>
 
-      {/* 인기 페이지 + OS 분포 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* 인기 페이지 */}
-        <Card className="border-0 shadow-md">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Activity className="h-4 w-4 text-blue-500" />
-              인기 페이지 Top 10
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {pagesLoading ? (
-              <div className="h-64 flex items-center justify-center text-slate-400">로딩 중...</div>
-            ) : (topPages ?? []).length === 0 ? (
-              <div className="h-64 flex items-center justify-center text-slate-400">데이터 없음</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart
-                  data={(topPages ?? []).map((p) => ({
-                    name: getPageLabel(p.path),
-                    count: p.count,
-                    path: p.path,
-                  }))}
-                  layout="vertical"
-                  margin={{ left: 16, right: 16 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis type="number" stroke="#64748b" fontSize={11} />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    stroke="#64748b"
-                    fontSize={11}
-                    width={90}
-                    tickFormatter={(v: string) => (v.length > 10 ? v.slice(0, 10) + '…' : v)}
-                  />
-                  <Tooltip
-                    formatter={(value: number | undefined) => [`${(value ?? 0).toLocaleString()}회`, '방문 수']}
-                    contentStyle={{
-                      backgroundColor: 'white',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '8px',
-                    }}
-                  />
-                  <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
+      {/* 탭 */}
+      <div className="flex gap-1 border-b border-slate-200">
+        <button
+          onClick={() => setActiveTab('overview')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'overview'
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <span className="flex items-center gap-1.5">
+            <Activity className="h-3.5 w-3.5" />
+            방문 분석
+          </span>
+        </button>
+        <button
+          onClick={() => setActiveTab('ip')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'ip'
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <span className="flex items-center gap-1.5">
+            <Network className="h-3.5 w-3.5" />
+            IP 통계
+          </span>
+        </button>
+      </div>
 
-        {/* OS 분포 */}
-        <Card className="border-0 shadow-md">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Monitor className="h-4 w-4 text-purple-500" />
-              OS 분포
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {osLoading ? (
-              <div className="h-64 flex items-center justify-center text-slate-400">로딩 중...</div>
-            ) : osChartData.length === 0 ? (
-              <div className="h-64 flex items-center justify-center text-slate-400">데이터 없음</div>
-            ) : (
-              <div className="space-y-4">
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie
-                      data={osChartData}
-                      dataKey="count"
-                      nameKey="os"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={80}
-                      label={(props: any) => `${props.os} ${props.percentage}%`}
-                      labelLine={false}
+      {/* 방문 분석 탭 */}
+      {activeTab === 'overview' && (
+        <>
+          {/* 인기 페이지 + OS 분포 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="border-0 shadow-md">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Activity className="h-4 w-4 text-blue-500" />
+                  인기 페이지 Top 10
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {pagesLoading ? (
+                  <div className="h-64 flex items-center justify-center text-slate-400">로딩 중...</div>
+                ) : (topPages ?? []).length === 0 ? (
+                  <div className="h-64 flex items-center justify-center text-slate-400">데이터 없음</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart
+                      data={(topPages ?? []).map((p) => ({
+                        name: getPageLabel(p.path),
+                        count: p.count,
+                        path: p.path,
+                      }))}
+                      layout="vertical"
+                      margin={{ left: 16, right: 16 }}
                     >
-                      {osChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      formatter={(value: number | undefined) => [`${(value ?? 0).toLocaleString()}회`, '방문 수']}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="grid grid-cols-2 gap-2">
-                  {osChartData.map((item) => (
-                    <div
-                      key={item.os}
-                      className="flex items-center gap-2 p-2 rounded-lg"
-                      style={{ backgroundColor: `${item.fill}15` }}
-                    >
-                      <div
-                        className="w-3 h-3 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: item.fill }}
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis type="number" stroke="#64748b" fontSize={11} />
+                      <YAxis
+                        type="category"
+                        dataKey="name"
+                        stroke="#64748b"
+                        fontSize={11}
+                        width={90}
+                        tickFormatter={(v: string) => (v.length > 10 ? v.slice(0, 10) + '…' : v)}
                       />
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium truncate">{item.os}</p>
-                        <p className="text-xs text-slate-500">{item.percentage}%</p>
-                      </div>
+                      <Tooltip
+                        formatter={(value: number | undefined) => [`${(value ?? 0).toLocaleString()}회`, '방문 수']}
+                        contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+                      />
+                      <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-md">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Monitor className="h-4 w-4 text-purple-500" />
+                  OS 분포
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {osLoading ? (
+                  <div className="h-64 flex items-center justify-center text-slate-400">로딩 중...</div>
+                ) : osChartData.length === 0 ? (
+                  <div className="h-64 flex items-center justify-center text-slate-400">데이터 없음</div>
+                ) : (
+                  <div className="space-y-4">
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie
+                          data={osChartData}
+                          dataKey="count"
+                          nameKey="os"
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={80}
+                          label={(props: any) => `${props.os} ${props.percentage}%`}
+                          labelLine={false}
+                        >
+                          {osChartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          formatter={(value: number | undefined) => [`${(value ?? 0).toLocaleString()}회`, '방문 수']}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="grid grid-cols-2 gap-2">
+                      {osChartData.map((item) => (
+                        <div
+                          key={item.os}
+                          className="flex items-center gap-2 p-2 rounded-lg"
+                          style={{ backgroundColor: `${item.fill}15` }}
+                        >
+                          <div
+                            className="w-3 h-3 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: item.fill }}
+                          />
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium truncate">{item.os}</p>
+                            <p className="text-xs text-slate-500">{item.percentage}%</p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* 국내 시별 + 해외 국가별 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="border-0 shadow-md">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <MapPin className="h-4 w-4 text-emerald-500" />
+                  국내 접속 — 시별
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {geoLoading ? (
+                  <div className="h-64 flex items-center justify-center text-slate-400">로딩 중...</div>
+                ) : koreaCitiesData.length === 0 ? (
+                  <div className="h-64 flex items-center justify-center text-slate-400">
+                    {geoStats?.korea.count === 0 ? '국내 접속 없음' : '도시 정보 없음 (로컬 환경)'}
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={koreaCitiesData} layout="vertical" margin={{ left: 8, right: 24 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis type="number" stroke="#64748b" fontSize={11} allowDecimals={false} />
+                      <YAxis type="category" dataKey="name" stroke="#64748b" fontSize={11} width={64} />
+                      <Tooltip
+                        formatter={(value: number | undefined) => [`${(value ?? 0).toLocaleString()}회`, '방문 수']}
+                        contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+                      />
+                      <Bar dataKey="count" fill="#10b981" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-md">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Globe className="h-4 w-4 text-orange-500" />
+                  해외 접속 — 국가별
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {geoLoading ? (
+                  <div className="h-64 flex items-center justify-center text-slate-400">로딩 중...</div>
+                ) : overseasCountriesData.length === 0 ? (
+                  <div className="h-64 flex items-center justify-center text-slate-400">해외 접속 없음</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={overseasCountriesData} layout="vertical" margin={{ left: 8, right: 24 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis type="number" stroke="#64748b" fontSize={11} allowDecimals={false} />
+                      <YAxis type="category" dataKey="name" stroke="#64748b" fontSize={11} width={64} />
+                      <Tooltip
+                        formatter={(value: number | undefined) => [`${(value ?? 0).toLocaleString()}회`, '방문 수']}
+                        contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+                      />
+                      <Bar dataKey="count" fill="#f97316" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* 방문 추이 */}
+          <Card className="border-0 shadow-md">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <TrendingUp className="h-4 w-4 text-emerald-500" />
+                  방문 추이
+                </CardTitle>
+                <div className="flex gap-1">
+                  {(Object.keys(GRANULARITY_LABELS) as TrendGranularity[]).map((g) => (
+                    <Button
+                      key={g}
+                      variant={granularity === g ? 'default' : 'outline'}
+                      size="sm"
+                      className="h-7 px-3 text-xs"
+                      onClick={() => setGranularity(g)}
+                    >
+                      {GRANULARITY_LABELS[g]}
+                    </Button>
                   ))}
                 </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            </CardHeader>
+            <CardContent>
+              {trendLoading ? (
+                <div className="h-64 flex items-center justify-center text-slate-400">로딩 중...</div>
+              ) : (trend ?? []).length === 0 ? (
+                <div className="h-64 flex items-center justify-center text-slate-400">데이터 없음</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={260}>
+                  <LineChart data={trend} margin={{ left: 0, right: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis
+                      dataKey="date"
+                      stroke="#64748b"
+                      fontSize={10}
+                      tickFormatter={trendTickFormatter}
+                    />
+                    <YAxis stroke="#64748b" fontSize={11} allowDecimals={false} />
+                    <Tooltip
+                      formatter={(value: number | undefined) => [`${(value ?? 0).toLocaleString()}회`, '방문 수']}
+                      labelFormatter={(label) => `${GRANULARITY_LABELS[granularity]}: ${label}`}
+                      contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="count"
+                      stroke="#10b981"
+                      strokeWidth={2}
+                      dot={{ r: 3, fill: '#10b981' }}
+                      activeDot={{ r: 5 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
 
-      {/* 국내 시별 + 해외 국가별 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* 국내 접속 - 시별 */}
+      {/* IP 통계 탭 */}
+      {activeTab === 'ip' && (
         <Card className="border-0 shadow-md">
           <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <MapPin className="h-4 w-4 text-emerald-500" />
-              국내 접속 — 시별
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {geoLoading ? (
-              <div className="h-64 flex items-center justify-center text-slate-400">로딩 중...</div>
-            ) : koreaCitiesData.length === 0 ? (
-              <div className="h-64 flex items-center justify-center text-slate-400">
-                {geoStats?.korea.count === 0 ? '국내 접속 없음' : '도시 정보 없음 (로컬 환경)'}
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={koreaCitiesData} layout="vertical" margin={{ left: 8, right: 24 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis type="number" stroke="#64748b" fontSize={11} allowDecimals={false} />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    stroke="#64748b"
-                    fontSize={11}
-                    width={64}
-                  />
-                  <Tooltip
-                    formatter={(value: number | undefined) => [`${(value ?? 0).toLocaleString()}회`, '방문 수']}
-                    contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                  />
-                  <Bar dataKey="count" fill="#10b981" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* 해외 접속 - 국가별 */}
-        <Card className="border-0 shadow-md">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Globe className="h-4 w-4 text-orange-500" />
-              해외 접속 — 국가별
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {geoLoading ? (
-              <div className="h-64 flex items-center justify-center text-slate-400">로딩 중...</div>
-            ) : overseasCountriesData.length === 0 ? (
-              <div className="h-64 flex items-center justify-center text-slate-400">해외 접속 없음</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={overseasCountriesData} layout="vertical" margin={{ left: 8, right: 24 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis type="number" stroke="#64748b" fontSize={11} allowDecimals={false} />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    stroke="#64748b"
-                    fontSize={11}
-                    width={64}
-                  />
-                  <Tooltip
-                    formatter={(value: number | undefined) => [`${(value ?? 0).toLocaleString()}회`, '방문 수']}
-                    contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                  />
-                  <Bar dataKey="count" fill="#f97316" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* 방문 추이 (일별/월별/년도별) */}
-      <Card className="border-0 shadow-md">
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <TrendingUp className="h-4 w-4 text-emerald-500" />
-              방문 추이
-            </CardTitle>
-            <div className="flex gap-1">
-              {(Object.keys(GRANULARITY_LABELS) as TrendGranularity[]).map((g) => (
-                <Button
-                  key={g}
-                  variant={granularity === g ? 'default' : 'outline'}
-                  size="sm"
-                  className="h-7 px-3 text-xs"
-                  onClick={() => setGranularity(g)}
-                >
-                  {GRANULARITY_LABELS[g]}
-                </Button>
-              ))}
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Network className="h-4 w-4 text-blue-500" />
+                IP별 방문 통계 (상위 50)
+              </CardTitle>
+              <a
+                href="/analytics/suspicious-ips"
+                className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 font-medium"
+              >
+                <Shield className="h-3.5 w-3.5" />
+                의심 IP 관리 →
+              </a>
             </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {trendLoading ? (
-            <div className="h-64 flex items-center justify-center text-slate-400">로딩 중...</div>
-          ) : (trend ?? []).length === 0 ? (
-            <div className="h-64 flex items-center justify-center text-slate-400">데이터 없음</div>
-          ) : (
-            <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={trend} margin={{ left: 0, right: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis
-                  dataKey="date"
-                  stroke="#64748b"
-                  fontSize={10}
-                  tickFormatter={trendTickFormatter}
-                />
-                <YAxis stroke="#64748b" fontSize={11} allowDecimals={false} />
-                <Tooltip
-                  formatter={(value: number | undefined) => [`${(value ?? 0).toLocaleString()}회`, '방문 수']}
-                  labelFormatter={(label) => `${GRANULARITY_LABELS[granularity]}: ${label}`}
-                  contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="count"
-                  stroke="#10b981"
-                  strokeWidth={2}
-                  dot={{ r: 3, fill: '#10b981' }}
-                  activeDot={{ r: 5 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent>
+            {ipLoading ? (
+              <div className="h-48 flex items-center justify-center text-slate-400">로딩 중...</div>
+            ) : (ipStats ?? []).length === 0 ? (
+              <div className="h-48 flex items-center justify-center text-slate-400">데이터 없음</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-xs text-slate-500">
+                      <th className="text-left py-2 pr-3 font-medium">#</th>
+                      <th className="text-left py-2 pr-3 font-medium">IP</th>
+                      <th className="text-left py-2 pr-3 font-medium">위치</th>
+                      <th className="text-right py-2 pr-3 font-medium">방문수</th>
+                      <th className="text-left py-2 pr-3 font-medium">OS / 브라우저</th>
+                      <th className="text-left py-2 pr-3 font-medium">마지막 접속</th>
+                      <th className="text-left py-2 pr-3 font-medium">상태</th>
+                      <th className="text-right py-2 font-medium">조치</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(ipStats ?? []).map((row, idx) => (
+                      <tr
+                        key={row.ip}
+                        className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${
+                          row.suspicious?.action === 'block' ? 'bg-red-50' : ''
+                        }`}
+                      >
+                        <td className="py-2 pr-3 text-xs text-slate-400">{idx + 1}</td>
+                        <td className="py-2 pr-3 font-mono text-xs text-slate-700">{row.ip}</td>
+                        <td className="py-2 pr-3 text-xs text-slate-600">
+                          {row.country
+                            ? `${COUNTRY_LABELS[row.country] || row.country}${row.city ? ` · ${KOREA_CITY_LABELS[row.city] || row.city}` : ''}`
+                            : '—'}
+                        </td>
+                        <td className="py-2 pr-3 text-right font-semibold text-slate-800">
+                          {row.count.toLocaleString()}
+                        </td>
+                        <td className="py-2 pr-3 text-xs text-slate-500">
+                          {[row.os, row.browser].filter(Boolean).join(' / ') || '—'}
+                        </td>
+                        <td className="py-2 pr-3 text-xs text-slate-500">
+                          {row.lastVisit
+                            ? new Date(row.lastVisit).toLocaleString('ko-KR', {
+                                month: '2-digit',
+                                day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })
+                            : '—'}
+                        </td>
+                        <td className="py-2 pr-3">
+                          {row.suspicious ? (
+                            row.suspicious.action === 'block' ? (
+                              <Badge variant="destructive" className="text-xs">차단</Badge>
+                            ) : (
+                              <Badge className="text-xs bg-amber-100 text-amber-700 hover:bg-amber-100">모니터링</Badge>
+                            )
+                          ) : (
+                            <span className="text-xs text-slate-400">—</span>
+                          )}
+                        </td>
+                        <td className="py-2 text-right">
+                          {!row.suspicious ? (
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-6 px-2 text-xs text-amber-600 border-amber-200 hover:bg-amber-50"
+                                onClick={() => handleRegisterSuspicious(row.ip, row.count)}
+                                disabled={createSuspiciousIp.isPending}
+                              >
+                                모니터링
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-6 px-2 text-xs text-red-600 border-red-200 hover:bg-red-50"
+                                onClick={() => handleBlockIp(row.ip, row.count)}
+                                disabled={createSuspiciousIp.isPending}
+                              >
+                                차단
+                              </Button>
+                            </div>
+                          ) : (
+                            <a
+                              href="/analytics/suspicious-ips"
+                              className="text-xs text-blue-500 hover:underline"
+                            >
+                              관리 →
+                            </a>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
