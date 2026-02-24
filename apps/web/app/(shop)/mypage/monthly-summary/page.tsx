@@ -686,6 +686,7 @@ export default function MonthlySummaryPage() {
             <tr className="bg-gray-300 font-bold">
               <td colSpan={4} className="border border-gray-500 p-1.5 text-right pr-3 text-primary">
                 차 월 이 월
+                {closingBalance > 0 && <span className="text-[8pt]">(미납금액)</span>}
               </td>
               <td
                 className={`border border-gray-500 p-1.5 text-right tabular-nums ${
@@ -698,7 +699,6 @@ export default function MonthlySummaryPage() {
               >
                 {closingBalance < 0 && '-'}
                 {formatAmount(Math.abs(closingBalance))}원
-                {closingBalance > 0 && <span className="text-[8pt] ml-1">(미납)</span>}
                 {closingBalance < 0 && <span className="text-[8pt] ml-1">(선납)</span>}
               </td>
             </tr>
@@ -1033,7 +1033,10 @@ export default function MonthlySummaryPage() {
                     <tr className="bg-gray-50 text-sm border-t font-bold">
                       <td className="p-2 sm:p-3" />
                       <td className="p-2 sm:p-3" />
-                      <td className="p-2 sm:p-3 text-primary">차월이월</td>
+                      <td className="p-2 sm:p-3 text-primary">
+                        차월이월
+                        {closingBalance > 0 && <span className="text-xs text-red-600">(미납금액)</span>}
+                      </td>
                       <td className="p-2 sm:p-3" />
                       <td className="p-2 sm:p-3" />
                       <td
