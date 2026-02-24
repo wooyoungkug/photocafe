@@ -64,15 +64,9 @@ export class OrderService {
 
     const sequence = Number(result[0]?.next_seq || 1);
 
-    // 일일 999건 제한 검증
-    if (sequence > 999) {
-      throw new BadRequestException(
-        '일일 주문 한도(999건)를 초과했습니다. 시스템 관리자에게 문의하세요.',
-      );
-    }
-
-    // 형식: YYMMDD-NNN
-    return `${dateStr}-${sequence.toString().padStart(3, '0')}`;
+    // 형식: YYMMDD-NNN (999 이하) 또는 YYMMDD-NNNN (1000 이상)
+    const digits = sequence >= 1000 ? 4 : 3;
+    return `${dateStr}-${sequence.toString().padStart(digits, '0')}`;
   }
 
   private async generateBarcode(): Promise<string> {

@@ -36,9 +36,10 @@ function convertOrderNumber(oldOrderNumber: string): string {
   // YYYYMMDD → YYMMDD
   const shortDate = dateStr.slice(2); // '260214'
 
-  // NNNN → NNN (앞의 0 제거 후 3자리로 패딩)
+  // 앞의 0 제거 후 자릿수에 맞게 패딩 (999 이하 → 3자리, 1000 이상 → 4자리)
   const numSeq = parseInt(sequence, 10);
-  const shortSeq = numSeq.toString().padStart(3, '0');
+  const digits = numSeq >= 1000 ? 4 : 3;
+  const shortSeq = numSeq.toString().padStart(digits, '0');
 
   return `${shortDate}-${shortSeq}`;
 }
@@ -66,9 +67,9 @@ function convertProductionNumber(oldProductionNumber: string): string {
   // YYYYMMDD → YYMMDD
   const shortDate = dateStr.slice(2); // '260214'
 
-  // NNNN → NNN
   const numSeq = parseInt(sequence, 10);
-  const shortSeq = numSeq.toString().padStart(3, '0');
+  const digits = numSeq >= 1000 ? 4 : 3;
+  const shortSeq = numSeq.toString().padStart(digits, '0');
 
   return `${shortDate}-${shortSeq}-${itemIndex}`;
 }
