@@ -106,6 +106,16 @@ export class ProductPaperDto {
   @IsNumber()
   grammage?: number;
 
+  @ApiPropertyOptional({ description: '전면 코팅' })
+  @IsOptional()
+  @IsString()
+  frontCoating?: string;
+
+  @ApiPropertyOptional({ description: '등급' })
+  @IsOptional()
+  @IsNumber()
+  grade?: number;
+
   @ApiPropertyOptional({ description: '추가 가격' })
   @IsOptional()
   @IsNumber()
