@@ -222,7 +222,7 @@ export default function AnalyticsPage() {
                     tickFormatter={(v: string) => (v.length > 10 ? v.slice(0, 10) + '…' : v)}
                   />
                   <Tooltip
-                    formatter={(value: number) => [`${value.toLocaleString()}회`, '방문 수']}
+                    formatter={(value: number | undefined) => [`${(value ?? 0).toLocaleString()}회`, '방문 수']}
                     contentStyle={{
                       backgroundColor: 'white',
                       border: '1px solid #e2e8f0',
@@ -260,9 +260,7 @@ export default function AnalyticsPage() {
                       cx="50%"
                       cy="50%"
                       outerRadius={80}
-                      label={({ os, percentage }: { os: string; percentage: number }) =>
-                        `${os} ${percentage}%`
-                      }
+                      label={(props: any) => `${props.os} ${props.percentage}%`}
                       labelLine={false}
                     >
                       {osChartData.map((entry, index) => (
@@ -270,7 +268,7 @@ export default function AnalyticsPage() {
                       ))}
                     </Pie>
                     <Tooltip
-                      formatter={(value: number) => [`${value.toLocaleString()}회`, '방문 수']}
+                      formatter={(value: number | undefined) => [`${(value ?? 0).toLocaleString()}회`, '방문 수']}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -324,18 +322,16 @@ export default function AnalyticsPage() {
                       cx="50%"
                       cy="50%"
                       outerRadius={80}
-                      label={({ name, percentage }: { name: string; percentage: number }) =>
-                        `${name} ${percentage}%`
-                      }
+                      label={(props: any) => `${props.name} ${props.percentage}%`}
                     >
                       {geoChartData.map((_, index) => (
                         <Cell key={`geo-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                       ))}
                     </Pie>
                     <Tooltip
-                      formatter={(value: number, name: string) => [
-                        `${value.toLocaleString()}회`,
-                        name,
+                      formatter={(value: number | undefined, name: string | undefined) => [
+                        `${(value ?? 0).toLocaleString()}회`,
+                        name ?? '',
                       ]}
                     />
                     <Legend />
@@ -386,7 +382,7 @@ export default function AnalyticsPage() {
                   />
                   <YAxis stroke="#64748b" fontSize={11} allowDecimals={false} />
                   <Tooltip
-                    formatter={(value: number) => [`${value.toLocaleString()}회`, '방문 수']}
+                    formatter={(value: number | undefined) => [`${(value ?? 0).toLocaleString()}회`, '방문 수']}
                     labelFormatter={(label: string) => `날짜: ${label}`}
                     contentStyle={{
                       backgroundColor: 'white',
