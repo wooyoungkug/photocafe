@@ -16,4 +16,8 @@ export class AnalyticsQueryDto {
   @IsOptional()
   @IsString()
   limit?: string;
+
+  @IsOptional()
+  @IsIn(['daily', 'monthly', 'yearly'])
+  granularity?: 'daily' | 'monthly' | 'yearly';
 }

@@ -68,12 +68,14 @@ export class AnalyticsService {
     const userAgent = req.headers['user-agent'];
 
     let country: string | null = null;
+    let city: string | null = null;
     let isKorea = false;
 
     if (ip && ip !== '127.0.0.1' && ip !== '::1' && !ip.startsWith('192.168.') && !ip.startsWith('10.') && !ip.startsWith('172.')) {
       const geo = geoip.lookup(ip);
       if (geo) {
         country = geo.country;
+        city = geo.city || null;
         isKorea = geo.country === 'KR';
       }
     } else {
@@ -90,6 +92,7 @@ export class AnalyticsService {
         title: dto.title,
         ip,
         country,
+        city,
         isKorea,
         os,
         browser,
@@ -176,7 +179,7 @@ export class AnalyticsService {
     const { start, end } = this.getDateRange(query);
     const where = { createdAt: { gte: start, lte: end } };
 
-    const [koreaCount, overseasCount, countryResult] = await Promise.all([
+    const [koreaCount, overseasCount, countryResult, cityResult] = await Promise.all([
       this.prisma.pageView.count({ where: { ...where, isKorea: true } }),
       this.prisma.pageView.count({ where: { ...where, isKorea: false } }),
       this.prisma.pageView.groupBy({
@@ -184,6 +187,13 @@ export class AnalyticsService {
         where: { ...where, isKorea: false, country: { not: null } },
         _count: { country: true },
         orderBy: { _count: { country: 'desc' } },
+        take: 10,
+      }),
+      this.prisma.pageView.groupBy({
+        by: ['city'],
+        where: { ...where, isKorea: true, city: { not: null } },
+        _count: { city: true },
+        orderBy: { _count: { city: 'desc' } },
         take: 10,
       }),
     ]);
@@ -199,6 +209,10 @@ export class AnalyticsService {
         count: overseasCount,
         percentage: total > 0 ? Math.round((overseasCount / total) * 100 * 10) / 10 : 0,
       },
+      topKoreaCities: cityResult.map((r) => ({
+        city: r.city,
+        count: r._count.city,
+      })),
       topOverseasCountries: countryResult.map((r) => ({
         country: r.country,
         count: r._count.country,
@@ -208,17 +222,26 @@ export class AnalyticsService {
 
   async getTrend(query: AnalyticsQueryDto) {
     const { start, end } = this.getDateRange(query);
+    const granularity = query.granularity || 'daily';
 
-    // 날짜별 방문 수 집계 (raw query 사용)
+    let dateFormat: string;
+    if (granularity === 'yearly') {
+      dateFormat = 'YYYY';
+    } else if (granularity === 'monthly') {
+      dateFormat = 'YYYY-MM';
+    } else {
+      dateFormat = 'YYYY-MM-DD';
+    }
+
     const result = await this.prisma.$queryRaw<
       Array<{ date: string; count: bigint }>
     >`
       SELECT
-        TO_CHAR("createdAt" AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD') as date,
+        TO_CHAR("createdAt" AT TIME ZONE 'Asia/Seoul', ${dateFormat}) as date,
         COUNT(*) as count
       FROM page_views
       WHERE "createdAt" >= ${start} AND "createdAt" <= ${end}
-      GROUP BY TO_CHAR("createdAt" AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD')
+      GROUP BY TO_CHAR("createdAt" AT TIME ZONE 'Asia/Seoul', ${dateFormat})
       ORDER BY date ASC
     `;
 

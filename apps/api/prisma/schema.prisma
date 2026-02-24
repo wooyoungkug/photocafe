@@ -2574,6 +2574,7 @@ model PageView {
   title     String?
   ip        String?
   country   String?
+  city      String?
   isKorea   Boolean  @default(false)
   os        String?
   browser   String?
@@ -2588,6 +2589,7 @@ model PageView {
   @@index([createdAt])
   @@index([isKorea])
   @@index([os])
+  @@index([city])
   @@map("page_views")
 }
 

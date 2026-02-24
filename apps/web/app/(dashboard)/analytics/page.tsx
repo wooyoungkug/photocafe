@@ -15,7 +15,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  Legend,
 } from 'recharts';
 import {
   Globe,
@@ -35,6 +34,7 @@ import {
   useGeoStats,
   useAnalyticsTrend,
   type AnalyticsPeriod,
+  type TrendGranularity,
 } from '@/hooks/use-analytics';
 
 const PERIOD_LABELS: Record<AnalyticsPeriod, string> = {
@@ -53,7 +53,68 @@ const OS_COLORS: Record<string, string> = {
   '알 수 없음': '#94a3b8',
 };
 
-const PIE_COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6', '#94a3b8'];
+
+const KOREA_CITY_LABELS: Record<string, string> = {
+  Seoul: '서울',
+  Busan: '부산',
+  Incheon: '인천',
+  Daegu: '대구',
+  Daejeon: '대전',
+  Gwangju: '광주',
+  Ulsan: '울산',
+  Suwon: '수원',
+  Seongnam: '성남',
+  Goyang: '고양',
+  Yongin: '용인',
+  Changwon: '창원',
+  Jeonju: '전주',
+  Cheongju: '청주',
+  Cheonan: '천안',
+  Pohang: '포항',
+  Ansan: '안산',
+  Bucheon: '부천',
+  Anyang: '안양',
+  Uijeongbu: '의정부',
+  Gimpo: '김포',
+  Hwaseong: '화성',
+  Namyangju: '남양주',
+  Pyeongtaek: '평택',
+  Paju: '파주',
+  Siheung: '시흥',
+  Gimhae: '김해',
+  Jeju: '제주',
+};
+
+const COUNTRY_LABELS: Record<string, string> = {
+  US: '미국',
+  JP: '일본',
+  CN: '중국',
+  DE: '독일',
+  GB: '영국',
+  AU: '호주',
+  CA: '캐나다',
+  FR: '프랑스',
+  SG: '싱가포르',
+  TW: '대만',
+  HK: '홍콩',
+  VN: '베트남',
+  TH: '태국',
+  IN: '인도',
+  RU: '러시아',
+  NL: '네덜란드',
+  SE: '스웨덴',
+  BR: '브라질',
+  MX: '멕시코',
+  PH: '필리핀',
+};
+
+function getKoreaCityLabel(city: string): string {
+  return KOREA_CITY_LABELS[city] || city;
+}
+
+function getCountryLabel(country: string): string {
+  return COUNTRY_LABELS[country] || country;
+}
 
 const PAGE_LABELS: Record<string, string> = {
   '/dashboard': '대시보드',
@@ -71,14 +132,21 @@ function getPageLabel(path: string): string {
   return PAGE_LABELS[path] || path;
 }
 
+const GRANULARITY_LABELS: Record<TrendGranularity, string> = {
+  daily: '일별',
+  monthly: '월별',
+  yearly: '년도별',
+};
+
 export default function AnalyticsPage() {
   const [period, setPeriod] = useState<AnalyticsPeriod>('30d');
+  const [granularity, setGranularity] = useState<TrendGranularity>('daily');
 
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useAnalyticsStats(period);
   const { data: topPages, isLoading: pagesLoading } = useTopPages(period, 10);
   const { data: osStats, isLoading: osLoading } = useOsStats(period);
   const { data: geoStats, isLoading: geoLoading } = useGeoStats(period);
-  const { data: trend, isLoading: trendLoading } = useAnalyticsTrend(period);
+  const { data: trend, isLoading: trendLoading } = useAnalyticsTrend(period, granularity);
 
   const isLoading = statsLoading || pagesLoading || osLoading || geoLoading || trendLoading;
 
@@ -122,12 +190,21 @@ export default function AnalyticsPage() {
     fill: OS_COLORS[item.os] ?? '#94a3b8',
   }));
 
-  const geoChartData = geoStats
-    ? [
-        { name: '국내', value: geoStats.korea.count, percentage: geoStats.korea.percentage },
-        { name: '해외', value: geoStats.overseas.count, percentage: geoStats.overseas.percentage },
-      ]
-    : [];
+  const koreaCitiesData = (geoStats?.topKoreaCities ?? []).map((item) => ({
+    name: getKoreaCityLabel(item.city ?? '알 수 없음'),
+    count: item.count,
+  }));
+
+  const overseasCountriesData = (geoStats?.topOverseasCountries ?? []).map((item) => ({
+    name: getCountryLabel(item.country ?? '알 수 없음'),
+    count: item.count,
+  }));
+
+  const trendTickFormatter = (v: string) => {
+    if (granularity === 'daily') return v.slice(5); // MM-DD
+    if (granularity === 'monthly') return v.slice(2); // YY-MM
+    return v; // YYYY
+  };
 
   return (
     <div className="space-y-6 p-4 sm:p-6">
@@ -296,114 +373,140 @@ export default function AnalyticsPage() {
         </Card>
       </div>
 
-      {/* 국내/해외 + 일별 추이 */}
+      {/* 국내 시별 + 해외 국가별 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* 국내/해외 비율 */}
+        {/* 국내 접속 - 시별 */}
         <Card className="border-0 shadow-md">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Globe className="h-4 w-4 text-orange-500" />
-              국내 / 해외 접속 비율
+              <MapPin className="h-4 w-4 text-emerald-500" />
+              국내 접속 — 시별
             </CardTitle>
           </CardHeader>
           <CardContent>
             {geoLoading ? (
               <div className="h-64 flex items-center justify-center text-slate-400">로딩 중...</div>
-            ) : geoChartData.length === 0 ? (
-              <div className="h-64 flex items-center justify-center text-slate-400">데이터 없음</div>
-            ) : (
-              <div className="space-y-4">
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie
-                      data={geoChartData}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={80}
-                      label={(props: any) => `${props.name} ${props.percentage}%`}
-                    >
-                      {geoChartData.map((_, index) => (
-                        <Cell key={`geo-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      formatter={(value: number | undefined, name: string | undefined) => [
-                        `${(value ?? 0).toLocaleString()}회`,
-                        name ?? '',
-                      ]}
-                    />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-
-                {/* 해외 국가별 */}
-                {(geoStats?.topOverseasCountries ?? []).length > 0 && (
-                  <div>
-                    <p className="text-xs font-medium text-slate-500 mb-2">해외 접속 국가</p>
-                    <div className="space-y-1">
-                      {geoStats!.topOverseasCountries.slice(0, 5).map((c) => (
-                        <div key={c.country} className="flex justify-between text-xs">
-                          <span className="text-slate-600">{c.country}</span>
-                          <span className="font-medium">{c.count.toLocaleString()}회</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+            ) : koreaCitiesData.length === 0 ? (
+              <div className="h-64 flex items-center justify-center text-slate-400">
+                {geoStats?.korea.count === 0 ? '국내 접속 없음' : '도시 정보 없음 (로컬 환경)'}
               </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={koreaCitiesData} layout="vertical" margin={{ left: 8, right: 24 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis type="number" stroke="#64748b" fontSize={11} allowDecimals={false} />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    stroke="#64748b"
+                    fontSize={11}
+                    width={64}
+                  />
+                  <Tooltip
+                    formatter={(value: number | undefined) => [`${(value ?? 0).toLocaleString()}회`, '방문 수']}
+                    contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+                  />
+                  <Bar dataKey="count" fill="#10b981" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             )}
           </CardContent>
         </Card>
 
-        {/* 일별 방문 추이 */}
+        {/* 해외 접속 - 국가별 */}
         <Card className="border-0 shadow-md">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
-              <TrendingUp className="h-4 w-4 text-emerald-500" />
-              일별 방문 추이
+              <Globe className="h-4 w-4 text-orange-500" />
+              해외 접속 — 국가별
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {trendLoading ? (
+            {geoLoading ? (
               <div className="h-64 flex items-center justify-center text-slate-400">로딩 중...</div>
-            ) : (trend ?? []).length === 0 ? (
-              <div className="h-64 flex items-center justify-center text-slate-400">데이터 없음</div>
+            ) : overseasCountriesData.length === 0 ? (
+              <div className="h-64 flex items-center justify-center text-slate-400">해외 접속 없음</div>
             ) : (
-              <ResponsiveContainer width="100%" height={260}>
-                <LineChart data={trend} margin={{ left: 0, right: 8 }}>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={overseasCountriesData} layout="vertical" margin={{ left: 8, right: 24 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis
-                    dataKey="date"
+                  <XAxis type="number" stroke="#64748b" fontSize={11} allowDecimals={false} />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
                     stroke="#64748b"
-                    fontSize={10}
-                    tickFormatter={(v: string) => v.slice(5)} // MM-DD
+                    fontSize={11}
+                    width={64}
                   />
-                  <YAxis stroke="#64748b" fontSize={11} allowDecimals={false} />
                   <Tooltip
                     formatter={(value: number | undefined) => [`${(value ?? 0).toLocaleString()}회`, '방문 수']}
-                    labelFormatter={(label) => `날짜: ${label}`}
-                    contentStyle={{
-                      backgroundColor: 'white',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '8px',
-                    }}
+                    contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }}
                   />
-                  <Line
-                    type="monotone"
-                    dataKey="count"
-                    stroke="#10b981"
-                    strokeWidth={2}
-                    dot={{ r: 3, fill: '#10b981' }}
-                    activeDot={{ r: 5 }}
-                  />
-                </LineChart>
+                  <Bar dataKey="count" fill="#f97316" radius={[0, 4, 4, 0]} />
+                </BarChart>
               </ResponsiveContainer>
             )}
           </CardContent>
         </Card>
       </div>
+
+      {/* 방문 추이 (일별/월별/년도별) */}
+      <Card className="border-0 shadow-md">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <TrendingUp className="h-4 w-4 text-emerald-500" />
+              방문 추이
+            </CardTitle>
+            <div className="flex gap-1">
+              {(Object.keys(GRANULARITY_LABELS) as TrendGranularity[]).map((g) => (
+                <Button
+                  key={g}
+                  variant={granularity === g ? 'default' : 'outline'}
+                  size="sm"
+                  className="h-7 px-3 text-xs"
+                  onClick={() => setGranularity(g)}
+                >
+                  {GRANULARITY_LABELS[g]}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {trendLoading ? (
+            <div className="h-64 flex items-center justify-center text-slate-400">로딩 중...</div>
+          ) : (trend ?? []).length === 0 ? (
+            <div className="h-64 flex items-center justify-center text-slate-400">데이터 없음</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={trend} margin={{ left: 0, right: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis
+                  dataKey="date"
+                  stroke="#64748b"
+                  fontSize={10}
+                  tickFormatter={trendTickFormatter}
+                />
+                <YAxis stroke="#64748b" fontSize={11} allowDecimals={false} />
+                <Tooltip
+                  formatter={(value: number | undefined) => [`${(value ?? 0).toLocaleString()}회`, '방문 수']}
+                  labelFormatter={(label) => `${GRANULARITY_LABELS[granularity]}: ${label}`}
+                  contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="count"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  dot={{ r: 3, fill: '#10b981' }}
+                  activeDot={{ r: 5 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

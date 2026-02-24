@@ -28,7 +28,8 @@ export interface OsStat {
 export interface GeoStats {
   korea: { count: number; percentage: number };
   overseas: { count: number; percentage: number };
-  topOverseasCountries: Array<{ country: string; count: number }>;
+  topKoreaCities: Array<{ city: string | null; count: number }>;
+  topOverseasCountries: Array<{ country: string | null; count: number }>;
 }
 
 export interface TrendPoint {
@@ -71,10 +72,12 @@ export function useGeoStats(period: AnalyticsPeriod = '30d') {
   });
 }
 
-export function useAnalyticsTrend(period: AnalyticsPeriod = '30d') {
+export type TrendGranularity = 'daily' | 'monthly' | 'yearly';
+
+export function useAnalyticsTrend(period: AnalyticsPeriod = '30d', granularity: TrendGranularity = 'daily') {
   return useQuery({
-    queryKey: ['analytics', 'trend', period],
-    queryFn: () => api.get<TrendPoint[]>('/analytics/trend', { period }),
+    queryKey: ['analytics', 'trend', period, granularity],
+    queryFn: () => api.get<TrendPoint[]>('/analytics/trend', { period, granularity }),
     staleTime: STALE_TIME,
   });
 }
