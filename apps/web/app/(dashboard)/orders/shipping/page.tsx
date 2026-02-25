@@ -70,15 +70,15 @@ const DELIVERY_METHOD_LABELS: Record<string, string> = {
 
 /** 배송형태 라벨 */
 const FEE_TYPE_CONFIG: Record<string, { label: string; className: string }> = {
-  free: { label: '무료배송', className: 'bg-green-100 text-green-700' },
-  conditional: { label: '조건부무료', className: 'bg-yellow-100 text-yellow-700' },
-  standard: { label: '유료배송', className: 'bg-gray-100 text-gray-600' },
+  free: { label: '무료배송', className: 'bg-transparent text-green-700' },
+  conditional: { label: '조건부무료', className: 'bg-transparent text-yellow-700' },
+  standard: { label: '유료배송', className: 'bg-transparent text-gray-600' },
 };
 
 /** 운임구분 라벨 */
 const FARE_TYPE_CONFIG: Record<string, { label: string; className: string }> = {
-  prepaid: { label: '선불', className: 'bg-blue-100 text-blue-700' },
-  cod: { label: '착불', className: 'bg-red-100 text-red-700' },
+  prepaid: { label: '선불', className: 'bg-transparent text-blue-700' },
+  cod: { label: '착불', className: 'bg-transparent text-red-700' },
 };
 
 // ---------------------------------------------------------------------------
@@ -282,9 +282,9 @@ export default function ShippingManagementPage() {
   // 송장 상태 판별
   const getTrackingStatus = (order: Order) => {
     if (order.shipping?.trackingNumber) {
-      return { label: '준비완료', className: 'bg-blue-100 text-blue-700' };
+      return { label: '준비완료', className: 'bg-transparent text-blue-700' };
     }
-    return { label: '송장없음', className: 'bg-orange-100 text-orange-700' };
+    return { label: '송장없음', className: 'bg-transparent text-orange-700' };
   };
 
   // 택배사 이름 가져오기
@@ -337,7 +337,7 @@ export default function ShippingManagementPage() {
             <span className="hidden sm:inline">로젠 일괄발급</span>
             <span className="sm:hidden">자동발급</span>
             {selectedIds.size > 0 && (
-              <Badge variant="secondary" className="ml-1.5 bg-white/20 text-white">
+              <Badge variant="secondary" className="ml-1.5 bg-transparent text-white">
                 {selectedIds.size}
               </Badge>
             )}
@@ -347,7 +347,7 @@ export default function ShippingManagementPage() {
             <span className="hidden sm:inline">운송장 일괄출력</span>
             <span className="sm:hidden">출력</span>
             {selectedIds.size > 0 && (
-              <Badge variant="secondary" className="ml-1.5 bg-blue-100 text-blue-700">
+              <Badge variant="secondary" className="ml-1.5 bg-transparent text-blue-700">
                 {selectedIds.size}
               </Badge>
             )}
@@ -364,7 +364,7 @@ export default function ShippingManagementPage() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">배송준비</p>
-              <p className="text-xl font-bold">{stats.total}건</p>
+              <p className="text-xl font-normal">{stats.total}건</p>
             </div>
           </CardContent>
         </Card>
@@ -375,7 +375,7 @@ export default function ShippingManagementPage() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">송장없음</p>
-              <p className="text-xl font-bold text-orange-600">{stats.noTracking}건</p>
+              <p className="text-xl font-normal text-orange-600">{stats.noTracking}건</p>
             </div>
           </CardContent>
         </Card>
@@ -386,7 +386,7 @@ export default function ShippingManagementPage() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">준비완료</p>
-              <p className="text-xl font-bold text-blue-600">{stats.ready}건</p>
+              <p className="text-xl font-normal text-blue-600">{stats.ready}건</p>
             </div>
           </CardContent>
         </Card>
@@ -518,7 +518,7 @@ export default function ShippingManagementPage() {
                                 ? format(new Date(order.orderedAt), 'yy.MM.dd', { locale: ko })
                                 : '-'}
                             </div>
-                            <div className="font-medium text-sm">{order.orderNumber}</div>
+                            <div className="font-normal text-sm">{order.orderNumber}</div>
                           </TableCell>
                           <TableCell className="text-xs">
                             {order.client?.clientName ?? '-'}
@@ -568,7 +568,7 @@ export default function ShippingManagementPage() {
                                 </Badge>
                               )}
                               {Number(order.shipping?.deliveryFee) > 0 && (
-                                <span className="text-[11px] font-medium">
+                                <span className="text-[11px] font-normal">
                                   {Number(order.shipping?.deliveryFee).toLocaleString()}원
                                 </span>
                               )}
@@ -683,7 +683,7 @@ export default function ShippingManagementPage() {
                             checked={selectedIds.has(order.id)}
                             onCheckedChange={() => toggleSelect(order.id)}
                           />
-                          <span className="font-medium text-sm">
+                          <span className="font-normal text-sm">
                             {order.orderNumber}
                           </span>
                         </div>
