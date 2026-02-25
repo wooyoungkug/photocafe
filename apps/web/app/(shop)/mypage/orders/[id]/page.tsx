@@ -692,18 +692,20 @@ export default function OrderDetailPage() {
                 <CardTitle className="flex items-center gap-2">
                   <Truck className="h-5 w-5" />
                   배송 정보
-                  {order.shipping.receiverType && (
-                    <span className={`text-xs font-normal px-2 py-0.5 rounded-full ${order.shipping.receiverType === 'direct_customer' ? 'bg-pink-50 text-pink-600' : 'bg-blue-50 text-blue-600'}`}>
-                      {order.shipping.receiverType === 'direct_customer' ? '고객직배송' : '스튜디오배송'}
-                    </span>
-                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-start gap-3">
                   <User className="h-4 w-4 text-gray-400 mt-1" />
                   <div>
-                    <p className="text-sm text-gray-500">수령인</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-gray-500">수령인</p>
+                      {order.shipping.receiverType && (
+                        <span className={`text-xs font-normal px-2 py-0.5 rounded-full ${order.shipping.receiverType === 'direct_customer' ? 'bg-pink-50 text-pink-600' : 'bg-blue-50 text-blue-600'}`}>
+                          {order.shipping.receiverType === 'direct_customer' ? '고객직배송' : '스튜디오배송'}
+                        </span>
+                      )}
+                    </div>
                     <p className="font-normal">{order.shipping.recipientName}</p>
                   </div>
                 </div>
