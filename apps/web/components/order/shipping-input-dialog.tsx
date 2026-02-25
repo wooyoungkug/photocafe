@@ -50,7 +50,7 @@ export function ShippingInputDialog({
   currentCourierCode,
   currentTrackingNumber,
 }: Props) {
-  const [courierCode, setCourierCode] = useState(currentCourierCode ?? '');
+  const [courierCode, setCourierCode] = useState(currentCourierCode ?? '06'); // 기본: 로젠택배
   const [trackingNumber, setTrackingNumber] = useState(currentTrackingNumber ?? '');
 
   const { data: couriers = [] } = useCourierList();
@@ -61,7 +61,7 @@ export function ShippingInputDialog({
   // dialog 열릴 때 기존 값 초기화
   useEffect(() => {
     if (open) {
-      setCourierCode(currentCourierCode ?? '');
+      setCourierCode(currentCourierCode ?? '06'); // 기본: 로젠택배
       setTrackingNumber(currentTrackingNumber ?? '');
     }
   }, [open, currentCourierCode, currentTrackingNumber]);
