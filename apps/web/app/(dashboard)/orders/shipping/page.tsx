@@ -37,7 +37,6 @@ import {
 } from '@/components/ui/table';
 import { useShippingReady, useGenerateLabel, useDownloadLabel } from '@/hooks/use-shipping-mgmt';
 import { useCourierList } from '@/hooks/use-delivery-tracking';
-import { useDeliveryPricing } from '@/hooks/use-delivery-pricing';
 import { useLogenStatus, useGenerateLogenTracking, useBulkLogenTracking } from '@/hooks/use-logen';
 import {
   Dialog,
@@ -126,8 +125,6 @@ export default function ShippingManagementPage() {
     endDate: endDate || undefined,
   });
   const { data: couriers = [] } = useCourierList();
-  const { data: parcelPricing } = useDeliveryPricing('parcel');
-  const parcelBaseFee = Number(parcelPricing?.baseFee ?? 0);
   const generateLabel = useGenerateLabel();
   const downloadLabel = useDownloadLabel();
   const { printLabel, preferences: printerPrefs } = usePrinter();
@@ -507,9 +504,7 @@ export default function ShippingManagementPage() {
                       const deliveryFee =
                         order.shipping?.deliveryFee != null
                           ? Number(order.shipping.deliveryFee)
-                          : order.shipping?.courierCode || order.shipping?.deliveryMethod
-                          ? parcelBaseFee
-                          : 0;
+                          : order.shippingFee ?? 0;
                       const effectiveFeeTypeKey =
                         feeTypeKey === 'conditional' && deliveryFee > 0 ? 'standard' : feeTypeKey;
                       const feeType = FEE_TYPE_CONFIG[effectiveFeeTypeKey] ?? FEE_TYPE_CONFIG.standard;
