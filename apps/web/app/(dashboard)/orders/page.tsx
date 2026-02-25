@@ -7,7 +7,6 @@ import {
   Search,
   FileText,
   Eye,
-  Receipt,
   ChevronLeft,
   ChevronRight,
   ExternalLink,
@@ -494,10 +493,6 @@ export default function OrderListPage() {
                                   상세보기
                                 </Button>
                               </Link>
-                              <Button variant="ghost" size="sm" className="w-full text-xs h-7 text-muted-foreground">
-                                <Receipt className="h-3 w-3 mr-1" />
-                                거래명세
-                              </Button>
                               {(order.status === 'ready_for_shipping' || order.status === 'shipped') && (
                                 <Button
                                   variant="ghost"
