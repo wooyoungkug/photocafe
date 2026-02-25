@@ -1,19 +1,10 @@
 'use client';
 
-import { Copy, RefreshCw, ExternalLink } from 'lucide-react';
+import { Copy, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useDeliveryTracking } from '@/hooks/use-delivery-tracking';
 import { toast } from '@/hooks/use-toast';
-
-/** 택배사 코드 → 직접 조회 URL */
-const DIRECT_TRACKING_URLS: Record<string, (no: string) => string> = {
-  '01': (no) => `https://service.epost.go.kr/trace.RetrieveDomRi498.postal?sid1=${no}`,
-  '04': (no) => `https://trace.cjlogistics.com/next/tracking.html?wblNo=${no}`,
-  '05': (no) => `https://www.hanjin.com/kor/CMS/DeliveryMgr/WaybillResult.do?wblnumText2=${no}`,
-  '06': (no) => `https://www.ilogen.com/web/personal/trace/${no}`,
-  '08': (no) => `https://www.lotteglogis.com/home/reservation/tracking/index?InvNo=${no}`,
-};
 
 // 스마트택배 level → 단계 라벨
 const TRACKING_STEPS = [
@@ -68,7 +59,6 @@ export function TrackingTimeline({ courierCode, trackingNumber }: Props) {
 
   if (isError) {
     const msg = (error as { message?: string })?.message;
-    const directUrl = DIRECT_TRACKING_URLS[courierCode]?.(trackingNumber);
     return (
       <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 text-sm text-orange-700 space-y-3">
         <div className="flex items-center justify-between">
@@ -77,17 +67,6 @@ export function TrackingTimeline({ courierCode, trackingNumber }: Props) {
             <RefreshCw className={cn('h-3.5 w-3.5', isFetching && 'animate-spin')} />
           </Button>
         </div>
-        {directUrl && (
-          <a
-            href={directUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-colors"
-          >
-            <ExternalLink className="h-3.5 w-3.5" />
-            택배사에서 직접 조회
-          </a>
-        )}
       </div>
     );
   }
