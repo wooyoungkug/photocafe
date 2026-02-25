@@ -181,7 +181,7 @@ export class LogenService {
         order.shipping.addressDetail,
       ),
       rcvTelNo: (order.shipping.phone || '').replace(/\D/g, ''),
-      fareTy: '030', // 선불
+      fareTy: order.shipping.fareType === 'cod' ? '060' : '030', // 착불:060, 선불:030
       qty: 1,
       dlvFare: Number(order.shipping.deliveryFee) || 0,
       goodsNm,

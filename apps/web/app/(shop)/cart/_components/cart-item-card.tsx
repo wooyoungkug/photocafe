@@ -77,7 +77,11 @@ export const getCartShippingSummary = (info: CartShippingInfo): string => {
   if (info.deliveryMethod === 'pickup') return methodLabel;
   const senderLabel = info.senderType === 'company' ? '회사' : '주문자';
   const receiverLabel = info.receiverType === 'orderer' ? '스튜디오' : '고객직배송';
-  const feeLabel = info.deliveryFee === 0 ? '무료' : `${info.deliveryFee.toLocaleString()}원`;
+  const feeLabel = info.deliveryFee === 0
+    ? '무료'
+    : info.fareType === 'cod'
+      ? `${info.deliveryFee.toLocaleString()}원/착불`
+      : `${info.deliveryFee.toLocaleString()}원`;
   return `${methodLabel} · ${senderLabel}→${receiverLabel} · ${feeLabel}`;
 };
 

@@ -199,6 +199,7 @@ export interface FolderShippingInfo {
   deliveryMethod: FolderDeliveryMethod;
   deliveryFee: number;
   deliveryFeeType: string; // 'free' | 'conditional' | 'standard'
+  fareType?: string;       // 'prepaid' | 'cod' (선불/착불)
 
   // 배송 메모
   deliveryMemo?: string;

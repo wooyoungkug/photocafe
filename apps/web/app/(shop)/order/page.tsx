@@ -80,6 +80,7 @@ const folderToCartShipping = (s: FolderShippingInfo): CartShippingInfo => ({
   deliveryMethod: s.deliveryMethod,
   deliveryFee: s.deliveryFee,
   deliveryFeeType: s.deliveryFeeType,
+  fareType: s.fareType,
 });
 
 // CartShippingInfo → 백엔드 DTO 필드명 매핑
@@ -99,6 +100,7 @@ const toShippingDto = (s: CartShippingInfo) => ({
   deliveryMethod: s.deliveryMethod,
   deliveryFee: s.deliveryFee,
   deliveryFeeType: s.deliveryFeeType,
+  fareType: s.fareType,
 });
 
 export default function OrderPage() {

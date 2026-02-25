@@ -41,6 +41,7 @@ export interface CartShippingInfo {
   deliveryMethod: string;
   deliveryFee: number;
   deliveryFeeType: string;
+  fareType?: string;       // 'prepaid' | 'cod' (선불/착불)
   deliveryMemo?: string;
 }
 

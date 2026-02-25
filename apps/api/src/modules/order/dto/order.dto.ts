@@ -164,6 +164,11 @@ export class OrderItemShippingDto {
   @IsOptional()
   @IsString()
   deliveryFeeType?: string;
+
+  @ApiPropertyOptional({ description: '운임구분', enum: ['prepaid', 'cod'] })
+  @IsOptional()
+  @IsString()
+  fareType?: string;
 }
 
 // ==================== 주문 항목 DTO ====================
@@ -375,6 +380,11 @@ export class OrderShippingDto {
   @IsOptional()
   @IsString()
   deliveryFeeType?: string;
+
+  @ApiPropertyOptional({ description: '운임구분', enum: ['prepaid', 'cod'] })
+  @IsOptional()
+  @IsString()
+  fareType?: string;
 }
 
 // ==================== 주문 생성 DTO ====================

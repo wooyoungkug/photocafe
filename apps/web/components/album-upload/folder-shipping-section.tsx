@@ -61,6 +61,7 @@ export function FolderShippingSection({
   const [directAddress, setDirectAddress] = useState(shippingInfo?.receiverType === 'direct_customer' ? shippingInfo?.recipientAddress || '' : '');
   const [directAddressDetail, setDirectAddressDetail] = useState(shippingInfo?.receiverType === 'direct_customer' ? shippingInfo?.recipientAddressDetail || '' : '');
   const [deliveryMemo, setDeliveryMemo] = useState(shippingInfo?.deliveryMemo || '');
+  const [fareType, setFareType] = useState<string>(shippingInfo?.fareType || 'prepaid');
 
   // 배송비 계산
   const calculateDeliveryFee = useCallback(
@@ -172,10 +173,11 @@ export function FolderShippingSection({
       deliveryMethod,
       deliveryFee: fee,
       deliveryFeeType: feeType,
+      fareType: (deliveryMethod === 'parcel' && fee > 0) ? fareType : undefined,
       deliveryMemo: deliveryMemo || undefined,
     });
   }, [
-    senderType, receiverType, deliveryMethod,
+    senderType, receiverType, deliveryMethod, fareType,
     companyInfo, clientInfo,
     directRecipientName, directPhone, directPhone2, directAddress, directAddressDetail,
     deliveryMemo, calculateDeliveryFee, onChange,
@@ -184,7 +186,7 @@ export function FolderShippingSection({
   // 상태 변경 시 자동 emit
   useEffect(() => {
     emitChange();
-  }, [senderType, receiverType, deliveryMethod, directRecipientName, directPhone, directPhone2, directAddress, directAddressDetail, deliveryMemo, studioTotal]);
+  }, [senderType, receiverType, deliveryMethod, fareType, directRecipientName, directPhone, directPhone2, directAddress, directAddressDetail, deliveryMemo, studioTotal]);
 
   // 배송지가 고객직배송이면 방문수령 비활성
   const availableMethods = receiverType === 'direct_customer'
@@ -200,7 +202,14 @@ export function FolderShippingSection({
 
   const { fee } = calculateDeliveryFee(deliveryMethod, receiverType);
   const isThisCombined = isCombinedShipping && receiverType === 'orderer' && deliveryMethod !== 'pickup';
-  const feeLabel = isThisCombined ? '무료(묶음배송)' : fee === 0 ? '무료' : `${fee.toLocaleString()}원`;
+  const showFareType = deliveryMethod === 'parcel' && fee > 0;
+  const feeLabel = isThisCombined
+    ? '무료(묶음배송)'
+    : fee === 0
+      ? '무료'
+      : fareType === 'cod'
+        ? `${fee.toLocaleString()}원 (착불)`
+        : `${fee.toLocaleString()}원`;
 
   const parcelFreeThreshold = clientInfo?.freeShippingThreshold
     ?? (pricingMap['parcel']?.freeThreshold != null ? Number(pricingMap['parcel'].freeThreshold) : 90000);
@@ -380,6 +389,34 @@ export function FolderShippingSection({
         </div>
       </div>
 
+      {/* 운임구분 (택배 + 유료배송일 때만) */}
+      {showFareType && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <Package className="h-3.5 w-3.5" />
+            운임구분
+          </div>
+          <RadioGroup
+            value={fareType}
+            onValueChange={setFareType}
+            className="flex gap-4"
+          >
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="prepaid" id={`fare-prepaid-${shippingInfo?.deliveryMethod}`} />
+              <Label htmlFor={`fare-prepaid-${shippingInfo?.deliveryMethod}`} className="text-sm cursor-pointer">
+                선불 <span className="text-xs text-gray-500">(발송인 부담)</span>
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="cod" id={`fare-cod-${shippingInfo?.deliveryMethod}`} />
+              <Label htmlFor={`fare-cod-${shippingInfo?.deliveryMethod}`} className="text-sm cursor-pointer">
+                착불 <span className="text-xs text-gray-500">(수령인 부담)</span>
+              </Label>
+            </div>
+          </RadioGroup>
+        </div>
+      )}
+
       {/* 배송메모 */}
       <div className="space-y-2">
         <div className="flex items-center gap-2 text-sm font-medium">
@@ -411,7 +448,11 @@ export function getShippingSummary(info?: FolderShippingInfo): string {
 
   const senderLabel = info.senderType === 'company' ? '회사' : '주문자';
   const receiverLabel = info.receiverType === 'orderer' ? '스튜디오' : '고객직배송';
-  const feeLabel = info.deliveryFee === 0 ? '무료' : `${info.deliveryFee.toLocaleString()}원`;
+  const feeLabel = info.deliveryFee === 0
+    ? '무료'
+    : info.fareType === 'cod'
+      ? `${info.deliveryFee.toLocaleString()}원/착불`
+      : `${info.deliveryFee.toLocaleString()}원`;
 
   return `[${methodLabel}] ${senderLabel} → ${receiverLabel} (${feeLabel})`;
 }

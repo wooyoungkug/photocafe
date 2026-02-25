@@ -166,12 +166,15 @@ export default function CartPage() {
       receiverType: shipping.receiverType,
       recipientName: shipping.recipientName,
       recipientPhone: shipping.recipientPhone,
+      recipientPhone2: shipping.recipientPhone2,
       recipientPostalCode: shipping.recipientPostalCode,
       recipientAddress: shipping.recipientAddress,
       recipientAddressDetail: shipping.recipientAddressDetail,
       deliveryMethod: shipping.deliveryMethod,
       deliveryFee: shipping.deliveryFee,
       deliveryFeeType: shipping.deliveryFeeType,
+      fareType: shipping.fareType,
+      deliveryMemo: shipping.deliveryMemo,
     };
     updateItemShipping(itemId, cartShipping);
     if (isShippingComplete(cartShipping) && !selectedItems.includes(itemId)) {

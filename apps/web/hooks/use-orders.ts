@@ -86,6 +86,7 @@ export interface OrderShipping {
   deliveryMethod?: string;
   deliveryFee?: number;
   deliveryFeeType?: string;
+  fareType?: string;
   courierCode?: string;
   trackingNumber?: string;
   shippedAt?: string;
