@@ -75,6 +75,12 @@ const FEE_TYPE_CONFIG: Record<string, { label: string; className: string }> = {
   standard: { label: '유료배송', className: 'bg-gray-100 text-gray-600' },
 };
 
+/** 운임구분 라벨 */
+const FARE_TYPE_CONFIG: Record<string, { label: string; className: string }> = {
+  prepaid: { label: '선불', className: 'bg-blue-100 text-blue-700' },
+  cod: { label: '착불', className: 'bg-red-100 text-red-700' },
+};
+
 // ---------------------------------------------------------------------------
 // Page Component
 // ---------------------------------------------------------------------------
@@ -551,6 +557,11 @@ export default function ShippingManagementPage() {
                               <Badge variant="secondary" className={cn('text-[10px] px-1 py-0 w-fit', feeType.className)}>
                                 {feeType.label}
                               </Badge>
+                              {order.shipping?.fareType && FARE_TYPE_CONFIG[order.shipping.fareType] && (
+                                <Badge variant="secondary" className={cn('text-[10px] px-1 py-0 w-fit', FARE_TYPE_CONFIG[order.shipping.fareType].className)}>
+                                  {FARE_TYPE_CONFIG[order.shipping.fareType].label}
+                                </Badge>
+                              )}
                               {Number(order.shipping?.deliveryFee) > 0 && (
                                 <span className="text-[10px] text-muted-foreground">
                                   {Number(order.shipping?.deliveryFee).toLocaleString()}원
@@ -702,6 +713,11 @@ export default function ShippingManagementPage() {
                           {order.shipping?.bundleId && (
                             <Badge variant="secondary" className="text-[10px] px-1 py-0 bg-purple-100 text-purple-700">
                               묶음배송
+                            </Badge>
+                          )}
+                          {order.shipping?.fareType && FARE_TYPE_CONFIG[order.shipping.fareType] && (
+                            <Badge variant="secondary" className={cn('text-[10px] px-1 py-0', FARE_TYPE_CONFIG[order.shipping.fareType].className)}>
+                              {FARE_TYPE_CONFIG[order.shipping.fareType].label}
                             </Badge>
                           )}
                         </div>

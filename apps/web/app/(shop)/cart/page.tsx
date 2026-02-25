@@ -208,12 +208,15 @@ export default function CartPage() {
           receiverType: prevShipping.receiverType,
           recipientName: prevShipping.recipientName,
           recipientPhone: prevShipping.recipientPhone,
+          recipientPhone2: prevShipping.recipientPhone2,
           recipientPostalCode: prevShipping.recipientPostalCode,
           recipientAddress: prevShipping.recipientAddress,
           recipientAddressDetail: prevShipping.recipientAddressDetail,
           deliveryMethod: prevShipping.deliveryMethod,
           deliveryFee: prevShipping.deliveryFee,
           deliveryFeeType: prevShipping.deliveryFeeType,
+          fareType: prevShipping.fareType,
+          deliveryMemo: prevShipping.deliveryMemo,
         };
         updateItemShipping(itemId, cartShipping);
         if (!selectedItems.includes(itemId)) {
@@ -236,12 +239,15 @@ export default function CartPage() {
       receiverType: shipping.receiverType,
       recipientName: shipping.recipientName,
       recipientPhone: shipping.recipientPhone,
+      recipientPhone2: shipping.recipientPhone2,
       recipientPostalCode: shipping.recipientPostalCode,
       recipientAddress: shipping.recipientAddress,
       recipientAddressDetail: shipping.recipientAddressDetail,
       deliveryMethod: shipping.deliveryMethod,
       deliveryFee: shipping.deliveryFee,
       deliveryFeeType: shipping.deliveryFeeType,
+      fareType: shipping.fareType,
+      deliveryMemo: shipping.deliveryMemo,
     };
     updateAllItemsShipping(cartShipping);
     setSelectedItems(items.map((i) => i.id));
@@ -291,6 +297,8 @@ export default function CartPage() {
     for (const item of selectedCartItems) {
       const sh = item.albumOrderInfo?.shippingInfo || item.shippingInfo;
       if (!sh || sh.deliveryMethod === 'pickup') continue;
+      // 착불(cod)은 수령인이 직접 지불 → 주문 금액에 포함하지 않음
+      if (sh.fareType === 'cod') continue;
 
       if (sh.receiverType === 'direct_customer') {
         // 고객직배송: 조건 없이 항목별 청구
