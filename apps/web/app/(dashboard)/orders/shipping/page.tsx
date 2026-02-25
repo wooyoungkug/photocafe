@@ -543,14 +543,14 @@ export default function ShippingManagementPage() {
                               </span>
                             )}
                           </TableCell>
-                          <TableCell className="text-xs">
+                          <TableCell className="text-xs whitespace-nowrap">
                             <div className="flex flex-col">
                               <span>
                                 {DELIVERY_METHOD_LABELS[order.shipping?.deliveryMethod ?? ''] ??
                                   getCourierName(order.shipping?.courierCode)}
                               </span>
                               {order.shipping?.fareType && FARE_TYPE_CONFIG[order.shipping.fareType] && (
-                                <span className={cn('text-[10px] font-normal', order.shipping.fareType === 'prepaid' ? 'text-blue-700' : 'text-red-700')}>
+                                <span className="text-gray-900">
                                   {FARE_TYPE_CONFIG[order.shipping.fareType].label}
                                 </span>
                               )}
@@ -563,7 +563,7 @@ export default function ShippingManagementPage() {
                                   묶음배송
                                 </Badge>
                               )}
-                              <Badge variant="secondary" className={cn('text-[10px] px-1 py-0 w-fit', feeType.className)}>
+                              <Badge variant="secondary" className={cn('text-[10px] px-1 py-0 w-fit whitespace-nowrap', feeType.className)}>
                                 {feeType.label}
                               </Badge>
                               {Number(order.shipping?.deliveryFee) > 0 && (
