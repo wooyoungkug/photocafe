@@ -568,7 +568,7 @@ export default function ShippingManagementPage() {
                               {DELIVERY_METHOD_LABELS[order.shipping?.deliveryMethod ?? ''] ??
                                 getCourierName(order.shipping?.courierCode)}
                             </span>
-                            {order.shipping?.fareType && FARE_TYPE_CONFIG[order.shipping.fareType] && (
+                            {deliveryFee > 0 && order.shipping?.fareType && FARE_TYPE_CONFIG[order.shipping.fareType] && (
                               <span className={cn('ml-0.5', FARE_TYPE_CONFIG[order.shipping.fareType].className)}>
                                 {FARE_TYPE_CONFIG[order.shipping.fareType].label}
                               </span>
@@ -756,7 +756,7 @@ export default function ShippingManagementPage() {
                               묶음배송
                             </Badge>
                           )}
-                          {order.shipping?.fareType && FARE_TYPE_CONFIG[order.shipping.fareType] && (
+                          {(order.shippingFee ?? 0) > 0 && order.shipping?.fareType && FARE_TYPE_CONFIG[order.shipping.fareType] && (
                             <Badge variant="secondary" className={cn('text-[10px] px-1 py-0', FARE_TYPE_CONFIG[order.shipping.fareType].className)}>
                               {FARE_TYPE_CONFIG[order.shipping.fareType].label}
                             </Badge>
