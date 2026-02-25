@@ -150,6 +150,12 @@ export class OrderController {
     return this.orderService.checkDuplicateOrders(dto.clientId, dto.folderNames);
   }
 
+  @Post('sync-current-process')
+  @ApiOperation({ summary: 'currentProcess 일괄 동기화 (status 기반)' })
+  async syncCurrentProcess() {
+    return this.orderService.syncCurrentProcess();
+  }
+
   @Get(':id/history')
   @ApiOperation({ summary: '주문 공정 이력 조회' })
   async getProcessHistory(@Param('id') id: string) {
@@ -238,12 +244,6 @@ export class OrderController {
   @ApiOperation({ summary: '주문 삭제' })
   async delete(@Param('id') id: string) {
     return this.orderService.delete(id);
-  }
-
-  @Post('sync-current-process')
-  @ApiOperation({ summary: 'currentProcess 일괄 동기화 (status 기반)' })
-  async syncCurrentProcess() {
-    return this.orderService.syncCurrentProcess();
   }
 
   // ==================== 파일검수 관련 ====================
