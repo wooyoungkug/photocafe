@@ -141,9 +141,8 @@ export default function MonthlySummaryPage() {
       const date = format(new Date(order.orderedAt), 'yyyy-MM-dd');
       if (!map.has(date)) map.set(date, []);
       const arr = map.get(date)!;
-      const stage = PROCESS_STAGES[order.currentProcess as keyof typeof PROCESS_STAGES];
-      const name = stage?.name || order.currentProcess;
-      const category = stage?.category || 'reception';
+      const name = getProcessLabel(order.currentProcess);
+      const category = getProcessCategory(order.currentProcess);
       const existing = arr.find((item) => item.name === name);
       if (existing) {
         existing.count++;

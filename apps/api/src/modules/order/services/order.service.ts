@@ -726,6 +726,7 @@ export class OrderService {
         where: { id },
         data: {
           status: ORDER_STATUS.SHIPPED,
+          currentProcess: 'delivered',
           processHistory: {
             create: {
               fromStatus: order.status,
@@ -751,6 +752,7 @@ export class OrderService {
       where: { id },
       data: {
         status: ORDER_STATUS.CANCELLED,
+        currentProcess: 'order_cancelled',
         processHistory: {
           create: {
             fromStatus: order.status,
