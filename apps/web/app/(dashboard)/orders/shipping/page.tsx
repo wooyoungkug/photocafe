@@ -520,10 +520,10 @@ export default function ShippingManagementPage() {
                             </div>
                             <div className="font-normal text-sm">{order.orderNumber}</div>
                           </TableCell>
-                          <TableCell className="text-xs text-center">
+                          <TableCell className="text-xs text-center whitespace-nowrap">
                             {order.client?.clientName ?? '-'}
                           </TableCell>
-                          <TableCell className="text-xs text-center">
+                          <TableCell className="text-xs text-center whitespace-nowrap">
                             {hasSenderIssue ? (
                               <span className="text-red-500">미입력</span>
                             ) : (
@@ -532,7 +532,7 @@ export default function ShippingManagementPage() {
                               </span>
                             )}
                           </TableCell>
-                          <TableCell className="text-xs text-center">
+                          <TableCell className="text-xs text-center whitespace-nowrap">
                             {order.shipping?.recipientName ?? '-'}
                           </TableCell>
                           <TableCell className="text-xs text-center whitespace-nowrap">
@@ -548,17 +548,15 @@ export default function ShippingManagementPage() {
                             )}
                           </TableCell>
                           <TableCell className="text-xs text-center whitespace-nowrap">
-                            <div className="flex flex-col items-center">
-                              <span>
-                                {DELIVERY_METHOD_LABELS[order.shipping?.deliveryMethod ?? ''] ??
-                                  getCourierName(order.shipping?.courierCode)}
+                            <span>
+                              {DELIVERY_METHOD_LABELS[order.shipping?.deliveryMethod ?? ''] ??
+                                getCourierName(order.shipping?.courierCode)}
+                            </span>
+                            {order.shipping?.fareType && FARE_TYPE_CONFIG[order.shipping.fareType] && (
+                              <span className={cn('ml-0.5', FARE_TYPE_CONFIG[order.shipping.fareType].className)}>
+                                {FARE_TYPE_CONFIG[order.shipping.fareType].label}
                               </span>
-                              {order.shipping?.fareType && FARE_TYPE_CONFIG[order.shipping.fareType] && (
-                                <span className="text-gray-900">
-                                  {FARE_TYPE_CONFIG[order.shipping.fareType].label}
-                                </span>
-                              )}
-                            </div>
+                            )}
                           </TableCell>
                           <TableCell className="text-xs text-center">
                             <div className="flex flex-col gap-0.5 items-center">
