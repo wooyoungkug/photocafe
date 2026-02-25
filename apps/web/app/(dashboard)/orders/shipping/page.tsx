@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   MapPin,
+  Zap,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -36,6 +37,7 @@ import {
 } from '@/components/ui/table';
 import { useShippingReady, useGenerateLabel, useDownloadLabel } from '@/hooks/use-shipping-mgmt';
 import { useCourierList } from '@/hooks/use-delivery-tracking';
+import { useLogenStatus, useGenerateLogenTracking, useBulkLogenTracking } from '@/hooks/use-logen';
 import {
   Dialog,
   DialogContent,
@@ -110,6 +112,9 @@ export default function ShippingManagementPage() {
   const { data: couriers = [] } = useCourierList();
   const generateLabel = useGenerateLabel();
   const downloadLabel = useDownloadLabel();
+  const { data: logenStatus } = useLogenStatus();
+  const generateLogen = useGenerateLogenTracking();
+  const bulkLogen = useBulkLogenTracking();
 
   const orders = data?.data ?? [];
   const meta = data?.meta ?? { total: 0, page: 1, limit, totalPages: 0 };
@@ -163,6 +168,52 @@ export default function ShippingManagementPage() {
     },
     [generateLabel, downloadLabel]
   );
+
+  // 로젠 단건 자동발급
+  const handleLogenGenerate = useCallback(
+    async (orderId: string) => {
+      try {
+        const result = await generateLogen.mutateAsync(orderId);
+        if (result.alreadyExists) {
+          toast({ title: `이미 송장번호가 있습니다: ${result.trackingNumber}` });
+        } else {
+          toast({ title: `로젠택배 송장 발급 완료: ${result.trackingNumber}` });
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : '송장 자동발급에 실패했습니다.';
+        toast({ title: msg, variant: 'destructive' });
+      }
+    },
+    [generateLogen]
+  );
+
+  // 로젠 일괄 자동발급
+  const handleBulkLogenGenerate = async () => {
+    if (selectedIds.size === 0) {
+      toast({ title: '발급할 주문을 선택해주세요.', variant: 'destructive' });
+      return;
+    }
+    // 송장 없는 주문만 필터
+    const idsWithoutTracking = orders
+      .filter((o) => selectedIds.has(o.id) && !o.shipping?.trackingNumber)
+      .map((o) => o.id);
+
+    if (idsWithoutTracking.length === 0) {
+      toast({ title: '선택한 주문에 이미 모두 송장이 있습니다.' });
+      return;
+    }
+
+    try {
+      const result = await bulkLogen.mutateAsync(idsWithoutTracking);
+      toast({
+        title: `${result.successCount}/${result.total}건 송장 발급 완료`,
+      });
+      setSelectedIds(new Set());
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '일괄 발급에 실패했습니다.';
+      toast({ title: msg, variant: 'destructive' });
+    }
+  };
 
   // 일괄 운송장 출력
   const handleBulkPrint = async () => {
@@ -220,6 +271,26 @@ export default function ShippingManagementPage() {
             <span className="hidden sm:inline">묶음배송 감지</span>
             <span className="sm:hidden">묶음</span>
           </Button>
+          {logenStatus?.configured && (
+            <Button
+              variant="default"
+              onClick={handleBulkLogenGenerate}
+              disabled={selectedIds.size === 0 || bulkLogen.isPending}
+            >
+              {bulkLogen.isPending ? (
+                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+              ) : (
+                <Zap className="h-4 w-4 mr-1.5" />
+              )}
+              <span className="hidden sm:inline">로젠 일괄발급</span>
+              <span className="sm:hidden">자동발급</span>
+              {selectedIds.size > 0 && (
+                <Badge variant="secondary" className="ml-1.5 bg-white/20 text-white">
+                  {selectedIds.size}
+                </Badge>
+              )}
+            </Button>
+          )}
           <Button variant="outline" onClick={handleBulkPrint} disabled={selectedIds.size === 0}>
             <Printer className="h-4 w-4 mr-1.5" />
             <span className="hidden sm:inline">운송장 일괄출력</span>
@@ -417,6 +488,22 @@ export default function ShippingManagementPage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center justify-end gap-1">
+                              {logenStatus?.configured && !order.shipping?.trackingNumber && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 px-2 text-xs text-green-600 hover:text-green-700"
+                                  onClick={() => handleLogenGenerate(order.id)}
+                                  disabled={generateLogen.isPending}
+                                >
+                                  {generateLogen.isPending ? (
+                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                  ) : (
+                                    <Zap className="h-3 w-3 mr-1" />
+                                  )}
+                                  자동발급
+                                </Button>
+                              )}
                               <Button
                                 size="sm"
                                 variant="ghost"
@@ -522,6 +609,18 @@ export default function ShippingManagementPage() {
                       </div>
 
                       <div className="flex gap-2 pt-1">
+                        {logenStatus?.configured && !order.shipping?.trackingNumber && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 h-8 text-xs text-green-600"
+                            onClick={() => handleLogenGenerate(order.id)}
+                            disabled={generateLogen.isPending}
+                          >
+                            <Zap className="h-3 w-3 mr-1" />
+                            자동발급
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="outline"

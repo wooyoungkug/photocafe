@@ -18,9 +18,19 @@ export interface TrackingInfo {
 
 @Injectable()
 export class TrackingService {
+  /** 인메모리 캐시: key = "courierCode:trackingNumber" */
+  private cache = new Map<string, { data: TrackingInfo; expiresAt: number }>();
+  private readonly CACHE_TTL_MS = 30 * 60 * 1000; // 30분
+
   constructor(private readonly configService: ConfigService) {}
 
   async getTrackingInfo(courierCode: string, trackingNumber: string): Promise<TrackingInfo> {
+    // 캐시 확인
+    const cacheKey = `${courierCode}:${trackingNumber}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.data;
+    }
     const apiKey = this.configService.get<string>('SWEETTRACKER_API_KEY');
 
     if (!apiKey) {
@@ -66,7 +76,7 @@ export class TrackingService {
       );
     }
 
-    return {
+    const result: TrackingInfo = {
       courierName: data.companyName || '',
       invoiceNo: data.invoiceNo || trackingNumber,
       level: Number(data.level) || 0,
@@ -78,5 +88,13 @@ export class TrackingService {
         time: d.when || '',
       })),
     };
+
+    // 캐시 저장
+    this.cache.set(cacheKey, {
+      data: result,
+      expiresAt: Date.now() + this.CACHE_TTL_MS,
+    });
+
+    return result;
   }
 }

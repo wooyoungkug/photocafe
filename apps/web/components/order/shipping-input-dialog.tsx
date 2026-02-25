@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Truck, Package } from 'lucide-react';
+import { Truck, Package, Zap, Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/select';
 import { useUpdateShipping } from '@/hooks/use-orders';
 import { useCourierList } from '@/hooks/use-delivery-tracking';
+import { useLogenStatus, useGenerateLogenTracking } from '@/hooks/use-logen';
 import { TrackingTimeline } from './tracking-timeline';
 import { toast } from '@/hooks/use-toast';
 
@@ -47,6 +48,8 @@ export function ShippingInputDialog({
 
   const { data: couriers = [] } = useCourierList();
   const updateShipping = useUpdateShipping();
+  const { data: logenStatus } = useLogenStatus();
+  const generateLogen = useGenerateLogenTracking();
 
   // dialog 열릴 때 기존 값 초기화
   useEffect(() => {
@@ -78,9 +81,29 @@ export function ShippingInputDialog({
     );
   };
 
+  const handleLogenGenerate = async () => {
+    try {
+      const result = await generateLogen.mutateAsync(orderId);
+      if (result.alreadyExists) {
+        toast({ title: `이미 송장번호가 있습니다: ${result.trackingNumber}` });
+      } else {
+        toast({ title: `로젠택배 송장 발급 완료: ${result.trackingNumber}` });
+      }
+      // 발급된 값으로 필드 업데이트
+      setCourierCode('06');
+      setTrackingNumber(result.trackingNumber);
+      setShowTracking(true);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '송장 자동발급에 실패했습니다.';
+      toast({ title: msg, variant: 'destructive' });
+    }
+  };
+
   const hasChanges =
     courierCode !== (currentCourierCode ?? '') ||
     trackingNumber.trim() !== (currentTrackingNumber ?? '');
+
+  const showAutoGenerate = logenStatus?.configured && !currentTrackingNumber;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -93,6 +116,23 @@ export function ShippingInputDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* 로젠 자동발급 버튼 */}
+          {showAutoGenerate && (
+            <Button
+              variant="outline"
+              className="w-full border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
+              onClick={handleLogenGenerate}
+              disabled={generateLogen.isPending}
+            >
+              {generateLogen.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Zap className="h-4 w-4 mr-2" />
+              )}
+              {generateLogen.isPending ? '발급 중...' : '로젠택배 자동발급'}
+            </Button>
+          )}
+
           {/* 택배사 선택 */}
           <div className="space-y-1.5">
             <Label>택배사</Label>
