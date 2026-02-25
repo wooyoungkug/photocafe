@@ -89,15 +89,27 @@ export function ShippingEditWithFeeDialog({
     isCashClient ? 'bank_transfer' : 'credit'
   );
   const [result, setResult] = useState<UpdateShippingWithFeeResult | null>(null);
+  // 고객 직배송 ↔ 스튜디오 배송 전환 시 이전 입력값 보존
+  const [savedDirectCustomerForm, setSavedDirectCustomerForm] = useState<Omit<FormState, 'receiverType'> | null>(
+    shipping?.receiverType === 'direct_customer'
+      ? { recipientName: shipping.recipientName, phone: shipping.phone, postalCode: shipping.postalCode, address: shipping.address, addressDetail: shipping.addressDetail ?? '', deliveryMemo: shipping.deliveryMemo ?? '' }
+      : null
+  );
 
   const updateShippingWithFee = useUpdateShippingWithFee();
 
   useEffect(() => {
     if (open) {
       setStep('form');
-      setForm(toFormState(shipping));
+      const initial = toFormState(shipping);
+      setForm(initial);
       setPaymentMethod(isCashClient ? 'bank_transfer' : 'credit');
       setResult(null);
+      setSavedDirectCustomerForm(
+        shipping?.receiverType === 'direct_customer'
+          ? { recipientName: shipping.recipientName, phone: shipping.phone, postalCode: shipping.postalCode, address: shipping.address, addressDetail: shipping.addressDetail ?? '', deliveryMemo: shipping.deliveryMemo ?? '' }
+          : null
+      );
     }
   }, [open, shipping]);
 
@@ -177,17 +189,33 @@ export function ShippingEditWithFeeDialog({
                 value={form.receiverType}
                 onValueChange={(v) => {
                   if (v === 'direct_customer') {
-                    setForm((prev) => ({
-                      ...prev,
-                      receiverType: v,
-                      recipientName: '',
-                      phone: '',
-                      postalCode: '',
-                      address: '',
-                      addressDetail: '',
-                      deliveryMemo: '',
-                    }));
+                    // 이전에 입력했던 고객 직배송 주소가 있으면 복원, 없으면 초기화
+                    if (savedDirectCustomerForm) {
+                      setForm({ receiverType: 'direct_customer', ...savedDirectCustomerForm });
+                    } else {
+                      setForm((prev) => ({
+                        ...prev,
+                        receiverType: 'direct_customer',
+                        recipientName: '',
+                        phone: '',
+                        postalCode: '',
+                        address: '',
+                        addressDetail: '',
+                        deliveryMemo: '',
+                      }));
+                    }
                   } else {
+                    // 스튜디오 배송으로 전환 전 현재 고객 직배송 입력값 저장
+                    if (form.receiverType === 'direct_customer') {
+                      setSavedDirectCustomerForm({
+                        recipientName: form.recipientName,
+                        phone: form.phone,
+                        postalCode: form.postalCode,
+                        address: form.address,
+                        addressDetail: form.addressDetail,
+                        deliveryMemo: form.deliveryMemo,
+                      });
+                    }
                     // 스튜디오 배송으로 변경 시 studioInfo가 있으면 스튜디오 주소로 채움
                     if (studioInfo?.address) {
                       setForm({
