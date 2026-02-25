@@ -544,8 +544,17 @@ export default function ShippingManagementPage() {
                             )}
                           </TableCell>
                           <TableCell className="text-xs">
-                            {DELIVERY_METHOD_LABELS[order.shipping?.deliveryMethod ?? ''] ??
-                              getCourierName(order.shipping?.courierCode)}
+                            <div className="flex flex-col">
+                              <span>
+                                {DELIVERY_METHOD_LABELS[order.shipping?.deliveryMethod ?? ''] ??
+                                  getCourierName(order.shipping?.courierCode)}
+                              </span>
+                              {order.shipping?.fareType && FARE_TYPE_CONFIG[order.shipping.fareType] && (
+                                <span className={cn('text-[10px] font-normal', order.shipping.fareType === 'prepaid' ? 'text-blue-700' : 'text-red-700')}>
+                                  {FARE_TYPE_CONFIG[order.shipping.fareType].label}
+                                </span>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="text-xs">
                             <div className="flex flex-col gap-0.5">
@@ -557,11 +566,6 @@ export default function ShippingManagementPage() {
                               <Badge variant="secondary" className={cn('text-[10px] px-1 py-0 w-fit', feeType.className)}>
                                 {feeType.label}
                               </Badge>
-                              {order.shipping?.fareType && FARE_TYPE_CONFIG[order.shipping.fareType] && (
-                                <Badge variant="secondary" className={cn('text-[10px] px-1 py-0 w-fit', FARE_TYPE_CONFIG[order.shipping.fareType].className)}>
-                                  {FARE_TYPE_CONFIG[order.shipping.fareType].label}
-                                </Badge>
-                              )}
                               {Number(order.shipping?.deliveryFee) > 0 && (
                                 <span className="text-[10px] text-muted-foreground">
                                   {Number(order.shipping?.deliveryFee).toLocaleString()}원

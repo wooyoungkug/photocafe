@@ -26,6 +26,7 @@ import {
   ORDER_STATUS_LABELS,
   type Order,
 } from '@/hooks/use-orders';
+import { PROCESS_STAGES } from '@/hooks/use-system-settings';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { toast } from '@/hooks/use-toast';
@@ -41,6 +42,27 @@ const STATUS_BADGE_VARIANT: Record<
   shipped: 'success',
   cancelled: 'destructive',
 };
+
+const PROCESS_CATEGORY_COLORS: Record<string, string> = {
+  reception: 'bg-gray-100 text-gray-700',
+  print: 'bg-blue-50 text-blue-700',
+  binding: 'bg-purple-50 text-purple-700',
+  frame: 'bg-amber-50 text-amber-700',
+  finishing: 'bg-orange-50 text-orange-700',
+  qc: 'bg-yellow-50 text-yellow-700',
+  shipping: 'bg-green-50 text-green-700',
+  complete: 'bg-slate-100 text-slate-500',
+};
+
+function getProcessLabel(currentProcess: string) {
+  const stage = PROCESS_STAGES[currentProcess as keyof typeof PROCESS_STAGES];
+  return stage?.name || currentProcess;
+}
+
+function getProcessCategory(currentProcess: string) {
+  const stage = PROCESS_STAGES[currentProcess as keyof typeof PROCESS_STAGES];
+  return stage?.category || 'reception';
+}
 
 function formatAmount(amount: number) {
   return Math.round(amount).toLocaleString();
@@ -115,6 +137,27 @@ export default function MonthlySummaryPage() {
     });
     return map;
   }, [ordersByDate]);
+
+  // 일자별 공정 현황 (날짜 → {공정명: 건수})
+  const dateProcessSummary = useMemo(() => {
+    const map = new Map<string, { name: string; category: string; count: number }[]>();
+    if (!allMonthOrders?.data) return map;
+    allMonthOrders.data.forEach((order) => {
+      const date = format(new Date(order.orderedAt), 'yyyy-MM-dd');
+      if (!map.has(date)) map.set(date, []);
+      const arr = map.get(date)!;
+      const stage = PROCESS_STAGES[order.currentProcess as keyof typeof PROCESS_STAGES];
+      const name = stage?.name || order.currentProcess;
+      const category = stage?.category || 'reception';
+      const existing = arr.find((item) => item.name === name);
+      if (existing) {
+        existing.count++;
+      } else {
+        arr.push({ name, category, count: 1 });
+      }
+    });
+    return map;
+  }, [allMonthOrders]);
 
   // 누계잔액 계산
   const dataWithBalance = useMemo(() => {
@@ -216,6 +259,37 @@ export default function MonthlySummaryPage() {
     if (order.status === 'ready_for_shipping')
       return <Badge variant="secondary">배송준비</Badge>;
     return <span className="text-gray-400">-</span>;
+  };
+
+  const renderProcessBadge = (currentProcess: string) => {
+    const label = getProcessLabel(currentProcess);
+    const category = getProcessCategory(currentProcess);
+    const colorClass = PROCESS_CATEGORY_COLORS[category] || PROCESS_CATEGORY_COLORS.reception;
+    return (
+      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap ${colorClass}`}>
+        {label}
+      </span>
+    );
+  };
+
+  const renderDateProcessSummary = (date: string) => {
+    const processes = dateProcessSummary.get(date);
+    if (!processes || processes.length === 0) return <span className="text-gray-400">-</span>;
+    return (
+      <div className="flex flex-wrap gap-0.5 justify-end">
+        {processes.map((p) => {
+          const colorClass = PROCESS_CATEGORY_COLORS[p.category] || PROCESS_CATEGORY_COLORS.reception;
+          return (
+            <span
+              key={p.name}
+              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap ${colorClass}`}
+            >
+              {p.name}{p.count > 1 && ` ${p.count}`}
+            </span>
+          );
+        })}
+      </div>
+    );
   };
 
   const summary = dailyData?.summary;
@@ -854,6 +928,7 @@ export default function MonthlySummaryPage() {
                         납부<span className="hidden sm:inline">금액</span>
                       </th>
                       <th className="p-2 sm:p-3 text-right font-medium">잔액</th>
+                      <th className="p-2 sm:p-3 text-right font-medium">현재공정</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -904,6 +979,9 @@ export default function MonthlySummaryPage() {
                               {row.runningBalance < 0 && '-'}
                               {formatAmount(Math.abs(row.runningBalance))}원
                             </td>
+                            <td className="p-2 sm:p-3 text-right">
+                              {renderDateProcessSummary(row.date)}
+                            </td>
                           </tr>
 
                           {/* 드릴다운: 건별 상세 */}
@@ -911,7 +989,7 @@ export default function MonthlySummaryPage() {
                             <>
                               {isDetailFetching ? (
                                 <tr>
-                                  <td colSpan={6} className="bg-slate-50/80 py-6 border-b">
+                                  <td colSpan={7} className="bg-slate-50/80 py-6 border-b">
                                     <div className="flex items-center justify-center">
                                       <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                                     </div>
@@ -976,12 +1054,15 @@ export default function MonthlySummaryPage() {
                                           </Link>
                                         </div>
                                       </td>
+                                      <td className="p-2 sm:p-3 text-right align-middle">
+                                        {renderProcessBadge(order.currentProcess)}
+                                      </td>
                                     </tr>
                                   );
                                 })
                               ) : (
                                 <tr>
-                                  <td colSpan={6} className="bg-slate-50/80 py-4 border-b text-center">
+                                  <td colSpan={7} className="bg-slate-50/80 py-4 border-b text-center">
                                     <p className="text-xs text-muted-foreground">거래 내역이 없습니다</p>
                                   </td>
                                 </tr>
@@ -1013,6 +1094,7 @@ export default function MonthlySummaryPage() {
                         {carryForward < 0 && '-'}
                         {formatAmount(Math.abs(carryForward))}원
                       </td>
+                      <td className="p-2 sm:p-3" />
                     </tr>
 
                     {/* 당월합계 행 */}
@@ -1027,6 +1109,7 @@ export default function MonthlySummaryPage() {
                         {formatAmount(summary?.totalDepositAmount || 0)}원
                       </td>
                       <td className="p-2 sm:p-3 text-right tabular-nums" />
+                      <td className="p-2 sm:p-3" />
                     </tr>
 
                     {/* 기말잔액 행 */}
@@ -1051,6 +1134,7 @@ export default function MonthlySummaryPage() {
                         {closingBalance < 0 && '-'}
                         {formatAmount(Math.abs(closingBalance))}원
                       </td>
+                      <td className="p-2 sm:p-3" />
                     </tr>
                   </tbody>
                 </table>
