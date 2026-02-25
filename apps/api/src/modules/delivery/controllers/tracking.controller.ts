@@ -2,7 +2,7 @@ import { Controller, Get, Query, BadRequestException } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Public } from '@/common/decorators/public.decorator';
 import { TrackingService } from '../services/tracking.service';
-import { COURIER_CODES } from '../dto/delivery-pricing.dto';
+import { COURIER_CODES, ACTIVE_COURIER_CODES } from '../dto/delivery-pricing.dto';
 
 @ApiTags('delivery')
 @Controller('delivery')
@@ -39,8 +39,17 @@ export class TrackingController {
 
   @Get('couriers')
   @Public()
-  @ApiOperation({ summary: '지원 택배사 목록 조회' })
+  @ApiOperation({ summary: '활성 택배사 목록 조회 (계약/연동 완료된 택배사만)' })
   getCouriers() {
+    return ACTIVE_COURIER_CODES
+      .filter((code) => COURIER_CODES[code])
+      .map((code) => ({ code, name: COURIER_CODES[code] }));
+  }
+
+  @Get('couriers/all')
+  @Public()
+  @ApiOperation({ summary: '전체 택배사 목록 조회 (참조용)' })
+  getAllCouriers() {
     return Object.entries(COURIER_CODES).map(([code, name]) => ({ code, name }));
   }
 }
