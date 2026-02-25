@@ -66,11 +66,11 @@ const DELIVERY_METHOD_LABELS: Record<string, string> = {
   pickup: '방문수령',
 };
 
-/** 배송비 타입 라벨 */
+/** 배송형태 라벨 */
 const FEE_TYPE_CONFIG: Record<string, { label: string; className: string }> = {
-  free: { label: '무료', className: 'bg-green-100 text-green-700' },
+  free: { label: '무료배송', className: 'bg-green-100 text-green-700' },
   conditional: { label: '조건부무료', className: 'bg-yellow-100 text-yellow-700' },
-  standard: { label: '유료', className: 'bg-gray-100 text-gray-600' },
+  standard: { label: '유료배송', className: 'bg-gray-100 text-gray-600' },
 };
 
 /** TTS 음성 알림 */
@@ -472,16 +472,17 @@ export default function ShippingManagementPage() {
                           aria-label="전체 선택"
                         />
                       </TableHead>
-                      <TableHead className="w-20">날짜</TableHead>
-                      <TableHead className="w-28">주문번호</TableHead>
-                      <TableHead className="w-20">발송인</TableHead>
-                      <TableHead className="w-20">수령인</TableHead>
-                      <TableHead className="min-w-[140px]">수령인주소</TableHead>
-                      <TableHead className="w-20">배송방법</TableHead>
-                      <TableHead className="w-20">배송비</TableHead>
-                      <TableHead className="w-32">송장번호</TableHead>
-                      <TableHead className="w-20">상태</TableHead>
-                      <TableHead className="w-44 text-right">액션</TableHead>
+                      <TableHead className="w-16">날짜</TableHead>
+                      <TableHead className="w-24">주문번호</TableHead>
+                      <TableHead className="w-16">거래처</TableHead>
+                      <TableHead className="w-16">발송인</TableHead>
+                      <TableHead className="w-16">수령인</TableHead>
+                      <TableHead className="min-w-[120px]">주소</TableHead>
+                      <TableHead className="w-16">배송방법</TableHead>
+                      <TableHead className="w-20">배송형태</TableHead>
+                      <TableHead className="w-28">송장번호</TableHead>
+                      <TableHead className="w-16">상태</TableHead>
+                      <TableHead className="w-40 text-right">액션</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -508,6 +509,9 @@ export default function ShippingManagementPage() {
                             {order.orderNumber}
                           </TableCell>
                           <TableCell className="text-xs">
+                            {order.client?.clientName ?? '-'}
+                          </TableCell>
+                          <TableCell className="text-xs">
                             {hasSenderIssue ? (
                               <span className="text-red-500">미입력</span>
                             ) : (
@@ -519,7 +523,7 @@ export default function ShippingManagementPage() {
                           <TableCell className="text-xs">
                             {order.shipping?.recipientName ?? '-'}
                           </TableCell>
-                          <TableCell className="text-xs max-w-[180px]">
+                          <TableCell className="text-xs max-w-[160px]">
                             {hasRecipientIssue ? (
                               <span className="text-red-500">주소 미입력</span>
                             ) : (
@@ -530,14 +534,13 @@ export default function ShippingManagementPage() {
                           </TableCell>
                           <TableCell className="text-xs">
                             {DELIVERY_METHOD_LABELS[order.shipping?.deliveryMethod ?? ''] ??
-                              DELIVERY_METHOD_LABELS[order.shipping?.courierCode ?? ''] ??
                               getCourierName(order.shipping?.courierCode)}
                           </TableCell>
                           <TableCell className="text-xs">
                             <div className="flex flex-col gap-0.5">
                               {order.shipping?.bundleId && (
                                 <Badge variant="secondary" className="text-[10px] px-1 py-0 bg-purple-100 text-purple-700 w-fit">
-                                  묶음
+                                  묶음배송
                                 </Badge>
                               )}
                               <Badge variant="secondary" className={cn('text-[10px] px-1 py-0 w-fit', feeType.className)}>
@@ -664,12 +667,32 @@ export default function ShippingManagementPage() {
 
                       <div className="grid grid-cols-2 gap-1 text-xs">
                         <div>
+                          <span className="text-muted-foreground">거래처: </span>
+                          {order.client?.clientName ?? '-'}
+                        </div>
+                        <div>
                           <span className="text-muted-foreground">발송인: </span>
                           {order.shipping?.senderName || <span className="text-red-500">미입력</span>}
                         </div>
                         <div>
                           <span className="text-muted-foreground">수령인: </span>
                           {order.shipping?.recipientName ?? '-'}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-muted-foreground">배송형태: </span>
+                          {(() => {
+                            const ft = FEE_TYPE_CONFIG[order.shipping?.deliveryFeeType ?? ''] ?? FEE_TYPE_CONFIG.standard;
+                            return (
+                              <Badge variant="secondary" className={cn('text-[10px] px-1 py-0', ft.className)}>
+                                {ft.label}
+                              </Badge>
+                            );
+                          })()}
+                          {order.shipping?.bundleId && (
+                            <Badge variant="secondary" className="text-[10px] px-1 py-0 bg-purple-100 text-purple-700">
+                              묶음배송
+                            </Badge>
+                          )}
                         </div>
                         <div className="col-span-2">
                           <span className="text-muted-foreground">주소: </span>
@@ -685,21 +708,10 @@ export default function ShippingManagementPage() {
                             {order.shipping?.trackingNumber ?? '-'}
                           </span>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-muted-foreground">배송비: </span>
-                          {(() => {
-                            const ft = FEE_TYPE_CONFIG[order.shipping?.deliveryFeeType ?? ''] ?? FEE_TYPE_CONFIG.standard;
-                            return (
-                              <Badge variant="secondary" className={cn('text-[10px] px-1 py-0', ft.className)}>
-                                {ft.label}
-                              </Badge>
-                            );
-                          })()}
-                          {order.shipping?.bundleId && (
-                            <Badge variant="secondary" className="text-[10px] px-1 py-0 bg-purple-100 text-purple-700">
-                              묶음
-                            </Badge>
-                          )}
+                        <div>
+                          <span className="text-muted-foreground">배송방법: </span>
+                          {DELIVERY_METHOD_LABELS[order.shipping?.deliveryMethod ?? ''] ??
+                            getCourierName(order.shipping?.courierCode)}
                         </div>
                       </div>
 
