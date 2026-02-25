@@ -52,6 +52,8 @@ import type { Order } from '@/hooks/use-orders';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { speak } from '@/lib/tts';
+import { usePrinter } from '@/hooks/use-printer';
 import { toast } from '@/hooks/use-toast';
 
 // ---------------------------------------------------------------------------
@@ -72,16 +74,6 @@ const FEE_TYPE_CONFIG: Record<string, { label: string; className: string }> = {
   conditional: { label: '조건부무료', className: 'bg-yellow-100 text-yellow-700' },
   standard: { label: '유료배송', className: 'bg-gray-100 text-gray-600' },
 };
-
-/** TTS 음성 알림 */
-function speak(text: string) {
-  if (typeof window === 'undefined' || !window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = 'ko-KR';
-  utterance.rate = 1.1;
-  window.speechSynthesis.speak(utterance);
-}
 
 // ---------------------------------------------------------------------------
 // Page Component
@@ -129,6 +121,7 @@ export default function ShippingManagementPage() {
   const { data: couriers = [] } = useCourierList();
   const generateLabel = useGenerateLabel();
   const downloadLabel = useDownloadLabel();
+  const { printLabel, preferences: printerPrefs } = usePrinter();
   const { data: logenStatus } = useLogenStatus();
   const generateLogen = useGenerateLogenTracking();
   const bulkLogen = useBulkLogenTracking();
@@ -175,9 +168,14 @@ export default function ShippingManagementPage() {
   const handlePrintLabel = useCallback(
     async (orderId: string) => {
       try {
-        await generateLabel.mutateAsync(orderId);
-        await downloadLabel.mutateAsync(orderId);
-        speak('송장 출력 완료');
+        await generateLabel.mutateAsync({ orderId, format: printerPrefs.labelFormat });
+        if (printerPrefs.autoPrint) {
+          await printLabel(orderId);
+          speak('송장 출력 완료');
+        } else {
+          await downloadLabel.mutateAsync(orderId);
+          speak('송장 다운로드 완료');
+        }
         toast({ title: '운송장이 생성되었습니다.' });
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : '운송장 생성에 실패했습니다.';
@@ -185,7 +183,7 @@ export default function ShippingManagementPage() {
         toast({ title: msg, variant: 'destructive' });
       }
     },
-    [generateLabel, downloadLabel]
+    [generateLabel, downloadLabel, printLabel, printerPrefs]
   );
 
   // 로젠 단건 자동발급
@@ -262,8 +260,12 @@ export default function ShippingManagementPage() {
     }
     for (const id of selectedIds) {
       try {
-        await generateLabel.mutateAsync(id);
-        await downloadLabel.mutateAsync(id);
+        await generateLabel.mutateAsync({ orderId: id, format: printerPrefs.labelFormat });
+        if (printerPrefs.autoPrint) {
+          await printLabel(id);
+        } else {
+          await downloadLabel.mutateAsync(id);
+        }
       } catch {
         // 개별 실패는 무시하고 계속 진행
       }
