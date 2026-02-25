@@ -619,6 +619,26 @@ export function EmptyState({
 
 ---
 
+## 타이포그래피 기준
+
+> 모든 UI 텍스트에 적용되는 기본 서체 규칙
+
+| 항목 | 값 |
+|------|----|
+| 크기 | `text-[11px]` (11px) |
+| 굵기 | `font-normal` (보통체, 400) |
+| 색상 | `text-black` (100% 먹색, #000000) |
+
+```tsx
+// 기본 텍스트 클래스
+className="text-[11px] text-black font-normal"
+```
+
+- 강조가 필요한 경우에만 예외 적용 (상태배지, 오류문구, 링크 등)
+- `text-muted-foreground`, `text-sm`, `text-xs` 대신 위 기준 사용
+
+---
+
 ## 체크리스트
 
 UI 구현 시 확인사항:
