@@ -4,13 +4,14 @@ import {
   Get,
   Param,
   Body,
+  Query,
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { Response } from 'express';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { ShippingLabelService } from '../services/shipping-label.service';
+import { ShippingLabelService, LabelFormat } from '../services/shipping-label.service';
 import * as fs from 'fs';
 
 @ApiTags('delivery-label')
@@ -22,14 +23,26 @@ export class ShippingLabelController {
 
   @Post('generate/:orderId')
   @ApiOperation({ summary: '운송장 PDF 생성' })
-  generate(@Param('orderId') orderId: string) {
-    return this.service.generateLabel(orderId);
+  @ApiQuery({ name: 'format', required: false, enum: ['a5', 'thermal_100x150'] })
+  generate(
+    @Param('orderId') orderId: string,
+    @Query('format') format?: string,
+  ) {
+    const labelFormat: LabelFormat =
+      format === 'thermal_100x150' ? 'thermal_100x150' : 'a5';
+    return this.service.generateLabel(orderId, labelFormat);
   }
 
   @Post('generate-batch')
   @ApiOperation({ summary: '운송장 PDF 일괄 생성' })
-  generateBatch(@Body() body: { orderIds: string[] }) {
-    return this.service.generateBatchLabels(body.orderIds);
+  @ApiQuery({ name: 'format', required: false, enum: ['a5', 'thermal_100x150'] })
+  generateBatch(
+    @Body() body: { orderIds: string[] },
+    @Query('format') format?: string,
+  ) {
+    const labelFormat: LabelFormat =
+      format === 'thermal_100x150' ? 'thermal_100x150' : 'a5';
+    return this.service.generateBatchLabels(body.orderIds, labelFormat);
   }
 
   @Get('download/:orderId')
@@ -44,6 +57,18 @@ export class ShippingLabelController {
       'Content-Disposition',
       `attachment; filename="shipping-label-${orderId}.pdf"`,
     );
+    fs.createReadStream(filePath).pipe(res);
+  }
+
+  @Get('view/:orderId')
+  @ApiOperation({ summary: '운송장 PDF 인라인 뷰 (자동출력용)' })
+  async view(
+    @Param('orderId') orderId: string,
+    @Res() res: Response,
+  ) {
+    const filePath = await this.service.getLabelFile(orderId);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline');
     fs.createReadStream(filePath).pipe(res);
   }
 }

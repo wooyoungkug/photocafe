@@ -185,9 +185,15 @@ export function useBulkTracking() {
 /** 운송장 PDF 생성 */
 export function useGenerateLabel() {
   return useMutation({
-    mutationFn: (orderId: string) =>
+    mutationFn: ({
+      orderId,
+      format,
+    }: {
+      orderId: string;
+      format?: string;
+    }) =>
       api.post<LabelGenerateResult>(
-        `/delivery/label/generate/${orderId}`
+        `/delivery/label/generate/${orderId}${format ? `?format=${format}` : ''}`
       ),
   });
 }

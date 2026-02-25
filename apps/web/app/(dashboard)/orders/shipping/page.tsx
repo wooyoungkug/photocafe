@@ -476,7 +476,6 @@ export default function ShippingManagementPage() {
                           aria-label="전체 선택"
                         />
                       </TableHead>
-                      <TableHead className="w-16">날짜</TableHead>
                       <TableHead className="w-24">주문번호</TableHead>
                       <TableHead className="w-16">거래처</TableHead>
                       <TableHead className="w-16">발송인</TableHead>
@@ -504,13 +503,13 @@ export default function ShippingManagementPage() {
                               aria-label={`${order.orderNumber} 선택`}
                             />
                           </TableCell>
-                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                            {order.orderedAt
-                              ? format(new Date(order.orderedAt), 'MM.dd', { locale: ko })
-                              : '-'}
-                          </TableCell>
-                          <TableCell className="font-medium text-sm">
-                            {order.orderNumber}
+                          <TableCell>
+                            <div className="font-medium text-sm">{order.orderNumber}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {order.orderedAt
+                                ? format(new Date(order.orderedAt), 'MM.dd', { locale: ko })
+                                : '-'}
+                            </div>
                           </TableCell>
                           <TableCell className="text-xs">
                             {order.client?.clientName ?? '-'}
