@@ -504,7 +504,12 @@ export default function ShippingManagementPage() {
                     {orders.map((order) => {
                       const trackingStatus = getTrackingStatus(order);
                       const feeTypeKey = order.shipping?.deliveryFeeType ?? '';
-                      const deliveryFee = Number(order.shipping?.deliveryFee ?? 0);
+                      const deliveryFee =
+                        order.shipping?.deliveryFee != null
+                          ? Number(order.shipping.deliveryFee)
+                          : order.shipping?.courierCode || order.shipping?.deliveryMethod
+                          ? parcelBaseFee
+                          : 0;
                       const effectiveFeeTypeKey =
                         feeTypeKey === 'conditional' && deliveryFee > 0 ? 'standard' : feeTypeKey;
                       const feeType = FEE_TYPE_CONFIG[effectiveFeeTypeKey] ?? FEE_TYPE_CONFIG.standard;
@@ -572,9 +577,9 @@ export default function ShippingManagementPage() {
                                   묶음배송
                                 </Badge>
                               )}
-                              {Number(order.shipping?.deliveryFee) > 0 && (
+                              {deliveryFee > 0 && (
                                 <span className="text-[11px] font-normal">
-                                  {Number(order.shipping?.deliveryFee).toLocaleString()}원
+                                  {deliveryFee.toLocaleString()}원
                                 </span>
                               )}
                               <Badge variant="secondary" className={cn('text-[11px] px-1 py-0 w-fit whitespace-nowrap', feeType.className)}>
