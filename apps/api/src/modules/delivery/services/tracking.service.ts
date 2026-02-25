@@ -58,9 +58,10 @@ export class TrackingService {
 
     const data = await response.json();
 
-    if (!data.status) {
+    // Sweet Tracker returns `msg` field on error (e.g. invalid key, bad invoice)
+    if (data.msg) {
       throw new HttpException(
-        data.msg || '배송 정보를 조회할 수 없습니다.',
+        data.msg,
         HttpStatus.NOT_FOUND,
       );
     }
