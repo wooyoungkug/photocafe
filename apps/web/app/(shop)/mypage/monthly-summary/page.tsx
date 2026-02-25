@@ -23,25 +23,12 @@ import { useAuthStore } from '@/stores/auth-store';
 import {
   useDailyOrderSummary,
   useOrders,
-  ORDER_STATUS_LABELS,
   type Order,
 } from '@/hooks/use-orders';
 import { PROCESS_STAGES } from '@/hooks/use-system-settings';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { toast } from '@/hooks/use-toast';
-
-const STATUS_BADGE_VARIANT: Record<
-  string,
-  'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning'
-> = {
-  pending_receipt: 'outline',
-  receipt_completed: 'default',
-  in_production: 'warning',
-  ready_for_shipping: 'secondary',
-  shipped: 'success',
-  cancelled: 'destructive',
-};
 
 const PROCESS_CATEGORY_COLORS: Record<string, string> = {
   reception: 'bg-gray-100 text-gray-700',
@@ -54,13 +41,21 @@ const PROCESS_CATEGORY_COLORS: Record<string, string> = {
   complete: 'bg-slate-100 text-slate-500',
 };
 
+// DB의 currentProcess 값과 PROCESS_STAGES 키 매핑 (레거시/대체 값 처리)
+const PROCESS_ALIASES: Record<string, keyof typeof PROCESS_STAGES> = {
+  receipt_pending: 'reception_waiting',
+  pending_receipt: 'reception_waiting',
+};
+
 function getProcessLabel(currentProcess: string) {
-  const stage = PROCESS_STAGES[currentProcess as keyof typeof PROCESS_STAGES];
+  const key = PROCESS_ALIASES[currentProcess] || currentProcess;
+  const stage = PROCESS_STAGES[key as keyof typeof PROCESS_STAGES];
   return stage?.name || currentProcess;
 }
 
 function getProcessCategory(currentProcess: string) {
-  const stage = PROCESS_STAGES[currentProcess as keyof typeof PROCESS_STAGES];
+  const key = PROCESS_ALIASES[currentProcess] || currentProcess;
+  const stage = PROCESS_STAGES[key as keyof typeof PROCESS_STAGES];
   return stage?.category || 'reception';
 }
 
@@ -1040,22 +1035,18 @@ export default function MonthlySummaryPage() {
                                       <td className="p-2 sm:p-3 text-right text-muted-foreground align-middle">
                                         {renderShippingStatus(order)}
                                       </td>
+                                      <td className="p-2 sm:p-3 text-right tabular-nums text-muted-foreground align-middle">
+                                        -
+                                      </td>
                                       <td className="p-2 sm:p-3 text-right align-middle">
                                         <div className="flex items-center justify-end gap-1">
-                                          <Badge
-                                            variant={STATUS_BADGE_VARIANT[order.status] || 'outline'}
-                                          >
-                                            {ORDER_STATUS_LABELS[order.status] || order.status}
-                                          </Badge>
+                                          {renderProcessBadge(order.currentProcess)}
                                           <Link href={`/mypage/orders/${order.id}`}>
                                             <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
                                               <Eye className="h-3.5 w-3.5" />
                                             </Button>
                                           </Link>
                                         </div>
-                                      </td>
-                                      <td className="p-2 sm:p-3 text-right align-middle">
-                                        {renderProcessBadge(order.currentProcess)}
                                       </td>
                                     </tr>
                                   );
