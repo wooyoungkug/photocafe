@@ -420,10 +420,10 @@ export default function OrderListPage() {
                               삭제됨
                             </Badge>
                           ) : (
-                            <div className="space-y-1">
+                            <div className="space-y-1 whitespace-nowrap">
                               <div>{formatFileSize(Number(item.totalFileSize))}</div>
                               <button
-                                className="flex items-center justify-center gap-0.5 text-[11px] text-blue-600 hover:underline mx-auto disabled:opacity-50"
+                                className="flex items-center justify-center gap-0.5 text-[11px] text-blue-600 hover:underline mx-auto disabled:opacity-50 whitespace-nowrap"
                                 onClick={() => handleDownloadOriginals(order.id, order.orderNumber)}
                                 disabled={isDownloading === order.id}
                               >
