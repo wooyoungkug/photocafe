@@ -14,7 +14,18 @@ export interface TrackingInfo {
   level: number;
   isDelivered: boolean;
   details: TrackingDetail[];
+  /** API 제한 시 택배사 직접 조회 URL */
+  directTrackingUrl?: string;
 }
+
+/** 택배사 코드 → 직접 조회 URL 매핑 */
+const DIRECT_TRACKING_URLS: Record<string, (trackingNumber: string) => string> = {
+  '01': (no) => `https://service.epost.go.kr/trace.RetrieveDomRi498.postal?sid1=${no}`,
+  '04': (no) => `https://trace.cjlogistics.com/next/tracking.html?wblNo=${no}`,
+  '05': (no) => `https://www.hanjin.com/kor/CMS/DeliveryMgr/WaybillResult.do?mession-id=&wblnumText2=${no}`,
+  '06': (no) => `https://www.ilogen.com/web/personal/trace/${no}`,
+  '08': (no) => `https://www.lotteglogis.com/home/reservation/tracking/index?InvNo=${no}`,
+};
 
 @Injectable()
 export class TrackingService {
@@ -23,6 +34,11 @@ export class TrackingService {
   private readonly CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6시간 (스마트택배 하루 요청 리미트 방지)
 
   constructor(private readonly configService: ConfigService) {}
+
+  /** 택배사 직접 조회 URL 반환 */
+  getDirectTrackingUrl(courierCode: string, trackingNumber: string): string | undefined {
+    return DIRECT_TRACKING_URLS[courierCode]?.(trackingNumber);
+  }
 
   async getTrackingInfo(courierCode: string, trackingNumber: string): Promise<TrackingInfo> {
     // 캐시 확인
@@ -75,9 +91,11 @@ export class TrackingService {
     if (data.msg) {
       // 하루 요청 건수 초과 등 에러 시 만료된 캐시라도 반환
       if (cached) return cached.data;
+      // 캐시도 없으면 직접 조회 URL 포함하여 에러 반환
+      const directUrl = this.getDirectTrackingUrl(courierCode, trackingNumber);
       throw new HttpException(
-        data.msg,
-        HttpStatus.NOT_FOUND,
+        { message: data.msg, directTrackingUrl: directUrl },
+        HttpStatus.TOO_MANY_REQUESTS,
       );
     }
 

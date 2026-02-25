@@ -73,15 +73,24 @@ export interface OrderItem {
 // 배송 정보 타입
 export interface OrderShipping {
   id: string;
+  senderType?: string;
+  senderName?: string;
+  senderPhone?: string;
+  senderAddress?: string;
+  senderAddressDetail?: string;
   recipientName: string;
   phone: string;
   postalCode: string;
   address: string;
   addressDetail?: string;
+  deliveryMethod?: string;
+  deliveryFee?: number;
+  deliveryFeeType?: string;
   courierCode?: string;
   trackingNumber?: string;
   shippedAt?: string;
   deliveredAt?: string;
+  bundleId?: string;
 }
 
 // 공정 이력 타입

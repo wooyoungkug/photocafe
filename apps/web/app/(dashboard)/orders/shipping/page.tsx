@@ -66,6 +66,23 @@ const DELIVERY_METHOD_LABELS: Record<string, string> = {
   pickup: '방문수령',
 };
 
+/** 배송비 타입 라벨 */
+const FEE_TYPE_CONFIG: Record<string, { label: string; className: string }> = {
+  free: { label: '무료', className: 'bg-green-100 text-green-700' },
+  conditional: { label: '조건부무료', className: 'bg-yellow-100 text-yellow-700' },
+  standard: { label: '유료', className: 'bg-gray-100 text-gray-600' },
+};
+
+/** TTS 음성 알림 */
+function speak(text: string) {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = 'ko-KR';
+  utterance.rate = 1.1;
+  window.speechSynthesis.speak(utterance);
+}
+
 // ---------------------------------------------------------------------------
 // Page Component
 // ---------------------------------------------------------------------------
@@ -160,9 +177,11 @@ export default function ShippingManagementPage() {
       try {
         await generateLabel.mutateAsync(orderId);
         await downloadLabel.mutateAsync(orderId);
+        speak('송장 출력 완료');
         toast({ title: '운송장이 생성되었습니다.' });
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : '운송장 생성에 실패했습니다.';
+        speak('송장 출력 실패');
         toast({ title: msg, variant: 'destructive' });
       }
     },
@@ -172,19 +191,37 @@ export default function ShippingManagementPage() {
   // 로젠 단건 자동발급
   const handleLogenGenerate = useCallback(
     async (orderId: string) => {
+      // 발급 전 주소 누락 체크
+      const order = orders.find((o) => o.id === orderId);
+      if (order?.shipping) {
+        if (!order.shipping.address) {
+          speak('수령인 주소가 누락되었습니다');
+          toast({ title: '수령인 주소가 누락되었습니다.', variant: 'destructive' });
+          return;
+        }
+        if (!order.shipping.senderAddress && !order.shipping.senderName) {
+          speak('발송인 주소가 누락되었습니다');
+          toast({ title: '발송인 주소가 누락되었습니다.', variant: 'destructive' });
+          return;
+        }
+      }
+
       try {
         const result = await generateLogen.mutateAsync(orderId);
         if (result.alreadyExists) {
+          speak('이미 송장번호가 있습니다');
           toast({ title: `이미 송장번호가 있습니다: ${result.trackingNumber}` });
         } else {
+          speak('송장 자동발급 완료');
           toast({ title: `로젠택배 송장 발급 완료: ${result.trackingNumber}` });
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : '송장 자동발급에 실패했습니다.';
+        speak('송장 발급 실패');
         toast({ title: msg, variant: 'destructive' });
       }
     },
-    [generateLogen]
+    [generateLogen, orders]
   );
 
   // 로젠 일괄 자동발급
@@ -205,12 +242,14 @@ export default function ShippingManagementPage() {
 
     try {
       const result = await bulkLogen.mutateAsync(idsWithoutTracking);
+      speak(`${result.successCount}건 송장 발급 완료`);
       toast({
         title: `${result.successCount}/${result.total}건 송장 발급 완료`,
       });
       setSelectedIds(new Set());
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '일괄 발급에 실패했습니다.';
+      speak('일괄 발급 실패');
       toast({ title: msg, variant: 'destructive' });
     }
   };
@@ -433,19 +472,24 @@ export default function ShippingManagementPage() {
                           aria-label="전체 선택"
                         />
                       </TableHead>
-                      <TableHead className="w-24">날짜</TableHead>
-                      <TableHead className="w-32">주문번호</TableHead>
-                      <TableHead>거래처</TableHead>
-                      <TableHead>수령인</TableHead>
-                      <TableHead className="w-24">배송방법</TableHead>
-                      <TableHead className="w-40">송장번호</TableHead>
-                      <TableHead className="w-24">상태</TableHead>
-                      <TableHead className="w-36 text-right">액션</TableHead>
+                      <TableHead className="w-20">날짜</TableHead>
+                      <TableHead className="w-28">주문번호</TableHead>
+                      <TableHead className="w-20">발송인</TableHead>
+                      <TableHead className="w-20">수령인</TableHead>
+                      <TableHead className="min-w-[140px]">수령인주소</TableHead>
+                      <TableHead className="w-20">배송방법</TableHead>
+                      <TableHead className="w-20">배송비</TableHead>
+                      <TableHead className="w-32">송장번호</TableHead>
+                      <TableHead className="w-20">상태</TableHead>
+                      <TableHead className="w-44 text-right">액션</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {orders.map((order) => {
                       const trackingStatus = getTrackingStatus(order);
+                      const feeType = FEE_TYPE_CONFIG[order.shipping?.deliveryFeeType ?? ''] ?? FEE_TYPE_CONFIG.standard;
+                      const hasSenderIssue = !order.shipping?.senderName && !order.shipping?.senderAddress;
+                      const hasRecipientIssue = !order.shipping?.address;
                       return (
                         <TableRow key={order.id} className="group">
                           <TableCell>
@@ -463,15 +507,48 @@ export default function ShippingManagementPage() {
                           <TableCell className="font-medium text-sm">
                             {order.orderNumber}
                           </TableCell>
-                          <TableCell className="text-sm truncate max-w-[120px]">
-                            {order.client?.clientName ?? '-'}
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {order.shipping?.recipientName ?? '-'}
+                          <TableCell className="text-xs">
+                            {hasSenderIssue ? (
+                              <span className="text-red-500">미입력</span>
+                            ) : (
+                              <span title={order.shipping?.senderAddress ?? ''}>
+                                {order.shipping?.senderName ?? '-'}
+                              </span>
+                            )}
                           </TableCell>
                           <TableCell className="text-xs">
-                            {DELIVERY_METHOD_LABELS[order.shipping?.courierCode ?? ''] ??
+                            {order.shipping?.recipientName ?? '-'}
+                          </TableCell>
+                          <TableCell className="text-xs max-w-[180px]">
+                            {hasRecipientIssue ? (
+                              <span className="text-red-500">주소 미입력</span>
+                            ) : (
+                              <span className="truncate block" title={`${order.shipping?.address ?? ''} ${order.shipping?.addressDetail ?? ''}`}>
+                                {order.shipping?.address ?? '-'}
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {DELIVERY_METHOD_LABELS[order.shipping?.deliveryMethod ?? ''] ??
+                              DELIVERY_METHOD_LABELS[order.shipping?.courierCode ?? ''] ??
                               getCourierName(order.shipping?.courierCode)}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            <div className="flex flex-col gap-0.5">
+                              {order.shipping?.bundleId && (
+                                <Badge variant="secondary" className="text-[10px] px-1 py-0 bg-purple-100 text-purple-700 w-fit">
+                                  묶음
+                                </Badge>
+                              )}
+                              <Badge variant="secondary" className={cn('text-[10px] px-1 py-0 w-fit', feeType.className)}>
+                                {feeType.label}
+                              </Badge>
+                              {Number(order.shipping?.deliveryFee) > 0 && (
+                                <span className="text-[10px] text-muted-foreground">
+                                  {Number(order.shipping?.deliveryFee).toLocaleString()}원
+                                </span>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="text-xs font-mono">
                             {order.shipping?.trackingNumber ?? (
@@ -587,12 +664,20 @@ export default function ShippingManagementPage() {
 
                       <div className="grid grid-cols-2 gap-1 text-xs">
                         <div>
-                          <span className="text-muted-foreground">거래처: </span>
-                          {order.client?.clientName ?? '-'}
+                          <span className="text-muted-foreground">발송인: </span>
+                          {order.shipping?.senderName || <span className="text-red-500">미입력</span>}
                         </div>
                         <div>
                           <span className="text-muted-foreground">수령인: </span>
                           {order.shipping?.recipientName ?? '-'}
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-muted-foreground">주소: </span>
+                          {order.shipping?.address ? (
+                            <span>{order.shipping.address} {order.shipping.addressDetail ?? ''}</span>
+                          ) : (
+                            <span className="text-red-500">주소 미입력</span>
+                          )}
                         </div>
                         <div>
                           <span className="text-muted-foreground">송장: </span>
@@ -600,11 +685,21 @@ export default function ShippingManagementPage() {
                             {order.shipping?.trackingNumber ?? '-'}
                           </span>
                         </div>
-                        <div>
-                          <span className="text-muted-foreground">날짜: </span>
-                          {order.orderedAt
-                            ? format(new Date(order.orderedAt), 'MM.dd', { locale: ko })
-                            : '-'}
+                        <div className="flex items-center gap-1">
+                          <span className="text-muted-foreground">배송비: </span>
+                          {(() => {
+                            const ft = FEE_TYPE_CONFIG[order.shipping?.deliveryFeeType ?? ''] ?? FEE_TYPE_CONFIG.standard;
+                            return (
+                              <Badge variant="secondary" className={cn('text-[10px] px-1 py-0', ft.className)}>
+                                {ft.label}
+                              </Badge>
+                            );
+                          })()}
+                          {order.shipping?.bundleId && (
+                            <Badge variant="secondary" className="text-[10px] px-1 py-0 bg-purple-100 text-purple-700">
+                              묶음
+                            </Badge>
+                          )}
                         </div>
                       </div>
 

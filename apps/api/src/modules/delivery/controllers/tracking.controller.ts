@@ -24,6 +24,19 @@ export class TrackingController {
     return this.trackingService.getTrackingInfo(courierCode, trackingNumber);
   }
 
+  @Get('tracking/direct-url')
+  @Public()
+  @ApiOperation({ summary: '택배사 직접 조회 URL (API 제한 시 대안)' })
+  @ApiQuery({ name: 'courierCode', description: '택배사 코드' })
+  @ApiQuery({ name: 'trackingNumber', description: '운송장 번호' })
+  getDirectTrackingUrl(
+    @Query('courierCode') courierCode: string,
+    @Query('trackingNumber') trackingNumber: string,
+  ) {
+    const url = this.trackingService.getDirectTrackingUrl(courierCode, trackingNumber);
+    return { url: url || null };
+  }
+
   @Get('couriers')
   @Public()
   @ApiOperation({ summary: '지원 택배사 목록 조회' })
