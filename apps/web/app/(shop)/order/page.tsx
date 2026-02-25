@@ -74,6 +74,7 @@ const folderToCartShipping = (s: FolderShippingInfo): CartShippingInfo => ({
   receiverType: s.receiverType,
   recipientName: s.recipientName,
   recipientPhone: s.recipientPhone,
+  recipientPhone2: s.recipientPhone2,
   recipientPostalCode: s.recipientPostalCode,
   recipientAddress: s.recipientAddress,
   recipientAddressDetail: s.recipientAddressDetail,
@@ -81,6 +82,7 @@ const folderToCartShipping = (s: FolderShippingInfo): CartShippingInfo => ({
   deliveryFee: s.deliveryFee,
   deliveryFeeType: s.deliveryFeeType,
   fareType: s.fareType,
+  deliveryMemo: s.deliveryMemo,
 });
 
 // CartShippingInfo → 백엔드 DTO 필드명 매핑
@@ -480,6 +482,8 @@ export default function OrderPage() {
     for (const item of items) {
       const sh = item.albumOrderInfo?.shippingInfo || itemShippingMap[item.id];
       if (!sh || sh.deliveryMethod === 'pickup') continue;
+      // 착불(cod)은 수령인이 직접 지불 → 주문 금액에 포함하지 않음
+      if (sh.fareType === 'cod') continue;
 
       if (sh.receiverType === 'direct_customer') {
         // 고객직배송: 조건 없이 항목별 청구
