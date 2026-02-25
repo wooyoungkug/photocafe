@@ -2659,4 +2659,29 @@ export class OrderService {
         : orderAmount,
     };
   }
+
+  // ==================== currentProcess 일괄 동기화 (기존 데이터 보정) ====================
+  async syncCurrentProcess() {
+    const mismatched = await this.prisma.order.findMany({
+      where: {
+        NOT: { status: 'pending_receipt' },
+        currentProcess: 'receipt_pending',
+      },
+      select: { id: true, status: true },
+    });
+
+    let updated = 0;
+    for (const order of mismatched) {
+      const newProcess = this.getDefaultProcessForStatus(order.status);
+      if (newProcess) {
+        await this.prisma.order.update({
+          where: { id: order.id },
+          data: { currentProcess: newProcess },
+        });
+        updated++;
+      }
+    }
+
+    return { total: mismatched.length, updated };
+  }
 }

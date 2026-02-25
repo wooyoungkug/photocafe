@@ -240,6 +240,12 @@ export class OrderController {
     return this.orderService.delete(id);
   }
 
+  @Post('sync-current-process')
+  @ApiOperation({ summary: 'currentProcess 일괄 동기화 (status 기반)' })
+  async syncCurrentProcess() {
+    return this.orderService.syncCurrentProcess();
+  }
+
   // ==================== 파일검수 관련 ====================
 
   @Post(':id/start-inspection')

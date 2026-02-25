@@ -485,11 +485,11 @@ export default function ShippingManagementPage() {
                         />
                       </TableHead>
                       <TableHead className="w-24 text-center">주문번호</TableHead>
-                      <TableHead className="w-16">거래처</TableHead>
-                      <TableHead className="w-16">발송인</TableHead>
-                      <TableHead className="w-16">수령인</TableHead>
+                      <TableHead className="w-[20px]">거래처</TableHead>
+                      <TableHead className="w-[20px]">발송인</TableHead>
+                      <TableHead className="w-[20px]">수령인</TableHead>
                       <TableHead className="min-w-[120px]">주소</TableHead>
-                      <TableHead className="w-16">배송방법</TableHead>
+                      <TableHead className="w-[20px]">배송방법</TableHead>
                       <TableHead className="w-20">배송형태</TableHead>
                       <TableHead className="w-28">송장번호</TableHead>
                       <TableHead className="w-16">상태</TableHead>
