@@ -352,7 +352,8 @@
       "Bash(do sleep 5)",
       "Bash(break)",
       "Bash(printf '{\"\"staffId\"\":\"\"admin\"\",\"\"password\"\":\"\"woo0930!\"\"}')",
-      "WebFetch(domain:openapihome.ilogen.com)"
+      "WebFetch(domain:openapihome.ilogen.com)",
+      "WebFetch(domain:naverdownload.com)"
     ],
     "additionalDirectories": [
       "C:\\dev\\printing114\\apps\\api\\dist",
