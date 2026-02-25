@@ -44,6 +44,7 @@ import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { TrackingTimeline } from '@/components/order/tracking-timeline';
+import { CustomerShippingEditDialog } from '@/components/order/customer-shipping-edit-dialog';
 
 // 주문 상태 타입 (orders/page.tsx와 동일)
 const ORDER_STATUS = {
@@ -224,6 +225,8 @@ export default function OrderDetailPage() {
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   // 다운로드 진행 상태
   const [isDownloading, setIsDownloading] = useState(false);
+  // 배송정보 수정 다이얼로그
+  const [shippingEditOpen, setShippingEditOpen] = useState(false);
 
   // 주문 상세 조회
   const { data: order, isLoading } = useQuery({
@@ -689,10 +692,17 @@ export default function OrderDetailPage() {
             {/* Shipping Info */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Truck className="h-5 w-5" />
-                  배송 정보
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Truck className="h-5 w-5" />
+                    배송 정보
+                  </CardTitle>
+                  {order.status !== ORDER_STATUS.SHIPPED && order.status !== ORDER_STATUS.CANCELLED && (
+                    <Button variant="outline" size="sm" className="text-[11px] h-7" onClick={() => setShippingEditOpen(true)}>
+                      수정
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-start gap-3">
@@ -888,6 +898,15 @@ export default function OrderDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* 배송정보 수정 다이얼로그 */}
+      <CustomerShippingEditDialog
+        open={shippingEditOpen}
+        onOpenChange={setShippingEditOpen}
+        orderId={order.id}
+        orderNumber={order.orderNumber}
+        shipping={order.shipping}
+      />
 
       {/* 이미지 미리보기 다이얼로그 (줌 + 네비게이션) */}
       <Dialog open={!!previewFiles} onOpenChange={() => { setPreviewFiles(null); setZoomLevel(1); }}>
