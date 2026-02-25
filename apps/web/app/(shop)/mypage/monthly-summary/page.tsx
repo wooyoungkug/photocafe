@@ -41,20 +41,31 @@ const PROCESS_CATEGORY_COLORS: Record<string, string> = {
   complete: 'bg-slate-100 text-slate-500',
 };
 
-// DB의 currentProcess 값과 PROCESS_STAGES 키 매핑 (레거시/대체 값 처리)
+// DB의 currentProcess/status 값과 PROCESS_STAGES 키 매핑
 const PROCESS_ALIASES: Record<string, keyof typeof PROCESS_STAGES> = {
   receipt_pending: 'reception_waiting',
   pending_receipt: 'reception_waiting',
+  receipt_completed: 'reception_complete',
+  ready_for_shipping: 'shipping_waiting',
+  shipped: 'shipping',
+  cancelled: 'order_cancelled',
 };
 
-function getProcessLabel(currentProcess: string) {
-  const key = PROCESS_ALIASES[currentProcess] || currentProcess;
+// PROCESS_STAGES에 없는 order.status 값 직접 라벨 매핑
+const STATUS_LABEL_OVERRIDE: Record<string, { name: string; category: string }> = {
+  in_production: { name: '생산진행', category: 'print' },
+};
+
+function getProcessLabel(process: string) {
+  if (STATUS_LABEL_OVERRIDE[process]) return STATUS_LABEL_OVERRIDE[process].name;
+  const key = PROCESS_ALIASES[process] || process;
   const stage = PROCESS_STAGES[key as keyof typeof PROCESS_STAGES];
-  return stage?.name || currentProcess;
+  return stage?.name || process;
 }
 
-function getProcessCategory(currentProcess: string) {
-  const key = PROCESS_ALIASES[currentProcess] || currentProcess;
+function getProcessCategory(process: string) {
+  if (STATUS_LABEL_OVERRIDE[process]) return STATUS_LABEL_OVERRIDE[process].category;
+  const key = PROCESS_ALIASES[process] || process;
   const stage = PROCESS_STAGES[key as keyof typeof PROCESS_STAGES];
   return stage?.category || 'reception';
 }
@@ -281,8 +292,6 @@ export default function MonthlySummaryPage() {
         </div>
       );
     }
-    if (order.status === 'ready_for_shipping')
-      return <Badge variant="secondary">배송준비</Badge>;
     return <span className="text-gray-400">-</span>;
   };
 
@@ -1039,7 +1048,7 @@ export default function MonthlySummaryPage() {
                                       </td>
                                       <td className="p-2 sm:p-3 text-right align-middle">
                                         <div className="flex items-center justify-end gap-1">
-                                          {renderProcessBadge(order.currentProcess)}
+                                          {renderProcessBadge(order.status)}
                                           <Link href={`/mypage/orders/${order.id}`}>
                                             <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
                                               <Eye className="h-3.5 w-3.5" />
