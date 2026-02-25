@@ -12,6 +12,7 @@ import {
   FileText,
   ChevronLeft,
   ChevronRight,
+  MapPin,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -35,9 +36,16 @@ import {
 } from '@/components/ui/table';
 import { useShippingReady, useGenerateLabel, useDownloadLabel } from '@/hooks/use-shipping-mgmt';
 import { useCourierList } from '@/hooks/use-delivery-tracking';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { ShippingInputDialog } from '@/components/order/shipping-input-dialog';
 import { BarcodeScanner } from '@/components/order/barcode-scanner';
 import { BundleShippingDialog } from '@/components/order/bundle-shipping-dialog';
+import { TrackingTimeline } from '@/components/order/tracking-timeline';
 import type { Order } from '@/hooks/use-orders';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -83,6 +91,12 @@ export default function ShippingManagementPage() {
     courierCode?: string;
     trackingNumber?: string;
   }>({ open: false, orderId: '', orderNumber: '' });
+  const [trackingDialogState, setTrackingDialogState] = useState<{
+    open: boolean;
+    orderNumber: string;
+    courierCode: string;
+    trackingNumber: string;
+  }>({ open: false, orderNumber: '', courierCode: '', trackingNumber: '' });
 
   // Data fetching
   const { data, isLoading, error } = useShippingReady({
@@ -420,6 +434,24 @@ export default function ShippingManagementPage() {
                                 <FileText className="h-3 w-3 mr-1" />
                                 송장입력
                               </Button>
+                              {order.shipping?.trackingNumber && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 px-2 text-xs text-blue-600 hover:text-blue-700"
+                                  onClick={() =>
+                                    setTrackingDialogState({
+                                      open: true,
+                                      orderNumber: order.orderNumber,
+                                      courierCode: order.shipping!.courierCode!,
+                                      trackingNumber: order.shipping!.trackingNumber!,
+                                    })
+                                  }
+                                >
+                                  <MapPin className="h-3 w-3 mr-1" />
+                                  배송추적
+                                </Button>
+                              )}
                               <Button
                                 size="sm"
                                 variant="ghost"
@@ -507,6 +539,24 @@ export default function ShippingManagementPage() {
                           <FileText className="h-3 w-3 mr-1" />
                           송장입력
                         </Button>
+                        {order.shipping?.trackingNumber && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 h-8 text-xs text-blue-600"
+                            onClick={() =>
+                              setTrackingDialogState({
+                                open: true,
+                                orderNumber: order.orderNumber,
+                                courierCode: order.shipping!.courierCode!,
+                                trackingNumber: order.shipping!.trackingNumber!,
+                              })
+                            }
+                          >
+                            <MapPin className="h-3 w-3 mr-1" />
+                            배송추적
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="outline"
@@ -573,6 +623,27 @@ export default function ShippingManagementPage() {
         currentCourierCode={shippingDialogState.courierCode}
         currentTrackingNumber={shippingDialogState.trackingNumber}
       />
+
+      {/* 배송추적 다이얼로그 */}
+      <Dialog
+        open={trackingDialogState.open}
+        onOpenChange={(open) =>
+          setTrackingDialogState((prev) => ({ ...prev, open }))
+        }
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              배송추적 — {trackingDialogState.orderNumber}
+            </DialogTitle>
+          </DialogHeader>
+          <TrackingTimeline
+            courierCode={trackingDialogState.courierCode}
+            trackingNumber={trackingDialogState.trackingNumber}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
