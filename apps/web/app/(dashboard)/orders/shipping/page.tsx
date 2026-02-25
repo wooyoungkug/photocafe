@@ -476,7 +476,7 @@ export default function ShippingManagementPage() {
                           aria-label="전체 선택"
                         />
                       </TableHead>
-                      <TableHead className="w-24">주문번호</TableHead>
+                      <TableHead className="w-24 text-center">주문번호</TableHead>
                       <TableHead className="w-16">거래처</TableHead>
                       <TableHead className="w-16">발송인</TableHead>
                       <TableHead className="w-16">수령인</TableHead>
@@ -503,7 +503,7 @@ export default function ShippingManagementPage() {
                               aria-label={`${order.orderNumber} 선택`}
                             />
                           </TableCell>
-                          <TableCell className="whitespace-nowrap">
+                          <TableCell className="whitespace-nowrap text-center">
                             <div className="text-xs text-muted-foreground">
                               {order.orderedAt
                                 ? format(new Date(order.orderedAt), 'yy.MM.dd', { locale: ko })
