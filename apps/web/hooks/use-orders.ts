@@ -78,6 +78,7 @@ export interface OrderShipping {
   senderPhone?: string;
   senderAddress?: string;
   senderAddressDetail?: string;
+  receiverType?: string;
   recipientName: string;
   phone: string;
   postalCode: string;

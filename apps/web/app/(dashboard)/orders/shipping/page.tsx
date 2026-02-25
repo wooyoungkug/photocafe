@@ -540,7 +540,12 @@ export default function ShippingManagementPage() {
                             )}
                           </TableCell>
                           <TableCell className="text-xs text-center whitespace-nowrap">
-                            {order.shipping?.recipientName ?? '-'}
+                            <div>{order.shipping?.recipientName ?? '-'}</div>
+                            {order.shipping?.receiverType && (
+                              <div className={cn('text-[10px] font-normal', order.shipping.receiverType === 'direct_customer' ? 'text-pink-600' : 'text-blue-600')}>
+                                {order.shipping.receiverType === 'direct_customer' ? '고객직배송' : '스튜디오배송'}
+                              </div>
+                            )}
                           </TableCell>
                           <TableCell className="text-xs text-center whitespace-nowrap">
                             {order.shipping?.phone ?? '-'}
@@ -709,9 +714,14 @@ export default function ShippingManagementPage() {
                           <span className="text-muted-foreground">발송인: </span>
                           {order.shipping?.senderName || <span className="text-red-500">미입력</span>}
                         </div>
-                        <div>
+                        <div className="flex items-center gap-1">
                           <span className="text-muted-foreground">수령인: </span>
                           {order.shipping?.recipientName ?? '-'}
+                          {order.shipping?.receiverType && (
+                            <span className={cn('text-[10px]', order.shipping.receiverType === 'direct_customer' ? 'text-pink-600' : 'text-blue-600')}>
+                              ({order.shipping.receiverType === 'direct_customer' ? '고객직배송' : '스튜디오배송'})
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-1">
                           <span className="text-muted-foreground">배송형태: </span>
