@@ -488,6 +488,7 @@ export default function ShippingManagementPage() {
                       <TableHead className="w-[20px]">거래처</TableHead>
                       <TableHead className="w-[20px]">발송인</TableHead>
                       <TableHead className="w-[20px]">수령인</TableHead>
+                      <TableHead className="w-[20px]">전화번호</TableHead>
                       <TableHead className="min-w-[120px]">주소</TableHead>
                       <TableHead className="w-[20px]">배송방법</TableHead>
                       <TableHead className="w-20">배송형태</TableHead>
@@ -533,6 +534,9 @@ export default function ShippingManagementPage() {
                           </TableCell>
                           <TableCell className="text-xs">
                             {order.shipping?.recipientName ?? '-'}
+                          </TableCell>
+                          <TableCell className="text-xs whitespace-nowrap">
+                            {order.shipping?.phone ?? '-'}
                           </TableCell>
                           <TableCell className="text-xs max-w-[160px]">
                             {hasRecipientIssue ? (
