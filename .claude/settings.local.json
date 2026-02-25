@@ -353,7 +353,10 @@
       "Bash(break)",
       "Bash(printf '{\"\"staffId\"\":\"\"admin\"\",\"\"password\"\":\"\"woo0930!\"\"}')",
       "WebFetch(domain:openapihome.ilogen.com)",
-      "WebFetch(domain:naverdownload.com)"
+      "WebFetch(domain:naverdownload.com)",
+      "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\" \"postgresql://postgres:postgres@localhost:5432/printing_erp\" -f \"C:/dev/printing114/fix_shipping.sql\")",
+      "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql\" \"postgresql://postgres:postgres@localhost:5432/printing_erp\" -f \"/c/dev/printing114/fix_shipping.sql\")",
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql\":*)"
     ],
     "additionalDirectories": [
       "C:\\dev\\printing114\\apps\\api\\dist",
