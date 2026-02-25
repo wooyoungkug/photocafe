@@ -76,6 +76,7 @@ export interface OrderShipping {
   senderType?: string;
   senderName?: string;
   senderPhone?: string;
+  senderPostalCode?: string;
   senderAddress?: string;
   senderAddressDetail?: string;
   receiverType?: string;
@@ -88,6 +89,7 @@ export interface OrderShipping {
   deliveryFee?: number;
   deliveryFeeType?: string;
   fareType?: string;
+  deliveryMemo?: string;
   courierCode?: string;
   trackingNumber?: string;
   shippedAt?: string;
@@ -468,24 +470,40 @@ export function useDailyOrderSummary(params: {
   });
 }
 
-// 배송 정보 업데이트 (송장 입력)
+export interface UpdateShippingPayload {
+  orderId: string;
+  // 발송인
+  senderType?: string;
+  senderName?: string;
+  senderPhone?: string;
+  senderPostalCode?: string;
+  senderAddress?: string;
+  senderAddressDetail?: string;
+  // 수령인
+  receiverType?: string;
+  recipientName?: string;
+  phone?: string;
+  postalCode?: string;
+  address?: string;
+  addressDetail?: string;
+  // 배송
+  deliveryMethod?: string;
+  deliveryFee?: number;
+  deliveryFeeType?: string;
+  fareType?: string;
+  deliveryMemo?: string;
+  // 택배사/송장
+  courierCode?: string;
+  trackingNumber?: string;
+}
+
+// 배송 정보 업데이트 (전체 배송정보 수정)
 export function useUpdateShipping() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      orderId,
-      courierCode,
-      trackingNumber,
-    }: {
-      orderId: string;
-      courierCode: string;
-      trackingNumber: string;
-    }) =>
-      api.patch<OrderShipping>(`/orders/${orderId}/shipping`, {
-        courierCode,
-        trackingNumber,
-      }),
+    mutationFn: ({ orderId, ...rest }: UpdateShippingPayload) =>
+      api.patch<OrderShipping>(`/orders/${orderId}/shipping`, rest),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: [ORDERS_KEY] });
       queryClient.invalidateQueries({ queryKey: [ORDERS_KEY, variables.orderId] });

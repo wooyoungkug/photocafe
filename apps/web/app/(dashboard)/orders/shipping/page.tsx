@@ -14,6 +14,7 @@ import {
   ChevronRight,
   MapPin,
   Zap,
+  Pencil,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -45,6 +46,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ShippingInputDialog } from '@/components/order/shipping-input-dialog';
+import { ShippingInfoEditDialog } from '@/components/order/shipping-info-edit-dialog';
 import { BarcodeScanner } from '@/components/order/barcode-scanner';
 import { BundleShippingDialog } from '@/components/order/bundle-shipping-dialog';
 import { TrackingTimeline } from '@/components/order/tracking-timeline';
@@ -114,6 +116,12 @@ export default function ShippingManagementPage() {
     courierCode: string;
     trackingNumber: string;
   }>({ open: false, orderNumber: '', courierCode: '', trackingNumber: '' });
+  const [infoDialogState, setInfoDialogState] = useState<{
+    open: boolean;
+    orderId: string;
+    orderNumber: string;
+    order: Order | null;
+  }>({ open: false, orderId: '', orderNumber: '', order: null });
 
   // Data fetching
   const { data, isLoading, error } = useShippingReady({
@@ -606,6 +614,22 @@ export default function ShippingManagementPage() {
                           </TableCell>
                           <TableCell className="text-center">
                             <div className="flex items-center justify-center gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 px-2 text-xs text-indigo-600 hover:text-indigo-700"
+                                onClick={() =>
+                                  setInfoDialogState({
+                                    open: true,
+                                    orderId: order.id,
+                                    orderNumber: order.orderNumber,
+                                    order,
+                                  })
+                                }
+                              >
+                                <Pencil className="h-3 w-3 mr-1" />
+                                배송정보
+                              </Button>
                               {!order.shipping?.trackingNumber && (
                                 <Button
                                   size="sm"
@@ -784,6 +808,22 @@ export default function ShippingManagementPage() {
                       </div>
 
                       <div className="flex gap-2 pt-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1 h-8 text-xs text-indigo-600"
+                          onClick={() =>
+                            setInfoDialogState({
+                              open: true,
+                              orderId: order.id,
+                              orderNumber: order.orderNumber,
+                              order,
+                            })
+                          }
+                        >
+                          <Pencil className="h-3 w-3 mr-1" />
+                          배송정보
+                        </Button>
                         {!order.shipping?.trackingNumber && (
                           <Button
                             size="sm"
@@ -888,6 +928,13 @@ export default function ShippingManagementPage() {
       </Card>
 
       {/* 다이얼로그들 */}
+      <ShippingInfoEditDialog
+        open={infoDialogState.open}
+        onOpenChange={(open) => setInfoDialogState((prev) => ({ ...prev, open }))}
+        orderId={infoDialogState.orderId}
+        orderNumber={infoDialogState.orderNumber}
+        shipping={infoDialogState.order?.shipping}
+      />
       <BarcodeScanner
         open={scannerOpen}
         onOpenChange={setScannerOpen}

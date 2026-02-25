@@ -738,7 +738,14 @@ export class OrderService {
 
   // ==================== 배송 정보 업데이트 ====================
   async updateShipping(id: string, dto: UpdateShippingDto) {
-    await this.findOne(id);
+    const order = await this.findOne(id);
+
+    if (order.status === ORDER_STATUS.SHIPPED) {
+      throw new BadRequestException('배송완료된 주문의 배송정보는 수정할 수 없습니다.');
+    }
+    if (order.status === ORDER_STATUS.CANCELLED) {
+      throw new BadRequestException('취소된 주문의 배송정보는 수정할 수 없습니다.');
+    }
 
     return this.prisma.orderShipping.update({
       where: { orderId: id },

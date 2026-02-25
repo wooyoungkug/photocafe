@@ -485,6 +485,95 @@ export class UpdateOrderStatusDto {
 
 // ==================== 배송 정보 업데이트 DTO ====================
 export class UpdateShippingDto {
+  // 발송인 정보
+  @ApiPropertyOptional({ description: '발송인 유형 (company/studio)' })
+  @IsOptional()
+  @IsString()
+  senderType?: string;
+
+  @ApiPropertyOptional({ description: '발송인 이름' })
+  @IsOptional()
+  @IsString()
+  senderName?: string;
+
+  @ApiPropertyOptional({ description: '발송인 전화번호' })
+  @IsOptional()
+  @IsString()
+  senderPhone?: string;
+
+  @ApiPropertyOptional({ description: '발송인 우편번호' })
+  @IsOptional()
+  @IsString()
+  senderPostalCode?: string;
+
+  @ApiPropertyOptional({ description: '발송인 주소' })
+  @IsOptional()
+  @IsString()
+  senderAddress?: string;
+
+  @ApiPropertyOptional({ description: '발송인 상세주소' })
+  @IsOptional()
+  @IsString()
+  senderAddressDetail?: string;
+
+  // 수령인 정보
+  @ApiPropertyOptional({ description: '수령인 유형 (direct_customer/studio)' })
+  @IsOptional()
+  @IsString()
+  receiverType?: string;
+
+  @ApiPropertyOptional({ description: '수령인 이름' })
+  @IsOptional()
+  @IsString()
+  recipientName?: string;
+
+  @ApiPropertyOptional({ description: '수령인 전화번호' })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiPropertyOptional({ description: '수령인 우편번호' })
+  @IsOptional()
+  @IsString()
+  postalCode?: string;
+
+  @ApiPropertyOptional({ description: '수령인 주소' })
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @ApiPropertyOptional({ description: '수령인 상세주소' })
+  @IsOptional()
+  @IsString()
+  addressDetail?: string;
+
+  // 배송 정보
+  @ApiPropertyOptional({ description: '배송방법 (parcel/motorcycle/freight/pickup)' })
+  @IsOptional()
+  @IsString()
+  deliveryMethod?: string;
+
+  @ApiPropertyOptional({ description: '배송비' })
+  @IsOptional()
+  @IsNumber()
+  deliveryFee?: number;
+
+  @ApiPropertyOptional({ description: '배송비 유형 (free/conditional/standard)' })
+  @IsOptional()
+  @IsString()
+  deliveryFeeType?: string;
+
+  @ApiPropertyOptional({ description: '운임구분 (prepaid/cod)' })
+  @IsOptional()
+  @IsString()
+  fareType?: string;
+
+  @ApiPropertyOptional({ description: '배송메모' })
+  @IsOptional()
+  @IsString()
+  deliveryMemo?: string;
+
+  // 택배사 / 송장
   @ApiPropertyOptional({ description: '택배사 코드' })
   @IsOptional()
   @IsString()

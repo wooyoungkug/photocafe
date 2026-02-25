@@ -493,7 +493,7 @@ export default function OrderListPage() {
                                   상세보기
                                 </Button>
                               </Link>
-                              {(order.status === 'ready_for_shipping' || order.status === 'shipped') && (
+                              {order.status === 'ready_for_shipping' && (
                                 <Button
                                   variant="ghost"
                                   size="sm"
