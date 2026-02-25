@@ -359,7 +359,7 @@ export default function ShippingManagementPage() {
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-slate-100 flex items-center justify-center">
+            <div className="h-10 w-10 rounded-lg bg-transparent flex items-center justify-center">
               <Package className="h-5 w-5 text-slate-600" />
             </div>
             <div>
@@ -370,7 +370,7 @@ export default function ShippingManagementPage() {
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-orange-50 flex items-center justify-center">
+            <div className="h-10 w-10 rounded-lg bg-transparent flex items-center justify-center">
               <FileText className="h-5 w-5 text-orange-500" />
             </div>
             <div>
@@ -381,7 +381,7 @@ export default function ShippingManagementPage() {
         </Card>
         <Card className="col-span-2 sm:col-span-1">
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center">
+            <div className="h-10 w-10 rounded-lg bg-transparent flex items-center justify-center">
               <Truck className="h-5 w-5 text-blue-500" />
             </div>
             <div>
@@ -485,16 +485,16 @@ export default function ShippingManagementPage() {
                         />
                       </TableHead>
                       <TableHead className="w-24 text-center">주문번호</TableHead>
-                      <TableHead className="w-[20px]">거래처</TableHead>
-                      <TableHead className="w-[20px]">발송인</TableHead>
-                      <TableHead className="w-[20px]">수령인</TableHead>
-                      <TableHead className="w-[20px]">전화번호</TableHead>
-                      <TableHead className="min-w-[120px]">주소</TableHead>
-                      <TableHead className="w-[20px]">배송방법</TableHead>
-                      <TableHead className="w-20">배송형태</TableHead>
-                      <TableHead className="w-28">송장번호</TableHead>
-                      <TableHead className="w-16">상태</TableHead>
-                      <TableHead className="w-40 text-right">액션</TableHead>
+                      <TableHead className="w-[20px] text-center">거래처</TableHead>
+                      <TableHead className="w-[20px] text-center">발송인</TableHead>
+                      <TableHead className="w-[20px] text-center">수령인</TableHead>
+                      <TableHead className="w-[20px] text-center">전화번호</TableHead>
+                      <TableHead className="min-w-[120px] text-center">주소</TableHead>
+                      <TableHead className="w-[20px] text-center">배송방법</TableHead>
+                      <TableHead className="w-20 text-center">배송형태</TableHead>
+                      <TableHead className="w-28 text-center">송장번호</TableHead>
+                      <TableHead className="w-16 text-center">상태</TableHead>
+                      <TableHead className="w-40 text-center">액션</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -520,10 +520,10 @@ export default function ShippingManagementPage() {
                             </div>
                             <div className="font-normal text-sm">{order.orderNumber}</div>
                           </TableCell>
-                          <TableCell className="text-xs">
+                          <TableCell className="text-xs text-center">
                             {order.client?.clientName ?? '-'}
                           </TableCell>
-                          <TableCell className="text-xs">
+                          <TableCell className="text-xs text-center">
                             {hasSenderIssue ? (
                               <span className="text-red-500">미입력</span>
                             ) : (
@@ -532,13 +532,13 @@ export default function ShippingManagementPage() {
                               </span>
                             )}
                           </TableCell>
-                          <TableCell className="text-xs">
+                          <TableCell className="text-xs text-center">
                             {order.shipping?.recipientName ?? '-'}
                           </TableCell>
-                          <TableCell className="text-xs whitespace-nowrap">
+                          <TableCell className="text-xs text-center whitespace-nowrap">
                             {order.shipping?.phone ?? '-'}
                           </TableCell>
-                          <TableCell className="text-xs max-w-[160px]">
+                          <TableCell className="text-xs text-center max-w-[160px]">
                             {hasRecipientIssue ? (
                               <span className="text-red-500">주소 미입력</span>
                             ) : (
@@ -547,7 +547,7 @@ export default function ShippingManagementPage() {
                               </span>
                             )}
                           </TableCell>
-                          <TableCell className="text-xs whitespace-nowrap">
+                          <TableCell className="text-xs text-center whitespace-nowrap">
                             <div className="flex flex-col">
                               <span>
                                 {DELIVERY_METHOD_LABELS[order.shipping?.deliveryMethod ?? ''] ??
@@ -560,10 +560,10 @@ export default function ShippingManagementPage() {
                               )}
                             </div>
                           </TableCell>
-                          <TableCell className="text-xs">
-                            <div className="flex flex-col gap-0.5">
+                          <TableCell className="text-xs text-center">
+                            <div className="flex flex-col gap-0.5 items-center">
                               {order.shipping?.bundleId && (
-                                <Badge variant="secondary" className="text-[10px] px-1 py-0 bg-purple-100 text-purple-700 w-fit">
+                                <Badge variant="secondary" className="text-[10px] px-1 py-0 bg-transparent text-purple-700 w-fit">
                                   묶음배송
                                 </Badge>
                               )}
@@ -577,12 +577,12 @@ export default function ShippingManagementPage() {
                               </Badge>
                             </div>
                           </TableCell>
-                          <TableCell className="text-xs font-mono">
+                          <TableCell className="text-xs text-center font-mono">
                             {order.shipping?.trackingNumber ?? (
                               <span className="text-muted-foreground">-</span>
                             )}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="text-center">
                             <Badge
                               variant="secondary"
                               className={cn('text-xs whitespace-nowrap', trackingStatus.className)}
@@ -719,7 +719,7 @@ export default function ShippingManagementPage() {
                             );
                           })()}
                           {order.shipping?.bundleId && (
-                            <Badge variant="secondary" className="text-[10px] px-1 py-0 bg-purple-100 text-purple-700">
+                            <Badge variant="secondary" className="text-[10px] px-1 py-0 bg-transparent text-purple-700">
                               묶음배송
                             </Badge>
                           )}

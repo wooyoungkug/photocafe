@@ -657,6 +657,7 @@ export class OrderService {
     const STATUS_TO_PROCESS: Record<string, string> = {
       pending_receipt: 'reception_waiting',
       receipt_completed: 'reception_complete',
+      in_production: 'print_waiting',
       ready_for_shipping: 'shipping_waiting',
       shipped: 'shipping',
       cancelled: 'order_cancelled',
