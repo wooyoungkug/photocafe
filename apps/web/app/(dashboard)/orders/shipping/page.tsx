@@ -501,12 +501,9 @@ export default function ShippingManagementPage() {
                     {orders.map((order) => {
                       const trackingStatus = getTrackingStatus(order);
                       const feeTypeKey = order.shipping?.deliveryFeeType ?? '';
-                      const deliveryFee =
-                        order.shipping?.deliveryFee != null
-                          ? Number(order.shipping.deliveryFee)
-                          : order.shippingFee ?? 0;
+                      const deliveryFee = order.shippingFee ?? 0;
                       const effectiveFeeTypeKey =
-                        feeTypeKey === 'conditional' && deliveryFee > 0 ? 'standard' : feeTypeKey;
+                        deliveryFee === 0 ? 'free' : (feeTypeKey === 'conditional' ? 'standard' : feeTypeKey || 'standard');
                       const feeType = FEE_TYPE_CONFIG[effectiveFeeTypeKey] ?? FEE_TYPE_CONFIG.standard;
                       const hasSenderIssue = !order.shipping?.senderName && !order.shipping?.senderAddress;
                       const hasRecipientIssue = !order.shipping?.address;
@@ -745,8 +742,8 @@ export default function ShippingManagementPage() {
                           <span className="text-muted-foreground">배송형태: </span>
                           {(() => {
                             const ftKey = order.shipping?.deliveryFeeType ?? '';
-                            const ftFee = Number(order.shipping?.deliveryFee ?? 0);
-                            const ftEffective = ftKey === 'conditional' && ftFee > 0 ? 'standard' : ftKey;
+                            const ftFee = order.shippingFee ?? 0;
+                            const ftEffective = ftFee === 0 ? 'free' : (ftKey === 'conditional' ? 'standard' : ftKey || 'standard');
                             const ft = FEE_TYPE_CONFIG[ftEffective] ?? FEE_TYPE_CONFIG.standard;
                             return (
                               <Badge variant="secondary" className={cn('text-[10px] px-1 py-0', ft.className)}>
