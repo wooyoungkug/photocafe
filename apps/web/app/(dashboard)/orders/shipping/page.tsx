@@ -298,7 +298,7 @@ export default function ShippingManagementPage() {
       {/* 헤더 */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold flex items-center gap-2">
+          <h1 className="text-xl font-normal flex items-center gap-2">
             <Truck className="h-5 w-5" />
             배송관리
           </h1>
