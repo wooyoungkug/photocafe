@@ -29,7 +29,7 @@ export function useDeliveryTracking(courierCode?: string, trackingNumber?: strin
     queryFn: () =>
       api.get<TrackingInfo>('/delivery/tracking', { courierCode, trackingNumber }),
     enabled: !!courierCode && !!trackingNumber,
-    staleTime: 1000 * 60 * 30, // 30분 캐시 (스마트택배 하루 요청 리미트 방지)
+    staleTime: 1000 * 60 * 60 * 6, // 6시간 캐시 (스마트택배 하루 요청 리미트 방지)
     retry: false,
   });
 }

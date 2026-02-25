@@ -20,7 +20,7 @@ export interface TrackingInfo {
 export class TrackingService {
   /** 인메모리 캐시: key = "courierCode:trackingNumber" */
   private cache = new Map<string, { data: TrackingInfo; expiresAt: number }>();
-  private readonly CACHE_TTL_MS = 30 * 60 * 1000; // 30분
+  private readonly CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6시간 (스마트택배 하루 요청 리미트 방지)
 
   constructor(private readonly configService: ConfigService) {}
 
@@ -53,6 +53,8 @@ export class TrackingService {
         { signal: AbortSignal.timeout(10000) },
       );
     } catch {
+      // 연결 실패 시 만료된 캐시라도 반환
+      if (cached) return cached.data;
       throw new HttpException(
         '배송 추적 서비스 연결에 실패했습니다.',
         HttpStatus.SERVICE_UNAVAILABLE,
@@ -60,6 +62,7 @@ export class TrackingService {
     }
 
     if (!response.ok) {
+      if (cached) return cached.data;
       throw new HttpException(
         '배송 추적 서비스 응답 오류',
         HttpStatus.BAD_GATEWAY,
@@ -68,8 +71,10 @@ export class TrackingService {
 
     const data = await response.json();
 
-    // Sweet Tracker returns `msg` field on error (e.g. invalid key, bad invoice)
+    // Sweet Tracker returns `msg` field on error (e.g. rate limit, invalid key)
     if (data.msg) {
+      // 하루 요청 건수 초과 등 에러 시 만료된 캐시라도 반환
+      if (cached) return cached.data;
       throw new HttpException(
         data.msg,
         HttpStatus.NOT_FOUND,

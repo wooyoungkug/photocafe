@@ -333,7 +333,7 @@ export default function OrderListPage() {
                               </div>
                               <Link
                                 href={`/mypage/orders/${order.id}`}
-                                className="text-xs font-semibold text-primary hover:underline"
+                                className="text-xs font-semibold text-foreground hover:underline"
                               >
                                 {order.orderNumber}
                               </Link>
@@ -354,7 +354,7 @@ export default function OrderListPage() {
                             rowSpan={items.length}
                             onClick={() => handleImpersonate(order.clientId)}
                           >
-                            <div className="text-xs font-medium text-blue-600 hover:underline flex items-center justify-center gap-0.5 whitespace-nowrap">
+                            <div className="text-xs font-medium text-foreground hover:underline flex items-center justify-center gap-0.5 whitespace-nowrap">
                               {order.client?.clientName}
                               <ExternalLink className="h-2.5 w-2.5 shrink-0" />
                             </div>
@@ -380,7 +380,7 @@ export default function OrderListPage() {
                           }}
                         >
                           <div className="space-y-0.5">
-                            <div className="text-xs font-medium truncate text-blue-600 hover:underline" title={item.folderName || item.productName}>
+                            <div className="text-xs font-medium truncate text-foreground hover:underline" title={item.folderName || item.productName}>
                               {item.folderName || item.productName}
                             </div>
                             <div className="text-[11px] text-muted-foreground truncate" title={[item.size, item.printMethod, item.paper, item.bindingType, item.coverMaterial, item.fabricName ? `원단:${item.fabricName}` : '', item.foilName ? `동판:${item.foilName}` : '', item.foilColor ? `박:${item.foilColor}` : '', item.foilPosition ? `위치:${item.foilPosition}` : ''].filter(Boolean).join(' / ')}>
@@ -423,7 +423,7 @@ export default function OrderListPage() {
                             <div className="space-y-1 whitespace-nowrap">
                               <div>{formatFileSize(Number(item.totalFileSize))}</div>
                               <button
-                                className="flex items-center justify-center gap-0.5 text-[11px] text-blue-600 hover:underline mx-auto disabled:opacity-50 whitespace-nowrap"
+                                className="flex items-center justify-center gap-0.5 text-[11px] text-foreground hover:underline mx-auto disabled:opacity-50 whitespace-nowrap"
                                 onClick={() => handleDownloadOriginals(order.id, order.orderNumber)}
                                 disabled={isDownloading === order.id}
                               >
