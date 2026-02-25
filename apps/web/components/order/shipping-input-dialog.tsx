@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Truck, Package, Zap, Loader2 } from 'lucide-react';
+import { Truck, Zap, Loader2, ExternalLink } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -22,7 +22,15 @@ import {
 import { useUpdateShipping } from '@/hooks/use-orders';
 import { useCourierList } from '@/hooks/use-delivery-tracking';
 import { useLogenStatus, useGenerateLogenTracking } from '@/hooks/use-logen';
-import { TrackingTimeline } from './tracking-timeline';
+
+/** 택배사 코드 → 직접 조회 URL */
+const DIRECT_TRACKING_URLS: Record<string, (no: string) => string> = {
+  '01': (no) => `https://service.epost.go.kr/trace.RetrieveDomRi498.postal?sid1=${no}`,
+  '04': (no) => `https://trace.cjlogistics.com/next/tracking.html?wblNo=${no}`,
+  '05': (no) => `https://www.hanjin.com/kor/CMS/DeliveryMgr/WaybillResult.do?wblnumText2=${no}`,
+  '06': (no) => `https://www.ilogen.com/web/personal/trace/${no}`,
+  '08': (no) => `https://www.lotteglogis.com/home/reservation/tracking/index?InvNo=${no}`,
+};
 import { toast } from '@/hooks/use-toast';
 
 interface Props {
@@ -44,7 +52,6 @@ export function ShippingInputDialog({
 }: Props) {
   const [courierCode, setCourierCode] = useState(currentCourierCode ?? '');
   const [trackingNumber, setTrackingNumber] = useState(currentTrackingNumber ?? '');
-  const [showTracking, setShowTracking] = useState(false);
 
   const { data: couriers = [] } = useCourierList();
   const updateShipping = useUpdateShipping();
@@ -56,7 +63,6 @@ export function ShippingInputDialog({
     if (open) {
       setCourierCode(currentCourierCode ?? '');
       setTrackingNumber(currentTrackingNumber ?? '');
-      setShowTracking(!!currentCourierCode && !!currentTrackingNumber);
     }
   }, [open, currentCourierCode, currentTrackingNumber]);
 
@@ -71,7 +77,6 @@ export function ShippingInputDialog({
       {
         onSuccess: () => {
           toast({ title: '송장이 저장되었습니다.' });
-          setShowTracking(true);
         },
         onError: (err: unknown) => {
           const msg = err instanceof Error ? err.message : '송장 저장에 실패했습니다.';
@@ -92,7 +97,6 @@ export function ShippingInputDialog({
       // 발급된 값으로 필드 업데이트
       setCourierCode('06');
       setTrackingNumber(result.trackingNumber);
-      setShowTracking(true);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '송장 자동발급에 실패했습니다.';
       toast({ title: msg, variant: 'destructive' });
@@ -161,25 +165,26 @@ export function ShippingInputDialog({
             />
           </div>
 
-          {/* 배송 추적 결과 */}
-          {showTracking && courierCode && trackingNumber && (
-            <div className="border rounded-lg p-4 bg-gray-50">
-              <TrackingTimeline
-                courierCode={showTracking && !hasChanges ? courierCode : ''}
-                trackingNumber={showTracking && !hasChanges ? trackingNumber : ''}
-              />
+          {/* 배송 추적: 택배사 직접 조회 링크 */}
+          {courierCode && trackingNumber && (
+            <div className="border rounded-lg p-3 bg-gray-50 flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">
+                배송추적
+              </span>
+              {DIRECT_TRACKING_URLS[courierCode] ? (
+                <a
+                  href={DIRECT_TRACKING_URLS[courierCode](trackingNumber)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-colors"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  택배사에서 직접 조회
+                </a>
+              ) : (
+                <span className="text-xs text-muted-foreground">조회 URL 없음</span>
+              )}
             </div>
-          )}
-
-          {!showTracking && currentCourierCode && currentTrackingNumber && (
-            <button
-              type="button"
-              className="flex items-center gap-1.5 text-sm text-blue-600 hover:underline"
-              onClick={() => setShowTracking(true)}
-            >
-              <Package className="h-3.5 w-3.5" />
-              배송 현황 보기
-            </button>
           )}
         </div>
 
