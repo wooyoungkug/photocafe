@@ -86,7 +86,7 @@ export class ShippingMgmtService {
       (await this.prisma.order.findUnique({ where: { orderNumber: barcode }, include }));
     if (!order)
       throw new NotFoundException(`바코드 "${barcode}"에 해당하는 주문이 없습니다.`);
-    return order;
+    return { order };
   }
 
   /**
