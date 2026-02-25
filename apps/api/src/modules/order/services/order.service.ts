@@ -652,15 +652,33 @@ export class OrderService {
     });
   }
 
+  // ==================== status → currentProcess 자동 매핑 ====================
+  private getDefaultProcessForStatus(status: string): string | null {
+    const STATUS_TO_PROCESS: Record<string, string> = {
+      pending_receipt: 'reception_waiting',
+      receipt_completed: 'reception_complete',
+      ready_for_shipping: 'shipping_waiting',
+      shipped: 'shipping',
+      cancelled: 'order_cancelled',
+    };
+    return STATUS_TO_PROCESS[status] || null;
+  }
+
   // ==================== 주문 상태 변경 ====================
   async updateStatus(id: string, dto: UpdateOrderStatusDto, userId: string) {
     const order = await this.findOne(id);
+
+    // currentProcess 결정: DTO에 명시 > status 기반 자동매핑 > 기존값 유지
+    const currentProcess =
+      dto.currentProcess ||
+      this.getDefaultProcessForStatus(dto.status) ||
+      order.currentProcess;
 
     return this.prisma.order.update({
       where: { id },
       data: {
         status: dto.status,
-        currentProcess: dto.currentProcess || order.currentProcess,
+        currentProcess,
         processHistory: {
           create: {
             fromStatus: order.status,

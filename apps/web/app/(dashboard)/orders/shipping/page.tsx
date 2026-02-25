@@ -563,14 +563,14 @@ export default function ShippingManagementPage() {
                                   묶음배송
                                 </Badge>
                               )}
-                              <Badge variant="secondary" className={cn('text-[10px] px-1 py-0 w-fit whitespace-nowrap', feeType.className)}>
-                                {feeType.label}
-                              </Badge>
                               {Number(order.shipping?.deliveryFee) > 0 && (
-                                <span className="text-[10px] text-muted-foreground">
+                                <span className="text-[11px] font-medium">
                                   {Number(order.shipping?.deliveryFee).toLocaleString()}원
                                 </span>
                               )}
+                              <Badge variant="secondary" className={cn('text-[11px] px-1 py-0 w-fit whitespace-nowrap', feeType.className)}>
+                                {feeType.label}
+                              </Badge>
                             </div>
                           </TableCell>
                           <TableCell className="text-xs font-mono">
