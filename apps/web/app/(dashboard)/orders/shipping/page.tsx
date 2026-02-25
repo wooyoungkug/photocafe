@@ -525,7 +525,7 @@ export default function ShippingManagementPage() {
                                 ? format(new Date(order.orderedAt), 'yy.MM.dd', { locale: ko })
                                 : '-'}
                             </div>
-                            <div className="text-[12px] font-normal text-black/70">{order.orderNumber}</div>
+                            <div className="text-[12px] font-normal text-black/50">{order.orderNumber}</div>
                           </TableCell>
                           <TableCell className="text-xs text-center whitespace-nowrap">
                             {order.client?.clientName ?? '-'}
