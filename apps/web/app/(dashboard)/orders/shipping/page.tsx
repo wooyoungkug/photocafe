@@ -503,13 +503,13 @@ export default function ShippingManagementPage() {
                               aria-label={`${order.orderNumber} 선택`}
                             />
                           </TableCell>
-                          <TableCell>
-                            <div className="font-medium text-sm">{order.orderNumber}</div>
+                          <TableCell className="whitespace-nowrap">
                             <div className="text-xs text-muted-foreground">
                               {order.orderedAt
-                                ? format(new Date(order.orderedAt), 'MM.dd', { locale: ko })
+                                ? format(new Date(order.orderedAt), 'yy.MM.dd', { locale: ko })
                                 : '-'}
                             </div>
+                            <div className="font-medium text-sm">{order.orderNumber}</div>
                           </TableCell>
                           <TableCell className="text-xs">
                             {order.client?.clientName ?? '-'}
