@@ -21,6 +21,7 @@ import {
   UpdateOrderDto,
   UpdateOrderStatusDto,
   UpdateShippingDto,
+  UpdateShippingWithFeeDto,
   AdjustOrderDto,
   OrderQueryDto,
   BulkOrderIdsDto,
@@ -210,6 +211,12 @@ export class OrderController {
   @ApiOperation({ summary: '배송 정보 업데이트' })
   async updateShipping(@Param('id') id: string, @Body() dto: UpdateShippingDto) {
     return this.orderService.updateShipping(id, dto);
+  }
+
+  @Patch(':id/shipping-with-fee')
+  @ApiOperation({ summary: '고객용 배송정보 수정 + 배송비 정산' })
+  async updateShippingWithFee(@Param('id') id: string, @Body() dto: UpdateShippingWithFeeDto) {
+    return this.orderService.updateShippingWithFee(id, dto);
   }
 
   @Patch(':id/delivered')

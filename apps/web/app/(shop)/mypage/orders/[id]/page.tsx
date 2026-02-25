@@ -44,7 +44,7 @@ import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { TrackingTimeline } from '@/components/order/tracking-timeline';
-import { CustomerShippingEditDialog } from '@/components/order/customer-shipping-edit-dialog';
+import { ShippingEditWithFeeDialog } from '@/components/order/shipping-edit-with-fee-dialog';
 
 // 주문 상태 타입 (orders/page.tsx와 동일)
 const ORDER_STATUS = {
@@ -127,6 +127,7 @@ interface OrderDetail {
     clientName: string;
     mobile?: string;
     email?: string;
+    creditEnabled?: boolean;
   };
   shipping: {
     receiverType?: string;
@@ -136,6 +137,7 @@ interface OrderDetail {
     address: string;
     addressDetail?: string;
     deliveryMethod: string;
+    deliveryMemo?: string;
     courierCode?: string;
     trackingNumber?: string;
   };
@@ -900,12 +902,13 @@ export default function OrderDetailPage() {
       </div>
 
       {/* 배송정보 수정 다이얼로그 */}
-      <CustomerShippingEditDialog
+      <ShippingEditWithFeeDialog
         open={shippingEditOpen}
         onOpenChange={setShippingEditOpen}
         orderId={order.id}
         orderNumber={order.orderNumber}
-        shipping={order.shipping}
+        shipping={order.shipping as any}
+        creditEnabled={order.client.creditEnabled}
       />
 
       {/* 이미지 미리보기 다이얼로그 (줌 + 네비게이션) */}

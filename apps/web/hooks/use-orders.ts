@@ -510,3 +510,37 @@ export function useUpdateShipping() {
     },
   });
 }
+
+// 고객용 배송정보 수정 + 배송비 정산
+export interface UpdateShippingWithFeePayload {
+  orderId: string;
+  receiverType?: string;
+  recipientName: string;
+  phone: string;
+  postalCode: string;
+  address: string;
+  addressDetail?: string;
+  deliveryMemo?: string;
+  paymentMethod?: string; // 'bank_transfer' | 'credit'
+}
+
+export interface UpdateShippingWithFeeResult {
+  feeDifference: number;
+  newShippingFee: number;
+  creditAdded: number;
+  paymentRequired: boolean;
+  bankAccount?: string;
+}
+
+export function useUpdateShippingWithFee() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ orderId, ...rest }: UpdateShippingWithFeePayload) =>
+      api.patch<UpdateShippingWithFeeResult>(`/orders/${orderId}/shipping-with-fee`, rest),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY] });
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY, variables.orderId] });
+    },
+  });
+}

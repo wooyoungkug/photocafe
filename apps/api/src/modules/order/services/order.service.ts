@@ -10,6 +10,8 @@ import {
   UpdateOrderDto,
   UpdateOrderStatusDto,
   UpdateShippingDto,
+  UpdateShippingWithFeeDto,
+  UpdateShippingWithFeeResult,
   AdjustOrderDto,
   BulkUpdateStatusDto,
   BulkCancelDto,
@@ -754,6 +756,126 @@ export class OrderService {
         ...(dto.trackingNumber && { shippedAt: new Date() }),
       },
     });
+  }
+
+  // ==================== 고객용 배송정보 수정 + 배송비 정산 ====================
+  async updateShippingWithFee(id: string, dto: UpdateShippingWithFeeDto): Promise<UpdateShippingWithFeeResult> {
+    const order = await this.findOne(id);
+
+    if (order.status === ORDER_STATUS.SHIPPED) {
+      throw new BadRequestException('배송완료된 주문의 배송정보는 수정할 수 없습니다.');
+    }
+    if (order.status === ORDER_STATUS.CANCELLED) {
+      throw new BadRequestException('취소된 주문의 배송정보는 수정할 수 없습니다.');
+    }
+
+    const client = order.client as any;
+    const currentShippingFee = Number(order.shippingFee ?? 0);
+
+    // 새 receiverType에 따라 배송비 재계산
+    const newReceiverType = dto.receiverType ?? order.shipping?.receiverType ?? '';
+    let newShippingFee = currentShippingFee;
+
+    if (newReceiverType === 'direct_customer') {
+      // 고객 직배송: 택배 기본요금 조회
+      const parcelPricing = await this.prisma.deliveryPricing.findUnique({
+        where: { deliveryMethod: 'parcel' },
+      });
+      newShippingFee = parcelPricing ? Number(parcelPricing.baseFee ?? 0) : 0;
+    } else if (newReceiverType === 'studio') {
+      // 스튜디오 배송: 거래처 shippingType에 따라 계산
+      const shippingType = client.shippingType ?? 'conditional';
+      if (shippingType === 'free') {
+        newShippingFee = 0;
+      } else if (shippingType === 'conditional') {
+        const threshold = Number(client.freeShippingThreshold ?? 90000);
+        const productPrice = Number(order.productPrice ?? 0);
+        if (productPrice >= threshold) {
+          newShippingFee = 0;
+        } else {
+          const parcelPricing = await this.prisma.deliveryPricing.findUnique({
+            where: { deliveryMethod: 'parcel' },
+          });
+          newShippingFee = parcelPricing ? Number(parcelPricing.baseFee ?? 0) : 0;
+        }
+      } else {
+        // standard: 항상 택배요금
+        const parcelPricing = await this.prisma.deliveryPricing.findUnique({
+          where: { deliveryMethod: 'parcel' },
+        });
+        newShippingFee = parcelPricing ? Number(parcelPricing.baseFee ?? 0) : 0;
+      }
+    }
+
+    const feeDifference = newShippingFee - currentShippingFee;
+
+    let creditAdded = 0;
+    let paymentRequired = false;
+    let bankAccount: string | undefined;
+
+    if (feeDifference > 0) {
+      // 추가요금 발생 (스튜디오→고객직배송 등)
+      paymentRequired = true;
+      if (dto.paymentMethod === 'credit' && client.creditEnabled) {
+        // 여신 거래: Client.pendingAdjustmentAmount에 음수 누적 (나중에 청구)
+        await this.prisma.client.update({
+          where: { id: client.id },
+          data: {
+            pendingAdjustmentAmount: { decrement: feeDifference },
+            pendingAdjustmentReason: `주문 ${order.orderNumber} 배송정보 수정 추가배송비`,
+            pendingAdjustmentAt: new Date(),
+          },
+        });
+        paymentRequired = false;
+      } else {
+        // 무통장입금: 계좌정보 조회
+        const bankName = await this.systemSettings.getValue('companyBankName', '');
+        const bankAccountNum = await this.systemSettings.getValue('companyBankAccount', '');
+        const bankHolder = await this.systemSettings.getValue('companyBankHolder', '');
+        if (bankName || bankAccountNum) {
+          bankAccount = `${bankName} ${bankAccountNum}${bankHolder ? ` (예금주: ${bankHolder})` : ''}`.trim();
+        }
+      }
+    } else if (feeDifference < 0) {
+      // 환불 발생 (고객직배송→스튜디오 등) → 포인트(크레딧) 적립
+      creditAdded = Math.abs(feeDifference);
+      await this.prisma.client.update({
+        where: { id: client.id },
+        data: {
+          pendingAdjustmentAmount: { increment: creditAdded },
+          pendingAdjustmentReason: `주문 ${order.orderNumber} 배송정보 수정 배송비 환불`,
+          pendingAdjustmentAt: new Date(),
+        },
+      });
+    }
+
+    // 주문 shippingFee + finalAmount 업데이트
+    const currentAdjustment = Number(order.adjustmentAmount ?? 0);
+    const newFinalAmount = Number(order.productPrice ?? 0) + Number(order.tax ?? 0) + newShippingFee - currentAdjustment;
+
+    await this.prisma.$transaction([
+      this.prisma.order.update({
+        where: { id },
+        data: {
+          shippingFee: newShippingFee,
+          finalAmount: newFinalAmount,
+        },
+      }),
+      this.prisma.orderShipping.update({
+        where: { orderId: id },
+        data: {
+          receiverType: dto.receiverType ?? undefined,
+          recipientName: dto.recipientName,
+          phone: dto.phone,
+          postalCode: dto.postalCode,
+          address: dto.address,
+          addressDetail: dto.addressDetail ?? undefined,
+          deliveryMemo: dto.deliveryMemo ?? undefined,
+        },
+      }),
+    ]);
+
+    return { feeDifference, newShippingFee, creditAdded, paymentRequired, bankAccount };
   }
 
   // ==================== 배송 완료 처리 ====================
