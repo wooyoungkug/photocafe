@@ -200,7 +200,7 @@ export class AuthController {
 
   @Public()
   @Post('admin/login')
-  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @Throttle({ default: { ttl: 60000, limit: 30 } })
   @ApiOperation({ summary: '관리자(직원) 로그인' })
   async adminLogin(@Body() dto: AdminLoginDto, @Request() req: any) {
     const staff = await this.authService.validateStaff(dto.staffId, dto.password);
