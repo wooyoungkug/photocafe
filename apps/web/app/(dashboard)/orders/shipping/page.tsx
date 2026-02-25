@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/table';
 import { useShippingReady, useGenerateLabel, useDownloadLabel } from '@/hooks/use-shipping-mgmt';
 import { useCourierList } from '@/hooks/use-delivery-tracking';
+import { useDeliveryPricing } from '@/hooks/use-delivery-pricing';
 import { useLogenStatus, useGenerateLogenTracking, useBulkLogenTracking } from '@/hooks/use-logen';
 import {
   Dialog,
@@ -125,6 +126,8 @@ export default function ShippingManagementPage() {
     endDate: endDate || undefined,
   });
   const { data: couriers = [] } = useCourierList();
+  const { data: parcelPricing } = useDeliveryPricing('parcel');
+  const parcelBaseFee = Number(parcelPricing?.baseFee ?? 0);
   const generateLabel = useGenerateLabel();
   const downloadLabel = useDownloadLabel();
   const { printLabel, preferences: printerPrefs } = usePrinter();
@@ -517,12 +520,12 @@ export default function ShippingManagementPage() {
                             />
                           </TableCell>
                           <TableCell className="whitespace-nowrap text-center">
-                            <div className="text-xs text-muted-foreground">
+                            <div className="text-[11px] text-black font-normal">
                               {order.orderedAt
                                 ? format(new Date(order.orderedAt), 'yy.MM.dd', { locale: ko })
                                 : '-'}
                             </div>
-                            <div className="font-normal text-sm">{order.orderNumber}</div>
+                            <div className="text-[11px] text-black font-normal">{order.orderNumber}</div>
                           </TableCell>
                           <TableCell className="text-xs text-center whitespace-nowrap">
                             {order.client?.clientName ?? '-'}
