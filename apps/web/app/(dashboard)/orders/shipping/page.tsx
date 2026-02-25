@@ -501,7 +501,7 @@ export default function ShippingManagementPage() {
                     {orders.map((order) => {
                       const trackingStatus = getTrackingStatus(order);
                       const feeTypeKey = order.shipping?.deliveryFeeType ?? '';
-                      const deliveryFee = order.shippingFee ?? 0;
+                      const deliveryFee = Number(order.shippingFee ?? 0);
                       const effectiveFeeTypeKey =
                         deliveryFee === 0 ? 'free' : (feeTypeKey === 'conditional' ? 'standard' : feeTypeKey || 'standard');
                       const feeType = FEE_TYPE_CONFIG[effectiveFeeTypeKey] ?? FEE_TYPE_CONFIG.standard;
@@ -742,7 +742,7 @@ export default function ShippingManagementPage() {
                           <span className="text-muted-foreground">배송형태: </span>
                           {(() => {
                             const ftKey = order.shipping?.deliveryFeeType ?? '';
-                            const ftFee = order.shippingFee ?? 0;
+                            const ftFee = Number(order.shippingFee ?? 0);
                             const ftEffective = ftFee === 0 ? 'free' : (ftKey === 'conditional' ? 'standard' : ftKey || 'standard');
                             const ft = FEE_TYPE_CONFIG[ftEffective] ?? FEE_TYPE_CONFIG.standard;
                             return (
@@ -756,7 +756,7 @@ export default function ShippingManagementPage() {
                               묶음배송
                             </Badge>
                           )}
-                          {(order.shippingFee ?? 0) > 0 && order.shipping?.fareType && FARE_TYPE_CONFIG[order.shipping.fareType] && (
+                          {Number(order.shippingFee ?? 0) > 0 && order.shipping?.fareType && FARE_TYPE_CONFIG[order.shipping.fareType] && (
                             <Badge variant="secondary" className={cn('text-[10px] px-1 py-0', FARE_TYPE_CONFIG[order.shipping.fareType].className)}>
                               {FARE_TYPE_CONFIG[order.shipping.fareType].label}
                             </Badge>
