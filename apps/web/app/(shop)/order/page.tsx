@@ -657,6 +657,8 @@ export default function OrderPage() {
         deliveryMethod: itemShipping.deliveryMethod,
         deliveryFee: itemShipping.deliveryFee || 0,
         deliveryFeeType: itemShipping.deliveryFeeType,
+        fareType: itemShipping.fareType,
+        deliveryMemo: itemShipping.deliveryMemo,
       } : {
         recipientName: shippingClientInfo?.clientName || user?.name || '',
         phone: shippingClientInfo?.phone || '',
@@ -672,7 +674,7 @@ export default function OrderPage() {
         isDuplicateOverride: item.isDuplicateOverride || false,
         customerMemo: memo || undefined,
         productMemo: item.orderMemo || undefined,
-        shippingFee: itemShipping?.deliveryFee || 0,
+        shippingFee: itemShipping?.fareType === 'cod' ? 0 : (itemShipping?.deliveryFee || 0),
         adjustmentAmount: 0,
         items: [orderItem],
         shipping: orderLevelShipping,
@@ -688,6 +690,13 @@ export default function OrderPage() {
       for (const od of orderDataList) {
         const receiverType = od.items?.[0]?.shipping?.receiverType;
         const deliveryMethod = od.items?.[0]?.shipping?.deliveryMethod;
+        const fareType = od.items?.[0]?.shipping?.fareType;
+
+        // 착불(cod)은 수령인이 직접 지불 → 주문 배송비 0원
+        if (fareType === 'cod') {
+          od.shippingFee = 0;
+          continue;
+        }
 
         if (receiverType === 'direct_customer') {
           // 고객직배송: 배송비 그대로 유지
