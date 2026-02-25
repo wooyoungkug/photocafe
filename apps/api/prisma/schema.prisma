@@ -844,6 +844,7 @@ model OrderShipping {
   deliveryMethod      String?
   deliveryFee         Decimal?        @db.Decimal(10, 2)
   deliveryFeeType     String?
+  fareType            String?         // 'prepaid' | 'cod' (선불/착불)
   courierCode         String?
   trackingNumber      String?
   shippedAt           DateTime?
@@ -931,6 +932,7 @@ model OrderItemShipping {
   deliveryMethod      String
   deliveryFee         Decimal   @default(0) @db.Decimal(10, 2)
   deliveryFeeType     String?
+  fareType            String?         // 'prepaid' | 'cod' (선불/착불)
   courierCode         String?
   trackingNumber      String?
   shippedAt           DateTime?
