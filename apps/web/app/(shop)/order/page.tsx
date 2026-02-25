@@ -103,6 +103,7 @@ const toShippingDto = (s: CartShippingInfo) => ({
   deliveryFee: s.deliveryFee,
   deliveryFeeType: s.deliveryFeeType,
   fareType: s.fareType,
+  deliveryMemo: s.deliveryMemo,
 });
 
 export default function OrderPage() {
@@ -588,7 +589,6 @@ export default function OrderPage() {
           unitPrice: item.basePrice,
           thumbnailUrl: safeUrl(item.thumbnailUrl) || safeUrl(item.thumbnailUrls?.[0]),
           totalFileSize: albumInfo.totalSize || 0,
-          colorMode: albumInfo.colorMode,
           pageLayout: albumInfo.pageLayout,
           bindingDirection: albumInfo.bindingDirection,
           fabricName: albumInfo.fabricName || undefined,
@@ -605,7 +605,6 @@ export default function OrderPage() {
           foilColor: albumInfo.foilColor || undefined,
           foilPosition: albumInfo.foilPosition || undefined,
           folderName: albumInfo.folderName,
-          fileCount: albumInfo.fileCount,
           files: (item.serverFiles || []).map((sf, idx) => ({
             fileName: sf.fileName || sf.tempFileId?.split('/').pop() || `page_${idx + 1}.jpg`,
             fileUrl: sf.fileUrl,
