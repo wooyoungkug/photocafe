@@ -232,7 +232,7 @@ export default function OrderDetailPage() {
 
   // 주문 상세 조회
   const { data: order, isLoading } = useQuery({
-    queryKey: ['order', orderId],
+    queryKey: ['orders', orderId],
     queryFn: async () => {
       return api.get<OrderDetail>(`/orders/${orderId}`);
     },
