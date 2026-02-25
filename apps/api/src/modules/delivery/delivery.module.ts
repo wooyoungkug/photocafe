@@ -4,11 +4,13 @@ import { DeliveryPricingController } from './controllers/delivery-pricing.contro
 import { TrackingController } from './controllers/tracking.controller';
 import { ShippingMgmtController } from './controllers/shipping-mgmt.controller';
 import { ShippingLabelController } from './controllers/shipping-label.controller';
+import { LogenController } from './controllers/logen.controller';
 import { DeliveryPricingService } from './services/delivery-pricing.service';
 import { KakaoMapService } from './services/kakao-map.service';
 import { TrackingService } from './services/tracking.service';
 import { ShippingMgmtService } from './services/shipping-mgmt.service';
 import { ShippingLabelService } from './services/shipping-label.service';
+import { LogenService } from './services/logen.service';
 import { PrismaModule } from '../../common/prisma/prisma.module';
 
 @Module({
@@ -18,6 +20,7 @@ import { PrismaModule } from '../../common/prisma/prisma.module';
     TrackingController,
     ShippingMgmtController,
     ShippingLabelController,
+    LogenController,
   ],
   providers: [
     DeliveryPricingService,
@@ -25,6 +28,7 @@ import { PrismaModule } from '../../common/prisma/prisma.module';
     TrackingService,
     ShippingMgmtService,
     ShippingLabelService,
+    LogenService,
   ],
   exports: [
     DeliveryPricingService,
@@ -32,6 +36,7 @@ import { PrismaModule } from '../../common/prisma/prisma.module';
     TrackingService,
     ShippingMgmtService,
     ShippingLabelService,
+    LogenService,
   ],
 })
 export class DeliveryModule {}

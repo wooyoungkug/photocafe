@@ -310,7 +310,7 @@ export default function OrderListPage() {
                         {/* 체크박스 - 첫 번째 항목에만 표시 */}
                         {idx === 0 && (
                           <TableCell
-                            className="text-center align-top pt-3"
+                            className="text-center align-middle"
                             rowSpan={items.length}
                           >
                             <Checkbox
@@ -324,7 +324,7 @@ export default function OrderListPage() {
                         {/* 주문일(주문번호) - 첫 번째 항목에만 표시 */}
                         {idx === 0 && (
                           <TableCell
-                            className="text-center align-top pt-3"
+                            className="text-center align-middle"
                             rowSpan={items.length}
                           >
                             <div className="space-y-1">
@@ -350,7 +350,7 @@ export default function OrderListPage() {
                         {/* 회원정보 + 영업담당자 - 클릭 시 회원 쇼핑몰로 이동 */}
                         {idx === 0 && (
                           <TableCell
-                            className="text-center align-top pt-3 cursor-pointer hover:bg-blue-50/50"
+                            className="text-center align-middle cursor-pointer hover:bg-blue-50/50"
                             rowSpan={items.length}
                             onClick={() => handleImpersonate(order.clientId)}
                           >
@@ -449,7 +449,7 @@ export default function OrderListPage() {
                         {/* 주문금액 - 첫 번째 항목에만 합계 표시 */}
                         {idx === 0 && (
                           <TableCell
-                            className="text-right align-top pt-3 font-bold text-sm whitespace-nowrap"
+                            className="text-right align-middle font-bold text-sm whitespace-nowrap"
                             rowSpan={items.length}
                           >
                             {Math.round(Number(order.finalAmount)).toLocaleString()}원
@@ -459,7 +459,7 @@ export default function OrderListPage() {
                         {/* 진행상황 - 첫 번째 항목에만 표시 */}
                         {idx === 0 && (
                           <TableCell
-                            className="text-center align-top pt-3"
+                            className="text-center align-middle"
                             rowSpan={items.length}
                           >
                             <div className="space-y-1">
@@ -483,7 +483,7 @@ export default function OrderListPage() {
                         {/* 확인 버튼 - 첫 번째 항목에만 표시 */}
                         {idx === 0 && (
                           <TableCell
-                            className="text-center align-top pt-3"
+                            className="text-center align-middle"
                             rowSpan={items.length}
                           >
                             <div className="flex flex-col gap-1">
