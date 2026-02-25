@@ -421,15 +421,17 @@ export default function OrderListPage() {
                             </Badge>
                           ) : (
                             <div className="space-y-1">
-                              <div>{formatFileSize(Number(item.totalFileSize))}</div>
-                              <button
-                                className="flex items-center justify-center gap-0.5 text-[11px] text-blue-600 hover:underline mx-auto disabled:opacity-50"
-                                onClick={() => handleDownloadOriginals(order.id, order.orderNumber)}
-                                disabled={isDownloading === order.id}
-                              >
-                                <Download className="h-3 w-3" />
-                                {isDownloading === order.id ? '다운로드중...' : '원본받기'}
-                              </button>
+                              <div className="flex items-center justify-center gap-1">
+                                <span>{formatFileSize(Number(item.totalFileSize))}</span>
+                                <button
+                                  className="inline-flex items-center gap-0.5 text-[11px] text-blue-600 hover:underline disabled:opacity-50"
+                                  onClick={() => handleDownloadOriginals(order.id, order.orderNumber)}
+                                  disabled={isDownloading === order.id}
+                                >
+                                  <Download className="h-3 w-3" />
+                                  {isDownloading === order.id ? '다운로드중...' : '원본받기'}
+                                </button>
+                              </div>
                               {order.status === 'shipped' && (
                                 <button
                                   className="flex items-center justify-center gap-0.5 text-[11px] text-red-500 hover:underline mx-auto"
