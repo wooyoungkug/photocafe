@@ -170,6 +170,12 @@ interface OrderDetail {
     files?: OrderFile[];
     options?: any;
   }[];
+  salesLedger?: {
+    receivedAmount: number;
+    outstandingAmount: number;
+    paymentStatus: string;
+    totalAmount: number;
+  };
   fileRetention?: {
     retentionMonths: number;
     shippedAt?: string;
@@ -839,6 +845,25 @@ export default function OrderDetailPage() {
                     {displayTotal.toLocaleString()}원
                   </span>
                 </div>
+                {order.salesLedger && (
+                  <>
+                    <Separator />
+                    {Number(order.salesLedger.receivedAmount) > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">선수금</span>
+                        <span className="text-blue-600">-{Number(order.salesLedger.receivedAmount).toLocaleString()}원</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-base font-medium">
+                      <span>결제할금액</span>
+                      <span className={Number(order.salesLedger.outstandingAmount) <= 0 ? 'text-green-600' : 'text-red-600'}>
+                        {Number(order.salesLedger.outstandingAmount) <= 0
+                          ? '결제완료'
+                          : `${Number(order.salesLedger.outstandingAmount).toLocaleString()}원`}
+                      </span>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
 

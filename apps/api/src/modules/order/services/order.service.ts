@@ -345,6 +345,14 @@ export class OrderService {
           orderBy: { processedAt: 'desc' },
           take: 50,
         },
+        salesLedger: {
+          select: {
+            receivedAmount: true,
+            outstandingAmount: true,
+            paymentStatus: true,
+            totalAmount: true,
+          },
+        },
       },
     });
 
