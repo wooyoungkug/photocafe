@@ -659,6 +659,12 @@ export default function OrderPage() {
         fareType: itemShipping.fareType,
         deliveryMemo: itemShipping.deliveryMemo,
       } : {
+        senderType: 'company',
+        senderName: companyInfo?.name || '',
+        senderPhone: companyInfo?.phone || '',
+        senderPostalCode: companyInfo?.postalCode || '',
+        senderAddress: companyInfo?.address || '',
+        senderAddressDetail: companyInfo?.addressDetail || '',
         recipientName: shippingClientInfo?.clientName || user?.name || '',
         phone: shippingClientInfo?.phone || '',
         postalCode: shippingClientInfo?.postalCode || '',

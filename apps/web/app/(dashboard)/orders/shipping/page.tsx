@@ -534,9 +534,16 @@ export default function ShippingManagementPage() {
                             {hasSenderIssue ? (
                               <span className="text-red-500">미입력</span>
                             ) : (
-                              <span title={order.shipping?.senderAddress ?? ''}>
-                                {order.shipping?.senderName ?? '-'}
-                              </span>
+                              <>
+                                <div title={order.shipping?.senderAddress ?? ''}>
+                                  {order.shipping?.senderName ?? '-'}
+                                </div>
+                                {order.shipping?.senderType && (
+                                  <div className={cn('text-[10px] font-normal', order.shipping.senderType === 'company' ? 'text-green-600' : 'text-blue-600')}>
+                                    {order.shipping.senderType === 'company' ? '제작사발송' : '스튜디오발송'}
+                                  </div>
+                                )}
+                              </>
                             )}
                           </TableCell>
                           <TableCell className="text-xs text-center whitespace-nowrap">
@@ -710,9 +717,20 @@ export default function ShippingManagementPage() {
                           <span className="text-muted-foreground">거래처: </span>
                           {order.client?.clientName ?? '-'}
                         </div>
-                        <div>
+                        <div className="flex items-center gap-1">
                           <span className="text-muted-foreground">발송인: </span>
-                          {order.shipping?.senderName || <span className="text-red-500">미입력</span>}
+                          {order.shipping?.senderName ? (
+                            <>
+                              {order.shipping.senderName}
+                              {order.shipping.senderType && (
+                                <span className={cn('text-[10px]', order.shipping.senderType === 'company' ? 'text-green-600' : 'text-blue-600')}>
+                                  ({order.shipping.senderType === 'company' ? '제작사' : '스튜디오'})
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-red-500">미입력</span>
+                          )}
                         </div>
                         <div className="flex items-center gap-1">
                           <span className="text-muted-foreground">수령인: </span>

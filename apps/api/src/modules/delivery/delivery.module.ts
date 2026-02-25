@@ -12,9 +12,10 @@ import { ShippingMgmtService } from './services/shipping-mgmt.service';
 import { ShippingLabelService } from './services/shipping-label.service';
 import { LogenService } from './services/logen.service';
 import { PrismaModule } from '../../common/prisma/prisma.module';
+import { SystemSettingsModule } from '../system-settings/system-settings.module';
 
 @Module({
-  imports: [PrismaModule, ConfigModule],
+  imports: [PrismaModule, ConfigModule, SystemSettingsModule],
   controllers: [
     DeliveryPricingController,
     TrackingController,

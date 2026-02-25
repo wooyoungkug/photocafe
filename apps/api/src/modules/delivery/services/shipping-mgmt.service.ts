@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
+import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { CreateBundleDto, BulkTrackingDto } from '../dto/shipping-mgmt.dto';
 import { format } from 'date-fns';
 
@@ -9,6 +10,7 @@ export class ShippingMgmtService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly systemSettings: SystemSettingsService,
   ) {}
 
   /**
@@ -57,6 +59,42 @@ export class ShippingMgmtService {
       }),
       this.prisma.order.count({ where }),
     ]);
+
+    // 발송인 미입력 주문에 회사정보 자동 채우기
+    const ordersWithMissingSender = orders.filter(
+      (o) => o.shipping && !o.shipping.senderName && !o.shipping.senderAddress,
+    );
+    if (ordersWithMissingSender.length > 0) {
+      const companyInfo = await this.getCompanyInfo();
+      if (companyInfo.name) {
+        await Promise.all(
+          ordersWithMissingSender.map((o) =>
+            this.prisma.orderShipping.update({
+              where: { orderId: o.id },
+              data: {
+                senderType: 'company',
+                senderName: companyInfo.name,
+                senderPhone: companyInfo.phone,
+                senderPostalCode: companyInfo.postalCode,
+                senderAddress: companyInfo.address,
+                senderAddressDetail: companyInfo.addressDetail,
+              },
+            }),
+          ),
+        );
+        // 업데이트된 값 반영
+        for (const o of ordersWithMissingSender) {
+          if (o.shipping) {
+            o.shipping.senderType = 'company';
+            o.shipping.senderName = companyInfo.name;
+            o.shipping.senderPhone = companyInfo.phone;
+            o.shipping.senderPostalCode = companyInfo.postalCode;
+            o.shipping.senderAddress = companyInfo.address;
+            o.shipping.senderAddressDetail = companyInfo.addressDetail;
+          }
+        }
+      }
+    }
 
     // 묶음 가능 주문 감지 (같은 수령인+연락처+주소)
     const bundleCandidates = this.detectBundleCandidates(orders);
@@ -352,6 +390,20 @@ export class ShippingMgmtService {
       if (ids.length > 1) ids.forEach((id) => result.set(id, key));
     }
     return result;
+  }
+
+  /**
+   * 회사 정보(발송지 기본값) 조회
+   */
+  private async getCompanyInfo() {
+    const [name, phone, postalCode, address, addressDetail] = await Promise.all([
+      this.systemSettings.getValue('company_name', ''),
+      this.systemSettings.getValue('company_phone', ''),
+      this.systemSettings.getValue('company_postal_code', ''),
+      this.systemSettings.getValue('company_address', ''),
+      this.systemSettings.getValue('company_address_detail', ''),
+    ]);
+    return { name, phone, postalCode, address, addressDetail };
   }
 
   /**
