@@ -87,6 +87,10 @@ export function ShippingInputDialog({
   };
 
   const handleLogenGenerate = async () => {
+    if (!logenStatus?.configured) {
+      toast({ title: '로젠택배 API가 설정되지 않았습니다. (.env에 LOGEN_USER_ID, LOGEN_CUST_CD를 입력해주세요)', variant: 'destructive' });
+      return;
+    }
     try {
       const result = await generateLogen.mutateAsync(orderId);
       if (result.alreadyExists) {
@@ -107,7 +111,7 @@ export function ShippingInputDialog({
     courierCode !== (currentCourierCode ?? '') ||
     trackingNumber.trim() !== (currentTrackingNumber ?? '');
 
-  const showAutoGenerate = logenStatus?.configured && !currentTrackingNumber;
+  const showAutoGenerate = !currentTrackingNumber;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

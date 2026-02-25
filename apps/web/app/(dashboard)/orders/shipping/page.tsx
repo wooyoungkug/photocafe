@@ -310,26 +310,30 @@ export default function ShippingManagementPage() {
             <span className="hidden sm:inline">묶음배송 감지</span>
             <span className="sm:hidden">묶음</span>
           </Button>
-          {logenStatus?.configured && (
-            <Button
-              variant="default"
-              onClick={handleBulkLogenGenerate}
-              disabled={selectedIds.size === 0 || bulkLogen.isPending}
-            >
-              {bulkLogen.isPending ? (
-                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-              ) : (
-                <Zap className="h-4 w-4 mr-1.5" />
-              )}
-              <span className="hidden sm:inline">로젠 일괄발급</span>
-              <span className="sm:hidden">자동발급</span>
-              {selectedIds.size > 0 && (
-                <Badge variant="secondary" className="ml-1.5 bg-white/20 text-white">
-                  {selectedIds.size}
-                </Badge>
-              )}
-            </Button>
-          )}
+          <Button
+            variant="default"
+            onClick={() => {
+              if (!logenStatus?.configured) {
+                toast({ title: '로젠택배 API가 설정되지 않았습니다. (.env에 LOGEN_USER_ID, LOGEN_CUST_CD를 입력해주세요)', variant: 'destructive' });
+                return;
+              }
+              handleBulkLogenGenerate();
+            }}
+            disabled={selectedIds.size === 0 || bulkLogen.isPending}
+          >
+            {bulkLogen.isPending ? (
+              <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+            ) : (
+              <Zap className="h-4 w-4 mr-1.5" />
+            )}
+            <span className="hidden sm:inline">로젠 일괄발급</span>
+            <span className="sm:hidden">자동발급</span>
+            {selectedIds.size > 0 && (
+              <Badge variant="secondary" className="ml-1.5 bg-white/20 text-white">
+                {selectedIds.size}
+              </Badge>
+            )}
+          </Button>
           <Button variant="outline" onClick={handleBulkPrint} disabled={selectedIds.size === 0}>
             <Printer className="h-4 w-4 mr-1.5" />
             <span className="hidden sm:inline">운송장 일괄출력</span>
@@ -568,12 +572,18 @@ export default function ShippingManagementPage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center justify-end gap-1">
-                              {logenStatus?.configured && !order.shipping?.trackingNumber && (
+                              {!order.shipping?.trackingNumber && (
                                 <Button
                                   size="sm"
                                   variant="ghost"
                                   className="h-7 px-2 text-xs text-green-600 hover:text-green-700"
-                                  onClick={() => handleLogenGenerate(order.id)}
+                                  onClick={() => {
+                                    if (!logenStatus?.configured) {
+                                      toast({ title: '로젠택배 API 미설정 (.env에 LOGEN_USER_ID, LOGEN_CUST_CD 입력 필요)', variant: 'destructive' });
+                                      return;
+                                    }
+                                    handleLogenGenerate(order.id);
+                                  }}
                                   disabled={generateLogen.isPending}
                                 >
                                   {generateLogen.isPending ? (
@@ -716,12 +726,18 @@ export default function ShippingManagementPage() {
                       </div>
 
                       <div className="flex gap-2 pt-1">
-                        {logenStatus?.configured && !order.shipping?.trackingNumber && (
+                        {!order.shipping?.trackingNumber && (
                           <Button
                             size="sm"
                             variant="outline"
                             className="flex-1 h-8 text-xs text-green-600"
-                            onClick={() => handleLogenGenerate(order.id)}
+                            onClick={() => {
+                              if (!logenStatus?.configured) {
+                                toast({ title: '로젠택배 API 미설정 (.env에 LOGEN_USER_ID, LOGEN_CUST_CD 입력 필요)', variant: 'destructive' });
+                                return;
+                              }
+                              handleLogenGenerate(order.id);
+                            }}
                             disabled={generateLogen.isPending}
                           >
                             <Zap className="h-3 w-3 mr-1" />
