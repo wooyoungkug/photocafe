@@ -169,6 +169,11 @@ export class OrderItemShippingDto {
   @IsOptional()
   @IsString()
   fareType?: string;
+
+  @ApiPropertyOptional({ description: '배송메모 (배송 시 요청사항)' })
+  @IsOptional()
+  @IsString()
+  deliveryMemo?: string;
 }
 
 // ==================== 주문 항목 DTO ====================
@@ -385,6 +390,11 @@ export class OrderShippingDto {
   @IsOptional()
   @IsString()
   fareType?: string;
+
+  @ApiPropertyOptional({ description: '배송메모 (배송 시 요청사항)' })
+  @IsOptional()
+  @IsString()
+  deliveryMemo?: string;
 }
 
 // ==================== 주문 생성 DTO ====================
