@@ -396,7 +396,7 @@ export default function ShippingManagementPage() {
                           <TableCell>
                             <Badge
                               variant="secondary"
-                              className={cn('text-xs', trackingStatus.className)}
+                              className={cn('text-xs whitespace-nowrap', trackingStatus.className)}
                             >
                               {trackingStatus.label}
                             </Badge>
