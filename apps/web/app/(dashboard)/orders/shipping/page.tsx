@@ -548,7 +548,7 @@ export default function ShippingManagementPage() {
                             )}
                           </TableCell>
                           <TableCell className="text-xs text-center whitespace-nowrap">
-                            <div className="flex flex-col">
+                            <div className="flex flex-col items-center">
                               <span>
                                 {DELIVERY_METHOD_LABELS[order.shipping?.deliveryMethod ?? ''] ??
                                   getCourierName(order.shipping?.courierCode)}
@@ -590,8 +590,8 @@ export default function ShippingManagementPage() {
                               {trackingStatus.label}
                             </Badge>
                           </TableCell>
-                          <TableCell>
-                            <div className="flex items-center justify-end gap-1">
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1">
                               {!order.shipping?.trackingNumber && (
                                 <Button
                                   size="sm"
