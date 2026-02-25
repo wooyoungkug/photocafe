@@ -156,7 +156,6 @@ export function ShippingEditWithFeeDialog({
             <div className="space-y-1">
               <Label className="text-[11px]">배송 유형</Label>
               <Select
-                key={form.receiverType}
                 value={form.receiverType}
                 onValueChange={(v) => {
                   if (v === 'direct_customer') {
@@ -176,7 +175,11 @@ export function ShippingEditWithFeeDialog({
                 }}
               >
                 <SelectTrigger className="h-8 text-[11px]">
-                  <SelectValue placeholder="배송 유형 선택" />
+                  <span>
+                    {form.receiverType === 'studio' ? '스튜디오 배송'
+                      : form.receiverType === 'direct_customer' ? '고객 직배송'
+                      : '배송 유형 선택'}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="studio">스튜디오 배송</SelectItem>
