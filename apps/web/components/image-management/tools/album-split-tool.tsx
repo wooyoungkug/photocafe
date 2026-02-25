@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
-import { Upload, Scissors, Download, Info, Eye, FolderOpen } from 'lucide-react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { Upload, Scissors, Download, Info, Eye, FolderOpen, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +26,9 @@ export function AlbumSplitTool() {
   const [processing, setProcessing] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
 
+  const [savedLeft, setSavedLeft] = useState(false);
+  const [savedRight, setSavedRight] = useState(false);
+  const uploadZoneRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const leftCanvasRef = useRef<HTMLCanvasElement>(null);
   const rightCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -35,6 +38,24 @@ export function AlbumSplitTool() {
     if (leftUrl) URL.revokeObjectURL(leftUrl);
     if (rightUrl) URL.revokeObjectURL(rightUrl);
   }, [leftUrl, rightUrl]);
+
+  const resetTool = useCallback(() => {
+    cleanup();
+    setOriginalImage(null);
+    setFileName('');
+    setOriginalDPI(300);
+    setLeftBlob(null);
+    setRightBlob(null);
+    setLeftUrl('');
+    setRightUrl('');
+    setShowInfo(false);
+    setShowPreview(false);
+    setShowResult(false);
+    setSavedLeft(false);
+    setSavedRight(false);
+    // 업로드 영역으로 스크롤
+    uploadZoneRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [cleanup]);
 
   const loadImage = useCallback((file: File) => {
     cleanup();
@@ -163,10 +184,11 @@ export function AlbumSplitTool() {
     const filename = '첫장.jpg';
     if (directoryHandle) {
       const ok = await saveToFolder(directoryHandle, leftBlob, filename);
-      if (ok) toast.success(`${filename} 저장 완료`);
+      if (ok) { toast.success(`${filename} 저장 완료`); setSavedLeft(true); }
       else toast.error('저장 실패');
     } else {
       fallbackDownload(leftBlob, filename);
+      setSavedLeft(true);
     }
   }, [leftBlob, directoryHandle]);
 
@@ -175,10 +197,11 @@ export function AlbumSplitTool() {
     const filename = '막장.jpg';
     if (directoryHandle) {
       const ok = await saveToFolder(directoryHandle, rightBlob, filename);
-      if (ok) toast.success(`${filename} 저장 완료`);
+      if (ok) { toast.success(`${filename} 저장 완료`); setSavedRight(true); }
       else toast.error('저장 실패');
     } else {
       fallbackDownload(rightBlob, filename);
+      setSavedRight(true);
     }
   }, [rightBlob, directoryHandle]);
 
@@ -187,13 +210,26 @@ export function AlbumSplitTool() {
     if (directoryHandle) {
       const ok1 = await saveToFolder(directoryHandle, leftBlob, '첫장.jpg');
       const ok2 = await saveToFolder(directoryHandle, rightBlob, '막장.jpg');
-      if (ok1 && ok2) toast.success('첫장, 막장 모두 저장 완료');
-      else toast.error('일부 파일 저장 실패');
+      if (ok1 && ok2) {
+        toast.success('첫장 + 막장 저장 완료! 잠시 후 초기화됩니다.');
+        setTimeout(resetTool, 1500);
+      } else toast.error('일부 파일 저장 실패');
     } else {
       fallbackDownload(leftBlob, '첫장.jpg');
       fallbackDownload(rightBlob, '막장.jpg');
+      toast.success('첫장 + 막장 저장 완료! 잠시 후 초기화됩니다.');
+      setTimeout(resetTool, 1500);
     }
-  }, [leftBlob, rightBlob, directoryHandle]);
+  }, [leftBlob, rightBlob, directoryHandle, resetTool]);
+
+  // 첫장·막장 개별 저장이 모두 완료되면 자동 초기화
+  useEffect(() => {
+    if (savedLeft && savedRight) {
+      toast.success('첫장 + 막장 모두 저장됐습니다! 잠시 후 초기화됩니다.');
+      const timer = setTimeout(resetTool, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [savedLeft, savedRight, resetTool]);
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
@@ -261,6 +297,7 @@ export function AlbumSplitTool() {
       </ToolGuide>
 
       {/* Upload Zone */}
+      <div ref={uploadZoneRef}>
       <Card>
         <CardContent className="p-6">
           <div
@@ -292,10 +329,12 @@ export function AlbumSplitTool() {
             type="file"
             accept="image/jpeg,image/png"
             className="hidden"
+            title="앨범 이미지 선택"
             onChange={handleFileSelect}
           />
         </CardContent>
       </Card>
+      </div>
 
       {/* Image Info */}
       {showInfo && originalImage && (
@@ -392,9 +431,15 @@ export function AlbumSplitTool() {
                     <img src={leftUrl} alt="첫장" className="w-full h-auto object-contain max-h-[300px]" />
                   )}
                 </div>
-                <Button variant="outline" size="sm" className="w-full" onClick={handleSaveLeft}>
-                  <Download className="h-4 w-4 mr-2" />
-                  첫장 저장
+                <Button
+                  variant={savedLeft ? 'secondary' : 'outline'}
+                  size="sm"
+                  className={`w-full ${savedLeft ? 'text-green-700 border-green-300 bg-green-50' : ''}`}
+                  onClick={handleSaveLeft}
+                  disabled={savedLeft}
+                >
+                  {savedLeft ? <CheckCircle className="h-4 w-4 mr-2 text-green-600" /> : <Download className="h-4 w-4 mr-2" />}
+                  {savedLeft ? '첫장 저장 완료' : '첫장 저장'}
                 </Button>
               </div>
 
@@ -411,9 +456,15 @@ export function AlbumSplitTool() {
                     <img src={rightUrl} alt="막장" className="w-full h-auto object-contain max-h-[300px]" />
                   )}
                 </div>
-                <Button variant="outline" size="sm" className="w-full" onClick={handleSaveRight}>
-                  <Download className="h-4 w-4 mr-2" />
-                  막장 저장
+                <Button
+                  variant={savedRight ? 'secondary' : 'outline'}
+                  size="sm"
+                  className={`w-full ${savedRight ? 'text-green-700 border-green-300 bg-green-50' : ''}`}
+                  onClick={handleSaveRight}
+                  disabled={savedRight}
+                >
+                  {savedRight ? <CheckCircle className="h-4 w-4 mr-2 text-green-600" /> : <Download className="h-4 w-4 mr-2" />}
+                  {savedRight ? '막장 저장 완료' : '막장 저장'}
                 </Button>
               </div>
             </div>

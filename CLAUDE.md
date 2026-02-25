@@ -121,6 +121,27 @@ className="text-[11px] text-black font-normal"
 - **배송비**: 기초정보설정 > 배송비 에 등록된 금액 기준으로 고객 청구
 - **주소검색**: 다음 우편번호 API 인라인 embed 방식 (팝업 없이 카드 안에서 검색)
 
+### 배송비 정책 (주문 후 배송정보 수정 시)
+
+고객이 주문 후 배송정보를 수정할 때 배송비 차액을 아래 정책으로 처리한다.
+
+**수정 가능 단계**: 접수대기 · 접수완료 · 생산진행 · 배송준비 (`shipped`/`cancelled` 불가)
+
+**추가요금 발생** (스튜디오배송 → 고객직배송 변경 등):
+- `creditEnabled=true` 거래처: **여신거래** (다음 결제일에 자동 청구)
+- 일반 거래처: **무통장입금** (회사정보 > 계좌번호 안내, 관리자 수동 확인)
+- 카드결제 옵션 없음 (PG 미연동)
+
+**환불 발생** (고객직배송 → 스튜디오배송 변경 등):
+- **포인트(크레딧) 적립** → `Client.pendingAdjustmentAmount` 양수 누적
+- 다음 주문 생성 시 자동 차감 (별도 Point 모델 없음)
+
+**관련 파일**:
+- API: `PATCH /orders/:id/shipping-with-fee`
+- 서비스: `apps/api/src/modules/order/services/order.service.ts` → `updateShippingWithFee()`
+- 다이얼로그: `apps/web/components/order/shipping-edit-with-fee-dialog.tsx`
+- 노출 위치: `/mypage/orders/{id}` 배송 정보 카드
+
 ### 크로스플랫폼
 - PC(Windows), macOS, Android에서 접속·운영·업로드 가능
 - 모바일(Android): webkitdirectory 미지원 → 다중파일 선택 모드 제공

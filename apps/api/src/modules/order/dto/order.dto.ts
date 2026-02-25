@@ -585,6 +585,53 @@ export class UpdateShippingDto {
   trackingNumber?: string;
 }
 
+// ==================== 배송정보 수정 + 배송비 정산 DTO ====================
+export class UpdateShippingWithFeeDto {
+  @ApiPropertyOptional({ description: '수령인 유형 (direct_customer/studio)' })
+  @IsOptional()
+  @IsString()
+  receiverType?: string;
+
+  @ApiProperty({ description: '수령인 이름' })
+  @IsString()
+  recipientName: string;
+
+  @ApiProperty({ description: '수령인 전화번호' })
+  @IsString()
+  phone: string;
+
+  @ApiProperty({ description: '우편번호' })
+  @IsString()
+  postalCode: string;
+
+  @ApiProperty({ description: '주소' })
+  @IsString()
+  address: string;
+
+  @ApiPropertyOptional({ description: '상세주소' })
+  @IsOptional()
+  @IsString()
+  addressDetail?: string;
+
+  @ApiPropertyOptional({ description: '배송메모' })
+  @IsOptional()
+  @IsString()
+  deliveryMemo?: string;
+
+  @ApiPropertyOptional({ description: '추가요금 결제방식 (bank_transfer/credit)' })
+  @IsOptional()
+  @IsString()
+  paymentMethod?: string;
+}
+
+export interface UpdateShippingWithFeeResult {
+  feeDifference: number;
+  newShippingFee: number;
+  creditAdded: number;
+  paymentRequired: boolean;
+  bankAccount?: string;
+}
+
 // ==================== 주문 조회 DTO ====================
 export class OrderQueryDto {
   @ApiPropertyOptional({ description: '페이지 번호', default: 1 })
