@@ -816,7 +816,9 @@ export class OrderService {
     if (feeDifference > 0) {
       // 추가요금 발생 (스튜디오→고객직배송 등)
       paymentRequired = true;
-      if (dto.paymentMethod === 'credit' && client.creditEnabled) {
+      // 정산조건이 있거나(당월말 등) creditEnabled=true이면 여신거래 가능
+      const canUseCredit = client.creditEnabled || !!client.paymentCondition;
+      if (dto.paymentMethod === 'credit' && canUseCredit) {
         // 여신 거래: Client.pendingAdjustmentAmount에 음수 누적 (나중에 청구)
         await this.prisma.client.update({
           where: { id: client.id },

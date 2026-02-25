@@ -126,8 +126,13 @@ interface OrderDetail {
   client: {
     clientName: string;
     mobile?: string;
+    phone?: string;
     email?: string;
+    postalCode?: string;
+    address?: string;
+    addressDetail?: string;
     creditEnabled?: boolean;
+    paymentCondition?: string;
   };
   shipping: {
     receiverType?: string;
@@ -909,6 +914,14 @@ export default function OrderDetailPage() {
         orderNumber={order.orderNumber}
         shipping={order.shipping as any}
         creditEnabled={order.client.creditEnabled}
+        paymentCondition={order.client.paymentCondition}
+        studioInfo={{
+          clientName: order.client.clientName,
+          phone: order.client.mobile ?? order.client.phone,
+          postalCode: order.client.postalCode,
+          address: order.client.address,
+          addressDetail: order.client.addressDetail,
+        }}
       />
 
       {/* 이미지 미리보기 다이얼로그 (줌 + 네비게이션) */}

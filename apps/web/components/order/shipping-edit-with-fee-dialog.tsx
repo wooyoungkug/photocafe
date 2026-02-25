@@ -28,6 +28,14 @@ import {
 } from '@/hooks/use-orders';
 import { toast } from '@/hooks/use-toast';
 
+interface StudioInfo {
+  clientName?: string;
+  phone?: string;
+  postalCode?: string;
+  address?: string;
+  addressDetail?: string;
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -35,6 +43,8 @@ interface Props {
   orderNumber: string;
   shipping?: OrderShipping;
   creditEnabled?: boolean;
+  paymentCondition?: string; // 당월말/익월말/2개월여신 등 정산조건
+  studioInfo?: StudioInfo;
 }
 
 interface FormState {
@@ -66,10 +76,18 @@ export function ShippingEditWithFeeDialog({
   orderNumber,
   shipping,
   creditEnabled = false,
+  paymentCondition,
+  studioInfo,
 }: Props) {
+  // 정산조건이 있으면(당월말/익월말 등) 여신거래 고객, 없으면 주문시결제(무통장) 고객
+  const isSettlementClient = !!paymentCondition || creditEnabled;
+  const isCashClient = !isSettlementClient;
+
   const [step, setStep] = useState<'form' | 'confirm'>('form');
   const [form, setForm] = useState<FormState>(toFormState(shipping));
-  const [paymentMethod, setPaymentMethod] = useState<string>('bank_transfer');
+  const [paymentMethod, setPaymentMethod] = useState<string>(
+    isCashClient ? 'bank_transfer' : 'credit'
+  );
   const [result, setResult] = useState<UpdateShippingWithFeeResult | null>(null);
 
   const updateShippingWithFee = useUpdateShippingWithFee();
@@ -78,7 +96,7 @@ export function ShippingEditWithFeeDialog({
     if (open) {
       setStep('form');
       setForm(toFormState(shipping));
-      setPaymentMethod('bank_transfer');
+      setPaymentMethod(isCashClient ? 'bank_transfer' : 'credit');
       setResult(null);
     }
   }, [open, shipping]);
@@ -170,7 +188,20 @@ export function ShippingEditWithFeeDialog({
                       deliveryMemo: '',
                     }));
                   } else {
-                    setForm({ ...toFormState(shipping), receiverType: 'studio' });
+                    // 스튜디오 배송으로 변경 시 studioInfo가 있으면 스튜디오 주소로 채움
+                    if (studioInfo?.address) {
+                      setForm({
+                        receiverType: 'studio',
+                        recipientName: studioInfo.clientName ?? '',
+                        phone: studioInfo.phone ?? '',
+                        postalCode: studioInfo.postalCode ?? '',
+                        address: studioInfo.address,
+                        addressDetail: studioInfo.addressDetail ?? '',
+                        deliveryMemo: '',
+                      });
+                    } else {
+                      setForm({ ...toFormState(shipping), receiverType: 'studio' });
+                    }
                   }
                 }}
               >
@@ -280,21 +311,23 @@ export function ShippingEditWithFeeDialog({
                         배송 유형이 <strong>고객 직배송</strong>으로 변경되어 배송비가 추가될 수 있습니다.
                       </p>
                       <div className="space-y-1">
-                        <Label className="text-[11px]">결제 방법 선택</Label>
+                        <Label className="text-[11px]">결제 방법</Label>
                         <div className="flex flex-col gap-2">
-                          <label className="flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="radio"
-                              name="paymentMethod"
-                              value="bank_transfer"
-                              checked={paymentMethod === 'bank_transfer'}
-                              onChange={() => setPaymentMethod('bank_transfer')}
-                              className="accent-blue-600"
-                            />
-                            <Building2 className="h-3.5 w-3.5 text-gray-500" />
-                            <span>무통장입금</span>
-                          </label>
-                          {creditEnabled && (
+                          {isCashClient && (
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="radio"
+                                name="paymentMethod"
+                                value="bank_transfer"
+                                checked={paymentMethod === 'bank_transfer'}
+                                onChange={() => setPaymentMethod('bank_transfer')}
+                                className="accent-blue-600"
+                              />
+                              <Building2 className="h-3.5 w-3.5 text-gray-500" />
+                              <span>무통장입금</span>
+                            </label>
+                          )}
+                          {isSettlementClient && (
                             <label className="flex items-center gap-2 cursor-pointer">
                               <input
                                 type="radio"
@@ -305,7 +338,7 @@ export function ShippingEditWithFeeDialog({
                                 className="accent-blue-600"
                               />
                               <CreditCard className="h-3.5 w-3.5 text-gray-500" />
-                              <span>여신거래 (다음 결제일 청구)</span>
+                              <span>여신거래{paymentCondition ? ` (${paymentCondition} 정산)` : ' (다음 결제일 청구)'}</span>
                             </label>
                           )}
                         </div>
