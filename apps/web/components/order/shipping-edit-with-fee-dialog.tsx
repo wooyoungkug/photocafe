@@ -49,7 +49,7 @@ interface FormState {
 
 function toFormState(s?: OrderShipping): FormState {
   return {
-    receiverType: s?.receiverType || 'studio',
+    receiverType: s?.receiverType === 'direct_customer' ? 'direct_customer' : 'studio',
     recipientName: s?.recipientName ?? '',
     phone: s?.phone ?? '',
     postalCode: s?.postalCode ?? '',
