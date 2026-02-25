@@ -476,6 +476,41 @@ export class OrderService {
         totalShippingFee = dto.shippingFee;
       }
 
+      // conditional 거래처: 당일 이미 배송비가 청구된 스튜디오 배송 주문이 있으면 배송비 0 자동 적용
+      // (고객직배송 아이템이 포함된 주문은 합배송 대상 아님)
+      if (totalShippingFee > 0 && (client as any).shippingType === 'conditional') {
+        const hasDirectCustomer = items.some(i => i.shipping?.receiverType === 'direct_customer');
+        if (!hasDirectCustomer) {
+          const KST_OFFSET_BUNDLE = 9 * 60 * 60 * 1000;
+          const nowKstBundle = Date.now() + KST_OFFSET_BUNDLE;
+          const kstMidnightBundle = nowKstBundle - (nowKstBundle % (24 * 60 * 60 * 1000));
+          const todayStartBundle = new Date(kstMidnightBundle - KST_OFFSET_BUNDLE);
+          const todayEndBundle = new Date(kstMidnightBundle - KST_OFFSET_BUNDLE + 24 * 60 * 60 * 1000 - 1);
+
+          const todayOrdersWithFee = await tx.order.findMany({
+            where: {
+              clientId: dto.clientId,
+              orderedAt: { gte: todayStartBundle, lte: todayEndBundle },
+              status: { not: 'cancelled' },
+              shippingFee: { gt: 0 },
+            },
+            select: {
+              orderNumber: true,
+              items: { select: { shipping: { select: { receiverType: true } } } },
+            },
+          });
+
+          const existingStudioOrder = todayOrdersWithFee.find(o =>
+            !o.items.some(i => i.shipping?.receiverType === 'direct_customer'),
+          );
+
+          if (existingStudioOrder) {
+            this.logger.log(`합배송 자동 적용: 거래처 ${dto.clientId}, 기준 주문 ${existingStudioOrder.orderNumber} → 배송비 0원 (원래 ${totalShippingFee}원)`);
+            totalShippingFee = 0;
+          }
+        }
+      }
+
       const tax = Math.round(productPrice * 0.1); // 부가세 10%
       const totalAmount = productPrice + tax;
 
