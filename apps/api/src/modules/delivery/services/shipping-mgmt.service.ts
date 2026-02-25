@@ -74,18 +74,18 @@ export class ShippingMgmtService {
    * 바코드로 주문 조회 (바코드 스캔 기능용)
    */
   async getOrderByBarcode(barcode: string) {
-    const order = await this.prisma.order.findUnique({
-      where: { barcode },
-      include: {
-        client: { select: { clientCode: true, clientName: true } },
-        shipping: true,
-        items: {
-          select: { productName: true, quantity: true, folderName: true },
-        },
+    const include = {
+      client: { select: { clientCode: true, clientName: true } },
+      shipping: true,
+      items: {
+        select: { productName: true, quantity: true, folderName: true },
       },
-    });
+    };
+    const order =
+      (await this.prisma.order.findUnique({ where: { barcode }, include })) ??
+      (await this.prisma.order.findUnique({ where: { orderNumber: barcode }, include }));
     if (!order)
-      throw new NotFoundException('해당 바코드의 주문을 찾을 수 없습니다.');
+      throw new NotFoundException(`바코드 "${barcode}"에 해당하는 주문이 없습니다.`);
     return order;
   }
 
