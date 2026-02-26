@@ -213,7 +213,7 @@ export default function MonthlySummaryPage() {
   const renderProcessBadge = (currentProcess: string) => {
     const label = getProcessLabel(currentProcess);
     return (
-      <span className="inline-flex items-center whitespace-nowrap text-[11px] text-black font-normal">
+      <span className="inline-flex items-center whitespace-nowrap text-[12px] text-black font-normal">
         {label}
       </span>
     );
