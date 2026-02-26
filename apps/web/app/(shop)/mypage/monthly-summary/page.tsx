@@ -24,7 +24,7 @@ import {
   useOrders,
   type Order,
 } from '@/hooks/use-orders';
-import { useCourierList } from '@/hooks/use-delivery-tracking';
+import { useCourierList, useDeliveryTracking } from '@/hooks/use-delivery-tracking';
 import { PROCESS_STAGES } from '@/hooks/use-system-settings';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -50,6 +50,86 @@ function getProcessLabel(process: string) {
   const key = PROCESS_ALIASES[process] || process;
   const stage = PROCESS_STAGES[key as keyof typeof PROCESS_STAGES];
   return stage?.name || process;
+}
+
+function renderProcessBadge(currentProcess: string, deliveryMethod?: string) {
+  let label = getProcessLabel(currentProcess);
+  if (currentProcess === 'ready_for_shipping') {
+    if (deliveryMethod === 'motorcycle' || deliveryMethod === 'damas' || deliveryMethod === 'freight') {
+      label = '직배대기';
+    } else {
+      label = '택배대기';
+    }
+  }
+  return (
+    <span className="inline-flex items-center whitespace-nowrap text-[12px] text-black font-normal">
+      {label}
+    </span>
+  );
+}
+
+function TrackingStatusCell({
+  order,
+  getCourierName,
+}: {
+  order: Order;
+  getCourierName: (code?: string) => string;
+}) {
+  const hasTracking = !!(order.shipping?.courierCode && order.shipping?.trackingNumber);
+  const { data: trackingInfo, isLoading: isTrackingLoading } = useDeliveryTracking(
+    hasTracking ? order.shipping!.courierCode! : undefined,
+    hasTracking ? order.shipping!.trackingNumber! : undefined,
+  );
+
+  const latestDetail = trackingInfo?.details?.length
+    ? trackingInfo.details[trackingInfo.details.length - 1]
+    : null;
+
+  if (!order.shipping) {
+    return (
+      <div className="flex flex-col items-end gap-0.5">
+        {renderProcessBadge(order.status, undefined)}
+      </div>
+    );
+  }
+
+  if (order.shipping.deliveredAt) {
+    return (
+      <div className="flex flex-col items-end gap-0.5">
+        {order.shipping.courierCode && (
+          <span className="text-[10px] text-gray-400">{getCourierName(order.shipping.courierCode)}</span>
+        )}
+        <Badge variant="success">배송완료</Badge>
+      </div>
+    );
+  }
+
+  if (hasTracking) {
+    return (
+      <div className="flex flex-col items-end gap-0.5">
+        <span className="inline-flex items-center gap-1 text-[10px] text-blue-600 whitespace-nowrap">
+          <Truck className="h-3 w-3" />
+          {getCourierName(order.shipping!.courierCode!)}
+        </span>
+        {isTrackingLoading ? (
+          <Loader2 className="h-3 w-3 animate-spin text-gray-400" />
+        ) : latestDetail ? (
+          <span className="text-[11px] text-black font-normal whitespace-nowrap">{latestDetail.status}</span>
+        ) : (
+          renderProcessBadge(order.status, order.shipping?.deliveryMethod)
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-0.5">
+      {order.shipping.courierCode && (
+        <span className="text-[10px] text-gray-400">{getCourierName(order.shipping.courierCode)}</span>
+      )}
+      {renderProcessBadge(order.status, order.shipping?.deliveryMethod)}
+    </div>
+  );
 }
 
 
@@ -226,39 +306,6 @@ export default function MonthlySummaryPage() {
     link.click();
     document.body.removeChild(link);
     toast({ title: 'CSV 파일이 다운로드되었습니다.' });
-  };
-
-  const renderProcessBadge = (currentProcess: string, deliveryMethod?: string) => {
-    let label = getProcessLabel(currentProcess);
-    if (currentProcess === 'ready_for_shipping') {
-      if (deliveryMethod === 'motorcycle' || deliveryMethod === 'damas' || deliveryMethod === 'freight') {
-        label = '직배대기';
-      } else {
-        label = '택배대기';
-      }
-    }
-    return (
-      <span className="inline-flex items-center whitespace-nowrap text-[12px] text-black font-normal">
-        {label}
-      </span>
-    );
-  };
-
-
-  const renderShippingStatus = (order: Order) => {
-    if (!order.shipping) return <span className="text-gray-400">-</span>;
-    if (order.shipping.deliveredAt) return <Badge variant="success">배송완료</Badge>;
-    if (order.shipping.shippedAt || order.shipping.trackingNumber) {
-      return (
-        <div className="flex items-center gap-1">
-          <Truck className="h-3 w-3 text-blue-500" />
-          <span className="text-blue-600 text-xs">
-            {order.shipping.courierCode ? getCourierName(order.shipping.courierCode) : '배송중'}
-          </span>
-        </div>
-      );
-    }
-    return <span className="text-gray-400">-</span>;
   };
 
   const summary = dailyData?.summary;
@@ -1024,10 +1071,7 @@ export default function MonthlySummaryPage() {
                                           }
                                         </td>
                                         <td className="p-2 sm:p-3 text-right align-middle">
-                                          <div className="flex flex-col items-end gap-1">
-                                            {renderShippingStatus(order)}
-                                            {renderProcessBadge(order.status, order.shipping?.deliveryMethod)}
-                                          </div>
+                                          <TrackingStatusCell order={order} getCourierName={getCourierName} />
                                         </td>
                                       </tr>
                                     </Fragment>
