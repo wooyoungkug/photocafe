@@ -26,6 +26,7 @@ ensureDir('products');
 ensureDir('copper-plates/ai');
 ensureDir('copper-plates/images');
 ensureDir('copper-plates/albums');
+ensureDir('repairs');
 
 @ApiTags('Upload')
 @Controller('upload')
@@ -450,5 +451,106 @@ export class UploadController {
         }
 
         return res.sendFile(filePath);
+    }
+
+    // ==================== 앨범수리 교체페이지 파일 업로드 ====================
+
+    @Public()
+    @Post('repair-file')
+    @ApiOperation({ summary: '앨범수리 교체페이지 파일 업로드' })
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                file: { type: 'string', format: 'binary' },
+                tempRepairId: { type: 'string', description: '임시 수리 요청 ID' },
+                pageNumber: { type: 'number', description: '교체 페이지 번호' },
+            },
+        },
+    })
+    @UseInterceptors(
+        FileInterceptor('file', {
+            storage: diskStorage({
+                destination: (req: any, _file, cb) => {
+                    const tempRepairId = req.body?.tempRepairId;
+                    if (!tempRepairId) {
+                        return cb(new BadRequestException('tempRepairId가 필요합니다.'), '');
+                    }
+                    const safeId = tempRepairId.replace(/\.\./g, '').replace(/[/\\]/g, '').trim();
+                    if (!safeId) {
+                        return cb(new BadRequestException('유효하지 않은 tempRepairId입니다.'), '');
+                    }
+                    const dir = join(getUploadBasePath(), 'repairs', safeId);
+                    if (!existsSync(dir)) {
+                        mkdirSync(dir, { recursive: true });
+                    }
+                    cb(null, dir);
+                },
+                filename: (req: any, file, cb) => {
+                    const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
+                    file.originalname = originalName;
+                    const pageNumber = parseInt(req.body?.pageNumber || '0', 10);
+                    const ext = extname(originalName).toLowerCase();
+                    const prefix = `page_${String(pageNumber).padStart(3, '0')}`;
+                    const uuid = randomUUID().slice(0, 8);
+                    cb(null, `${prefix}_${uuid}${ext}`);
+                },
+            }),
+            fileFilter: (_req, file, cb) => {
+                if (!file.mimetype.match(/^image\/(jpg|jpeg|png|tif|tiff|webp)$/)) {
+                    return cb(new BadRequestException('이미지 파일만 업로드 가능합니다.'), false);
+                }
+                cb(null, true);
+            },
+            limits: {
+                fileSize: parseInt(process.env.UPLOAD_MAX_FILE_SIZE || '209715200', 10),
+            },
+        }),
+    )
+    async uploadRepairFile(
+        @UploadedFile() file: Express.Multer.File,
+        @Body() body: { tempRepairId: string; pageNumber: string },
+    ) {
+        if (!file) {
+            throw new BadRequestException('파일이 업로드되지 않았습니다.');
+        }
+
+        const fileUrl = this.fileStorage.toRelativeUrl(file.path);
+
+        // 썸네일 생성
+        const thumbDir = join(getUploadBasePath(), 'repairs', body.tempRepairId, 'thumbnails');
+        if (!existsSync(thumbDir)) {
+            mkdirSync(thumbDir, { recursive: true });
+        }
+        this.thumbnailService.generateThumbnail(file.path, thumbDir, file.filename)
+            .catch(() => {});
+
+        const ext = extname(file.filename);
+        const base = file.filename.slice(0, -ext.length);
+        const thumbName = `${base}_thumb.jpg`;
+        const thumbnailUrl = `/uploads/repairs/${body.tempRepairId}/thumbnails/${thumbName}`;
+
+        return {
+            fileName: file.filename,
+            originalName: file.originalname,
+            size: file.size,
+            fileUrl,
+            thumbnailUrl,
+            pageNumber: parseInt(body.pageNumber || '0', 10),
+        };
+    }
+
+    @Public()
+    @Delete('repair/:tempRepairId')
+    @ApiOperation({ summary: '수리 임시 파일 삭제' })
+    deleteRepairFolder(@Param('tempRepairId') tempRepairId: string) {
+        const safeId = tempRepairId.replace(/\.\./g, '').replace(/[/\\]/g, '').trim();
+        const dir = join(getUploadBasePath(), 'repairs', safeId);
+        if (existsSync(dir)) {
+            const fs = require('fs');
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
+        return { message: '수리 임시 파일이 삭제되었습니다.' };
     }
 }

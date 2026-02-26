@@ -24,7 +24,7 @@ export const RETURN_STATUS_LABELS: Record<string, string> = {
   rejected: '반품거절',
 };
 
-// 반품 사유
+// 반품 사유 (반품/교환용)
 export const RETURN_REASONS = {
   DEFECT: 'defect',
   WRONG_ITEM: 'wrong_item',
@@ -41,15 +41,46 @@ export const RETURN_REASON_LABELS: Record<string, string> = {
   other: '기타',
 };
 
+// 앨범수리 사유
+export const REPAIR_REASONS = {
+  PAGE_REPLACE: 'page_replace',
+  COVER_REPAIR: 'cover_repair',
+  INNER_REPAIR: 'inner_repair',
+  SHIPPING_DAMAGE: 'shipping_damage',
+} as const;
+
+export const REPAIR_REASON_LABELS: Record<string, string> = {
+  page_replace: '페이지교체 (유상)',
+  cover_repair: '표지수리 (무상)',
+  inner_repair: '내지수리 (무상)',
+  shipping_damage: '배송중파손 (무상)',
+};
+
+// 유상/무상 여부
+export const REPAIR_REASON_PAID: Record<string, boolean> = {
+  page_replace: true,
+  cover_repair: false,
+  inner_repair: false,
+  shipping_damage: false,
+};
+
+// 모든 사유 라벨 (합산)
+export const ALL_REASON_LABELS: Record<string, string> = {
+  ...RETURN_REASON_LABELS,
+  ...REPAIR_REASON_LABELS,
+};
+
 // 반품 타입
 export const RETURN_TYPES = {
   RETURN: 'return',
   EXCHANGE: 'exchange',
+  ALBUM_REPAIR: 'album_repair',
 } as const;
 
 export const RETURN_TYPE_LABELS: Record<string, string> = {
   return: '반품',
   exchange: '교환',
+  album_repair: '앨범수리',
 };
 
 // 반품 아이템 타입
@@ -113,6 +144,7 @@ export interface ReturnRequest {
   completedBy?: string;
   completedAt?: string;
   rejectedReason?: string;
+  repairPages?: { pageNumber: number; fileName: string; fileUrl: string; thumbnailUrl?: string }[];
   adminMemo?: string;
   createdAt: string;
   updatedAt: string;
@@ -185,7 +217,7 @@ export function useReturnHistory(id?: string) {
   });
 }
 
-// 반품 신청
+// 반품/교환/수리 신청
 export function useCreateReturnRequest() {
   const queryClient = useQueryClient();
 
@@ -200,6 +232,7 @@ export function useCreateReturnRequest() {
         reason: string;
         reasonDetail?: string;
         items: { orderItemId: string; quantity: number; reason?: string; condition?: string }[];
+        repairPages?: { pageNumber: number; fileName: string; fileUrl: string; thumbnailUrl?: string }[];
       };
     }) => api.post<ReturnRequest>(`/orders/${orderId}/return-request`, data),
     onSuccess: (_, variables) => {

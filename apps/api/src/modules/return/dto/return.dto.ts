@@ -118,12 +118,15 @@ export class ReturnRequestItemDto {
 }
 
 export class CreateReturnRequestDto {
-  @ApiProperty({ description: '반품 타입', enum: ['return', 'exchange'] })
-  @IsIn(['return', 'exchange'])
+  @ApiProperty({ description: '반품 타입', enum: ['return', 'exchange', 'album_repair'] })
+  @IsIn(['return', 'exchange', 'album_repair'])
   type: string;
 
-  @ApiProperty({ description: '반품 사유', enum: ['defect', 'wrong_item', 'damaged', 'customer_change', 'other'] })
-  @IsIn(['defect', 'wrong_item', 'damaged', 'customer_change', 'other'])
+  @ApiProperty({
+    description: '반품/수리 사유',
+    enum: ['defect', 'wrong_item', 'damaged', 'customer_change', 'other', 'page_replace', 'cover_repair', 'inner_repair', 'shipping_damage'],
+  })
+  @IsIn(['defect', 'wrong_item', 'damaged', 'customer_change', 'other', 'page_replace', 'cover_repair', 'inner_repair', 'shipping_damage'])
   reason: string;
 
   @ApiPropertyOptional({ description: '상세 사유' })
@@ -137,6 +140,10 @@ export class CreateReturnRequestDto {
   @ValidateNested({ each: true })
   @Type(() => ReturnRequestItemDto)
   items: ReturnRequestItemDto[];
+
+  @ApiPropertyOptional({ description: '교체페이지 정보 (페이지교체 시)' })
+  @IsOptional()
+  repairPages?: { pageNumber: number; fileName: string; fileUrl: string; thumbnailUrl?: string }[];
 }
 
 export class ApproveReturnDto {

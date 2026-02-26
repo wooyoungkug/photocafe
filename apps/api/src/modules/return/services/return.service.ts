@@ -14,6 +14,7 @@ import {
   ReturnQueryDto,
   RETURN_STATUS,
   REASON_DEFAULT_FEE_CHARGED_TO,
+  REPAIR_REASON_PAID,
 } from '../dto';
 
 @Injectable()
@@ -62,10 +63,10 @@ export class ReturnService {
 
     if (!order) throw new NotFoundException('주문을 찾을 수 없습니다.');
 
-    // 배송완료 상태에서만 반품 가능
+    // 배송완료 상태에서만 반품/수리 가능
     if (order.status !== 'shipped') {
       throw new BadRequestException(
-        '배송완료(거래완료) 상태의 주문만 반품/교환 신청할 수 있습니다.',
+        '배송완료(거래완료) 상태의 주문만 반품/교환/수리 신청할 수 있습니다.',
       );
     }
 
@@ -100,19 +101,32 @@ export class ReturnService {
       }
     }
 
-    // 환불금액 산출 (부분반품 지원)
+    // 환불금액 산출
     let refundAmount = 0;
-    for (const item of dto.items) {
-      const orderItem = order.items.find((oi) => oi.id === item.orderItemId)!;
-      const unitPrice = Number(orderItem.unitPrice);
-      refundAmount += unitPrice * item.quantity;
+    const isRepair = dto.type === 'album_repair';
+    const isPaidRepair = isRepair && REPAIR_REASON_PAID[dto.reason];
+
+    if (!isRepair) {
+      // 반품/교환: 부분반품 지원
+      for (const item of dto.items) {
+        const orderItem = order.items.find((oi) => oi.id === item.orderItemId)!;
+        const unitPrice = Number(orderItem.unitPrice);
+        refundAmount += unitPrice * item.quantity;
+      }
     }
+    // album_repair: 환불 없음 (유상 수리는 별도 청구)
 
     // 배송비 부담자 기본값
     const defaultFeeChargedTo =
       REASON_DEFAULT_FEE_CHARGED_TO[dto.reason] || 'company';
 
     const returnNumber = await this.generateReturnNumber();
+
+    const typeLabel = isRepair
+      ? '앨범수리'
+      : dto.type === 'return'
+        ? '반품'
+        : '교환';
 
     const returnRequest = await this.prisma.$transaction(async (tx) => {
       const rr = await tx.returnRequest.create({
@@ -125,7 +139,8 @@ export class ReturnService {
           reason: dto.reason,
           reasonDetail: dto.reasonDetail,
           shippingFeeChargedTo: defaultFeeChargedTo,
-          refundAmount,
+          refundAmount: isRepair ? 0 : refundAmount,
+          repairPages: dto.repairPages ? dto.repairPages : undefined,
           requestedBy,
           items: {
             create: dto.items.map((item) => ({
@@ -147,7 +162,7 @@ export class ReturnService {
           returnRequestId: rr.id,
           toStatus: RETURN_STATUS.REQUESTED,
           processType: 'status_change',
-          note: `${dto.type === 'return' ? '반품' : '교환'} 신청`,
+          note: `${typeLabel} 신청`,
           processedBy: requestedBy,
         },
       });
@@ -158,8 +173,8 @@ export class ReturnService {
           orderId,
           fromStatus: order.status,
           toStatus: order.status,
-          processType: 'return_requested',
-          note: `${dto.type === 'return' ? '반품' : '교환'} 신청 (${returnNumber})`,
+          processType: isRepair ? 'repair_requested' : 'return_requested',
+          note: `${typeLabel} 신청 (${returnNumber})`,
           processedBy: requestedBy,
         },
       });
@@ -167,12 +182,13 @@ export class ReturnService {
       return rr;
     });
 
-    this.logger.log(`반품 신청 완료: ${returnNumber} (주문: ${order.orderNumber})`);
+    this.logger.log(`${typeLabel} 신청 완료: ${returnNumber} (주문: ${order.orderNumber})`);
 
     return {
       returnRequest,
-      estimatedRefund: refundAmount,
+      estimatedRefund: isRepair ? 0 : refundAmount,
       shippingFeeChargedTo: defaultFeeChargedTo,
+      isPaidRepair,
     };
   }
 

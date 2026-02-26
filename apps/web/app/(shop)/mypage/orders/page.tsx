@@ -661,7 +661,7 @@ export default function MyOrdersPage() {
                                   onClick={() => setReturnTargetOrder(order)}
                                 >
                                   <RotateCw className="h-3 w-3" />
-                                  반품/교환
+                                  반품/교환/수리
                                 </button>
                               )}
                             </div>
@@ -899,7 +899,7 @@ export default function MyOrdersPage() {
         onOpenChange={setIsHistoryOpen}
       />
 
-      {/* 반품/교환 신청 다이얼로그 */}
+      {/* 반품/교환/수리 신청 다이얼로그 */}
       {returnTargetOrder && (
         <ReturnRequestDialog
           open={!!returnTargetOrder}
@@ -913,6 +913,7 @@ export default function MyOrdersPage() {
             unitPrice: item.unitPrice,
             totalPrice: item.totalPrice,
             size: item.size,
+            pages: item.pages,
           }))}
         />
       )}

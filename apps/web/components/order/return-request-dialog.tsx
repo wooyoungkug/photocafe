@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -23,7 +24,13 @@ import {
   useCreateReturnRequest,
   RETURN_REASON_LABELS,
   RETURN_TYPE_LABELS,
+  REPAIR_REASON_LABELS,
+  REPAIR_REASON_PAID,
 } from '@/hooks/use-return-requests';
+import { uploadRepairFile, type RepairFileResult } from '@/lib/file-upload';
+import { Upload, X, FileImage, Calendar } from 'lucide-react';
+import { format } from 'date-fns';
+import { ko } from 'date-fns/locale';
 
 interface OrderItemForReturn {
   id: string;
@@ -32,6 +39,7 @@ interface OrderItemForReturn {
   unitPrice: number;
   totalPrice: number;
   size?: string;
+  pages?: number;
 }
 
 interface ReturnRequestDialogProps {
@@ -40,6 +48,15 @@ interface ReturnRequestDialogProps {
   orderId: string;
   orderNumber: string;
   items: OrderItemForReturn[];
+}
+
+interface RepairPageEntry {
+  pageNumber: number;
+  file?: File;
+  uploading: boolean;
+  progress: number;
+  result?: RepairFileResult;
+  error?: string;
 }
 
 export function ReturnRequestDialog({
@@ -56,18 +73,35 @@ export function ReturnRequestDialog({
     Record<string, { selected: boolean; quantity: number }>
   >({});
 
+  // 앨범수리 - 페이지교체 관련
+  const [repairPages, setRepairPages] = useState<RepairPageEntry[]>([]);
+  const [newPageNumber, setNewPageNumber] = useState<string>('');
+  const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
+  const tempRepairId = useRef<string>(`repair-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+
   const createReturn = useCreateReturnRequest();
+  const isRepair = type === 'album_repair';
+  const isPageReplace = isRepair && reason === 'page_replace';
 
   const resetForm = () => {
     setType('return');
     setReason('');
     setReasonDetail('');
     setSelectedItems({});
+    setRepairPages([]);
+    setNewPageNumber('');
+    tempRepairId.current = `repair-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   };
 
   const handleClose = (value: boolean) => {
     if (!value) resetForm();
     onOpenChange(value);
+  };
+
+  const handleTypeChange = (newType: string) => {
+    setType(newType);
+    setReason('');
+    setRepairPages([]);
   };
 
   const toggleItem = (itemId: string, maxQty: number) => {
@@ -91,14 +125,95 @@ export function ReturnRequestDialog({
 
   const selectedCount = Object.values(selectedItems).filter((v) => v.selected).length;
 
+  // === 페이지교체 관련 함수 ===
+
+  const addRepairPage = () => {
+    const num = parseInt(newPageNumber, 10);
+    if (isNaN(num) || num < 1) {
+      toast({ title: '유효한 페이지 번호를 입력해주세요.', variant: 'destructive' });
+      return;
+    }
+    if (repairPages.some((p) => p.pageNumber === num)) {
+      toast({ title: `${num}페이지는 이미 추가되었습니다.`, variant: 'destructive' });
+      return;
+    }
+    setRepairPages((prev) => [...prev, { pageNumber: num, uploading: false, progress: 0 }].sort((a, b) => a.pageNumber - b.pageNumber));
+    setNewPageNumber('');
+  };
+
+  const removeRepairPage = (pageNumber: number) => {
+    setRepairPages((prev) => prev.filter((p) => p.pageNumber !== pageNumber));
+  };
+
+  const handleRepairFileSelect = async (pageNumber: number, file: File) => {
+    setRepairPages((prev) =>
+      prev.map((p) =>
+        p.pageNumber === pageNumber
+          ? { ...p, file, uploading: true, progress: 0, error: undefined }
+          : p,
+      ),
+    );
+
+    try {
+      const token = typeof window !== 'undefined'
+        ? (sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken'))
+        : null;
+      const result = await uploadRepairFile(
+        file,
+        tempRepairId.current,
+        pageNumber,
+        token,
+        (percent) => {
+          setRepairPages((prev) =>
+            prev.map((p) =>
+              p.pageNumber === pageNumber ? { ...p, progress: percent } : p,
+            ),
+          );
+        },
+      );
+
+      setRepairPages((prev) =>
+        prev.map((p) =>
+          p.pageNumber === pageNumber
+            ? { ...p, uploading: false, progress: 100, result }
+            : p,
+        ),
+      );
+    } catch (err: any) {
+      setRepairPages((prev) =>
+        prev.map((p) =>
+          p.pageNumber === pageNumber
+            ? { ...p, uploading: false, error: err?.message || '업로드 실패' }
+            : p,
+        ),
+      );
+    }
+  };
+
   const handleSubmit = async () => {
     if (!reason) {
-      toast({ title: '반품 사유를 선택해주세요.', variant: 'destructive' });
+      toast({ title: '사유를 선택해주세요.', variant: 'destructive' });
       return;
     }
     if (selectedCount === 0) {
-      toast({ title: '반품할 상품을 선택해주세요.', variant: 'destructive' });
+      toast({ title: '대상 상품을 선택해주세요.', variant: 'destructive' });
       return;
+    }
+
+    // 페이지교체 시 검증
+    if (isPageReplace) {
+      if (repairPages.length === 0) {
+        toast({ title: '교체할 페이지를 추가해주세요.', variant: 'destructive' });
+        return;
+      }
+      const incompletePages = repairPages.filter((p) => !p.result);
+      if (incompletePages.length > 0) {
+        toast({
+          title: `${incompletePages.map((p) => p.pageNumber).join(', ')}페이지의 파일을 업로드해주세요.`,
+          variant: 'destructive',
+        });
+        return;
+      }
     }
 
     const returnItems = Object.entries(selectedItems)
@@ -108,6 +223,18 @@ export function ReturnRequestDialog({
         quantity: v.quantity,
       }));
 
+    // 교체페이지 정보
+    const repairPagesData = isPageReplace
+      ? repairPages
+          .filter((p) => p.result)
+          .map((p) => ({
+            pageNumber: p.pageNumber,
+            fileName: p.result!.fileName,
+            fileUrl: p.result!.fileUrl,
+            thumbnailUrl: p.result!.thumbnailUrl,
+          }))
+      : undefined;
+
     try {
       await createReturn.mutateAsync({
         orderId,
@@ -116,6 +243,7 @@ export function ReturnRequestDialog({
           reason,
           reasonDetail: reasonDetail || undefined,
           items: returnItems,
+          repairPages: repairPagesData,
         },
       });
 
@@ -130,28 +258,41 @@ export function ReturnRequestDialog({
     }
   };
 
-  const reasonOptions = Object.entries(RETURN_REASON_LABELS);
+  // 사유 옵션 - 타입에 따라 분기
+  const reasonOptions = isRepair
+    ? Object.entries(REPAIR_REASON_LABELS)
+    : Object.entries(RETURN_REASON_LABELS);
+
+  // 현재 날짜/시간
+  const now = new Date();
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-base font-normal">
-            반품/교환 신청 - {orderNumber}
+            {isRepair ? '앨범수리' : '반품/교환'} 신청 - {orderNumber}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* 신청 날짜/시간 */}
+          <div className="flex items-center gap-2 text-[11px] text-gray-500 bg-gray-50 rounded-md px-3 py-2">
+            <Calendar className="h-3.5 w-3.5" />
+            <span>신청일시: {format(now, 'yyyy-MM-dd (EEE) HH:mm', { locale: ko })}</span>
+          </div>
+
           {/* 타입 선택 */}
           <div className="space-y-1.5">
             <Label className="text-[11px]">신청 유형</Label>
-            <Select value={type} onValueChange={setType}>
+            <Select value={type} onValueChange={handleTypeChange}>
               <SelectTrigger className="text-[11px] h-8">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="return" className="text-[11px]">반품 (환불)</SelectItem>
                 <SelectItem value="exchange" className="text-[11px]">교환 (재발송)</SelectItem>
+                <SelectItem value="album_repair" className="text-[11px]">앨범수리</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -167,10 +308,11 @@ export function ReturnRequestDialog({
                 {reasonOptions.map(([value, label]) => (
                   <SelectItem key={value} value={value} className="text-[11px]">
                     {label}
-                    {(value === 'defect' || value === 'wrong_item' || value === 'damaged') && (
+                    {/* 반품/교환 사유의 무료반송/고객부담 표시 */}
+                    {!isRepair && (value === 'defect' || value === 'wrong_item' || value === 'damaged') && (
                       <span className="text-green-600 ml-1">(무료반송)</span>
                     )}
-                    {value === 'customer_change' && (
+                    {!isRepair && value === 'customer_change' && (
                       <span className="text-red-600 ml-1">(배송비 고객부담)</span>
                     )}
                   </SelectItem>
@@ -191,9 +333,11 @@ export function ReturnRequestDialog({
             />
           </div>
 
-          {/* 상품 선택 */}
+          {/* 대상 상품 선택 */}
           <div className="space-y-1.5">
-            <Label className="text-[11px]">반품 상품 선택</Label>
+            <Label className="text-[11px]">
+              {isRepair ? '수리 대상 상품' : '반품 상품 선택'}
+            </Label>
             <div className="border rounded-md divide-y">
               {items.map((item) => {
                 const sel = selectedItems[item.id];
@@ -208,6 +352,7 @@ export function ReturnRequestDialog({
                       <p className="text-[11px] text-black truncate">{item.productName}</p>
                       <p className="text-[10px] text-gray-500">
                         {item.size && `${item.size} / `}
+                        {item.pages && `${item.pages}p / `}
                         {item.quantity}부 / {Number(item.totalPrice).toLocaleString()}원
                       </p>
                     </div>
@@ -218,6 +363,7 @@ export function ReturnRequestDialog({
                           value={sel.quantity}
                           onChange={(e) => updateQuantity(item.id, Number(e.target.value))}
                           className="text-[11px] border rounded px-1.5 py-0.5 h-6"
+                          title="수량 선택"
                         >
                           {Array.from({ length: item.quantity }, (_, i) => i + 1).map((q) => (
                             <option key={q} value={q}>{q}</option>
@@ -231,25 +377,170 @@ export function ReturnRequestDialog({
             </div>
           </div>
 
-          {/* 배송비 안내 */}
+          {/* 페이지교체 UI - 교체페이지 등록 + 파일 업로드 */}
+          {isPageReplace && (
+            <div className="space-y-3 border rounded-md p-3 bg-blue-50/50">
+              <Label className="text-[11px] font-medium">교체 페이지 등록</Label>
+              <p className="text-[10px] text-gray-500">
+                교체할 페이지 번호를 입력하고 교체 데이터 파일을 업로드해주세요.
+              </p>
+
+              {/* 페이지 번호 추가 */}
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min={1}
+                  placeholder="페이지 번호"
+                  value={newPageNumber}
+                  onChange={(e) => setNewPageNumber(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addRepairPage();
+                    }
+                  }}
+                  className="text-[11px] h-8 w-28"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="text-[11px] h-8"
+                  onClick={addRepairPage}
+                >
+                  페이지 추가
+                </Button>
+              </div>
+
+              {/* 등록된 페이지 목록 */}
+              {repairPages.length > 0 && (
+                <div className="space-y-2">
+                  {repairPages.map((page) => (
+                    <div
+                      key={page.pageNumber}
+                      className="border rounded-md p-2.5 bg-white flex items-center gap-3"
+                    >
+                      <div className="flex-shrink-0 w-10 h-10 rounded bg-gray-100 flex items-center justify-center">
+                        {page.result ? (
+                          <FileImage className="h-5 w-5 text-green-600" />
+                        ) : (
+                          <span className="text-[11px] text-gray-600 font-medium">
+                            {page.pageNumber}p
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] text-black">
+                          {page.pageNumber}페이지
+                        </p>
+                        {page.result ? (
+                          <p className="text-[10px] text-green-600 truncate">
+                            {page.result.originalName} ({(page.result.size / 1024 / 1024).toFixed(1)}MB)
+                          </p>
+                        ) : page.uploading ? (
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-blue-500 transition-all"
+                                style={{ width: `${page.progress}%` }}
+                              />
+                            </div>
+                            <span className="text-[10px] text-gray-500">{page.progress}%</span>
+                          </div>
+                        ) : page.error ? (
+                          <p className="text-[10px] text-red-500">{page.error}</p>
+                        ) : (
+                          <p className="text-[10px] text-gray-400">파일을 업로드해주세요</p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        {!page.uploading && (
+                          <>
+                            <input
+                              ref={(el) => { fileInputRefs.current[page.pageNumber] = el; }}
+                              type="file"
+                              accept="image/*"
+                              title={`${page.pageNumber}페이지 파일 선택`}
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleRepairFileSelect(page.pageNumber, file);
+                                e.target.value = '';
+                              }}
+                            />
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="text-[10px] h-7 px-2"
+                              onClick={() => fileInputRefs.current[page.pageNumber]?.click()}
+                            >
+                              <Upload className="h-3 w-3 mr-1" />
+                              {page.result ? '재업로드' : '업로드'}
+                            </Button>
+                          </>
+                        )}
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0 text-gray-400 hover:text-red-500"
+                          onClick={() => removeRepairPage(page.pageNumber)}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 비용/배송비 안내 */}
           {reason && (
             <div className="bg-gray-50 rounded-md p-3">
               <p className="text-[11px] text-gray-600">
-                {reason === 'customer_change' ? (
-                  <>
-                    <span className="text-red-600 font-medium">고객 변심</span>으로 인한 반품은 왕복 배송비가 고객 부담입니다.
-                  </>
-                ) : reason === 'other' ? (
-                  <>
-                    <span className="text-gray-700 font-medium">기타</span> 사유는 관리자 검토 후 배송비 부담자가 결정됩니다.
-                  </>
+                {isRepair ? (
+                  // 앨범수리 안내
+                  REPAIR_REASON_PAID[reason] ? (
+                    <>
+                      <span className="text-red-600 font-medium">페이지교체</span>는{' '}
+                      <span className="text-red-600">유상 수리</span>입니다. 수리 비용이 별도 청구됩니다.
+                      {isPageReplace && repairPages.length > 0 && (
+                        <span className="block mt-1 text-gray-500">
+                          교체 페이지: {repairPages.map((p) => `${p.pageNumber}p`).join(', ')}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-green-600 font-medium">
+                        {REPAIR_REASON_LABELS[reason]?.replace(/ \(무상\)/, '')}
+                      </span>
+                      은(는) <span className="text-green-600">무상 수리</span>로 진행됩니다.
+                    </>
+                  )
                 ) : (
-                  <>
-                    <span className="text-green-600 font-medium">
-                      {RETURN_REASON_LABELS[reason]}
-                    </span>
-                    {' '}사유로 반품 배송비는 회사 부담(무료)입니다.
-                  </>
+                  // 기존 반품/교환 안내
+                  reason === 'customer_change' ? (
+                    <>
+                      <span className="text-red-600 font-medium">고객 변심</span>으로 인한 반품은 왕복 배송비가 고객 부담입니다.
+                    </>
+                  ) : reason === 'other' ? (
+                    <>
+                      <span className="text-gray-700 font-medium">기타</span> 사유는 관리자 검토 후 배송비 부담자가 결정됩니다.
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-green-600 font-medium">
+                        {RETURN_REASON_LABELS[reason]}
+                      </span>
+                      {' '}사유로 반품 배송비는 회사 부담(무료)입니다.
+                    </>
+                  )
                 )}
               </p>
             </div>
@@ -269,9 +560,16 @@ export function ReturnRequestDialog({
               size="sm"
               className="text-[11px] h-8"
               onClick={handleSubmit}
-              disabled={createReturn.isPending || !reason || selectedCount === 0}
+              disabled={
+                createReturn.isPending ||
+                !reason ||
+                selectedCount === 0 ||
+                (isPageReplace && repairPages.some((p) => p.uploading))
+              }
             >
-              {createReturn.isPending ? '신청 중...' : `${RETURN_TYPE_LABELS[type]} 신청`}
+              {createReturn.isPending
+                ? '신청 중...'
+                : `${RETURN_TYPE_LABELS[type]} 신청`}
             </Button>
           </div>
         </div>

@@ -51,6 +51,9 @@ import { ReturnStatusBadge } from '@/components/order/return-status-badge';
 import {
   useReturnRequestsByOrder,
   RETURN_REASON_LABELS,
+  REPAIR_REASON_LABELS,
+  ALL_REASON_LABELS,
+  RETURN_TYPE_LABELS,
 } from '@/hooks/use-return-requests';
 
 // 주문 상태 타입 (orders/page.tsx와 동일)
@@ -408,7 +411,7 @@ export default function OrderDetailPage() {
                   onClick={() => setReturnDialogOpen(true)}
                 >
                   <RotateCw className="h-3.5 w-3.5 mr-1.5" />
-                  반품/교환 신청
+                  반품/교환/수리
                 </Button>
               )}
               <Badge className={`${statusConfig.className} px-4 py-2`}>
@@ -788,39 +791,56 @@ export default function OrderDetailPage() {
               </CardContent>
             </Card>
 
-            {/* 반품/교환 이력 */}
+            {/* 반품/교환/수리 이력 */}
             {returnRequests && returnRequests.length > 0 && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <RotateCw className="h-5 w-5" />
-                    반품/교환 이력
+                    반품/교환/수리 이력
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {returnRequests.map((rr) => (
+                  {returnRequests.map((rr: any) => (
                     <div key={rr.id} className="border rounded-md p-3 space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] text-gray-500">{rr.returnNumber}</span>
                         <ReturnStatusBadge status={rr.status} type={rr.type} />
                       </div>
+                      {/* 신청일시 */}
+                      <div className="text-[11px] text-gray-500">
+                        신청일시: {format(new Date(rr.createdAt), 'yyyy-MM-dd (EEE) HH:mm:ss', { locale: ko })}
+                      </div>
+                      <div className="text-[11px]">
+                        <span className="text-gray-500">유형: </span>
+                        <span>{RETURN_TYPE_LABELS[rr.type] || rr.type}</span>
+                      </div>
                       <div className="text-[11px]">
                         <span className="text-gray-500">사유: </span>
-                        <span>{RETURN_REASON_LABELS[rr.reason] || rr.reason}</span>
+                        <span>{ALL_REASON_LABELS[rr.reason] || RETURN_REASON_LABELS[rr.reason] || rr.reason}</span>
                         {rr.reasonDetail && (
                           <span className="text-gray-400 ml-1">({rr.reasonDetail})</span>
                         )}
                       </div>
                       {rr.items && rr.items.length > 0 && (
                         <div className="text-[10px] text-gray-500">
-                          {rr.items.map((item) => (
+                          {rr.items.map((item: any) => (
                             <div key={item.id}>
                               {item.orderItem?.productName || '상품'} x {item.quantity}
                             </div>
                           ))}
                         </div>
                       )}
-                      {rr.shippingFeeChargedTo && (
+                      {/* 앨범수리 - 교체페이지 정보 */}
+                      {rr.type === 'album_repair' && rr.repairPages && Array.isArray(rr.repairPages) && rr.repairPages.length > 0 && (
+                        <div className="text-[10px] bg-blue-50 rounded p-2">
+                          <span className="text-gray-500">교체 페이지: </span>
+                          <span className="text-blue-700">
+                            {(rr.repairPages as any[]).map((p: any) => `${p.pageNumber}p`).join(', ')}
+                          </span>
+                        </div>
+                      )}
+                      {rr.shippingFeeChargedTo && rr.type !== 'album_repair' && (
                         <div className="text-[10px]">
                           <span className="text-gray-500">배송비: </span>
                           <span className={rr.shippingFeeChargedTo === 'company' ? 'text-green-600' : 'text-red-600'}>
@@ -837,18 +857,26 @@ export default function OrderDetailPage() {
                           />
                         </div>
                       )}
-                      {rr.refundAmount && (
+                      {rr.refundAmount && Number(rr.refundAmount) > 0 && (
                         <div className="text-[10px]">
                           <span className="text-gray-500">환불: </span>
                           <span className="text-blue-600">
                             {Number(rr.refundAmount).toLocaleString()}원
-                            {rr.refundedAt && ` (${format(new Date(rr.refundedAt), 'yyyy.MM.dd', { locale: ko })})`}
+                            {rr.refundedAt && ` (${format(new Date(rr.refundedAt), 'yyyy.MM.dd HH:mm', { locale: ko })})`}
                           </span>
                         </div>
                       )}
-                      <div className="text-[10px] text-gray-400">
-                        {format(new Date(rr.createdAt), 'yyyy.MM.dd HH:mm', { locale: ko })}
-                      </div>
+                      {/* 승인/완료 일시 */}
+                      {rr.approvedAt && (
+                        <div className="text-[10px] text-gray-400">
+                          승인: {format(new Date(rr.approvedAt), 'yyyy-MM-dd HH:mm', { locale: ko })}
+                        </div>
+                      )}
+                      {rr.completedAt && (
+                        <div className="text-[10px] text-gray-400">
+                          완료: {format(new Date(rr.completedAt), 'yyyy-MM-dd HH:mm', { locale: ko })}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </CardContent>
@@ -1054,6 +1082,7 @@ export default function OrderDetailPage() {
           unitPrice: item.unitPrice,
           totalPrice: item.totalPrice,
           size: item.size,
+          pages: item.pages,
         }))}
       />
 

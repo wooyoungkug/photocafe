@@ -145,6 +145,64 @@ export async function uploadAlbumFiles(
   return results;
 }
 
+// ===== 앨범수리 교체페이지 파일 업로드 =====
+
+export interface RepairFileResult {
+  fileName: string;
+  originalName: string;
+  size: number;
+  fileUrl: string;
+  thumbnailUrl: string;
+  pageNumber: number;
+}
+
+/**
+ * 앨범수리 교체페이지 파일 1개 업로드
+ */
+export function uploadRepairFile(
+  file: File,
+  tempRepairId: string,
+  pageNumber: number,
+  token: string | null,
+  onProgress?: (percent: number) => void,
+): Promise<RepairFileResult> {
+  return new Promise((resolve, reject) => {
+    const formData = new FormData();
+    formData.append('tempRepairId', tempRepairId);
+    formData.append('pageNumber', String(pageNumber));
+    formData.append('file', file);
+
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable) {
+        onProgress?.(Math.round((e.loaded / e.total) * 100));
+      }
+    });
+
+    xhr.addEventListener('load', () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          resolve(JSON.parse(xhr.responseText));
+        } catch {
+          reject(new Error('Invalid response'));
+        }
+      } else {
+        reject(new Error(`Upload failed: ${xhr.status}`));
+      }
+    });
+
+    xhr.addEventListener('error', () => reject(new Error('Network error')));
+    xhr.addEventListener('abort', () => reject(new DOMException('Upload cancelled', 'AbortError')));
+
+    xhr.open('POST', `${API_BASE}/api/v1/upload/repair-file`);
+    if (token) {
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    }
+    xhr.send(formData);
+  });
+}
+
 /**
  * 임시 폴더 삭제
  */
