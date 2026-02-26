@@ -286,8 +286,15 @@ export default function BasicSettingsPage() {
                   <Input
                     id="business_number"
                     value={companyInfo.businessNumber}
-                    onChange={(e) => setCompanyInfo({ ...companyInfo, businessNumber: e.target.value })}
+                    onChange={(e) => {
+                      const numbers = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      let formatted = numbers;
+                      if (numbers.length > 5) formatted = `${numbers.slice(0, 3)}-${numbers.slice(3, 5)}-${numbers.slice(5)}`;
+                      else if (numbers.length > 3) formatted = `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
+                      setCompanyInfo({ ...companyInfo, businessNumber: formatted });
+                    }}
                     placeholder="123-45-67890"
+                    maxLength={12}
                   />
                 </div>
                 <div className="space-y-2">

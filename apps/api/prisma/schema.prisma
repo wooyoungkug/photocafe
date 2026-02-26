@@ -75,8 +75,8 @@ model Department {
 
 model Staff {
   id                      String        @id @default(cuid())
-  staffId                 String        @unique
-  password                String
+  staffId                 String?       @unique
+  password                String?
   name                    String
   branchId                String?
   departmentId            String?
@@ -113,15 +113,43 @@ model Staff {
   isCompany               Boolean       @default(false)
   isDepartment            Boolean       @default(true)
   isPersonal              Boolean       @default(false)
+
+  // OAuth 소셜 로그인
+  oauthProvider           String?
+  oauthId                 String?
+  companyEmail            String?
+  profileImage            String?
+
+  // 상태 및 역할
+  status                  String        @default("active")
+  role                    String        @default("employee")
+  approvedBy              String?
+  approvedAt              DateTime?
+
   branch                  Branch?       @relation(fields: [branchId], references: [id])
   department              Department?   @relation(fields: [departmentId], references: [id])
   assignedClients         StaffClient[]
   salesLedgers            SalesLedger[] @relation("SalesLedgerStaff")
 
+  @@unique([oauthProvider, oauthId])
   @@index([branchId])
   @@index([departmentId])
   @@index([isActive])
+  @@index([status])
+  @@index([oauthProvider])
   @@map("staff")
+}
+
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  domain    String   @unique
+  logoUrl   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("companies")
 }
 
 model StaffClient {

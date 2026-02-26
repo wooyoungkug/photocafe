@@ -29,7 +29,11 @@ import {
   RegisterStudioDto,
   ClientLoginDto,
   AdminLoginDto,
+  StaffRegisterCompanyEmailDto,
+  ApproveStaffDto,
+  ChangeStaffRoleDto,
 } from './dto/auth.dto';
+import { StaffOnlyGuard } from '@/common/guards/staff-only.guard';
 
 
 @ApiTags('auth')
