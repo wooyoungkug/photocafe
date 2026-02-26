@@ -956,7 +956,7 @@ export default function MonthlySummaryPage() {
                                     <tr key={order.id} className="bg-slate-50/60 border-b hover:bg-slate-100/60 text-xs">
                                       <td className="p-2 sm:p-3" />
                                       <td className="p-2 sm:p-3 whitespace-nowrap text-muted-foreground align-middle text-center">
-                                        <div className="tabular-nums">{order.orderNumber}</div>
+                                        <div className="tabular-nums text-[12px] text-black font-normal">{order.orderNumber}</div>
                                         {order.createdAt && (
                                           <div className="text-gray-400">
                                             {format(new Date(order.createdAt), 'a h:mm', { locale: ko })}
