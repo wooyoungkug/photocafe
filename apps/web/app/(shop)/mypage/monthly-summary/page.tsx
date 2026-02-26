@@ -144,26 +144,6 @@ export default function MonthlySummaryPage() {
     return map;
   }, [ordersByDate]);
 
-  // 일자별 공정 현황 (날짜 → {공정명: 건수})
-  const dateProcessSummary = useMemo(() => {
-    const map = new Map<string, { name: string; category: string; count: number }[]>();
-    if (!allMonthOrders?.data) return map;
-    allMonthOrders.data.forEach((order) => {
-      const date = format(new Date(order.orderedAt), 'yyyy-MM-dd');
-      if (!map.has(date)) map.set(date, []);
-      const arr = map.get(date)!;
-      const name = getProcessLabel(order.currentProcess);
-      const category = getProcessCategory(order.currentProcess);
-      const existing = arr.find((item) => item.name === name);
-      if (existing) {
-        existing.count++;
-      } else {
-        arr.push({ name, category, count: 1 });
-      }
-    });
-    return map;
-  }, [allMonthOrders]);
-
   // 누계잔액 계산
   const dataWithBalance = useMemo(() => {
     if (!dailyData?.data) return [];
@@ -259,25 +239,6 @@ export default function MonthlySummaryPage() {
     );
   };
 
-  const renderDateProcessSummary = (date: string) => {
-    const processes = dateProcessSummary.get(date);
-    if (!processes || processes.length === 0) return <span className="text-gray-400">-</span>;
-    return (
-      <div className="flex flex-wrap gap-0.5 justify-end">
-        {processes.map((p) => {
-          const colorClass = PROCESS_CATEGORY_COLORS[p.category] || PROCESS_CATEGORY_COLORS.reception;
-          return (
-            <span
-              key={p.name}
-              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap ${colorClass}`}
-            >
-              {p.name}{p.count > 1 && ` ${p.count}`}
-            </span>
-          );
-        })}
-      </div>
-    );
-  };
 
   const renderShippingStatus = (order: Order) => {
     if (!order.shipping) return <span className="text-gray-400">-</span>;
@@ -982,9 +943,7 @@ export default function MonthlySummaryPage() {
                               {row.runningBalance < 0 && '-'}
                               {formatAmount(Math.abs(row.runningBalance))}원
                             </td>
-                            <td className="p-2 sm:p-3 text-right">
-                              {renderDateProcessSummary(row.date)}
-                            </td>
+                            <td className="p-2 sm:p-3" />
                           </tr>
 
                           {/* 드릴다운: 건별 상세 */}
