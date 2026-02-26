@@ -23,6 +23,7 @@
     "db:restore": "prisma db push --force-reset && PGPASSWORD=postgres psql -U postgres -h localhost -p 5432 -d printing_erp -f prisma/testdata.sql && echo 'DB 복원 완료'"
   },
   "dependencies": {
+    "@nestjs/bullmq": "^11.0.4",
     "@nestjs/common": "^11.1.12",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.1.12",
@@ -38,6 +39,7 @@
     "@types/nodemailer": "^7.0.10",
     "archiver": "^7.0.1",
     "bcrypt": "^6.0.0",
+    "bullmq": "^5.70.1",
     "bwip-js": "^4.8.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
