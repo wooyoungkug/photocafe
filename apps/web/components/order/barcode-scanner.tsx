@@ -35,7 +35,7 @@ import { useUpdateShipping, ORDER_STATUS_LABELS } from '@/hooks/use-orders';
 import { useCourierList } from '@/hooks/use-delivery-tracking';
 import { useGenerateLogenTracking, useLogenStatus } from '@/hooks/use-logen';
 import { usePrinter, type LabelFormat } from '@/hooks/use-printer';
-import { speak } from '@/lib/tts';
+import { processNotify } from '@/lib/process-notify';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -129,7 +129,7 @@ export function BarcodeScanner({ open, onOpenChange, onOrderFound }: Props) {
         // Step 1: 로젠 송장 발급 (미발급 시)
         if (!shipping?.trackingNumber) {
           setAutoStep('logen');
-          speak('송장 발급 중');
+          processNotify('scanner_logen_issue');
 
           if (!shipping?.address) {
             throw new Error('수령인 주소가 누락되었습니다.');
@@ -141,17 +141,17 @@ export function BarcodeScanner({ open, onOpenChange, onOrderFound }: Props) {
 
           const logenResult = await generateLogen.mutateAsync(orderId);
           if (logenResult.alreadyExists) {
-            speak('기존 송장번호 사용');
+            processNotify('scanner_logen_existing');
           } else {
-            speak(`송장 ${logenResult.trackingNumber} 발급 완료`);
+            processNotify('scanner_logen_complete', `송장 ${logenResult.trackingNumber} 발급 완료`);
           }
         } else {
-          speak('기존 송장번호 사용');
+          processNotify('scanner_logen_existing');
         }
 
         // Step 2: 라벨 PDF 생성
         setAutoStep('generating');
-        speak('라벨 생성 중');
+        processNotify('scanner_label_generating');
         await generateLabel.mutateAsync({
           orderId,
           format: preferences.labelFormat,
@@ -159,12 +159,12 @@ export function BarcodeScanner({ open, onOpenChange, onOrderFound }: Props) {
 
         // Step 3: 자동 출력
         setAutoStep('printing');
-        speak('출력 중');
+        processNotify('scanner_printing');
         await printLabel(orderId);
 
         // Step 4: 완료
         setAutoStep('done');
-        speak('출력 완료');
+        processNotify('scanner_print_complete');
         setProcessedCount((c) => c + 1);
 
         // 1.5초 후 다음 스캔 준비
@@ -176,7 +176,7 @@ export function BarcodeScanner({ open, onOpenChange, onOrderFound }: Props) {
         }, 1500);
       } catch (err) {
         const msg = err instanceof Error ? err.message : '자동 처리 실패';
-        speak(msg);
+        processNotify('scanner_error', msg);
         setAutoStep('error');
         setAutoError(msg);
         toast({ title: msg, variant: 'destructive' });
@@ -205,7 +205,7 @@ export function BarcodeScanner({ open, onOpenChange, onOrderFound }: Props) {
       if (autoEnabled) {
         setAutoStep('error');
         setAutoError('주문을 찾을 수 없습니다.');
-        speak('주문을 찾을 수 없습니다');
+        processNotify('scanner_not_found');
         autoProcessingRef.current = false;
       }
       return;
@@ -290,7 +290,7 @@ export function BarcodeScanner({ open, onOpenChange, onOrderFound }: Props) {
       });
       if (preferences.autoPrint) {
         await printLabel(scanResult.order.id);
-        speak('출력 완료');
+        processNotify('scanner_print_complete');
       } else {
         await downloadLabel.mutateAsync(scanResult.order.id);
       }

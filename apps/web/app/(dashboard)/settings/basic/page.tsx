@@ -9,8 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { Building2, Printer, Truck, ListChecks, Server, Save, RotateCcw, HardDrive, FolderOpen, AlertTriangle } from "lucide-react";
+import { Building2, Printer, Truck, ListChecks, Server, Save, RotateCcw, HardDrive, FolderOpen, AlertTriangle, Bell } from "lucide-react";
 import DeliverySettingsContent from "@/components/settings/delivery-settings-content";
+import NotificationSettingsContent from "@/components/settings/notification-settings-content";
 import {
   useSystemSettings,
   useBulkUpdateSettings,
@@ -226,7 +227,7 @@ export default function BasicSettingsPage() {
       </div>
 
       <Tabs defaultValue="company" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5 lg:w-[750px]">
+        <TabsList className="grid w-full grid-cols-6 lg:w-[900px]">
           <TabsTrigger value="company" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             <span className="hidden sm:inline">회사정보</span>
@@ -242,6 +243,10 @@ export default function BasicSettingsPage() {
           <TabsTrigger value="process" className="flex items-center gap-2">
             <ListChecks className="h-4 w-4" />
             <span className="hidden sm:inline">공정단계</span>
+          </TabsTrigger>
+          <TabsTrigger value="notification" className="flex items-center gap-2">
+            <Bell className="h-4 w-4" />
+            <span className="hidden sm:inline">알림설정</span>
           </TabsTrigger>
           <TabsTrigger value="server" className="flex items-center gap-2">
             <Server className="h-4 w-4" />
@@ -621,6 +626,11 @@ export default function BasicSettingsPage() {
               저장
             </Button>
           </div>
+        </TabsContent>
+
+        {/* 알림설정 탭 */}
+        <TabsContent value="notification">
+          <NotificationSettingsContent />
         </TabsContent>
 
         {/* 서버 설정 탭 */}

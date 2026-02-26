@@ -54,7 +54,7 @@ import type { Order } from '@/hooks/use-orders';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import { speak } from '@/lib/tts';
+import { processNotify } from '@/lib/process-notify';
 import { usePrinter } from '@/hooks/use-printer';
 import { toast } from '@/hooks/use-toast';
 
@@ -185,15 +185,15 @@ export default function ShippingManagementPage() {
         await generateLabel.mutateAsync({ orderId, format: printerPrefs.labelFormat });
         if (printerPrefs.autoPrint) {
           await printLabel(orderId);
-          speak('송장 출력 완료');
+          processNotify('shipping_print_complete');
         } else {
           await downloadLabel.mutateAsync(orderId);
-          speak('송장 다운로드 완료');
+          processNotify('shipping_download_complete');
         }
         toast({ title: '운송장이 생성되었습니다.' });
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : '운송장 생성에 실패했습니다.';
-        speak('송장 출력 실패');
+        processNotify('shipping_print_fail');
         toast({ title: msg, variant: 'destructive' });
       }
     },
@@ -207,12 +207,12 @@ export default function ShippingManagementPage() {
       const order = orders.find((o) => o.id === orderId);
       if (order?.shipping) {
         if (!order.shipping.address) {
-          speak('수령인 주소가 누락되었습니다');
+          processNotify('shipping_address_missing_recipient');
           toast({ title: '수령인 주소가 누락되었습니다.', variant: 'destructive' });
           return;
         }
         if (!order.shipping.senderAddress && !order.shipping.senderName) {
-          speak('발송인 주소가 누락되었습니다');
+          processNotify('shipping_address_missing_sender');
           toast({ title: '발송인 주소가 누락되었습니다.', variant: 'destructive' });
           return;
         }
@@ -221,15 +221,15 @@ export default function ShippingManagementPage() {
       try {
         const result = await generateLogen.mutateAsync(orderId);
         if (result.alreadyExists) {
-          speak('이미 송장번호가 있습니다');
+          processNotify('shipping_existing_tracking');
           toast({ title: `이미 송장번호가 있습니다: ${result.trackingNumber}` });
         } else {
-          speak('송장 자동발급 완료');
+          processNotify('shipping_auto_complete');
           toast({ title: `로젠택배 송장 발급 완료: ${result.trackingNumber}` });
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : '송장 자동발급에 실패했습니다.';
-        speak('송장 발급 실패');
+        processNotify('shipping_auto_fail');
         toast({ title: msg, variant: 'destructive' });
       }
     },
@@ -254,14 +254,14 @@ export default function ShippingManagementPage() {
 
     try {
       const result = await bulkLogen.mutateAsync(idsWithoutTracking);
-      speak(`${result.successCount}건 송장 발급 완료`);
+      processNotify('shipping_bulk_complete', `${result.successCount}건 송장 발급 완료`);
       toast({
         title: `${result.successCount}/${result.total}건 송장 발급 완료`,
       });
       setSelectedIds(new Set());
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '일괄 발급에 실패했습니다.';
-      speak('일괄 발급 실패');
+      processNotify('shipping_bulk_fail');
       toast({ title: msg, variant: 'destructive' });
     }
   };

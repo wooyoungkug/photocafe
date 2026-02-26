@@ -32,15 +32,7 @@ const DIRECT_TRACKING_URLS: Record<string, (no: string) => string> = {
   '08': (no) => `https://www.lotteglogis.com/home/reservation/tracking/index?InvNo=${no}`,
 };
 import { toast } from '@/hooks/use-toast';
-
-function speakTracking(trackingNumber: string) {
-  if (typeof window === 'undefined' || !window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-  const utter = new SpeechSynthesisUtterance('운송장 저장완료');
-  utter.lang = 'ko-KR';
-  utter.rate = 0.95;
-  window.speechSynthesis.speak(utter);
-}
+import { processNotify } from '@/lib/process-notify';
 
 interface Props {
   open: boolean;
@@ -87,7 +79,7 @@ export function ShippingInputDialog({
       {
         onSuccess: () => {
           toast({ title: '송장이 저장되었습니다.' });
-          speakTracking(trimmed);
+          processNotify('tracking_save_complete');
           onOpenChange(false);
         },
         onError: (err: unknown) => {
@@ -109,7 +101,7 @@ export function ShippingInputDialog({
         ? `이미 송장번호가 있습니다: ${result.trackingNumber}`
         : `로젠택배 송장 발급 완료: ${result.trackingNumber}`;
       toast({ title: msg });
-      speakTracking(result.trackingNumber);
+      processNotify('tracking_save_complete');
       onOpenChange(false);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '송장 자동발급에 실패했습니다.';

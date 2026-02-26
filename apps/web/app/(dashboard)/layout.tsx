@@ -8,6 +8,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { PanelLeftClose, PanelLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePageView } from "@/hooks/use-page-view";
+import { useNotificationConfig } from "@/hooks/use-notification-config";
 
 const SIDEBAR_COLLAPSED_KEY = "sidebar-collapsed";
 
@@ -17,6 +18,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   usePageView();
+  useNotificationConfig();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);

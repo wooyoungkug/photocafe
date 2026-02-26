@@ -23,6 +23,7 @@ export const SETTING_CATEGORIES = {
   process: "공정단계",
   server: "서버설정",
   system: "시스템",
+  notification: "알림설정",
 } as const;
 
 // 공정단계 정의
