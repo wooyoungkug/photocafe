@@ -242,6 +242,15 @@ export class OrderService {
           _count: {
             select: { items: true },
           },
+          salesLedger: {
+            select: {
+              id: true,
+              receivedAmount: true,
+              outstandingAmount: true,
+              paymentStatus: true,
+              totalAmount: true,
+            },
+          },
         },
         orderBy: { orderedAt: 'desc' },
       }),

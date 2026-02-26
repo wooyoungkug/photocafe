@@ -140,6 +140,13 @@ export interface Order {
   items: OrderItem[];
   shipping: OrderShipping;
   processHistory: ProcessHistory[];
+  salesLedger?: {
+    id: string;
+    receivedAmount: number;
+    outstandingAmount: number;
+    paymentStatus: string;
+    totalAmount: number;
+  };
 }
 
 // 주문 생성 DTO

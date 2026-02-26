@@ -14,16 +14,20 @@ import {
   ArrowRightLeft,
   Download,
   Printer,
+  CreditCard,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth-store';
 import {
   useDailyOrderSummary,
   useOrders,
   type Order,
 } from '@/hooks/use-orders';
+import { useAddSalesReceipt } from '@/hooks/use-sales-ledger';
 import { PROCESS_STAGES } from '@/hooks/use-system-settings';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -59,9 +63,12 @@ function formatAmount(amount: number) {
 
 export default function MonthlySummaryPage() {
   const { user } = useAuthStore();
+  const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [printType, setPrintType] = useState<'summary' | 'detail' | null>(null);
+  const [paymentInput, setPaymentInput] = useState<{ orderId: string; amount: string } | null>(null);
+  const addReceipt = useAddSalesReceipt();
 
   const startDate = startOfMonth(selectedDate);
   const endDate = endOfMonth(selectedDate);
@@ -136,6 +143,48 @@ export default function MonthlySummaryPage() {
       return { ...row, runningBalance };
     });
   }, [dailyData]);
+
+  // 건별 누적잔액 계산 (orderId → 해당 주문 처리 후 잔액)
+  const orderBalanceMap = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!allMonthOrders?.data) return map;
+    const startBalance = dailyData?.summary?.carryForwardBalance || 0;
+    let running = startBalance;
+    [...allMonthOrders.data]
+      .sort((a, b) => new Date(a.orderedAt).getTime() - new Date(b.orderedAt).getTime())
+      .forEach(order => {
+        running += Number(order.finalAmount) - Number(order.salesLedger?.receivedAmount || 0);
+        map.set(order.id, running);
+      });
+    return map;
+  }, [allMonthOrders, dailyData]);
+
+  const handlePaymentSubmit = async (order: Order) => {
+    if (!paymentInput || !order.salesLedger?.id) return;
+    const amount = Number(paymentInput.amount.replace(/,/g, ''));
+    if (!amount || amount <= 0) return;
+    const outstanding = Number(order.salesLedger.outstandingAmount);
+    if (amount > outstanding) {
+      toast({ title: `납부금액(${amount.toLocaleString()}원)이 미수금(${outstanding.toLocaleString()}원)을 초과합니다.`, variant: 'destructive' });
+      return;
+    }
+    try {
+      await addReceipt.mutateAsync({
+        salesLedgerId: order.salesLedger.id,
+        data: {
+          receiptDate: format(new Date(), 'yyyy-MM-dd'),
+          amount,
+          paymentMethod: 'bank_transfer',
+        },
+      });
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['orders', 'daily-summary'] });
+      toast({ title: `${amount.toLocaleString()}원 납부 처리되었습니다.` });
+      setPaymentInput(null);
+    } catch (e: any) {
+      toast({ title: e?.message || '납부 처리 중 오류가 발생했습니다.', variant: 'destructive' });
+    }
+  };
 
   // 인쇄 후 상태 초기화
   useEffect(() => {
@@ -959,48 +1008,115 @@ export default function MonthlySummaryPage() {
                                     }
                                     displayName = `${folder} · ${base || product}`;
                                   }
+                                  const orderBalance = orderBalanceMap.get(order.id);
+                                  const receivedAmt = Number(order.salesLedger?.receivedAmount || 0);
+                                  const outstandingAmt = Number(order.salesLedger?.outstandingAmount ?? order.finalAmount);
+                                  const isPaymentActive = paymentInput?.orderId === order.id;
+                                  const canPay = !!order.salesLedger?.id && outstandingAmt > 0;
                                   return (
-                                    <tr key={order.id} className="bg-slate-50/60 border-b hover:bg-slate-100/60 text-xs">
-                                      <td className="p-2 sm:p-3" />
-                                      <td className="p-2 sm:p-3 whitespace-nowrap text-muted-foreground align-middle text-center">
-                                        <div className="tabular-nums text-[12px] text-black font-normal">{order.orderNumber}</div>
-                                        {order.createdAt && (
-                                          <div className="text-gray-400">
-                                            {format(new Date(order.createdAt), 'a h:mm', { locale: ko })}
+                                    <Fragment key={order.id}>
+                                      <tr className="bg-slate-50/60 border-b hover:bg-slate-100/60 text-xs">
+                                        <td className="p-2 sm:p-3" />
+                                        <td className="p-2 sm:p-3 whitespace-nowrap text-muted-foreground align-middle text-center">
+                                          <div className="tabular-nums text-[12px] text-black font-normal">{order.orderNumber}</div>
+                                          {order.createdAt && (
+                                            <div className="text-gray-400">
+                                              {format(new Date(order.createdAt), 'a h:mm', { locale: ko })}
+                                            </div>
+                                          )}
+                                        </td>
+                                        <td className="p-2 sm:p-3 align-middle">
+                                          <Link href={`/mypage/orders/${order.id}`} className="hover:underline cursor-pointer">
+                                            <span>{displayName || '-'}</span>
+                                            {order.items?.[0]?.size && (
+                                              <span className="text-[10pt] text-black font-bold ml-1 whitespace-nowrap">
+                                                {order.items[0].size}
+                                              </span>
+                                            )}
+                                            {order.items?.length > 1 && (
+                                              <span className="text-muted-foreground ml-1">
+                                                외 {order.items.length - 1}건
+                                              </span>
+                                            )}
+                                          </Link>
+                                        </td>
+                                        <td className="p-2 sm:p-3 text-right tabular-nums align-middle text-[10pt]">
+                                          {formatAmount(Number(order.finalAmount))}원
+                                        </td>
+                                        <td className="p-2 sm:p-3 text-right tabular-nums align-middle">
+                                          {receivedAmt > 0
+                                            ? <span className="text-green-600">{formatAmount(receivedAmt)}원</span>
+                                            : <span className="text-muted-foreground">-</span>
+                                          }
+                                        </td>
+                                        <td className="p-2 sm:p-3 text-right tabular-nums align-middle">
+                                          {orderBalance !== undefined
+                                            ? <span className={orderBalance > 0 ? 'text-red-600 font-semibold' : orderBalance < 0 ? 'text-blue-600 font-semibold' : ''}>
+                                                {orderBalance < 0 && '-'}{formatAmount(Math.abs(orderBalance))}원
+                                              </span>
+                                            : <span className="text-muted-foreground">-</span>
+                                          }
+                                        </td>
+                                        <td className="p-2 sm:p-3 text-right align-middle">
+                                          <div className="flex flex-col items-end gap-1">
+                                            {renderShippingStatus(order)}
+                                            {renderProcessBadge(order.status, order.shipping?.deliveryMethod)}
+                                            {canPay && (
+                                              <button
+                                                type="button"
+                                                onClick={() => setPaymentInput(
+                                                  isPaymentActive ? null : { orderId: order.id, amount: String(outstandingAmt) }
+                                                )}
+                                                className="text-[11px] text-blue-600 hover:text-blue-800 underline whitespace-nowrap"
+                                              >
+                                                {isPaymentActive ? '취소' : '납부 입력'}
+                                              </button>
+                                            )}
                                           </div>
-                                        )}
-                                      </td>
-                                      <td className="p-2 sm:p-3 align-middle">
-                                        <Link href={`/mypage/orders/${order.id}`} className="hover:underline cursor-pointer">
-                                          <span>{displayName || '-'}</span>
-                                          {order.items?.[0]?.size && (
-                                            <span className="text-[10pt] text-black font-bold ml-1 whitespace-nowrap">
-                                              {order.items[0].size}
-                                            </span>
-                                          )}
-                                          {order.items?.length > 1 && (
-                                            <span className="text-muted-foreground ml-1">
-                                              외 {order.items.length - 1}건
-                                            </span>
-                                          )}
-                                        </Link>
-                                      </td>
-                                      <td className="p-2 sm:p-3 text-right tabular-nums align-middle text-[10pt]">
-                                        {formatAmount(Number(order.finalAmount))}원
-                                      </td>
-                                      <td className="p-2 sm:p-3 text-right text-muted-foreground align-middle">
-                                        -
-                                      </td>
-                                      <td className="p-2 sm:p-3 text-right tabular-nums text-muted-foreground align-middle">
-                                        -
-                                      </td>
-                                      <td className="p-2 sm:p-3 text-right align-middle">
-                                        <div className="flex flex-col items-end gap-0.5">
-                                          {renderShippingStatus(order)}
-                                          {renderProcessBadge(order.status, order.shipping?.deliveryMethod)}
-                                        </div>
-                                      </td>
-                                    </tr>
+                                        </td>
+                                      </tr>
+                                      {/* 납부 입력 인라인 폼 */}
+                                      {isPaymentActive && (
+                                        <tr className="bg-blue-50/70 border-b">
+                                          <td colSpan={2} />
+                                          <td colSpan={5} className="px-3 py-2">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                              <span className="text-[11px] text-gray-600 whitespace-nowrap">
+                                                미수금 {formatAmount(outstandingAmt)}원 중 납부:
+                                              </span>
+                                              <input
+                                                type="number"
+                                                title="납부금액"
+                                                placeholder="납부금액"
+                                                className="border rounded px-2 py-1 text-[12px] w-28 text-right tabular-nums"
+                                                value={paymentInput.amount}
+                                                onChange={e => setPaymentInput(p => p ? { ...p, amount: e.target.value } : p)}
+                                                onFocus={e => e.target.select()}
+                                                min={1}
+                                                max={outstandingAmt}
+                                              />
+                                              <span className="text-[11px]">원</span>
+                                              <button
+                                                type="button"
+                                                disabled={addReceipt.isPending}
+                                                onClick={() => handlePaymentSubmit(order)}
+                                                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[11px] px-3 py-1 rounded whitespace-nowrap"
+                                              >
+                                                {addReceipt.isPending ? '처리중...' : '납부 확인'}
+                                              </button>
+                                              <button
+                                                type="button"
+                                                title="취소"
+                                                onClick={() => setPaymentInput(null)}
+                                                className="text-gray-400 hover:text-gray-600"
+                                              >
+                                                <X className="h-3.5 w-3.5" />
+                                              </button>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      )}
+                                    </Fragment>
                                   );
                                 })
                               ) : (
