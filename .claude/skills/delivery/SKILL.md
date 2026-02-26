@@ -831,3 +831,185 @@ GET /orders/:id/cancel-preview
 - 스마트택배 API 응답에서 `isDelivered = true` 확인 시:
   - 주문 상태를 자동으로 `shipped`(배송완료)로 변경
   - `deliveredAt` 타임스탬프 기록
+
+## 반품/교환 (Return/Exchange)
+
+### 반품 상태 흐름
+
+```
+requested (신청)
+  ├→ approved (승인) → collecting (수거중) → collected (수거완료)
+  │    → inspecting (검수중) → completed (완료) [환불/교환 처리]
+  │    → inspecting → rejected (반려) [검수 불합격]
+  └→ rejected (거절) [승인 거절]
+```
+
+### 반품 사유 + 배송비 정책
+
+| 반품사유 | 코드 | 배송비 부담 | 환불 | 교환 |
+|---------|------|-----------|------|------|
+| 제품 불량 | `defect` | 회사(무료) | 전액 | 가능 |
+| 오배송 | `wrong_item` | 회사(무료) | 전액 | 가능 |
+| 배송중 파손 | `damaged` | 회사(무료) | 전액 | 가능 |
+| 고객 변심 | `customer_change` | **고객 부담** | 전액-배송비 | 가능(배송비 청구) |
+| 기타 | `other` | 관리자 판단 | 협의 | 협의 |
+
+**고객 배송비 청구 방법** (기존 패턴 활용):
+- `creditEnabled=true` → 여신거래 (`pendingAdjustmentAmount` 차감)
+- `creditEnabled=false` → 무통장입금 안내
+
+### DB 모델 (schema.prisma)
+
+```prisma
+model ReturnRequest {
+  id                     String   @id @default(cuid())
+  returnNumber           String   @unique   // RR-YYMMDD-NNN
+  orderId                String
+  clientId               String
+  type                   String             // 'return' | 'exchange'
+  status                 String   @default("requested")
+  reason                 String             // defect, wrong_item, damaged, customer_change, other
+  reasonDetail           String?
+  shippingFeeChargedTo   String?            // 'company' | 'customer'
+  returnShippingFee      Decimal? @db.Decimal(10, 2)
+  returnCourierCode      String?
+  returnTrackingNumber   String?
+  returnShippedAt        DateTime?
+  returnDeliveredAt      DateTime?
+  exchangeCourierCode    String?
+  exchangeTrackingNumber String?
+  exchangeShippedAt      DateTime?
+  exchangeDeliveredAt    DateTime?
+  refundAmount           Decimal? @db.Decimal(12, 2)
+  refundMethod           String?            // 'credit' | 'bank_transfer'
+  refundedAt             DateTime?
+  goodsflowReturnId      String?
+  goodsflowStatus        String?
+  requestedBy            String
+  approvedBy             String?
+  approvedAt             DateTime?
+  completedBy            String?
+  completedAt            DateTime?
+  rejectedReason         String?
+  adminMemo              String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  order                  Order               @relation(...)
+  client                 Client              @relation(...)
+  items                  ReturnRequestItem[]
+  history                ReturnHistory[]
+  @@map("return_requests")
+}
+
+model ReturnRequestItem {
+  id              String @id @default(cuid())
+  returnRequestId String
+  orderItemId     String
+  quantity        Int              // 부분반품 지원
+  reason          String?
+  condition       String?          // good, damaged, defective
+  @@map("return_request_items")
+}
+
+model ReturnHistory {
+  id              String @id @default(cuid())
+  returnRequestId String
+  fromStatus      String?
+  toStatus        String
+  processType     String           // status_change, tracking_update, refund_processed, exchange_shipped
+  note            String?
+  processedBy     String
+  processedAt     DateTime @default(now())
+  @@map("return_history")
+}
+```
+
+**SalesStatus enum**에 `RETURNED` 추가됨.
+
+### Backend API 엔드포인트
+
+```
+# 고객용: 반품 신청 (주문 하위 리소스)
+POST   /orders/:orderId/return-request      # 반품/교환 신청
+GET    /orders/:orderId/return-requests     # 주문별 반품 목록
+
+# 반품 관리
+GET    /return-requests                     # 반품 목록 (필터: clientId, status, startDate, endDate)
+GET    /return-requests/:id                 # 반품 상세
+GET    /return-requests/:id/history         # 반품 이력
+PATCH  /return-requests/:id/approve         # 반품 승인
+PATCH  /return-requests/:id/reject          # 반품 거절
+PATCH  /return-requests/:id/tracking        # 반품 운송장 입력
+PATCH  /return-requests/:id/complete        # 반품 완료 처리 (환불 + SalesLedger 업데이트)
+PATCH  /return-requests/:id/exchange-ship   # 교환 재발송 등록
+PATCH  /return-requests/:id/status          # 반품 상태 변경
+```
+
+### 반품 완료 시 환불 처리 (return.service.ts → complete())
+
+1. 환불금액 계산: `반품아이템 금액합 - 고객부담 배송비`
+2. 여신거래(`creditEnabled`): `Client.pendingAdjustmentAmount`에 양수 누적 → 다음 주문 자동 차감
+3. 무통장입금: 별도 처리 (관리자 수동)
+4. 매출원장(`SalesLedger`): salesStatus → `RETURNED`
+5. ProcessHistory에 `refund_completed` 기록
+
+### 굿스플로(Goodsflow) 연동
+
+- **파일**: `apps/api/src/modules/delivery/services/goodsflow.service.ts`
+- **폴백 전략**: `.env`에 `GOODSFLOW_API_KEY`가 없으면 수동 운송장 입력 모드
+- `isEnabled()` → API 키 존재 여부 체크
+- `requestReturnPickup()` → 굿스플로 API 호출 (미구현 → null 반환)
+- 굿스플로 계약 후 실제 API 구현 필요
+
+### 반품 운송장 자동추적
+
+- **파일**: `apps/api/src/modules/delivery/services/tracking-scheduler.service.ts`
+- `handleReturnTrackingPoll()` 메서드 추가
+- `scheduledPoll()` 에서 정배송 추적 후 반품 추적도 실행
+- 대상: `status='collecting'`, `returnCourierCode` + `returnTrackingNumber` not null, `returnDeliveredAt` null
+- 배달완료 시 → `status='collected'`, `returnDeliveredAt` 기록, `ReturnHistory` 생성
+
+### 반품 관련 구현 파일
+
+| 구분 | 파일 | 설명 |
+|------|------|------|
+| **Backend** | `apps/api/src/modules/return/return.module.ts` | 반품 모듈 |
+| | `apps/api/src/modules/return/controllers/return.controller.ts` | 반품 API |
+| | `apps/api/src/modules/return/services/return.service.ts` | 반품 비즈니스 로직 |
+| | `apps/api/src/modules/return/dto/return.dto.ts` | 반품 DTO + 상수 |
+| | `apps/api/src/modules/delivery/services/goodsflow.service.ts` | 굿스플로 연동 |
+| | `apps/api/src/modules/delivery/services/tracking-scheduler.service.ts` | 반품 자동추적 |
+| **Frontend** | `apps/web/hooks/use-return-requests.ts` | TanStack Query 훅 10개 |
+| | `apps/web/components/order/return-request-dialog.tsx` | 반품/교환 신청 다이얼로그 |
+| | `apps/web/components/order/return-status-badge.tsx` | 반품 상태 배지 |
+| | `apps/web/app/(shop)/mypage/orders/[id]/page.tsx` | 주문상세 - 반품 버튼 + 이력 카드 |
+| | `apps/web/hooks/use-system-settings.ts` | PROCESS_STAGES 반품 8단계 추가 |
+| | `apps/web/app/(shop)/mypage/monthly-summary/page.tsx` | 현재공정 반품상태 매핑 |
+
+### PROCESS_STAGES 반품 단계
+
+```typescript
+// use-system-settings.ts에 추가됨
+return_requested:  { name: "반품신청", category: "return", order: 70 },
+return_approved:   { name: "반품승인", category: "return", order: 71 },
+return_collecting: { name: "수거중",   category: "return", order: 72 },
+return_collected:  { name: "수거완료", category: "return", order: 73 },
+return_inspecting: { name: "검수중",   category: "return", order: 74 },
+return_completed:  { name: "반품완료", category: "return", order: 75 },
+exchange_shipping: { name: "교환발송", category: "return", order: 76 },
+exchange_completed:{ name: "교환완료", category: "return", order: 77 },
+```
+
+### 반품 체크리스트
+
+- [x] DB 스키마 (ReturnRequest, ReturnRequestItem, ReturnHistory)
+- [x] Backend API (CRUD + 상태관리 + 배송비 계산)
+- [x] 굿스플로 연동 서비스 (폴백: 수동 운송장)
+- [x] 반품 운송장 자동추적 (tracking-scheduler 확장)
+- [x] Frontend 훅 (use-return-requests.ts)
+- [x] 반품 신청 다이얼로그 (타입/사유/아이템선택/부분반품)
+- [x] 주문상세 반품 버튼 + 이력 표시
+- [x] PROCESS_STAGES 반품 단계
+- [x] 월거래집계 현재공정 반품상태 표시
+- [ ] 관리자 반품 관리 UI (승인/거절/완료 처리)
+- [ ] 굿스플로 실제 API 연동 (계약 후)
