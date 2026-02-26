@@ -44,7 +44,6 @@ import {
 import { useAuthStore } from '@/stores/auth-store';
 import { useToast } from '@/hooks/use-toast';
 import { ProcessHistoryDialog } from '@/components/order/process-history-dialog';
-import { TrackingStatusCell } from '@/components/order/tracking-status-cell';
 import { api } from '@/lib/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, subDays, subMonths, subYears } from 'date-fns';
@@ -107,15 +106,6 @@ interface OrderItem {
   totalPrice: number;
 }
 
-interface OrderShippingInfo {
-  courierCode?: string;
-  trackingNumber?: string;
-  shippedAt?: string;
-  deliveredAt?: string;
-  labelPrintedAt?: string;
-  deliveryMethod?: string;
-}
-
 interface Order {
   id: string;
   orderNumber: string;
@@ -126,7 +116,6 @@ interface Order {
   client?: { clientName: string };
   _count?: { items: number };
   items?: OrderItem[];
-  shipping?: OrderShippingInfo;
   processHistory?: { id: string; toStatus: string; processType: string; processedBy: string; processedByName?: string; processedAt: string }[];
 }
 
@@ -626,29 +615,21 @@ export default function MyOrdersPage() {
 
                         {idx === 0 && (
                           <TableCell className="text-center align-top pt-3" rowSpan={items.length}>
-                            {order.shipping?.trackingNumber && order.shipping?.courierCode ? (
-                              <TrackingStatusCell
-                                courierCode={order.shipping.courierCode}
-                                trackingNumber={order.shipping.trackingNumber}
-                                orderId={order.id}
-                              />
-                            ) : (
-                              <div className="space-y-1">
-                                <Badge className={cn('text-xs', statusBadge.className)}>
-                                  {statusBadge.label}
-                                </Badge>
-                                <div
-                                  className="text-[11px] text-blue-600 hover:underline cursor-pointer"
-                                  onClick={() => {
-                                    setHistoryOrderId(order.id);
-                                    setHistoryOrderNumber(order.orderNumber);
-                                    setIsHistoryOpen(true);
-                                  }}
-                                >
-                                  {order.processHistory?.[0]?.processedByName || '-'}
-                                </div>
+                            <div className="space-y-1">
+                              <Badge className={cn('text-xs', statusBadge.className)}>
+                                {statusBadge.label}
+                              </Badge>
+                              <div
+                                className="text-[11px] text-blue-600 hover:underline cursor-pointer"
+                                onClick={() => {
+                                  setHistoryOrderId(order.id);
+                                  setHistoryOrderNumber(order.orderNumber);
+                                  setIsHistoryOpen(true);
+                                }}
+                              >
+                                {order.processHistory?.[0]?.processedByName || '-'}
                               </div>
-                            )}
+                            </div>
                           </TableCell>
                         )}
 
