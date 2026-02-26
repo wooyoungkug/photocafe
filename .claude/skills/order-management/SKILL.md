@@ -384,6 +384,75 @@ model ReceptionSchedule {
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+## 주문 검색 기능 (searchType 분기)
+
+프론트엔드에서 `search` + `searchType` 파라미터를 함께 전달하며, 백엔드에서 searchType에 따라 검색 대상을 분기한다.
+
+### 검색 유형별 대상 필드
+
+| searchType | UI 라벨 | 검색 대상 (Prisma where) |
+|---|---|---|
+| `orderNumber` (기본) | 주문번호 | `Order.orderNumber`, `Client.clientName` |
+| `orderTitle` | 주문제목 | `OrderItem.folderName` (폴더명 = 주문 제목) |
+| `productName` | 주문내용 | `OrderItem.productName` (상품명) |
+| `spec` | 재질 및 규격 | `OrderItem.size`, `paper`, `bindingType`, `coverMaterial` |
+
+### 관련 파일
+
+- **DTO**: `apps/api/src/modules/order/dto/order.dto.ts` → `OrderQueryDto.searchType`
+- **Service**: `apps/api/src/modules/order/services/order.service.ts` → `findAll()` switch문
+- **Frontend**: `apps/web/app/(shop)/mypage/orders/page.tsx` → RadioGroup으로 searchType 선택
+
+### 백엔드 검색 조건 구현 패턴
+
+```typescript
+// searchType에 따라 Prisma where 조건 분기
+let searchCondition: Prisma.OrderWhereInput | undefined;
+if (search) {
+  switch (searchType) {
+    case 'orderTitle':
+      searchCondition = {
+        items: { some: { folderName: { contains: search, mode: 'insensitive' } } },
+      };
+      break;
+    case 'productName':
+      searchCondition = {
+        items: { some: { productName: { contains: search, mode: 'insensitive' } } },
+      };
+      break;
+    case 'spec':
+      searchCondition = {
+        items: {
+          some: {
+            OR: [
+              { size: { contains: search, mode: 'insensitive' } },
+              { paper: { contains: search, mode: 'insensitive' } },
+              { bindingType: { contains: search, mode: 'insensitive' } },
+              { coverMaterial: { contains: search, mode: 'insensitive' } },
+            ],
+          },
+        },
+      };
+      break;
+    case 'orderNumber':
+    default:
+      searchCondition = {
+        OR: [
+          { orderNumber: { contains: search, mode: 'insensitive' } },
+          { client: { clientName: { contains: search, mode: 'insensitive' } } },
+        ],
+      };
+      break;
+  }
+}
+```
+
+### 주의사항
+
+- OrderItem 하위 필드 검색 시 `items: { some: { ... } }` 패턴 사용 (관계 테이블 검색)
+- `mode: 'insensitive'` 옵션으로 대소문자 구분 없이 검색
+- DTO에 `searchType` 필드 추가 필수 (없으면 프론트에서 보내도 백엔드에서 무시됨)
+
 ## 체크리스트
 
 주문 관리 기능 구현 시 확인사항:

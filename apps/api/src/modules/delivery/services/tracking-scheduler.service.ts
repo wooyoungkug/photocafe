@@ -38,6 +38,7 @@ export class TrackingSchedulerService {
 
     this.logger.log(`[${hour}시] 설정된 폴링 시간 - 배송추적 시작`);
     await this.handleTrackingPoll();
+    await this.handleReturnTrackingPoll();
   }
 
   /**
@@ -240,6 +241,71 @@ export class TrackingSchedulerService {
     };
     const levelLabel = levelLabels[detail.level] || detail.status || `상태${detail.level}`;
     return `[${courierName}] ${levelLabel} - ${detail.location} (${detail.time})`;
+  }
+
+  /**
+   * 반품 운송장 자동추적 폴링
+   */
+  async handleReturnTrackingPoll() {
+    this.logger.log('=== 반품 배송추적 폴링 시작 ===');
+
+    try {
+      const eligibleReturns = await this.prisma.returnRequest.findMany({
+        where: {
+          status: { in: ['collecting'] },
+          returnCourierCode: { not: null },
+          returnTrackingNumber: { not: null },
+          returnDeliveredAt: null,
+        },
+      });
+
+      this.logger.log(`반품 추적 대상: ${eligibleReturns.length}건`);
+
+      for (const rr of eligibleReturns) {
+        try {
+          const trackingInfo = await this.trackingService.getTrackingInfo(
+            rr.returnCourierCode!,
+            rr.returnTrackingNumber!,
+            true,
+          );
+
+          if (trackingInfo.isDelivered) {
+            await this.prisma.$transaction(async (tx) => {
+              await tx.returnRequest.update({
+                where: { id: rr.id },
+                data: {
+                  status: 'collected',
+                  returnDeliveredAt: new Date(),
+                },
+              });
+
+              await tx.returnHistory.create({
+                data: {
+                  returnRequestId: rr.id,
+                  fromStatus: 'collecting',
+                  toStatus: 'collected',
+                  processType: 'tracking_update',
+                  note: '자동 수거완료 확인 (배송추적)',
+                  processedBy: 'system',
+                },
+              });
+            });
+
+            this.logger.log(`반품 ${rr.returnNumber}: 자동 수거완료 처리`);
+          }
+        } catch (err) {
+          this.logger.error(
+            `반품 ${rr.returnNumber} 추적 실패: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+
+        await this.delay(200);
+      }
+
+      this.logger.log('=== 반품 배송추적 폴링 완료 ===');
+    } catch (err) {
+      this.logger.error(`반품 배송추적 폴링 오류: ${err}`);
+    }
   }
 
   private delay(ms: number): Promise<void> {
