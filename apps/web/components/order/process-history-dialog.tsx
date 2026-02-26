@@ -39,6 +39,7 @@ const PROCESS_TYPE_LABELS: Record<string, string> = {
   file_rejected: '파일 거부',
   inspection_hold: '검수 보류',
   inspection_sms_sent: 'SMS 발송',
+  tracking_update: '배송추적',
 };
 
 interface ProcessHistoryDialogProps {

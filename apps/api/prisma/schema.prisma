@@ -854,6 +854,7 @@ model OrderShipping {
   bundleSeq           Int?
   labelPdfPath        String?
   labelPrintedAt      DateTime?
+  lastTrackingDetailCount Int         @default(0) // 마지막 기록된 추적 이벤트 수
   order               Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
   bundle              ShipmentBundle? @relation(fields: [bundleId], references: [id], onDelete: SetNull)
 

@@ -2,6 +2,7 @@ import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ScheduleModule as NestScheduleModule } from '@nestjs/schedule';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { AuthModule } from './modules/auth/auth.module';
 import { CompanyModule } from './modules/company/company.module';
@@ -56,6 +57,7 @@ import { AppController } from './app.controller';
         limit: 60,   // 분당 60회 (일반 API)
       },
     ]),
+    NestScheduleModule.forRoot(),
     PrismaModule,
     EmailModule,
     HealthModule,

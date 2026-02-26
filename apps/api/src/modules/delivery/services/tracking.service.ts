@@ -40,11 +40,15 @@ export class TrackingService {
     return DIRECT_TRACKING_URLS[courierCode]?.(trackingNumber);
   }
 
-  async getTrackingInfo(courierCode: string, trackingNumber: string): Promise<TrackingInfo> {
-    // 캐시 확인
+  async getTrackingInfo(
+    courierCode: string,
+    trackingNumber: string,
+    bypassCache = false,
+  ): Promise<TrackingInfo> {
+    // 캐시 확인 (bypassCache=true이면 건너뜀)
     const cacheKey = `${courierCode}:${trackingNumber}`;
     const cached = this.cache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) {
+    if (!bypassCache && cached && cached.expiresAt > Date.now()) {
       return cached.data;
     }
     const apiKey = this.configService.get<string>('SWEETTRACKER_API_KEY');

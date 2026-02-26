@@ -1,13 +1,17 @@
-import { Controller, Get, Query, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Query, BadRequestException } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Public } from '@/common/decorators/public.decorator';
 import { TrackingService } from '../services/tracking.service';
+import { TrackingSchedulerService } from '../services/tracking-scheduler.service';
 import { COURIER_CODES, ACTIVE_COURIER_CODES } from '../dto/delivery-pricing.dto';
 
 @ApiTags('delivery')
 @Controller('delivery')
 export class TrackingController {
-  constructor(private readonly trackingService: TrackingService) {}
+  constructor(
+    private readonly trackingService: TrackingService,
+    private readonly trackingSchedulerService: TrackingSchedulerService,
+  ) {}
 
   @Get('tracking')
   @Public()
@@ -51,5 +55,12 @@ export class TrackingController {
   @ApiOperation({ summary: '전체 택배사 목록 조회 (참조용)' })
   getAllCouriers() {
     return Object.entries(COURIER_CODES).map(([code, name]) => ({ code, name }));
+  }
+
+  @Post('tracking/poll')
+  @ApiOperation({ summary: '배송추적 수동 폴링 (관리자)' })
+  async manualPoll() {
+    await this.trackingSchedulerService.handleTrackingPoll();
+    return { success: true, message: '배송추적 폴링 완료' };
   }
 }

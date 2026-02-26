@@ -11,6 +11,7 @@ import { TrackingService } from './services/tracking.service';
 import { ShippingMgmtService } from './services/shipping-mgmt.service';
 import { ShippingLabelService } from './services/shipping-label.service';
 import { LogenService } from './services/logen.service';
+import { TrackingSchedulerService } from './services/tracking-scheduler.service';
 import { PrismaModule } from '../../common/prisma/prisma.module';
 import { SystemSettingsModule } from '../system-settings/system-settings.module';
 
@@ -30,6 +31,7 @@ import { SystemSettingsModule } from '../system-settings/system-settings.module'
     ShippingMgmtService,
     ShippingLabelService,
     LogenService,
+    TrackingSchedulerService,
   ],
   exports: [
     DeliveryPricingService,
@@ -38,6 +40,7 @@ import { SystemSettingsModule } from '../system-settings/system-settings.module'
     ShippingMgmtService,
     ShippingLabelService,
     LogenService,
+    TrackingSchedulerService,
   ],
 })
 export class DeliveryModule {}
