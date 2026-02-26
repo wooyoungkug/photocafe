@@ -514,6 +514,7 @@ export function useUpdateShipping() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: [ORDERS_KEY] });
       queryClient.invalidateQueries({ queryKey: [ORDERS_KEY, variables.orderId] });
+      queryClient.invalidateQueries({ queryKey: ['shipping'] });
     },
   });
 }
