@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from 'react';
 import {
   FolderOpen,
+  FolderDown,
   Play,
   Trash2,
   CheckCircle2,
@@ -113,14 +114,8 @@ export function ImageMergeTool() {
     [],
   );
 
-  const handleSelectFolder = useCallback(async () => {
-    if (!('showDirectoryPicker' in window)) {
-      toast.error('이 브라우저는 폴더 선택을 지원하지 않습니다.');
-      return;
-    }
-
-    try {
-      const handle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
+  const processDirectoryHandle = useCallback(
+    async (handle: FileSystemDirectoryHandle) => {
       setSourceHandle(handle);
       setLogs([]);
       setProgress(0);
@@ -136,15 +131,31 @@ export function ImageMergeTool() {
       }
 
       setFolders(scannedFolders);
-      addLog(`${scannedFolders.length}개 폴더 발견 (총 ${scannedFolders.reduce((s, f) => s + f.files.length, 0)}개 파일)`, 'success');
+      addLog(
+        `${scannedFolders.length}개 폴더 발견 (총 ${scannedFolders.reduce((s, f) => s + f.files.length, 0)}개 파일)`,
+        'success',
+      );
       toast.success(`${scannedFolders.length}개 폴더를 발견했습니다.`);
+    },
+    [addLog, scanDirectory],
+  );
+
+  const handleSelectFolder = useCallback(async () => {
+    if (!('showDirectoryPicker' in window)) {
+      toast.error('이 브라우저는 폴더 선택을 지원하지 않습니다.');
+      return;
+    }
+
+    try {
+      const handle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
+      await processDirectoryHandle(handle);
     } catch (err: any) {
       if (err?.name !== 'AbortError') {
         console.error('Folder scan error:', err);
         toast.error('폴더 선택/스캔 중 오류가 발생했습니다.');
       }
     }
-  }, [addLog, scanDirectory]);
+  }, [processDirectoryHandle]);
 
   const handleDrop = useCallback(
     async (e: React.DragEvent) => {
@@ -154,16 +165,38 @@ export function ImageMergeTool() {
       const items = e.dataTransfer.items;
       if (!items || items.length === 0) return;
 
-      const entry = items[0].webkitGetAsEntry?.();
-      if (!entry || !entry.isDirectory) {
-        toast.error('폴더를 드래그해주세요.');
-        return;
+      // Modern API: getAsFileSystemHandle (Chrome 86+)
+      const item = items[0];
+      if ('getAsFileSystemHandle' in item) {
+        try {
+          const handle = await (item as any).getAsFileSystemHandle();
+          if (handle?.kind === 'directory') {
+            const dirHandle = handle as FileSystemDirectoryHandle;
+            // Request readwrite permission for saving merged files
+            const permission = await (dirHandle as any).requestPermission({ mode: 'readwrite' });
+            if (permission !== 'granted') {
+              toast.error('폴더 쓰기 권한이 필요합니다. 권한을 허용해주세요.');
+              return;
+            }
+            await processDirectoryHandle(dirHandle);
+            return;
+          }
+          toast.error('폴더를 드래그해주세요. (파일이 아닌 폴더)');
+          return;
+        } catch (err: any) {
+          console.error('Drop handle error:', err);
+        }
       }
 
-      // For drag & drop, fallback to file selection since we can't get FileSystemDirectoryHandle
-      toast.info('드래그 앤 드롭은 폴더 선택 버튼을 사용해주세요.');
+      // Fallback: check if it's a directory via webkitGetAsEntry
+      const entry = items[0].webkitGetAsEntry?.();
+      if (entry?.isDirectory) {
+        toast.info('이 브라우저에서는 폴더 선택 버튼을 클릭하여 선택해주세요.');
+      } else {
+        toast.error('폴더를 드래그해주세요.');
+      }
     },
-    [],
+    [processDirectoryHandle],
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -485,12 +518,15 @@ export function ImageMergeTool() {
             `}
           >
             <div className="flex flex-col items-center gap-3">
-              <div className="w-14 h-14 rounded-full bg-violet-100 flex items-center justify-center">
-                <FolderOpen className="h-7 w-7 text-violet-600" />
+              <div className={`w-14 h-14 rounded-full flex items-center justify-center transition-colors ${isDragOver ? 'bg-blue-100' : 'bg-violet-100'}`}>
+                {isDragOver
+                  ? <FolderDown className="h-7 w-7 text-blue-600 animate-bounce" />
+                  : <FolderOpen className="h-7 w-7 text-violet-600" />
+                }
               </div>
               <div>
                 <p className="text-base font-semibold text-slate-700">
-                  작업할 폴더를 선택하세요
+                  {isDragOver ? '여기에 폴더를 놓으세요' : '폴더를 드래그하거나 클릭하여 선택'}
                 </p>
                 <p className="text-sm text-slate-500 mt-1">
                   하위 폴더의 JPG 파일을 좌우 합쳐서 페이지로 만듭니다
