@@ -279,17 +279,17 @@ export function ReturnRequestDialog({
 
           {/* 신청 유형 (앨범수리 고정) */}
           <div className="space-y-1.5">
-            <Label className="text-[11px]">신청 유형</Label>
-            <div className="text-[11px] h-8 flex items-center px-3 border rounded-md bg-gray-50">
+            <Label className="text-[13px]">신청 유형</Label>
+            <div className="text-[13px] h-8 flex items-center px-3 border rounded-md bg-gray-50">
               앨범수리(재발송)
             </div>
           </div>
 
           {/* 사유 선택 */}
           <div className="space-y-1.5">
-            <Label className="text-[11px]">사유 선택</Label>
+            <Label className="text-[13px]">사유 선택</Label>
             <Select value={reason} onValueChange={setReason}>
-              <SelectTrigger className="text-[11px] h-8">
+              <SelectTrigger className="text-[13px] h-8">
                 <SelectValue placeholder="사유를 선택하세요" />
               </SelectTrigger>
               <SelectContent>
@@ -304,7 +304,7 @@ export function ReturnRequestDialog({
 
           {/* 상세 사유 */}
           <div className="space-y-1.5">
-            <Label className="text-[11px]">상세 사유 (선택)</Label>
+            <Label className="text-[13px]">상세 사유 (선택)</Label>
             <Textarea
               value={reasonDetail}
               onChange={(e) => setReasonDetail(e.target.value)}
@@ -316,7 +316,7 @@ export function ReturnRequestDialog({
 
           {/* 대상 상품 선택 */}
           <div className="space-y-1.5">
-            <Label className="text-[11px]">수리 대상 상품</Label>
+            <Label className="text-[13px]">수리 대상 상품</Label>
             <div className="border rounded-md divide-y">
               {items.map((item) => {
                 const sel = selectedItems[item.id];
@@ -361,7 +361,7 @@ export function ReturnRequestDialog({
           {/* 페이지교체 UI - 교체페이지 등록 + 파일 업로드 */}
           {isPageReplace && (
             <div className="space-y-3 border rounded-md p-3 bg-blue-50/50">
-              <Label className="text-[11px] font-medium">교체 페이지 등록</Label>
+              <Label className="text-[13px] font-medium">교체 페이지 등록</Label>
               <p className="text-[10px] text-gray-500">
                 교체할 페이지 번호를 입력하고 교체 데이터 파일을 업로드해주세요.
               </p>
