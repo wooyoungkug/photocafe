@@ -140,7 +140,7 @@ export interface ReturnRequest {
   completedBy?: string;
   completedAt?: string;
   rejectedReason?: string;
-  repairPages?: { pageNumber: number; fileName: string; fileUrl: string; thumbnailUrl?: string }[];
+  repairPages?: { pageNumber: number; fileName: string; fileUrl: string; thumbnailUrl?: string; isCompanion?: boolean }[];
   adminMemo?: string;
   createdAt: string;
   updatedAt: string;
@@ -228,7 +228,7 @@ export function useCreateReturnRequest() {
         reason: string;
         reasonDetail?: string;
         items: { orderItemId: string; quantity: number; reason?: string; condition?: string }[];
-        repairPages?: { pageNumber: number; fileName: string; fileUrl: string; thumbnailUrl?: string }[];
+        repairPages?: { pageNumber: number; fileName: string; fileUrl: string; thumbnailUrl?: string; isCompanion?: boolean }[];
       };
     }) => api.post<ReturnRequest>(`/orders/${orderId}/return-request`, data),
     onSuccess: (_, variables) => {

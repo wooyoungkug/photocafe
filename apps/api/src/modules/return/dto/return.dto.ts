@@ -141,7 +141,7 @@ export class CreateReturnRequestDto {
 
   @ApiPropertyOptional({ description: '교체페이지 정보 (페이지교체 시)' })
   @IsOptional()
-  repairPages?: { pageNumber: number; fileName: string; fileUrl: string; thumbnailUrl?: string }[];
+  repairPages?: { pageNumber: number; fileName: string; fileUrl: string; thumbnailUrl?: string; isCompanion?: boolean }[];
 }
 
 export class ApproveReturnDto {

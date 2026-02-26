@@ -102,6 +102,8 @@ interface OrderItem {
   finishingOptions: string[];
   thumbnailUrl?: string;
   totalFileSize?: number;
+  pageLayout?: string;
+  bindingDirection?: string;
   quantity: number;
   unitPrice: number;
   totalPrice: number;
@@ -921,6 +923,8 @@ export default function MyOrdersPage() {
             pages: item.pages,
             printMethod: item.printMethod,
             bindingType: item.bindingType,
+            pageLayout: item.pageLayout,
+            bindingDirection: item.bindingDirection,
           }))}
         />
       )}
