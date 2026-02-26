@@ -33,6 +33,29 @@ export function AlbumSplitTool() {
   const leftCanvasRef = useRef<HTMLCanvasElement>(null);
   const rightCanvasRef = useRef<HTMLCanvasElement>(null);
   const trackUseRef = useRef<(() => void) | null>(null);
+  const resultCardRef = useRef<HTMLDivElement>(null);
+
+  const playBeep = useCallback(() => {
+    try {
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      osc.type = 'sine';
+      gain.gain.value = 0.3;
+      osc.start();
+      osc.stop(ctx.currentTime + 0.15);
+      setTimeout(() => ctx.close(), 500);
+    } catch { /* AudioContext unavailable */ }
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
+    setTimeout(() => {
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }, 100);
+  }, []);
 
   const cleanup = useCallback(() => {
     if (leftUrl) URL.revokeObjectURL(leftUrl);
@@ -77,6 +100,7 @@ export function AlbumSplitTool() {
         setFileName(file.name);
         setShowInfo(true);
         setShowPreview(true);
+        scrollToBottom();
       };
       img.src = URL.createObjectURL(file);
     };
@@ -161,6 +185,8 @@ export function AlbumSplitTool() {
       setRightUrl(rightResult.url);
       setShowResult(true);
 
+      scrollToBottom();
+      playBeep();
       toast.success('분리 완료! 결과를 확인하세요.');
       trackUseRef.current?.();
     } catch (err) {
@@ -403,7 +429,7 @@ export function AlbumSplitTool() {
 
       {/* Results */}
       {showResult && (
-        <Card>
+        <Card ref={resultCardRef}>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
