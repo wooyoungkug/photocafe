@@ -3,42 +3,21 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
-// 반품 상태
+// 수리 상태
 export const RETURN_STATUS = {
   REQUESTED: 'requested',
-  APPROVED: 'approved',
   COLLECTING: 'collecting',
   COLLECTED: 'collected',
   INSPECTING: 'inspecting',
   COMPLETED: 'completed',
-  REJECTED: 'rejected',
 } as const;
 
 export const RETURN_STATUS_LABELS: Record<string, string> = {
-  requested: '반품신청',
-  approved: '반품승인',
+  requested: '수리신청',
   collecting: '수거중',
   collected: '수거완료',
   inspecting: '검수중',
-  completed: '반품완료',
-  rejected: '반품거절',
-};
-
-// 반품 사유 (반품/교환용)
-export const RETURN_REASONS = {
-  DEFECT: 'defect',
-  WRONG_ITEM: 'wrong_item',
-  DAMAGED: 'damaged',
-  CUSTOMER_CHANGE: 'customer_change',
-  OTHER: 'other',
-} as const;
-
-export const RETURN_REASON_LABELS: Record<string, string> = {
-  defect: '제품 불량',
-  wrong_item: '오배송',
-  damaged: '배송중 파손',
-  customer_change: '고객 변심',
-  other: '기타',
+  completed: '수리완료',
 };
 
 // 앨범수리 사유
@@ -64,9 +43,8 @@ export const REPAIR_REASON_PAID: Record<string, boolean> = {
   shipping_damage: false,
 };
 
-// 모든 사유 라벨 (합산)
+// 모든 사유 라벨
 export const ALL_REASON_LABELS: Record<string, string> = {
-  ...RETURN_REASON_LABELS,
   ...REPAIR_REASON_LABELS,
 };
 
@@ -125,21 +103,9 @@ export interface ReturnRequest {
   returnTrackingNumber?: string;
   returnShippedAt?: string;
   returnDeliveredAt?: string;
-  exchangeCourierCode?: string;
-  exchangeTrackingNumber?: string;
-  exchangeShippedAt?: string;
-  exchangeDeliveredAt?: string;
-  refundAmount?: number;
-  refundMethod?: string;
-  refundedAt?: string;
-  goodsflowReturnId?: string;
-  goodsflowStatus?: string;
   requestedBy: string;
-  approvedBy?: string;
-  approvedAt?: string;
   completedBy?: string;
   completedAt?: string;
-  rejectedReason?: string;
   repairPages?: { pageNumber: number; fileName: string; fileUrl: string; thumbnailUrl?: string; isCompanion?: boolean }[];
   adminMemo?: string;
   createdAt: string;
@@ -213,7 +179,7 @@ export function useReturnHistory(id?: string) {
   });
 }
 
-// 반품/교환/수리 신청
+// 앨범수리 신청
 export function useCreateReturnRequest() {
   const queryClient = useQueryClient();
 
@@ -238,49 +204,7 @@ export function useCreateReturnRequest() {
   });
 }
 
-// 반품 승인
-export function useApproveReturn() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      id,
-      data,
-    }: {
-      id: string;
-      data: {
-        shippingFeeChargedTo?: string;
-        returnShippingFee?: number;
-        adminMemo?: string;
-      };
-    }) => api.patch<ReturnRequest>(`/return-requests/${id}/approve`, data),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: [RETURN_REQUESTS_KEY] });
-      queryClient.invalidateQueries({ queryKey: [RETURN_REQUESTS_KEY, variables.id] });
-    },
-  });
-}
-
-// 반품 거절
-export function useRejectReturn() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      id,
-      data,
-    }: {
-      id: string;
-      data: { rejectedReason: string };
-    }) => api.patch<ReturnRequest>(`/return-requests/${id}/reject`, data),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: [RETURN_REQUESTS_KEY] });
-      queryClient.invalidateQueries({ queryKey: [RETURN_REQUESTS_KEY, variables.id] });
-    },
-  });
-}
-
-// 반품 운송장 입력
+// 수리 운송장 입력
 export function useUpdateReturnTracking() {
   const queryClient = useQueryClient();
 
@@ -299,7 +223,7 @@ export function useUpdateReturnTracking() {
   });
 }
 
-// 반품 완료 처리
+// 수리 완료 처리
 export function useCompleteReturn() {
   const queryClient = useQueryClient();
 
@@ -314,26 +238,7 @@ export function useCompleteReturn() {
   });
 }
 
-// 교환 재발송 등록
-export function useExchangeShip() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      id,
-      data,
-    }: {
-      id: string;
-      data: { courierCode: string; trackingNumber: string };
-    }) => api.patch<ReturnRequest>(`/return-requests/${id}/exchange-ship`, data),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: [RETURN_REQUESTS_KEY] });
-      queryClient.invalidateQueries({ queryKey: [RETURN_REQUESTS_KEY, variables.id] });
-    },
-  });
-}
-
-// 반품 상태 변경
+// 수리 상태 변경
 export function useUpdateReturnStatus() {
   const queryClient = useQueryClient();
 

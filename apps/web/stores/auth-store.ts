@@ -97,7 +97,7 @@ export const useAuthStore = create<AuthState>()(
 
           // 관리자/직원 로그인 시 미들웨어 인증 쿠키 설정
           if (user.role === 'admin' || user.role === 'staff') {
-            const cookieMaxAge = rememberMe ? 30 * 24 * 60 * 60 : 86400;
+            const cookieMaxAge = rememberMe ? 30 * 24 * 60 * 60 : 7 * 24 * 60 * 60;
             document.cookie = `auth-verified=true; path=/; max-age=${cookieMaxAge}; SameSite=Lax`;
           }
         }

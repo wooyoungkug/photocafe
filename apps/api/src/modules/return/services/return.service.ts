@@ -7,10 +7,7 @@ import {
 import { PrismaService } from '@/common/prisma/prisma.service';
 import {
   CreateReturnRequestDto,
-  ApproveReturnDto,
-  RejectReturnDto,
   UpdateReturnTrackingDto,
-  ExchangeShipDto,
   ReturnQueryDto,
   RETURN_STATUS,
   REASON_DEFAULT_FEE_CHARGED_TO,
@@ -46,7 +43,7 @@ export class ReturnService {
     return `${prefix}-${String(seq).padStart(3, '0')}`;
   }
 
-  // 반품/교환 신청
+  // 앨범수리(재발송) 신청
   async createReturnRequest(
     orderId: string,
     dto: CreateReturnRequestDto,
@@ -63,26 +60,26 @@ export class ReturnService {
 
     if (!order) throw new NotFoundException('주문을 찾을 수 없습니다.');
 
-    // 배송완료 상태에서만 앨범수리(재발송) 가능
-    if (order.status !== 'shipped') {
-      throw new BadRequestException(
-        '배송완료(거래완료) 상태의 주문만 앨범수리(재발송) 신청할 수 있습니다.',
-      );
-    }
+    // TODO: 운영 시 shipped 상태 제한 복원
+    // if (order.status !== 'shipped') {
+    //   throw new BadRequestException(
+    //     '배송완료(거래완료) 상태의 주문만 앨범수리(재발송) 신청할 수 있습니다.',
+    //   );
+    // }
 
-    // 이미 진행 중인 반품이 있는지 확인
+    // 이미 진행 중인 수리요청이 있는지 확인
     const existingReturn = await this.prisma.returnRequest.findFirst({
       where: {
         orderId,
         status: {
-          notIn: [RETURN_STATUS.COMPLETED, RETURN_STATUS.REJECTED],
+          notIn: [RETURN_STATUS.COMPLETED],
         },
       },
     });
 
     if (existingReturn) {
       throw new BadRequestException(
-        `이미 진행 중인 반품요청이 있습니다. (${existingReturn.returnNumber})`,
+        `이미 진행 중인 수리요청이 있습니다. (${existingReturn.returnNumber})`,
       );
     }
 
@@ -96,25 +93,12 @@ export class ReturnService {
       }
       if (item.quantity > orderItem.quantity) {
         throw new BadRequestException(
-          `반품 수량(${item.quantity})이 주문 수량(${orderItem.quantity})을 초과합니다.`,
+          `수리 수량(${item.quantity})이 주문 수량(${orderItem.quantity})을 초과합니다.`,
         );
       }
     }
 
-    // 환불금액 산출
-    let refundAmount = 0;
-    const isRepair = dto.type === 'album_repair';
-    const isPaidRepair = isRepair && REPAIR_REASON_PAID[dto.reason];
-
-    if (!isRepair) {
-      // 반품/교환: 부분반품 지원
-      for (const item of dto.items) {
-        const orderItem = order.items.find((oi) => oi.id === item.orderItemId)!;
-        const unitPrice = Number(orderItem.unitPrice);
-        refundAmount += unitPrice * item.quantity;
-      }
-    }
-    // album_repair: 환불 없음 (유상 수리는 별도 청구)
+    const isPaidRepair = REPAIR_REASON_PAID[dto.reason];
 
     // 배송비 부담자 기본값
     const defaultFeeChargedTo =
@@ -122,24 +106,18 @@ export class ReturnService {
 
     const returnNumber = await this.generateReturnNumber();
 
-    const typeLabel = isRepair
-      ? '앨범수리'
-      : dto.type === 'return'
-        ? '반품'
-        : '교환';
-
     const returnRequest = await this.prisma.$transaction(async (tx) => {
       const rr = await tx.returnRequest.create({
         data: {
           returnNumber,
           orderId,
           clientId: order.clientId,
-          type: dto.type,
+          type: 'album_repair',
           status: RETURN_STATUS.REQUESTED,
           reason: dto.reason,
           reasonDetail: dto.reasonDetail,
           shippingFeeChargedTo: defaultFeeChargedTo,
-          refundAmount: isRepair ? 0 : refundAmount,
+          refundAmount: 0,
           repairPages: dto.repairPages ? dto.repairPages : undefined,
           requestedBy,
           items: {
@@ -162,7 +140,7 @@ export class ReturnService {
           returnRequestId: rr.id,
           toStatus: RETURN_STATUS.REQUESTED,
           processType: 'status_change',
-          note: `${typeLabel} 신청`,
+          note: '앨범수리 신청',
           processedBy: requestedBy,
         },
       });
@@ -173,8 +151,8 @@ export class ReturnService {
           orderId,
           fromStatus: order.status,
           toStatus: order.status,
-          processType: isRepair ? 'repair_requested' : 'return_requested',
-          note: `${typeLabel} 신청 (${returnNumber})`,
+          processType: 'repair_requested',
+          note: `앨범수리 신청 (${returnNumber})`,
           processedBy: requestedBy,
         },
       });
@@ -182,97 +160,16 @@ export class ReturnService {
       return rr;
     });
 
-    this.logger.log(`${typeLabel} 신청 완료: ${returnNumber} (주문: ${order.orderNumber})`);
+    this.logger.log(`앨범수리 신청 완료: ${returnNumber} (주문: ${order.orderNumber})`);
 
     return {
       returnRequest,
-      estimatedRefund: isRepair ? 0 : refundAmount,
       shippingFeeChargedTo: defaultFeeChargedTo,
       isPaidRepair,
     };
   }
 
-  // 반품 승인
-  async approve(id: string, dto: ApproveReturnDto, approvedBy: string) {
-    const rr = await this.prisma.returnRequest.findUnique({
-      where: { id },
-      include: { order: true, client: true },
-    });
-
-    if (!rr) throw new NotFoundException('반품요청을 찾을 수 없습니다.');
-    if (rr.status !== RETURN_STATUS.REQUESTED) {
-      throw new BadRequestException('신청 상태의 반품만 승인할 수 있습니다.');
-    }
-
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const result = await tx.returnRequest.update({
-        where: { id },
-        data: {
-          status: RETURN_STATUS.APPROVED,
-          shippingFeeChargedTo: dto.shippingFeeChargedTo || rr.shippingFeeChargedTo,
-          returnShippingFee: dto.returnShippingFee,
-          adminMemo: dto.adminMemo,
-          approvedBy,
-          approvedAt: new Date(),
-        },
-      });
-
-      await tx.returnHistory.create({
-        data: {
-          returnRequestId: id,
-          fromStatus: RETURN_STATUS.REQUESTED,
-          toStatus: RETURN_STATUS.APPROVED,
-          processType: 'status_change',
-          note: dto.adminMemo || '반품 승인',
-          processedBy: approvedBy,
-        },
-      });
-
-      return result;
-    });
-
-    this.logger.log(`반품 승인: ${rr.returnNumber}`);
-    return updated;
-  }
-
-  // 반품 거절
-  async reject(id: string, dto: RejectReturnDto, rejectedBy: string) {
-    const rr = await this.prisma.returnRequest.findUnique({ where: { id } });
-    if (!rr) throw new NotFoundException('반품요청을 찾을 수 없습니다.');
-    if (rr.status !== RETURN_STATUS.REQUESTED) {
-      throw new BadRequestException('신청 상태의 반품만 거절할 수 있습니다.');
-    }
-
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const result = await tx.returnRequest.update({
-        where: { id },
-        data: {
-          status: RETURN_STATUS.REJECTED,
-          rejectedReason: dto.rejectedReason,
-          completedBy: rejectedBy,
-          completedAt: new Date(),
-        },
-      });
-
-      await tx.returnHistory.create({
-        data: {
-          returnRequestId: id,
-          fromStatus: RETURN_STATUS.REQUESTED,
-          toStatus: RETURN_STATUS.REJECTED,
-          processType: 'status_change',
-          note: `거절 사유: ${dto.rejectedReason}`,
-          processedBy: rejectedBy,
-        },
-      });
-
-      return result;
-    });
-
-    this.logger.log(`반품 거절: ${rr.returnNumber}`);
-    return updated;
-  }
-
-  // 반품 운송장 입력 (수동)
+  // 수리 운송장 입력 (수동)
   async updateTracking(
     id: string,
     dto: UpdateReturnTrackingDto,
@@ -282,11 +179,10 @@ export class ReturnService {
     if (!rr) throw new NotFoundException('반품요청을 찾을 수 없습니다.');
     if (
       rr.status !== RETURN_STATUS.REQUESTED &&
-      rr.status !== RETURN_STATUS.APPROVED &&
       rr.status !== RETURN_STATUS.COLLECTING
     ) {
       throw new BadRequestException(
-        '신청/승인/수거중 상태에서만 운송장을 입력할 수 있습니다.',
+        '신청/수거중 상태에서만 운송장을 입력할 수 있습니다.',
       );
     }
 
@@ -438,43 +334,7 @@ export class ReturnService {
     };
   }
 
-  // 교환 재발송 등록
-  async exchangeShip(id: string, dto: ExchangeShipDto, shippedBy: string) {
-    const rr = await this.prisma.returnRequest.findUnique({ where: { id } });
-    if (!rr) throw new NotFoundException('반품요청을 찾을 수 없습니다.');
-    if (rr.type !== 'exchange') {
-      throw new BadRequestException('교환 타입의 반품만 교환 발송할 수 있습니다.');
-    }
-
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const result = await tx.returnRequest.update({
-        where: { id },
-        data: {
-          exchangeCourierCode: dto.courierCode,
-          exchangeTrackingNumber: dto.trackingNumber,
-          exchangeShippedAt: new Date(),
-        },
-      });
-
-      await tx.returnHistory.create({
-        data: {
-          returnRequestId: id,
-          fromStatus: rr.status,
-          toStatus: rr.status,
-          processType: 'exchange_shipped',
-          note: `교환 발송: ${dto.courierCode} / ${dto.trackingNumber}`,
-          processedBy: shippedBy,
-        },
-      });
-
-      return result;
-    });
-
-    this.logger.log(`교환 발송: ${rr.returnNumber} → ${dto.trackingNumber}`);
-    return updated;
-  }
-
-  // 반품 상태 변경 (범용)
+  // 수리 상태 변경 (범용)
   async updateStatus(
     id: string,
     newStatus: string,

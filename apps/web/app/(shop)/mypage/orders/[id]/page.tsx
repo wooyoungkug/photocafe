@@ -50,7 +50,6 @@ import { ReturnRequestDialog } from '@/components/order/return-request-dialog';
 import { ReturnStatusBadge } from '@/components/order/return-status-badge';
 import {
   useReturnRequestsByOrder,
-  RETURN_REASON_LABELS,
   REPAIR_REASON_LABELS,
   ALL_REASON_LABELS,
   RETURN_TYPE_LABELS,
@@ -378,7 +377,8 @@ export default function OrderDetailPage() {
               <p className="text-gray-500">주문번호: {order.orderNumber}</p>
             </div>
             <div className="flex items-center gap-3">
-              {(order.status === ORDER_STATUS.SHIPPED || order.status === ORDER_STATUS.READY_FOR_SHIPPING) && (
+              {/* TODO: 운영 시 shipped 상태 제한 복원 */}
+              {order.status !== ORDER_STATUS.CANCELLED && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -792,7 +792,7 @@ export default function OrderDetailPage() {
                       </div>
                       <div className="text-[11px]">
                         <span className="text-gray-500">사유: </span>
-                        <span>{ALL_REASON_LABELS[rr.reason] || RETURN_REASON_LABELS[rr.reason] || rr.reason}</span>
+                        <span>{ALL_REASON_LABELS[rr.reason] || rr.reason}</span>
                         {rr.reasonDetail && (
                           <span className="text-gray-400 ml-1">({rr.reasonDetail})</span>
                         )}

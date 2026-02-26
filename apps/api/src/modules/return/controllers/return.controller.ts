@@ -14,10 +14,7 @@ import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 import { ReturnService } from '../services/return.service';
 import {
   CreateReturnRequestDto,
-  ApproveReturnDto,
-  RejectReturnDto,
   UpdateReturnTrackingDto,
-  ExchangeShipDto,
   ReturnQueryDto,
 } from '../dto';
 
@@ -70,26 +67,6 @@ export class ReturnController {
     return this.returnService.getHistory(id);
   }
 
-  @Patch('return-requests/:id/approve')
-  @ApiOperation({ summary: '반품 승인' })
-  async approve(
-    @Param('id') id: string,
-    @Body() dto: ApproveReturnDto,
-    @Request() req: { user: { sub: string } },
-  ) {
-    return this.returnService.approve(id, dto, req.user.sub);
-  }
-
-  @Patch('return-requests/:id/reject')
-  @ApiOperation({ summary: '반품 거절' })
-  async reject(
-    @Param('id') id: string,
-    @Body() dto: RejectReturnDto,
-    @Request() req: { user: { sub: string } },
-  ) {
-    return this.returnService.reject(id, dto, req.user.sub);
-  }
-
   @Patch('return-requests/:id/tracking')
   @ApiOperation({ summary: '반품 운송장 입력' })
   async updateTracking(
@@ -107,16 +84,6 @@ export class ReturnController {
     @Request() req: { user: { sub: string } },
   ) {
     return this.returnService.complete(id, req.user.sub);
-  }
-
-  @Patch('return-requests/:id/exchange-ship')
-  @ApiOperation({ summary: '교환 재발송 등록' })
-  async exchangeShip(
-    @Param('id') id: string,
-    @Body() dto: ExchangeShipDto,
-    @Request() req: { user: { sub: string } },
-  ) {
-    return this.returnService.exchangeShip(id, dto, req.user.sub);
   }
 
   @Patch('return-requests/:id/status')

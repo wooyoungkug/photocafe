@@ -12,42 +12,21 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
-// 반품 상태
+// 수리 상태
 export const RETURN_STATUS = {
   REQUESTED: 'requested',
-  APPROVED: 'approved',
   COLLECTING: 'collecting',
   COLLECTED: 'collected',
   INSPECTING: 'inspecting',
   COMPLETED: 'completed',
-  REJECTED: 'rejected',
 } as const;
 
 export const RETURN_STATUS_LABELS: Record<string, string> = {
-  requested: '반품신청',
-  approved: '반품승인',
+  requested: '수리신청',
   collecting: '수거중',
   collected: '수거완료',
   inspecting: '검수중',
-  completed: '반품완료',
-  rejected: '반품거절',
-};
-
-// 반품 사유 (반품/교환용)
-export const RETURN_REASONS = {
-  DEFECT: 'defect',
-  WRONG_ITEM: 'wrong_item',
-  DAMAGED: 'damaged',
-  CUSTOMER_CHANGE: 'customer_change',
-  OTHER: 'other',
-} as const;
-
-export const RETURN_REASON_LABELS: Record<string, string> = {
-  defect: '제품 불량',
-  wrong_item: '오배송',
-  damaged: '배송중 파손',
-  customer_change: '고객 변심',
-  other: '기타',
+  completed: '수리완료',
 };
 
 // 앨범수리 사유
@@ -67,12 +46,6 @@ export const REPAIR_REASON_LABELS: Record<string, string> = {
 
 // 사유별 배송비 부담자 기본값
 export const REASON_DEFAULT_FEE_CHARGED_TO: Record<string, string> = {
-  defect: 'company',
-  wrong_item: 'company',
-  damaged: 'company',
-  customer_change: 'customer',
-  other: 'company',
-  // 앨범수리
   page_replace: 'customer',
   cover_repair: 'company',
   inner_repair: 'company',
@@ -121,10 +94,10 @@ export class CreateReturnRequestDto {
   type: string;
 
   @ApiProperty({
-    description: '반품/수리 사유',
-    enum: ['defect', 'wrong_item', 'damaged', 'customer_change', 'other', 'page_replace', 'cover_repair', 'inner_repair', 'shipping_damage'],
+    description: '수리 사유',
+    enum: ['page_replace', 'cover_repair', 'inner_repair', 'shipping_damage'],
   })
-  @IsIn(['defect', 'wrong_item', 'damaged', 'customer_change', 'other', 'page_replace', 'cover_repair', 'inner_repair', 'shipping_damage'])
+  @IsIn(['page_replace', 'cover_repair', 'inner_repair', 'shipping_damage'])
   reason: string;
 
   @ApiPropertyOptional({ description: '상세 사유' })
@@ -144,41 +117,7 @@ export class CreateReturnRequestDto {
   repairPages?: { pageNumber: number; fileName: string; fileUrl: string; thumbnailUrl?: string; isCompanion?: boolean }[];
 }
 
-export class ApproveReturnDto {
-  @ApiPropertyOptional({ description: '배송비 부담자', enum: ['company', 'customer'] })
-  @IsOptional()
-  @IsIn(['company', 'customer'])
-  shippingFeeChargedTo?: string;
-
-  @ApiPropertyOptional({ description: '반품 배송비' })
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  returnShippingFee?: number;
-
-  @ApiPropertyOptional({ description: '관리자 메모' })
-  @IsOptional()
-  @IsString()
-  adminMemo?: string;
-}
-
-export class RejectReturnDto {
-  @ApiProperty({ description: '거절 사유' })
-  @IsString()
-  rejectedReason: string;
-}
-
 export class UpdateReturnTrackingDto {
-  @ApiProperty({ description: '택배사 코드' })
-  @IsString()
-  courierCode: string;
-
-  @ApiProperty({ description: '운송장 번호' })
-  @IsString()
-  trackingNumber: string;
-}
-
-export class ExchangeShipDto {
   @ApiProperty({ description: '택배사 코드' })
   @IsString()
   courierCode: string;

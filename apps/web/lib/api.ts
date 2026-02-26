@@ -34,6 +34,26 @@ function saveTokens(accessToken: string, refreshToken?: string) {
   if (refreshToken) {
     storage.setItem('refreshToken', refreshToken);
   }
+  // 관리자 인증 쿠키도 갱신 (middleware 연동)
+  renewAuthCookie();
+}
+
+function renewAuthCookie() {
+  if (typeof window === 'undefined') return;
+  // auth-storage에서 role 확인
+  try {
+    const raw = localStorage.getItem('auth-storage') || sessionStorage.getItem('auth-storage');
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    const role = parsed?.state?.user?.role;
+    const rememberMe = parsed?.state?.rememberMe ?? false;
+    if (role === 'admin' || role === 'staff') {
+      const maxAge = rememberMe ? 30 * 24 * 60 * 60 : 7 * 24 * 60 * 60;
+      document.cookie = `auth-verified=true; path=/; max-age=${maxAge}; SameSite=Lax`;
+    }
+  } catch {
+    // 무시
+  }
 }
 
 function clearAllAuth() {
