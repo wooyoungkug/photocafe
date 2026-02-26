@@ -8,16 +8,55 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String
-  role      String   @default("staff")
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+// ===== 회원 시스템 Enums =====
+enum AuthProvider {
+  EMAIL
+  NAVER
+  KAKAO
+  GOOGLE
+}
 
+enum MemberType {
+  INDIVIDUAL
+  BUSINESS
+}
+
+enum EmploymentStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum EmployeeRole {
+  MANAGER
+  STAFF
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+}
+
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  name         String
+  phone        String?
+  profileImage String?
+  provider     AuthProvider @default(EMAIL)
+  oauthId      String?
+  passwordHash String?
+  memberType   MemberType   @default(INDIVIDUAL)
+  isActive     Boolean      @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  client      Client?
+  employments Employment[]
+
+  @@unique([provider, oauthId])
+  @@index([email])
   @@map("users")
 }
 
@@ -275,6 +314,10 @@ model Client {
   purchaseLedgers         PurchaseLedger[]               @relation("PurchaseLedgerSupplier")
   salesLedgers            SalesLedger[]                  @relation("SalesLedgerClient")
   assignedStaff           StaffClient[]
+  userId                  String?                          @unique
+  user                    User?                            @relation(fields: [userId], references: [id])
+  employments             Employment[]
+  invitations             Invitation[]
 
   @@unique([oauthProvider, oauthId])
   @@index([groupId])
@@ -809,6 +852,7 @@ model Order {
   createdAt             DateTime         @default(now())
   updatedAt             DateTime         @updatedAt
   isDuplicateOverride   Boolean          @default(false)
+  createdByUserId       String?
   items                 OrderItem[]
   shipping              OrderShipping?
   client                Client           @relation(fields: [clientId], references: [id])
@@ -825,6 +869,7 @@ model Order {
   @@index([clientId, orderedAt])
   @@index([status, orderedAt])
   @@index([paymentStatus, orderedAt])
+  @@index([createdByUserId])
   @@map("orders")
 }
 
@@ -2810,4 +2855,47 @@ model ReturnHistory {
   @@index([returnRequestId])
   @@index([returnRequestId, processedAt])
   @@map("return_history")
+}
+
+// ===== 직원/초대 관리 =====
+model Employment {
+  id                String           @id @default(cuid())
+  userId            String
+  clientId          String
+  role              EmployeeRole     @default(STAFF)
+  status            EmploymentStatus @default(ACTIVE)
+  canViewAllOrders  Boolean          @default(false)
+  canManageProducts Boolean          @default(false)
+  canViewSettlement Boolean          @default(false)
+  joinedAt          DateTime         @default(now())
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clientId])
+  @@index([userId])
+  @@index([clientId])
+  @@map("employments")
+}
+
+model Invitation {
+  id           String           @id @default(cuid())
+  clientId     String
+  inviteeEmail String
+  token        String           @unique @default(cuid())
+  role         EmployeeRole     @default(STAFF)
+  status       InvitationStatus @default(PENDING)
+  expiresAt    DateTime
+  sentById     String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, inviteeEmail])
+  @@index([token])
+  @@index([clientId])
+  @@map("invitations")
 }
