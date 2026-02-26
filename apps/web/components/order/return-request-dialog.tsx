@@ -39,6 +39,8 @@ interface OrderItemForReturn {
   totalPrice: number;
   size?: string;
   pages?: number;
+  printMethod?: string;
+  bindingType?: string;
 }
 
 interface ReturnRequestDialogProps {
@@ -330,7 +332,9 @@ export function ReturnRequestDialog({
                       <p className="text-[10px] text-gray-500">
                         {item.size && `${item.size} / `}
                         {item.pages && `${item.pages}p / `}
-                        {item.quantity}부 / {Number(item.totalPrice).toLocaleString()}원
+                        {item.quantity}부
+                        {item.printMethod && ` / ${item.printMethod}`}
+                        {item.bindingType && ` / ${item.bindingType}`}
                       </p>
                     </div>
                     {isSelected && item.quantity > 1 && (

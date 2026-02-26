@@ -919,6 +919,8 @@ export default function MyOrdersPage() {
             totalPrice: item.totalPrice,
             size: item.size,
             pages: item.pages,
+            printMethod: item.printMethod,
+            bindingType: item.bindingType,
           }))}
         />
       )}
