@@ -14,14 +14,21 @@ import {
   ArrowRightLeft,
   Download,
   Printer,
+  Clock,
+  User,
+  ArrowRight,
+  Package,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useAuthStore } from '@/stores/auth-store';
 import {
   useDailyOrderSummary,
   useOrders,
+  useOrderHistory,
+  ORDER_STATUS_LABELS,
   type Order,
 } from '@/hooks/use-orders';
 import { useCourierList, useDeliveryTracking } from '@/hooks/use-delivery-tracking';
@@ -68,6 +75,172 @@ function renderProcessBadge(currentProcess: string, deliveryMethod?: string) {
   );
 }
 
+// 공정이력 + 배송이력 통합 팝오버 내용
+const PROCESS_TYPE_LABELS: Record<string, string> = {
+  order_created: '주문 생성',
+  status_change: '상태 변경',
+  order_cancelled: '주문 취소',
+  delivery_completed: '배송 완료',
+  admin_adjustment: '금액 조정',
+  bulk_status_change: '일괄 상태 변경',
+  bulk_order_cancelled: '일괄 취소',
+  bulk_amount_reset: '금액 초기화',
+  bulk_receipt_date_change: '접수일 변경',
+  order_duplicated: '주문 복제',
+  file_inspection_started: '파일검수 시작',
+  file_inspection_completed: '파일검수 완료',
+  file_approved: '파일 승인',
+  file_rejected: '파일 거부',
+  inspection_hold: '검수 보류',
+  inspection_sms_sent: 'SMS 발송',
+  tracking_update: '배송추적',
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  pending_receipt: 'bg-orange-100 text-orange-700',
+  receipt_completed: 'bg-blue-100 text-blue-700',
+  in_production: 'bg-purple-100 text-purple-700',
+  ready_for_shipping: 'bg-indigo-100 text-indigo-700',
+  shipped: 'bg-green-100 text-green-700',
+  cancelled: 'bg-gray-100 text-gray-500',
+};
+
+function ProcessTrackingPopoverContent({
+  orderId,
+  orderNumber,
+  courierCode,
+  trackingNumber,
+  getCourierName,
+}: {
+  orderId: string;
+  orderNumber: string;
+  courierCode?: string;
+  trackingNumber?: string;
+  getCourierName: (code?: string) => string;
+}) {
+  const { data: history, isLoading: isHistoryLoading } = useOrderHistory(orderId);
+  const hasTracking = !!(courierCode && trackingNumber);
+  const { data: trackingInfo, isLoading: isTrackingLoading } = useDeliveryTracking(
+    hasTracking ? courierCode : undefined,
+    hasTracking ? trackingNumber : undefined,
+  );
+
+  return (
+    <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+      {/* 생산 공정 이력 */}
+      <div>
+        <div className="flex items-center gap-1.5 mb-2">
+          <Package className="h-3.5 w-3.5 text-purple-600" />
+          <span className="text-[12px] font-semibold text-black">공정이력</span>
+          <span className="text-[10px] text-gray-400">{orderNumber}</span>
+        </div>
+        {isHistoryLoading ? (
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+          </div>
+        ) : !history?.length ? (
+          <p className="text-[11px] text-gray-400 py-2">공정이력이 없습니다</p>
+        ) : (
+          <div className="relative pl-4 border-l-2 border-purple-200 space-y-0 ml-1">
+            {history.map((entry, idx) => (
+              <div key={entry.id} className="relative pb-2 last:pb-0">
+                <div
+                  className={`absolute -left-[calc(1rem+5px)] w-2.5 h-2.5 rounded-full border-2 top-0.5 ${
+                    idx === 0 ? 'bg-purple-500 border-purple-500' : 'bg-white border-purple-300'
+                  }`}
+                />
+                <div className={`rounded-md px-2 py-1.5 text-[11px] ${idx === 0 ? 'bg-purple-50' : 'bg-gray-50/70'}`}>
+                  <div className="flex items-center justify-between gap-1">
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {entry.fromStatus && (
+                        <>
+                          <Badge variant="outline" className={`text-[9px] px-1 py-0 ${STATUS_COLORS[entry.fromStatus] || ''}`}>
+                            {ORDER_STATUS_LABELS[entry.fromStatus] || entry.fromStatus}
+                          </Badge>
+                          <ArrowRight className="h-2.5 w-2.5 text-gray-400" />
+                        </>
+                      )}
+                      <Badge className={`text-[9px] px-1 py-0 ${STATUS_COLORS[entry.toStatus] || ''}`}>
+                        {ORDER_STATUS_LABELS[entry.toStatus] || entry.toStatus}
+                      </Badge>
+                    </div>
+                    <span className="text-[9px] text-gray-400 whitespace-nowrap">
+                      {PROCESS_TYPE_LABELS[entry.processType] || entry.processType}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between mt-0.5">
+                    <div className="flex items-center gap-1 text-[9px] text-gray-500">
+                      <Clock className="h-2.5 w-2.5" />
+                      {format(new Date(entry.processedAt), 'MM/dd HH:mm', { locale: ko })}
+                    </div>
+                    {entry.processedByName && (
+                      <div className="flex items-center gap-0.5 text-[9px] text-gray-500">
+                        <User className="h-2.5 w-2.5" />
+                        {entry.processedByName}
+                      </div>
+                    )}
+                  </div>
+                  {entry.note && (
+                    <p className="text-[9px] text-gray-500 bg-gray-100 rounded px-1.5 py-0.5 mt-1">{entry.note}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 구분선 */}
+      {hasTracking && <div className="border-t border-gray-200" />}
+
+      {/* 배송 추적 이력 */}
+      {hasTracking && (
+        <div>
+          <div className="flex items-center gap-1.5 mb-2">
+            <Truck className="h-3.5 w-3.5 text-blue-600" />
+            <span className="text-[12px] font-semibold text-black">배송이력</span>
+            <span className="text-[10px] text-gray-400">
+              {getCourierName(courierCode)} {trackingNumber}
+            </span>
+          </div>
+          {isTrackingLoading ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+            </div>
+          ) : !trackingInfo?.details?.length ? (
+            <p className="text-[11px] text-gray-400 py-2">배송이력이 없습니다</p>
+          ) : (
+            <div className="relative pl-4 border-l-2 border-blue-200 space-y-0 ml-1">
+              {[...trackingInfo.details].reverse().map((detail, idx) => (
+                <div key={idx} className="relative pb-2 last:pb-0">
+                  <div
+                    className={`absolute -left-[calc(1rem+5px)] w-2.5 h-2.5 rounded-full border-2 top-0.5 ${
+                      idx === 0 ? 'bg-blue-500 border-blue-500' : 'bg-white border-blue-300'
+                    }`}
+                  />
+                  <div className={`rounded-md px-2 py-1.5 text-[11px] ${idx === 0 ? 'bg-blue-50' : 'bg-gray-50/70'}`}>
+                    <div className="flex items-center justify-between gap-1">
+                      <span className={`font-medium ${idx === 0 ? 'text-blue-700' : 'text-gray-700'}`}>
+                        {detail.status}
+                      </span>
+                      <span className="text-[9px] text-gray-400 whitespace-nowrap">{detail.time}</span>
+                    </div>
+                    {detail.location && (
+                      <p className={`text-[9px] mt-0.5 ${idx === 0 ? 'text-blue-500/70' : 'text-gray-400'}`}>
+                        {detail.location}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TrackingStatusCell({
   order,
   getCourierName,
@@ -85,16 +258,17 @@ function TrackingStatusCell({
     ? trackingInfo.details[trackingInfo.details.length - 1]
     : null;
 
+  // 현재공정 표기 내용 결정
+  let statusContent: React.ReactNode;
+
   if (!order.shipping) {
-    return (
+    statusContent = (
       <div className="flex flex-col items-end gap-0.5">
         {renderProcessBadge(order.status, undefined)}
       </div>
     );
-  }
-
-  if (order.shipping.deliveredAt) {
-    return (
+  } else if (order.shipping.deliveredAt) {
+    statusContent = (
       <div className="flex flex-col items-end gap-0.5">
         {order.shipping.courierCode && (
           <span className="text-[10px] text-gray-400">{getCourierName(order.shipping.courierCode)}</span>
@@ -102,10 +276,8 @@ function TrackingStatusCell({
         <Badge variant="success">거래완료</Badge>
       </div>
     );
-  }
-
-  if (hasTracking) {
-    return (
+  } else if (hasTracking) {
+    statusContent = (
       <div className="flex flex-col items-end gap-0.5">
         <span className="inline-flex items-center gap-1 text-[10px] text-blue-600 whitespace-nowrap">
           <Truck className="h-3 w-3" />
@@ -120,15 +292,38 @@ function TrackingStatusCell({
         )}
       </div>
     );
+  } else {
+    statusContent = (
+      <div className="flex flex-col items-end gap-0.5">
+        {order.shipping.courierCode && (
+          <span className="text-[10px] text-gray-400">{getCourierName(order.shipping.courierCode)}</span>
+        )}
+        {renderProcessBadge(order.status, order.shipping?.deliveryMethod)}
+      </div>
+    );
   }
 
   return (
-    <div className="flex flex-col items-end gap-0.5">
-      {order.shipping.courierCode && (
-        <span className="text-[10px] text-gray-400">{getCourierName(order.shipping.courierCode)}</span>
-      )}
-      {renderProcessBadge(order.status, order.shipping?.deliveryMethod)}
-    </div>
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="cursor-pointer hover:bg-slate-100 rounded px-1 py-0.5 transition-colors text-right"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {statusContent}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" side="left" className="w-[360px] p-3">
+        <ProcessTrackingPopoverContent
+          orderId={order.id}
+          orderNumber={order.orderNumber}
+          courierCode={order.shipping?.courierCode}
+          trackingNumber={order.shipping?.trackingNumber}
+          getCourierName={getCourierName}
+        />
+      </PopoverContent>
+    </Popover>
   );
 }
 
