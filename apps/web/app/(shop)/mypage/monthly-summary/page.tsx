@@ -8,7 +8,6 @@ import {
   ChevronRight,
   ChevronDown,
   ChevronRight as ChevronRightIcon,
-  Eye,
   FileText,
   Loader2,
   Truck,
@@ -984,17 +983,19 @@ export default function MonthlySummaryPage() {
                                         )}
                                       </td>
                                       <td className="p-2 sm:p-3 align-middle">
-                                        <span>{displayName || '-'}</span>
-                                        {order.items?.[0]?.size && (
-                                          <span className="text-[10pt] text-black font-bold ml-1 whitespace-nowrap">
-                                            {order.items[0].size}
-                                          </span>
-                                        )}
-                                        {order.items?.length > 1 && (
-                                          <span className="text-muted-foreground ml-1">
-                                            외 {order.items.length - 1}건
-                                          </span>
-                                        )}
+                                        <Link href={`/mypage/orders/${order.id}`} className="hover:underline cursor-pointer">
+                                          <span>{displayName || '-'}</span>
+                                          {order.items?.[0]?.size && (
+                                            <span className="text-[10pt] text-black font-bold ml-1 whitespace-nowrap">
+                                              {order.items[0].size}
+                                            </span>
+                                          )}
+                                          {order.items?.length > 1 && (
+                                            <span className="text-muted-foreground ml-1">
+                                              외 {order.items.length - 1}건
+                                            </span>
+                                          )}
+                                        </Link>
                                       </td>
                                       <td className="p-2 sm:p-3 text-right tabular-nums align-middle text-[10pt]">
                                         {formatAmount(Number(order.finalAmount))}원
@@ -1006,16 +1007,9 @@ export default function MonthlySummaryPage() {
                                         -
                                       </td>
                                       <td className="p-2 sm:p-3 text-right align-middle">
-                                        <div className="flex items-center justify-end gap-1">
-                                          <div className="flex flex-col items-end gap-0.5">
-                                            {renderShippingStatus(order)}
-                                            {renderProcessBadge(order.status)}
-                                          </div>
-                                          <Link href={`/mypage/orders/${order.id}`}>
-                                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                                              <Eye className="h-3.5 w-3.5" />
-                                            </Button>
-                                          </Link>
+                                        <div className="flex flex-col items-end gap-0.5">
+                                          {renderShippingStatus(order)}
+                                          {renderProcessBadge(order.status)}
                                         </div>
                                       </td>
                                     </tr>
