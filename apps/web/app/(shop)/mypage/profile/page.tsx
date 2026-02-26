@@ -350,8 +350,14 @@ export default function ProfilePage() {
                   <Label htmlFor="businessNumber" className="text-[12px] font-normal text-gray-600">사업자등록번호</Label>
                   {isEditMode ? (
                     <Input id="businessNumber" className={inputCls} value={profileData.businessNumber}
-                      onChange={(e) => setProfileData({ ...profileData, businessNumber: e.target.value })}
-                      placeholder="000-00-00000" />
+                      onChange={(e) => {
+                        const numbers = e.target.value.replace(/\D/g, '').slice(0, 10);
+                        let formatted = numbers;
+                        if (numbers.length > 5) formatted = `${numbers.slice(0, 3)}-${numbers.slice(3, 5)}-${numbers.slice(5)}`;
+                        else if (numbers.length > 3) formatted = `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
+                        setProfileData({ ...profileData, businessNumber: formatted });
+                      }}
+                      placeholder="000-00-00000" maxLength={12} />
                   ) : (
                     <FieldValue value={profile?.businessNumber || ''} />
                   )}

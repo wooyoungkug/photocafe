@@ -1,6 +1,10 @@
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
+<<<<<<< HEAD
 import { Strategy } from 'passport-google-oauth20';
+=======
+import { Strategy, VerifyCallback } from 'passport-google-oauth20';
+>>>>>>> d0181a6d46768158761ec24a4a11fe6f017771db
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from '../auth.service';
 
@@ -22,7 +26,11 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     super({
       clientID: clientID || 'disabled',
       clientSecret: clientSecret || 'disabled',
+<<<<<<< HEAD
       callbackURL: callbackURL || 'http://localhost:3001/api/v1/auth/google/callback',
+=======
+      callbackURL: callbackURL || 'http://localhost:3001/api/v1/auth/staff/google/callback',
+>>>>>>> d0181a6d46768158761ec24a4a11fe6f017771db
       scope: ['email', 'profile'],
     });
   }
@@ -31,6 +39,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     accessToken: string,
     refreshToken: string,
     profile: any,
+<<<<<<< HEAD
     done: (error: any, user?: any) => void,
   ): Promise<any> {
     try {
@@ -50,6 +59,24 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       done(null, user);
     } catch (error) {
       done(error, null);
+=======
+    done: VerifyCallback,
+  ): Promise<any> {
+    try {
+      const { id, emails, displayName, photos } = profile;
+
+      const { staff, isNew } = await this.authService.validateStaffOAuth({
+        oauthProvider: 'google',
+        oauthId: id,
+        email: emails?.[0]?.value || `google_${id}@gmail.com`,
+        name: displayName || '구글사용자',
+        profileImage: photos?.[0]?.value,
+      });
+
+      done(null, { ...staff, isNew });
+    } catch (error) {
+      done(error as Error, undefined);
+>>>>>>> d0181a6d46768158761ec24a4a11fe6f017771db
     }
   }
 }
