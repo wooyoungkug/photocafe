@@ -953,7 +953,7 @@ export default function MonthlySummaryPage() {
                       return (
                         <Fragment key={row.date}>
                           <tr
-                            className="border-b cursor-pointer hover:bg-slate-50 transition-colors"
+                            className="border-b cursor-pointer hover:bg-slate-50 transition-colors text-[12px] text-black font-normal"
                             onClick={() => handleRowClick(row.date)}
                           >
                             <td className="p-2 sm:p-3 text-center">
