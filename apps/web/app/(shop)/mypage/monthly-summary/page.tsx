@@ -939,7 +939,7 @@ export default function MonthlySummaryPage() {
                                 : '-'}
                             </td>
                             <td
-                              className={`p-2 sm:p-3 text-right tabular-nums font-semibold ${
+                              className={`p-2 sm:p-3 text-right tabular-nums font-semibold whitespace-nowrap ${
                                 row.runningBalance > 0
                                   ? 'text-red-600'
                                   : row.runningBalance < 0
@@ -1017,7 +1017,7 @@ export default function MonthlySummaryPage() {
                                             : <span className="text-muted-foreground">-</span>
                                           }
                                         </td>
-                                        <td className="p-2 sm:p-3 text-right tabular-nums align-middle">
+                                        <td className="p-2 sm:p-3 text-right tabular-nums align-middle whitespace-nowrap">
                                           {orderBalance !== undefined
                                             ? <span className={orderBalance > 0 ? 'text-red-600 font-semibold' : orderBalance < 0 ? 'text-blue-600 font-semibold' : ''}>
                                                 {orderBalance < 0 && '-'}{formatAmount(Math.abs(orderBalance))}원
