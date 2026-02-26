@@ -103,6 +103,8 @@ export function ReturnRequestDialog({
   // 수동 입력 fallback용
   const [newPageNumber, setNewPageNumber] = useState<string>('');
   const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
+  // 드래그 앤 드롭 상태
+  const [dragOverPage, setDragOverPage] = useState<number | null>(null);
   const tempRepairId = useRef<string>(`repair-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
 
   const createReturn = useCreateReturnRequest();
@@ -747,8 +749,48 @@ export function ReturnRequestDialog({
                         })()
                       : null;
 
+                    const isDragOver = dragOverPage === entry.pageNumber;
+
                     return (
-                      <div key={entry.pageNumber} className="border rounded-md bg-white">
+                      <div
+                        key={entry.pageNumber}
+                        className={cn(
+                          'border rounded-md transition-all',
+                          isDragOver && !entry.uploading
+                            ? 'border-blue-400 bg-blue-50 ring-2 ring-blue-200'
+                            : 'bg-white',
+                        )}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (!entry.uploading) {
+                            e.dataTransfer.dropEffect = 'copy';
+                            setDragOverPage(entry.pageNumber);
+                          }
+                        }}
+                        onDragEnter={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (!entry.uploading) setDragOverPage(entry.pageNumber);
+                        }}
+                        onDragLeave={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (dragOverPage === entry.pageNumber) setDragOverPage(null);
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setDragOverPage(null);
+                          if (entry.uploading) return;
+                          const droppedFile = e.dataTransfer.files?.[0];
+                          if (droppedFile && droppedFile.type.startsWith('image/')) {
+                            handleRepairFileSelect(entry.pageNumber, droppedFile);
+                          } else if (droppedFile) {
+                            toast({ title: '이미지 파일만 업로드 가능합니다.', variant: 'destructive' });
+                          }
+                        }}
+                      >
                         {/* 교체 대상 페이지 */}
                         <div className="p-2.5 flex items-center gap-3">
                           {/* 원본 썸네일 */}
@@ -770,7 +812,9 @@ export function ReturnRequestDialog({
                             <p className="text-[11px] text-black font-medium">
                               {pageLabel}p {isSpread ? '(펼침면)' : '(교체 대상)'}
                             </p>
-                            {entry.result ? (
+                            {isDragOver && !entry.uploading ? (
+                              <p className="text-[10px] text-blue-500">여기에 파일을 놓으세요</p>
+                            ) : entry.result ? (
                               <p className="text-[10px] text-green-600 truncate">
                                 {entry.result.originalName} ({(entry.result.size / 1024 / 1024).toFixed(1)}MB)
                               </p>
@@ -787,7 +831,7 @@ export function ReturnRequestDialog({
                             ) : entry.error ? (
                               <p className="text-[10px] text-red-500">{entry.error}</p>
                             ) : (
-                              <p className="text-[10px] text-gray-400">교체 파일을 업로드해주세요</p>
+                              <p className="text-[10px] text-gray-400">파일을 드래그하거나 업로드 버튼을 클릭하세요</p>
                             )}
                           </div>
 
