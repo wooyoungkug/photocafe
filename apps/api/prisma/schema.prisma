@@ -2696,6 +2696,7 @@ enum SalesStatus {
   REGISTERED
   CONFIRMED
   CANCELLED
+  RETURNED
 }
 
 enum PurchaseType {

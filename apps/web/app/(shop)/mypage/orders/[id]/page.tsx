@@ -1041,6 +1041,22 @@ export default function OrderDetailPage() {
         }}
       />
 
+      {/* 반품/교환 신청 다이얼로그 */}
+      <ReturnRequestDialog
+        open={returnDialogOpen}
+        onOpenChange={setReturnDialogOpen}
+        orderId={order.id}
+        orderNumber={order.orderNumber}
+        items={order.items.map((item) => ({
+          id: item.id,
+          productName: item.productName,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          totalPrice: item.totalPrice,
+          size: item.size,
+        }))}
+      />
+
       {/* 이미지 미리보기 다이얼로그 (줌 + 네비게이션) */}
       <Dialog open={!!previewFiles} onOpenChange={() => { setPreviewFiles(null); setZoomLevel(1); }}>
         <DialogContent className="max-w-3xl p-0 gap-0 overflow-hidden">

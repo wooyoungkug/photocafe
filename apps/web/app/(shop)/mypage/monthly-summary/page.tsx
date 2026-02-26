@@ -48,6 +48,13 @@ const PROCESS_ALIASES: Record<string, keyof typeof PROCESS_STAGES> = {
   ready_for_shipping: 'shipping_waiting',
   shipped: 'shipping',
   cancelled: 'order_cancelled',
+  // 반품/교환 상태 매핑
+  requested: 'return_requested',
+  approved: 'return_approved',
+  collecting: 'return_collecting',
+  collected: 'return_collected',
+  inspecting: 'return_inspecting',
+  completed: 'return_completed',
 };
 
 // PROCESS_STAGES에 없는 order.status 값 직접 라벨 매핑
@@ -106,6 +113,14 @@ const STATUS_COLORS: Record<string, string> = {
   ready_for_shipping: 'bg-indigo-100 text-indigo-700',
   shipped: 'bg-green-100 text-green-700',
   cancelled: 'bg-gray-100 text-gray-500',
+  // 반품/교환 상태
+  requested: 'bg-orange-100 text-orange-700',
+  approved: 'bg-blue-100 text-blue-700',
+  collecting: 'bg-cyan-100 text-cyan-700',
+  collected: 'bg-teal-100 text-teal-700',
+  inspecting: 'bg-purple-100 text-purple-700',
+  completed: 'bg-green-100 text-green-700',
+  rejected: 'bg-red-100 text-red-700',
 };
 
 function ProcessTrackingPopoverContent({

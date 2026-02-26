@@ -68,6 +68,16 @@ export const PROCESS_STAGES = {
   shipping: { name: "배송중", category: "shipping", order: 64 },
   delivered: { name: "배송완료", category: "shipping", order: 65 },
 
+  // 반품/교환 단계
+  return_requested: { name: "반품신청", category: "return", order: 70 },
+  return_approved: { name: "반품승인", category: "return", order: 71 },
+  return_collecting: { name: "수거중", category: "return", order: 72 },
+  return_collected: { name: "수거완료", category: "return", order: 73 },
+  return_inspecting: { name: "검수중", category: "return", order: 74 },
+  return_completed: { name: "반품완료", category: "return", order: 75 },
+  exchange_shipping: { name: "교환발송", category: "return", order: 76 },
+  exchange_completed: { name: "교환완료", category: "return", order: 77 },
+
   // 완료/취소
   transaction_complete: { name: "거래완료", category: "complete", order: 90 },
   order_cancelled: { name: "주문취소", category: "complete", order: 91 },
@@ -83,6 +93,7 @@ export const PROCESS_CATEGORIES = {
   finishing: "후가공",
   qc: "검수",
   shipping: "배송",
+  return: "반품/교환",
   complete: "완료/취소",
 } as const;
 
