@@ -411,7 +411,7 @@ export default function OrderDetailPage() {
                   onClick={() => setReturnDialogOpen(true)}
                 >
                   <RotateCw className="h-3.5 w-3.5 mr-1.5" />
-                  반품/수리
+                  앨범수리(재발송)
                 </Button>
               )}
               <Badge className={`${statusConfig.className} px-4 py-2`}>
@@ -791,13 +791,13 @@ export default function OrderDetailPage() {
               </CardContent>
             </Card>
 
-            {/* 반품/수리 이력 */}
+            {/* 앨범수리(재발송) 이력 */}
             {returnRequests && returnRequests.length > 0 && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <RotateCw className="h-5 w-5" />
-                    반품/수리 이력
+                    앨범수리(재발송) 이력
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">

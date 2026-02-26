@@ -89,8 +89,6 @@ export const REPAIR_REASON_PAID: Record<string, boolean> = {
 
 // 반품 타입
 export const RETURN_TYPES = {
-  RETURN: 'return',
-  EXCHANGE: 'exchange',
   ALBUM_REPAIR: 'album_repair',
 } as const;
 
@@ -118,8 +116,8 @@ export class ReturnRequestItemDto {
 }
 
 export class CreateReturnRequestDto {
-  @ApiProperty({ description: '반품 타입', enum: ['return', 'exchange', 'album_repair'] })
-  @IsIn(['return', 'exchange', 'album_repair'])
+  @ApiProperty({ description: '반품 타입', enum: ['album_repair'] })
+  @IsIn(['album_repair'])
   type: string;
 
   @ApiProperty({

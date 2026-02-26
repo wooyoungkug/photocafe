@@ -72,15 +72,11 @@ export const ALL_REASON_LABELS: Record<string, string> = {
 
 // 반품 타입
 export const RETURN_TYPES = {
-  RETURN: 'return',
-  EXCHANGE: 'exchange',
   ALBUM_REPAIR: 'album_repair',
 } as const;
 
 export const RETURN_TYPE_LABELS: Record<string, string> = {
-  return: '반품',
-  exchange: '교환',
-  album_repair: '앨범수리',
+  album_repair: '앨범수리(재발송)',
 };
 
 // 반품 아이템 타입

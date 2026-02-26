@@ -63,10 +63,10 @@ export class ReturnService {
 
     if (!order) throw new NotFoundException('주문을 찾을 수 없습니다.');
 
-    // 배송완료 상태에서만 반품/수리 가능
+    // 배송완료 상태에서만 앨범수리(재발송) 가능
     if (order.status !== 'shipped') {
       throw new BadRequestException(
-        '배송완료(거래완료) 상태의 주문만 반품/수리 신청할 수 있습니다.',
+        '배송완료(거래완료) 상태의 주문만 앨범수리(재발송) 신청할 수 있습니다.',
       );
     }
 

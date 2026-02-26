@@ -22,7 +22,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
 import {
   useCreateReturnRequest,
-  RETURN_REASON_LABELS,
   RETURN_TYPE_LABELS,
   REPAIR_REASON_LABELS,
   REPAIR_REASON_PAID,
@@ -66,7 +65,7 @@ export function ReturnRequestDialog({
   orderNumber,
   items,
 }: ReturnRequestDialogProps) {
-  const [type, setType] = useState<string>('return');
+  const [type, setType] = useState<string>('album_repair');
   const [reason, setReason] = useState<string>('');
   const [reasonDetail, setReasonDetail] = useState('');
   const [selectedItems, setSelectedItems] = useState<
@@ -84,7 +83,7 @@ export function ReturnRequestDialog({
   const isPageReplace = isRepair && reason === 'page_replace';
 
   const resetForm = () => {
-    setType('return');
+    setType('album_repair');
     setReason('');
     setReasonDetail('');
     setSelectedItems({});
@@ -98,11 +97,7 @@ export function ReturnRequestDialog({
     onOpenChange(value);
   };
 
-  const handleTypeChange = (newType: string) => {
-    setType(newType);
-    setReason('');
-    setRepairPages([]);
-  };
+  // type은 album_repair 고정
 
   const toggleItem = (itemId: string, maxQty: number) => {
     setSelectedItems((prev) => {
@@ -258,10 +253,8 @@ export function ReturnRequestDialog({
     }
   };
 
-  // 사유 옵션 - 타입에 따라 분기
-  const reasonOptions = isRepair
-    ? Object.entries(REPAIR_REASON_LABELS)
-    : Object.entries(RETURN_REASON_LABELS);
+  // 사유 옵션 - 앨범수리 사유만
+  const reasonOptions = Object.entries(REPAIR_REASON_LABELS);
 
   // 현재 날짜/시간
   const now = new Date();
@@ -271,7 +264,7 @@ export function ReturnRequestDialog({
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-base font-normal">
-            {isRepair ? '앨범수리' : '반품/교환'} 신청 - {orderNumber}
+            앨범수리(재발송) 신청 - {orderNumber}
           </DialogTitle>
         </DialogHeader>
 
@@ -282,19 +275,12 @@ export function ReturnRequestDialog({
             <span>신청일시: {format(now, 'yyyy-MM-dd (EEE) HH:mm', { locale: ko })}</span>
           </div>
 
-          {/* 타입 선택 */}
+          {/* 신청 유형 (앨범수리 고정) */}
           <div className="space-y-1.5">
             <Label className="text-[11px]">신청 유형</Label>
-            <Select value={type} onValueChange={handleTypeChange}>
-              <SelectTrigger className="text-[11px] h-8">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="return" className="text-[11px]">반품 (환불)</SelectItem>
-                <SelectItem value="exchange" className="text-[11px]">교환 (재발송)</SelectItem>
-                <SelectItem value="album_repair" className="text-[11px]">앨범수리</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="text-[11px] h-8 flex items-center px-3 border rounded-md bg-gray-50">
+              앨범수리(재발송)
+            </div>
           </div>
 
           {/* 사유 선택 */}
@@ -308,13 +294,6 @@ export function ReturnRequestDialog({
                 {reasonOptions.map(([value, label]) => (
                   <SelectItem key={value} value={value} className="text-[11px]">
                     {label}
-                    {/* 반품/교환 사유의 무료반송/고객부담 표시 */}
-                    {!isRepair && (value === 'defect' || value === 'wrong_item' || value === 'damaged') && (
-                      <span className="text-green-600 ml-1">(무료반송)</span>
-                    )}
-                    {!isRepair && value === 'customer_change' && (
-                      <span className="text-red-600 ml-1">(배송비 고객부담)</span>
-                    )}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -335,9 +314,7 @@ export function ReturnRequestDialog({
 
           {/* 대상 상품 선택 */}
           <div className="space-y-1.5">
-            <Label className="text-[11px]">
-              {isRepair ? '수리 대상 상품' : '반품 상품 선택'}
-            </Label>
+            <Label className="text-[11px]">수리 대상 상품</Label>
             <div className="border rounded-md divide-y">
               {items.map((item) => {
                 const sel = selectedItems[item.id];
@@ -499,48 +476,27 @@ export function ReturnRequestDialog({
             </div>
           )}
 
-          {/* 비용/배송비 안내 */}
+          {/* 비용 안내 */}
           {reason && (
             <div className="bg-gray-50 rounded-md p-3">
               <p className="text-[11px] text-gray-600">
-                {isRepair ? (
-                  // 앨범수리 안내
-                  REPAIR_REASON_PAID[reason] ? (
-                    <>
-                      <span className="text-red-600 font-medium">페이지교체</span>는{' '}
-                      <span className="text-red-600">유상 수리</span>입니다. 수리 비용이 별도 청구됩니다.
-                      {isPageReplace && repairPages.length > 0 && (
-                        <span className="block mt-1 text-gray-500">
-                          교체 페이지: {repairPages.map((p) => `${p.pageNumber}p`).join(', ')}
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-green-600 font-medium">
-                        {REPAIR_REASON_LABELS[reason]?.replace(/ \(무상\)/, '')}
+                {REPAIR_REASON_PAID[reason] ? (
+                  <>
+                    <span className="text-red-600 font-medium">페이지교체</span>는{' '}
+                    <span className="text-red-600">유상 수리</span>입니다. 수리 비용이 별도 청구됩니다.
+                    {isPageReplace && repairPages.length > 0 && (
+                      <span className="block mt-1 text-gray-500">
+                        교체 페이지: {repairPages.map((p) => `${p.pageNumber}p`).join(', ')}
                       </span>
-                      은(는) <span className="text-green-600">무상 수리</span>로 진행됩니다.
-                    </>
-                  )
+                    )}
+                  </>
                 ) : (
-                  // 기존 반품/교환 안내
-                  reason === 'customer_change' ? (
-                    <>
-                      <span className="text-red-600 font-medium">고객 변심</span>으로 인한 반품은 왕복 배송비가 고객 부담입니다.
-                    </>
-                  ) : reason === 'other' ? (
-                    <>
-                      <span className="text-gray-700 font-medium">기타</span> 사유는 관리자 검토 후 배송비 부담자가 결정됩니다.
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-green-600 font-medium">
-                        {RETURN_REASON_LABELS[reason]}
-                      </span>
-                      {' '}사유로 반품 배송비는 회사 부담(무료)입니다.
-                    </>
-                  )
+                  <>
+                    <span className="text-green-600 font-medium">
+                      {REPAIR_REASON_LABELS[reason]?.replace(/ \(무상\)/, '')}
+                    </span>
+                    은(는) <span className="text-green-600">무상 수리</span>로 진행됩니다.
+                  </>
                 )}
               </p>
             </div>

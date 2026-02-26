@@ -662,7 +662,7 @@ export default function MyOrdersPage() {
                                   onClick={() => setReturnTargetOrder(order)}
                                 >
                                   <RotateCw className="h-3 w-3" />
-                                  반품/수리
+                                  앨범수리(재발송)
                                 </button>
                               )}
                             </div>
@@ -904,7 +904,7 @@ export default function MyOrdersPage() {
         onOpenChange={setIsHistoryOpen}
       />
 
-      {/* 반품/수리 신청 다이얼로그 */}
+      {/* 앨범수리(재발송) 신청 다이얼로그 */}
       {returnTargetOrder && (
         <ReturnRequestDialog
           open={!!returnTargetOrder}
