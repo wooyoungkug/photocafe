@@ -125,15 +125,6 @@ export function AlbumSplitTool() {
         sourceFileHandleRef.current = fileHandle;
         const file = await fileHandle.getFile();
         loadImage(file);
-        // 원본 파일과 같은 폴더를 저장 경로로 자동 설정
-        try {
-          const dirHandle = await (window as any).showDirectoryPicker({
-            startIn: fileHandle,
-            mode: 'readwrite',
-          });
-          setDirectoryHandle(dirHandle);
-          toast.success(`저장 폴더 자동 설정: ${dirHandle.name}`);
-        } catch { /* 사용자가 폴더 선택 취소 */ }
       } catch { /* 사용자가 파일 선택 취소 */ }
     } else {
       fileInputRef.current?.click();
@@ -234,6 +225,27 @@ export function AlbumSplitTool() {
     }
   }, [originalImage, originalDPI, cleanup]);
 
+  /** showSaveFilePicker로 원본 경로에서 저장 다이얼로그 열기 */
+  const saveWithPicker = useCallback(async (blob: Blob, suggestedName: string): Promise<boolean> => {
+    if (!('showSaveFilePicker' in window)) return false;
+    try {
+      const options: any = {
+        suggestedName,
+        types: [{ description: 'JPEG Image', accept: { 'image/jpeg': ['.jpg', '.jpeg'] } }],
+      };
+      if (sourceFileHandleRef.current) {
+        options.startIn = sourceFileHandleRef.current;
+      }
+      const fileHandle = await (window as any).showSaveFilePicker(options);
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return true;
+    } catch {
+      return false; // 사용자 취소
+    }
+  }, []);
+
   const handleSelectDirectory = useCallback(async () => {
     if ('showDirectoryPicker' in window) {
       try {
@@ -256,10 +268,10 @@ export function AlbumSplitTool() {
       if (ok) { toast.success(`${filename} 저장 완료`); setSavedLeft(true); }
       else toast.error('저장 실패');
     } else {
-      fallbackDownload(leftBlob, filename);
-      setSavedLeft(true);
+      const ok = await saveWithPicker(leftBlob, filename);
+      if (ok) { toast.success(`${filename} 저장 완료`); setSavedLeft(true); }
     }
-  }, [leftBlob, directoryHandle]);
+  }, [leftBlob, directoryHandle, saveWithPicker]);
 
   const handleSaveRight = useCallback(async () => {
     if (!rightBlob) return;
@@ -269,10 +281,10 @@ export function AlbumSplitTool() {
       if (ok) { toast.success(`${filename} 저장 완료`); setSavedRight(true); }
       else toast.error('저장 실패');
     } else {
-      fallbackDownload(rightBlob, filename);
-      setSavedRight(true);
+      const ok = await saveWithPicker(rightBlob, filename);
+      if (ok) { toast.success(`${filename} 저장 완료`); setSavedRight(true); }
     }
-  }, [rightBlob, directoryHandle]);
+  }, [rightBlob, directoryHandle, saveWithPicker]);
 
   const handleSaveBoth = useCallback(async () => {
     if (!leftBlob || !rightBlob) return;
@@ -284,12 +296,15 @@ export function AlbumSplitTool() {
         setTimeout(resetTool, 1500);
       } else toast.error('일부 파일 저장 실패');
     } else {
-      fallbackDownload(leftBlob, '첫장.jpg');
-      fallbackDownload(rightBlob, '막장.jpg');
-      toast.success('첫장 + 막장 저장 완료! 잠시 후 초기화됩니다.');
-      setTimeout(resetTool, 1500);
+      const ok1 = await saveWithPicker(leftBlob, '첫장.jpg');
+      if (!ok1) return; // 취소 시 중단
+      const ok2 = await saveWithPicker(rightBlob, '막장.jpg');
+      if (ok1 && ok2) {
+        toast.success('첫장 + 막장 저장 완료! 잠시 후 초기화됩니다.');
+        setTimeout(resetTool, 1500);
+      }
     }
-  }, [leftBlob, rightBlob, directoryHandle, resetTool]);
+  }, [leftBlob, rightBlob, directoryHandle, resetTool, saveWithPicker]);
 
   // 첫장·막장 개별 저장이 모두 완료되면 자동 초기화
   useEffect(() => {
