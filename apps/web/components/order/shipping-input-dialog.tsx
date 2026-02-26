@@ -36,8 +36,7 @@ import { toast } from '@/hooks/use-toast';
 function speakTracking(trackingNumber: string) {
   if (typeof window === 'undefined' || !window.speechSynthesis) return;
   window.speechSynthesis.cancel();
-  const digits = trackingNumber.split('').join(' ');
-  const utter = new SpeechSynthesisUtterance(`운송장 ${digits} 저장완료`);
+  const utter = new SpeechSynthesisUtterance('운송장 저장완료');
   utter.lang = 'ko-KR';
   utter.rate = 0.95;
   window.speechSynthesis.speak(utter);
