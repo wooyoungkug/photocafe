@@ -710,7 +710,7 @@ export default function OrderDetailPage() {
                     <Truck className="h-5 w-5" />
                     배송 정보
                   </CardTitle>
-                  {order.status !== ORDER_STATUS.SHIPPED && order.status !== ORDER_STATUS.CANCELLED && (
+                  {order.status !== ORDER_STATUS.SHIPPED && order.status !== ORDER_STATUS.CANCELLED && !order.shipping.trackingNumber && (
                     <Button variant="outline" size="sm" className="text-[11px] h-7" onClick={() => setShippingEditOpen(true)}>
                       수정
                     </Button>
