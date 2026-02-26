@@ -210,8 +210,15 @@ export default function MonthlySummaryPage() {
     toast({ title: 'CSV 파일이 다운로드되었습니다.' });
   };
 
-  const renderProcessBadge = (currentProcess: string) => {
-    const label = getProcessLabel(currentProcess);
+  const renderProcessBadge = (currentProcess: string, deliveryMethod?: string) => {
+    let label = getProcessLabel(currentProcess);
+    if (currentProcess === 'ready_for_shipping') {
+      if (deliveryMethod === 'motorcycle' || deliveryMethod === 'damas' || deliveryMethod === 'freight') {
+        label = '직배대기';
+      } else {
+        label = '택배대기';
+      }
+    }
     return (
       <span className="inline-flex items-center whitespace-nowrap text-[12px] text-black font-normal">
         {label}
@@ -990,7 +997,7 @@ export default function MonthlySummaryPage() {
                                       <td className="p-2 sm:p-3 text-right align-middle">
                                         <div className="flex flex-col items-end gap-0.5">
                                           {renderShippingStatus(order)}
-                                          {renderProcessBadge(order.status)}
+                                          {renderProcessBadge(order.status, order.shipping?.deliveryMethod)}
                                         </div>
                                       </td>
                                     </tr>
