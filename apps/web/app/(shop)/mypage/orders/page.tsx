@@ -896,6 +896,24 @@ export default function MyOrdersPage() {
         open={isHistoryOpen}
         onOpenChange={setIsHistoryOpen}
       />
+
+      {/* 반품/교환 신청 다이얼로그 */}
+      {returnTargetOrder && (
+        <ReturnRequestDialog
+          open={!!returnTargetOrder}
+          onOpenChange={(open) => { if (!open) setReturnTargetOrder(null); }}
+          orderId={returnTargetOrder.id}
+          orderNumber={returnTargetOrder.orderNumber}
+          items={(returnTargetOrder.items || []).map((item) => ({
+            id: item.id,
+            productName: item.productName,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            totalPrice: item.totalPrice,
+            size: item.size,
+          }))}
+        />
+      )}
     </div>
   );
 }
