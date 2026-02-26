@@ -652,6 +652,11 @@ export class OrderQueryDto {
   @IsString()
   search?: string;
 
+  @ApiPropertyOptional({ description: '검색 유형', enum: ['orderNumber', 'productName', 'orderTitle', 'spec'] })
+  @IsOptional()
+  @IsString()
+  searchType?: string;
+
   @ApiPropertyOptional({ description: '거래처 ID' })
   @IsOptional()
   @IsString()

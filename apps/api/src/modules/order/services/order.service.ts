@@ -126,13 +126,14 @@ export class OrderService {
     skip?: number;
     take?: number;
     search?: string;
+    searchType?: string;
     clientId?: string;
     status?: string;
     startDate?: Date;
     endDate?: Date;
     isUrgent?: boolean;
   }) {
-    const { skip = 0, take = 20, search, clientId, status, startDate, endDate, isUrgent } = params;
+    const { skip = 0, take = 20, search, searchType, clientId, status, startDate, endDate, isUrgent } = params;
 
     // 날짜 문자열("YYYY-MM-DD")을 KST 기준으로 해석
     // new Date("2026-02-20") = UTC 자정이므로, KST 자정(UTC-9h)으로 보정
@@ -147,13 +148,52 @@ export class OrderService {
       adjustedEndDate = new Date(endDate.getTime() - KST_OFFSET_MS + 24 * 60 * 60 * 1000 - 1);
     }
 
+    // searchType에 따라 검색 조건 분기
+    let searchCondition: Prisma.OrderWhereInput | undefined;
+    if (search) {
+      switch (searchType) {
+        case 'orderTitle':
+          // 주문제목 = 폴더명(folderName) 검색
+          searchCondition = {
+            items: { some: { folderName: { contains: search, mode: 'insensitive' } } },
+          };
+          break;
+        case 'productName':
+          // 주문내용 = 상품명 검색
+          searchCondition = {
+            items: { some: { productName: { contains: search, mode: 'insensitive' } } },
+          };
+          break;
+        case 'spec':
+          // 재질 및 규격 = 사이즈, 용지, 제본, 커버재질 검색
+          searchCondition = {
+            items: {
+              some: {
+                OR: [
+                  { size: { contains: search, mode: 'insensitive' } },
+                  { paper: { contains: search, mode: 'insensitive' } },
+                  { bindingType: { contains: search, mode: 'insensitive' } },
+                  { coverMaterial: { contains: search, mode: 'insensitive' } },
+                ],
+              },
+            },
+          };
+          break;
+        case 'orderNumber':
+        default:
+          // 주문번호 (기본)
+          searchCondition = {
+            OR: [
+              { orderNumber: { contains: search, mode: 'insensitive' } },
+              { client: { clientName: { contains: search, mode: 'insensitive' } } },
+            ],
+          };
+          break;
+      }
+    }
+
     const where: Prisma.OrderWhereInput = {
-      ...(search && {
-        OR: [
-          { orderNumber: { contains: search } },
-          { client: { clientName: { contains: search } } },
-        ],
-      }),
+      ...searchCondition,
       ...(clientId && { clientId }),
       ...(status && { status }),
       ...(isUrgent !== undefined && { isUrgent }),

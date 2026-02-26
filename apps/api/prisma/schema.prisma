@@ -170,27 +170,27 @@ model Branch {
 }
 
 model ClientGroup {
-  id               String   @id @default(cuid())
-  groupCode        String   @unique
-  groupName        String
-  branchId         String
-  branch           Branch   @relation(fields: [branchId], references: [id])
+  id        String @id @default(cuid())
+  groupCode String @unique
+  groupName String
+  branchId  String
+  branch    Branch @relation(fields: [branchId], references: [id])
 
   // 품목별 할인율 (100 = 정가)
-  generalDiscount  Int      @default(100)
-  premiumDiscount  Int      @default(100)
-  importedDiscount Int      @default(100)
+  generalDiscount  Int @default(100)
+  premiumDiscount  Int @default(100)
+  importedDiscount Int @default(100)
 
-  description      String?  @db.Text
-  isActive         Boolean  @default(true)
-  sortOrder        Int      @default(0)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  description String?  @db.Text
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  clients                      Client[]
-  halfProductPrices            GroupHalfProductPrice[]
-  productPrices                GroupProductPrice[]
-  productionSettingPrices      GroupProductionSettingPrice[]
+  clients                 Client[]
+  halfProductPrices       GroupHalfProductPrice[]
+  productPrices           GroupProductPrice[]
+  productionSettingPrices GroupProductionSettingPrice[]
 
   @@index([branchId])
   @@map("client_groups")
@@ -270,6 +270,7 @@ model Client {
   healthScore             CustomerHealthScore?
   myProducts              MyProduct[]
   orders                  Order[]
+  returnRequests          ReturnRequest[]
   photobookOrders         PhotobookOrder[]
   purchaseLedgers         PurchaseLedger[]               @relation("PurchaseLedgerSupplier")
   salesLedgers            SalesLedger[]                  @relation("SalesLedgerClient")
@@ -519,12 +520,12 @@ model Product {
 }
 
 model ProductFabric {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   productId String
   fabricId  String
-  sortOrder Int      @default(0)
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  fabric    Fabric   @relation(fields: [fabricId], references: [id], onDelete: Cascade)
+  sortOrder Int     @default(0)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  fabric    Fabric  @relation(fields: [fabricId], references: [id], onDelete: Cascade)
 
   @@unique([productId, fabricId])
   @@index([productId])
@@ -813,6 +814,7 @@ model Order {
   client                Client           @relation(fields: [clientId], references: [id])
   processHistory        ProcessHistory[]
   salesLedger           SalesLedger?
+  returnRequests        ReturnRequest[]
 
   @@index([clientId])
   @@index([status])
@@ -827,43 +829,43 @@ model Order {
 }
 
 model OrderShipping {
-  id                  String          @id @default(cuid())
-  orderId             String          @unique
-  senderType          String?
-  senderName          String?
-  senderPhone         String?
-  senderPostalCode    String?
-  senderAddress       String?
-  senderAddressDetail String?
-  receiverType        String?
-  recipientName       String
-  phone               String
-  postalCode          String
-  address             String
-  addressDetail       String?
-  deliveryMethod      String?
-  deliveryFee         Decimal?        @db.Decimal(10, 2)
-  deliveryFeeType     String?
-  fareType            String?         // 'prepaid' | 'cod' (선불/착불)
-  deliveryMemo        String?         // 배송메모 (배송 시 요청사항)
-  courierCode         String?
-  trackingNumber      String?
-  shippedAt           DateTime?
-  deliveredAt         DateTime?
-  bundleId            String?
-  bundleSeq           Int?
-  labelPdfPath        String?
-  labelPrintedAt      DateTime?
-  lastTrackingDetailCount Int         @default(0) // 마지막 기록된 추적 이벤트 수
-  order               Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  bundle              ShipmentBundle? @relation(fields: [bundleId], references: [id], onDelete: SetNull)
+  id                      String          @id @default(cuid())
+  orderId                 String          @unique
+  senderType              String?
+  senderName              String?
+  senderPhone             String?
+  senderPostalCode        String?
+  senderAddress           String?
+  senderAddressDetail     String?
+  receiverType            String?
+  recipientName           String
+  phone                   String
+  postalCode              String
+  address                 String
+  addressDetail           String?
+  deliveryMethod          String?
+  deliveryFee             Decimal?        @db.Decimal(10, 2)
+  deliveryFeeType         String?
+  fareType                String? // 'prepaid' | 'cod' (선불/착불)
+  deliveryMemo            String? // 배송메모 (배송 시 요청사항)
+  courierCode             String?
+  trackingNumber          String?
+  shippedAt               DateTime?
+  deliveredAt             DateTime?
+  bundleId                String?
+  bundleSeq               Int?
+  labelPdfPath            String?
+  labelPrintedAt          DateTime?
+  lastTrackingDetailCount Int             @default(0) // 마지막 기록된 추적 이벤트 수
+  order                   Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  bundle                  ShipmentBundle? @relation(fields: [bundleId], references: [id], onDelete: SetNull)
 
   @@index([bundleId])
   @@map("order_shippings")
 }
 
 model OrderItem {
-  id                String             @id @default(cuid())
+  id                String              @id @default(cuid())
   orderId           String
   productionNumber  String
   productId         String
@@ -877,10 +879,10 @@ model OrderItem {
   foilName          String?
   foilColor         String?
   foilPosition      String?
-  finishingOptions  String[]           @default([])
+  finishingOptions  String[]            @default([])
   quantity          Int
-  unitPrice         Decimal            @db.Decimal(10, 2)
-  totalPrice        Decimal            @db.Decimal(12, 2)
+  unitPrice         Decimal             @db.Decimal(10, 2)
+  totalPrice        Decimal             @db.Decimal(12, 2)
   bindingIntentId   String?
   colorIntentId     String?
   fileSpecId        String?
@@ -895,7 +897,7 @@ model OrderItem {
   qualityControlId  String?
   folderName        String?
   thumbnailUrl      String?
-  totalFileSize     BigInt             @default(0)
+  totalFileSize     BigInt              @default(0)
   fabricName        String?
   fabricSnapshot    Json?
   bindingDirection  String?
@@ -903,10 +905,11 @@ model OrderItem {
   pdfPath           String?
   pdfGeneratedAt    DateTime?
   pdfStatus         String?
-  originalsDeleted  Boolean            @default(false)
+  originalsDeleted  Boolean             @default(false)
   files             OrderFile[]
   shipping          OrderItemShipping?
-  order             Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order             Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  returnItems       ReturnRequestItem[]
 
   @@index([orderId])
   @@index([colorIntentId])
@@ -934,8 +937,8 @@ model OrderItemShipping {
   deliveryMethod      String
   deliveryFee         Decimal   @default(0) @db.Decimal(10, 2)
   deliveryFeeType     String?
-  fareType            String?         // 'prepaid' | 'cod' (선불/착불)
-  deliveryMemo        String?         // 배송메모 (배송 시 요청사항)
+  fareType            String? // 'prepaid' | 'cod' (선불/착불)
+  deliveryMemo        String? // 배송메모 (배송 시 요청사항)
   courierCode         String?
   trackingNumber      String?
   shippedAt           DateTime?
@@ -1190,17 +1193,17 @@ model PaperPrice {
 }
 
 model ProductionGroup {
-  id        String              @id @default(cuid())
-  code      String              @unique
-  name      String
-  depth     Int                 @default(1)
-  parentId  String?
-  sortOrder Int                 @default(0)
-  isActive  Boolean             @default(true)
-  createdAt DateTime            @default(now())
-  updatedAt DateTime            @updatedAt
-  parent    ProductionGroup?    @relation("ProductionGroupTree", fields: [parentId], references: [id])
-  children  ProductionGroup[]   @relation("ProductionGroupTree")
+  id                String              @id @default(cuid())
+  code              String              @unique
+  name              String
+  depth             Int                 @default(1)
+  parentId          String?
+  sortOrder         Int                 @default(0)
+  isActive          Boolean             @default(true)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  parent            ProductionGroup?    @relation("ProductionGroupTree", fields: [parentId], references: [id])
+  children          ProductionGroup[]   @relation("ProductionGroupTree")
   settings          ProductionSetting[]
   productFinishings ProductFinishing[]
 
@@ -1210,85 +1213,85 @@ model ProductionGroup {
 }
 
 model ProductionSetting {
-  id              String          @id @default(cuid())
-  groupId         String
-  group           ProductionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  id      String          @id @default(cuid())
+  groupId String
+  group   ProductionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   // 코드명 (선택적)
-  codeName        String?
+  codeName String?
 
   // 업체명 (본사, 외주 등)
-  vendorType      String          @default("in_house") // in_house: 본사, outsourced: 외주
+  vendorType String @default("in_house") // in_house: 본사, outsourced: 외주
 
   // 가격 적용 단위
-  pricingType     String          @default("paper_output_spec")
+  pricingType String @default("paper_output_spec")
 
   // 세팅명 (박Color 등 추가 설정명)
-  settingName     String?
+  settingName String?
 
   // S코드 (추가 코드)
-  sCode           String?
+  sCode String?
 
   // 잡세팅비 / 기본단가
-  settingFee      Decimal         @db.Decimal(12, 2) @default(0)
-  basePrice       Decimal         @db.Decimal(12, 2) @default(0)
+  settingFee Decimal @default(0) @db.Decimal(12, 2)
+  basePrice  Decimal @default(0) @db.Decimal(12, 2)
 
   // 작업시간 (일 단위, 소수점 1자리까지)
-  workDays        Decimal         @db.Decimal(5, 1)  @default(0)
+  workDays Decimal @default(0) @db.Decimal(5, 1)
 
   // 가중치 구분 정보
-  weightInfo      String?         @db.Text
+  weightInfo String? @db.Text
 
   // 용지별 출력단가 설정
-  printMethod     String?
-  paperIds        String[]        @default([])
+  printMethod String?
+  paperIds    String[] @default([])
 
   // 규격 용도 선택
-  specUsageType   String          @default("all")
+  specUsageType String @default("all")
 
   // 양면/단면 가격
-  singleSidedPrice  Decimal?      @db.Decimal(12, 2)
-  doubleSidedPrice  Decimal?      @db.Decimal(12, 2)
+  singleSidedPrice Decimal? @db.Decimal(12, 2)
+  doubleSidedPrice Decimal? @db.Decimal(12, 2)
 
   // 잉크젯 기준규격 설정
   baseSpecificationId String?
-  basePricePerSqInch  Decimal?    @db.Decimal(12, 6)
+  basePricePerSqInch  Decimal? @db.Decimal(12, 6)
 
   // 용지 단가 그룹 설정 (인디고용)
-  priceGroups         Json?
-  paperPriceGroupMap  Json?
+  priceGroups        Json?
+  paperPriceGroupMap Json?
 
   // 구간별 Nup+면당가격 페이지 구간 설정
-  pageRanges          Json?
+  pageRanges Json?
 
   // [후가공전용] 길이별단가 설정
-  lengthUnit          String?     @default("cm")
-  lengthPriceRanges   Json?
+  lengthUnit        String? @default("cm")
+  lengthPriceRanges Json?
 
   // [후가공전용] 면적별단가 설정
-  areaUnit            String?     @default("mm")
-  areaPriceRanges     Json?
+  areaUnit        String? @default("mm")
+  areaPriceRanges Json?
 
   // [배송비 전용] 거리별 단가 설정
-  surchargeType       String?     @default("none")
+  surchargeType       String?  @default("none")
   distancePriceRanges Json?
-  extraPricePerKm     Decimal?    @db.Decimal(10, 2)
+  extraPricePerKm     Decimal? @db.Decimal(10, 2)
   maxBaseDistance     Int?
-  freeThreshold       Decimal?    @db.Decimal(10, 2)
-  islandFee           Decimal?    @db.Decimal(10, 2)
+  freeThreshold       Decimal? @db.Decimal(10, 2)
+  islandFee           Decimal? @db.Decimal(10, 2)
 
   // 정렬 및 상태
-  sortOrder       Int             @default(0)
-  isActive        Boolean         @default(true)
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
 
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  specifications  ProductionSettingSpecification[]
-  prices          ProductionSettingPrice[]
-  groupPrices     GroupProductionSettingPrice[]
-  clientPrices    ClientProductionSettingPrice[]
+  specifications ProductionSettingSpecification[]
+  prices         ProductionSettingPrice[]
+  groupPrices    GroupProductionSettingPrice[]
+  clientPrices   ClientProductionSettingPrice[]
 
   @@index([groupId])
   @@index([pricingType])
@@ -1344,30 +1347,30 @@ model GroupProductionSettingPrice {
   productionSettingId String
   productionSetting   ProductionSetting @relation(fields: [productionSettingId], references: [id], onDelete: Cascade)
 
-  specificationId     String?
-  priceGroupId        String?
-  minQuantity         Int?
-  maxQuantity         Int?
+  specificationId String?
+  priceGroupId    String?
+  minQuantity     Int?
+  maxQuantity     Int?
 
-  weight              Decimal?          @db.Decimal(5, 2)
+  weight Decimal? @db.Decimal(5, 2)
 
-  price               Decimal           @db.Decimal(12, 2) @default(0)
-  singleSidedPrice    Decimal?          @db.Decimal(12, 2)
-  doubleSidedPrice    Decimal?          @db.Decimal(12, 2)
+  price            Decimal  @default(0) @db.Decimal(12, 2)
+  singleSidedPrice Decimal? @db.Decimal(12, 2)
+  doubleSidedPrice Decimal? @db.Decimal(12, 2)
 
-  fourColorSinglePrice   Decimal?       @db.Decimal(12, 2)
-  fourColorDoublePrice   Decimal?       @db.Decimal(12, 2)
+  fourColorSinglePrice Decimal? @db.Decimal(12, 2)
+  fourColorDoublePrice Decimal? @db.Decimal(12, 2)
 
-  sixColorSinglePrice    Decimal?       @db.Decimal(12, 2)
-  sixColorDoublePrice    Decimal?       @db.Decimal(12, 2)
+  sixColorSinglePrice Decimal? @db.Decimal(12, 2)
+  sixColorDoublePrice Decimal? @db.Decimal(12, 2)
 
-  basePages              Int?
-  basePrice              Decimal?        @db.Decimal(12, 2)
-  pricePerPage           Decimal?        @db.Decimal(12, 2)
-  rangePrices            Json?
+  basePages    Int?
+  basePrice    Decimal? @db.Decimal(12, 2)
+  pricePerPage Decimal? @db.Decimal(12, 2)
+  rangePrices  Json?
 
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([clientGroupId, productionSettingId, specificationId, priceGroupId, minQuantity])
   @@index([clientGroupId])
@@ -1378,36 +1381,36 @@ model GroupProductionSettingPrice {
 
 // 거래처별 생산설정 가격 (개별 거래처 특별 단가)
 model ClientProductionSettingPrice {
-  id                   String            @id @default(cuid())
-  clientId             String
-  client               Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  productionSettingId  String
-  productionSetting    ProductionSetting @relation(fields: [productionSettingId], references: [id], onDelete: Cascade)
+  id                  String            @id @default(cuid())
+  clientId            String
+  client              Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  productionSettingId String
+  productionSetting   ProductionSetting @relation(fields: [productionSettingId], references: [id], onDelete: Cascade)
 
-  specificationId      String?
-  priceGroupId         String?
-  minQuantity          Int?
-  maxQuantity          Int?
+  specificationId String?
+  priceGroupId    String?
+  minQuantity     Int?
+  maxQuantity     Int?
 
-  weight               Decimal?          @db.Decimal(5, 2)
+  weight Decimal? @db.Decimal(5, 2)
 
-  price                Decimal           @default(0) @db.Decimal(12, 2)
-  singleSidedPrice     Decimal?          @db.Decimal(12, 2)
-  doubleSidedPrice     Decimal?          @db.Decimal(12, 2)
+  price            Decimal  @default(0) @db.Decimal(12, 2)
+  singleSidedPrice Decimal? @db.Decimal(12, 2)
+  doubleSidedPrice Decimal? @db.Decimal(12, 2)
 
-  fourColorSinglePrice Decimal?          @db.Decimal(12, 2)
-  fourColorDoublePrice Decimal?          @db.Decimal(12, 2)
+  fourColorSinglePrice Decimal? @db.Decimal(12, 2)
+  fourColorDoublePrice Decimal? @db.Decimal(12, 2)
 
-  sixColorSinglePrice  Decimal?          @db.Decimal(12, 2)
-  sixColorDoublePrice  Decimal?          @db.Decimal(12, 2)
+  sixColorSinglePrice Decimal? @db.Decimal(12, 2)
+  sixColorDoublePrice Decimal? @db.Decimal(12, 2)
 
-  basePages            Int?
-  basePrice            Decimal?          @db.Decimal(12, 2)
-  pricePerPage         Decimal?          @db.Decimal(12, 2)
-  rangePrices          Json?
+  basePages    Int?
+  basePrice    Decimal? @db.Decimal(12, 2)
+  pricePerPage Decimal? @db.Decimal(12, 2)
+  rangePrices  Json?
 
-  createdAt            DateTime          @default(now())
-  updatedAt            DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([clientId, productionSettingId, specificationId, priceGroupId, minQuantity])
   @@index([clientId])
@@ -2711,3 +2714,96 @@ enum PurchaseStatus {
   CANCELLED
 }
 
+// ===== 반품/교환 관리 =====
+
+model ReturnRequest {
+  id           String  @id @default(cuid())
+  returnNumber String  @unique
+  orderId      String
+  clientId     String
+  type         String // 'return' | 'exchange'
+  status       String  @default("requested")
+  reason       String // defect, wrong_item, damaged, customer_change, other
+  reasonDetail String?
+
+  // 배송비 정책
+  shippingFeeChargedTo String? // 'company' | 'customer'
+  returnShippingFee    Decimal? @db.Decimal(10, 2)
+
+  // 반품 배송 정보
+  returnCourierCode    String?
+  returnTrackingNumber String?
+  returnShippedAt      DateTime?
+  returnDeliveredAt    DateTime?
+
+  // 교환 재발송 정보
+  exchangeCourierCode    String?
+  exchangeTrackingNumber String?
+  exchangeShippedAt      DateTime?
+  exchangeDeliveredAt    DateTime?
+
+  // 환불 정보
+  refundAmount Decimal?  @db.Decimal(12, 2)
+  refundMethod String? // 'credit' | 'bank_transfer'
+  refundedAt   DateTime?
+
+  // 굿스플로 연동
+  goodsflowReturnId String?
+  goodsflowStatus   String?
+
+  // 처리자 정보
+  requestedBy    String
+  approvedBy     String?
+  approvedAt     DateTime?
+  completedBy    String?
+  completedAt    DateTime?
+  rejectedReason String?
+
+  adminMemo String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order   Order               @relation(fields: [orderId], references: [id])
+  client  Client              @relation(fields: [clientId], references: [id])
+  items   ReturnRequestItem[]
+  history ReturnHistory[]
+
+  @@index([orderId])
+  @@index([clientId])
+  @@index([status])
+  @@index([returnNumber])
+  @@map("return_requests")
+}
+
+model ReturnRequestItem {
+  id              String  @id @default(cuid())
+  returnRequestId String
+  orderItemId     String
+  quantity        Int
+  reason          String?
+  condition       String? // good, damaged, defective
+
+  returnRequest ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+  orderItem     OrderItem     @relation(fields: [orderItemId], references: [id])
+
+  @@index([returnRequestId])
+  @@index([orderItemId])
+  @@map("return_request_items")
+}
+
+model ReturnHistory {
+  id              String   @id @default(cuid())
+  returnRequestId String
+  fromStatus      String?
+  toStatus        String
+  processType     String // status_change, tracking_update, refund_processed, exchange_shipped
+  note            String?
+  processedBy     String
+  processedAt     DateTime @default(now())
+
+  returnRequest ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+
+  @@index([returnRequestId])
+  @@index([returnRequestId, processedAt])
+  @@map("return_history")
+}
