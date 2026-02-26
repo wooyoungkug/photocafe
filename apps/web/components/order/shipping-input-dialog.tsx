@@ -33,6 +33,16 @@ const DIRECT_TRACKING_URLS: Record<string, (no: string) => string> = {
 };
 import { toast } from '@/hooks/use-toast';
 
+function speakTracking(trackingNumber: string) {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const digits = trackingNumber.split('').join(' ');
+  const utter = new SpeechSynthesisUtterance(`운송장 ${digits} 저장 완료`);
+  utter.lang = 'ko-KR';
+  utter.rate = 0.95;
+  window.speechSynthesis.speak(utter);
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -72,11 +82,14 @@ export function ShippingInputDialog({
       return;
     }
 
+    const trimmed = trackingNumber.trim();
     updateShipping.mutate(
-      { orderId, courierCode, trackingNumber: trackingNumber.trim() },
+      { orderId, courierCode, trackingNumber: trimmed },
       {
         onSuccess: () => {
           toast({ title: '송장이 저장되었습니다.' });
+          speakTracking(trimmed);
+          onOpenChange(false);
         },
         onError: (err: unknown) => {
           const msg = err instanceof Error ? err.message : '송장 저장에 실패했습니다.';
@@ -93,14 +106,12 @@ export function ShippingInputDialog({
     }
     try {
       const result = await generateLogen.mutateAsync(orderId);
-      if (result.alreadyExists) {
-        toast({ title: `이미 송장번호가 있습니다: ${result.trackingNumber}` });
-      } else {
-        toast({ title: `로젠택배 송장 발급 완료: ${result.trackingNumber}` });
-      }
-      // 발급된 값으로 필드 업데이트
-      setCourierCode('06');
-      setTrackingNumber(result.trackingNumber);
+      const msg = result.alreadyExists
+        ? `이미 송장번호가 있습니다: ${result.trackingNumber}`
+        : `로젠택배 송장 발급 완료: ${result.trackingNumber}`;
+      toast({ title: msg });
+      speakTracking(result.trackingNumber);
+      onOpenChange(false);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '송장 자동발급에 실패했습니다.';
       toast({ title: msg, variant: 'destructive' });
