@@ -18,7 +18,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth-store';
 import {
   useDailyOrderSummary,
@@ -61,7 +60,6 @@ function formatAmount(amount: number) {
 
 export default function MonthlySummaryPage() {
   const { user } = useAuthStore();
-  const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [printType, setPrintType] = useState<'summary' | 'detail' | null>(null);
@@ -1093,7 +1091,7 @@ export default function MonthlySummaryPage() {
                       <td className="p-2 sm:p-3" />
                       <td className="p-2 sm:p-3 text-primary">
                         차월이월
-                        {closingBalance > 0 && <span className="text-xs text-red-600">(미납금액)</span>}
+                        {closingBalance > 0 && <span className="text-[11px] text-red-600">(미납금액)</span>}
                       </td>
                       <td className="p-2 sm:p-3" />
                       <td className="p-2 sm:p-3" />
