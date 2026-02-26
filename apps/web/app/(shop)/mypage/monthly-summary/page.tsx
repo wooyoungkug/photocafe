@@ -884,9 +884,9 @@ export default function MonthlySummaryPage() {
               </div>
             ) : dataWithBalance.length > 0 ? (
               <div className="overflow-x-auto">
-                <table className="w-full text-[11px] text-black font-normal">
+                <table className="w-full text-[12px] text-black font-normal">
                   <thead>
-                    <tr className="border-b bg-slate-50 text-[11px] text-black font-normal">
+                    <tr className="border-b bg-slate-50 text-[12px] text-black font-normal">
                       <th className="w-8 p-2 sm:p-3" aria-label="펼치기" />
                       <th className="p-2 sm:p-3 text-left font-medium">일자</th>
                       <th className="p-2 sm:p-3 text-left font-medium">적요</th>
@@ -923,7 +923,7 @@ export default function MonthlySummaryPage() {
                                 { locale: ko },
                               )}
                             </td>
-                            <td className="p-2 sm:p-3 text-[11px] text-black font-normal">
+                            <td className="p-2 sm:p-3 text-[12px] text-black font-normal">
                               {dateDescriptions.get(row.date) || `${row.orderCount}건`}
                             </td>
                             <td className="p-2 sm:p-3 text-right tabular-nums">
@@ -981,7 +981,7 @@ export default function MonthlySummaryPage() {
                                   const receivedAmt = Number(order.salesLedger?.receivedAmount || 0);
                                   return (
                                     <Fragment key={order.id}>
-                                      <tr className="bg-slate-50/60 border-b hover:bg-slate-100/60 text-[11px] text-black font-normal">
+                                      <tr className="bg-slate-50/60 border-b hover:bg-slate-100/60 text-[12px] text-black font-normal">
                                         <td className="p-2 sm:p-3" />
                                         <td className="p-2 sm:p-3 whitespace-nowrap text-muted-foreground align-middle text-center">
                                           <div className="tabular-nums text-[12px] text-black font-normal">{order.orderNumber}</div>
@@ -995,24 +995,24 @@ export default function MonthlySummaryPage() {
                                           <Link href={`/mypage/orders/${order.id}`} className="hover:underline cursor-pointer">
                                             <span>{displayName || '-'}</span>
                                             {order.items?.[0]?.size && (
-                                              <span className="text-[11px] text-black font-bold ml-1 whitespace-nowrap">
+                                              <span className="text-[12px] text-black font-bold ml-1 whitespace-nowrap">
                                                 {order.items[0].size}
                                               </span>
                                             )}
                                             {order.items?.length > 1 && (
-                                              <span className="text-[11px] text-black font-normal ml-1">
+                                              <span className="text-[12px] text-black font-normal ml-1">
                                                 외 {order.items.length - 1}건
                                               </span>
                                             )}
                                           </Link>
                                         </td>
-                                        <td className="p-2 sm:p-3 text-right tabular-nums align-middle text-[11px] text-black font-normal">
+                                        <td className="p-2 sm:p-3 text-right tabular-nums align-middle text-[12px] text-black font-normal">
                                           {formatAmount(Number(order.finalAmount))}원
                                         </td>
                                         <td className="p-2 sm:p-3 text-right tabular-nums align-middle">
                                           {receivedAmt > 0
                                             ? <span className="text-green-600">{formatAmount(receivedAmt)}원</span>
-                                            : <span className="text-[11px] text-black font-normal">-</span>
+                                            : <span className="text-[12px] text-black font-normal">-</span>
                                           }
                                         </td>
                                         <td className="p-2 sm:p-3 text-right tabular-nums align-middle whitespace-nowrap">
@@ -1036,7 +1036,7 @@ export default function MonthlySummaryPage() {
                               ) : (
                                 <tr>
                                   <td colSpan={7} className="bg-slate-50/80 py-4 border-b text-center">
-                                    <p className="text-[11px] text-black font-normal">거래 내역이 없습니다</p>
+                                    <p className="text-[12px] text-black font-normal">거래 내역이 없습니다</p>
                                   </td>
                                 </tr>
                               )}
@@ -1049,7 +1049,7 @@ export default function MonthlySummaryPage() {
                     {/* 전월이월 행 */}
                     <tr className="border-b bg-blue-50/50">
                       <td className="p-2 sm:p-3" />
-                      <td className="p-2 sm:p-3 whitespace-nowrap text-[11px] text-black font-normal">
+                      <td className="p-2 sm:p-3 whitespace-nowrap text-[12px] text-black font-normal">
                         {format(startDate, 'MM/01', { locale: ko })}
                       </td>
                       <td className="p-2 sm:p-3 font-medium text-blue-700">이월잔액</td>
@@ -1071,7 +1071,7 @@ export default function MonthlySummaryPage() {
                     </tr>
 
                     {/* 당월합계 행 */}
-                    <tr className="bg-gray-100 text-[11px] text-black border-t-2 font-semibold">
+                    <tr className="bg-gray-100 text-[12px] text-black border-t-2 font-semibold">
                       <td className="p-2 sm:p-3" />
                       <td className="p-2 sm:p-3" />
                       <td className="p-2 sm:p-3">이번달 합계</td>
@@ -1086,12 +1086,12 @@ export default function MonthlySummaryPage() {
                     </tr>
 
                     {/* 기말잔액 행 */}
-                    <tr className="bg-gray-50 text-[11px] text-black border-t font-bold">
+                    <tr className="bg-gray-50 text-[12px] text-black border-t font-bold">
                       <td className="p-2 sm:p-3" />
                       <td className="p-2 sm:p-3" />
                       <td className="p-2 sm:p-3 text-primary">
                         차월이월
-                        {closingBalance > 0 && <span className="text-[11px] text-red-600">(미납금액)</span>}
+                        {closingBalance > 0 && <span className="text-[12px] text-red-600">(미납금액)</span>}
                       </td>
                       <td className="p-2 sm:p-3" />
                       <td className="p-2 sm:p-3" />
