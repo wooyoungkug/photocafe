@@ -483,7 +483,7 @@ export function ReturnRequestDialog({
           {/* 비용 안내 */}
           {reason && (
             <div className="bg-gray-50 rounded-md p-3">
-              <p className="text-[11px] text-gray-600">
+              <p className="text-[16px] text-gray-600">
                 {REPAIR_REASON_PAID[reason] ? (
                   <>
                     <span className="text-red-600 font-medium">페이지교체</span>는{' '}
