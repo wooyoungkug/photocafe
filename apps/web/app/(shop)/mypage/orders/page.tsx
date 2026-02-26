@@ -106,6 +106,15 @@ interface OrderItem {
   totalPrice: number;
 }
 
+interface OrderShippingInfo {
+  courierCode?: string;
+  trackingNumber?: string;
+  shippedAt?: string;
+  deliveredAt?: string;
+  labelPrintedAt?: string;
+  deliveryMethod?: string;
+}
+
 interface Order {
   id: string;
   orderNumber: string;
@@ -116,6 +125,7 @@ interface Order {
   client?: { clientName: string };
   _count?: { items: number };
   items?: OrderItem[];
+  shipping?: OrderShippingInfo;
   processHistory?: { id: string; toStatus: string; processType: string; processedBy: string; processedByName?: string; processedAt: string }[];
 }
 
@@ -211,7 +221,7 @@ export default function MyOrdersPage() {
     return orders.filter(o => CANCELLABLE_STATUSES.includes(o.status) || DELETABLE_STATUSES.includes(o.status));
   }, [orders]);
 
-  // 기간 단축 버튼
+  // 기간 단축 버튼 (클릭 시 즉시 검색 실행)
   const setPeriod = (type: 'today' | '1week' | '1month' | '3months' | '6months' | '1year') => {
     const now = new Date();
     const end = format(now, 'yyyy-MM-dd');
@@ -226,6 +236,13 @@ export default function MyOrdersPage() {
     }
     setStartDate(start);
     setEndDate(end);
+    // 즉시 검색 실행 (조회 버튼 클릭과 동일)
+    setAppliedSearch(searchKeyword);
+    setAppliedSearchType(searchType);
+    setAppliedStartDate(start);
+    setAppliedEndDate(end);
+    setPage(1);
+    setSelectedOrders(new Set());
   };
 
   // 조회 실행
