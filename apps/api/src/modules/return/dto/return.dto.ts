@@ -7,6 +7,7 @@ import {
   IsIn,
   Min,
   ValidateNested,
+  IsJSON,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -32,7 +33,7 @@ export const RETURN_STATUS_LABELS: Record<string, string> = {
   rejected: '반품거절',
 };
 
-// 반품 사유
+// 반품 사유 (반품/교환용)
 export const RETURN_REASONS = {
   DEFECT: 'defect',
   WRONG_ITEM: 'wrong_item',
@@ -49,6 +50,21 @@ export const RETURN_REASON_LABELS: Record<string, string> = {
   other: '기타',
 };
 
+// 앨범수리 사유
+export const REPAIR_REASONS = {
+  PAGE_REPLACE: 'page_replace',
+  COVER_REPAIR: 'cover_repair',
+  INNER_REPAIR: 'inner_repair',
+  SHIPPING_DAMAGE: 'shipping_damage',
+} as const;
+
+export const REPAIR_REASON_LABELS: Record<string, string> = {
+  page_replace: '페이지교체 (유상)',
+  cover_repair: '표지수리 (무상)',
+  inner_repair: '내지수리 (무상)',
+  shipping_damage: '배송중파손 (무상)',
+};
+
 // 사유별 배송비 부담자 기본값
 export const REASON_DEFAULT_FEE_CHARGED_TO: Record<string, string> = {
   defect: 'company',
@@ -56,12 +72,26 @@ export const REASON_DEFAULT_FEE_CHARGED_TO: Record<string, string> = {
   damaged: 'company',
   customer_change: 'customer',
   other: 'company',
+  // 앨범수리
+  page_replace: 'customer',
+  cover_repair: 'company',
+  inner_repair: 'company',
+  shipping_damage: 'company',
+};
+
+// 유상/무상 여부
+export const REPAIR_REASON_PAID: Record<string, boolean> = {
+  page_replace: true,
+  cover_repair: false,
+  inner_repair: false,
+  shipping_damage: false,
 };
 
 // 반품 타입
 export const RETURN_TYPES = {
   RETURN: 'return',
   EXCHANGE: 'exchange',
+  ALBUM_REPAIR: 'album_repair',
 } as const;
 
 // ===== DTO =====
