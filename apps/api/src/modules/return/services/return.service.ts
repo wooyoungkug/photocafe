@@ -66,7 +66,7 @@ export class ReturnService {
     // 배송완료 상태에서만 반품/수리 가능
     if (order.status !== 'shipped') {
       throw new BadRequestException(
-        '배송완료(거래완료) 상태의 주문만 반품/교환/수리 신청할 수 있습니다.',
+        '배송완료(거래완료) 상태의 주문만 반품/수리 신청할 수 있습니다.',
       );
     }
 
