@@ -122,7 +122,7 @@ export class AuthController {
     if (!client) {
       throw new UnauthorizedException('이메일 또는 비밀번호가 일치하지 않습니다');
     }
-    return this.authService.loginClient(client);
+    return this.authService.loginClient(client, dto.rememberMe ?? false);
   }
 
   @Public()

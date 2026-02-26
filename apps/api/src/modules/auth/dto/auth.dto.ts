@@ -207,6 +207,11 @@ export class ClientLoginDto {
   @IsString()
   @MinLength(6, { message: '비밀번호는 최소 6자 이상이어야 합니다' })
   password: string;
+
+  @ApiPropertyOptional({ example: true, description: '로그인 상태 유지' })
+  @IsOptional()
+  @IsBoolean()
+  rememberMe?: boolean;
 }
 
 // 관리자(직원) 로그인 DTO

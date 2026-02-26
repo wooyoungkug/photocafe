@@ -307,7 +307,7 @@ export class AuthService {
   }
 
   // 클라이언트(고객) 로그인 처리
-  async loginClient(client: any) {
+  async loginClient(client: any, rememberMe: boolean = false) {
     const payload = {
       sub: client.id,
       email: client.email,
@@ -317,7 +317,7 @@ export class AuthService {
 
     const accessToken = this.jwtService.sign(payload);
     const refreshToken = this.jwtService.sign(payload, {
-      expiresIn: '7d' as const,
+      expiresIn: rememberMe ? '30d' : '7d',
     });
 
     return {
