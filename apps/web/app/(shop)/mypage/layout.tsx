@@ -67,7 +67,7 @@ export default function MyPageLayout({
       </div>
 
       <div className="container mx-auto px-4 py-6">
-        <div className="grid lg:grid-cols-[15%_1fr] gap-5">
+        <div className="grid lg:grid-cols-[18%_1fr] gap-5">
           {/* Sidebar Navigation */}
           <aside>
             <Card className="sticky top-4">
