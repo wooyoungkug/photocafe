@@ -34,6 +34,7 @@ export function AlbumSplitTool() {
   const rightCanvasRef = useRef<HTMLCanvasElement>(null);
   const trackUseRef = useRef<(() => void) | null>(null);
   const resultCardRef = useRef<HTMLDivElement>(null);
+  const sourceFileHandleRef = useRef<FileSystemFileHandle | null>(null);
 
   const playBeep = useCallback(() => {
     try {
@@ -76,6 +77,7 @@ export function AlbumSplitTool() {
     setShowResult(false);
     setSavedLeft(false);
     setSavedRight(false);
+    sourceFileHandleRef.current = null;
     // 업로드 영역으로 스크롤
     uploadZoneRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [cleanup]);
@@ -113,11 +115,46 @@ export function AlbumSplitTool() {
     e.target.value = '';
   }, [loadImage]);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  const handleClickUpload = useCallback(async () => {
+    if ('showOpenFilePicker' in window) {
+      try {
+        const [fileHandle] = await (window as any).showOpenFilePicker({
+          types: [{ description: '이미지 파일', accept: { 'image/*': ['.jpg', '.jpeg', '.png'] } }],
+          multiple: false,
+        });
+        sourceFileHandleRef.current = fileHandle;
+        const file = await fileHandle.getFile();
+        loadImage(file);
+        // 원본 파일과 같은 폴더를 저장 경로로 자동 설정
+        try {
+          const dirHandle = await (window as any).showDirectoryPicker({
+            startIn: fileHandle,
+            mode: 'readwrite',
+          });
+          setDirectoryHandle(dirHandle);
+          toast.success(`저장 폴더 자동 설정: ${dirHandle.name}`);
+        } catch { /* 사용자가 폴더 선택 취소 */ }
+      } catch { /* 사용자가 파일 선택 취소 */ }
+    } else {
+      fileInputRef.current?.click();
+    }
+  }, [loadImage]);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
     const file = e.dataTransfer.files[0];
     if (file && (file.type === 'image/jpeg' || file.type === 'image/png')) {
+      // 드래그 & 드롭에서도 파일 핸들 저장 시도
+      const item = e.dataTransfer.items[0];
+      if (item && 'getAsFileSystemHandle' in item) {
+        try {
+          const handle = await (item as any).getAsFileSystemHandle();
+          if (handle?.kind === 'file') {
+            sourceFileHandleRef.current = handle as FileSystemFileHandle;
+          }
+        } catch { /* 핸들 획득 실패 - 무시 */ }
+      }
       loadImage(file);
     } else {
       toast.error('JPEG 또는 PNG 파일만 지원합니다.');
@@ -198,10 +235,16 @@ export function AlbumSplitTool() {
   }, [originalImage, originalDPI, cleanup]);
 
   const handleSelectDirectory = useCallback(async () => {
-    const handle = await pickDirectory();
-    if (handle) {
-      setDirectoryHandle(handle);
-      toast.success(`저장 폴더: ${handle.name}`);
+    if ('showDirectoryPicker' in window) {
+      try {
+        const options: any = { mode: 'readwrite' };
+        if (sourceFileHandleRef.current) {
+          options.startIn = sourceFileHandleRef.current;
+        }
+        const handle = await (window as any).showDirectoryPicker(options);
+        setDirectoryHandle(handle);
+        toast.success(`저장 폴더: ${handle.name}`);
+      } catch { /* 사용자가 취소 */ }
     }
   }, []);
 
@@ -330,7 +373,7 @@ export function AlbumSplitTool() {
             onDrop={handleDrop}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
-            onClick={() => fileInputRef.current?.click()}
+            onClick={handleClickUpload}
             className={`
               border-2 border-dashed rounded-lg p-10 text-center transition-colors cursor-pointer
               ${isDragOver ? 'border-blue-500 bg-blue-50' : 'border-slate-300 hover:border-slate-400 bg-slate-50'}
