@@ -113,6 +113,7 @@ interface OrderItemShipping {
   senderPhone?: string;
   recipientName?: string;
   phone?: string;
+  receiverType?: string;
 }
 
 interface OrderShipping {
@@ -687,9 +688,13 @@ export default function MyOrdersPage() {
                           {(() => {
                             const r = item.shipping || order.shipping;
                             if (!r?.recipientName) return <span className="text-[11px] text-gray-300">-</span>;
+                            const isDirectCustomer = (r as OrderItemShipping)?.receiverType === 'direct_customer';
                             return (
                               <div className="space-y-0.5">
-                                <div className="text-[11px] text-black font-normal truncate max-w-[100px]">{r.recipientName}</div>
+                                <div className="text-[11px] text-black font-normal truncate max-w-[110px]">
+                                  {r.recipientName}
+                                  {isDirectCustomer && <span className="text-orange-600">(고객직배송)</span>}
+                                </div>
                                 <div className="text-[10px] text-gray-500">{r.phone || ''}</div>
                               </div>
                             );
