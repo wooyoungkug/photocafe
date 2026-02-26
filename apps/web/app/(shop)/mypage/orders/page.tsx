@@ -652,7 +652,19 @@ export default function MyOrdersPage() {
 
                         {idx === 0 && (
                           <TableCell className="text-right align-top pt-3 text-sm" rowSpan={items.length}>
-                            {Number(order.finalAmount).toLocaleString()}원
+                            <div className="space-y-1">
+                              <div>{Number(order.finalAmount).toLocaleString()}원</div>
+                              {(order.status === 'shipped' || order.status === 'ready_for_shipping') && (
+                                <button
+                                  type="button"
+                                  className="text-[10px] text-orange-600 hover:underline flex items-center gap-0.5 ml-auto"
+                                  onClick={() => setReturnTargetOrder(order)}
+                                >
+                                  <RotateCw className="h-3 w-3" />
+                                  반품/교환
+                                </button>
+                              )}
+                            </div>
                           </TableCell>
                         )}
 
@@ -701,16 +713,6 @@ export default function MyOrdersPage() {
                               >
                                 {order.processHistory?.[0]?.processedByName || '-'}
                               </div>
-                              {(order.status === 'shipped' || order.status === 'ready_for_shipping') && (
-                                <button
-                                  type="button"
-                                  className="text-[10px] text-orange-600 hover:underline flex items-center gap-0.5 mx-auto"
-                                  onClick={() => setReturnTargetOrder(order)}
-                                >
-                                  <RotateCw className="h-3 w-3" />
-                                  반품/교환
-                                </button>
-                              )}
                             </div>
                           </TableCell>
                         )}
