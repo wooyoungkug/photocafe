@@ -18,10 +18,13 @@ import {
   User,
   ArrowRight,
   Package,
+  Search,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useAuthStore } from '@/stores/auth-store';
 import {
@@ -338,6 +341,7 @@ export default function MonthlySummaryPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [printType, setPrintType] = useState<'summary' | 'detail' | null>(null);
+  const [searchKeyword, setSearchKeyword] = useState('');
   const { data: couriers = [] } = useCourierList();
   const getCourierName = (code?: string) => couriers.find(c => c.code === code)?.name ?? code ?? '택배';
 
@@ -404,6 +408,31 @@ export default function MonthlySummaryPage() {
     return map;
   }, [ordersByDate]);
 
+  // 검색 필터링: 주문번호, 상품명, 폴더명으로 매칭되는 날짜 Set
+  const searchMatchedDates = useMemo(() => {
+    const kw = searchKeyword.trim().toLowerCase();
+    if (!kw || !allMonthOrders?.data) return null; // null = 필터 없음
+    const matchedDates = new Set<string>();
+    allMonthOrders.data.forEach((order: Order) => {
+      const orderNumber = order.orderNumber?.toLowerCase() || '';
+      const items = order.items || [];
+      const matchesOrder = orderNumber.includes(kw);
+      const matchesItem = items.some(
+        (item) =>
+          (item.productName?.toLowerCase() || '').includes(kw) ||
+          (item.folderName?.toLowerCase() || '').includes(kw) ||
+          (item.size?.toLowerCase() || '').includes(kw) ||
+          (item.printMethod?.toLowerCase() || '').includes(kw) ||
+          (item.paper?.toLowerCase() || '').includes(kw)
+      );
+      if (matchesOrder || matchesItem) {
+        const date = format(new Date(order.orderedAt), 'yyyy-MM-dd');
+        matchedDates.add(date);
+      }
+    });
+    return matchedDates;
+  }, [searchKeyword, allMonthOrders]);
+
   // 누계잔액 계산
   const dataWithBalance = useMemo(() => {
     if (!dailyData?.data) return [];
@@ -429,6 +458,34 @@ export default function MonthlySummaryPage() {
       });
     return map;
   }, [allMonthOrders, dailyData]);
+
+  // 검색 필터 적용된 일자별 데이터
+  const filteredDataWithBalance = useMemo(() => {
+    if (!searchMatchedDates) return dataWithBalance; // 검색어 없으면 전체
+    return dataWithBalance.filter((row) => searchMatchedDates.has(row.date));
+  }, [dataWithBalance, searchMatchedDates]);
+
+  // 검색 필터 적용된 드릴다운 상세 데이터
+  const filteredDetailData = useMemo(() => {
+    if (!detailData?.data || !searchKeyword.trim()) return detailData;
+    const kw = searchKeyword.trim().toLowerCase();
+    const filtered = detailData.data.filter((order: Order) => {
+      const orderNumber = order.orderNumber?.toLowerCase() || '';
+      const items = order.items || [];
+      return (
+        orderNumber.includes(kw) ||
+        items.some(
+          (item) =>
+            (item.productName?.toLowerCase() || '').includes(kw) ||
+            (item.folderName?.toLowerCase() || '').includes(kw) ||
+            (item.size?.toLowerCase() || '').includes(kw) ||
+            (item.printMethod?.toLowerCase() || '').includes(kw) ||
+            (item.paper?.toLowerCase() || '').includes(kw)
+        )
+      );
+    });
+    return { ...detailData, data: filtered };
+  }, [detailData, searchKeyword]);
 
   // 인쇄 후 상태 초기화
   useEffect(() => {
@@ -1112,10 +1169,47 @@ export default function MonthlySummaryPage() {
         {/* 일자별 거래원장 */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center justify-center gap-2 text-base">
-              <ArrowRightLeft className="h-4 w-4" />
-              거래내역
-            </CardTitle>
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle className="flex items-center gap-2 text-base shrink-0">
+                <ArrowRightLeft className="h-4 w-4" />
+                거래내역
+              </CardTitle>
+              <div className="relative w-full max-w-[280px]">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="주문번호, 상품명, 폴더명 검색"
+                  value={searchKeyword}
+                  onChange={(e) => setSearchKeyword(e.target.value)}
+                  className="h-8 text-xs pl-8 pr-8"
+                />
+                {searchKeyword && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchKeyword('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label="검색어 지우기"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+            {searchKeyword.trim() && searchMatchedDates && (
+              <p className="text-xs text-muted-foreground mt-2">
+                검색결과: {filteredDataWithBalance.length}일 / {searchMatchedDates.size > 0 ? `${allMonthOrders?.data?.filter((o: Order) => {
+                  const kw = searchKeyword.trim().toLowerCase();
+                  return (
+                    o.orderNumber?.toLowerCase().includes(kw) ||
+                    o.items?.some(
+                      (item) =>
+                        item.productName?.toLowerCase().includes(kw) ||
+                        item.folderName?.toLowerCase().includes(kw) ||
+                        item.size?.toLowerCase().includes(kw)
+                    )
+                  );
+                }).length || 0}건 매칭` : '0건 매칭'}
+              </p>
+            )}
           </CardHeader>
           <CardContent className="px-0 sm:px-6">
             {isLoading ? (
@@ -1124,7 +1218,7 @@ export default function MonthlySummaryPage() {
                   <div key={i} className="h-12 bg-gray-100 animate-pulse rounded" />
                 ))}
               </div>
-            ) : dataWithBalance.length > 0 ? (
+            ) : filteredDataWithBalance.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full text-[13px] text-black font-normal">
                   <thead>
@@ -1143,7 +1237,7 @@ export default function MonthlySummaryPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {[...dataWithBalance].reverse().map((row) => {
+                    {[...filteredDataWithBalance].reverse().map((row) => {
                       const isExpanded = expandedRow === row.date;
                       return (
                         <Fragment key={row.date}>
@@ -1204,8 +1298,8 @@ export default function MonthlySummaryPage() {
                                     </div>
                                   </td>
                                 </tr>
-                              ) : detailData?.data && detailData.data.length > 0 ? (
-                                detailData.data.map((order) => {
+                              ) : filteredDetailData?.data && filteredDetailData.data.length > 0 ? (
+                                filteredDetailData.data.map((order) => {
                                   const folder = order.items?.[0]?.folderName;
                                   const product = order.items?.[0]?.productName || '';
                                   let displayName = product;
@@ -1353,11 +1447,30 @@ export default function MonthlySummaryPage() {
               </div>
             ) : (
               <div className="py-12 text-center px-4">
-                <Calendar className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-                <p className="text-sm text-gray-500">
-                  {format(selectedDate, 'yyyy년 MM월', { locale: ko })}에는 거래
-                  내역이 없습니다.
-                </p>
+                {searchKeyword.trim() ? (
+                  <>
+                    <Search className="h-12 w-12 mx-auto text-gray-300 mb-3" />
+                    <p className="text-sm text-gray-500">
+                      &quot;{searchKeyword.trim()}&quot;에 대한 검색 결과가 없습니다.
+                    </p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="mt-2 text-xs"
+                      onClick={() => setSearchKeyword('')}
+                    >
+                      검색어 지우기
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Calendar className="h-12 w-12 mx-auto text-gray-300 mb-3" />
+                    <p className="text-sm text-gray-500">
+                      {format(selectedDate, 'yyyy년 MM월', { locale: ko })}에는 거래
+                      내역이 없습니다.
+                    </p>
+                  </>
+                )}
               </div>
             )}
           </CardContent>
