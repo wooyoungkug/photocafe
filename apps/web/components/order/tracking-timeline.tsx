@@ -6,6 +6,19 @@ import { cn } from '@/lib/utils';
 import { useDeliveryTracking } from '@/hooks/use-delivery-tracking';
 import { toast } from '@/hooks/use-toast';
 
+/** 택배사 코드 → 이름 매핑 (API 응답에 courierName이 없을 때 폴백) */
+const COURIER_NAMES: Record<string, string> = {
+  '01': '우체국택배',
+  '04': 'CJ대한통운',
+  '05': '한진택배',
+  '06': '로젠택배',
+  '08': '롯데택배',
+  '11': '일양로지스',
+  '23': '경동택배',
+  '32': '합동택배',
+  '88': '대신택배',
+};
+
 // 스마트택배 level → 단계 라벨
 const TRACKING_STEPS = [
   { level: 1, label: '접수' },
@@ -80,7 +93,7 @@ export function TrackingTimeline({ courierCode, trackingNumber }: Props) {
       {/* 헤더: 택배사 + 운송장 번호 */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm">
-          <span className="font-medium text-gray-700">{data.courierName || '택배사'}</span>
+          <span className="font-medium text-gray-700">{data.courierName || COURIER_NAMES[courierCode] || '택배사'}</span>
           <span className="text-gray-400 text-xs">{data.invoiceNo}</span>
           <button
             onClick={handleCopy}

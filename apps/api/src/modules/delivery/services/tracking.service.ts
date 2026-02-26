@@ -18,6 +18,19 @@ export interface TrackingInfo {
   directTrackingUrl?: string;
 }
 
+/** 택배사 코드 → 이름 매핑 */
+const COURIER_NAMES: Record<string, string> = {
+  '01': '우체국택배',
+  '04': 'CJ대한통운',
+  '05': '한진택배',
+  '06': '로젠택배',
+  '08': '롯데택배',
+  '11': '일양로지스',
+  '23': '경동택배',
+  '32': '합동택배',
+  '88': '대신택배',
+};
+
 /** 택배사 코드 → 직접 조회 URL 매핑 */
 const DIRECT_TRACKING_URLS: Record<string, (trackingNumber: string) => string> = {
   '01': (no) => `https://service.epost.go.kr/trace.RetrieveDomRi498.postal?sid1=${no}`,
@@ -104,7 +117,7 @@ export class TrackingService {
     }
 
     const result: TrackingInfo = {
-      courierName: data.companyName || '',
+      courierName: data.companyName || COURIER_NAMES[courierCode] || '',
       invoiceNo: data.invoiceNo || trackingNumber,
       level: Number(data.level) || 0,
       isDelivered: data.completeYN === 'Y',
