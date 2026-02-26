@@ -328,8 +328,8 @@ export function ReturnRequestDialog({
                       onCheckedChange={() => toggleItem(item.id, item.quantity)}
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="text-[11px] text-black truncate">{item.productName}</p>
-                      <p className="text-[10px] text-gray-500">
+                      <p className="text-[14px] text-black truncate">{item.productName}</p>
+                      <p className="text-[14px] text-gray-500">
                         {item.size && `${item.size} / `}
                         {item.pages && `${item.pages}p / `}
                         {item.quantity}부
