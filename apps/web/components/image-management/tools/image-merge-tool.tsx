@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   FolderOpen,
   FolderDown,
@@ -11,6 +11,8 @@ import {
   Loader2,
   Clock,
   Layers,
+  ChevronDown,
+  ImageIcon,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,18 +28,69 @@ import { saveToFolder } from '@/lib/image-tools/file-utils';
 import { ToolGuide } from './tool-guide';
 import { ToolUsageCounter } from './tool-usage-counter';
 
+interface ImageInfo {
+  url: string;
+  width: number;
+  height: number;
+  dpi: number;
+  fileName: string;
+  fileSize: number;
+}
+
 interface MergeFolder {
   path: string;
   handle: FileSystemDirectoryHandle;
   files: File[];
   status: 'pending' | 'processing' | 'done' | 'error';
   error?: string;
+  originals: ImageInfo[];
+  results: ImageInfo[];
 }
 
 interface LogEntry {
   time: string;
   message: string;
   type: 'info' | 'success' | 'error' | 'warning';
+}
+
+const formatFileSize = (bytes: number) => {
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+};
+
+/** 썸네일 이미지 + 규격/해상도 오버레이 */
+function ImageThumbnail({ info, wide }: { info: ImageInfo; wide?: boolean }) {
+  return (
+    <div className="flex flex-col items-center shrink-0">
+      <div
+        className={`relative border rounded overflow-hidden bg-gray-50 ${
+          wide ? 'w-[160px] h-[60px]' : 'w-[100px] h-[75px]'
+        }`}
+      >
+        {info.url ? (
+          <img
+            src={info.url}
+            alt={info.fileName}
+            className="w-full h-full object-cover"
+            loading="lazy"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-slate-300">
+            <ImageIcon className="h-5 w-5" />
+          </div>
+        )}
+        {/* 규격/해상도 오버레이 */}
+        <div className="absolute bottom-0 left-0 right-0 bg-black/65 text-white px-1 py-[2px] text-center leading-tight">
+          <div className="text-[9px] font-medium">{info.width}×{info.height}</div>
+          <div className="text-[8px] opacity-80">{info.dpi}dpi · {formatFileSize(info.fileSize)}</div>
+        </div>
+      </div>
+      <p className={`text-[9px] text-slate-500 mt-0.5 truncate text-center ${wide ? 'max-w-[160px]' : 'max-w-[100px]'}`}>
+        {info.fileName}
+      </p>
+    </div>
+  );
 }
 
 export function ImageMergeTool() {
@@ -50,10 +103,26 @@ export function ImageMergeTool() {
   const [startDirection, setStartDirection] = useState<'left' | 'right'>('left');
   const [deleteOriginals, setDeleteOriginals] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [expandedFolders, setExpandedFolders] = useState<Set<number>>(new Set());
+  const [loadingThumbnails, setLoadingThumbnails] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const logContainerRef = useRef<HTMLDivElement>(null);
   const trackUseRef = useRef<(() => void) | null>(null);
+
+  // Object URL 정리
+  useEffect(() => {
+    return () => {
+      folders.forEach((folder) => {
+        folder.originals.forEach((info) => {
+          if (info.url) URL.revokeObjectURL(info.url);
+        });
+        folder.results.forEach((info) => {
+          if (info.url) URL.revokeObjectURL(info.url);
+        });
+      });
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const addLog = useCallback((message: string, type: LogEntry['type'] = 'info') => {
     const time = new Date().toLocaleTimeString('ko-KR', {
@@ -61,11 +130,7 @@ export function ImageMergeTool() {
       minute: '2-digit',
       second: '2-digit',
     });
-    setLogs((prev) => {
-      const next = [...prev, { time, message, type }];
-      return next;
-    });
-    // Auto scroll
+    setLogs((prev) => [...prev, { time, message, type }]);
     setTimeout(() => {
       logContainerRef.current?.scrollTo({
         top: logContainerRef.current.scrollHeight,
@@ -78,6 +143,60 @@ export function ImageMergeTool() {
     const name = file.name.toLowerCase();
     return name.endsWith('.jpg') || name.endsWith('.jpeg');
   };
+
+  /** 파일에서 이미지 정보 로드 (썸네일 URL, 크기, DPI) */
+  const loadImageInfo = useCallback(async (file: File): Promise<ImageInfo> => {
+    const url = URL.createObjectURL(file);
+    let dpi = 300;
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      dpi = extractDPIFromJPEG(arrayBuffer);
+    } catch {
+      // DPI 추출 실패 시 기본값 사용
+    }
+
+    return new Promise<ImageInfo>((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        resolve({
+          url,
+          width: img.naturalWidth,
+          height: img.naturalHeight,
+          dpi,
+          fileName: file.name,
+          fileSize: file.size,
+        });
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve({
+          url: '',
+          width: 0,
+          height: 0,
+          dpi: 300,
+          fileName: file.name,
+          fileSize: file.size,
+        });
+      };
+      img.src = url;
+    });
+  }, []);
+
+  /** 폴더별 원본 이미지 썸네일 로드 */
+  const loadFolderOriginals = useCallback(
+    async (scannedFolders: MergeFolder[]) => {
+      setLoadingThumbnails(true);
+      for (let fi = 0; fi < scannedFolders.length; fi++) {
+        const folder = scannedFolders[fi];
+        const infos = await Promise.all(folder.files.map((file) => loadImageInfo(file)));
+        setFolders((prev) =>
+          prev.map((f, idx) => (idx === fi ? { ...f, originals: infos } : f)),
+        );
+      }
+      setLoadingThumbnails(false);
+    },
+    [loadImageInfo],
+  );
 
   const scanDirectory = useCallback(
     async (dirHandle: FileSystemDirectoryHandle, basePath: string): Promise<MergeFolder[]> => {
@@ -97,15 +216,15 @@ export function ImageMergeTool() {
         }
       }
 
-      // Only include folders with 2+ JPG files
       if (jpgFiles.length >= 2) {
-        // Sort by filename
         jpgFiles.sort((a, b) => a.name.localeCompare(b.name, 'ko', { numeric: true }));
         result.unshift({
           path: basePath || dirHandle.name,
           handle: dirHandle,
           files: jpgFiles,
           status: 'pending',
+          originals: [],
+          results: [],
         });
       }
 
@@ -116,9 +235,16 @@ export function ImageMergeTool() {
 
   const processDirectoryHandle = useCallback(
     async (handle: FileSystemDirectoryHandle) => {
+      // 기존 URL 정리
+      folders.forEach((folder) => {
+        folder.originals.forEach((info) => { if (info.url) URL.revokeObjectURL(info.url); });
+        folder.results.forEach((info) => { if (info.url) URL.revokeObjectURL(info.url); });
+      });
+
       setSourceHandle(handle);
       setLogs([]);
       setProgress(0);
+      setExpandedFolders(new Set());
 
       addLog(`폴더 스캔 중: ${handle.name}`, 'info');
       const scannedFolders = await scanDirectory(handle, '');
@@ -136,8 +262,14 @@ export function ImageMergeTool() {
         'success',
       );
       toast.success(`${scannedFolders.length}개 폴더를 발견했습니다.`);
+
+      // 백그라운드에서 원본 썸네일 로드
+      loadFolderOriginals(scannedFolders);
+
+      // 첫 번째 폴더 자동 펼치기
+      setExpandedFolders(new Set([0]));
     },
-    [addLog, scanDirectory],
+    [addLog, scanDirectory, loadFolderOriginals, folders],
   );
 
   const handleSelectFolder = useCallback(async () => {
@@ -165,14 +297,12 @@ export function ImageMergeTool() {
       const items = e.dataTransfer.items;
       if (!items || items.length === 0) return;
 
-      // Modern API: getAsFileSystemHandle (Chrome 86+)
       const item = items[0];
       if ('getAsFileSystemHandle' in item) {
         try {
           const handle = await (item as any).getAsFileSystemHandle();
           if (handle?.kind === 'directory') {
             const dirHandle = handle as FileSystemDirectoryHandle;
-            // Request readwrite permission for saving merged files
             const permission = await (dirHandle as any).requestPermission({ mode: 'readwrite' });
             if (permission !== 'granted') {
               toast.error('폴더 쓰기 권한이 필요합니다. 권한을 허용해주세요.');
@@ -188,7 +318,6 @@ export function ImageMergeTool() {
         }
       }
 
-      // Fallback: check if it's a directory via webkitGetAsEntry
       const entry = items[0].webkitGetAsEntry?.();
       if (entry?.isDirectory) {
         toast.info('이 브라우저에서는 폴더 선택 버튼을 클릭하여 선택해주세요.');
@@ -233,7 +362,6 @@ export function ImageMergeTool() {
       addLog(`[${folder.path}] 처리 시작 (${folder.files.length}개 파일)`, 'info');
 
       try {
-        // Load all images
         const images: HTMLImageElement[] = [];
         const dpis: number[] = [];
 
@@ -246,33 +374,29 @@ export function ImageMergeTool() {
           dpis.push(dpi);
         }
 
-        // Get representative DPI (most common) and height
         const dpi = dpis[0] || 300;
         const height = images[0].naturalHeight;
 
-        // Check height consistency
         const heightMismatch = images.some((img) => img.naturalHeight !== height);
         if (heightMismatch) {
           addLog(`[${folder.path}] 경고: 이미지 높이가 일치하지 않습니다.`, 'warning');
         }
 
-        // Build image list considering start direction
         let imageList = [...images];
 
         if (startDirection === 'right') {
-          // Right-start: prepend a blank page on the left
           imageList.unshift(null as any);
           addLog(`[${folder.path}] 오른쪽 시작: 첫 페이지 왼쪽에 빈 페이지(흰색) 추가`, 'info');
         }
 
-        // If odd count after adjustment, append blank page on the right
         if (imageList.length % 2 !== 0) {
           imageList.push(null as any);
           addLog(`[${folder.path}] 마지막 페이지 오른쪽에 빈 페이지(흰색) 추가`, 'info');
         }
 
-        // Merge pairs into pages
+        const pageResults: ImageInfo[] = [];
         let pageNum = startPageNum;
+
         for (let i = 0; i < imageList.length; i += 2) {
           const leftImg = imageList[i];
           const rightImg = imageList[i + 1];
@@ -310,17 +434,26 @@ export function ImageMergeTool() {
             addLog(`[${folder.path}] ${pageFilename} 저장 실패`, 'error');
           }
 
-          URL.revokeObjectURL(result.url);
+          // 합친 결과 썸네일 저장 (URL 유지)
+          pageResults.push({
+            url: result.url,
+            width: canvas.width,
+            height: canvas.height,
+            dpi,
+            fileName: pageFilename,
+            fileSize: result.blob.size,
+          });
+
           pageNum++;
         }
 
-        // Delete originals if requested
+        // 원본 삭제
         if (deleteOriginals) {
           for (const file of folder.files) {
             try {
               await (folder.handle as any).removeEntry(file.name);
             } catch {
-              // Ignore deletion errors
+              // 삭제 오류 무시
             }
           }
           addLog(`[${folder.path}] 원본 파일 삭제 완료`, 'info');
@@ -330,9 +463,12 @@ export function ImageMergeTool() {
 
         setFolders((prev) =>
           prev.map((f, idx) =>
-            idx === folderIndex ? { ...f, status: 'done' } : f,
+            idx === folderIndex ? { ...f, status: 'done', results: pageResults } : f,
           ),
         );
+
+        // 처리 완료된 폴더 자동 펼치기
+        setExpandedFolders((prev) => new Set([...prev, folderIndex]));
       } catch (err: any) {
         addLog(`[${folder.path}] 오류: ${err.message}`, 'error');
         setFolders((prev) =>
@@ -355,8 +491,12 @@ export function ImageMergeTool() {
     setProgress(0);
     addLog('=== 합치기 작업 시작 ===', 'info');
 
-    // Reset all folder statuses
-    setFolders((prev) => prev.map((f) => ({ ...f, status: 'pending' as const })));
+    // 이전 결과 URL 정리
+    folders.forEach((folder) => {
+      folder.results.forEach((info) => { if (info.url) URL.revokeObjectURL(info.url); });
+    });
+
+    setFolders((prev) => prev.map((f) => ({ ...f, status: 'pending' as const, results: [] })));
 
     for (let i = 0; i < folders.length; i++) {
       setFolders((prev) =>
@@ -376,7 +516,29 @@ export function ImageMergeTool() {
   }, [folders, addLog, processMergeFolder]);
 
   const handleRemoveFolder = useCallback((index: number) => {
-    setFolders((prev) => prev.filter((_, i) => i !== index));
+    setFolders((prev) => {
+      const folder = prev[index];
+      folder.originals.forEach((info) => { if (info.url) URL.revokeObjectURL(info.url); });
+      folder.results.forEach((info) => { if (info.url) URL.revokeObjectURL(info.url); });
+      return prev.filter((_, i) => i !== index);
+    });
+    setExpandedFolders((prev) => {
+      const next = new Set<number>();
+      prev.forEach((v) => {
+        if (v < index) next.add(v);
+        else if (v > index) next.add(v - 1);
+      });
+      return next;
+    });
+  }, []);
+
+  const toggleFolder = useCallback((index: number) => {
+    setExpandedFolders((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
   }, []);
 
   const getStatusIcon = (status: MergeFolder['status']) => {
@@ -610,7 +772,7 @@ export function ImageMergeTool() {
         </Card>
       )}
 
-      {/* Folder List */}
+      {/* Folder List with Thumbnails */}
       {folders.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
@@ -620,6 +782,12 @@ export function ImageMergeTool() {
                 <span className="font-semibold text-sm">
                   폴더 목록 ({folders.length}개)
                 </span>
+                {loadingThumbnails && (
+                  <span className="flex items-center gap-1 text-xs text-slate-400">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    썸네일 로딩...
+                  </span>
+                )}
               </div>
               <Button
                 onClick={handleExecute}
@@ -653,34 +821,104 @@ export function ImageMergeTool() {
             )}
 
             {/* Folder items */}
-            <div className="space-y-2 max-h-[300px] overflow-y-auto">
-              {folders.map((folder, index) => (
-                <div
-                  key={folder.path}
-                  className="flex items-center justify-between p-3 border rounded-lg bg-slate-50"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    {getStatusIcon(folder.status)}
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{folder.path}</p>
-                      <p className="text-xs text-slate-500">{folder.files.length}개 파일</p>
+            <div className="space-y-2">
+              {folders.map((folder, index) => {
+                const isExpanded = expandedFolders.has(index);
+                const hasOriginals = folder.originals.length > 0;
+                const hasResults = folder.results.length > 0;
+
+                return (
+                  <div
+                    key={folder.path}
+                    className="border rounded-lg bg-slate-50 overflow-hidden"
+                  >
+                    {/* 폴더 헤더 */}
+                    <div
+                      className="flex items-center justify-between p-3 cursor-pointer hover:bg-slate-100 transition-colors"
+                      onClick={() => toggleFolder(index)}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <ChevronDown
+                          className={`h-4 w-4 text-slate-400 shrink-0 transition-transform ${
+                            isExpanded ? '' : '-rotate-90'
+                          }`}
+                        />
+                        {getStatusIcon(folder.status)}
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{folder.path}</p>
+                          <p className="text-xs text-slate-500">
+                            {folder.files.length}개 파일
+                            {hasResults && ` → ${folder.results.length}페이지 생성`}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        {getStatusBadge(folder.status)}
+                        {!processing && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveFolder(index)}
+                            className="h-7 w-7 p-0 text-slate-400 hover:text-red-500"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {getStatusBadge(folder.status)}
-                    {!processing && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRemoveFolder(index)}
-                        className="h-7 w-7 p-0 text-slate-400 hover:text-red-500"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+
+                    {/* 펼침 영역: 원본 + 결과 썸네일 */}
+                    {isExpanded && (
+                      <div className="border-t bg-white px-3 py-3 space-y-4">
+                        {/* 원본 이미지 썸네일 */}
+                        {hasOriginals && (
+                          <div>
+                            <p className="text-xs font-medium text-slate-600 mb-2 flex items-center gap-1">
+                              <ImageIcon className="h-3.5 w-3.5" />
+                              업로드 원본 ({folder.originals.length}개)
+                            </p>
+                            <div className="flex flex-wrap gap-2 max-h-[280px] overflow-y-auto">
+                              {folder.originals.map((info, i) => (
+                                <ImageThumbnail key={i} info={info} />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 로딩 중 */}
+                        {!hasOriginals && loadingThumbnails && (
+                          <div className="flex items-center justify-center py-4 text-xs text-slate-400">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                            이미지 정보 로딩 중...
+                          </div>
+                        )}
+
+                        {/* 합친 결과 썸네일 */}
+                        {hasResults && (
+                          <div>
+                            <p className="text-xs font-medium text-green-600 mb-2 flex items-center gap-1">
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              합친 결과 ({folder.results.length}페이지)
+                            </p>
+                            <div className="flex flex-wrap gap-2 max-h-[280px] overflow-y-auto">
+                              {folder.results.map((info, i) => (
+                                <ImageThumbnail key={i} info={info} wide />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 아직 처리 전이고 썸네일도 없을 때 */}
+                        {!hasOriginals && !hasResults && !loadingThumbnails && (
+                          <p className="text-xs text-slate-400 text-center py-2">
+                            이미지 정보가 없습니다.
+                          </p>
+                        )}
+                      </div>
                     )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
