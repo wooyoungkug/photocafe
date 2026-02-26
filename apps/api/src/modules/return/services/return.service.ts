@@ -281,11 +281,12 @@ export class ReturnService {
     const rr = await this.prisma.returnRequest.findUnique({ where: { id } });
     if (!rr) throw new NotFoundException('반품요청을 찾을 수 없습니다.');
     if (
+      rr.status !== RETURN_STATUS.REQUESTED &&
       rr.status !== RETURN_STATUS.APPROVED &&
       rr.status !== RETURN_STATUS.COLLECTING
     ) {
       throw new BadRequestException(
-        '승인 또는 수거중 상태에서만 운송장을 입력할 수 있습니다.',
+        '신청/승인/수거중 상태에서만 운송장을 입력할 수 있습니다.',
       );
     }
 
@@ -330,12 +331,13 @@ export class ReturnService {
 
     if (!rr) throw new NotFoundException('반품요청을 찾을 수 없습니다.');
     if (
+      rr.status !== RETURN_STATUS.REQUESTED &&
       rr.status !== RETURN_STATUS.COLLECTED &&
       rr.status !== RETURN_STATUS.INSPECTING &&
       rr.status !== RETURN_STATUS.COLLECTING
     ) {
       throw new BadRequestException(
-        '수거완료/검수중 상태에서만 반품을 완료할 수 있습니다.',
+        '신청/수거중/수거완료/검수중 상태에서만 반품을 완료할 수 있습니다.',
       );
     }
 
