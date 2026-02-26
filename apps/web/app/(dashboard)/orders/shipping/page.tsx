@@ -571,17 +571,19 @@ export default function ShippingManagementPage() {
                               </span>
                             )}
                           </TableCell>
-                          <TableCell className="text-xs text-center whitespace-nowrap">
-                            <span>
-                              {order.shipping?.deliveryMethod === 'parcel' && order.shipping?.courierCode
-                                ? getCourierName(order.shipping.courierCode)
-                                : (DELIVERY_METHOD_LABELS[order.shipping?.deliveryMethod ?? ''] ?? '-')}
-                            </span>
-                            {deliveryFee > 0 && order.shipping?.fareType && FARE_TYPE_CONFIG[order.shipping.fareType] && (
-                              <span className={cn('ml-0.5', FARE_TYPE_CONFIG[order.shipping.fareType].className)}>
-                                {FARE_TYPE_CONFIG[order.shipping.fareType].label}
+                          <TableCell className="text-xs text-center">
+                            <div className="flex flex-col items-center leading-tight">
+                              <span>
+                                {order.shipping?.deliveryMethod === 'parcel' && order.shipping?.courierCode
+                                  ? getCourierName(order.shipping.courierCode)
+                                  : (DELIVERY_METHOD_LABELS[order.shipping?.deliveryMethod ?? ''] ?? '-')}
                               </span>
-                            )}
+                              {deliveryFee > 0 && order.shipping?.fareType && FARE_TYPE_CONFIG[order.shipping.fareType] && (
+                                <span className={FARE_TYPE_CONFIG[order.shipping.fareType].className}>
+                                  {FARE_TYPE_CONFIG[order.shipping.fareType].label}
+                                </span>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="text-xs text-center">
                             <div className="flex flex-col gap-0.5 items-center">
@@ -803,8 +805,14 @@ export default function ShippingManagementPage() {
                         </div>
                         <div>
                           <span className="text-muted-foreground">배송방법: </span>
-                          {DELIVERY_METHOD_LABELS[order.shipping?.deliveryMethod ?? ''] ??
-                            getCourierName(order.shipping?.courierCode)}
+                          {order.shipping?.deliveryMethod === 'parcel' && order.shipping?.courierCode
+                            ? getCourierName(order.shipping.courierCode)
+                            : (DELIVERY_METHOD_LABELS[order.shipping?.deliveryMethod ?? ''] ?? '-')}
+                          {order.shipping?.fareType && FARE_TYPE_CONFIG[order.shipping.fareType] && (
+                            <span className={cn('ml-1', FARE_TYPE_CONFIG[order.shipping.fareType].className)}>
+                              {FARE_TYPE_CONFIG[order.shipping.fareType].label}
+                            </span>
+                          )}
                         </div>
                       </div>
 
