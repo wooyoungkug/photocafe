@@ -2722,10 +2722,13 @@ model ReturnRequest {
   returnNumber String  @unique
   orderId      String
   clientId     String
-  type         String // 'return' | 'exchange'
+  type         String // 'return' | 'exchange' | 'album_repair'
   status       String  @default("requested")
-  reason       String // defect, wrong_item, damaged, customer_change, other
+  reason       String // defect, wrong_item, damaged, customer_change, other, page_replace, cover_repair, inner_repair, shipping_damage
   reasonDetail String?
+
+  // 앨범수리 - 교체페이지 정보 (type=album_repair, reason=page_replace)
+  repairPages Json? // [{pageNumber, fileName, fileUrl, thumbnailUrl}]
 
   // 배송비 정책
   shippingFeeChargedTo String? // 'company' | 'customer'
