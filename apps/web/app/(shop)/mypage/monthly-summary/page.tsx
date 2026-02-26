@@ -29,17 +29,6 @@ import { format, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns
 import { ko } from 'date-fns/locale';
 import { toast } from '@/hooks/use-toast';
 
-const PROCESS_CATEGORY_COLORS: Record<string, string> = {
-  reception: 'bg-gray-100 text-gray-700',
-  print: 'bg-blue-50 text-blue-700',
-  binding: 'bg-purple-50 text-purple-700',
-  frame: 'bg-amber-50 text-amber-700',
-  finishing: 'bg-orange-50 text-orange-700',
-  qc: 'bg-yellow-50 text-yellow-700',
-  shipping: 'bg-green-50 text-green-700',
-  complete: 'bg-slate-100 text-slate-500',
-};
-
 // DB의 currentProcess/status 값과 PROCESS_STAGES 키 매핑
 const PROCESS_ALIASES: Record<string, keyof typeof PROCESS_STAGES> = {
   receipt_pending: 'reception_waiting',
@@ -62,12 +51,6 @@ function getProcessLabel(process: string) {
   return stage?.name || process;
 }
 
-function getProcessCategory(process: string) {
-  if (STATUS_LABEL_OVERRIDE[process]) return STATUS_LABEL_OVERRIDE[process].category;
-  const key = PROCESS_ALIASES[process] || process;
-  const stage = PROCESS_STAGES[key as keyof typeof PROCESS_STAGES];
-  return stage?.category || 'reception';
-}
 
 function formatAmount(amount: number) {
   return Math.round(amount).toLocaleString();
@@ -229,10 +212,8 @@ export default function MonthlySummaryPage() {
 
   const renderProcessBadge = (currentProcess: string) => {
     const label = getProcessLabel(currentProcess);
-    const category = getProcessCategory(currentProcess);
-    const colorClass = PROCESS_CATEGORY_COLORS[category] || PROCESS_CATEGORY_COLORS.reception;
     return (
-      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap ${colorClass}`}>
+      <span className="inline-flex items-center whitespace-nowrap text-[11px] text-black font-normal">
         {label}
       </span>
     );
