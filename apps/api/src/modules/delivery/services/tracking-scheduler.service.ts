@@ -234,6 +234,7 @@ export class TrackingSchedulerService {
       1: '접수',
       2: '집하',
       3: '이동중',
+      4: '지역도착',
       5: '배달중',
       6: '배달완료',
     };

@@ -8,7 +8,7 @@ import type { Order, OrderShipping } from '@/hooks/use-orders';
 // Types
 // ---------------------------------------------------------------------------
 
-/** 배송준비 주문 목록 응답 */
+/** 제작완료 주문 목록 응답 */
 export interface ShippingReadyResponse {
   data: Order[];
   meta: {
@@ -73,7 +73,7 @@ const SHIPPING_BUNDLE_KEY = [SHIPPING_KEY, 'bundle'];
 // Queries
 // ---------------------------------------------------------------------------
 
-/** 배송준비 주문 목록 조회 */
+/** 제작완료 주문 목록 조회 */
 export function useShippingReady(params?: {
   page?: number;
   limit?: number;

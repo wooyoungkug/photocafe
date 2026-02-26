@@ -17,8 +17,8 @@ export const ORDER_STATUS_LABELS: Record<string, string> = {
   pending_receipt: '접수대기',
   receipt_completed: '접수완료',
   in_production: '생산진행',
-  ready_for_shipping: '배송준비',
-  shipped: '배송완료',
+  ready_for_shipping: '제작완료',
+  shipped: '거래완료',
   cancelled: '취소',
 };
 

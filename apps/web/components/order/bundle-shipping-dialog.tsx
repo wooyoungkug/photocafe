@@ -218,7 +218,7 @@ export function BundleShippingDialog({ open, onOpenChange }: Props) {
               <Package className="h-10 w-10 mx-auto mb-3 opacity-40" />
               <p>묶음배송 가능한 주문이 없습니다.</p>
               <p className="text-sm mt-1">
-                동일 수령인/주소의 배송준비 주문이 2건 이상일 때 묶음이 가능합니다.
+                동일 수령인/주소의 제작완료 주문이 2건 이상일 때 묶음이 가능합니다.
               </p>
             </div>
           )}

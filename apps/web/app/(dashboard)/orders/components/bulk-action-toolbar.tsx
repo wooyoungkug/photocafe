@@ -41,8 +41,8 @@ const STATUS_OPTIONS = [
   { value: 'pending_receipt', label: '접수대기' },
   { value: 'receipt_completed', label: '접수완료' },
   { value: 'in_production', label: '생산진행' },
-  { value: 'ready_for_shipping', label: '배송준비' },
-  { value: 'shipped', label: '배송완료' },
+  { value: 'ready_for_shipping', label: '제작완료' },
+  { value: 'shipped', label: '거래완료' },
   { value: 'cancelled', label: '취소' },
 ];
 
@@ -113,7 +113,7 @@ export function BulkActionToolbar({
         const failCount = result.failed?.length || 0;
         const skipped = result.skipped?.length || 0;
         let msg = `주문취소: ${result.success}건 완료`;
-        if (skipped > 0) msg += `, ${skipped}건 스킵(배송완료)`;
+        if (skipped > 0) msg += `, ${skipped}건 스킵(거래완료)`;
         if (failCount > 0) msg += `, ${failCount}건 실패`;
         msg += '\n조건부 무료배송 거래처의 배송비 재청구 전표가 자동 생성되었습니다.';
         alert(msg);
@@ -284,7 +284,7 @@ export function BulkActionToolbar({
         open={cancelDialog}
         onOpenChange={setCancelDialog}
         title="주문 일괄 취소"
-        description={`선택한 ${count}건의 주문을 취소합니다. 배송완료된 주문은 제외됩니다.`}
+        description={`선택한 ${count}건의 주문을 취소합니다. 거래완료된 주문은 제외됩니다.`}
         confirmLabel="취소 실행"
         variant="destructive"
         isLoading={bulkCancel.isPending}
@@ -351,7 +351,7 @@ export function BulkActionToolbar({
         open={deleteOriginalsDialog}
         onOpenChange={setDeleteOriginalsDialog}
         title="원본 이미지 일괄 삭제"
-        description={`선택한 ${count}건의 주문에서 원본 이미지를 삭제합니다. 배송완료 + PDF 완료 항목만 삭제됩니다.`}
+        description={`선택한 ${count}건의 주문에서 원본 이미지를 삭제합니다. 거래완료 + PDF 완료 항목만 삭제됩니다.`}
         confirmLabel="원본 삭제 실행"
         variant="destructive"
         isLoading={bulkDeleteOriginals.isPending}

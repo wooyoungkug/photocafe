@@ -874,7 +874,7 @@ export default function ClientsPage() {
                       />
                       <span className="text-sm text-muted-foreground">개월</span>
                     </div>
-                    <p className="text-xs text-muted-foreground">배송완료 후 원본파일 보관기간. 비워두면 기본 3개월.</p>
+                    <p className="text-xs text-muted-foreground">거래완료 후 원본파일 보관기간. 비워두면 기본 3개월.</p>
                   </div>
                 </div>
               </div>

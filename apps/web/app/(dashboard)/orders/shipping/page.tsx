@@ -311,7 +311,7 @@ export default function ShippingManagementPage() {
             배송관리
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            배송준비 주문의 송장 입력, 묶음배송, 운송장 출력을 관리합니다.
+            제작완료 주문의 송장 입력, 묶음배송, 운송장 출력을 관리합니다.
           </p>
         </div>
 
@@ -371,7 +371,7 @@ export default function ShippingManagementPage() {
               <Package className="h-5 w-5 text-slate-600" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">배송준비</p>
+              <p className="text-xs text-muted-foreground">제작완료</p>
               <p className="text-xl font-normal">{stats.total}건</p>
             </div>
           </CardContent>
@@ -476,7 +476,7 @@ export default function ShippingManagementPage() {
           ) : orders.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
               <Package className="h-10 w-10 mb-3 opacity-40" />
-              <p>배송준비 중인 주문이 없습니다.</p>
+              <p>제작완료 상태의 주문이 없습니다.</p>
             </div>
           ) : (
             <>

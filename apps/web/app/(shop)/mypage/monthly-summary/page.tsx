@@ -99,7 +99,7 @@ function TrackingStatusCell({
         {order.shipping.courierCode && (
           <span className="text-[10px] text-gray-400">{getCourierName(order.shipping.courierCode)}</span>
         )}
-        <Badge variant="success">배송완료</Badge>
+        <Badge variant="success">거래완료</Badge>
       </div>
     );
   }

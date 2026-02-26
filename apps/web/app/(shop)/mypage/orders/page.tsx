@@ -68,8 +68,8 @@ const STAGE_ITEMS = [
   { key: 'pending_receipt', label: '접수대기', icon: Clock, color: 'text-orange-600', bg: 'bg-orange-50', activeBg: 'bg-orange-100', border: 'border-orange-400' },
   { key: 'receipt_completed', label: '접수완료', icon: ClipboardCheck, color: 'text-blue-600', bg: 'bg-blue-50', activeBg: 'bg-blue-100', border: 'border-blue-400' },
   { key: 'in_production', label: '생산진행', icon: Printer, color: 'text-purple-600', bg: 'bg-purple-50', activeBg: 'bg-purple-100', border: 'border-purple-400' },
-  { key: 'ready_for_shipping', label: '배송준비', icon: PackageCheck, color: 'text-indigo-600', bg: 'bg-indigo-50', activeBg: 'bg-indigo-100', border: 'border-indigo-400' },
-  { key: 'shipped', label: '배송완료', icon: Truck, color: 'text-green-600', bg: 'bg-green-50', activeBg: 'bg-green-100', border: 'border-green-400' },
+  { key: 'ready_for_shipping', label: '제작완료', icon: PackageCheck, color: 'text-indigo-600', bg: 'bg-indigo-50', activeBg: 'bg-indigo-100', border: 'border-indigo-400' },
+  { key: 'shipped', label: '거래완료', icon: Truck, color: 'text-green-600', bg: 'bg-green-50', activeBg: 'bg-green-100', border: 'border-green-400' },
   { key: 'cancelled', label: '취소', icon: XCircle, color: 'text-gray-400', bg: 'bg-gray-50', activeBg: 'bg-gray-100', border: 'border-gray-300' },
 ];
 
@@ -78,8 +78,8 @@ const STATUS_BADGE: Record<string, { label: string; className: string }> = {
   pending_receipt: { label: '접수대기', className: 'bg-orange-100 text-orange-700' },
   receipt_completed: { label: '접수완료', className: 'bg-blue-100 text-blue-700' },
   in_production: { label: '생산진행', className: 'bg-purple-100 text-purple-700' },
-  ready_for_shipping: { label: '배송준비', className: 'bg-indigo-100 text-indigo-700' },
-  shipped: { label: '배송완료', className: 'bg-green-100 text-green-700' },
+  ready_for_shipping: { label: '제작완료', className: 'bg-indigo-100 text-indigo-700' },
+  shipped: { label: '거래완료', className: 'bg-green-100 text-green-700' },
   cancelled: { label: '취소', className: 'bg-gray-100 text-gray-500 line-through' },
 };
 
@@ -702,8 +702,8 @@ export default function MyOrdersPage() {
                                 </PopoverContent>
                               </Popover>
                             ) : order.status === 'shipped' ? (
-                              <Badge className="text-xs bg-green-100 text-green-700">배송완료</Badge>
-                            ) : ['ready_for_shipping'].includes(order.status) ? (
+                              <Badge className="text-xs bg-green-100 text-green-700">배달완료</Badge>
+                            ) : order.status === 'ready_for_shipping' ? (
                               <span className="text-[11px] text-gray-400">배송준비중</span>
                             ) : (
                               <span className="text-[11px] text-gray-300">-</span>

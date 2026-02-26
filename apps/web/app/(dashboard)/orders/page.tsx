@@ -52,8 +52,8 @@ const STATUS_BADGE: Record<string, { label: string; className: string }> = {
   pending_receipt: { label: '접수대기', className: 'bg-orange-100 text-orange-700' },
   receipt_completed: { label: '접수완료', className: 'bg-blue-100 text-blue-700' },
   in_production: { label: '생산진행', className: 'bg-purple-100 text-purple-700' },
-  ready_for_shipping: { label: '배송준비', className: 'bg-indigo-100 text-indigo-700' },
-  shipped: { label: '배송완료', className: 'bg-green-100 text-green-700' },
+  ready_for_shipping: { label: '제작완료', className: 'bg-indigo-100 text-indigo-700' },
+  shipped: { label: '거래완료', className: 'bg-green-100 text-green-700' },
   cancelled: { label: '취소', className: 'bg-gray-100 text-gray-500' },
 };
 
@@ -63,8 +63,8 @@ const STATUS_FILTER_OPTIONS = [
   { value: 'pending_receipt', label: '접수대기' },
   { value: 'receipt_completed', label: '접수완료' },
   { value: 'in_production', label: '생산진행' },
-  { value: 'ready_for_shipping', label: '배송준비' },
-  { value: 'shipped', label: '배송완료' },
+  { value: 'ready_for_shipping', label: '제작완료' },
+  { value: 'shipped', label: '거래완료' },
   { value: 'cancelled', label: '취소' },
 ];
 

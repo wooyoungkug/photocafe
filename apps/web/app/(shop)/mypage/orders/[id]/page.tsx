@@ -79,12 +79,12 @@ const STATUS_CONFIG: Record<OrderStatus, {
     className: 'text-purple-600 bg-purple-50',
   },
   [ORDER_STATUS.READY_FOR_SHIPPING]: {
-    label: '배송준비',
+    label: '제작완료',
     icon: <Package className="h-5 w-5" />,
     className: 'text-indigo-600 bg-indigo-50',
   },
   [ORDER_STATUS.SHIPPED]: {
-    label: '배송완료',
+    label: '거래완료',
     icon: <Truck className="h-5 w-5" />,
     className: 'text-green-600 bg-green-50',
   },
@@ -464,7 +464,7 @@ export default function OrderDetailPage() {
                         원본 파일 보관 안내
                       </h3>
                       <p className="text-sm text-sky-700">
-                        원본 파일은 배송완료일로부터 {retention.retentionMonths}개월간 보관됩니다.
+                        원본 파일은 거래완료일로부터 {retention.retentionMonths}개월간 보관됩니다.
                         보관기한: {format(new Date(retention.retentionDeadline), 'yyyy.MM.dd', { locale: ko })}
                       </p>
                     </div>
@@ -905,7 +905,7 @@ export default function OrderDetailPage() {
                   </div>
                   {retention.shippedAt && (
                     <div className="flex justify-between">
-                      <span className="text-gray-500">배송완료일</span>
+                      <span className="text-gray-500">거래완료일</span>
                       <span>{format(new Date(retention.shippedAt), 'yyyy.MM.dd', { locale: ko })}</span>
                     </div>
                   )}
