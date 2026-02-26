@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { extractDPIFromJPEG, canvasToJPEGWithDPI } from '@/lib/image-tools/dpi-utils';
-import { saveToFolder, fallbackDownload, pickDirectory } from '@/lib/image-tools/file-utils';
+import { saveToFolder, fallbackDownload, pickDirectory, isJpegOrPng } from '@/lib/image-tools/file-utils';
 import { ToolGuide } from './tool-guide';
 import { ToolUsageCounter } from './tool-usage-counter';
 
@@ -72,7 +72,7 @@ export function ImageCutTool() {
     e.preventDefault();
     setIsDragOver(false);
     const file = e.dataTransfer.files[0];
-    if (file && (file.type === 'image/jpeg' || file.type === 'image/png')) {
+    if (file && isJpegOrPng(file)) {
       loadImage(file);
     } else {
       toast.error('JPEG 또는 PNG 파일만 지원합니다.');

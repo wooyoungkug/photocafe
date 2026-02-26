@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { extractDPIFromJPEG, canvasToJPEGWithDPI } from '@/lib/image-tools/dpi-utils';
-import { saveToFolder, fallbackDownload, pickDirectory } from '@/lib/image-tools/file-utils';
+import { saveToFolder, fallbackDownload, pickDirectory, isImageFile } from '@/lib/image-tools/file-utils';
 import { processRestore } from '@/lib/image-tools/image-processing';
 import { ToolGuide } from './tool-guide';
 import { ToolUsageCounter } from './tool-usage-counter';
@@ -51,7 +51,7 @@ export function ImageRestoreTool() {
   };
 
   const handleFileLoad = useCallback(async (file: File) => {
-    if (!file.type.startsWith('image/')) {
+    if (!isImageFile(file)) {
       toast.error('이미지 파일만 업로드할 수 있습니다.');
       return;
     }

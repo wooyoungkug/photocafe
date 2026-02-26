@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { extractDPIFromJPEG, canvasToJPEGWithDPI } from '@/lib/image-tools/dpi-utils';
-import { saveToFolder, fallbackDownload, pickDirectory } from '@/lib/image-tools/file-utils';
+import { saveToFolder, fallbackDownload, pickDirectory, isJpegOrPng } from '@/lib/image-tools/file-utils';
 import { ToolGuide } from './tool-guide';
 import { ToolUsageCounter } from './tool-usage-counter';
 
@@ -135,7 +135,7 @@ export function AlbumSplitTool() {
     e.preventDefault();
     setIsDragOver(false);
     const file = e.dataTransfer.files[0];
-    if (file && (file.type === 'image/jpeg' || file.type === 'image/png')) {
+    if (file && isJpegOrPng(file)) {
       // 드래그 & 드롭에서도 파일 핸들 저장 시도
       const item = e.dataTransfer.items[0];
       if (item && 'getAsFileSystemHandle' in item) {

@@ -55,6 +55,21 @@ export async function pickDirectory(): Promise<FileSystemDirectoryHandle | null>
   }
 }
 
+/** 이미지 파일 여부 판별 (MIME type + 확장자 fallback) */
+export function isImageFile(file: File): boolean {
+  if (file.type.startsWith('image/')) return true;
+  // Windows 드래그 앤 드롭 시 file.type이 빈 문자열일 수 있음
+  const name = file.name.toLowerCase();
+  return name.endsWith('.jpg') || name.endsWith('.jpeg') || name.endsWith('.png') || name.endsWith('.webp') || name.endsWith('.bmp') || name.endsWith('.gif');
+}
+
+/** JPEG/PNG 파일 여부 판별 (MIME type + 확장자 fallback) */
+export function isJpegOrPng(file: File): boolean {
+  if (file.type === 'image/jpeg' || file.type === 'image/png') return true;
+  const name = file.name.toLowerCase();
+  return name.endsWith('.jpg') || name.endsWith('.jpeg') || name.endsWith('.png');
+}
+
 /** 이미지 파일 선택 다이얼로그 */
 export async function pickImageFile(): Promise<{ file: File; handle?: FileSystemFileHandle } | null> {
   if ('showOpenFilePicker' in window) {

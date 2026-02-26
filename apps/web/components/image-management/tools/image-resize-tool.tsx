@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { extractDPIFromJPEG, canvasToJPEGWithDPI } from '@/lib/image-tools/dpi-utils';
-import { saveToFolder, fallbackDownload, pickDirectory } from '@/lib/image-tools/file-utils';
+import { saveToFolder, fallbackDownload, pickDirectory, isImageFile } from '@/lib/image-tools/file-utils';
 import { ToolGuide } from './tool-guide';
 import { ToolUsageCounter } from './tool-usage-counter';
 
@@ -150,7 +150,7 @@ export function ImageResizeTool() {
           allFiles.push(...dirFiles);
         } else if (entry.isFile) {
           const file = await readEntryAsFile(entry as FileSystemFileEntry);
-          if (file.type.startsWith('image/')) allFiles.push(file);
+          if (isImageFile(file)) allFiles.push(file);
         }
       }
 
@@ -174,7 +174,7 @@ export function ImageResizeTool() {
       for (const entry of batch) {
         if (entry.isFile) {
           const file = await readEntryAsFile(entry as FileSystemFileEntry);
-          if (file.type.startsWith('image/')) allFiles.push(file);
+          if (isImageFile(file)) allFiles.push(file);
         } else if (entry.isDirectory) {
           const subFiles = await readDirectory(entry as FileSystemDirectoryEntry);
           allFiles.push(...subFiles);
@@ -238,7 +238,7 @@ export function ImageResizeTool() {
       for await (const entry of handle.values()) {
         if (entry.kind === 'file') {
           const file = await entry.getFile();
-          if (file.type.startsWith('image/')) {
+          if (isImageFile(file)) {
             imageFiles.push(file);
           }
         }
