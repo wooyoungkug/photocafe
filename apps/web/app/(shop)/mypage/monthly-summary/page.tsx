@@ -14,8 +14,6 @@ import {
   ArrowRightLeft,
   Download,
   Printer,
-  CreditCard,
-  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,7 +25,6 @@ import {
   useOrders,
   type Order,
 } from '@/hooks/use-orders';
-import { useAddSalesReceipt } from '@/hooks/use-sales-ledger';
 import { useCourierList } from '@/hooks/use-delivery-tracking';
 import { PROCESS_STAGES } from '@/hooks/use-system-settings';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns';
@@ -68,8 +65,6 @@ export default function MonthlySummaryPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [printType, setPrintType] = useState<'summary' | 'detail' | null>(null);
-  const [paymentInput, setPaymentInput] = useState<{ orderId: string; amount: string } | null>(null);
-  const addReceipt = useAddSalesReceipt();
   const { data: couriers = [] } = useCourierList();
   const getCourierName = (code?: string) => couriers.find(c => c.code === code)?.name ?? code ?? '택배';
 
@@ -161,33 +156,6 @@ export default function MonthlySummaryPage() {
       });
     return map;
   }, [allMonthOrders, dailyData]);
-
-  const handlePaymentSubmit = async (order: Order) => {
-    if (!paymentInput || !order.salesLedger?.id) return;
-    const amount = Number(paymentInput.amount.replace(/,/g, ''));
-    if (!amount || amount <= 0) return;
-    const outstanding = Number(order.salesLedger.outstandingAmount);
-    if (amount > outstanding) {
-      toast({ title: `납부금액(${amount.toLocaleString()}원)이 미수금(${outstanding.toLocaleString()}원)을 초과합니다.`, variant: 'destructive' });
-      return;
-    }
-    try {
-      await addReceipt.mutateAsync({
-        salesLedgerId: order.salesLedger.id,
-        data: {
-          receiptDate: format(new Date(), 'yyyy-MM-dd'),
-          amount,
-          paymentMethod: 'bank_transfer',
-        },
-      });
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
-      queryClient.invalidateQueries({ queryKey: ['orders', 'daily-summary'] });
-      toast({ title: `${amount.toLocaleString()}원 납부 처리되었습니다.` });
-      setPaymentInput(null);
-    } catch (e: any) {
-      toast({ title: e?.message || '납부 처리 중 오류가 발생했습니다.', variant: 'destructive' });
-    }
-  };
 
   // 인쇄 후 상태 초기화
   useEffect(() => {
@@ -1013,9 +981,6 @@ export default function MonthlySummaryPage() {
                                   }
                                   const orderBalance = orderBalanceMap.get(order.id);
                                   const receivedAmt = Number(order.salesLedger?.receivedAmount || 0);
-                                  const outstandingAmt = Number(order.salesLedger?.outstandingAmount ?? order.finalAmount);
-                                  const isPaymentActive = paymentInput?.orderId === order.id;
-                                  const canPay = !!order.salesLedger?.id && outstandingAmt > 0;
                                   return (
                                     <Fragment key={order.id}>
                                       <tr className="bg-slate-50/60 border-b hover:bg-slate-100/60 text-xs">
@@ -1064,61 +1029,9 @@ export default function MonthlySummaryPage() {
                                           <div className="flex flex-col items-end gap-1">
                                             {renderShippingStatus(order)}
                                             {renderProcessBadge(order.status, order.shipping?.deliveryMethod)}
-                                            {canPay && (
-                                              <button
-                                                type="button"
-                                                onClick={() => setPaymentInput(
-                                                  isPaymentActive ? null : { orderId: order.id, amount: String(outstandingAmt) }
-                                                )}
-                                                className="text-[11px] text-blue-600 hover:text-blue-800 underline whitespace-nowrap"
-                                              >
-                                                {isPaymentActive ? '취소' : '납부 입력'}
-                                              </button>
-                                            )}
                                           </div>
                                         </td>
                                       </tr>
-                                      {/* 납부 입력 인라인 폼 */}
-                                      {isPaymentActive && (
-                                        <tr className="bg-blue-50/70 border-b">
-                                          <td colSpan={2} />
-                                          <td colSpan={5} className="px-3 py-2">
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                              <span className="text-[11px] text-gray-600 whitespace-nowrap">
-                                                미수금 {formatAmount(outstandingAmt)}원 중 납부:
-                                              </span>
-                                              <input
-                                                type="number"
-                                                title="납부금액"
-                                                placeholder="납부금액"
-                                                className="border rounded px-2 py-1 text-[12px] w-28 text-right tabular-nums"
-                                                value={paymentInput.amount}
-                                                onChange={e => setPaymentInput(p => p ? { ...p, amount: e.target.value } : p)}
-                                                onFocus={e => e.target.select()}
-                                                min={1}
-                                                max={outstandingAmt}
-                                              />
-                                              <span className="text-[11px]">원</span>
-                                              <button
-                                                type="button"
-                                                disabled={addReceipt.isPending}
-                                                onClick={() => handlePaymentSubmit(order)}
-                                                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[11px] px-3 py-1 rounded whitespace-nowrap"
-                                              >
-                                                {addReceipt.isPending ? '처리중...' : '납부 확인'}
-                                              </button>
-                                              <button
-                                                type="button"
-                                                title="취소"
-                                                onClick={() => setPaymentInput(null)}
-                                                className="text-gray-400 hover:text-gray-600"
-                                              >
-                                                <X className="h-3.5 w-3.5" />
-                                              </button>
-                                            </div>
-                                          </td>
-                                        </tr>
-                                      )}
                                     </Fragment>
                                   );
                                 })
