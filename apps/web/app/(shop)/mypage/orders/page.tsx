@@ -103,9 +103,21 @@ interface OrderItem {
   quantity: number;
   unitPrice: number;
   totalPrice: number;
+  shipping?: OrderItemShipping;
+}
+
+interface OrderItemShipping {
+  senderName?: string;
+  senderPhone?: string;
+  recipientName?: string;
+  phone?: string;
 }
 
 interface OrderShipping {
+  senderName?: string;
+  senderPhone?: string;
+  recipientName?: string;
+  phone?: string;
   courierCode?: string;
   trackingNumber?: string;
   deliveryMethod?: string;
@@ -565,6 +577,8 @@ export default function MyOrdersPage() {
                     <TableHead className="text-xs">상품명<br />규격</TableHead>
                     <TableHead className="text-center w-[70px] text-xs">페이지<br />/ 부수</TableHead>
                     <TableHead className="text-right w-[100px] text-xs">주문금액</TableHead>
+                    <TableHead className="text-center w-[110px] text-xs">보내는 분</TableHead>
+                    <TableHead className="text-center w-[110px] text-xs">받는 분</TableHead>
                     <TableHead className="text-center w-[100px] text-xs">생산공정</TableHead>
                     <TableHead className="text-center w-[100px] text-xs">배송상황</TableHead>
                   </TableRow>
@@ -636,6 +650,34 @@ export default function MyOrdersPage() {
                             {Number(order.finalAmount).toLocaleString()}원
                           </TableCell>
                         )}
+
+                        {/* 보내는 분 */}
+                        <TableCell className="text-center align-top pt-3">
+                          {(() => {
+                            const s = item.shipping || order.shipping;
+                            if (!s?.senderName) return <span className="text-[11px] text-gray-300">-</span>;
+                            return (
+                              <div className="space-y-0.5">
+                                <div className="text-[11px] text-black font-normal truncate max-w-[100px]">{s.senderName}</div>
+                                <div className="text-[10px] text-gray-500">{s.senderPhone || ''}</div>
+                              </div>
+                            );
+                          })()}
+                        </TableCell>
+
+                        {/* 받는 분 */}
+                        <TableCell className="text-center align-top pt-3">
+                          {(() => {
+                            const r = item.shipping || order.shipping;
+                            if (!r?.recipientName) return <span className="text-[11px] text-gray-300">-</span>;
+                            return (
+                              <div className="space-y-0.5">
+                                <div className="text-[11px] text-black font-normal truncate max-w-[100px]">{r.recipientName}</div>
+                                <div className="text-[10px] text-gray-500">{r.phone || ''}</div>
+                              </div>
+                            );
+                          })()}
+                        </TableCell>
 
                         {/* 생산공정 */}
                         {idx === 0 && (
