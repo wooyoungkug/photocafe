@@ -1000,14 +1000,17 @@ export default function MonthlySummaryPage() {
                                         {formatAmount(Number(order.finalAmount))}원
                                       </td>
                                       <td className="p-2 sm:p-3 text-right text-muted-foreground align-middle">
-                                        {renderShippingStatus(order)}
+                                        -
                                       </td>
                                       <td className="p-2 sm:p-3 text-right tabular-nums text-muted-foreground align-middle">
                                         -
                                       </td>
                                       <td className="p-2 sm:p-3 text-right align-middle">
                                         <div className="flex items-center justify-end gap-1">
-                                          {renderProcessBadge(order.status)}
+                                          <div className="flex flex-col items-end gap-0.5">
+                                            {renderShippingStatus(order)}
+                                            {renderProcessBadge(order.status)}
+                                          </div>
                                           <Link href={`/mypage/orders/${order.id}`}>
                                             <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
                                               <Eye className="h-3.5 w-3.5" />
