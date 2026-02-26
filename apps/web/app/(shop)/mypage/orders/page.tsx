@@ -113,6 +113,14 @@ interface OrderItem {
   totalPrice: number;
 }
 
+interface OrderShipping {
+  courierCode?: string;
+  trackingNumber?: string;
+  deliveryMethod?: string;
+  shippedAt?: string;
+  deliveredAt?: string;
+}
+
 interface Order {
   id: string;
   orderNumber: string;
@@ -123,7 +131,25 @@ interface Order {
   client?: { clientName: string };
   _count?: { items: number };
   items?: OrderItem[];
+  shipping?: OrderShipping;
   processHistory?: { id: string; toStatus: string; processType: string; processedBy: string; processedByName?: string; processedAt: string }[];
+}
+
+// 배송상황 라벨 (스마트택배 level 기반)
+const DELIVERY_STATUS: Record<string, { label: string; className: string }> = {
+  waiting: { label: '대기', className: 'bg-gray-100 text-gray-500' },
+  pickup: { label: '집하', className: 'bg-yellow-100 text-yellow-700' },
+  in_transit: { label: '이동중', className: 'bg-blue-100 text-blue-700' },
+  out_for_delivery: { label: '배달중', className: 'bg-indigo-100 text-indigo-700' },
+  delivered: { label: '배달완료', className: 'bg-green-100 text-green-700' },
+};
+
+function getDeliveryStatusFromOrder(order: Order): { key: string; label: string; className: string } | null {
+  if (!order.shipping?.trackingNumber) return null;
+  if (order.shipping.deliveredAt) return { key: 'delivered', ...DELIVERY_STATUS.delivered };
+  if (order.status === 'shipped') return { key: 'delivered', ...DELIVERY_STATUS.delivered };
+  if (order.status === 'ready_for_shipping') return { key: 'waiting', ...DELIVERY_STATUS.waiting };
+  return null;
 }
 
 export default function MyOrdersPage() {
@@ -548,7 +574,8 @@ export default function MyOrdersPage() {
                     <TableHead className="text-center w-[70px] text-xs">페이지<br />/ 부수</TableHead>
                     <TableHead className="text-center w-[65px] text-xs">용량</TableHead>
                     <TableHead className="text-right w-[100px] text-xs">주문금액</TableHead>
-                    <TableHead className="text-center w-[110px] text-xs">진행상황</TableHead>
+                    <TableHead className="text-center w-[100px] text-xs">생산공정</TableHead>
+                    <TableHead className="text-center w-[100px] text-xs">배송상황</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -620,6 +647,7 @@ export default function MyOrdersPage() {
                           </TableCell>
                         )}
 
+                        {/* 생산공정 */}
                         {idx === 0 && (
                           <TableCell className="text-center align-top pt-3" rowSpan={items.length}>
                             <div className="space-y-1">
@@ -637,6 +665,49 @@ export default function MyOrdersPage() {
                                 {order.processHistory?.[0]?.processedByName || '-'}
                               </div>
                             </div>
+                          </TableCell>
+                        )}
+
+                        {/* 배송상황 */}
+                        {idx === 0 && (
+                          <TableCell className="text-center align-top pt-3" rowSpan={items.length}>
+                            {order.shipping?.trackingNumber && order.shipping?.courierCode ? (
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <button type="button" className="flex flex-col items-center gap-1 w-full group cursor-pointer">
+                                    {(() => {
+                                      const ds = getDeliveryStatusFromOrder(order);
+                                      return ds ? (
+                                        <Badge className={cn('text-xs', ds.className)}>
+                                          {ds.label}
+                                        </Badge>
+                                      ) : (
+                                        <Badge className="text-xs bg-yellow-100 text-yellow-700">배송중</Badge>
+                                      );
+                                    })()}
+                                    <span className="text-[10px] text-blue-600 group-hover:underline flex items-center gap-0.5">
+                                      <MapPin className="h-3 w-3" />
+                                      이동경로
+                                    </span>
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[360px] p-3" align="end" sideOffset={8}>
+                                  <div className="text-xs font-semibold mb-2 text-gray-700">
+                                    배송 상세 이동경로
+                                  </div>
+                                  <TrackingTimeline
+                                    courierCode={order.shipping.courierCode}
+                                    trackingNumber={order.shipping.trackingNumber}
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                            ) : order.status === 'shipped' ? (
+                              <Badge className="text-xs bg-green-100 text-green-700">배송완료</Badge>
+                            ) : ['ready_for_shipping'].includes(order.status) ? (
+                              <span className="text-[11px] text-gray-400">배송준비중</span>
+                            ) : (
+                              <span className="text-[11px] text-gray-300">-</span>
+                            )}
                           </TableCell>
                         )}
 

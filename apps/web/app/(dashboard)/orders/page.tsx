@@ -329,7 +329,7 @@ export default function OrderListPage() {
                           >
                             <div className="space-y-1">
                               <div className="text-xs text-muted-foreground whitespace-nowrap">
-                                {format(new Date(order.orderedAt), 'yyyy-MM-dd HH:mm', { locale: ko })}
+                                {format(new Date(order.orderedAt), 'yy-MM-dd HH:mm', { locale: ko })}
                               </div>
                               <Link
                                 href={`/mypage/orders/${order.id}`}
