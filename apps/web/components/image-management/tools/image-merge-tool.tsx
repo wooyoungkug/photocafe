@@ -227,13 +227,15 @@ export function ImageMergeTool() {
         let imageList = [...images];
 
         if (startDirection === 'right') {
-          // Right-start: prepend a blank page
+          // Right-start: prepend a blank page on the left
           imageList.unshift(null as any);
+          addLog(`[${folder.path}] 오른쪽 시작: 첫 페이지 왼쪽에 빈 페이지(흰색) 추가`, 'info');
         }
 
-        // If odd count after adjustment, append blank page
+        // If odd count after adjustment, append blank page on the right
         if (imageList.length % 2 !== 0) {
           imageList.push(null as any);
+          addLog(`[${folder.path}] 마지막 페이지 오른쪽에 빈 페이지(흰색) 추가`, 'info');
         }
 
         // Merge pairs into pages
@@ -387,7 +389,7 @@ export function ImageMergeTool() {
     <div className="space-y-4">
       {/* Guide */}
       <ToolGuide title="이미지 합치기 사용 방법">
-        <div className="pt-3 space-y-3">
+        <div className="pt-3 space-y-4">
           <svg viewBox="0 0 400 120" className="w-full max-w-[400px]" xmlns="http://www.w3.org/2000/svg">
             {/* Left image A */}
             <rect x="10" y="20" width="60" height="80" rx="4" fill="#DBEAFE" stroke="#3B82F6" strokeWidth="1.5" />
@@ -411,10 +413,58 @@ export function ImageMergeTool() {
             <text x="75" y="14" textAnchor="middle" fontSize="11" fill="#64748B">원본 이미지</text>
             <text x="300" y="14" textAnchor="middle" fontSize="11" fill="#64748B">좌우 합치기</text>
           </svg>
+
+          {/* Start direction examples */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="p-3 rounded-lg bg-slate-50 border space-y-1.5">
+              <p className="text-xs font-medium text-slate-700">왼쪽 시작 (기본)</p>
+              <div className="flex items-center gap-1">
+                <div className="flex border rounded overflow-hidden">
+                  <span className="px-2.5 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold border-r border-dashed border-blue-200">A</span>
+                  <span className="px-2.5 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold">B</span>
+                </div>
+                <div className="flex border rounded overflow-hidden">
+                  <span className="px-2.5 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold border-r border-dashed border-blue-200">C</span>
+                  <span className="px-2.5 py-1.5 bg-slate-100 text-slate-400 text-xs font-bold border-dashed">빈</span>
+                </div>
+              </div>
+              <p className="text-[10px] text-slate-500">A,B,C 3장 → [A|B] [C|빈] (홀수 시 끝에 빈 페이지)</p>
+            </div>
+            <div className="p-3 rounded-lg bg-slate-50 border space-y-1.5">
+              <p className="text-xs font-medium text-slate-700">오른쪽 시작</p>
+              <div className="flex items-center gap-1">
+                <div className="flex border rounded overflow-hidden">
+                  <span className="px-2.5 py-1.5 bg-slate-100 text-slate-400 text-xs font-bold border-r border-dashed border-slate-300">빈</span>
+                  <span className="px-2.5 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold">A</span>
+                </div>
+                <div className="flex border rounded overflow-hidden">
+                  <span className="px-2.5 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold border-r border-dashed border-blue-200">B</span>
+                  <span className="px-2.5 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold">C</span>
+                </div>
+              </div>
+              <p className="text-[10px] text-slate-500">A,B,C 3장 → [빈|A] [B|C] (첫 페이지 왼쪽에 빈 페이지)</p>
+              <div className="flex items-center gap-1 mt-1">
+                <div className="flex border rounded overflow-hidden">
+                  <span className="px-2.5 py-1.5 bg-slate-100 text-slate-400 text-xs font-bold border-r border-dashed border-slate-300">빈</span>
+                  <span className="px-2.5 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold">A</span>
+                </div>
+                <div className="flex border rounded overflow-hidden">
+                  <span className="px-2.5 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold border-r border-dashed border-blue-200">B</span>
+                  <span className="px-2.5 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold">C</span>
+                </div>
+                <div className="flex border rounded overflow-hidden">
+                  <span className="px-2.5 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold border-r border-dashed border-blue-200">D</span>
+                  <span className="px-2.5 py-1.5 bg-slate-100 text-slate-400 text-xs font-bold border-dashed">빈</span>
+                </div>
+              </div>
+              <p className="text-[10px] text-slate-500">A~D 4장 → [빈|A] [B|C] [D|빈] (앞뒤 빈 페이지 자동 추가)</p>
+            </div>
+          </div>
+
           <ul className="text-sm text-slate-600 space-y-1 list-disc list-inside">
             <li>같은 폴더 내 이미지들을 순서대로 좌우 합치기</li>
             <li>1,2 → 1장 / 3,4 → 2장 ... 순서로 자동 합성</li>
-            <li>홀수/짝수 합치기 또는 순서대로 합치기 선택</li>
+            <li>왼쪽 시작 / 오른쪽 시작 선택 (빈 페이지 자동 추가)</li>
             <li>DPI 보존, 배치 처리 지원</li>
           </ul>
         </div>
@@ -489,11 +539,17 @@ export function ImageMergeTool() {
                 >
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="left" id="dir-left" />
-                    <Label htmlFor="dir-left" className="text-sm cursor-pointer">왼쪽부터</Label>
+                    <Label htmlFor="dir-left" className="cursor-pointer">
+                      <span className="text-sm">왼쪽 시작</span>
+                      <span className="text-[10px] text-slate-500 block">첫 이미지 왼쪽 배치</span>
+                    </Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="right" id="dir-right" />
-                    <Label htmlFor="dir-right" className="text-sm cursor-pointer">오른쪽부터</Label>
+                    <Label htmlFor="dir-right" className="cursor-pointer">
+                      <span className="text-sm">오른쪽 시작</span>
+                      <span className="text-[10px] text-slate-500 block">첫 이미지 오른쪽 배치 (왼쪽 빈 페이지)</span>
+                    </Label>
                   </div>
                 </RadioGroup>
               </div>
