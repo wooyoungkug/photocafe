@@ -18,6 +18,7 @@ import {
   CalendarIcon,
   Ban,
   MapPin,
+  RotateCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -46,6 +47,7 @@ import { useAuthStore } from '@/stores/auth-store';
 import { useToast } from '@/hooks/use-toast';
 import { ProcessHistoryDialog } from '@/components/order/process-history-dialog';
 import { TrackingTimeline } from '@/components/order/tracking-timeline';
+import { ReturnRequestDialog } from '@/components/order/return-request-dialog';
 import { api } from '@/lib/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -194,6 +196,9 @@ export default function MyOrdersPage() {
   const [historyOrderId, setHistoryOrderId] = useState<string | null>(null);
   const [historyOrderNumber, setHistoryOrderNumber] = useState<string>('');
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+
+  // 반품/교환 다이얼로그
+  const [returnTargetOrder, setReturnTargetOrder] = useState<Order | null>(null);
 
   // 주문 목록 조회
   const { data: ordersResponse, isLoading } = useQuery({
@@ -696,6 +701,16 @@ export default function MyOrdersPage() {
                               >
                                 {order.processHistory?.[0]?.processedByName || '-'}
                               </div>
+                              {(order.status === 'shipped' || order.status === 'ready_for_shipping') && (
+                                <button
+                                  type="button"
+                                  className="text-[10px] text-orange-600 hover:underline flex items-center gap-0.5 mx-auto"
+                                  onClick={() => setReturnTargetOrder(order)}
+                                >
+                                  <RotateCw className="h-3 w-3" />
+                                  반품/교환
+                                </button>
+                              )}
                             </div>
                           </TableCell>
                         )}
