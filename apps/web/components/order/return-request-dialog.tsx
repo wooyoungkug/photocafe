@@ -502,14 +502,6 @@ export function ReturnRequestDialog({
             <span>신청일시: {format(now, 'yyyy-MM-dd (EEE) HH:mm', { locale: ko })}</span>
           </div>
 
-          {/* 신청 유형 */}
-          <div className="space-y-1.5">
-            <Label className="text-[13px]">신청 유형</Label>
-            <div className="text-[13px] h-8 flex items-center px-3 border rounded-md bg-gray-50">
-              앨범수리(재발송)
-            </div>
-          </div>
-
           {/* 사유 선택 */}
           <div className="space-y-1.5">
             <Label className="text-[13px]">사유 선택</Label>
