@@ -28,6 +28,7 @@ import {
   type Order,
 } from '@/hooks/use-orders';
 import { useAddSalesReceipt } from '@/hooks/use-sales-ledger';
+import { useCourierList } from '@/hooks/use-delivery-tracking';
 import { PROCESS_STAGES } from '@/hooks/use-system-settings';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -69,6 +70,8 @@ export default function MonthlySummaryPage() {
   const [printType, setPrintType] = useState<'summary' | 'detail' | null>(null);
   const [paymentInput, setPaymentInput] = useState<{ orderId: string; amount: string } | null>(null);
   const addReceipt = useAddSalesReceipt();
+  const { data: couriers = [] } = useCourierList();
+  const getCourierName = (code?: string) => couriers.find(c => c.code === code)?.name ?? code ?? '택배';
 
   const startDate = startOfMonth(selectedDate);
   const endDate = endOfMonth(selectedDate);
@@ -284,7 +287,7 @@ export default function MonthlySummaryPage() {
         <div className="flex items-center gap-1">
           <Truck className="h-3 w-3 text-blue-500" />
           <span className="text-blue-600 text-xs">
-            {order.shipping.trackingNumber || '배송중'}
+            {order.shipping.courierCode ? getCourierName(order.shipping.courierCode) : '배송중'}
           </span>
         </div>
       );

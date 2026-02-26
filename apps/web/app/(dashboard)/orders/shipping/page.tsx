@@ -573,8 +573,9 @@ export default function ShippingManagementPage() {
                           </TableCell>
                           <TableCell className="text-xs text-center whitespace-nowrap">
                             <span>
-                              {DELIVERY_METHOD_LABELS[order.shipping?.deliveryMethod ?? ''] ??
-                                getCourierName(order.shipping?.courierCode)}
+                              {order.shipping?.deliveryMethod === 'parcel' && order.shipping?.courierCode
+                                ? getCourierName(order.shipping.courierCode)
+                                : (DELIVERY_METHOD_LABELS[order.shipping?.deliveryMethod ?? ''] ?? '-')}
                             </span>
                             {deliveryFee > 0 && order.shipping?.fareType && FARE_TYPE_CONFIG[order.shipping.fareType] && (
                               <span className={cn('ml-0.5', FARE_TYPE_CONFIG[order.shipping.fareType].className)}>
