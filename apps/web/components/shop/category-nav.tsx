@@ -108,20 +108,6 @@ export function CategoryNav() {
               )}
             </li>
           ))}
-          {/* 이미지관리 - 전용 페이지 정적 링크 */}
-          <li>
-            <Link
-              href="/image-management"
-              className={cn(
-                "flex items-center gap-1.5 px-4 py-2 text-xs tracking-wider uppercase font-medium transition-colors",
-                pathname === "/image-management"
-                  ? "text-gold"
-                  : "text-neutral-500 hover:text-neutral-900"
-              )}
-            >
-              이미지관리
-            </Link>
-          </li>
         </ul>
 
         {/* Mobile Navigation - Horizontal Scroll */}
@@ -167,20 +153,6 @@ export function CategoryNav() {
                 </Link>
               </li>
             ))}
-            {/* 이미지관리 - 전용 페이지 정적 링크 */}
-            <li>
-              <Link
-                href="/image-management"
-                className={cn(
-                  "flex items-center px-3 py-1 text-[11px] tracking-wider uppercase font-medium transition-colors whitespace-nowrap",
-                  pathname === "/image-management"
-                    ? "text-gold border-b-2 border-gold"
-                    : "text-neutral-500 hover:text-neutral-900"
-                )}
-              >
-                이미지관리
-              </Link>
-            </li>
           </ul>
         </div>
       </div>
