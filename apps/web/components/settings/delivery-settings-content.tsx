@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Truck, Bike, Car, Package, Building2, Save, RotateCcw, Plus, Trash2, Calculator, Navigation, MapPin, Loader2 } from "lucide-react";
+import { Truck, Bike, Car, Package, Building2, Save, RotateCcw, Plus, Trash2, Calculator, Navigation, MapPin, Loader2, Clock, Radio } from "lucide-react";
 
 // 숫자 포맷 헬퍼 함수
 const formatNumber = (value: number): string => {
@@ -37,6 +37,7 @@ import {
 } from "@/hooks/use-production";
 import { toast } from "sonner";
 import { useCalculateDeliveryFeeByAddress } from "@/hooks/use-delivery-pricing";
+import { useSystemSettings, useUpdateSystemSetting, settingsToMap } from "@/hooks/use-system-settings";
 
 // 배송방법 타입
 type DeliveryMethod = 'delivery_parcel' | 'delivery_motorcycle' | 'delivery_damas' | 'delivery_freight' | 'delivery_pickup';
@@ -194,6 +195,42 @@ export default function DeliverySettingsContent({
     isWeekend: false,
   });
   const [addressCalcResult, setAddressCalcResult] = useState<any>(null);
+
+  // 배송추적 자동조회 설정
+  const { data: shippingSettings } = useSystemSettings("shipping");
+  const updateSystemSetting = useUpdateSystemSetting();
+  const [pollHours, setPollHours] = useState<number[]>([9, 10, 12, 14, 16, 18]);
+
+  useEffect(() => {
+    if (shippingSettings) {
+      const map = settingsToMap(shippingSettings);
+      const saved = map["tracking_poll_hours"];
+      if (saved) {
+        const hours = saved.split(",").map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+        if (hours.length > 0) setPollHours(hours);
+      }
+    }
+  }, [shippingSettings]);
+
+  const togglePollHour = (hour: number) => {
+    setPollHours(prev =>
+      prev.includes(hour) ? prev.filter(h => h !== hour) : [...prev, hour].sort((a, b) => a - b)
+    );
+  };
+
+  const savePollHours = async () => {
+    try {
+      await updateSystemSetting.mutateAsync({
+        key: "tracking_poll_hours",
+        value: pollHours.join(","),
+        category: "shipping",
+        label: "배송추적 자동조회 시간",
+      });
+      toast.success("배송추적 조회 시간이 저장되었습니다.");
+    } catch {
+      toast.error("저장 중 오류가 발생했습니다.");
+    }
+  };
 
   // API Hooks
   const { data: groups } = useProductionGroups();
@@ -811,6 +848,51 @@ export default function DeliverySettingsContent({
           </TabsContent>
         ))}
       </Tabs>
+
+      {/* 배송추적 자동조회 설정 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Radio className="h-5 w-5" />
+            배송추적 자동조회
+          </CardTitle>
+          <CardDescription>
+            택배전표 발행 후 택배사 배송이력을 자동으로 조회하는 시간을 설정합니다. (스마트택배 API)
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-3">
+            <Label className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              조회 시간 선택
+            </Label>
+            <div className="flex flex-wrap gap-2">
+              {Array.from({ length: 15 }, (_, i) => i + 7).map((hour) => (
+                <Button
+                  key={hour}
+                  type="button"
+                  variant={pollHours.includes(hour) ? "default" : "outline"}
+                  size="sm"
+                  className="w-16 text-[11px]"
+                  onClick={() => togglePollHour(hour)}
+                >
+                  {String(hour).padStart(2, "0")}:00
+                </Button>
+              ))}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              선택한 시간(정각)에 배송중인 주문의 택배 추적정보를 자동 조회하여 공정이력에 기록합니다.
+              현재 {pollHours.length}개 시간 선택됨: {pollHours.map(h => `${String(h).padStart(2, "0")}:00`).join(", ")}
+            </p>
+          </div>
+          <div className="flex justify-end">
+            <Button onClick={savePollHours} disabled={updateSystemSetting.isPending} size="sm">
+              <Save className="h-4 w-4 mr-2" />
+              저장
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* 카카오맵 기반 배송비 계산기 */}
       {showKakaoCalculator && (
