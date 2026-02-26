@@ -27,6 +27,7 @@ import {
   RotateCcw,
   Folder,
   Palette,
+  RotateCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,6 +46,12 @@ import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { TrackingTimeline } from '@/components/order/tracking-timeline';
 import { ShippingEditWithFeeDialog } from '@/components/order/shipping-edit-with-fee-dialog';
+import { ReturnRequestDialog } from '@/components/order/return-request-dialog';
+import { ReturnStatusBadge } from '@/components/order/return-status-badge';
+import {
+  useReturnRequestsByOrder,
+  RETURN_REASON_LABELS,
+} from '@/hooks/use-return-requests';
 
 // 주문 상태 타입 (orders/page.tsx와 동일)
 const ORDER_STATUS = {
@@ -240,6 +247,8 @@ export default function OrderDetailPage() {
   const [isDownloading, setIsDownloading] = useState(false);
   // 배송정보 수정 다이얼로그
   const [shippingEditOpen, setShippingEditOpen] = useState(false);
+  // 반품/교환 신청 다이얼로그
+  const [returnDialogOpen, setReturnDialogOpen] = useState(false);
 
   // 주문 상세 조회
   const { data: order, isLoading } = useQuery({
@@ -249,6 +258,9 @@ export default function OrderDetailPage() {
     },
     enabled: isAuthenticated && !!orderId,
   });
+
+  // 반품 목록 조회
+  const { data: returnRequests } = useReturnRequestsByOrder(orderId);
 
   const openPreview = (files: OrderFile[], index: number, itemName: string) => {
     setZoomLevel(1);
@@ -387,10 +399,23 @@ export default function OrderDetailPage() {
               <h1 className="text-2xl font-normal mb-2">주문 상세</h1>
               <p className="text-gray-500">주문번호: {order.orderNumber}</p>
             </div>
-            <Badge className={`${statusConfig.className} px-4 py-2`}>
-              {statusConfig.icon}
-              <span className="ml-2 text-base">{statusConfig.label}</span>
-            </Badge>
+            <div className="flex items-center gap-3">
+              {(order.status === ORDER_STATUS.SHIPPED || order.status === ORDER_STATUS.READY_FOR_SHIPPING) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-[11px] h-8"
+                  onClick={() => setReturnDialogOpen(true)}
+                >
+                  <RotateCw className="h-3.5 w-3.5 mr-1.5" />
+                  반품/교환 신청
+                </Button>
+              )}
+              <Badge className={`${statusConfig.className} px-4 py-2`}>
+                {statusConfig.icon}
+                <span className="ml-2 text-base">{statusConfig.label}</span>
+              </Badge>
+            </div>
           </div>
         </div>
       </div>
@@ -762,6 +787,73 @@ export default function OrderDetailPage() {
                 )}
               </CardContent>
             </Card>
+
+            {/* 반품/교환 이력 */}
+            {returnRequests && returnRequests.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <RotateCw className="h-5 w-5" />
+                    반품/교환 이력
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {returnRequests.map((rr) => (
+                    <div key={rr.id} className="border rounded-md p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] text-gray-500">{rr.returnNumber}</span>
+                        <ReturnStatusBadge status={rr.status} type={rr.type} />
+                      </div>
+                      <div className="text-[11px]">
+                        <span className="text-gray-500">사유: </span>
+                        <span>{RETURN_REASON_LABELS[rr.reason] || rr.reason}</span>
+                        {rr.reasonDetail && (
+                          <span className="text-gray-400 ml-1">({rr.reasonDetail})</span>
+                        )}
+                      </div>
+                      {rr.items && rr.items.length > 0 && (
+                        <div className="text-[10px] text-gray-500">
+                          {rr.items.map((item) => (
+                            <div key={item.id}>
+                              {item.orderItem?.productName || '상품'} x {item.quantity}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {rr.shippingFeeChargedTo && (
+                        <div className="text-[10px]">
+                          <span className="text-gray-500">배송비: </span>
+                          <span className={rr.shippingFeeChargedTo === 'company' ? 'text-green-600' : 'text-red-600'}>
+                            {rr.shippingFeeChargedTo === 'company' ? '무료(회사부담)' : `고객부담 ${rr.returnShippingFee ? `${Number(rr.returnShippingFee).toLocaleString()}원` : ''}`}
+                          </span>
+                        </div>
+                      )}
+                      {rr.returnCourierCode && rr.returnTrackingNumber && (
+                        <div className="border-t pt-2 mt-2">
+                          <p className="text-[10px] text-gray-500 mb-1">반품 배송추적</p>
+                          <TrackingTimeline
+                            courierCode={rr.returnCourierCode}
+                            trackingNumber={rr.returnTrackingNumber}
+                          />
+                        </div>
+                      )}
+                      {rr.refundAmount && (
+                        <div className="text-[10px]">
+                          <span className="text-gray-500">환불: </span>
+                          <span className="text-blue-600">
+                            {Number(rr.refundAmount).toLocaleString()}원
+                            {rr.refundedAt && ` (${format(new Date(rr.refundedAt), 'yyyy.MM.dd', { locale: ko })})`}
+                          </span>
+                        </div>
+                      )}
+                      <div className="text-[10px] text-gray-400">
+                        {format(new Date(rr.createdAt), 'yyyy.MM.dd HH:mm', { locale: ko })}
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Memos */}
             {(order.customerMemo || order.productMemo) && (

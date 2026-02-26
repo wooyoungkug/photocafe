@@ -83,14 +83,6 @@ const STATUS_BADGE: Record<string, { label: string; className: string }> = {
   cancelled: { label: '취소', className: 'bg-gray-100 text-gray-500 line-through' },
 };
 
-function formatFileSize(bytes?: number): string {
-  if (!bytes || bytes === 0) return '-';
-  if (bytes < 1024) return `${bytes}B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)}GB`;
-}
-
 interface OrderItem {
   id: string;
   productionNumber: string;
@@ -572,7 +564,6 @@ export default function MyOrdersPage() {
                     <TableHead className="text-center w-[140px] text-xs">주문일<br />(주문번호)</TableHead>
                     <TableHead className="text-xs">상품명<br />규격</TableHead>
                     <TableHead className="text-center w-[70px] text-xs">페이지<br />/ 부수</TableHead>
-                    <TableHead className="text-center w-[65px] text-xs">용량</TableHead>
                     <TableHead className="text-right w-[100px] text-xs">주문금액</TableHead>
                     <TableHead className="text-center w-[100px] text-xs">생산공정</TableHead>
                     <TableHead className="text-center w-[100px] text-xs">배송상황</TableHead>
@@ -639,7 +630,6 @@ export default function MyOrdersPage() {
                           <div>{item.pages}p</div>
                           <div>{item.quantity}건</div>
                         </TableCell>
-                        <TableCell className="text-center text-xs text-muted-foreground">{formatFileSize(Number(item.totalFileSize))}</TableCell>
 
                         {idx === 0 && (
                           <TableCell className="text-right align-top pt-3 text-sm" rowSpan={items.length}>
