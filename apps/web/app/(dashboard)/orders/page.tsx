@@ -274,8 +274,8 @@ export default function OrderListPage() {
                         aria-label="전체 선택"
                       />
                     </TableHead>
-                    <TableHead className="text-center w-[130px] text-xs">
-                      주문일<br />(주문번호)
+                    <TableHead className="text-center w-[160px] text-xs whitespace-nowrap">
+                      주문일(주문번호)
                     </TableHead>
                     <TableHead className="text-center w-[100px] text-xs">회원정보<br />영업담당자</TableHead>
                     <TableHead className="text-xs w-[150px]">상품명</TableHead>
@@ -328,12 +328,12 @@ export default function OrderListPage() {
                             rowSpan={items.length}
                           >
                             <div className="space-y-1">
-                              <div className="text-xs text-muted-foreground">
+                              <div className="text-xs text-muted-foreground whitespace-nowrap">
                                 {format(new Date(order.orderedAt), 'yyyy-MM-dd HH:mm', { locale: ko })}
                               </div>
                               <Link
                                 href={`/mypage/orders/${order.id}`}
-                                className="text-xs font-semibold text-foreground hover:underline"
+                                className="text-xs font-semibold text-foreground hover:underline whitespace-nowrap"
                               >
                                 {order.orderNumber}
                               </Link>
