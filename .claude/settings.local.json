@@ -356,7 +356,12 @@
       "WebFetch(domain:naverdownload.com)",
       "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\" \"postgresql://postgres:postgres@localhost:5432/printing_erp\" -f \"C:/dev/printing114/fix_shipping.sql\")",
       "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql\" \"postgresql://postgres:postgres@localhost:5432/printing_erp\" -f \"/c/dev/printing114/fix_shipping.sql\")",
-      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql\":*)"
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql\":*)",
+      "Bash(\"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -c \"SELECT \"\"staffId\"\", name, email, role, \"\"isActive\"\" FROM \"\"Staff\"\" ORDER BY \"\"createdAt\"\" LIMIT 20;\")",
+      "Bash(PGPASSWORD=postgres \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -t -c \"SELECT \"\"staffId\"\", name, email, role, \"\"isActive\"\" FROM \"\"Staff\"\" ORDER BY \"\"createdAt\"\";\")",
+      "Bash(PGPASSWORD=postgres \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -t -c \"\\\\dt\")",
+      "Bash(PGPASSWORD=postgres \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -t -c \"SELECT staff_id, name, email, role, is_active FROM staff ORDER BY created_at;\")",
+      "Bash(PGPASSWORD=postgres \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -t -c \"SELECT \"\"staffId\"\", name, email, role, \"\"isActive\"\" FROM staff ORDER BY \"\"createdAt\"\";\")"
     ],
     "additionalDirectories": [
       "C:\\dev\\printing114\\apps\\api\\dist",
