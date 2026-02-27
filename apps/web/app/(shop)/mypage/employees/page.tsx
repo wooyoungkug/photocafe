@@ -327,7 +327,7 @@ function InviteDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-[24px] font-normal">직원 초대</DialogTitle>
-          <DialogDescription className="text-[14px]">
+          <DialogDescription className="text-[12px]">
             초대할 직원의 이메일과 역할을 입력하세요
           </DialogDescription>
         </DialogHeader>
