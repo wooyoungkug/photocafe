@@ -189,7 +189,7 @@ function LoginForm() {
                   </>
                 ) : (
                   <>
-                    <div className="text-[18px] text-black font-bold">
+                    <div className="text-[16px] text-black font-normal">
                       {context.companyName || ''}
                     </div>
                     <div className="text-[12px] text-muted-foreground">
