@@ -399,7 +399,7 @@ function InviteDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="MANAGER" className="text-[14px]">Manager (직원관리 가능)</SelectItem>
+                  <SelectItem value="MANAGER" className="text-[14px]">Manager</SelectItem>
                   <SelectItem value="EDITOR" className="text-[14px]">Artist</SelectItem>
                   <SelectItem value="PHOTOGRAPHER" className="text-[14px]">Photographer</SelectItem>
                   <SelectItem value="STAFF" className="text-[14px]">STAFF</SelectItem>
