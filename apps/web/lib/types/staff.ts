@@ -27,9 +27,82 @@ export interface Department {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  teams?: TeamSummary[];
   _count?: {
     staff: number;
+    teams: number;
   };
+}
+
+// 팀 요약 (부서 목록 내)
+export interface TeamSummary {
+  id: string;
+  code: string;
+  name: string;
+  isActive: boolean;
+  sortOrder: number;
+  leaderId?: string;
+  leader?: { id: string; staffId: string; name: string };
+  _count?: { staff: number };
+}
+
+// 팀
+export interface Team {
+  id: string;
+  code: string;
+  name: string;
+  departmentId: string;
+  department?: { id: string; code: string; name: string };
+  leaderId?: string;
+  leader?: { id: string; staffId: string; name: string; position?: string };
+  description?: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  staff?: { id: string; staffId: string; name: string; position?: string; email?: string; isActive: boolean }[];
+  _count?: { staff: number };
+}
+
+export interface CreateTeamRequest {
+  code: string;
+  name: string;
+  departmentId: string;
+  leaderId?: string;
+  description?: string;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
+export type UpdateTeamRequest = Partial<CreateTeamRequest>;
+
+export interface TeamQuery {
+  departmentId?: string;
+  isActive?: boolean;
+}
+
+// 감사 로그
+export interface AuditLog {
+  id: string;
+  entityType: string;
+  entityId: string;
+  action: string;
+  changes?: Record<string, { old: any; new: any }>;
+  performedBy: string;
+  performerName: string;
+  ipAddress?: string;
+  metadata?: Record<string, any>;
+  createdAt: string;
+}
+
+export interface AuditLogQuery {
+  page?: number;
+  limit?: number;
+  entityType?: string;
+  action?: string;
+  performedBy?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 // 지점 (간소화)
