@@ -476,35 +476,35 @@ function EditPermissionDialog({
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label className="text-[11px]">역할</Label>
+            <Label className="text-[14px] text-black font-normal">역할</Label>
             <Select value={role} onValueChange={(v) => setRole(v as EmployeeRole)}>
-              <SelectTrigger className="text-[11px]">
+              <SelectTrigger className="text-[14px] text-black font-normal">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="MANAGER" className="text-[11px]">Manager</SelectItem>
-                <SelectItem value="EDITOR" className="text-[11px]">Artist</SelectItem>
-                <SelectItem value="PHOTOGRAPHER" className="text-[11px]">Photographer</SelectItem>
-                <SelectItem value="STAFF" className="text-[11px]">STAFF</SelectItem>
+                <SelectItem value="MANAGER" className="text-[14px] text-black font-normal">Manager</SelectItem>
+                <SelectItem value="EDITOR" className="text-[14px] text-black font-normal">Artist</SelectItem>
+                <SelectItem value="PHOTOGRAPHER" className="text-[14px] text-black font-normal">Photographer</SelectItem>
+                <SelectItem value="STAFF" className="text-[14px] text-black font-normal">STAFF</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-2">
-            <Label className="text-[11px]">상태</Label>
+            <Label className="text-[14px] text-black font-normal">상태</Label>
             <Select value={status} onValueChange={(v) => setStatus(v as EmploymentStatus)}>
-              <SelectTrigger className="text-[11px]">
+              <SelectTrigger className="text-[14px] text-black font-normal">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ACTIVE" className="text-[11px]">활성</SelectItem>
-                <SelectItem value="SUSPENDED" className="text-[11px]">정지</SelectItem>
+                <SelectItem value="ACTIVE" className="text-[14px] text-black font-normal">활성</SelectItem>
+                <SelectItem value="SUSPENDED" className="text-[14px] text-black font-normal">정지</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-3">
-            <Label className="text-[11px]">권한</Label>
+            <Label className="text-[14px] text-black font-normal">권한</Label>
             <div className="space-y-2">
               <div className="flex items-center space-x-2">
                 <Checkbox
@@ -512,7 +512,7 @@ function EditPermissionDialog({
                   checked={canViewAllOrders}
                   onCheckedChange={(v) => setCanViewAllOrders(v as boolean)}
                 />
-                <label htmlFor="viewAllOrders" className="text-[11px] cursor-pointer">
+                <label htmlFor="viewAllOrders" className="text-[14px] text-black font-normal cursor-pointer">
                   전체 주문 열람 (미체크 시 본인 주문만)
                 </label>
               </div>
@@ -522,7 +522,7 @@ function EditPermissionDialog({
                   checked={canManageProducts}
                   onCheckedChange={(v) => setCanManageProducts(v as boolean)}
                 />
-                <label htmlFor="manageProducts" className="text-[11px] cursor-pointer">
+                <label htmlFor="manageProducts" className="text-[14px] text-black font-normal cursor-pointer">
                   상품 관리 (마이상품)
                 </label>
               </div>
@@ -532,7 +532,7 @@ function EditPermissionDialog({
                   checked={canViewSettlement}
                   onCheckedChange={(v) => setCanViewSettlement(v as boolean)}
                 />
-                <label htmlFor="viewSettlement" className="text-[11px] cursor-pointer">
+                <label htmlFor="viewSettlement" className="text-[14px] text-black font-normal cursor-pointer">
                   정산/입금 정보 열람
                 </label>
               </div>
