@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useState, useCallback, useEffect } from "react";
 import {
   Building2,
+  Camera,
   ChevronDown,
   ChevronRight,
   ChevronUp,
@@ -178,6 +179,15 @@ const DEFAULT_NAVIGATION: NavItem[] = [
     name: "일정관리",
     href: "/schedule",
     icon: CalendarDays,
+  },
+  {
+    id: "shooting",
+    name: "촬영관리",
+    icon: Camera,
+    children: [
+      { name: "촬영일정", href: "/shooting" },
+      { name: "작가관리", href: "/shooting/photographers" },
+    ],
   },
   {
     id: "statistics",

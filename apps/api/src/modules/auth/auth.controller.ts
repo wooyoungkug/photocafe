@@ -125,27 +125,54 @@ export class AuthController {
       return this.authService.loginClient(client, dto.rememberMe ?? false, ip);
     }
 
+    // 본인이 대표(Owner)인 회사가 있으면 "내 계정(개인)" 숨김
+    const hasOwnerEmployment = employments.some(
+      (e: any) => e.memberClientId === e.companyClientId,
+    );
+
+    const employeeContexts = employments.map((e: any) => ({
+      type: 'employee',
+      employmentId: e.id,
+      companyClientId: e.companyClientId,
+      companyName: e.company.clientName,
+      clientName: client.clientName,
+      role: e.role,
+      isOwner: e.memberClientId === e.companyClientId,
+    }));
+
+    const contexts = [
+      // Owner가 아닌 경우에만 개인 계정 표시
+      ...(!hasOwnerEmployment
+        ? [
+            {
+              type: 'personal',
+              label: '내 계정',
+              clientName: client.clientName,
+              clientId: client.id,
+            },
+          ]
+        : []),
+      ...employeeContexts,
+    ];
+
+    // 선택 가능한 컨텍스트가 1개뿐이면 자동 로그인
+    if (contexts.length === 1) {
+      const ctx = contexts[0];
+      if (ctx.type === 'personal') {
+        return this.authService.loginClient(client, dto.rememberMe ?? false, ip);
+      }
+      // employee 컨텍스트
+      const employment = employments.find((e: any) => e.id === ctx.employmentId);
+      if (employment) {
+        return this.authService.loginEmployeeAsClient(client, employment, dto.rememberMe ?? false, ip);
+      }
+    }
+
     // 소속 회사가 있으면 컨텍스트 선택 필요
     return {
       needsContextSelection: true,
       tempToken: this.authService.generateTempAuthToken(client),
-      contexts: [
-        {
-          type: 'personal',
-          label: '내 계정',
-          clientName: client.clientName,
-          clientId: client.id,
-        },
-        ...employments.map((e: any) => ({
-          type: 'employee',
-          employmentId: e.id,
-          companyClientId: e.companyClientId,
-          companyName: e.company.clientName,
-          clientName: client.clientName,
-          role: e.role,
-          isOwner: e.memberClientId === e.companyClientId,
-        })),
-      ],
+      contexts,
     };
   }
 

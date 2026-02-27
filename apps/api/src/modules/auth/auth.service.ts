@@ -1096,24 +1096,35 @@ export class AuthService {
 
     const employments = await this.getActiveEmployments(client.id);
 
+    // 본인이 대표(Owner)인 회사가 있으면 "내 계정(개인)" 숨김
+    const hasOwnerEmployment = employments.some(
+      (e: any) => e.memberClientId === e.companyClientId,
+    );
+
+    const employeeContexts = employments.map((e: any) => ({
+      type: 'employee',
+      employmentId: e.id,
+      companyClientId: e.companyClientId,
+      companyName: e.company.clientName,
+      clientName: client.clientName,
+      role: e.role,
+      isOwner: e.memberClientId === e.companyClientId,
+    }));
+
     return {
       email: client.email,
       contexts: [
-        {
-          type: 'personal',
-          label: '내 계정',
-          clientName: client.clientName,
-          clientId: client.id,
-        },
-        ...employments.map((e: any) => ({
-          type: 'employee',
-          employmentId: e.id,
-          companyClientId: e.companyClientId,
-          companyName: e.company.clientName,
-          clientName: client.clientName,
-          role: e.role,
-          isOwner: e.memberClientId === e.companyClientId,
-        })),
+        ...(!hasOwnerEmployment
+          ? [
+              {
+                type: 'personal',
+                label: '내 계정',
+                clientName: client.clientName,
+                clientId: client.id,
+              },
+            ]
+          : []),
+        ...employeeContexts,
       ],
     };
   }
