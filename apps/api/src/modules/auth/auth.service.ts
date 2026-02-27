@@ -186,6 +186,65 @@ export class AuthService {
         };
       }
 
+      // Employee(거래처 직원) 토큰
+      if (payload.type === 'employee') {
+        const user = await this.prisma.user.findUnique({
+          where: { id: payload.sub },
+        });
+
+        if (!user || !user.isActive) {
+          throw new UnauthorizedException('Invalid refresh token');
+        }
+
+        const employment = await this.prisma.employment.findUnique({
+          where: { id: payload.employmentId },
+          include: {
+            client: {
+              select: { id: true, clientName: true },
+            },
+          },
+        });
+
+        if (!employment || employment.status !== 'ACTIVE') {
+          throw new UnauthorizedException('Invalid refresh token');
+        }
+
+        const newPayload = {
+          sub: user.id,
+          email: user.email,
+          type: 'employee',
+          role: employment.role,
+          clientId: employment.clientId,
+          employmentId: employment.id,
+          canViewAllOrders: employment.canViewAllOrders,
+          canManageProducts: employment.canManageProducts,
+          canViewSettlement: employment.canViewSettlement,
+        };
+
+        const newRefreshToken = this.jwtService.sign(newPayload, {
+          expiresIn: '30d',
+        });
+
+        return {
+          accessToken: this.jwtService.sign(newPayload),
+          refreshToken: newRefreshToken,
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: employment.role,
+            type: 'employee',
+            clientId: employment.clientId,
+            clientName: employment.client.clientName,
+            employmentId: employment.id,
+            employeeRole: employment.role,
+            canViewAllOrders: employment.canViewAllOrders,
+            canManageProducts: employment.canManageProducts,
+            canViewSettlement: employment.canViewSettlement,
+          },
+        };
+      }
+
       // 기존 User 토큰 (레거시)
       const user = await this.prisma.user.findUnique({
         where: { id: payload.sub },
@@ -925,6 +984,134 @@ export class AuthService {
         isSuperAdmin: role === 'super_admin',
       },
     });
+  }
+
+  // ========== 거래처 직원(Employee) 로그인 ==========
+
+  async validateEmployee(email: string, password: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user || !user.passwordHash || !user.isActive) {
+      return null;
+    }
+
+    const isValid = await bcrypt.compare(password, user.passwordHash);
+    if (!isValid) {
+      return null;
+    }
+
+    // 활성 Employment 조회
+    const employments = await this.prisma.employment.findMany({
+      where: {
+        userId: user.id,
+        status: 'ACTIVE',
+      },
+      include: {
+        client: {
+          select: {
+            id: true,
+            clientName: true,
+            clientCode: true,
+            status: true,
+          },
+        },
+      },
+    });
+
+    // 활성 거래처만 필터
+    const activeEmployments = employments.filter(
+      (e) => e.client.status === 'active',
+    );
+
+    if (activeEmployments.length === 0) {
+      return null;
+    }
+
+    if (activeEmployments.length === 1) {
+      return { user, employment: activeEmployments[0] };
+    }
+
+    // 복수 거래처 소속
+    return { user, employments: activeEmployments };
+  }
+
+  async loginEmployee(
+    user: any,
+    employment: any,
+    rememberMe: boolean = false,
+  ) {
+    // 로그인 시각 기록
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    });
+
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      type: 'employee',
+      role: employment.role,
+      clientId: employment.clientId,
+      employmentId: employment.id,
+      canViewAllOrders: employment.canViewAllOrders,
+      canManageProducts: employment.canManageProducts,
+      canViewSettlement: employment.canViewSettlement,
+    };
+
+    const accessToken = this.jwtService.sign(payload);
+    const refreshToken = this.jwtService.sign(payload, {
+      expiresIn: rememberMe ? '30d' : '7d',
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: employment.role,
+        type: 'employee',
+        clientId: employment.clientId,
+        clientName: employment.client.clientName,
+        employmentId: employment.id,
+        employeeRole: employment.role,
+        canViewAllOrders: employment.canViewAllOrders,
+        canManageProducts: employment.canManageProducts,
+        canViewSettlement: employment.canViewSettlement,
+      },
+    };
+  }
+
+  async loginEmployeeBySelection(
+    userId: string,
+    employmentId: string,
+    rememberMe: boolean = false,
+  ) {
+    const employment = await this.prisma.employment.findUnique({
+      where: { id: employmentId },
+      include: {
+        client: {
+          select: { id: true, clientName: true, clientCode: true },
+        },
+      },
+    });
+
+    if (!employment || employment.userId !== userId || employment.status !== 'ACTIVE') {
+      throw new UnauthorizedException('유효하지 않은 선택입니다.');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('비활성 계정입니다.');
+    }
+
+    return this.loginEmployee(user, employment, rememberMe);
   }
 
   // 관리자가 특정 회원으로 대리 로그인

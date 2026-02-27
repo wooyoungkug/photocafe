@@ -128,12 +128,13 @@ export class OrderService {
     search?: string;
     searchType?: string;
     clientId?: string;
+    createdByUserId?: string;
     status?: string;
     startDate?: Date;
     endDate?: Date;
     isUrgent?: boolean;
   }) {
-    const { skip = 0, take = 20, search, searchType, clientId, status, startDate, endDate, isUrgent } = params;
+    const { skip = 0, take = 20, search, searchType, clientId, createdByUserId, status, startDate, endDate, isUrgent } = params;
 
     // 날짜 문자열("YYYY-MM-DD")을 KST 기준으로 해석
     // new Date("2026-02-20") = UTC 자정이므로, KST 자정(UTC-9h)으로 보정
@@ -195,6 +196,7 @@ export class OrderService {
     const where: Prisma.OrderWhereInput = {
       ...searchCondition,
       ...(clientId && { clientId }),
+      ...(createdByUserId && { createdByUserId }),
       ...(status && { status }),
       ...(isUrgent !== undefined && { isUrgent }),
       ...(adjustedStartDate || adjustedEndDate
@@ -429,7 +431,7 @@ export class OrderService {
   }
 
   // ==================== 주문 생성 (트랜잭션 + Advisory Lock으로 주문번호 원자적 생성) ====================
-  async create(dto: CreateOrderDto, userId: string): Promise<any> {
+  async create(dto: CreateOrderDto, userId: string, createdByUserId?: string): Promise<any> {
     const { items, shipping, ...orderData } = dto;
 
     // 거래처 확인 (트랜잭션 밖에서 수행)
@@ -634,6 +636,7 @@ export class OrderService {
           orderNumber,
           barcode,
           clientId: dto.clientId,
+          ...(createdByUserId && { createdByUserId }),
           productPrice,
           shippingFee: totalShippingFee,
           tax,

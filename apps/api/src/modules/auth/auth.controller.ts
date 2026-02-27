@@ -29,6 +29,8 @@ import {
   RegisterStudioDto,
   ClientLoginDto,
   AdminLoginDto,
+  EmployeeLoginDto,
+  EmployeeSelectClientDto,
   StaffRegisterCompanyEmailDto,
   ApproveStaffDto,
   ChangeStaffRoleDto,
@@ -198,6 +200,52 @@ export class AuthController {
       throw new UnauthorizedException('인증 코드가 필요합니다.');
     }
     return this.authService.exchangeOAuthCode(code);
+  }
+
+  // ========== 거래처 직원(Employee) 로그인 ==========
+
+  @Public()
+  @Post('employee/login')
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @ApiOperation({ summary: '거래처 직원 로그인' })
+  async employeeLogin(@Body() dto: EmployeeLoginDto) {
+    const result = await this.authService.validateEmployee(dto.email, dto.password);
+    if (!result) {
+      throw new UnauthorizedException('이메일 또는 비밀번호가 일치하지 않습니다');
+    }
+
+    // 단일 거래처 소속
+    if ('employment' in result) {
+      return this.authService.loginEmployee(
+        result.user,
+        result.employment,
+        dto.rememberMe ?? false,
+      );
+    }
+
+    // 복수 거래처 소속 → 선택 필요
+    return {
+      multipleClients: true,
+      userId: result.user.id,
+      employments: result.employments.map((e: any) => ({
+        employmentId: e.id,
+        clientId: e.clientId,
+        clientName: e.client.clientName,
+        role: e.role,
+      })),
+    };
+  }
+
+  @Public()
+  @Post('employee/select-client')
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @ApiOperation({ summary: '거래처 직원 다중 거래처 선택 로그인' })
+  async employeeSelectClient(@Body() dto: EmployeeSelectClientDto) {
+    return this.authService.loginEmployeeBySelection(
+      dto.userId,
+      dto.employmentId,
+      dto.rememberMe ?? false,
+    );
   }
 
   // ========== 관리자(직원) 로그인 ==========

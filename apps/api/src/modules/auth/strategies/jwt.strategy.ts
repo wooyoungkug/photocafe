@@ -29,6 +29,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       staffId: payload.staffId,
       branchId: payload.branchId,
       departmentId: payload.departmentId,
+      // Employee fields
+      clientId: payload.clientId,
+      employmentId: payload.employmentId,
+      canViewAllOrders: payload.canViewAllOrders,
+      canManageProducts: payload.canManageProducts,
+      canViewSettlement: payload.canViewSettlement,
     };
   }
 }

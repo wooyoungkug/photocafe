@@ -239,6 +239,41 @@ export class ChangeStaffRoleDto {
   role: string;
 }
 
+// 거래처 직원 로그인 DTO
+export class EmployeeLoginDto {
+  @ApiProperty({ example: 'employee@example.com', description: '직원 이메일' })
+  @IsEmail({}, { message: '올바른 이메일 형식이 아닙니다' })
+  email: string;
+
+  @ApiProperty({ example: 'password123', description: '비밀번호' })
+  @IsString()
+  @MinLength(6, { message: '비밀번호는 최소 6자 이상이어야 합니다' })
+  password: string;
+
+  @ApiPropertyOptional({ example: true, description: '로그인 상태 유지' })
+  @IsOptional()
+  @IsBoolean()
+  rememberMe?: boolean;
+}
+
+// 거래처 직원 다중 거래처 선택 DTO
+export class EmployeeSelectClientDto {
+  @ApiProperty({ description: '사용자 ID' })
+  @IsString()
+  @IsNotEmpty()
+  userId: string;
+
+  @ApiProperty({ description: '선택한 Employment ID' })
+  @IsString()
+  @IsNotEmpty()
+  employmentId: string;
+
+  @ApiPropertyOptional({ example: true, description: '로그인 상태 유지' })
+  @IsOptional()
+  @IsBoolean()
+  rememberMe?: boolean;
+}
+
 // 관리자(직원) 로그인 DTO
 export class AdminLoginDto {
   @ApiProperty({ example: 'smsl1122', description: '직원 ID' })
