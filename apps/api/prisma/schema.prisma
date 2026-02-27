@@ -218,6 +218,17 @@ model Staff {
   assignedClients         StaffClient[]
   salesLedgers            SalesLedger[] @relation("SalesLedgerStaff")
 
+  // 촬영 작가 관련
+  isPhotographer          Boolean       @default(false)
+  photographerGrade       String?       // NEW, BRONZE, SILVER, GOLD, PLATINUM
+  specialties             String[]      @default([])  // wedding, baby, profile 등
+
+  shootingBids            ShootingBid[]
+  assignedShootings       ShootingSchedule[] @relation("AssignedPhotographer")
+  locationLogs            LocationLog[]
+  shootingReviews         ShootingReview[]
+  photographerStats       PhotographerStats?
+
   @@unique([oauthProvider, oauthId])
   @@index([branchId])
   @@index([departmentId])
@@ -1883,6 +1894,8 @@ model Schedule {
   updatedAt       DateTime  @updatedAt
   recurringConfig Json?
 
+  shootingSchedule ShootingSchedule?
+
   @@index([creatorId])
   @@index([creatorDeptId])
   @@index([startAt])
@@ -3000,4 +3013,125 @@ model Invitation {
   @@index([token])
   @@index([clientId])
   @@map("invitations")
+}
+
+// ===== 촬영 일정 관리 시스템 =====
+
+model ShootingSchedule {
+  id              String    @id @default(cuid())
+  scheduleId      String?   @unique  // 기존 Schedule 연동
+  clientName      String               // 고객명 (신랑/신부)
+  shootingType    String               // wedding_main, wedding_rehearsal, baby_dol, baby_growth, profile, other
+  venueName       String               // 장소명
+  venueAddress    String               // 주소
+  latitude        Float?               // 위도
+  longitude       Float?               // 경도
+  shootingDate    DateTime             // 촬영일시
+  duration        Int?                 // 예상 소요시간(분)
+  status          String    @default("draft") // draft, recruiting, bidding, confirmed, in_progress, completed, cancelled
+  assignedStaffId String?              // 확정된 작가
+  maxBidders      Int       @default(3) // 최대 응찰자 수
+  customerPhone   String?              // 고객 연락처 (설문 발송용)
+  customerEmail   String?              // 고객 이메일
+  notes           String?
+  createdBy       String               // 관리자 ID
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  assignedStaff   Staff?    @relation("AssignedPhotographer", fields: [assignedStaffId], references: [id])
+  schedule        Schedule? @relation(fields: [scheduleId], references: [id])
+  bids            ShootingBid[]
+  locationLogs    LocationLog[]
+  review          ShootingReview?
+
+  @@index([status])
+  @@index([shootingDate])
+  @@index([shootingType])
+  @@index([assignedStaffId])
+  @@index([createdBy])
+  @@map("shooting_schedules")
+}
+
+model ShootingBid {
+  id         String   @id @default(cuid())
+  shootingId String
+  staffId    String
+  bidAt      DateTime @default(now())
+  status     String   @default("pending") // pending, selected, rejected
+  message    String?
+
+  shooting ShootingSchedule @relation(fields: [shootingId], references: [id], onDelete: Cascade)
+  staff    Staff            @relation(fields: [staffId], references: [id])
+
+  @@unique([shootingId, staffId])
+  @@index([shootingId])
+  @@index([staffId])
+  @@index([status])
+  @@map("shooting_bids")
+}
+
+model LocationLog {
+  id          String   @id @default(cuid())
+  shootingId  String
+  staffId     String
+  type        String               // arrival, departure, checkpoint
+  latitude    Float
+  longitude   Float
+  distance    Float?               // 촬영지까지 거리(m)
+  isAutomatic Boolean  @default(true) // GPS 자동 vs 수동 체크인
+  recordedAt  DateTime @default(now())
+
+  shooting ShootingSchedule @relation(fields: [shootingId], references: [id], onDelete: Cascade)
+  staff    Staff            @relation(fields: [staffId], references: [id])
+
+  @@index([shootingId])
+  @@index([staffId])
+  @@index([recordedAt])
+  @@map("location_logs")
+}
+
+model ShootingReview {
+  id            String    @id @default(cuid())
+  shootingId    String    @unique
+  staffId       String
+  trustScore    Int                  // 신뢰도 1-5
+  kindnessScore Int                  // 친절도 1-5
+  skillScore    Int?                 // 기술력 1-5
+  overallScore  Float                // 종합 (자동 계산)
+  comment       String?
+  reviewerName  String?
+  reviewerType  String?              // bride, groom, parent
+  reviewToken   String    @unique    // 설문 링크용 토큰
+  isCompleted   Boolean   @default(false)
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+
+  shooting ShootingSchedule @relation(fields: [shootingId], references: [id], onDelete: Cascade)
+  staff    Staff            @relation(fields: [staffId], references: [id])
+
+  @@index([staffId])
+  @@index([reviewToken])
+  @@index([isCompleted])
+  @@map("shooting_reviews")
+}
+
+model PhotographerStats {
+  id               String   @id @default(cuid())
+  staffId          String   @unique
+  totalShootings   Int      @default(0)
+  completedCount   Int      @default(0)
+  avgTrustScore    Float    @default(0)
+  avgKindnessScore Float    @default(0)
+  avgOverallScore  Float    @default(0)
+  onTimeRate       Float    @default(0)    // 정시 도착률 (0~1)
+  lateCount        Int      @default(0)
+  reliabilityIndex Float    @default(0)    // 종합 신뢰도 지수
+  grade            String   @default("NEW") // NEW, BRONZE, SILVER, GOLD, PLATINUM
+  updatedAt        DateTime @updatedAt
+
+  staff Staff @relation(fields: [staffId], references: [id])
+
+  @@index([grade])
+  @@index([reliabilityIndex])
+  @@map("photographer_stats")
 }

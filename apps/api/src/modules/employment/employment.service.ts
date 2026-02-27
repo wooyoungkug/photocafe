@@ -492,6 +492,11 @@ export class EmploymentService {
       throw new NotFoundException('직원 정보를 찾을 수 없습니다.');
     }
 
+    // 최고관리자(최초가입자)는 권한 변경 불가
+    if (employment.memberClientId === employment.companyClientId) {
+      throw new BadRequestException('최고관리자의 권한은 변경할 수 없습니다.');
+    }
+
     return this.prisma.employment.update({
       where: { id: employmentId },
       data: {
@@ -623,6 +628,11 @@ export class EmploymentService {
     });
     if (!employment) {
       throw new NotFoundException('직원 정보를 찾을 수 없습니다.');
+    }
+
+    // 최고관리자(최초가입자)는 제거 불가
+    if (employment.memberClientId === employment.companyClientId) {
+      throw new BadRequestException('최고관리자는 제거할 수 없습니다.');
     }
 
     await this.prisma.employment.delete({ where: { id: employmentId } });

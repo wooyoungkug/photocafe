@@ -211,26 +211,28 @@ export default function EmployeesPage() {
                         {emp.member.lastLoginIp || '-'}
                       </td>
                       <td className="px-3 py-2 text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setEditTarget(emp)}>
-                              <Settings className="h-3.5 w-3.5 mr-2" />
-                              권한 설정
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="text-red-600"
-                              onClick={() => setRemoveTarget(emp)}
-                            >
-                              <Trash2 className="h-3.5 w-3.5 mr-2" />
-                              제거
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        {emp.memberClientId === emp.companyClientId ? null : (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => setEditTarget(emp)}>
+                                <Settings className="h-3.5 w-3.5 mr-2" />
+                                권한 설정
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-red-600"
+                                onClick={() => setRemoveTarget(emp)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5 mr-2" />
+                                제거
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                       </td>
                     </tr>
                   ))}
