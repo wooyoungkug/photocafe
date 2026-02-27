@@ -71,7 +71,7 @@ export default function EmployeesPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-[16px] font-medium flex items-center gap-2">
+          <h2 className="text-[24px] font-medium flex items-center gap-2">
             <Users className="h-5 w-5" />
             직원관리
           </h2>
@@ -96,7 +96,7 @@ export default function EmployeesPage() {
           </CardHeader>
           <CardContent>
             <div className="border rounded-md overflow-x-auto">
-              <table className="text-[24px] whitespace-nowrap">
+              <table className="text-[14px] whitespace-nowrap">
                 <thead>
                   <tr className="bg-gray-50 border-b">
                     <th className="text-left px-3 py-2 font-medium">이메일</th>
