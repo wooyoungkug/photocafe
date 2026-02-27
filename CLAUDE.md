@@ -87,21 +87,28 @@ npx prisma db push --force-reset && npm run db:seed
 
 ## UI 타이포그래피 기준
 
-> **모든 UI 텍스트에 적용되는 기본 서체 규칙**
+> **모든 UI 텍스트에 적용되는 서체 그룹 규칙**
 
-| 항목 | 값 |
-|------|-----|
-| 크기 | `text-[11px]` (11px) |
-| 굵기 | `font-normal` (보통체, 400) |
-| 색상 | `text-black` (100% 먹색, #000000) |
+| 그룹 | 크기 | 굵기 | 색상 | 배경 | Tailwind 클래스 |
+|------|------|------|------|------|----------------|
+| 본문 | 14px | 보통체 (400) | 검정 (#000) | 투명 | `text-[14px] text-black font-normal` |
+| 제목 | 18px | 볼드체 (700) | 검정 (#000) | 투명 | `text-[18px] text-black font-bold` |
+| 큰제목 | 24px | 보통체 (400) | 검정 (#000) | 투명 | `text-[24px] text-black font-normal` |
 
 ```tsx
-// 기본 텍스트 클래스
-className="text-[11px] text-black font-normal"
+// 본문 (기본 텍스트)
+className="text-[14px] text-black font-normal"
+
+// 제목
+className="text-[18px] text-black font-bold"
+
+// 큰제목
+className="text-[24px] text-black font-normal"
 ```
 
 - 강조가 필요한 경우에만 예외 적용 (상태배지, 오류, 링크 등)
 - `text-muted-foreground`, `text-sm`, `text-xs` 대신 위 기준 사용
+- 배경색은 기본 투명 (`bg-transparent`), 필요 시에만 지정
 
 ## 개발 요구사항
 
