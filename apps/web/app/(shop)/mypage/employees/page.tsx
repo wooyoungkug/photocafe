@@ -151,7 +151,7 @@ export default function EmployeesPage() {
                   {employees.map((emp) => (
                     <tr key={emp.id} className="border-b last:border-0 hover:bg-gray-50">
                       <td className="px-3 py-2">{emp.member.clientName}</td>
-                      <td className="px-3 py-2 text-gray-500">{emp.user.email}</td>
+                      <td className="px-3 py-2 text-gray-500">{emp.member.email}</td>
                       <td className="px-3 py-2">
                         <span
                           className={`inline-block px-1.5 py-0.5 rounded text-[10px] ${
@@ -178,8 +178,8 @@ export default function EmployeesPage() {
                         </span>
                       </td>
                       <td className="px-3 py-2 text-gray-500">
-                        {emp.user.lastLoginAt
-                          ? new Date(emp.user.lastLoginAt).toLocaleDateString('ko-KR')
+                        {emp.member.lastLoginAt
+                          ? new Date(emp.member.lastLoginAt).toLocaleDateString('ko-KR')
                           : '-'}
                       </td>
                       <td className="px-3 py-2 text-right">
@@ -437,10 +437,10 @@ function EditPermissionDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-[14px]">
-            권한 설정 — {employment.user.name}
+            권한 설정 — {employment.member.clientName}
           </DialogTitle>
           <DialogDescription className="text-[12px]">
-            {employment.user.email}
+            {employment.member.email}
           </DialogDescription>
         </DialogHeader>
 
@@ -558,7 +558,7 @@ function RemoveDialog({
             직원 제거
           </DialogTitle>
           <DialogDescription className="text-[12px]">
-            <strong>{employment.user.name}</strong> ({employment.user.email})님을
+            <strong>{employment.member.clientName}</strong> ({employment.member.email})님을
             거래처에서 제거하시겠습니까? 이 작업은 되돌릴 수 없습니다.
           </DialogDescription>
         </DialogHeader>
