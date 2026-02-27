@@ -24,6 +24,7 @@ interface User {
   type?: 'client' | 'employee';
   employmentId?: string;
   employeeRole?: 'MANAGER' | 'STAFF' | 'EDITOR';
+  isOwner?: boolean;
   canViewAllOrders?: boolean;
   canManageProducts?: boolean;
   canViewSettlement?: boolean;

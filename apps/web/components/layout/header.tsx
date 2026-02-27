@@ -240,8 +240,10 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
                 <div className="hidden sm:flex flex-col items-start">
                   <span className="text-sm font-semibold text-slate-800 leading-tight">
                     {user?.type === 'employee'
-                      ? `${user?.name || '사용자'} (${user?.employeeRole === 'MANAGER' ? 'Manager' : user?.employeeRole === 'EDITOR' ? 'Editor' : 'Staff'})`
-                      : `${user?.name || '사용자'} 최고관리자`}
+                      ? user?.isOwner
+                        ? `${user?.name || '사용자'}(최고관리자)`
+                        : `${user?.name || '사용자'} (${user?.employeeRole === 'MANAGER' ? 'Manager' : user?.employeeRole === 'EDITOR' ? 'Editor' : 'Staff'})`
+                      : `${user?.name || '사용자'}(최고관리자)`}
                   </span>
                   <span className="text-[11px] text-slate-400 leading-tight">
                     {user?.type === 'employee' ? user?.clientName : (user?.role === "ADMIN" ? "관리자" : "사용자")}
@@ -255,11 +257,13 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
               <div className="sm:hidden px-2 py-2.5">
                 <p className="text-sm font-semibold text-slate-800">
                   {user?.type === 'employee'
-                    ? `${user?.name || '사용자'} (${user?.employeeRole === 'MANAGER' ? 'Manager' : user?.employeeRole === 'EDITOR' ? 'Editor' : 'Staff'})`
-                    : `${user?.name || '사용자'} 최고관리자`}
+                    ? user?.isOwner
+                      ? `${user?.name || '사용자'}(최고관리자)`
+                      : `${user?.name || '사용자'} (${user?.employeeRole === 'MANAGER' ? 'Manager' : user?.employeeRole === 'EDITOR' ? 'Editor' : 'Staff'})`
+                    : `${user?.name || '사용자'}(최고관리자)`}
                 </p>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  {user?.type === 'employee' ? user?.clientName : (user?.email || "")}
+                  {user?.type === 'employee' && !user?.isOwner ? user?.clientName : (user?.email || "")}
                 </p>
               </div>
               <DropdownMenuSeparator className="sm:hidden" />
@@ -268,11 +272,13 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
               <DropdownMenuLabel className="hidden sm:block font-normal">
                 <p className="text-sm font-medium text-slate-700">
                   {user?.type === 'employee'
-                    ? `${user?.name || '사용자'} (${user?.employeeRole === 'MANAGER' ? 'Manager' : user?.employeeRole === 'EDITOR' ? 'Editor' : 'Staff'})`
-                    : `${user?.name || '사용자'} 최고관리자`}
+                    ? user?.isOwner
+                      ? `${user?.name || '사용자'}(최고관리자)`
+                      : `${user?.name || '사용자'} (${user?.employeeRole === 'MANAGER' ? 'Manager' : user?.employeeRole === 'EDITOR' ? 'Editor' : 'Staff'})`
+                    : `${user?.name || '사용자'}(최고관리자)`}
                 </p>
                 <p className="text-xs text-slate-400 mt-0.5 truncate">
-                  {user?.type === 'employee' ? `${user?.clientName} · ${user?.email}` : (user?.email || "")}
+                  {user?.type === 'employee' && !user?.isOwner ? `${user?.clientName} · ${user?.email}` : (user?.email || "")}
                 </p>
               </DropdownMenuLabel>
               <DropdownMenuSeparator className="hidden sm:block" />

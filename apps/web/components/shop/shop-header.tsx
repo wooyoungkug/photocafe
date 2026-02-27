@@ -123,8 +123,10 @@ export function ShopHeader() {
                     <User className="h-4 w-4 text-neutral-600" />
                     <span className="text-sm text-neutral-700">
                       {user?.type === 'employee'
-                        ? `${user?.clientName} ${user?.name}(${user?.employeeRole === 'MANAGER' ? 'Manager' : user?.employeeRole === 'EDITOR' ? 'Editor' : 'Staff'})`
-                        : `${user?.name} 최고관리자`}
+                        ? user?.isOwner
+                          ? `${user?.name}(최고관리자)`
+                          : `${user?.clientName} ${user?.name}(${user?.employeeRole === 'MANAGER' ? 'Manager' : user?.employeeRole === 'EDITOR' ? 'Editor' : 'Staff'})`
+                        : `${user?.name}(최고관리자)`}
                       {th('honorific')}
                     </span>
                   </Link>

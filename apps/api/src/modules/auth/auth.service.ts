@@ -238,6 +238,7 @@ export class AuthService {
             clientName: employment.company.clientName,
             employmentId: employment.id,
             employeeRole: employment.role,
+            isOwner: employment.memberClientId === employment.companyClientId,
             canViewAllOrders: employment.canViewAllOrders,
             canManageProducts: employment.canManageProducts,
             canViewSettlement: employment.canViewSettlement,
@@ -1200,6 +1201,8 @@ export class AuthService {
       expiresIn: rememberMe ? '30d' : '7d',
     });
 
+    const isOwner = employment.memberClientId === employment.companyClientId;
+
     return {
       accessToken,
       refreshToken,
@@ -1213,6 +1216,7 @@ export class AuthService {
         clientName: employment.company.clientName,
         employmentId: employment.id,
         employeeRole: employment.role,
+        isOwner,
         canViewAllOrders: employment.canViewAllOrders,
         canManageProducts: employment.canManageProducts,
         canViewSettlement: employment.canViewSettlement,

@@ -91,8 +91,10 @@ export default function MyPageLayout({
           </div>
           <p className="text-[12px] text-gray-500 ml-7 mt-0.5">
             {user?.type === 'employee'
-              ? `${user?.clientName} ${user?.name}(${user?.employeeRole === 'MANAGER' ? 'Manager' : user?.employeeRole === 'EDITOR' ? 'Editor' : 'Staff'})님, 환영합니다`
-              : `${user?.name || user?.clientName} 최고관리자님, 환영합니다`}
+              ? user?.isOwner
+                ? `${user?.name}(최고관리자)님, 환영합니다`
+                : `${user?.clientName} ${user?.name}(${user?.employeeRole === 'MANAGER' ? 'Manager' : user?.employeeRole === 'EDITOR' ? 'Editor' : 'Staff'})님, 환영합니다`
+              : `${user?.name || user?.clientName}(최고관리자)님, 환영합니다`}
           </p>
         </div>
       </div>
