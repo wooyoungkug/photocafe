@@ -274,6 +274,48 @@ export class EmployeeSelectClientDto {
   rememberMe?: boolean;
 }
 
+// ========== 통합 로그인 DTO ==========
+
+// 통합 로그인
+export class UnifiedLoginDto {
+  @ApiProperty({ example: 'user@example.com', description: '이메일' })
+  @IsEmail({}, { message: '올바른 이메일 형식이 아닙니다' })
+  email: string;
+
+  @ApiProperty({ example: 'password123', description: '비밀번호' })
+  @IsString()
+  @MinLength(6, { message: '비밀번호는 최소 6자 이상이어야 합니다' })
+  password: string;
+
+  @ApiPropertyOptional({ example: true, description: '로그인 상태 유지' })
+  @IsOptional()
+  @IsBoolean()
+  rememberMe?: boolean;
+}
+
+// 로그인 컨텍스트 선택
+export class SelectContextDto {
+  @ApiProperty({ description: '임시 인증 토큰' })
+  @IsString()
+  @IsNotEmpty()
+  tempToken: string;
+
+  @ApiProperty({ example: 'personal', description: '컨텍스트 타입 (personal | employee)' })
+  @IsString()
+  @IsIn(['personal', 'employee'])
+  contextType: string;
+
+  @ApiPropertyOptional({ description: '선택한 Employment ID (employee 선택 시 필수)' })
+  @IsOptional()
+  @IsString()
+  employmentId?: string;
+
+  @ApiPropertyOptional({ example: true, description: '로그인 상태 유지' })
+  @IsOptional()
+  @IsBoolean()
+  rememberMe?: boolean;
+}
+
 // 관리자(직원) 로그인 DTO
 export class AdminLoginDto {
   @ApiProperty({ example: 'smsl1122', description: '직원 ID' })

@@ -11,8 +11,23 @@ function AuthCallbackContent() {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        const needsContext = searchParams.get('needsContext');
+        const tempToken = searchParams.get('tempToken');
         const oauthCode = searchParams.get('code');
 
+        // 시나리오 2: OAuth 로그인 후 컨텍스트 선택 필요
+        if (needsContext === 'true' && tempToken) {
+            setStatus('계정 선택 페이지로 이동합니다...');
+            // tempToken을 sessionStorage에 저장 후 select-context 페이지로 이동
+            sessionStorage.setItem('pending-context-selection', JSON.stringify({
+                tempToken,
+                rememberMe: true, // OAuth 로그인은 기본 rememberMe
+            }));
+            router.push('/auth/select-context');
+            return;
+        }
+
+        // 시나리오 1: 일반 OAuth 코드 교환
         if (!oauthCode) {
             setError('잘못된 접근입니다. 로그인 페이지를 이용해주세요.');
             return;

@@ -10,16 +10,30 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { AlertCircle, CheckCircle2, Loader2, Zap, Users, ArrowLeft } from 'lucide-react';
-import { EmployeeLoginResult } from '@/lib/types/employment';
+import { AlertCircle, CheckCircle2, Loader2, Zap, ArrowLeft, User, Building2 } from 'lucide-react';
 
-type LoginMode = 'client' | 'employee';
+type LoginPhase = 'credentials' | 'context-selection';
 
-interface ClientOption {
-  employmentId: string;
-  clientId: string;
-  clientName: string;
-  role: string;
+interface LoginContext {
+  type: 'personal' | 'employee';
+  label?: string;
+  clientName?: string;
+  clientId?: string;
+  employmentId?: string;
+  companyClientId?: string;
+  companyName?: string;
+  role?: string;
+}
+
+interface UnifiedLoginResponse {
+  // Direct login (no context selection needed)
+  user?: { id: string; email: string; name: string; role: string };
+  accessToken?: string;
+  refreshToken?: string;
+  // Context selection needed
+  needsContextSelection?: boolean;
+  tempToken?: string;
+  contexts?: LoginContext[];
 }
 
 const isDev = process.env.NODE_ENV === 'development';
@@ -31,16 +45,18 @@ function LoginForm() {
 
   const { setAuth } = useAuthStore();
 
-  const [loginMode, setLoginMode] = useState<LoginMode>('client');
+  const [phase, setPhase] = useState<LoginPhase>('credentials');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 직원 다중 거래처 선택
-  const [clientOptions, setClientOptions] = useState<ClientOption[] | null>(null);
-  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
+  // Context selection state
+  const [tempToken, setTempToken] = useState<string | null>(null);
+  const [contexts, setContexts] = useState<LoginContext[]>([]);
+
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,43 +64,31 @@ function LoginForm() {
     setIsLoading(true);
 
     try {
-      if (loginMode === 'employee') {
-        const response = await api.post<EmployeeLoginResult>(
-          '/auth/employee/login',
-          { email, password, rememberMe },
-        );
+      const response = await api.post<UnifiedLoginResponse>(
+        '/auth/unified-login',
+        { email, password, rememberMe },
+      );
 
-        if (response.multipleClients && response.employments) {
-          // 다중 거래처 → 선택 UI 표시
-          setClientOptions(response.employments);
-          setPendingUserId(response.userId || '');
-          return;
-        }
+      if (response.needsContextSelection && response.tempToken && response.contexts) {
+        // Multiple contexts available - show selection UI
+        setTempToken(response.tempToken);
+        setContexts(response.contexts);
+        setPhase('context-selection');
+        return;
+      }
 
-        // 단일 거래처 → 바로 로그인
-        setAuth({
-          user: response.user as any,
-          accessToken: response.accessToken!,
-          refreshToken: response.refreshToken!,
-          rememberMe,
-        });
-      } else {
-        const response = await api.post<{
-          user: { id: string; email: string; name: string; role: string };
-          accessToken: string;
-          refreshToken: string;
-        }>('/auth/client/login', { email, password, rememberMe });
-
+      // Direct login - no context selection needed
+      if (response.user && response.accessToken && response.refreshToken) {
         setAuth({
           user: response.user,
           accessToken: response.accessToken,
           refreshToken: response.refreshToken,
           rememberMe,
         });
-      }
 
-      const redirectTo = searchParams.get('redirect') || '/';
-      router.push(redirectTo);
+        const redirectTo = searchParams.get('redirect') || '/';
+        router.push(redirectTo);
+      }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : '로그인에 실패했습니다.';
       setError(errorMessage);
@@ -93,22 +97,26 @@ function LoginForm() {
     }
   };
 
-  const handleSelectClient = async (option: ClientOption) => {
+  const handleSelectContext = async (context: LoginContext) => {
+    if (!tempToken) return;
+
     setError(null);
     setIsLoading(true);
+
     try {
       const response = await api.post<{
-        user: Record<string, any>;
+        user: { id: string; email: string; name: string; role: string; [key: string]: any };
         accessToken: string;
         refreshToken: string;
-      }>('/auth/employee/select-client', {
-        userId: pendingUserId,
-        employmentId: option.employmentId,
+      }>('/auth/select-context', {
+        tempToken,
+        contextType: context.type,
+        employmentId: context.type === 'employee' ? context.employmentId : undefined,
         rememberMe,
       });
 
       setAuth({
-        user: response.user as any,
+        user: response.user,
         accessToken: response.accessToken,
         refreshToken: response.refreshToken,
         rememberMe,
@@ -117,17 +125,24 @@ function LoginForm() {
       const redirectTo = searchParams.get('redirect') || '/';
       router.push(redirectTo);
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : '거래처 선택에 실패했습니다.';
+      const errorMessage = err instanceof Error ? err.message : '로그인 컨텍스트 선택에 실패했습니다.';
       setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+  const handleBackToCredentials = () => {
+    setPhase('credentials');
+    setTempToken(null);
+    setContexts([]);
+    setError(null);
+  };
 
-  // 거래처 선택 화면 (다중 거래처 직원)
-  if (clientOptions) {
+  // ============================================================
+  // Phase: Context Selection
+  // ============================================================
+  if (phase === 'context-selection') {
     return (
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="space-y-1 text-center">
@@ -136,29 +151,51 @@ function LoginForm() {
               <span className="text-white font-bold text-2xl">P</span>
             </div>
           </Link>
-          <CardTitle className="text-2xl">거래처 선택</CardTitle>
-          <CardDescription>로그인할 거래처를 선택해주세요</CardDescription>
+          <CardTitle className="text-2xl">계정 선택</CardTitle>
+          <CardDescription>로그인할 계정을 선택해주세요</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {error && (
             <div className="flex items-center gap-2 p-3 text-sm text-destructive bg-destructive/10 rounded-md">
-              <AlertCircle className="h-4 w-4" />
+              <AlertCircle className="h-4 w-4 shrink-0" />
               <span>{error}</span>
             </div>
           )}
-          {clientOptions.map((option) => (
+          {contexts.map((context, index) => (
             <Button
-              key={option.employmentId}
+              key={context.type === 'personal' ? 'personal' : context.employmentId || index}
               variant="outline"
-              className="w-full h-auto py-3 justify-start"
+              className="w-full h-auto py-3 px-4 justify-start gap-3"
               disabled={isLoading}
-              onClick={() => handleSelectClient(option)}
+              onClick={() => handleSelectContext(context)}
             >
+              {context.type === 'personal' ? (
+                <User className="h-5 w-5 text-muted-foreground shrink-0" />
+              ) : (
+                <Building2 className="h-5 w-5 text-muted-foreground shrink-0" />
+              )}
               <div className="text-left">
-                <div className="text-[11px] text-black font-normal">{option.clientName}</div>
-                <div className="text-[10px] text-muted-foreground">
-                  {option.role === 'MANAGER' ? '관리자' : '직원'}
-                </div>
+                {context.type === 'personal' ? (
+                  <>
+                    <div className="text-[11px] text-black font-normal">
+                      내 계정 (개인 쇼핑몰)
+                    </div>
+                    {context.clientName && (
+                      <div className="text-[10px] text-muted-foreground">
+                        {context.clientName}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div className="text-[11px] text-black font-normal">
+                      {context.companyName} ({context.role === 'MANAGER' ? '관리자' : '직원'})
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">
+                      회사 계정으로 로그인
+                    </div>
+                  </>
+                )}
               </div>
             </Button>
           ))}
@@ -167,11 +204,7 @@ function LoginForm() {
           <Button
             variant="ghost"
             className="w-full"
-            onClick={() => {
-              setClientOptions(null);
-              setPendingUserId(null);
-              setError(null);
-            }}
+            onClick={handleBackToCredentials}
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             돌아가기
@@ -181,6 +214,9 @@ function LoginForm() {
     );
   }
 
+  // ============================================================
+  // Phase: Credentials (email/password + social login)
+  // ============================================================
   return (
     <Card className="w-full max-w-md shadow-lg">
       <CardHeader className="space-y-1 text-center">
@@ -189,14 +225,8 @@ function LoginForm() {
             <span className="text-white font-bold text-2xl">P</span>
           </div>
         </Link>
-        <CardTitle className="text-2xl">
-          {loginMode === 'employee' ? '직원 로그인' : '로그인'}
-        </CardTitle>
-        <CardDescription>
-          {loginMode === 'employee'
-            ? '거래처에 등록된 직원 계정으로 로그인합니다'
-            : 'Printing114에 오신 것을 환영합니다'}
-        </CardDescription>
+        <CardTitle className="text-2xl">로그인</CardTitle>
+        <CardDescription>Printing114에 오신 것을 환영합니다</CardDescription>
       </CardHeader>
 
       <form onSubmit={handleSubmit}>
@@ -273,78 +303,75 @@ function LoginForm() {
       </form>
 
       <CardFooter className="flex flex-col gap-4">
-        {loginMode === 'client' && (
-          <>
-            <div className="relative w-full">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-2 text-muted-foreground">
-                  간편 로그인
-                </span>
-              </div>
-            </div>
-
-            <a
-              href={`${apiUrl}/auth/naver`}
-              className="inline-flex items-center justify-center w-full h-11 rounded-md text-sm font-medium bg-[#03C75A] hover:bg-[#02b351] text-white transition-colors"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                className="mr-2 h-5 w-5"
-                fill="currentColor"
-              >
-                <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z" />
-              </svg>
-              네이버로 로그인
-            </a>
-
-            <a
-              href={`${apiUrl}/auth/kakao`}
-              className="inline-flex items-center justify-center w-full h-11 rounded-md text-sm font-medium bg-[#FEE500] hover:bg-[#FDD835] text-[#3C1E1E] transition-colors"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                className="mr-2 h-5 w-5"
-                fill="currentColor"
-              >
-                <path d="M12 3C6.477 3 2 6.463 2 10.691c0 2.65 1.73 4.973 4.342 6.324-.143.532-.548 2.043-.623 2.359-.096.397.146.392.307.286.126-.083 2.016-1.368 2.838-1.925.698.103 1.43.157 2.136.157 5.523 0 10-3.463 10-7.691C21 6.463 17.523 3 12 3z" />
-              </svg>
-              카카오로 로그인
-            </a>
-          </>
-        )}
-
+        {/* Social Login Buttons */}
         <div className="relative w-full">
           <div className="absolute inset-0 flex items-center">
             <span className="w-full border-t" />
           </div>
-          <div className="relative flex justify-center text-xs">
-            <span className="bg-white px-2 text-muted-foreground" />
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-white px-2 text-muted-foreground">
+              간편 로그인
+            </span>
           </div>
         </div>
 
-        {loginMode === 'client' ? (
-          <button
-            type="button"
-            className="text-sm text-muted-foreground hover:text-primary flex items-center justify-center gap-1"
-            onClick={() => { setLoginMode('employee'); setError(null); }}
+        <a
+          href={`${apiUrl}/auth/naver`}
+          className="inline-flex items-center justify-center w-full h-11 rounded-md text-sm font-medium bg-[#03C75A] hover:bg-[#02b351] text-white transition-colors"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            className="mr-2 h-5 w-5"
+            fill="currentColor"
           >
-            <Users className="h-3.5 w-3.5" />
-            거래처 직원으로 로그인
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="text-sm text-muted-foreground hover:text-primary flex items-center justify-center gap-1"
-            onClick={() => { setLoginMode('client'); setError(null); }}
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            거래처 로그인으로 돌아가기
-          </button>
-        )}
+            <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z" />
+          </svg>
+          네이버로 로그인
+        </a>
 
+        <a
+          href={`${apiUrl}/auth/kakao`}
+          className="inline-flex items-center justify-center w-full h-11 rounded-md text-sm font-medium bg-[#FEE500] hover:bg-[#FDD835] text-[#3C1E1E] transition-colors"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            className="mr-2 h-5 w-5"
+            fill="currentColor"
+          >
+            <path d="M12 3C6.477 3 2 6.463 2 10.691c0 2.65 1.73 4.973 4.342 6.324-.143.532-.548 2.043-.623 2.359-.096.397.146.392.307.286.126-.083 2.016-1.368 2.838-1.925.698.103 1.43.157 2.136.157 5.523 0 10-3.463 10-7.691C21 6.463 17.523 3 12 3z" />
+          </svg>
+          카카오로 로그인
+        </a>
+
+        <a
+          href={`${apiUrl}/auth/google`}
+          className="inline-flex items-center justify-center w-full h-11 rounded-md text-sm font-medium border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 transition-colors"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            className="mr-2 h-5 w-5"
+          >
+            <path
+              d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
+              fill="#4285F4"
+            />
+            <path
+              d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+              fill="#34A853"
+            />
+            <path
+              d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+              fill="#FBBC05"
+            />
+            <path
+              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+              fill="#EA4335"
+            />
+          </svg>
+          Google로 로그인
+        </a>
+
+        {/* Registration Link */}
         <p className="text-sm text-muted-foreground text-center">
           아직 회원이 아니신가요?{' '}
           <Link href="/register" className="text-primary hover:underline font-medium">
@@ -352,6 +379,7 @@ function LoginForm() {
           </Link>
         </p>
 
+        {/* DEV Quick Login */}
         {isDev && (
           <Button
             type="button"
@@ -363,22 +391,32 @@ function LoginForm() {
               setError(null);
               setIsLoading(true);
               try {
-                const response = await api.post<{
-                  user: { id: string; email: string; name: string; role: string };
-                  accessToken: string;
-                  refreshToken: string;
-                }>('/auth/client/login', {
-                  email: process.env.NEXT_PUBLIC_DEV_CLIENT_EMAIL || '',
-                  password: process.env.NEXT_PUBLIC_DEV_CLIENT_PASSWORD || '',
-                });
-                setAuth({
-                  user: response.user,
-                  accessToken: response.accessToken,
-                  refreshToken: response.refreshToken,
-                  rememberMe: true,
-                });
-                const redirectTo = searchParams.get('redirect') || '/';
-                router.push(redirectTo);
+                const response = await api.post<UnifiedLoginResponse>(
+                  '/auth/unified-login',
+                  {
+                    email: process.env.NEXT_PUBLIC_DEV_CLIENT_EMAIL || '',
+                    password: process.env.NEXT_PUBLIC_DEV_CLIENT_PASSWORD || '',
+                    rememberMe: true,
+                  },
+                );
+
+                if (response.needsContextSelection && response.tempToken && response.contexts) {
+                  setTempToken(response.tempToken);
+                  setContexts(response.contexts);
+                  setPhase('context-selection');
+                  return;
+                }
+
+                if (response.user && response.accessToken && response.refreshToken) {
+                  setAuth({
+                    user: response.user,
+                    accessToken: response.accessToken,
+                    refreshToken: response.refreshToken,
+                    rememberMe: true,
+                  });
+                  const redirectTo = searchParams.get('redirect') || '/';
+                  router.push(redirectTo);
+                }
               } catch (err: unknown) {
                 const errorMessage = err instanceof Error ? err.message : '개발 로그인 실패';
                 setError(errorMessage);

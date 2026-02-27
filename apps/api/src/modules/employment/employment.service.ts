@@ -26,17 +26,23 @@ export class EmploymentService {
     private configService: ConfigService,
   ) {}
 
+  private generateClientCode(): string {
+    const ts = Date.now().toString(36).toUpperCase();
+    const rand = Math.random().toString(36).substr(2, 4).toUpperCase();
+    return `E${ts}${rand}`;
+  }
+
   // ==================== 직원 목록 ====================
 
   async getEmployeesByClient(clientId: string) {
     return this.prisma.employment.findMany({
-      where: { clientId },
+      where: { companyClientId: clientId },
       include: {
-        user: {
+        member: {
           select: {
             id: true,
             email: true,
-            name: true,
+            clientName: true,
             phone: true,
             profileImage: true,
             lastLoginAt: true,
@@ -62,16 +68,16 @@ export class EmploymentService {
       throw new NotFoundException('거래처를 찾을 수 없습니다.');
     }
 
-    // 이미 소속 직원인지 확인
-    const existingUser = await this.prisma.user.findUnique({
+    // 이미 소속 직원인지 확인 (Client 이메일로 검색)
+    const existingClient = await this.prisma.client.findFirst({
       where: { email: dto.inviteeEmail },
     });
-    if (existingUser) {
+    if (existingClient) {
       const existingEmployment = await this.prisma.employment.findUnique({
         where: {
-          userId_clientId: {
-            userId: existingUser.id,
-            clientId,
+          memberClientId_companyClientId: {
+            memberClientId: existingClient.id,
+            companyClientId: clientId,
           },
         },
       });
@@ -222,6 +228,7 @@ export class EmploymentService {
     };
   }
 
+  /** 초대 수락 - 신규 계정 (Client 생성) */
   async acceptInvitation(dto: AcceptInvitationDto) {
     const invitation = await this.prisma.invitation.findUnique({
       where: { token: dto.token },
@@ -238,33 +245,37 @@ export class EmploymentService {
       throw new BadRequestException('만료된 초대입니다.');
     }
 
-    // 이메일 중복 확인 (User 테이블)
-    const existingUser = await this.prisma.user.findUnique({
+    // 이메일 중복 확인 (Client 테이블)
+    const existingClient = await this.prisma.client.findFirst({
       where: { email: invitation.inviteeEmail },
     });
-    if (existingUser) {
+    if (existingClient) {
       throw new ConflictException(
         '이미 등록된 이메일입니다. "기존 계정으로 연결"을 사용해주세요.',
       );
     }
 
-    // 트랜잭션: User 생성 + Employment 생성 + Invitation 상태 변경
+    // 트랜잭션: Client 생성 + Employment 생성 + Invitation 상태 변경
     const hashedPassword = await bcrypt.hash(dto.password, 10);
+    const clientCode = this.generateClientCode();
 
     const result = await this.prisma.$transaction(async (tx) => {
-      const user = await tx.user.create({
+      const newClient = await tx.client.create({
         data: {
+          clientCode,
+          clientName: dto.name,
           email: invitation.inviteeEmail,
-          name: dto.name,
-          passwordHash: hashedPassword,
+          password: hashedPassword,
           phone: dto.phone,
+          memberType: 'individual',
+          status: 'active',
         },
       });
 
       const employment = await tx.employment.create({
         data: {
-          userId: user.id,
-          clientId: invitation.clientId,
+          memberClientId: newClient.id,
+          companyClientId: invitation.clientId,
           role: invitation.role,
         },
       });
@@ -274,17 +285,18 @@ export class EmploymentService {
         data: { status: 'ACCEPTED' },
       });
 
-      return { user, employment };
+      return { client: newClient, employment };
     });
 
     return {
       success: true,
       message: '초대를 수락했습니다. 로그인해주세요.',
-      userId: result.user.id,
+      clientId: result.client.id,
       employmentId: result.employment.id,
     };
   }
 
+  /** 초대 수락 - 기존 계정 연결 (Client 이메일/비밀번호 확인) */
   async acceptInvitationExisting(dto: AcceptInvitationExistingDto) {
     const invitation = await this.prisma.invitation.findUnique({
       where: { token: dto.token },
@@ -301,17 +313,17 @@ export class EmploymentService {
       throw new BadRequestException('만료된 초대입니다.');
     }
 
-    // User 조회 + 비밀번호 확인
-    const user = await this.prisma.user.findUnique({
+    // Client 조회 + 비밀번호 확인
+    const client = await this.prisma.client.findFirst({
       where: { email: dto.email },
     });
-    if (!user || !user.passwordHash) {
+    if (!client || !client.password) {
       throw new BadRequestException(
         '이메일 또는 비밀번호가 일치하지 않습니다.',
       );
     }
 
-    const isValid = await bcrypt.compare(dto.password, user.passwordHash);
+    const isValid = await bcrypt.compare(dto.password, client.password);
     if (!isValid) {
       throw new BadRequestException(
         '이메일 또는 비밀번호가 일치하지 않습니다.',
@@ -321,9 +333,9 @@ export class EmploymentService {
     // 이미 소속인지 확인
     const existingEmployment = await this.prisma.employment.findUnique({
       where: {
-        userId_clientId: {
-          userId: user.id,
-          clientId: invitation.clientId,
+        memberClientId_companyClientId: {
+          memberClientId: client.id,
+          companyClientId: invitation.clientId,
         },
       },
     });
@@ -335,8 +347,8 @@ export class EmploymentService {
     const result = await this.prisma.$transaction(async (tx) => {
       const employment = await tx.employment.create({
         data: {
-          userId: user.id,
-          clientId: invitation.clientId,
+          memberClientId: client.id,
+          companyClientId: invitation.clientId,
           role: invitation.role,
         },
       });
@@ -352,8 +364,94 @@ export class EmploymentService {
     return {
       success: true,
       message: '초대를 수락했습니다. 로그인해주세요.',
-      userId: user.id,
+      clientId: client.id,
       employmentId: result.id,
+    };
+  }
+
+  /** 초대 수락 - 소셜 로그인 (OAuth 인증 후 호출) */
+  async acceptInvitationOAuth(dto: {
+    token: string;
+    oauthProvider: string;
+    oauthId: string;
+    email: string;
+    name: string;
+  }) {
+    const invitation = await this.prisma.invitation.findUnique({
+      where: { token: dto.token },
+    });
+
+    if (!invitation || invitation.status !== 'PENDING') {
+      throw new BadRequestException('유효하지 않은 초대입니다.');
+    }
+    if (invitation.expiresAt < new Date()) {
+      await this.prisma.invitation.update({
+        where: { id: invitation.id },
+        data: { status: 'EXPIRED' },
+      });
+      throw new BadRequestException('만료된 초대입니다.');
+    }
+
+    // OAuth로 기존 Client 검색
+    let client = await this.prisma.client.findFirst({
+      where: { oauthProvider: dto.oauthProvider, oauthId: dto.oauthId },
+    });
+
+    if (!client) {
+      // 이메일로 검색
+      client = await this.prisma.client.findFirst({
+        where: { email: dto.email },
+      });
+    }
+
+    if (!client) {
+      // 새 Client 생성
+      const clientCode = this.generateClientCode();
+      client = await this.prisma.client.create({
+        data: {
+          clientCode,
+          clientName: dto.name,
+          email: dto.email,
+          oauthProvider: dto.oauthProvider,
+          oauthId: dto.oauthId,
+          memberType: 'individual',
+          status: 'active',
+        },
+      });
+    }
+
+    // 이미 소속인지 확인
+    const existingEmployment = await this.prisma.employment.findUnique({
+      where: {
+        memberClientId_companyClientId: {
+          memberClientId: client.id,
+          companyClientId: invitation.clientId,
+        },
+      },
+    });
+    if (existingEmployment) {
+      throw new ConflictException('이미 해당 거래처에 소속되어 있습니다.');
+    }
+
+    // Employment 생성 + Invitation 수락
+    await this.prisma.$transaction(async (tx) => {
+      await tx.employment.create({
+        data: {
+          memberClientId: client!.id,
+          companyClientId: invitation.clientId,
+          role: invitation.role,
+        },
+      });
+      await tx.invitation.update({
+        where: { id: invitation.id },
+        data: { status: 'ACCEPTED' },
+      });
+    });
+
+    return {
+      success: true,
+      message: '초대를 수락했습니다. 로그인해주세요.',
+      clientId: client.id,
     };
   }
 
@@ -383,11 +481,11 @@ export class EmploymentService {
         ...(dto.status !== undefined && { status: dto.status }),
       },
       include: {
-        user: {
+        member: {
           select: {
             id: true,
             email: true,
-            name: true,
+            clientName: true,
             phone: true,
           },
         },

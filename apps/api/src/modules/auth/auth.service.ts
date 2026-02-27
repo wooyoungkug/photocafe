@@ -186,20 +186,20 @@ export class AuthService {
         };
       }
 
-      // Employee(거래처 직원) 토큰
+      // Employee(거래처 직원) 토큰 — Client 기반
       if (payload.type === 'employee') {
-        const user = await this.prisma.user.findUnique({
+        const client = await this.prisma.client.findUnique({
           where: { id: payload.sub },
         });
 
-        if (!user || !user.isActive) {
+        if (!client || client.status !== 'active') {
           throw new UnauthorizedException('Invalid refresh token');
         }
 
         const employment = await this.prisma.employment.findUnique({
           where: { id: payload.employmentId },
           include: {
-            client: {
+            company: {
               select: { id: true, clientName: true },
             },
           },
@@ -210,11 +210,11 @@ export class AuthService {
         }
 
         const newPayload = {
-          sub: user.id,
-          email: user.email,
+          sub: client.id,
+          email: client.email,
           type: 'employee',
           role: employment.role,
-          clientId: employment.clientId,
+          clientId: employment.companyClientId,
           employmentId: employment.id,
           canViewAllOrders: employment.canViewAllOrders,
           canManageProducts: employment.canManageProducts,
@@ -229,13 +229,13 @@ export class AuthService {
           accessToken: this.jwtService.sign(newPayload),
           refreshToken: newRefreshToken,
           user: {
-            id: user.id,
-            email: user.email,
-            name: user.name,
+            id: client.id,
+            email: client.email,
+            name: client.clientName,
             role: employment.role,
             type: 'employee',
-            clientId: employment.clientId,
-            clientName: employment.client.clientName,
+            clientId: employment.companyClientId,
+            clientName: employment.company.clientName,
             employmentId: employment.id,
             employeeRole: employment.role,
             canViewAllOrders: employment.canViewAllOrders,
@@ -395,29 +395,29 @@ export class AuthService {
     };
   }
 
-  // 비밀번호 변경
+  // 비밀번호 변경 (Client 기반)
   async changePassword(userId: string, currentPassword: string, newPassword: string) {
-    const user = await this.prisma.user.findUnique({
+    const client = await this.prisma.client.findUnique({
       where: { id: userId },
     });
 
-    if (!user) {
+    if (!client) {
       throw new UnauthorizedException('사용자를 찾을 수 없습니다');
     }
 
-    if (!user.passwordHash) {
+    if (!client.password) {
       throw new BadRequestException('비밀번호가 설정되지 않은 계정입니다');
     }
 
-    const isPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
+    const isPasswordValid = await bcrypt.compare(currentPassword, client.password);
     if (!isPasswordValid) {
       throw new BadRequestException('현재 비밀번호가 일치하지 않습니다');
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await this.prisma.user.update({
+    await this.prisma.client.update({
       where: { id: userId },
-      data: { passwordHash: hashedPassword },
+      data: { password: hashedPassword },
     });
 
     return { success: true, message: '비밀번호가 변경되었습니다' };
@@ -988,28 +988,35 @@ export class AuthService {
 
   // ========== 거래처 직원(Employee) 로그인 ==========
 
-  async validateEmployee(email: string, password: string) {
-    const user = await this.prisma.user.findUnique({
+  // ========== 통합 로그인 ==========
+
+  /** 통합 로그인: Client를 인증하고 Employment 컨텍스트 확인 */
+  async unifiedLogin(email: string, password: string) {
+    const client = await this.prisma.client.findFirst({
       where: { email },
     });
 
-    if (!user || !user.passwordHash || !user.isActive) {
+    if (!client || !client.password) {
       return null;
     }
 
-    const isValid = await bcrypt.compare(password, user.passwordHash);
+    const isValid = await bcrypt.compare(password, client.password);
     if (!isValid) {
       return null;
     }
 
-    // 활성 Employment 조회
+    if (client.status !== 'active') {
+      return null;
+    }
+
+    // Employment(소속 회사) 조회
     const employments = await this.prisma.employment.findMany({
       where: {
-        userId: user.id,
+        memberClientId: client.id,
         status: 'ACTIVE',
       },
       include: {
-        client: {
+        company: {
           select: {
             id: true,
             clientName: true,
@@ -1022,38 +1029,151 @@ export class AuthService {
 
     // 활성 거래처만 필터
     const activeEmployments = employments.filter(
-      (e) => e.client.status === 'active',
+      (e) => e.company.status === 'active',
     );
 
-    if (activeEmployments.length === 0) {
-      return null;
-    }
-
-    if (activeEmployments.length === 1) {
-      return { user, employment: activeEmployments[0] };
-    }
-
-    // 복수 거래처 소속
-    return { user, employments: activeEmployments };
+    return { client, employments: activeEmployments };
   }
 
-  async loginEmployee(
-    user: any,
+  /** 활성 Employment(소속 회사) 조회 */
+  async getActiveEmployments(clientId: string) {
+    const employments = await this.prisma.employment.findMany({
+      where: {
+        memberClientId: clientId,
+        status: 'ACTIVE',
+      },
+      include: {
+        company: {
+          select: {
+            id: true,
+            clientName: true,
+            clientCode: true,
+            status: true,
+          },
+        },
+      },
+    });
+    return employments.filter((e) => e.company.status === 'active');
+  }
+
+  /** 임시 토큰 생성 (컨텍스트 선택용, 5분 유효) */
+  generateTempAuthToken(client: any): string {
+    return this.jwtService.sign(
+      { sub: client.id, email: client.email, purpose: 'context-selection' },
+      { expiresIn: '5m' },
+    );
+  }
+
+  /** tempToken으로 선택 가능한 컨텍스트 목록 조회 */
+  async getContextsFromTempToken(tempToken: string) {
+    let payload: any;
+    try {
+      payload = this.jwtService.verify(tempToken);
+    } catch {
+      throw new UnauthorizedException('인증이 만료되었습니다. 다시 로그인해주세요.');
+    }
+
+    if (payload.purpose !== 'context-selection') {
+      throw new UnauthorizedException('유효하지 않은 토큰입니다.');
+    }
+
+    const client = await this.prisma.client.findUnique({
+      where: { id: payload.sub },
+    });
+    if (!client || client.status !== 'active') {
+      throw new UnauthorizedException('비활성 계정입니다.');
+    }
+
+    const employments = await this.getActiveEmployments(client.id);
+
+    return {
+      email: client.email,
+      contexts: [
+        {
+          type: 'personal',
+          label: '내 계정',
+          clientName: client.clientName,
+          clientId: client.id,
+        },
+        ...employments.map((e: any) => ({
+          type: 'employee',
+          employmentId: e.id,
+          companyClientId: e.companyClientId,
+          companyName: e.company.clientName,
+          role: e.role,
+        })),
+      ],
+    };
+  }
+
+  /** 컨텍스트 선택 후 최종 로그인 */
+  async loginWithContext(
+    tempToken: string,
+    contextType: string,
+    employmentId?: string,
+    rememberMe?: boolean,
+  ) {
+    let payload: any;
+    try {
+      payload = this.jwtService.verify(tempToken);
+    } catch {
+      throw new UnauthorizedException('인증이 만료되었습니다. 다시 로그인해주세요.');
+    }
+
+    if (payload.purpose !== 'context-selection') {
+      throw new UnauthorizedException('유효하지 않은 토큰입니다.');
+    }
+
+    const client = await this.prisma.client.findUnique({
+      where: { id: payload.sub },
+    });
+    if (!client || client.status !== 'active') {
+      throw new UnauthorizedException('비활성 계정입니다.');
+    }
+
+    if (contextType === 'personal') {
+      return this.loginClient(client, rememberMe ?? false);
+    }
+
+    // employee 컨텍스트
+    if (!employmentId) {
+      throw new BadRequestException('employmentId가 필요합니다.');
+    }
+
+    const employment = await this.prisma.employment.findUnique({
+      where: { id: employmentId },
+      include: {
+        company: {
+          select: { id: true, clientName: true, clientCode: true },
+        },
+      },
+    });
+
+    if (!employment || employment.memberClientId !== client.id || employment.status !== 'ACTIVE') {
+      throw new UnauthorizedException('유효하지 않은 선택입니다.');
+    }
+
+    return this.loginEmployeeAsClient(client, employment, rememberMe ?? false);
+  }
+
+  /** Employee 로그인 (Client 기반) */
+  async loginEmployeeAsClient(
+    client: any,
     employment: any,
     rememberMe: boolean = false,
   ) {
     // 로그인 시각 기록
-    await this.prisma.user.update({
-      where: { id: user.id },
+    await this.prisma.client.update({
+      where: { id: client.id },
       data: { lastLoginAt: new Date() },
     });
 
     const payload = {
-      sub: user.id,
-      email: user.email,
+      sub: client.id,
+      email: client.email,
       type: 'employee',
       role: employment.role,
-      clientId: employment.clientId,
+      clientId: employment.companyClientId,
       employmentId: employment.id,
       canViewAllOrders: employment.canViewAllOrders,
       canManageProducts: employment.canManageProducts,
@@ -1069,13 +1189,13 @@ export class AuthService {
       accessToken,
       refreshToken,
       user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
+        id: client.id,
+        email: client.email,
+        name: client.clientName,
         role: employment.role,
         type: 'employee',
-        clientId: employment.clientId,
-        clientName: employment.client.clientName,
+        clientId: employment.companyClientId,
+        clientName: employment.company.clientName,
         employmentId: employment.id,
         employeeRole: employment.role,
         canViewAllOrders: employment.canViewAllOrders,
@@ -1083,6 +1203,30 @@ export class AuthService {
         canViewSettlement: employment.canViewSettlement,
       },
     };
+  }
+
+  // ========== 레거시 Employee 메서드 (하위호환) ==========
+
+  async validateEmployee(email: string, password: string) {
+    const result = await this.unifiedLogin(email, password);
+    if (!result) return null;
+
+    const { client, employments } = result;
+    if (employments.length === 0) return null;
+
+    if (employments.length === 1) {
+      return { user: client, employment: employments[0] };
+    }
+
+    return { user: client, employments };
+  }
+
+  async loginEmployee(
+    user: any,
+    employment: any,
+    rememberMe: boolean = false,
+  ) {
+    return this.loginEmployeeAsClient(user, employment, rememberMe);
   }
 
   async loginEmployeeBySelection(
@@ -1093,25 +1237,25 @@ export class AuthService {
     const employment = await this.prisma.employment.findUnique({
       where: { id: employmentId },
       include: {
-        client: {
+        company: {
           select: { id: true, clientName: true, clientCode: true },
         },
       },
     });
 
-    if (!employment || employment.userId !== userId || employment.status !== 'ACTIVE') {
+    if (!employment || employment.memberClientId !== userId || employment.status !== 'ACTIVE') {
       throw new UnauthorizedException('유효하지 않은 선택입니다.');
     }
 
-    const user = await this.prisma.user.findUnique({
+    const client = await this.prisma.client.findUnique({
       where: { id: userId },
     });
 
-    if (!user || !user.isActive) {
+    if (!client || client.status !== 'active') {
       throw new UnauthorizedException('비활성 계정입니다.');
     }
 
-    return this.loginEmployee(user, employment, rememberMe);
+    return this.loginEmployeeAsClient(client, employment, rememberMe);
   }
 
   // 관리자가 특정 회원으로 대리 로그인

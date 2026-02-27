@@ -34,6 +34,8 @@ import {
   StaffRegisterCompanyEmailDto,
   ApproveStaffDto,
   ChangeStaffRoleDto,
+  UnifiedLoginDto,
+  SelectContextDto,
 } from './dto/auth.dto';
 import { StaffOnlyGuard } from '@/common/guards/staff-only.guard';
 
@@ -103,6 +105,71 @@ export class AuthController {
     return this.authService.resetClientPassword(clientId);
   }
 
+  // ========== 통합 로그인 ==========
+
+  @Public()
+  @Post('unified-login')
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @ApiOperation({ summary: '통합 로그인 (이메일/비밀번호)' })
+  async unifiedLogin(@Body() dto: UnifiedLoginDto) {
+    const result = await this.authService.unifiedLogin(dto.email, dto.password);
+    if (!result) {
+      throw new UnauthorizedException('이메일 또는 비밀번호가 일치하지 않습니다');
+    }
+
+    const { client, employments } = result;
+
+    // 소속 회사가 없으면 바로 Client 로그인
+    if (employments.length === 0) {
+      return this.authService.loginClient(client, dto.rememberMe ?? false);
+    }
+
+    // 소속 회사가 있으면 컨텍스트 선택 필요
+    return {
+      needsContextSelection: true,
+      tempToken: this.authService.generateTempAuthToken(client),
+      contexts: [
+        {
+          type: 'personal',
+          label: '내 계정',
+          clientName: client.clientName,
+          clientId: client.id,
+        },
+        ...employments.map((e: any) => ({
+          type: 'employee',
+          employmentId: e.id,
+          companyClientId: e.companyClientId,
+          companyName: e.company.clientName,
+          role: e.role,
+        })),
+      ],
+    };
+  }
+
+  @Public()
+  @Get('my-contexts')
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @ApiOperation({ summary: 'tempToken으로 선택 가능한 컨텍스트 목록 조회' })
+  async getMyContexts(@Query('tempToken') tempToken: string) {
+    if (!tempToken) {
+      throw new UnauthorizedException('tempToken이 필요합니다.');
+    }
+    return this.authService.getContextsFromTempToken(tempToken);
+  }
+
+  @Public()
+  @Post('select-context')
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @ApiOperation({ summary: '로그인 컨텍스트 선택 (내 계정 vs 회사 직원)' })
+  async selectContext(@Body() dto: SelectContextDto) {
+    return this.authService.loginWithContext(
+      dto.tempToken,
+      dto.contextType,
+      dto.employmentId,
+      dto.rememberMe,
+    );
+  }
+
   // ========== 고객 회원가입/로그인 ==========
 
   @Public()
@@ -162,11 +229,8 @@ export class AuthController {
   @UseGuards(AuthGuard('naver'))
   @ApiOperation({ summary: '네이버 로그인 콜백' })
   async naverAuthCallback(@Request() req: any, @Res() res: Response) {
-    const tokens = await this.authService.loginClient(req.user);
-    const code = this.authService.generateOAuthCode(tokens);
-
     const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3002';
-    return res.redirect(`${frontendUrl}/auth/callback?code=${code}`);
+    return this.handleOAuthCallback(req.user, frontendUrl, res);
   }
 
   // 카카오 OAuth 로그인 시작
@@ -184,11 +248,25 @@ export class AuthController {
   @UseGuards(AuthGuard('kakao'))
   @ApiOperation({ summary: '카카오 로그인 콜백' })
   async kakaoAuthCallback(@Request() req: any, @Res() res: Response) {
-    const tokens = await this.authService.loginClient(req.user);
-    const code = this.authService.generateOAuthCode(tokens);
-
     const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3002';
-    return res.redirect(`${frontendUrl}/auth/callback?code=${code}`);
+    return this.handleOAuthCallback(req.user, frontendUrl, res);
+  }
+
+  /** OAuth 콜백 공통 처리: Employment 확인 후 적절한 콜백으로 리다이렉트 */
+  private async handleOAuthCallback(client: any, frontendUrl: string, res: Response) {
+    // Employment(소속 회사) 확인
+    const employments = await this.authService.getActiveEmployments(client.id);
+
+    if (employments.length === 0) {
+      // 소속 없음 → 바로 Client 로그인
+      const tokens = await this.authService.loginClient(client);
+      const code = this.authService.generateOAuthCode(tokens);
+      return res.redirect(`${frontendUrl}/auth/callback?code=${code}`);
+    }
+
+    // 소속 있음 → 컨텍스트 선택 필요
+    const tempToken = this.authService.generateTempAuthToken(client);
+    return res.redirect(`${frontendUrl}/auth/callback?needsContext=true&tempToken=${encodeURIComponent(tempToken)}`);
   }
 
   // OAuth 코드 → 토큰 교환
@@ -229,8 +307,8 @@ export class AuthController {
       userId: result.user.id,
       employments: result.employments.map((e: any) => ({
         employmentId: e.id,
-        clientId: e.clientId,
-        clientName: e.client.clientName,
+        clientId: e.companyClientId,
+        clientName: e.company.clientName,
         role: e.role,
       })),
     };

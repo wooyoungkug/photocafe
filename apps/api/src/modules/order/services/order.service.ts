@@ -98,17 +98,7 @@ export class OrderService {
     });
     staffRecords.forEach(s => { nameMap[s.id] = s.name; });
 
-    // 미해결 ID → User 테이블
-    const unresolvedIds = uniqueIds.filter(id => !nameMap[id]);
-    if (unresolvedIds.length) {
-      const userRecords = await this.prisma.user.findMany({
-        where: { id: { in: unresolvedIds } },
-        select: { id: true, name: true },
-      });
-      userRecords.forEach(u => { nameMap[u.id] = u.name; });
-    }
-
-    // 미해결 ID → Client 테이블
+    // 미해결 ID → Client 테이블 (User 통합됨)
     const stillUnresolved = uniqueIds.filter(id => !nameMap[id]);
     if (stillUnresolved.length) {
       const clientRecords = await this.prisma.client.findMany({
