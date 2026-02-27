@@ -95,15 +95,8 @@ export default function EmployeesPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="border rounded-md overflow-hidden">
-              <table className="w-full text-[14px] table-fixed">
-                <colgroup>
-                  <col className="w-[180px]" />
-                  <col />
-                  <col className="w-[80px]" />
-                  <col className="w-[120px]" />
-                  <col className="w-[80px]" />
-                </colgroup>
+            <div className="border rounded-md overflow-x-auto">
+              <table className="text-[14px] whitespace-nowrap">
                 <thead>
                   <tr className="bg-gray-50 border-b">
                     <th className="text-left px-3 py-2 font-medium">이메일</th>
