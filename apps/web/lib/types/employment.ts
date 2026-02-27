@@ -1,4 +1,4 @@
-export type EmployeeRole = 'MANAGER' | 'STAFF';
+export type EmployeeRole = 'MANAGER' | 'STAFF' | 'EDITOR';
 export type EmploymentStatus = 'ACTIVE' | 'SUSPENDED';
 export type InvitationStatus = 'PENDING' | 'ACCEPTED' | 'EXPIRED';
 

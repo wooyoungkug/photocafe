@@ -29,6 +29,7 @@ enum EmploymentStatus {
 enum EmployeeRole {
   MANAGER
   STAFF
+  EDITOR
 }
 
 enum InvitationStatus {

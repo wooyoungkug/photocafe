@@ -147,7 +147,7 @@ export class EmploymentService {
           subject: `[${client.clientName}] 직원 초대`,
           html: `
             <h2>${client.clientName}에서 직원으로 초대했습니다.</h2>
-            <p>역할: ${dto.role === 'MANAGER' ? '관리자' : '직원'}</p>
+            <p>역할: ${dto.role === 'MANAGER' ? '관리자' : dto.role === 'EDITOR' ? '편집자' : '직원'}</p>
             <p>아래 링크를 클릭하여 초대를 수락해주세요:</p>
             <a href="${inviteLink}" style="display:inline-block;padding:12px 24px;background:#E4007F;color:#fff;text-decoration:none;border-radius:6px;">초대 수락하기</a>
             <p style="color:#666;font-size:12px;margin-top:16px;">이 초대는 7일 후 만료됩니다.</p>
@@ -245,36 +245,60 @@ export class EmploymentService {
       throw new BadRequestException('만료된 초대입니다.');
     }
 
-    // 이메일 중복 확인 (Client 테이블)
+    // 이메일로 기존 계정 확인
     const existingClient = await this.prisma.client.findFirst({
       where: { email: invitation.inviteeEmail },
     });
+
+    // 기존 계정이 있으면 같은 스튜디오 소속 여부만 확인 (다른 스튜디오는 허용)
     if (existingClient) {
-      throw new ConflictException(
-        '이미 등록된 이메일입니다. "기존 계정으로 연결"을 사용해주세요.',
-      );
-    }
-
-    // 트랜잭션: Client 생성 + Employment 생성 + Invitation 상태 변경
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
-    const clientCode = this.generateClientCode();
-
-    const result = await this.prisma.$transaction(async (tx) => {
-      const newClient = await tx.client.create({
-        data: {
-          clientCode,
-          clientName: dto.name,
-          email: invitation.inviteeEmail,
-          password: hashedPassword,
-          phone: dto.phone,
-          memberType: 'individual',
-          status: 'active',
+      const existingEmployment = await this.prisma.employment.findUnique({
+        where: {
+          memberClientId_companyClientId: {
+            memberClientId: existingClient.id,
+            companyClientId: invitation.clientId,
+          },
         },
       });
+      if (existingEmployment) {
+        throw new ConflictException('이미 해당 거래처에 소속되어 있습니다.');
+      }
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+
+    // 트랜잭션: Client 생성 또는 기존 Client 사용 + Employment 생성 + Invitation 상태 변경
+    const result = await this.prisma.$transaction(async (tx) => {
+      let client;
+      if (existingClient) {
+        // 기존 계정 재사용 (비밀번호 업데이트, 이름/전화번호 반영)
+        client = await tx.client.update({
+          where: { id: existingClient.id },
+          data: {
+            ...(dto.name && { clientName: dto.name }),
+            ...(dto.phone && { phone: dto.phone }),
+            password: hashedPassword,
+          },
+        });
+      } else {
+        // 신규 계정 생성
+        const clientCode = this.generateClientCode();
+        client = await tx.client.create({
+          data: {
+            clientCode,
+            clientName: dto.name,
+            email: invitation.inviteeEmail,
+            password: hashedPassword,
+            phone: dto.phone,
+            memberType: 'individual',
+            status: 'active',
+          },
+        });
+      }
 
       const employment = await tx.employment.create({
         data: {
-          memberClientId: newClient.id,
+          memberClientId: client.id,
           companyClientId: invitation.clientId,
           role: invitation.role,
         },
@@ -285,7 +309,7 @@ export class EmploymentService {
         data: { status: 'ACCEPTED' },
       });
 
-      return { client: newClient, employment };
+      return { client, employment };
     });
 
     return {

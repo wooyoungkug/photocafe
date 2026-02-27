@@ -152,7 +152,7 @@ export default function InviteAcceptPage() {
           <CardDescription className="text-[12px]">
             <strong>{client.clientName}</strong>에서{' '}
             <span className="font-medium">
-              {inv.role === 'MANAGER' ? '관리자' : '직원'}
+              {inv.role === 'MANAGER' ? '관리자' : inv.role === 'EDITOR' ? '편집자' : '직원'}
             </span>
             로 초대했습니다
           </CardDescription>

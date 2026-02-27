@@ -96,13 +96,19 @@ export default function EmployeesPage() {
           </CardHeader>
           <CardContent>
             <div className="border rounded-md overflow-hidden">
-              <table className="w-full text-[14px]">
+              <table className="w-full text-[11px] table-fixed">
+                <colgroup>
+                  <col />
+                  <col className="w-[80px]" />
+                  <col className="w-[120px]" />
+                  <col className="w-[80px]" />
+                </colgroup>
                 <thead>
                   <tr className="bg-gray-50 border-b">
                     <th className="text-left px-3 py-2 font-medium">이메일</th>
                     <th className="text-left px-3 py-2 font-medium">역할</th>
                     <th className="text-left px-3 py-2 font-medium">만료일</th>
-                    <th className="text-right px-3 py-2 font-medium">액션</th>
+                    <th className="text-center px-3 py-2 font-medium">액션</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -153,14 +159,8 @@ export default function EmployeesPage() {
                       <td className="px-3 py-2">{emp.member.clientName}</td>
                       <td className="px-3 py-2 text-gray-500">{emp.member.email}</td>
                       <td className="px-3 py-2">
-                        <span
-                          className={`inline-block px-1.5 py-0.5 rounded text-[10px] ${
-                            emp.role === 'MANAGER'
-                              ? 'bg-blue-100 text-blue-700'
-                              : 'bg-gray-100 text-gray-600'
-                          }`}
-                        >
-                          {emp.role === 'MANAGER' ? '관리자' : '직원'}
+                        <span className="text-[14px] text-black">
+                          {emp.role === 'MANAGER' ? '관리자' : emp.role === 'EDITOR' ? '편집자' : '직원'}
                         </span>
                       </td>
                       <td className="px-3 py-2">
@@ -240,20 +240,14 @@ function InvitationRow({ invitation }: { invitation: Invitation }) {
     <tr className="border-b last:border-0 hover:bg-gray-50">
       <td className="px-3 py-2">{invitation.inviteeEmail}</td>
       <td className="px-3 py-2">
-        <span
-          className={`inline-block px-1.5 py-0.5 rounded text-[10px] ${
-            invitation.role === 'MANAGER'
-              ? 'bg-blue-100 text-blue-700'
-              : 'bg-gray-100 text-gray-600'
-          }`}
-        >
-          {invitation.role === 'MANAGER' ? '관리자' : '직원'}
+        <span className="text-[14px] text-black">
+          {invitation.role === 'MANAGER' ? '관리자' : invitation.role === 'EDITOR' ? '편집자' : '직원'}
         </span>
       </td>
       <td className="px-3 py-2 text-gray-500">
         {new Date(invitation.expiresAt).toLocaleDateString('ko-KR')}
       </td>
-      <td className="px-3 py-2 text-right">
+      <td className="px-3 py-2 text-center">
         <Button
           variant="ghost"
           size="sm"
@@ -374,6 +368,7 @@ function InviteDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="MANAGER" className="text-[14px]">관리자 (직원관리 가능)</SelectItem>
+                  <SelectItem value="EDITOR" className="text-[14px]">편집자</SelectItem>
                   <SelectItem value="STAFF" className="text-[14px]">직원</SelectItem>
                 </SelectContent>
               </Select>
@@ -453,6 +448,7 @@ function EditPermissionDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="MANAGER" className="text-[11px]">관리자</SelectItem>
+                <SelectItem value="EDITOR" className="text-[11px]">편집자</SelectItem>
                 <SelectItem value="STAFF" className="text-[11px]">직원</SelectItem>
               </SelectContent>
             </Select>
