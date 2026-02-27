@@ -11,11 +11,10 @@ import type { Category } from '@/lib/types/category';
 import { useTranslations, useLocale } from 'next-intl';
 import { getLocalizedName } from '@/lib/utils';
 
-// 특수 카테고리: "이미지관리"는 전용 페이지로 연결
+// linkUrl이 설정된 카테고리는 해당 URL로 이동, 없으면 카테고리 페이지
 function getCategoryHref(category: Category): string {
-  const name = category.name?.toLowerCase();
-  if (name === '이미지관리' || name === 'image management') {
-    return '/image-management';
+  if (category.linkUrl) {
+    return category.linkUrl;
   }
   return `/category/${category.id}`;
 }
