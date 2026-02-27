@@ -67,7 +67,7 @@ export default function EmployeesPage() {
   const pendingInvitations = invitations?.filter((i) => i.status === 'PENDING') || [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-[70%]">
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -98,6 +98,7 @@ export default function EmployeesPage() {
             <div className="border rounded-md overflow-hidden">
               <table className="w-full text-[11px] table-fixed">
                 <colgroup>
+                  <col className="w-[180px]" />
                   <col />
                   <col className="w-[80px]" />
                   <col className="w-[120px]" />
@@ -106,6 +107,7 @@ export default function EmployeesPage() {
                 <thead>
                   <tr className="bg-gray-50 border-b">
                     <th className="text-left px-3 py-2 font-medium">이메일</th>
+                    <th className="text-left px-3 py-2 font-medium">가입 URL</th>
                     <th className="text-left px-3 py-2 font-medium">역할</th>
                     <th className="text-left px-3 py-2 font-medium">만료일</th>
                     <th className="text-center px-3 py-2 font-medium">액션</th>
@@ -235,10 +237,37 @@ export default function EmployeesPage() {
 
 function InvitationRow({ invitation }: { invitation: Invitation }) {
   const cancelMutation = useCancelInvitation();
+  const [copied, setCopied] = useState(false);
+
+  const inviteUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/invite/${invitation.token}`
+    : `/invite/${invitation.token}`;
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(inviteUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+    toast.success('가입 URL이 복사되었습니다');
+  };
 
   return (
     <tr className="border-b last:border-0 hover:bg-gray-50">
       <td className="px-3 py-2">{invitation.inviteeEmail}</td>
+      <td className="px-3 py-2">
+        <div className="flex items-center gap-1">
+          <span className="truncate text-gray-500" title={inviteUrl}>
+            /invite/{invitation.token.slice(0, 8)}…
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0 flex-shrink-0"
+            onClick={handleCopy}
+          >
+            {copied ? <Check className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3" />}
+          </Button>
+        </div>
+      </td>
       <td className="px-3 py-2">
         <span className="text-[14px] text-black">
           {invitation.role === 'MANAGER' ? '관리자' : invitation.role === 'EDITOR' ? '편집자' : '직원'}
