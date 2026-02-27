@@ -327,14 +327,14 @@ function InviteDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-[14px]">직원 초대</DialogTitle>
-          <DialogDescription className="text-[12px]">
+          <DialogDescription className="text-[14px]">
             초대할 직원의 이메일과 역할을 입력하세요
           </DialogDescription>
         </DialogHeader>
 
         {inviteLink ? (
           <div className="space-y-4">
-            <div className="flex items-center gap-2 p-3 text-[11px] text-green-700 bg-green-50 rounded-md">
+            <div className="flex items-center gap-2 p-3 text-[14px] text-green-700 bg-green-50 rounded-md">
               <Check className="h-4 w-4 flex-shrink-0" />
               <span>초대가 생성되었습니다. 아래 링크를 직원에게 전달해주세요.</span>
             </div>
@@ -342,7 +342,7 @@ function InviteDialog({
               <Input
                 readOnly
                 value={inviteLink}
-                className="text-[11px]"
+                className="text-[14px]"
               />
               <Button size="sm" variant="outline" onClick={handleCopy}>
                 {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
@@ -357,24 +357,24 @@ function InviteDialog({
         ) : (
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-[11px]">이메일</Label>
+              <Label className="text-[14px]">이메일</Label>
               <Input
                 type="email"
                 placeholder="employee@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="text-[11px]"
+                className="text-[14px]"
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-[11px]">역할</Label>
+              <Label className="text-[14px]">역할</Label>
               <Select value={role} onValueChange={(v) => setRole(v as EmployeeRole)}>
-                <SelectTrigger className="text-[11px]">
+                <SelectTrigger className="text-[14px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="MANAGER" className="text-[11px]">관리자 (직원관리 가능)</SelectItem>
-                  <SelectItem value="STAFF" className="text-[11px]">직원</SelectItem>
+                  <SelectItem value="MANAGER" className="text-[14px]">관리자 (직원관리 가능)</SelectItem>
+                  <SelectItem value="STAFF" className="text-[14px]">직원</SelectItem>
                 </SelectContent>
               </Select>
             </div>
