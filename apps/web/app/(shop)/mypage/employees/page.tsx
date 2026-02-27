@@ -96,7 +96,7 @@ export default function EmployeesPage() {
           </CardHeader>
           <CardContent>
             <div className="border rounded-md overflow-x-auto">
-              <table className="text-[14px] whitespace-nowrap">
+              <table className="text-[24px] whitespace-nowrap">
                 <thead>
                   <tr className="bg-gray-50 border-b">
                     <th className="text-left px-3 py-2 font-medium">이메일</th>
