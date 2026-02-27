@@ -14,6 +14,8 @@ import {
   UpdateEmploymentDto,
   AcceptInvitationDto,
   AcceptInvitationExistingDto,
+  CreateClientDepartmentDto,
+  UpdateClientDepartmentDto,
 } from './dto/employment.dto';
 
 @Injectable()
@@ -521,20 +523,98 @@ export class EmploymentService {
     });
   }
 
-  async getDepartmentsByClient(clientId: string): Promise<string[]> {
-    const results = await this.prisma.employment.findMany({
-      where: {
-        companyClientId: clientId,
-        department: { not: null },
-      },
-      select: { department: true },
-      distinct: ['department'],
-      orderBy: { department: 'asc' },
+  private static readonly DEFAULT_DEPARTMENTS = [
+    { name: 'Photography', sortOrder: 1 },
+    { name: 'Design', sortOrder: 2 },
+    { name: 'Sales & Concierge', sortOrder: 3 },
+  ];
+
+  async getDepartmentsByClient(clientId: string) {
+    let departments = await this.prisma.clientDepartment.findMany({
+      where: { clientId },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
     });
 
-    return results
-      .map((r) => r.department)
-      .filter((d): d is string => d !== null);
+    // 부서가 없으면 기본 부서 자동 생성
+    if (departments.length === 0) {
+      await this.prisma.clientDepartment.createMany({
+        data: EmploymentService.DEFAULT_DEPARTMENTS.map((d) => ({
+          clientId,
+          name: d.name,
+          sortOrder: d.sortOrder,
+        })),
+        skipDuplicates: true,
+      });
+      departments = await this.prisma.clientDepartment.findMany({
+        where: { clientId },
+        orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      });
+    }
+
+    return departments;
+  }
+
+  // ==================== 거래처 부서 관리 ====================
+
+  async getDepartmentById(id: string) {
+    const dept = await this.prisma.clientDepartment.findUnique({
+      where: { id },
+    });
+    if (!dept) {
+      throw new NotFoundException('부서를 찾을 수 없습니다.');
+    }
+    return dept;
+  }
+
+  async createClientDepartment(dto: CreateClientDepartmentDto) {
+    const existing = await this.prisma.clientDepartment.findUnique({
+      where: { clientId_name: { clientId: dto.clientId, name: dto.name } },
+    });
+    if (existing) {
+      throw new ConflictException('이미 존재하는 부서명입니다.');
+    }
+    return this.prisma.clientDepartment.create({
+      data: {
+        clientId: dto.clientId,
+        name: dto.name,
+        sortOrder: dto.sortOrder ?? 0,
+      },
+    });
+  }
+
+  async updateClientDepartment(id: string, dto: UpdateClientDepartmentDto) {
+    const dept = await this.prisma.clientDepartment.findUnique({
+      where: { id },
+    });
+    if (!dept) {
+      throw new NotFoundException('부서를 찾을 수 없습니다.');
+    }
+    if (dto.name && dto.name !== dept.name) {
+      const existing = await this.prisma.clientDepartment.findUnique({
+        where: { clientId_name: { clientId: dept.clientId, name: dto.name } },
+      });
+      if (existing) {
+        throw new ConflictException('이미 존재하는 부서명입니다.');
+      }
+    }
+    return this.prisma.clientDepartment.update({
+      where: { id },
+      data: {
+        ...(dto.name !== undefined && { name: dto.name }),
+        ...(dto.sortOrder !== undefined && { sortOrder: dto.sortOrder }),
+      },
+    });
+  }
+
+  async deleteClientDepartment(id: string) {
+    const dept = await this.prisma.clientDepartment.findUnique({
+      where: { id },
+    });
+    if (!dept) {
+      throw new NotFoundException('부서를 찾을 수 없습니다.');
+    }
+    await this.prisma.clientDepartment.delete({ where: { id } });
+    return { success: true, message: '부서가 삭제되었습니다.' };
   }
 
   async removeEmployment(employmentId: string) {

@@ -399,6 +399,7 @@ model Client {
   memberEmployments       Employment[]                   @relation("EmploymentMember")
   companyEmployments      Employment[]                   @relation("EmploymentCompany")
   invitations             Invitation[]
+  clientDepartments       ClientDepartment[]
 
   @@unique([oauthProvider, oauthId])
   @@index([groupId])
@@ -2964,6 +2965,21 @@ model Employment {
   @@index([memberClientId])
   @@index([companyClientId])
   @@map("employments")
+}
+
+model ClientDepartment {
+  id        String   @id @default(cuid())
+  clientId  String
+  name      String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, name])
+  @@index([clientId])
+  @@map("client_departments")
 }
 
 model Invitation {

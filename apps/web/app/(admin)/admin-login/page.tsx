@@ -243,16 +243,14 @@ export default function AdminLoginPage() {
               <div className="flex gap-2">
                 <a
                   href={`${API_URL}/auth/staff/naver`}
-                  className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-md text-xs font-medium text-white transition-colors"
-                  style={{ backgroundColor: '#03C75A' }}
+                  className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-md text-xs font-medium text-white transition-colors bg-[#03C75A]"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z"/></svg>
                   네이버
                 </a>
                 <a
                   href={`${API_URL}/auth/staff/kakao`}
-                  className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-md text-xs font-medium text-black/85 transition-colors"
-                  style={{ backgroundColor: '#FEE500' }}
+                  className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-md text-xs font-medium text-black/85 transition-colors bg-[#FEE500]"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3C6.477 3 2 6.463 2 10.691c0 2.735 1.81 5.13 4.534 6.487l-1.15 4.23a.3.3 0 00.462.334l4.96-3.278c.39.032.785.05 1.194.05 5.523 0 10-3.463 10-7.732S17.523 3 12 3"/></svg>
                   카카오

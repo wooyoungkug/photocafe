@@ -4,6 +4,7 @@ import {
   IsIn,
   IsOptional,
   IsBoolean,
+  IsInt,
   MinLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -72,6 +73,33 @@ export class AcceptInvitationDto {
   @IsOptional()
   @IsString()
   phone?: string;
+}
+
+export class CreateClientDepartmentDto {
+  @ApiProperty({ description: '거래처 ID' })
+  @IsString()
+  clientId: string;
+
+  @ApiProperty({ description: '부서명' })
+  @IsString()
+  name: string;
+
+  @ApiPropertyOptional({ description: '정렬 순서', default: 0 })
+  @IsOptional()
+  @IsInt()
+  sortOrder?: number;
+}
+
+export class UpdateClientDepartmentDto {
+  @ApiPropertyOptional({ description: '부서명' })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiPropertyOptional({ description: '정렬 순서' })
+  @IsOptional()
+  @IsInt()
+  sortOrder?: number;
 }
 
 export class AcceptInvitationExistingDto {

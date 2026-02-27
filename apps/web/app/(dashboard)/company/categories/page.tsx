@@ -1007,6 +1007,7 @@ export default function CategoriesPage() {
                       <input
                         type="file"
                         accept="image/*"
+                        aria-label="카테고리 아이콘 업로드"
                         className="block w-full text-sm text-slate-500
                           file:mr-4 file:py-2 file:px-4
                           file:rounded-md file:border-0

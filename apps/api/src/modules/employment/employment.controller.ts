@@ -2,12 +2,14 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Patch,
   Delete,
   Param,
   Body,
   UseGuards,
   Request,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
@@ -19,6 +21,8 @@ import {
   UpdateEmploymentDto,
   AcceptInvitationDto,
   AcceptInvitationExistingDto,
+  CreateClientDepartmentDto,
+  UpdateClientDepartmentDto,
 } from './dto/employment.dto';
 
 @ApiTags('employments')
@@ -71,9 +75,58 @@ export class EmploymentController {
   @Get('departments/:clientId')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: '거래처 부서 목록 (중복 제거)' })
+  @ApiOperation({ summary: '거래처 부서 목록' })
   async getDepartmentsByClient(@Param('clientId') clientId: string) {
     return this.employmentService.getDepartmentsByClient(clientId);
+  }
+
+  @Post('departments')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '거래처 부서 추가 (Manager/소유자 전용)' })
+  async createClientDepartment(
+    @Body() dto: CreateClientDepartmentDto,
+    @Request() req: any,
+  ) {
+    this.ensureManagerOrOwner(req.user, dto.clientId);
+    return this.employmentService.createClientDepartment(dto);
+  }
+
+  @Put('departments/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '거래처 부서 수정 (Manager/소유자 전용)' })
+  async updateClientDepartment(
+    @Param('id') id: string,
+    @Body() dto: UpdateClientDepartmentDto,
+    @Request() req: any,
+  ) {
+    // dept에서 clientId를 조회하여 권한 검증
+    const dept = await this.employmentService.getDepartmentById(id);
+    this.ensureManagerOrOwner(req.user, dept.clientId);
+    return this.employmentService.updateClientDepartment(id, dto);
+  }
+
+  @Delete('departments/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '거래처 부서 삭제 (Manager/소유자 전용)' })
+  async deleteClientDepartment(
+    @Param('id') id: string,
+    @Request() req: any,
+  ) {
+    const dept = await this.employmentService.getDepartmentById(id);
+    this.ensureManagerOrOwner(req.user, dept.clientId);
+    return this.employmentService.deleteClientDepartment(id);
+  }
+
+  /** Manager 또는 거래처 소유자 권한 검증 */
+  private ensureManagerOrOwner(user: any, clientId: string) {
+    // 거래처 소유자
+    if (user.type === 'client' && user.sub === clientId) return;
+    // MANAGER 직원
+    if (user.type === 'employee' && user.role === 'MANAGER' && user.clientId === clientId) return;
+    throw new ForbiddenException('부서 관리는 Manager 또는 소유자만 가능합니다.');
   }
 
   @Patch(':id')

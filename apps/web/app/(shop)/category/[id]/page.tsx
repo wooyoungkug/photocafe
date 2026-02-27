@@ -100,9 +100,7 @@ function CategoryPageContent() {
 
       {/* Category Header */}
       <section className="relative bg-neutral-900 text-white overflow-hidden">
-        <div className="absolute inset-0 opacity-5" style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='1' fill-rule='evenodd'%3E%3Cpath d='M0 40L40 0H20L0 20M40 40V20L20 40'/%3E%3C/g%3E%3C/svg%3E")`,
-        }} />
+        <div className="absolute inset-0 opacity-5 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2240%22%20height%3D%2240%22%20viewBox%3D%220%200%2040%2040%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%221%22%20fill-rule%3D%22evenodd%22%3E%3Cpath%20d%3D%22M0%2040L40%200H20L0%2020M40%2040V20L20%2040%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E')]" />
         <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" />
         <div className="relative container mx-auto px-4 py-12 md:py-16 text-center">
           {categoryLoading && !isAllProducts ? (
@@ -185,6 +183,7 @@ function CategoryPageContent() {
             <div className="flex items-center border border-neutral-300">
               <button
                 onClick={() => setViewMode('grid')}
+                aria-label="그리드 보기"
                 className={cn(
                   "p-2 transition-colors",
                   viewMode === 'grid' ? "bg-neutral-900 text-white" : "text-neutral-400 hover:text-neutral-600"
@@ -194,6 +193,7 @@ function CategoryPageContent() {
               </button>
               <button
                 onClick={() => setViewMode('list')}
+                aria-label="목록 보기"
                 className={cn(
                   "p-2 transition-colors",
                   viewMode === 'list' ? "bg-neutral-900 text-white" : "text-neutral-400 hover:text-neutral-600"
@@ -332,6 +332,7 @@ function ProductCard({ product }: { product: Product }) {
           {/* Quick Add Button */}
           <button
             onClick={handleQuickAdd}
+            aria-label="장바구니에 추가"
             className="absolute bottom-3 right-3 bg-white/90 hover:bg-white p-2.5 shadow-sm opacity-0 group-hover:opacity-100 transition-all duration-300"
           >
             <ShoppingCart className="h-4 w-4 text-neutral-700" />
