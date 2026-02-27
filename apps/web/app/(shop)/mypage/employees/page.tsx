@@ -96,7 +96,7 @@ export default function EmployeesPage() {
           </CardHeader>
           <CardContent>
             <div className="border rounded-md overflow-hidden">
-              <table className="w-full text-[11px] table-fixed">
+              <table className="w-full text-[14px] table-fixed">
                 <colgroup>
                   <col className="w-[180px]" />
                   <col />
