@@ -75,7 +75,7 @@ export default function MyPageLayout({
           </div>
           <p className="text-[12px] text-gray-500 ml-7 mt-0.5">
             {user?.type === 'employee'
-              ? `${user?.clientName} ${user?.name}(${user?.employeeRole === 'MANAGER' ? '관리자' : user?.employeeRole === 'EDITOR' ? '편집자' : '직원'})님, 환영합니다`
+              ? `${user?.clientName} ${user?.name}(${user?.employeeRole === 'MANAGER' ? '관리자' : user?.employeeRole === 'EDITOR' ? '편집자' : 'STAFF'})님, 환영합니다`
               : `${user?.clientName || user?.email}님, 환영합니다`}
           </p>
         </div>
