@@ -163,7 +163,7 @@ export default function InviteAcceptPage() {
               <Button
                 variant="outline"
                 className="w-full h-auto py-3 justify-start"
-                onClick={() => setMode('new')}
+                onClick={() => { setError(null); setMode('new'); }}
               >
                 <UserPlus className="h-4 w-4 mr-3 flex-shrink-0" />
                 <div className="text-left">
@@ -174,7 +174,7 @@ export default function InviteAcceptPage() {
               <Button
                 variant="outline"
                 className="w-full h-auto py-3 justify-start"
-                onClick={() => setMode('existing')}
+                onClick={() => { setError(null); setMode('existing'); }}
               >
                 <LogIn className="h-4 w-4 mr-3 flex-shrink-0" />
                 <div className="text-left">
@@ -220,7 +220,7 @@ export default function InviteAcceptPage() {
                   variant="outline"
                   size="sm"
                   className="flex-1"
-                  onClick={() => setMode('choose')}
+                  onClick={() => { setError(null); setMode('choose'); }}
                 >
                   뒤로
                 </Button>
@@ -266,7 +266,7 @@ export default function InviteAcceptPage() {
                   variant="outline"
                   size="sm"
                   className="flex-1"
-                  onClick={() => setMode('choose')}
+                  onClick={() => { setError(null); setMode('choose'); }}
                 >
                   뒤로
                 </Button>
