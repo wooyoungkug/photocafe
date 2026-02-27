@@ -167,10 +167,10 @@ export default function EmployeesPage() {
                       </td>
                       <td className="px-3 py-2">
                         <span
-                          className={`inline-block px-1.5 py-0.5 rounded text-[12px] ${
+                          className={`inline-block text-[14px] ${
                             emp.status === 'ACTIVE'
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-red-100 text-red-700'
+                              ? 'text-black'
+                              : 'text-red-600'
                           }`}
                         >
                           {emp.status === 'ACTIVE' ? '활성' : '정지'}
