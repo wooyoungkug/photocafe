@@ -160,7 +160,7 @@ export default function EmployeesPage() {
                       <td className="px-3 py-2">{emp.member.clientName}</td>
                       <td className="px-3 py-2 text-gray-500">{emp.member.email}</td>
                       <td className="px-3 py-2">
-                        {emp.role === 'MANAGER' ? 'Manager' : emp.role === 'EDITOR' ? '편집자' : emp.role === 'PHOTOGRAPHER' ? 'Photographer' : 'STAFF'}
+                        {emp.role === 'MANAGER' ? 'Manager' : emp.role === 'EDITOR' ? 'Artist' : emp.role === 'PHOTOGRAPHER' ? 'Photographer' : 'STAFF'}
                       </td>
                       <td className="px-3 py-2">
                         {emp.canViewAllOrders ? '전체' : '본인만'}
@@ -273,7 +273,7 @@ function InvitationRow({ invitation }: { invitation: Invitation }) {
       </td>
       <td className="px-3 py-2">
         <span className="text-[14px] text-black">
-          {invitation.role === 'MANAGER' ? 'Manager' : invitation.role === 'EDITOR' ? '편집자' : invitation.role === 'PHOTOGRAPHER' ? 'Photographer' : 'STAFF'}
+          {invitation.role === 'MANAGER' ? 'Manager' : invitation.role === 'EDITOR' ? 'Artist' : invitation.role === 'PHOTOGRAPHER' ? 'Photographer' : 'STAFF'}
         </span>
       </td>
       <td className="px-3 py-2 text-gray-500">
@@ -400,7 +400,7 @@ function InviteDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="MANAGER" className="text-[14px]">Manager (직원관리 가능)</SelectItem>
-                  <SelectItem value="EDITOR" className="text-[14px]">편집자</SelectItem>
+                  <SelectItem value="EDITOR" className="text-[14px]">Artist</SelectItem>
                   <SelectItem value="PHOTOGRAPHER" className="text-[14px]">Photographer</SelectItem>
                   <SelectItem value="STAFF" className="text-[14px]">STAFF</SelectItem>
                 </SelectContent>
@@ -481,7 +481,7 @@ function EditPermissionDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="MANAGER" className="text-[11px]">Manager</SelectItem>
-                <SelectItem value="EDITOR" className="text-[11px]">편집자</SelectItem>
+                <SelectItem value="EDITOR" className="text-[11px]">Artist</SelectItem>
                 <SelectItem value="PHOTOGRAPHER" className="text-[11px]">Photographer</SelectItem>
                 <SelectItem value="STAFF" className="text-[11px]">STAFF</SelectItem>
               </SelectContent>
