@@ -9,13 +9,14 @@ import {
   User,
   MapPin,
   Star,
+  Users,
   ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useAuthStore } from '@/stores/auth-store';
 
-const MENU_ITEMS = [
+const BASE_MENU_ITEMS = [
   { icon: User, label: '회원정보', href: '/mypage/profile' },
   { icon: MapPin, label: '배송지 관리', href: '/mypage/addresses' },
   { icon: Star, label: '마이상품', href: '/mypage/my-products' },
@@ -23,6 +24,17 @@ const MENU_ITEMS = [
   { icon: Calendar, label: '월거래집계', href: '/mypage/monthly-summary' },
   { icon: Wallet, label: '입금내역', href: '/mypage/deposits' },
 ];
+
+const EMPLOYEE_MENU = { icon: Users, label: '직원관리', href: '/mypage/employees' };
+
+function getMenuItems(user: ReturnType<typeof useAuthStore>['user']) {
+  const items = [...BASE_MENU_ITEMS];
+  // 거래처 소유자 또는 MANAGER 직원만 직원관리 메뉴 표시
+  if (user?.type !== 'employee' || user?.employeeRole === 'MANAGER') {
+    items.splice(1, 0, EMPLOYEE_MENU); // 회원정보 바로 뒤에 삽입
+  }
+  return items;
+}
 
 export default function MyPageLayout({
   children,
@@ -32,6 +44,7 @@ export default function MyPageLayout({
   const pathname = usePathname();
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
+  const menuItems = getMenuItems(user);
 
   if (!isAuthenticated) {
     return (
@@ -61,7 +74,9 @@ export default function MyPageLayout({
             <h1 className="text-[16px] font-medium">마이페이지</h1>
           </div>
           <p className="text-[12px] text-gray-500 ml-7 mt-0.5">
-            {user?.clientName || user?.email}님, 환영합니다
+            {user?.type === 'employee'
+              ? `${user?.name} (${user?.clientName})님, 환영합니다`
+              : `${user?.clientName || user?.email}님, 환영합니다`}
           </p>
         </div>
       </div>
@@ -73,7 +88,7 @@ export default function MyPageLayout({
             <Card className="sticky top-4">
               <CardContent className="p-0">
                 <nav>
-                  {MENU_ITEMS.map((item) => {
+                  {menuItems.map((item) => {
                     const Icon = item.icon;
                     const isActive =
                       pathname === item.href ||
