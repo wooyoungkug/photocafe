@@ -239,10 +239,12 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
                 {/* User info - tablet and above */}
                 <div className="hidden sm:flex flex-col items-start">
                   <span className="text-sm font-semibold text-slate-800 leading-tight">
-                    {user?.name || "사용자"}
+                    {user?.type === 'employee'
+                      ? `${user?.name || '사용자'} (${user?.employeeRole === 'MANAGER' ? '관리자' : user?.employeeRole === 'EDITOR' ? '편집자' : '직원'})`
+                      : (user?.name || "사용자")}
                   </span>
                   <span className="text-[11px] text-slate-400 leading-tight">
-                    {user?.role === "ADMIN" ? "관리자" : "사용자"}
+                    {user?.type === 'employee' ? user?.clientName : (user?.role === "ADMIN" ? "관리자" : "사용자")}
                   </span>
                 </div>
                 <ChevronDown className="hidden sm:block h-3.5 w-3.5 text-slate-400 transition-transform duration-200 group-data-[state=open]:rotate-180" />
@@ -252,10 +254,12 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
               {/* Mobile user info */}
               <div className="sm:hidden px-2 py-2.5">
                 <p className="text-sm font-semibold text-slate-800">
-                  {user?.name || "사용자"}
+                  {user?.type === 'employee'
+                    ? `${user?.name || '사용자'} (${user?.employeeRole === 'MANAGER' ? '관리자' : user?.employeeRole === 'EDITOR' ? '편집자' : '직원'})`
+                    : (user?.name || "사용자")}
                 </p>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  {user?.email || ""}
+                  {user?.type === 'employee' ? user?.clientName : (user?.email || "")}
                 </p>
               </div>
               <DropdownMenuSeparator className="sm:hidden" />
@@ -263,10 +267,12 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
               {/* Desktop user info label */}
               <DropdownMenuLabel className="hidden sm:block font-normal">
                 <p className="text-sm font-medium text-slate-700">
-                  {user?.name || "사용자"}
+                  {user?.type === 'employee'
+                    ? `${user?.name || '사용자'} (${user?.employeeRole === 'MANAGER' ? '관리자' : user?.employeeRole === 'EDITOR' ? '편집자' : '직원'})`
+                    : (user?.name || "사용자")}
                 </p>
                 <p className="text-xs text-slate-400 mt-0.5 truncate">
-                  {user?.email || ""}
+                  {user?.type === 'employee' ? `${user?.clientName} · ${user?.email}` : (user?.email || "")}
                 </p>
               </DropdownMenuLabel>
               <DropdownMenuSeparator className="hidden sm:block" />

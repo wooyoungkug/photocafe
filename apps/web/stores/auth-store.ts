@@ -23,7 +23,7 @@ interface User {
   // Employee-specific fields
   type?: 'client' | 'employee';
   employmentId?: string;
-  employeeRole?: 'MANAGER' | 'STAFF';
+  employeeRole?: 'MANAGER' | 'STAFF' | 'EDITOR';
   canViewAllOrders?: boolean;
   canManageProducts?: boolean;
   canViewSettlement?: boolean;
