@@ -97,7 +97,7 @@ export default function MyPageLayout({
                     return (
                       <Link key={item.href} href={item.href}>
                         <button
-                          className={`w-full flex items-center justify-between px-3.5 py-2.5 text-left text-[13px] font-normal transition-colors ${
+                          className={`w-full flex items-center justify-between px-3.5 py-2.5 text-left text-[14px] font-normal transition-colors ${
                             isActive
                               ? 'bg-primary text-white font-medium'
                               : 'hover:bg-gray-50 text-gray-700'
