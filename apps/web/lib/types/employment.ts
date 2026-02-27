@@ -2,19 +2,22 @@ export type EmployeeRole = 'MANAGER' | 'STAFF';
 export type EmploymentStatus = 'ACTIVE' | 'SUSPENDED';
 export type InvitationStatus = 'PENDING' | 'ACCEPTED' | 'EXPIRED';
 
-export interface EmploymentUser {
+export interface EmploymentMember {
   id: string;
   email: string;
-  name: string;
+  clientName: string;
   phone?: string;
   profileImage?: string;
   lastLoginAt?: string;
 }
 
+/** @deprecated use EmploymentMember */
+export type EmploymentUser = EmploymentMember;
+
 export interface Employment {
   id: string;
-  userId: string;
-  clientId: string;
+  memberClientId: string;
+  companyClientId: string;
   role: EmployeeRole;
   status: EmploymentStatus;
   canViewAllOrders: boolean;
@@ -23,7 +26,7 @@ export interface Employment {
   joinedAt: string;
   createdAt: string;
   updatedAt: string;
-  user: EmploymentUser;
+  member: EmploymentMember;
 }
 
 export interface Invitation {

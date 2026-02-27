@@ -150,7 +150,7 @@ export default function EmployeesPage() {
                 <tbody>
                   {employees.map((emp) => (
                     <tr key={emp.id} className="border-b last:border-0 hover:bg-gray-50">
-                      <td className="px-3 py-2">{emp.user.name}</td>
+                      <td className="px-3 py-2">{emp.member.clientName}</td>
                       <td className="px-3 py-2 text-gray-500">{emp.user.email}</td>
                       <td className="px-3 py-2">
                         <span
