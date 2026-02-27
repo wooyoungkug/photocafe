@@ -24,6 +24,7 @@ export interface Employment {
   canViewAllOrders: boolean;
   canManageProducts: boolean;
   canViewSettlement: boolean;
+  department?: string | null;
   joinedAt: string;
   createdAt: string;
   updatedAt: string;
@@ -71,6 +72,7 @@ export interface UpdateEmploymentRequest {
   canManageProducts?: boolean;
   canViewSettlement?: boolean;
   status?: EmploymentStatus;
+  department?: string;
 }
 
 export interface AcceptInvitationRequest {

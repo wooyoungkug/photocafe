@@ -68,6 +68,14 @@ export class EmploymentController {
     return this.employmentService.cancelInvitation(invId);
   }
 
+  @Get('departments/:clientId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '거래처 부서 목록 (중복 제거)' })
+  async getDepartmentsByClient(@Param('clientId') clientId: string) {
+    return this.employmentService.getDepartmentsByClient(clientId);
+  }
+
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

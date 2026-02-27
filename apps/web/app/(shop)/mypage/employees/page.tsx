@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '@/stores/auth-store';
 import {
   useEmployeesByClient,
@@ -9,6 +9,7 @@ import {
   useCancelInvitation,
   useUpdateEmployment,
   useRemoveEmployment,
+  useEmployeeDepartments,
 } from '@/hooks/use-employment';
 import { Employment, Invitation, EmployeeRole, EmploymentStatus } from '@/lib/types/employment';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -50,8 +51,12 @@ import {
   Mail,
   Shield,
   Users,
+  Building,
+  ChevronDown,
+  Plus,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 export default function EmployeesPage() {
   const { user } = useAuthStore();
@@ -144,6 +149,7 @@ export default function EmployeesPage() {
                     <th className="text-left px-3 py-2 font-medium">이름</th>
                     <th className="text-left px-3 py-2 font-medium">이메일</th>
                     <th className="text-left px-3 py-2 font-medium">역할</th>
+                    <th className="text-left px-3 py-2 font-medium">부서</th>
                     <th className="text-left px-3 py-2 font-medium">주문 열람</th>
                     <th className="text-left px-3 py-2 font-medium">상태</th>
                     <th className="text-left px-3 py-2 font-medium">최근 접속</th>
@@ -163,6 +169,9 @@ export default function EmployeesPage() {
                         {emp.memberClientId === emp.companyClientId
                           ? '최고관리자'
                           : emp.role === 'MANAGER' ? 'Manager' : emp.role === 'EDITOR' ? 'Artist' : emp.role === 'PHOTOGRAPHER' ? 'Photographer' : 'STAFF'}
+                      </td>
+                      <td className="px-3 py-2 text-gray-500">
+                        {emp.department || '-'}
                       </td>
                       <td className="px-3 py-2">
                         {emp.canViewAllOrders ? '전체' : '본인만'}
@@ -437,18 +446,50 @@ function EditPermissionDialog({
   employment: Employment;
   onClose: () => void;
 }) {
+  const { user } = useAuthStore();
+  const clientId = user?.type === 'employee' ? user.clientId : user?.id;
+
   const [role, setRole] = useState<EmployeeRole>(employment.role);
   const [canViewAllOrders, setCanViewAllOrders] = useState(employment.canViewAllOrders);
   const [canManageProducts, setCanManageProducts] = useState(employment.canManageProducts);
   const [canViewSettlement, setCanViewSettlement] = useState(employment.canViewSettlement);
   const [status, setStatus] = useState<EmploymentStatus>(employment.status);
+  const [department, setDepartment] = useState(employment.department || '');
+  const [deptSearch, setDeptSearch] = useState('');
+  const [deptOpen, setDeptOpen] = useState(false);
+  const deptRef = useRef<HTMLDivElement>(null);
+
+  const { data: departments = [] } = useEmployeeDepartments(clientId);
   const updateMutation = useUpdateEmployment();
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (deptRef.current && !deptRef.current.contains(event.target as Node)) {
+        setDeptOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredDepts = departments.filter((d) =>
+    d.toLowerCase().includes(deptSearch.toLowerCase())
+  );
+  const exactMatch = departments.find(
+    (d) => d.toLowerCase() === deptSearch.toLowerCase()
+  );
+
+  const handleSelectDept = (value: string) => {
+    setDepartment(value);
+    setDeptOpen(false);
+    setDeptSearch('');
+  };
 
   const handleSubmit = () => {
     updateMutation.mutate(
       {
         id: employment.id,
-        data: { role, canViewAllOrders, canManageProducts, canViewSettlement, status },
+        data: { role, canViewAllOrders, canManageProducts, canViewSettlement, status, department },
       },
       {
         onSuccess: () => {
@@ -501,6 +542,89 @@ function EditPermissionDialog({
                 <SelectItem value="SUSPENDED" className="text-[14px] text-black font-normal">정지</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-[14px] text-black font-normal">부서</Label>
+            <div ref={deptRef} className="relative">
+              <Button
+                type="button"
+                variant="outline"
+                role="combobox"
+                aria-expanded={deptOpen}
+                className="w-full justify-between text-[14px] text-black font-normal h-9"
+                onClick={() => setDeptOpen(!deptOpen)}
+              >
+                {department ? (
+                  <span className="flex items-center gap-2">
+                    <Building className="h-4 w-4" />
+                    {department}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">부서 선택 또는 입력...</span>
+                )}
+                <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+
+              {deptOpen && (
+                <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover p-0 text-popover-foreground shadow-md">
+                  <div className="flex items-center border-b px-3">
+                    <Input
+                      placeholder="검색 또는 새 부서 입력..."
+                      value={deptSearch}
+                      onChange={(e) => setDeptSearch(e.target.value)}
+                      className="border-0 focus-visible:ring-0 h-9 text-[14px]"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="max-h-40 overflow-y-auto p-1">
+                    <button
+                      type="button"
+                      className={cn(
+                        'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-[14px] hover:bg-accent',
+                        !department && 'bg-accent'
+                      )}
+                      onClick={() => handleSelectDept('')}
+                    >
+                      <Check className={cn('h-4 w-4', department ? 'opacity-0' : 'opacity-100')} />
+                      <span className="text-muted-foreground">부서 없음</span>
+                    </button>
+
+                    {filteredDepts.map((dept) => (
+                      <button
+                        key={dept}
+                        type="button"
+                        className={cn(
+                          'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-[14px] hover:bg-accent',
+                          department === dept && 'bg-accent'
+                        )}
+                        onClick={() => handleSelectDept(dept)}
+                      >
+                        <Check className={cn('h-4 w-4', department === dept ? 'opacity-100' : 'opacity-0')} />
+                        {dept}
+                      </button>
+                    ))}
+
+                    {deptSearch.trim() && !exactMatch && (
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-[14px] hover:bg-accent text-primary"
+                        onClick={() => handleSelectDept(deptSearch.trim())}
+                      >
+                        <Plus className="h-4 w-4" />
+                        <span>새 부서 추가: &quot;{deptSearch}&quot;</span>
+                      </button>
+                    )}
+
+                    {filteredDepts.length === 0 && !deptSearch.trim() && (
+                      <div className="py-4 text-center text-[14px] text-muted-foreground">
+                        등록된 부서가 없습니다
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="space-y-3">

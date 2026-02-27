@@ -504,6 +504,9 @@ export class EmploymentService {
           canViewSettlement: dto.canViewSettlement,
         }),
         ...(dto.status !== undefined && { status: dto.status }),
+        ...(dto.department !== undefined && {
+          department: dto.department?.trim() || null,
+        }),
       },
       include: {
         member: {
@@ -516,6 +519,22 @@ export class EmploymentService {
         },
       },
     });
+  }
+
+  async getDepartmentsByClient(clientId: string): Promise<string[]> {
+    const results = await this.prisma.employment.findMany({
+      where: {
+        companyClientId: clientId,
+        department: { not: null },
+      },
+      select: { department: true },
+      distinct: ['department'],
+      orderBy: { department: 'asc' },
+    });
+
+    return results
+      .map((r) => r.department)
+      .filter((d): d is string => d !== null);
   }
 
   async removeEmployment(employmentId: string) {

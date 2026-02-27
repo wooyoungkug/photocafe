@@ -15,6 +15,7 @@ import {
 
 const EMPLOYMENT_KEY = 'employments';
 const INVITATION_KEY = 'invitations';
+const DEPARTMENTS_KEY = 'employee-departments';
 
 // ==================== 직원 목록 ====================
 
@@ -22,6 +23,16 @@ export function useEmployeesByClient(clientId: string | undefined) {
   return useQuery({
     queryKey: [EMPLOYMENT_KEY, clientId],
     queryFn: () => api.get<Employment[]>(`/employments/client/${clientId}`),
+    enabled: !!clientId,
+  });
+}
+
+// ==================== 부서 목록 ====================
+
+export function useEmployeeDepartments(clientId: string | undefined) {
+  return useQuery({
+    queryKey: [DEPARTMENTS_KEY, clientId],
+    queryFn: () => api.get<string[]>(`/employments/departments/${clientId}`),
     enabled: !!clientId,
   });
 }
@@ -83,6 +94,7 @@ export function useUpdateEmployment() {
     }) => api.patch<Employment>(`/employments/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [EMPLOYMENT_KEY] });
+      queryClient.invalidateQueries({ queryKey: [DEPARTMENTS_KEY] });
     },
   });
 }
