@@ -1112,6 +1112,7 @@ export class AuthService {
           companyName: e.company.clientName,
           clientName: client.clientName,
           role: e.role,
+          isOwner: e.memberClientId === e.companyClientId,
         })),
       ],
     };

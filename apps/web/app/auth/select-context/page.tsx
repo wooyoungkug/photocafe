@@ -17,6 +17,7 @@ interface ContextOption {
   companyClientId?: string;
   companyName?: string;
   role?: string;
+  isOwner?: boolean;
 }
 
 interface PendingContextSelection {
@@ -232,7 +233,7 @@ export default function SelectContextPage() {
               : context.companyName || '알 수 없는 회사';
             const subtitle = isPersonal
               ? (context.clientName || '개인 계정')
-              : (context.role === 'MANAGER' ? 'Manager' : 'Staff');
+              : (context.isOwner ? '최고관리자' : context.role === 'MANAGER' ? 'Manager' : context.role === 'EDITOR' ? 'Editor' : 'Staff');
 
             return (
               <Button

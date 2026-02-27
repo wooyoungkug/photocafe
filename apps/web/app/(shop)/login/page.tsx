@@ -23,6 +23,7 @@ interface LoginContext {
   companyClientId?: string;
   companyName?: string;
   role?: string;
+  isOwner?: boolean;
 }
 
 interface UnifiedLoginResponse {
@@ -189,7 +190,7 @@ function LoginForm() {
                 ) : (
                   <>
                     <div className="text-[14px] text-black font-normal">
-                      {context.clientName || ''} ({context.role === 'MANAGER' ? 'Manager' : context.role === 'EDITOR' ? 'Editor' : 'Staff'})
+                      {context.clientName || ''} ({context.isOwner ? '최고관리자' : context.role === 'MANAGER' ? 'Manager' : context.role === 'EDITOR' ? 'Editor' : 'Staff'})
                     </div>
                     <div className="text-[12px] text-muted-foreground">
                       {context.companyName}
