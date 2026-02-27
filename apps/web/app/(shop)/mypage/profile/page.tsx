@@ -256,7 +256,11 @@ export default function ProfilePage() {
             {/* 기본 정보 */}
             <div className="space-y-3">
               <h3 className="text-[12px] font-medium text-gray-500 tracking-wide">기본 정보</h3>
-              <div className="grid md:grid-cols-2 gap-x-6 gap-y-3">
+              <div className="grid md:grid-cols-3 gap-x-6 gap-y-3">
+                <div className="space-y-1">
+                  <Label className="text-[12px] font-normal text-gray-600">회원코드</Label>
+                  <FieldValue value={profile?.clientCode || ''} />
+                </div>
                 <div className="space-y-1">
                   <Label htmlFor="clientName" className="text-[12px] font-normal text-gray-600">
                     이름/상호명 <span className="text-red-500">*</span>
