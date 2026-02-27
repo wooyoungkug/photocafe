@@ -255,8 +255,8 @@ function InvitationRow({ invitation }: { invitation: Invitation }) {
       <td className="px-3 py-2">{invitation.inviteeEmail}</td>
       <td className="px-3 py-2">
         <div className="flex items-center gap-1">
-          <span className="truncate text-gray-500" title={inviteUrl}>
-            /invite/{invitation.token.slice(0, 8)}…
+          <span className="truncate text-gray-500 text-[10px]" title={inviteUrl}>
+            {inviteUrl}
           </span>
           <Button
             variant="ghost"
