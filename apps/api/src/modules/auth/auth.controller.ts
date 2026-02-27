@@ -10,6 +10,7 @@ import {
   UnauthorizedException,
   Query,
   Param,
+  Ip,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
@@ -111,7 +112,7 @@ export class AuthController {
   @Post('unified-login')
   @Throttle({ default: { ttl: 60000, limit: 10 } })
   @ApiOperation({ summary: '통합 로그인 (이메일/비밀번호)' })
-  async unifiedLogin(@Body() dto: UnifiedLoginDto) {
+  async unifiedLogin(@Body() dto: UnifiedLoginDto, @Ip() ip: string) {
     const result = await this.authService.unifiedLogin(dto.email, dto.password);
     if (!result) {
       throw new UnauthorizedException('이메일 또는 비밀번호가 일치하지 않습니다');
@@ -121,7 +122,7 @@ export class AuthController {
 
     // 소속 회사가 없으면 바로 Client 로그인
     if (employments.length === 0) {
-      return this.authService.loginClient(client, dto.rememberMe ?? false);
+      return this.authService.loginClient(client, dto.rememberMe ?? false, ip);
     }
 
     // 소속 회사가 있으면 컨텍스트 선택 필요
@@ -161,12 +162,13 @@ export class AuthController {
   @Post('select-context')
   @Throttle({ default: { ttl: 60000, limit: 10 } })
   @ApiOperation({ summary: '로그인 컨텍스트 선택 (내 계정 vs 회사 직원)' })
-  async selectContext(@Body() dto: SelectContextDto) {
+  async selectContext(@Body() dto: SelectContextDto, @Ip() ip: string) {
     return this.authService.loginWithContext(
       dto.tempToken,
       dto.contextType,
       dto.employmentId,
       dto.rememberMe,
+      ip,
     );
   }
 
@@ -190,12 +192,12 @@ export class AuthController {
   @Post('client/login')
   @Throttle({ default: { ttl: 60000, limit: 10 } })
   @ApiOperation({ summary: '고객 로그인' })
-  async clientLogin(@Body() dto: ClientLoginDto) {
+  async clientLogin(@Body() dto: ClientLoginDto, @Ip() ip: string) {
     const client = await this.authService.validateClient(dto.email, dto.password);
     if (!client) {
       throw new UnauthorizedException('이메일 또는 비밀번호가 일치하지 않습니다');
     }
-    return this.authService.loginClient(client, dto.rememberMe ?? false);
+    return this.authService.loginClient(client, dto.rememberMe ?? false, ip);
   }
 
   @Public()

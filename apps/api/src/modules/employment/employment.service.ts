@@ -46,6 +46,7 @@ export class EmploymentService {
             phone: true,
             profileImage: true,
             lastLoginAt: true,
+            lastLoginIp: true,
           },
         },
       },

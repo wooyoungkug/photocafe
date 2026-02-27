@@ -9,6 +9,7 @@ export interface EmploymentMember {
   phone?: string;
   profileImage?: string;
   lastLoginAt?: string;
+  lastLoginIp?: string;
 }
 
 /** @deprecated use EmploymentMember */

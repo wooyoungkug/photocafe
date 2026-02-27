@@ -362,7 +362,16 @@ export class AuthService {
   }
 
   // 클라이언트(고객) 로그인 처리
-  async loginClient(client: any, rememberMe: boolean = false) {
+  async loginClient(client: any, rememberMe: boolean = false, ip?: string) {
+    // 로그인 시각/IP 기록
+    await this.prisma.client.update({
+      where: { id: client.id },
+      data: {
+        lastLoginAt: new Date(),
+        ...(ip && { lastLoginIp: ip }),
+      },
+    });
+
     const payload = {
       sub: client.id,
       email: client.email,
@@ -1112,6 +1121,7 @@ export class AuthService {
     contextType: string,
     employmentId?: string,
     rememberMe?: boolean,
+    ip?: string,
   ) {
     let payload: any;
     try {
@@ -1132,7 +1142,7 @@ export class AuthService {
     }
 
     if (contextType === 'personal') {
-      return this.loginClient(client, rememberMe ?? false);
+      return this.loginClient(client, rememberMe ?? false, ip);
     }
 
     // employee 컨텍스트
@@ -1153,7 +1163,7 @@ export class AuthService {
       throw new UnauthorizedException('유효하지 않은 선택입니다.');
     }
 
-    return this.loginEmployeeAsClient(client, employment, rememberMe ?? false);
+    return this.loginEmployeeAsClient(client, employment, rememberMe ?? false, ip);
   }
 
   /** Employee 로그인 (Client 기반) */
@@ -1161,11 +1171,15 @@ export class AuthService {
     client: any,
     employment: any,
     rememberMe: boolean = false,
+    ip?: string,
   ) {
-    // 로그인 시각 기록
+    // 로그인 시각/IP 기록
     await this.prisma.client.update({
       where: { id: client.id },
-      data: { lastLoginAt: new Date() },
+      data: {
+        lastLoginAt: new Date(),
+        ...(ip && { lastLoginIp: ip }),
+      },
     });
 
     const payload = {
@@ -1225,14 +1239,16 @@ export class AuthService {
     user: any,
     employment: any,
     rememberMe: boolean = false,
+    ip?: string,
   ) {
-    return this.loginEmployeeAsClient(user, employment, rememberMe);
+    return this.loginEmployeeAsClient(user, employment, rememberMe, ip);
   }
 
   async loginEmployeeBySelection(
     userId: string,
     employmentId: string,
     rememberMe: boolean = false,
+    ip?: string,
   ) {
     const employment = await this.prisma.employment.findUnique({
       where: { id: employmentId },
@@ -1255,7 +1271,7 @@ export class AuthService {
       throw new UnauthorizedException('비활성 계정입니다.');
     }
 
-    return this.loginEmployeeAsClient(client, employment, rememberMe);
+    return this.loginEmployeeAsClient(client, employment, rememberMe, ip);
   }
 
   // 관리자가 특정 회원으로 대리 로그인

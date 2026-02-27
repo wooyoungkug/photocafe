@@ -330,6 +330,7 @@ model Client {
   oauthId                 String?
   profileImage            String?
   lastLoginAt             DateTime?
+  lastLoginIp             String?
   priceType               String                         @default("standard")
   paymentType             String                         @default("order")
   creditEnabled           Boolean                        @default(false)

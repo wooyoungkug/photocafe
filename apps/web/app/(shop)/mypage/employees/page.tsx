@@ -136,35 +136,38 @@ export default function EmployeesPage() {
               등록된 직원이 없습니다. 직원 초대 버튼을 눌러 직원을 초대하세요.
             </div>
           ) : (
-            <div className="border rounded-md overflow-hidden">
-              <table className="w-full text-[11px]">
+            <div className="border rounded-md overflow-x-auto">
+              <table className="w-full text-[14px]">
                 <thead>
                   <tr className="bg-gray-50 border-b">
+                    <th className="text-left px-3 py-2 font-medium">가입일</th>
                     <th className="text-left px-3 py-2 font-medium">이름</th>
                     <th className="text-left px-3 py-2 font-medium">이메일</th>
                     <th className="text-left px-3 py-2 font-medium">역할</th>
                     <th className="text-left px-3 py-2 font-medium">주문 열람</th>
                     <th className="text-left px-3 py-2 font-medium">상태</th>
                     <th className="text-left px-3 py-2 font-medium">최근 접속</th>
+                    <th className="text-left px-3 py-2 font-medium">접속 IP</th>
                     <th className="text-right px-3 py-2 font-medium">액션</th>
                   </tr>
                 </thead>
                 <tbody>
                   {employees.map((emp) => (
                     <tr key={emp.id} className="border-b last:border-0 hover:bg-gray-50">
+                      <td className="px-3 py-2 text-gray-500 whitespace-nowrap">
+                        {(() => { const d = new Date(emp.joinedAt); return `${d.getFullYear()}년 ${String(d.getMonth()+1).padStart(2,'0')}월 ${String(d.getDate()).padStart(2,'0')}일`; })()}
+                      </td>
                       <td className="px-3 py-2">{emp.member.clientName}</td>
                       <td className="px-3 py-2 text-gray-500">{emp.member.email}</td>
                       <td className="px-3 py-2">
-                        <span className="text-[14px] text-black">
-                          {emp.role === 'MANAGER' ? '관리자' : emp.role === 'EDITOR' ? '편집자' : '직원'}
-                        </span>
+                        {emp.role === 'MANAGER' ? '관리자' : emp.role === 'EDITOR' ? '편집자' : '직원'}
                       </td>
                       <td className="px-3 py-2">
                         {emp.canViewAllOrders ? '전체' : '본인만'}
                       </td>
                       <td className="px-3 py-2">
                         <span
-                          className={`inline-block px-1.5 py-0.5 rounded text-[10px] ${
+                          className={`inline-block px-1.5 py-0.5 rounded text-[12px] ${
                             emp.status === 'ACTIVE'
                               ? 'bg-green-100 text-green-700'
                               : 'bg-red-100 text-red-700'
@@ -173,10 +176,13 @@ export default function EmployeesPage() {
                           {emp.status === 'ACTIVE' ? '활성' : '정지'}
                         </span>
                       </td>
-                      <td className="px-3 py-2 text-gray-500">
+                      <td className="px-3 py-2 text-gray-500 whitespace-nowrap">
                         {emp.member.lastLoginAt
-                          ? new Date(emp.member.lastLoginAt).toLocaleDateString('ko-KR')
+                          ? (() => { const d = new Date(emp.member.lastLoginAt!); return `${d.getFullYear()}년 ${String(d.getMonth()+1).padStart(2,'0')}월 ${String(d.getDate()).padStart(2,'0')}일`; })()
                           : '-'}
+                      </td>
+                      <td className="px-3 py-2 text-gray-500">
+                        {emp.member.lastLoginIp || '-'}
                       </td>
                       <td className="px-3 py-2 text-right">
                         <DropdownMenu>
