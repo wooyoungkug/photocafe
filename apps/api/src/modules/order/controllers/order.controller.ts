@@ -47,9 +47,17 @@ export class OrderController {
 
   @Get()
   @ApiOperation({ summary: '주문 목록 조회' })
-  async findAll(@Query() query: OrderQueryDto) {
+  async findAll(@Query() query: OrderQueryDto, @Request() req: any) {
     const { page = 1, limit = 20, ...filters } = query;
     const skip = (page - 1) * limit;
+
+    // Employee 주문 스코핑: 거래처 강제 + 본인 주문만 필터
+    if (req.user?.type === 'employee') {
+      filters.clientId = req.user.clientId;
+      if (!req.user.canViewAllOrders) {
+        (filters as any).createdByUserId = req.user.sub;
+      }
+    }
 
     return this.orderService.findAll({ skip, take: limit, ...filters });
   }
@@ -178,6 +186,11 @@ export class OrderController {
   @Post()
   @ApiOperation({ summary: '주문 생성' })
   async create(@Body() dto: CreateOrderDto, @Request() req: any) {
+    // Employee가 주문 생성 시 거래처 강제 + createdByUserId 기록
+    if (req.user?.type === 'employee') {
+      dto.clientId = req.user.clientId;
+      return this.orderService.create(dto, req.user.id, req.user.sub);
+    }
     return this.orderService.create(dto, req.user.id);
   }
 

@@ -20,6 +20,13 @@ interface User {
   address?: string;
   addressDetail?: string;
   contactPerson?: string;
+  // Employee-specific fields
+  type?: 'client' | 'employee';
+  employmentId?: string;
+  employeeRole?: 'MANAGER' | 'STAFF';
+  canViewAllOrders?: boolean;
+  canManageProducts?: boolean;
+  canViewSettlement?: boolean;
 }
 
 interface AuthState {
