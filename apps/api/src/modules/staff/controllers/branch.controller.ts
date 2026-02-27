@@ -7,12 +7,16 @@ import {
   Body,
   Param,
   Query,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
+import { StaffOnlyGuard } from '@/common/guards/staff-only.guard';
 import { BranchService } from '../services/branch.service';
 
 @ApiTags('Branches')
+@ApiBearerAuth()
 @Controller('branches')
+@UseGuards(StaffOnlyGuard)
 export class BranchController {
   constructor(private readonly branchService: BranchService) {}
 

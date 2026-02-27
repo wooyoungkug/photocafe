@@ -27,6 +27,7 @@ import { PublicCopperPlateModule } from './modules/public-copper-plate/public-co
 import { MyProductModule } from './modules/my-product/my-product.module';
 import { ToolUsageModule } from './modules/tool-usage/tool-usage.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { AuditLogModule } from './modules/audit-log/audit-log.module';
 import { IpBlockMiddleware } from './modules/analytics/ip-block.middleware';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { EmailModule } from './common/email/email.module';
@@ -85,6 +86,7 @@ import { AppController } from './app.controller';
     MyProductModule,
     ToolUsageModule,
     AnalyticsModule,
+    AuditLogModule,
   ],
 })
 export class AppModule implements NestModule {

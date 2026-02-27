@@ -6,13 +6,17 @@ import {
   Delete,
   Body,
   Param,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { StaffOnlyGuard } from '@/common/guards/staff-only.guard';
 import { DepartmentService } from '../services/department.service';
 import { CreateDepartmentDto, UpdateDepartmentDto } from '../dto/staff.dto';
 
 @ApiTags('부서관리')
+@ApiBearerAuth()
 @Controller('departments')
+@UseGuards(StaffOnlyGuard)
 export class DepartmentController {
   constructor(private readonly departmentService: DepartmentService) {}
 

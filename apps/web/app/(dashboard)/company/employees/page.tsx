@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -81,8 +81,15 @@ export default function EmployeesPage() {
   const currentUser = useAuthStore((state) => state.user);
   const isSuperAdmin = currentUser?.isSuperAdmin === true;
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
+
+  // 검색 디바운스 (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Staff | null>(null);
@@ -93,7 +100,7 @@ export default function EmployeesPage() {
   const { data: staffData, isLoading, error } = useStaffList({
     page,
     limit: 20,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
     departmentId: departmentFilter !== 'all' ? departmentFilter : undefined,
   });
   const { data: departments } = useDepartments();
@@ -348,10 +355,57 @@ export default function EmployeesPage() {
       return;
     }
 
+    // staffId 형식 검증 (영문, 숫자, 언더스코어만 허용)
+    if (!/^[a-zA-Z0-9_]+$/.test(formData.staffId.trim())) {
+      toast({
+        title: '오류',
+        description: '직원 ID는 영문, 숫자, 언더스코어만 사용 가능합니다',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (formData.staffId.trim().length < 2) {
+      toast({
+        title: '오류',
+        description: '직원 ID는 최소 2자 이상이어야 합니다',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!formData.name.trim()) {
+      toast({
+        title: '오류',
+        description: '이름을 입력해주세요',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (!editingStaff && !formData.password) {
       toast({
         title: '오류',
         description: '비밀번호를 입력해주세요',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!editingStaff && formData.password && formData.password.length < 4) {
+      toast({
+        title: '오류',
+        description: '비밀번호는 최소 4자 이상이어야 합니다',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // 이메일 형식 검증 (입력된 경우)
+    if (formData.email && formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      toast({
+        title: '오류',
+        description: '올바른 이메일 형식이 아닙니다',
         variant: 'destructive',
       });
       return;

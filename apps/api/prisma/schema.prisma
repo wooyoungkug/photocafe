@@ -108,8 +108,49 @@ model Department {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   staff       Staff[]
+  teams       Team[]
 
   @@map("departments")
+}
+
+model Team {
+  id           String     @id @default(cuid())
+  code         String     @unique
+  name         String
+  departmentId String
+  leaderId     String?
+  description  String?
+  sortOrder    Int        @default(0)
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  department   Department @relation(fields: [departmentId], references: [id])
+  leader       Staff?     @relation("TeamLeader", fields: [leaderId], references: [id])
+  staff        Staff[]    @relation("TeamMembers")
+
+  @@index([departmentId])
+  @@map("teams")
+}
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  entityType    String
+  entityId      String
+  action        String
+  changes       Json?
+  performedBy   String
+  performerName String
+  ipAddress     String?
+  userAgent     String?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([performedBy])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
 }
 
 model Staff {
@@ -119,6 +160,7 @@ model Staff {
   name                    String
   branchId                String?
   departmentId            String?
+  teamId                  String?
   position                String?
   phone                   String?
   mobile                  String?
@@ -137,6 +179,9 @@ model Staff {
   canEditMemberInfo       Boolean       @default(false)
   canViewSettlement       Boolean       @default(false)
   canChangeOrderAmount    Boolean       @default(false)
+  canManageDepartments    Boolean       @default(false)
+  canBulkImportStaff      Boolean       @default(false)
+  canViewAuditLogs        Boolean       @default(false)
   memberViewScope         String        @default("own")
   salesViewScope          String        @default("own")
   menuPermissions         Json?
@@ -167,12 +212,15 @@ model Staff {
 
   branch                  Branch?       @relation(fields: [branchId], references: [id])
   department              Department?   @relation(fields: [departmentId], references: [id])
+  team                    Team?         @relation("TeamMembers", fields: [teamId], references: [id])
+  ledTeams                Team[]        @relation("TeamLeader")
   assignedClients         StaffClient[]
   salesLedgers            SalesLedger[] @relation("SalesLedgerStaff")
 
   @@unique([oauthProvider, oauthId])
   @@index([branchId])
   @@index([departmentId])
+  @@index([teamId])
   @@index([isActive])
   @@index([status])
   @@index([oauthProvider])

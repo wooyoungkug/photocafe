@@ -7,11 +7,13 @@ import {
   IsArray,
   IsObject,
   IsDateString,
+  IsEmail,
   Min,
   Max,
   IsEnum,
   IsNotEmpty,
   MinLength,
+  Matches,
 } from 'class-validator';
 
 export enum ViewScope {
@@ -50,8 +52,10 @@ export class ProcessPermission {
 }
 
 export class CreateStaffDto {
-  @ApiProperty({ description: '직원 ID (로그인용)', example: 'smsl1122' })
+  @ApiProperty({ description: '직원 ID (로그인용, 영문/숫자/언더스코어)', example: 'smsl1122' })
   @IsString()
+  @Matches(/^[a-zA-Z0-9_]+$/, { message: '직원 ID는 영문, 숫자, 언더스코어만 사용 가능합니다' })
+  @MinLength(2, { message: '직원 ID는 최소 2자 이상이어야 합니다' })
   staffId: string;
 
   @ApiProperty({ description: '비밀번호 (최소 4자)' })
@@ -74,6 +78,11 @@ export class CreateStaffDto {
   @IsOptional()
   departmentId?: string;
 
+  @ApiPropertyOptional({ description: '팀 ID' })
+  @IsString()
+  @IsOptional()
+  teamId?: string;
+
   @ApiPropertyOptional({ description: '직책', example: '대리' })
   @IsString()
   @IsOptional()
@@ -89,8 +98,8 @@ export class CreateStaffDto {
   @IsOptional()
   mobile?: string;
 
-  @ApiPropertyOptional({ description: '이메일', example: '2018602186' })
-  @IsString()
+  @ApiPropertyOptional({ description: '이메일', example: 'staff@company.com' })
+  @IsEmail({}, { message: '올바른 이메일 형식이 아닙니다' })
   @IsOptional()
   email?: string;
 
@@ -259,10 +268,33 @@ export class StaffQueryDto {
   @IsOptional()
   departmentId?: string;
 
+  @ApiPropertyOptional({ description: '팀 ID' })
+  @IsString()
+  @IsOptional()
+  teamId?: string;
+
   @ApiPropertyOptional({ description: '활성 상태만' })
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+}
+
+export class ChangeStaffStatusDto {
+  @ApiProperty({ description: '상태 (active, suspended, inactive)' })
+  @IsString()
+  @IsNotEmpty()
+  status: string;
+
+  @ApiPropertyOptional({ description: '사유' })
+  @IsString()
+  @IsOptional()
+  reason?: string;
+}
+
+export class BulkImportStaffDto {
+  @ApiProperty({ description: '일괄 등록할 직원 데이터' })
+  @IsArray()
+  rows: CreateStaffDto[];
 }
 
 export class AssignClientsDto {

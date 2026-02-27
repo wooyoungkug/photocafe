@@ -11,7 +11,20 @@ export class DepartmentService {
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
       include: {
         _count: {
-          select: { staff: true },
+          select: { staff: true, teams: true },
+        },
+        teams: {
+          orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            isActive: true,
+            sortOrder: true,
+            leaderId: true,
+            leader: { select: { id: true, staffId: true, name: true } },
+            _count: { select: { staff: true } },
+          },
         },
       },
     });
@@ -28,6 +41,14 @@ export class DepartmentService {
             name: true,
             position: true,
             isActive: true,
+            teamId: true,
+          },
+        },
+        teams: {
+          orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+          include: {
+            leader: { select: { id: true, staffId: true, name: true, position: true } },
+            _count: { select: { staff: true } },
           },
         },
       },
@@ -84,6 +105,11 @@ export class DepartmentService {
     // 소속 직원이 있으면 삭제 불가
     if (department.staff.length > 0) {
       throw new ConflictException('소속 직원이 있는 부서는 삭제할 수 없습니다');
+    }
+
+    // 소속 팀이 있으면 삭제 불가
+    if (department.teams.length > 0) {
+      throw new ConflictException('소속 팀이 있는 부서는 삭제할 수 없습니다. 먼저 팀을 삭제하세요.');
     }
 
     await this.prisma.department.delete({
