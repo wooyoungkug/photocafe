@@ -151,7 +151,7 @@ export default function InviteAcceptPage() {
           <CardTitle className="text-[24px]">직원 초대</CardTitle>
           <CardDescription className="text-[12px]">
             <strong>{client.clientName}</strong>에서{' '}
-            <span className="font-medium">
+            <span className="text-[18px] font-bold text-black">
               {inv.role === 'MANAGER' ? '관리자' : inv.role === 'EDITOR' ? '편집자' : '직원'}
             </span>
             로 초대했습니다
