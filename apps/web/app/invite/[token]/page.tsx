@@ -140,7 +140,7 @@ export default function InviteAcceptPage() {
               <span className="text-white font-bold text-2xl">P</span>
             </div>
           </Link>
-          <CardTitle className="text-[16px]">직원 초대</CardTitle>
+          <CardTitle className="text-[24px]">직원 초대</CardTitle>
           <CardDescription className="text-[12px]">
             <strong>{client.clientName}</strong>에서{' '}
             <span className="font-medium">
