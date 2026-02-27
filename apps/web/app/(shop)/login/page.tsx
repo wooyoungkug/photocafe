@@ -189,10 +189,10 @@ function LoginForm() {
                 ) : (
                   <>
                     <div className="text-[14px] text-black font-normal">
-                      {context.companyName} ({context.role === 'MANAGER' ? '관리자' : '직원'})
+                      {context.clientName || ''} ({context.role === 'MANAGER' ? '관리자' : context.role === 'EDITOR' ? '편집자' : '직원'})
                     </div>
                     <div className="text-[12px] text-muted-foreground">
-                      회사 계정으로 로그인
+                      {context.companyName}
                     </div>
                   </>
                 )}
