@@ -758,9 +758,16 @@ export default function MembersPage() {
                         <Input
                           id="businessNumber"
                           value={formData.businessNumber}
-                          onChange={(e) => setFormData({ ...formData, businessNumber: e.target.value })}
+                          onChange={(e) => {
+                            const numbers = e.target.value.replace(/\D/g, '').slice(0, 10);
+                            let formatted = numbers;
+                            if (numbers.length > 5) formatted = `${numbers.slice(0, 3)}-${numbers.slice(3, 5)}-${numbers.slice(5)}`;
+                            else if (numbers.length > 3) formatted = `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
+                            setFormData({ ...formData, businessNumber: formatted });
+                          }}
                           placeholder="123-45-67890"
                           className="bg-white"
+                          maxLength={12}
                         />
                       </div>
                       <div className="space-y-2">

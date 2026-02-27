@@ -65,7 +65,7 @@ export function useGenerateLogenTracking() {
         orderId,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['shipping', 'ready'] });
+      queryClient.invalidateQueries({ queryKey: ['shipping'] });
       queryClient.invalidateQueries({ queryKey: ['orders'] });
     },
   });
@@ -81,7 +81,7 @@ export function useBulkLogenTracking() {
         orderIds,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['shipping', 'ready'] });
+      queryClient.invalidateQueries({ queryKey: ['shipping'] });
       queryClient.invalidateQueries({ queryKey: ['orders'] });
     },
   });

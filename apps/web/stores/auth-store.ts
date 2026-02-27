@@ -10,6 +10,8 @@ interface User {
   role: string;
   staffId?: string;
   isSuperAdmin?: boolean;
+  profileImage?: string;
+  status?: string;
   clientId?: string;
   clientName?: string;
   mobile?: string;

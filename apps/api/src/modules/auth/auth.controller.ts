@@ -29,7 +29,11 @@ import {
   RegisterStudioDto,
   ClientLoginDto,
   AdminLoginDto,
+  StaffRegisterCompanyEmailDto,
+  ApproveStaffDto,
+  ChangeStaffRoleDto,
 } from './dto/auth.dto';
+import { StaffOnlyGuard } from '@/common/guards/staff-only.guard';
 
 
 @ApiTags('auth')
@@ -209,6 +213,158 @@ export class AuthController {
     }
     const ip = req.headers['x-forwarded-for'] || req.ip;
     return this.authService.loginStaff(staff, dto.rememberMe ?? false, ip);
+  }
+
+  // ========== 직원 소셜 로그인 ==========
+
+  @Public()
+  @Get('staff/naver')
+  @UseGuards(AuthGuard('staff-naver'))
+  @ApiOperation({ summary: '직원 네이버 소셜 로그인' })
+  async staffNaverAuth() {
+    // Passport가 네이버 로그인 페이지로 리다이렉트
+  }
+
+  @Public()
+  @Get('staff/naver/callback')
+  @UseGuards(AuthGuard('staff-naver'))
+  @ApiOperation({ summary: '직원 네이버 소셜 로그인 콜백' })
+  async staffNaverCallback(@Request() req: any, @Res() res: Response) {
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3002';
+    const result = await this.authService.loginStaffOAuth(req.user);
+
+    if (result.status === 'pending') {
+      return res.redirect(`${frontendUrl}/auth/staff/pending?staffId=${req.user.id}`);
+    }
+
+    const code = this.authService.generateOAuthCode(result as any);
+    return res.redirect(`${frontendUrl}/auth/staff/callback?code=${code}`);
+  }
+
+  @Public()
+  @Get('staff/kakao')
+  @UseGuards(AuthGuard('staff-kakao'))
+  @ApiOperation({ summary: '직원 카카오 소셜 로그인' })
+  async staffKakaoAuth() {
+    // Passport가 카카오 로그인 페이지로 리다이렉트
+  }
+
+  @Public()
+  @Get('staff/kakao/callback')
+  @UseGuards(AuthGuard('staff-kakao'))
+  @ApiOperation({ summary: '직원 카카오 소셜 로그인 콜백' })
+  async staffKakaoCallback(@Request() req: any, @Res() res: Response) {
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3002';
+    const result = await this.authService.loginStaffOAuth(req.user);
+
+    if (result.status === 'pending') {
+      return res.redirect(`${frontendUrl}/auth/staff/pending?staffId=${req.user.id}`);
+    }
+
+    const code = this.authService.generateOAuthCode(result as any);
+    return res.redirect(`${frontendUrl}/auth/staff/callback?code=${code}`);
+  }
+
+  @Public()
+  @Get('staff/google')
+  @UseGuards(AuthGuard('google'))
+  @ApiOperation({ summary: '직원 구글 소셜 로그인' })
+  async staffGoogleAuth() {
+    // Passport가 구글 로그인 페이지로 리다이렉트
+  }
+
+  @Public()
+  @Get('staff/google/callback')
+  @UseGuards(AuthGuard('google'))
+  @ApiOperation({ summary: '직원 구글 소셜 로그인 콜백' })
+  async staffGoogleCallback(@Request() req: any, @Res() res: Response) {
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3002';
+    const result = await this.authService.loginStaffOAuth(req.user);
+
+    if (result.status === 'pending') {
+      return res.redirect(`${frontendUrl}/auth/staff/pending?staffId=${req.user.id}`);
+    }
+
+    const code = this.authService.generateOAuthCode(result as any);
+    return res.redirect(`${frontendUrl}/auth/staff/callback?code=${code}`);
+  }
+
+  @Public()
+  @Post('staff/register')
+  @ApiOperation({ summary: '직원 회사 이메일 등록 (소셜 로그인 후)' })
+  async staffRegisterCompanyEmail(
+    @Body() dto: StaffRegisterCompanyEmailDto,
+    @Body('staffId') staffId: string,
+  ) {
+    if (!staffId) {
+      throw new UnauthorizedException('직원 ID가 필요합니다');
+    }
+    return this.authService.registerStaffCompanyEmail(staffId, dto.companyEmail);
+  }
+
+  // ========== 직원 관리 (SUPER_ADMIN) ==========
+
+  @Get('staff/pending')
+  @UseGuards(JwtAuthGuard, StaffOnlyGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '승인 대기 직원 목록' })
+  async getPendingStaff(@Request() req: any) {
+    if (!req.user.isSuperAdmin && req.user.type !== 'staff') {
+      throw new UnauthorizedException('최고관리자만 조회할 수 있습니다');
+    }
+    return this.authService.getPendingStaff();
+  }
+
+  @Patch('staff/:id/approve')
+  @UseGuards(JwtAuthGuard, StaffOnlyGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '직원 승인' })
+  async approveStaff(
+    @Param('id') id: string,
+    @Body() dto: ApproveStaffDto,
+    @Request() req: any,
+  ) {
+    if (!req.user.isSuperAdmin) {
+      throw new UnauthorizedException('최고관리자만 승인할 수 있습니다');
+    }
+    return this.authService.approveStaff(id, req.user.sub, dto.role);
+  }
+
+  @Patch('staff/:id/reject')
+  @UseGuards(JwtAuthGuard, StaffOnlyGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '직원 거절' })
+  async rejectStaff(@Param('id') id: string, @Request() req: any) {
+    if (!req.user.isSuperAdmin) {
+      throw new UnauthorizedException('최고관리자만 거절할 수 있습니다');
+    }
+    return this.authService.rejectStaff(id, req.user.sub);
+  }
+
+  @Patch('staff/:id/suspend')
+  @UseGuards(JwtAuthGuard, StaffOnlyGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '직원 정지' })
+  async suspendStaff(@Param('id') id: string, @Request() req: any) {
+    if (!req.user.isSuperAdmin) {
+      throw new UnauthorizedException('최고관리자만 정지할 수 있습니다');
+    }
+    return this.authService.suspendStaff(id, req.user.sub);
+  }
+
+  @Patch('staff/:id/role')
+  @UseGuards(JwtAuthGuard, StaffOnlyGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '직원 역할 변경' })
+  async changeStaffRole(
+    @Param('id') id: string,
+    @Body() dto: ChangeStaffRoleDto,
+    @Request() req: any,
+  ) {
+    if (!req.user.isSuperAdmin) {
+      throw new UnauthorizedException('최고관리자만 역할을 변경할 수 있습니다');
+    }
+    return this.authService.changeStaffRole(id, req.user.sub, dto.role);
   }
 
   // ========== 관리자 대리 로그인 ==========

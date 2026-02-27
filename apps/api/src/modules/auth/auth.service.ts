@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, BadRequestException, ConflictException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, ConflictException, NotFoundException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -123,7 +123,7 @@ export class AuthService {
           include: { branch: true, department: true },
         });
 
-        if (!staff || !staff.isActive) {
+        if (!staff || !staff.isActive || (staff.status && staff.status !== 'active')) {
           throw new UnauthorizedException('Invalid refresh token');
         }
 
@@ -561,7 +561,15 @@ export class AuthService {
       throw new UnauthorizedException('비활성화된 계정입니다');
     }
 
+    // 상태 확인 (소셜 로그인 연동 후 추가)
+    if (staff.status && staff.status !== 'active') {
+      throw new UnauthorizedException('계정이 활성 상태가 아닙니다');
+    }
+
     // 비밀번호 확인
+    if (!staff.password) {
+      throw new UnauthorizedException('비밀번호가 설정되지 않은 계정입니다');
+    }
     const isValid = await bcrypt.compare(password, staff.password);
     if (!isValid) {
       return null;
@@ -672,6 +680,251 @@ export class AuthService {
       },
       impersonated: true,
     };
+  }
+
+  // ========== 직원 소셜 로그인 ==========
+
+  // 직원 OAuth 검증 (신규 등록 or 기존 사용자 반환)
+  async validateStaffOAuth(data: {
+    oauthProvider: string;
+    oauthId: string;
+    email: string;
+    name: string;
+    profileImage?: string;
+  }): Promise<{ staff: any; isNew: boolean }> {
+    // 기존 Staff 조회 (oauthProvider + oauthId)
+    let staff = await this.prisma.staff.findFirst({
+      where: {
+        oauthProvider: data.oauthProvider,
+        oauthId: data.oauthId,
+      },
+    });
+
+    if (staff) {
+      if (staff.status === 'rejected') {
+        throw new UnauthorizedException('가입 거절된 계정입니다');
+      }
+      if (staff.status === 'suspended') {
+        throw new UnauthorizedException('정지된 계정입니다');
+      }
+      return { staff, isNew: false };
+    }
+
+    // 신규 Staff 생성 (status: pending)
+    staff = await this.prisma.staff.create({
+      data: {
+        name: data.name,
+        email: data.email,
+        companyEmail: data.email,
+        oauthProvider: data.oauthProvider,
+        oauthId: data.oauthId,
+        profileImage: data.profileImage,
+        status: 'pending',
+        role: 'employee',
+        isActive: false,
+        canLoginAsManager: false,
+      },
+    });
+
+    return { staff, isNew: true };
+  }
+
+  // 직원 OAuth 로그인 처리
+  async loginStaffOAuth(staff: any, ip?: string) {
+    // pending 상태면 토큰 없이 상태만 반환
+    if (staff.status === 'pending') {
+      return {
+        status: 'pending',
+        message: '가입 승인 대기 중입니다. 관리자에게 문의하세요.',
+        staffId: staff.id,
+      };
+    }
+
+    if (staff.status !== 'active' || !staff.isActive) {
+      throw new UnauthorizedException('비활성 계정입니다');
+    }
+
+    // 로그인 시각/IP 기록
+    await this.prisma.staff.update({
+      where: { id: staff.id },
+      data: {
+        lastLoginAt: new Date(),
+        ...(ip && { lastLoginIp: ip }),
+      },
+    });
+
+    const payload = {
+      sub: staff.id,
+      staffId: staff.staffId,
+      name: staff.name,
+      role: 'admin',
+      type: 'staff',
+      branchId: staff.branchId,
+      departmentId: staff.departmentId,
+    };
+
+    const accessToken = this.jwtService.sign(payload);
+    const refreshToken = this.jwtService.sign(payload, {
+      expiresIn: '7d',
+    });
+
+    return {
+      status: 'active',
+      accessToken,
+      refreshToken,
+      user: {
+        id: staff.id,
+        staffId: staff.staffId,
+        name: staff.name,
+        role: 'admin',
+        email: staff.companyEmail || staff.email,
+        isSuperAdmin: staff.isSuperAdmin ?? false,
+        profileImage: staff.profileImage,
+      },
+    };
+  }
+
+  // 회사 이메일 등록 (소셜 로그인 후)
+  async registerStaffCompanyEmail(staffId: string, companyEmail: string) {
+    const staff = await this.prisma.staff.findUnique({
+      where: { id: staffId },
+    });
+
+    if (!staff) {
+      throw new NotFoundException('직원을 찾을 수 없습니다');
+    }
+
+    if (staff.status !== 'pending') {
+      throw new BadRequestException('이미 처리된 가입 요청입니다');
+    }
+
+    await this.prisma.staff.update({
+      where: { id: staffId },
+      data: { companyEmail },
+    });
+
+    return { success: true, message: '회사 이메일이 등록되었습니다. 관리자 승인을 기다려주세요.' };
+  }
+
+  // 승인 대기 직원 목록
+  async getPendingStaff() {
+    return this.prisma.staff.findMany({
+      where: { status: 'pending' },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        companyEmail: true,
+        oauthProvider: true,
+        profileImage: true,
+        status: true,
+        role: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // 직원 승인
+  async approveStaff(staffId: string, adminId: string, role: string = 'employee') {
+    const staff = await this.prisma.staff.findUnique({
+      where: { id: staffId },
+    });
+
+    if (!staff) {
+      throw new NotFoundException('직원을 찾을 수 없습니다');
+    }
+
+    if (staff.status !== 'pending') {
+      throw new BadRequestException('승인 대기 상태가 아닙니다');
+    }
+
+    const validRoles = ['admin', 'employee'];
+    if (!validRoles.includes(role)) {
+      throw new BadRequestException('유효하지 않은 역할입니다');
+    }
+
+    return this.prisma.staff.update({
+      where: { id: staffId },
+      data: {
+        status: 'active',
+        isActive: true,
+        canLoginAsManager: true,
+        role,
+        isSuperAdmin: false,
+        approvedBy: adminId,
+        approvedAt: new Date(),
+      },
+    });
+  }
+
+  // 직원 거절
+  async rejectStaff(staffId: string, adminId: string) {
+    const staff = await this.prisma.staff.findUnique({
+      where: { id: staffId },
+    });
+
+    if (!staff) {
+      throw new NotFoundException('직원을 찾을 수 없습니다');
+    }
+
+    if (staff.status !== 'pending') {
+      throw new BadRequestException('승인 대기 상태가 아닙니다');
+    }
+
+    return this.prisma.staff.update({
+      where: { id: staffId },
+      data: {
+        status: 'rejected',
+        approvedBy: adminId,
+        approvedAt: new Date(),
+      },
+    });
+  }
+
+  // 직원 정지
+  async suspendStaff(staffId: string, adminId: string) {
+    const staff = await this.prisma.staff.findUnique({
+      where: { id: staffId },
+    });
+
+    if (!staff) {
+      throw new NotFoundException('직원을 찾을 수 없습니다');
+    }
+
+    return this.prisma.staff.update({
+      where: { id: staffId },
+      data: {
+        status: 'suspended',
+        isActive: false,
+        approvedBy: adminId,
+        approvedAt: new Date(),
+      },
+    });
+  }
+
+  // 직원 역할 변경
+  async changeStaffRole(staffId: string, adminId: string, role: string) {
+    const staff = await this.prisma.staff.findUnique({
+      where: { id: staffId },
+    });
+
+    if (!staff) {
+      throw new NotFoundException('직원을 찾을 수 없습니다');
+    }
+
+    const validRoles = ['super_admin', 'admin', 'employee'];
+    if (!validRoles.includes(role)) {
+      throw new BadRequestException('유효하지 않은 역할입니다');
+    }
+
+    return this.prisma.staff.update({
+      where: { id: staffId },
+      data: {
+        role,
+        isSuperAdmin: role === 'super_admin',
+      },
+    });
   }
 
   // 관리자가 특정 회원으로 대리 로그인
