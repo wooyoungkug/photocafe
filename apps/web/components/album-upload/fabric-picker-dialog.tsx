@@ -270,15 +270,15 @@ export function FabricPickerDialog({
                   >
                     <div className="flex flex-col items-center gap-1.5">
                       {fabric.thumbnailUrl ? (
-                        <div
-                          className="w-full aspect-square rounded border bg-cover bg-center"
-                          style={{ backgroundImage: `url(${fabric.thumbnailUrl})` }}
+                        <img
+                          src={fabric.thumbnailUrl}
+                          alt=""
+                          className="w-full aspect-square rounded border object-cover"
                         />
                       ) : fabric.colorCode ? (
-                        <div
-                          className="w-full aspect-square rounded border"
-                          style={{ backgroundColor: fabric.colorCode }}
-                        />
+                        <svg className="w-full aspect-square rounded border" viewBox="0 0 1 1">
+                          <rect width="1" height="1" fill={fabric.colorCode} />
+                        </svg>
                       ) : (
                         <div className="w-full aspect-square rounded border bg-gray-100 flex items-center justify-center">
                           <Palette className="w-6 h-6 text-gray-300" />

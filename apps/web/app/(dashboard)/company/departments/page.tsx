@@ -467,6 +467,7 @@ export default function DepartmentsPage() {
                           <button
                             type="button"
                             className="shrink-0"
+                            aria-label="하위 부서 펼치기/접기"
                             onClick={(e) => {
                               e.stopPropagation();
                               setExpandedDepts((prev) =>
