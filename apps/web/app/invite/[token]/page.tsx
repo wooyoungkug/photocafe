@@ -41,7 +41,7 @@ export default function InviteAcceptPage() {
   // 로딩
   if (isLoading) {
     return (
-      <div className="min-h-[calc(100vh-300px)] flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
         <Card className="w-full max-w-md shadow-lg">
           <CardContent className="py-12 flex items-center justify-center">
             <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
@@ -60,7 +60,7 @@ export default function InviteAcceptPage() {
         : '유효하지 않은 초대 링크입니다.';
 
     return (
-      <div className="min-h-[calc(100vh-300px)] flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
         <Card className="w-full max-w-md shadow-lg">
           <CardHeader className="text-center">
             <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -82,7 +82,7 @@ export default function InviteAcceptPage() {
   // 성공 완료
   if (success) {
     return (
-      <div className="min-h-[calc(100vh-300px)] flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
         <Card className="w-full max-w-md shadow-lg">
           <CardHeader className="text-center">
             <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -132,7 +132,7 @@ export default function InviteAcceptPage() {
   const client = validation.client!;
 
   return (
-    <div className="min-h-[calc(100vh-300px)] flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="text-center">
           <Link href="/" className="inline-block mb-3">
