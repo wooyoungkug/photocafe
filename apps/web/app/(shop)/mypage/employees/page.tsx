@@ -267,7 +267,7 @@ function InvitationRow({ invitation }: { invitation: Invitation }) {
         </span>
       </td>
       <td className="px-3 py-2 text-gray-500">
-        {new Date(invitation.expiresAt).toLocaleDateString('ko-KR')}
+        {new Date(invitation.expiresAt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
       </td>
       <td className="px-3 py-2 text-center">
         <Button
