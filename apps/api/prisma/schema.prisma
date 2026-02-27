@@ -30,6 +30,7 @@ enum EmployeeRole {
   MANAGER
   STAFF
   EDITOR
+  PHOTOGRAPHER
 }
 
 enum InvitationStatus {

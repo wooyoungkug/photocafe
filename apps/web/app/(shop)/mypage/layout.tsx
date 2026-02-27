@@ -16,23 +16,39 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useAuthStore } from '@/stores/auth-store';
 
-const BASE_MENU_ITEMS = [
-  { icon: User, label: '회원정보', href: '/mypage/profile' },
-  { icon: MapPin, label: '배송지 관리', href: '/mypage/addresses' },
-  { icon: Star, label: '마이상품', href: '/mypage/my-products' },
-  { icon: ShoppingBag, label: '주문내역', href: '/mypage/orders' },
-  { icon: Calendar, label: '월거래집계', href: '/mypage/monthly-summary' },
-  { icon: Wallet, label: '입금내역', href: '/mypage/deposits' },
-];
+function getMenuItems(user: {
+  type?: string;
+  employeeRole?: string;
+  canViewAllOrders?: boolean;
+  canManageProducts?: boolean;
+  canViewSettlement?: boolean;
+} | null) {
+  const isEmployee = user?.type === 'employee';
+  const items: { icon: typeof User; label: string; href: string }[] = [
+    { icon: User, label: '회원정보', href: '/mypage/profile' },
+  ];
 
-const EMPLOYEE_MENU = { icon: Users, label: '직원관리', href: '/mypage/employees' };
-
-function getMenuItems(user: { type?: string; employeeRole?: string } | null) {
-  const items = [...BASE_MENU_ITEMS];
   // 거래처 소유자 또는 MANAGER 직원만 직원관리 메뉴 표시
-  if (user?.type !== 'employee' || user?.employeeRole === 'MANAGER') {
-    items.splice(1, 0, EMPLOYEE_MENU); // 회원정보 바로 뒤에 삽입
+  if (!isEmployee || user?.employeeRole === 'MANAGER') {
+    items.push({ icon: Users, label: '직원관리', href: '/mypage/employees' });
   }
+
+  items.push({ icon: MapPin, label: '배송지 관리', href: '/mypage/addresses' });
+
+  // 마이상품: 거래처 소유자 또는 canManageProducts 권한 직원
+  if (!isEmployee || user?.canManageProducts) {
+    items.push({ icon: Star, label: '마이상품', href: '/mypage/my-products' });
+  }
+
+  // 주문내역: 항상 표시 (canViewAllOrders=false면 본인 주문만 보임)
+  items.push({ icon: ShoppingBag, label: '주문내역', href: '/mypage/orders' });
+
+  // 월거래집계, 입금내역: 거래처 소유자 또는 canViewSettlement 권한 직원
+  if (!isEmployee || user?.canViewSettlement) {
+    items.push({ icon: Calendar, label: '월거래집계', href: '/mypage/monthly-summary' });
+    items.push({ icon: Wallet, label: '입금내역', href: '/mypage/deposits' });
+  }
+
   return items;
 }
 

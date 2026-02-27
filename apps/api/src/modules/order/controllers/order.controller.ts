@@ -64,8 +64,18 @@ export class OrderController {
 
   @Get('status-counts')
   @ApiOperation({ summary: '주문 상태별 건수' })
-  async getStatusCounts(@Query('clientId') clientId?: string) {
-    return this.orderService.getStatusCounts(clientId);
+  async getStatusCounts(@Query('clientId') clientId?: string, @Request() req: any) {
+    let createdByUserId: string | undefined;
+
+    // Employee 주문 스코핑: 거래처 강제 + 본인 주문만 필터
+    if (req.user?.type === 'employee') {
+      clientId = req.user.clientId;
+      if (!req.user.canViewAllOrders) {
+        createdByUserId = req.user.sub;
+      }
+    }
+
+    return this.orderService.getStatusCounts(clientId, createdByUserId);
   }
 
   @Get('monthly-summary')

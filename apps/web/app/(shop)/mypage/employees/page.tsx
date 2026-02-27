@@ -160,7 +160,7 @@ export default function EmployeesPage() {
                       <td className="px-3 py-2">{emp.member.clientName}</td>
                       <td className="px-3 py-2 text-gray-500">{emp.member.email}</td>
                       <td className="px-3 py-2">
-                        {emp.role === 'MANAGER' ? '관리자' : emp.role === 'EDITOR' ? '편집자' : 'STAFF'}
+                        {emp.role === 'MANAGER' ? '관리자' : emp.role === 'EDITOR' ? '편집자' : emp.role === 'PHOTOGRAPHER' ? '사진작가' : 'STAFF'}
                       </td>
                       <td className="px-3 py-2">
                         {emp.canViewAllOrders ? '전체' : '본인만'}
@@ -273,7 +273,7 @@ function InvitationRow({ invitation }: { invitation: Invitation }) {
       </td>
       <td className="px-3 py-2">
         <span className="text-[14px] text-black">
-          {invitation.role === 'MANAGER' ? '관리자' : invitation.role === 'EDITOR' ? '편집자' : 'STAFF'}
+          {invitation.role === 'MANAGER' ? '관리자' : invitation.role === 'EDITOR' ? '편집자' : invitation.role === 'PHOTOGRAPHER' ? '사진작가' : 'STAFF'}
         </span>
       </td>
       <td className="px-3 py-2 text-gray-500">
@@ -401,6 +401,7 @@ function InviteDialog({
                 <SelectContent>
                   <SelectItem value="MANAGER" className="text-[14px]">관리자 (직원관리 가능)</SelectItem>
                   <SelectItem value="EDITOR" className="text-[14px]">편집자</SelectItem>
+                  <SelectItem value="PHOTOGRAPHER" className="text-[14px]">사진작가</SelectItem>
                   <SelectItem value="STAFF" className="text-[14px]">STAFF</SelectItem>
                 </SelectContent>
               </Select>
@@ -481,6 +482,7 @@ function EditPermissionDialog({
               <SelectContent>
                 <SelectItem value="MANAGER" className="text-[11px]">관리자</SelectItem>
                 <SelectItem value="EDITOR" className="text-[11px]">편집자</SelectItem>
+                <SelectItem value="PHOTOGRAPHER" className="text-[11px]">사진작가</SelectItem>
                 <SelectItem value="STAFF" className="text-[11px]">STAFF</SelectItem>
               </SelectContent>
             </Select>
