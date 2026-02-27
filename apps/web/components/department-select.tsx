@@ -225,8 +225,8 @@ export function DepartmentSelect({ value, onChange }: DepartmentSelectProps) {
                             <button
                                 type="button"
                                 className={cn(
-                                    "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent",
-                                    !value && "bg-accent"
+                                    "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-gray-100",
+                                    !value && "bg-blue-50 text-blue-700"
                                 )}
                                 onClick={() => handleSelect('')}
                             >
@@ -240,8 +240,8 @@ export function DepartmentSelect({ value, onChange }: DepartmentSelectProps) {
                                     key={dept.id}
                                     type="button"
                                     className={cn(
-                                        "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent",
-                                        value === dept.id && "bg-accent"
+                                        "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-gray-100",
+                                        value === dept.id && "bg-blue-50 text-blue-700"
                                     )}
                                     onClick={() => handleSelect(dept.id)}
                                 >
@@ -303,7 +303,7 @@ export function DepartmentSelect({ value, onChange }: DepartmentSelectProps) {
                             departments?.map((dept) => (
                                 <div
                                     key={dept.id}
-                                    className="flex items-center justify-between p-2 rounded-md hover:bg-muted"
+                                    className="flex items-center justify-between p-2 rounded-md hover:bg-gray-100"
                                 >
                                     {editingDept?.id === dept.id ? (
                                         <div className="flex items-center gap-2 flex-1">
