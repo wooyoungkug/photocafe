@@ -11,24 +11,15 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     @Inject(forwardRef(() => AuthService))
     private readonly authService: AuthService,
   ) {
-    const clientID = configService.get<string>('GOOGLE_CLIENT_ID');
-    const clientSecret = configService.get<string>('GOOGLE_CLIENT_SECRET');
-    const callbackURL = configService.get<string>('GOOGLE_CALLBACK_URL');
-
     super({
-      clientID: clientID || 'disabled',
-      clientSecret: clientSecret || 'disabled',
-      callbackURL: callbackURL || 'http://localhost:3001/api/v1/auth/staff/google/callback',
+      clientID: configService.get<string>('GOOGLE_CLIENT_ID') || 'disabled',
+      clientSecret: configService.get<string>('GOOGLE_CLIENT_SECRET') || 'disabled',
+      callbackURL: configService.get<string>('GOOGLE_CALLBACK_URL') || 'http://localhost:3001/api/v1/auth/staff/google/callback',
       scope: ['email', 'profile'],
     });
   }
 
-  async validate(
-    accessToken: string,
-    refreshToken: string,
-    profile: any,
-    done: VerifyCallback,
-  ): Promise<any> {
+  async validate(accessToken: string, refreshToken: string, profile: any, done: VerifyCallback): Promise<any> {
     try {
       const { id, emails, displayName, photos } = profile;
       const user = {
@@ -40,7 +31,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       };
       done(null, user);
     } catch (error) {
-      done(error, null);
+      done(error as Error, undefined);
     }
   }
 }
