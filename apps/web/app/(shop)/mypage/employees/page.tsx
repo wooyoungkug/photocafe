@@ -67,9 +67,14 @@ export default function EmployeesPage() {
   const { data: employees, isLoading: employeesLoading } = useEmployeesByClient(clientId);
   const { data: invitations, isLoading: invitationsLoading } = useInvitationsByClient(clientId);
 
+  const isManager =
+    user?.type === 'client' ||
+    (user?.type === 'employee' && user?.employeeRole === 'MANAGER');
+
   const [inviteOpen, setInviteOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Employment | null>(null);
   const [removeTarget, setRemoveTarget] = useState<Employment | null>(null);
+  const [deptManageOpen, setDeptManageOpen] = useState(false);
 
   const pendingInvitations = invitations?.filter((i) => i.status === 'PENDING') || [];
 
@@ -86,10 +91,18 @@ export default function EmployeesPage() {
             거래처 소속 직원을 초대하고 권한을 관리합니다
           </p>
         </div>
-        <Button size="sm" onClick={() => setInviteOpen(true)}>
-          <UserPlus className="h-4 w-4 mr-1" />
-          직원 초대
-        </Button>
+        <div className="flex items-center gap-2">
+          {isManager && (
+            <Button size="sm" variant="outline" onClick={() => setDeptManageOpen(true)}>
+              <Building className="h-4 w-4 mr-1" />
+              부서 관리
+            </Button>
+          )}
+          <Button size="sm" onClick={() => setInviteOpen(true)}>
+            <UserPlus className="h-4 w-4 mr-1" />
+            직원 초대
+          </Button>
+        </div>
       </div>
 
       {/* Pending Invitations */}
@@ -240,6 +253,14 @@ export default function EmployeesPage() {
         <RemoveDialog
           employment={removeTarget}
           onClose={() => setRemoveTarget(null)}
+        />
+      )}
+      {deptManageOpen && clientId && (
+        <DepartmentManageDialog
+          clientId={clientId}
+          onClose={() => setDeptManageOpen(false)}
+          onDepartmentRenamed={() => {}}
+          onDepartmentDeleted={() => {}}
         />
       )}
     </div>
@@ -451,17 +472,12 @@ function EditPermissionDialog({
   const { user } = useAuthStore();
   const clientId = user?.type === 'employee' ? user.clientId : user?.id;
 
-  const isManager =
-    user?.type === 'client' ||
-    (user?.type === 'employee' && user?.employeeRole === 'MANAGER');
-
   const [role, setRole] = useState<EmployeeRole>(employment.role);
   const [canViewAllOrders, setCanViewAllOrders] = useState(employment.canViewAllOrders);
   const [canManageProducts, setCanManageProducts] = useState(employment.canManageProducts);
   const [canViewSettlement, setCanViewSettlement] = useState(employment.canViewSettlement);
   const [status, setStatus] = useState<EmploymentStatus>(employment.status);
   const [department, setDepartment] = useState(employment.department || '');
-  const [deptManageOpen, setDeptManageOpen] = useState(false);
 
   const { data: departments = [] } = useEmployeeDepartments(clientId);
   const updateMutation = useUpdateEmployment();
@@ -485,9 +501,8 @@ function EditPermissionDialog({
   };
 
   return (
-    <>
-      <Dialog open onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-md">
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-[18px] text-black font-bold">
               권한 설정 — {employment.member.clientName}
@@ -527,19 +542,7 @@ function EditPermissionDialog({
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-[14px] text-black font-normal">부서</Label>
-                {isManager && (
-                  <button
-                    type="button"
-                    className="text-[12px] text-gray-500 hover:text-black flex items-center gap-1"
-                    onClick={() => setDeptManageOpen(true)}
-                  >
-                    <Settings className="h-3.5 w-3.5" />
-                    부서 관리
-                  </button>
-                )}
-              </div>
+              <Label className="text-[14px] text-black font-normal">부서</Label>
               <Select value={department || '__none__'} onValueChange={(v) => setDepartment(v === '__none__' ? '' : v)}>
                 <SelectTrigger className="text-[14px] text-black font-normal">
                   <SelectValue />
@@ -606,21 +609,7 @@ function EditPermissionDialog({
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
-
-      {deptManageOpen && clientId && (
-        <DepartmentManageDialog
-          clientId={clientId}
-          onClose={() => setDeptManageOpen(false)}
-          onDepartmentRenamed={(oldName, newName) => {
-            if (department === oldName) setDepartment(newName);
-          }}
-          onDepartmentDeleted={(name) => {
-            if (department === name) setDepartment('');
-          }}
-        />
-      )}
-    </>
+    </Dialog>
   );
 }
 
