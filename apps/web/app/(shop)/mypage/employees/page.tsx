@@ -267,7 +267,7 @@ function InvitationRow({ invitation }: { invitation: Invitation }) {
         </span>
       </td>
       <td className="px-3 py-2 text-gray-500">
-        {new Date(invitation.expiresAt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
+        {(() => { const d = new Date(invitation.expiresAt); return `${d.getFullYear()}년 ${String(d.getMonth()+1).padStart(2,'0')}월 ${String(d.getDate()).padStart(2,'0')}일`; })()}
       </td>
       <td className="px-3 py-2 text-center">
         <Button
