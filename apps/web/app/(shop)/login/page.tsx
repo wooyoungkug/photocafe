@@ -177,21 +177,21 @@ function LoginForm() {
               <div className="text-left">
                 {context.type === 'personal' ? (
                   <>
-                    <div className="text-[11px] text-black font-normal">
+                    <div className="text-[14px] text-black font-normal">
                       내 계정 (개인 쇼핑몰)
                     </div>
                     {context.clientName && (
-                      <div className="text-[10px] text-muted-foreground">
+                      <div className="text-[12px] text-muted-foreground">
                         {context.clientName}
                       </div>
                     )}
                   </>
                 ) : (
                   <>
-                    <div className="text-[11px] text-black font-normal">
+                    <div className="text-[14px] text-black font-normal">
                       {context.companyName} ({context.role === 'MANAGER' ? '관리자' : '직원'})
                     </div>
-                    <div className="text-[10px] text-muted-foreground">
+                    <div className="text-[12px] text-muted-foreground">
                       회사 계정으로 로그인
                     </div>
                   </>
