@@ -38,6 +38,14 @@ export default function InviteAcceptPage() {
   const [existEmail, setExistEmail] = useState('');
   const [existPassword, setExistPassword] = useState('');
 
+  // 전화번호 포맷팅 (숫자만 입력, 자동 하이픈)
+  const formatPhone = (value: string) => {
+    const digits = value.replace(/\D/g, '').slice(0, 11);
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+  };
+
   // 로딩
   if (isLoading) {
     return (
@@ -107,7 +115,7 @@ export default function InviteAcceptPage() {
   const handleAcceptNew = () => {
     setError(null);
     acceptNewMutation.mutate(
-      { token, name: newName, password: newPassword, phone: newPhone || undefined },
+      { token, name: newName, password: newPassword, phone: newPhone.replace(/\D/g, '') || undefined },
       {
         onSuccess: () => setSuccess(true),
         onError: (err) =>
@@ -199,18 +207,18 @@ export default function InviteAcceptPage() {
           {mode === 'new' && (
             <div className="space-y-3">
               <div className="space-y-1.5">
-                <Label className="text-[11px]">이름</Label>
+                <Label className="text-[14px]">이름</Label>
                 <Input
-                  className="text-[11px]"
+                  className="text-[14px]"
                   placeholder="이름을 입력하세요"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-[11px]">비밀번호</Label>
+                <Label className="text-[14px]">비밀번호</Label>
                 <Input
-                  className="text-[11px]"
+                  className="text-[14px]"
                   type="password"
                   placeholder="6자 이상"
                   value={newPassword}
@@ -218,12 +226,13 @@ export default function InviteAcceptPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-[11px]">연락처 (선택)</Label>
+                <Label className="text-[14px]">연락처 (선택)</Label>
                 <Input
-                  className="text-[11px]"
+                  className="text-[14px]"
                   placeholder="010-0000-0000"
+                  inputMode="numeric"
                   value={newPhone}
-                  onChange={(e) => setNewPhone(e.target.value)}
+                  onChange={(e) => setNewPhone(formatPhone(e.target.value))}
                 />
               </div>
               <div className="flex gap-2 pt-2">
