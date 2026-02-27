@@ -92,12 +92,10 @@ export default function EmployeesPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {isManager && (
-            <Button size="sm" variant="outline" onClick={() => setDeptManageOpen(true)}>
-              <Building className="h-4 w-4 mr-1" />
-              부서 관리
-            </Button>
-          )}
+          <Button size="sm" variant="outline" onClick={() => setDeptManageOpen(true)}>
+            <Building className="h-4 w-4 mr-1" />
+            부서 관리
+          </Button>
           <Button size="sm" onClick={() => setInviteOpen(true)}>
             <UserPlus className="h-4 w-4 mr-1" />
             직원 초대
