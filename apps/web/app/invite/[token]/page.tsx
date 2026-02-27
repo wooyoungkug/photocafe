@@ -152,9 +152,9 @@ export default function InviteAcceptPage() {
           <CardDescription className="text-[14px] text-black">
             <span className="font-bold">{client.clientName}</span>에서{' '}
             <span className="font-bold">
-              {inv.role === 'MANAGER' ? '관리자(직원관리기능)' : inv.role === 'EDITOR' ? '편집자' : '직원'}
+              {inv.role === 'MANAGER' ? 'Manager' : inv.role === 'EDITOR' ? 'Editor' : 'Staff'}
             </span>
-            {inv.role === 'MANAGER' ? '로' : inv.role === 'EDITOR' ? '로' : '으로'} 초대했습니다
+            (으)로 초대했습니다
           </CardDescription>
         </CardHeader>
 
