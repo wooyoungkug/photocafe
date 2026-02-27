@@ -466,7 +466,7 @@ function EditPermissionDialog({
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-[14px]">
+          <DialogTitle className="text-[18px] text-black font-bold">
             권한 설정 — {employment.member.clientName}
           </DialogTitle>
           <DialogDescription className="text-[12px]">

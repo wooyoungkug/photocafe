@@ -123,7 +123,7 @@ export function ShopHeader() {
                     <User className="h-4 w-4 text-neutral-600" />
                     <span className="text-sm text-neutral-700">
                       {user?.type === 'employee'
-                        ? `${user?.clientName} ${user?.name}(${user?.employeeRole === 'MANAGER' ? '관리자' : user?.employeeRole === 'EDITOR' ? '편집자' : 'STAFF'})`
+                        ? `${user?.clientName} ${user?.name}(${user?.employeeRole === 'MANAGER' ? 'Manager' : user?.employeeRole === 'EDITOR' ? 'Editor' : 'Staff'})`
                         : `${user?.name} 최고관리자`}
                       {th('honorific')}
                     </span>
@@ -188,7 +188,7 @@ export function ShopHeader() {
                   <User className="h-4 w-4 text-neutral-500" />
                   <span className="text-sm font-medium text-neutral-900">
                     {user?.type === 'employee'
-                      ? `${user?.clientName} ${user?.name}(${user?.employeeRole === 'MANAGER' ? '관리자' : user?.employeeRole === 'EDITOR' ? '편집자' : 'STAFF'})`
+                      ? `${user?.clientName} ${user?.name}(${user?.employeeRole === 'MANAGER' ? 'Manager' : user?.employeeRole === 'EDITOR' ? 'Editor' : 'Staff'})`
                       : `${user?.name} 최고관리자`}
                     {th('honorific')}
                   </span>
