@@ -45,10 +45,15 @@ import {
   useDepartments,
   useBranches,
   useChangeStaffPassword,
+  useChangeStaffStatus,
+  useIssueTemporaryPassword,
+  useBulkImportStaff,
 } from '@/hooks/use-staff';
+import { useTeams } from '@/hooks/use-team';
+import { useEntityAuditLogs } from '@/hooks/use-audit-log';
 import { useImpersonateStaff } from '@/hooks/use-auth';
 import { useAuthStore } from '@/stores/auth-store';
-import { Staff, CreateStaffRequest, MENU_PERMISSIONS, CATEGORY_PERMISSIONS } from '@/lib/types/staff';
+import { Staff, CreateStaffRequest, AuditLog, MENU_PERMISSIONS, CATEGORY_PERMISSIONS } from '@/lib/types/staff';
 import { AddressSearch } from '@/components/address-search';
 import { DepartmentSelect } from '@/components/department-select';
 import {
@@ -67,7 +72,19 @@ import {
   X,
   Globe,
   LogIn,
+  Upload,
+  KeyRound,
+  Power,
+  History,
+  FileText,
+  MoreHorizontal,
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 
 // 정산등급 목록
@@ -83,6 +100,7 @@ export default function EmployeesPage() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
+  const [teamFilter, setTeamFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
 
   // 검색 디바운스 (300ms)
@@ -96,15 +114,37 @@ export default function EmployeesPage() {
   const [activeTab, setActiveTab] = useState('basic');
   const [impersonateConfirm, setImpersonateConfirm] = useState<Staff | null>(null);
 
+  // Phase 9: 추가 상태
+  const [bulkImportOpen, setBulkImportOpen] = useState(false);
+  const [bulkCsvText, setBulkCsvText] = useState('');
+  const [bulkParsedRows, setBulkParsedRows] = useState<CreateStaffRequest[]>([]);
+  const [bulkParseError, setBulkParseError] = useState('');
+  const [tempPasswordTarget, setTempPasswordTarget] = useState<Staff | null>(null);
+  const [statusChangeTarget, setStatusChangeTarget] = useState<Staff | null>(null);
+  const [statusChangeValue, setStatusChangeValue] = useState('');
+  const [statusChangeReason, setStatusChangeReason] = useState('');
+  const [auditLogTarget, setAuditLogTarget] = useState<Staff | null>(null);
+
   // Queries
   const { data: staffData, isLoading, error } = useStaffList({
     page,
     limit: 20,
     search: debouncedSearch || undefined,
     departmentId: departmentFilter !== 'all' ? departmentFilter : undefined,
+    teamId: teamFilter !== 'all' ? teamFilter : undefined,
   });
   const { data: departments } = useDepartments();
   const { data: branches } = useBranches(true); // 활성 지점만 조회
+  const { data: teams } = useTeams(
+    departmentFilter !== 'all' ? { departmentId: departmentFilter } : undefined,
+  );
+
+  // 감사 로그 조회 (타겟이 설정된 경우)
+  const { data: auditLogData } = useEntityAuditLogs(
+    'staff',
+    auditLogTarget?.id || '',
+    { limit: 20 },
+  );
 
   // Mutations
   const createStaff = useCreateStaff();
@@ -112,6 +152,9 @@ export default function EmployeesPage() {
   const deleteStaff = useDeleteStaff();
   const changePassword = useChangeStaffPassword();
   const impersonateStaff = useImpersonateStaff();
+  const changeStatus = useChangeStaffStatus();
+  const issueTempPassword = useIssueTemporaryPassword();
+  const bulkImport = useBulkImportStaff();
 
   // 상세 정보 조회 (수정 시)
   const { data: staffDetail } = useStaff(editingStaff?.id || '');
@@ -479,10 +522,16 @@ export default function EmployeesPage() {
             <Users className="h-5 w-5" />
             직원 목록
           </CardTitle>
-          <Button onClick={() => handleOpenDialog()}>
-            <Plus className="h-4 w-4 mr-2" />
-            직원 등록
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setBulkImportOpen(true)}>
+              <Upload className="h-4 w-4 mr-2" />
+              일괄등록
+            </Button>
+            <Button onClick={() => handleOpenDialog()}>
+              <Plus className="h-4 w-4 mr-2" />
+              직원 등록
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {/* 필터 영역 */}
@@ -496,7 +545,7 @@ export default function EmployeesPage() {
                 className="pl-10"
               />
             </div>
-            <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+            <Select value={departmentFilter} onValueChange={(v) => { setDepartmentFilter(v); setTeamFilter('all'); }}>
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="부서" />
               </SelectTrigger>
@@ -505,6 +554,19 @@ export default function EmployeesPage() {
                 {departments?.map((dept) => (
                   <SelectItem key={dept.id} value={dept.id}>
                     {dept.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={teamFilter} onValueChange={setTeamFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="팀" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">전체 팀</SelectItem>
+                {teams?.map((team) => (
+                  <SelectItem key={team.id} value={team.id}>
+                    {team.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -532,6 +594,7 @@ export default function EmployeesPage() {
                     <TableHead>이름</TableHead>
                     <TableHead>소속</TableHead>
                     <TableHead>부서</TableHead>
+                    <TableHead>팀</TableHead>
                     <TableHead>직책</TableHead>
                     <TableHead className="text-center">정산등급</TableHead>
                     <TableHead className="text-center">관리자 로그인</TableHead>
@@ -542,7 +605,7 @@ export default function EmployeesPage() {
                 <TableBody>
                   {staffData?.data?.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                         등록된 직원이 없습니다.
                       </TableCell>
                     </TableRow>
@@ -576,6 +639,7 @@ export default function EmployeesPage() {
                           )}
                         </TableCell>
                         <TableCell>{staff.department?.name || '-'}</TableCell>
+                        <TableCell>{staff.team?.name || '-'}</TableCell>
                         <TableCell>{staff.position || '-'}</TableCell>
                         <TableCell className="text-center">
                           <Badge variant={staff.settlementGrade === 0 ? 'secondary' : 'default'}>
@@ -595,21 +659,47 @@ export default function EmployeesPage() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
+                          <div className="flex justify-end gap-1">
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => handleOpenDialog(staff)}
+                              title="수정"
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setDeleteConfirm(staff)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => setTempPasswordTarget(staff)}>
+                                  <KeyRound className="h-4 w-4 mr-2" />
+                                  임시 비밀번호 발급
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => {
+                                  setStatusChangeTarget(staff);
+                                  setStatusChangeValue(staff.isActive ? 'suspended' : 'active');
+                                  setStatusChangeReason('');
+                                }}>
+                                  <Power className="h-4 w-4 mr-2" />
+                                  상태 변경
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setAuditLogTarget(staff)}>
+                                  <History className="h-4 w-4 mr-2" />
+                                  변경 이력
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-destructive"
+                                  onClick={() => setDeleteConfirm(staff)}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  삭제
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -1041,6 +1131,7 @@ export default function EmployeesPage() {
                           {ip}
                           <button
                             type="button"
+                            aria-label={`IP ${ip} 삭제`}
                             onClick={() => handleRemoveIp(ip)}
                             className="ml-1 hover:text-destructive"
                           >
@@ -1341,6 +1432,314 @@ export default function EmployeesPage() {
               로그인
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* 일괄등록 다이얼로그 */}
+      <Dialog open={bulkImportOpen} onOpenChange={(open) => {
+        setBulkImportOpen(open);
+        if (!open) { setBulkCsvText(''); setBulkParsedRows([]); setBulkParseError(''); }
+      }}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Upload className="h-5 w-5" />
+              직원 일괄등록
+            </DialogTitle>
+            <DialogDescription>
+              CSV 형식으로 직원 데이터를 입력하세요. 첫 줄은 헤더입니다.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="p-3 bg-muted rounded-lg">
+              <p className="text-[11px] text-black font-normal mb-1">CSV 형식 예시 (staffId, password, name은 필수):</p>
+              <pre className="text-[10px] text-gray-600 whitespace-pre-wrap">staffId,password,name,position,email,phone
+hong01,pass1234,홍길동,대리,hong@email.com,010-1234-5678
+kim01,pass1234,김철수,과장,kim@email.com,010-2345-6789</pre>
+            </div>
+
+            <Textarea
+              value={bulkCsvText}
+              onChange={(e) => setBulkCsvText(e.target.value)}
+              placeholder="CSV 데이터를 여기에 붙여넣으세요..."
+              rows={8}
+              className="font-mono text-xs"
+            />
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                try {
+                  const lines = bulkCsvText.trim().split('\n');
+                  if (lines.length < 2) { setBulkParseError('최소 2줄 이상 필요합니다 (헤더 + 데이터)'); return; }
+                  const headers = lines[0].split(',').map(h => h.trim());
+                  const requiredFields = ['staffId', 'password', 'name'];
+                  const missing = requiredFields.filter(f => !headers.includes(f));
+                  if (missing.length > 0) { setBulkParseError(`필수 필드 누락: ${missing.join(', ')}`); return; }
+                  const rows: CreateStaffRequest[] = [];
+                  for (let i = 1; i < lines.length; i++) {
+                    const vals = lines[i].split(',').map(v => v.trim());
+                    if (vals.length < headers.length) continue;
+                    const row: any = {};
+                    headers.forEach((h, idx) => { if (vals[idx]) row[h] = vals[idx]; });
+                    rows.push(row as CreateStaffRequest);
+                  }
+                  setBulkParsedRows(rows);
+                  setBulkParseError('');
+                } catch { setBulkParseError('CSV 파싱 중 오류가 발생했습니다'); }
+              }}
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              CSV 파싱
+            </Button>
+
+            {bulkParseError && (
+              <div className="text-destructive text-[11px] flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" /> {bulkParseError}
+              </div>
+            )}
+
+            {bulkParsedRows.length > 0 && (
+              <div className="border rounded-lg overflow-auto max-h-60">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>#</TableHead>
+                      <TableHead>직원ID</TableHead>
+                      <TableHead>이름</TableHead>
+                      <TableHead>직책</TableHead>
+                      <TableHead>이메일</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {bulkParsedRows.map((row, i) => (
+                      <TableRow key={i}>
+                        <TableCell className="text-[11px]">{i + 1}</TableCell>
+                        <TableCell className="text-[11px] font-mono">{row.staffId}</TableCell>
+                        <TableCell className="text-[11px]">{row.name}</TableCell>
+                        <TableCell className="text-[11px]">{row.position || '-'}</TableCell>
+                        <TableCell className="text-[11px]">{row.email || '-'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                <div className="p-2 bg-muted text-[11px] text-black font-normal">
+                  총 {bulkParsedRows.length}건
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkImportOpen(false)}>
+              취소
+            </Button>
+            <Button
+              disabled={bulkParsedRows.length === 0 || bulkImport.isPending}
+              onClick={async () => {
+                try {
+                  const result = await bulkImport.mutateAsync(bulkParsedRows);
+                  toast({
+                    title: '일괄등록 완료',
+                    description: `${result.imported}건 등록 완료${result.errors.length > 0 ? `, ${result.errors.length}건 오류` : ''}`,
+                  });
+                  if (result.errors.length > 0) {
+                    setBulkParseError(`오류 ${result.errors.length}건: ${result.errors.map(e => `[${e.row}] ${e.message}`).join(', ')}`);
+                  } else {
+                    setBulkImportOpen(false);
+                  }
+                } catch (error) {
+                  toast({
+                    title: '오류',
+                    description: error instanceof Error ? error.message : '일괄등록 중 오류',
+                    variant: 'destructive',
+                  });
+                }
+              }}
+            >
+              {bulkImport.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {bulkParsedRows.length}건 등록
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 임시 비밀번호 발급 다이얼로그 */}
+      <Dialog open={!!tempPasswordTarget} onOpenChange={() => setTempPasswordTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5" />
+              임시 비밀번호 발급
+            </DialogTitle>
+            <DialogDescription>
+              &apos;{tempPasswordTarget?.name}&apos; ({tempPasswordTarget?.staffId}) 직원에게 임시 비밀번호를 발급합니다.
+              {tempPasswordTarget?.email && (
+                <><br />이메일({tempPasswordTarget.email})로 발송됩니다.</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTempPasswordTarget(null)}>
+              취소
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!tempPasswordTarget) return;
+                try {
+                  const result = await issueTempPassword.mutateAsync(tempPasswordTarget.id);
+                  toast({
+                    title: '임시 비밀번호 발급',
+                    description: result.temporaryPassword
+                      ? `임시 비밀번호: ${result.temporaryPassword}`
+                      : result.message,
+                  });
+                  setTempPasswordTarget(null);
+                } catch (error) {
+                  toast({
+                    title: '오류',
+                    description: error instanceof Error ? error.message : '발급 실패',
+                    variant: 'destructive',
+                  });
+                }
+              }}
+              disabled={issueTempPassword.isPending}
+            >
+              {issueTempPassword.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              발급
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 상태 변경 다이얼로그 */}
+      <Dialog open={!!statusChangeTarget} onOpenChange={() => setStatusChangeTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Power className="h-5 w-5" />
+              직원 상태 변경
+            </DialogTitle>
+            <DialogDescription>
+              &apos;{statusChangeTarget?.name}&apos; ({statusChangeTarget?.staffId}) 직원의 상태를 변경합니다.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>변경할 상태</Label>
+              <Select value={statusChangeValue} onValueChange={setStatusChangeValue}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">활성</SelectItem>
+                  <SelectItem value="suspended">정지</SelectItem>
+                  <SelectItem value="inactive">비활성</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>사유 (선택)</Label>
+              <Textarea
+                value={statusChangeReason}
+                onChange={(e) => setStatusChangeReason(e.target.value)}
+                placeholder="상태 변경 사유를 입력하세요"
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStatusChangeTarget(null)}>
+              취소
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!statusChangeTarget) return;
+                try {
+                  await changeStatus.mutateAsync({
+                    id: statusChangeTarget.id,
+                    status: statusChangeValue,
+                    reason: statusChangeReason || undefined,
+                  });
+                  toast({
+                    title: '상태 변경',
+                    description: `${statusChangeTarget.name} 직원의 상태가 변경되었습니다`,
+                  });
+                  setStatusChangeTarget(null);
+                } catch (error) {
+                  toast({
+                    title: '오류',
+                    description: error instanceof Error ? error.message : '상태 변경 실패',
+                    variant: 'destructive',
+                  });
+                }
+              }}
+              disabled={changeStatus.isPending}
+            >
+              {changeStatus.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              변경
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 감사 로그(변경 이력) 다이얼로그 */}
+      <Dialog open={!!auditLogTarget} onOpenChange={() => setAuditLogTarget(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-5 w-5" />
+              변경 이력 - {auditLogTarget?.name}
+            </DialogTitle>
+            <DialogDescription>
+              {auditLogTarget?.staffId} 직원의 변경 내역입니다.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {auditLogData?.data?.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-[11px]">
+                변경 이력이 없습니다.
+              </div>
+            ) : (
+              auditLogData?.data?.map((log: AuditLog) => (
+                <div key={log.id} className="border rounded-lg p-3 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Badge variant={
+                        log.action === 'create' ? 'default' :
+                        log.action === 'delete' ? 'destructive' :
+                        'secondary'
+                      }>
+                        {log.action === 'create' ? '생성' :
+                         log.action === 'update' ? '수정' :
+                         log.action === 'delete' ? '삭제' :
+                         log.action === 'status_change' ? '상태변경' :
+                         log.action === 'password_reset' ? '비밀번호초기화' :
+                         log.action}
+                      </Badge>
+                      <span className="text-[11px] text-black font-normal">{log.performerName}</span>
+                    </div>
+                    <span className="text-[10px] text-gray-500">
+                      {new Date(log.createdAt).toLocaleString('ko-KR')}
+                    </span>
+                  </div>
+                  {log.changes && Object.keys(log.changes).length > 0 && (
+                    <div className="bg-muted rounded p-2 mt-1">
+                      {Object.entries(log.changes).map(([key, change]: [string, any]) => (
+                        <div key={key} className="text-[10px] text-gray-700">
+                          <span className="font-medium">{key}</span>:{' '}
+                          <span className="text-red-500 line-through">{String(change.old ?? '-')}</span>
+                          {' → '}
+                          <span className="text-green-600">{String(change.new ?? '-')}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

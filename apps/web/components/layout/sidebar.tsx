@@ -95,6 +95,7 @@ const DEFAULT_NAVIGATION: NavItem[] = [
     children: [
       { name: "환경설정", href: "/company/settings" },
       { name: "직원관리", href: "/company/employees" },
+      { name: "부서/팀관리", href: "/company/departments" },
       { name: "회원관리", href: "/company/members" },
       { name: "회원그룹", href: "/company/member-groups" },
     ],
@@ -205,6 +206,7 @@ const DEFAULT_NAVIGATION: NavItem[] = [
     children: [
       { name: "환경설정", href: "/settings" },
       { name: "모델 관리", href: "/settings/models" },
+      { name: "감사로그", href: "/settings/audit-logs" },
     ],
   },
 ];
