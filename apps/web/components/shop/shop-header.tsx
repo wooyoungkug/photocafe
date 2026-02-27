@@ -121,7 +121,12 @@ export function ShopHeader() {
                 <div className="hidden md:flex items-center gap-2 ml-2">
                   <Link href="/mypage/profile" className="flex items-center gap-1.5 p-2 hover:opacity-60 transition-opacity">
                     <User className="h-4 w-4 text-neutral-600" />
-                    <span className="text-sm text-neutral-700">{user?.name}{th('honorific')}</span>
+                    <span className="text-sm text-neutral-700">
+                      {user?.type === 'employee'
+                        ? `${user?.clientName} ${user?.name}(${user?.employeeRole === 'MANAGER' ? '관리자' : user?.employeeRole === 'EDITOR' ? '편집자' : '직원'})`
+                        : user?.name}
+                      {th('honorific')}
+                    </span>
                   </Link>
                   <button
                     onClick={logout}
@@ -181,7 +186,12 @@ export function ShopHeader() {
               <>
                 <div className="flex items-center gap-2 pb-3 border-b border-neutral-100">
                   <User className="h-4 w-4 text-neutral-500" />
-                  <span className="text-sm font-medium text-neutral-900">{user?.name}{th('honorific')}</span>
+                  <span className="text-sm font-medium text-neutral-900">
+                    {user?.type === 'employee'
+                      ? `${user?.clientName} ${user?.name}(${user?.employeeRole === 'MANAGER' ? '관리자' : user?.employeeRole === 'EDITOR' ? '편집자' : '직원'})`
+                      : user?.name}
+                    {th('honorific')}
+                  </span>
                 </div>
                 <Link href="/mypage/my-products" className="block py-1.5 text-sm text-neutral-600 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
                   마이상품
