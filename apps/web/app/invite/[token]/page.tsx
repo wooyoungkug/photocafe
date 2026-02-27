@@ -167,7 +167,7 @@ export default function InviteAcceptPage() {
               >
                 <Globe className="h-4 w-4 mr-3 flex-shrink-0" />
                 <div className="text-left">
-                  <div className="text-[12px] font-medium">소셜 로그인으로 가입</div>
+                  <div className="text-[14px] font-medium">소셜 로그인으로 가입</div>
                   <div className="text-[10px] text-gray-500">네이버, 카카오, 구글 계정으로 빠르게 가입</div>
                 </div>
               </Button>
@@ -178,7 +178,7 @@ export default function InviteAcceptPage() {
               >
                 <UserPlus className="h-4 w-4 mr-3 flex-shrink-0" />
                 <div className="text-left">
-                  <div className="text-[12px] font-medium">새 계정 만들기</div>
+                  <div className="text-[14px] font-medium">새 계정 만들기</div>
                   <div className="text-[10px] text-gray-500">이메일/비밀번호로 가입</div>
                 </div>
               </Button>
@@ -189,7 +189,7 @@ export default function InviteAcceptPage() {
               >
                 <LogIn className="h-4 w-4 mr-3 flex-shrink-0" />
                 <div className="text-left">
-                  <div className="text-[12px] font-medium">기존 계정으로 연결</div>
+                  <div className="text-[14px] font-medium">기존 계정으로 연결</div>
                   <div className="text-[10px] text-gray-500">이미 회원인 경우</div>
                 </div>
               </Button>
