@@ -86,7 +86,7 @@ export class StaffService {
     ]);
 
     // 비밀번호 필드 제외
-    const sanitizedData = data.map(({ password, ...rest }: { password: string;[key: string]: any }) => rest);
+    const sanitizedData = data.map(({ password, ...rest }) => rest);
 
     return {
       data: sanitizedData,

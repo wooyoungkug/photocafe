@@ -216,6 +216,48 @@ export function useUpdateProcessPermissions() {
   });
 }
 
+// ==================== 상태 변경 ====================
+
+export function useChangeStaffStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, status, reason }: { id: string; status: string; reason?: string }) =>
+      api.patch<{ success: boolean; message: string }>(`/staff/${id}/status`, { status, reason }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [STAFF_KEY] });
+    },
+  });
+}
+
+// ==================== 임시 비밀번호 발급 ====================
+
+export function useIssueTemporaryPassword() {
+  return useMutation({
+    mutationFn: (id: string) =>
+      api.post<{ success: boolean; message: string; temporaryPassword?: string }>(
+        `/staff/${id}/temp-password`,
+      ),
+  });
+}
+
+// ==================== 일괄 등록 ====================
+
+export function useBulkImportStaff() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (rows: CreateStaffRequest[]) =>
+      api.post<{
+        imported: number;
+        errors: { row: number; staffId: string; message: string }[];
+      }>('/staff/bulk-import', { rows }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [STAFF_KEY] });
+    },
+  });
+}
+
 // ==================== 부서 관리 ====================
 
 export function useDepartments() {

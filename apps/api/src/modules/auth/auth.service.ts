@@ -66,8 +66,8 @@ export class AuthService {
       where: { email },
     });
 
-    if (user && await bcrypt.compare(password, user.password)) {
-      const { password: _, ...result } = user;
+    if (user && user.passwordHash && await bcrypt.compare(password, user.passwordHash)) {
+      const { passwordHash: _, ...result } = user;
       return result;
     }
     return null;
@@ -77,7 +77,6 @@ export class AuthService {
     const payload = {
       sub: user.id,
       email: user.email,
-      role: user.role,
     };
 
     const accessToken = this.jwtService.sign(payload);
@@ -92,7 +91,6 @@ export class AuthService {
         id: user.id,
         email: user.email,
         name: user.name,
-        role: user.role,
       },
     };
   }
@@ -103,12 +101,12 @@ export class AuthService {
     const user = await this.prisma.user.create({
       data: {
         email: data.email,
-        password: hashedPassword,
+        passwordHash: hashedPassword,
         name: data.name,
       },
     });
 
-    const { password: _, ...result } = user;
+    const { passwordHash: _, ...result } = user;
     return result;
   }
 
@@ -200,7 +198,6 @@ export class AuthService {
       const newPayload = {
         sub: user.id,
         email: user.email,
-        role: user.role,
       };
 
       return {
@@ -218,7 +215,6 @@ export class AuthService {
         id: true,
         email: true,
         name: true,
-        role: true,
         createdAt: true,
       },
     });
@@ -350,7 +346,11 @@ export class AuthService {
       throw new UnauthorizedException('사용자를 찾을 수 없습니다');
     }
 
-    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!user.passwordHash) {
+      throw new BadRequestException('비밀번호가 설정되지 않은 계정입니다');
+    }
+
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
     if (!isPasswordValid) {
       throw new BadRequestException('현재 비밀번호가 일치하지 않습니다');
     }
@@ -358,7 +358,7 @@ export class AuthService {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     await this.prisma.user.update({
       where: { id: userId },
-      data: { password: hashedPassword },
+      data: { passwordHash: hashedPassword },
     });
 
     return { success: true, message: '비밀번호가 변경되었습니다' };

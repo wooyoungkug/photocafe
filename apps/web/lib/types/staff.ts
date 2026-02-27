@@ -137,6 +137,8 @@ export interface Staff {
   branch?: BranchSimple;
   departmentId?: string;
   department?: Department;
+  teamId?: string;
+  team?: Team;
   position?: string;
 
   // 연락처 정보
@@ -216,6 +218,7 @@ export interface CreateStaffRequest {
   name: string;
   branchId?: string;
   departmentId?: string;
+  teamId?: string;
   position?: string;
   phone?: string;
   mobile?: string;
@@ -257,6 +260,7 @@ export interface StaffQuery {
   search?: string;
   branchId?: string;
   departmentId?: string;
+  teamId?: string;
   isActive?: boolean;
 }
 
