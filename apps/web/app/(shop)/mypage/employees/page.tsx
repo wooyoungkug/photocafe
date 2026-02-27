@@ -160,7 +160,9 @@ export default function EmployeesPage() {
                       <td className="px-3 py-2">{emp.member.clientName}</td>
                       <td className="px-3 py-2 text-gray-500">{emp.member.email}</td>
                       <td className="px-3 py-2">
-                        {emp.role === 'MANAGER' ? 'Manager' : emp.role === 'EDITOR' ? 'Artist' : emp.role === 'PHOTOGRAPHER' ? 'Photographer' : 'STAFF'}
+                        {emp.memberClientId === emp.companyClientId
+                          ? '최고관리자'
+                          : emp.role === 'MANAGER' ? 'Manager' : emp.role === 'EDITOR' ? 'Artist' : emp.role === 'PHOTOGRAPHER' ? 'Photographer' : 'STAFF'}
                       </td>
                       <td className="px-3 py-2">
                         {emp.canViewAllOrders ? '전체' : '본인만'}

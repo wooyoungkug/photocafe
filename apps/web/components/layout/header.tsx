@@ -241,7 +241,7 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
                   <span className="text-sm font-semibold text-slate-800 leading-tight">
                     {user?.type === 'employee'
                       ? `${user?.name || '사용자'} (${user?.employeeRole === 'MANAGER' ? '관리자' : user?.employeeRole === 'EDITOR' ? '편집자' : 'STAFF'})`
-                      : (user?.name || "사용자")}
+                      : `${user?.name || '사용자'} 최고관리자`}
                   </span>
                   <span className="text-[11px] text-slate-400 leading-tight">
                     {user?.type === 'employee' ? user?.clientName : (user?.role === "ADMIN" ? "관리자" : "사용자")}
@@ -256,7 +256,7 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
                 <p className="text-sm font-semibold text-slate-800">
                   {user?.type === 'employee'
                     ? `${user?.name || '사용자'} (${user?.employeeRole === 'MANAGER' ? '관리자' : user?.employeeRole === 'EDITOR' ? '편집자' : 'STAFF'})`
-                    : (user?.name || "사용자")}
+                    : `${user?.name || '사용자'} 최고관리자`}
                 </p>
                 <p className="text-xs text-slate-500 mt-0.5">
                   {user?.type === 'employee' ? user?.clientName : (user?.email || "")}
@@ -269,7 +269,7 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
                 <p className="text-sm font-medium text-slate-700">
                   {user?.type === 'employee'
                     ? `${user?.name || '사용자'} (${user?.employeeRole === 'MANAGER' ? '관리자' : user?.employeeRole === 'EDITOR' ? '편집자' : 'STAFF'})`
-                    : (user?.name || "사용자")}
+                    : `${user?.name || '사용자'} 최고관리자`}
                 </p>
                 <p className="text-xs text-slate-400 mt-0.5 truncate">
                   {user?.type === 'employee' ? `${user?.clientName} · ${user?.email}` : (user?.email || "")}
