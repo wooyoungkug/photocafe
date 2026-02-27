@@ -39,7 +39,6 @@ export function ShopHeader() {
             <Link href="/notice" className="hover:text-white transition-colors">{th('notice')}</Link>
             <Link href="/guide" className="hover:text-white transition-colors">{th('guide')}</Link>
             <Link href="/support" className="hover:text-white transition-colors">{th('support')}</Link>
-            <Link href="/image-management" className="hover:text-white transition-colors">{th('imageManagement')}</Link>
           </div>
         </div>
       </div>
@@ -219,9 +218,6 @@ export function ShopHeader() {
               </Link>
               <Link href="/support" className="block py-1.5 text-sm text-neutral-500 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
                 {th('support')}
-              </Link>
-              <Link href="/image-management" className="block py-1.5 text-sm text-neutral-500 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
-                {th('imageManagement')}
               </Link>
             </div>
           </div>

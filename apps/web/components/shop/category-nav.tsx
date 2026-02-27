@@ -52,7 +52,7 @@ export function CategoryNav() {
             <Link
               href="/"
               className={cn(
-                "px-4 py-2 text-xs tracking-wider uppercase font-medium transition-colors",
+                "px-4 py-2 text-[14px] tracking-wider uppercase font-medium transition-colors",
                 pathname === "/"
                   ? "text-gold"
                   : "text-neutral-500 hover:text-neutral-900"
@@ -71,7 +71,7 @@ export function CategoryNav() {
               <Link
                 href={getCategoryHref(category)}
                 className={cn(
-                  "flex items-center gap-1.5 px-4 py-2 text-xs tracking-wider uppercase font-medium transition-colors",
+                  "flex items-center gap-1.5 px-4 py-2 text-[14px] tracking-wider uppercase font-medium transition-colors",
                   pathname === getCategoryHref(category) || pathname.startsWith(getCategoryHref(category) + '/') || activeCategory === category.id
                     ? "text-gold"
                     : "text-neutral-500 hover:text-neutral-900"
