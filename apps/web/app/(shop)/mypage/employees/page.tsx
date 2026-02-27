@@ -255,7 +255,7 @@ function InvitationRow({ invitation }: { invitation: Invitation }) {
       <td className="px-3 py-2">{invitation.inviteeEmail}</td>
       <td className="px-3 py-2">
         <div className="flex items-center gap-1">
-          <span className="truncate text-gray-500 text-[14px]" title={inviteUrl}>
+          <span className="break-all text-gray-500 text-[14px]">
             {inviteUrl}
           </span>
           <Button
