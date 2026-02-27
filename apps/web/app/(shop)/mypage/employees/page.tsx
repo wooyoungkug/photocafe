@@ -99,6 +99,7 @@ export default function EmployeesPage() {
               <table className="w-full text-[14px]">
                 <thead>
                   <tr className="bg-gray-50 border-b">
+                    <th className="text-left px-3 py-2 font-medium">요청일</th>
                     <th className="text-left px-3 py-2 font-medium">이메일</th>
                     <th className="text-left px-3 py-2 font-medium">가입 URL</th>
                     <th className="text-left px-3 py-2 font-medium">역할</th>
@@ -245,6 +246,9 @@ function InvitationRow({ invitation }: { invitation: Invitation }) {
 
   return (
     <tr className="border-b last:border-0 hover:bg-gray-50">
+      <td className="px-3 py-2 text-gray-500 whitespace-nowrap">
+        {(() => { const d = new Date(invitation.createdAt); return `${d.getFullYear()}년 ${String(d.getMonth()+1).padStart(2,'0')}월 ${String(d.getDate()).padStart(2,'0')}일`; })()}
+      </td>
       <td className="px-3 py-2">{invitation.inviteeEmail}</td>
       <td className="px-3 py-2">
         <div className="flex items-center gap-1">
