@@ -67,7 +67,7 @@ export default function EmployeesPage() {
   const pendingInvitations = invitations?.filter((i) => i.status === 'PENDING') || [];
 
   return (
-    <div className="space-y-6 w-[70%]">
+    <div className="space-y-6 w-[70%] mx-auto">
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
