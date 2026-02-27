@@ -10,6 +10,9 @@ import {
   useUpdateEmployment,
   useRemoveEmployment,
   useEmployeeDepartments,
+  useCreateClientDepartment,
+  useUpdateClientDepartment,
+  useDeleteClientDepartment,
 } from '@/hooks/use-employment';
 import { Employment, Invitation, EmployeeRole, EmploymentStatus } from '@/lib/types/employment';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -54,6 +57,7 @@ import {
   Building,
   ChevronDown,
   Plus,
+  Pencil,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -449,6 +453,11 @@ function EditPermissionDialog({
   const { user } = useAuthStore();
   const clientId = user?.type === 'employee' ? user.clientId : user?.id;
 
+  // Manager 또는 소유자인지 판별
+  const isManager =
+    user?.type === 'client' ||
+    (user?.type === 'employee' && user?.employeeRole === 'MANAGER');
+
   const [role, setRole] = useState<EmployeeRole>(employment.role);
   const [canViewAllOrders, setCanViewAllOrders] = useState(employment.canViewAllOrders);
   const [canManageProducts, setCanManageProducts] = useState(employment.canManageProducts);
@@ -457,15 +466,21 @@ function EditPermissionDialog({
   const [department, setDepartment] = useState(employment.department || '');
   const [deptSearch, setDeptSearch] = useState('');
   const [deptOpen, setDeptOpen] = useState(false);
+  const [editingDeptId, setEditingDeptId] = useState<string | null>(null);
+  const [editingDeptName, setEditingDeptName] = useState('');
   const deptRef = useRef<HTMLDivElement>(null);
 
   const { data: departments = [] } = useEmployeeDepartments(clientId);
   const updateMutation = useUpdateEmployment();
+  const createDeptMutation = useCreateClientDepartment();
+  const updateDeptMutation = useUpdateClientDepartment();
+  const deleteDeptMutation = useDeleteClientDepartment();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (deptRef.current && !deptRef.current.contains(event.target as Node)) {
         setDeptOpen(false);
+        setEditingDeptId(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -473,16 +488,65 @@ function EditPermissionDialog({
   }, []);
 
   const filteredDepts = departments.filter((d) =>
-    d.toLowerCase().includes(deptSearch.toLowerCase())
+    d.name.toLowerCase().includes(deptSearch.toLowerCase())
   );
   const exactMatch = departments.find(
-    (d) => d.toLowerCase() === deptSearch.toLowerCase()
+    (d) => d.name.toLowerCase() === deptSearch.toLowerCase()
   );
 
   const handleSelectDept = (value: string) => {
     setDepartment(value);
     setDeptOpen(false);
     setDeptSearch('');
+    setEditingDeptId(null);
+  };
+
+  const handleAddDept = () => {
+    if (!clientId || !deptSearch.trim()) return;
+    createDeptMutation.mutate(
+      { clientId, name: deptSearch.trim() },
+      {
+        onSuccess: (created) => {
+          setDepartment(created.name);
+          setDeptSearch('');
+          toast.success('부서가 추가되었습니다');
+        },
+        onError: () => toast.error('부서 추가에 실패했습니다'),
+      },
+    );
+  };
+
+  const handleEditDept = (deptId: string) => {
+    if (!editingDeptName.trim()) return;
+    // 현재 선택된 부서명이 변경되면 department 상태도 업데이트
+    const oldDept = departments.find((d) => d.id === deptId);
+    updateDeptMutation.mutate(
+      { id: deptId, data: { name: editingDeptName.trim() } },
+      {
+        onSuccess: () => {
+          if (oldDept && department === oldDept.name) {
+            setDepartment(editingDeptName.trim());
+          }
+          setEditingDeptId(null);
+          setEditingDeptName('');
+          toast.success('부서명이 수정되었습니다');
+        },
+        onError: () => toast.error('부서명 수정에 실패했습니다'),
+      },
+    );
+  };
+
+  const handleDeleteDept = (deptId: string) => {
+    const target = departments.find((d) => d.id === deptId);
+    deleteDeptMutation.mutate(deptId, {
+      onSuccess: () => {
+        if (target && department === target.name) {
+          setDepartment('');
+        }
+        toast.success('부서가 삭제되었습니다');
+      },
+      onError: () => toast.error('부서 삭제에 실패했습니다'),
+    });
   };
 
   const handleSubmit = () => {
@@ -561,7 +625,7 @@ function EditPermissionDialog({
                     {department}
                   </span>
                 ) : (
-                  <span className="text-muted-foreground">부서 선택 또는 입력...</span>
+                  <span className="text-muted-foreground">부서 선택...</span>
                 )}
                 <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
@@ -570,14 +634,14 @@ function EditPermissionDialog({
                 <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover p-0 text-popover-foreground shadow-md">
                   <div className="flex items-center border-b px-3">
                     <Input
-                      placeholder="검색 또는 새 부서 입력..."
+                      placeholder={isManager ? '검색 또는 새 부서 입력...' : '부서 검색...'}
                       value={deptSearch}
                       onChange={(e) => setDeptSearch(e.target.value)}
                       className="border-0 focus-visible:ring-0 h-9 text-[14px]"
                       autoFocus
                     />
                   </div>
-                  <div className="max-h-40 overflow-y-auto p-1">
+                  <div className="max-h-48 overflow-y-auto p-1">
                     <button
                       type="button"
                       className={cn(
@@ -591,25 +655,89 @@ function EditPermissionDialog({
                     </button>
 
                     {filteredDepts.map((dept) => (
-                      <button
-                        key={dept}
-                        type="button"
+                      <div
+                        key={dept.id}
                         className={cn(
-                          'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-[14px] hover:bg-accent',
-                          department === dept && 'bg-accent'
+                          'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-[14px] hover:bg-accent group',
+                          department === dept.name && 'bg-accent'
                         )}
-                        onClick={() => handleSelectDept(dept)}
                       >
-                        <Check className={cn('h-4 w-4', department === dept ? 'opacity-100' : 'opacity-0')} />
-                        {dept}
-                      </button>
+                        {editingDeptId === dept.id ? (
+                          <div className="flex w-full items-center gap-1">
+                            <Input
+                              value={editingDeptName}
+                              onChange={(e) => setEditingDeptName(e.target.value)}
+                              className="h-7 text-[14px] flex-1"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleEditDept(dept.id);
+                                if (e.key === 'Escape') { setEditingDeptId(null); setEditingDeptName(''); }
+                              }}
+                            />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0"
+                              onClick={() => handleEditDept(dept.id)}
+                              disabled={updateDeptMutation.isPending}
+                            >
+                              <Check className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0"
+                              onClick={() => { setEditingDeptId(null); setEditingDeptName(''); }}
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              className="flex flex-1 items-center gap-2"
+                              onClick={() => handleSelectDept(dept.name)}
+                            >
+                              <Check className={cn('h-4 w-4', department === dept.name ? 'opacity-100' : 'opacity-0')} />
+                              {dept.name}
+                            </button>
+                            {isManager && (
+                              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  type="button"
+                                  className="p-0.5 rounded hover:bg-gray-200"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingDeptId(dept.id);
+                                    setEditingDeptName(dept.name);
+                                  }}
+                                >
+                                  <Pencil className="h-3 w-3 text-gray-500" />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="p-0.5 rounded hover:bg-red-100"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteDept(dept.id);
+                                  }}
+                                >
+                                  <Trash2 className="h-3 w-3 text-red-500" />
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
                     ))}
 
-                    {deptSearch.trim() && !exactMatch && (
+                    {isManager && deptSearch.trim() && !exactMatch && (
                       <button
                         type="button"
                         className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-[14px] hover:bg-accent text-primary"
-                        onClick={() => handleSelectDept(deptSearch.trim())}
+                        onClick={handleAddDept}
+                        disabled={createDeptMutation.isPending}
                       >
                         <Plus className="h-4 w-4" />
                         <span>새 부서 추가: &quot;{deptSearch}&quot;</span>

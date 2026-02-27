@@ -11,6 +11,9 @@ import {
   AcceptInvitationRequest,
   AcceptInvitationExistingRequest,
   InvitationCreateResult,
+  ClientDepartment,
+  CreateClientDepartmentRequest,
+  UpdateClientDepartmentRequest,
 } from '@/lib/types/employment';
 
 const EMPLOYMENT_KEY = 'employments';
@@ -32,8 +35,43 @@ export function useEmployeesByClient(clientId: string | undefined) {
 export function useEmployeeDepartments(clientId: string | undefined) {
   return useQuery({
     queryKey: [DEPARTMENTS_KEY, clientId],
-    queryFn: () => api.get<string[]>(`/employments/departments/${clientId}`),
+    queryFn: () => api.get<ClientDepartment[]>(`/employments/departments/${clientId}`),
     enabled: !!clientId,
+  });
+}
+
+// ==================== 부서 관리 (Manager 전용) ====================
+
+export function useCreateClientDepartment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateClientDepartmentRequest) =>
+      api.post<ClientDepartment>('/employments/departments', data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [DEPARTMENTS_KEY, variables.clientId] });
+    },
+  });
+}
+
+export function useUpdateClientDepartment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateClientDepartmentRequest }) =>
+      api.put<ClientDepartment>(`/employments/departments/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [DEPARTMENTS_KEY] });
+    },
+  });
+}
+
+export function useDeleteClientDepartment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      api.delete<{ success: boolean }>(`/employments/departments/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [DEPARTMENTS_KEY] });
+    },
   });
 }
 

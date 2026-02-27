@@ -93,6 +93,26 @@ export interface InvitationCreateResult {
   inviteLink: string;
 }
 
+export interface ClientDepartment {
+  id: string;
+  clientId: string;
+  name: string;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateClientDepartmentRequest {
+  clientId: string;
+  name: string;
+  sortOrder?: number;
+}
+
+export interface UpdateClientDepartmentRequest {
+  name?: string;
+  sortOrder?: number;
+}
+
 export interface EmployeeLoginResult {
   multipleClients?: boolean;
   userId?: string;
