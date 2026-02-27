@@ -47,6 +47,11 @@ export class UpdateEmploymentDto {
   @IsOptional()
   @IsIn(['ACTIVE', 'SUSPENDED'])
   status?: 'ACTIVE' | 'SUSPENDED';
+
+  @ApiPropertyOptional({ description: '부서명' })
+  @IsOptional()
+  @IsString()
+  department?: string;
 }
 
 export class AcceptInvitationDto {
