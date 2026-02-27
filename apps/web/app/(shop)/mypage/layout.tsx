@@ -27,7 +27,7 @@ const BASE_MENU_ITEMS = [
 
 const EMPLOYEE_MENU = { icon: Users, label: '직원관리', href: '/mypage/employees' };
 
-function getMenuItems(user: ReturnType<typeof useAuthStore>['user']) {
+function getMenuItems(user: { type?: string; employeeRole?: string } | null) {
   const items = [...BASE_MENU_ITEMS];
   // 거래처 소유자 또는 MANAGER 직원만 직원관리 메뉴 표시
   if (user?.type !== 'employee' || user?.employeeRole === 'MANAGER') {
