@@ -503,112 +503,112 @@ function EditPermissionDialog({
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-[18px] text-black font-bold">
-              권한 설정 — {employment.member.clientName}
-            </DialogTitle>
-            <DialogDescription className="text-[12px]">
-              {employment.member.email}
-            </DialogDescription>
-          </DialogHeader>
+        <DialogHeader>
+          <DialogTitle className="text-[18px] text-black font-bold">
+            권한 설정 — {employment.member.clientName}
+          </DialogTitle>
+          <DialogDescription className="text-[12px]">
+            {employment.member.email}
+          </DialogDescription>
+        </DialogHeader>
 
-          <div className="space-y-4">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label className="text-[14px] text-black font-normal">역할</Label>
+            <Select value={role} onValueChange={(v) => setRole(v as EmployeeRole)}>
+              <SelectTrigger className="text-[14px] text-black font-normal">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="MANAGER" className="text-[14px] text-black font-normal">Manager</SelectItem>
+                <SelectItem value="EDITOR" className="text-[14px] text-black font-normal">Artist</SelectItem>
+                <SelectItem value="PHOTOGRAPHER" className="text-[14px] text-black font-normal">Photographer</SelectItem>
+                <SelectItem value="STAFF" className="text-[14px] text-black font-normal">STAFF</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-[14px] text-black font-normal">상태</Label>
+            <Select value={status} onValueChange={(v) => setStatus(v as EmploymentStatus)}>
+              <SelectTrigger className="text-[14px] text-black font-normal">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ACTIVE" className="text-[14px] text-black font-normal">활성</SelectItem>
+                <SelectItem value="SUSPENDED" className="text-[14px] text-black font-normal">정지</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-[14px] text-black font-normal">부서</Label>
+            <Select value={department || '__none__'} onValueChange={(v) => setDepartment(v === '__none__' ? '' : v)}>
+              <SelectTrigger className="text-[14px] text-black font-normal">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__" className="text-[14px] text-gray-400">부서 없음</SelectItem>
+                {departments.map((dept) => (
+                  <SelectItem key={dept.id} value={dept.name} className="text-[14px] text-black font-normal">
+                    {dept.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-3">
+            <Label className="text-[14px] text-black font-normal">권한</Label>
             <div className="space-y-2">
-              <Label className="text-[14px] text-black font-normal">역할</Label>
-              <Select value={role} onValueChange={(v) => setRole(v as EmployeeRole)}>
-                <SelectTrigger className="text-[14px] text-black font-normal">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="MANAGER" className="text-[14px] text-black font-normal">Manager</SelectItem>
-                  <SelectItem value="EDITOR" className="text-[14px] text-black font-normal">Artist</SelectItem>
-                  <SelectItem value="PHOTOGRAPHER" className="text-[14px] text-black font-normal">Photographer</SelectItem>
-                  <SelectItem value="STAFF" className="text-[14px] text-black font-normal">STAFF</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-[14px] text-black font-normal">상태</Label>
-              <Select value={status} onValueChange={(v) => setStatus(v as EmploymentStatus)}>
-                <SelectTrigger className="text-[14px] text-black font-normal">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ACTIVE" className="text-[14px] text-black font-normal">활성</SelectItem>
-                  <SelectItem value="SUSPENDED" className="text-[14px] text-black font-normal">정지</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-[14px] text-black font-normal">부서</Label>
-              <Select value={department || '__none__'} onValueChange={(v) => setDepartment(v === '__none__' ? '' : v)}>
-                <SelectTrigger className="text-[14px] text-black font-normal">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__" className="text-[14px] text-gray-400">부서 없음</SelectItem>
-                  {departments.map((dept) => (
-                    <SelectItem key={dept.id} value={dept.name} className="text-[14px] text-black font-normal">
-                      {dept.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-3">
-              <Label className="text-[14px] text-black font-normal">권한</Label>
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="viewAllOrders"
-                    checked={canViewAllOrders}
-                    onCheckedChange={(v) => setCanViewAllOrders(v as boolean)}
-                  />
-                  <label htmlFor="viewAllOrders" className="text-[14px] text-black font-normal cursor-pointer">
-                    전체 주문 열람 (미체크 시 본인 주문만)
-                  </label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="manageProducts"
-                    checked={canManageProducts}
-                    onCheckedChange={(v) => setCanManageProducts(v as boolean)}
-                  />
-                  <label htmlFor="manageProducts" className="text-[14px] text-black font-normal cursor-pointer">
-                    상품 관리 (마이상품)
-                  </label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="viewSettlement"
-                    checked={canViewSettlement}
-                    onCheckedChange={(v) => setCanViewSettlement(v as boolean)}
-                  />
-                  <label htmlFor="viewSettlement" className="text-[14px] text-black font-normal cursor-pointer">
-                    정산/입금 정보 열람
-                  </label>
-                </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="viewAllOrders"
+                  checked={canViewAllOrders}
+                  onCheckedChange={(v) => setCanViewAllOrders(v as boolean)}
+                />
+                <label htmlFor="viewAllOrders" className="text-[14px] text-black font-normal cursor-pointer">
+                  전체 주문 열람 (미체크 시 본인 주문만)
+                </label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="manageProducts"
+                  checked={canManageProducts}
+                  onCheckedChange={(v) => setCanManageProducts(v as boolean)}
+                />
+                <label htmlFor="manageProducts" className="text-[14px] text-black font-normal cursor-pointer">
+                  상품 관리 (마이상품)
+                </label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="viewSettlement"
+                  checked={canViewSettlement}
+                  onCheckedChange={(v) => setCanViewSettlement(v as boolean)}
+                />
+                <label htmlFor="viewSettlement" className="text-[14px] text-black font-normal cursor-pointer">
+                  정산/입금 정보 열람
+                </label>
               </div>
             </div>
           </div>
+        </div>
 
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={onClose}>
-              취소
-            </Button>
-            <Button
-              size="sm"
-              disabled={updateMutation.isPending}
-              onClick={handleSubmit}
-            >
-              {updateMutation.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-              저장
-            </Button>
-          </DialogFooter>
-        </DialogContent>
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={onClose}>
+            취소
+          </Button>
+          <Button
+            size="sm"
+            disabled={updateMutation.isPending}
+            onClick={handleSubmit}
+          >
+            {updateMutation.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+            저장
+          </Button>
+        </DialogFooter>
+      </DialogContent>
     </Dialog>
   );
 }
