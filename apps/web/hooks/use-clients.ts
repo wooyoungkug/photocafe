@@ -82,6 +82,24 @@ export function useDeleteClient() {
   });
 }
 
+export interface EmailCheckResult {
+  exists: boolean;
+  member?: {
+    clientCode: string;
+    clientName: string;
+    email: string;
+    oauthProvider: string | null;
+    memberType: string;
+    status: string;
+    groupName: string | null;
+    createdAt: string;
+  };
+}
+
+export async function checkClientEmail(email: string, excludeId?: string): Promise<EmailCheckResult> {
+  return api.get<EmailCheckResult>('/clients/check-email', { email, excludeId });
+}
+
 export function useChangeClientGroup() {
   const queryClient = useQueryClient();
 

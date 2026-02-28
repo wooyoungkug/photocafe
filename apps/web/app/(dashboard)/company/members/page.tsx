@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect, memo, type ReactNode } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef, memo, type ReactNode } from 'react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,6 +42,8 @@ import {
   useUpdateClient,
   useDeleteClient,
   useNextClientCode,
+  checkClientEmail,
+  type EmailCheckResult,
 } from '@/hooks/use-clients';
 import { useClientConsultations } from '@/hooks/use-consultations';
 import { useStaffList } from '@/hooks/use-staff';
@@ -271,7 +273,34 @@ export default function MembersPage() {
     freeShippingThreshold: 90000,
   });
 
+  // 이메일 중복 체크
+  const [emailDuplicate, setEmailDuplicate] = useState<EmailCheckResult | null>(null);
+  const [emailChecking, setEmailChecking] = useState(false);
+  const emailCheckTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  const handleEmailChange = useCallback((email: string) => {
+    setFormData((prev) => ({ ...prev, email }));
+    setEmailDuplicate(null);
+
+    if (emailCheckTimer.current) clearTimeout(emailCheckTimer.current);
+
+    if (!email || !email.includes('@')) return;
+
+    emailCheckTimer.current = setTimeout(async () => {
+      setEmailChecking(true);
+      try {
+        const result = await checkClientEmail(email, editingMember?.id);
+        setEmailDuplicate(result);
+      } catch {
+        // ignore
+      } finally {
+        setEmailChecking(false);
+      }
+    }, 500);
+  }, [editingMember?.id]);
+
   const handleOpenDialog = (member?: Client) => {
+    setEmailDuplicate(null);
     if (member) {
       setEditingMember(member);
       setFormData({
@@ -358,6 +387,11 @@ export default function MembersPage() {
   const handleSubmit = async () => {
     if (!formData.clientCode || !formData.clientName) {
       toast({ title: '필수 항목을 입력해주세요.', variant: 'destructive' });
+      return;
+    }
+
+    if (emailDuplicate?.exists) {
+      toast({ title: '이미 등록된 이메일입니다. 다른 이메일을 사용해주세요.', variant: 'destructive' });
       return;
     }
 
@@ -747,14 +781,38 @@ export default function MembersPage() {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="email" className="text-sm font-medium">이메일</Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          value={formData.email}
-                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                          placeholder="contact@example.com"
-                          className="bg-white"
-                        />
+                        <div className="relative">
+                          <Input
+                            id="email"
+                            type="email"
+                            value={formData.email}
+                            onChange={(e) => handleEmailChange(e.target.value)}
+                            placeholder="contact@example.com"
+                            className={`bg-white ${emailDuplicate?.exists ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                          />
+                          {emailChecking && (
+                            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
+                          )}
+                        </div>
+                        {emailDuplicate?.exists && emailDuplicate.member && (
+                          <div className="mt-1.5 rounded-md border border-red-200 bg-red-50 p-2.5 text-xs">
+                            <div className="flex items-center gap-1 font-semibold text-red-700 mb-1">
+                              <AlertCircle className="h-3.5 w-3.5" />
+                              이미 등록된 이메일입니다
+                            </div>
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-red-600">
+                              <span>회원코드: {emailDuplicate.member.clientCode}</span>
+                              <span>회원명: {emailDuplicate.member.clientName}</span>
+                              <span>가입일: {format(new Date(emailDuplicate.member.createdAt), 'yyyy.MM.dd')}</span>
+                              <span>가입경로: {emailDuplicate.member.oauthProvider || '일반가입'}</span>
+                              <span>유형: {emailDuplicate.member.memberType === 'business' ? '사업자' : '개인'}</span>
+                              <span>상태: {emailDuplicate.member.status === 'active' ? '활성' : emailDuplicate.member.status === 'inactive' ? '비활성' : emailDuplicate.member.status}</span>
+                              {emailDuplicate.member.groupName && (
+                                <span>그룹: {emailDuplicate.member.groupName}</span>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="gender" className="text-sm font-medium">성별</Label>
@@ -843,14 +901,38 @@ export default function MembersPage() {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="email" className="text-sm font-medium">이메일</Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          value={formData.email}
-                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                          placeholder="contact@example.com"
-                          className="bg-white"
-                        />
+                        <div className="relative">
+                          <Input
+                            id="email"
+                            type="email"
+                            value={formData.email}
+                            onChange={(e) => handleEmailChange(e.target.value)}
+                            placeholder="contact@example.com"
+                            className={`bg-white ${emailDuplicate?.exists ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                          />
+                          {emailChecking && (
+                            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
+                          )}
+                        </div>
+                        {emailDuplicate?.exists && emailDuplicate.member && (
+                          <div className="mt-1.5 rounded-md border border-red-200 bg-red-50 p-2.5 text-xs">
+                            <div className="flex items-center gap-1 font-semibold text-red-700 mb-1">
+                              <AlertCircle className="h-3.5 w-3.5" />
+                              이미 등록된 이메일입니다
+                            </div>
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-red-600">
+                              <span>회원코드: {emailDuplicate.member.clientCode}</span>
+                              <span>회원명: {emailDuplicate.member.clientName}</span>
+                              <span>가입일: {format(new Date(emailDuplicate.member.createdAt), 'yyyy.MM.dd')}</span>
+                              <span>가입경로: {emailDuplicate.member.oauthProvider || '일반가입'}</span>
+                              <span>유형: {emailDuplicate.member.memberType === 'business' ? '사업자' : '개인'}</span>
+                              <span>상태: {emailDuplicate.member.status === 'active' ? '활성' : emailDuplicate.member.status === 'inactive' ? '비활성' : emailDuplicate.member.status}</span>
+                              {emailDuplicate.member.groupName && (
+                                <span>그룹: {emailDuplicate.member.groupName}</span>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="gender" className="text-sm font-medium">성별</Label>
@@ -1391,7 +1473,7 @@ export default function MembersPage() {
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={createMember.isPending || updateMember.isPending}
+              disabled={createMember.isPending || updateMember.isPending || !!emailDuplicate?.exists}
               className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
             >
               {(createMember.isPending || updateMember.isPending) && (

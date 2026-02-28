@@ -48,6 +48,17 @@ export class ClientController {
     return { code };
   }
 
+  @Get('check-email')
+  @ApiOperation({ summary: '이메일 중복 확인 (상세정보 포함)' })
+  @ApiQuery({ name: 'email', required: true })
+  @ApiQuery({ name: 'excludeId', required: false })
+  async checkEmail(
+    @Query('email') email: string,
+    @Query('excludeId') excludeId?: string,
+  ) {
+    return this.clientService.checkEmailDuplicate(email, excludeId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: '거래처 상세 조회' })
   async findOne(@Param('id') id: string) {

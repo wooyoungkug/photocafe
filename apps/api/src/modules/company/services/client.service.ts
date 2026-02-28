@@ -141,7 +141,53 @@ export class ClientService {
     return client;
   }
 
+  async checkEmailDuplicate(email: string, excludeId?: string) {
+    if (!email) return { exists: false };
+
+    const existing = await this.prisma.client.findFirst({
+      where: {
+        email,
+        ...(excludeId ? { id: { not: excludeId } } : {}),
+      },
+      select: {
+        id: true,
+        clientCode: true,
+        clientName: true,
+        email: true,
+        oauthProvider: true,
+        memberType: true,
+        status: true,
+        createdAt: true,
+        group: { select: { groupName: true } },
+      },
+    });
+
+    if (!existing) return { exists: false };
+
+    return {
+      exists: true,
+      member: {
+        clientCode: existing.clientCode,
+        clientName: existing.clientName,
+        email: existing.email,
+        oauthProvider: existing.oauthProvider,
+        memberType: existing.memberType,
+        status: existing.status,
+        groupName: existing.group?.groupName || null,
+        createdAt: existing.createdAt,
+      },
+    };
+  }
+
   async create(data: Prisma.ClientCreateInput) {
+    // 이메일 중복 체크
+    if (data.email) {
+      const dup = await this.checkEmailDuplicate(data.email);
+      if (dup.exists) {
+        throw new ConflictException('이미 등록된 이메일입니다');
+      }
+    }
+
     // 자동 그룹 할당: group이 없고 memberType이 있는 경우
     if (!data.group && data.memberType) {
       const groupName = data.memberType === 'individual' ? '일반고객그룹' : '스튜디오회원';

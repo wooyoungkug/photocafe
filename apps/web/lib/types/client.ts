@@ -49,6 +49,7 @@ export interface Client {
   creditPaymentDay?: number;
   duplicateCheckMonths?: number;
   fileRetentionMonths?: number;
+  acquisitionChannel?: string;
   assignedManager?: string;
   practicalManagerName?: string;
   practicalManagerPhone?: string;
@@ -100,6 +101,7 @@ export interface CreateClientDto {
   status?: 'active' | 'inactive' | 'suspended';
   duplicateCheckMonths?: number;
   fileRetentionMonths?: number;
+  acquisitionChannel?: string;
 }
 
 // 거래처 수정 DTO

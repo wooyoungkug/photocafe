@@ -195,6 +195,11 @@ export class CreateClientDto {
   @IsOptional()
   @IsString()
   adminMemo?: string;
+
+  @ApiPropertyOptional({ description: '가입경로', enum: ['direct', 'referral', 'search', 'exhibition', 'sns', 'etc'] })
+  @IsOptional()
+  @IsIn(['direct', 'referral', 'search', 'exhibition', 'sns', 'etc'])
+  acquisitionChannel?: string;
 }
 
 export class UpdateClientDto extends PartialType(CreateClientDto) { }
