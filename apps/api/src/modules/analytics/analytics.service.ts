@@ -233,17 +233,21 @@ export class AnalyticsService {
       dateFormat = 'YYYY-MM-DD';
     }
 
-    const result = await this.prisma.$queryRaw<
+    // dateFormat은 제어된 값(daily/monthly/yearly)이므로 $queryRawUnsafe 사용
+    // Prisma 태그드 템플릿에서 dateFormat을 파라미터화하면 GROUP BY 매칭 실패
+    const result = await this.prisma.$queryRawUnsafe<
       Array<{ date: string; count: bigint }>
-    >`
-      SELECT
-        TO_CHAR("createdAt" AT TIME ZONE 'Asia/Seoul', ${dateFormat}) as date,
+    >(
+      `SELECT
+        TO_CHAR("createdAt" AT TIME ZONE 'Asia/Seoul', '${dateFormat}') as date,
         COUNT(*) as count
       FROM page_views
-      WHERE "createdAt" >= ${start} AND "createdAt" <= ${end}
-      GROUP BY TO_CHAR("createdAt" AT TIME ZONE 'Asia/Seoul', ${dateFormat})
-      ORDER BY date ASC
-    `;
+      WHERE "createdAt" >= $1 AND "createdAt" <= $2
+      GROUP BY date
+      ORDER BY date ASC`,
+      start,
+      end,
+    );
 
     return result.map((r) => ({
       date: r.date,
