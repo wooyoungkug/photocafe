@@ -29,6 +29,9 @@ import {
   Trash2,
   Check,
   Loader2,
+  Lock,
+  Users,
+  Building2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -51,6 +54,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import {
   useSchedules,
@@ -63,6 +67,7 @@ import {
   useCompleteTodo,
   useDeleteTodo,
 } from '@/hooks/use-schedule';
+import { useDepartments } from '@/hooks/use-staff';
 import type {
   Schedule,
   Todo,
@@ -108,7 +113,28 @@ const PRIORITY_COLORS: Record<string, string> = {
   urgent: 'bg-red-100 text-red-600',
 };
 
+type ScopeFilter = 'personal' | 'department' | 'company' | 'all';
+
+const SCOPE_TABS: { value: ScopeFilter; label: string; icon: typeof Lock }[] = [
+  { value: 'all', label: '모두', icon: CalendarDays },
+  { value: 'personal', label: '나만', icon: Lock },
+  { value: 'department', label: '부서', icon: Users },
+  { value: 'company', label: '전체', icon: Building2 },
+];
+
 // ==================== Helpers ====================
+
+function getScopeIcon(s: Schedule) {
+  if (s.isCompany) return Building2;
+  if (s.isDepartment) return Users;
+  return Lock;
+}
+
+function getScopeLabel(s: Schedule) {
+  if (s.isCompany) return '전체';
+  if (s.isDepartment) return '부서';
+  return '개인';
+}
 
 function getScheduleColor(s: Schedule) {
   return s.color || SCHEDULE_TYPE_COLORS[s.scheduleType] || '#6B7280';
@@ -181,6 +207,7 @@ export default function MypageSchedulePage() {
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [baseDate, setBaseDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [scopeFilter, setScopeFilter] = useState<ScopeFilter>('all');
 
   // Dialog state
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
@@ -197,9 +224,9 @@ export default function MypageSchedulePage() {
   const { data: schedules = [] } = useSchedules({
     startDate: queryStart,
     endDate: queryEnd,
-    scope: 'personal',
+    scope: scopeFilter,
   });
-  const { data: todos = [] } = useTodos({ scope: 'personal' });
+  const { data: todos = [] } = useTodos({ scope: scopeFilter });
 
   // Mutations
   const createSchedule = useCreateSchedule();
@@ -276,9 +303,30 @@ export default function MypageSchedulePage() {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <CalendarDays className="h-5 w-5 text-primary" />
-          <h1 className="text-[18px] text-black font-bold">일정관리</h1>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <CalendarDays className="h-5 w-5 text-primary" />
+            <h1 className="text-[18px] text-black font-bold">일정관리</h1>
+          </div>
+          {/* Scope filter tabs */}
+          <div className="flex border rounded-md overflow-hidden">
+            {SCOPE_TABS.map(({ value, label, icon: Icon }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setScopeFilter(value)}
+                className={cn(
+                  'flex items-center gap-1 px-2.5 py-1 text-[12px] border-r last:border-r-0 transition-colors',
+                  scopeFilter === value
+                    ? 'bg-primary text-white'
+                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                )}
+              >
+                <Icon className="h-3 w-3" />
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={openNewTodo}>
@@ -464,7 +512,7 @@ export default function MypageSchedulePage() {
               onError: () => toast({ title: '수정 실패', variant: 'destructive' }),
             });
           } else {
-            createSchedule.mutate({ ...data, isPersonal: true }, {
+            createSchedule.mutate(data, {
               onSuccess: () => { setScheduleDialogOpen(false); toast({ title: '일정이 등록되었습니다' }); },
               onError: () => toast({ title: '등록 실패', variant: 'destructive' }),
             });
@@ -485,7 +533,7 @@ export default function MypageSchedulePage() {
               onError: () => toast({ title: '수정 실패', variant: 'destructive' }),
             });
           } else {
-            createTodo.mutate({ ...data, isPersonal: true }, {
+            createTodo.mutate(data, {
               onSuccess: () => { setTodoDialogOpen(false); toast({ title: '할일이 추가되었습니다' }); },
               onError: () => toast({ title: '추가 실패', variant: 'destructive' }),
             });
@@ -520,30 +568,36 @@ function SelectedDayPanel({ selectedDate, schedulesByDate, onEdit, onDelete }: {
           <p className="text-[13px] text-gray-400 py-3 text-center">등록된 일정이 없습니다</p>
         ) : (
           <div className="space-y-2">
-            {daySchedules.map((s) => (
-              <div
-                key={s.id}
-                className="group flex items-start gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer"
-                onClick={() => onEdit(s)}
-              >
-                <div className="w-1 h-full min-h-[32px] rounded-full mt-0.5 flex-shrink-0" style={{ backgroundColor: getScheduleColor(s) }} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] text-black font-medium truncate">{s.title}</p>
-                  <div className="flex items-center gap-1 text-[11px] text-gray-500">
-                    <Clock className="h-3 w-3" />
-                    {getTimeLabel(s)}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  aria-label="일정 삭제"
-                  onClick={(e) => { e.stopPropagation(); onDelete(s.id); }}
-                  className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition-all"
+            {daySchedules.map((s) => {
+              const ScopeIcon = getScopeIcon(s);
+              return (
+                <div
+                  key={s.id}
+                  className="group flex items-start gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer"
+                  onClick={() => onEdit(s)}
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            ))}
+                  <div className="w-1 h-full min-h-[32px] rounded-full mt-0.5 flex-shrink-0" style={{ backgroundColor: getScheduleColor(s) }} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1">
+                      <p className="text-[13px] text-black font-medium truncate">{s.title}</p>
+                      <ScopeIcon className="h-3 w-3 text-gray-400 flex-shrink-0" />
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
+                      <span className="flex items-center gap-0.5"><Clock className="h-3 w-3" />{getTimeLabel(s)}</span>
+                      {s.creatorName && <span className="text-gray-400">- {s.creatorName}</span>}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="일정 삭제"
+                    onClick={(e) => { e.stopPropagation(); onDelete(s.id); }}
+                    className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition-all"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
       </CardContent>
@@ -594,16 +648,20 @@ function MonthView({ baseDate, selectedDate, schedulesByDate, onDateSelect, onSc
                 </span>
               </div>
               <div className="space-y-0.5 overflow-hidden">
-                {ds.slice(0, 2).map((s) => (
-                  <div
-                    key={s.id}
-                    onClick={(e) => { e.stopPropagation(); onScheduleClick(s); }}
-                    className="rounded px-1 py-0.5 text-[10px] truncate cursor-pointer hover:opacity-80"
-                    style={{ backgroundColor: `${getScheduleColor(s)}15`, color: getScheduleColor(s), borderLeft: `2px solid ${getScheduleColor(s)}` }}
-                  >
-                    {s.title}
-                  </div>
-                ))}
+                {ds.slice(0, 2).map((s) => {
+                  const SIcon = getScopeIcon(s);
+                  return (
+                    <div
+                      key={s.id}
+                      onClick={(e) => { e.stopPropagation(); onScheduleClick(s); }}
+                      className="flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] truncate cursor-pointer hover:opacity-80"
+                      style={{ backgroundColor: `${getScheduleColor(s)}15`, color: getScheduleColor(s), borderLeft: `2px solid ${getScheduleColor(s)}` }}
+                    >
+                      <SIcon className="h-2.5 w-2.5 flex-shrink-0 opacity-60" />
+                      <span className="truncate">{s.title}</span>
+                    </div>
+                  );
+                })}
                 {ds.length > 2 && <span className="text-[10px] text-gray-400 pl-1">+{ds.length - 2}</span>}
               </div>
             </button>
@@ -666,8 +724,12 @@ function DayView({ baseDate, schedulesByDate, onScheduleClick }: {
                       {format(parseISO(s.startAt), 'HH:mm')}
                     </span>
                     <span className="text-[13px] text-black">{s.title}</span>
+                    {(() => { const SI = getScopeIcon(s); return <SI className="h-3 w-3 text-gray-400 flex-shrink-0" />; })()}
                   </div>
-                  {s.location && <p className="text-[11px] text-gray-500 mt-0.5">{s.location}</p>}
+                  <div className="flex items-center gap-2">
+                    {s.location && <p className="text-[11px] text-gray-500 mt-0.5">{s.location}</p>}
+                    {s.creatorName && <span className="text-[11px] text-gray-400 mt-0.5">{s.creatorName}</span>}
+                  </div>
                 </button>
               ))}
             </div>
@@ -808,6 +870,8 @@ function ListView({ baseDate, schedulesByDate, onScheduleClick, onAddClick }: {
                     <div className="flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: getScheduleColor(s) }} />
                       <span>{s.title}</span>
+                      {(() => { const SI = getScopeIcon(s); return <SI className="h-3 w-3 text-gray-400 flex-shrink-0" />; })()}
+                      {s.creatorName && <span className="text-[11px] text-gray-400 flex-shrink-0">{s.creatorName}</span>}
                     </div>
                   </td>
                 </tr>
@@ -853,6 +917,10 @@ function ScheduleDialog({ open, onOpenChange, schedule, selectedDate, onSave, is
   const [endDate, setEndDate] = useState('');
   const [endTime, setEndTime] = useState('10:00');
   const [color, setColor] = useState('#3B82F6');
+  const [visibility, setVisibility] = useState<'personal' | 'department' | 'company'>('personal');
+  const [selectedDeptIds, setSelectedDeptIds] = useState<string[]>([]);
+
+  const { data: departments = [] } = useDepartments();
 
   const handleOpenChange = (v: boolean) => {
     if (v) {
@@ -862,13 +930,25 @@ function ScheduleDialog({ open, onOpenChange, schedule, selectedDate, onSave, is
         setStartDate(schedule.startAt.substring(0, 10)); setStartTime(schedule.startAt.substring(11, 16) || '09:00');
         setEndDate(schedule.endAt.substring(0, 10)); setEndTime(schedule.endAt.substring(11, 16) || '10:00');
         setColor(schedule.color || '#3B82F6');
+        // Restore visibility
+        if (schedule.isCompany) { setVisibility('company'); }
+        else if (schedule.isDepartment) { setVisibility('department'); }
+        else { setVisibility('personal'); }
+        setSelectedDeptIds(schedule.sharedDeptIds || []);
       } else {
         const d = format(selectedDate, 'yyyy-MM-dd');
         setTitle(''); setDescription(''); setLocation(''); setScheduleType('task'); setIsAllDay(false);
         setStartDate(d); setStartTime('09:00'); setEndDate(d); setEndTime('10:00'); setColor('#3B82F6');
+        setVisibility('personal'); setSelectedDeptIds([]);
       }
     }
     onOpenChange(v);
+  };
+
+  const toggleDept = (deptId: string) => {
+    setSelectedDeptIds((prev) =>
+      prev.includes(deptId) ? prev.filter((id) => id !== deptId) : [...prev, deptId]
+    );
   };
 
   const handleSubmit = () => {
@@ -878,13 +958,17 @@ function ScheduleDialog({ open, onOpenChange, schedule, selectedDate, onSave, is
       scheduleType: scheduleType as CreateScheduleDto['scheduleType'], isAllDay,
       startAt: isAllDay ? `${startDate}T00:00:00` : `${startDate}T${startTime}:00`,
       endAt: isAllDay ? `${endDate}T23:59:59` : `${endDate}T${endTime}:00`,
-      color, isPersonal: true,
+      color,
+      isPersonal: visibility === 'personal',
+      isDepartment: visibility === 'department',
+      isCompany: visibility === 'company',
+      sharedDeptIds: visibility === 'department' ? selectedDeptIds : [],
     });
   };
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-[16px]">{schedule ? '일정 수정' : '일정 등록'}</DialogTitle>
         </DialogHeader>
@@ -928,6 +1012,58 @@ function ScheduleDialog({ open, onOpenChange, schedule, selectedDate, onSave, is
               {!isAllDay && <Input type="time" className="text-[13px] mt-1" value={endTime} onChange={(e) => setEndTime(e.target.value)} />}
             </div>
           </div>
+
+          {/* Visibility / 공개범위 */}
+          <div>
+            <Label className="text-[13px] font-medium">공개범위</Label>
+            <RadioGroup value={visibility} onValueChange={(v) => setVisibility(v as typeof visibility)} className="flex gap-4 mt-1.5">
+              <div className="flex items-center gap-1.5">
+                <RadioGroupItem value="personal" id="vis-personal" />
+                <Label htmlFor="vis-personal" className="text-[13px] flex items-center gap-1 cursor-pointer">
+                  <Lock className="h-3 w-3 text-gray-500" />개인
+                </Label>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <RadioGroupItem value="department" id="vis-department" />
+                <Label htmlFor="vis-department" className="text-[13px] flex items-center gap-1 cursor-pointer">
+                  <Users className="h-3 w-3 text-blue-500" />부서
+                </Label>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <RadioGroupItem value="company" id="vis-company" />
+                <Label htmlFor="vis-company" className="text-[13px] flex items-center gap-1 cursor-pointer">
+                  <Building2 className="h-3 w-3 text-green-500" />전체
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          {/* Department multi-select (shown when visibility=department) */}
+          {visibility === 'department' && (
+            <div>
+              <Label className="text-[13px]">공유 부서 선택</Label>
+              <div className="mt-1.5 border rounded-md p-2 max-h-[120px] overflow-y-auto space-y-1">
+                {departments.length === 0 ? (
+                  <p className="text-[12px] text-gray-400 py-1 text-center">등록된 부서가 없습니다</p>
+                ) : (
+                  departments.filter((d) => d.isActive).map((dept) => (
+                    <label key={dept.id} className="flex items-center gap-2 py-1 px-1 rounded hover:bg-gray-50 cursor-pointer">
+                      <Checkbox
+                        checked={selectedDeptIds.includes(dept.id)}
+                        onCheckedChange={() => toggleDept(dept.id)}
+                        className="h-4 w-4"
+                      />
+                      <span className="text-[13px] text-black">{dept.name}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+              {selectedDeptIds.length === 0 && (
+                <p className="text-[11px] text-orange-500 mt-1">부서를 선택하지 않으면 본인 부서에만 공유됩니다</p>
+              )}
+            </div>
+          )}
+
           <div>
             <Label className="text-[13px]">장소 (선택)</Label>
             <Input className="text-[13px]" placeholder="장소" value={location} onChange={(e) => setLocation(e.target.value)} />
@@ -962,21 +1098,36 @@ function TodoDialog({ open, onOpenChange, todo, onSave, isPending }: {
   const [content, setContent] = useState('');
   const [priority, setPriority] = useState<string>('normal');
   const [dueDate, setDueDate] = useState('');
+  const [visibility, setVisibility] = useState<'personal' | 'department' | 'company'>('personal');
+  const [selectedDeptIds, setSelectedDeptIds] = useState<string[]>([]);
+
+  const { data: departments = [] } = useDepartments();
 
   const handleOpenChange = (v: boolean) => {
     if (v) {
       if (todo) {
         setTitle(todo.title); setContent(todo.content || ''); setPriority(todo.priority); setDueDate(todo.dueDate?.substring(0, 10) || '');
+        if (todo.isCompany) { setVisibility('company'); }
+        else if (todo.isDepartment) { setVisibility('department'); }
+        else { setVisibility('personal'); }
+        setSelectedDeptIds(todo.sharedDeptIds || []);
       } else {
         setTitle(''); setContent(''); setPriority('normal'); setDueDate('');
+        setVisibility('personal'); setSelectedDeptIds([]);
       }
     }
     onOpenChange(v);
   };
 
+  const toggleDept = (deptId: string) => {
+    setSelectedDeptIds((prev) =>
+      prev.includes(deptId) ? prev.filter((id) => id !== deptId) : [...prev, deptId]
+    );
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-[16px]">{todo ? '할일 수정' : '할일 추가'}</DialogTitle>
         </DialogHeader>
@@ -1000,6 +1151,57 @@ function TodoDialog({ open, onOpenChange, todo, onSave, isPending }: {
               <Input type="date" className="text-[13px]" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
             </div>
           </div>
+
+          {/* Visibility / 공개범위 */}
+          <div>
+            <Label className="text-[13px] font-medium">공개범위</Label>
+            <RadioGroup value={visibility} onValueChange={(v) => setVisibility(v as typeof visibility)} className="flex gap-4 mt-1.5">
+              <div className="flex items-center gap-1.5">
+                <RadioGroupItem value="personal" id="todo-vis-personal" />
+                <Label htmlFor="todo-vis-personal" className="text-[13px] flex items-center gap-1 cursor-pointer">
+                  <Lock className="h-3 w-3 text-gray-500" />개인
+                </Label>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <RadioGroupItem value="department" id="todo-vis-department" />
+                <Label htmlFor="todo-vis-department" className="text-[13px] flex items-center gap-1 cursor-pointer">
+                  <Users className="h-3 w-3 text-blue-500" />부서
+                </Label>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <RadioGroupItem value="company" id="todo-vis-company" />
+                <Label htmlFor="todo-vis-company" className="text-[13px] flex items-center gap-1 cursor-pointer">
+                  <Building2 className="h-3 w-3 text-green-500" />전체
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          {visibility === 'department' && (
+            <div>
+              <Label className="text-[13px]">공유 부서 선택</Label>
+              <div className="mt-1.5 border rounded-md p-2 max-h-[120px] overflow-y-auto space-y-1">
+                {departments.length === 0 ? (
+                  <p className="text-[12px] text-gray-400 py-1 text-center">등록된 부서가 없습니다</p>
+                ) : (
+                  departments.filter((d) => d.isActive).map((dept) => (
+                    <label key={dept.id} className="flex items-center gap-2 py-1 px-1 rounded hover:bg-gray-50 cursor-pointer">
+                      <Checkbox
+                        checked={selectedDeptIds.includes(dept.id)}
+                        onCheckedChange={() => toggleDept(dept.id)}
+                        className="h-4 w-4"
+                      />
+                      <span className="text-[13px] text-black">{dept.name}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+              {selectedDeptIds.length === 0 && (
+                <p className="text-[11px] text-orange-500 mt-1">부서를 선택하지 않으면 본인 부서에만 공유됩니다</p>
+              )}
+            </div>
+          )}
+
           <div>
             <Label className="text-[13px]">내용 (선택)</Label>
             <Textarea className="text-[13px] resize-none" rows={3} placeholder="상세 내용" value={content} onChange={(e) => setContent(e.target.value)} />
@@ -1009,7 +1211,14 @@ function TodoDialog({ open, onOpenChange, todo, onSave, isPending }: {
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>취소</Button>
           <Button size="sm" disabled={!title.trim() || isPending} onClick={() => {
             if (!title.trim()) return;
-            onSave({ title: title.trim(), content: content.trim() || undefined, priority: priority as CreateTodoDto['priority'], dueDate: dueDate || undefined, isPersonal: true });
+            onSave({
+              title: title.trim(), content: content.trim() || undefined,
+              priority: priority as CreateTodoDto['priority'], dueDate: dueDate || undefined,
+              isPersonal: visibility === 'personal',
+              isDepartment: visibility === 'department',
+              isCompany: visibility === 'company',
+              sharedDeptIds: visibility === 'department' ? selectedDeptIds : [],
+            });
           }}>
             {isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
             {todo ? '수정' : '추가'}
