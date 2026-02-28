@@ -22,7 +22,7 @@ export class KakaoStrategy extends PassportStrategy(Strategy, 'kakao') {
     super({
       clientID: clientID || 'disabled',
       clientSecret: clientSecret || 'disabled',
-      callbackURL: callbackURL || 'http://localhost:3001/auth/kakao/callback',
+      callbackURL: callbackURL || 'http://localhost:3001/api/v1/auth/kakao/callback',
     });
   }
 
