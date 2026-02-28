@@ -10,6 +10,7 @@ import {
   MapPin,
   Star,
   Users,
+  Camera,
   ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -47,6 +48,11 @@ function getMenuItems(user: {
   if (!isEmployee || user?.canViewSettlement) {
     items.push({ icon: Calendar, label: '월거래집계', href: '/mypage/monthly-summary' });
     items.push({ icon: Wallet, label: '입금내역', href: '/mypage/deposits' });
+  }
+
+  // 일정관리: 거래처 소유자 또는 MANAGER 직원
+  if (!isEmployee || user?.employeeRole === 'MANAGER') {
+    items.push({ icon: Camera, label: '일정관리', href: '/mypage/schedule' });
   }
 
   return items;
