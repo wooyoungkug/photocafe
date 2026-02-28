@@ -123,6 +123,11 @@ export class ShootingService {
       where.assignedStaffId = query.assignedStaffId;
     }
 
+    // 생성자 필터
+    if (query.createdBy) {
+      where.createdBy = query.createdBy;
+    }
+
     // 검색어 필터 (고객명, 장소명)
     if (query.search) {
       where.OR = [

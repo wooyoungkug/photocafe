@@ -85,6 +85,7 @@ export interface CreateShootingDto {
   requirements?: string;
   budget?: number;
   clientId?: string;
+  clientName?: string;
 }
 
 /** 촬영 수정 DTO */
@@ -107,6 +108,7 @@ export interface ShootingListParams {
   endDate?: string;
   clientId?: string;
   photographerId?: string;
+  createdBy?: string;
 }
 
 /** 페이지네이션 응답 */

@@ -5,6 +5,8 @@ import Link from 'next/link';
 import {
   ShoppingBag,
   Calendar,
+  CalendarDays,
+  Camera,
   Wallet,
   User,
   MapPin,
@@ -48,6 +50,10 @@ function getMenuItems(user: {
     items.push({ icon: Calendar, label: '월거래집계', href: '/mypage/monthly-summary' });
     items.push({ icon: Wallet, label: '입금내역', href: '/mypage/deposits' });
   }
+
+  // 일정관리 & 촬영일정: 모든 사용자
+  items.push({ icon: CalendarDays, label: '일정관리', href: '/mypage/schedule' });
+  items.push({ icon: Camera, label: '촬영일정', href: '/mypage/shooting' });
 
   return items;
 }

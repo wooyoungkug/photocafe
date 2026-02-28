@@ -202,6 +202,11 @@ export class QueryShootingDto {
   @IsOptional()
   @IsString()
   assignedStaffId?: string;
+
+  @ApiPropertyOptional({ description: '생성자 ID 필터' })
+  @IsOptional()
+  @IsString()
+  createdBy?: string;
 }
 
 export class UpdateShootingStatusDto {
