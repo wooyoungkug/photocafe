@@ -34,13 +34,17 @@ export class NaverStrategy extends PassportStrategy(Strategy, 'naver') {
   ): Promise<any> {
     try {
       // passport-naver-v2 프로필 구조
-      const { id, email, nickname, profileImage } = profile;
+      const { id, email, nickname, profileImage, gender, birthday, birthYear, mobile, name } = profile;
 
       const user = await this.authService.validateNaverUser({
         oauthId: id,
         email: email || `naver_${id}@naver.com`,
-        name: nickname || '네이버사용자',
+        name: name || nickname || '네이버사용자',
         profileImage,
+        gender: gender,
+        birthday: birthday,
+        birthyear: birthYear,
+        mobile: mobile,
       });
 
       done(null, user);
