@@ -119,8 +119,11 @@ const MemberTableRow = memo(({
           )}
         </button>
       </TableCell>
-      <TableCell className="text-sm text-muted-foreground text-center">
-        {member.email || '-'}
+      <TableCell className="text-center">
+        <div className="text-sm text-muted-foreground">{member.email || '-'}</div>
+        {member.clientCode && (
+          <div className="text-xs text-gray-400">{member.clientCode}</div>
+        )}
       </TableCell>
       <TableCell className="text-sm text-muted-foreground text-center">
         {member.mobile || member.phone || '-'}
