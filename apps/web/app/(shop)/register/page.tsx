@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -67,7 +66,6 @@ const formatBusinessNumber = (value: string): string => {
 
 
 export default function RegisterPage() {
-  const router = useRouter();
   const [memberType, setMemberType] = useState<'individual' | 'studio'>('individual');
   const [step, setStep] = useState(1); // 스튜디오는 2단계 폼
 
@@ -111,9 +109,17 @@ export default function RegisterPage() {
 
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setErrorRaw] = useState<string | null>(null);
   const [emailChecked, setEmailChecked] = useState(false);
   const [businessNumberChecked, setBusinessNumberChecked] = useState(false);
+  const errorRef = useRef<HTMLDivElement>(null);
+
+  const setError = useCallback((msg: string | null) => {
+    setErrorRaw(msg);
+    if (msg) {
+      setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+    }
+  }, []);
 
   const handleIndividualChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -209,8 +215,8 @@ export default function RegisterPage() {
       });
 
       window.location.href = '/login?registered=true';
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message || '회원가입에 실패했습니다.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '회원가입에 실패했습니다.');
     } finally {
       setIsLoading(false);
     }
@@ -277,8 +283,8 @@ export default function RegisterPage() {
       });
 
       window.location.href = '/login?registered=true&type=studio';
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message || '회원가입에 실패했습니다.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '회원가입에 실패했습니다.');
     } finally {
       setIsLoading(false);
     }
@@ -300,7 +306,7 @@ export default function RegisterPage() {
         </CardHeader>
 
         <CardContent>
-          <Tabs value={memberType} onValueChange={(v) => { setMemberType(v as 'individual' | 'studio'); setStep(1); setError(null); }}>
+          <Tabs value={memberType} onValueChange={(v) => { setMemberType(v as 'individual' | 'studio'); setStep(1); setError(null); setEmailChecked(false); setBusinessNumberChecked(false); }}>
             <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="individual" className="flex items-center gap-2">
                 <User className="h-4 w-4" />
@@ -313,7 +319,7 @@ export default function RegisterPage() {
             </TabsList>
 
             {error && (
-              <div className="flex items-center gap-2 p-3 text-sm text-destructive bg-destructive/10 rounded-md mb-4">
+              <div ref={errorRef} className="flex items-center gap-2 p-3 text-sm text-destructive bg-destructive/10 rounded-md mb-4">
                 <AlertCircle className="h-4 w-4" />
                 <span>{error}</span>
               </div>
@@ -698,7 +704,7 @@ export default function RegisterPage() {
                       type="button"
                       className="w-full"
                       size="lg"
-                      onClick={() => setStep(2)}
+                      onClick={() => { setStep(2); setError(null); }}
                     >
                       다음 단계
                     </Button>
@@ -874,7 +880,7 @@ export default function RegisterPage() {
                         variant="outline"
                         className="flex-1"
                         size="lg"
-                        onClick={() => setStep(1)}
+                        onClick={() => { setStep(1); setError(null); }}
                       >
                         이전
                       </Button>
