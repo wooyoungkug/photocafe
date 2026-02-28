@@ -141,6 +141,21 @@ const MemberTableRow = memo(({
         {format(new Date(member.createdAt), 'yy.MM.dd')}
       </TableCell>
       <TableCell className="text-center">
+        {(() => {
+          const oauth = member.oauthProvider;
+          const channel = member.acquisitionChannel;
+          if (oauth === 'kakao') return <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-300 text-xs">카카오</Badge>;
+          if (oauth === 'naver') return <Badge variant="outline" className="bg-green-50 text-green-800 border-green-300 text-xs">네이버</Badge>;
+          if (oauth === 'google') return <Badge variant="outline" className="bg-blue-50 text-blue-800 border-blue-300 text-xs">구글</Badge>;
+          if (channel === 'referral') return <Badge variant="outline" className="text-xs">소개</Badge>;
+          if (channel === 'search') return <Badge variant="outline" className="text-xs">검색</Badge>;
+          if (channel === 'exhibition') return <Badge variant="outline" className="text-xs">전시회</Badge>;
+          if (channel === 'sns') return <Badge variant="outline" className="text-xs">SNS</Badge>;
+          if (channel === 'etc') return <Badge variant="outline" className="text-xs">기타</Badge>;
+          return <span className="text-sm text-muted-foreground">직접가입</span>;
+        })()}
+      </TableCell>
+      <TableCell className="text-center">
         <span className="text-sm font-medium">{member._count?.consultations ?? 0}</span>
       </TableCell>
       <TableCell className="text-center">
@@ -271,6 +286,7 @@ export default function MembersPage() {
     adminMemo: '',
     shippingType: 'conditional',
     freeShippingThreshold: 90000,
+    acquisitionChannel: '',
   });
 
   // 이메일 중복 체크
@@ -332,6 +348,7 @@ export default function MembersPage() {
         adminMemo: member.adminMemo || '',
         shippingType: (member.shippingType as string) || 'conditional',
         freeShippingThreshold: (member as any).freeShippingThreshold ?? 90000,
+        acquisitionChannel: member.acquisitionChannel || '',
       });
     } else {
       setEditingMember(null);
@@ -366,6 +383,7 @@ export default function MembersPage() {
           adminMemo: '',
           shippingType: 'conditional',
           freeShippingThreshold: 90000,
+          acquisitionChannel: '',
         });
       });
     }
@@ -575,14 +593,15 @@ export default function MembersPage() {
                 <Table className="table-fixed w-full">
                   <TableHeader>
                     <TableRow className="bg-slate-50/80">
-                      <TableHead className="w-[14%] text-center">회원명</TableHead>
-                      <TableHead className="w-[17%] text-center">이메일</TableHead>
-                      <TableHead className="w-[10%] text-center">연락처</TableHead>
-                      <TableHead className="w-[9%] text-center">그룹</TableHead>
-                      <TableHead className="w-[8%] text-center whitespace-nowrap">등록일</TableHead>
+                      <TableHead className="w-[13%] text-center">회원명</TableHead>
+                      <TableHead className="w-[15%] text-center">이메일</TableHead>
+                      <TableHead className="w-[9%] text-center">연락처</TableHead>
+                      <TableHead className="w-[8%] text-center">그룹</TableHead>
+                      <TableHead className="w-[7%] text-center whitespace-nowrap">등록일</TableHead>
+                      <TableHead className="w-[7%] text-center whitespace-nowrap">가입경로</TableHead>
                       <TableHead className="w-[5%] text-center whitespace-nowrap">상담</TableHead>
                       <TableHead className="w-[5%] text-center whitespace-nowrap">미완료</TableHead>
-                      <TableHead className="w-[8%] text-center whitespace-nowrap">영업담당</TableHead>
+                      <TableHead className="w-[7%] text-center whitespace-nowrap">영업담당</TableHead>
                       <TableHead className="w-[6%] text-center whitespace-nowrap">신용</TableHead>
                       <TableHead className="w-[6%] text-center whitespace-nowrap">상태</TableHead>
                       <TableHead className="w-[8%] text-center whitespace-nowrap">작업</TableHead>
@@ -591,7 +610,7 @@ export default function MembersPage() {
                   <TableBody>
                     {membersData?.data?.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={11} className="text-center py-12 text-muted-foreground">
+                        <TableCell colSpan={12} className="text-center py-12 text-muted-foreground">
                           <Users className="h-12 w-12 mx-auto mb-4 opacity-20" />
                           등록된 회원이 없습니다.
                         </TableCell>
@@ -1021,6 +1040,32 @@ export default function MembersPage() {
                             </span>
                           </SelectItem>
                         ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* 가입경로 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="acquisitionChannel" className="text-sm font-medium">
+                      가입경로
+                    </Label>
+                    <Select
+                      value={formData.acquisitionChannel || 'none'}
+                      onValueChange={(v) => setFormData({ ...formData, acquisitionChannel: v === 'none' ? '' : v })}
+                    >
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder="가입경로 선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">
+                          <span className="text-muted-foreground">선택 안함</span>
+                        </SelectItem>
+                        <SelectItem value="direct">직접가입</SelectItem>
+                        <SelectItem value="referral">소개</SelectItem>
+                        <SelectItem value="search">검색</SelectItem>
+                        <SelectItem value="exhibition">전시회</SelectItem>
+                        <SelectItem value="sns">SNS</SelectItem>
+                        <SelectItem value="etc">기타</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
