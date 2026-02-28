@@ -332,8 +332,8 @@ export class AuthService {
 
   async impersonateStaff(targetStaffId: string, adminStaffId: string) {
     const adminStaff = await this.prisma.staff.findUnique({ where: { id: adminStaffId } });
-    if (!adminStaff || !adminStaff.isSuperAdmin) {
-      throw new ForbiddenException('최고관리자만 대리 로그인할 수 있습니다');
+    if (!adminStaff || !adminStaff.isActive) {
+      throw new ForbiddenException('활성 직원만 대리 로그인할 수 있습니다');
     }
 
     const targetStaff = await this.prisma.staff.findUnique({
@@ -633,8 +633,8 @@ export class AuthService {
 
   async impersonateClient(clientId: string, adminId: string) {
     const adminStaff = await this.prisma.staff.findUnique({ where: { id: adminId } });
-    if (!adminStaff || !adminStaff.isSuperAdmin) {
-      throw new ForbiddenException('최고관리자만 대리 로그인할 수 있습니다');
+    if (!adminStaff || !adminStaff.isActive) {
+      throw new ForbiddenException('활성 직원만 대리 로그인할 수 있습니다');
     }
 
     const client = await this.prisma.client.findUnique({
