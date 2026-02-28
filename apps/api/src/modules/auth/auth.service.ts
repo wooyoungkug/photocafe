@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, ForbiddenException, NotFoundException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
@@ -333,7 +333,7 @@ export class AuthService {
   async impersonateStaff(targetStaffId: string, adminStaffId: string) {
     const adminStaff = await this.prisma.staff.findUnique({ where: { id: adminStaffId } });
     if (!adminStaff || !adminStaff.isSuperAdmin) {
-      throw new UnauthorizedException('최고관리자만 대리 로그인할 수 있습니다');
+      throw new ForbiddenException('최고관리자만 대리 로그인할 수 있습니다');
     }
 
     const targetStaff = await this.prisma.staff.findUnique({
@@ -634,7 +634,7 @@ export class AuthService {
   async impersonateClient(clientId: string, adminId: string) {
     const adminStaff = await this.prisma.staff.findUnique({ where: { id: adminId } });
     if (!adminStaff || !adminStaff.isSuperAdmin) {
-      throw new UnauthorizedException('최고관리자만 대리 로그인할 수 있습니다');
+      throw new ForbiddenException('최고관리자만 대리 로그인할 수 있습니다');
     }
 
     const client = await this.prisma.client.findUnique({

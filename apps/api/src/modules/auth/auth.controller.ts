@@ -8,6 +8,7 @@ import {
   Request,
   Res,
   UnauthorizedException,
+  ForbiddenException,
   Query,
   Param,
   Ip,
@@ -331,7 +332,7 @@ export class AuthController {
   @ApiOperation({ summary: '최고관리자가 특정 직원으로 대리 로그인' })
   async impersonateStaff(@Param('staffId') staffId: string, @Request() req: any) {
     if (req.user.type !== 'staff') {
-      throw new UnauthorizedException('직원 계정만 대리 로그인할 수 있습니다');
+      throw new ForbiddenException('직원 계정만 대리 로그인할 수 있습니다');
     }
     return this.authService.impersonateStaff(staffId, req.user.sub);
   }
@@ -342,7 +343,7 @@ export class AuthController {
   @ApiOperation({ summary: '관리자가 특정 회원으로 대리 로그인' })
   async impersonateClient(@Param('clientId') clientId: string, @Request() req: any) {
     if (req.user.type !== 'staff') {
-      throw new UnauthorizedException('직원 계정만 대리 로그인할 수 있습니다');
+      throw new ForbiddenException('직원 계정만 대리 로그인할 수 있습니다');
     }
     return this.authService.impersonateClient(clientId, req.user.sub);
   }
