@@ -139,12 +139,6 @@ export function ShopHeader() {
                 </div>
               ) : (
                 <div className="hidden md:flex items-center gap-3 ml-2">
-                  <Link
-                    href="/login"
-                    className="text-xs text-neutral-600 hover:text-neutral-900 transition-colors tracking-wide uppercase"
-                  >
-                    {tc('login')}
-                  </Link>
                   <Link href="/register">
                     <Button
                       size="sm"
@@ -213,9 +207,6 @@ export function ShopHeader() {
               </>
             ) : (
               <div className="flex gap-3">
-                <Link href="/login" className="flex-1" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="outline" className="w-full rounded-none text-sm h-10">{tc('login')}</Button>
-                </Link>
                 <Link href="/register" className="flex-1" onClick={() => setMobileMenuOpen(false)}>
                   <Button className="w-full rounded-none bg-neutral-900 hover:bg-neutral-800 text-sm h-10">{tc('register')}</Button>
                 </Link>

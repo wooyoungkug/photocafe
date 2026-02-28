@@ -5,7 +5,6 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
-import { LocalStrategy } from './strategies/local.strategy';
 import { NaverStrategy } from './strategies/naver.strategy';
 import { KakaoStrategy } from './strategies/kakao.strategy';
 import { StaffNaverStrategy } from './strategies/staff-naver.strategy';
@@ -39,7 +38,6 @@ import { EmploymentModule } from '../employment/employment.module';
   providers: [
     AuthService,
     JwtStrategy,
-    LocalStrategy,
     NaverStrategy,
     KakaoStrategy,
     StaffNaverStrategy,
@@ -49,4 +47,3 @@ import { EmploymentModule } from '../employment/employment.module';
   exports: [AuthService],
 })
 export class AuthModule { }
-
