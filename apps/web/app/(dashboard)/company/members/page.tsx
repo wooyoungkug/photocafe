@@ -254,6 +254,8 @@ export default function MembersPage() {
     paymentTerms: 30,
     paymentCondition: '당월말',
     creditPaymentDay: undefined,
+    gender: '',
+    birthday: '',
     status: 'active',
     fileRetentionMonths: 3,
     assignedManager: '',
@@ -286,6 +288,8 @@ export default function MembersPage() {
         paymentTerms: member.paymentTerms || 30,
         paymentCondition: (member.paymentCondition as '당월말' | '익월말' | '2개월여신') || '당월말',
         creditPaymentDay: member.creditPaymentDay,
+        gender: member.gender || '',
+        birthday: member.birthday || '',
         status: member.status || 'active',
         fileRetentionMonths: member.fileRetentionMonths ?? 3,
         assignedManager: member.assignedManager || '',
@@ -318,6 +322,8 @@ export default function MembersPage() {
           paymentTerms: 30,
           paymentCondition: '당월말',
           creditPaymentDay: undefined,
+          gender: '',
+          birthday: '',
           status: 'active',
           fileRetentionMonths: 3,
           assignedManager: '',
@@ -747,6 +753,38 @@ export default function MembersPage() {
                           className="bg-white"
                         />
                       </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="gender" className="text-sm font-medium">성별</Label>
+                        <Select
+                          value={formData.gender || ''}
+                          onValueChange={(value) => setFormData({ ...formData, gender: value || undefined })}
+                        >
+                          <SelectTrigger className="bg-white">
+                            <SelectValue placeholder="선택" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="male">남성</SelectItem>
+                            <SelectItem value="female">여성</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="birthday" className="text-sm font-medium">생년월일</Label>
+                        <Input
+                          id="birthday"
+                          value={formData.birthday}
+                          onChange={(e) => {
+                            const numbers = e.target.value.replace(/\D/g, '').slice(0, 8);
+                            let formatted = numbers;
+                            if (numbers.length > 6) formatted = `${numbers.slice(0, 4)}-${numbers.slice(4, 6)}-${numbers.slice(6)}`;
+                            else if (numbers.length > 4) formatted = `${numbers.slice(0, 4)}-${numbers.slice(4)}`;
+                            setFormData({ ...formData, birthday: formatted });
+                          }}
+                          placeholder="1990-01-01"
+                          maxLength={10}
+                          className="bg-white"
+                        />
+                      </div>
                     </>
                   )}
 
@@ -800,7 +838,7 @@ export default function MembersPage() {
                           className="bg-white"
                         />
                       </div>
-                      <div className="col-span-2 space-y-2">
+                      <div className="space-y-2">
                         <Label htmlFor="email" className="text-sm font-medium">이메일</Label>
                         <Input
                           id="email"
@@ -808,6 +846,38 @@ export default function MembersPage() {
                           value={formData.email}
                           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                           placeholder="contact@example.com"
+                          className="bg-white"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="gender" className="text-sm font-medium">성별</Label>
+                        <Select
+                          value={formData.gender || ''}
+                          onValueChange={(value) => setFormData({ ...formData, gender: value || undefined })}
+                        >
+                          <SelectTrigger className="bg-white">
+                            <SelectValue placeholder="선택" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="male">남성</SelectItem>
+                            <SelectItem value="female">여성</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="birthday" className="text-sm font-medium">생년월일</Label>
+                        <Input
+                          id="birthday"
+                          value={formData.birthday}
+                          onChange={(e) => {
+                            const numbers = e.target.value.replace(/\D/g, '').slice(0, 8);
+                            let formatted = numbers;
+                            if (numbers.length > 6) formatted = `${numbers.slice(0, 4)}-${numbers.slice(4, 6)}-${numbers.slice(6)}`;
+                            else if (numbers.length > 4) formatted = `${numbers.slice(0, 4)}-${numbers.slice(4)}`;
+                            setFormData({ ...formData, birthday: formatted });
+                          }}
+                          placeholder="1990-01-01"
+                          maxLength={10}
                           className="bg-white"
                         />
                       </div>
