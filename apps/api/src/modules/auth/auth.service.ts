@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException, BadRequestException, NotFoundExcepti
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
+import * as bcrypt from 'bcrypt';
 import { PrismaService } from '@/common/prisma/prisma.service';
 
 interface OAuthTokenData {
@@ -357,6 +358,51 @@ export class AuthService {
         role: 'admin', email: targetStaff.email, branch: targetStaff.branch, department: targetStaff.department,
       },
       impersonated: true,
+    };
+  }
+
+  // ========== 직원 ID/PW 로그인 ==========
+
+  async loginStaffWithPassword(staffId: string, password: string, ip?: string) {
+    const staff = await this.prisma.staff.findFirst({
+      where: { staffId },
+    });
+
+    if (!staff) {
+      throw new UnauthorizedException('직원 ID 또는 비밀번호가 올바르지 않습니다');
+    }
+
+    if (!staff.password) {
+      throw new UnauthorizedException('비밀번호가 설정되지 않은 계정입니다. 소셜 로그인을 이용해주세요.');
+    }
+
+    const isValid = await bcrypt.compare(password, staff.password);
+    if (!isValid) {
+      throw new UnauthorizedException('직원 ID 또는 비밀번호가 올바르지 않습니다');
+    }
+
+    if (staff.status !== 'active' || !staff.isActive) {
+      throw new UnauthorizedException('비활성 계정입니다');
+    }
+
+    await this.prisma.staff.update({
+      where: { id: staff.id },
+      data: { lastLoginAt: new Date(), ...(ip && { lastLoginIp: ip }) },
+    });
+
+    const payload = {
+      sub: staff.id, staffId: staff.staffId, name: staff.name,
+      role: 'admin', type: 'staff', branchId: staff.branchId, departmentId: staff.departmentId,
+    };
+
+    return {
+      accessToken: this.jwtService.sign(payload),
+      refreshToken: this.jwtService.sign(payload, { expiresIn: '7d' }),
+      user: {
+        id: staff.id, staffId: staff.staffId, name: staff.name, role: 'admin',
+        email: staff.companyEmail || staff.email, isSuperAdmin: staff.isSuperAdmin ?? false,
+        profileImage: staff.profileImage,
+      },
     };
   }
 
