@@ -137,23 +137,23 @@ const MemberTableRow = memo(({
           <span className="text-muted-foreground text-sm">-</span>
         )}
       </TableCell>
-      <TableCell className="text-center text-sm text-muted-foreground">
-        {format(new Date(member.createdAt), 'yy.MM.dd')}
-      </TableCell>
       <TableCell className="text-center">
-        {(() => {
-          const oauth = member.oauthProvider;
-          const channel = member.acquisitionChannel;
-          if (oauth === 'kakao') return <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-300 text-xs">카카오</Badge>;
-          if (oauth === 'naver') return <Badge variant="outline" className="bg-green-50 text-green-800 border-green-300 text-xs">네이버</Badge>;
-          if (oauth === 'google') return <Badge variant="outline" className="bg-blue-50 text-blue-800 border-blue-300 text-xs">구글</Badge>;
-          if (channel === 'referral') return <Badge variant="outline" className="text-xs">소개</Badge>;
-          if (channel === 'search') return <Badge variant="outline" className="text-xs">검색</Badge>;
-          if (channel === 'exhibition') return <Badge variant="outline" className="text-xs">전시회</Badge>;
-          if (channel === 'sns') return <Badge variant="outline" className="text-xs">SNS</Badge>;
-          if (channel === 'etc') return <Badge variant="outline" className="text-xs">기타</Badge>;
-          return <span className="text-sm text-muted-foreground">직접가입</span>;
-        })()}
+        <div className="flex flex-col items-center gap-0.5">
+          {(() => {
+            const oauth = member.oauthProvider;
+            const channel = member.acquisitionChannel;
+            if (oauth === 'kakao') return <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-300 text-xs">카카오</Badge>;
+            if (oauth === 'naver') return <Badge variant="outline" className="bg-green-50 text-green-800 border-green-300 text-xs">네이버</Badge>;
+            if (oauth === 'google') return <Badge variant="outline" className="bg-blue-50 text-blue-800 border-blue-300 text-xs">구글</Badge>;
+            if (channel === 'referral') return <Badge variant="outline" className="text-xs">소개</Badge>;
+            if (channel === 'search') return <Badge variant="outline" className="text-xs">검색</Badge>;
+            if (channel === 'exhibition') return <Badge variant="outline" className="text-xs">전시회</Badge>;
+            if (channel === 'sns') return <Badge variant="outline" className="text-xs">SNS</Badge>;
+            if (channel === 'etc') return <Badge variant="outline" className="text-xs">기타</Badge>;
+            return <span className="text-sm text-muted-foreground">직접가입</span>;
+          })()}
+          <span className="text-xs text-muted-foreground">{format(new Date(member.createdAt), 'yy.MM.dd')}</span>
+        </div>
       </TableCell>
       <TableCell className="text-center">
         <span className="text-sm font-medium">{member._count?.consultations ?? 0}</span>
@@ -597,7 +597,6 @@ export default function MembersPage() {
                       <TableHead className="w-[15%] text-center">이메일</TableHead>
                       <TableHead className="w-[9%] text-center">연락처</TableHead>
                       <TableHead className="w-[8%] text-center">그룹</TableHead>
-                      <TableHead className="w-[7%] text-center whitespace-nowrap">등록일</TableHead>
                       <TableHead className="w-[7%] text-center whitespace-nowrap">가입경로</TableHead>
                       <TableHead className="w-[5%] text-center whitespace-nowrap">상담</TableHead>
                       <TableHead className="w-[5%] text-center whitespace-nowrap">미완료</TableHead>
