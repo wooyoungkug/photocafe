@@ -11,11 +11,13 @@ import { KakaoStrategy } from './strategies/kakao.strategy';
 import { StaffNaverStrategy } from './strategies/staff-naver.strategy';
 import { StaffKakaoStrategy } from './strategies/staff-kakao.strategy';
 import { GoogleStrategy } from './strategies/google.strategy';
+import { EmploymentModule } from '../employment/employment.module';
 
 @Module({
   imports: [
     ConfigModule,
     PassportModule,
+    EmploymentModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({

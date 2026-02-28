@@ -39,6 +39,7 @@ import {
   SelectContextDto,
 } from './dto/auth.dto';
 import { StaffOnlyGuard } from '@/common/guards/staff-only.guard';
+import { EmploymentService } from '../employment/employment.service';
 
 
 @ApiTags('auth')
@@ -47,6 +48,7 @@ export class AuthController {
   constructor(
     private authService: AuthService,
     private configService: ConfigService,
+    private employmentService: EmploymentService,
   ) { }
 
   @Public()
@@ -245,6 +247,34 @@ export class AuthController {
     return { exists };
   }
 
+  // ========== 초대용 OAuth 진입점 (쿠키에 초대 토큰 저장 후 OAuth 리다이렉트) ==========
+
+  @Public()
+  @Get('naver-invite/:inviteToken')
+  @ApiOperation({ summary: '초대 수락 - 네이버 OAuth' })
+  async naverInviteAuth(@Param('inviteToken') inviteToken: string, @Res() res: Response) {
+    res.cookie('invite_token', inviteToken, { maxAge: 5 * 60 * 1000, httpOnly: true, sameSite: 'lax' });
+    return res.redirect('/api/v1/auth/naver');
+  }
+
+  @Public()
+  @Get('kakao-invite/:inviteToken')
+  @ApiOperation({ summary: '초대 수락 - 카카오 OAuth' })
+  async kakaoInviteAuth(@Param('inviteToken') inviteToken: string, @Res() res: Response) {
+    res.cookie('invite_token', inviteToken, { maxAge: 5 * 60 * 1000, httpOnly: true, sameSite: 'lax' });
+    return res.redirect('/api/v1/auth/kakao');
+  }
+
+  @Public()
+  @Get('google-invite/:inviteToken')
+  @ApiOperation({ summary: '초대 수락 - Google OAuth' })
+  async googleInviteAuth(@Param('inviteToken') inviteToken: string, @Res() res: Response) {
+    res.cookie('invite_token', inviteToken, { maxAge: 5 * 60 * 1000, httpOnly: true, sameSite: 'lax' });
+    return res.redirect('/api/v1/auth/staff/google');
+  }
+
+  // ========== 일반 OAuth 로그인 ==========
+
   // 네이버 OAuth 로그인 시작
   @Public()
   @Get('naver')
@@ -261,7 +291,7 @@ export class AuthController {
   @ApiOperation({ summary: '네이버 로그인 콜백' })
   async naverAuthCallback(@Request() req: any, @Res() res: Response) {
     const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3002';
-    return this.handleOAuthCallback(req.user, frontendUrl, res);
+    return this.handleOAuthCallback(req.user, frontendUrl, res, req);
   }
 
   // 카카오 OAuth 로그인 시작
@@ -280,12 +310,30 @@ export class AuthController {
   @ApiOperation({ summary: '카카오 로그인 콜백' })
   async kakaoAuthCallback(@Request() req: any, @Res() res: Response) {
     const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3002';
-    return this.handleOAuthCallback(req.user, frontendUrl, res);
+    return this.handleOAuthCallback(req.user, frontendUrl, res, req);
   }
 
-  /** OAuth 콜백 공통 처리: Employment 확인 후 적절한 콜백으로 리다이렉트 */
-  private async handleOAuthCallback(client: any, frontendUrl: string, res: Response) {
-    // Employment(소속 회사) 확인
+  /** OAuth 콜백 공통 처리: 초대 토큰 처리 + Employment 확인 후 적절한 콜백으로 리다이렉트 */
+  private async handleOAuthCallback(client: any, frontendUrl: string, res: Response, req?: any) {
+    // 1. 초대 쿠키 확인 및 처리
+    const inviteToken = req?.cookies?.invite_token;
+    if (inviteToken) {
+      try {
+        await this.employmentService.acceptInvitationOAuth({
+          token: inviteToken,
+          oauthProvider: client.oauthProvider,
+          oauthId: client.oauthId,
+          email: client.email,
+          name: client.clientName,
+        });
+      } catch (e: any) {
+        // 이미 수락됨, 만료됨, 이미 소속됨 등 → 로그만 남기고 계속 진행
+        console.warn('Invite acceptance skipped:', e.message);
+      }
+      res.clearCookie('invite_token');
+    }
+
+    // 2. Employment(소속 회사) 확인
     const employments = await this.authService.getActiveEmployments(client.id);
 
     if (employments.length === 0) {
