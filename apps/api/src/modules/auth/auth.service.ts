@@ -632,6 +632,11 @@ export class AuthService {
   }
 
   async impersonateClient(clientId: string, adminId: string) {
+    const adminStaff = await this.prisma.staff.findUnique({ where: { id: adminId } });
+    if (!adminStaff || !adminStaff.isSuperAdmin) {
+      throw new UnauthorizedException('최고관리자만 대리 로그인할 수 있습니다');
+    }
+
     const client = await this.prisma.client.findUnique({
       where: { id: clientId },
       include: { group: true },
