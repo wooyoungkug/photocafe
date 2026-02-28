@@ -23,7 +23,7 @@ export class StaffKakaoStrategy extends PassportStrategy(Strategy, 'staff-kakao'
       clientID: clientID || 'disabled',
       clientSecret: clientSecret || 'disabled',
       callbackURL: callbackURL || 'http://localhost:3001/api/v1/auth/staff/kakao/callback',
-      scope: ['profile_nickname', 'profile_image', 'account_email', 'gender', 'birthday', 'phone_number'],
+      scope: ['profile_nickname', 'profile_image', 'account_email'],
     } as any);
   }
 

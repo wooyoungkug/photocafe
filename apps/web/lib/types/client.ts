@@ -36,6 +36,10 @@ export interface Client {
   addressDetail?: string;
   groupId?: string;
   group?: ClientGroup;
+  gender?: string;
+  birthday?: string;
+  oauthProvider?: string;
+  profileImage?: string;
   memberType?: 'individual' | 'business';
   shippingType?: 'conditional' | 'free' | 'prepaid' | 'cod';
   freeShippingThreshold?: number;
@@ -74,6 +78,8 @@ export interface CreateClientDto {
   phone?: string;
   mobile?: string;
   email?: string;
+  gender?: string;
+  birthday?: string;
   postalCode?: string;
   address?: string;
   addressDetail?: string;

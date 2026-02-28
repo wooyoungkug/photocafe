@@ -286,14 +286,44 @@ export class AuthService {
     return user;
   }
 
+  // OAuth 생년월일 정규화 (YYYY-MM-DD 형식)
+  private normalizeOAuthBirthday(birthday?: string, birthyear?: string): string | undefined {
+    if (!birthday) return undefined;
+    // 카카오: birthday=MMDD, birthyear=YYYY / 네이버: birthday=MM-DD, birthYear=YYYY
+    const cleanBirthday = birthday.replace(/-/g, '');
+    const mm = cleanBirthday.slice(0, 2);
+    const dd = cleanBirthday.slice(2, 4);
+    if (birthyear) return `${birthyear}-${mm}-${dd}`;
+    return `${mm}-${dd}`;
+  }
+
+  // OAuth 성별 정규화 (male/female)
+  private normalizeOAuthGender(gender?: string): string | undefined {
+    if (!gender) return undefined;
+    const g = gender.toLowerCase();
+    if (g === 'male' || g === 'm') return 'male';
+    if (g === 'female' || g === 'f') return 'female';
+    return gender;
+  }
+
+  // OAuth 전화번호 정규화
+  private normalizeOAuthMobile(mobile?: string): string | undefined {
+    if (!mobile) return undefined;
+    // 카카오: +82 10-1234-5678 → 010-1234-5678
+    return mobile.replace(/^\+82\s?/, '0').replace(/\s/g, '');
+  }
+
   // 네이버 OAuth 사용자 검증/생성
   async validateNaverUser(data: {
     oauthId: string;
     email: string;
     name: string;
     profileImage?: string;
+    gender?: string;
+    birthday?: string;
+    birthyear?: string;
+    mobile?: string;
   }) {
-    // 기존 클라이언트 조회 (oauthProvider + oauthId로 검색)
     let client = await this.prisma.client.findFirst({
       where: {
         oauthProvider: 'naver',
@@ -301,9 +331,11 @@ export class AuthService {
       },
     });
 
-    // 기존 사용자가 없으면 새로 생성
+    const gender = this.normalizeOAuthGender(data.gender);
+    const birthday = this.normalizeOAuthBirthday(data.birthday, data.birthyear);
+    const mobile = this.normalizeOAuthMobile(data.mobile);
+
     if (!client) {
-      // 클라이언트 코드 생성 (N + 타임스탬프)
       const clientCode = `N${Date.now().toString().slice(-8)}`;
 
       client = await this.prisma.client.create({
@@ -313,12 +345,30 @@ export class AuthService {
           email: data.email,
           oauthProvider: 'naver',
           oauthId: data.oauthId,
+          profileImage: data.profileImage,
+          gender,
+          birthday,
+          ...(mobile && { mobile }),
           memberType: 'individual',
           priceType: 'standard',
           paymentType: 'order',
           status: 'active',
         },
       });
+    } else {
+      // 기존 사용자: 비어있는 필드만 업데이트
+      const updateData: any = {};
+      if (!client.profileImage && data.profileImage) updateData.profileImage = data.profileImage;
+      if (!client.gender && gender) updateData.gender = gender;
+      if (!client.birthday && birthday) updateData.birthday = birthday;
+      if (!client.mobile && mobile) updateData.mobile = mobile;
+      if (!client.email && data.email) updateData.email = data.email;
+      if (Object.keys(updateData).length > 0) {
+        client = await this.prisma.client.update({
+          where: { id: client.id },
+          data: updateData,
+        });
+      }
     }
 
     return client;
@@ -330,8 +380,11 @@ export class AuthService {
     email: string;
     name: string;
     profileImage?: string;
+    gender?: string;
+    birthday?: string;
+    birthyear?: string;
+    mobile?: string;
   }) {
-    // 기존 클라이언트 조회 (oauthProvider + oauthId로 검색)
     let client = await this.prisma.client.findFirst({
       where: {
         oauthProvider: 'kakao',
@@ -339,9 +392,11 @@ export class AuthService {
       },
     });
 
-    // 기존 사용자가 없으면 새로 생성
+    const gender = this.normalizeOAuthGender(data.gender);
+    const birthday = this.normalizeOAuthBirthday(data.birthday, data.birthyear);
+    const mobile = this.normalizeOAuthMobile(data.mobile);
+
     if (!client) {
-      // 클라이언트 코드 생성 (K + 타임스탬프)
       const clientCode = `K${Date.now().toString().slice(-8)}`;
 
       client = await this.prisma.client.create({
@@ -351,12 +406,30 @@ export class AuthService {
           email: data.email,
           oauthProvider: 'kakao',
           oauthId: data.oauthId,
+          profileImage: data.profileImage,
+          gender,
+          birthday,
+          ...(mobile && { mobile }),
           memberType: 'individual',
           priceType: 'standard',
           paymentType: 'order',
           status: 'active',
         },
       });
+    } else {
+      // 기존 사용자: 비어있는 필드만 업데이트
+      const updateData: any = {};
+      if (!client.profileImage && data.profileImage) updateData.profileImage = data.profileImage;
+      if (!client.gender && gender) updateData.gender = gender;
+      if (!client.birthday && birthday) updateData.birthday = birthday;
+      if (!client.mobile && mobile) updateData.mobile = mobile;
+      if (!client.email && data.email) updateData.email = data.email;
+      if (Object.keys(updateData).length > 0) {
+        client = await this.prisma.client.update({
+          where: { id: client.id },
+          data: updateData,
+        });
+      }
     }
 
     return client;
