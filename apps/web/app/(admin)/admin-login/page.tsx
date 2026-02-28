@@ -1,11 +1,62 @@
 'use client';
 
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Shield } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Shield, AlertCircle, Loader2 } from 'lucide-react';
+import { useAuthStore } from '@/stores/auth-store';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
 
 export default function AdminLoginPage() {
+  const router = useRouter();
+  const [staffId, setStaffId] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      const res = await fetch(`${API_URL}/auth/staff/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ staffId, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || '로그인에 실패했습니다');
+      }
+
+      useAuthStore.getState().setAuth({
+        user: {
+          id: data.user?.id || '',
+          email: data.user?.email || '',
+          name: data.user?.name || '직원',
+          role: data.user?.role || 'admin',
+          staffId: data.user?.staffId,
+          isSuperAdmin: data.user?.isSuperAdmin ?? false,
+        },
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+        rememberMe: true,
+      });
+
+      router.push('/dashboard');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '로그인에 실패했습니다');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
       <Card className="w-full max-w-md shadow-2xl border-slate-700 bg-slate-900/50 backdrop-blur">
@@ -15,11 +66,55 @@ export default function AdminLoginPage() {
           </div>
           <CardTitle className="text-2xl text-white">관리자 로그인</CardTitle>
           <CardDescription className="text-slate-400">
-            소셜 계정으로 로그인하세요
+            직원 ID/비밀번호 또는 소셜 계정으로 로그인하세요
           </CardDescription>
         </CardHeader>
 
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-4">
+          {error && (
+            <div className="flex items-center gap-2 p-3 text-sm text-red-400 bg-red-900/30 border border-red-800/50 rounded-md">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <Input
+              placeholder="직원 ID"
+              value={staffId}
+              onChange={(e) => setStaffId(e.target.value)}
+              className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+              disabled={isLoading}
+            />
+            <Input
+              type="password"
+              placeholder="비밀번호"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+              disabled={isLoading}
+            />
+            <Button
+              type="submit"
+              className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white"
+              disabled={isLoading || !staffId || !password}
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              로그인
+            </Button>
+          </form>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-slate-700" />
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="bg-slate-900 px-2 text-slate-500">또는</span>
+            </div>
+          </div>
+
           <a
             href={`${API_URL}/auth/staff/naver`}
             className="flex items-center justify-center gap-2 w-full h-12 rounded-md text-sm font-medium text-white transition-colors bg-[#03C75A] hover:bg-[#02b351]"
@@ -56,7 +151,7 @@ export default function AdminLoginPage() {
 
         <CardFooter className="flex justify-center">
           <p className="text-xs text-slate-400 text-center">
-            처음 로그인 시 관리자 승인이 필요합니다.
+            처음 소셜 로그인 시 관리자 승인이 필요합니다.
           </p>
         </CardFooter>
       </Card>

@@ -368,7 +368,8 @@
       "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"SELECT id, name, login_id, email, status, role FROM staff ORDER BY created_at DESC LIMIT 10;\")",
       "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"\\\\d staff\")",
       "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"SELECT id, name, \"\"staffId\"\", email, status, role, \"\"isSuperAdmin\"\", \"\"approvedAt\"\" FROM staff ORDER BY \"\"createdAt\"\" DESC LIMIT 10;\")",
-      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"UPDATE staff SET status = ''active'', \"\"approvedAt\"\" = NOW\\(\\), \"\"isSuperAdmin\"\" = true, \"\"staffId\"\" = ''admin2'' WHERE id = ''cmm6s7ut50000iys9fidiaqlp'' RETURNING id, name, status, \"\"staffId\"\";\")"
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"UPDATE staff SET status = ''active'', \"\"approvedAt\"\" = NOW\\(\\), \"\"isSuperAdmin\"\" = true, \"\"staffId\"\" = ''admin2'' WHERE id = ''cmm6s7ut50000iys9fidiaqlp'' RETURNING id, name, status, \"\"staffId\"\";\")",
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"SELECT \"\"staffId\"\", name, CASE WHEN password IS NOT NULL THEN ''SET'' ELSE ''NULL'' END as pw_status FROM staff WHERE \"\"staffId\"\" = ''admin'';\")"
     ],
     "additionalDirectories": [
       "C:\\dev\\printing114\\apps\\api\\dist",

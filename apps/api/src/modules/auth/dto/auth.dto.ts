@@ -8,6 +8,20 @@ export class RefreshTokenDto {
   refreshToken: string;
 }
 
+// ========== 직원 ID/PW 로그인 DTO ==========
+
+export class StaffLoginDto {
+  @ApiProperty({ example: 'admin', description: '직원 ID' })
+  @IsString()
+  @IsNotEmpty({ message: '직원 ID를 입력해주세요' })
+  staffId: string;
+
+  @ApiProperty({ example: 'password123', description: '비밀번호' })
+  @IsString()
+  @IsNotEmpty({ message: '비밀번호를 입력해주세요' })
+  password: string;
+}
+
 // ========== 직원 소셜 로그인 DTO ==========
 
 // 직원 회사 이메일 등록

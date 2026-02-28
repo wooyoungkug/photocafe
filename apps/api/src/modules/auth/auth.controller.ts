@@ -22,6 +22,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Public } from '@/common/decorators/public.decorator';
 import {
   RefreshTokenDto,
+  StaffLoginDto,
   StaffRegisterCompanyEmailDto,
   ApproveStaffDto,
   ChangeStaffRoleDto,
@@ -178,6 +179,16 @@ export class AuthController {
       throw new UnauthorizedException('인증 코드가 필요합니다.');
     }
     return this.authService.exchangeOAuthCode(code);
+  }
+
+  // ========== 직원 ID/PW 로그인 ==========
+
+  @Public()
+  @Post('staff/login')
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  @ApiOperation({ summary: '직원 ID/PW 로그인' })
+  async staffLogin(@Body() dto: StaffLoginDto, @Ip() ip: string) {
+    return this.authService.loginStaffWithPassword(dto.staffId, dto.password, ip);
   }
 
   // ========== 직원 소셜 로그인 ==========
