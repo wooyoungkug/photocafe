@@ -419,20 +419,13 @@ export class EmploymentService {
       throw new BadRequestException('만료된 초대입니다.');
     }
 
-    // OAuth로 기존 Client 검색
+    // OAuth로 기존 Client 검색 (oauthProvider + oauthId로만 검색)
     let client = await this.prisma.client.findFirst({
       where: { oauthProvider: dto.oauthProvider, oauthId: dto.oauthId },
     });
 
     if (!client) {
-      // 이메일로 검색
-      client = await this.prisma.client.findFirst({
-        where: { email: dto.email },
-      });
-    }
-
-    if (!client) {
-      // 새 Client 생성
+      // 새 Client 생성 (이메일 폴백 없음 - 다른 사용자 계정에 연결되는 보안 이슈 방지)
       const clientCode = this.generateClientCode();
       client = await this.prisma.client.create({
         data: {
