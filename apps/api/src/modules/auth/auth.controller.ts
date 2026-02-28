@@ -90,7 +90,7 @@ export class AuthController {
   @Get('naver-invite/:inviteToken')
   @ApiOperation({ summary: '초대 수락 - 네이버 OAuth' })
   async naverInviteAuth(@Param('inviteToken') inviteToken: string, @Res() res: Response) {
-    res.cookie('invite_token', inviteToken, { maxAge: 5 * 60 * 1000, httpOnly: true, sameSite: 'lax' });
+    res.cookie('invite_token', inviteToken, { maxAge: 5 * 60 * 1000, httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' });
     return res.redirect('/api/v1/auth/naver');
   }
 
@@ -98,7 +98,7 @@ export class AuthController {
   @Get('kakao-invite/:inviteToken')
   @ApiOperation({ summary: '초대 수락 - 카카오 OAuth' })
   async kakaoInviteAuth(@Param('inviteToken') inviteToken: string, @Res() res: Response) {
-    res.cookie('invite_token', inviteToken, { maxAge: 5 * 60 * 1000, httpOnly: true, sameSite: 'lax' });
+    res.cookie('invite_token', inviteToken, { maxAge: 5 * 60 * 1000, httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' });
     return res.redirect('/api/v1/auth/kakao');
   }
 
@@ -106,7 +106,7 @@ export class AuthController {
   @Get('google-invite/:inviteToken')
   @ApiOperation({ summary: '초대 수락 - Google OAuth' })
   async googleInviteAuth(@Param('inviteToken') inviteToken: string, @Res() res: Response) {
-    res.cookie('invite_token', inviteToken, { maxAge: 5 * 60 * 1000, httpOnly: true, sameSite: 'lax' });
+    res.cookie('invite_token', inviteToken, { maxAge: 5 * 60 * 1000, httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' });
     return res.redirect('/api/v1/auth/staff/google');
   }
 
