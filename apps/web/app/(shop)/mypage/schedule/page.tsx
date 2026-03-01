@@ -6,33 +6,26 @@ import {
   format,
   startOfMonth,
   endOfMonth,
-  eachDayOfInterval,
-  isSameDay,
-  isSameMonth,
-  addMonths,
-  subMonths,
   startOfWeek,
   endOfWeek,
+  addWeeks,
+  subWeeks,
   isToday,
+  isSameDay,
 } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import {
   Camera,
   Plus,
-  ChevronLeft,
-  ChevronRight,
   Calendar as CalendarIcon,
-  Filter,
   Clock,
   MapPin,
   User,
   Loader2,
-  List,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import {
   Select,
   SelectContent,
@@ -45,11 +38,22 @@ import { useAuthStore } from '@/stores/auth-store';
 import { useShootings } from '@/hooks/use-shooting';
 import type { Shooting, ShootingType, ShootingStatus } from '@/hooks/use-shooting';
 import { SHOOTING_TYPE_LABELS, SHOOTING_STATUS_LABELS } from '@/hooks/use-shooting';
+import { ShootingCalendar } from '@/components/shooting/shooting-calendar';
 import { ShootingStatusBadge } from '@/components/shooting/shooting-status-badge';
 import { ShootingTypeBadge } from '@/components/shooting/shooting-type-badge';
 import { SHOOTING_TYPE_COLORS } from '@/components/shooting/shooting-type-badge';
+import type { CalendarViewMode } from '@/stores/shooting-store';
+import { Filter } from 'lucide-react';
 
 // ==================== 상수 ====================
+
+const VIEW_MODE_OPTIONS: { value: CalendarViewMode; label: string }[] = [
+  { value: 'day', label: '일간' },
+  { value: 'week', label: '주간' },
+  { value: 'month', label: '월간' },
+  { value: 'list', label: '목록' },
+  { value: 'twoWeek', label: '2주' },
+];
 
 const ALL_STATUSES: ShootingStatus[] = [
   'draft',
@@ -81,19 +85,44 @@ export default function SchedulePage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [filterType, setFilterType] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
+  const [viewMode, setViewMode] = useState<CalendarViewMode>('month');
 
-  // 날짜 범위 계산
+  // 날짜 범위 계산 (뷰 모드에 따라 범위 확장)
   const dateRange = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
     const calStart = startOfWeek(monthStart, { locale: ko });
     const calEnd = endOfWeek(monthEnd, { locale: ko });
+
+    // 주간/2주 뷰일 때 범위 보정
+    if (viewMode === 'week') {
+      const ws = startOfWeek(currentMonth, { locale: ko });
+      const we = endOfWeek(currentMonth, { locale: ko });
+      return {
+        startDate: format(ws, 'yyyy-MM-dd'),
+        endDate: format(we, 'yyyy-MM-dd'),
+      };
+    }
+    if (viewMode === 'twoWeek') {
+      const ws = startOfWeek(currentMonth, { locale: ko });
+      const we = endOfWeek(addWeeks(currentMonth, 1), { locale: ko });
+      return {
+        startDate: format(ws, 'yyyy-MM-dd'),
+        endDate: format(we, 'yyyy-MM-dd'),
+      };
+    }
+    if (viewMode === 'day') {
+      return {
+        startDate: format(currentMonth, 'yyyy-MM-dd'),
+        endDate: format(currentMonth, 'yyyy-MM-dd'),
+      };
+    }
+
     return {
       startDate: format(calStart, 'yyyy-MM-dd'),
       endDate: format(calEnd, 'yyyy-MM-dd'),
     };
-  }, [currentMonth]);
+  }, [currentMonth, viewMode]);
 
   // 촬영 데이터 조회
   const { data: shootingsResponse, isLoading } = useShootings({
@@ -115,31 +144,6 @@ export default function SchedulePage() {
     });
   }, [shootings, selectedDate]);
 
-  // 미니 캘린더 날짜 계산
-  const miniCalendarDays = useMemo(() => {
-    const monthStart = startOfMonth(currentMonth);
-    const monthEnd = endOfMonth(currentMonth);
-    const calStart = startOfWeek(monthStart, { locale: ko });
-    const calEnd = endOfWeek(monthEnd, { locale: ko });
-    return eachDayOfInterval({ start: calStart, end: calEnd });
-  }, [currentMonth]);
-
-  // 날짜별 촬영 존재 여부
-  const datesWithShootings = useMemo(() => {
-    const dateSet = new Set<string>();
-    shootings.forEach((s) => {
-      dateSet.add(s.scheduledDate.substring(0, 10));
-    });
-    return dateSet;
-  }, [shootings]);
-
-  // 전체 촬영 목록 (리스트 뷰용)
-  const allShootingsSorted = useMemo(() => {
-    return [...shootings].sort(
-      (a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime()
-    );
-  }, [shootings]);
-
   const handleShootingClick = useCallback(
     (shooting: Shooting) => {
       router.push(`/mypage/schedule/${shooting.id}`);
@@ -155,33 +159,24 @@ export default function SchedulePage() {
           <Camera className="h-5 w-5 text-gray-700" />
           <h2 className="text-[18px] text-black font-bold">일정관리</h2>
         </div>
-        <div className="flex items-center gap-2">
-          {/* 뷰 모드 전환 */}
+        <div className="flex items-center gap-3">
+          {/* 네이버 스타일 뷰 모드 전환 */}
           <div className="flex border rounded-lg overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setViewMode('calendar')}
-              className={cn(
-                'px-2.5 py-1 text-[12px] transition-colors',
-                viewMode === 'calendar'
-                  ? 'bg-black text-white'
-                  : 'bg-white text-gray-600 hover:bg-gray-100'
-              )}
-            >
-              <CalendarIcon className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('list')}
-              className={cn(
-                'px-2.5 py-1 text-[12px] transition-colors',
-                viewMode === 'list'
-                  ? 'bg-black text-white'
-                  : 'bg-white text-gray-600 hover:bg-gray-100'
-              )}
-            >
-              <List className="h-3.5 w-3.5" />
-            </button>
+            {VIEW_MODE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setViewMode(opt.value)}
+                className={cn(
+                  'px-3 py-1.5 text-[13px] transition-colors border-r last:border-r-0',
+                  viewMode === opt.value
+                    ? 'bg-blue-600 text-white font-medium'
+                    : 'bg-white text-gray-600 hover:bg-gray-100'
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
           <Button
             size="sm"
@@ -241,212 +236,61 @@ export default function SchedulePage() {
         </CardContent>
       </Card>
 
-      {viewMode === 'calendar' ? (
-        /* ===== 캘린더 뷰 ===== */
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4">
-          {/* 캘린더 */}
-          <Card>
-            <CardContent className="p-3">
-              {/* 월 네비게이션 */}
-              <div className="flex items-center justify-between mb-3">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <span className="text-[14px] text-black font-bold">
-                  {format(currentMonth, 'yyyy년 M월', { locale: ko })}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-
-              {isLoading ? (
-                <div className="flex items-center justify-center h-48">
-                  <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-                </div>
-              ) : (
-                <div className="grid grid-cols-7 gap-0">
-                  {/* 요일 헤더 */}
-                  {['일', '월', '화', '수', '목', '금', '토'].map((d, i) => (
-                    <div
-                      key={d}
-                      className={cn(
-                        'text-center text-[11px] py-1.5 font-medium',
-                        i === 0 && 'text-red-400',
-                        i === 6 && 'text-blue-400',
-                        i > 0 && i < 6 && 'text-gray-400'
-                      )}
-                    >
-                      {d}
-                    </div>
-                  ))}
-                  {/* 날짜 그리드 */}
-                  {miniCalendarDays.map((day) => {
-                    const dateKey = format(day, 'yyyy-MM-dd');
-                    const hasShootings = datesWithShootings.has(dateKey);
-                    const isSelected = isSameDay(day, selectedDate);
-                    const isTodayDate = isToday(day);
-                    const isCurrentMonth_ = isSameMonth(day, currentMonth);
-
-                    // 해당 날짜의 촬영 목록
-                    const dayShootings = shootings.filter(
-                      (s) => s.scheduledDate.substring(0, 10) === dateKey
-                    );
-
-                    return (
-                      <button
-                        key={dateKey}
-                        type="button"
-                        onClick={() => setSelectedDate(day)}
-                        className={cn(
-                          'relative min-h-[72px] p-1 border-t text-left transition-colors',
-                          !isCurrentMonth_ && 'bg-gray-50/50',
-                          isCurrentMonth_ && 'hover:bg-gray-50',
-                          isSelected && 'bg-blue-50 ring-1 ring-blue-300'
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            'inline-flex items-center justify-center h-5 w-5 rounded-full text-[11px]',
-                            !isCurrentMonth_ && 'text-gray-300',
-                            isCurrentMonth_ && 'text-black',
-                            isTodayDate && 'bg-blue-600 text-white font-bold',
-                            isSelected && !isTodayDate && 'font-bold text-blue-600'
-                          )}
-                        >
-                          {format(day, 'd')}
-                        </span>
-                        {/* 촬영 표시 (최대 2개) */}
-                        <div className="mt-0.5 space-y-0.5">
-                          {dayShootings.slice(0, 2).map((s) => (
-                            <div
-                              key={s.id}
-                              className="text-[10px] truncate px-0.5 rounded"
-                              style={{
-                                backgroundColor: SHOOTING_TYPE_COLORS[s.type] + '20',
-                                color: SHOOTING_TYPE_COLORS[s.type],
-                              }}
-                            >
-                              {s.scheduledTime
-                                ? s.scheduledTime.substring(0, 5) + ' '
-                                : ''}
-                              {s.title}
-                            </div>
-                          ))}
-                          {dayShootings.length > 2 && (
-                            <div className="text-[10px] text-gray-400 px-0.5">
-                              +{dayShootings.length - 2}건
-                            </div>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* 우측: 선택된 날짜의 일정 */}
-          <Card className="h-fit">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-[14px] text-black font-bold">
-                {format(selectedDate, 'M월 d일 (EEEE)', { locale: ko })}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {selectedDateShootings.length === 0 ? (
-                <div className="text-center py-8">
-                  <CalendarIcon className="h-8 w-8 text-gray-200 mx-auto mb-2" />
-                  <p className="text-[13px] text-gray-400">등록된 일정이 없습니다</p>
-                </div>
-              ) : (
-                selectedDateShootings.map((shooting) => (
-                  <ShootingListItem
-                    key={shooting.id}
-                    shooting={shooting}
-                    onClick={() => handleShootingClick(shooting)}
-                  />
-                ))
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      ) : (
-        /* ===== 리스트 뷰 ===== */
+      {/* 메인 컨텐츠: 캘린더 + 선택일 패널 */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4">
+        {/* 캘린더 (ShootingCalendar 재사용) */}
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-[14px] text-black font-bold">
-              {format(currentMonth, 'yyyy년 M월', { locale: ko })} 일정
-              <Badge variant="secondary" className="ml-2 text-[11px]">
-                {allShootingsSorted.length}건
-              </Badge>
-            </CardTitle>
-            <div className="flex items-center gap-2 mt-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-[12px]"
-                onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-              >
-                <ChevronLeft className="h-3.5 w-3.5 mr-1" />
-                이전달
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-[12px]"
-                onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-              >
-                다음달
-                <ChevronRight className="h-3.5 w-3.5 ml-1" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="p-3">
             {isLoading ? (
-              <div className="flex items-center justify-center h-32">
+              <div className="flex items-center justify-center h-[500px]">
                 <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
               </div>
-            ) : allShootingsSorted.length === 0 ? (
-              <div className="text-center py-12">
-                <CalendarIcon className="h-10 w-10 text-gray-200 mx-auto mb-2" />
-                <p className="text-[14px] text-gray-400">등록된 일정이 없습니다</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-3 text-[13px]"
-                  onClick={() => router.push('/mypage/schedule/new')}
-                >
-                  <Plus className="h-3.5 w-3.5 mr-1" />
-                  일정 등록하기
-                </Button>
-              </div>
             ) : (
-              <div className="space-y-2">
-                {allShootingsSorted.map((shooting) => (
-                  <ShootingListItem
-                    key={shooting.id}
-                    shooting={shooting}
-                    onClick={() => handleShootingClick(shooting)}
-                    showDate
-                  />
-                ))}
+              <div className="min-h-[500px]">
+                <ShootingCalendar
+                  shootings={shootings}
+                  selectedDate={selectedDate}
+                  currentMonth={currentMonth}
+                  viewMode={viewMode}
+                  onDateSelect={setSelectedDate}
+                  onMonthChange={setCurrentMonth}
+                  onShootingClick={handleShootingClick}
+                />
               </div>
             )}
           </CardContent>
         </Card>
-      )}
+
+        {/* 우측: 선택된 날짜의 일정 */}
+        <Card className="h-fit">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-[14px] text-black font-bold">
+              {format(selectedDate, 'M월 d일 (EEEE)', { locale: ko })}
+            </CardTitle>
+            <p className="text-[12px] text-gray-400">
+              {selectedDateShootings.length > 0
+                ? `${selectedDateShootings.length}건의 일정`
+                : '일정 없음'}
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {selectedDateShootings.length === 0 ? (
+              <div className="text-center py-8">
+                <CalendarIcon className="h-8 w-8 text-gray-200 mx-auto mb-2" />
+                <p className="text-[13px] text-gray-400">등록된 일정이 없습니다</p>
+              </div>
+            ) : (
+              selectedDateShootings.map((shooting) => (
+                <ShootingListItem
+                  key={shooting.id}
+                  shooting={shooting}
+                  onClick={() => handleShootingClick(shooting)}
+                />
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
@@ -456,11 +300,9 @@ export default function SchedulePage() {
 function ShootingListItem({
   shooting,
   onClick,
-  showDate = false,
 }: {
   shooting: Shooting;
   onClick: () => void;
-  showDate?: boolean;
 }) {
   return (
     <button
@@ -476,16 +318,6 @@ function ShootingListItem({
 
       {/* 제목 */}
       <p className="text-[14px] text-black font-bold truncate">{shooting.title}</p>
-
-      {/* 날짜 (리스트 뷰에서만) */}
-      {showDate && (
-        <div className="flex items-center gap-1 mt-1">
-          <CalendarIcon className="h-3 w-3 text-gray-400" />
-          <span className="text-[12px] text-gray-600">
-            {format(new Date(shooting.scheduledDate), 'M월 d일 (EEE)', { locale: ko })}
-          </span>
-        </div>
-      )}
 
       {/* 시간 */}
       {shooting.scheduledTime && (
