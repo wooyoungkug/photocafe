@@ -345,8 +345,13 @@ export function ShootingForm({
             <div className="space-y-1.5">
               <Label className="text-[14px] text-black font-normal">층</Label>
               <Input
-                {...register('venueFloor')}
-                placeholder="예: 3층"
+                inputMode="numeric"
+                value={watch('venueFloor') || ''}
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/\D/g, '');
+                  setValue('venueFloor', digits);
+                }}
+                placeholder="예: 3"
                 className="text-[14px]"
               />
             </div>
@@ -354,6 +359,7 @@ export function ShootingForm({
               <Label className="text-[14px] text-black font-normal">홀</Label>
               <Input
                 {...register('venueHall')}
+                lang="ko"
                 placeholder="예: 그랜드볼룸"
                 className="text-[14px]"
               />
