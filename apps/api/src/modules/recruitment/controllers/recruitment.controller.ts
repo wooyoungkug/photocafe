@@ -34,10 +34,11 @@ export class RecruitmentController {
   @Post()
   @ApiOperation({ summary: '구인 등록' })
   async create(@Body() dto: CreateRecruitmentDto, @Request() req: any) {
-    // 관리자(staff)가 직접 구인 등록할 경우 sub(=staffId)를 사용, 거래처 사용자는 clientId
-    const clientId = req.user.clientId || req.user.id;
+    const clientId = req.user.clientId;
     if (!clientId) {
-      throw new BadRequestException('구인 등록에 필요한 사용자 정보가 없습니다.');
+      throw new BadRequestException(
+        '구인 등록은 거래처(스튜디오) 계정으로만 가능합니다. 관리자 계정으로는 일정관리에서 구인 연동을 사용해주세요.',
+      );
     }
     return this.recruitmentService.create(dto, clientId, clientId);
   }
