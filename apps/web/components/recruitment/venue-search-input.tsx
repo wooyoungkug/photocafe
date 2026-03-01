@@ -21,6 +21,7 @@ interface VenueSearchInputProps {
   placeholder?: string;
   className?: string;
   error?: string;
+  id?: string;
 }
 
 export function VenueSearchInput({
@@ -30,6 +31,7 @@ export function VenueSearchInput({
   placeholder = '예: 더채플앳청담',
   className,
   error,
+  id,
 }: VenueSearchInputProps) {
   const [results, setResults] = useState<PlaceResult[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -106,6 +108,7 @@ export function VenueSearchInput({
   return (
     <div ref={containerRef} className="relative">
       <Input
+        id={id}
         value={value}
         onChange={handleChange}
         onKeyDown={handleKeyDown}

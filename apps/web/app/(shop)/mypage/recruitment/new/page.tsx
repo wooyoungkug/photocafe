@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useForm, type FieldErrors } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -88,6 +88,34 @@ export default function RecruitmentNewPage() {
   const shootingType = watch('shootingType');
   const privateDeadlineHours = watch('privateDeadlineHours');
 
+  // 필수 필드 순서 (검증 실패 시 첫 번째 에러 필드로 이동)
+  const REQUIRED_FIELDS: { key: keyof RecruitmentFormData; id: string }[] = [
+    { key: 'title', id: 'field-title' },
+    { key: 'shootingType', id: 'field-shootingType' },
+    { key: 'shootingDate', id: 'field-shootingDate' },
+    { key: 'venueName', id: 'field-venueName' },
+  ];
+
+  const onInvalid = (fieldErrors: FieldErrors<RecruitmentFormData>) => {
+    const firstError = REQUIRED_FIELDS.find((f) => fieldErrors[f.key]);
+    if (firstError) {
+      const el = document.getElementById(firstError.id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => el.focus(), 300);
+      }
+    }
+    const messages = REQUIRED_FIELDS
+      .filter((f) => fieldErrors[f.key])
+      .map((f) => fieldErrors[f.key]?.message)
+      .filter(Boolean);
+    toast({
+      title: '필수 항목을 확인해주세요',
+      description: messages.join(', '),
+      variant: 'destructive',
+    });
+  };
+
   const onSubmit = async (data: RecruitmentFormData) => {
     try {
       const result = await createMutation.mutateAsync({
@@ -142,7 +170,7 @@ export default function RecruitmentNewPage() {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <form onSubmit={handleSubmit(onSubmit, onInvalid)}>
         {/* 기본 정보 */}
         <Card>
           <CardHeader className="pb-3">
@@ -155,6 +183,7 @@ export default function RecruitmentNewPage() {
                 제목 <span className="text-red-500">*</span>
               </Label>
               <Input
+                id="field-title"
                 {...register('title')}
                 placeholder="예: 3/15 본식 촬영 작가 구합니다"
                 className="text-[14px]"
@@ -173,7 +202,7 @@ export default function RecruitmentNewPage() {
                 value={shootingType}
                 onValueChange={(v) => setValue('shootingType', v, { shouldValidate: true })}
               >
-                <SelectTrigger className="text-[14px]">
+                <SelectTrigger id="field-shootingType" className="text-[14px]">
                   <SelectValue placeholder="촬영유형 선택" />
                 </SelectTrigger>
                 <SelectContent>
@@ -196,6 +225,7 @@ export default function RecruitmentNewPage() {
                   촬영일 <span className="text-red-500">*</span>
                 </Label>
                 <Input
+                  id="field-shootingDate"
                   type="date"
                   {...register('shootingDate')}
                   className="text-[14px]"
@@ -238,6 +268,7 @@ export default function RecruitmentNewPage() {
                 장소명 <span className="text-red-500">*</span>
               </Label>
               <VenueSearchInput
+                id="field-venueName"
                 value={watch('venueName')}
                 onChange={(val) => setValue('venueName', val)}
                 onSelect={(place) => {
