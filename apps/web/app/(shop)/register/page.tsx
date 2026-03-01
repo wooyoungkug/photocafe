@@ -269,7 +269,7 @@ export default function RegisterPage() {
 
           <div className="space-y-2">
             <a
-              href={`${apiUrl}/auth/naver-login`}
+              href={`${apiUrl}/auth/naver`}
               className="inline-flex items-center justify-center w-full h-12 rounded-md text-sm font-medium bg-[#03C75A] hover:bg-[#02b351] text-white transition-colors"
             >
               <svg viewBox="0 0 24 24" className="mr-2 h-5 w-5" fill="currentColor">
@@ -279,7 +279,7 @@ export default function RegisterPage() {
             </a>
 
             <a
-              href={`${apiUrl}/auth/kakao-login`}
+              href={`${apiUrl}/auth/kakao`}
               className="inline-flex items-center justify-center w-full h-12 rounded-md text-sm font-medium bg-[#FEE500] hover:bg-[#FDD835] text-[#3C1E1E] transition-colors"
             >
               <svg viewBox="0 0 24 24" className="mr-2 h-5 w-5" fill="currentColor">

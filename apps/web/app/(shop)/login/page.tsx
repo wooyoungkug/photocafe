@@ -11,6 +11,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle, ArrowLeft, Loader2, User, Building2, UserPlus, Lock } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 type LoginPhase = 'social' | 'context-selection';
 
@@ -39,6 +47,7 @@ function LoginForm() {
   const [notRegistered, setNotRegistered] = useState(false);
   const [notRegisteredProvider, setNotRegisteredProvider] = useState<string | null>(null);
   const [justRegistered, setJustRegistered] = useState(false);
+  const [showRegisterConfirm, setShowRegisterConfirm] = useState(false);
 
   // ID/password login state
   const [loginId, setLoginId] = useState('');
@@ -284,18 +293,17 @@ function LoginForm() {
               가입되지 않은 계정입니다.
             </p>
             <p className="text-[13px] text-amber-700 mt-1">
-              아래 버튼을 누르면 바로 회원가입됩니다.
+              회원가입 후 이용해주세요.
             </p>
             {notRegisteredProvider ? (
-              <a href={`${apiUrl}/auth/${notRegisteredProvider}`}>
-                <Button
-                  size="sm"
-                  className="mt-3 bg-amber-600 hover:bg-amber-700 text-white"
-                >
-                  <UserPlus className="mr-1.5 h-4 w-4" />
-                  {notRegisteredProvider === 'naver' ? '네이버' : notRegisteredProvider === 'kakao' ? '카카오' : 'Google'}로 회원가입하기
-                </Button>
-              </a>
+              <Button
+                size="sm"
+                className="mt-3 bg-amber-600 hover:bg-amber-700 text-white"
+                onClick={() => setShowRegisterConfirm(true)}
+              >
+                <UserPlus className="mr-1.5 h-4 w-4" />
+                {notRegisteredProvider === 'naver' ? '네이버' : notRegisteredProvider === 'kakao' ? '카카오' : 'Google'}로 회원가입하기
+              </Button>
             ) : (
               <Link href="/register">
                 <Button
@@ -309,6 +317,31 @@ function LoginForm() {
             )}
           </div>
         )}
+
+        {/* 소셜 회원가입 확인 다이얼로그 */}
+        <Dialog open={showRegisterConfirm} onOpenChange={setShowRegisterConfirm}>
+          <DialogContent className="sm:max-w-[400px]">
+            <DialogHeader>
+              <DialogTitle className="text-[18px] text-black font-bold">회원가입 확인</DialogTitle>
+              <DialogDescription className="text-[14px] text-black font-normal">
+                {notRegisteredProvider === 'naver' ? '네이버' : notRegisteredProvider === 'kakao' ? '카카오' : 'Google'} 계정으로 회원가입하시겠습니까?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                variant="outline"
+                onClick={() => setShowRegisterConfirm(false)}
+              >
+                취소
+              </Button>
+              <a href={`${apiUrl}/auth/${notRegisteredProvider}`}>
+                <Button className="bg-[#E4007F] hover:bg-[#C5006D] text-white">
+                  회원가입
+                </Button>
+              </a>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {error && (
           <div className="p-4 rounded-md bg-red-50 border border-red-200">
