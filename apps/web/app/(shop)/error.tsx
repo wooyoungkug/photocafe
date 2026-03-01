@@ -26,17 +26,17 @@ export default function ShopError({
             <AlertTriangle className="w-8 h-8 text-red-500" />
           </div>
         </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">오류가 발생했습니다</h2>
-        <p className="text-gray-600 mb-4">
+        <h2 className="text-[24px] text-black font-normal mb-2">오류가 발생했습니다</h2>
+        <p className="text-[14px] text-black font-normal mb-4">
           페이지를 불러오는 중 문제가 발생했습니다.
         </p>
         {error.message && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 text-left">
-            <p className="text-sm text-red-800 font-mono break-all">
+            <p className="text-[14px] text-red-800 font-mono break-all">
               {error.message}
             </p>
             {error.digest && (
-              <p className="text-xs text-gray-500 mt-2">Error ID: {error.digest}</p>
+              <p className="text-[14px] text-gray-500 mt-2">Error ID: {error.digest}</p>
             )}
           </div>
         )}

@@ -51,6 +51,8 @@ export function ShopHeader() {
             <button
               className="md:hidden p-2 -ml-2"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label={mobileMenuOpen ? '메뉴 닫기' : '메뉴 열기'}
+              aria-expanded={mobileMenuOpen ? "true" : "false"}
             >
               {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
@@ -75,6 +77,7 @@ export function ShopHeader() {
                 <button
                   type="submit"
                   title={tc('search')}
+                  aria-label={tc('search')}
                   className="absolute right-0 top-0 h-9 w-9 flex items-center justify-center text-neutral-400 hover:text-neutral-900 transition-colors"
                 >
                   <Search className="h-4 w-4" />
@@ -175,6 +178,7 @@ export function ShopHeader() {
               <button
                 type="submit"
                 title={tc('search')}
+                aria-label={tc('search')}
                 className="absolute right-0 top-0 h-9 w-9 flex items-center justify-center text-neutral-400"
               >
                 <Search className="h-4 w-4" />

@@ -578,20 +578,31 @@ export function ShootingForm({
                       {p.label}
                     </Badge>
                   ))}
-                  {COMMON_DESCRIPTION_PRESETS.map((p) => (
-                    <Badge
-                      key={p.label}
-                      variant="secondary"
-                      className="cursor-pointer hover:bg-primary hover:text-white transition-colors text-[12px]"
-                      onClick={() => {
-                        const current = watch('recruitmentDescription') || '';
-                        const newText = current ? `${current}\n${p.text}` : p.text;
-                        setValue('recruitmentDescription', newText);
-                      }}
-                    >
-                      + {p.label}
-                    </Badge>
-                  ))}
+                  {COMMON_DESCRIPTION_PRESETS.map((p) => {
+                    const current = watch('recruitmentDescription') || '';
+                    const alreadyIncluded = current.includes(p.text);
+                    return (
+                      <Badge
+                        key={p.label}
+                        variant="secondary"
+                        className={`cursor-pointer transition-colors text-[12px] ${alreadyIncluded ? 'bg-primary text-white' : 'hover:bg-primary hover:text-white'}`}
+                        onClick={() => {
+                          if (alreadyIncluded) {
+                            const removed = current
+                              .split('\n')
+                              .filter((line) => line !== p.text)
+                              .join('\n');
+                            setValue('recruitmentDescription', removed);
+                          } else {
+                            const newText = current ? `${current}\n${p.text}` : p.text;
+                            setValue('recruitmentDescription', newText);
+                          }
+                        }}
+                      >
+                        {alreadyIncluded ? '✓' : '+'} {p.label}
+                      </Badge>
+                    );
+                  })}
                 </div>
                 <Textarea
                   {...register('recruitmentDescription')}
@@ -614,20 +625,31 @@ export function ShootingForm({
                       {p.label}
                     </Badge>
                   ))}
-                  {COMMON_REQUIREMENTS_PRESETS.map((p) => (
-                    <Badge
-                      key={p.label}
-                      variant="secondary"
-                      className="cursor-pointer hover:bg-primary hover:text-white transition-colors text-[12px]"
-                      onClick={() => {
-                        const current = watch('recruitmentRequirements') || '';
-                        const newText = current ? `${current}\n${p.text}` : p.text;
-                        setValue('recruitmentRequirements', newText);
-                      }}
-                    >
-                      + {p.label}
-                    </Badge>
-                  ))}
+                  {COMMON_REQUIREMENTS_PRESETS.map((p) => {
+                    const current = watch('recruitmentRequirements') || '';
+                    const alreadyIncluded = current.includes(p.text);
+                    return (
+                      <Badge
+                        key={p.label}
+                        variant="secondary"
+                        className={`cursor-pointer transition-colors text-[12px] ${alreadyIncluded ? 'bg-primary text-white' : 'hover:bg-primary hover:text-white'}`}
+                        onClick={() => {
+                          if (alreadyIncluded) {
+                            const removed = current
+                              .split('\n')
+                              .filter((line) => line !== p.text)
+                              .join('\n');
+                            setValue('recruitmentRequirements', removed);
+                          } else {
+                            const newText = current ? `${current}\n${p.text}` : p.text;
+                            setValue('recruitmentRequirements', newText);
+                          }
+                        }}
+                      >
+                        {alreadyIncluded ? '✓' : '+'} {p.label}
+                      </Badge>
+                    );
+                  })}
                 </div>
                 <Textarea
                   {...register('recruitmentRequirements')}
