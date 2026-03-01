@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   Briefcase,
   Loader2,
+  Info,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -131,6 +132,14 @@ export default function RecruitmentNewPage() {
         </Button>
         <Briefcase className="h-5 w-5 text-gray-700" />
         <h2 className="text-[18px] text-black font-bold">구인 등록</h2>
+      </div>
+
+      {/* 일정관리 연동 안내 */}
+      <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3">
+        <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+        <p className="text-[13px] text-blue-700">
+          구인을 등록하면 관리자 일정관리에 자동으로 촬영 일정이 추가됩니다.
+        </p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)}>

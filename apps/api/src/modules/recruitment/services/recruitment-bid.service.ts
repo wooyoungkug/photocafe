@@ -13,6 +13,7 @@ import {
   RECRUITMENT_PHASE,
 } from '../constants/recruitment.constants';
 import { RecruitmentNotificationService } from './recruitment-notification.service';
+import { ScheduleRecruitmentSyncService } from '@/modules/shooting/services/schedule-recruitment-sync.service';
 
 @Injectable()
 export class RecruitmentBidService {
@@ -21,6 +22,7 @@ export class RecruitmentBidService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationService: RecruitmentNotificationService,
+    private readonly syncService: ScheduleRecruitmentSyncService,
   ) {}
 
   /**
@@ -73,6 +75,13 @@ export class RecruitmentBidService {
       })
       .catch((err) => this.logger.error(`전속 모집 알림 실패: ${err.message}`));
 
+    // 일정관리 상태 동기화 (private_recruiting → recruiting)
+    this.syncService
+      .syncStatusChange('recruitment', recruitmentId, RECRUITMENT_STATUS.PRIVATE_RECRUITING)
+      .catch((err) =>
+        this.logger.warn(`PublishPrivate status sync failed: ${err.message}`),
+      );
+
     this.logger.log(
       `전속 모집 시작: ${recruitmentId}, 마감: ${privateDeadline.toISOString()}`,
     );
@@ -124,6 +133,13 @@ export class RecruitmentBidService {
         clientName: recruitment.client.clientName,
       })
       .catch((err) => this.logger.error(`공개 모집 알림 실패: ${err.message}`));
+
+    // 일정관리 상태 동기화 (public_recruiting → recruiting)
+    this.syncService
+      .syncStatusChange('recruitment', recruitmentId, RECRUITMENT_STATUS.PUBLIC_RECRUITING)
+      .catch((err) =>
+        this.logger.warn(`GoPublic status sync failed: ${err.message}`),
+      );
 
     this.logger.log(`공개 전환: ${recruitmentId}`);
     return updated;
@@ -317,6 +333,13 @@ export class RecruitmentBidService {
         })
         .catch((err) => this.logger.error(`거절 알림 실패: ${err.message}`));
     }
+
+    // 일정관리 연동: 외부 작가 확정 → SS status=confirmed + assignedClientId 설정
+    this.syncService
+      .syncBidSelection(recruitmentId, bid.bidderId)
+      .catch((err) =>
+        this.logger.warn(`Bid selection sync failed: ${err.message}`),
+      );
 
     this.logger.log(
       `작가 확정: ${recruitmentId}, 작가: ${bid.bidderId} (${bid.bidder.clientName})`,
