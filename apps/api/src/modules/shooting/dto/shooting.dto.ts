@@ -33,6 +33,16 @@ export class CreateShootingDto {
   @IsString()
   venueAddress: string;
 
+  @ApiPropertyOptional({ description: '층' })
+  @IsOptional()
+  @IsString()
+  venueFloor?: string;
+
+  @ApiPropertyOptional({ description: '홀' })
+  @IsOptional()
+  @IsString()
+  venueHall?: string;
+
   @ApiPropertyOptional({ description: '위도' })
   @IsOptional()
   @IsNumber()
@@ -138,6 +148,16 @@ export class UpdateShootingDto {
   @IsOptional()
   @IsString()
   venueAddress?: string;
+
+  @ApiPropertyOptional({ description: '층' })
+  @IsOptional()
+  @IsString()
+  venueFloor?: string;
+
+  @ApiPropertyOptional({ description: '홀' })
+  @IsOptional()
+  @IsString()
+  venueHall?: string;
 
   @ApiPropertyOptional({ description: '위도' })
   @IsOptional()

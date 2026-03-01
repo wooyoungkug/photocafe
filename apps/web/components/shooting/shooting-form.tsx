@@ -35,6 +35,8 @@ const shootingFormSchema = z.object({
   duration: z.coerce.number().min(0).optional(),
   venueName: z.string().min(1, '장소명을 입력해주세요'),
   venueAddress: z.string().optional(),
+  venueFloor: z.string().optional(),
+  venueHall: z.string().optional(),
   maxBidders: z.coerce.number().min(1).max(10).optional(),
   customerPhone: z.string().max(13, '전화번호가 너무 깁니다').optional(),
   customerEmail: z.string().email('올바른 이메일을 입력해주세요').optional().or(z.literal('')),
@@ -108,6 +110,8 @@ export function ShootingForm({
       duration: defaultValues?.duration || undefined,
       venueName: defaultValues?.venueName || '',
       venueAddress: defaultValues?.venueAddress || '',
+      venueFloor: (defaultValues as Record<string, unknown>)?.venueFloor as string || '',
+      venueHall: (defaultValues as Record<string, unknown>)?.venueHall as string || '',
       maxBidders: defaultValues?.maxBidders || 3,
       customerPhone: defaultValues?.customerPhone || '',
       customerEmail: defaultValues?.customerEmail || '',
@@ -156,6 +160,8 @@ export function ShootingForm({
       shootingType: values.shootingType as ShootingType,
       venueName: values.venueName,
       venueAddress: values.venueAddress || '',
+      venueFloor: values.venueFloor || undefined,
+      venueHall: values.venueHall || undefined,
       shootingDate: shootingDateISO,
       duration: values.duration || undefined,
       maxBidders: values.maxBidders || 3,
@@ -257,7 +263,7 @@ export function ShootingForm({
                     <SelectValue placeholder="시" />
                   </SelectTrigger>
                   <SelectContent>
-                    {Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0')).map((h) => (
+                    {Array.from({ length: 12 }, (_, i) => (i + 9).toString().padStart(2, '0')).map((h) => (
                       <SelectItem key={h} value={h}>{h}시</SelectItem>
                     ))}
                   </SelectContent>

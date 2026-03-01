@@ -3046,6 +3046,8 @@ model ShootingSchedule {
   shootingType    String               // wedding_main, wedding_rehearsal, baby_dol, baby_growth, profile, other
   venueName       String               // 장소명
   venueAddress    String               // 주소
+  venueFloor      String?              // 층
+  venueHall       String?              // 홀
   latitude        Float?               // 위도
   longitude       Float?               // 경도
   shootingDate    DateTime             // 촬영일시
