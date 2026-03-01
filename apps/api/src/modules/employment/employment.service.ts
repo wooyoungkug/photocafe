@@ -231,6 +231,14 @@ export class EmploymentService {
     };
   }
 
+  /** 아이디 중복 확인 */
+  async checkLoginIdAvailable(loginId: string) {
+    const existing = await this.prisma.client.findFirst({
+      where: { email: loginId },
+    });
+    return { available: !existing };
+  }
+
   /** 초대 수락 - 신규 계정 (Client 생성) */
   async acceptInvitation(dto: AcceptInvitationDto) {
     const invitation = await this.prisma.invitation.findUnique({
@@ -246,6 +254,14 @@ export class EmploymentService {
         data: { status: 'EXPIRED' },
       });
       throw new BadRequestException('만료된 초대입니다.');
+    }
+
+    // 아이디 중복 확인
+    const existingByLoginId = await this.prisma.client.findFirst({
+      where: { email: dto.loginId },
+    });
+    if (existingByLoginId) {
+      throw new ConflictException('이미 사용 중인 아이디입니다.');
     }
 
     // 이메일로 기존 계정 확인
@@ -280,6 +296,7 @@ export class EmploymentService {
           data: {
             ...(dto.name && { clientName: dto.name }),
             ...(dto.phone && { phone: dto.phone }),
+            email: dto.loginId,
             password: hashedPassword,
           },
         });
@@ -290,7 +307,7 @@ export class EmploymentService {
           data: {
             clientCode,
             clientName: dto.name,
-            email: invitation.inviteeEmail,
+            email: dto.loginId,
             password: hashedPassword,
             phone: dto.phone,
             memberType: 'individual',

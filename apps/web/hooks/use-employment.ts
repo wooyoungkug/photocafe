@@ -151,6 +151,17 @@ export function useRemoveEmployment() {
   });
 }
 
+// ==================== 아이디 중복 확인 (Public) ====================
+
+export function useCheckLoginId(loginId: string | undefined) {
+  return useQuery({
+    queryKey: ['check-login-id', loginId],
+    queryFn: () => api.get<{ available: boolean }>(`/employments/check-login-id/${loginId}`),
+    enabled: !!loginId && loginId.length >= 4,
+    retry: false,
+  });
+}
+
 // ==================== 초대 토큰 검증 (Public) ====================
 
 export function useValidateInvitation(token: string | undefined) {

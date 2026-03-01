@@ -158,6 +158,13 @@ export class EmploymentController {
   }
 
   @Public()
+  @Get('check-login-id/:loginId')
+  @ApiOperation({ summary: '아이디 중복 확인 (Public)' })
+  async checkLoginId(@Param('loginId') loginId: string) {
+    return this.employmentService.checkLoginIdAvailable(loginId);
+  }
+
+  @Public()
   @Post('invite/accept')
   @ApiOperation({ summary: '초대 수락 - 신규 계정' })
   async acceptInvitation(@Body() dto: AcceptInvitationDto) {

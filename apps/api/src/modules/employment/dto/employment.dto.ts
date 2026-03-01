@@ -60,6 +60,11 @@ export class AcceptInvitationDto {
   @IsString()
   token: string;
 
+  @ApiProperty({ description: '아이디 (4자 이상)' })
+  @IsString()
+  @MinLength(4)
+  loginId: string;
+
   @ApiProperty({ description: '이름' })
   @IsString()
   name: string;

@@ -7,6 +7,7 @@ import {
   useValidateInvitation,
   useAcceptInvitation,
   useAcceptInvitationExisting,
+  useCheckLoginId,
 } from '@/hooks/use-employment';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,13 +31,36 @@ export default function InviteAcceptPage() {
   const [success, setSuccess] = useState(false);
 
   // 신규 계정 폼
+  const [newLoginId, setNewLoginId] = useState('');
+  const [debouncedLoginId, setDebouncedLoginId] = useState('');
   const [newName, setNewName] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newPhone, setNewPhone] = useState('');
 
+  // 아이디 중복 확인 (디바운스)
+  const { data: loginIdCheck, isFetching: isCheckingLoginId } = useCheckLoginId(debouncedLoginId);
+
   // 기존 계정 폼
   const [existEmail, setExistEmail] = useState('');
   const [existPassword, setExistPassword] = useState('');
+
+  // 아이디 입력 (영문소문자, 숫자만 허용)
+  const handleLoginIdChange = (value: string) => {
+    const sanitized = value.replace(/[^a-z0-9]/g, '').slice(0, 20);
+    setNewLoginId(sanitized);
+    // 디바운스: 타이머로 지연 검사
+    clearTimeout((window as any).__loginIdTimer);
+    if (sanitized.length >= 4) {
+      (window as any).__loginIdTimer = setTimeout(() => {
+        setDebouncedLoginId(sanitized);
+      }, 500);
+    } else {
+      setDebouncedLoginId('');
+    }
+  };
+
+  const loginIdValid = newLoginId.length >= 4 && loginIdCheck?.available === true;
+  const loginIdDuplicate = newLoginId.length >= 4 && loginIdCheck?.available === false;
 
   // 전화번호 포맷팅 (숫자만 입력, 자동 하이픈)
   const formatPhone = (value: string) => {
@@ -115,7 +139,7 @@ export default function InviteAcceptPage() {
   const handleAcceptNew = () => {
     setError(null);
     acceptNewMutation.mutate(
-      { token, name: newName, password: newPassword, phone: newPhone.replace(/\D/g, '') || undefined },
+      { token, loginId: newLoginId, name: newName, password: newPassword, phone: newPhone.replace(/\D/g, '') || undefined },
       {
         onSuccess: () => setSuccess(true),
         onError: (err) =>
@@ -207,6 +231,33 @@ export default function InviteAcceptPage() {
           {mode === 'new' && (
             <div className="space-y-3">
               <div className="space-y-1.5">
+                <Label className="text-[14px]">아이디</Label>
+                <div className="relative">
+                  <Input
+                    className="text-[14px]"
+                    placeholder="영문소문자, 숫자 4자 이상"
+                    value={newLoginId}
+                    onChange={(e) => handleLoginIdChange(e.target.value)}
+                    autoComplete="username"
+                  />
+                  {isCheckingLoginId && newLoginId.length >= 4 && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
+                  )}
+                  {!isCheckingLoginId && loginIdValid && (
+                    <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
+                  )}
+                </div>
+                {newLoginId.length > 0 && newLoginId.length < 4 && (
+                  <p className="text-[12px] text-gray-500">4자 이상 입력해주세요</p>
+                )}
+                {loginIdDuplicate && (
+                  <p className="text-[12px] text-red-500">이미 사용 중인 아이디입니다</p>
+                )}
+                {loginIdValid && (
+                  <p className="text-[12px] text-green-600">사용 가능한 아이디입니다</p>
+                )}
+              </div>
+              <div className="space-y-1.5">
                 <Label className="text-[14px]">이름</Label>
                 <Input
                   className="text-[14px]"
@@ -247,7 +298,7 @@ export default function InviteAcceptPage() {
                 <Button
                   size="sm"
                   className="flex-1"
-                  disabled={!newName || newPassword.length < 6 || acceptNewMutation.isPending}
+                  disabled={!loginIdValid || !newName || newPassword.length < 6 || acceptNewMutation.isPending}
                   onClick={handleAcceptNew}
                 >
                   {acceptNewMutation.isPending && (
