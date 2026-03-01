@@ -23,6 +23,7 @@ import type { CreateShootingDto, Shooting } from '@/hooks/use-shooting';
 import { SHOOTING_TYPE_LABELS } from '@/lib/constants/shooting-types';
 import type { ShootingType } from '@/lib/constants/shooting-types';
 import { useAverageBudget } from '@/hooks/use-recruitment';
+import { useAuthStore } from '@/stores/auth-store';
 
 // ==================== Zod 스키마 ====================
 
@@ -67,6 +68,7 @@ export function ShootingForm({
   mode = 'create',
 }: ShootingFormProps) {
   const [enableRecruitment, setEnableRecruitment] = useState(false);
+  const { user } = useAuthStore();
 
   // shootingDate에서 날짜/시간 분리
   const defaultDate = defaultValues?.shootingDate
@@ -151,6 +153,7 @@ export function ShootingForm({
     // 구인 연동
     if (enableRecruitment) {
       dto.enableRecruitment = true;
+      dto.recruitmentClientId = user?.clientId || undefined;
       dto.recruitmentTitle = values.recruitmentTitle || undefined;
       dto.recruitmentBudget = values.recruitmentBudget || undefined;
       dto.recruitmentDescription = values.recruitmentDescription || undefined;

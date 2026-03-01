@@ -89,18 +89,34 @@ export class ShootingService {
       this.logger.log(`촬영 일정 생성: ${shooting.id} (${dto.clientName})`);
 
       // 구인 연동: enableRecruitment=true이면 구인방에도 등록
-      if (dto.enableRecruitment && dto.recruitmentClientId) {
-        this.syncService
-          .syncShootingToRecruitment(shooting.id, {
-            clientId: dto.recruitmentClientId,
-            title: dto.recruitmentTitle,
-            budget: dto.recruitmentBudget,
-            description: dto.recruitmentDescription,
-            requirements: dto.recruitmentRequirements,
-          })
-          .catch((err) =>
-            this.logger.warn(`Shooting→Recruitment sync failed: ${err.message}`),
+      if (dto.enableRecruitment) {
+        // recruitmentClientId가 없으면 로그인 유저의 clientId로 fallback
+        let clientId = dto.recruitmentClientId;
+        if (!clientId) {
+          const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+            select: { clientId: true },
+          });
+          clientId = user?.clientId || undefined;
+        }
+
+        if (clientId) {
+          this.syncService
+            .syncShootingToRecruitment(shooting.id, {
+              clientId,
+              title: dto.recruitmentTitle,
+              budget: dto.recruitmentBudget,
+              description: dto.recruitmentDescription,
+              requirements: dto.recruitmentRequirements,
+            })
+            .catch((err) =>
+              this.logger.warn(`Shooting→Recruitment sync failed: ${err.message}`),
+            );
+        } else {
+          this.logger.warn(
+            `Shooting→Recruitment sync skipped: no clientId for user ${userId}`,
           );
+        }
       }
 
       return shooting;
