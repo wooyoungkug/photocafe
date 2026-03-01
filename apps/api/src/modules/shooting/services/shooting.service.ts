@@ -87,6 +87,22 @@ export class ShootingService {
       });
 
       this.logger.log(`촬영 일정 생성: ${shooting.id} (${dto.clientName})`);
+
+      // 구인 연동: enableRecruitment=true이면 구인방에도 등록
+      if (dto.enableRecruitment && dto.recruitmentClientId) {
+        this.syncService
+          .syncShootingToRecruitment(shooting.id, {
+            clientId: dto.recruitmentClientId,
+            title: dto.recruitmentTitle,
+            budget: dto.recruitmentBudget,
+            description: dto.recruitmentDescription,
+            requirements: dto.recruitmentRequirements,
+          })
+          .catch((err) =>
+            this.logger.warn(`Shooting→Recruitment sync failed: ${err.message}`),
+          );
+      }
+
       return shooting;
     });
   }
@@ -274,6 +290,13 @@ export class ShootingService {
         }
       }
 
+      // 구인방 연동 동기화 (공통 필드 변경 시)
+      this.syncService
+        .syncFieldUpdate('shooting', id, dto)
+        .catch((err) =>
+          this.logger.warn(`Shooting field sync failed: ${err.message}`),
+        );
+
       return updated;
     });
   }
@@ -294,6 +317,13 @@ export class ShootingService {
     if ([SHOOTING_STATUS.IN_PROGRESS, SHOOTING_STATUS.COMPLETED].includes(shooting.status as any)) {
       throw new BadRequestException('진행 중이거나 완료된 일정은 삭제할 수 없습니다.');
     }
+
+    // 구인방 연동 해제 (삭제 전)
+    await this.syncService
+      .unlinkRecords('shooting', id)
+      .catch((err) =>
+        this.logger.warn(`Shooting unlink failed: ${err.message}`),
+      );
 
     return this.prisma.$transaction(async (tx) => {
       await tx.shootingSchedule.delete({ where: { id } });
@@ -350,6 +380,13 @@ export class ShootingService {
           data: { status: scheduleStatus },
         }).catch(() => {});
       }
+
+      // 구인방 상태 동기화
+      this.syncService
+        .syncStatusChange('shooting', id, dto.status)
+        .catch((err) =>
+          this.logger.warn(`Shooting status sync failed: ${err.message}`),
+        );
 
       this.logger.log(`촬영 상태 변경: ${id} (${shooting.status} -> ${dto.status})`);
       return updated;
