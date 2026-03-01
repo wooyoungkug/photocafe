@@ -17,12 +17,16 @@ import {
   SHOOTING_TYPE_COLORS,
   STATUS_TRANSITIONS,
 } from '../constants/shooting.constants';
+import { ScheduleRecruitmentSyncService } from './schedule-recruitment-sync.service';
 
 @Injectable()
 export class ShootingService {
   private readonly logger = new Logger(ShootingService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly syncService: ScheduleRecruitmentSyncService,
+  ) {}
 
   /**
    * 촬영 일정 생성
