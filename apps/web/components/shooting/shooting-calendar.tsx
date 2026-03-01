@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   startOfMonth,
   endOfMonth,
@@ -22,6 +22,8 @@ import {
 import { ko } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Plus, MapPin, Clock, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import type { Shooting } from '@/hooks/use-shooting';
 import { SHOOTING_TYPE_LABELS } from '@/hooks/use-shooting';
@@ -66,6 +68,8 @@ export function ShootingCalendar({
   onShootingClick,
   onDateDoubleClick,
 }: ShootingCalendarProps) {
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+
   // 이전/다음 네비게이션
   const handlePrev = () => {
     switch (viewMode) {
@@ -156,7 +160,30 @@ export function ShootingCalendar({
     <div className="flex flex-col h-full">
       {/* 네이버 스타일 헤더 네비게이션 */}
       <div className="flex items-center gap-3 pb-3 border-b mb-3">
-        <span className="text-[18px] text-black font-bold min-w-[120px]">{titleText}</span>
+        <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="text-[18px] text-black font-bold min-w-[120px] text-left hover:text-blue-600 hover:underline underline-offset-4 transition-colors cursor-pointer"
+            >
+              {titleText}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              defaultMonth={currentMonth}
+              onSelect={(date) => {
+                if (date) {
+                  onMonthChange(date);
+                  onDateSelect(date);
+                  setDatePickerOpen(false);
+                }
+              }}
+            />
+          </PopoverContent>
+        </Popover>
         <div className="flex items-center gap-1">
           <Button
             variant="outline"
