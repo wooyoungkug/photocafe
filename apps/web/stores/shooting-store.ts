@@ -5,7 +5,7 @@ import type { ShootingType, ShootingStatus } from '@/hooks/use-shooting';
 
 // ==================== 타입 정의 ====================
 
-export type CalendarViewMode = 'month' | 'week' | 'day';
+export type CalendarViewMode = 'month' | 'week' | 'day' | 'list' | 'twoWeek';
 
 interface ShootingFilters {
   types: ShootingType[];
