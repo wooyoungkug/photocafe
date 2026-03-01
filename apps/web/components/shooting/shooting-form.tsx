@@ -39,7 +39,16 @@ const shootingFormSchema = z.object({
   venueFloor: z.string().optional(),
   venueHall: z.string().optional(),
   maxBidders: z.coerce.number().min(1).max(10).optional(),
-  customerPhone: z.string().max(13, '전화번호가 너무 깁니다').optional(),
+  customerPhone: z.preprocess(
+    (val) => {
+      if (typeof val !== 'string' || !val) return val;
+      const digits = val.replace(/\D/g, '').slice(0, 11);
+      if (digits.length <= 3) return digits;
+      if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+      return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+    },
+    z.string().max(13, '전화번호가 너무 깁니다').optional(),
+  ),
   customerEmail: z.string().email('올바른 이메일을 입력해주세요').optional().or(z.literal('')),
   notes: z.string().optional(),
   // 구인 연동
