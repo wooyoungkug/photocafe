@@ -154,7 +154,9 @@ export function ShootingForm({
   isLoading = false,
   mode = 'create',
 }: ShootingFormProps) {
-  const [enableRecruitment, setEnableRecruitment] = useState(false);
+  const [enableRecruitment, setEnableRecruitment] = useState(
+    !!defaultValues?.linkedRecruitmentId,
+  );
   const { user } = useAuthStore();
 
   // shootingDate에서 날짜/시간 분리
