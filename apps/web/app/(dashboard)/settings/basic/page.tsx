@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { Building2, Printer, Truck, ListChecks, Server, Save, RotateCcw, HardDrive, FolderOpen, AlertTriangle, Bell } from "lucide-react";
+import { Building2, Printer, Truck, ListChecks, Server, Save, RotateCcw, HardDrive, FolderOpen, AlertTriangle, Bell, Users } from "lucide-react";
 import DeliverySettingsContent from "@/components/settings/delivery-settings-content";
 import NotificationSettingsContent from "@/components/settings/notification-settings-content";
 import {
@@ -55,6 +55,11 @@ export default function BasicSettingsPage() {
   // 주문 설정 상태
   const [orderSettings, setOrderSettings] = useState({
     duplicateCheckMonths: 3,
+  });
+
+  // 구인 설정 상태
+  const [recruitmentSettings, setRecruitmentSettings] = useState({
+    targetCount: 100,
   });
 
   // 공정단계 상태
@@ -118,6 +123,11 @@ export default function BasicSettingsPage() {
       // 주문 설정 로드
       setOrderSettings({
         duplicateCheckMonths: getNumericValue(map, "order_duplicate_check_months", 3),
+      });
+
+      // 구인 설정 로드
+      setRecruitmentSettings({
+        targetCount: getNumericValue(map, "recruitment_target_count", 100),
       });
 
       // 공정단계 로드
@@ -227,7 +237,7 @@ export default function BasicSettingsPage() {
       </div>
 
       <Tabs defaultValue="company" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6 lg:w-[900px]">
+        <TabsList className="grid w-full grid-cols-7 lg:w-[1050px]">
           <TabsTrigger value="company" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             <span className="hidden sm:inline">회사정보</span>
@@ -247,6 +257,10 @@ export default function BasicSettingsPage() {
           <TabsTrigger value="notification" className="flex items-center gap-2">
             <Bell className="h-4 w-4" />
             <span className="hidden sm:inline">알림설정</span>
+          </TabsTrigger>
+          <TabsTrigger value="recruitment" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            <span className="hidden sm:inline">구인설정</span>
           </TabsTrigger>
           <TabsTrigger value="server" className="flex items-center gap-2">
             <Server className="h-4 w-4" />

@@ -5,12 +5,15 @@ import { ShopHeader } from '@/components/shop/shop-header';
 import { CategoryNav } from '@/components/shop/category-nav';
 import { ShopFooter } from '@/components/shop/shop-footer';
 import { useAuthStore } from '@/stores/auth-store';
+import { usePageView } from '@/hooks/use-page-view';
 
 export default function ShopLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  usePageView();
+
   // 대리로그인 데이터가 있으면 sessionStorage에 직접 적용
   // setAuth를 쓰면 localStorage의 관리자 토큰이 삭제되므로, 직접 sessionStorage에 저장
   useEffect(() => {

@@ -241,8 +241,8 @@ export class AnalyticsService {
         COUNT(*) as count
       FROM page_views
       WHERE "createdAt" >= ${start} AND "createdAt" <= ${end}
-      GROUP BY TO_CHAR("createdAt" AT TIME ZONE 'Asia/Seoul', ${dateFormat})
-      ORDER BY date ASC
+      GROUP BY 1
+      ORDER BY 1 ASC
     `;
 
     return result.map((r) => ({
