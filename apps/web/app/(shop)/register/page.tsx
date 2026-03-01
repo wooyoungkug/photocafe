@@ -37,98 +37,51 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-[calc(100vh-300px)] flex items-center justify-center p-4 py-8">
-      <div className="flex flex-col lg:flex-row gap-6 w-full max-w-[880px]">
-        {/* 회원가입 */}
-        <Card className="w-full lg:w-1/2 shadow-lg">
-          <CardHeader className="space-y-1 text-center">
-            <Logo />
-            <CardTitle className="text-2xl">회원가입</CardTitle>
-            <CardDescription>
-              소셜 계정으로 간편하게 가입하세요.<br />
-              처음 로그인 시 자동으로 회원가입됩니다.
-            </CardDescription>
-          </CardHeader>
+      <Card className="w-full max-w-md shadow-lg">
+        <CardHeader className="space-y-1 text-center">
+          <Logo />
+          <CardTitle className="text-2xl">회원가입</CardTitle>
+          <CardDescription>
+            소셜 계정으로 간편하게 가입하세요.<br />
+            처음 로그인 시 자동으로 회원가입됩니다.
+          </CardDescription>
+        </CardHeader>
 
-          <CardContent className="space-y-4">
-            <a
-              href={`${apiUrl}/auth/naver`}
-              className="inline-flex items-center justify-center w-full h-12 rounded-md text-sm font-medium bg-[#03C75A] hover:bg-[#02b351] text-white transition-colors"
-            >
-              <NaverIcon />
-              네이버로 시작하기
-            </a>
+        <CardContent className="space-y-4">
+          <a
+            href={`${apiUrl}/auth/naver`}
+            className="inline-flex items-center justify-center w-full h-12 rounded-md text-sm font-medium bg-[#03C75A] hover:bg-[#02b351] text-white transition-colors"
+          >
+            <NaverIcon />
+            네이버로 시작하기
+          </a>
 
-            <a
-              href={`${apiUrl}/auth/kakao`}
-              className="inline-flex items-center justify-center w-full h-12 rounded-md text-sm font-medium bg-[#FEE500] hover:bg-[#FDD835] text-[#3C1E1E] transition-colors"
-            >
-              <KakaoIcon />
-              카카오로 시작하기
-            </a>
+          <a
+            href={`${apiUrl}/auth/kakao`}
+            className="inline-flex items-center justify-center w-full h-12 rounded-md text-sm font-medium bg-[#FEE500] hover:bg-[#FDD835] text-[#3C1E1E] transition-colors"
+          >
+            <KakaoIcon />
+            카카오로 시작하기
+          </a>
 
-            <a
-              href={`${apiUrl}/auth/google`}
-              className="inline-flex items-center justify-center w-full h-12 rounded-md text-sm font-medium border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 transition-colors"
-            >
-              <GoogleIcon />
-              Google로 시작하기
-            </a>
-          </CardContent>
+          <a
+            href={`${apiUrl}/auth/google`}
+            className="inline-flex items-center justify-center w-full h-12 rounded-md text-sm font-medium border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 transition-colors"
+          >
+            <GoogleIcon />
+            Google로 시작하기
+          </a>
+        </CardContent>
 
-          <CardFooter className="flex justify-center">
-            <p className="text-[14px] text-black font-normal text-center">
-              이미 계정이 있으신가요?{' '}
-              <Link href="/login" className="text-primary hover:underline font-medium">
-                로그인
-              </Link>
-            </p>
-          </CardFooter>
-        </Card>
-
-        {/* 로그인 */}
-        <Card className="w-full lg:w-1/2 shadow-lg">
-          <CardHeader className="space-y-1 text-center">
-            <Logo />
-            <CardTitle className="text-2xl">로그인</CardTitle>
-            <CardDescription>
-              Printing114에 오신 것을 환영합니다
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent className="space-y-4">
-            <a
-              href={`${apiUrl}/auth/naver`}
-              className="inline-flex items-center justify-center w-full h-12 rounded-md text-sm font-medium bg-[#03C75A] hover:bg-[#02b351] text-white transition-colors"
-            >
-              <NaverIcon />
-              네이버로 로그인
-            </a>
-
-            <a
-              href={`${apiUrl}/auth/kakao`}
-              className="inline-flex items-center justify-center w-full h-12 rounded-md text-sm font-medium bg-[#FEE500] hover:bg-[#FDD835] text-[#3C1E1E] transition-colors"
-            >
-              <KakaoIcon />
-              카카오로 로그인
-            </a>
-
-            <a
-              href={`${apiUrl}/auth/google`}
-              className="inline-flex items-center justify-center w-full h-12 rounded-md text-sm font-medium border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 transition-colors"
-            >
-              <GoogleIcon />
-              Google로 로그인
-            </a>
-          </CardContent>
-
-          <CardFooter className="flex justify-center">
-            <p className="text-[14px] text-black font-normal text-center">
-              소셜 계정으로 간편하게 로그인하세요.<br />
-              처음 로그인 시 자동으로 회원가입됩니다.
-            </p>
-          </CardFooter>
-        </Card>
-      </div>
+        <CardFooter className="flex justify-center">
+          <p className="text-[14px] text-black font-normal text-center">
+            이미 계정이 있으신가요?{' '}
+            <Link href="/login" className="text-primary hover:underline font-medium">
+              로그인
+            </Link>
+          </p>
+        </CardFooter>
+      </Card>
     </div>
   );
 }
