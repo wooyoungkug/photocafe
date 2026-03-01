@@ -293,3 +293,214 @@ async placeBid(shootingId, staffId) {
 - [ ] 신뢰도 스코어링 자동 계산
 - [ ] 촬영 캘린더 프론트엔드 (컬러 코딩)
 - [ ] 사이드바 메뉴 추가
+
+---
+
+## 구인구직 시스템 (기획 2026-03-01)
+
+### 포토그래퍼 등록 사이트 (공개)
+
+포토그래퍼가 직접 회원가입하여 프로필을 등록하는 공개 사이트.
+스튜디오(거래처)에서 아르바이트 채용 시 객관적 평가 기준을 열람할 수 있도록 오픈.
+
+#### 포토그래퍼 프로필 정보
+
+| 항목 | 설명 |
+|------|------|
+| 기본정보 | 이름, 연락처, 이메일, 프로필사진 |
+| 사진 경력 | 총 경력 년수, 주요 이력 (텍스트), 자격증 |
+| 포트폴리오 | 대표 작품 이미지 업로드 (최대 20장) |
+| 촬영 가능 지역 | 다중 선택 (서울, 경기, 부산 등 시/도 단위) |
+| 촬영 유형 전문성 | 본식, 리허설, 돌촬영, 프로필 등 다중 선택 |
+| 장비 정보 | 카메라 바디, 렌즈 목록 (선택) |
+| 희망 보수 | 촬영 유형별 희망 단가 (원) |
+
+#### 평가 기준 (숨고 스타일)
+
+| 지표 | 산출 방식 | 노출 |
+|------|----------|------|
+| 고객 별점 | ShootingReview 평균 (1~5점) | ★4.8 형태 |
+| 채택 횟수 | ShootingBid.status='selected' 총 건수 | "32회 채택" |
+| 응찰 대비 채택률 | selected / total bids × 100 | "채택률 68%" |
+| 총 촬영 완료 건수 | ShootingSchedule.status='completed' | "촬영 45건" |
+| 정시 도착률 | LocationLog 기반 onTimeRate | "정시율 96%" |
+| 신뢰도 지수 | RI 공식 (기존 PhotographerStats) | GOLD 등급 배지 |
+| 활동 기간 | 가입일 기준 | "활동 2년" |
+| 리뷰 요약 | 최근 리뷰 3건 발췌 | 텍스트 노출 |
+
+#### 스튜디오 소속 개념
+
+```
+┌──────────────────────────────────────────────────────────┐
+│ 포토그래퍼 ←→ 스튜디오(Client) 소속 관계                    │
+├──────────────────────────────────────────────────────────┤
+│                                                          │
+│  1. 포토그래퍼는 1개 이상의 스튜디오에 소속 등록 가능          │
+│     (다대다 관계: PhotographerAffiliation 중간테이블)       │
+│                                                          │
+│  2. 소속 스튜디오 촬영 → 우선 배정 (내구인 대상 자동 포함)    │
+│                                                          │
+│  3. 비소속 촬영 → 공개구인방에서 직접 응찰                   │
+│                                                          │
+│  4. 소속 상태: active / inactive / pending(승인대기)        │
+│                                                          │
+│  5. 스튜디오 관리자가 소속 요청 승인/거절                    │
+│                                                          │
+└──────────────────────────────────────────────────────────┘
+```
+
+#### 소속 DB 모델 (신규)
+
+```prisma
+model PhotographerProfile {
+  id              String   @id @default(cuid())
+  staffId         String?  @unique            // 기존 Staff 연동 (선택)
+  name            String
+  email           String   @unique
+  phone           String?
+  profileImage    String?
+  careerYears     Int      @default(0)        // 경력 년수
+  careerHistory   String?                     // 주요 이력 (텍스트)
+  certifications  String[]  @default([])      // 자격증
+  portfolioImages String[]  @default([])      // 포트폴리오 이미지 URL
+  availableAreas  String[]  @default([])      // 촬영 가능 지역
+  specialties     String[]  @default([])      // 전문 촬영 유형
+  equipment       String?                     // 장비 정보
+  introduction    String?                     // 자기소개
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  affiliations    PhotographerAffiliation[]
+  stats           PhotographerStats?          // 기존 통계 연동
+}
+
+model PhotographerAffiliation {
+  id              String   @id @default(cuid())
+  photographerId  String                      // FK → PhotographerProfile
+  clientId        String                      // FK → Client (스튜디오)
+  status          String   @default("pending") // pending | active | inactive
+  isPrimary       Boolean  @default(false)     // 주 소속 여부
+  joinedAt        DateTime @default(now())
+  approvedAt      DateTime?
+
+  photographer    PhotographerProfile @relation(fields: [photographerId], references: [id])
+  client          Client              @relation(fields: [clientId], references: [id])
+
+  @@unique([photographerId, clientId])
+  @@index([clientId, status])
+}
+```
+
+### 구인 모드 (촬영 일정 등록 시)
+
+#### 3가지 모드
+
+| 모드 | 코드 | 대상 | 설명 |
+|------|------|------|------|
+| 내구인 | `private` | 소속 작가 + 지정 작가 | 등록된 포토그래퍼에게만 비공개 공고 |
+| 공개구인 | `public` | 전체 | 모든 포토그래퍼에게 공개 |
+| 조건부 | `conditional` | 내구인 우선 → 자동 공개 | 기한 내 미확정 시 공개 전환 |
+
+#### ShootingSchedule 확장 필드
+
+```prisma
+// 기존 ShootingSchedule에 추가
+recruitmentMode    String    @default("public")     // "private" | "public" | "conditional"
+recruitmentPhase   String    @default("private")    // 현재 단계: "private" | "public"
+privateDeadline    DateTime?                         // 내구인 마감 시각
+autoEscalate       Boolean   @default(false)         // 조건부: 자동 공개 전환 여부
+invitedStaffIds    String[]  @default([])            // 내구인 초대 작가 ID 목록
+budget             Int?                               // 보수(원)
+urgencyLevel       String    @default("normal")      // normal | urgent | emergency
+```
+
+#### 상태 흐름
+
+```
+draft
+  ├─→ private_recruiting (내구인/조건부 발행)
+  │    ├─→ public_recruiting (자동 전환 or 수동 전환)
+  │    │    ├─→ bidding → confirmed → in_progress → completed
+  │    │    └─→ cancelled
+  │    ├─→ bidding → confirmed → in_progress → completed
+  │    └─→ cancelled
+  ├─→ public_recruiting (공개구인 발행)
+  │    ├─→ bidding → confirmed → in_progress → completed
+  │    └─→ cancelled
+  └─→ cancelled
+```
+
+#### 조건부 자동 전환 (Cron)
+
+- **주기**: 10분마다 (`*/10 * * * *`)
+- **조건**: `status=private_recruiting AND autoEscalate=true AND privateDeadline <= now`
+- **동작**: `status → public_recruiting`, `recruitmentPhase → public`, 전체 작가 알림 발송
+- **구현**: `ShootingSchedulerService` (기존 `RecruitmentSchedulerService` 패턴 재활용)
+
+#### 내구인 작가 선택 화면
+
+```
+┌─ 포토그래퍼 선택 ─────────────────────────────────────────┐
+│ 검색: [___________]  등급: [전체 ▼]  지역: [전체 ▼]       │
+│                                                           │
+│ ☑ 김작가  GOLD   ★4.8  채택32회  정시96%  📅가용  [소속]  │
+│ ☑ 이작가  SILVER ★4.5  채택18회  정시92%  📅가용  [소속]  │
+│ ☐ 박작가  GOLD   ★4.7  채택28회  정시94%  ⚠충돌          │
+│ ☐ 최작가  BRONZE ★3.9  채택 8회  정시88%  📅가용          │
+│                                                           │
+│ ※ [소속] 표시 = 해당 스튜디오 소속 작가 (우선 표시)        │
+└───────────────────────────────────────────────────────────┘
+```
+
+#### 프론트엔드 페이지 (신규)
+
+| 경로 | 용도 | 접근 |
+|------|------|------|
+| `/photographer/register` | 포토그래퍼 회원가입 | 공개 |
+| `/photographer/profile` | 내 프로필 관리 | 포토그래퍼 로그인 |
+| `/photographer/dashboard` | 내 응찰/촬영/리뷰 현황 | 포토그래퍼 로그인 |
+| `/photographer/jobs` | 공개구인방 목록 | 포토그래퍼 로그인 |
+| `/shooting/photographers` | 작가 목록 (관리자용, 기존) | 관리자 |
+
+#### API 엔드포인트 (신규)
+
+| 엔드포인트 | 설명 |
+|------------|------|
+| `POST /photographers/register` | 포토그래퍼 회원가입 |
+| `GET /photographers/profile` | 내 프로필 조회 |
+| `PATCH /photographers/profile` | 프로필 수정 |
+| `POST /photographers/affiliations` | 스튜디오 소속 신청 |
+| `PATCH /photographers/affiliations/:id` | 소속 승인/거절 (스튜디오) |
+| `GET /photographers/available` | 특정 날짜 가용 작가 목록 |
+| `POST /shootings/:id/escalate` | 수동 내구인→공개 전환 |
+| `GET /shootings/:id/invited` | 내구인 초대 작가 목록 |
+| `PATCH /shootings/:id/invited` | 초대 작가 추가/제거 |
+
+### 구현 순서 (Phase)
+
+```
+Phase 1 - 포토그래퍼 등록 사이트
+├─ PhotographerProfile, PhotographerAffiliation 모델
+├─ 회원가입/로그인 (소셜 로그인 연동)
+├─ 프로필 CRUD API
+├─ 프론트엔드: 등록/프로필/대시보드 페이지
+
+Phase 2 - 구인 모드 통합
+├─ ShootingSchedule 스키마 확장 (구인모드 필드)
+├─ 상태 전이 규칙 업데이트 (private/public_recruiting)
+├─ publish 분기 로직 (내구인/공개/조건부)
+├─ ShootingSchedulerService (자동 전환 Cron)
+
+Phase 3 - 프론트엔드 UI
+├─ ShootingForm 구인모드 선택 UI
+├─ PhotographerSelector 컴포넌트
+├─ 공개구인방 페이지
+├─ 상세 페이지 구인 단계 표시
+
+Phase 4 - 알림 & 고도화
+├─ 내구인/공개 전용 이메일 템플릿
+├─ 카카오 알림톡 연동
+├─ 마감 임박 알림
+├─ 긴급도 자동 계산
+```
