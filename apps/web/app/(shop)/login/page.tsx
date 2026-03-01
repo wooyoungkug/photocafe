@@ -219,27 +219,23 @@ function LoginForm() {
 
       <CardContent className="space-y-4">
         {notRegistered && (
-          <div className="p-4 rounded-md bg-amber-50 border border-amber-200">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-[14px] text-amber-800 font-medium">
-                  가입되지 않은 계정입니다.
-                </p>
-                <p className="text-[13px] text-amber-700 mt-1">
-                  먼저 회원가입을 진행해주세요.
-                </p>
-                <Link href="/register">
-                  <Button
-                    size="sm"
-                    className="mt-3 bg-amber-600 hover:bg-amber-700 text-white"
-                  >
-                    <UserPlus className="mr-1.5 h-4 w-4" />
-                    회원가입 하기
-                  </Button>
-                </Link>
-              </div>
-            </div>
+          <div className="p-4 rounded-md bg-amber-50 border border-amber-200 text-center">
+            <AlertCircle className="h-5 w-5 text-amber-600 mx-auto" />
+            <p className="text-[14px] text-amber-800 font-medium mt-2">
+              가입되지 않은 계정입니다.
+            </p>
+            <p className="text-[13px] text-amber-700 mt-1">
+              먼저 회원가입을 진행해주세요.
+            </p>
+            <Link href="/register">
+              <Button
+                size="sm"
+                className="mt-3 bg-amber-600 hover:bg-amber-700 text-white"
+              >
+                <UserPlus className="mr-1.5 h-4 w-4" />
+                회원가입 하기
+              </Button>
+            </Link>
           </div>
         )}
 
