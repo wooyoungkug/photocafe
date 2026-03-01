@@ -414,6 +414,9 @@ model Client {
   companyEmployments      Employment[]                   @relation("EmploymentCompany")
   invitations             Invitation[]
   clientDepartments       ClientDepartment[]
+  recruitments            Recruitment[]      @relation("RecruitmentClient")
+  createdRecruitments     Recruitment[]      @relation("RecruitmentCreator")
+  recruitmentBids         RecruitmentBid[]   @relation("RecruitmentBidder")
 
   @@unique([oauthProvider, oauthId])
   @@index([groupId])
@@ -3150,4 +3153,63 @@ model PhotographerStats {
   @@index([grade])
   @@index([reliabilityIndex])
   @@map("photographer_stats")
+}
+
+// ==================== 구인방 (Recruitment) ====================
+
+model Recruitment {
+  id               String    @id @default(cuid())
+  clientId         String                              // 등록한 스튜디오 (거래처)
+  title            String                              // 구인 제목
+  shootingType     String                              // wedding_main, baby_dol 등
+  shootingDate     DateTime                            // 촬영일
+  shootingTime     String?                             // 촬영 시간 (HH:mm)
+  duration         Int?                                // 예상 소요시간(분)
+  venueName        String                              // 장소명
+  venueAddress     String?                             // 주소
+  latitude         Float?
+  longitude        Float?
+  budget           Int?                                // 보수(원)
+  description      String?                             // 상세 설명
+  requirements     String?                             // 요구사항
+  customerName     String?                             // 신랑/신부명
+
+  status           String    @default("draft")         // draft, private_recruiting, public_recruiting, filled, expired, cancelled
+  recruitmentPhase String    @default("private")       // private | public
+  privateDeadline  DateTime?                           // 전속 모집 마감 시각
+  maxBidders       Int       @default(5)
+  urgencyLevel     String    @default("normal")        // normal | urgent | emergency
+
+  createdBy        String                              // 등록자 Client ID
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  client  Client           @relation("RecruitmentClient", fields: [clientId], references: [id])
+  creator Client           @relation("RecruitmentCreator", fields: [createdBy], references: [id])
+  bids    RecruitmentBid[]
+
+  @@index([status])
+  @@index([clientId])
+  @@index([shootingDate])
+  @@index([recruitmentPhase, status])
+  @@map("recruitments")
+}
+
+model RecruitmentBid {
+  id             String   @id @default(cuid())
+  recruitmentId  String
+  bidderId       String                                // 응찰 포토그래퍼 Client ID
+  message        String?                               // 자기소개
+  proposedBudget Int?                                  // 제안 금액
+  status         String   @default("pending")          // pending | selected | rejected
+  bidAt          DateTime @default(now())
+
+  recruitment Recruitment @relation(fields: [recruitmentId], references: [id], onDelete: Cascade)
+  bidder      Client      @relation("RecruitmentBidder", fields: [bidderId], references: [id])
+
+  @@unique([recruitmentId, bidderId])
+  @@index([recruitmentId])
+  @@index([bidderId])
+  @@index([status])
+  @@map("recruitment_bids")
 }
