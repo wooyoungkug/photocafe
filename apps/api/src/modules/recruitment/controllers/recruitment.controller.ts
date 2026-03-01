@@ -9,6 +9,7 @@ import {
   Query,
   Request,
   UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -33,9 +34,12 @@ export class RecruitmentController {
   @Post()
   @ApiOperation({ summary: '구인 등록' })
   async create(@Body() dto: CreateRecruitmentDto, @Request() req: any) {
-    const clientId = req.user.clientId;
-    const createdBy = req.user.clientId;
-    return this.recruitmentService.create(dto, clientId, createdBy);
+    // 관리자(staff)가 직접 구인 등록할 경우 sub(=staffId)를 사용, 거래처 사용자는 clientId
+    const clientId = req.user.clientId || req.user.id;
+    if (!clientId) {
+      throw new BadRequestException('구인 등록에 필요한 사용자 정보가 없습니다.');
+    }
+    return this.recruitmentService.create(dto, clientId, clientId);
   }
 
   @Get()

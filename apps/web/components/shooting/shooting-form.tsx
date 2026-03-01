@@ -262,7 +262,7 @@ export function ShootingForm({
               value={watch('venueName')}
               onChange={(val) => setValue('venueName', val)}
               onSelect={(place) => {
-                setValue('venueName', place.name, { shouldValidate: true });
+                setValue('venueName', place.name);
                 setValue('venueAddress', place.address);
               }}
               placeholder="예: 롯데호텔 서울"
