@@ -150,8 +150,9 @@ export function ShopHeader() {
                   </Link>
                   <Link href="/register">
                     <Button
+                      variant="outline"
                       size="sm"
-                      className="bg-neutral-900 hover:bg-neutral-800 text-white text-xs tracking-wider uppercase rounded-none h-8 px-4"
+                      className="text-xs tracking-wider uppercase rounded-none h-8 px-4 border-neutral-300 text-neutral-700 hover:bg-neutral-50"
                     >
                       {tc('register')}
                     </Button>
@@ -220,7 +221,7 @@ export function ShopHeader() {
                   <Button variant="outline" className="w-full rounded-none border-neutral-300 text-neutral-700 text-sm h-10">{tc('login')}</Button>
                 </Link>
                 <Link href="/register" className="flex-1" onClick={() => setMobileMenuOpen(false)}>
-                  <Button className="w-full rounded-none bg-neutral-900 hover:bg-neutral-800 text-sm h-10">{tc('register')}</Button>
+                  <Button variant="outline" className="w-full rounded-none border-neutral-300 text-neutral-700 text-sm h-10">{tc('register')}</Button>
                 </Link>
               </div>
             )}
