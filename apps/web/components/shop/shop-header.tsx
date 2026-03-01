@@ -138,7 +138,16 @@ export function ShopHeader() {
                   </button>
                 </div>
               ) : (
-                <div className="hidden md:flex items-center gap-3 ml-2">
+                <div className="hidden md:flex items-center gap-2 ml-2">
+                  <Link href="/login">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs tracking-wider uppercase rounded-none h-8 px-4 border-neutral-300 text-neutral-700 hover:bg-neutral-50"
+                    >
+                      {tc('login')}
+                    </Button>
+                  </Link>
                   <Link href="/register">
                     <Button
                       size="sm"
@@ -207,6 +216,9 @@ export function ShopHeader() {
               </>
             ) : (
               <div className="flex gap-3">
+                <Link href="/login" className="flex-1" onClick={() => setMobileMenuOpen(false)}>
+                  <Button variant="outline" className="w-full rounded-none border-neutral-300 text-neutral-700 text-sm h-10">{tc('login')}</Button>
+                </Link>
                 <Link href="/register" className="flex-1" onClick={() => setMobileMenuOpen(false)}>
                   <Button className="w-full rounded-none bg-neutral-900 hover:bg-neutral-800 text-sm h-10">{tc('register')}</Button>
                 </Link>
