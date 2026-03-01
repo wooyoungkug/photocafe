@@ -7,7 +7,7 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertCircle, ArrowLeft, Loader2, User, Building2 } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Loader2, User, Building2, UserPlus } from 'lucide-react';
 
 type LoginPhase = 'social' | 'context-selection';
 
@@ -32,12 +32,21 @@ function LoginForm() {
   const [phase, setPhase] = useState<LoginPhase>('social');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notRegistered, setNotRegistered] = useState(false);
 
   // Context selection state
   const [tempToken, setTempToken] = useState<string | null>(null);
   const [contexts, setContexts] = useState<LoginContext[]>([]);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+
+  // 미가입 회원 에러 감지
+  useEffect(() => {
+    const errorParam = searchParams.get('error');
+    if (errorParam === 'NOT_REGISTERED') {
+      setNotRegistered(true);
+    }
+  }, [searchParams]);
 
   // OAuth 콜백에서 컨텍스트 선택이 필요한 경우 처리
   useEffect(() => {
@@ -206,6 +215,31 @@ function LoginForm() {
       </CardHeader>
 
       <CardContent className="space-y-4">
+        {notRegistered && (
+          <div className="p-4 rounded-md bg-amber-50 border border-amber-200">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-[14px] text-amber-800 font-medium">
+                  가입되지 않은 계정입니다.
+                </p>
+                <p className="text-[13px] text-amber-700 mt-1">
+                  먼저 회원가입을 진행해주세요.
+                </p>
+                <Link href="/register">
+                  <Button
+                    size="sm"
+                    className="mt-3 bg-amber-600 hover:bg-amber-700 text-white"
+                  >
+                    <UserPlus className="mr-1.5 h-4 w-4" />
+                    회원가입 하기
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+
         {error && (
           <div className="flex items-center gap-2 p-3 text-sm text-destructive bg-destructive/10 rounded-md">
             <AlertCircle className="h-4 w-4" />
@@ -214,7 +248,7 @@ function LoginForm() {
         )}
 
         <a
-          href={`${apiUrl}/auth/naver`}
+          href={`${apiUrl}/auth/naver-login`}
           className="inline-flex items-center justify-center w-full h-12 rounded-md text-sm font-medium bg-[#03C75A] hover:bg-[#02b351] text-white transition-colors"
         >
           <svg
@@ -228,7 +262,7 @@ function LoginForm() {
         </a>
 
         <a
-          href={`${apiUrl}/auth/kakao`}
+          href={`${apiUrl}/auth/kakao-login`}
           className="inline-flex items-center justify-center w-full h-12 rounded-md text-sm font-medium bg-[#FEE500] hover:bg-[#FDD835] text-[#3C1E1E] transition-colors"
         >
           <svg
@@ -271,9 +305,8 @@ function LoginForm() {
       </CardContent>
 
       <CardFooter className="flex flex-col items-center gap-3">
-        <p className="text-sm text-muted-foreground text-center">
-          소셜 계정으로 간편하게 로그인하세요.<br />
-          처음 로그인 시 자동으로 회원가입됩니다.
+        <p className="text-[14px] text-black font-normal text-center">
+          아직 회원이 아니신가요?
         </p>
         <Link href="/register" className="w-full">
           <Button variant="outline" className="w-full">

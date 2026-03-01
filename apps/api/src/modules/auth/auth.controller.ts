@@ -113,10 +113,27 @@ export class AuthController {
 
   // ========== 고객 OAuth 로그인 ==========
 
+  // 로그인 전용 래퍼: auth_mode=login 쿠키 설정 후 OAuth로 리다이렉트
+  @Public()
+  @Get('naver-login')
+  @ApiOperation({ summary: '네이버 로그인 (기존 회원만)' })
+  async naverLoginRedirect(@Res() res: Response) {
+    res.cookie('auth_mode', 'login', { httpOnly: true, maxAge: 300000, sameSite: 'lax' });
+    return res.redirect('/api/v1/auth/naver');
+  }
+
+  @Public()
+  @Get('kakao-login')
+  @ApiOperation({ summary: '카카오 로그인 (기존 회원만)' })
+  async kakaoLoginRedirect(@Res() res: Response) {
+    res.cookie('auth_mode', 'login', { httpOnly: true, maxAge: 300000, sameSite: 'lax' });
+    return res.redirect('/api/v1/auth/kakao');
+  }
+
   @Public()
   @Get('naver')
   @UseGuards(AuthGuard('naver'))
-  @ApiOperation({ summary: '네이버 로그인' })
+  @ApiOperation({ summary: '네이버 로그인/가입' })
   async naverAuth() { }
 
   @Public()
@@ -131,7 +148,7 @@ export class AuthController {
   @Public()
   @Get('kakao')
   @UseGuards(AuthGuard('kakao'))
-  @ApiOperation({ summary: '카카오 로그인' })
+  @ApiOperation({ summary: '카카오 로그인/가입' })
   async kakaoAuth() { }
 
   @Public()
@@ -144,6 +161,16 @@ export class AuthController {
   }
 
   private async handleOAuthCallback(client: any, frontendUrl: string, res: Response, req?: any) {
+    // 로그인 전용 모드: 미가입 회원이면 자동 생성 롤백 후 에러 리다이렉트
+    const authMode = req?.cookies?.auth_mode;
+    if (authMode) {
+      res.clearCookie('auth_mode');
+    }
+    if (authMode === 'login' && client._isNew) {
+      await this.authService.rollbackNewClient(client.id);
+      return res.redirect(`${frontendUrl}/login?error=NOT_REGISTERED`);
+    }
+
     const inviteToken = req?.cookies?.invite_token;
     if (inviteToken) {
       try {

@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, BadRequestException, ForbiddenException, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, ForbiddenException, NotFoundException, ConflictException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
@@ -233,6 +233,32 @@ export class AuthService {
 
   // ========== 고객 OAuth 로그인 ==========
 
+  private readonly PROVIDER_LABELS: Record<string, string> = {
+    naver: '네이버',
+    kakao: '카카오',
+    google: 'Google',
+  };
+
+  private async checkEmailDuplicate(email: string, currentProvider: string): Promise<void> {
+    if (!email || email.includes(`${currentProvider}_`)) return; // 가짜 이메일은 스킵
+
+    const existing = await this.prisma.client.findFirst({
+      where: {
+        email,
+        oauthProvider: { not: currentProvider },
+      },
+      select: { oauthProvider: true, createdAt: true },
+    });
+
+    if (existing) {
+      const providerLabel = this.PROVIDER_LABELS[existing.oauthProvider] || existing.oauthProvider;
+      const dateStr = existing.createdAt.toISOString().split('T')[0]; // YYYY-MM-DD
+      throw new ConflictException(
+        `이미 ${providerLabel}(으)로 가입된 이메일입니다. (가입일: ${dateStr})`,
+      );
+    }
+  }
+
   async validateNaverUser(data: {
     oauthId: string; email: string; name: string;
     profileImage?: string; gender?: string; birthday?: string; birthyear?: string; mobile?: string;
@@ -245,7 +271,10 @@ export class AuthService {
     const birthday = this.normalizeOAuthBirthday(data.birthday, data.birthyear);
     const mobile = this.normalizeOAuthMobile(data.mobile);
 
+    let isNew = false;
     if (!client) {
+      await this.checkEmailDuplicate(data.email, 'naver');
+      isNew = true;
       const clientCode = `N${Date.now().toString().slice(-8)}`;
       client = await this.prisma.client.create({
         data: {
@@ -267,7 +296,7 @@ export class AuthService {
       }
     }
 
-    return client;
+    return { ...client, _isNew: isNew };
   }
 
   async validateKakaoUser(data: {
@@ -282,7 +311,10 @@ export class AuthService {
     const birthday = this.normalizeOAuthBirthday(data.birthday, data.birthyear);
     const mobile = this.normalizeOAuthMobile(data.mobile);
 
+    let isNew = false;
     if (!client) {
+      await this.checkEmailDuplicate(data.email, 'kakao');
+      isNew = true;
       const clientCode = `K${Date.now().toString().slice(-8)}`;
       client = await this.prisma.client.create({
         data: {
@@ -304,7 +336,16 @@ export class AuthService {
       }
     }
 
-    return client;
+    return { ...client, _isNew: isNew };
+  }
+
+  /** 로그인 전용 모드에서 자동 생성된 신규 회원을 롤백 */
+  async rollbackNewClient(clientId: string) {
+    try {
+      await this.prisma.client.delete({ where: { id: clientId } });
+    } catch (e: any) {
+      this.logger.warn(`Failed to rollback client ${clientId}: ${e.message}`);
+    }
   }
 
   async loginClient(client: any, rememberMe: boolean = false, ip?: string) {
