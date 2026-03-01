@@ -63,13 +63,28 @@ const createCustomStorage = (): StateStorage => {
       try {
         const parsed = JSON.parse(value);
         const rememberMe = parsed?.state?.rememberMe ?? false;
+        const newRole = parsed?.state?.user?.role;
+        const isNewAdmin = newRole === 'admin' || newRole === 'staff';
+
+        // localStorage에 admin 세션이 있고 비관리자 로그인이면 → sessionStorage에만 저장
+        if (!isNewAdmin && name === 'auth-storage') {
+          const existing = localStorage.getItem(name);
+          if (existing) {
+            try {
+              const existingParsed = JSON.parse(existing);
+              const existingRole = existingParsed?.state?.user?.role;
+              if (existingRole === 'admin' || existingRole === 'staff') {
+                sessionStorage.setItem(name, value);
+                return; // localStorage 덮어쓰지 않음
+              }
+            } catch { /* fall through */ }
+          }
+        }
 
         if (rememberMe) {
-          // 로그인 상태 유지: localStorage에 저장
           localStorage.setItem(name, value);
           sessionStorage.removeItem(name);
         } else {
-          // 세션 로그인: sessionStorage에 저장
           sessionStorage.setItem(name, value);
           localStorage.removeItem(name);
         }
@@ -94,17 +109,11 @@ export const useAuthStore = create<AuthState>()(
       rememberMe: false,
 
       setAuth: ({ user, accessToken, refreshToken, rememberMe = false }) => {
-        // 토큰 저장 (api.ts에서 사용)
         if (typeof window !== 'undefined') {
-          // 대리로그인 탭에서 다른 계정으로 로그인 시: 다른 탭의 admin 세션 보호
-          const wasImpersonateSession = sessionStorage.getItem('impersonate-session') === 'true';
-          if (wasImpersonateSession) {
-            sessionStorage.removeItem('impersonate-session');
-          }
+          const isNewLoginAdmin = user.role === 'admin' || user.role === 'staff';
 
-          // 다른 탭에 admin 세션이 있으면 localStorage를 건드리지 않음
-          const hasAdminInLocalStorage = (() => {
-            if (!wasImpersonateSession) return false;
+          // localStorage에 관리자 세션이 이미 있는지 확인
+          const hasAdminInLocal = (() => {
             try {
               const raw = localStorage.getItem('auth-storage');
               if (!raw) return false;
@@ -114,11 +123,13 @@ export const useAuthStore = create<AuthState>()(
             } catch { return false; }
           })();
 
-          if (hasAdminInLocalStorage && !rememberMe) {
-            // 대리로그인 탭에서 재로그인: sessionStorage에만 저장 (admin 보호)
+          if (hasAdminInLocal && !isNewLoginAdmin) {
+            // 핵심: localStorage에 admin 세션이 있고, 비관리자 로그인이면
+            // sessionStorage에만 저장 (다른 탭의 admin 세션 보호)
             sessionStorage.setItem('accessToken', accessToken);
             sessionStorage.setItem('refreshToken', refreshToken);
           } else {
+            // 일반 로그인 또는 관리자 로그인
             const storage = rememberMe ? localStorage : sessionStorage;
             const otherStorage = rememberMe ? sessionStorage : localStorage;
             storage.setItem('accessToken', accessToken);
@@ -128,7 +139,7 @@ export const useAuthStore = create<AuthState>()(
           }
 
           // 관리자/직원 로그인 시 미들웨어 인증 쿠키 설정
-          if (user.role === 'admin' || user.role === 'staff') {
+          if (isNewLoginAdmin) {
             const cookieMaxAge = rememberMe ? 30 * 24 * 60 * 60 : 7 * 24 * 60 * 60;
             document.cookie = `auth-verified=true; path=/; max-age=${cookieMaxAge}; SameSite=Lax`;
           }
@@ -150,15 +161,25 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => {
         if (typeof window !== 'undefined') {
-          const isImpersonateSession = sessionStorage.getItem('impersonate-session') === 'true';
+          // sessionStorage에 토큰이 있고, localStorage에 별도 admin 세션이 있는 경우
+          // → sessionStorage만 정리 (다른 탭의 admin 세션 보호)
+          const hasSessionToken = !!sessionStorage.getItem('accessToken');
+          const hasLocalAdminSession = (() => {
+            try {
+              const raw = localStorage.getItem('auth-storage');
+              if (!raw) return false;
+              const parsed = JSON.parse(raw);
+              const role = parsed?.state?.user?.role;
+              return (role === 'admin' || role === 'staff') && !!localStorage.getItem('accessToken');
+            } catch { return false; }
+          })();
 
-          if (isImpersonateSession) {
-            // 대리로그인 탭: sessionStorage만 정리 (다른 탭의 관리자 세션 보호)
+          if (hasSessionToken && hasLocalAdminSession) {
+            // 대리로그인/비관리자 탭: sessionStorage만 정리
             sessionStorage.removeItem('accessToken');
             sessionStorage.removeItem('refreshToken');
             sessionStorage.removeItem('auth-storage');
             sessionStorage.removeItem('impersonate-session');
-            // 관리자 쿠키는 건드리지 않음
           } else {
             // 일반 로그아웃: 모두 정리
             localStorage.removeItem('accessToken');
@@ -167,7 +188,7 @@ export const useAuthStore = create<AuthState>()(
             sessionStorage.removeItem('refreshToken');
             localStorage.removeItem('auth-storage');
             sessionStorage.removeItem('auth-storage');
-            // 미들웨어 인증 쿠키 제거
+            sessionStorage.removeItem('impersonate-session');
             document.cookie = 'auth-verified=; path=/; max-age=0';
           }
         }

@@ -23,8 +23,6 @@ export default function ShopLayout({
       // sessionStorage에 직접 토큰 저장 (localStorage 건드리지 않음)
       sessionStorage.setItem('accessToken', data.accessToken);
       sessionStorage.setItem('refreshToken', data.refreshToken);
-      // 대리로그인 세션 플래그 (logout 시 localStorage 보호용)
-      sessionStorage.setItem('impersonate-session', 'true');
 
       // Zustand auth-storage도 sessionStorage에 직접 저장
       const authStorage = JSON.stringify({

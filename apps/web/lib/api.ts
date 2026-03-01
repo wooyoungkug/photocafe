@@ -59,23 +59,30 @@ function renewAuthCookie() {
 function clearAllAuth() {
   if (typeof window === 'undefined') return;
 
-  const isImpersonateSession = sessionStorage.getItem('impersonate-session') === 'true';
+  // sessionStorage에 토큰이 있고, localStorage에 별도 admin 세션이 있으면
+  // sessionStorage만 정리 (다른 탭의 admin 세션 보호)
+  const hasSessionToken = !!sessionStorage.getItem('accessToken');
+  const hasLocalAdmin = (() => {
+    try {
+      const raw = localStorage.getItem('auth-storage');
+      if (!raw) return false;
+      const parsed = JSON.parse(raw);
+      const role = parsed?.state?.user?.role;
+      return (role === 'admin' || role === 'staff') && !!localStorage.getItem('accessToken');
+    } catch { return false; }
+  })();
 
-  if (isImpersonateSession) {
-    // 대리로그인 탭: sessionStorage만 정리 (다른 탭의 관리자 세션 보호)
+  if (hasSessionToken && hasLocalAdmin) {
     sessionStorage.removeItem('accessToken');
     sessionStorage.removeItem('refreshToken');
     sessionStorage.removeItem('auth-storage');
-    sessionStorage.removeItem('impersonate-session');
   } else {
-    // 일반 세션: 모두 정리
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('auth-storage');
     sessionStorage.removeItem('accessToken');
     sessionStorage.removeItem('refreshToken');
     sessionStorage.removeItem('auth-storage');
-    // auth-verified 쿠키도 반드시 제거 (미들웨어 연동)
     document.cookie = 'auth-verified=; path=/; max-age=0';
   }
 }
