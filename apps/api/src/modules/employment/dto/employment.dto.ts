@@ -78,6 +78,11 @@ export class AcceptInvitationDto {
   @IsOptional()
   @IsString()
   phone?: string;
+
+  @ApiPropertyOptional({ description: '이메일' })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
 }
 
 export class CreateClientDepartmentDto {

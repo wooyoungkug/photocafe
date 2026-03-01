@@ -81,6 +81,7 @@ export interface AcceptInvitationRequest {
   name: string;
   password: string;
   phone?: string;
+  email?: string;
 }
 
 export interface AcceptInvitationExistingRequest {

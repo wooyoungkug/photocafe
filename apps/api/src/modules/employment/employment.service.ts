@@ -310,6 +310,7 @@ export class EmploymentService {
             email: dto.loginId,
             password: hashedPassword,
             phone: dto.phone,
+            contactEmail: dto.email,
             memberType: 'individual',
             status: 'active',
           },

@@ -332,6 +332,7 @@ model Client {
   phone                   String?
   mobile                  String?
   email                   String?
+  contactEmail            String?
   password                String?
   postalCode              String?
   address                 String?

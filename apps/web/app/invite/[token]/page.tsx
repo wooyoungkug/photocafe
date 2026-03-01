@@ -36,6 +36,7 @@ export default function InviteAcceptPage() {
   const [newName, setNewName] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newPhone, setNewPhone] = useState('');
+  const [newEmail, setNewEmail] = useState('');
 
   // 아이디 중복 확인 (디바운스)
   const { data: loginIdCheck, isFetching: isCheckingLoginId } = useCheckLoginId(debouncedLoginId);
@@ -139,7 +140,7 @@ export default function InviteAcceptPage() {
   const handleAcceptNew = () => {
     setError(null);
     acceptNewMutation.mutate(
-      { token, loginId: newLoginId, name: newName, password: newPassword, phone: newPhone.replace(/\D/g, '') || undefined },
+      { token, loginId: newLoginId, name: newName, password: newPassword, phone: newPhone.replace(/\D/g, '') || undefined, email: newEmail || undefined },
       {
         onSuccess: () => setSuccess(true),
         onError: (err) =>
@@ -247,15 +248,6 @@ export default function InviteAcceptPage() {
                 )}
               </div>
               <div className="space-y-1.5">
-                <Label className="text-[14px]">이름</Label>
-                <Input
-                  className="text-[14px]"
-                  placeholder="이름을 입력하세요"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
                 <Label className="text-[14px]">비밀번호</Label>
                 <Input
                   className="text-[14px]"
@@ -266,6 +258,15 @@ export default function InviteAcceptPage() {
                 />
               </div>
               <div className="space-y-1.5">
+                <Label className="text-[14px]">이름</Label>
+                <Input
+                  className="text-[14px]"
+                  placeholder="이름을 입력하세요"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
                 <Label className="text-[14px]">연락처 (선택)</Label>
                 <Input
                   className="text-[14px]"
@@ -273,6 +274,16 @@ export default function InviteAcceptPage() {
                   inputMode="numeric"
                   value={newPhone}
                   onChange={(e) => setNewPhone(formatPhone(e.target.value))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[14px]">이메일 (선택)</Label>
+                <Input
+                  className="text-[14px]"
+                  type="email"
+                  placeholder="example@email.com"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
                 />
               </div>
               <div className="flex gap-2 pt-2">
