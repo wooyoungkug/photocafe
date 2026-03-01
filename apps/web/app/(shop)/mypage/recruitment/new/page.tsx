@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, type FieldErrors } from 'react-hook-form';
 import { z } from 'zod';
@@ -9,6 +10,9 @@ import {
   Briefcase,
   Loader2,
   Info,
+  BookmarkPlus,
+  ChevronDown,
+  Trash2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,9 +26,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/stores/auth-store';
 import { useCreateRecruitment } from '@/hooks/use-recruitment';
+import {
+  useRecruitmentTemplates,
+  useCreateRecruitmentTemplate,
+  useDeleteRecruitmentTemplate,
+} from '@/hooks/use-recruitment-template';
 import { VenueSearchInput } from '@/components/recruitment/venue-search-input';
 import { SHOOTING_TYPE_LABELS } from '@/lib/types/recruitment';
 import type { ShootingType } from '@/lib/types/recruitment';
@@ -61,6 +83,18 @@ export default function RecruitmentNewPage() {
   const { user } = useAuthStore();
   const createMutation = useCreateRecruitment();
 
+  // 자주사용 문구 관련
+  const { data: descTemplates = [] } = useRecruitmentTemplates('description');
+  const { data: reqTemplates = [] } = useRecruitmentTemplates('requirements');
+  const createTemplate = useCreateRecruitmentTemplate();
+  const deleteTemplate = useDeleteRecruitmentTemplate();
+  const [saveDialog, setSaveDialog] = useState<{
+    open: boolean;
+    category: 'description' | 'requirements';
+    content: string;
+  }>({ open: false, category: 'description', content: '' });
+  const [saveTitle, setSaveTitle] = useState('');
+
   const {
     register,
     handleSubmit,
@@ -87,6 +121,35 @@ export default function RecruitmentNewPage() {
 
   const shootingType = watch('shootingType');
   const privateDeadlineHours = watch('privateDeadlineHours');
+
+  const handleSaveTemplate = async () => {
+    if (!saveTitle.trim()) {
+      toast({ title: '제목을 입력해주세요', variant: 'destructive' });
+      return;
+    }
+    try {
+      await createTemplate.mutateAsync({
+        category: saveDialog.category,
+        title: saveTitle.trim(),
+        content: saveDialog.content,
+      });
+      toast({ title: '자주사용 문구가 저장되었습니다' });
+      setSaveDialog({ open: false, category: 'description', content: '' });
+      setSaveTitle('');
+    } catch {
+      toast({ title: '저장 실패', variant: 'destructive' });
+    }
+  };
+
+  const handleDeleteTemplate = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await deleteTemplate.mutateAsync(id);
+      toast({ title: '삭제되었습니다' });
+    } catch {
+      toast({ title: '삭제 실패', variant: 'destructive' });
+    }
+  };
 
   // 필수 필드 순서 (검증 실패 시 첫 번째 에러 필드로 이동)
   const REQUIRED_FIELDS: { key: keyof RecruitmentFormData; id: string }[] = [
@@ -307,7 +370,73 @@ export default function RecruitmentNewPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[13px] font-medium">상세설명</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-[13px] font-medium">상세설명</Label>
+                <div className="flex items-center gap-1">
+                  {watch('description')?.trim() && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-1.5 text-[11px] text-gray-500 hover:text-blue-600"
+                      onClick={() => {
+                        setSaveDialog({
+                          open: true,
+                          category: 'description',
+                          content: watch('description') || '',
+                        });
+                        setSaveTitle('');
+                      }}
+                    >
+                      <BookmarkPlus className="h-3 w-3 mr-0.5" />
+                      저장
+                    </Button>
+                  )}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-6 px-1.5 text-[11px]"
+                      >
+                        자주사용 문구
+                        <ChevronDown className="h-3 w-3 ml-0.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-[280px]">
+                      {descTemplates.length === 0 ? (
+                        <div className="px-3 py-2 text-[12px] text-gray-400">
+                          저장된 문구가 없습니다
+                        </div>
+                      ) : (
+                        descTemplates.map((t) => (
+                          <DropdownMenuItem
+                            key={t.id}
+                            className="flex items-start justify-between gap-2 cursor-pointer"
+                            onSelect={() =>
+                              setValue('description', t.content, { shouldDirty: true })
+                            }
+                          >
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[13px] font-medium truncate">{t.title}</p>
+                              <p className="text-[11px] text-gray-400 truncate">{t.content}</p>
+                            </div>
+                            <button
+                              type="button"
+                              title="삭제"
+                              className="flex-shrink-0 p-0.5 text-gray-300 hover:text-red-500"
+                              onClick={(e) => handleDeleteTemplate(t.id, e)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </DropdownMenuItem>
+                        ))
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
               <Textarea
                 {...register('description')}
                 placeholder="촬영 상세 내용을 입력해주세요"
@@ -316,7 +445,73 @@ export default function RecruitmentNewPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[13px] font-medium">요구사항</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-[13px] font-medium">요구사항</Label>
+                <div className="flex items-center gap-1">
+                  {watch('requirements')?.trim() && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-1.5 text-[11px] text-gray-500 hover:text-blue-600"
+                      onClick={() => {
+                        setSaveDialog({
+                          open: true,
+                          category: 'requirements',
+                          content: watch('requirements') || '',
+                        });
+                        setSaveTitle('');
+                      }}
+                    >
+                      <BookmarkPlus className="h-3 w-3 mr-0.5" />
+                      저장
+                    </Button>
+                  )}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-6 px-1.5 text-[11px]"
+                      >
+                        자주사용 문구
+                        <ChevronDown className="h-3 w-3 ml-0.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-[280px]">
+                      {reqTemplates.length === 0 ? (
+                        <div className="px-3 py-2 text-[12px] text-gray-400">
+                          저장된 문구가 없습니다
+                        </div>
+                      ) : (
+                        reqTemplates.map((t) => (
+                          <DropdownMenuItem
+                            key={t.id}
+                            className="flex items-start justify-between gap-2 cursor-pointer"
+                            onSelect={() =>
+                              setValue('requirements', t.content, { shouldDirty: true })
+                            }
+                          >
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[13px] font-medium truncate">{t.title}</p>
+                              <p className="text-[11px] text-gray-400 truncate">{t.content}</p>
+                            </div>
+                            <button
+                              type="button"
+                              title="삭제"
+                              className="flex-shrink-0 p-0.5 text-gray-300 hover:text-red-500"
+                              onClick={(e) => handleDeleteTemplate(t.id, e)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </DropdownMenuItem>
+                        ))
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
               <Textarea
                 {...register('requirements')}
                 placeholder="작가에게 요구하는 조건이나 스타일 등을 입력해주세요"
@@ -391,6 +586,57 @@ export default function RecruitmentNewPage() {
           </Button>
         </div>
       </form>
+
+      {/* 자주사용 문구 저장 다이얼로그 */}
+      <Dialog
+        open={saveDialog.open}
+        onOpenChange={(open) => {
+          if (!open) setSaveDialog({ open: false, category: 'description', content: '' });
+        }}
+      >
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="text-[14px] font-bold">
+              자주사용 문구 저장
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-[13px] font-medium">제목</Label>
+              <Input
+                value={saveTitle}
+                onChange={(e) => setSaveTitle(e.target.value)}
+                placeholder="예: 본식 기본 설명"
+                className="text-[14px]"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[13px] font-medium">내용</Label>
+              <div className="rounded-md border p-2 bg-gray-50 text-[13px] text-gray-700 whitespace-pre-wrap max-h-[120px] overflow-y-auto">
+                {saveDialog.content}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-[13px]"
+              onClick={() => setSaveDialog({ open: false, category: 'description', content: '' })}
+            >
+              취소
+            </Button>
+            <Button
+              size="sm"
+              className="text-[13px]"
+              disabled={createTemplate.isPending}
+              onClick={handleSaveTemplate}
+            >
+              {createTemplate.isPending ? '저장 중...' : '저장'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
