@@ -62,7 +62,7 @@ export function useClientRegister() {
 export function useSendPhoneVerification() {
   return useMutation({
     mutationFn: (phone: string) =>
-      api.post<{ success: boolean; message: string }>('/auth/client/send-phone-verification', { phone }),
+      api.post<{ success: boolean; message: string; devCode?: string }>('/auth/client/send-phone-verification', { phone }),
   });
 }
 

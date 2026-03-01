@@ -540,16 +540,27 @@ export class AuthService {
 
     // SMS 발송
     const message = `[Printing114] 인증코드: ${code} (3분 이내 입력)`;
-    const result = await this.smsService.sendSms(phone, message);
+    const smsConfigured = this.smsService.isConfigured();
+    let smsSent = false;
 
-    if (!result.success) {
-      this.logger.warn(`SMS 발송 실패 (${phone}): ${result.error} - 인증코드: ${code}`);
+    if (smsConfigured) {
+      const result = await this.smsService.sendSms(phone, message);
+      smsSent = result.success;
+      if (!result.success) {
+        this.logger.warn(`SMS 발송 실패 (${phone}): ${result.error}`);
+      }
+    } else {
+      this.logger.warn(`SMS 미설정 - 인증코드를 응답에 포함합니다`);
     }
 
-    // 개발 환경에서는 인증코드 로그 출력
     this.logger.log(`[개발용] 전화번호 인증코드 - ${phone}: ${code}`);
 
-    return { success: true, message: '인증코드가 발송되었습니다' };
+    // SMS 미설정 시 응답에 인증코드 포함 (개발용)
+    return {
+      success: true,
+      message: smsSent ? '인증코드가 발송되었습니다' : '인증코드가 발송되었습니다 (개발모드)',
+      ...(!smsConfigured && { devCode: code }),
+    };
   }
 
   async verifyPhoneCode(phone: string, code: string) {

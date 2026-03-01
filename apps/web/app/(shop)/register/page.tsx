@@ -90,12 +90,17 @@ export default function RegisterPage() {
     }
     setError(null);
     try {
-      await sendVerification.mutateAsync(phone);
+      const result = await sendVerification.mutateAsync(phone);
       setCodeSent(true);
       setCountdown(180); // 3분 카운트다운
-      setVerificationCode('');
       setPhoneVerified(false);
       setVerificationId(null);
+      // SMS 미설정(개발모드) 시 인증코드 자동 입력
+      if (result.devCode) {
+        setVerificationCode(result.devCode);
+      } else {
+        setVerificationCode('');
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '인증코드 발송에 실패했습니다.';
       setError(msg);
