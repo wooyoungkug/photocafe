@@ -36,7 +36,7 @@ const shootingFormSchema = z.object({
   venueName: z.string().min(1, '장소명을 입력해주세요'),
   venueAddress: z.string().optional(),
   maxBidders: z.coerce.number().min(1).max(10).optional(),
-  customerPhone: z.string().optional(),
+  customerPhone: z.string().max(13, '전화번호가 너무 깁니다').optional(),
   customerEmail: z.string().email('올바른 이메일을 입력해주세요').optional().or(z.literal('')),
   notes: z.string().optional(),
   // 구인 연동
@@ -49,6 +49,16 @@ const shootingFormSchema = z.object({
 type ShootingFormValues = z.infer<typeof shootingFormSchema>;
 
 const SHOOTING_TYPES = Object.entries(SHOOTING_TYPE_LABELS) as [ShootingType, string][];
+
+// ==================== 유틸 ====================
+
+/** 숫자만 추출 후 한국 전화번호 형식으로 자동 포맷 (010-0000-0000) */
+function formatPhoneNumber(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+}
 
 // ==================== 컴포넌트 ====================
 
@@ -295,8 +305,15 @@ export function ShootingForm({
             <div className="space-y-1.5">
               <Label className="text-[14px] text-black font-normal">연락처</Label>
               <Input
-                {...register('customerPhone')}
+                type="tel"
+                inputMode="numeric"
+                value={watch('customerPhone') || ''}
+                onChange={(e) => {
+                  const formatted = formatPhoneNumber(e.target.value);
+                  setValue('customerPhone', formatted);
+                }}
                 placeholder="010-0000-0000"
+                maxLength={13}
                 className="text-[14px]"
               />
             </div>
