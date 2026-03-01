@@ -58,14 +58,26 @@ function renewAuthCookie() {
 
 function clearAllAuth() {
   if (typeof window === 'undefined') return;
-  localStorage.removeItem('accessToken');
-  localStorage.removeItem('refreshToken');
-  localStorage.removeItem('auth-storage');
-  sessionStorage.removeItem('accessToken');
-  sessionStorage.removeItem('refreshToken');
-  sessionStorage.removeItem('auth-storage');
-  // auth-verified 쿠키도 반드시 제거 (미들웨어 연동)
-  document.cookie = 'auth-verified=; path=/; max-age=0';
+
+  const isImpersonateSession = sessionStorage.getItem('impersonate-session') === 'true';
+
+  if (isImpersonateSession) {
+    // 대리로그인 탭: sessionStorage만 정리 (다른 탭의 관리자 세션 보호)
+    sessionStorage.removeItem('accessToken');
+    sessionStorage.removeItem('refreshToken');
+    sessionStorage.removeItem('auth-storage');
+    sessionStorage.removeItem('impersonate-session');
+  } else {
+    // 일반 세션: 모두 정리
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('auth-storage');
+    sessionStorage.removeItem('accessToken');
+    sessionStorage.removeItem('refreshToken');
+    sessionStorage.removeItem('auth-storage');
+    // auth-verified 쿠키도 반드시 제거 (미들웨어 연동)
+    document.cookie = 'auth-verified=; path=/; max-age=0';
+  }
 }
 
 function redirectToLogin() {

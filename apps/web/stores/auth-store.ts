@@ -96,14 +96,36 @@ export const useAuthStore = create<AuthState>()(
       setAuth: ({ user, accessToken, refreshToken, rememberMe = false }) => {
         // 토큰 저장 (api.ts에서 사용)
         if (typeof window !== 'undefined') {
-          const storage = rememberMe ? localStorage : sessionStorage;
-          const otherStorage = rememberMe ? sessionStorage : localStorage;
+          // 대리로그인 탭에서 다른 계정으로 로그인 시: 다른 탭의 admin 세션 보호
+          const wasImpersonateSession = sessionStorage.getItem('impersonate-session') === 'true';
+          if (wasImpersonateSession) {
+            sessionStorage.removeItem('impersonate-session');
+          }
 
-          storage.setItem('accessToken', accessToken);
-          storage.setItem('refreshToken', refreshToken);
-          // 다른 스토리지에서 제거
-          otherStorage.removeItem('accessToken');
-          otherStorage.removeItem('refreshToken');
+          // 다른 탭에 admin 세션이 있으면 localStorage를 건드리지 않음
+          const hasAdminInLocalStorage = (() => {
+            if (!wasImpersonateSession) return false;
+            try {
+              const raw = localStorage.getItem('auth-storage');
+              if (!raw) return false;
+              const parsed = JSON.parse(raw);
+              const role = parsed?.state?.user?.role;
+              return role === 'admin' || role === 'staff';
+            } catch { return false; }
+          })();
+
+          if (hasAdminInLocalStorage && !rememberMe) {
+            // 대리로그인 탭에서 재로그인: sessionStorage에만 저장 (admin 보호)
+            sessionStorage.setItem('accessToken', accessToken);
+            sessionStorage.setItem('refreshToken', refreshToken);
+          } else {
+            const storage = rememberMe ? localStorage : sessionStorage;
+            const otherStorage = rememberMe ? sessionStorage : localStorage;
+            storage.setItem('accessToken', accessToken);
+            storage.setItem('refreshToken', refreshToken);
+            otherStorage.removeItem('accessToken');
+            otherStorage.removeItem('refreshToken');
+          }
 
           // 관리자/직원 로그인 시 미들웨어 인증 쿠키 설정
           if (user.role === 'admin' || user.role === 'staff') {
@@ -128,14 +150,26 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => {
         if (typeof window !== 'undefined') {
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
-          sessionStorage.removeItem('accessToken');
-          sessionStorage.removeItem('refreshToken');
-          localStorage.removeItem('auth-storage');
-          sessionStorage.removeItem('auth-storage');
-          // 미들웨어 인증 쿠키 제거
-          document.cookie = 'auth-verified=; path=/; max-age=0';
+          const isImpersonateSession = sessionStorage.getItem('impersonate-session') === 'true';
+
+          if (isImpersonateSession) {
+            // 대리로그인 탭: sessionStorage만 정리 (다른 탭의 관리자 세션 보호)
+            sessionStorage.removeItem('accessToken');
+            sessionStorage.removeItem('refreshToken');
+            sessionStorage.removeItem('auth-storage');
+            sessionStorage.removeItem('impersonate-session');
+            // 관리자 쿠키는 건드리지 않음
+          } else {
+            // 일반 로그아웃: 모두 정리
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+            sessionStorage.removeItem('accessToken');
+            sessionStorage.removeItem('refreshToken');
+            localStorage.removeItem('auth-storage');
+            sessionStorage.removeItem('auth-storage');
+            // 미들웨어 인증 쿠키 제거
+            document.cookie = 'auth-verified=; path=/; max-age=0';
+          }
         }
         set({
           user: null,
