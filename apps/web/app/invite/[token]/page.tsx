@@ -187,7 +187,7 @@ export default function InviteAcceptPage() {
                 <UserPlus className="h-4 w-4 mr-3 flex-shrink-0" />
                 <div className="text-left">
                   <div className="text-[14px] font-medium">새 계정 만들기</div>
-                  <div className="text-[10px] text-gray-500">이메일/비밀번호로 가입</div>
+                  <div className="text-[10px] text-gray-500">아이디/비밀번호로 가입</div>
                 </div>
               </Button>
               <Button
