@@ -145,7 +145,10 @@ export function ShootingForm({
             </Label>
             <Select
               value={watch('type')}
-              onValueChange={(val) => setValue('type', val, { shouldValidate: true })}
+              onValueChange={(val) => {
+                setValue('type', val);
+                form.trigger('type');
+              }}
             >
               <SelectTrigger className="text-[14px]">
                 <SelectValue placeholder="유형 선택" />
