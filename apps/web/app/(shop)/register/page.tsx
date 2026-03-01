@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useClientRegister, useCheckLoginId } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertCircle, CheckCircle2, Loader2, User, Lock, UserPlus, Phone, Mail } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2, User, Lock, UserPlus, Phone, Mail, LogIn } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -17,7 +18,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
-export default function RegisterPage() {
+function RegisterForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const register = useClientRegister();
   const checkLoginId = useCheckLoginId();
 
@@ -31,6 +34,21 @@ export default function RegisterPage() {
   const [loginIdChecked, setLoginIdChecked] = useState(false);
   const [loginIdAvailable, setLoginIdAvailable] = useState<boolean | null>(null);
   const [socialConfirmProvider, setSocialConfirmProvider] = useState<string | null>(null);
+
+  // 이미 가입된 회원 감지 상태
+  const [alreadyRegistered, setAlreadyRegistered] = useState(false);
+  const [alreadyRegisteredProvider, setAlreadyRegisteredProvider] = useState<string | null>(null);
+  const [alreadyRegisteredAt, setAlreadyRegisteredAt] = useState<string | null>(null);
+
+  // URL 에러 파라미터 감지 (이미 가입된 회원)
+  useEffect(() => {
+    const errorParam = searchParams.get('error');
+    if (errorParam === 'ALREADY_REGISTERED') {
+      setAlreadyRegistered(true);
+      setAlreadyRegisteredProvider(searchParams.get('provider'));
+      setAlreadyRegisteredAt(searchParams.get('registeredAt'));
+    }
+  }, [searchParams]);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
@@ -312,6 +330,39 @@ export default function RegisterPage() {
               </svg>
               Google로 가입
             </button>
+
+          {/* 이미 가입된 회원 안내 다이얼로그 */}
+          <Dialog open={alreadyRegistered} onOpenChange={(open) => !open && setAlreadyRegistered(false)}>
+            <DialogContent className="sm:max-w-[400px]">
+              <DialogHeader>
+                <DialogTitle className="text-[18px] text-black font-bold">이미 가입된 회원입니다</DialogTitle>
+                <DialogDescription className="text-[14px] text-black font-normal">
+                  {alreadyRegisteredProvider === 'naver' ? '네이버' : alreadyRegisteredProvider === 'kakao' ? '카카오' : 'Google'} 계정으로{' '}
+                  {alreadyRegisteredAt && (
+                    <strong>{alreadyRegisteredAt}</strong>
+                  )}
+                  에 가입하셨습니다.
+                  <br />
+                  로그인 페이지에서 로그인하시겠습니까?
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button
+                  variant="outline"
+                  onClick={() => setAlreadyRegistered(false)}
+                >
+                  닫기
+                </Button>
+                <Button
+                  className="bg-[#E4007F] hover:bg-[#C5006D] text-white"
+                  onClick={() => router.push('/login')}
+                >
+                  <LogIn className="mr-1.5 h-4 w-4" />
+                  로그인하기
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           </div>
 
           {/* 소셜 회원가입 확인 다이얼로그 */}
@@ -330,7 +381,7 @@ export default function RegisterPage() {
                 >
                   취소
                 </Button>
-                <a href={`${apiUrl}/auth/${socialConfirmProvider === 'google' ? 'google' : socialConfirmProvider}`}>
+                <a href={`${apiUrl}/auth/${socialConfirmProvider === 'google' ? 'google' : `${socialConfirmProvider}-register`}`}>
                   <Button className="bg-[#E4007F] hover:bg-[#C5006D] text-white">
                     회원가입
                   </Button>
@@ -350,5 +401,23 @@ export default function RegisterPage() {
         </CardFooter>
       </Card>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-[calc(100vh-300px)] flex items-center justify-center p-4 py-8">
+          <Card className="w-full max-w-md shadow-lg">
+            <CardContent className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+            </CardContent>
+          </Card>
+        </div>
+      }
+    >
+      <RegisterForm />
+    </Suspense>
   );
 }

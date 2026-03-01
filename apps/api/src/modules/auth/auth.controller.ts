@@ -134,6 +134,23 @@ export class AuthController {
     return res.redirect('/api/v1/auth/kakao');
   }
 
+  // 가입 전용 래퍼: auth_mode=register 쿠키 설정 후 OAuth로 리다이렉트
+  @Public()
+  @Get('naver-register')
+  @ApiOperation({ summary: '네이버 회원가입 (신규 회원만)' })
+  async naverRegisterRedirect(@Res() res: Response) {
+    res.cookie('auth_mode', 'register', { httpOnly: true, maxAge: 300000, sameSite: 'lax' });
+    return res.redirect('/api/v1/auth/naver');
+  }
+
+  @Public()
+  @Get('kakao-register')
+  @ApiOperation({ summary: '카카오 회원가입 (신규 회원만)' })
+  async kakaoRegisterRedirect(@Res() res: Response) {
+    res.cookie('auth_mode', 'register', { httpOnly: true, maxAge: 300000, sameSite: 'lax' });
+    return res.redirect('/api/v1/auth/kakao');
+  }
+
   @Public()
   @Get('naver')
   @UseGuards(AuthGuard('naver'))
@@ -171,14 +188,26 @@ export class AuthController {
       return res.redirect(`${frontendUrl}/login?error=EMAIL_DUPLICATE&message=${msg}`);
     }
 
-    // 로그인 전용 모드: 미가입 회원이면 자동 생성 롤백 후 에러 리다이렉트
+    // auth_mode 쿠키 처리 (login: 기존 회원만, register: 신규 회원만)
     const authMode = req?.cookies?.auth_mode;
     if (authMode) {
       res.clearCookie('auth_mode');
     }
+
+    // 로그인 전용 모드: 미가입 회원이면 자동 생성 롤백 후 에러 리다이렉트
     if (authMode === 'login' && client._isNew) {
       await this.authService.rollbackNewClient(client.id);
       return res.redirect(`${frontendUrl}/login?error=NOT_REGISTERED&provider=${client.oauthProvider}`);
+    }
+
+    // 가입 전용 모드: 이미 가입된 회원이면 가입일 알려주고 로그인 유도
+    if (authMode === 'register' && !client._isNew) {
+      const registeredAt = client.createdAt
+        ? new Date(client.createdAt).toISOString().split('T')[0]
+        : '';
+      return res.redirect(
+        `${frontendUrl}/register?error=ALREADY_REGISTERED&provider=${client.oauthProvider}&registeredAt=${registeredAt}`,
+      );
     }
 
     const inviteToken = req?.cookies?.invite_token;
