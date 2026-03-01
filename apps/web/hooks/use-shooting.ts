@@ -38,6 +38,8 @@ export interface Shooting {
   shootingType: ShootingType;
   venueName: string;
   venueAddress: string;
+  venueFloor?: string;
+  venueHall?: string;
   latitude?: number;
   longitude?: number;
   shootingDate: string;
@@ -74,6 +76,8 @@ export interface CreateShootingDto {
   shootingType: ShootingType;
   venueName: string;
   venueAddress: string;
+  venueFloor?: string;
+  venueHall?: string;
   latitude?: number;
   longitude?: number;
   shootingDate: string;

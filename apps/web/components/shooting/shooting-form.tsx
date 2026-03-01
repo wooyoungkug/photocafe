@@ -110,8 +110,8 @@ export function ShootingForm({
       duration: defaultValues?.duration || undefined,
       venueName: defaultValues?.venueName || '',
       venueAddress: defaultValues?.venueAddress || '',
-      venueFloor: (defaultValues as Record<string, unknown>)?.venueFloor as string || '',
-      venueHall: (defaultValues as Record<string, unknown>)?.venueHall as string || '',
+      venueFloor: defaultValues?.venueFloor || '',
+      venueHall: defaultValues?.venueHall || '',
       maxBidders: defaultValues?.maxBidders || 3,
       customerPhone: defaultValues?.customerPhone || '',
       customerEmail: defaultValues?.customerEmail || '',
@@ -288,14 +288,22 @@ export function ShootingForm({
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[14px] text-black font-normal">예상 소요시간 (분)</Label>
-              <Input
-                type="number"
-                {...register('duration')}
-                placeholder="예: 120"
-                min={0}
-                className="text-[14px]"
-              />
+              <Label className="text-[14px] text-black font-normal">예상 소요시간</Label>
+              <Select
+                value={watch('duration')?.toString() || ''}
+                onValueChange={(val) => setValue('duration', Number(val))}
+              >
+                <SelectTrigger className="text-[14px]">
+                  <SelectValue placeholder="선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 16 }, (_, i) => (i + 1) * 30).map((min) => (
+                    <SelectItem key={min} value={min.toString()}>
+                      {min >= 60 ? `${Math.floor(min / 60)}시간${min % 60 ? ' 30분' : ''}` : `${min}분`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>
@@ -331,6 +339,25 @@ export function ShootingForm({
               readOnly
               className="text-[14px]"
             />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-[14px] text-black font-normal">층</Label>
+              <Input
+                {...register('venueFloor')}
+                placeholder="예: 3층"
+                className="text-[14px]"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[14px] text-black font-normal">홀</Label>
+              <Input
+                {...register('venueHall')}
+                placeholder="예: 그랜드볼룸"
+                className="text-[14px]"
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
