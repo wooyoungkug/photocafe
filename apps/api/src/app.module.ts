@@ -30,10 +30,12 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AuditLogModule } from './modules/audit-log/audit-log.module';
 import { EmploymentModule } from './modules/employment/employment.module';
 import { ShootingModule } from './modules/shooting/shooting.module';
+import { RecruitmentModule } from './modules/recruitment/recruitment.module';
 import { HolidayModule } from './modules/holiday/holiday.module';
 import { IpBlockMiddleware } from './modules/analytics/ip-block.middleware';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { EmailModule } from './common/email/email.module';
+import { KakaoAlimtalkModule } from './common/kakao-alimtalk/kakao-alimtalk.module';
 import { SmsModule } from './common/sms/sms.module';
 import { HealthModule } from './health/health.module';
 import { AppController } from './app.controller';
@@ -66,6 +68,7 @@ import { AppController } from './app.controller';
     NestScheduleModule.forRoot(),
     PrismaModule,
     EmailModule,
+    KakaoAlimtalkModule,
     SmsModule,
     HealthModule,
     AuthModule,
@@ -94,6 +97,7 @@ import { AppController } from './app.controller';
     AuditLogModule,
     EmploymentModule,
     ShootingModule,
+    RecruitmentModule,
     HolidayModule,
   ],
 })
