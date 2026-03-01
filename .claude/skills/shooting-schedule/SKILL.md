@@ -618,3 +618,89 @@ extractRegion("서울특별시 강남구 역삼동 123-45"):
   → 둘째 토큰(시/군/구) = 시/군/구
   → 결과: "서울특별시 강남구"
 ```
+
+---
+
+## 구인방 ↔ 일정관리 양방향 연동 (기획 2026-03-02)
+
+### 비즈니스 흐름
+
+```
+촬영 요청 → 관리자 일정관리 등록 → 내부 작가(Staff) 배정 시도 [우선순위 1]
+  ↓ (일정 안 맞으면)
+구인방에 외부 작가 구인 → 카톡/사이트에서 지원 → 작가 확정 → 양쪽 상태 동기화
+
+또는: 스튜디오 구인방 직접 등록 → 일정관리 자동 생성
+```
+
+### DB 스키마 추가
+
+#### ShootingSchedule 추가 필드
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| linkedRecruitmentId | String? @unique | 연동된 구인방 ID |
+| assignedClientId | String? | 외부 작가 (구인방에서 확정된 Client) |
+
+#### Recruitment 추가 필드
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| linkedShootingId | String? @unique | 연동된 일정관리 ID |
+
+### 작가 배정 로직
+
+- 내부작가: `assignedStaffId` (Staff 테이블) - 우선순위 1
+- 외부작가: `assignedClientId` (Client 테이블) - 우선순위 2
+- 둘 중 하나만 설정됨
+
+### 자동 생성 규칙
+
+| 방향 | 조건 | 동작 |
+|------|------|------|
+| 구인 등록 → 일정 | 항상 | 일정관리에 자동 생성 |
+| 일정 등록 → 구인 | 토글 옵션 | "구인방에도 동시 등록" 체크 시 |
+
+### 상태 매핑
+
+| Recruitment → SS | SS → Recruitment |
+|-----------------|-----------------|
+| draft → draft | draft → draft |
+| private_recruiting → recruiting | recruiting → private_recruiting |
+| public_recruiting → recruiting | confirmed → filled |
+| filled → confirmed | cancelled → cancelled |
+| cancelled → cancelled | in_progress/completed → 변경없음 |
+
+### 필드 매핑 (공통 필드 자동 동기화)
+
+| Recruitment | ShootingSchedule | 변환 |
+|-------------|------------------|------|
+| shootingType | shootingType | 동일 |
+| shootingDate + shootingTime | shootingDate (DateTime) | 합쳐서 DateTime |
+| duration | duration | 동일 |
+| venueName | venueName | 동일 |
+| venueAddress | venueAddress | 동일 |
+| latitude/longitude | latitude/longitude | 동일 |
+| customerName | clientName | 필드명만 다름 |
+| maxBidders | maxBidders | 동일 |
+
+### 핵심 서비스
+
+| 서비스 | 파일 | 설명 |
+|--------|------|------|
+| ScheduleRecruitmentSyncService | `shooting/services/schedule-recruitment-sync.service.ts` | 양방향 생성/필드/상태 동기화 |
+
+### 촬영유형 통일 (선행 필수)
+
+프론트 `use-shooting.ts`의 타입이 백엔드와 불일치:
+
+| 현재 (use-shooting.ts) | 통일 기준 (백엔드) |
+|----------------------|-----------------|
+| wedding | wedding_main |
+| studio | wedding_rehearsal |
+| outdoor | baby_dol |
+| product | baby_growth |
+| profile | profile |
+| event/other | other |
+
+공용 상수 파일: `apps/web/lib/constants/shooting-types.ts`
