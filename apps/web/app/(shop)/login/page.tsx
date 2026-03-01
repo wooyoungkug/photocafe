@@ -37,6 +37,7 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notRegistered, setNotRegistered] = useState(false);
+  const [notRegisteredProvider, setNotRegisteredProvider] = useState<string | null>(null);
   const [justRegistered, setJustRegistered] = useState(false);
 
   // ID/password login state
@@ -91,6 +92,7 @@ function LoginForm() {
     const errorParam = searchParams.get('error');
     if (errorParam === 'NOT_REGISTERED') {
       setNotRegistered(true);
+      setNotRegisteredProvider(searchParams.get('provider'));
     } else if (errorParam === 'EMAIL_DUPLICATE') {
       const message = searchParams.get('message');
       setError(message || '이미 다른 소셜 계정으로 가입된 이메일입니다.');
@@ -282,17 +284,29 @@ function LoginForm() {
               가입되지 않은 계정입니다.
             </p>
             <p className="text-[13px] text-amber-700 mt-1">
-              먼저 회원가입을 진행해주세요.
+              아래 버튼을 누르면 바로 회원가입됩니다.
             </p>
-            <Link href="/register">
-              <Button
-                size="sm"
-                className="mt-3 bg-amber-600 hover:bg-amber-700 text-white"
-              >
-                <UserPlus className="mr-1.5 h-4 w-4" />
-                회원가입 하기
-              </Button>
-            </Link>
+            {notRegisteredProvider ? (
+              <a href={`${apiUrl}/auth/${notRegisteredProvider}`}>
+                <Button
+                  size="sm"
+                  className="mt-3 bg-amber-600 hover:bg-amber-700 text-white"
+                >
+                  <UserPlus className="mr-1.5 h-4 w-4" />
+                  {notRegisteredProvider === 'naver' ? '네이버' : notRegisteredProvider === 'kakao' ? '카카오' : 'Google'}로 회원가입하기
+                </Button>
+              </a>
+            ) : (
+              <Link href="/register">
+                <Button
+                  size="sm"
+                  className="mt-3 bg-amber-600 hover:bg-amber-700 text-white"
+                >
+                  <UserPlus className="mr-1.5 h-4 w-4" />
+                  회원가입 하기
+                </Button>
+              </Link>
+            )}
           </div>
         )}
 
@@ -310,58 +324,62 @@ function LoginForm() {
           </div>
         )}
 
-        {/* 아이디/비밀번호 로그인 */}
-        <form onSubmit={handleIdLogin} className="space-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="loginId" className="text-[14px] text-black font-normal">아이디</Label>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                id="loginId"
-                type="text"
-                placeholder="아이디 입력"
-                value={loginId}
-                onChange={(e) => setLoginId(e.target.value)}
-                className="pl-10 h-11"
-                autoComplete="username"
-              />
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="password" className="text-[14px] text-black font-normal">비밀번호</Label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                id="password"
-                type="password"
-                placeholder="비밀번호 입력"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="pl-10 h-11"
-                autoComplete="current-password"
-              />
-            </div>
-          </div>
-          <Button
-            type="submit"
-            className="w-full h-11 bg-[#E4007F] hover:bg-[#C5006D] text-white"
-            disabled={clientLogin.isPending}
-          >
-            {clientLogin.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : null}
-            로그인
-          </Button>
-        </form>
+        {/* 아이디/비밀번호 로그인 - 소셜 미가입 상태에서는 숨김 */}
+        {!notRegistered && (
+          <>
+            <form onSubmit={handleIdLogin} className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="loginId" className="text-[14px] text-black font-normal">아이디</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="loginId"
+                    type="text"
+                    placeholder="아이디 입력"
+                    value={loginId}
+                    onChange={(e) => setLoginId(e.target.value)}
+                    className="pl-10 h-11"
+                    autoComplete="username"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="password" className="text-[14px] text-black font-normal">비밀번호</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="비밀번호 입력"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-10 h-11"
+                    autoComplete="current-password"
+                  />
+                </div>
+              </div>
+              <Button
+                type="submit"
+                className="w-full h-11 bg-[#E4007F] hover:bg-[#C5006D] text-white"
+                disabled={clientLogin.isPending}
+              >
+                {clientLogin.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : null}
+                로그인
+              </Button>
+            </form>
 
-        <div className="relative my-2">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-white px-2 text-gray-500">또는</span>
-          </div>
-        </div>
+            <div className="relative my-2">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white px-2 text-gray-500">또는</span>
+              </div>
+            </div>
+          </>
+        )}
 
         <a
           href={`${apiUrl}/auth/naver-login`}

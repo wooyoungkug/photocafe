@@ -176,7 +176,7 @@ export class AuthController {
     }
     if (authMode === 'login' && client._isNew) {
       await this.authService.rollbackNewClient(client.id);
-      return res.redirect(`${frontendUrl}/login?error=NOT_REGISTERED`);
+      return res.redirect(`${frontendUrl}/login?error=NOT_REGISTERED&provider=${client.oauthProvider}`);
     }
 
     const inviteToken = req?.cookies?.invite_token;
