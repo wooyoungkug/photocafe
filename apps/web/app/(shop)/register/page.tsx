@@ -355,7 +355,13 @@ function RegisterForm() {
                 </Button>
                 <Button
                   className="bg-[#E4007F] hover:bg-[#C5006D] text-white"
-                  onClick={() => router.push('/login')}
+                  onClick={() => {
+                    if (alreadyRegisteredProvider) {
+                      window.location.href = `${apiUrl}/auth/${alreadyRegisteredProvider}-login`;
+                    } else {
+                      router.push('/login');
+                    }
+                  }}
                 >
                   <LogIn className="mr-1.5 h-4 w-4" />
                   로그인하기
