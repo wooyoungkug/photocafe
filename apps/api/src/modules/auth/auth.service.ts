@@ -239,8 +239,8 @@ export class AuthService {
     google: 'Google',
   };
 
-  private async checkEmailDuplicate(email: string, currentProvider: string): Promise<void> {
-    if (!email || email.includes(`${currentProvider}_`)) return; // 가짜 이메일은 스킵
+  private async checkEmailDuplicate(email: string, currentProvider: string): Promise<{ provider: string; date: string } | null> {
+    if (!email || email.includes(`${currentProvider}_`)) return null; // 가짜 이메일은 스킵
 
     const existing = await this.prisma.client.findFirst({
       where: {
@@ -251,12 +251,12 @@ export class AuthService {
     });
 
     if (existing) {
-      const providerLabel = this.PROVIDER_LABELS[existing.oauthProvider] || existing.oauthProvider;
-      const dateStr = existing.createdAt.toISOString().split('T')[0]; // YYYY-MM-DD
-      throw new ConflictException(
-        `이미 ${providerLabel}(으)로 가입된 이메일입니다. (가입일: ${dateStr})`,
-      );
+      return {
+        provider: existing.oauthProvider,
+        date: existing.createdAt.toISOString().split('T')[0],
+      };
     }
+    return null;
   }
 
   async validateNaverUser(data: {
@@ -273,7 +273,14 @@ export class AuthService {
 
     let isNew = false;
     if (!client) {
-      await this.checkEmailDuplicate(data.email, 'naver');
+      const dup = await this.checkEmailDuplicate(data.email, 'naver');
+      if (dup) {
+        const providerLabel = this.PROVIDER_LABELS[dup.provider] || dup.provider;
+        return {
+          _emailDuplicate: true,
+          _dupMessage: `이미 ${providerLabel}(으)로 가입된 이메일입니다. (가입일: ${dup.date})`,
+        } as any;
+      }
       isNew = true;
       const clientCode = `N${Date.now().toString().slice(-8)}`;
       client = await this.prisma.client.create({
@@ -313,7 +320,14 @@ export class AuthService {
 
     let isNew = false;
     if (!client) {
-      await this.checkEmailDuplicate(data.email, 'kakao');
+      const dup = await this.checkEmailDuplicate(data.email, 'kakao');
+      if (dup) {
+        const providerLabel = this.PROVIDER_LABELS[dup.provider] || dup.provider;
+        return {
+          _emailDuplicate: true,
+          _dupMessage: `이미 ${providerLabel}(으)로 가입된 이메일입니다. (가입일: ${dup.date})`,
+        } as any;
+      }
       isNew = true;
       const clientCode = `K${Date.now().toString().slice(-8)}`;
       client = await this.prisma.client.create({

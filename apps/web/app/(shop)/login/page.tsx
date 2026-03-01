@@ -40,11 +40,14 @@ function LoginForm() {
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
-  // 미가입 회원 에러 감지
+  // URL 에러 파라미터 감지 (미가입, 이메일 중복 등)
   useEffect(() => {
     const errorParam = searchParams.get('error');
     if (errorParam === 'NOT_REGISTERED') {
       setNotRegistered(true);
+    } else if (errorParam === 'EMAIL_DUPLICATE') {
+      const message = searchParams.get('message');
+      setError(message || '이미 다른 소셜 계정으로 가입된 이메일입니다.');
     }
   }, [searchParams]);
 
@@ -241,9 +244,16 @@ function LoginForm() {
         )}
 
         {error && (
-          <div className="flex items-center gap-2 p-3 text-sm text-destructive bg-destructive/10 rounded-md">
-            <AlertCircle className="h-4 w-4" />
-            <span>{error}</span>
+          <div className="p-4 rounded-md bg-red-50 border border-red-200">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-[14px] text-red-800 font-medium">{error}</p>
+                <p className="text-[13px] text-red-600 mt-1">
+                  기존에 가입한 소셜 계정으로 로그인해주세요.
+                </p>
+              </div>
+            </div>
           </div>
         )}
 

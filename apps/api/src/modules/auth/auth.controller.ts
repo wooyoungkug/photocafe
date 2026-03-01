@@ -161,6 +161,12 @@ export class AuthController {
   }
 
   private async handleOAuthCallback(client: any, frontendUrl: string, res: Response, req?: any) {
+    // 이메일 중복 체크 실패: 다른 소셜로 이미 가입된 이메일
+    if (client._emailDuplicate) {
+      const msg = encodeURIComponent(client._dupMessage);
+      return res.redirect(`${frontendUrl}/login?error=EMAIL_DUPLICATE&message=${msg}`);
+    }
+
     // 로그인 전용 모드: 미가입 회원이면 자동 생성 롤백 후 에러 리다이렉트
     const authMode = req?.cookies?.auth_mode;
     if (authMode) {
