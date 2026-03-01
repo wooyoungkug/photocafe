@@ -8,6 +8,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle, CheckCircle2, Loader2, User, Lock, UserPlus, Phone, Mail } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 export default function RegisterPage() {
   const register = useClientRegister();
@@ -22,6 +30,7 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [loginIdChecked, setLoginIdChecked] = useState(false);
   const [loginIdAvailable, setLoginIdAvailable] = useState<boolean | null>(null);
+  const [socialConfirmProvider, setSocialConfirmProvider] = useState<string | null>(null);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
@@ -268,28 +277,31 @@ export default function RegisterPage() {
           </div>
 
           <div className="space-y-2">
-            <a
-              href={`${apiUrl}/auth/naver`}
+            <button
+              type="button"
+              onClick={() => setSocialConfirmProvider('naver')}
               className="inline-flex items-center justify-center w-full h-12 rounded-md text-sm font-medium bg-[#03C75A] hover:bg-[#02b351] text-white transition-colors"
             >
               <svg viewBox="0 0 24 24" className="mr-2 h-5 w-5" fill="currentColor">
                 <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z" />
               </svg>
               네이버로 가입
-            </a>
+            </button>
 
-            <a
-              href={`${apiUrl}/auth/kakao`}
+            <button
+              type="button"
+              onClick={() => setSocialConfirmProvider('kakao')}
               className="inline-flex items-center justify-center w-full h-12 rounded-md text-sm font-medium bg-[#FEE500] hover:bg-[#FDD835] text-[#3C1E1E] transition-colors"
             >
               <svg viewBox="0 0 24 24" className="mr-2 h-5 w-5" fill="currentColor">
                 <path d="M12 3C6.477 3 2 6.463 2 10.691c0 2.65 1.73 4.973 4.342 6.324-.143.532-.548 2.043-.623 2.359-.096.397.146.392.307.286.126-.083 2.016-1.368 2.838-1.925.698.103 1.43.157 2.136.157 5.523 0 10-3.463 10-7.691C21 6.463 17.523 3 12 3z" />
               </svg>
               카카오로 가입
-            </a>
+            </button>
 
-            <a
-              href={`${apiUrl}/auth/google`}
+            <button
+              type="button"
+              onClick={() => setSocialConfirmProvider('google')}
               className="inline-flex items-center justify-center w-full h-12 rounded-md text-sm font-medium border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 transition-colors"
             >
               <svg viewBox="0 0 24 24" className="mr-2 h-5 w-5">
@@ -299,8 +311,33 @@ export default function RegisterPage() {
                 <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
               </svg>
               Google로 가입
-            </a>
+            </button>
           </div>
+
+          {/* 소셜 회원가입 확인 다이얼로그 */}
+          <Dialog open={!!socialConfirmProvider} onOpenChange={(open) => !open && setSocialConfirmProvider(null)}>
+            <DialogContent className="sm:max-w-[400px]">
+              <DialogHeader>
+                <DialogTitle className="text-[18px] text-black font-bold">회원가입 확인</DialogTitle>
+                <DialogDescription className="text-[14px] text-black font-normal">
+                  {socialConfirmProvider === 'naver' ? '네이버' : socialConfirmProvider === 'kakao' ? '카카오' : 'Google'} 계정으로 회원가입하시겠습니까?
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button
+                  variant="outline"
+                  onClick={() => setSocialConfirmProvider(null)}
+                >
+                  취소
+                </Button>
+                <a href={`${apiUrl}/auth/${socialConfirmProvider === 'google' ? 'google' : socialConfirmProvider}`}>
+                  <Button className="bg-[#E4007F] hover:bg-[#C5006D] text-white">
+                    회원가입
+                  </Button>
+                </a>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </CardContent>
 
         <CardFooter className="flex justify-center">
