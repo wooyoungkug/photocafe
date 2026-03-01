@@ -452,7 +452,7 @@ export class AuthService {
 
     return {
       accessToken: this.jwtService.sign(payload),
-      refreshToken: this.jwtService.sign(payload, { expiresIn: '7d' }),
+      refreshToken: this.jwtService.sign(payload, { expiresIn: '30d' }),
       user: {
         id: staff.id, staffId: staff.staffId, name: staff.name, role: 'admin',
         email: staff.companyEmail || staff.email, isSuperAdmin: staff.isSuperAdmin ?? false,
@@ -509,7 +509,7 @@ export class AuthService {
     return {
       status: 'active',
       accessToken: this.jwtService.sign(payload),
-      refreshToken: this.jwtService.sign(payload, { expiresIn: '7d' }),
+      refreshToken: this.jwtService.sign(payload, { expiresIn: '30d' }),
       user: {
         id: staff.id, staffId: staff.staffId, name: staff.name, role: 'admin',
         email: staff.companyEmail || staff.email, isSuperAdmin: staff.isSuperAdmin ?? false,

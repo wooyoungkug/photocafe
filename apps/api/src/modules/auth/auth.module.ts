@@ -28,7 +28,7 @@ import { EmploymentModule } from '../employment/employment.module';
           return secret;
         })(),
         signOptions: {
-          expiresIn: '1h' as const,
+          expiresIn: '8h' as const,
         },
       }),
       inject: [ConfigService],
