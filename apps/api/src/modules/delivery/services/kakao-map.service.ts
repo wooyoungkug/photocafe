@@ -12,6 +12,15 @@ export interface GeocodingResult {
   coordinates: Coordinates;
 }
 
+export interface PlaceSearchResult {
+  placeName: string;
+  address: string;
+  roadAddress?: string;
+  phone?: string;
+  categoryName?: string;
+  coordinates: Coordinates;
+}
+
 interface DirectionsResult {
   distanceKm: number;
   durationMinutes: number;
@@ -31,10 +40,40 @@ export class KakaoMapService {
   private readonly kakaoRestApiKey: string;
 
   constructor(private configService: ConfigService) {
-    this.kakaoRestApiKey = this.configService.get<string>('KAKAO_REST_API_KEY') || '';
+    this.kakaoRestApiKey =
+      this.configService.get<string>('KAKAO_REST_API_KEY') ||
+      this.configService.get<string>('KAKAO_CLIENT_ID') ||
+      '';
 
     if (!this.kakaoRestApiKey) {
       this.logger.warn('KAKAO_REST_API_KEY가 설정되지 않았습니다.');
+    }
+  }
+
+  /**
+   * 키워드로 장소 목록 검색 (자동완성용)
+   */
+  async searchPlaces(keyword: string, size = 5): Promise<PlaceSearchResult[]> {
+    if (!this.kakaoRestApiKey) return [];
+    try {
+      const url = `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(keyword)}&size=${size}`;
+      const response = await fetch(url, {
+        headers: { 'Authorization': `KakaoAK ${this.kakaoRestApiKey}` },
+      });
+      if (!response.ok) return [];
+      const data = await response.json();
+      if (!data.documents?.length) return [];
+      return data.documents.map((doc: any) => ({
+        placeName: doc.place_name,
+        address: doc.address_name,
+        roadAddress: doc.road_address_name || undefined,
+        phone: doc.phone || undefined,
+        categoryName: doc.category_name || undefined,
+        coordinates: { lat: parseFloat(doc.y), lng: parseFloat(doc.x) },
+      }));
+    } catch (error) {
+      this.logger.error('Place search failed:', error);
+      return [];
     }
   }
 
