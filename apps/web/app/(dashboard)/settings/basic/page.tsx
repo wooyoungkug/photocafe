@@ -654,6 +654,77 @@ export default function BasicSettingsPage() {
           <NotificationSettingsContent />
         </TabsContent>
 
+        {/* 구인설정 탭 */}
+        <TabsContent value="recruitment" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>공개구인 발송 설정</CardTitle>
+              <CardDescription>공개구인 시 포토그래퍼에게 발송하는 메시지 인원수를 설정합니다.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="targetCount">발송 인원수</Label>
+                  <Input
+                    id="targetCount"
+                    type="number"
+                    min={10}
+                    max={500}
+                    value={recruitmentSettings.targetCount}
+                    onChange={(e) =>
+                      setRecruitmentSettings((prev) => ({
+                        ...prev,
+                        targetCount: Number(e.target.value) || 100,
+                      }))
+                    }
+                  />
+                  <p className="text-[12px] text-gray-500">
+                    공개구인 시 희망지역 우선순위에 따라 최대 이 인원수까지 메시지를 발송합니다. (기본값: 100명)
+                  </p>
+                </div>
+              </div>
+              <Separator />
+              <div className="p-4 bg-gray-50 rounded-lg border text-[14px] text-black font-normal space-y-1">
+                <p className="font-bold text-[14px]">발송 순서</p>
+                <p>1. 희망 1지역 일치 포토그래퍼 우선 발송</p>
+                <p>2. 인원 미달 시 → 희망 2지역 일치자 추가</p>
+                <p>3. 여전히 미달 시 → 희망 3지역 일치자 추가</p>
+                <p className="text-gray-500 mt-2">* 촬영시간 중복 포토그래퍼는 자동 제외됩니다.</p>
+              </div>
+            </CardContent>
+          </Card>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setRecruitmentSettings({ targetCount: 100 })}
+            >
+              <RotateCcw className="h-4 w-4 mr-2" />
+              초기화
+            </Button>
+            <Button
+              onClick={async () => {
+                try {
+                  await bulkUpdate.mutateAsync([
+                    {
+                      key: "recruitment_target_count",
+                      value: String(recruitmentSettings.targetCount),
+                      category: "recruitment",
+                      label: "구인 발송 인원수",
+                    },
+                  ]);
+                  toast.success("구인 설정이 저장되었습니다.");
+                } catch {
+                  toast.error("저장에 실패했습니다.");
+                }
+              }}
+              disabled={bulkUpdate.isPending}
+            >
+              <Save className="h-4 w-4 mr-2" />
+              저장
+            </Button>
+          </div>
+        </TabsContent>
+
         {/* 서버 설정 탭 */}
         <TabsContent value="server" className="space-y-4">
           <Card>
