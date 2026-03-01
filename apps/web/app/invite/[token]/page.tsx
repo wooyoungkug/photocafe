@@ -32,14 +32,14 @@ export default function InviteAcceptPage() {
 
   // 신규 계정 폼
   const [newLoginId, setNewLoginId] = useState('');
-  const [debouncedLoginId, setDebouncedLoginId] = useState('');
+  const [checkedLoginId, setCheckedLoginId] = useState('');
   const [newName, setNewName] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [newEmail, setNewEmail] = useState('');
 
-  // 아이디 중복 확인 (디바운스)
-  const { data: loginIdCheck, isFetching: isCheckingLoginId } = useCheckLoginId(debouncedLoginId);
+  // 아이디 중복 확인 (버튼 클릭 시)
+  const { data: loginIdCheck, isFetching: isCheckingLoginId } = useCheckLoginId(checkedLoginId);
 
   // 기존 계정 폼
   const [existEmail, setExistEmail] = useState('');
@@ -49,19 +49,22 @@ export default function InviteAcceptPage() {
   const handleLoginIdChange = (value: string) => {
     const sanitized = value.replace(/[^a-z0-9]/g, '').slice(0, 20);
     setNewLoginId(sanitized);
-    // 디바운스: 타이머로 지연 검사
-    clearTimeout((window as any).__loginIdTimer);
-    if (sanitized.length >= 4) {
-      (window as any).__loginIdTimer = setTimeout(() => {
-        setDebouncedLoginId(sanitized);
-      }, 500);
-    } else {
-      setDebouncedLoginId('');
+    // 아이디가 변경되면 중복확인 상태 초기화
+    if (sanitized !== checkedLoginId) {
+      setCheckedLoginId('');
     }
   };
 
-  const loginIdValid = newLoginId.length >= 4 && loginIdCheck?.available === true;
-  const loginIdDuplicate = newLoginId.length >= 4 && loginIdCheck?.available === false;
+  // 중복확인 버튼 클릭
+  const handleCheckLoginId = () => {
+    if (newLoginId.length >= 4) {
+      setCheckedLoginId(newLoginId);
+    }
+  };
+
+  const loginIdChecked = checkedLoginId === newLoginId && checkedLoginId.length >= 4;
+  const loginIdValid = loginIdChecked && loginIdCheck?.available === true;
+  const loginIdDuplicate = loginIdChecked && loginIdCheck?.available === false;
 
   // 전화번호 포맷팅 (숫자만 입력, 자동 하이픈)
   const formatPhone = (value: string) => {
@@ -221,21 +224,31 @@ export default function InviteAcceptPage() {
           {mode === 'new' && (
             <div className="space-y-3">
               <div className="space-y-1.5">
-                <Label className="text-[14px]">아이디</Label>
-                <div className="relative">
+                <Label className="text-[14px]">아이디 <span className="text-red-500">*</span></Label>
+                <div className="flex gap-2">
                   <Input
-                    className="text-[14px]"
+                    className="text-[14px] flex-1"
                     placeholder="영문소문자, 숫자 4자 이상"
                     value={newLoginId}
                     onChange={(e) => handleLoginIdChange(e.target.value)}
                     autoComplete="username"
                   />
-                  {isCheckingLoginId && newLoginId.length >= 4 && (
-                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
-                  )}
-                  {!isCheckingLoginId && loginIdValid && (
-                    <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
-                  )}
+                  <Button
+                    type="button"
+                    variant={loginIdValid ? 'outline' : 'secondary'}
+                    size="sm"
+                    className="shrink-0 text-[13px] px-3"
+                    disabled={newLoginId.length < 4 || isCheckingLoginId || loginIdValid}
+                    onClick={handleCheckLoginId}
+                  >
+                    {isCheckingLoginId ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : loginIdValid ? (
+                      <><CheckCircle2 className="h-4 w-4 text-green-500 mr-1" />확인됨</>
+                    ) : (
+                      '중복확인'
+                    )}
+                  </Button>
                 </div>
                 {newLoginId.length > 0 && newLoginId.length < 4 && (
                   <p className="text-[12px] text-gray-500">4자 이상 입력해주세요</p>
@@ -245,6 +258,9 @@ export default function InviteAcceptPage() {
                 )}
                 {loginIdValid && (
                   <p className="text-[12px] text-green-600">사용 가능한 아이디입니다</p>
+                )}
+                {!loginIdChecked && newLoginId.length >= 4 && (
+                  <p className="text-[12px] text-orange-500">중복확인을 해주세요</p>
                 )}
               </div>
               <div className="space-y-1.5">
