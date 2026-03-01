@@ -14,6 +14,7 @@ import {
   Send,
   Loader2,
   AlertCircle,
+  Pencil,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -168,8 +169,19 @@ export default function ScheduleDetailPage() {
           </div>
         </div>
 
-        {/* 상태 변경 버튼 */}
+        {/* 수정 & 상태 변경 버튼 */}
         <div className="flex items-center gap-2">
+          {!['completed', 'cancelled'].includes(shooting.status) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push(`/mypage/schedule/${shooting.id}/edit`)}
+              className="text-[13px]"
+            >
+              <Pencil className="h-3.5 w-3.5 mr-1" />
+              수정
+            </Button>
+          )}
           {availableTransitions.map((nextStatus) => (
             <Button
               key={nextStatus}
