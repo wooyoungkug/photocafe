@@ -270,11 +270,16 @@ function LoginForm() {
         </a>
       </CardContent>
 
-      <CardFooter className="flex justify-center">
+      <CardFooter className="flex flex-col items-center gap-3">
         <p className="text-sm text-muted-foreground text-center">
           소셜 계정으로 간편하게 로그인하세요.<br />
           처음 로그인 시 자동으로 회원가입됩니다.
         </p>
+        <Link href="/register" className="w-full">
+          <Button variant="outline" className="w-full">
+            회원가입
+          </Button>
+        </Link>
       </CardFooter>
     </Card>
   );
