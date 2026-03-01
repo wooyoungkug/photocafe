@@ -228,6 +228,11 @@ export default function ScheduleDetailPage() {
                 <p className="text-[12px] text-gray-500">장소</p>
                 <p className="text-[14px] text-black font-normal">
                   {shooting.venueName || '-'}
+                  {(shooting.venueFloor || shooting.venueHall) && (
+                    <span className="text-gray-500">
+                      {' '}({[shooting.venueFloor, shooting.venueHall].filter(Boolean).join(' ')})
+                    </span>
+                  )}
                 </p>
                 {shooting.venueAddress && (
                   <p className="text-[12px] text-gray-500">{shooting.venueAddress}</p>
