@@ -17,12 +17,16 @@ import {
   URGENCY_THRESHOLDS,
   URGENCY_LEVEL,
 } from '../constants/recruitment.constants';
+import { ScheduleRecruitmentSyncService } from '@/modules/shooting/services/schedule-recruitment-sync.service';
 
 @Injectable()
 export class RecruitmentService {
   private readonly logger = new Logger(RecruitmentService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly syncService: ScheduleRecruitmentSyncService,
+  ) {}
 
   /** 긴급도 자동 계산 */
   private calculateUrgency(shootingDate: Date): string {
@@ -38,7 +42,7 @@ export class RecruitmentService {
   async create(dto: CreateRecruitmentDto, clientId: string, createdBy: string) {
     const shootingDate = new Date(dto.shootingDate);
 
-    return this.prisma.recruitment.create({
+    const recruitment = await this.prisma.recruitment.create({
       data: {
         clientId,
         title: dto.title,
@@ -63,6 +67,15 @@ export class RecruitmentService {
         _count: { select: { bids: true } },
       },
     });
+
+    // 일정관리에 자동 생성 (항상)
+    await this.syncService
+      .syncRecruitmentToShooting(recruitment.id, createdBy)
+      .catch((err) =>
+        this.logger.warn(`Recruitment→Shooting sync failed: ${err.message}`),
+      );
+
+    return recruitment;
   }
 
   async findAll(query: QueryRecruitmentDto) {
