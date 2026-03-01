@@ -27,6 +27,7 @@ import type { Shooting } from '@/hooks/use-shooting';
 import { SHOOTING_TYPE_LABELS } from '@/hooks/use-shooting';
 import { SHOOTING_TYPE_COLORS } from './shooting-type-badge';
 import type { CalendarViewMode } from '@/stores/shooting-store';
+import { getHolidaysForRange } from '@/lib/constants/holidays';
 
 interface ShootingCalendarProps {
   shootings: Shooting[];
@@ -98,6 +99,12 @@ export function ShootingCalendar({
     onDateSelect(today);
   };
 
+  // 공휴일 맵 (현재 월 기준 전후 연도 포함)
+  const holidays = useMemo(() => {
+    const year = currentMonth.getFullYear();
+    return getHolidaysForRange(year - 1, year + 1);
+  }, [currentMonth]);
+
   // 날짜별 촬영 그룹핑
   const shootingsByDate = useMemo(() => {
     const map = new Map<string, Shooting[]>();
@@ -166,6 +173,7 @@ export function ShootingCalendar({
           currentMonth={currentMonth}
           selectedDate={selectedDate}
           shootingsByDate={shootingsByDate}
+          holidays={holidays}
           onDateSelect={onDateSelect}
           onShootingClick={onShootingClick}
         />
@@ -176,6 +184,7 @@ export function ShootingCalendar({
           currentDate={currentMonth}
           selectedDate={selectedDate}
           shootingsByDate={shootingsByDate}
+          holidays={holidays}
           onDateSelect={onDateSelect}
           onShootingClick={onShootingClick}
         />
@@ -185,6 +194,7 @@ export function ShootingCalendar({
         <DayView
           currentDate={currentMonth}
           shootingsByDate={shootingsByDate}
+          holidays={holidays}
           onDateSelect={onDateSelect}
           onShootingClick={onShootingClick}
         />
@@ -194,6 +204,7 @@ export function ShootingCalendar({
         <ListView
           currentMonth={currentMonth}
           shootingsByDate={shootingsByDate}
+          holidays={holidays}
           onDateSelect={onDateSelect}
           onShootingClick={onShootingClick}
         />
@@ -204,6 +215,7 @@ export function ShootingCalendar({
           currentDate={currentMonth}
           selectedDate={selectedDate}
           shootingsByDate={shootingsByDate}
+          holidays={holidays}
           onDateSelect={onDateSelect}
           onShootingClick={onShootingClick}
         />
@@ -218,6 +230,7 @@ interface MonthViewProps {
   currentMonth: Date;
   selectedDate: Date;
   shootingsByDate: Map<string, Shooting[]>;
+  holidays: Map<string, string>;
   onDateSelect: (date: Date) => void;
   onShootingClick?: (shooting: Shooting) => void;
 }
@@ -226,6 +239,7 @@ function MonthView({
   currentMonth,
   selectedDate,
   shootingsByDate,
+  holidays,
   onDateSelect,
   onShootingClick,
 }: MonthViewProps) {
@@ -265,6 +279,8 @@ function MonthView({
           const isSelected = isSameDay(day, selectedDate);
           const isTodayDate = isToday(day);
           const dayOfWeek = getDay(day);
+          const holidayName = holidays.get(dateKey);
+          const isHolidayDate = !!holidayName;
 
           return (
             <div
@@ -276,20 +292,25 @@ function MonthView({
                 isSelected && 'bg-blue-50 ring-1 ring-blue-200 ring-inset'
               )}
             >
-              {/* 날짜 숫자 */}
-              <div className="flex items-center justify-center mb-1">
+              {/* 날짜 숫자 + 공휴일 이름 */}
+              <div className="flex items-center gap-1 mb-1">
                 <span
                   className={cn(
-                    'inline-flex items-center justify-center h-6 w-6 rounded-full text-[12px]',
+                    'inline-flex items-center justify-center h-6 w-6 rounded-full text-[12px] flex-shrink-0',
                     isTodayDate && 'bg-blue-600 text-white font-bold',
                     !isTodayDate && !isCurrentMonth && 'text-gray-300',
-                    !isTodayDate && isCurrentMonth && dayOfWeek === 0 && 'text-red-500',
-                    !isTodayDate && isCurrentMonth && dayOfWeek === 6 && 'text-blue-500',
-                    !isTodayDate && isCurrentMonth && dayOfWeek > 0 && dayOfWeek < 6 && 'text-black'
+                    !isTodayDate && isCurrentMonth && (dayOfWeek === 0 || isHolidayDate) && 'text-red-500',
+                    !isTodayDate && isCurrentMonth && dayOfWeek === 6 && !isHolidayDate && 'text-blue-500',
+                    !isTodayDate && isCurrentMonth && dayOfWeek > 0 && dayOfWeek < 6 && !isHolidayDate && 'text-black'
                   )}
                 >
                   {format(day, 'd')}
                 </span>
+                {holidayName && isCurrentMonth && (
+                  <span className="text-[10px] text-red-400 truncate leading-tight">
+                    {holidayName}
+                  </span>
+                )}
               </div>
 
               {/* 촬영 일정 표시 */}
@@ -335,6 +356,7 @@ interface WeekViewProps {
   currentDate: Date;
   selectedDate: Date;
   shootingsByDate: Map<string, Shooting[]>;
+  holidays: Map<string, string>;
   onDateSelect: (date: Date) => void;
   onShootingClick?: (shooting: Shooting) => void;
 }
@@ -343,6 +365,7 @@ function WeekView({
   currentDate,
   selectedDate,
   shootingsByDate,
+  holidays,
   onDateSelect,
   onShootingClick,
 }: WeekViewProps) {
@@ -364,9 +387,12 @@ function WeekView({
           const isTodayDate = isToday(day);
           const isSelected = isSameDay(day, selectedDate);
           const dayOfWeek = getDay(day);
+          const dateKey = format(day, 'yyyy-MM-dd');
+          const holidayName = holidays.get(dateKey);
+          const isHolidayDate = !!holidayName;
           return (
             <div
-              key={format(day, 'yyyy-MM-dd')}
+              key={dateKey}
               onClick={() => onDateSelect(day)}
               className={cn(
                 'text-center py-2 cursor-pointer hover:bg-gray-50 border-r last:border-r-0',
@@ -378,9 +404,9 @@ function WeekView({
                   className={cn(
                     'inline-flex items-center justify-center h-7 w-7 rounded-full text-[14px] font-medium',
                     isTodayDate && 'bg-blue-600 text-white',
-                    !isTodayDate && dayOfWeek === 0 && 'text-red-500',
-                    !isTodayDate && dayOfWeek === 6 && 'text-blue-500',
-                    !isTodayDate && dayOfWeek > 0 && dayOfWeek < 6 && 'text-black'
+                    !isTodayDate && (dayOfWeek === 0 || isHolidayDate) && 'text-red-500',
+                    !isTodayDate && dayOfWeek === 6 && !isHolidayDate && 'text-blue-500',
+                    !isTodayDate && dayOfWeek > 0 && dayOfWeek < 6 && !isHolidayDate && 'text-black'
                   )}
                 >
                   {format(day, 'd')}
@@ -388,14 +414,17 @@ function WeekView({
                 <span
                   className={cn(
                     'text-[12px]',
-                    dayOfWeek === 0 && 'text-red-500',
-                    dayOfWeek === 6 && 'text-blue-500',
-                    dayOfWeek > 0 && dayOfWeek < 6 && 'text-gray-500'
+                    (dayOfWeek === 0 || isHolidayDate) && 'text-red-500',
+                    dayOfWeek === 6 && !isHolidayDate && 'text-blue-500',
+                    dayOfWeek > 0 && dayOfWeek < 6 && !isHolidayDate && 'text-gray-500'
                   )}
                 >
                   {WEEKDAY_LABELS[dayOfWeek]}
                 </span>
               </div>
+              {holidayName && (
+                <div className="text-[10px] text-red-400 truncate px-1">{holidayName}</div>
+              )}
             </div>
           );
         })}
@@ -491,6 +520,7 @@ function WeekView({
 interface DayViewProps {
   currentDate: Date;
   shootingsByDate: Map<string, Shooting[]>;
+  holidays: Map<string, string>;
   onDateSelect: (date: Date) => void;
   onShootingClick?: (shooting: Shooting) => void;
 }
@@ -498,12 +528,15 @@ interface DayViewProps {
 function DayView({
   currentDate,
   shootingsByDate,
+  holidays,
   onDateSelect,
   onShootingClick,
 }: DayViewProps) {
   const dateKey = format(currentDate, 'yyyy-MM-dd');
   const dayShootings = shootingsByDate.get(dateKey) || [];
   const dayOfWeek = getDay(currentDate);
+  const holidayName = holidays.get(dateKey);
+  const isHolidayDate = !!holidayName;
 
   // 24시간 슬롯
   const hours = Array.from({ length: 24 }, (_, i) => i);
@@ -522,9 +555,9 @@ function DayView({
               className={cn(
                 'inline-flex items-center justify-center h-8 w-8 rounded-full text-[16px] font-bold',
                 isToday(currentDate) && 'bg-blue-600 text-white',
-                !isToday(currentDate) && dayOfWeek === 0 && 'text-red-500',
-                !isToday(currentDate) && dayOfWeek === 6 && 'text-blue-500',
-                !isToday(currentDate) && dayOfWeek > 0 && dayOfWeek < 6 && 'text-black'
+                !isToday(currentDate) && (dayOfWeek === 0 || isHolidayDate) && 'text-red-500',
+                !isToday(currentDate) && dayOfWeek === 6 && !isHolidayDate && 'text-blue-500',
+                !isToday(currentDate) && dayOfWeek > 0 && dayOfWeek < 6 && !isHolidayDate && 'text-black'
               )}
             >
               {format(currentDate, 'd')}
@@ -532,13 +565,16 @@ function DayView({
             <span
               className={cn(
                 'text-[14px]',
-                dayOfWeek === 0 && 'text-red-500',
-                dayOfWeek === 6 && 'text-blue-500',
-                dayOfWeek > 0 && dayOfWeek < 6 && 'text-gray-600'
+                (dayOfWeek === 0 || isHolidayDate) && 'text-red-500',
+                dayOfWeek === 6 && !isHolidayDate && 'text-blue-500',
+                dayOfWeek > 0 && dayOfWeek < 6 && !isHolidayDate && 'text-gray-600'
               )}
             >
               {WEEKDAY_LABELS[dayOfWeek]}
             </span>
+            {holidayName && (
+              <span className="text-[12px] text-red-400">{holidayName}</span>
+            )}
           </div>
         </div>
       </div>
@@ -646,6 +682,7 @@ function DayView({
 interface ListViewProps {
   currentMonth: Date;
   shootingsByDate: Map<string, Shooting[]>;
+  holidays: Map<string, string>;
   onDateSelect: (date: Date) => void;
   onShootingClick?: (shooting: Shooting) => void;
 }
@@ -653,6 +690,7 @@ interface ListViewProps {
 function ListView({
   currentMonth,
   shootingsByDate,
+  holidays,
   onDateSelect,
   onShootingClick,
 }: ListViewProps) {
@@ -679,6 +717,8 @@ function ListView({
         const dayShootings = shootingsByDate.get(dateKey) || [];
         const dayOfWeek = getDay(day);
         const isTodayDate = isToday(day);
+        const holidayName = holidays.get(dateKey);
+        const isHolidayDate = !!holidayName;
 
         if (dayShootings.length === 0) {
           return (
@@ -695,12 +735,13 @@ function ListView({
                   className={cn(
                     'text-[13px] font-medium',
                     isTodayDate && 'text-blue-600 font-bold',
-                    !isTodayDate && dayOfWeek === 0 && 'text-red-500',
-                    !isTodayDate && dayOfWeek === 6 && 'text-blue-500',
-                    !isTodayDate && dayOfWeek > 0 && dayOfWeek < 6 && 'text-black'
+                    !isTodayDate && (dayOfWeek === 0 || isHolidayDate) && 'text-red-500',
+                    !isTodayDate && dayOfWeek === 6 && !isHolidayDate && 'text-blue-500',
+                    !isTodayDate && dayOfWeek > 0 && dayOfWeek < 6 && !isHolidayDate && 'text-black'
                   )}
                 >
                   {format(day, 'MM.dd')} {WEEKDAY_LABELS[dayOfWeek]}
+                  {holidayName && <span className="text-[10px] text-red-400 ml-1">{holidayName}</span>}
                 </span>
               </div>
               <div className="py-2 px-1 border-r flex items-center justify-center">
@@ -728,12 +769,13 @@ function ListView({
                   className={cn(
                     'text-[13px] font-medium',
                     isTodayDate && 'text-blue-600 font-bold',
-                    !isTodayDate && dayOfWeek === 0 && 'text-red-500',
-                    !isTodayDate && dayOfWeek === 6 && 'text-blue-500',
-                    !isTodayDate && dayOfWeek > 0 && dayOfWeek < 6 && 'text-black'
+                    !isTodayDate && (dayOfWeek === 0 || isHolidayDate) && 'text-red-500',
+                    !isTodayDate && dayOfWeek === 6 && !isHolidayDate && 'text-blue-500',
+                    !isTodayDate && dayOfWeek > 0 && dayOfWeek < 6 && !isHolidayDate && 'text-black'
                   )}
                 >
                   {format(day, 'MM.dd')} {WEEKDAY_LABELS[dayOfWeek]}
+                  {holidayName && <span className="text-[10px] text-red-400 ml-1">{holidayName}</span>}
                 </span>
               )}
             </div>
@@ -775,6 +817,7 @@ interface TwoWeekViewProps {
   currentDate: Date;
   selectedDate: Date;
   shootingsByDate: Map<string, Shooting[]>;
+  holidays: Map<string, string>;
   onDateSelect: (date: Date) => void;
   onShootingClick?: (shooting: Shooting) => void;
 }
@@ -783,6 +826,7 @@ function TwoWeekView({
   currentDate,
   selectedDate,
   shootingsByDate,
+  holidays,
   onDateSelect,
   onShootingClick,
 }: TwoWeekViewProps) {
@@ -819,6 +863,8 @@ function TwoWeekView({
           const isSelected = isSameDay(day, selectedDate);
           const isTodayDate = isToday(day);
           const dayOfWeek = getDay(day);
+          const holidayName = holidays.get(dateKey);
+          const isHolidayDate = !!holidayName;
 
           return (
             <div
@@ -829,19 +875,24 @@ function TwoWeekView({
                 isSelected && 'bg-blue-50 ring-1 ring-blue-200 ring-inset'
               )}
             >
-              {/* 날짜 숫자 */}
-              <div className="flex items-center justify-center mb-1">
+              {/* 날짜 숫자 + 공휴일 이름 */}
+              <div className="flex items-center gap-1 mb-1">
                 <span
                   className={cn(
-                    'inline-flex items-center justify-center h-6 w-6 rounded-full text-[12px]',
+                    'inline-flex items-center justify-center h-6 w-6 rounded-full text-[12px] flex-shrink-0',
                     isTodayDate && 'bg-blue-600 text-white font-bold',
-                    !isTodayDate && dayOfWeek === 0 && 'text-red-500',
-                    !isTodayDate && dayOfWeek === 6 && 'text-blue-500',
-                    !isTodayDate && dayOfWeek > 0 && dayOfWeek < 6 && 'text-black'
+                    !isTodayDate && (dayOfWeek === 0 || isHolidayDate) && 'text-red-500',
+                    !isTodayDate && dayOfWeek === 6 && !isHolidayDate && 'text-blue-500',
+                    !isTodayDate && dayOfWeek > 0 && dayOfWeek < 6 && !isHolidayDate && 'text-black'
                   )}
                 >
                   {format(day, 'd')}
                 </span>
+                {holidayName && (
+                  <span className="text-[10px] text-red-400 truncate leading-tight">
+                    {holidayName}
+                  </span>
+                )}
               </div>
 
               {/* 촬영 일정 표시 */}

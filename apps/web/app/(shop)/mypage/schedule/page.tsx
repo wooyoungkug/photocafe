@@ -35,6 +35,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { getHolidaysForRange } from '@/lib/constants/holidays';
 import { useAuthStore } from '@/stores/auth-store';
 import { useShootings } from '@/hooks/use-shooting';
 import type { Shooting, ShootingType, ShootingStatus } from '@/hooks/use-shooting';
@@ -137,6 +138,18 @@ export default function SchedulePage() {
   });
 
   const shootings = shootingsResponse?.data || [];
+
+  // 공휴일 맵
+  const holidays = useMemo(() => {
+    const year = currentMonth.getFullYear();
+    return getHolidaysForRange(year - 1, year + 1);
+  }, [currentMonth]);
+
+  // 선택된 날짜의 공휴일 이름
+  const selectedHolidayName = useMemo(() => {
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+    return holidays.get(dateStr);
+  }, [selectedDate, holidays]);
 
   // 선택된 날짜의 촬영 목록
   const selectedDateShootings = useMemo(() => {
@@ -307,9 +320,15 @@ export default function SchedulePage() {
             {/* 우측: 선택된 날짜의 일정 */}
             <Card className="h-fit">
               <CardHeader className="pb-2">
-                <CardTitle className="text-[14px] text-black font-bold">
+                <CardTitle className={cn(
+                  'text-[14px] font-bold',
+                  selectedHolidayName ? 'text-red-500' : 'text-black'
+                )}>
                   {format(selectedDate, 'M월 d일 (EEEE)', { locale: ko })}
                 </CardTitle>
+                {selectedHolidayName && (
+                  <p className="text-[12px] text-red-400">{selectedHolidayName}</p>
+                )}
                 <p className="text-[12px] text-gray-400">
                   {selectedDateShootings.length > 0
                     ? `${selectedDateShootings.length}건의 일정`
