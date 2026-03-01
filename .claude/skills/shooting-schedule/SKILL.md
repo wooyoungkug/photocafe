@@ -504,3 +504,117 @@ Phase 4 - 알림 & 고도화
 ├─ 마감 임박 알림
 ├─ 긴급도 자동 계산
 ```
+
+---
+
+## 공개구인 지역우선 메시지 발송 시스템 (구현 완료 2026-03-01)
+
+### 핵심 규칙
+
+```
+공개구인 메시지 발송 흐름:
+
+1. 촬영장소 주소에서 "시/도 시/군/구" 추출 (예: "서울특별시 강남구")
+2. 희망1지역이 일치하는 포토그래퍼에게 우선 발송 → 최대 100명
+3. 100명 미달 시 → 희망2지역 일치자에게 추가 발송 → 합계 100명까지
+4. 여전히 미달 시 → 희망3지역 일치자에게 추가 발송 → 합계 100명까지
+5. 촬영시간이 중복되는 포토그래퍼는 모든 단계에서 제외
+6. 주소 파싱 실패 시 → 기존 전체 발송 방식으로 fallback
+```
+
+### 숨고 벤치마킹 포인트
+
+| 숨고 기능 | Printing114 적용 |
+|-----------|------------------|
+| 요청서 → 지역 매칭 | 촬영장소 주소 → 희망지역 매칭 |
+| 전문가 10명에게 견적 | 포토그래퍼 100명에게 구인 메시지 |
+| 카테고리 + 지역 필터 | 촬영유형 + 시/군/구 단위 매칭 |
+| 자동 견적 (Auto Quote) | 자동 공개전환 + 자동 지역매칭 발송 |
+| 전문가 프로필/포트폴리오 | PhotographerProfile (경력, 포트폴리오, 장비) |
+| 신뢰도 배지 (거래 횟수) | 등급 배지 (NEW~PLATINUM, RI 점수) |
+| 일정 충돌 미지원 (숨고 약점) | ★ 촬영시간 충돌 자동 제외 (차별화) |
+
+### DB 모델
+
+#### PhotographerProfile (포토그래퍼 프로필)
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| id | String (cuid) | PK |
+| clientId | String @unique | FK → Client |
+| preferredRegion1 | String? | 희망 1지역 "서울특별시 강남구" |
+| preferredRegion2 | String? | 희망 2지역 |
+| preferredRegion3 | String? | 희망 3지역 |
+| introduction | String? | 자기소개 |
+| career | String? | 경력 이력 |
+| careerYears | Int? | 경력 년수 |
+| portfolioImages | String[] | 포트폴리오 이미지 URL |
+| specialties | String[] | 전문 촬영 유형 |
+| equipment | String? | 장비 정보 |
+| isAvailableForPublic | Boolean | 공개구인 수신 여부 |
+
+#### RecruitmentNotificationLog (발송 이력)
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| id | String (cuid) | PK |
+| recruitmentId | String | FK → Recruitment |
+| recipientId | String | FK → Client (포토그래퍼) |
+| regionTier | Int | 1, 2, 3 (몇번째 희망지역으로 매칭) |
+| matchedRegion | String? | 매칭된 지역명 |
+| channel | String | email / alimtalk |
+| status | String | sent / failed |
+| sentAt | DateTime | 발송 시각 |
+
+### 핵심 서비스
+
+| 서비스 | 파일 | 설명 |
+|--------|------|------|
+| RegionMatchingService | `recruitment/services/region-matching.service.ts` | 주소 파싱, 촬영시간 충돌 감지, 지역우선 매칭 |
+| PhotographerProfileService | `recruitment/services/photographer-profile.service.ts` | 프로필 CRUD |
+| RecruitmentNotificationService | `recruitment/services/recruitment-notification.service.ts` | 지역우선 발송 (sendPublicRecruitingNotificationWithRegionPriority) |
+
+### API 엔드포인트
+
+| Method | Path | 설명 |
+|--------|------|------|
+| GET | `/photographer-profile` | 내 프로필 조회 |
+| PUT | `/photographer-profile` | 프로필 등록/수정 |
+| GET | `/photographer-profile/regions` | 한국 행정구역 목록 |
+| GET | `/recruitments/:id/notifications` | 알림 발송 이력 |
+| POST | `/recruitments/:id/resend` | 알림 재발송 |
+
+### 프론트엔드
+
+| 경로 | 용도 |
+|------|------|
+| `/mypage/photographer-profile` | 포토그래퍼 프로필 설정 (희망지역, 경력, 전문성) |
+| `/mypage/recruitment/[id]` | 구인 상세 - 알림 발송 현황 섹션 추가 |
+
+### 상수 파일
+
+- **백엔드**: `recruitment/constants/korean-regions.constants.ts` (17개 시/도 → ~250개 시/군/구)
+- **프론트**: `lib/constants/korean-regions.ts` (RegionSelector 컴포넌트용)
+- **설정**: TARGET_COUNT=100, CONFLICT_BUFFER=120분, BATCH_SIZE=50
+
+### 촬영시간 충돌 판단 로직
+
+```
+hasScheduleConflict(clientId, shootingDate, shootingTime, duration):
+
+  촬영 시작: shootingDate + shootingTime
+  촬영 종료: 시작 + duration (기본 120분)
+  충돌 범위: 시작 - 2시간 ~ 종료 + 2시간 (이동시간 버퍼)
+
+  확인: RecruitmentBid(status=selected)인 다른 Recruitment와 시간 겹침 여부
+  시간 미지정: 해당 날짜 전체(00:00~23:59)를 충돌 범위로 간주
+```
+
+### 주소 파싱 알고리즘
+
+```
+extractRegion("서울특별시 강남구 역삼동 123-45"):
+  → 공백 split → 첫 토큰(특별시/광역시/도) = 시/도
+  → 둘째 토큰(시/군/구) = 시/군/구
+  → 결과: "서울특별시 강남구"
+```
