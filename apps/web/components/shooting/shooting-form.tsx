@@ -16,9 +16,34 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { AddressSearch } from '@/components/address-search';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Info } from 'lucide-react';
 import type { ShootingType, CreateShootingDto, Shooting } from '@/hooks/use-shooting';
 import { SHOOTING_TYPE_LABELS } from '@/hooks/use-shooting';
+import { useMemo } from 'react';
+
+// ==================== 평균 예산 참고 데이터 ====================
+
+/** 촬영유형별 시간당 평균 예산 (원) */
+const AVERAGE_BUDGET_PER_HOUR: Record<string, number> = {
+  wedding: 150000,
+  studio: 80000,
+  outdoor: 100000,
+  product: 70000,
+  profile: 70000,
+  event: 120000,
+  other: 80000,
+};
+
+/** 촬영유형별 기본 소요시간 (분) */
+const DEFAULT_DURATION_MINUTES: Record<string, number> = {
+  wedding: 240,
+  studio: 120,
+  outdoor: 180,
+  product: 120,
+  profile: 60,
+  event: 180,
+  other: 120,
+};
 
 // ==================== Zod 스키마 ====================
 
@@ -90,6 +115,25 @@ export function ShootingForm({
     watch,
     formState: { errors },
   } = form;
+
+  const watchedType = watch('type');
+  const watchedDuration = watch('estimatedDuration');
+
+  const averageBudgetInfo = useMemo(() => {
+    if (!watchedType || !AVERAGE_BUDGET_PER_HOUR[watchedType]) return null;
+
+    const durationMin = watchedDuration || DEFAULT_DURATION_MINUTES[watchedType] || 120;
+    const hours = durationMin / 60;
+    const avgBudget = Math.round(AVERAGE_BUDGET_PER_HOUR[watchedType] * hours);
+    const typeLabel = SHOOTING_TYPE_LABELS[watchedType as ShootingType] || watchedType;
+    const isDefault = !watchedDuration;
+
+    return {
+      amount: avgBudget,
+      label: `${typeLabel} ${hours}시간${isDefault ? '(기본)' : ''} 평균 예산`,
+      formatted: avgBudget.toLocaleString('ko-KR'),
+    };
+  }, [watchedType, watchedDuration]);
 
   const handleFormSubmit = (values: ShootingFormValues) => {
     const dto: CreateShootingDto = {
@@ -201,16 +245,22 @@ export function ShootingForm({
             </div>
           </div>
 
-          {/* 예산 */}
+          {/* 촬영예산 */}
           <div className="space-y-1.5">
-            <Label className="text-[14px] text-black font-normal">예산 (원)</Label>
+            <Label className="text-[14px] text-black font-normal">촬영예산 (원)</Label>
             <Input
               type="number"
               {...register('budget')}
-              placeholder="촬영 예산"
+              placeholder={averageBudgetInfo ? `평균 ${averageBudgetInfo.formatted}원` : '촬영 예산'}
               min={0}
               className="text-[14px]"
             />
+            {averageBudgetInfo && (
+              <p className="text-[12px] text-gray-500 flex items-center gap-1">
+                <Info className="h-3 w-3" />
+                {averageBudgetInfo.label}: {averageBudgetInfo.formatted}원
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>
