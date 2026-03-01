@@ -13,6 +13,7 @@ import { useAuthStore } from '@/stores/auth-store';
 import { api } from '@/lib/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AddressSearch } from '@/components/address-search';
+import { Breadcrumb } from '@/components/ui/breadcrumb';
 
 // 전화번호 자동 하이픈 포맷
 function formatPhone(value: string): string {
@@ -217,6 +218,11 @@ export default function ProfilePage() {
 
   return (
     <div className="space-y-4 text-[14px] font-normal">
+      <Breadcrumb items={[
+        { label: '마이페이지', href: '/mypage/orders' },
+        { label: '회원정보' },
+      ]} />
+
       {/* 알림 메시지 */}
       {error && (
         <Alert variant="destructive" className="py-2">

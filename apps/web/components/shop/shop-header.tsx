@@ -203,13 +203,32 @@ export function ShopHeader() {
                     {th('honorific')}
                   </span>
                 </div>
-                <Link href="/mypage/my-products" className="block py-1.5 text-sm text-neutral-600 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
-                  마이상품
-                </Link>
                 <Link href="/mypage/orders" className="block py-1.5 text-sm text-neutral-600 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
                   {th('orderHistory')}
                 </Link>
+                <Link href="/mypage/my-products" className="block py-1.5 text-sm text-neutral-600 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
+                  마이상품
+                </Link>
+                <Link href="/mypage/monthly-summary" className="block py-1.5 text-sm text-neutral-600 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
+                  월거래집계
+                </Link>
+                <Link href="/mypage/addresses" className="block py-1.5 text-sm text-neutral-600 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
+                  배송지 관리
+                </Link>
+                <Link href="/mypage/deposits" className="block py-1.5 text-sm text-neutral-600 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
+                  입금내역
+                </Link>
+                <Link href="/mypage/schedule" className="block py-1.5 text-sm text-neutral-600 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
+                  일정관리
+                </Link>
+                <Link href="/mypage/recruitment" className="block py-1.5 text-sm text-neutral-600 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
+                  구인방
+                </Link>
+                <Link href="/mypage/profile" className="block py-1.5 text-sm text-neutral-600 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
+                  회원정보
+                </Link>
                 <button
+                  type="button"
                   className="block py-1.5 text-sm text-red-500"
                   onClick={() => {
                     logout();

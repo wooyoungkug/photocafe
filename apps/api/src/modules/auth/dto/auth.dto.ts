@@ -32,7 +32,7 @@ export class ClientRegisterDto {
   @ApiProperty({ example: 'password123', description: '비밀번호' })
   @IsString()
   @IsNotEmpty({ message: '비밀번호를 입력해주세요' })
-  @MinLength(6, { message: '비밀번호는 6자 이상이어야 합니다' })
+  @MinLength(8, { message: '비밀번호는 8자 이상이어야 합니다' })
   password: string;
 
   @ApiProperty({ example: '홍길동', description: '이름' })

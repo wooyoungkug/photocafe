@@ -44,7 +44,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useAuthStore } from '@/stores/auth-store';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { ProcessHistoryDialog } from '@/components/order/process-history-dialog';
 import { TrackingTimeline } from '@/components/order/tracking-timeline';
 import { ReturnRequestDialog } from '@/components/order/return-request-dialog';
@@ -164,7 +164,6 @@ function getDeliveryStatusFromOrder(order: Order): { key: string; label: string;
 
 export default function MyOrdersPage() {
   const router = useRouter();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user, isAuthenticated } = useAuthStore();
 
@@ -317,16 +316,16 @@ export default function MyOrdersPage() {
         orderIds: deletableSelected.map(o => o.id),
       });
       if (result.success > 0) {
-        toast({ title: '주문 삭제 완료', description: `${result.success}건의 주문이 삭제되었습니다.` });
+        toast.success(`${result.success}건의 주문이 삭제되었습니다.`);
       } else {
-        toast({ title: '삭제 실패', description: '주문을 삭제할 수 없습니다. 상태를 확인해주세요.', variant: 'destructive' });
+        toast.error('주문을 삭제할 수 없습니다. 상태를 확인해주세요.');
       }
       setSelectedOrders(new Set());
       setShowDeleteDialog(false);
       queryClient.invalidateQueries({ queryKey: ['orders'] });
       queryClient.invalidateQueries({ queryKey: ['order-status-counts'] });
     } catch (error) {
-      toast({ title: '삭제 실패', description: '주문 삭제 중 오류가 발생했습니다.', variant: 'destructive' });
+      toast.error('주문 삭제 중 오류가 발생했습니다.');
     } finally {
       setIsDeleting(false);
     }
@@ -342,13 +341,13 @@ export default function MyOrdersPage() {
           api.patch(`/orders/${order.id}/cancel`, { reason: '고객 요청 취소' })
         )
       );
-      toast({ title: '주문 취소 완료', description: `${cancellableSelected.length}건의 주문이 취소되었습니다.` });
+      toast.success(`${cancellableSelected.length}건의 주문이 취소되었습니다.`);
       setSelectedOrders(new Set());
       setShowCancelDialog(false);
       setCancelPreview(null);
       queryClient.invalidateQueries({ queryKey: ['orders'] });
     } catch (error) {
-      toast({ title: '취소 실패', description: '주문 취소 중 오류가 발생했습니다.', variant: 'destructive' });
+      toast.error('주문 취소 중 오류가 발생했습니다.');
     } finally {
       setIsCancelling(false);
     }
