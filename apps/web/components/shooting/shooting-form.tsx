@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { AddressSearch } from '@/components/address-search';
+import { VenueSearchInput } from '@/components/recruitment/venue-search-input';
 import { Loader2, Info, Briefcase } from 'lucide-react';
 import type { CreateShootingDto, Shooting } from '@/hooks/use-shooting';
 import { SHOOTING_TYPE_LABELS } from '@/lib/constants/shooting-types';
@@ -160,13 +160,6 @@ export function ShootingForm({
     onSubmit(dto);
   };
 
-  const handleAddressComplete = (data: {
-    postalCode: string;
-    address: string;
-  }) => {
-    setValue('venueAddress', data.address, { shouldValidate: true });
-  };
-
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
       {/* 기본 정보 */}
@@ -265,31 +258,26 @@ export function ShootingForm({
             <Label className="text-[14px] text-black font-normal">
               장소명 <span className="text-red-500">*</span>
             </Label>
-            <Input
-              {...register('venueName')}
+            <VenueSearchInput
+              value={watch('venueName')}
+              onChange={(val) => setValue('venueName', val)}
+              onSelect={(place) => {
+                setValue('venueName', place.name, { shouldValidate: true });
+                setValue('venueAddress', place.address);
+              }}
               placeholder="예: 롯데호텔 서울"
-              className="text-[14px]"
+              error={errors.venueName?.message}
             />
-            {errors.venueName && (
-              <p className="text-[12px] text-red-500">{errors.venueName.message}</p>
-            )}
           </div>
 
           <div className="space-y-1.5">
             <Label className="text-[14px] text-black font-normal">주소</Label>
-            <div className="flex gap-2 items-start">
-              <Input
-                {...register('venueAddress')}
-                placeholder="주소를 검색해주세요"
-                readOnly
-                className="text-[14px] flex-1"
-              />
-              <AddressSearch
-                onComplete={handleAddressComplete}
-                inline
-                size="default"
-              />
-            </div>
+            <Input
+              {...register('venueAddress')}
+              placeholder="장소명을 입력하면 자동으로 채워집니다"
+              readOnly
+              className="text-[14px]"
+            />
           </div>
         </CardContent>
       </Card>
