@@ -64,6 +64,8 @@ function clearAllAuth() {
   sessionStorage.removeItem('accessToken');
   sessionStorage.removeItem('refreshToken');
   sessionStorage.removeItem('auth-storage');
+  // auth-verified 쿠키도 반드시 제거 (미들웨어 연동)
+  document.cookie = 'auth-verified=; path=/; max-age=0';
 }
 
 function redirectToLogin() {
@@ -85,10 +87,13 @@ function redirectToLogin() {
   window.location.href = isDashboard ? '/admin-login' : '/login';
 }
 
-// refresh token으로 새 access token 발급
+// refresh token으로 새 access token 발급 (네트워크 에러 시 1회 재시도)
 async function refreshAccessToken(): Promise<string | null> {
   const refreshToken = getRefreshToken();
-  if (!refreshToken) return null;
+  if (!refreshToken) {
+    console.warn('[Auth] refresh 실패: refreshToken 없음');
+    return null;
+  }
 
   // 이미 갱신 중이면 기존 Promise 재사용 (중복 요청 방지)
   if (isRefreshing && refreshPromise) {
@@ -97,50 +102,58 @@ async function refreshAccessToken(): Promise<string | null> {
 
   isRefreshing = true;
   refreshPromise = (async () => {
-    try {
-      const response = await fetch(`${API_URL}/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken }),
-      });
+    // 네트워크 에러 시 1회 재시도 (서버 재시작 중 대응)
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const response = await fetch(`${API_URL}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken }),
+        });
 
-      if (!response.ok) {
+        if (!response.ok) {
+          console.warn(`[Auth] refresh 실패: HTTP ${response.status}`);
+          return null; // 서버가 명시적으로 거부한 경우 재시도 안함
+        }
+
+        const data = await response.json();
+        saveTokens(data.accessToken, data.refreshToken);
+
+        // Zustand auth store도 동기화
+        try {
+          const storageKey = 'auth-storage';
+          const storage = isRememberMe() ? localStorage : sessionStorage;
+          const stored = storage.getItem(storageKey);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (parsed?.state) {
+              parsed.state.accessToken = data.accessToken;
+              if (data.refreshToken) {
+                parsed.state.refreshToken = data.refreshToken;
+              }
+              if (data.user) {
+                parsed.state.user = { ...parsed.state.user, ...data.user };
+              }
+              storage.setItem(storageKey, JSON.stringify(parsed));
+            }
+          }
+        } catch {
+          // 스토어 동기화 실패해도 토큰 갱신은 성공
+        }
+
+        return data.accessToken as string;
+      } catch (err) {
+        // 네트워크 에러 (서버 재시작 중 등) - 첫 번째 시도면 재시도
+        if (attempt === 0) {
+          console.warn('[Auth] refresh 네트워크 에러, 2초 후 재시도...', err);
+          await new Promise(r => setTimeout(r, 2000));
+          continue;
+        }
+        console.warn('[Auth] refresh 최종 실패:', err);
         return null;
       }
-
-      const data = await response.json();
-      saveTokens(data.accessToken, data.refreshToken);
-
-      // Zustand auth store도 동기화
-      try {
-        const storageKey = 'auth-storage';
-        const storage = isRememberMe() ? localStorage : sessionStorage;
-        const stored = storage.getItem(storageKey);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (parsed?.state) {
-            parsed.state.accessToken = data.accessToken;
-            if (data.refreshToken) {
-              parsed.state.refreshToken = data.refreshToken;
-            }
-            // 서버에서 user 데이터도 반환한 경우 갱신
-            if (data.user) {
-              parsed.state.user = { ...parsed.state.user, ...data.user };
-            }
-            storage.setItem(storageKey, JSON.stringify(parsed));
-          }
-        }
-      } catch {
-        // 스토어 동기화 실패해도 토큰 갱신은 성공
-      }
-
-      return data.accessToken as string;
-    } catch {
-      return null;
-    } finally {
-      isRefreshing = false;
-      refreshPromise = null;
     }
+    return null;
   })();
 
   return refreshPromise;
@@ -207,6 +220,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
       }
 
       // refresh 실패 → 로그인 페이지로 이동
+      console.warn(`[Auth] 로그아웃 처리: endpoint=${endpoint}, isRetry=${_isRetry}`);
       clearAllAuth();
       redirectToLogin();
       throw new Error('Unauthorized');
