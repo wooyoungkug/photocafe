@@ -306,12 +306,38 @@ export class ShootingService {
         }
       }
 
-      // 구인방 연동 동기화 (공통 필드 변경 시)
-      this.syncService
-        .syncFieldUpdate('shooting', id, dto)
-        .catch((err) =>
-          this.logger.warn(`Shooting field sync failed: ${err.message}`),
-        );
+      // 구인 연동: enableRecruitment=true이고 아직 연동된 구인이 없으면 새로 생성
+      if (dto.enableRecruitment && !shooting.linkedRecruitmentId) {
+        let clientId = dto.recruitmentClientId;
+        if (!clientId) {
+          const user = await this.prisma.user.findUnique({
+            where: { id: shooting.createdBy },
+            select: { clientId: true },
+          });
+          clientId = user?.clientId || undefined;
+        }
+
+        if (clientId) {
+          this.syncService
+            .syncShootingToRecruitment(id, {
+              clientId,
+              title: dto.recruitmentTitle,
+              budget: dto.recruitmentBudget,
+              description: dto.recruitmentDescription,
+              requirements: dto.recruitmentRequirements,
+            })
+            .catch((err) =>
+              this.logger.warn(`Shooting→Recruitment sync failed: ${err.message}`),
+            );
+        }
+      } else {
+        // 구인방 연동 동기화 (공통 필드 변경 시)
+        this.syncService
+          .syncFieldUpdate('shooting', id, dto)
+          .catch((err) =>
+            this.logger.warn(`Shooting field sync failed: ${err.message}`),
+          );
+      }
 
       return updated;
     });
