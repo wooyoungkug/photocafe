@@ -417,6 +417,8 @@ model Client {
   recruitments            Recruitment[]      @relation("RecruitmentClient")
   createdRecruitments     Recruitment[]      @relation("RecruitmentCreator")
   recruitmentBids         RecruitmentBid[]   @relation("RecruitmentBidder")
+  photographerProfile     PhotographerProfile?
+  notificationsReceived   RecruitmentNotificationLog[] @relation("NotificationRecipient")
 
   @@unique([oauthProvider, oauthId])
   @@index([groupId])
@@ -3184,9 +3186,10 @@ model Recruitment {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  client  Client           @relation("RecruitmentClient", fields: [clientId], references: [id])
-  creator Client           @relation("RecruitmentCreator", fields: [createdBy], references: [id])
-  bids    RecruitmentBid[]
+  client            Client           @relation("RecruitmentClient", fields: [clientId], references: [id])
+  creator           Client           @relation("RecruitmentCreator", fields: [createdBy], references: [id])
+  bids              RecruitmentBid[]
+  notificationLogs  RecruitmentNotificationLog[]
 
   @@index([status])
   @@index([clientId])
@@ -3212,4 +3215,56 @@ model RecruitmentBid {
   @@index([bidderId])
   @@index([status])
   @@map("recruitment_bids")
+}
+
+// ── 포토그래퍼 프로필 (희망지역 + 경력) ─────────────────────
+model PhotographerProfile {
+  id                   String   @id @default(cuid())
+  clientId             String   @unique
+
+  // 희망 지역 (시/군/구 단위, 우선순위별)
+  preferredRegion1     String?                          // "서울특별시 강남구"
+  preferredRegion2     String?                          // "경기도 성남시"
+  preferredRegion3     String?                          // "인천광역시 남동구"
+
+  // 프로필 정보
+  introduction         String?
+  career               String?
+  careerYears          Int?
+  portfolioImages      String[]  @default([])
+  specialties          String[]  @default([])
+  equipment            String?
+
+  // 가용 설정
+  isAvailableForPublic Boolean   @default(true)
+
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([preferredRegion1])
+  @@index([preferredRegion2])
+  @@index([preferredRegion3])
+  @@index([isAvailableForPublic])
+  @@map("photographer_profiles")
+}
+
+// ── 구인 알림 발송 로그 ──────────────────────────────────────
+model RecruitmentNotificationLog {
+  id             String   @id @default(cuid())
+  recruitmentId  String
+  recipientId    String                                 // Client ID (포토그래퍼)
+  regionTier     Int                                    // 1, 2, 3
+  matchedRegion  String?                                // 매칭된 지역명
+  channel        String   @default("email")             // email | alimtalk
+  status         String   @default("sent")              // sent | failed
+  sentAt         DateTime @default(now())
+
+  recruitment Recruitment @relation(fields: [recruitmentId], references: [id], onDelete: Cascade)
+  recipient   Client      @relation("NotificationRecipient", fields: [recipientId], references: [id])
+
+  @@unique([recruitmentId, recipientId])
+  @@index([recruitmentId])
+  @@map("recruitment_notification_logs")
 }
