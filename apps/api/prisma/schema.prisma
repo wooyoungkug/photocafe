@@ -428,17 +428,17 @@ model Client {
   @@map("clients")
 }
 
-model PhoneVerification {
+model EmailVerification {
   id        String   @id @default(cuid())
-  phone     String
+  email     String
   code      String
   verified  Boolean  @default(false)
   expiresAt DateTime
   createdAt DateTime @default(now())
 
-  @@index([phone, code])
-  @@index([phone, createdAt])
-  @@map("phone_verifications")
+  @@index([email, code])
+  @@index([email, createdAt])
+  @@map("email_verifications")
 }
 
 model ClientAlbumPreference {

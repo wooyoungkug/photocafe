@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsString, MinLength, IsNotEmpty, IsOptional, IsIn, IsBoolean, Matches, Length } from 'class-validator';
+import { IsEmail, IsString, MinLength, IsNotEmpty, IsOptional, IsIn, IsBoolean, Length } from 'class-validator';
 
 export class RefreshTokenDto {
   @ApiProperty({ description: 'Refresh Token' })
@@ -40,39 +40,36 @@ export class ClientRegisterDto {
   @IsNotEmpty({ message: '이름을 입력해주세요' })
   name: string;
 
-  @ApiProperty({ example: '01012345678', description: '전화번호' })
-  @IsString()
-  @IsNotEmpty({ message: '전화번호를 입력해주세요' })
-  @Matches(/^01[0-9]{8,9}$/, { message: '올바른 전화번호 형식이 아닙니다' })
-  phone: string;
+  @ApiProperty({ example: 'user@example.com', description: '이메일' })
+  @IsEmail({}, { message: '올바른 이메일 형식이 아닙니다' })
+  @IsNotEmpty({ message: '이메일을 입력해주세요' })
+  contactEmail: string;
 
-  @ApiProperty({ example: 'cuid_verification_id', description: '전화번호 인증 ID' })
+  @ApiProperty({ example: 'cuid_verification_id', description: '이메일 인증 ID' })
   @IsString()
-  @IsNotEmpty({ message: '전화번호 인증이 필요합니다' })
+  @IsNotEmpty({ message: '이메일 인증이 필요합니다' })
   verificationId: string;
 
-  @ApiPropertyOptional({ example: 'user@example.com', description: '이메일' })
+  @ApiPropertyOptional({ example: '01012345678', description: '전화번호' })
   @IsOptional()
+  @IsString()
+  phone?: string;
+}
+
+// ========== 이메일 인증 DTO ==========
+
+export class SendEmailVerificationDto {
+  @ApiProperty({ example: 'user@example.com', description: '이메일' })
   @IsEmail({}, { message: '올바른 이메일 형식이 아닙니다' })
-  contactEmail?: string;
+  @IsNotEmpty({ message: '이메일을 입력해주세요' })
+  email: string;
 }
 
-// ========== 전화번호 인증 DTO ==========
-
-export class SendPhoneVerificationDto {
-  @ApiProperty({ example: '01012345678', description: '전화번호 (하이픈 없이)' })
-  @IsString()
-  @IsNotEmpty({ message: '전화번호를 입력해주세요' })
-  @Matches(/^01[0-9]{8,9}$/, { message: '올바른 전화번호 형식이 아닙니다' })
-  phone: string;
-}
-
-export class VerifyPhoneDto {
-  @ApiProperty({ example: '01012345678', description: '전화번호' })
-  @IsString()
-  @IsNotEmpty({ message: '전화번호를 입력해주세요' })
-  @Matches(/^01[0-9]{8,9}$/, { message: '올바른 전화번호 형식이 아닙니다' })
-  phone: string;
+export class VerifyEmailDto {
+  @ApiProperty({ example: 'user@example.com', description: '이메일' })
+  @IsEmail({}, { message: '올바른 이메일 형식이 아닙니다' })
+  @IsNotEmpty({ message: '이메일을 입력해주세요' })
+  email: string;
 
   @ApiProperty({ example: '123456', description: '인증코드 6자리' })
   @IsString()

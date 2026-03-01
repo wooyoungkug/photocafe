@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { useClientRegister, useCheckLoginId, useSendPhoneVerification, useVerifyPhone } from '@/hooks/use-auth';
+import { useClientRegister, useCheckLoginId, useSendEmailVerification, useVerifyEmail } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,22 +12,22 @@ import { AlertCircle, CheckCircle2, Loader2, User, Lock, UserPlus, Phone, Mail }
 export default function RegisterPage() {
   const register = useClientRegister();
   const checkLoginId = useCheckLoginId();
-  const sendVerification = useSendPhoneVerification();
-  const verifyPhone = useVerifyPhone();
+  const sendVerification = useSendEmailVerification();
+  const verifyEmail = useVerifyEmail();
 
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [verificationId, setVerificationId] = useState<string | null>(null);
-  const [contactEmail, setContactEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loginIdChecked, setLoginIdChecked] = useState(false);
   const [loginIdAvailable, setLoginIdAvailable] = useState<boolean | null>(null);
   const [codeSent, setCodeSent] = useState(false);
-  const [phoneVerified, setPhoneVerified] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(false);
   const [countdown, setCountdown] = useState(0);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
@@ -67,40 +67,39 @@ export default function RegisterPage() {
     setLoginIdAvailable(null);
   };
 
-  const formatPhoneNumber = useCallback((value: string) => {
-    return value.replace(/[^0-9]/g, '').slice(0, 11);
-  }, []);
-
-  const handlePhoneChange = (value: string) => {
-    const formatted = formatPhoneNumber(value);
-    setPhone(formatted);
-    // 전화번호 변경 시 인증 초기화
-    if (phoneVerified) {
-      setPhoneVerified(false);
+  const handleEmailChange = (value: string) => {
+    setContactEmail(value);
+    // 이메일 변경 시 인증 초기화
+    if (emailVerified) {
+      setEmailVerified(false);
       setVerificationId(null);
       setCodeSent(false);
       setVerificationCode('');
     }
   };
 
+  const formatPhoneNumber = useCallback((value: string) => {
+    return value.replace(/[^0-9]/g, '').slice(0, 11);
+  }, []);
+
   const handleSendVerification = async () => {
-    if (!phone || phone.length < 10) {
-      setError('올바른 전화번호를 입력해주세요.');
+    if (!contactEmail) {
+      setError('이메일을 입력해주세요.');
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(contactEmail)) {
+      setError('올바른 이메일 형식이 아닙니다.');
       return;
     }
     setError(null);
     try {
-      const result = await sendVerification.mutateAsync(phone);
+      await sendVerification.mutateAsync(contactEmail);
       setCodeSent(true);
       setCountdown(180); // 3분 카운트다운
-      setPhoneVerified(false);
+      setVerificationCode('');
+      setEmailVerified(false);
       setVerificationId(null);
-      // SMS 미설정(개발모드) 시 인증코드 자동 입력
-      if (result.devCode) {
-        setVerificationCode(result.devCode);
-      } else {
-        setVerificationCode('');
-      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '인증코드 발송에 실패했습니다.';
       setError(msg);
@@ -114,9 +113,9 @@ export default function RegisterPage() {
     }
     setError(null);
     try {
-      const result = await verifyPhone.mutateAsync({ phone, code: verificationCode });
+      const result = await verifyEmail.mutateAsync({ email: contactEmail, code: verificationCode });
       if (result.verified) {
-        setPhoneVerified(true);
+        setEmailVerified(true);
         setVerificationId(result.verificationId);
         setCountdown(0);
       }
@@ -130,7 +129,7 @@ export default function RegisterPage() {
     e.preventDefault();
     setError(null);
 
-    if (!loginId || !password || !name || !phone) {
+    if (!loginId || !password || !name || !contactEmail) {
       setError('필수 항목을 모두 입력해주세요.');
       return;
     }
@@ -155,8 +154,8 @@ export default function RegisterPage() {
       return;
     }
 
-    if (!phoneVerified || !verificationId) {
-      setError('전화번호 인증을 완료해주세요.');
+    if (!emailVerified || !verificationId) {
+      setError('이메일 인증을 완료해주세요.');
       return;
     }
 
@@ -165,9 +164,9 @@ export default function RegisterPage() {
         loginId,
         password,
         name,
-        phone,
+        contactEmail,
         verificationId,
-        contactEmail: contactEmail || undefined,
+        phone: phone || undefined,
       });
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : '회원가입에 실패했습니다.';
@@ -290,52 +289,51 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* 전화번호 + 인증 */}
+            {/* 이메일 + 인증 */}
             <div className="space-y-1.5">
-              <Label htmlFor="phone" className="text-[14px] text-black font-normal">
-                전화번호 <span className="text-red-500">*</span>
+              <Label htmlFor="contactEmail" className="text-[14px] text-black font-normal">
+                이메일 <span className="text-red-500">*</span>
               </Label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="01012345678"
-                    value={phone}
-                    onChange={(e) => handlePhoneChange(e.target.value)}
+                    id="contactEmail"
+                    type="email"
+                    placeholder="이메일 입력"
+                    value={contactEmail}
+                    onChange={(e) => handleEmailChange(e.target.value)}
                     className="pl-10 h-11"
-                    autoComplete="tel"
-                    disabled={phoneVerified}
-                    maxLength={11}
+                    autoComplete="email"
+                    disabled={emailVerified}
                   />
                 </div>
                 <Button
                   type="button"
-                  variant={phoneVerified ? 'outline' : 'default'}
-                  className={`h-11 px-4 shrink-0 ${phoneVerified ? 'text-green-600 border-green-300' : 'bg-[#E4007F] hover:bg-[#C5006D] text-white'}`}
+                  variant={emailVerified ? 'outline' : 'default'}
+                  className={`h-11 px-4 shrink-0 ${emailVerified ? 'text-green-600 border-green-300' : 'bg-[#E4007F] hover:bg-[#C5006D] text-white'}`}
                   onClick={handleSendVerification}
-                  disabled={sendVerification.isPending || phone.length < 10 || phoneVerified || countdown > 0}
+                  disabled={sendVerification.isPending || !contactEmail || emailVerified || countdown > 0}
                 >
                   {sendVerification.isPending ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : phoneVerified ? (
+                  ) : emailVerified ? (
                     <><CheckCircle2 className="h-4 w-4 mr-1" /> 인증완료</>
                   ) : countdown > 0 ? (
                     formatCountdown(countdown)
                   ) : codeSent ? '재발송' : '인증요청'}
                 </Button>
               </div>
-              {phoneVerified && (
+              {emailVerified && (
                 <p className="flex items-center gap-1 text-sm text-green-600">
                   <CheckCircle2 className="h-3.5 w-3.5" />
-                  전화번호 인증이 완료되었습니다.
+                  이메일 인증이 완료되었습니다.
                 </p>
               )}
             </div>
 
             {/* 인증코드 입력 (발송 후 & 미인증 시에만 표시) */}
-            {codeSent && !phoneVerified && (
+            {codeSent && !emailVerified && (
               <div className="space-y-1.5">
                 <Label htmlFor="verificationCode" className="text-[14px] text-black font-normal">인증코드</Label>
                 <div className="flex gap-2">
@@ -353,9 +351,9 @@ export default function RegisterPage() {
                     variant="outline"
                     className="h-11 px-4 shrink-0"
                     onClick={handleVerifyCode}
-                    disabled={verifyPhone.isPending || verificationCode.length !== 6}
+                    disabled={verifyEmail.isPending || verificationCode.length !== 6}
                   >
-                    {verifyPhone.isPending ? (
+                    {verifyEmail.isPending ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : '확인'}
                   </Button>
@@ -368,21 +366,22 @@ export default function RegisterPage() {
               </div>
             )}
 
-            {/* 이메일 (선택) */}
+            {/* 전화번호 (선택) */}
             <div className="space-y-1.5">
-              <Label htmlFor="contactEmail" className="text-[14px] text-black font-normal">
-                이메일 <span className="text-gray-400 text-xs">(선택)</span>
+              <Label htmlFor="phone" className="text-[14px] text-black font-normal">
+                전화번호 <span className="text-gray-400 text-xs">(선택)</span>
               </Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
-                  id="contactEmail"
-                  type="email"
-                  placeholder="이메일 입력"
-                  value={contactEmail}
-                  onChange={(e) => setContactEmail(e.target.value)}
+                  id="phone"
+                  type="tel"
+                  placeholder="01012345678"
+                  value={phone}
+                  onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
                   className="pl-10 h-11"
-                  autoComplete="email"
+                  autoComplete="tel"
+                  maxLength={11}
                 />
               </div>
             </div>
@@ -390,7 +389,7 @@ export default function RegisterPage() {
             <Button
               type="submit"
               className="w-full h-11 bg-[#E4007F] hover:bg-[#C5006D] text-white mt-2"
-              disabled={register.isPending || !phoneVerified}
+              disabled={register.isPending || !emailVerified}
             >
               {register.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />

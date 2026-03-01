@@ -28,9 +28,9 @@ interface ClientRegisterRequest {
   loginId: string;
   password: string;
   name: string;
-  phone: string;
+  contactEmail: string;
   verificationId: string;
-  contactEmail?: string;
+  phone?: string;
 }
 
 export function useClientLogin() {
@@ -59,17 +59,17 @@ export function useClientRegister() {
   });
 }
 
-export function useSendPhoneVerification() {
+export function useSendEmailVerification() {
   return useMutation({
-    mutationFn: (phone: string) =>
-      api.post<{ success: boolean; message: string; devCode?: string }>('/auth/client/send-phone-verification', { phone }),
+    mutationFn: (email: string) =>
+      api.post<{ success: boolean; message: string }>('/auth/client/send-email-verification', { email }),
   });
 }
 
-export function useVerifyPhone() {
+export function useVerifyEmail() {
   return useMutation({
-    mutationFn: (data: { phone: string; code: string }) =>
-      api.post<{ verified: boolean; verificationId: string }>('/auth/client/verify-phone', data),
+    mutationFn: (data: { email: string; code: string }) =>
+      api.post<{ verified: boolean; verificationId: string }>('/auth/client/verify-email', data),
   });
 }
 

@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '@/common/prisma/prisma.service';
-import { SmsService } from '@/common/sms/sms.service';
+import { EmailService } from '@/common/email/email.service';
 
 interface OAuthTokenData {
   accessToken: string;
@@ -23,7 +23,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private configService: ConfigService,
-    private smsService: SmsService,
+    private emailService: EmailService,
   ) { }
 
   /** OAuth 콜백용: 토큰을 임시 코드로 저장 (60초 TTL) */
@@ -468,16 +468,16 @@ export class AuthService {
     loginId: string,
     password: string,
     name: string,
-    phone: string,
+    contactEmail: string,
     verificationId: string,
-    contactEmail?: string,
+    phone?: string,
   ) {
-    // 전화번호 인증 확인
-    const verification = await this.prisma.phoneVerification.findUnique({
+    // 이메일 인증 확인
+    const verification = await this.prisma.emailVerification.findUnique({
       where: { id: verificationId },
     });
-    if (!verification || !verification.verified || verification.phone !== phone) {
-      throw new BadRequestException('전화번호 인증이 완료되지 않았습니다');
+    if (!verification || !verification.verified || verification.email !== contactEmail) {
+      throw new BadRequestException('이메일 인증이 완료되지 않았습니다');
     }
     if (verification.expiresAt < new Date()) {
       throw new BadRequestException('인증이 만료되었습니다. 다시 인증해주세요');
@@ -500,8 +500,8 @@ export class AuthService {
         clientName: name,
         email: loginId,
         password: hashedPassword,
-        mobile: phone,
-        contactEmail: contactEmail || undefined,
+        contactEmail,
+        mobile: phone || undefined,
         memberType: 'individual',
         priceType: 'standard',
         paymentType: 'order',
@@ -510,18 +510,18 @@ export class AuthService {
     });
 
     // 사용된 인증 레코드 삭제
-    await this.prisma.phoneVerification.delete({ where: { id: verificationId } }).catch(() => {});
+    await this.prisma.emailVerification.delete({ where: { id: verificationId } }).catch(() => {});
 
     return { success: true, message: '회원가입이 완료되었습니다' };
   }
 
-  // ========== 전화번호 인증 ==========
+  // ========== 이메일 인증 ==========
 
-  async sendPhoneVerification(phone: string) {
-    // 1분 이내 동일 번호 요청 확인 (스팸 방지)
-    const recent = await this.prisma.phoneVerification.findFirst({
+  async sendEmailVerification(email: string) {
+    // 1분 이내 동일 이메일 요청 확인 (스팸 방지)
+    const recent = await this.prisma.emailVerification.findFirst({
       where: {
-        phone,
+        email,
         createdAt: { gt: new Date(Date.now() - 60 * 1000) },
       },
       orderBy: { createdAt: 'desc' },
@@ -534,39 +534,39 @@ export class AuthService {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 3 * 60 * 1000); // 3분
 
-    const verification = await this.prisma.phoneVerification.create({
-      data: { phone, code, expiresAt },
+    await this.prisma.emailVerification.create({
+      data: { email, code, expiresAt },
     });
 
-    // SMS 발송
-    const message = `[Printing114] 인증코드: ${code} (3분 이내 입력)`;
-    const smsConfigured = this.smsService.isConfigured();
-    let smsSent = false;
+    // 이메일 발송
+    const result = await this.emailService.sendEmail({
+      to: email,
+      subject: '[Printing114] 회원가입 인증코드',
+      html: `
+        <div style="font-family: sans-serif; max-width: 400px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #E4007F;">Printing114 인증코드</h2>
+          <p>아래 인증코드를 입력해주세요.</p>
+          <div style="background: #f5f5f5; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
+            <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #333;">${code}</span>
+          </div>
+          <p style="color: #888; font-size: 13px;">이 코드는 3분 후 만료됩니다.</p>
+        </div>
+      `,
+    });
 
-    if (smsConfigured) {
-      const result = await this.smsService.sendSms(phone, message);
-      smsSent = result.success;
-      if (!result.success) {
-        this.logger.warn(`SMS 발송 실패 (${phone}): ${result.error}`);
-      }
-    } else {
-      this.logger.warn(`SMS 미설정 - 인증코드를 응답에 포함합니다`);
+    if (!result.success) {
+      this.logger.warn(`이메일 발송 실패 (${email}): ${result.error}`);
     }
 
-    this.logger.log(`[개발용] 전화번호 인증코드 - ${phone}: ${code}`);
+    this.logger.log(`[개발용] 이메일 인증코드 - ${email}: ${code}`);
 
-    // SMS 미설정 시 응답에 인증코드 포함 (개발용)
-    return {
-      success: true,
-      message: smsSent ? '인증코드가 발송되었습니다' : '인증코드가 발송되었습니다 (개발모드)',
-      ...(!smsConfigured && { devCode: code }),
-    };
+    return { success: true, message: '인증코드가 발송되었습니다' };
   }
 
-  async verifyPhoneCode(phone: string, code: string) {
-    const verification = await this.prisma.phoneVerification.findFirst({
+  async verifyEmailCode(email: string, code: string) {
+    const verification = await this.prisma.emailVerification.findFirst({
       where: {
-        phone,
+        email,
         code,
         verified: false,
         expiresAt: { gt: new Date() },
@@ -578,7 +578,7 @@ export class AuthService {
       throw new BadRequestException('인증코드가 올바르지 않거나 만료되었습니다');
     }
 
-    await this.prisma.phoneVerification.update({
+    await this.prisma.emailVerification.update({
       where: { id: verification.id },
       data: { verified: true },
     });
