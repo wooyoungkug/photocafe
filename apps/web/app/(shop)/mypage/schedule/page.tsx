@@ -35,7 +35,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { getHolidaysForRange } from '@/lib/constants/holidays';
+import { useHolidaysRange } from '@/hooks/use-holidays';
 import { useAuthStore } from '@/stores/auth-store';
 import { useShootings } from '@/hooks/use-shooting';
 import type { Shooting, ShootingType, ShootingStatus } from '@/hooks/use-shooting';
@@ -139,11 +139,8 @@ export default function SchedulePage() {
 
   const shootings = shootingsResponse?.data || [];
 
-  // 공휴일 맵
-  const holidays = useMemo(() => {
-    const year = currentMonth.getFullYear();
-    return getHolidaysForRange(year - 1, year + 1);
-  }, [currentMonth]);
+  // 공휴일 맵 (API 우선, 정적 데이터 폴백)
+  const holidays = useHolidaysRange(currentMonth.getFullYear());
 
   // 선택된 날짜의 공휴일 이름
   const selectedHolidayName = useMemo(() => {

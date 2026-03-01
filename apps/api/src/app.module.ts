@@ -30,6 +30,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AuditLogModule } from './modules/audit-log/audit-log.module';
 import { EmploymentModule } from './modules/employment/employment.module';
 import { ShootingModule } from './modules/shooting/shooting.module';
+import { HolidayModule } from './modules/holiday/holiday.module';
 import { IpBlockMiddleware } from './modules/analytics/ip-block.middleware';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { EmailModule } from './common/email/email.module';
@@ -93,6 +94,7 @@ import { AppController } from './app.controller';
     AuditLogModule,
     EmploymentModule,
     ShootingModule,
+    HolidayModule,
   ],
 })
 export class AppModule implements NestModule {

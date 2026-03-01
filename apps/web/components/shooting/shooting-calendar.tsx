@@ -27,7 +27,7 @@ import type { Shooting } from '@/hooks/use-shooting';
 import { SHOOTING_TYPE_LABELS } from '@/hooks/use-shooting';
 import { SHOOTING_TYPE_COLORS } from './shooting-type-badge';
 import type { CalendarViewMode } from '@/stores/shooting-store';
-import { getHolidaysForRange } from '@/lib/constants/holidays';
+import { useHolidaysRange } from '@/hooks/use-holidays';
 
 interface ShootingCalendarProps {
   shootings: Shooting[];
@@ -99,11 +99,8 @@ export function ShootingCalendar({
     onDateSelect(today);
   };
 
-  // 공휴일 맵 (현재 월 기준 전후 연도 포함)
-  const holidays = useMemo(() => {
-    const year = currentMonth.getFullYear();
-    return getHolidaysForRange(year - 1, year + 1);
-  }, [currentMonth]);
+  // 공휴일 맵 (API 우선, 정적 데이터 폴백)
+  const holidays = useHolidaysRange(currentMonth.getFullYear());
 
   // 날짜별 촬영 그룹핑
   const shootingsByDate = useMemo(() => {
