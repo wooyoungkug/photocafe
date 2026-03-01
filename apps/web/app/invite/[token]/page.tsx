@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { AlertCircle, CheckCircle2, Loader2, UserPlus, LogIn, Globe } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2, UserPlus, Globe } from 'lucide-react';
 
 type AcceptMode = 'choose' | 'new' | 'existing' | 'oauth';
 
@@ -212,17 +212,6 @@ export default function InviteAcceptPage() {
                 <div className="text-left">
                   <div className="text-[14px] font-medium">새 계정 만들기</div>
                   <div className="text-[10px] text-gray-500">아이디/비밀번호로 가입</div>
-                </div>
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full h-auto py-3 justify-start"
-                onClick={() => { setError(null); setMode('existing'); }}
-              >
-                <LogIn className="h-4 w-4 mr-3 flex-shrink-0" />
-                <div className="text-left">
-                  <div className="text-[14px] font-medium">기존 계정으로 연결</div>
-                  <div className="text-[10px] text-gray-500">이미 회원인 경우</div>
                 </div>
               </Button>
             </div>
