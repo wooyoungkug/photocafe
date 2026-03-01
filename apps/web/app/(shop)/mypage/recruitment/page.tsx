@@ -251,10 +251,11 @@ export default function RecruitmentListPage() {
   const router = useRouter();
   const { user } = useAuthStore();
 
-  // 직원(staff/admin) 여부 판별
+  // 내 구인 탭 표시: 직원이거나 clientId가 있는 사용자
   const isStaff = user?.role === 'admin' || user?.role === 'staff';
+  const canManageRecruitment = isStaff || !!user?.clientId;
 
-  const [activeTab, setActiveTab] = useState<'my' | 'public'>(isStaff ? 'my' : 'public');
+  const [activeTab, setActiveTab] = useState<'my' | 'public'>(canManageRecruitment ? 'my' : 'public');
   const [shootingTypeFilter, setShootingTypeFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('latest');
   const [page, setPage] = useState(1);
@@ -300,8 +301,8 @@ export default function RecruitmentListPage() {
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <div className="flex items-center justify-between flex-wrap gap-2">
           <TabsList className="rounded-lg">
-            {/* 내 구인 탭: 직원만 보임 */}
-            {isStaff && (
+            {/* 내 구인 탭: 직원 또는 clientId 보유 사용자 */}
+            {canManageRecruitment && (
               <TabsTrigger value="my" className="text-[13px] rounded-md px-4">
                 <Lock className="h-3.5 w-3.5 mr-1" />
                 내 구인
@@ -313,8 +314,8 @@ export default function RecruitmentListPage() {
             </TabsTrigger>
           </TabsList>
 
-          {/* 구인 등록 버튼 (내 구인 탭, 직원만) */}
-          {activeTab === 'my' && isStaff && (
+          {/* 구인 등록 버튼 (내 구인 탭) */}
+          {activeTab === 'my' && canManageRecruitment && (
             <Button
               size="sm"
               onClick={() => router.push('/mypage/recruitment/new')}
@@ -365,7 +366,7 @@ export default function RecruitmentListPage() {
         </Card>
 
         {/* ==================== 내 구인 목록 (리스트 형태) ==================== */}
-        {isStaff && (
+        {canManageRecruitment && (
           <TabsContent value="my">
             {isLoading ? (
               <div className="flex items-center justify-center py-20">
