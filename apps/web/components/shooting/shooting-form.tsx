@@ -90,7 +90,11 @@ export function ShootingForm({
         const h = d.getHours();
         const m = d.getMinutes();
         if (h === 0 && m === 0) return '';
-        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+        // 10분 단위로 반올림
+        const rounded = Math.round(m / 10) * 10;
+        const adjustedM = rounded === 60 ? 0 : rounded;
+        const adjustedH = rounded === 60 ? (h + 1) % 24 : h;
+        return `${adjustedH.toString().padStart(2, '0')}:${adjustedM.toString().padStart(2, '0')}`;
       })()
     : '';
 
@@ -241,11 +245,41 @@ export function ShootingForm({
             </div>
             <div className="space-y-1.5">
               <Label className="text-[14px] text-black font-normal">촬영 시간</Label>
-              <Input
-                type="time"
-                {...register('shootingTime')}
-                className="text-[14px]"
-              />
+              <div className="flex items-center gap-1">
+                <Select
+                  value={watch('shootingTime')?.split(':')[0] || ''}
+                  onValueChange={(h) => {
+                    const m = watch('shootingTime')?.split(':')[1] || '00';
+                    setValue('shootingTime', `${h}:${m}`);
+                  }}
+                >
+                  <SelectTrigger className="text-[14px] w-[80px]">
+                    <SelectValue placeholder="시" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0')).map((h) => (
+                      <SelectItem key={h} value={h}>{h}시</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="text-[14px] text-black">:</span>
+                <Select
+                  value={watch('shootingTime')?.split(':')[1] || ''}
+                  onValueChange={(m) => {
+                    const h = watch('shootingTime')?.split(':')[0] || '00';
+                    setValue('shootingTime', `${h}:${m}`);
+                  }}
+                >
+                  <SelectTrigger className="text-[14px] w-[80px]">
+                    <SelectValue placeholder="분" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {['00', '10', '20', '30', '40', '50'].map((m) => (
+                      <SelectItem key={m} value={m}>{m}분</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label className="text-[14px] text-black font-normal">예상 소요시간 (분)</Label>
