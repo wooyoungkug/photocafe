@@ -18,16 +18,16 @@ export class CreateInvitationDto {
   @IsEmail()
   inviteeEmail: string;
 
-  @ApiProperty({ enum: ['MANAGER', 'STAFF', 'EDITOR'], description: '역할' })
-  @IsIn(['MANAGER', 'STAFF', 'EDITOR'])
-  role: 'MANAGER' | 'STAFF' | 'EDITOR';
+  @ApiProperty({ enum: ['MANAGER', 'STAFF', 'EDITOR', 'PHOTOGRAPHER'], description: '역할' })
+  @IsIn(['MANAGER', 'STAFF', 'EDITOR', 'PHOTOGRAPHER'])
+  role: 'MANAGER' | 'STAFF' | 'EDITOR' | 'PHOTOGRAPHER';
 }
 
 export class UpdateEmploymentDto {
-  @ApiPropertyOptional({ enum: ['MANAGER', 'STAFF', 'EDITOR'] })
+  @ApiPropertyOptional({ enum: ['MANAGER', 'STAFF', 'EDITOR', 'PHOTOGRAPHER'] })
   @IsOptional()
-  @IsIn(['MANAGER', 'STAFF', 'EDITOR'])
-  role?: 'MANAGER' | 'STAFF' | 'EDITOR';
+  @IsIn(['MANAGER', 'STAFF', 'EDITOR', 'PHOTOGRAPHER'])
+  role?: 'MANAGER' | 'STAFF' | 'EDITOR' | 'PHOTOGRAPHER';
 
   @ApiPropertyOptional()
   @IsOptional()
