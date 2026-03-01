@@ -6,7 +6,7 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
 
 interface ClientLoginRequest {
-  email: string;
+  loginId: string;
   password: string;
 }
 
@@ -24,8 +24,8 @@ interface ClientLoginResponse {
   };
 }
 
-interface RegisterRequest {
-  email: string;
+interface ClientRegisterRequest {
+  loginId: string;
   password: string;
   name: string;
 }
@@ -37,12 +37,12 @@ export function useClientLogin() {
   });
 }
 
-export function useRegister() {
+export function useClientRegister() {
   const router = useRouter();
 
   return useMutation({
-    mutationFn: (data: RegisterRequest) =>
-      api.post<{ id: string; email: string; name: string }>('/auth/register', data),
+    mutationFn: (data: ClientRegisterRequest) =>
+      api.post<{ success: boolean; message: string }>('/auth/client/register', data),
     onSuccess: () => {
       router.push('/login?registered=true');
     },

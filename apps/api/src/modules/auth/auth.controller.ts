@@ -24,6 +24,7 @@ import { Public } from '@/common/decorators/public.decorator';
 import {
   RefreshTokenDto,
   ClientLoginDto,
+  ClientRegisterDto,
   StaffLoginDto,
   StaffRegisterCompanyEmailDto,
   ApproveStaffDto,
@@ -221,9 +222,17 @@ export class AuthController {
   @Public()
   @Post('client/login')
   @Throttle({ default: { ttl: 60000, limit: 5 } })
-  @ApiOperation({ summary: '고객 이메일/PW 로그인' })
+  @ApiOperation({ summary: '고객 아이디/PW 로그인' })
   async clientLogin(@Body() dto: ClientLoginDto, @Ip() ip: string) {
-    return this.authService.loginClientWithPassword(dto.email, dto.password, ip);
+    return this.authService.loginClientWithPassword(dto.loginId, dto.password, ip);
+  }
+
+  @Public()
+  @Post('client/register')
+  @Throttle({ default: { ttl: 60000, limit: 3 } })
+  @ApiOperation({ summary: '고객 아이디/PW 회원가입' })
+  async clientRegister(@Body() dto: ClientRegisterDto) {
+    return this.authService.registerClientWithPassword(dto.loginId, dto.password, dto.name);
   }
 
   // ========== 직원 ID/PW 로그인 ==========

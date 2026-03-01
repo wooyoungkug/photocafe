@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertCircle, ArrowLeft, Loader2, User, Building2, UserPlus, Mail, Lock } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Loader2, User, Building2, UserPlus, Lock } from 'lucide-react';
 
 type LoginPhase = 'social' | 'context-selection';
 
@@ -37,9 +37,10 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notRegistered, setNotRegistered] = useState(false);
+  const [justRegistered, setJustRegistered] = useState(false);
 
-  // Email/password login state
-  const [email, setEmail] = useState('');
+  // ID/password login state
+  const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
 
   // Context selection state
@@ -48,17 +49,17 @@ function LoginForm() {
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
+  const handleIdLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (!email || !password) {
-      setError('이메일과 비밀번호를 입력해주세요.');
+    if (!loginId || !password) {
+      setError('아이디와 비밀번호를 입력해주세요.');
       return;
     }
 
     try {
-      const response = await clientLogin.mutateAsync({ email, password });
+      const response = await clientLogin.mutateAsync({ loginId, password });
 
       if (response.needsContext && response.tempToken) {
         setTempToken(response.tempToken);
@@ -84,6 +85,9 @@ function LoginForm() {
 
   // URL 에러 파라미터 감지 (미가입, 이메일 중복 등)
   useEffect(() => {
+    if (searchParams.get('registered') === 'true') {
+      setJustRegistered(true);
+    }
     const errorParam = searchParams.get('error');
     if (errorParam === 'NOT_REGISTERED') {
       setNotRegistered(true);
@@ -260,6 +264,17 @@ function LoginForm() {
       </CardHeader>
 
       <CardContent className="space-y-4">
+        {justRegistered && (
+          <div className="p-4 rounded-md bg-green-50 border border-green-200 text-center">
+            <p className="text-[14px] text-green-800 font-medium">
+              회원가입이 완료되었습니다.
+            </p>
+            <p className="text-[13px] text-green-700 mt-1">
+              아이디와 비밀번호로 로그인해주세요.
+            </p>
+          </div>
+        )}
+
         {notRegistered && (
           <div className="p-4 rounded-md bg-amber-50 border border-amber-200 text-center">
             <AlertCircle className="h-5 w-5 text-amber-600 mx-auto" />
@@ -295,20 +310,20 @@ function LoginForm() {
           </div>
         )}
 
-        {/* 이메일/비밀번호 로그인 */}
-        <form onSubmit={handleEmailLogin} className="space-y-3">
+        {/* 아이디/비밀번호 로그인 */}
+        <form onSubmit={handleIdLogin} className="space-y-3">
           <div className="space-y-1.5">
-            <Label htmlFor="email" className="text-[14px] text-black font-normal">이메일</Label>
+            <Label htmlFor="loginId" className="text-[14px] text-black font-normal">아이디</Label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
-                id="email"
-                type="email"
-                placeholder="이메일 주소 입력"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="loginId"
+                type="text"
+                placeholder="아이디 입력"
+                value={loginId}
+                onChange={(e) => setLoginId(e.target.value)}
                 className="pl-10 h-11"
-                autoComplete="email"
+                autoComplete="username"
               />
             </div>
           </div>

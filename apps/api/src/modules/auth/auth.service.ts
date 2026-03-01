@@ -418,13 +418,13 @@ export class AuthService {
 
   // ========== 고객 이메일/PW 로그인 ==========
 
-  async loginClientWithPassword(email: string, password: string, ip?: string) {
+  async loginClientWithPassword(loginId: string, password: string, ip?: string) {
     const client = await this.prisma.client.findFirst({
-      where: { email },
+      where: { email: loginId },
     });
 
     if (!client) {
-      throw new UnauthorizedException('이메일 또는 비밀번호가 올바르지 않습니다');
+      throw new UnauthorizedException('아이디 또는 비밀번호가 올바르지 않습니다');
     }
 
     if (!client.password) {
@@ -433,7 +433,7 @@ export class AuthService {
 
     const isValid = await bcrypt.compare(password, client.password);
     if (!isValid) {
-      throw new UnauthorizedException('이메일 또는 비밀번호가 올바르지 않습니다');
+      throw new UnauthorizedException('아이디 또는 비밀번호가 올바르지 않습니다');
     }
 
     if (client.status !== 'active') {
@@ -448,6 +448,34 @@ export class AuthService {
     }
 
     return this.loginClient(client, false, ip);
+  }
+
+  async registerClientWithPassword(loginId: string, password: string, name: string) {
+    // 아이디 중복 확인
+    const existing = await this.prisma.client.findFirst({
+      where: { email: loginId },
+    });
+    if (existing) {
+      throw new ConflictException('이미 사용 중인 아이디입니다');
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const clientCode = `P${Date.now().toString().slice(-8)}`;
+
+    await this.prisma.client.create({
+      data: {
+        clientCode,
+        clientName: name,
+        email: loginId,
+        password: hashedPassword,
+        memberType: 'individual',
+        priceType: 'standard',
+        paymentType: 'order',
+        status: 'active',
+      },
+    });
+
+    return { success: true, message: '회원가입이 완료되었습니다' };
   }
 
   // ========== 직원 ID/PW 로그인 ==========

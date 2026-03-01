@@ -11,15 +11,34 @@ export class RefreshTokenDto {
 // ========== 고객 이메일/PW 로그인 DTO ==========
 
 export class ClientLoginDto {
-  @ApiProperty({ example: 'user@example.com', description: '이메일' })
-  @IsEmail({}, { message: '올바른 이메일 형식이 아닙니다' })
-  @IsNotEmpty({ message: '이메일을 입력해주세요' })
-  email: string;
+  @ApiProperty({ example: 'myid123', description: '아이디' })
+  @IsString()
+  @IsNotEmpty({ message: '아이디를 입력해주세요' })
+  loginId: string;
 
   @ApiProperty({ example: 'password123', description: '비밀번호' })
   @IsString()
   @IsNotEmpty({ message: '비밀번호를 입력해주세요' })
   password: string;
+}
+
+export class ClientRegisterDto {
+  @ApiProperty({ example: 'myid123', description: '아이디' })
+  @IsString()
+  @IsNotEmpty({ message: '아이디를 입력해주세요' })
+  @MinLength(4, { message: '아이디는 4자 이상이어야 합니다' })
+  loginId: string;
+
+  @ApiProperty({ example: 'password123', description: '비밀번호' })
+  @IsString()
+  @IsNotEmpty({ message: '비밀번호를 입력해주세요' })
+  @MinLength(6, { message: '비밀번호는 6자 이상이어야 합니다' })
+  password: string;
+
+  @ApiProperty({ example: '홍길동', description: '이름' })
+  @IsString()
+  @IsNotEmpty({ message: '이름을 입력해주세요' })
+  name: string;
 }
 
 // ========== 직원 ID/PW 로그인 DTO ==========
