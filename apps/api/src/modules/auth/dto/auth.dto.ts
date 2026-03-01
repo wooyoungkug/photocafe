@@ -8,6 +8,20 @@ export class RefreshTokenDto {
   refreshToken: string;
 }
 
+// ========== 고객 이메일/PW 로그인 DTO ==========
+
+export class ClientLoginDto {
+  @ApiProperty({ example: 'user@example.com', description: '이메일' })
+  @IsEmail({}, { message: '올바른 이메일 형식이 아닙니다' })
+  @IsNotEmpty({ message: '이메일을 입력해주세요' })
+  email: string;
+
+  @ApiProperty({ example: 'password123', description: '비밀번호' })
+  @IsString()
+  @IsNotEmpty({ message: '비밀번호를 입력해주세요' })
+  password: string;
+}
+
 // ========== 직원 ID/PW 로그인 DTO ==========
 
 export class StaffLoginDto {

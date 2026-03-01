@@ -5,9 +5,23 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
 
-interface LoginRequest {
+interface ClientLoginRequest {
   email: string;
   password: string;
+}
+
+interface ClientLoginResponse {
+  needsContext?: boolean;
+  tempToken?: string;
+  accessToken?: string;
+  refreshToken?: string;
+  user?: {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+    [key: string]: any;
+  };
 }
 
 interface RegisterRequest {
@@ -16,32 +30,10 @@ interface RegisterRequest {
   name: string;
 }
 
-interface AuthResponse {
-  accessToken: string;
-  refreshToken: string;
-  user: {
-    id: string;
-    email: string;
-    name: string;
-    role: string;
-  };
-}
-
-export function useLogin() {
-  const router = useRouter();
-  const setAuth = useAuthStore((state) => state.setAuth);
-
+export function useClientLogin() {
   return useMutation({
-    mutationFn: (data: LoginRequest) =>
-      api.post<AuthResponse>('/auth/login', data),
-    onSuccess: (response) => {
-      setAuth({
-        user: response.user,
-        accessToken: response.accessToken,
-        refreshToken: response.refreshToken,
-      });
-      router.push('/dashboard');
-    },
+    mutationFn: (data: ClientLoginRequest) =>
+      api.post<ClientLoginResponse>('/auth/client/login', data),
   });
 }
 

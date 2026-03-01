@@ -416,6 +416,40 @@ export class AuthService {
     };
   }
 
+  // ========== 고객 이메일/PW 로그인 ==========
+
+  async loginClientWithPassword(email: string, password: string, ip?: string) {
+    const client = await this.prisma.client.findFirst({
+      where: { email },
+    });
+
+    if (!client) {
+      throw new UnauthorizedException('이메일 또는 비밀번호가 올바르지 않습니다');
+    }
+
+    if (!client.password) {
+      throw new UnauthorizedException('비밀번호가 설정되지 않은 계정입니다. 소셜 로그인을 이용해주세요.');
+    }
+
+    const isValid = await bcrypt.compare(password, client.password);
+    if (!isValid) {
+      throw new UnauthorizedException('이메일 또는 비밀번호가 올바르지 않습니다');
+    }
+
+    if (client.status !== 'active') {
+      throw new UnauthorizedException('비활성 계정입니다');
+    }
+
+    // 소속(employment)이 있으면 컨텍스트 선택 필요
+    const employments = await this.getActiveEmployments(client.id);
+    if (employments.length > 0) {
+      const tempToken = this.generateTempAuthToken(client);
+      return { needsContext: true, tempToken };
+    }
+
+    return this.loginClient(client, false, ip);
+  }
+
   // ========== 직원 ID/PW 로그인 ==========
 
   async loginStaffWithPassword(staffId: string, password: string, ip?: string) {

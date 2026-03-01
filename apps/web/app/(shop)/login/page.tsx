@@ -5,9 +5,12 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
+import { useClientLogin } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertCircle, ArrowLeft, Loader2, User, Building2, UserPlus } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Loader2, User, Building2, UserPlus, Mail, Lock } from 'lucide-react';
 
 type LoginPhase = 'social' | 'context-selection';
 
@@ -28,17 +31,56 @@ function LoginForm() {
   const searchParams = useSearchParams();
 
   const { setAuth } = useAuthStore();
+  const clientLogin = useClientLogin();
 
   const [phase, setPhase] = useState<LoginPhase>('social');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notRegistered, setNotRegistered] = useState(false);
 
+  // Email/password login state
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
   // Context selection state
   const [tempToken, setTempToken] = useState<string | null>(null);
   const [contexts, setContexts] = useState<LoginContext[]>([]);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!email || !password) {
+      setError('이메일과 비밀번호를 입력해주세요.');
+      return;
+    }
+
+    try {
+      const response = await clientLogin.mutateAsync({ email, password });
+
+      if (response.needsContext && response.tempToken) {
+        setTempToken(response.tempToken);
+        await loadContexts(response.tempToken);
+        return;
+      }
+
+      if (response.accessToken && response.user) {
+        setAuth({
+          user: response.user,
+          accessToken: response.accessToken,
+          refreshToken: response.refreshToken!,
+          rememberMe: true,
+        });
+        const redirectTo = searchParams.get('redirect') || '/';
+        router.push(redirectTo);
+      }
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : '로그인에 실패했습니다.';
+      setError(errorMessage);
+    }
+  };
 
   // URL 에러 파라미터 감지 (미가입, 이메일 중복 등)
   useEffect(() => {
@@ -252,6 +294,59 @@ function LoginForm() {
             </div>
           </div>
         )}
+
+        {/* 이메일/비밀번호 로그인 */}
+        <form onSubmit={handleEmailLogin} className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="email" className="text-[14px] text-black font-normal">이메일</Label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                id="email"
+                type="email"
+                placeholder="이메일 주소 입력"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="pl-10 h-11"
+                autoComplete="email"
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="password" className="text-[14px] text-black font-normal">비밀번호</Label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                id="password"
+                type="password"
+                placeholder="비밀번호 입력"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="pl-10 h-11"
+                autoComplete="current-password"
+              />
+            </div>
+          </div>
+          <Button
+            type="submit"
+            className="w-full h-11 bg-[#E4007F] hover:bg-[#C5006D] text-white"
+            disabled={clientLogin.isPending}
+          >
+            {clientLogin.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : null}
+            로그인
+          </Button>
+        </form>
+
+        <div className="relative my-2">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-white px-2 text-gray-500">또는</span>
+          </div>
+        </div>
 
         <a
           href={`${apiUrl}/auth/naver-login`}
