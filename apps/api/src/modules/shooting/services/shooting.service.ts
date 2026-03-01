@@ -140,7 +140,8 @@ export class ShootingService {
         where.shootingDate.gte = new Date(query.startDate);
       }
       if (query.endDate) {
-        where.shootingDate.lte = new Date(query.endDate);
+        // endDate를 해당 날짜의 23:59:59.999로 설정하여 종일 포함
+        where.shootingDate.lte = new Date(query.endDate + 'T23:59:59.999Z');
       }
     }
 
