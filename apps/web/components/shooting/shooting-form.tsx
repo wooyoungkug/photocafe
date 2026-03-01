@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { VenueSearchInput } from '@/components/recruitment/venue-search-input';
+import { Badge } from '@/components/ui/badge';
 import { Loader2, Info, Briefcase } from 'lucide-react';
 import type { CreateShootingDto, Shooting } from '@/hooks/use-shooting';
 import { SHOOTING_TYPE_LABELS } from '@/lib/constants/shooting-types';
@@ -51,6 +52,71 @@ const shootingFormSchema = z.object({
 type ShootingFormValues = z.infer<typeof shootingFormSchema>;
 
 const SHOOTING_TYPES = Object.entries(SHOOTING_TYPE_LABELS) as [ShootingType, string][];
+
+// ==================== 프리셋 ====================
+
+/** 촬영유형별 상세설명 프리셋 */
+const DESCRIPTION_PRESETS: Record<string, { label: string; text: string }[]> = {
+  wedding_main: [
+    { label: '일반 본식', text: '본식 촬영입니다.\n식장 내 예식 진행 전체 촬영 및 가족사진, 단체사진 포함.\n식전 1시간 전 현장 도착 부탁드립니다.' },
+    { label: '야외 본식', text: '야외 본식 촬영입니다.\n야외 예식장에서 진행되며, 자연광 촬영 위주입니다.\n우천 시 실내 대체 공간 있습니다.' },
+    { label: '본식+피로연', text: '본식 + 피로연 촬영입니다.\n예식 전체 및 피로연 현장 스냅까지 포함됩니다.' },
+  ],
+  wedding_rehearsal: [
+    { label: '스튜디오 리허설', text: '스튜디오 리허설 촬영입니다.\n드레스/턱시도 착용 촬영이며, 헤어메이크업 포함입니다.\n촬영 컨셉은 현장에서 작가님과 상의합니다.' },
+    { label: '야외 리허설', text: '야외 리허설 촬영입니다.\n자연광 위주의 촬영이며, 장소 이동이 있을 수 있습니다.\n의상 1~2벌 준비됩니다.' },
+  ],
+  baby_dol: [
+    { label: '돌잔치 현장', text: '돌잔치 현장 촬영입니다.\n돌잔치 행사 전체 진행 촬영 및 가족사진 포함.\n행사 시작 30분 전 도착 부탁드립니다.' },
+    { label: '돌 스냅', text: '돌 스냅 촬영입니다.\n아기 단독 촬영 및 가족사진 위주로 진행됩니다.' },
+  ],
+  baby_growth: [
+    { label: '성장 촬영', text: '아기 성장 촬영입니다.\n50일/100일/돌 등 성장 시기에 맞춘 촬영입니다.\n자연스러운 일상 컷 위주로 진행됩니다.' },
+  ],
+  profile: [
+    { label: '개인 프로필', text: '개인 프로필 촬영입니다.\n증명사진/프로필 촬영이며, 보정본 제공됩니다.' },
+    { label: '기업 프로필', text: '기업 단체 프로필 촬영입니다.\n임직원 개별 프로필 및 단체 사진 촬영입니다.\n촬영 인원수 사전 확인 부탁드립니다.' },
+  ],
+  other: [
+    { label: '행사 촬영', text: '행사/이벤트 현장 촬영입니다.\n주요 장면 및 참석자 촬영 포함됩니다.' },
+  ],
+};
+
+/** 촬영유형별 요구사항 프리셋 */
+const REQUIREMENTS_PRESETS: Record<string, { label: string; text: string }[]> = {
+  wedding_main: [
+    { label: '기본 요구', text: '본식 촬영 경력 2년 이상\n원본 전체 + 보정본 50장 이상 제공\n촬영 후 2주 이내 납품' },
+    { label: '영상 포함', text: '본식 촬영 경력 2년 이상\n사진 원본 전체 + 보정본 50장 이상\n하이라이트 영상 1분 내외 포함\n촬영 후 3주 이내 납품' },
+  ],
+  wedding_rehearsal: [
+    { label: '기본 요구', text: '리허설 촬영 경력 1년 이상\n원본 전체 + 보정본 30장 이상 제공\n촬영 후 2주 이내 납품' },
+  ],
+  baby_dol: [
+    { label: '기본 요구', text: '아기/돌잔치 촬영 경험자\n원본 전체 + 보정본 30장 이상 제공\n촬영 후 2주 이내 납품' },
+  ],
+  baby_growth: [
+    { label: '기본 요구', text: '아기 촬영 경험자\n자연스러운 연출 가능한 분\n보정본 20장 이상 제공' },
+  ],
+  profile: [
+    { label: '기본 요구', text: '프로필/증명 촬영 경험자\n보정본 5장 이상 제공\n촬영 당일 또는 익일 납품' },
+  ],
+  other: [
+    { label: '기본 요구', text: '행사/이벤트 촬영 경험자\n원본 전체 제공\n촬영 후 1주 이내 납품' },
+  ],
+};
+
+/** 공통 프리셋 (유형 무관) */
+const COMMON_DESCRIPTION_PRESETS: { label: string; text: string }[] = [
+  { label: '시간 엄수', text: '촬영 시작 시간 엄수 부탁드립니다.' },
+  { label: '주차 안내', text: '현장 주차 가능합니다. 주차비 지원됩니다.' },
+  { label: '식사 제공', text: '촬영 당일 식사가 제공됩니다.' },
+];
+
+const COMMON_REQUIREMENTS_PRESETS: { label: string; text: string }[] = [
+  { label: '장비 지참', text: '개인 장비(카메라, 조명) 지참' },
+  { label: '정장 착용', text: '단정한 복장(정장 또는 비즈니스 캐주얼) 착용' },
+  { label: '경력 증빙', text: '포트폴리오 또는 경력 증빙 가능한 분' },
+];
 
 // ==================== 유틸 ====================
 
@@ -471,20 +537,72 @@ export function ShootingForm({
 
               <div className="space-y-1.5">
                 <Label className="text-[14px] text-black font-normal">상세설명</Label>
+                <div className="flex flex-wrap gap-1.5 mb-1.5">
+                  {(DESCRIPTION_PRESETS[watchedType] || []).map((p) => (
+                    <Badge
+                      key={p.label}
+                      variant="outline"
+                      className="cursor-pointer hover:bg-primary hover:text-white transition-colors text-[12px]"
+                      onClick={() => setValue('recruitmentDescription', p.text)}
+                    >
+                      {p.label}
+                    </Badge>
+                  ))}
+                  {COMMON_DESCRIPTION_PRESETS.map((p) => (
+                    <Badge
+                      key={p.label}
+                      variant="secondary"
+                      className="cursor-pointer hover:bg-primary hover:text-white transition-colors text-[12px]"
+                      onClick={() => {
+                        const current = watch('recruitmentDescription') || '';
+                        const newText = current ? `${current}\n${p.text}` : p.text;
+                        setValue('recruitmentDescription', newText);
+                      }}
+                    >
+                      + {p.label}
+                    </Badge>
+                  ))}
+                </div>
                 <Textarea
                   {...register('recruitmentDescription')}
-                  placeholder="촬영 상세 내용"
-                  rows={3}
+                  placeholder="촬영 상세 내용 (위 태그를 클릭하면 자동 입력됩니다)"
+                  rows={4}
                   className="text-[14px]"
                 />
               </div>
 
               <div className="space-y-1.5">
                 <Label className="text-[14px] text-black font-normal">요구사항</Label>
+                <div className="flex flex-wrap gap-1.5 mb-1.5">
+                  {(REQUIREMENTS_PRESETS[watchedType] || []).map((p) => (
+                    <Badge
+                      key={p.label}
+                      variant="outline"
+                      className="cursor-pointer hover:bg-primary hover:text-white transition-colors text-[12px]"
+                      onClick={() => setValue('recruitmentRequirements', p.text)}
+                    >
+                      {p.label}
+                    </Badge>
+                  ))}
+                  {COMMON_REQUIREMENTS_PRESETS.map((p) => (
+                    <Badge
+                      key={p.label}
+                      variant="secondary"
+                      className="cursor-pointer hover:bg-primary hover:text-white transition-colors text-[12px]"
+                      onClick={() => {
+                        const current = watch('recruitmentRequirements') || '';
+                        const newText = current ? `${current}\n${p.text}` : p.text;
+                        setValue('recruitmentRequirements', newText);
+                      }}
+                    >
+                      + {p.label}
+                    </Badge>
+                  ))}
+                </div>
                 <Textarea
                   {...register('recruitmentRequirements')}
-                  placeholder="작가에게 요구하는 조건"
-                  rows={2}
+                  placeholder="작가에게 요구하는 조건 (위 태그를 클릭하면 자동 입력됩니다)"
+                  rows={3}
                   className="text-[14px]"
                 />
               </div>
