@@ -469,18 +469,20 @@ export class AuthService {
     password: string,
     name: string,
     contactEmail: string,
-    verificationId: string,
+    verificationId?: string,
     phone?: string,
   ) {
-    // 이메일 인증 확인
-    const verification = await this.prisma.emailVerification.findUnique({
-      where: { id: verificationId },
-    });
-    if (!verification || !verification.verified || verification.email !== contactEmail) {
-      throw new BadRequestException('이메일 인증이 완료되지 않았습니다');
-    }
-    if (verification.expiresAt < new Date()) {
-      throw new BadRequestException('인증이 만료되었습니다. 다시 인증해주세요');
+    // 이메일 인증 확인 (verificationId가 있을 때만)
+    if (verificationId) {
+      const verification = await this.prisma.emailVerification.findUnique({
+        where: { id: verificationId },
+      });
+      if (!verification || !verification.verified || verification.email !== contactEmail) {
+        throw new BadRequestException('이메일 인증이 완료되지 않았습니다');
+      }
+      if (verification.expiresAt < new Date()) {
+        throw new BadRequestException('인증이 만료되었습니다. 다시 인증해주세요');
+      }
     }
 
     // 아이디 중복 확인
@@ -510,7 +512,9 @@ export class AuthService {
     });
 
     // 사용된 인증 레코드 삭제
-    await this.prisma.emailVerification.delete({ where: { id: verificationId } }).catch(() => {});
+    if (verificationId) {
+      await this.prisma.emailVerification.delete({ where: { id: verificationId } }).catch(() => {});
+    }
 
     return { success: true, message: '회원가입이 완료되었습니다' };
   }

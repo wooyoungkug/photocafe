@@ -29,7 +29,7 @@ interface ClientRegisterRequest {
   password: string;
   name: string;
   contactEmail: string;
-  verificationId: string;
+  verificationId?: string;
   phone?: string;
 }
 

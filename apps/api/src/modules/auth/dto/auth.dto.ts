@@ -45,10 +45,10 @@ export class ClientRegisterDto {
   @IsNotEmpty({ message: '이메일을 입력해주세요' })
   contactEmail: string;
 
-  @ApiProperty({ example: 'cuid_verification_id', description: '이메일 인증 ID' })
+  @ApiPropertyOptional({ example: 'cuid_verification_id', description: '이메일 인증 ID (선택)' })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty({ message: '이메일 인증이 필요합니다' })
-  verificationId: string;
+  verificationId?: string;
 
   @ApiPropertyOptional({ example: '01012345678', description: '전화번호' })
   @IsOptional()

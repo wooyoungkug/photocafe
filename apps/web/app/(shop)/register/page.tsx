@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import Link from 'next/link';
-import { useClientRegister, useCheckLoginId, useSendEmailVerification, useVerifyEmail } from '@/hooks/use-auth';
+import { useClientRegister, useCheckLoginId } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,32 +12,18 @@ import { AlertCircle, CheckCircle2, Loader2, User, Lock, UserPlus, Phone, Mail }
 export default function RegisterPage() {
   const register = useClientRegister();
   const checkLoginId = useCheckLoginId();
-  const sendVerification = useSendEmailVerification();
-  const verifyEmail = useVerifyEmail();
 
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [name, setName] = useState('');
   const [contactEmail, setContactEmail] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
-  const [verificationId, setVerificationId] = useState<string | null>(null);
   const [phone, setPhone] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loginIdChecked, setLoginIdChecked] = useState(false);
   const [loginIdAvailable, setLoginIdAvailable] = useState<boolean | null>(null);
-  const [codeSent, setCodeSent] = useState(false);
-  const [emailVerified, setEmailVerified] = useState(false);
-  const [countdown, setCountdown] = useState(0);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
-
-  // 인증코드 발송 후 카운트다운
-  useEffect(() => {
-    if (countdown <= 0) return;
-    const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [countdown]);
 
   const handleCheckLoginId = async () => {
     if (!loginId) {
@@ -67,63 +53,9 @@ export default function RegisterPage() {
     setLoginIdAvailable(null);
   };
 
-  const handleEmailChange = (value: string) => {
-    setContactEmail(value);
-    // 이메일 변경 시 인증 초기화
-    if (emailVerified) {
-      setEmailVerified(false);
-      setVerificationId(null);
-      setCodeSent(false);
-      setVerificationCode('');
-    }
-  };
-
   const formatPhoneNumber = useCallback((value: string) => {
     return value.replace(/[^0-9]/g, '').slice(0, 11);
   }, []);
-
-  const handleSendVerification = async () => {
-    if (!contactEmail) {
-      setError('이메일을 입력해주세요.');
-      return;
-    }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(contactEmail)) {
-      setError('올바른 이메일 형식이 아닙니다.');
-      return;
-    }
-    setError(null);
-    try {
-      await sendVerification.mutateAsync(contactEmail);
-      setCodeSent(true);
-      setCountdown(180); // 3분 카운트다운
-      setVerificationCode('');
-      setEmailVerified(false);
-      setVerificationId(null);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : '인증코드 발송에 실패했습니다.';
-      setError(msg);
-    }
-  };
-
-  const handleVerifyCode = async () => {
-    if (!verificationCode || verificationCode.length !== 6) {
-      setError('6자리 인증코드를 입력해주세요.');
-      return;
-    }
-    setError(null);
-    try {
-      const result = await verifyEmail.mutateAsync({ email: contactEmail, code: verificationCode });
-      if (result.verified) {
-        setEmailVerified(true);
-        setVerificationId(result.verificationId);
-        setCountdown(0);
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : '인증코드가 올바르지 않습니다.';
-      setError(msg);
-    }
-  };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -154,30 +86,18 @@ export default function RegisterPage() {
       return;
     }
 
-    if (!emailVerified || !verificationId) {
-      setError('이메일 인증을 완료해주세요.');
-      return;
-    }
-
     try {
       await register.mutateAsync({
         loginId,
         password,
         name,
         contactEmail,
-        verificationId,
         phone: phone || undefined,
       });
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : '회원가입에 실패했습니다.';
       setError(errorMessage);
     }
-  };
-
-  const formatCountdown = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -289,82 +209,22 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* 이메일 + 인증 */}
+            {/* 이메일 */}
             <div className="space-y-1.5">
-              <Label htmlFor="contactEmail" className="text-[14px] text-black font-normal">
-                이메일 <span className="text-red-500">*</span>
-              </Label>
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="contactEmail"
-                    type="email"
-                    placeholder="이메일 입력"
-                    value={contactEmail}
-                    onChange={(e) => handleEmailChange(e.target.value)}
-                    className="pl-10 h-11"
-                    autoComplete="email"
-                    disabled={emailVerified}
-                  />
-                </div>
-                <Button
-                  type="button"
-                  variant={emailVerified ? 'outline' : 'default'}
-                  className={`h-11 px-4 shrink-0 ${emailVerified ? 'text-green-600 border-green-300' : 'bg-[#E4007F] hover:bg-[#C5006D] text-white'}`}
-                  onClick={handleSendVerification}
-                  disabled={sendVerification.isPending || !contactEmail || emailVerified || countdown > 0}
-                >
-                  {sendVerification.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : emailVerified ? (
-                    <><CheckCircle2 className="h-4 w-4 mr-1" /> 인증완료</>
-                  ) : countdown > 0 ? (
-                    formatCountdown(countdown)
-                  ) : codeSent ? '재발송' : '인증요청'}
-                </Button>
+              <Label htmlFor="contactEmail" className="text-[14px] text-black font-normal">이메일</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  id="contactEmail"
+                  type="email"
+                  placeholder="이메일 입력"
+                  value={contactEmail}
+                  onChange={(e) => setContactEmail(e.target.value)}
+                  className="pl-10 h-11"
+                  autoComplete="email"
+                />
               </div>
-              {emailVerified && (
-                <p className="flex items-center gap-1 text-sm text-green-600">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  이메일 인증이 완료되었습니다.
-                </p>
-              )}
             </div>
-
-            {/* 인증코드 입력 (발송 후 & 미인증 시에만 표시) */}
-            {codeSent && !emailVerified && (
-              <div className="space-y-1.5">
-                <Label htmlFor="verificationCode" className="text-[14px] text-black font-normal">인증코드</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="verificationCode"
-                    type="text"
-                    placeholder="6자리 인증코드 입력"
-                    value={verificationCode}
-                    onChange={(e) => setVerificationCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
-                    className="h-11"
-                    maxLength={6}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-11 px-4 shrink-0"
-                    onClick={handleVerifyCode}
-                    disabled={verifyEmail.isPending || verificationCode.length !== 6}
-                  >
-                    {verifyEmail.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : '확인'}
-                  </Button>
-                </div>
-                {countdown > 0 && (
-                  <p className="text-sm text-gray-500">
-                    남은 시간: {formatCountdown(countdown)}
-                  </p>
-                )}
-              </div>
-            )}
 
             {/* 전화번호 (선택) */}
             <div className="space-y-1.5">
@@ -389,7 +249,7 @@ export default function RegisterPage() {
             <Button
               type="submit"
               className="w-full h-11 bg-[#E4007F] hover:bg-[#C5006D] text-white mt-2"
-              disabled={register.isPending || !emailVerified}
+              disabled={register.isPending}
             >
               {register.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
