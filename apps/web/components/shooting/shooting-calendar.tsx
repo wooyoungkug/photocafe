@@ -37,6 +37,7 @@ interface ShootingCalendarProps {
   onDateSelect: (date: Date) => void;
   onMonthChange: (date: Date) => void;
   onShootingClick?: (shooting: Shooting) => void;
+  onDateDoubleClick?: (date: Date) => void;
 }
 
 const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -63,6 +64,7 @@ export function ShootingCalendar({
   onDateSelect,
   onMonthChange,
   onShootingClick,
+  onDateDoubleClick,
 }: ShootingCalendarProps) {
   // 이전/다음 네비게이션
   const handlePrev = () => {
@@ -187,6 +189,7 @@ export function ShootingCalendar({
           holidays={holidays}
           onDateSelect={onDateSelect}
           onShootingClick={onShootingClick}
+          onDateDoubleClick={onDateDoubleClick}
         />
       )}
 
@@ -198,6 +201,7 @@ export function ShootingCalendar({
           holidays={holidays}
           onDateSelect={onDateSelect}
           onShootingClick={onShootingClick}
+          onDateDoubleClick={onDateDoubleClick}
         />
       )}
 
@@ -208,6 +212,7 @@ export function ShootingCalendar({
           holidays={holidays}
           onDateSelect={onDateSelect}
           onShootingClick={onShootingClick}
+          onDateDoubleClick={onDateDoubleClick}
         />
       )}
 
@@ -218,6 +223,7 @@ export function ShootingCalendar({
           holidays={holidays}
           onDateSelect={onDateSelect}
           onShootingClick={onShootingClick}
+          onDateDoubleClick={onDateDoubleClick}
         />
       )}
 
@@ -229,6 +235,7 @@ export function ShootingCalendar({
           holidays={holidays}
           onDateSelect={onDateSelect}
           onShootingClick={onShootingClick}
+          onDateDoubleClick={onDateDoubleClick}
         />
       )}
     </div>
@@ -244,6 +251,7 @@ interface MonthViewProps {
   holidays: Map<string, string>;
   onDateSelect: (date: Date) => void;
   onShootingClick?: (shooting: Shooting) => void;
+  onDateDoubleClick?: (date: Date) => void;
 }
 
 function MonthView({
@@ -253,6 +261,7 @@ function MonthView({
   holidays,
   onDateSelect,
   onShootingClick,
+  onDateDoubleClick,
 }: MonthViewProps) {
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
@@ -297,6 +306,7 @@ function MonthView({
             <div
               key={dateKey}
               onClick={() => onDateSelect(day)}
+              onDoubleClick={() => onDateDoubleClick?.(day)}
               className={cn(
                 'border-b border-r p-1 min-h-[100px] cursor-pointer transition-colors hover:bg-gray-50',
                 !isCurrentMonth && 'bg-gray-50/50',
@@ -370,6 +380,7 @@ interface WeekViewProps {
   holidays: Map<string, string>;
   onDateSelect: (date: Date) => void;
   onShootingClick?: (shooting: Shooting) => void;
+  onDateDoubleClick?: (date: Date) => void;
 }
 
 function WeekView({
@@ -379,6 +390,7 @@ function WeekView({
   holidays,
   onDateSelect,
   onShootingClick,
+  onDateDoubleClick,
 }: WeekViewProps) {
   const weekDays = useMemo(() => {
     const weekStart = startOfWeek(currentDate, { locale: ko });
@@ -405,6 +417,7 @@ function WeekView({
             <div
               key={dateKey}
               onClick={() => onDateSelect(day)}
+              onDoubleClick={() => onDateDoubleClick?.(day)}
               className={cn(
                 'text-center py-2 cursor-pointer hover:bg-gray-50 border-r last:border-r-0',
                 isSelected && 'bg-blue-50'
@@ -534,6 +547,7 @@ interface DayViewProps {
   holidays: Map<string, string>;
   onDateSelect: (date: Date) => void;
   onShootingClick?: (shooting: Shooting) => void;
+  onDateDoubleClick?: (date: Date) => void;
 }
 
 function DayView({
@@ -542,6 +556,7 @@ function DayView({
   holidays,
   onDateSelect,
   onShootingClick,
+  onDateDoubleClick,
 }: DayViewProps) {
   const dateKey = format(currentDate, 'yyyy-MM-dd');
   const dayShootings = shootingsByDate.get(dateKey) || [];
@@ -558,7 +573,10 @@ function DayView({
   return (
     <div className="flex-1 flex flex-col overflow-auto">
       {/* 날짜 헤더 - 네이버 스타일 */}
-      <div className="grid grid-cols-[80px_1fr] border-b sticky top-0 bg-white z-10">
+      <div
+        className="grid grid-cols-[80px_1fr] border-b sticky top-0 bg-white z-10 cursor-pointer"
+        onDoubleClick={() => onDateDoubleClick?.(currentDate)}
+      >
         <div className="border-r" />
         <div className="py-2 px-3">
           <div className="flex items-center gap-2">
@@ -696,6 +714,7 @@ interface ListViewProps {
   holidays: Map<string, string>;
   onDateSelect: (date: Date) => void;
   onShootingClick?: (shooting: Shooting) => void;
+  onDateDoubleClick?: (date: Date) => void;
 }
 
 function ListView({
@@ -704,6 +723,7 @@ function ListView({
   holidays,
   onDateSelect,
   onShootingClick,
+  onDateDoubleClick,
 }: ListViewProps) {
   // 현재 월의 모든 날짜
   const monthDays = useMemo(() => {
@@ -740,6 +760,7 @@ function ListView({
                 isTodayDate && 'bg-blue-50/50'
               )}
               onClick={() => onDateSelect(day)}
+              onDoubleClick={() => onDateDoubleClick?.(day)}
             >
               <div className="py-2 px-3 border-r">
                 <span
@@ -831,6 +852,7 @@ interface TwoWeekViewProps {
   holidays: Map<string, string>;
   onDateSelect: (date: Date) => void;
   onShootingClick?: (shooting: Shooting) => void;
+  onDateDoubleClick?: (date: Date) => void;
 }
 
 function TwoWeekView({
@@ -840,6 +862,7 @@ function TwoWeekView({
   holidays,
   onDateSelect,
   onShootingClick,
+  onDateDoubleClick,
 }: TwoWeekViewProps) {
   const twoWeekDays = useMemo(() => {
     const weekStart = startOfWeek(currentDate, { locale: ko });
@@ -881,6 +904,7 @@ function TwoWeekView({
             <div
               key={dateKey}
               onClick={() => onDateSelect(day)}
+              onDoubleClick={() => onDateDoubleClick?.(day)}
               className={cn(
                 'border-b border-r p-1 min-h-[120px] cursor-pointer transition-colors hover:bg-gray-50',
                 isSelected && 'bg-blue-50 ring-1 ring-blue-200 ring-inset'

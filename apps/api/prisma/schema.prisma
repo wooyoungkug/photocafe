@@ -419,6 +419,7 @@ model Client {
   recruitmentBids         RecruitmentBid[]   @relation("RecruitmentBidder")
   photographerProfile     PhotographerProfile?
   notificationsReceived   RecruitmentNotificationLog[] @relation("NotificationRecipient")
+  recruitmentTemplates    RecruitmentTemplate[] @relation("RecruitmentTemplateClient")
   assignedShootings       ShootingSchedule[]  @relation("AssignedExternalPhotographer")
 
   @@unique([oauthProvider, oauthId])
@@ -3277,4 +3278,21 @@ model RecruitmentNotificationLog {
   @@unique([recruitmentId, recipientId])
   @@index([recruitmentId])
   @@map("recruitment_notification_logs")
+}
+
+// ── 구인 자주사용 문구 템플릿 ─────────────────────
+model RecruitmentTemplate {
+  id         String   @id @default(cuid())
+  clientId   String                              // 소속 스튜디오
+  category   String                              // "description" | "requirements"
+  title      String                              // 템플릿 제목 (예: "본식 기본")
+  content    String                              // 템플릿 본문
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  client Client @relation("RecruitmentTemplateClient", fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, category])
+  @@map("recruitment_templates")
 }

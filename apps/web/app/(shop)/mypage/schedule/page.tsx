@@ -162,6 +162,13 @@ export default function SchedulePage() {
     [router]
   );
 
+  const handleDateDoubleClick = useCallback(
+    (date: Date) => {
+      router.push(`/mypage/schedule/new?date=${format(date, 'yyyy-MM-dd')}`);
+    },
+    [router]
+  );
+
   return (
     <div className="space-y-4">
       {/* 페이지 헤더 */}
@@ -306,6 +313,7 @@ export default function SchedulePage() {
                       onDateSelect={setSelectedDate}
                       onMonthChange={setCurrentMonth}
                       onShootingClick={handleShootingClick}
+                      onDateDoubleClick={handleDateDoubleClick}
                     />
                   </div>
                 )}

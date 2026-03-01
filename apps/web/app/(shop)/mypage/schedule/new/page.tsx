@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Camera } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -10,8 +10,13 @@ import { ShootingForm } from '@/components/shooting/shooting-form';
 
 export default function ScheduleNewPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const createMutation = useCreateShooting();
+
+  // URL ?date=YYYY-MM-DD 파라미터로 초기 날짜 설정
+  const dateParam = searchParams.get('date');
+  const defaultValues = dateParam ? { shootingDate: `${dateParam}T00:00:00.000Z` } : undefined;
 
   const handleSubmit = async (data: CreateShootingDto) => {
     try {
@@ -54,6 +59,7 @@ export default function ScheduleNewPage() {
 
       {/* 폼 */}
       <ShootingForm
+        defaultValues={defaultValues as any}
         onSubmit={handleSubmit}
         onCancel={handleCancel}
         isLoading={createMutation.isPending}

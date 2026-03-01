@@ -6,6 +6,7 @@ import {
   RecruitmentController,
   RecruitmentBidController,
   PhotographerProfileController,
+  RecruitmentTemplateController,
 } from './controllers';
 import {
   RecruitmentService,
@@ -14,6 +15,7 @@ import {
   RecruitmentNotificationService,
   RegionMatchingService,
   PhotographerProfileService,
+  RecruitmentTemplateService,
 } from './services';
 
 @Module({
@@ -22,6 +24,7 @@ import {
     RecruitmentController,
     RecruitmentBidController,
     PhotographerProfileController,
+    RecruitmentTemplateController,
   ],
   providers: [
     RecruitmentService,
@@ -30,6 +33,7 @@ import {
     RecruitmentNotificationService,
     RegionMatchingService,
     PhotographerProfileService,
+    RecruitmentTemplateService,
   ],
   exports: [RecruitmentService, RecruitmentBidService],
 })
