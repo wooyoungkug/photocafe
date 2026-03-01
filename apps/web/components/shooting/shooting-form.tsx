@@ -19,30 +19,19 @@ import { AddressSearch } from '@/components/address-search';
 import { Loader2, Info } from 'lucide-react';
 import type { ShootingType, CreateShootingDto, Shooting } from '@/hooks/use-shooting';
 import { SHOOTING_TYPE_LABELS } from '@/hooks/use-shooting';
-import { useMemo } from 'react';
+import { useAverageBudget } from '@/hooks/use-recruitment';
 
-// ==================== 평균 예산 참고 데이터 ====================
+// ==================== 촬영유형 → 구인방 유형 매핑 ====================
 
-/** 촬영유형별 시간당 평균 예산 (원) */
-const AVERAGE_BUDGET_PER_HOUR: Record<string, number> = {
-  wedding: 150000,
-  studio: 80000,
-  outdoor: 100000,
-  product: 70000,
-  profile: 70000,
-  event: 120000,
-  other: 80000,
-};
-
-/** 촬영유형별 기본 소요시간 (분) */
-const DEFAULT_DURATION_MINUTES: Record<string, number> = {
-  wedding: 240,
-  studio: 120,
-  outdoor: 180,
-  product: 120,
-  profile: 60,
-  event: 180,
-  other: 120,
+/** 촬영일정 유형을 구인방 유형으로 매핑 (평균예산 집계용) */
+const SHOOTING_TO_RECRUITMENT_TYPES: Record<string, string[]> = {
+  wedding: ['wedding_main', 'wedding_rehearsal'],
+  studio: ['profile'],
+  outdoor: ['wedding_main', 'wedding_rehearsal'],
+  product: ['other'],
+  profile: ['profile'],
+  event: ['baby_dol', 'baby_growth', 'other'],
+  other: ['other'],
 };
 
 // ==================== Zod 스키마 ====================
@@ -117,23 +106,30 @@ export function ShootingForm({
   } = form;
 
   const watchedType = watch('type');
-  const watchedDuration = watch('estimatedDuration');
 
-  const averageBudgetInfo = useMemo(() => {
-    if (!watchedType || !AVERAGE_BUDGET_PER_HOUR[watchedType]) return null;
+  const { data: avgBudgetData } = useAverageBudget();
 
-    const durationMin = watchedDuration || DEFAULT_DURATION_MINUTES[watchedType] || 120;
-    const hours = durationMin / 60;
-    const avgBudget = Math.round(AVERAGE_BUDGET_PER_HOUR[watchedType] * hours);
+  // 선택한 촬영유형의 사이트 평균 예산 (구인방 데이터 기준)
+  const averageBudgetInfo = (() => {
+    if (!watchedType || !avgBudgetData) return null;
+    const recruitTypes = SHOOTING_TO_RECRUITMENT_TYPES[watchedType] || [];
+    let totalBudget = 0;
+    let totalCount = 0;
+    for (const rt of recruitTypes) {
+      const d = avgBudgetData[rt];
+      if (d && d.avg > 0) {
+        totalBudget += d.avg * d.count;
+        totalCount += d.count;
+      }
+    }
+    if (totalCount < 1) return null;
+    const avg = Math.round(totalBudget / totalCount);
     const typeLabel = SHOOTING_TYPE_LABELS[watchedType as ShootingType] || watchedType;
-    const isDefault = !watchedDuration;
-
     return {
-      amount: avgBudget,
-      label: `${typeLabel} ${hours}시간${isDefault ? '(기본)' : ''} 평균 예산`,
-      formatted: avgBudget.toLocaleString('ko-KR'),
+      formatted: avg.toLocaleString('ko-KR'),
+      label: `${typeLabel} 평균 예산 (${totalCount}건 기준)`,
     };
-  }, [watchedType, watchedDuration]);
+  })();
 
   const handleFormSubmit = (values: ShootingFormValues) => {
     const dto: CreateShootingDto = {
