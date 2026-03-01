@@ -112,7 +112,7 @@ export class AuthController {
   @ApiOperation({ summary: '초대 수락 - Google OAuth' })
   async googleInviteAuth(@Param('inviteToken') inviteToken: string, @Res() res: Response) {
     res.cookie('invite_token', inviteToken, { maxAge: 5 * 60 * 1000, httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' });
-    return res.redirect('/api/v1/auth/staff/google');
+    return res.redirect('/api/v1/auth/google');
   }
 
   // ========== 고객 OAuth 로그인 ==========
@@ -152,6 +152,22 @@ export class AuthController {
   }
 
   @Public()
+  @Get('google-login')
+  @ApiOperation({ summary: 'Google 로그인 (기존 회원만)' })
+  async googleLoginRedirect(@Res() res: Response) {
+    res.cookie('auth_mode', 'login', { httpOnly: true, maxAge: 300000, sameSite: 'lax' });
+    return res.redirect('/api/v1/auth/google');
+  }
+
+  @Public()
+  @Get('google-register')
+  @ApiOperation({ summary: 'Google 회원가입 (신규 회원만)' })
+  async googleRegisterRedirect(@Res() res: Response) {
+    res.cookie('auth_mode', 'register', { httpOnly: true, maxAge: 300000, sameSite: 'lax' });
+    return res.redirect('/api/v1/auth/google');
+  }
+
+  @Public()
   @Get('naver')
   @UseGuards(AuthGuard('naver'))
   @ApiOperation({ summary: '네이버 로그인/가입' })
@@ -177,6 +193,21 @@ export class AuthController {
   @UseGuards(AuthGuard('kakao'))
   @ApiOperation({ summary: '카카오 로그인 콜백' })
   async kakaoAuthCallback(@Request() req: any, @Res() res: Response) {
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3002';
+    return this.handleOAuthCallback(req.user, frontendUrl, res, req);
+  }
+
+  @Public()
+  @Get('google')
+  @UseGuards(AuthGuard('customer-google'))
+  @ApiOperation({ summary: 'Google 로그인/가입' })
+  async googleAuth() { }
+
+  @Public()
+  @Get('google/callback')
+  @UseGuards(AuthGuard('customer-google'))
+  @ApiOperation({ summary: 'Google 로그인 콜백' })
+  async googleAuthCallback(@Request() req: any, @Res() res: Response) {
     const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3002';
     return this.handleOAuthCallback(req.user, frontendUrl, res, req);
   }

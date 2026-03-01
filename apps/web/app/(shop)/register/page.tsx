@@ -381,7 +381,7 @@ function RegisterForm() {
                 >
                   취소
                 </Button>
-                <a href={`${apiUrl}/auth/${socialConfirmProvider === 'google' ? 'google' : `${socialConfirmProvider}-register`}`}>
+                <a href={`${apiUrl}/auth/${socialConfirmProvider}-register`}>
                   <Button className="bg-[#E4007F] hover:bg-[#C5006D] text-white">
                     회원가입
                   </Button>

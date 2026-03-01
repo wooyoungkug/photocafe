@@ -10,6 +10,7 @@ import { KakaoStrategy } from './strategies/kakao.strategy';
 import { StaffNaverStrategy } from './strategies/staff-naver.strategy';
 import { StaffKakaoStrategy } from './strategies/staff-kakao.strategy';
 import { GoogleStrategy } from './strategies/google.strategy';
+import { CustomerGoogleStrategy } from './strategies/customer-google.strategy';
 import { EmploymentModule } from '../employment/employment.module';
 
 @Module({
@@ -43,6 +44,7 @@ import { EmploymentModule } from '../employment/employment.module';
     StaffNaverStrategy,
     StaffKakaoStrategy,
     GoogleStrategy,
+    CustomerGoogleStrategy,
   ],
   exports: [AuthService],
 })

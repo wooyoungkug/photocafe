@@ -443,7 +443,7 @@ function LoginForm() {
         </a>
 
         <a
-          href={`${apiUrl}/auth/google`}
+          href={`${apiUrl}/auth/google-login`}
           className="inline-flex items-center justify-center w-full h-12 rounded-md text-sm font-medium border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 transition-colors"
         >
           <svg

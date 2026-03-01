@@ -355,6 +355,45 @@ export class AuthService {
     return { ...client, _isNew: isNew };
   }
 
+  async validateGoogleUser(data: {
+    oauthId: string; email: string; name: string;
+    profileImage?: string;
+  }) {
+    let client = await this.prisma.client.findFirst({
+      where: { oauthProvider: 'google', oauthId: data.oauthId },
+    });
+
+    let isNew = false;
+    if (!client) {
+      const dup = await this.checkEmailDuplicate(data.email, 'google');
+      if (dup) {
+        const providerLabel = this.PROVIDER_LABELS[dup.provider] || dup.provider;
+        return {
+          _emailDuplicate: true,
+          _dupMessage: `이미 ${providerLabel}(으)로 가입된 이메일입니다. (가입일: ${dup.date})`,
+        } as any;
+      }
+      isNew = true;
+      const clientCode = `G${Date.now().toString().slice(-8)}`;
+      client = await this.prisma.client.create({
+        data: {
+          clientCode, clientName: data.name, email: data.email,
+          oauthProvider: 'google', oauthId: data.oauthId, profileImage: data.profileImage,
+          memberType: 'individual', priceType: 'standard', paymentType: 'order', status: 'active',
+        },
+      });
+    } else {
+      const updateData: any = {};
+      if (!client.profileImage && data.profileImage) updateData.profileImage = data.profileImage;
+      if (!client.email && data.email) updateData.email = data.email;
+      if (Object.keys(updateData).length > 0) {
+        client = await this.prisma.client.update({ where: { id: client.id }, data: updateData });
+      }
+    }
+
+    return { ...client, _isNew: isNew };
+  }
+
   /** 로그인 전용 모드에서 자동 생성된 신규 회원을 롤백 */
   async rollbackNewClient(clientId: string) {
     try {
