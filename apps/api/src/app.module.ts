@@ -33,6 +33,7 @@ import { ShootingModule } from './modules/shooting/shooting.module';
 import { IpBlockMiddleware } from './modules/analytics/ip-block.middleware';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { EmailModule } from './common/email/email.module';
+import { SmsModule } from './common/sms/sms.module';
 import { HealthModule } from './health/health.module';
 import { AppController } from './app.controller';
 
@@ -64,6 +65,7 @@ import { AppController } from './app.controller';
     NestScheduleModule.forRoot(),
     PrismaModule,
     EmailModule,
+    SmsModule,
     HealthModule,
     AuthModule,
     CompanyModule,

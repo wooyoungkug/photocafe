@@ -30,6 +30,8 @@ import {
   ApproveStaffDto,
   ChangeStaffRoleDto,
   SelectContextDto,
+  SendPhoneVerificationDto,
+  VerifyPhoneDto,
 } from './dto/auth.dto';
 import { StaffOnlyGuard } from '@/common/guards/staff-only.guard';
 import { EmploymentService } from '../employment/employment.service';
@@ -240,7 +242,30 @@ export class AuthController {
   @Throttle({ default: { ttl: 60000, limit: 3 } })
   @ApiOperation({ summary: '고객 아이디/PW 회원가입' })
   async clientRegister(@Body() dto: ClientRegisterDto) {
-    return this.authService.registerClientWithPassword(dto.loginId, dto.password, dto.name);
+    return this.authService.registerClientWithPassword(
+      dto.loginId,
+      dto.password,
+      dto.name,
+      dto.phone,
+      dto.verificationId,
+      dto.contactEmail,
+    );
+  }
+
+  @Public()
+  @Post('client/send-phone-verification')
+  @Throttle({ default: { ttl: 60000, limit: 3 } })
+  @ApiOperation({ summary: '전화번호 인증코드 발송' })
+  async sendPhoneVerification(@Body() dto: SendPhoneVerificationDto) {
+    return this.authService.sendPhoneVerification(dto.phone);
+  }
+
+  @Public()
+  @Post('client/verify-phone')
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  @ApiOperation({ summary: '전화번호 인증코드 확인' })
+  async verifyPhone(@Body() dto: VerifyPhoneDto) {
+    return this.authService.verifyPhoneCode(dto.phone, dto.code);
   }
 
   // ========== 직원 ID/PW 로그인 ==========

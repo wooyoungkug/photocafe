@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '@/common/prisma/prisma.service';
+import { SmsService } from '@/common/sms/sms.service';
 
 interface OAuthTokenData {
   accessToken: string;
@@ -22,6 +23,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private smsService: SmsService,
   ) { }
 
   /** OAuth 콜백용: 토큰을 임시 코드로 저장 (60초 TTL) */
@@ -462,7 +464,25 @@ export class AuthService {
     return { available: !existing };
   }
 
-  async registerClientWithPassword(loginId: string, password: string, name: string) {
+  async registerClientWithPassword(
+    loginId: string,
+    password: string,
+    name: string,
+    phone: string,
+    verificationId: string,
+    contactEmail?: string,
+  ) {
+    // 전화번호 인증 확인
+    const verification = await this.prisma.phoneVerification.findUnique({
+      where: { id: verificationId },
+    });
+    if (!verification || !verification.verified || verification.phone !== phone) {
+      throw new BadRequestException('전화번호 인증이 완료되지 않았습니다');
+    }
+    if (verification.expiresAt < new Date()) {
+      throw new BadRequestException('인증이 만료되었습니다. 다시 인증해주세요');
+    }
+
     // 아이디 중복 확인
     const existing = await this.prisma.client.findFirst({
       where: { email: loginId },
@@ -480,6 +500,8 @@ export class AuthService {
         clientName: name,
         email: loginId,
         password: hashedPassword,
+        mobile: phone,
+        contactEmail: contactEmail || undefined,
         memberType: 'individual',
         priceType: 'standard',
         paymentType: 'order',
@@ -487,7 +509,70 @@ export class AuthService {
       },
     });
 
+    // 사용된 인증 레코드 삭제
+    await this.prisma.phoneVerification.delete({ where: { id: verificationId } }).catch(() => {});
+
     return { success: true, message: '회원가입이 완료되었습니다' };
+  }
+
+  // ========== 전화번호 인증 ==========
+
+  async sendPhoneVerification(phone: string) {
+    // 1분 이내 동일 번호 요청 확인 (스팸 방지)
+    const recent = await this.prisma.phoneVerification.findFirst({
+      where: {
+        phone,
+        createdAt: { gt: new Date(Date.now() - 60 * 1000) },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (recent) {
+      throw new BadRequestException('1분 후에 다시 시도해주세요');
+    }
+
+    // 6자리 인증코드 생성
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 3 * 60 * 1000); // 3분
+
+    const verification = await this.prisma.phoneVerification.create({
+      data: { phone, code, expiresAt },
+    });
+
+    // SMS 발송
+    const message = `[Printing114] 인증코드: ${code} (3분 이내 입력)`;
+    const result = await this.smsService.sendSms(phone, message);
+
+    if (!result.success) {
+      this.logger.warn(`SMS 발송 실패 (${phone}): ${result.error} - 인증코드: ${code}`);
+    }
+
+    // 개발 환경에서는 인증코드 로그 출력
+    this.logger.log(`[개발용] 전화번호 인증코드 - ${phone}: ${code}`);
+
+    return { success: true, message: '인증코드가 발송되었습니다' };
+  }
+
+  async verifyPhoneCode(phone: string, code: string) {
+    const verification = await this.prisma.phoneVerification.findFirst({
+      where: {
+        phone,
+        code,
+        verified: false,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!verification) {
+      throw new BadRequestException('인증코드가 올바르지 않거나 만료되었습니다');
+    }
+
+    await this.prisma.phoneVerification.update({
+      where: { id: verification.id },
+      data: { verified: true },
+    });
+
+    return { verified: true, verificationId: verification.id };
   }
 
   // ========== 직원 ID/PW 로그인 ==========

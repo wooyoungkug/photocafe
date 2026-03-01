@@ -28,6 +28,9 @@ interface ClientRegisterRequest {
   loginId: string;
   password: string;
   name: string;
+  phone: string;
+  verificationId: string;
+  contactEmail?: string;
 }
 
 export function useClientLogin() {
@@ -53,6 +56,20 @@ export function useClientRegister() {
     onSuccess: () => {
       router.push('/login?registered=true');
     },
+  });
+}
+
+export function useSendPhoneVerification() {
+  return useMutation({
+    mutationFn: (phone: string) =>
+      api.post<{ success: boolean; message: string }>('/auth/client/send-phone-verification', { phone }),
+  });
+}
+
+export function useVerifyPhone() {
+  return useMutation({
+    mutationFn: (data: { phone: string; code: string }) =>
+      api.post<{ verified: boolean; verificationId: string }>('/auth/client/verify-phone', data),
   });
 }
 

@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsString, MinLength, IsNotEmpty, IsOptional, IsIn, IsBoolean } from 'class-validator';
+import { IsEmail, IsString, MinLength, IsNotEmpty, IsOptional, IsIn, IsBoolean, Matches, Length } from 'class-validator';
 
 export class RefreshTokenDto {
   @ApiProperty({ description: 'Refresh Token' })
@@ -39,6 +39,46 @@ export class ClientRegisterDto {
   @IsString()
   @IsNotEmpty({ message: '이름을 입력해주세요' })
   name: string;
+
+  @ApiProperty({ example: '01012345678', description: '전화번호' })
+  @IsString()
+  @IsNotEmpty({ message: '전화번호를 입력해주세요' })
+  @Matches(/^01[0-9]{8,9}$/, { message: '올바른 전화번호 형식이 아닙니다' })
+  phone: string;
+
+  @ApiProperty({ example: 'cuid_verification_id', description: '전화번호 인증 ID' })
+  @IsString()
+  @IsNotEmpty({ message: '전화번호 인증이 필요합니다' })
+  verificationId: string;
+
+  @ApiPropertyOptional({ example: 'user@example.com', description: '이메일' })
+  @IsOptional()
+  @IsEmail({}, { message: '올바른 이메일 형식이 아닙니다' })
+  contactEmail?: string;
+}
+
+// ========== 전화번호 인증 DTO ==========
+
+export class SendPhoneVerificationDto {
+  @ApiProperty({ example: '01012345678', description: '전화번호 (하이픈 없이)' })
+  @IsString()
+  @IsNotEmpty({ message: '전화번호를 입력해주세요' })
+  @Matches(/^01[0-9]{8,9}$/, { message: '올바른 전화번호 형식이 아닙니다' })
+  phone: string;
+}
+
+export class VerifyPhoneDto {
+  @ApiProperty({ example: '01012345678', description: '전화번호' })
+  @IsString()
+  @IsNotEmpty({ message: '전화번호를 입력해주세요' })
+  @Matches(/^01[0-9]{8,9}$/, { message: '올바른 전화번호 형식이 아닙니다' })
+  phone: string;
+
+  @ApiProperty({ example: '123456', description: '인증코드 6자리' })
+  @IsString()
+  @IsNotEmpty({ message: '인증코드를 입력해주세요' })
+  @Length(6, 6, { message: '인증코드는 6자리입니다' })
+  code: string;
 }
 
 // ========== 직원 ID/PW 로그인 DTO ==========

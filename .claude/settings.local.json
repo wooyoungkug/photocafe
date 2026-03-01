@@ -372,7 +372,8 @@
       "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"SELECT \"\"staffId\"\", name, CASE WHEN password IS NOT NULL THEN ''SET'' ELSE ''NULL'' END as pw_status FROM staff WHERE \"\"staffId\"\" = ''admin'';\")",
       "Bash(\"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -c \"UPDATE staff SET \"\"isSuperAdmin\"\" = true WHERE \"\"staffId\"\" = ''admin'';\")",
       "Bash(PGPASSWORD=postgres \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -c \"UPDATE staff SET \"\"isSuperAdmin\"\" = true WHERE \"\"staffId\"\" = ''admin'';\")",
-      "Bash(PGPASSWORD=postgres \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -c \"SELECT \"\"staffId\"\", \"\"name\"\", \"\"isSuperAdmin\"\" FROM staff WHERE \"\"staffId\"\" = ''admin'';\")"
+      "Bash(PGPASSWORD=postgres \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -c \"SELECT \"\"staffId\"\", \"\"name\"\", \"\"isSuperAdmin\"\" FROM staff WHERE \"\"staffId\"\" = ''admin'';\")",
+      "WebFetch(domain:docs.nhncloud.com)"
     ],
     "additionalDirectories": [
       "C:\\dev\\printing114\\apps\\api\\dist",
