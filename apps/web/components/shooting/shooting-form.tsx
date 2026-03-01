@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -207,6 +207,25 @@ export function ShootingForm({
   } = form;
 
   const watchedType = watch('shootingType');
+
+  // 촬영유형 변경 또는 구인 연동 켤 때 상세설명/요구사항 첫 번째 프리셋 자동 채우기
+  useEffect(() => {
+    if (!watchedType || !enableRecruitment) return;
+
+    const descPresets = DESCRIPTION_PRESETS[watchedType];
+    const reqPresets = REQUIREMENTS_PRESETS[watchedType];
+
+    const currentDesc = watch('recruitmentDescription') || '';
+    const currentReq = watch('recruitmentRequirements') || '';
+
+    // 빈 필드일 때만 자동 채우기 (수동 입력 보호)
+    if (!currentDesc && descPresets?.length) {
+      setValue('recruitmentDescription', descPresets[0].text);
+    }
+    if (!currentReq && reqPresets?.length) {
+      setValue('recruitmentRequirements', reqPresets[0].text);
+    }
+  }, [watchedType, enableRecruitment]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data: avgBudgetData } = useAverageBudget();
 
