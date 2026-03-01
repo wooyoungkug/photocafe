@@ -37,6 +37,13 @@ export function useClientLogin() {
   });
 }
 
+export function useCheckLoginId() {
+  return useMutation({
+    mutationFn: (loginId: string) =>
+      api.get<{ available: boolean }>(`/auth/client/check-login-id?loginId=${encodeURIComponent(loginId)}`),
+  });
+}
+
 export function useClientRegister() {
   const router = useRouter();
 

@@ -228,6 +228,14 @@ export class AuthController {
   }
 
   @Public()
+  @Get('client/check-login-id')
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @ApiOperation({ summary: '아이디 중복 확인' })
+  async checkLoginId(@Query('loginId') loginId: string) {
+    return this.authService.checkLoginIdAvailable(loginId);
+  }
+
+  @Public()
   @Post('client/register')
   @Throttle({ default: { ttl: 60000, limit: 3 } })
   @ApiOperation({ summary: '고객 아이디/PW 회원가입' })

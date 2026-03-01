@@ -450,6 +450,18 @@ export class AuthService {
     return this.loginClient(client, false, ip);
   }
 
+  async checkLoginIdAvailable(loginId: string) {
+    if (!loginId || loginId.length < 4) {
+      throw new BadRequestException('아이디는 4자 이상이어야 합니다');
+    }
+
+    const existing = await this.prisma.client.findFirst({
+      where: { email: loginId },
+    });
+
+    return { available: !existing };
+  }
+
   async registerClientWithPassword(loginId: string, password: string, name: string) {
     // 아이디 중복 확인
     const existing = await this.prisma.client.findFirst({

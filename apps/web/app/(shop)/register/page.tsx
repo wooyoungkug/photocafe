@@ -2,23 +2,54 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useClientRegister } from '@/hooks/use-auth';
+import { useClientRegister, useCheckLoginId } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertCircle, Loader2, User, Lock, UserPlus } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2, User, Lock, UserPlus } from 'lucide-react';
 
 export default function RegisterPage() {
   const register = useClientRegister();
+  const checkLoginId = useCheckLoginId();
 
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [loginIdChecked, setLoginIdChecked] = useState(false);
+  const [loginIdAvailable, setLoginIdAvailable] = useState<boolean | null>(null);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+
+  const handleCheckLoginId = async () => {
+    if (!loginId) {
+      setError('아이디를 입력해주세요.');
+      return;
+    }
+    if (loginId.length < 4) {
+      setError('아이디는 4자 이상이어야 합니다.');
+      return;
+    }
+    setError(null);
+    try {
+      const result = await checkLoginId.mutateAsync(loginId);
+      setLoginIdChecked(true);
+      setLoginIdAvailable(result.available);
+      if (!result.available) {
+        setError('이미 사용 중인 아이디입니다.');
+      }
+    } catch {
+      setError('중복 확인에 실패했습니다.');
+    }
+  };
+
+  const handleLoginIdChange = (value: string) => {
+    setLoginId(value);
+    setLoginIdChecked(false);
+    setLoginIdAvailable(null);
+  };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,6 +62,11 @@ export default function RegisterPage() {
 
     if (loginId.length < 4) {
       setError('아이디는 4자 이상이어야 합니다.');
+      return;
+    }
+
+    if (!loginIdChecked || !loginIdAvailable) {
+      setError('아이디 중복확인을 해주세요.');
       return;
     }
 
@@ -76,18 +112,37 @@ export default function RegisterPage() {
           <form onSubmit={handleRegister} className="space-y-3">
             <div className="space-y-1.5">
               <Label htmlFor="loginId" className="text-[14px] text-black font-normal">아이디</Label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  id="loginId"
-                  type="text"
-                  placeholder="아이디 입력 (4자 이상)"
-                  value={loginId}
-                  onChange={(e) => setLoginId(e.target.value)}
-                  className="pl-10 h-11"
-                  autoComplete="username"
-                />
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="loginId"
+                    type="text"
+                    placeholder="아이디 입력 (4자 이상)"
+                    value={loginId}
+                    onChange={(e) => handleLoginIdChange(e.target.value)}
+                    className="pl-10 h-11"
+                    autoComplete="username"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 px-4 shrink-0"
+                  onClick={handleCheckLoginId}
+                  disabled={checkLoginId.isPending || loginId.length < 4}
+                >
+                  {checkLoginId.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : '중복확인'}
+                </Button>
               </div>
+              {loginIdChecked && loginIdAvailable && (
+                <p className="flex items-center gap-1 text-sm text-green-600">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  사용 가능한 아이디입니다.
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5">
