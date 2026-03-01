@@ -2,23 +2,18 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import type { ShootingType } from '@/lib/constants/shooting-types';
+
+// re-export
+export type { ShootingType } from '@/lib/constants/shooting-types';
+export { SHOOTING_TYPE_LABELS, SHOOTING_TYPE_COLORS } from '@/lib/constants/shooting-types';
 
 // ==================== 타입 정의 ====================
 
-/** 촬영 유형 */
-export type ShootingType =
-  | 'wedding'
-  | 'studio'
-  | 'outdoor'
-  | 'product'
-  | 'profile'
-  | 'event'
-  | 'other';
-
-/** 촬영 상태 */
+/** 촬영 상태 (백엔드 shooting.constants.ts 기준) */
 export type ShootingStatus =
   | 'draft'
-  | 'published'
+  | 'recruiting'
   | 'bidding'
   | 'confirmed'
   | 'in_progress'
@@ -27,7 +22,7 @@ export type ShootingStatus =
 
 export const SHOOTING_STATUS_LABELS: Record<ShootingStatus, string> = {
   draft: '초안',
-  published: '공고중',
+  recruiting: '모집중',
   bidding: '응찰중',
   confirmed: '확정',
   in_progress: '진행중',
@@ -35,56 +30,65 @@ export const SHOOTING_STATUS_LABELS: Record<ShootingStatus, string> = {
   cancelled: '취소',
 };
 
-export const SHOOTING_TYPE_LABELS: Record<ShootingType, string> = {
-  wedding: '웨딩',
-  studio: '스튜디오',
-  outdoor: '야외',
-  product: '제품',
-  profile: '프로필',
-  event: '행사',
-  other: '기타',
-};
-
-/** 촬영 일정 */
+/** 촬영 일정 (백엔드 ShootingSchedule 모델 기준) */
 export interface Shooting {
   id: string;
-  title: string;
-  type: ShootingType;
+  scheduleId?: string;
+  clientName: string;
+  shootingType: ShootingType;
+  venueName: string;
+  venueAddress: string;
+  latitude?: number;
+  longitude?: number;
+  shootingDate: string;
+  duration?: number;
   status: ShootingStatus;
-  scheduledDate: string;
-  scheduledTime?: string;
-  estimatedDuration?: number; // 분 단위
-  location?: string;
-  locationAddress?: string;
-  locationLat?: number;
-  locationLng?: number;
-  description?: string;
-  requirements?: string;
-  budget?: number;
-  clientId?: string;
-  clientName?: string;
-  photographerId?: string;
-  photographerName?: string;
-  bidCount?: number;
+  assignedStaffId?: string;
+  assignedStaff?: {
+    id: string;
+    name: string;
+    email?: string;
+  };
+  assignedClientId?: string;
+  assignedClient?: {
+    id: string;
+    clientName: string;
+    email?: string;
+  };
+  linkedRecruitmentId?: string;
+  maxBidders: number;
+  customerPhone?: string;
+  customerEmail?: string;
+  notes?: string;
+  createdBy: string;
   createdAt: string;
   updatedAt: string;
+  _count?: {
+    bids: number;
+  };
 }
 
-/** 촬영 생성 DTO */
+/** 촬영 생성 DTO (백엔드 CreateShootingDto 기준) */
 export interface CreateShootingDto {
-  title: string;
-  type: ShootingType;
-  scheduledDate: string;
-  scheduledTime?: string;
-  estimatedDuration?: number;
-  location?: string;
-  locationAddress?: string;
-  locationLat?: number;
-  locationLng?: number;
-  description?: string;
-  requirements?: string;
-  budget?: number;
-  clientId?: string;
+  clientName: string;
+  shootingType: ShootingType;
+  venueName: string;
+  venueAddress: string;
+  latitude?: number;
+  longitude?: number;
+  shootingDate: string;
+  duration?: number;
+  maxBidders?: number;
+  customerPhone?: string;
+  customerEmail?: string;
+  notes?: string;
+  // 구인 연동 옵션
+  enableRecruitment?: boolean;
+  recruitmentClientId?: string;
+  recruitmentTitle?: string;
+  recruitmentBudget?: number;
+  recruitmentDescription?: string;
+  recruitmentRequirements?: string;
 }
 
 /** 촬영 수정 DTO */
@@ -93,7 +97,7 @@ export interface UpdateShootingDto extends Partial<CreateShootingDto> {}
 /** 촬영 상태 변경 DTO */
 export interface UpdateShootingStatusDto {
   status: ShootingStatus;
-  note?: string;
+  reason?: string;
 }
 
 /** 촬영 목록 조회 파라미터 */
@@ -101,12 +105,11 @@ export interface ShootingListParams {
   page?: number;
   limit?: number;
   search?: string;
-  type?: ShootingType;
+  shootingType?: ShootingType;
   status?: ShootingStatus;
   startDate?: string;
   endDate?: string;
-  clientId?: string;
-  photographerId?: string;
+  assignedStaffId?: string;
 }
 
 /** 페이지네이션 응답 */

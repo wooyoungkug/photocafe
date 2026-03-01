@@ -25,7 +25,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { Shooting } from '@/hooks/use-shooting';
 import { SHOOTING_TYPE_LABELS } from '@/hooks/use-shooting';
-import { SHOOTING_TYPE_COLORS } from './shooting-type-badge';
+import { SHOOTING_TYPE_COLORS } from '@/lib/constants/shooting-types';
 import type { CalendarViewMode } from '@/stores/shooting-store';
 import { useHolidaysRange } from '@/hooks/use-holidays';
 
@@ -40,6 +40,20 @@ interface ShootingCalendarProps {
 }
 
 const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
+
+/** shootingDate (ISO DateTime)에서 시간 문자열 추출. 00:00이면 null (종일) */
+function getShootingTime(shootingDate: string): string | null {
+  const d = new Date(shootingDate);
+  const h = d.getHours();
+  const m = d.getMinutes();
+  if (h === 0 && m === 0) return null;
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+}
+
+/** shootingDate에서 시(hour) 추출 */
+function getShootingHour(shootingDate: string): number {
+  return new Date(shootingDate).getHours();
+}
 
 export function ShootingCalendar({
   shootings,
@@ -106,7 +120,7 @@ export function ShootingCalendar({
   const shootingsByDate = useMemo(() => {
     const map = new Map<string, Shooting[]>();
     shootings.forEach((s) => {
-      const dateKey = s.scheduledDate.substring(0, 10);
+      const dateKey = s.shootingDate.substring(0, 10);
       if (!map.has(dateKey)) {
         map.set(dateKey, []);
       }
@@ -322,15 +336,15 @@ function MonthView({
                     }}
                     className="w-full text-left rounded px-1 py-0.5 text-[11px] truncate transition-opacity hover:opacity-80"
                     style={{
-                      backgroundColor: `${SHOOTING_TYPE_COLORS[shooting.type]}15`,
-                      color: SHOOTING_TYPE_COLORS[shooting.type],
-                      borderLeft: `2px solid ${SHOOTING_TYPE_COLORS[shooting.type]}`,
+                      backgroundColor: `${SHOOTING_TYPE_COLORS[shooting.shootingType]}15`,
+                      color: SHOOTING_TYPE_COLORS[shooting.shootingType],
+                      borderLeft: `2px solid ${SHOOTING_TYPE_COLORS[shooting.shootingType]}`,
                     }}
                   >
-                    {shooting.scheduledTime
-                      ? `${shooting.scheduledTime.substring(0, 5)} `
+                    {getShootingTime(shooting.shootingDate)
+                      ? `${getShootingTime(shooting.shootingDate)} `
                       : ''}
-                    {shooting.title}
+                    {shooting.clientName}
                   </button>
                 ))}
                 {dayShootings.length > 3 && (
@@ -435,7 +449,7 @@ function WeekView({
         {weekDays.map((day) => {
           const dateKey = format(day, 'yyyy-MM-dd');
           const dayShootings = (shootingsByDate.get(dateKey) || []).filter(
-            (s) => !s.scheduledTime
+            (s) => !getShootingTime(s.shootingDate)
           );
           return (
             <div key={`allday-${dateKey}`} className="border-r last:border-r-0 p-0.5">
@@ -446,12 +460,12 @@ function WeekView({
                   onClick={() => onShootingClick?.(shooting)}
                   className="w-full text-left rounded px-1 py-0.5 mb-0.5 text-[11px] truncate"
                   style={{
-                    backgroundColor: `${SHOOTING_TYPE_COLORS[shooting.type]}20`,
-                    color: SHOOTING_TYPE_COLORS[shooting.type],
-                    borderLeft: `2px solid ${SHOOTING_TYPE_COLORS[shooting.type]}`,
+                    backgroundColor: `${SHOOTING_TYPE_COLORS[shooting.shootingType]}20`,
+                    color: SHOOTING_TYPE_COLORS[shooting.shootingType],
+                    borderLeft: `2px solid ${SHOOTING_TYPE_COLORS[shooting.shootingType]}`,
                   }}
                 >
-                  {shooting.title}
+                  {shooting.clientName}
                 </button>
               ))}
             </div>
@@ -479,8 +493,8 @@ function WeekView({
               {weekDays.map((day) => {
                 const dateKey = format(day, 'yyyy-MM-dd');
                 const dayShootings = (shootingsByDate.get(dateKey) || []).filter((s) => {
-                  if (!s.scheduledTime) return false;
-                  const h = parseInt(s.scheduledTime.substring(0, 2), 10);
+                  if (!getShootingTime(s.shootingDate)) return false;
+                  const h = getShootingHour(s.shootingDate);
                   return h === hour;
                 });
 
@@ -493,12 +507,12 @@ function WeekView({
                         onClick={() => onShootingClick?.(shooting)}
                         className="w-full text-left rounded px-1 py-0.5 mb-0.5 text-[11px] truncate"
                         style={{
-                          backgroundColor: `${SHOOTING_TYPE_COLORS[shooting.type]}20`,
-                          color: SHOOTING_TYPE_COLORS[shooting.type],
-                          borderLeft: `2px solid ${SHOOTING_TYPE_COLORS[shooting.type]}`,
+                          backgroundColor: `${SHOOTING_TYPE_COLORS[shooting.shootingType]}20`,
+                          color: SHOOTING_TYPE_COLORS[shooting.shootingType],
+                          borderLeft: `2px solid ${SHOOTING_TYPE_COLORS[shooting.shootingType]}`,
                         }}
                       >
-                        {shooting.scheduledTime?.substring(0, 5)} {shooting.title}
+                        {getShootingTime(shooting.shootingDate) || ''} {shooting.clientName}
                       </button>
                     ))}
                   </div>
@@ -539,7 +553,7 @@ function DayView({
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
   // 종일 일정 (시간 미지정)
-  const allDayShootings = dayShootings.filter((s) => !s.scheduledTime);
+  const allDayShootings = dayShootings.filter((s) => !getShootingTime(s.shootingDate));
 
   return (
     <div className="flex-1 flex flex-col overflow-auto">
@@ -590,11 +604,11 @@ function DayView({
                 onClick={() => onShootingClick?.(shooting)}
                 className="w-full text-left rounded-lg px-3 py-2 transition-opacity hover:opacity-80"
                 style={{
-                  backgroundColor: `${SHOOTING_TYPE_COLORS[shooting.type]}15`,
-                  borderLeft: `3px solid ${SHOOTING_TYPE_COLORS[shooting.type]}`,
+                  backgroundColor: `${SHOOTING_TYPE_COLORS[shooting.shootingType]}15`,
+                  borderLeft: `3px solid ${SHOOTING_TYPE_COLORS[shooting.shootingType]}`,
                 }}
               >
-                <span className="text-[14px] text-black font-normal">{shooting.title}</span>
+                <span className="text-[14px] text-black font-normal">{shooting.clientName}</span>
               </button>
             ))}
           </div>
@@ -606,8 +620,8 @@ function DayView({
         const isAfternoon = hour >= 12;
         const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
         const hourShootings = dayShootings.filter((s) => {
-          if (!s.scheduledTime) return false;
-          const h = parseInt(s.scheduledTime.substring(0, 2), 10);
+          if (!getShootingTime(s.shootingDate)) return false;
+          const h = getShootingHour(s.shootingDate);
           return h === hour;
         });
 
@@ -637,25 +651,25 @@ function DayView({
                   onClick={() => onShootingClick?.(shooting)}
                   className="w-full text-left rounded-lg px-3 py-2 mb-1 transition-opacity hover:opacity-80"
                   style={{
-                    backgroundColor: `${SHOOTING_TYPE_COLORS[shooting.type]}15`,
-                    borderLeft: `3px solid ${SHOOTING_TYPE_COLORS[shooting.type]}`,
+                    backgroundColor: `${SHOOTING_TYPE_COLORS[shooting.shootingType]}15`,
+                    borderLeft: `3px solid ${SHOOTING_TYPE_COLORS[shooting.shootingType]}`,
                   }}
                 >
                   <div className="flex items-center gap-2">
                     <span
                       className="text-[14px] font-medium"
-                      style={{ color: SHOOTING_TYPE_COLORS[shooting.type] }}
+                      style={{ color: SHOOTING_TYPE_COLORS[shooting.shootingType] }}
                     >
-                      {shooting.scheduledTime?.substring(0, 5)}
+                      {getShootingTime(shooting.shootingDate)}
                     </span>
                     <span className="text-[14px] text-black font-normal">
-                      {shooting.title}
+                      {shooting.clientName}
                     </span>
                   </div>
-                  {shooting.location && (
+                  {shooting.venueName && (
                     <div className="flex items-center gap-1 mt-0.5">
                       <MapPin className="h-3 w-3 text-gray-400" />
-                      <span className="text-[12px] text-gray-500">{shooting.location}</span>
+                      <span className="text-[12px] text-gray-500">{shooting.venueName}</span>
                     </div>
                   )}
                   {shooting.clientName && (
@@ -785,19 +799,19 @@ function ListView({
             {/* 시간 */}
             <div className="py-2 px-3 border-r">
               <span className="text-[12px] text-gray-600">
-                {shooting.scheduledTime ? shooting.scheduledTime.substring(0, 5) : '종일'}
+                {getShootingTime(shooting.shootingDate) || '종일'}
               </span>
             </div>
             {/* 내용 */}
             <div className="py-2 px-3 flex items-center gap-2">
               <span
                 className="h-2.5 w-2.5 rounded-full flex-shrink-0"
-                style={{ backgroundColor: SHOOTING_TYPE_COLORS[shooting.type] }}
+                style={{ backgroundColor: SHOOTING_TYPE_COLORS[shooting.shootingType] }}
               />
-              <span className="text-[13px] text-black truncate">{shooting.title}</span>
-              {shooting.location && (
+              <span className="text-[13px] text-black truncate">{shooting.clientName}</span>
+              {shooting.venueName && (
                 <span className="text-[11px] text-gray-400 truncate flex-shrink-0">
-                  {shooting.location}
+                  {shooting.venueName}
                 </span>
               )}
             </div>
@@ -904,15 +918,15 @@ function TwoWeekView({
                     }}
                     className="w-full text-left rounded px-1 py-0.5 text-[11px] truncate transition-opacity hover:opacity-80"
                     style={{
-                      backgroundColor: `${SHOOTING_TYPE_COLORS[shooting.type]}15`,
-                      color: SHOOTING_TYPE_COLORS[shooting.type],
-                      borderLeft: `2px solid ${SHOOTING_TYPE_COLORS[shooting.type]}`,
+                      backgroundColor: `${SHOOTING_TYPE_COLORS[shooting.shootingType]}15`,
+                      color: SHOOTING_TYPE_COLORS[shooting.shootingType],
+                      borderLeft: `2px solid ${SHOOTING_TYPE_COLORS[shooting.shootingType]}`,
                     }}
                   >
-                    {shooting.scheduledTime
-                      ? `${shooting.scheduledTime.substring(0, 5)} `
+                    {getShootingTime(shooting.shootingDate)
+                      ? `${getShootingTime(shooting.shootingDate)} `
                       : ''}
-                    {shooting.title}
+                    {shooting.clientName}
                   </button>
                 ))}
                 {dayShootings.length > 4 && (

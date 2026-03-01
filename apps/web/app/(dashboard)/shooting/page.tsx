@@ -125,7 +125,7 @@ export default function ShootingPage() {
   // 선택된 날짜의 촬영 목록
   const selectedDateShootings = useMemo(() => {
     return shootings.filter((s) => {
-      const dateStr = s.scheduledDate.substring(0, 10);
+      const dateStr = s.shootingDate.substring(0, 10);
       const selectedStr = format(selectedDate, 'yyyy-MM-dd');
       return dateStr === selectedStr;
     });
@@ -144,7 +144,7 @@ export default function ShootingPage() {
   const datesWithShootings = useMemo(() => {
     const dateSet = new Set<string>();
     shootings.forEach((s) => {
-      dateSet.add(s.scheduledDate.substring(0, 10));
+      dateSet.add(s.shootingDate.substring(0, 10));
     });
     return dateSet;
   }, [shootings]);
@@ -397,33 +397,39 @@ export default function ShootingPage() {
                   >
                     {/* 유형/상태 */}
                     <div className="flex items-center gap-1.5 mb-1.5">
-                      <ShootingTypeBadge type={shooting.type} />
+                      <ShootingTypeBadge type={shooting.shootingType} />
                       <ShootingStatusBadge status={shooting.status} />
                     </div>
 
-                    {/* 제목 */}
+                    {/* 고객명 */}
                     <p className="text-[14px] text-black font-bold truncate">
-                      {shooting.title}
+                      {shooting.clientName}
                     </p>
 
                     {/* 시간 */}
-                    {shooting.scheduledTime && (
-                      <div className="flex items-center gap-1 mt-1">
-                        <Clock className="h-3 w-3 text-gray-400" />
-                        <span className="text-[12px] text-gray-600">
-                          {shooting.scheduledTime.substring(0, 5)}
-                          {shooting.estimatedDuration &&
-                            ` (${shooting.estimatedDuration}분)`}
-                        </span>
-                      </div>
-                    )}
+                    {(() => {
+                      const d = new Date(shooting.shootingDate);
+                      const h = d.getHours();
+                      const m = d.getMinutes();
+                      if (h === 0 && m === 0) return null;
+                      const timeStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+                      return (
+                        <div className="flex items-center gap-1 mt-1">
+                          <Clock className="h-3 w-3 text-gray-400" />
+                          <span className="text-[12px] text-gray-600">
+                            {timeStr}
+                            {shooting.duration && ` (${shooting.duration}분)`}
+                          </span>
+                        </div>
+                      );
+                    })()}
 
                     {/* 장소 */}
-                    {shooting.location && (
+                    {shooting.venueName && (
                       <div className="flex items-center gap-1 mt-0.5">
                         <MapPin className="h-3 w-3 text-gray-400" />
                         <span className="text-[12px] text-gray-600 truncate">
-                          {shooting.location}
+                          {shooting.venueName}
                         </span>
                       </div>
                     )}

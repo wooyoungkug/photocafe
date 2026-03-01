@@ -419,6 +419,7 @@ model Client {
   recruitmentBids         RecruitmentBid[]   @relation("RecruitmentBidder")
   photographerProfile     PhotographerProfile?
   notificationsReceived   RecruitmentNotificationLog[] @relation("NotificationRecipient")
+  assignedShootings       ShootingSchedule[]  @relation("AssignedExternalPhotographer")
 
   @@unique([oauthProvider, oauthId])
   @@index([groupId])
@@ -3050,7 +3051,9 @@ model ShootingSchedule {
   shootingDate    DateTime             // 촬영일시
   duration        Int?                 // 예상 소요시간(분)
   status          String    @default("draft") // draft, recruiting, bidding, confirmed, in_progress, completed, cancelled
-  assignedStaffId String?              // 확정된 작가
+  assignedStaffId String?              // 확정된 내부 작가 (Staff)
+  assignedClientId String?             // 확정된 외부 작가 (Client, 구인방 경유)
+  linkedRecruitmentId String? @unique  // 연동된 구인방 ID
   maxBidders      Int       @default(3) // 최대 응찰자 수
   customerPhone   String?              // 고객 연락처 (설문 발송용)
   customerEmail   String?              // 고객 이메일
@@ -3059,16 +3062,19 @@ model ShootingSchedule {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  assignedStaff   Staff?    @relation("AssignedPhotographer", fields: [assignedStaffId], references: [id])
-  schedule        Schedule? @relation(fields: [scheduleId], references: [id])
-  bids            ShootingBid[]
-  locationLogs    LocationLog[]
-  review          ShootingReview?
+  assignedStaff      Staff?        @relation("AssignedPhotographer", fields: [assignedStaffId], references: [id])
+  assignedClient     Client?       @relation("AssignedExternalPhotographer", fields: [assignedClientId], references: [id])
+  linkedRecruitment  Recruitment?  @relation("ShootingRecruitmentLink", fields: [linkedRecruitmentId], references: [id])
+  schedule           Schedule?     @relation(fields: [scheduleId], references: [id])
+  bids               ShootingBid[]
+  locationLogs       LocationLog[]
+  review             ShootingReview?
 
   @@index([status])
   @@index([shootingDate])
   @@index([shootingType])
   @@index([assignedStaffId])
+  @@index([assignedClientId])
   @@index([createdBy])
   @@map("shooting_schedules")
 }
@@ -3182,12 +3188,14 @@ model Recruitment {
   maxBidders       Int       @default(5)
   urgencyLevel     String    @default("normal")        // normal | urgent | emergency
 
+  linkedShootingId String?  @unique                     // 연동된 일정관리 ID
   createdBy        String                              // 등록자 Client ID
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
   client            Client           @relation("RecruitmentClient", fields: [clientId], references: [id])
   creator           Client           @relation("RecruitmentCreator", fields: [createdBy], references: [id])
+  linkedShooting    ShootingSchedule? @relation("ShootingRecruitmentLink")
   bids              RecruitmentBid[]
   notificationLogs  RecruitmentNotificationLog[]
 

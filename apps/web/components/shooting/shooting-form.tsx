@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -8,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -16,45 +18,36 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { AddressSearch } from '@/components/address-search';
-import { Loader2, Info } from 'lucide-react';
-import type { ShootingType, CreateShootingDto, Shooting } from '@/hooks/use-shooting';
-import { SHOOTING_TYPE_LABELS } from '@/hooks/use-shooting';
+import { Loader2, Info, Briefcase } from 'lucide-react';
+import type { CreateShootingDto, Shooting } from '@/hooks/use-shooting';
+import { SHOOTING_TYPE_LABELS } from '@/lib/constants/shooting-types';
+import type { ShootingType } from '@/lib/constants/shooting-types';
 import { useAverageBudget } from '@/hooks/use-recruitment';
-
-// ==================== 촬영유형 → 구인방 유형 매핑 ====================
-
-/** 촬영일정 유형을 구인방 유형으로 매핑 (평균예산 집계용) */
-const SHOOTING_TO_RECRUITMENT_TYPES: Record<string, string[]> = {
-  wedding: ['wedding_main', 'wedding_rehearsal'],
-  studio: ['profile'],
-  outdoor: ['wedding_main', 'wedding_rehearsal'],
-  product: ['other'],
-  profile: ['profile'],
-  event: ['baby_dol', 'baby_growth', 'other'],
-  other: ['other'],
-};
 
 // ==================== Zod 스키마 ====================
 
 const shootingFormSchema = z.object({
-  title: z.string().min(1, '제목을 입력해주세요'),
-  type: z.string().min(1, '촬영 유형을 선택해주세요'),
-  scheduledDate: z.string().min(1, '촬영 날짜를 선택해주세요'),
-  scheduledTime: z.string().optional(),
-  estimatedDuration: z.coerce.number().min(0).optional(),
-  location: z.string().optional(),
-  locationAddress: z.string().optional(),
-  description: z.string().optional(),
-  requirements: z.string().optional(),
-  budget: z.coerce.number().min(0).optional(),
-  clientId: z.string().optional(),
-  // 고객 정보 (참조용)
-  clientName: z.string().optional(),
-  clientPhone: z.string().optional(),
-  clientEmail: z.string().email('올바른 이메일을 입력해주세요').optional().or(z.literal('')),
+  clientName: z.string().min(1, '고객명을 입력해주세요'),
+  shootingType: z.string().min(1, '촬영 유형을 선택해주세요'),
+  shootingDate: z.string().min(1, '촬영 날짜를 선택해주세요'),
+  shootingTime: z.string().optional(),
+  duration: z.coerce.number().min(0).optional(),
+  venueName: z.string().min(1, '장소명을 입력해주세요'),
+  venueAddress: z.string().optional(),
+  maxBidders: z.coerce.number().min(1).max(10).optional(),
+  customerPhone: z.string().optional(),
+  customerEmail: z.string().email('올바른 이메일을 입력해주세요').optional().or(z.literal('')),
+  notes: z.string().optional(),
+  // 구인 연동
+  recruitmentTitle: z.string().optional(),
+  recruitmentBudget: z.coerce.number().min(0).optional(),
+  recruitmentDescription: z.string().optional(),
+  recruitmentRequirements: z.string().optional(),
 });
 
 type ShootingFormValues = z.infer<typeof shootingFormSchema>;
+
+const SHOOTING_TYPES = Object.entries(SHOOTING_TYPE_LABELS) as [ShootingType, string][];
 
 // ==================== 컴포넌트 ====================
 
@@ -66,8 +59,6 @@ interface ShootingFormProps {
   mode?: 'create' | 'edit';
 }
 
-const SHOOTING_TYPES = Object.entries(SHOOTING_TYPE_LABELS) as [ShootingType, string][];
-
 export function ShootingForm({
   defaultValues,
   onSubmit,
@@ -75,25 +66,40 @@ export function ShootingForm({
   isLoading = false,
   mode = 'create',
 }: ShootingFormProps) {
+  const [enableRecruitment, setEnableRecruitment] = useState(false);
+
+  // shootingDate에서 날짜/시간 분리
+  const defaultDate = defaultValues?.shootingDate
+    ? defaultValues.shootingDate.substring(0, 10)
+    : '';
+  const defaultTime = defaultValues?.shootingDate
+    ? (() => {
+        const d = new Date(defaultValues.shootingDate);
+        const h = d.getHours();
+        const m = d.getMinutes();
+        if (h === 0 && m === 0) return '';
+        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+      })()
+    : '';
+
   const form = useForm<ShootingFormValues>({
     resolver: zodResolver(shootingFormSchema),
     defaultValues: {
-      title: defaultValues?.title || '',
-      type: defaultValues?.type || '',
-      scheduledDate: defaultValues?.scheduledDate
-        ? defaultValues.scheduledDate.substring(0, 10)
-        : '',
-      scheduledTime: defaultValues?.scheduledTime || '',
-      estimatedDuration: defaultValues?.estimatedDuration || undefined,
-      location: defaultValues?.location || '',
-      locationAddress: defaultValues?.locationAddress || '',
-      description: defaultValues?.description || '',
-      requirements: defaultValues?.requirements || '',
-      budget: defaultValues?.budget || undefined,
-      clientId: defaultValues?.clientId || '',
       clientName: defaultValues?.clientName || '',
-      clientPhone: '',
-      clientEmail: '',
+      shootingType: defaultValues?.shootingType || '',
+      shootingDate: defaultDate,
+      shootingTime: defaultTime,
+      duration: defaultValues?.duration || undefined,
+      venueName: defaultValues?.venueName || '',
+      venueAddress: defaultValues?.venueAddress || '',
+      maxBidders: defaultValues?.maxBidders || 3,
+      customerPhone: defaultValues?.customerPhone || '',
+      customerEmail: defaultValues?.customerEmail || '',
+      notes: defaultValues?.notes || '',
+      recruitmentTitle: '',
+      recruitmentBudget: undefined,
+      recruitmentDescription: '',
+      recruitmentRequirements: '',
     },
   });
 
@@ -105,46 +111,52 @@ export function ShootingForm({
     formState: { errors },
   } = form;
 
-  const watchedType = watch('type');
+  const watchedType = watch('shootingType');
 
   const { data: avgBudgetData } = useAverageBudget();
 
-  // 선택한 촬영유형의 사이트 평균 예산 (구인방 데이터 기준)
+  // 평균 예산 (구인방 데이터 기준 - 동일한 촬영유형)
   const averageBudgetInfo = (() => {
     if (!watchedType || !avgBudgetData) return null;
-    const recruitTypes = SHOOTING_TO_RECRUITMENT_TYPES[watchedType] || [];
-    let totalBudget = 0;
-    let totalCount = 0;
-    for (const rt of recruitTypes) {
-      const d = avgBudgetData[rt];
-      if (d && d.avg > 0) {
-        totalBudget += d.avg * d.count;
-        totalCount += d.count;
-      }
-    }
-    if (totalCount < 1) return null;
-    const avg = Math.round(totalBudget / totalCount);
+    const d = avgBudgetData[watchedType];
+    if (!d || d.avg <= 0) return null;
+    const avg = Math.round(d.avg);
     const typeLabel = SHOOTING_TYPE_LABELS[watchedType as ShootingType] || watchedType;
     return {
       formatted: avg.toLocaleString('ko-KR'),
-      label: `${typeLabel} 평균 예산 (${totalCount}건 기준)`,
+      label: `${typeLabel} 평균 예산 (${d.count}건 기준)`,
     };
   })();
 
   const handleFormSubmit = (values: ShootingFormValues) => {
+    // 날짜 + 시간 → ISO DateTime
+    let shootingDateISO = values.shootingDate;
+    if (values.shootingTime) {
+      shootingDateISO = `${values.shootingDate}T${values.shootingTime}:00`;
+    }
+
     const dto: CreateShootingDto = {
-      title: values.title,
-      type: values.type as ShootingType,
-      scheduledDate: values.scheduledDate,
-      scheduledTime: values.scheduledTime || undefined,
-      estimatedDuration: values.estimatedDuration || undefined,
-      location: values.location || undefined,
-      locationAddress: values.locationAddress || undefined,
-      description: values.description || undefined,
-      requirements: values.requirements || undefined,
-      budget: values.budget || undefined,
-      clientId: values.clientId || undefined,
+      clientName: values.clientName,
+      shootingType: values.shootingType as ShootingType,
+      venueName: values.venueName,
+      venueAddress: values.venueAddress || '',
+      shootingDate: shootingDateISO,
+      duration: values.duration || undefined,
+      maxBidders: values.maxBidders || 3,
+      customerPhone: values.customerPhone || undefined,
+      customerEmail: values.customerEmail || undefined,
+      notes: values.notes || undefined,
     };
+
+    // 구인 연동
+    if (enableRecruitment) {
+      dto.enableRecruitment = true;
+      dto.recruitmentTitle = values.recruitmentTitle || undefined;
+      dto.recruitmentBudget = values.recruitmentBudget || undefined;
+      dto.recruitmentDescription = values.recruitmentDescription || undefined;
+      dto.recruitmentRequirements = values.recruitmentRequirements || undefined;
+    }
+
     onSubmit(dto);
   };
 
@@ -152,7 +164,7 @@ export function ShootingForm({
     postalCode: string;
     address: string;
   }) => {
-    setValue('locationAddress', data.address, { shouldValidate: true });
+    setValue('venueAddress', data.address, { shouldValidate: true });
   };
 
   return (
@@ -163,18 +175,18 @@ export function ShootingForm({
           <CardTitle className="text-[18px] text-black font-bold">기본 정보</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* 제목 */}
+          {/* 고객명 */}
           <div className="space-y-1.5">
             <Label className="text-[14px] text-black font-normal">
-              제목 <span className="text-red-500">*</span>
+              고객명 <span className="text-red-500">*</span>
             </Label>
             <Input
-              {...register('title')}
-              placeholder="촬영 제목을 입력해주세요"
+              {...register('clientName')}
+              placeholder="예: 홍길동/김영희"
               className="text-[14px]"
             />
-            {errors.title && (
-              <p className="text-[12px] text-red-500">{errors.title.message}</p>
+            {errors.clientName && (
+              <p className="text-[12px] text-red-500">{errors.clientName.message}</p>
             )}
           </div>
 
@@ -184,10 +196,10 @@ export function ShootingForm({
               촬영 유형 <span className="text-red-500">*</span>
             </Label>
             <Select
-              value={watch('type')}
+              value={watch('shootingType')}
               onValueChange={(val) => {
-                setValue('type', val);
-                form.trigger('type');
+                setValue('shootingType', val);
+                form.trigger('shootingType');
               }}
             >
               <SelectTrigger className="text-[14px]">
@@ -201,12 +213,12 @@ export function ShootingForm({
                 ))}
               </SelectContent>
             </Select>
-            {errors.type && (
-              <p className="text-[12px] text-red-500">{errors.type.message}</p>
+            {errors.shootingType && (
+              <p className="text-[12px] text-red-500">{errors.shootingType.message}</p>
             )}
           </div>
 
-          {/* 날짜/시간 */}
+          {/* 날짜/시간/소요시간 */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-1.5">
               <Label className="text-[14px] text-black font-normal">
@@ -214,18 +226,18 @@ export function ShootingForm({
               </Label>
               <Input
                 type="date"
-                {...register('scheduledDate')}
+                {...register('shootingDate')}
                 className="text-[14px]"
               />
-              {errors.scheduledDate && (
-                <p className="text-[12px] text-red-500">{errors.scheduledDate.message}</p>
+              {errors.shootingDate && (
+                <p className="text-[12px] text-red-500">{errors.shootingDate.message}</p>
               )}
             </div>
             <div className="space-y-1.5">
               <Label className="text-[14px] text-black font-normal">촬영 시간</Label>
               <Input
                 type="time"
-                {...register('scheduledTime')}
+                {...register('shootingTime')}
                 className="text-[14px]"
               />
             </div>
@@ -233,30 +245,12 @@ export function ShootingForm({
               <Label className="text-[14px] text-black font-normal">예상 소요시간 (분)</Label>
               <Input
                 type="number"
-                {...register('estimatedDuration')}
+                {...register('duration')}
                 placeholder="예: 120"
                 min={0}
                 className="text-[14px]"
               />
             </div>
-          </div>
-
-          {/* 촬영예산 */}
-          <div className="space-y-1.5">
-            <Label className="text-[14px] text-black font-normal">촬영예산 (원)</Label>
-            <Input
-              type="number"
-              {...register('budget')}
-              placeholder={averageBudgetInfo ? `평균 ${averageBudgetInfo.formatted}원` : '촬영 예산'}
-              min={0}
-              className="text-[14px]"
-            />
-            {averageBudgetInfo && (
-              <p className="text-[12px] text-gray-500 flex items-center gap-1">
-                <Info className="h-3 w-3" />
-                {averageBudgetInfo.label}: {averageBudgetInfo.formatted}원
-              </p>
-            )}
           </div>
         </CardContent>
       </Card>
@@ -268,19 +262,24 @@ export function ShootingForm({
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-1.5">
-            <Label className="text-[14px] text-black font-normal">장소명</Label>
+            <Label className="text-[14px] text-black font-normal">
+              장소명 <span className="text-red-500">*</span>
+            </Label>
             <Input
-              {...register('location')}
+              {...register('venueName')}
               placeholder="예: 롯데호텔 서울"
               className="text-[14px]"
             />
+            {errors.venueName && (
+              <p className="text-[12px] text-red-500">{errors.venueName.message}</p>
+            )}
           </div>
 
           <div className="space-y-1.5">
             <Label className="text-[14px] text-black font-normal">주소</Label>
             <div className="flex gap-2 items-start">
               <Input
-                {...register('locationAddress')}
+                {...register('venueAddress')}
                 placeholder="주소를 검색해주세요"
                 readOnly
                 className="text-[14px] flex-1"
@@ -295,69 +294,121 @@ export function ShootingForm({
         </CardContent>
       </Card>
 
-      {/* 고객 정보 */}
+      {/* 고객 연락처 */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-[18px] text-black font-bold">고객 정보</CardTitle>
+          <CardTitle className="text-[18px] text-black font-bold">고객 연락처</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-[14px] text-black font-normal">고객명</Label>
-              <Input
-                {...register('clientName')}
-                placeholder="고객명"
-                className="text-[14px]"
-              />
-            </div>
-            <div className="space-y-1.5">
               <Label className="text-[14px] text-black font-normal">연락처</Label>
               <Input
-                {...register('clientPhone')}
+                {...register('customerPhone')}
                 placeholder="010-0000-0000"
                 className="text-[14px]"
               />
             </div>
+            <div className="space-y-1.5">
+              <Label className="text-[14px] text-black font-normal">이메일</Label>
+              <Input
+                {...register('customerEmail')}
+                type="email"
+                placeholder="email@example.com"
+                className="text-[14px]"
+              />
+              {errors.customerEmail && (
+                <p className="text-[12px] text-red-500">{errors.customerEmail.message}</p>
+              )}
+            </div>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-[14px] text-black font-normal">이메일</Label>
-            <Input
-              {...register('clientEmail')}
-              type="email"
-              placeholder="email@example.com"
+            <Label className="text-[14px] text-black font-normal">메모</Label>
+            <Textarea
+              {...register('notes')}
+              placeholder="내부 참고용 메모"
+              rows={2}
               className="text-[14px]"
             />
-            {errors.clientEmail && (
-              <p className="text-[12px] text-red-500">{errors.clientEmail.message}</p>
-            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* 상세 정보 */}
+      {/* 구인 연동 */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-[18px] text-black font-bold">상세 정보</CardTitle>
+          <CardTitle className="text-[18px] text-black font-bold flex items-center gap-2">
+            <Briefcase className="h-5 w-5" />
+            구인 연동
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-1.5">
-            <Label className="text-[14px] text-black font-normal">설명</Label>
-            <Textarea
-              {...register('description')}
-              placeholder="촬영에 대한 설명을 입력해주세요"
-              rows={3}
-              className="text-[14px]"
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[14px] text-black font-normal">구인방에도 동시 등록</p>
+              <p className="text-[12px] text-gray-500">
+                내부 작가 배정이 어려운 경우, 외부 작가 구인을 함께 등록합니다
+              </p>
+            </div>
+            <Switch
+              checked={enableRecruitment}
+              onCheckedChange={setEnableRecruitment}
             />
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-[14px] text-black font-normal">요구사항</Label>
-            <Textarea
-              {...register('requirements')}
-              placeholder="촬영 요구사항을 입력해주세요"
-              rows={3}
-              className="text-[14px]"
-            />
-          </div>
+
+          {enableRecruitment && (
+            <div className="space-y-4 pt-3 border-t">
+              <div className="space-y-1.5">
+                <Label className="text-[14px] text-black font-normal">구인 제목</Label>
+                <Input
+                  {...register('recruitmentTitle')}
+                  placeholder={
+                    watchedType
+                      ? `${SHOOTING_TYPE_LABELS[watchedType as ShootingType] || ''} 작가 구인`
+                      : '구인 제목'
+                  }
+                  className="text-[14px]"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-[14px] text-black font-normal">보수 (원)</Label>
+                <Input
+                  type="number"
+                  {...register('recruitmentBudget')}
+                  placeholder={averageBudgetInfo ? `평균 ${averageBudgetInfo.formatted}원` : '보수 금액'}
+                  min={0}
+                  className="text-[14px]"
+                />
+                {averageBudgetInfo && (
+                  <p className="text-[12px] text-gray-500 flex items-center gap-1">
+                    <Info className="h-3 w-3" />
+                    {averageBudgetInfo.label}: {averageBudgetInfo.formatted}원
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-[14px] text-black font-normal">상세설명</Label>
+                <Textarea
+                  {...register('recruitmentDescription')}
+                  placeholder="촬영 상세 내용"
+                  rows={3}
+                  className="text-[14px]"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-[14px] text-black font-normal">요구사항</Label>
+                <Textarea
+                  {...register('recruitmentRequirements')}
+                  placeholder="작가에게 요구하는 조건"
+                  rows={2}
+                  className="text-[14px]"
+                />
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

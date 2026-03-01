@@ -12,22 +12,9 @@ export type UrgencyLevel = 'normal' | 'urgent' | 'emergency';
 
 export type RecruitmentBidStatus = 'pending' | 'selected' | 'rejected';
 
-export type ShootingType =
-  | 'wedding_main'
-  | 'wedding_rehearsal'
-  | 'baby_dol'
-  | 'baby_growth'
-  | 'profile'
-  | 'other';
-
-export const SHOOTING_TYPE_LABELS: Record<ShootingType, string> = {
-  wedding_main: '본식 촬영',
-  wedding_rehearsal: '리허설 촬영',
-  baby_dol: '돌 촬영',
-  baby_growth: '성장 촬영',
-  profile: '프로필 촬영',
-  other: '기타',
-};
+// 공용 상수에서 re-export
+export type { ShootingType } from '@/lib/constants/shooting-types';
+export { SHOOTING_TYPE_LABELS } from '@/lib/constants/shooting-types';
 
 export const RECRUITMENT_STATUS_LABELS: Record<RecruitmentStatus, string> = {
   draft: '초안',
@@ -71,6 +58,7 @@ export interface Recruitment {
   privateDeadline?: string;
   maxBidders: number;
   urgencyLevel: UrgencyLevel;
+  linkedShootingId?: string;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
