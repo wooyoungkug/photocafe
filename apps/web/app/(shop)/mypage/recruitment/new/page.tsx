@@ -239,7 +239,7 @@ export default function RecruitmentNewPage() {
               </Label>
               <VenueSearchInput
                 value={watch('venueName')}
-                onChange={(val) => setValue('venueName', val, { shouldValidate: true })}
+                onChange={(val) => setValue('venueName', val)}
                 onSelect={(place) => {
                   setValue('venueName', place.name, { shouldValidate: true });
                   setValue('venueAddress', place.address);

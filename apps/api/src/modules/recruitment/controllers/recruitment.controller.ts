@@ -8,8 +8,10 @@ import {
   Param,
   Query,
   Request,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RecruitmentService } from '../services/recruitment.service';
 import { RecruitmentNotificationService } from '../services/recruitment-notification.service';
 import {
@@ -20,6 +22,7 @@ import {
 
 @ApiTags('구인방')
 @ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('recruitments')
 export class RecruitmentController {
   constructor(
