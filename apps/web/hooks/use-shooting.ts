@@ -63,6 +63,20 @@ export interface Shooting {
   customerEmail?: string;
   notes?: string;
   createdBy: string;
+  creator?: {
+    id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+    memberType: 'INDIVIDUAL' | 'BUSINESS';
+    client?: {
+      id: string;
+      clientName: string;
+      contactPerson?: string;
+      contactPhone?: string;
+      memberType: string;
+    } | null;
+  } | null;
   createdAt: string;
   updatedAt: string;
   _count?: {
