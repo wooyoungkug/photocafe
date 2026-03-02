@@ -23,6 +23,7 @@ import {
   Briefcase,
   Link2,
   ExternalLink,
+  Trash2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -44,6 +45,7 @@ import { useAuthStore } from '@/stores/auth-store';
 import {
   useShooting,
   useUpdateShootingStatus,
+  useDeleteShooting,
 } from '@/hooks/use-shooting';
 import type { ShootingStatus } from '@/hooks/use-shooting';
 import { SHOOTING_STATUS_LABELS } from '@/hooks/use-shooting';

@@ -65,17 +65,11 @@ export interface Shooting {
   createdBy: string;
   creator?: {
     id: string;
-    name: string;
-    email?: string;
-    phone?: string;
-    memberType: 'INDIVIDUAL' | 'BUSINESS';
-    client?: {
-      id: string;
-      clientName: string;
-      contactPerson?: string;
-      contactPhone?: string;
-      memberType: string;
-    } | null;
+    clientName: string;
+    contactPerson?: string;
+    contactPhone?: string;
+    memberType: string;
+    mobile?: string;
   } | null;
   createdAt: string;
   updatedAt: string;

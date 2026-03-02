@@ -21,6 +21,7 @@ import {
   CheckSquare,
   Clock,
   MapPin,
+  Building2,
   Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -409,6 +410,19 @@ function ShootingListItem({
         <div className="flex items-center gap-1 mt-0.5">
           <MapPin className="h-3 w-3 text-gray-400" />
           <span className="text-[12px] text-gray-600 truncate">{shooting.venueName}</span>
+        </div>
+      )}
+
+      {/* 등록 업체 */}
+      {shooting.creator && (
+        <div className="flex items-center gap-1 mt-0.5">
+          <Building2 className="h-3 w-3 text-gray-400" />
+          <span className="text-[12px] text-gray-600 truncate">
+            {shooting.creator.clientName}
+            {shooting.creator.contactPerson && (
+              <span className="text-gray-400"> · {shooting.creator.contactPerson}</span>
+            )}
+          </span>
         </div>
       )}
 

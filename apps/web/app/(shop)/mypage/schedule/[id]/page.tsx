@@ -263,38 +263,22 @@ export default function ScheduleDetailPage() {
               </div>
             </div>
 
-            {/* 등록 거래처 / 담당자 */}
+            {/* 등록 업체 / 담당자 */}
             {shooting.creator && (
               <div className="flex items-start gap-2.5 sm:col-span-2">
                 <Building2 className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-[12px] text-gray-500">등록자</p>
-                  {shooting.creator.client ? (
-                    <>
-                      <p className="text-[14px] text-black font-normal">
-                        {shooting.creator.client.clientName}
-                        <span className="ml-1.5 text-[12px] text-gray-400">
-                          ({shooting.creator.client.memberType === 'business' ? '회사' : '개인'})
-                        </span>
-                      </p>
-                      {(shooting.creator.client.contactPerson || shooting.creator.name) && (
-                        <p className="text-[12px] text-gray-500 mt-0.5">
-                          담당자: {shooting.creator.client.contactPerson || shooting.creator.name}
-                        </p>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-[14px] text-black font-normal">
-                        {shooting.creator.name}
-                        <span className="ml-1.5 text-[12px] text-gray-400">
-                          ({shooting.creator.memberType === 'BUSINESS' ? '회사' : '개인'})
-                        </span>
-                      </p>
-                      {shooting.creator.email && (
-                        <p className="text-[12px] text-gray-500 mt-0.5">{shooting.creator.email}</p>
-                      )}
-                    </>
+                  <p className="text-[12px] text-gray-500">등록 업체</p>
+                  <p className="text-[14px] text-black font-normal">
+                    {shooting.creator.clientName}
+                    <span className="ml-1.5 text-[12px] text-gray-400">
+                      ({shooting.creator.memberType === 'business' ? '회사' : '개인'})
+                    </span>
+                  </p>
+                  {shooting.creator.contactPerson && (
+                    <p className="text-[12px] text-gray-500 mt-0.5">
+                      담당자: {shooting.creator.contactPerson}
+                    </p>
                   )}
                 </div>
               </div>

@@ -201,8 +201,30 @@ export class ShootingService {
       this.prisma.shootingSchedule.count({ where }),
     ]);
 
+    // 등록자(creator) 정보 배치 조회 (createdBy = Client.id)
+    const creatorIds = [...new Set(data.map((s) => s.createdBy).filter(Boolean))];
+    const creators = creatorIds.length
+      ? await this.prisma.client.findMany({
+          where: { id: { in: creatorIds } },
+          select: {
+            id: true,
+            clientName: true,
+            contactPerson: true,
+            contactPhone: true,
+            memberType: true,
+            mobile: true,
+          },
+        })
+      : [];
+    const creatorMap = Object.fromEntries(creators.map((c) => [c.id, c]));
+
+    const enrichedData = data.map((s) => ({
+      ...s,
+      creator: creatorMap[s.createdBy] ?? null,
+    }));
+
     return {
-      data,
+      data: enrichedData,
       meta: {
         total,
         page,
@@ -241,24 +263,16 @@ export class ShootingService {
       throw new NotFoundException('촬영 일정을 찾을 수 없습니다.');
     }
 
-    // 등록자 정보 조회 (회사/개인/담당자)
-    const creator = await this.prisma.user.findUnique({
+    // 등록자 정보 조회 (createdBy = Client.id)
+    const creator = await this.prisma.client.findUnique({
       where: { id: shooting.createdBy },
       select: {
         id: true,
-        name: true,
-        email: true,
-        phone: true,
+        clientName: true,
+        contactPerson: true,
+        contactPhone: true,
         memberType: true,
-        client: {
-          select: {
-            id: true,
-            clientName: true,
-            contactPerson: true,
-            contactPhone: true,
-            memberType: true,
-          },
-        },
+        mobile: true,
       },
     });
 
