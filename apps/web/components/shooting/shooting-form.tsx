@@ -154,6 +154,7 @@ interface ShootingFormProps {
   onCancel: () => void;
   isLoading?: boolean;
   mode?: 'create' | 'edit';
+  defaultEnableRecruitment?: boolean;
 }
 
 export function ShootingForm({
@@ -162,9 +163,10 @@ export function ShootingForm({
   onCancel,
   isLoading = false,
   mode = 'create',
+  defaultEnableRecruitment,
 }: ShootingFormProps) {
   const [enableRecruitment, setEnableRecruitment] = useState(
-    !!defaultValues?.linkedRecruitmentId,
+    defaultEnableRecruitment ?? !!defaultValues?.linkedRecruitmentId,
   );
   const { user } = useAuthStore();
 
