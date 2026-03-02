@@ -55,8 +55,8 @@ import { StarRating } from '@/components/shooting/star-rating';
 // ==================== 상태 전이 규칙 ====================
 
 const STATUS_TRANSITIONS: Record<ShootingStatus, ShootingStatus[]> = {
-  draft: ['published', 'cancelled'],
-  published: ['bidding', 'cancelled'],
+  draft: ['recruiting', 'cancelled'],
+  recruiting: ['bidding', 'cancelled'],
   bidding: ['confirmed', 'cancelled'],
   confirmed: ['in_progress', 'cancelled'],
   in_progress: ['completed', 'cancelled'],
@@ -66,7 +66,7 @@ const STATUS_TRANSITIONS: Record<ShootingStatus, ShootingStatus[]> = {
 
 const STATUS_ACTION_LABELS: Record<ShootingStatus, string> = {
   draft: '초안',
-  published: '공고 발행',
+  recruiting: '모집 시작',
   bidding: '응찰 시작',
   confirmed: '작가 확정',
   in_progress: '촬영 시작',
@@ -115,7 +115,7 @@ export default function ShootingDetailPage() {
       await updateStatusMutation.mutateAsync({
         id: shooting.id,
         status: pendingStatus,
-        note: statusNote || undefined,
+        reason: statusNote || undefined,
       });
 
       toast({
@@ -170,9 +170,9 @@ export default function ShootingDetailPage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-[24px] text-black font-normal">{shooting.title}</h1>
+            <h1 className="text-[24px] text-black font-normal">{shooting.clientName}</h1>
             <div className="flex items-center gap-2 mt-1">
-              <ShootingTypeBadge type={shooting.type} />
+              <ShootingTypeBadge type={shooting.shootingType} />
               <ShootingStatusBadge status={shooting.status} />
             </div>
           </div>
