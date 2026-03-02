@@ -129,18 +129,24 @@ function calcEndTime(shootingTime?: string, duration?: number): string | null {
   return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
 }
 
-// 주소에서 구/동 수준 추출
-// 지번: "서울특별시 강남구 청담동 11-1" → "강남구 청담동"
-// 도로명: "서울 강남구 도산대로 45" → "강남구"
+// 주소에서 시·구·동 수준 추출
+// "서울특별시 강남구 청담동 11-1" → "서울특별시 강남구 청담동"
+// "경기도 성남시 분당구 정자동 111" → "성남시 분당구 정자동"
+// "대구광역시 서구 내당4동" → "대구광역시 서구 내당4동"
 function extractLocationSummary(address?: string): string | null {
   if (!address) return null;
-  // 구+동 패턴 (지번 주소)
-  const dongMatch = address.match(/([가-힣]+(?:구|군)\s+[가-힣]+(?:동|읍|면))/);
-  if (dongMatch) return dongMatch[1];
-  // 동만 있는 경우
-  const dongOnly = address.match(/([가-힣]+(?:동|읍|면))(?:\s|$)/);
+  // 시/도 + 구/군 + 동/읍/면 전체 추출
+  const fullMatch = address.match(
+    /([가-힣]+(?:특별시|광역시|특별자치시|특별자치도|시|도))\s+([가-힣]+(?:시|구|군))\s+([가-힣0-9]+(?:동|읍|면))/
+  );
+  if (fullMatch) return `${fullMatch[1]} ${fullMatch[2]} ${fullMatch[3]}`;
+  // 구/군 + 동/읍/면
+  const dongMatch = address.match(/([가-힣]+(?:구|군))\s+([가-힣0-9]+(?:동|읍|면))/);
+  if (dongMatch) return `${dongMatch[1]} ${dongMatch[2]}`;
+  // 동/읍/면만
+  const dongOnly = address.match(/([가-힣0-9]+(?:동|읍|면))(?:\s|$)/);
   if (dongOnly) return dongOnly[1];
-  // 도로명 주소: 구까지만 추출
+  // 구/군만
   const guMatch = address.match(/([가-힣]+(?:구|군))/);
   if (guMatch) return guMatch[1];
   return null;
@@ -306,9 +312,21 @@ function PublicRecruitmentRow({ recruitment }: { recruitment: Recruitment }) {
               {SHOOTING_TYPE_LABELS[recruitment.shootingType]}
             </Badge>
           </div>
-          <span className="text-[12px] text-gray-400 truncate">
-            {recruitment.client?.clientName || ''}
-          </span>
+          <div className="flex items-center gap-1 mt-0.5">
+            {recruitment.client?.clientName && (
+              <span className="text-[12px] text-gray-400 truncate">
+                {recruitment.client.clientName}
+              </span>
+            )}
+            {recruitment.client?.clientName && recruitment.customerName && (
+              <span className="text-[12px] text-gray-300">·</span>
+            )}
+            {recruitment.customerName && (
+              <span className="text-[12px] text-gray-400 truncate">
+                {recruitment.customerName}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* 촬영일 */}
