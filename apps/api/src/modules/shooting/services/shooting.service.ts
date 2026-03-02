@@ -241,7 +241,28 @@ export class ShootingService {
       throw new NotFoundException('촬영 일정을 찾을 수 없습니다.');
     }
 
-    return shooting;
+    // 등록자 정보 조회 (회사/개인/담당자)
+    const creator = await this.prisma.user.findUnique({
+      where: { id: shooting.createdBy },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        memberType: true,
+        client: {
+          select: {
+            id: true,
+            clientName: true,
+            contactPerson: true,
+            contactPhone: true,
+            memberType: true,
+          },
+        },
+      },
+    });
+
+    return { ...shooting, creator: creator ?? null };
   }
 
   /**

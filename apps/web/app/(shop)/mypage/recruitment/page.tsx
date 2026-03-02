@@ -16,8 +16,6 @@ import {
   Search,
   Lock,
   Globe,
-  Clock,
-  Eye,
   ArrowRight,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -157,8 +155,8 @@ function MyRecruitmentRow({ recruitment }: { recruitment: Recruitment }) {
   );
 }
 
-// ==================== 공개 구인방 카드 ====================
-function PublicRecruitmentCard({ recruitment }: { recruitment: Recruitment }) {
+// ==================== 공개 구인방 리스트 행 ====================
+function PublicRecruitmentRow({ recruitment }: { recruitment: Recruitment }) {
   const shootingDate = new Date(recruitment.shootingDate);
   const daysLeft = Math.ceil(
     (shootingDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
@@ -166,82 +164,77 @@ function PublicRecruitmentCard({ recruitment }: { recruitment: Recruitment }) {
 
   return (
     <Link href={`/mypage/recruitment/${recruitment.id}`}>
-      <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
-        <CardContent className="p-4">
-          {/* 상단: 배지 */}
-          <div className="flex items-center gap-1.5 mb-2 flex-wrap">
-            <Badge className="bg-green-100 text-green-700 text-[11px]">
-              공개 모집중
+      <div className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors border-b last:border-b-0 cursor-pointer">
+        {/* 상태 */}
+        <div className="shrink-0 w-[80px]">
+          <Badge className="bg-green-100 text-green-700 text-[11px]">공개모집</Badge>
+        </div>
+
+        {/* 긴급/D-day */}
+        <div className="shrink-0 w-[60px]">
+          {recruitment.urgencyLevel !== 'normal' ? (
+            <Badge className={cn('text-[11px]', URGENCY_BADGE_STYLES[recruitment.urgencyLevel])}>
+              {URGENCY_LABELS[recruitment.urgencyLevel]}
             </Badge>
-            {recruitment.urgencyLevel !== 'normal' && (
-              <Badge className={cn('text-[11px]', URGENCY_BADGE_STYLES[recruitment.urgencyLevel])}>
-                {URGENCY_LABELS[recruitment.urgencyLevel]}
-              </Badge>
-            )}
-            <Badge variant="outline" className="text-[11px]">
+          ) : daysLeft >= 0 && daysLeft <= 7 ? (
+            <Badge variant="outline" className="text-[11px] text-orange-600 border-orange-300">
+              D-{daysLeft}
+            </Badge>
+          ) : null}
+        </div>
+
+        {/* 제목 + 촬영유형 */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-[14px] text-black font-normal truncate">
+              {recruitment.title}
+            </span>
+            <Badge variant="outline" className="text-[11px] shrink-0">
               {SHOOTING_TYPE_LABELS[recruitment.shootingType]}
             </Badge>
-            {daysLeft >= 0 && daysLeft <= 7 && (
-              <Badge variant="outline" className="text-[11px] text-orange-600 border-orange-300">
-                <Clock className="h-3 w-3 mr-0.5" />
-                D-{daysLeft}
-              </Badge>
-            )}
           </div>
-
-          {/* 제목 */}
-          <h3 className="text-[14px] text-black font-bold truncate mb-2">
-            {recruitment.title}
-          </h3>
-
-          {/* 스튜디오 이름 */}
-          <p className="text-[12px] text-gray-500 mb-2">
+          <span className="text-[12px] text-gray-400 truncate">
             {recruitment.client?.clientName || ''}
-          </p>
+          </span>
+        </div>
 
-          {/* 정보 */}
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5">
-              <Calendar className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-              <span className="text-[13px] text-gray-600">
-                {format(shootingDate, 'yyyy.MM.dd (EEE)', { locale: ko })}
-                {recruitment.shootingTime && ` ${recruitment.shootingTime.substring(0, 5)}`}
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <MapPin className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-              <span className="text-[13px] text-gray-600 truncate">
-                {recruitment.venueName}
-                {recruitment.venueAddress && ` · ${recruitment.venueAddress}`}
-              </span>
-            </div>
-            {recruitment.budget != null && recruitment.budget > 0 && (
-              <div className="flex items-center gap-1.5">
-                <Wallet className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-                <span className="text-[14px] text-black font-bold">
-                  {Number(recruitment.budget).toLocaleString()}원
-                </span>
-              </div>
-            )}
-          </div>
+        {/* 촬영일 */}
+        <div className="shrink-0 w-[130px] hidden sm:flex items-center gap-1.5">
+          <Calendar className="h-3.5 w-3.5 text-gray-400" />
+          <span className="text-[13px] text-gray-600">
+            {format(shootingDate, 'MM.dd (EEE)', { locale: ko })}
+            {recruitment.shootingTime && ` ${recruitment.shootingTime.substring(0, 5)}`}
+          </span>
+        </div>
 
-          {/* 하단: 응찰수, 조회 */}
-          <div className="flex items-center justify-between mt-3 pt-2 border-t">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1">
-                <Users className="h-3.5 w-3.5 text-gray-400" />
-                <span className="text-[12px] text-gray-500">
-                  응찰 {recruitment._count?.bids ?? 0}건
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center gap-1 text-primary">
-              <Eye className="h-3.5 w-3.5" />
-              <span className="text-[12px] font-medium">상세보기</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        {/* 장소 */}
+        <div className="shrink-0 w-[130px] hidden md:flex items-center gap-1.5">
+          <MapPin className="h-3.5 w-3.5 text-gray-400" />
+          <span className="text-[13px] text-gray-600 truncate">
+            {recruitment.venueName}
+          </span>
+        </div>
+
+        {/* 보수 */}
+        <div className="shrink-0 w-[90px] hidden lg:flex items-center gap-1.5">
+          <Wallet className="h-3.5 w-3.5 text-gray-400" />
+          <span className="text-[13px] text-black font-bold">
+            {recruitment.budget
+              ? `${Number(recruitment.budget).toLocaleString()}원`
+              : '-'}
+          </span>
+        </div>
+
+        {/* 응찰수 */}
+        <div className="shrink-0 w-[50px] flex items-center gap-1">
+          <Users className="h-3.5 w-3.5 text-gray-400" />
+          <span className="text-[12px] text-gray-500">
+            {recruitment._count?.bids ?? 0}
+          </span>
+        </div>
+
+        <ArrowRight className="h-3.5 w-3.5 text-gray-300 shrink-0" />
+      </div>
     </Link>
   );
 }
@@ -408,18 +401,29 @@ export default function RecruitmentListPage() {
           </TabsContent>
         )}
 
-        {/* ==================== 공개 구인방 목록 (카드 형태) ==================== */}
+        {/* ==================== 공개 구인방 목록 (리스트 형태) ==================== */}
         <TabsContent value="public">
           {isLoading ? (
             <div className="flex items-center justify-center py-20">
               <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
             </div>
           ) : recruitments.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mt-3">
+            <Card className="mt-3 overflow-hidden">
+              {/* 리스트 헤더 */}
+              <div className="flex items-center gap-3 px-4 py-2 bg-gray-50 border-b text-[12px] text-gray-500 font-medium">
+                <div className="w-[80px]">상태</div>
+                <div className="w-[60px]">긴급/D-day</div>
+                <div className="flex-1">제목</div>
+                <div className="w-[130px] hidden sm:block">촬영일</div>
+                <div className="w-[130px] hidden md:block">장소</div>
+                <div className="w-[90px] hidden lg:block">보수</div>
+                <div className="w-[50px]">응찰</div>
+                <div className="w-[14px]"></div>
+              </div>
               {recruitments.map((r) => (
-                <PublicRecruitmentCard key={r.id} recruitment={r} />
+                <PublicRecruitmentRow key={r.id} recruitment={r} />
               ))}
-            </div>
+            </Card>
           ) : (
             <Card className="mt-3">
               <CardContent className="py-12 text-center">
