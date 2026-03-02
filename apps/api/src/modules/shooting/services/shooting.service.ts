@@ -128,8 +128,9 @@ export class ShootingService {
 
   /**
    * 촬영 일정 목록 조회 (페이지네이션, 필터링)
+   * @param createdByIds 컨트롤러에서 내부적으로 전달하는 생성자 ID 목록 (employee 포함 처리용)
    */
-  async findAll(query: QueryShootingDto) {
+  async findAll(query: QueryShootingDto, createdByIds?: string[]) {
     const page = query.page || 1;
     const limit = query.limit || 20;
     const skip = (page - 1) * limit;
@@ -163,8 +164,10 @@ export class ShootingService {
       where.assignedStaffId = query.assignedStaffId;
     }
 
-    // 생성자 필터
-    if (query.createdBy) {
+    // 생성자 필터: 컨트롤러에서 전달한 목록 우선, 없으면 단일 createdBy 사용
+    if (createdByIds && createdByIds.length > 0) {
+      where.createdBy = { in: createdByIds };
+    } else if (query.createdBy) {
       where.createdBy = query.createdBy;
     }
 

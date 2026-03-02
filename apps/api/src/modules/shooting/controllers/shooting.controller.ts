@@ -42,9 +42,13 @@ export class ShootingController {
   @Get()
   @ApiOperation({ summary: '촬영 일정 목록 조회' })
   async findAll(@Query() query: QueryShootingDto, @Request() req: any) {
-    // 관리자(staff)가 아니면 본인 등록 일정만 조회
     if (!isStaff(req.user)) {
-      query.createdBy = req.user.id;
+      // employee: 본인 ID + 소속 회사 ID 모두 포함
+      const createdByIds = [req.user.id];
+      if (req.user.type === 'employee' && req.user.clientId && req.user.clientId !== req.user.id) {
+        createdByIds.push(req.user.clientId);
+      }
+      return this.shootingService.findAll(query, createdByIds);
     }
     return this.shootingService.findAll(query);
   }
@@ -53,8 +57,11 @@ export class ShootingController {
   @ApiOperation({ summary: '촬영 일정 상세 조회' })
   async findOne(@Param('id') id: string, @Request() req: any) {
     const shooting = await this.shootingService.findOne(id);
-    if (!isStaff(req.user) && shooting.createdBy !== req.user.id) {
-      throw new ForbiddenException('접근 권한이 없습니다.');
+    if (!isStaff(req.user)) {
+      const allowedIds = this.getAllowedIds(req.user);
+      if (!allowedIds.includes(shooting.createdBy)) {
+        throw new ForbiddenException('접근 권한이 없습니다.');
+      }
     }
     return shooting;
   }
@@ -67,7 +74,7 @@ export class ShootingController {
     @Request() req: any,
   ) {
     if (!isStaff(req.user)) {
-      await this.assertOwnership(id, req.user.id);
+      await this.assertOwnership(id, req.user);
     }
     return this.shootingService.update(id, dto);
   }
@@ -76,7 +83,7 @@ export class ShootingController {
   @ApiOperation({ summary: '촬영 일정 삭제' })
   async delete(@Param('id') id: string, @Request() req: any) {
     if (!isStaff(req.user)) {
-      await this.assertOwnership(id, req.user.id);
+      await this.assertOwnership(id, req.user);
     }
     return this.shootingService.delete(id);
   }
@@ -89,15 +96,25 @@ export class ShootingController {
     @Request() req: any,
   ) {
     if (!isStaff(req.user)) {
-      await this.assertOwnership(id, req.user.id);
+      await this.assertOwnership(id, req.user);
     }
     return this.shootingService.updateStatus(id, dto);
   }
 
+  /** 접근 허용 ID 목록: 본인 + employee면 소속 회사 포함 */
+  private getAllowedIds(user: any): string[] {
+    const ids = [user.id];
+    if (user.type === 'employee' && user.clientId && user.clientId !== user.id) {
+      ids.push(user.clientId);
+    }
+    return ids;
+  }
+
   /** 소유권 검증 헬퍼 */
-  private async assertOwnership(id: string, userId: string): Promise<void> {
+  private async assertOwnership(id: string, user: any): Promise<void> {
     const shooting = await this.shootingService.findOne(id);
-    if (shooting.createdBy !== userId) {
+    const allowedIds = this.getAllowedIds(user);
+    if (!allowedIds.includes(shooting.createdBy)) {
       throw new ForbiddenException('접근 권한이 없습니다.');
     }
   }
