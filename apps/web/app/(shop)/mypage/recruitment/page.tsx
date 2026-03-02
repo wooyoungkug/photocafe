@@ -312,12 +312,17 @@ function PublicRecruitmentRow({ recruitment }: { recruitment: Recruitment }) {
         </div>
 
         {/* 촬영일 */}
-        <div className="shrink-0 w-[130px] hidden sm:flex items-center gap-1.5">
-          <Calendar className="h-3.5 w-3.5 text-gray-400" />
-          <span className="text-[13px] text-gray-600">
-            {format(shootingDate, 'MM.dd (EEE)', { locale: ko })}
-            {recruitment.shootingTime && ` ${recruitment.shootingTime.substring(0, 5)}`}
-          </span>
+        <div className="shrink-0 w-[130px] hidden sm:flex flex-col gap-0.5">
+          <div className="flex items-center gap-1.5">
+            <Calendar className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+            <span className="text-[13px] text-gray-600">
+              {format(shootingDate, 'MM.dd (EEE)', { locale: ko })}
+              {recruitment.shootingTime && ` ${recruitment.shootingTime.substring(0, 5)}`}
+            </span>
+          </div>
+          {endTime && (
+            <span className="text-[11px] text-gray-400 pl-5">~ {endTime}</span>
+          )}
         </div>
 
         {/* 장소 */}
