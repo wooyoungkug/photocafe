@@ -343,12 +343,11 @@ export default function RecruitmentNewPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[13px] font-medium">주소</Label>
+              <Label className="text-[13px] font-medium">주소 <span className="text-gray-400 font-normal text-[11px]">(동 단위까지 입력)</span></Label>
               <Input
                 {...register('venueAddress')}
-                placeholder="장소명을 입력하면 자동으로 채워집니다"
+                placeholder="예: 서울특별시 강남구 청담동 11-1"
                 className="text-[14px]"
-                readOnly
               />
             </div>
           </CardContent>

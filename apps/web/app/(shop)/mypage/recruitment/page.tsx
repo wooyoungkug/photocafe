@@ -62,10 +62,21 @@ const URGENCY_BADGE_STYLES: Record<string, string> = {
   emergency: 'bg-red-100 text-red-700',
 };
 
+// 주소에서 구/동 수준 추출
+function extractLocationSummary(address?: string): string | null {
+  if (!address) return null;
+  // "서울특별시 강남구 청담동 11-1" → "강남구 청담동"
+  const m = address.match(/([가-힣]+[구군]\s+[가-힣]+[동읍면]|[가-힣]+[동읍면])/);
+  if (m) return m[1];
+  // 매칭 안 되면 앞 2단어
+  return address.split(' ').slice(0, 2).join(' ');
+}
+
 // ==================== 내 구인 리스트 행 ====================
 function MyRecruitmentRow({ recruitment }: { recruitment: Recruitment }) {
   const shootingDate = new Date(recruitment.shootingDate);
   const isPrivate = recruitment.recruitmentPhase === 'private';
+  const locationSummary = extractLocationSummary(recruitment.venueAddress);
 
   return (
     <Link href={`/mypage/recruitment/${recruitment.id}`}>
@@ -117,11 +128,14 @@ function MyRecruitmentRow({ recruitment }: { recruitment: Recruitment }) {
         </div>
 
         {/* 장소 */}
-        <div className="shrink-0 w-[120px] hidden md:flex items-center gap-1.5">
-          <MapPin className="h-3.5 w-3.5 text-gray-400" />
-          <span className="text-[13px] text-gray-600 truncate">
-            {recruitment.venueName}
-          </span>
+        <div className="shrink-0 w-[140px] hidden md:flex flex-col gap-0.5">
+          <div className="flex items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+            <span className="text-[13px] text-gray-600 truncate">{recruitment.venueName}</span>
+          </div>
+          {locationSummary && (
+            <span className="text-[11px] text-gray-400 pl-5 truncate">{locationSummary}</span>
+          )}
         </div>
 
         {/* 보수 */}
@@ -161,6 +175,7 @@ function PublicRecruitmentRow({ recruitment }: { recruitment: Recruitment }) {
   const daysLeft = Math.ceil(
     (shootingDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
   );
+  const locationSummary = extractLocationSummary(recruitment.venueAddress);
 
   return (
     <Link href={`/mypage/recruitment/${recruitment.id}`}>
@@ -208,11 +223,14 @@ function PublicRecruitmentRow({ recruitment }: { recruitment: Recruitment }) {
         </div>
 
         {/* 장소 */}
-        <div className="shrink-0 w-[130px] hidden md:flex items-center gap-1.5">
-          <MapPin className="h-3.5 w-3.5 text-gray-400" />
-          <span className="text-[13px] text-gray-600 truncate">
-            {recruitment.venueName}
-          </span>
+        <div className="shrink-0 w-[140px] hidden md:flex flex-col gap-0.5">
+          <div className="flex items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+            <span className="text-[13px] text-gray-600 truncate">{recruitment.venueName}</span>
+          </div>
+          {locationSummary && (
+            <span className="text-[11px] text-gray-400 pl-5 truncate">{locationSummary}</span>
+          )}
         </div>
 
         {/* 보수 */}
@@ -374,7 +392,7 @@ export default function RecruitmentListPage() {
                   <div className="w-[20px]"></div>
                   <div className="flex-1">제목</div>
                   <div className="w-[120px] hidden sm:block">촬영일</div>
-                  <div className="w-[120px] hidden md:block">장소</div>
+                  <div className="w-[140px] hidden md:block">장소</div>
                   <div className="w-[90px] hidden lg:block">보수</div>
                   <div className="w-[60px]">응찰</div>
                   <div className="w-[70px] hidden sm:block">등록일</div>
@@ -415,7 +433,7 @@ export default function RecruitmentListPage() {
                 <div className="w-[60px]">긴급/D-day</div>
                 <div className="flex-1">제목</div>
                 <div className="w-[130px] hidden sm:block">촬영일</div>
-                <div className="w-[130px] hidden md:block">장소</div>
+                <div className="w-[140px] hidden md:block">장소</div>
                 <div className="w-[90px] hidden lg:block">보수</div>
                 <div className="w-[50px]">응찰</div>
                 <div className="w-[14px]"></div>
