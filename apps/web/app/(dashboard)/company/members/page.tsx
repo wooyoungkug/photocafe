@@ -42,8 +42,10 @@ import {
   useUpdateClient,
   useDeleteClient,
   useNextClientCode,
+  useClientEmploymentHistory,
   checkClientEmail,
   type EmailCheckResult,
+  type EmploymentHistoryItem,
 } from '@/hooks/use-clients';
 import { useClientConsultations } from '@/hooks/use-consultations';
 import { useStaffList } from '@/hooks/use-staff';
@@ -75,6 +77,10 @@ import {
   Key,
   UserCheck,
   Truck,
+  History,
+  CalendarDays,
+  LogIn,
+  LogOut,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -253,6 +259,11 @@ export default function MembersPage() {
     editingMember?.id || '',
     5,
     { enabled: isDialogOpen && !!editingMember?.id }
+  );
+  // 개인회원 소속 이력 조회
+  const { data: employmentHistory } = useClientEmploymentHistory(
+    editingMember?.id || '',
+    { enabled: isDialogOpen && !!editingMember?.id && editingMember?.memberType === 'individual' }
   );
   const { refetch: refetchNextCode } = useNextClientCode(false);
   const createMember = useCreateClient();
@@ -701,7 +712,7 @@ export default function MembersPage() {
           </DialogHeader>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-            <TabsList className="grid w-full grid-cols-8 mb-6">
+            <TabsList className={`grid w-full mb-6 ${formData.memberType === 'individual' ? 'grid-cols-9' : 'grid-cols-8'}`}>
               <TabsTrigger value="basic" className="flex items-center gap-1 text-xs px-2">
                 <User className="h-3.5 w-3.5" />
                 기본정보
@@ -734,6 +745,12 @@ export default function MembersPage() {
                 <MessageSquare className="h-3.5 w-3.5" />
                 상담이력
               </TabsTrigger>
+              {formData.memberType === 'individual' && (
+                <TabsTrigger value="affiliation" className="flex items-center gap-1 text-xs px-2" disabled={!editingMember}>
+                  <History className="h-3.5 w-3.5" />
+                  소속이력
+                </TabsTrigger>
+              )}
             </TabsList>
 
             <TabsContent value="basic" className="space-y-6">
@@ -1530,6 +1547,87 @@ export default function MembersPage() {
                   <div className="text-center py-8 text-muted-foreground">
                     <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-20" />
                     <p>상담 이력이 없습니다.</p>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+            {/* 소속이력 탭 - 개인회원 전용 */}
+            <TabsContent value="affiliation" className="space-y-6">
+              <div className="p-5 border rounded-xl bg-gradient-to-r from-indigo-50/70 to-transparent">
+                <h3 className="font-semibold text-indigo-700 flex items-center gap-2 mb-4">
+                  <History className="h-4 w-4" />
+                  스튜디오 소속 이력
+                </h3>
+
+                {!employmentHistory || employmentHistory.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <CalendarDays className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                    <p className="text-[14px]">소속 이력이 없습니다.</p>
+                    <p className="text-xs mt-1">스튜디오 초대를 수락하면 이력이 자동으로 기록됩니다.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {employmentHistory.map((item) => {
+                      const isActive = item.leftAt === null;
+                      const joinDate = new Date(item.joinedAt);
+                      const leftDate = item.leftAt ? new Date(item.leftAt) : null;
+                      const durationMs = leftDate
+                        ? leftDate.getTime() - joinDate.getTime()
+                        : Date.now() - joinDate.getTime();
+                      const durationDays = Math.floor(durationMs / (1000 * 60 * 60 * 24));
+                      const durationMonths = Math.floor(durationDays / 30);
+
+                      return (
+                        <div
+                          key={item.id}
+                          className={`p-4 bg-white border rounded-xl transition-shadow hover:shadow-sm ${isActive ? 'border-indigo-200 bg-indigo-50/30' : ''}`}
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-[14px] font-semibold text-gray-900 truncate">
+                                  {item.company.clientName}
+                                </span>
+                                {item.company.representative && (
+                                  <span className="text-xs text-muted-foreground">({item.company.representative})</span>
+                                )}
+                                {isActive && (
+                                  <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200 text-xs">재직중</Badge>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                                <span className="flex items-center gap-1">
+                                  <LogIn className="h-3 w-3 text-green-500" />
+                                  가입: {format(joinDate, 'yyyy.MM.dd')}
+                                </span>
+                                {leftDate ? (
+                                  <span className="flex items-center gap-1">
+                                    <LogOut className="h-3 w-3 text-red-400" />
+                                    탈퇴: {format(leftDate, 'yyyy.MM.dd')}
+                                  </span>
+                                ) : (
+                                  <span className="flex items-center gap-1 text-indigo-500">
+                                    <LogOut className="h-3 w-3 opacity-30" />
+                                    현재 재직 중
+                                  </span>
+                                )}
+                                <span className="text-gray-400">
+                                  {durationMonths > 0 ? `${durationMonths}개월` : `${durationDays}일`}
+                                  {isActive ? ' 경과' : ' 근무'}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <div className="text-xs text-muted-foreground">{item.company.clientCode}</div>
+                              <div className="text-xs text-muted-foreground mt-0.5">
+                                {item.role === 'MANAGER' ? '관리자' : item.role === 'STAFF' ? '직원' : item.role === 'EDITOR' ? '편집자' : item.role === 'PHOTOGRAPHER' ? '사진작가' : item.role}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

@@ -111,4 +111,21 @@ export class ClientController {
   ) {
     return this.clientService.removeStaff(id, staffId);
   }
+
+  @Patch(':id/convert-to-business')
+  @ApiOperation({ summary: '개인회원 → 사업자회원 전환' })
+  async convertToBusiness(
+    @Param('id') id: string,
+    @Body() data: {
+      clientName: string;
+      businessNumber?: string;
+      representative?: string;
+      businessType?: string;
+      businessCategory?: string;
+      taxInvoiceEmail?: string;
+      taxInvoiceMethod?: string;
+    },
+  ) {
+    return this.clientService.convertToBusiness(id, data);
+  }
 }

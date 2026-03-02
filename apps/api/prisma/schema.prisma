@@ -412,6 +412,8 @@ model Client {
   user                    User?                          @relation(fields: [userId], references: [id])
   memberEmployments       Employment[]                   @relation("EmploymentMember")
   companyEmployments      Employment[]                   @relation("EmploymentCompany")
+  memberEmploymentHistories  EmploymentHistory[]          @relation("EmploymentHistoryMember")
+  companyEmploymentHistories EmploymentHistory[]          @relation("EmploymentHistoryCompany")
   invitations             Invitation[]
   clientDepartments       ClientDepartment[]
   recruitments            Recruitment[]      @relation("RecruitmentClient")
@@ -3001,6 +3003,23 @@ model Employment {
   @@index([memberClientId])
   @@index([companyClientId])
   @@map("employments")
+}
+
+model EmploymentHistory {
+  id              String       @id @default(cuid())
+  memberClientId  String
+  companyClientId String
+  role            EmployeeRole @default(STAFF)
+  joinedAt        DateTime
+  leftAt          DateTime?
+  createdAt       DateTime     @default(now())
+
+  member  Client @relation("EmploymentHistoryMember", fields: [memberClientId], references: [id], onDelete: Cascade)
+  company Client @relation("EmploymentHistoryCompany", fields: [companyClientId], references: [id], onDelete: Cascade)
+
+  @@index([memberClientId])
+  @@index([companyClientId])
+  @@map("employment_history")
 }
 
 model ClientDepartment {

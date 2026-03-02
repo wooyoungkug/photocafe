@@ -299,4 +299,42 @@ export class ClientService {
 
     return this.findOne(clientId);
   }
+
+  // ==================== 사업자 전환 ====================
+  async convertToBusiness(id: string, data: {
+    clientName: string;
+    businessNumber?: string;
+    representative?: string;
+    businessType?: string;
+    businessCategory?: string;
+    taxInvoiceEmail?: string;
+    taxInvoiceMethod?: string;
+  }) {
+    const client = await this.findOne(id);
+
+    if (client.memberType !== 'individual') {
+      throw new ConflictException('이미 사업자 회원입니다');
+    }
+
+    // 사업자 전용 기본 그룹 조회
+    const businessGroup = await this.prisma.clientGroup.findFirst({
+      where: { groupName: '스튜디오회원' },
+    });
+
+    return this.prisma.client.update({
+      where: { id },
+      data: {
+        memberType: 'business',
+        clientName: data.clientName,
+        businessNumber: data.businessNumber || null,
+        representative: data.representative || null,
+        businessType: data.businessType || null,
+        businessCategory: data.businessCategory || null,
+        taxInvoiceEmail: data.taxInvoiceEmail || null,
+        taxInvoiceMethod: data.taxInvoiceMethod || null,
+        ...(businessGroup && !client.groupId ? { groupId: businessGroup.id } : {}),
+      },
+      include: { group: true },
+    });
+  }
 }

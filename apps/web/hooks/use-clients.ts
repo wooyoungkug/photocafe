@@ -40,6 +40,39 @@ export function useClient(id: string) {
   });
 }
 
+export interface EmploymentHistoryItem {
+  id: string;
+  memberClientId: string;
+  companyClientId: string;
+  role: string;
+  joinedAt: string;
+  leftAt: string | null;
+  createdAt: string;
+  company: {
+    id: string;
+    clientName: string;
+    clientCode: string;
+    representative: string | null;
+    mobile: string | null;
+    phone: string | null;
+  };
+}
+
+export function useClientEmploymentHistory(
+  memberClientId: string,
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: [CLIENTS_KEY, memberClientId, 'employment-history'],
+    queryFn: () =>
+      api.get<EmploymentHistoryItem[]>(
+        `/employments/history/member/${memberClientId}`,
+      ),
+    enabled: options?.enabled !== false && !!memberClientId,
+    staleTime: 30 * 1000,
+  });
+}
+
 export function useNextClientCode(enabled = false) {
   return useQuery({
     queryKey: [CLIENTS_KEY, 'next-code'],

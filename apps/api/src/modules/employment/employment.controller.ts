@@ -40,6 +40,16 @@ export class EmploymentController {
     return this.employmentService.getEmployeesByClient(clientId);
   }
 
+  @Get('history/member/:memberClientId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '개인회원 스튜디오 소속 이력 조회 (관리자용)' })
+  async getEmploymentHistoryByMember(
+    @Param('memberClientId') memberClientId: string,
+  ) {
+    return this.employmentService.getEmploymentHistoryByMember(memberClientId);
+  }
+
   @Get('invitations/:clientId')
   @UseGuards(JwtAuthGuard, ClientOwnerOrManagerGuard)
   @ApiBearerAuth()
