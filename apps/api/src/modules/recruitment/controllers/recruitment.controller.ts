@@ -97,6 +97,17 @@ export class RecruitmentController {
   @ApiOperation({ summary: '구인 알림 재발송' })
   async resendNotifications(@Param('id') id: string) {
     const recruitment = await this.recruitmentService.findOne(id);
-    return this.notificationService.sendPublicRecruitingNotificationWithRegionPriority(recruitment);
+    return this.notificationService.sendPublicRecruitingNotificationWithRegionPriority({
+      id: recruitment.id,
+      title: recruitment.title,
+      shootingType: recruitment.shootingType,
+      shootingDate: recruitment.shootingDate,
+      shootingTime: recruitment.shootingTime || undefined,
+      duration: recruitment.duration || undefined,
+      venueName: recruitment.venueName,
+      venueAddress: recruitment.venueAddress || undefined,
+      budget: recruitment.budget || undefined,
+      clientName: recruitment.client.clientName,
+    });
   }
 }
