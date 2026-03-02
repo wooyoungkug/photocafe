@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -38,6 +38,7 @@ import {
 } from '@/lib/types/recruitment';
 import type {
   Recruitment,
+  RecruitmentStatus,
   ShootingType,
   RecruitmentQueryParams,
 } from '@/lib/types/recruitment';
@@ -61,6 +62,62 @@ const URGENCY_BADGE_STYLES: Record<string, string> = {
   urgent: 'bg-orange-100 text-orange-700',
   emergency: 'bg-red-100 text-red-700',
 };
+
+// 진행별 대시보드 항목 정의
+const STATUS_ITEMS: Array<{
+  key: RecruitmentStatus | 'all';
+  label: string;
+  dot: string;
+  active: string;
+}> = [
+  { key: 'all',               label: '전체',    dot: 'bg-gray-400',   active: 'bg-gray-100 text-gray-700 ring-gray-300' },
+  { key: 'draft',             label: '초안',    dot: 'bg-gray-300',   active: 'bg-gray-100 text-gray-600 ring-gray-300' },
+  { key: 'private_recruiting',label: '전속모집', dot: 'bg-blue-500',  active: 'bg-blue-50 text-blue-700 ring-blue-300' },
+  { key: 'public_recruiting', label: '공개모집', dot: 'bg-green-500', active: 'bg-green-50 text-green-700 ring-green-300' },
+  { key: 'filled',            label: '확정',    dot: 'bg-purple-500', active: 'bg-purple-50 text-purple-700 ring-purple-300' },
+  { key: 'expired',           label: '만료',    dot: 'bg-yellow-400', active: 'bg-yellow-50 text-yellow-700 ring-yellow-300' },
+  { key: 'cancelled',         label: '취소',    dot: 'bg-red-400',    active: 'bg-red-50 text-red-600 ring-red-200' },
+];
+
+// ==================== 진행별 대시보드 ====================
+function StatusDashboard({
+  counts,
+  total,
+  activeStatus,
+  onSelect,
+}: {
+  counts: Record<string, number>;
+  total: number;
+  activeStatus: string;
+  onSelect: (s: string) => void;
+}) {
+  return (
+    <div className="flex gap-1.5 flex-wrap">
+      {STATUS_ITEMS.map((item) => {
+        const count = item.key === 'all' ? total : (counts[item.key] ?? 0);
+        const isActive = activeStatus === item.key;
+        return (
+          <button
+            key={item.key}
+            onClick={() => onSelect(item.key)}
+            className={cn(
+              'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] ring-1 ring-inset transition-all',
+              isActive
+                ? item.active
+                : 'bg-white text-gray-500 ring-gray-200 hover:ring-gray-300 hover:text-gray-700',
+            )}
+          >
+            <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', item.dot)} />
+            <span>{item.label}</span>
+            <span className={cn('tabular-nums font-semibold', isActive ? '' : 'text-gray-400')}>
+              {count}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 // 주소에서 구/동 수준 추출
 function extractLocationSummary(address?: string): string | null {
@@ -267,14 +324,31 @@ export default function RecruitmentListPage() {
   const canManageRecruitment = isStaff || !!user?.clientId;
 
   const [activeTab, setActiveTab] = useState<'my' | 'public'>(canManageRecruitment ? 'my' : 'public');
+  const [statusFilter, setStatusFilter] = useState<RecruitmentStatus | 'all'>('all');
   const [shootingTypeFilter, setShootingTypeFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('latest');
   const [page, setPage] = useState(1);
+
+  // 상태별 카운트를 위한 전체 조회 (내 구인 탭에서만)
+  const { data: statsResponse } = useRecruitments(
+    canManageRecruitment && activeTab === 'my'
+      ? { clientId: user?.clientId || '', limit: 200 }
+      : undefined,
+  );
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    (statsResponse?.data ?? []).forEach((r) => {
+      counts[r.status] = (counts[r.status] ?? 0) + 1;
+    });
+    return counts;
+  }, [statsResponse]);
+  const totalCount = statsResponse?.data?.length ?? 0;
 
   // 현재 탭에 따른 파라미터
   const queryParams: RecruitmentQueryParams = activeTab === 'my'
     ? {
         clientId: user?.clientId || '',
+        status: statusFilter !== 'all' ? statusFilter : undefined,
         shootingType: shootingTypeFilter !== 'all' ? (shootingTypeFilter as ShootingType) : undefined,
         sort: sortBy as RecruitmentQueryParams['sort'],
         page,
@@ -295,6 +369,7 @@ export default function RecruitmentListPage() {
 
   const handleTabChange = (value: string) => {
     setActiveTab(value as 'my' | 'public');
+    setStatusFilter('all');
     setPage(1);
   };
 
@@ -379,6 +454,19 @@ export default function RecruitmentListPage() {
         {/* ==================== 내 구인 목록 (리스트 형태) ==================== */}
         {canManageRecruitment && (
           <TabsContent value="my">
+            {/* 진행별 대시보드 */}
+            <div className="mt-3">
+              <StatusDashboard
+                counts={statusCounts}
+                total={totalCount}
+                activeStatus={statusFilter}
+                onSelect={(s) => {
+                  setStatusFilter(s as RecruitmentStatus | 'all');
+                  setPage(1);
+                }}
+              />
+            </div>
+
             {isLoading ? (
               <div className="flex items-center justify-center py-20">
                 <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
