@@ -292,7 +292,7 @@ export default function MembersPage() {
   // 이메일 중복 체크
   const [emailDuplicate, setEmailDuplicate] = useState<EmailCheckResult | null>(null);
   const [emailChecking, setEmailChecking] = useState(false);
-  const emailCheckTimer = useRef<ReturnType<typeof setTimeout>>();
+  const emailCheckTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const handleEmailChange = useCallback((email: string) => {
     setFormData((prev) => ({ ...prev, email }));

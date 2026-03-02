@@ -228,15 +228,13 @@ export default function ShootingDetailPage() {
                   <div>
                     <p className="text-[12px] text-gray-500">촬영일시</p>
                     <p className="text-[14px] text-black font-normal">
-                      {format(parseISO(shooting.scheduledDate), 'yyyy년 M월 d일 (EEEE)', {
+                      {format(parseISO(shooting.shootingDate), 'yyyy년 M월 d일 (EEEE)', {
                         locale: ko,
                       })}
                     </p>
-                    {shooting.scheduledTime && (
+                    {shooting.duration && (
                       <p className="text-[14px] text-black font-normal">
-                        {shooting.scheduledTime.substring(0, 5)}
-                        {shooting.estimatedDuration &&
-                          ` (약 ${shooting.estimatedDuration}분)`}
+                        {`(약 ${shooting.duration}분)`}
                       </p>
                     )}
                   </div>
@@ -248,10 +246,10 @@ export default function ShootingDetailPage() {
                   <div>
                     <p className="text-[12px] text-gray-500">장소</p>
                     <p className="text-[14px] text-black font-normal">
-                      {shooting.location || '-'}
+                      {shooting.venueName || '-'}
                     </p>
-                    {shooting.locationAddress && (
-                      <p className="text-[12px] text-gray-500">{shooting.locationAddress}</p>
+                    {shooting.venueAddress && (
+                      <p className="text-[12px] text-gray-500">{shooting.venueAddress}</p>
                     )}
                   </div>
                 </div>
@@ -273,50 +271,26 @@ export default function ShootingDetailPage() {
                   <div>
                     <p className="text-[12px] text-gray-500">배정 작가</p>
                     <p className="text-[14px] text-black font-normal">
-                      {shooting.photographerName || '미배정'}
+                      {shooting.assignedStaff?.name || '미배정'}
                     </p>
                   </div>
                 </div>
 
-                {/* 예산 */}
-                {shooting.budget !== undefined && shooting.budget > 0 && (
-                  <div className="flex items-start gap-3">
-                    <FileText className="h-5 w-5 text-gray-400 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="text-[12px] text-gray-500">예산</p>
-                      <p className="text-[14px] text-black font-normal">
-                        {new Intl.NumberFormat('ko-KR').format(shooting.budget)}원
-                      </p>
-                    </div>
-                  </div>
-                )}
               </div>
 
-              {/* 설명 */}
-              {shooting.description && (
+              {/* 메모 */}
+              {shooting.notes && (
                 <>
                   <Separator className="my-4" />
                   <div>
-                    <p className="text-[12px] text-gray-500 mb-1">설명</p>
+                    <p className="text-[12px] text-gray-500 mb-1">메모</p>
                     <p className="text-[14px] text-black font-normal whitespace-pre-wrap">
-                      {shooting.description}
+                      {shooting.notes}
                     </p>
                   </div>
                 </>
               )}
 
-              {/* 요구사항 */}
-              {shooting.requirements && (
-                <>
-                  <Separator className="my-4" />
-                  <div>
-                    <p className="text-[12px] text-gray-500 mb-1">요구사항</p>
-                    <p className="text-[14px] text-black font-normal whitespace-pre-wrap">
-                      {shooting.requirements}
-                    </p>
-                  </div>
-                </>
-              )}
             </CardContent>
           </Card>
 
@@ -341,9 +315,9 @@ export default function ShootingDetailPage() {
             <CardHeader>
               <CardTitle className="text-[18px] text-black font-bold">
                 응찰 현황
-                {shooting.bidCount !== undefined && shooting.bidCount > 0 && (
+                {shooting._count?.bids !== undefined && shooting._count.bids > 0 && (
                   <Badge variant="secondary" className="ml-2 text-[11px]">
-                    {shooting.bidCount}건
+                    {shooting._count.bids}건
                   </Badge>
                 )}
               </CardTitle>

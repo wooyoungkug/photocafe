@@ -3,10 +3,6 @@
 import { useState, useMemo } from 'react';
 import {
   format,
-  startOfMonth,
-  endOfMonth,
-  addMonths,
-  subMonths,
   parseISO,
 } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -15,11 +11,7 @@ import {
   Plus,
   List,
   CalendarDays,
-  ChevronLeft,
-  ChevronRight,
   MapPin,
-  Clock,
-  User,
   Loader2,
   Search,
   Eye,
@@ -57,10 +49,7 @@ import { useAuthStore } from '@/stores/auth-store';
 import {
   useShootings,
   useCreateShooting,
-  useUpdateShooting,
   useDeleteShooting,
-  SHOOTING_TYPE_LABELS,
-  SHOOTING_STATUS_LABELS,
 } from '@/hooks/use-shooting';
 import type {
   Shooting,
@@ -76,18 +65,17 @@ import { cn } from '@/lib/utils';
 // ==================== Constants ====================
 
 const SHOOTING_TYPES: { value: string; label: string }[] = [
-  { value: 'wedding', label: '웨딩' },
-  { value: 'studio', label: '스튜디오' },
-  { value: 'outdoor', label: '야외' },
-  { value: 'product', label: '제품' },
-  { value: 'profile', label: '프로필' },
-  { value: 'event', label: '행사' },
+  { value: 'wedding_main', label: '본식 촬영' },
+  { value: 'wedding_rehearsal', label: '리허설 촬영' },
+  { value: 'baby_dol', label: '돌 촬영' },
+  { value: 'baby_growth', label: '성장 촬영' },
+  { value: 'profile', label: '프로필 촬영' },
   { value: 'other', label: '기타' },
 ];
 
 const SHOOTING_STATUSES: { value: string; label: string }[] = [
   { value: 'draft', label: '초안' },
-  { value: 'published', label: '공고중' },
+  { value: 'recruiting', label: '모집중' },
   { value: 'bidding', label: '응찰중' },
   { value: 'confirmed', label: '확정' },
   { value: 'in_progress', label: '진행중' },
@@ -117,7 +105,7 @@ export default function MypageShootingPage() {
   const { data: shootingsData, isLoading } = useShootings({
     createdBy: userId,
     search: search || undefined,
-    type: filterType !== 'all' ? (filterType as ShootingType) : undefined,
+    shootingType: filterType !== 'all' ? (filterType as ShootingType) : undefined,
     status: filterStatus !== 'all' ? (filterStatus as ShootingStatus) : undefined,
     limit: 100,
   });
@@ -305,15 +293,15 @@ function ShootingListView({
           {shootings.map((s) => (
             <TableRow key={s.id} className="cursor-pointer hover:bg-gray-50" onClick={() => onView(s)}>
               <TableCell className="text-[13px]">
-                {s.scheduledDate
-                  ? format(parseISO(s.scheduledDate), 'M/d (EEE)', { locale: ko })
+                {s.shootingDate
+                  ? format(parseISO(s.shootingDate), 'M/d (EEE)', { locale: ko })
                   : '-'}
               </TableCell>
               <TableCell>
-                <ShootingTypeBadge type={s.type} />
+                <ShootingTypeBadge type={s.shootingType} />
               </TableCell>
-              <TableCell className="text-[13px]">{s.clientName || s.title || '-'}</TableCell>
-              <TableCell className="text-[13px] text-gray-600">{s.location || '-'}</TableCell>
+              <TableCell className="text-[13px]">{s.clientName || '-'}</TableCell>
+              <TableCell className="text-[13px] text-gray-600">{s.venueName || '-'}</TableCell>
               <TableCell>
                 <ShootingStatusBadge status={s.status} />
               </TableCell>
@@ -369,7 +357,7 @@ function ShootingCalendarView({
   // Selected day shootings
   const selectedDayShootings = useMemo(() => {
     const key = format(selectedDate, 'yyyy-MM-dd');
-    return shootings.filter((s) => s.scheduledDate?.substring(0, 10) === key);
+    return shootings.filter((s) => s.shootingDate?.substring(0, 10) === key);
   }, [shootings, selectedDate]);
 
   return (
@@ -408,22 +396,16 @@ function ShootingCalendarView({
                   className="w-full text-left p-3 rounded-lg border hover:border-primary/30 hover:bg-primary/5 transition-colors"
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <ShootingTypeBadge type={s.type} />
+                    <ShootingTypeBadge type={s.shootingType} />
                     <ShootingStatusBadge status={s.status} />
                   </div>
                   <p className="text-[14px] text-black font-medium mt-1">
-                    {s.clientName || s.title}
+                    {s.clientName}
                   </p>
-                  {s.location && (
+                  {s.venueName && (
                     <div className="flex items-center gap-1 mt-1 text-[12px] text-gray-500">
                       <MapPin className="h-3 w-3" />
-                      {s.location}
-                    </div>
-                  )}
-                  {s.scheduledTime && (
-                    <div className="flex items-center gap-1 mt-0.5 text-[12px] text-gray-500">
-                      <Clock className="h-3 w-3" />
-                      {s.scheduledTime.substring(0, 5)}
+                      {s.venueName}
                     </div>
                   )}
                 </button>
@@ -449,43 +431,43 @@ function ShootingCreateDialog({
   onSave: (data: CreateShootingDto) => void;
   isPending: boolean;
 }) {
-  const [title, setTitle] = useState('');
-  const [type, setType] = useState<string>('wedding');
-  const [scheduledDate, setScheduledDate] = useState('');
-  const [scheduledTime, setScheduledTime] = useState('');
-  const [estimatedDuration, setEstimatedDuration] = useState('');
-  const [location, setLocation] = useState('');
-  const [locationAddress, setLocationAddress] = useState('');
   const [clientName, setClientName] = useState('');
-  const [description, setDescription] = useState('');
+  const [shootingType, setShootingType] = useState<string>('wedding_main');
+  const [shootingDate, setShootingDate] = useState('');
+  const [shootingTime, setShootingTime] = useState('');
+  const [duration, setDuration] = useState('');
+  const [venueName, setVenueName] = useState('');
+  const [venueAddress, setVenueAddress] = useState('');
+  const [notes, setNotes] = useState('');
 
   const handleOpenChange = (v: boolean) => {
     if (v) {
-      setTitle('');
-      setType('wedding');
-      setScheduledDate(format(new Date(), 'yyyy-MM-dd'));
-      setScheduledTime('');
-      setEstimatedDuration('');
-      setLocation('');
-      setLocationAddress('');
       setClientName('');
-      setDescription('');
+      setShootingType('wedding_main');
+      setShootingDate(format(new Date(), 'yyyy-MM-dd'));
+      setShootingTime('');
+      setDuration('');
+      setVenueName('');
+      setVenueAddress('');
+      setNotes('');
     }
     onOpenChange(v);
   };
 
   const handleSubmit = () => {
-    if (!title.trim() || !scheduledDate) return;
+    if (!clientName.trim() || !shootingDate || !venueName.trim()) return;
+    // Combine date + time into ISO datetime string
+    const isoDateTime = shootingTime
+      ? `${shootingDate}T${shootingTime}:00`
+      : `${shootingDate}T00:00:00`;
     onSave({
-      title: title.trim(),
-      type: type as ShootingType,
-      scheduledDate,
-      scheduledTime: scheduledTime || undefined,
-      estimatedDuration: estimatedDuration ? parseInt(estimatedDuration, 10) : undefined,
-      location: location.trim() || undefined,
-      locationAddress: locationAddress.trim() || undefined,
-      clientName: clientName.trim() || undefined,
-      description: description.trim() || undefined,
+      clientName: clientName.trim(),
+      shootingType: shootingType as ShootingType,
+      shootingDate: isoDateTime,
+      duration: duration ? parseInt(duration, 10) : undefined,
+      venueName: venueName.trim(),
+      venueAddress: venueAddress.trim() || '',
+      notes: notes.trim() || undefined,
     });
   };
 
@@ -496,19 +478,19 @@ function ShootingCreateDialog({
           <DialogTitle className="text-[16px]">촬영 등록</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
-          <div>
-            <Label className="text-[13px]">제목</Label>
-            <Input
-              className="text-[13px]"
-              placeholder="촬영 제목"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
+              <Label className="text-[13px]">고객명</Label>
+              <Input
+                className="text-[13px]"
+                placeholder="고객명"
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+              />
+            </div>
+            <div>
               <Label className="text-[13px]">유형</Label>
-              <Select value={type} onValueChange={setType}>
+              <Select value={shootingType} onValueChange={setShootingType}>
                 <SelectTrigger className="text-[13px]">
                   <SelectValue />
                 </SelectTrigger>
@@ -521,24 +503,15 @@ function ShootingCreateDialog({
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label className="text-[13px]">고객명 (선택)</Label>
-              <Input
-                className="text-[13px]"
-                placeholder="고객명"
-                value={clientName}
-                onChange={(e) => setClientName(e.target.value)}
-              />
-            </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <Label className="text-[13px]">촬영일</Label>
               <Input
                 type="date"
                 className="text-[13px]"
-                value={scheduledDate}
-                onChange={(e) => setScheduledDate(e.target.value)}
+                value={shootingDate}
+                onChange={(e) => setShootingDate(e.target.value)}
               />
             </div>
             <div>
@@ -546,28 +519,28 @@ function ShootingCreateDialog({
               <Input
                 type="time"
                 className="text-[13px]"
-                value={scheduledTime}
-                onChange={(e) => setScheduledTime(e.target.value)}
+                value={shootingTime}
+                onChange={(e) => setShootingTime(e.target.value)}
               />
             </div>
-          </div>
-          <div>
-            <Label className="text-[13px]">소요시간 (분, 선택)</Label>
-            <Input
-              type="number"
-              className="text-[13px]"
-              placeholder="예: 120"
-              value={estimatedDuration}
-              onChange={(e) => setEstimatedDuration(e.target.value)}
-            />
+            <div>
+              <Label className="text-[13px]">소요 (분)</Label>
+              <Input
+                type="number"
+                className="text-[13px]"
+                placeholder="예: 120"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+              />
+            </div>
           </div>
           <div>
             <Label className="text-[13px]">장소</Label>
             <Input
               className="text-[13px]"
               placeholder="장소명"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
+              value={venueName}
+              onChange={(e) => setVenueName(e.target.value)}
             />
           </div>
           <div>
@@ -575,8 +548,8 @@ function ShootingCreateDialog({
             <Input
               className="text-[13px]"
               placeholder="주소"
-              value={locationAddress}
-              onChange={(e) => setLocationAddress(e.target.value)}
+              value={venueAddress}
+              onChange={(e) => setVenueAddress(e.target.value)}
             />
           </div>
           <div>
@@ -585,8 +558,8 @@ function ShootingCreateDialog({
               className="text-[13px] resize-none"
               rows={2}
               placeholder="메모"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
             />
           </div>
         </div>
@@ -596,7 +569,7 @@ function ShootingCreateDialog({
           </Button>
           <Button
             size="sm"
-            disabled={!title.trim() || !scheduledDate || isPending}
+            disabled={!clientName.trim() || !shootingDate || !venueName.trim() || isPending}
             onClick={handleSubmit}
           >
             {isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
@@ -627,24 +600,18 @@ function ShootingDetailDialog({
         </DialogHeader>
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <ShootingTypeBadge type={shooting.type} />
+            <ShootingTypeBadge type={shooting.shootingType} />
             <ShootingStatusBadge status={shooting.status} />
           </div>
           <div>
-            <h3 className="text-[16px] text-black font-bold">{shooting.title}</h3>
-            {shooting.clientName && (
-              <div className="flex items-center gap-1 mt-1 text-[13px] text-gray-600">
-                <User className="h-3.5 w-3.5" />
-                {shooting.clientName}
-              </div>
-            )}
+            <h3 className="text-[16px] text-black font-bold">{shooting.clientName}</h3>
           </div>
           <div className="grid grid-cols-2 gap-3 text-[13px]">
             <div>
               <span className="text-gray-500">촬영일</span>
               <p className="font-medium">
-                {shooting.scheduledDate
-                  ? format(parseISO(shooting.scheduledDate), 'yyyy년 M월 d일 (EEE)', {
+                {shooting.shootingDate
+                  ? format(parseISO(shooting.shootingDate), 'yyyy년 M월 d일 (EEE)', {
                       locale: ko,
                     })
                   : '-'}
@@ -653,38 +620,44 @@ function ShootingDetailDialog({
             <div>
               <span className="text-gray-500">시간</span>
               <p className="font-medium">
-                {shooting.scheduledTime ? shooting.scheduledTime.substring(0, 5) : '미정'}
+                {shooting.shootingDate
+                  ? format(parseISO(shooting.shootingDate), 'HH:mm') !== '00:00'
+                    ? format(parseISO(shooting.shootingDate), 'HH:mm')
+                    : '미정'
+                  : '미정'}
               </p>
             </div>
           </div>
-          {shooting.location && (
+          {shooting.venueName && (
             <div className="text-[13px]">
               <span className="text-gray-500">장소</span>
               <div className="flex items-center gap-1 mt-0.5">
                 <MapPin className="h-3.5 w-3.5 text-gray-400" />
-                <p className="font-medium">{shooting.location}</p>
+                <p className="font-medium">{shooting.venueName}</p>
               </div>
-              {shooting.locationAddress && (
-                <p className="text-gray-400 text-[12px] ml-5">{shooting.locationAddress}</p>
+              {shooting.venueAddress && (
+                <p className="text-gray-400 text-[12px] ml-5">{shooting.venueAddress}</p>
               )}
             </div>
           )}
-          {shooting.estimatedDuration && (
+          {shooting.duration && (
             <div className="text-[13px]">
               <span className="text-gray-500">소요시간</span>
-              <p className="font-medium">{shooting.estimatedDuration}분</p>
+              <p className="font-medium">{shooting.duration}분</p>
             </div>
           )}
-          {shooting.description && (
+          {shooting.notes && (
             <div className="text-[13px]">
               <span className="text-gray-500">메모</span>
-              <p className="mt-0.5 whitespace-pre-wrap">{shooting.description}</p>
+              <p className="mt-0.5 whitespace-pre-wrap">{shooting.notes}</p>
             </div>
           )}
-          {shooting.photographerName && (
+          {(shooting.assignedStaff?.name || shooting.assignedClient?.clientName) && (
             <div className="text-[13px]">
               <span className="text-gray-500">담당 작가</span>
-              <p className="font-medium">{shooting.photographerName}</p>
+              <p className="font-medium">
+                {shooting.assignedStaff?.name || shooting.assignedClient?.clientName}
+              </p>
             </div>
           )}
         </div>
