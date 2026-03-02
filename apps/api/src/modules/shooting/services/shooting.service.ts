@@ -68,6 +68,8 @@ export class ShootingService {
           shootingType: dto.shootingType,
           venueName: dto.venueName,
           venueAddress: dto.venueAddress,
+          venueFloor: dto.venueFloor,
+          venueHall: dto.venueHall,
           latitude: dto.latitude,
           longitude: dto.longitude,
           shootingDate,
