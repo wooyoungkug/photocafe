@@ -154,6 +154,16 @@ export class ScheduleRecruitmentSyncService {
           ? null
           : `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 
+      // privateDeadlineHours=0 → 즉시 공개모집, 그 외 → 전속모집
+      const deadlineHours = options.privateDeadlineHours ?? 24;
+      const isImmediate = deadlineHours === 0;
+      const initStatus = isImmediate
+        ? RECRUITMENT_STATUS.PUBLIC_RECRUITING
+        : RECRUITMENT_STATUS.PRIVATE_RECRUITING;
+      const initPhase = isImmediate
+        ? RECRUITMENT_PHASE.PUBLIC
+        : RECRUITMENT_PHASE.PRIVATE;
+
       const recruitment = await this.prisma.recruitment.create({
         data: {
           clientId: options.clientId,
@@ -172,9 +182,9 @@ export class ScheduleRecruitmentSyncService {
           description: options.description,
           requirements: options.requirements,
           customerName: shooting.clientName,
-          privateDeadlineHours: options.privateDeadlineHours ?? 24,
-          status: RECRUITMENT_STATUS.DRAFT,
-          recruitmentPhase: RECRUITMENT_PHASE.PRIVATE,
+          privateDeadlineHours: deadlineHours,
+          status: initStatus,
+          recruitmentPhase: initPhase,
           maxBidders: shooting.maxBidders,
           linkedShootingId: shooting.id,
           createdBy: options.clientId,
