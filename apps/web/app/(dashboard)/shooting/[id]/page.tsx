@@ -89,10 +89,12 @@ export default function ShootingDetailPage() {
   const [statusNote, setStatusNote] = useState('');
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<ShootingStatus | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   // 데이터 조회
   const { data: shooting, isLoading, error } = useShooting(shootingId);
   const updateStatusMutation = useUpdateShootingStatus();
+  const deleteMutation = useDeleteShooting();
 
   // 가능한 상태 전이
   const availableTransitions = useMemo(() => {
@@ -209,6 +211,17 @@ export default function ShootingDetailPage() {
             >
               <Send className="h-4 w-4 mr-1.5" />
               설문 발송
+            </Button>
+          )}
+          {/* 삭제 버튼: 진행중/완료 상태 제외 */}
+          {!['in_progress', 'completed'].includes(shooting.status) && (
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(true)}
+              className="text-[14px] text-red-500 border-red-200 hover:bg-red-50"
+            >
+              <Trash2 className="h-4 w-4 mr-1.5" />
+              삭제
             </Button>
           )}
         </div>
@@ -346,6 +359,44 @@ export default function ShootingDetailPage() {
           <RecruitmentLinkCard shooting={shooting} />
         </div>
       </div>
+
+      {/* 삭제 확인 다이얼로그 */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-[18px] text-black font-bold">촬영 일정 삭제</DialogTitle>
+            <DialogDescription className="text-[14px]">
+              <span className="font-medium text-black">{shooting.clientName}</span> 일정을 삭제합니다. 이 작업은 되돌릴 수 없습니다.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              className="text-[14px]"
+            >
+              취소
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                try {
+                  await deleteMutation.mutateAsync(shooting.id);
+                  toast({ title: '삭제 완료', description: '촬영 일정이 삭제되었습니다.' });
+                  router.push('/shooting');
+                } catch {
+                  toast({ title: '삭제 실패', variant: 'destructive' });
+                }
+              }}
+              disabled={deleteMutation.isPending}
+              className="text-[14px]"
+            >
+              {deleteMutation.isPending && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+              삭제
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* 상태 변경 확인 다이얼로그 */}
       <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
