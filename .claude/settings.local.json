@@ -379,7 +379,9 @@
       "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql\" -U postgres -h localhost -d printing_erp -c \"\\\\dt\")",
       "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql\" -U postgres -h localhost -d printing_erp -c \"UPDATE staff SET password = ''$2b$10$DuXQIpqaZDxvnqXSaSnW8u9slgLq/NSHt4ryBRQB6rG/K4u8dWGJy'' WHERE staff_id = ''admin'' RETURNING staff_id, name;\")",
       "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql\" -U postgres -h localhost -d printing_erp -c \"UPDATE staff SET password = ''$2b$10$DuXQIpqaZDxvnqXSaSnW8u9slgLq/NSHt4ryBRQB6rG/K4u8dWGJy'' WHERE \"\"staffId\"\" = ''admin'' RETURNING \"\"staffId\"\", name;\")",
-      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql\" -U postgres -h localhost -d printing_erp -c \"SELECT \"\"staffId\"\", name, password FROM staff WHERE \"\"staffId\"\" = ''admin'';\")"
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql\" -U postgres -h localhost -d printing_erp -c \"SELECT \"\"staffId\"\", name, password FROM staff WHERE \"\"staffId\"\" = ''admin'';\")",
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql\" -U postgres -h localhost -d printing_erp -c \"SELECT COUNT\\(*\\) FROM client;\")",
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql\" -U postgres -h localhost -d printing_erp -c \"SELECT COUNT\\(*\\) FROM clients;\")"
     ],
     "additionalDirectories": [
       "C:\\dev\\printing114\\apps\\api\\dist",
