@@ -1,32 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsString, MinLength, IsNotEmpty, IsOptional, IsIn, IsBoolean } from 'class-validator';
-
-export class LoginDto {
-  @ApiProperty({ example: 'admin@example.com', description: '이메일' })
-  @IsEmail({}, { message: '올바른 이메일 형식이 아닙니다' })
-  email: string;
-
-  @ApiProperty({ example: 'password123', description: '비밀번호' })
-  @IsString()
-  @MinLength(6, { message: '비밀번호는 최소 6자 이상이어야 합니다' })
-  password: string;
-}
-
-export class RegisterDto {
-  @ApiProperty({ example: 'user@example.com', description: '이메일' })
-  @IsEmail({}, { message: '올바른 이메일 형식이 아닙니다' })
-  email: string;
-
-  @ApiProperty({ example: 'password123', description: '비밀번호' })
-  @IsString()
-  @MinLength(6, { message: '비밀번호는 최소 6자 이상이어야 합니다' })
-  password: string;
-
-  @ApiProperty({ example: '홍길동', description: '이름' })
-  @IsString()
-  @IsNotEmpty({ message: '이름은 필수입니다' })
-  name: string;
-}
+import { IsEmail, IsString, MinLength, IsNotEmpty, IsOptional, IsIn, IsBoolean, Length } from 'class-validator';
 
 export class RefreshTokenDto {
   @ApiProperty({ description: 'Refresh Token' })
@@ -35,183 +8,88 @@ export class RefreshTokenDto {
   refreshToken: string;
 }
 
-export class ChangePasswordDto {
-  @ApiProperty({ example: 'currentPassword', description: '현재 비밀번호' })
-  @IsString()
-  @IsNotEmpty({ message: '현재 비밀번호는 필수입니다' })
-  currentPassword: string;
+// ========== 고객 이메일/PW 로그인 DTO ==========
 
-  @ApiProperty({ example: 'newPassword123', description: '새 비밀번호' })
+export class ClientLoginDto {
+  @ApiProperty({ example: 'myid123', description: '아이디' })
   @IsString()
-  @MinLength(6, { message: '비밀번호는 최소 6자 이상이어야 합니다' })
-  newPassword: string;
+  @IsNotEmpty({ message: '아이디를 입력해주세요' })
+  loginId: string;
+
+  @ApiProperty({ example: 'password123', description: '비밀번호' })
+  @IsString()
+  @IsNotEmpty({ message: '비밀번호를 입력해주세요' })
+  password: string;
 }
 
-// ========== 고객 회원가입 DTO ==========
+export class ClientRegisterDto {
+  @ApiProperty({ example: 'myid123', description: '아이디' })
+  @IsString()
+  @IsNotEmpty({ message: '아이디를 입력해주세요' })
+  @MinLength(4, { message: '아이디는 4자 이상이어야 합니다' })
+  loginId: string;
 
-// 개인 고객 회원가입
-export class RegisterIndividualDto {
+  @ApiProperty({ example: 'password123', description: '비밀번호' })
+  @IsString()
+  @IsNotEmpty({ message: '비밀번호를 입력해주세요' })
+  @MinLength(6, { message: '비밀번호는 6자 이상이어야 합니다' })
+  password: string;
+
   @ApiProperty({ example: '홍길동', description: '이름' })
   @IsString()
-  @IsNotEmpty({ message: '이름은 필수입니다' })
+  @IsNotEmpty({ message: '이름을 입력해주세요' })
   name: string;
 
   @ApiProperty({ example: 'user@example.com', description: '이메일' })
   @IsEmail({}, { message: '올바른 이메일 형식이 아닙니다' })
-  email: string;
+  @IsNotEmpty({ message: '이메일을 입력해주세요' })
+  contactEmail: string;
 
-  @ApiProperty({ example: 'password123', description: '비밀번호' })
-  @IsString()
-  @MinLength(6, { message: '비밀번호는 최소 6자 이상이어야 합니다' })
-  password: string;
-
-  @ApiPropertyOptional({ example: '010-1234-5678', description: '휴대폰 번호' })
+  @ApiPropertyOptional({ example: 'cuid_verification_id', description: '이메일 인증 ID (선택)' })
   @IsOptional()
   @IsString()
-  mobile?: string;
-}
+  verificationId?: string;
 
-// 스튜디오(B2B) 회원가입
-export class RegisterStudioDto {
-  // 기본 인적 사항
-  @ApiProperty({ example: '행복스튜디오', description: '스튜디오명 (상호)' })
-  @IsString()
-  @IsNotEmpty({ message: '스튜디오명은 필수입니다' })
-  studioName: string;
-
-  @ApiProperty({ example: '홍길동', description: '대표자명' })
-  @IsString()
-  @IsNotEmpty({ message: '대표자명은 필수입니다' })
-  representative: string;
-
-  @ApiPropertyOptional({ example: '김영희', description: '실무 담당자명' })
-  @IsOptional()
-  @IsString()
-  contactPerson?: string;
-
-  @ApiPropertyOptional({ example: '010-9876-5432', description: '실무 담당자 연락처' })
-  @IsOptional()
-  @IsString()
-  contactPhone?: string;
-
-  @ApiProperty({ example: '02-1234-5678', description: '대표 전화번호' })
+  @ApiPropertyOptional({ example: '01012345678', description: '전화번호' })
   @IsOptional()
   @IsString()
   phone?: string;
-
-  @ApiProperty({ example: '010-1234-5678', description: '휴대폰 번호' })
-  @IsString()
-  @IsNotEmpty({ message: '휴대폰 번호는 필수입니다' })
-  mobile: string;
-
-  @ApiProperty({ example: 'studio@example.com', description: '이메일' })
-  @IsEmail({}, { message: '올바른 이메일 형식이 아닙니다' })
-  email: string;
-
-  @ApiProperty({ example: 'password123', description: '비밀번호' })
-  @IsString()
-  @MinLength(6, { message: '비밀번호는 최소 6자 이상이어야 합니다' })
-  password: string;
-
-  // 사업자 정보
-  @ApiProperty({ example: '123-45-67890', description: '사업자등록번호' })
-  @IsString()
-  @IsNotEmpty({ message: '사업자등록번호는 필수입니다' })
-  businessNumber: string;
-
-  @ApiPropertyOptional({ example: '사진촬영업', description: '업태' })
-  @IsOptional()
-  @IsString()
-  businessType?: string;
-
-  @ApiPropertyOptional({ example: '웨딩, 베이비', description: '종목' })
-  @IsOptional()
-  @IsString()
-  businessCategory?: string;
-
-  @ApiPropertyOptional({ example: '06234', description: '우편번호' })
-  @IsOptional()
-  @IsString()
-  postalCode?: string;
-
-  @ApiPropertyOptional({ example: '서울시 강남구 테헤란로 123', description: '사업장 주소' })
-  @IsOptional()
-  @IsString()
-  address?: string;
-
-  @ApiPropertyOptional({ example: '456호', description: '상세주소' })
-  @IsOptional()
-  @IsString()
-  addressDetail?: string;
-
-  @ApiPropertyOptional({ example: 'tax@example.com', description: '세금계산서 수신 이메일' })
-  @IsOptional()
-  @IsEmail()
-  taxInvoiceEmail?: string;
-
-  @ApiPropertyOptional({ example: 'electronic', description: '세금계산서 발행 방법' })
-  @IsOptional()
-  @IsIn(['electronic', 'fax', 'mail'])
-  taxInvoiceMethod?: string;
-
-  // 스튜디오 특성 (영업 데이터)
-  @ApiPropertyOptional({ example: 'wedding', description: '주력 촬영 장르' })
-  @IsOptional()
-  @IsIn(['wedding', 'baby', 'profile', 'snap', 'family', 'commercial', 'etc'])
-  mainGenre?: string;
-
-  @ApiPropertyOptional({ example: '10to50', description: '월 평균 주문 예상량' })
-  @IsOptional()
-  @IsIn(['under10', '10to50', 'over50'])
-  monthlyOrderVolume?: string;
-
-  @ApiPropertyOptional({ example: 'sRGB', description: '주요 사용 색상 프로필' })
-  @IsOptional()
-  @IsIn(['sRGB', 'AdobeRGB'])
-  colorProfile?: string;
-
-  @ApiPropertyOptional({ example: 'referral', description: '유입 경로' })
-  @IsOptional()
-  @IsIn(['referral', 'search', 'exhibition', 'sns', 'etc'])
-  acquisitionChannel?: string;
-
-  // 제품 선호도
-  @ApiPropertyOptional({ example: '11x14', description: '선호 앨범 규격' })
-  @IsOptional()
-  @IsString()
-  preferredSize?: string;
-
-  @ApiPropertyOptional({ example: 'glossy', description: '선호 내지 재질' })
-  @IsOptional()
-  @IsIn(['glossy', 'matte', 'luster', 'metallic'])
-  preferredFinish?: string;
-
-  @ApiPropertyOptional({ example: false, description: '로고/낙관 사용 여부' })
-  @IsOptional()
-  @IsBoolean()
-  hasLogo?: boolean;
-
-  @ApiPropertyOptional({ example: '박스에 유리주의 스티커 필수', description: '배송 요청사항' })
-  @IsOptional()
-  @IsString()
-  deliveryNote?: string;
 }
 
-// 클라이언트 로그인 DTO
-export class ClientLoginDto {
+// ========== 이메일 인증 DTO ==========
+
+export class SendEmailVerificationDto {
   @ApiProperty({ example: 'user@example.com', description: '이메일' })
   @IsEmail({}, { message: '올바른 이메일 형식이 아닙니다' })
+  @IsNotEmpty({ message: '이메일을 입력해주세요' })
   email: string;
+}
+
+export class VerifyEmailDto {
+  @ApiProperty({ example: 'user@example.com', description: '이메일' })
+  @IsEmail({}, { message: '올바른 이메일 형식이 아닙니다' })
+  @IsNotEmpty({ message: '이메일을 입력해주세요' })
+  email: string;
+
+  @ApiProperty({ example: '123456', description: '인증코드 6자리' })
+  @IsString()
+  @IsNotEmpty({ message: '인증코드를 입력해주세요' })
+  @Length(6, 6, { message: '인증코드는 6자리입니다' })
+  code: string;
+}
+
+// ========== 직원 ID/PW 로그인 DTO ==========
+
+export class StaffLoginDto {
+  @ApiProperty({ example: 'admin', description: '직원 ID' })
+  @IsString()
+  @IsNotEmpty({ message: '직원 ID를 입력해주세요' })
+  staffId: string;
 
   @ApiProperty({ example: 'password123', description: '비밀번호' })
   @IsString()
-  @MinLength(6, { message: '비밀번호는 최소 6자 이상이어야 합니다' })
+  @IsNotEmpty({ message: '비밀번호를 입력해주세요' })
   password: string;
-
-  @ApiPropertyOptional({ example: true, description: '로그인 상태 유지' })
-  @IsOptional()
-  @IsBoolean()
-  rememberMe?: boolean;
 }
 
 // ========== 직원 소셜 로그인 DTO ==========
@@ -239,60 +117,6 @@ export class ChangeStaffRoleDto {
   role: string;
 }
 
-// 거래처 직원 로그인 DTO
-export class EmployeeLoginDto {
-  @ApiProperty({ example: 'employee@example.com', description: '직원 이메일' })
-  @IsEmail({}, { message: '올바른 이메일 형식이 아닙니다' })
-  email: string;
-
-  @ApiProperty({ example: 'password123', description: '비밀번호' })
-  @IsString()
-  @MinLength(6, { message: '비밀번호는 최소 6자 이상이어야 합니다' })
-  password: string;
-
-  @ApiPropertyOptional({ example: true, description: '로그인 상태 유지' })
-  @IsOptional()
-  @IsBoolean()
-  rememberMe?: boolean;
-}
-
-// 거래처 직원 다중 거래처 선택 DTO
-export class EmployeeSelectClientDto {
-  @ApiProperty({ description: '사용자 ID' })
-  @IsString()
-  @IsNotEmpty()
-  userId: string;
-
-  @ApiProperty({ description: '선택한 Employment ID' })
-  @IsString()
-  @IsNotEmpty()
-  employmentId: string;
-
-  @ApiPropertyOptional({ example: true, description: '로그인 상태 유지' })
-  @IsOptional()
-  @IsBoolean()
-  rememberMe?: boolean;
-}
-
-// ========== 통합 로그인 DTO ==========
-
-// 통합 로그인
-export class UnifiedLoginDto {
-  @ApiProperty({ example: 'user@example.com', description: '이메일' })
-  @IsEmail({}, { message: '올바른 이메일 형식이 아닙니다' })
-  email: string;
-
-  @ApiProperty({ example: 'password123', description: '비밀번호' })
-  @IsString()
-  @MinLength(6, { message: '비밀번호는 최소 6자 이상이어야 합니다' })
-  password: string;
-
-  @ApiPropertyOptional({ example: true, description: '로그인 상태 유지' })
-  @IsOptional()
-  @IsBoolean()
-  rememberMe?: boolean;
-}
-
 // 로그인 컨텍스트 선택
 export class SelectContextDto {
   @ApiProperty({ description: '임시 인증 토큰' })
@@ -309,24 +133,6 @@ export class SelectContextDto {
   @IsOptional()
   @IsString()
   employmentId?: string;
-
-  @ApiPropertyOptional({ example: true, description: '로그인 상태 유지' })
-  @IsOptional()
-  @IsBoolean()
-  rememberMe?: boolean;
-}
-
-// 관리자(직원) 로그인 DTO
-export class AdminLoginDto {
-  @ApiProperty({ example: 'smsl1122', description: '직원 ID' })
-  @IsString()
-  @IsNotEmpty({ message: '직원 ID는 필수입니다' })
-  staffId: string;
-
-  @ApiProperty({ example: 'password123', description: '비밀번호' })
-  @IsString()
-  @MinLength(4, { message: '비밀번호는 최소 4자 이상이어야 합니다' })
-  password: string;
 
   @ApiPropertyOptional({ example: true, description: '로그인 상태 유지' })
   @IsOptional()

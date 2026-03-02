@@ -293,3 +293,414 @@ async placeBid(shootingId, staffId) {
 - [ ] 신뢰도 스코어링 자동 계산
 - [ ] 촬영 캘린더 프론트엔드 (컬러 코딩)
 - [ ] 사이드바 메뉴 추가
+
+---
+
+## 구인구직 시스템 (기획 2026-03-01)
+
+### 포토그래퍼 등록 사이트 (공개)
+
+포토그래퍼가 직접 회원가입하여 프로필을 등록하는 공개 사이트.
+스튜디오(거래처)에서 아르바이트 채용 시 객관적 평가 기준을 열람할 수 있도록 오픈.
+
+#### 포토그래퍼 프로필 정보
+
+| 항목 | 설명 |
+|------|------|
+| 기본정보 | 이름, 연락처, 이메일, 프로필사진 |
+| 사진 경력 | 총 경력 년수, 주요 이력 (텍스트), 자격증 |
+| 포트폴리오 | 대표 작품 이미지 업로드 (최대 20장) |
+| 촬영 가능 지역 | 다중 선택 (서울, 경기, 부산 등 시/도 단위) |
+| 촬영 유형 전문성 | 본식, 리허설, 돌촬영, 프로필 등 다중 선택 |
+| 장비 정보 | 카메라 바디, 렌즈 목록 (선택) |
+| 희망 보수 | 촬영 유형별 희망 단가 (원) |
+
+#### 평가 기준 (숨고 스타일)
+
+| 지표 | 산출 방식 | 노출 |
+|------|----------|------|
+| 고객 별점 | ShootingReview 평균 (1~5점) | ★4.8 형태 |
+| 채택 횟수 | ShootingBid.status='selected' 총 건수 | "32회 채택" |
+| 응찰 대비 채택률 | selected / total bids × 100 | "채택률 68%" |
+| 총 촬영 완료 건수 | ShootingSchedule.status='completed' | "촬영 45건" |
+| 정시 도착률 | LocationLog 기반 onTimeRate | "정시율 96%" |
+| 신뢰도 지수 | RI 공식 (기존 PhotographerStats) | GOLD 등급 배지 |
+| 활동 기간 | 가입일 기준 | "활동 2년" |
+| 리뷰 요약 | 최근 리뷰 3건 발췌 | 텍스트 노출 |
+
+#### 스튜디오 소속 개념
+
+```
+┌──────────────────────────────────────────────────────────┐
+│ 포토그래퍼 ←→ 스튜디오(Client) 소속 관계                    │
+├──────────────────────────────────────────────────────────┤
+│                                                          │
+│  1. 포토그래퍼는 1개 이상의 스튜디오에 소속 등록 가능          │
+│     (다대다 관계: PhotographerAffiliation 중간테이블)       │
+│                                                          │
+│  2. 소속 스튜디오 촬영 → 우선 배정 (내구인 대상 자동 포함)    │
+│                                                          │
+│  3. 비소속 촬영 → 공개구인방에서 직접 응찰                   │
+│                                                          │
+│  4. 소속 상태: active / inactive / pending(승인대기)        │
+│                                                          │
+│  5. 스튜디오 관리자가 소속 요청 승인/거절                    │
+│                                                          │
+└──────────────────────────────────────────────────────────┘
+```
+
+#### 소속 DB 모델 (신규)
+
+```prisma
+model PhotographerProfile {
+  id              String   @id @default(cuid())
+  staffId         String?  @unique            // 기존 Staff 연동 (선택)
+  name            String
+  email           String   @unique
+  phone           String?
+  profileImage    String?
+  careerYears     Int      @default(0)        // 경력 년수
+  careerHistory   String?                     // 주요 이력 (텍스트)
+  certifications  String[]  @default([])      // 자격증
+  portfolioImages String[]  @default([])      // 포트폴리오 이미지 URL
+  availableAreas  String[]  @default([])      // 촬영 가능 지역
+  specialties     String[]  @default([])      // 전문 촬영 유형
+  equipment       String?                     // 장비 정보
+  introduction    String?                     // 자기소개
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  affiliations    PhotographerAffiliation[]
+  stats           PhotographerStats?          // 기존 통계 연동
+}
+
+model PhotographerAffiliation {
+  id              String   @id @default(cuid())
+  photographerId  String                      // FK → PhotographerProfile
+  clientId        String                      // FK → Client (스튜디오)
+  status          String   @default("pending") // pending | active | inactive
+  isPrimary       Boolean  @default(false)     // 주 소속 여부
+  joinedAt        DateTime @default(now())
+  approvedAt      DateTime?
+
+  photographer    PhotographerProfile @relation(fields: [photographerId], references: [id])
+  client          Client              @relation(fields: [clientId], references: [id])
+
+  @@unique([photographerId, clientId])
+  @@index([clientId, status])
+}
+```
+
+### 구인 모드 (촬영 일정 등록 시)
+
+#### 3가지 모드
+
+| 모드 | 코드 | 대상 | 설명 |
+|------|------|------|------|
+| 내구인 | `private` | 소속 작가 + 지정 작가 | 등록된 포토그래퍼에게만 비공개 공고 |
+| 공개구인 | `public` | 전체 | 모든 포토그래퍼에게 공개 |
+| 조건부 | `conditional` | 내구인 우선 → 자동 공개 | 기한 내 미확정 시 공개 전환 |
+
+#### ShootingSchedule 확장 필드
+
+```prisma
+// 기존 ShootingSchedule에 추가
+recruitmentMode    String    @default("public")     // "private" | "public" | "conditional"
+recruitmentPhase   String    @default("private")    // 현재 단계: "private" | "public"
+privateDeadline    DateTime?                         // 내구인 마감 시각
+autoEscalate       Boolean   @default(false)         // 조건부: 자동 공개 전환 여부
+invitedStaffIds    String[]  @default([])            // 내구인 초대 작가 ID 목록
+budget             Int?                               // 보수(원)
+urgencyLevel       String    @default("normal")      // normal | urgent | emergency
+```
+
+#### 상태 흐름
+
+```
+draft
+  ├─→ private_recruiting (내구인/조건부 발행)
+  │    ├─→ public_recruiting (자동 전환 or 수동 전환)
+  │    │    ├─→ bidding → confirmed → in_progress → completed
+  │    │    └─→ cancelled
+  │    ├─→ bidding → confirmed → in_progress → completed
+  │    └─→ cancelled
+  ├─→ public_recruiting (공개구인 발행)
+  │    ├─→ bidding → confirmed → in_progress → completed
+  │    └─→ cancelled
+  └─→ cancelled
+```
+
+#### 조건부 자동 전환 (Cron)
+
+- **주기**: 10분마다 (`*/10 * * * *`)
+- **조건**: `status=private_recruiting AND autoEscalate=true AND privateDeadline <= now`
+- **동작**: `status → public_recruiting`, `recruitmentPhase → public`, 전체 작가 알림 발송
+- **구현**: `ShootingSchedulerService` (기존 `RecruitmentSchedulerService` 패턴 재활용)
+
+#### 내구인 작가 선택 화면
+
+```
+┌─ 포토그래퍼 선택 ─────────────────────────────────────────┐
+│ 검색: [___________]  등급: [전체 ▼]  지역: [전체 ▼]       │
+│                                                           │
+│ ☑ 김작가  GOLD   ★4.8  채택32회  정시96%  📅가용  [소속]  │
+│ ☑ 이작가  SILVER ★4.5  채택18회  정시92%  📅가용  [소속]  │
+│ ☐ 박작가  GOLD   ★4.7  채택28회  정시94%  ⚠충돌          │
+│ ☐ 최작가  BRONZE ★3.9  채택 8회  정시88%  📅가용          │
+│                                                           │
+│ ※ [소속] 표시 = 해당 스튜디오 소속 작가 (우선 표시)        │
+└───────────────────────────────────────────────────────────┘
+```
+
+#### 프론트엔드 페이지 (신규)
+
+| 경로 | 용도 | 접근 |
+|------|------|------|
+| `/photographer/register` | 포토그래퍼 회원가입 | 공개 |
+| `/photographer/profile` | 내 프로필 관리 | 포토그래퍼 로그인 |
+| `/photographer/dashboard` | 내 응찰/촬영/리뷰 현황 | 포토그래퍼 로그인 |
+| `/photographer/jobs` | 공개구인방 목록 | 포토그래퍼 로그인 |
+| `/shooting/photographers` | 작가 목록 (관리자용, 기존) | 관리자 |
+
+#### API 엔드포인트 (신규)
+
+| 엔드포인트 | 설명 |
+|------------|------|
+| `POST /photographers/register` | 포토그래퍼 회원가입 |
+| `GET /photographers/profile` | 내 프로필 조회 |
+| `PATCH /photographers/profile` | 프로필 수정 |
+| `POST /photographers/affiliations` | 스튜디오 소속 신청 |
+| `PATCH /photographers/affiliations/:id` | 소속 승인/거절 (스튜디오) |
+| `GET /photographers/available` | 특정 날짜 가용 작가 목록 |
+| `POST /shootings/:id/escalate` | 수동 내구인→공개 전환 |
+| `GET /shootings/:id/invited` | 내구인 초대 작가 목록 |
+| `PATCH /shootings/:id/invited` | 초대 작가 추가/제거 |
+
+### 구현 순서 (Phase)
+
+```
+Phase 1 - 포토그래퍼 등록 사이트
+├─ PhotographerProfile, PhotographerAffiliation 모델
+├─ 회원가입/로그인 (소셜 로그인 연동)
+├─ 프로필 CRUD API
+├─ 프론트엔드: 등록/프로필/대시보드 페이지
+
+Phase 2 - 구인 모드 통합
+├─ ShootingSchedule 스키마 확장 (구인모드 필드)
+├─ 상태 전이 규칙 업데이트 (private/public_recruiting)
+├─ publish 분기 로직 (내구인/공개/조건부)
+├─ ShootingSchedulerService (자동 전환 Cron)
+
+Phase 3 - 프론트엔드 UI
+├─ ShootingForm 구인모드 선택 UI
+├─ PhotographerSelector 컴포넌트
+├─ 공개구인방 페이지
+├─ 상세 페이지 구인 단계 표시
+
+Phase 4 - 알림 & 고도화
+├─ 내구인/공개 전용 이메일 템플릿
+├─ 카카오 알림톡 연동
+├─ 마감 임박 알림
+├─ 긴급도 자동 계산
+```
+
+---
+
+## 공개구인 지역우선 메시지 발송 시스템 (구현 완료 2026-03-01)
+
+### 핵심 규칙
+
+```
+공개구인 메시지 발송 흐름:
+
+1. 촬영장소 주소에서 "시/도 시/군/구" 추출 (예: "서울특별시 강남구")
+2. 희망1지역이 일치하는 포토그래퍼에게 우선 발송 → 최대 100명
+3. 100명 미달 시 → 희망2지역 일치자에게 추가 발송 → 합계 100명까지
+4. 여전히 미달 시 → 희망3지역 일치자에게 추가 발송 → 합계 100명까지
+5. 촬영시간이 중복되는 포토그래퍼는 모든 단계에서 제외
+6. 주소 파싱 실패 시 → 기존 전체 발송 방식으로 fallback
+```
+
+### 숨고 벤치마킹 포인트
+
+| 숨고 기능 | Printing114 적용 |
+|-----------|------------------|
+| 요청서 → 지역 매칭 | 촬영장소 주소 → 희망지역 매칭 |
+| 전문가 10명에게 견적 | 포토그래퍼 100명에게 구인 메시지 |
+| 카테고리 + 지역 필터 | 촬영유형 + 시/군/구 단위 매칭 |
+| 자동 견적 (Auto Quote) | 자동 공개전환 + 자동 지역매칭 발송 |
+| 전문가 프로필/포트폴리오 | PhotographerProfile (경력, 포트폴리오, 장비) |
+| 신뢰도 배지 (거래 횟수) | 등급 배지 (NEW~PLATINUM, RI 점수) |
+| 일정 충돌 미지원 (숨고 약점) | ★ 촬영시간 충돌 자동 제외 (차별화) |
+
+### DB 모델
+
+#### PhotographerProfile (포토그래퍼 프로필)
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| id | String (cuid) | PK |
+| clientId | String @unique | FK → Client |
+| preferredRegion1 | String? | 희망 1지역 "서울특별시 강남구" |
+| preferredRegion2 | String? | 희망 2지역 |
+| preferredRegion3 | String? | 희망 3지역 |
+| introduction | String? | 자기소개 |
+| career | String? | 경력 이력 |
+| careerYears | Int? | 경력 년수 |
+| portfolioImages | String[] | 포트폴리오 이미지 URL |
+| specialties | String[] | 전문 촬영 유형 |
+| equipment | String? | 장비 정보 |
+| isAvailableForPublic | Boolean | 공개구인 수신 여부 |
+
+#### RecruitmentNotificationLog (발송 이력)
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| id | String (cuid) | PK |
+| recruitmentId | String | FK → Recruitment |
+| recipientId | String | FK → Client (포토그래퍼) |
+| regionTier | Int | 1, 2, 3 (몇번째 희망지역으로 매칭) |
+| matchedRegion | String? | 매칭된 지역명 |
+| channel | String | email / alimtalk |
+| status | String | sent / failed |
+| sentAt | DateTime | 발송 시각 |
+
+### 핵심 서비스
+
+| 서비스 | 파일 | 설명 |
+|--------|------|------|
+| RegionMatchingService | `recruitment/services/region-matching.service.ts` | 주소 파싱, 촬영시간 충돌 감지, 지역우선 매칭 |
+| PhotographerProfileService | `recruitment/services/photographer-profile.service.ts` | 프로필 CRUD |
+| RecruitmentNotificationService | `recruitment/services/recruitment-notification.service.ts` | 지역우선 발송 (sendPublicRecruitingNotificationWithRegionPriority) |
+
+### API 엔드포인트
+
+| Method | Path | 설명 |
+|--------|------|------|
+| GET | `/photographer-profile` | 내 프로필 조회 |
+| PUT | `/photographer-profile` | 프로필 등록/수정 |
+| GET | `/photographer-profile/regions` | 한국 행정구역 목록 |
+| GET | `/recruitments/:id/notifications` | 알림 발송 이력 |
+| POST | `/recruitments/:id/resend` | 알림 재발송 |
+
+### 프론트엔드
+
+| 경로 | 용도 |
+|------|------|
+| `/mypage/photographer-profile` | 포토그래퍼 프로필 설정 (희망지역, 경력, 전문성) |
+| `/mypage/recruitment/[id]` | 구인 상세 - 알림 발송 현황 섹션 추가 |
+
+### 상수 파일
+
+- **백엔드**: `recruitment/constants/korean-regions.constants.ts` (17개 시/도 → ~250개 시/군/구)
+- **프론트**: `lib/constants/korean-regions.ts` (RegionSelector 컴포넌트용)
+- **설정**: TARGET_COUNT=100, CONFLICT_BUFFER=120분, BATCH_SIZE=50
+
+### 촬영시간 충돌 판단 로직
+
+```
+hasScheduleConflict(clientId, shootingDate, shootingTime, duration):
+
+  촬영 시작: shootingDate + shootingTime
+  촬영 종료: 시작 + duration (기본 120분)
+  충돌 범위: 시작 - 2시간 ~ 종료 + 2시간 (이동시간 버퍼)
+
+  확인: RecruitmentBid(status=selected)인 다른 Recruitment와 시간 겹침 여부
+  시간 미지정: 해당 날짜 전체(00:00~23:59)를 충돌 범위로 간주
+```
+
+### 주소 파싱 알고리즘
+
+```
+extractRegion("서울특별시 강남구 역삼동 123-45"):
+  → 공백 split → 첫 토큰(특별시/광역시/도) = 시/도
+  → 둘째 토큰(시/군/구) = 시/군/구
+  → 결과: "서울특별시 강남구"
+```
+
+---
+
+## 구인방 ↔ 일정관리 양방향 연동 (기획 2026-03-02)
+
+### 비즈니스 흐름
+
+```
+촬영 요청 → 관리자 일정관리 등록 → 내부 작가(Staff) 배정 시도 [우선순위 1]
+  ↓ (일정 안 맞으면)
+구인방에 외부 작가 구인 → 카톡/사이트에서 지원 → 작가 확정 → 양쪽 상태 동기화
+
+또는: 스튜디오 구인방 직접 등록 → 일정관리 자동 생성
+```
+
+### DB 스키마 추가
+
+#### ShootingSchedule 추가 필드
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| linkedRecruitmentId | String? @unique | 연동된 구인방 ID |
+| assignedClientId | String? | 외부 작가 (구인방에서 확정된 Client) |
+
+#### Recruitment 추가 필드
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| linkedShootingId | String? @unique | 연동된 일정관리 ID |
+
+### 작가 배정 로직
+
+- 내부작가: `assignedStaffId` (Staff 테이블) - 우선순위 1
+- 외부작가: `assignedClientId` (Client 테이블) - 우선순위 2
+- 둘 중 하나만 설정됨
+
+### 자동 생성 규칙
+
+| 방향 | 조건 | 동작 |
+|------|------|------|
+| 구인 등록 → 일정 | 항상 | 일정관리에 자동 생성 |
+| 일정 등록 → 구인 | 토글 옵션 | "구인방에도 동시 등록" 체크 시 |
+
+### 상태 매핑
+
+| Recruitment → SS | SS → Recruitment |
+|-----------------|-----------------|
+| draft → draft | draft → draft |
+| private_recruiting → recruiting | recruiting → private_recruiting |
+| public_recruiting → recruiting | confirmed → filled |
+| filled → confirmed | cancelled → cancelled |
+| cancelled → cancelled | in_progress/completed → 변경없음 |
+
+### 필드 매핑 (공통 필드 자동 동기화)
+
+| Recruitment | ShootingSchedule | 변환 |
+|-------------|------------------|------|
+| shootingType | shootingType | 동일 |
+| shootingDate + shootingTime | shootingDate (DateTime) | 합쳐서 DateTime |
+| duration | duration | 동일 |
+| venueName | venueName | 동일 |
+| venueAddress | venueAddress | 동일 |
+| latitude/longitude | latitude/longitude | 동일 |
+| customerName | clientName | 필드명만 다름 |
+| maxBidders | maxBidders | 동일 |
+
+### 핵심 서비스
+
+| 서비스 | 파일 | 설명 |
+|--------|------|------|
+| ScheduleRecruitmentSyncService | `shooting/services/schedule-recruitment-sync.service.ts` | 양방향 생성/필드/상태 동기화 |
+
+### 촬영유형 통일 (선행 필수)
+
+프론트 `use-shooting.ts`의 타입이 백엔드와 불일치:
+
+| 현재 (use-shooting.ts) | 통일 기준 (백엔드) |
+|----------------------|-----------------|
+| wedding | wedding_main |
+| studio | wedding_rehearsal |
+| outdoor | baby_dol |
+| product | baby_growth |
+| profile | profile |
+| event/other | other |
+
+공용 상수 파일: `apps/web/lib/constants/shooting-types.ts`

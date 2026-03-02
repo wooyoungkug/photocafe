@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   format,
@@ -14,7 +14,6 @@ import {
   startOfWeek,
   endOfWeek,
   isToday,
-  parseISO,
 } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import {
@@ -23,7 +22,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Calendar as CalendarIcon,
-  List,
   Filter,
   Clock,
   MapPin,
@@ -56,9 +54,11 @@ import { SHOOTING_TYPE_COLORS } from '@/components/shooting/shooting-type-badge'
 // ==================== 상수 ====================
 
 const VIEW_MODE_OPTIONS: { value: CalendarViewMode; label: string }[] = [
-  { value: 'month', label: '월' },
-  { value: 'week', label: '주' },
-  { value: 'day', label: '일' },
+  { value: 'day', label: '일간' },
+  { value: 'week', label: '주간' },
+  { value: 'month', label: '월간' },
+  { value: 'list', label: '목록' },
+  { value: 'twoWeek', label: '2주' },
 ];
 
 const ALL_STATUSES: ShootingStatus[] = [
@@ -117,7 +117,7 @@ export default function ShootingPage() {
     endDate: dateRange.endDate,
     type: (filterType as ShootingType) || undefined,
     status: (filterStatus as ShootingStatus) || undefined,
-    limit: 500, // 캘린더에 모든 데이터 표시
+    limit: 500,
   });
 
   const shootings = shootingsResponse?.data || [];
@@ -158,14 +158,14 @@ export default function ShootingPage() {
 
   return (
     <div className="h-full flex flex-col">
-      {/* 페이지 헤더 */}
+      {/* 페이지 헤더 - 네이버 캘린더 스타일 */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <Camera className="h-6 w-6 text-gray-700" />
           <h1 className="text-[24px] text-black font-normal">촬영 관리</h1>
         </div>
-        <div className="flex items-center gap-2">
-          {/* 뷰 모드 전환 */}
+        <div className="flex items-center gap-3">
+          {/* 네이버 스타일 뷰 모드 전환 */}
           <div className="flex border rounded-lg overflow-hidden">
             {VIEW_MODE_OPTIONS.map((opt) => (
               <button
@@ -173,9 +173,9 @@ export default function ShootingPage() {
                 type="button"
                 onClick={() => setViewMode(opt.value)}
                 className={cn(
-                  'px-3 py-1.5 text-[12px] transition-colors',
+                  'px-3 py-1.5 text-[13px] transition-colors border-r last:border-r-0',
                   viewMode === opt.value
-                    ? 'bg-black text-white'
+                    ? 'bg-blue-600 text-white font-medium'
                     : 'bg-white text-gray-600 hover:bg-gray-100'
                 )}
               >
@@ -193,8 +193,8 @@ export default function ShootingPage() {
       {/* 메인 컨텐츠 */}
       <div className="flex-1 flex gap-4 min-h-0">
         {/* 좌측 패널: 미니 캘린더 + 필터 */}
-        <div className="w-[260px] flex-shrink-0 space-y-4 overflow-auto">
-          {/* 미니 캘린더 */}
+        <div className="w-[240px] flex-shrink-0 space-y-3 overflow-auto">
+          {/* 미니 캘린더 - 네이버 스타일 */}
           <Card>
             <CardContent className="p-3">
               {/* 월 네비게이션 */}
@@ -202,21 +202,21 @@ export default function ShootingPage() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7"
+                  className="h-6 w-6"
                   onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <ChevronLeft className="h-3.5 w-3.5" />
                 </Button>
                 <span className="text-[14px] text-black font-bold">
-                  {format(currentMonth, 'yyyy년 M월', { locale: ko })}
+                  {format(currentMonth, 'yyyy.MM')}
                 </span>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7"
+                  className="h-6 w-6"
                   onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
                 >
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-3.5 w-3.5" />
                 </Button>
               </div>
 
@@ -270,13 +270,13 @@ export default function ShootingPage() {
 
           {/* 필터 패널 */}
           <Card>
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-2 pt-3">
               <CardTitle className="text-[14px] text-black font-bold flex items-center gap-1.5">
                 <Filter className="h-3.5 w-3.5" />
                 필터
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-3 pb-3">
               {/* 유형 필터 */}
               <div>
                 <p className="text-[12px] text-gray-500 mb-1.5">촬영 유형</p>
@@ -369,14 +369,19 @@ export default function ShootingPage() {
         </div>
 
         {/* 우측 패널: 선택된 날짜의 일정 */}
-        <div className="w-[280px] flex-shrink-0 overflow-auto">
+        <div className="w-[260px] flex-shrink-0 overflow-auto">
           <Card className="h-full">
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-2 pt-3">
               <CardTitle className="text-[14px] text-black font-bold">
                 {format(selectedDate, 'M월 d일 (EEEE)', { locale: ko })}
               </CardTitle>
+              <p className="text-[12px] text-gray-400">
+                {selectedDateShootings.length > 0
+                  ? `${selectedDateShootings.length}건의 촬영`
+                  : '일정 없음'}
+              </p>
             </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent className="space-y-2 pb-3">
               {selectedDateShootings.length === 0 ? (
                 <div className="text-center py-8">
                   <CalendarIcon className="h-10 w-10 text-gray-200 mx-auto mb-2" />

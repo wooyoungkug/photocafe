@@ -18,16 +18,16 @@ export class CreateInvitationDto {
   @IsEmail()
   inviteeEmail: string;
 
-  @ApiProperty({ enum: ['MANAGER', 'STAFF', 'EDITOR'], description: '역할' })
-  @IsIn(['MANAGER', 'STAFF', 'EDITOR'])
-  role: 'MANAGER' | 'STAFF' | 'EDITOR';
+  @ApiProperty({ enum: ['MANAGER', 'STAFF', 'EDITOR', 'PHOTOGRAPHER'], description: '역할' })
+  @IsIn(['MANAGER', 'STAFF', 'EDITOR', 'PHOTOGRAPHER'])
+  role: 'MANAGER' | 'STAFF' | 'EDITOR' | 'PHOTOGRAPHER';
 }
 
 export class UpdateEmploymentDto {
-  @ApiPropertyOptional({ enum: ['MANAGER', 'STAFF', 'EDITOR'] })
+  @ApiPropertyOptional({ enum: ['MANAGER', 'STAFF', 'EDITOR', 'PHOTOGRAPHER'] })
   @IsOptional()
-  @IsIn(['MANAGER', 'STAFF', 'EDITOR'])
-  role?: 'MANAGER' | 'STAFF' | 'EDITOR';
+  @IsIn(['MANAGER', 'STAFF', 'EDITOR', 'PHOTOGRAPHER'])
+  role?: 'MANAGER' | 'STAFF' | 'EDITOR' | 'PHOTOGRAPHER';
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -60,6 +60,11 @@ export class AcceptInvitationDto {
   @IsString()
   token: string;
 
+  @ApiProperty({ description: '아이디 (4자 이상)' })
+  @IsString()
+  @MinLength(4)
+  loginId: string;
+
   @ApiProperty({ description: '이름' })
   @IsString()
   name: string;
@@ -73,6 +78,11 @@ export class AcceptInvitationDto {
   @IsOptional()
   @IsString()
   phone?: string;
+
+  @ApiPropertyOptional({ description: '이메일' })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
 }
 
 export class CreateClientDepartmentDto {

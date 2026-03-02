@@ -1,18 +1,26 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
+import { useClientLogin } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import { AlertCircle, CheckCircle2, Loader2, Zap, ArrowLeft, User, Building2 } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Loader2, User, Building2, UserPlus, Lock } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
-type LoginPhase = 'credentials' | 'context-selection';
+type LoginPhase = 'social' | 'context-selection';
 
 interface LoginContext {
   type: 'personal' | 'employee';
@@ -26,32 +34,24 @@ interface LoginContext {
   isOwner?: boolean;
 }
 
-interface UnifiedLoginResponse {
-  // Direct login (no context selection needed)
-  user?: { id: string; email: string; name: string; role: string };
-  accessToken?: string;
-  refreshToken?: string;
-  // Context selection needed
-  needsContextSelection?: boolean;
-  tempToken?: string;
-  contexts?: LoginContext[];
-}
-
-const isDev = process.env.NODE_ENV === 'development';
-
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const registered = searchParams.get('registered');
 
   const { setAuth } = useAuthStore();
+  const clientLogin = useClientLogin();
 
-  const [phase, setPhase] = useState<LoginPhase>('credentials');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(true);
+  const [phase, setPhase] = useState<LoginPhase>('social');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notRegistered, setNotRegistered] = useState(false);
+  const [notRegisteredProvider, setNotRegisteredProvider] = useState<string | null>(null);
+  const [justRegistered, setJustRegistered] = useState(false);
+  const [showRegisterConfirm, setShowRegisterConfirm] = useState(false);
+
+  // ID/password login state
+  const [loginId, setLoginId] = useState('');
+  const [password, setPassword] = useState('');
 
   // Context selection state
   const [tempToken, setTempToken] = useState<string | null>(null);
@@ -59,40 +59,84 @@ function LoginForm() {
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleIdLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setIsLoading(true);
+
+    if (!loginId || !password) {
+      setError('아이디와 비밀번호를 입력해주세요.');
+      return;
+    }
 
     try {
-      const response = await api.post<UnifiedLoginResponse>(
-        '/auth/unified-login',
-        { email, password, rememberMe },
-      );
+      const response = await clientLogin.mutateAsync({ loginId, password });
 
-      if (response.needsContextSelection && response.tempToken && response.contexts) {
-        // Multiple contexts available - show selection UI
+      if (response.needsContext && response.tempToken) {
         setTempToken(response.tempToken);
-        setContexts(response.contexts);
-        setPhase('context-selection');
+        await loadContexts(response.tempToken);
         return;
       }
 
-      // Direct login - no context selection needed
-      if (response.user && response.accessToken && response.refreshToken) {
+      if (response.accessToken && response.user) {
         setAuth({
           user: response.user,
           accessToken: response.accessToken,
-          refreshToken: response.refreshToken,
-          rememberMe,
+          refreshToken: response.refreshToken!,
+          rememberMe: true,
         });
-
         const redirectTo = searchParams.get('redirect') || '/';
         router.push(redirectTo);
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : '로그인에 실패했습니다.';
       setError(errorMessage);
+    }
+  };
+
+  // URL 에러 파라미터 감지 (미가입, 이메일 중복 등)
+  useEffect(() => {
+    if (searchParams.get('registered') === 'true') {
+      setJustRegistered(true);
+    }
+    const errorParam = searchParams.get('error');
+    if (errorParam === 'NOT_REGISTERED') {
+      setNotRegistered(true);
+      setNotRegisteredProvider(searchParams.get('provider'));
+    } else if (errorParam === 'EMAIL_DUPLICATE') {
+      const message = searchParams.get('message');
+      setError(message || '이미 다른 소셜 계정으로 가입된 이메일입니다.');
+    }
+  }, [searchParams]);
+
+  // OAuth 콜백에서 컨텍스트 선택이 필요한 경우 처리
+  useEffect(() => {
+    const pendingData = sessionStorage.getItem('pending-context-selection');
+    if (pendingData) {
+      try {
+        const { tempToken: token } = JSON.parse(pendingData);
+        if (token) {
+          setTempToken(token);
+          loadContexts(token);
+        }
+      } catch {
+        // ignore
+      }
+      sessionStorage.removeItem('pending-context-selection');
+    }
+  }, []);
+
+  const loadContexts = async (token: string) => {
+    try {
+      setIsLoading(true);
+      const response = await api.get<{ contexts: LoginContext[] }>(
+        `/auth/my-contexts?tempToken=${encodeURIComponent(token)}`,
+      );
+      if (response.contexts && response.contexts.length > 0) {
+        setContexts(response.contexts);
+        setPhase('context-selection');
+      }
+    } catch {
+      setError('컨텍스트 조회에 실패했습니다.');
     } finally {
       setIsLoading(false);
     }
@@ -113,14 +157,14 @@ function LoginForm() {
         tempToken,
         contextType: context.type,
         employmentId: context.type === 'employee' ? context.employmentId : undefined,
-        rememberMe,
+        rememberMe: true,
       });
 
       setAuth({
         user: response.user,
         accessToken: response.accessToken,
         refreshToken: response.refreshToken,
-        rememberMe,
+        rememberMe: true,
       });
 
       const redirectTo = searchParams.get('redirect') || '/';
@@ -133,8 +177,8 @@ function LoginForm() {
     }
   };
 
-  const handleBackToCredentials = () => {
-    setPhase('credentials');
+  const handleBackToSocial = () => {
+    setPhase('social');
     setTempToken(null);
     setContexts([]);
     setError(null);
@@ -205,7 +249,7 @@ function LoginForm() {
           <Button
             variant="ghost"
             className="w-full"
-            onClick={handleBackToCredentials}
+            onClick={handleBackToSocial}
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             돌아가기
@@ -216,7 +260,7 @@ function LoginForm() {
   }
 
   // ============================================================
-  // Phase: Credentials (email/password + social login)
+  // Phase: Social Login (OAuth only)
   // ============================================================
   return (
     <Card className="w-full max-w-md shadow-lg">
@@ -230,95 +274,149 @@ function LoginForm() {
         <CardDescription>Printing114에 오신 것을 환영합니다</CardDescription>
       </CardHeader>
 
-      <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-4">
-          {registered && (
-            <div className="flex items-center gap-2 p-3 text-sm text-green-600 bg-green-50 rounded-md">
-              <CheckCircle2 className="h-4 w-4" />
-              <span>회원가입이 완료되었습니다. 로그인해주세요.</span>
-            </div>
-          )}
-
-          {error && (
-            <div className="flex items-center gap-2 p-3 text-sm text-destructive bg-destructive/10 rounded-md">
-              <AlertCircle className="h-4 w-4" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <Label htmlFor="email">이메일</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="example@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-              disabled={isLoading}
-            />
+      <CardContent className="space-y-4">
+        {justRegistered && (
+          <div className="p-4 rounded-md bg-green-50 border border-green-200 text-center">
+            <p className="text-[14px] text-green-800 font-medium">
+              회원가입이 완료되었습니다.
+            </p>
+            <p className="text-[13px] text-green-700 mt-1">
+              아이디와 비밀번호로 로그인해주세요.
+            </p>
           </div>
+        )}
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">비밀번호</Label>
-              <Link href="/forgot-password" className="text-sm text-muted-foreground hover:text-primary">
-                비밀번호 찾기
-              </Link>
-            </div>
-            <Input
-              id="password"
-              type="password"
-              placeholder="********"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-              disabled={isLoading}
-            />
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="remember"
-              checked={rememberMe}
-              onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-            />
-            <label htmlFor="remember" className="text-sm text-muted-foreground cursor-pointer">
-              로그인 상태 유지
-            </label>
-          </div>
-
-          <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                로그인 중...
-              </>
+        {notRegistered && (
+          <div className="p-4 rounded-md bg-amber-50 border border-amber-200 text-center">
+            <AlertCircle className="h-5 w-5 text-amber-600 mx-auto" />
+            <p className="text-[14px] text-amber-800 font-medium mt-2">
+              가입되지 않은 계정입니다.
+            </p>
+            <p className="text-[13px] text-amber-700 mt-1">
+              회원가입 후 이용해주세요.
+            </p>
+            {notRegisteredProvider ? (
+              <Button
+                size="sm"
+                className="mt-3 bg-amber-600 hover:bg-amber-700 text-white"
+                onClick={() => setShowRegisterConfirm(true)}
+              >
+                <UserPlus className="mr-1.5 h-4 w-4" />
+                {notRegisteredProvider === 'naver' ? '네이버' : notRegisteredProvider === 'kakao' ? '카카오' : 'Google'}로 회원가입하기
+              </Button>
             ) : (
-              '로그인'
+              <Link href="/register">
+                <Button
+                  size="sm"
+                  className="mt-3 bg-amber-600 hover:bg-amber-700 text-white"
+                >
+                  <UserPlus className="mr-1.5 h-4 w-4" />
+                  회원가입 하기
+                </Button>
+              </Link>
             )}
-          </Button>
-        </CardContent>
-      </form>
+          </div>
+        )}
 
-      <CardFooter className="flex flex-col gap-4">
-        {/* Social Login Buttons */}
-        <div className="relative w-full">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
+        {/* 소셜 회원가입 확인 다이얼로그 */}
+        <Dialog open={showRegisterConfirm} onOpenChange={setShowRegisterConfirm}>
+          <DialogContent className="sm:max-w-[400px]">
+            <DialogHeader>
+              <DialogTitle className="text-[18px] text-black font-bold">회원가입 확인</DialogTitle>
+              <DialogDescription className="text-[14px] text-black font-normal">
+                {notRegisteredProvider === 'naver' ? '네이버' : notRegisteredProvider === 'kakao' ? '카카오' : 'Google'} 계정으로 회원가입하시겠습니까?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                variant="outline"
+                onClick={() => setShowRegisterConfirm(false)}
+              >
+                취소
+              </Button>
+              <a href={`${apiUrl}/auth/${notRegisteredProvider}`}>
+                <Button className="bg-[#E4007F] hover:bg-[#C5006D] text-white">
+                  회원가입
+                </Button>
+              </a>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {error && (
+          <div className="p-4 rounded-md bg-red-50 border border-red-200">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-[14px] text-red-800 font-medium">{error}</p>
+                <p className="text-[13px] text-red-600 mt-1">
+                  기존에 가입한 소셜 계정으로 로그인해주세요.
+                </p>
+              </div>
+            </div>
           </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-white px-2 text-muted-foreground">
-              간편 로그인
-            </span>
-          </div>
-        </div>
+        )}
+
+        {/* 아이디/비밀번호 로그인 - 소셜 미가입 상태에서는 숨김 */}
+        {!notRegistered && (
+          <>
+            <form onSubmit={handleIdLogin} className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="loginId" className="text-[14px] text-black font-normal">아이디</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="loginId"
+                    type="text"
+                    placeholder="아이디 입력"
+                    value={loginId}
+                    onChange={(e) => setLoginId(e.target.value)}
+                    className="pl-10 h-11"
+                    autoComplete="username"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="password" className="text-[14px] text-black font-normal">비밀번호</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="비밀번호 입력"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-10 h-11"
+                    autoComplete="current-password"
+                  />
+                </div>
+              </div>
+              <Button
+                type="submit"
+                className="w-full h-11 bg-[#E4007F] hover:bg-[#C5006D] text-white"
+                disabled={clientLogin.isPending}
+              >
+                {clientLogin.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : null}
+                로그인
+              </Button>
+            </form>
+
+            <div className="relative my-2">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white px-2 text-gray-500">또는</span>
+              </div>
+            </div>
+          </>
+        )}
 
         <a
-          href={`${apiUrl}/auth/naver`}
-          className="inline-flex items-center justify-center w-full h-11 rounded-md text-sm font-medium bg-[#03C75A] hover:bg-[#02b351] text-white transition-colors"
+          href={`${apiUrl}/auth/naver-login`}
+          className="inline-flex items-center justify-center w-full h-12 rounded-md text-sm font-medium bg-[#03C75A] hover:bg-[#02b351] text-white transition-colors"
         >
           <svg
             viewBox="0 0 24 24"
@@ -331,8 +429,8 @@ function LoginForm() {
         </a>
 
         <a
-          href={`${apiUrl}/auth/kakao`}
-          className="inline-flex items-center justify-center w-full h-11 rounded-md text-sm font-medium bg-[#FEE500] hover:bg-[#FDD835] text-[#3C1E1E] transition-colors"
+          href={`${apiUrl}/auth/kakao-login`}
+          className="inline-flex items-center justify-center w-full h-12 rounded-md text-sm font-medium bg-[#FEE500] hover:bg-[#FDD835] text-[#3C1E1E] transition-colors"
         >
           <svg
             viewBox="0 0 24 24"
@@ -345,8 +443,8 @@ function LoginForm() {
         </a>
 
         <a
-          href={`${apiUrl}/auth/google`}
-          className="inline-flex items-center justify-center w-full h-11 rounded-md text-sm font-medium border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 transition-colors"
+          href={`${apiUrl}/auth/google-login`}
+          className="inline-flex items-center justify-center w-full h-12 rounded-md text-sm font-medium border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 transition-colors"
         >
           <svg
             viewBox="0 0 24 24"
@@ -371,65 +469,17 @@ function LoginForm() {
           </svg>
           Google로 로그인
         </a>
+      </CardContent>
 
-        {/* Registration Link */}
-        <p className="text-sm text-muted-foreground text-center">
-          아직 회원이 아니신가요?{' '}
-          <Link href="/register" className="text-primary hover:underline font-medium">
-            회원가입
-          </Link>
+      <CardFooter className="flex flex-col items-center gap-3">
+        <p className="text-[14px] text-black font-normal text-center">
+          아직 회원이 아니신가요?
         </p>
-
-        {/* DEV Quick Login */}
-        {isDev && (
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full border-amber-500/50 bg-amber-50 text-amber-700 hover:bg-amber-100"
-            size="sm"
-            disabled={isLoading}
-            onClick={async () => {
-              setError(null);
-              setIsLoading(true);
-              try {
-                const response = await api.post<UnifiedLoginResponse>(
-                  '/auth/unified-login',
-                  {
-                    email: process.env.NEXT_PUBLIC_DEV_CLIENT_EMAIL || '',
-                    password: process.env.NEXT_PUBLIC_DEV_CLIENT_PASSWORD || '',
-                    rememberMe: true,
-                  },
-                );
-
-                if (response.needsContextSelection && response.tempToken && response.contexts) {
-                  setTempToken(response.tempToken);
-                  setContexts(response.contexts);
-                  setPhase('context-selection');
-                  return;
-                }
-
-                if (response.user && response.accessToken && response.refreshToken) {
-                  setAuth({
-                    user: response.user,
-                    accessToken: response.accessToken,
-                    refreshToken: response.refreshToken,
-                    rememberMe: true,
-                  });
-                  const redirectTo = searchParams.get('redirect') || '/';
-                  router.push(redirectTo);
-                }
-              } catch (err: unknown) {
-                const errorMessage = err instanceof Error ? err.message : '개발 로그인 실패';
-                setError(errorMessage);
-              } finally {
-                setIsLoading(false);
-              }
-            }}
-          >
-            <Zap className="mr-2 h-4 w-4" />
-            DEV 빠른 로그인
+        <Link href="/register" className="w-full">
+          <Button variant="outline" className="w-full">
+            회원가입
           </Button>
-        )}
+        </Link>
       </CardFooter>
     </Card>
   );

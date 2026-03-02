@@ -5,55 +5,71 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
 
-interface LoginRequest {
-  email: string;
+interface ClientLoginRequest {
+  loginId: string;
   password: string;
 }
 
-interface RegisterRequest {
-  email: string;
-  password: string;
-  name: string;
-}
-
-interface AuthResponse {
-  accessToken: string;
-  refreshToken: string;
-  user: {
+interface ClientLoginResponse {
+  needsContext?: boolean;
+  tempToken?: string;
+  accessToken?: string;
+  refreshToken?: string;
+  user?: {
     id: string;
     email: string;
     name: string;
     role: string;
+    [key: string]: any;
   };
 }
 
-export function useLogin() {
+interface ClientRegisterRequest {
+  loginId: string;
+  password: string;
+  name: string;
+  contactEmail: string;
+  verificationId?: string;
+  phone?: string;
+}
+
+export function useClientLogin() {
+  return useMutation({
+    mutationFn: (data: ClientLoginRequest) =>
+      api.post<ClientLoginResponse>('/auth/client/login', data),
+  });
+}
+
+export function useCheckLoginId() {
+  return useMutation({
+    mutationFn: (loginId: string) =>
+      api.get<{ available: boolean }>(`/auth/client/check-login-id?loginId=${encodeURIComponent(loginId)}`),
+  });
+}
+
+export function useClientRegister() {
   const router = useRouter();
-  const setAuth = useAuthStore((state) => state.setAuth);
 
   return useMutation({
-    mutationFn: (data: LoginRequest) =>
-      api.post<AuthResponse>('/auth/login', data),
-    onSuccess: (response) => {
-      setAuth({
-        user: response.user,
-        accessToken: response.accessToken,
-        refreshToken: response.refreshToken,
-      });
-      router.push('/dashboard');
+    mutationFn: (data: ClientRegisterRequest) =>
+      api.post<{ success: boolean; message: string }>('/auth/client/register', data),
+    onSuccess: () => {
+      router.push('/login?registered=true');
     },
   });
 }
 
-export function useRegister() {
-  const router = useRouter();
-
+export function useSendEmailVerification() {
   return useMutation({
-    mutationFn: (data: RegisterRequest) =>
-      api.post<{ id: string; email: string; name: string }>('/auth/register', data),
-    onSuccess: () => {
-      router.push('/login?registered=true');
-    },
+    mutationFn: (email: string) =>
+      api.post<{ success: boolean; message: string }>('/auth/client/send-email-verification', { email }),
+  });
+}
+
+export function useVerifyEmail() {
+  return useMutation({
+    mutationFn: (data: { email: string; code: string }) =>
+      api.post<{ verified: boolean; verificationId: string }>('/auth/client/verify-email', data),
   });
 }
 

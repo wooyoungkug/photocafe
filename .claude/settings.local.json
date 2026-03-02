@@ -361,7 +361,20 @@
       "Bash(PGPASSWORD=postgres \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -t -c \"SELECT \"\"staffId\"\", name, email, role, \"\"isActive\"\" FROM \"\"Staff\"\" ORDER BY \"\"createdAt\"\";\")",
       "Bash(PGPASSWORD=postgres \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -t -c \"\\\\dt\")",
       "Bash(PGPASSWORD=postgres \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -t -c \"SELECT staff_id, name, email, role, is_active FROM staff ORDER BY created_at;\")",
-      "Bash(PGPASSWORD=postgres \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -t -c \"SELECT \"\"staffId\"\", name, email, role, \"\"isActive\"\" FROM staff ORDER BY \"\"createdAt\"\";\")"
+      "Bash(PGPASSWORD=postgres \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -t -c \"SELECT \"\"staffId\"\", name, email, role, \"\"isActive\"\" FROM staff ORDER BY \"\"createdAt\"\";\")",
+      "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"SELECT id, name, \"\"loginId\"\", email, status, role FROM \"\"Staff\"\" ORDER BY \"\"createdAt\"\" DESC LIMIT 10;\")",
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"SELECT id, name, \"\"loginId\"\", email, status, role FROM \"\"Staff\"\" ORDER BY \"\"createdAt\"\" DESC LIMIT 10;\")",
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"SELECT schemaname, tablename FROM pg_tables WHERE tablename LIKE ''%taff%'' OR tablename LIKE ''%staff%'';\")",
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"SELECT id, name, login_id, email, status, role FROM staff ORDER BY created_at DESC LIMIT 10;\")",
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"\\\\d staff\")",
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"SELECT id, name, \"\"staffId\"\", email, status, role, \"\"isSuperAdmin\"\", \"\"approvedAt\"\" FROM staff ORDER BY \"\"createdAt\"\" DESC LIMIT 10;\")",
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"UPDATE staff SET status = ''active'', \"\"approvedAt\"\" = NOW\\(\\), \"\"isSuperAdmin\"\" = true, \"\"staffId\"\" = ''admin2'' WHERE id = ''cmm6s7ut50000iys9fidiaqlp'' RETURNING id, name, status, \"\"staffId\"\";\")",
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"SELECT \"\"staffId\"\", name, CASE WHEN password IS NOT NULL THEN ''SET'' ELSE ''NULL'' END as pw_status FROM staff WHERE \"\"staffId\"\" = ''admin'';\")",
+      "Bash(\"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -c \"UPDATE staff SET \"\"isSuperAdmin\"\" = true WHERE \"\"staffId\"\" = ''admin'';\")",
+      "Bash(PGPASSWORD=postgres \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -c \"UPDATE staff SET \"\"isSuperAdmin\"\" = true WHERE \"\"staffId\"\" = ''admin'';\")",
+      "Bash(PGPASSWORD=postgres \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -c \"SELECT \"\"staffId\"\", \"\"name\"\", \"\"isSuperAdmin\"\" FROM staff WHERE \"\"staffId\"\" = ''admin'';\")",
+      "WebFetch(domain:docs.nhncloud.com)",
+      "WebFetch(domain:github.com)"
     ],
     "additionalDirectories": [
       "C:\\dev\\printing114\\apps\\api\\dist",
@@ -369,7 +382,9 @@
       "\\tmp",
       "c:\\dev\\printing114\\.claude\\skills",
       "C:\\dev\\printing114\\apps\\web\\app\\(dashboard)\\shooting",
-      "c:\\dev\\printing114\\apps\\web\\app\\(dashboard)\\shooting\\[id]"
+      "c:\\dev\\printing114\\apps\\web\\app\\(dashboard)\\shooting\\[id]",
+      "c:\\dev\\printing114\\apps\\web\\app\\(shop)\\mypage\\schedule",
+      "c:\\dev\\printing114\\apps\\web\\.next"
     ]
   }
 }

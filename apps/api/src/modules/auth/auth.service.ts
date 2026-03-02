@@ -1,10 +1,10 @@
-import { Injectable, UnauthorizedException, BadRequestException, ConflictException, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, ForbiddenException, NotFoundException, ConflictException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+import * as bcrypt from 'bcrypt';
 import { PrismaService } from '@/common/prisma/prisma.service';
-import { RegisterIndividualDto, RegisterStudioDto } from './dto/auth.dto';
+import { EmailService } from '@/common/email/email.service';
 
 interface OAuthTokenData {
   accessToken: string;
@@ -23,6 +23,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private emailService: EmailService,
   ) { }
 
   /** OAuth 콜백용: 토큰을 임시 코드로 저장 (60초 TTL) */
@@ -32,7 +33,6 @@ export class AuthService {
       ...tokens,
       expiresAt: Date.now() + 60_000,
     });
-    // 만료된 코드 정리
     this.cleanupExpiredCodes();
     return code;
   }
@@ -47,7 +47,6 @@ export class AuthService {
       this.oauthCodeStore.delete(code);
       throw new UnauthorizedException('인증 코드가 만료되었습니다.');
     }
-    // 1회 사용 후 삭제
     this.oauthCodeStore.delete(code);
     return { accessToken: data.accessToken, refreshToken: data.refreshToken, user: data.user };
   }
@@ -61,60 +60,10 @@ export class AuthService {
     }
   }
 
-  async validateUser(email: string, password: string): Promise<any> {
-    const user = await this.prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (user && user.passwordHash && await bcrypt.compare(password, user.passwordHash)) {
-      const { passwordHash: _, ...result } = user;
-      return result;
-    }
-    return null;
-  }
-
-  async login(user: any) {
-    const payload = {
-      sub: user.id,
-      email: user.email,
-    };
-
-    const accessToken = this.jwtService.sign(payload);
-    const refreshToken = this.jwtService.sign(payload, {
-      expiresIn: '7d' as const,
-    });
-
-    return {
-      accessToken,
-      refreshToken,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-      },
-    };
-  }
-
-  async register(data: { email: string; password: string; name: string }) {
-    const hashedPassword = await bcrypt.hash(data.password, 10);
-
-    const user = await this.prisma.user.create({
-      data: {
-        email: data.email,
-        passwordHash: hashedPassword,
-        name: data.name,
-      },
-    });
-
-    const { passwordHash: _, ...result } = user;
-    return result;
-  }
-
   async refreshToken(refreshToken: string) {
     try {
       const payload = this.jwtService.verify(refreshToken);
 
-      // Staff(관리자) 토큰인 경우
       if (payload.type === 'staff') {
         const staff = await this.prisma.staff.findUnique({
           where: { id: payload.sub },
@@ -135,17 +84,12 @@ export class AuthService {
           departmentId: staff.departmentId,
         };
 
-        const newRefreshToken = this.jwtService.sign(newPayload, {
-          expiresIn: '30d',
-        });
-
         return {
           accessToken: this.jwtService.sign(newPayload),
-          refreshToken: newRefreshToken,
+          refreshToken: this.jwtService.sign(newPayload, { expiresIn: '30d' }),
         };
       }
 
-      // Client(고객) 토큰인 경우
       if (payload.type === 'client') {
         const client = await this.prisma.client.findUnique({
           where: { id: payload.sub },
@@ -162,13 +106,9 @@ export class AuthService {
           type: 'client',
         };
 
-        const newRefreshToken = this.jwtService.sign(newPayload, {
-          expiresIn: '30d',
-        });
-
         return {
           accessToken: this.jwtService.sign(newPayload),
-          refreshToken: newRefreshToken,
+          refreshToken: this.jwtService.sign(newPayload, { expiresIn: '30d' }),
           user: {
             id: client.id,
             email: client.email,
@@ -186,7 +126,6 @@ export class AuthService {
         };
       }
 
-      // Employee(거래처 직원) 토큰 — Client 기반
       if (payload.type === 'employee') {
         const client = await this.prisma.client.findUnique({
           where: { id: payload.sub },
@@ -199,9 +138,7 @@ export class AuthService {
         const employment = await this.prisma.employment.findUnique({
           where: { id: payload.employmentId },
           include: {
-            company: {
-              select: { id: true, clientName: true },
-            },
+            company: { select: { id: true, clientName: true } },
           },
         });
 
@@ -221,13 +158,9 @@ export class AuthService {
           canViewSettlement: employment.canViewSettlement,
         };
 
-        const newRefreshToken = this.jwtService.sign(newPayload, {
-          expiresIn: '30d',
-        });
-
         return {
           accessToken: this.jwtService.sign(newPayload),
-          refreshToken: newRefreshToken,
+          refreshToken: this.jwtService.sign(newPayload, { expiresIn: '30d' }),
           user: {
             id: client.id,
             email: client.email,
@@ -255,13 +188,8 @@ export class AuthService {
         throw new UnauthorizedException('Invalid refresh token');
       }
 
-      const newPayload = {
-        sub: user.id,
-        email: user.email,
-      };
-
       return {
-        accessToken: this.jwtService.sign(newPayload),
+        accessToken: this.jwtService.sign({ sub: user.id, email: user.email }),
       };
     } catch {
       throw new UnauthorizedException('Invalid refresh token');
@@ -271,12 +199,7 @@ export class AuthService {
   async getProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        createdAt: true,
-      },
+      select: { id: true, email: true, name: true, createdAt: true },
     });
 
     if (!user) {
@@ -286,231 +209,340 @@ export class AuthService {
     return user;
   }
 
-  // 네이버 OAuth 사용자 검증/생성
+  // ========== OAuth 유틸 ==========
+
+  private normalizeOAuthBirthday(birthday?: string, birthyear?: string): string | undefined {
+    if (!birthday) return undefined;
+    const cleanBirthday = birthday.replace(/-/g, '');
+    const mm = cleanBirthday.slice(0, 2);
+    const dd = cleanBirthday.slice(2, 4);
+    if (birthyear) return `${birthyear}-${mm}-${dd}`;
+    return `${mm}-${dd}`;
+  }
+
+  private normalizeOAuthGender(gender?: string): string | undefined {
+    if (!gender) return undefined;
+    const g = gender.toLowerCase();
+    if (g === 'male' || g === 'm') return 'male';
+    if (g === 'female' || g === 'f') return 'female';
+    return gender;
+  }
+
+  private normalizeOAuthMobile(mobile?: string): string | undefined {
+    if (!mobile) return undefined;
+    return mobile.replace(/^\+82\s?/, '0').replace(/\s/g, '');
+  }
+
+  // ========== 고객 OAuth 로그인 ==========
+
+  private readonly PROVIDER_LABELS: Record<string, string> = {
+    naver: '네이버',
+    kakao: '카카오',
+    google: 'Google',
+  };
+
+  private async checkEmailDuplicate(email: string, currentProvider: string): Promise<{ provider: string; date: string } | null> {
+    if (!email || email.includes(`${currentProvider}_`)) return null; // 가짜 이메일은 스킵
+
+    const existing = await this.prisma.client.findFirst({
+      where: {
+        email,
+        oauthProvider: { not: currentProvider },
+      },
+      select: { oauthProvider: true, createdAt: true },
+    });
+
+    if (existing) {
+      return {
+        provider: existing.oauthProvider,
+        date: existing.createdAt.toISOString().split('T')[0],
+      };
+    }
+    return null;
+  }
+
   async validateNaverUser(data: {
-    oauthId: string;
-    email: string;
-    name: string;
-    profileImage?: string;
+    oauthId: string; email: string; name: string;
+    profileImage?: string; gender?: string; birthday?: string; birthyear?: string; mobile?: string;
   }) {
-    // 기존 클라이언트 조회 (oauthProvider + oauthId로 검색)
     let client = await this.prisma.client.findFirst({
-      where: {
-        oauthProvider: 'naver',
-        oauthId: data.oauthId,
-      },
+      where: { oauthProvider: 'naver', oauthId: data.oauthId },
     });
 
-    // 기존 사용자가 없으면 새로 생성
+    const gender = this.normalizeOAuthGender(data.gender);
+    const birthday = this.normalizeOAuthBirthday(data.birthday, data.birthyear);
+    const mobile = this.normalizeOAuthMobile(data.mobile);
+
+    let isNew = false;
     if (!client) {
-      // 클라이언트 코드 생성 (N + 타임스탬프)
+      const dup = await this.checkEmailDuplicate(data.email, 'naver');
+      if (dup) {
+        const providerLabel = this.PROVIDER_LABELS[dup.provider] || dup.provider;
+        return {
+          _emailDuplicate: true,
+          _dupMessage: `이미 ${providerLabel}(으)로 가입된 이메일입니다. (가입일: ${dup.date})`,
+        } as any;
+      }
+      isNew = true;
       const clientCode = `N${Date.now().toString().slice(-8)}`;
-
       client = await this.prisma.client.create({
         data: {
-          clientCode,
-          clientName: data.name,
-          email: data.email,
-          oauthProvider: 'naver',
-          oauthId: data.oauthId,
-          memberType: 'individual',
-          priceType: 'standard',
-          paymentType: 'order',
-          status: 'active',
+          clientCode, clientName: data.name, email: data.email,
+          oauthProvider: 'naver', oauthId: data.oauthId, profileImage: data.profileImage,
+          gender, birthday, ...(mobile && { mobile }),
+          memberType: 'individual', priceType: 'standard', paymentType: 'order', status: 'active',
         },
       });
+    } else {
+      const updateData: any = {};
+      if (!client.profileImage && data.profileImage) updateData.profileImage = data.profileImage;
+      if (!client.gender && gender) updateData.gender = gender;
+      if (!client.birthday && birthday) updateData.birthday = birthday;
+      if (!client.mobile && mobile) updateData.mobile = mobile;
+      if (!client.email && data.email) updateData.email = data.email;
+      if (Object.keys(updateData).length > 0) {
+        client = await this.prisma.client.update({ where: { id: client.id }, data: updateData });
+      }
     }
 
-    return client;
+    return { ...client, _isNew: isNew };
   }
 
-  // 카카오 OAuth 사용자 검증/생성
   async validateKakaoUser(data: {
-    oauthId: string;
-    email: string;
-    name: string;
-    profileImage?: string;
+    oauthId: string; email: string; name: string;
+    profileImage?: string; gender?: string; birthday?: string; birthyear?: string; mobile?: string;
   }) {
-    // 기존 클라이언트 조회 (oauthProvider + oauthId로 검색)
     let client = await this.prisma.client.findFirst({
-      where: {
-        oauthProvider: 'kakao',
-        oauthId: data.oauthId,
-      },
+      where: { oauthProvider: 'kakao', oauthId: data.oauthId },
     });
 
-    // 기존 사용자가 없으면 새로 생성
-    if (!client) {
-      // 클라이언트 코드 생성 (K + 타임스탬프)
-      const clientCode = `K${Date.now().toString().slice(-8)}`;
+    const gender = this.normalizeOAuthGender(data.gender);
+    const birthday = this.normalizeOAuthBirthday(data.birthday, data.birthyear);
+    const mobile = this.normalizeOAuthMobile(data.mobile);
 
+    let isNew = false;
+    if (!client) {
+      const dup = await this.checkEmailDuplicate(data.email, 'kakao');
+      if (dup) {
+        const providerLabel = this.PROVIDER_LABELS[dup.provider] || dup.provider;
+        return {
+          _emailDuplicate: true,
+          _dupMessage: `이미 ${providerLabel}(으)로 가입된 이메일입니다. (가입일: ${dup.date})`,
+        } as any;
+      }
+      isNew = true;
+      const clientCode = `K${Date.now().toString().slice(-8)}`;
       client = await this.prisma.client.create({
         data: {
-          clientCode,
-          clientName: data.name,
-          email: data.email,
-          oauthProvider: 'kakao',
-          oauthId: data.oauthId,
-          memberType: 'individual',
-          priceType: 'standard',
-          paymentType: 'order',
-          status: 'active',
+          clientCode, clientName: data.name, email: data.email,
+          oauthProvider: 'kakao', oauthId: data.oauthId, profileImage: data.profileImage,
+          gender, birthday, ...(mobile && { mobile }),
+          memberType: 'individual', priceType: 'standard', paymentType: 'order', status: 'active',
         },
       });
+    } else {
+      const updateData: any = {};
+      if (!client.profileImage && data.profileImage) updateData.profileImage = data.profileImage;
+      if (!client.gender && gender) updateData.gender = gender;
+      if (!client.birthday && birthday) updateData.birthday = birthday;
+      if (!client.mobile && mobile) updateData.mobile = mobile;
+      if (!client.email && data.email) updateData.email = data.email;
+      if (Object.keys(updateData).length > 0) {
+        client = await this.prisma.client.update({ where: { id: client.id }, data: updateData });
+      }
     }
 
-    return client;
+    return { ...client, _isNew: isNew };
   }
 
-  // 클라이언트(고객) 로그인 처리
+  async validateGoogleUser(data: {
+    oauthId: string; email: string; name: string;
+    profileImage?: string;
+  }) {
+    let client = await this.prisma.client.findFirst({
+      where: { oauthProvider: 'google', oauthId: data.oauthId },
+    });
+
+    let isNew = false;
+    if (!client) {
+      const dup = await this.checkEmailDuplicate(data.email, 'google');
+      if (dup) {
+        const providerLabel = this.PROVIDER_LABELS[dup.provider] || dup.provider;
+        return {
+          _emailDuplicate: true,
+          _dupMessage: `이미 ${providerLabel}(으)로 가입된 이메일입니다. (가입일: ${dup.date})`,
+        } as any;
+      }
+      isNew = true;
+      const clientCode = `G${Date.now().toString().slice(-8)}`;
+      client = await this.prisma.client.create({
+        data: {
+          clientCode, clientName: data.name, email: data.email,
+          oauthProvider: 'google', oauthId: data.oauthId, profileImage: data.profileImage,
+          memberType: 'individual', priceType: 'standard', paymentType: 'order', status: 'active',
+        },
+      });
+    } else {
+      const updateData: any = {};
+      if (!client.profileImage && data.profileImage) updateData.profileImage = data.profileImage;
+      if (!client.email && data.email) updateData.email = data.email;
+      if (Object.keys(updateData).length > 0) {
+        client = await this.prisma.client.update({ where: { id: client.id }, data: updateData });
+      }
+    }
+
+    return { ...client, _isNew: isNew };
+  }
+
+  /** 로그인 전용 모드에서 자동 생성된 신규 회원을 롤백 */
+  async rollbackNewClient(clientId: string) {
+    try {
+      await this.prisma.client.delete({ where: { id: clientId } });
+    } catch (e: any) {
+      this.logger.warn(`Failed to rollback client ${clientId}: ${e.message}`);
+    }
+  }
+
   async loginClient(client: any, rememberMe: boolean = false, ip?: string) {
-    // 로그인 시각/IP 기록
     await this.prisma.client.update({
       where: { id: client.id },
-      data: {
-        lastLoginAt: new Date(),
-        ...(ip && { lastLoginIp: ip }),
-      },
+      data: { lastLoginAt: new Date(), ...(ip && { lastLoginIp: ip }) },
     });
 
-    const payload = {
-      sub: client.id,
-      email: client.email,
-      role: 'client',
-      type: 'client', // User와 구분하기 위한 타입
-    };
-
+    const payload = { sub: client.id, email: client.email, role: 'client', type: 'client' };
     const accessToken = this.jwtService.sign(payload);
-    const refreshToken = this.jwtService.sign(payload, {
-      expiresIn: rememberMe ? '30d' : '7d',
-    });
+    const refreshToken = this.jwtService.sign(payload, { expiresIn: rememberMe ? '30d' : '7d' });
 
     return {
-      accessToken,
-      refreshToken,
+      accessToken, refreshToken,
       user: {
-        id: client.id,
-        email: client.email,
-        name: client.clientName,
-        role: 'client',
-        clientId: client.id,
-        clientName: client.clientName,
-        mobile: client.mobile,
-        businessNumber: client.businessNumber,
-        representative: client.representative,
-        address: client.address,
-        addressDetail: client.addressDetail,
-        contactPerson: client.contactPerson,
+        id: client.id, email: client.email, name: client.clientName, role: 'client',
+        clientId: client.id, clientName: client.clientName, mobile: client.mobile,
+        businessNumber: client.businessNumber, representative: client.representative,
+        address: client.address, addressDetail: client.addressDetail, contactPerson: client.contactPerson,
       },
     };
   }
 
-  // 비밀번호 변경 (Client 기반)
-  async changePassword(userId: string, currentPassword: string, newPassword: string) {
-    const client = await this.prisma.client.findUnique({
-      where: { id: userId },
+  // ========== 관리자 대리 로그인 ==========
+
+  async impersonateStaff(targetStaffId: string, adminStaffId: string) {
+    const adminStaff = await this.prisma.staff.findUnique({ where: { id: adminStaffId } });
+    if (!adminStaff || !adminStaff.isActive) {
+      throw new ForbiddenException('활성 직원만 대리 로그인할 수 있습니다');
+    }
+
+    const targetStaff = await this.prisma.staff.findUnique({
+      where: { id: targetStaffId },
+      include: { branch: true, department: true },
+    });
+
+    if (!targetStaff) throw new BadRequestException('직원을 찾을 수 없습니다');
+    if (!targetStaff.isActive) throw new BadRequestException('비활성 직원은 대리 로그인할 수 없습니다');
+
+    const payload = {
+      sub: targetStaff.id, staffId: targetStaff.staffId, name: targetStaff.name,
+      role: 'admin', type: 'staff', branchId: targetStaff.branchId,
+      departmentId: targetStaff.departmentId, impersonatedBy: adminStaffId,
+    };
+
+    return {
+      accessToken: this.jwtService.sign(payload, { expiresIn: '2h' }),
+      refreshToken: this.jwtService.sign(payload, { expiresIn: '2h' }),
+      user: {
+        id: targetStaff.id, staffId: targetStaff.staffId, name: targetStaff.name,
+        role: 'admin', email: targetStaff.email, branch: targetStaff.branch, department: targetStaff.department,
+      },
+      impersonated: true,
+    };
+  }
+
+  // ========== 고객 이메일/PW 로그인 ==========
+
+  async loginClientWithPassword(loginId: string, password: string, ip?: string) {
+    const client = await this.prisma.client.findFirst({
+      where: { email: loginId },
     });
 
     if (!client) {
-      throw new UnauthorizedException('사용자를 찾을 수 없습니다');
+      throw new UnauthorizedException('아이디 또는 비밀번호가 올바르지 않습니다');
     }
 
     if (!client.password) {
-      throw new BadRequestException('비밀번호가 설정되지 않은 계정입니다');
+      throw new UnauthorizedException('비밀번호가 설정되지 않은 계정입니다. 소셜 로그인을 이용해주세요.');
     }
 
-    const isPasswordValid = await bcrypt.compare(currentPassword, client.password);
-    if (!isPasswordValid) {
-      throw new BadRequestException('현재 비밀번호가 일치하지 않습니다');
+    const isValid = await bcrypt.compare(password, client.password);
+    if (!isValid) {
+      throw new UnauthorizedException('아이디 또는 비밀번호가 올바르지 않습니다');
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await this.prisma.client.update({
-      where: { id: userId },
-      data: { password: hashedPassword },
-    });
+    if (client.status !== 'active') {
+      throw new UnauthorizedException('비활성 계정입니다');
+    }
 
-    return { success: true, message: '비밀번호가 변경되었습니다' };
+    // 소속(employment)이 있으면 컨텍스트 선택 필요
+    const employments = await this.getActiveEmployments(client.id);
+    if (employments.length > 0) {
+      const tempToken = this.generateTempAuthToken(client);
+      return { needsContext: true, tempToken };
+    }
+
+    return this.loginClient(client, false, ip);
   }
 
-  // 관리자용: 회원 비밀번호 초기화 (랜덤 임시 비밀번호 생성)
-  async resetClientPassword(clientId: string) {
-    const client = await this.prisma.client.findUnique({
-      where: { id: clientId },
-    });
-
-    if (!client) {
-      throw new BadRequestException('회원을 찾을 수 없습니다');
+  async checkLoginIdAvailable(loginId: string) {
+    if (!loginId || loginId.length < 4) {
+      throw new BadRequestException('아이디는 4자 이상이어야 합니다');
     }
 
-    const tempPassword = crypto.randomBytes(6).toString('hex'); // 12자 랜덤
-    const hashedPassword = await bcrypt.hash(tempPassword, 10);
-
-    await this.prisma.client.update({
-      where: { id: clientId },
-      data: { password: hashedPassword },
-    });
-
-    return {
-      success: true,
-      message: '임시 비밀번호가 생성되었습니다. 회원에게 전달해주세요.',
-      tempPassword,
-    };
-  }
-
-  // ========== 고객 회원가입 ==========
-
-  // 다음 클라이언트 코드 생성
-  private async generateClientCode(prefix: string = 'M'): Promise<string> {
-    const lastClient = await this.prisma.client.findFirst({
-      where: {
-        clientCode: { startsWith: prefix },
-      },
-      orderBy: { clientCode: 'desc' },
-    });
-
-    if (!lastClient) {
-      return `${prefix}0001`;
-    }
-
-    const lastNumber = parseInt(lastClient.clientCode.slice(1), 10);
-    const nextNumber = lastNumber + 1;
-    return `${prefix}${nextNumber.toString().padStart(4, '0')}`;
-  }
-
-  // 이메일 중복 체크
-  async checkEmailExists(email: string): Promise<boolean> {
     const existing = await this.prisma.client.findFirst({
-      where: { email },
+      where: { email: loginId },
     });
-    return !!existing;
+
+    return { available: !existing };
   }
 
-  // 사업자등록번호 중복 체크
-  async checkBusinessNumberExists(businessNumber: string): Promise<boolean> {
-    const existing = await this.prisma.client.findFirst({
-      where: { businessNumber },
-    });
-    return !!existing;
-  }
-
-  // 개인 고객 회원가입
-  async registerIndividual(dto: RegisterIndividualDto) {
-    // 이메일 중복 체크
-    if (await this.checkEmailExists(dto.email)) {
-      throw new ConflictException('이미 등록된 이메일입니다');
+  async registerClientWithPassword(
+    loginId: string,
+    password: string,
+    name: string,
+    contactEmail: string,
+    verificationId?: string,
+    phone?: string,
+  ) {
+    // 이메일 인증 확인 (verificationId가 있을 때만)
+    if (verificationId) {
+      const verification = await this.prisma.emailVerification.findUnique({
+        where: { id: verificationId },
+      });
+      if (!verification || !verification.verified || verification.email !== contactEmail) {
+        throw new BadRequestException('이메일 인증이 완료되지 않았습니다');
+      }
+      if (verification.expiresAt < new Date()) {
+        throw new BadRequestException('인증이 만료되었습니다. 다시 인증해주세요');
+      }
     }
 
-    const clientCode = await this.generateClientCode('P'); // P = Personal
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    // 아이디 중복 확인
+    const existing = await this.prisma.client.findFirst({
+      where: { email: loginId },
+    });
+    if (existing) {
+      throw new ConflictException('이미 사용 중인 아이디입니다');
+    }
 
-    const client = await this.prisma.client.create({
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const clientCode = `P${Date.now().toString().slice(-8)}`;
+
+    await this.prisma.client.create({
       data: {
         clientCode,
-        clientName: dto.name,
-        email: dto.email,
+        clientName: name,
+        email: loginId,
         password: hashedPassword,
-        mobile: dto.mobile,
+        contactEmail,
+        mobile: phone || undefined,
         memberType: 'individual',
         priceType: 'standard',
         paymentType: 'order',
@@ -518,555 +550,259 @@ export class AuthService {
       },
     });
 
-    return {
-      success: true,
-      message: '회원가입이 완료되었습니다',
-      clientCode: client.clientCode,
-    };
+    // 사용된 인증 레코드 삭제
+    if (verificationId) {
+      await this.prisma.emailVerification.delete({ where: { id: verificationId } }).catch(() => {});
+    }
+
+    return { success: true, message: '회원가입이 완료되었습니다' };
   }
 
-  // 스튜디오(B2B) 회원가입
-  async registerStudio(dto: RegisterStudioDto) {
-    // 이메일 중복 체크
-    if (await this.checkEmailExists(dto.email)) {
-      throw new ConflictException('이미 등록된 이메일입니다');
-    }
+  // ========== 이메일 인증 ==========
 
-    // 사업자등록번호 중복 체크
-    if (await this.checkBusinessNumberExists(dto.businessNumber)) {
-      throw new ConflictException('이미 등록된 사업자등록번호입니다');
-    }
-
-    const clientCode = await this.generateClientCode('S'); // S = Studio
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
-
-    const client = await this.prisma.client.create({
-      data: {
-        clientCode,
-        clientName: dto.studioName,
-        representative: dto.representative,
-        email: dto.email,
-        password: hashedPassword,
-        phone: dto.phone,
-        mobile: dto.mobile,
-        // 사업자 정보
-        businessNumber: dto.businessNumber,
-        businessType: dto.businessType,
-        businessCategory: dto.businessCategory,
-        postalCode: dto.postalCode,
-        address: dto.address,
-        addressDetail: dto.addressDetail,
-        taxInvoiceEmail: dto.taxInvoiceEmail,
-        taxInvoiceMethod: dto.taxInvoiceMethod,
-        // 실무 담당자
-        contactPerson: dto.contactPerson,
-        contactPhone: dto.contactPhone,
-        // 스튜디오 특성
-        mainGenre: dto.mainGenre,
-        monthlyOrderVolume: dto.monthlyOrderVolume,
-        colorProfile: dto.colorProfile,
-        acquisitionChannel: dto.acquisitionChannel,
-        // 제품 선호도
-        preferredSize: dto.preferredSize,
-        preferredFinish: dto.preferredFinish,
-        hasLogo: dto.hasLogo ?? false,
-        deliveryNote: dto.deliveryNote,
-        // 기본 설정
-        memberType: 'business',
-        priceType: 'group', // B2B는 그룹단가 적용
-        paymentType: 'order',
-        status: 'active',
+  async sendEmailVerification(email: string) {
+    // 1분 이내 동일 이메일 요청 확인 (스팸 방지)
+    const recent = await this.prisma.emailVerification.findFirst({
+      where: {
+        email,
+        createdAt: { gt: new Date(Date.now() - 60 * 1000) },
       },
+      orderBy: { createdAt: 'desc' },
     });
-
-    return {
-      success: true,
-      message: '스튜디오 회원가입이 완료되었습니다. 담당자 확인 후 그룹단가가 적용됩니다.',
-      clientCode: client.clientCode,
-    };
-  }
-
-  // 클라이언트(고객) 이메일/비밀번호 로그인
-  async validateClient(email: string, password: string) {
-    const client = await this.prisma.client.findFirst({
-      where: { email },
-    });
-
-    if (!client || !client.password) {
-      return null;
+    if (recent) {
+      throw new BadRequestException('1분 후에 다시 시도해주세요');
     }
 
-    const isValid = await bcrypt.compare(password, client.password);
-    if (!isValid) {
-      return null;
+    // 6자리 인증코드 생성
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 3 * 60 * 1000); // 3분
+
+    await this.prisma.emailVerification.create({
+      data: { email, code, expiresAt },
+    });
+
+    // 이메일 발송
+    const result = await this.emailService.sendEmail({
+      to: email,
+      subject: '[Printing114] 회원가입 인증코드',
+      html: `
+        <div style="font-family: sans-serif; max-width: 400px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #E4007F;">Printing114 인증코드</h2>
+          <p>아래 인증코드를 입력해주세요.</p>
+          <div style="background: #f5f5f5; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
+            <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #333;">${code}</span>
+          </div>
+          <p style="color: #888; font-size: 13px;">이 코드는 3분 후 만료됩니다.</p>
+        </div>
+      `,
+    });
+
+    if (!result.success) {
+      this.logger.warn(`이메일 발송 실패 (${email}): ${result.error}`);
     }
 
-    return client;
+    this.logger.log(`[개발용] 이메일 인증코드 - ${email}: ${code}`);
+
+    return { success: true, message: '인증코드가 발송되었습니다' };
   }
 
-  // ========== 관리자(직원) 로그인 ==========
+  async verifyEmailCode(email: string, code: string) {
+    const verification = await this.prisma.emailVerification.findFirst({
+      where: {
+        email,
+        code,
+        verified: false,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
 
-  // 직원 인증 (staffId + 비밀번호)
-  async validateStaff(staffId: string, password: string) {
-    const staff = await this.prisma.staff.findUnique({
+    if (!verification) {
+      throw new BadRequestException('인증코드가 올바르지 않거나 만료되었습니다');
+    }
+
+    await this.prisma.emailVerification.update({
+      where: { id: verification.id },
+      data: { verified: true },
+    });
+
+    return { verified: true, verificationId: verification.id };
+  }
+
+  // ========== 직원 ID/PW 로그인 ==========
+
+  async loginStaffWithPassword(staffId: string, password: string, ip?: string) {
+    const staff = await this.prisma.staff.findFirst({
       where: { staffId },
-      include: {
-        branch: true,
-        department: true,
-      },
     });
 
     if (!staff) {
-      return null;
+      throw new UnauthorizedException('직원 ID 또는 비밀번호가 올바르지 않습니다');
     }
 
-    // canLoginAsManager 권한 확인
-    if (!staff.canLoginAsManager) {
-      throw new UnauthorizedException('관리자 로그인 권한이 없습니다');
-    }
-
-    // 활성 상태 확인
-    if (!staff.isActive) {
-      throw new UnauthorizedException('비활성화된 계정입니다');
-    }
-
-    // 상태 확인 (소셜 로그인 연동 후 추가)
-    if (staff.status && staff.status !== 'active') {
-      throw new UnauthorizedException('계정이 활성 상태가 아닙니다');
-    }
-
-    // 비밀번호 확인
     if (!staff.password) {
-      throw new UnauthorizedException('비밀번호가 설정되지 않은 계정입니다');
+      throw new UnauthorizedException('비밀번호가 설정되지 않은 계정입니다. 소셜 로그인을 이용해주세요.');
     }
+
     const isValid = await bcrypt.compare(password, staff.password);
     if (!isValid) {
-      return null;
-    }
-
-    return staff;
-  }
-
-  // 직원 로그인 처리
-  async loginStaff(staff: any, rememberMe: boolean = false, ip?: string) {
-    // 로그인 시각/IP 기록
-    await this.prisma.staff.update({
-      where: { id: staff.id },
-      data: {
-        lastLoginAt: new Date(),
-        ...(ip && { lastLoginIp: ip }),
-      },
-    });
-
-    const payload = {
-      sub: staff.id,
-      staffId: staff.staffId,
-      name: staff.name,
-      role: 'admin',
-      type: 'staff', // User와 구분하기 위한 타입
-      branchId: staff.branchId,
-      departmentId: staff.departmentId,
-    };
-
-    const accessToken = this.jwtService.sign(payload);
-    const refreshToken = this.jwtService.sign(payload, {
-      expiresIn: rememberMe ? '30d' : '7d',
-    });
-
-    return {
-      accessToken,
-      refreshToken,
-      user: {
-        id: staff.id,
-        staffId: staff.staffId,
-        name: staff.name,
-        role: 'admin',
-        email: staff.email,
-        isSuperAdmin: staff.isSuperAdmin ?? false,
-        branch: staff.branch,
-        department: staff.department,
-      },
-    };
-  }
-
-  // ========== 관리자 대리 로그인 (Impersonate) ==========
-
-  // 최고관리자가 특정 직원으로 대리 로그인
-  async impersonateStaff(targetStaffId: string, adminStaffId: string) {
-    // 요청한 직원이 최고관리자인지 확인
-    const adminStaff = await this.prisma.staff.findUnique({
-      where: { id: adminStaffId },
-    });
-
-    if (!adminStaff || !adminStaff.isSuperAdmin) {
-      throw new UnauthorizedException('최고관리자만 대리 로그인할 수 있습니다');
-    }
-
-    // 대상 직원 조회
-    const targetStaff = await this.prisma.staff.findUnique({
-      where: { id: targetStaffId },
-      include: { branch: true, department: true },
-    });
-
-    if (!targetStaff) {
-      throw new BadRequestException('직원을 찾을 수 없습니다');
-    }
-
-    if (!targetStaff.isActive) {
-      throw new BadRequestException('비활성 직원은 대리 로그인할 수 없습니다');
-    }
-
-    // 대리 로그인 토큰 발급
-    const payload = {
-      sub: targetStaff.id,
-      staffId: targetStaff.staffId,
-      name: targetStaff.name,
-      role: 'admin',
-      type: 'staff',
-      branchId: targetStaff.branchId,
-      departmentId: targetStaff.departmentId,
-      impersonatedBy: adminStaffId,
-    };
-
-    const accessToken = this.jwtService.sign(payload, {
-      expiresIn: '2h',
-    });
-    const refreshToken = this.jwtService.sign(payload, {
-      expiresIn: '2h',
-    });
-
-    return {
-      accessToken,
-      refreshToken,
-      user: {
-        id: targetStaff.id,
-        staffId: targetStaff.staffId,
-        name: targetStaff.name,
-        role: 'admin',
-        email: targetStaff.email,
-        branch: targetStaff.branch,
-        department: targetStaff.department,
-      },
-      impersonated: true,
-    };
-  }
-
-  // ========== 직원 소셜 로그인 ==========
-
-  // 직원 OAuth 검증 (신규 등록 or 기존 사용자 반환)
-  async validateStaffOAuth(data: {
-    oauthProvider: string;
-    oauthId: string;
-    email: string;
-    name: string;
-    profileImage?: string;
-  }): Promise<{ staff: any; isNew: boolean }> {
-    // 기존 Staff 조회 (oauthProvider + oauthId)
-    let staff = await this.prisma.staff.findFirst({
-      where: {
-        oauthProvider: data.oauthProvider,
-        oauthId: data.oauthId,
-      },
-    });
-
-    if (staff) {
-      if (staff.status === 'rejected') {
-        throw new UnauthorizedException('가입 거절된 계정입니다');
-      }
-      if (staff.status === 'suspended') {
-        throw new UnauthorizedException('정지된 계정입니다');
-      }
-      return { staff, isNew: false };
-    }
-
-    // 신규 Staff 생성 (status: pending)
-    staff = await this.prisma.staff.create({
-      data: {
-        name: data.name,
-        email: data.email,
-        companyEmail: data.email,
-        oauthProvider: data.oauthProvider,
-        oauthId: data.oauthId,
-        profileImage: data.profileImage,
-        status: 'pending',
-        role: 'employee',
-        isActive: false,
-        canLoginAsManager: false,
-      },
-    });
-
-    return { staff, isNew: true };
-  }
-
-  // 직원 OAuth 로그인 처리
-  async loginStaffOAuth(staff: any, ip?: string) {
-    // pending 상태면 토큰 없이 상태만 반환
-    if (staff.status === 'pending') {
-      return {
-        status: 'pending',
-        message: '가입 승인 대기 중입니다. 관리자에게 문의하세요.',
-        staffId: staff.id,
-      };
+      throw new UnauthorizedException('직원 ID 또는 비밀번호가 올바르지 않습니다');
     }
 
     if (staff.status !== 'active' || !staff.isActive) {
       throw new UnauthorizedException('비활성 계정입니다');
     }
 
-    // 로그인 시각/IP 기록
     await this.prisma.staff.update({
       where: { id: staff.id },
-      data: {
-        lastLoginAt: new Date(),
-        ...(ip && { lastLoginIp: ip }),
-      },
+      data: { lastLoginAt: new Date(), ...(ip && { lastLoginIp: ip }) },
     });
 
     const payload = {
-      sub: staff.id,
-      staffId: staff.staffId,
-      name: staff.name,
-      role: 'admin',
-      type: 'staff',
-      branchId: staff.branchId,
-      departmentId: staff.departmentId,
+      sub: staff.id, staffId: staff.staffId, name: staff.name,
+      role: 'admin', type: 'staff', branchId: staff.branchId, departmentId: staff.departmentId,
     };
 
-    const accessToken = this.jwtService.sign(payload);
-    const refreshToken = this.jwtService.sign(payload, {
-      expiresIn: '7d',
-    });
-
     return {
-      status: 'active',
-      accessToken,
-      refreshToken,
+      accessToken: this.jwtService.sign(payload),
+      refreshToken: this.jwtService.sign(payload, { expiresIn: '30d' }),
       user: {
-        id: staff.id,
-        staffId: staff.staffId,
-        name: staff.name,
-        role: 'admin',
-        email: staff.companyEmail || staff.email,
-        isSuperAdmin: staff.isSuperAdmin ?? false,
+        id: staff.id, staffId: staff.staffId, name: staff.name, role: 'admin',
+        email: staff.companyEmail || staff.email, isSuperAdmin: staff.isSuperAdmin ?? false,
         profileImage: staff.profileImage,
       },
     };
   }
 
-  // 회사 이메일 등록 (소셜 로그인 후)
-  async registerStaffCompanyEmail(staffId: string, companyEmail: string) {
-    const staff = await this.prisma.staff.findUnique({
-      where: { id: staffId },
+  // ========== 직원 소셜 로그인 ==========
+
+  async validateStaffOAuth(data: {
+    oauthProvider: string; oauthId: string; email: string; name: string; profileImage?: string;
+  }): Promise<{ staff: any; isNew: boolean }> {
+    let staff = await this.prisma.staff.findFirst({
+      where: { oauthProvider: data.oauthProvider, oauthId: data.oauthId },
     });
 
-    if (!staff) {
-      throw new NotFoundException('직원을 찾을 수 없습니다');
+    if (staff) {
+      if (staff.status === 'rejected') throw new UnauthorizedException('가입 거절된 계정입니다');
+      if (staff.status === 'suspended') throw new UnauthorizedException('정지된 계정입니다');
+      return { staff, isNew: false };
     }
 
-    if (staff.status !== 'pending') {
-      throw new BadRequestException('이미 처리된 가입 요청입니다');
+    staff = await this.prisma.staff.create({
+      data: {
+        name: data.name, email: data.email, companyEmail: data.email,
+        oauthProvider: data.oauthProvider, oauthId: data.oauthId, profileImage: data.profileImage,
+        status: 'pending', role: 'employee', isActive: false, canLoginAsManager: false,
+      },
+    });
+
+    return { staff, isNew: true };
+  }
+
+  async loginStaffOAuth(staff: any, ip?: string) {
+    if (staff.status === 'pending') {
+      return { status: 'pending', message: '가입 승인 대기 중입니다. 관리자에게 문의하세요.', staffId: staff.id };
+    }
+
+    if (staff.status !== 'active' || !staff.isActive) {
+      throw new UnauthorizedException('비활성 계정입니다');
     }
 
     await this.prisma.staff.update({
-      where: { id: staffId },
-      data: { companyEmail },
+      where: { id: staff.id },
+      data: { lastLoginAt: new Date(), ...(ip && { lastLoginIp: ip }) },
     });
 
+    const payload = {
+      sub: staff.id, staffId: staff.staffId, name: staff.name,
+      role: 'admin', type: 'staff', branchId: staff.branchId, departmentId: staff.departmentId,
+    };
+
+    return {
+      status: 'active',
+      accessToken: this.jwtService.sign(payload),
+      refreshToken: this.jwtService.sign(payload, { expiresIn: '30d' }),
+      user: {
+        id: staff.id, staffId: staff.staffId, name: staff.name, role: 'admin',
+        email: staff.companyEmail || staff.email, isSuperAdmin: staff.isSuperAdmin ?? false,
+        profileImage: staff.profileImage,
+      },
+    };
+  }
+
+  async registerStaffCompanyEmail(staffId: string, companyEmail: string) {
+    const staff = await this.prisma.staff.findUnique({ where: { id: staffId } });
+    if (!staff) throw new NotFoundException('직원을 찾을 수 없습니다');
+    if (staff.status !== 'pending') throw new BadRequestException('이미 처리된 가입 요청입니다');
+    await this.prisma.staff.update({ where: { id: staffId }, data: { companyEmail } });
     return { success: true, message: '회사 이메일이 등록되었습니다. 관리자 승인을 기다려주세요.' };
   }
 
-  // 승인 대기 직원 목록
   async getPendingStaff() {
     return this.prisma.staff.findMany({
       where: { status: 'pending' },
       select: {
-        id: true,
-        name: true,
-        email: true,
-        companyEmail: true,
-        oauthProvider: true,
-        profileImage: true,
-        status: true,
-        role: true,
-        createdAt: true,
+        id: true, name: true, email: true, companyEmail: true,
+        oauthProvider: true, profileImage: true, status: true, role: true, createdAt: true,
       },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  // 직원 승인
   async approveStaff(staffId: string, adminId: string, role: string = 'employee') {
-    const staff = await this.prisma.staff.findUnique({
-      where: { id: staffId },
-    });
-
-    if (!staff) {
-      throw new NotFoundException('직원을 찾을 수 없습니다');
-    }
-
-    if (staff.status !== 'pending') {
-      throw new BadRequestException('승인 대기 상태가 아닙니다');
-    }
-
-    const validRoles = ['admin', 'employee'];
-    if (!validRoles.includes(role)) {
-      throw new BadRequestException('유효하지 않은 역할입니다');
-    }
+    const staff = await this.prisma.staff.findUnique({ where: { id: staffId } });
+    if (!staff) throw new NotFoundException('직원을 찾을 수 없습니다');
+    if (staff.status !== 'pending') throw new BadRequestException('승인 대기 상태가 아닙니다');
+    if (!['admin', 'employee'].includes(role)) throw new BadRequestException('유효하지 않은 역할입니다');
 
     return this.prisma.staff.update({
       where: { id: staffId },
-      data: {
-        status: 'active',
-        isActive: true,
-        canLoginAsManager: true,
-        role,
-        isSuperAdmin: false,
-        approvedBy: adminId,
-        approvedAt: new Date(),
-      },
+      data: { status: 'active', isActive: true, canLoginAsManager: true, role, isSuperAdmin: false, approvedBy: adminId, approvedAt: new Date() },
     });
   }
 
-  // 직원 거절
   async rejectStaff(staffId: string, adminId: string) {
-    const staff = await this.prisma.staff.findUnique({
-      where: { id: staffId },
-    });
-
-    if (!staff) {
-      throw new NotFoundException('직원을 찾을 수 없습니다');
-    }
-
-    if (staff.status !== 'pending') {
-      throw new BadRequestException('승인 대기 상태가 아닙니다');
-    }
-
+    const staff = await this.prisma.staff.findUnique({ where: { id: staffId } });
+    if (!staff) throw new NotFoundException('직원을 찾을 수 없습니다');
+    if (staff.status !== 'pending') throw new BadRequestException('승인 대기 상태가 아닙니다');
     return this.prisma.staff.update({
       where: { id: staffId },
-      data: {
-        status: 'rejected',
-        approvedBy: adminId,
-        approvedAt: new Date(),
-      },
+      data: { status: 'rejected', approvedBy: adminId, approvedAt: new Date() },
     });
   }
 
-  // 직원 정지
   async suspendStaff(staffId: string, adminId: string) {
-    const staff = await this.prisma.staff.findUnique({
-      where: { id: staffId },
-    });
-
-    if (!staff) {
-      throw new NotFoundException('직원을 찾을 수 없습니다');
-    }
-
+    const staff = await this.prisma.staff.findUnique({ where: { id: staffId } });
+    if (!staff) throw new NotFoundException('직원을 찾을 수 없습니다');
     return this.prisma.staff.update({
       where: { id: staffId },
-      data: {
-        status: 'suspended',
-        isActive: false,
-        approvedBy: adminId,
-        approvedAt: new Date(),
-      },
+      data: { status: 'suspended', isActive: false, approvedBy: adminId, approvedAt: new Date() },
     });
   }
 
-  // 직원 역할 변경
   async changeStaffRole(staffId: string, adminId: string, role: string) {
-    const staff = await this.prisma.staff.findUnique({
-      where: { id: staffId },
-    });
-
-    if (!staff) {
-      throw new NotFoundException('직원을 찾을 수 없습니다');
-    }
-
-    const validRoles = ['super_admin', 'admin', 'employee'];
-    if (!validRoles.includes(role)) {
-      throw new BadRequestException('유효하지 않은 역할입니다');
-    }
-
+    const staff = await this.prisma.staff.findUnique({ where: { id: staffId } });
+    if (!staff) throw new NotFoundException('직원을 찾을 수 없습니다');
+    if (!['super_admin', 'admin', 'employee'].includes(role)) throw new BadRequestException('유효하지 않은 역할입니다');
     return this.prisma.staff.update({
       where: { id: staffId },
-      data: {
-        role,
-        isSuperAdmin: role === 'super_admin',
-      },
+      data: { role, isSuperAdmin: role === 'super_admin' },
     });
   }
 
-  // ========== 거래처 직원(Employee) 로그인 ==========
+  // ========== 컨텍스트 선택 ==========
 
-  // ========== 통합 로그인 ==========
-
-  /** 통합 로그인: Client를 인증하고 Employment 컨텍스트 확인 */
-  async unifiedLogin(email: string, password: string) {
-    const client = await this.prisma.client.findFirst({
-      where: { email },
-    });
-
-    if (!client || !client.password) {
-      return null;
-    }
-
-    const isValid = await bcrypt.compare(password, client.password);
-    if (!isValid) {
-      return null;
-    }
-
-    if (client.status !== 'active') {
-      return null;
-    }
-
-    // Employment(소속 회사) 조회
-    const employments = await this.prisma.employment.findMany({
-      where: {
-        memberClientId: client.id,
-        status: 'ACTIVE',
-      },
-      include: {
-        company: {
-          select: {
-            id: true,
-            clientName: true,
-            clientCode: true,
-            status: true,
-          },
-        },
-      },
-    });
-
-    // 활성 거래처만 필터
-    const activeEmployments = employments.filter(
-      (e) => e.company.status === 'active',
-    );
-
-    return { client, employments: activeEmployments };
-  }
-
-  /** 활성 Employment(소속 회사) 조회 */
   async getActiveEmployments(clientId: string) {
     const employments = await this.prisma.employment.findMany({
-      where: {
-        memberClientId: clientId,
-        status: 'ACTIVE',
-      },
+      where: { memberClientId: clientId, status: 'ACTIVE' },
       include: {
-        company: {
-          select: {
-            id: true,
-            clientName: true,
-            clientCode: true,
-            status: true,
-          },
-        },
+        company: { select: { id: true, clientName: true, clientCode: true, status: true } },
       },
     });
     return employments.filter((e) => e.company.status === 'active');
   }
 
-  /** 임시 토큰 생성 (컨텍스트 선택용, 5분 유효) */
   generateTempAuthToken(client: any): string {
     return this.jwtService.sign(
       { sub: client.id, email: client.email, purpose: 'context-selection' },
@@ -1074,7 +810,6 @@ export class AuthService {
     );
   }
 
-  /** tempToken으로 선택 가능한 컨텍스트 목록 조회 */
   async getContextsFromTempToken(tempToken: string) {
     let payload: any;
     try {
@@ -1082,95 +817,50 @@ export class AuthService {
     } catch {
       throw new UnauthorizedException('인증이 만료되었습니다. 다시 로그인해주세요.');
     }
+    if (payload.purpose !== 'context-selection') throw new UnauthorizedException('유효하지 않은 토큰입니다.');
 
-    if (payload.purpose !== 'context-selection') {
-      throw new UnauthorizedException('유효하지 않은 토큰입니다.');
-    }
-
-    const client = await this.prisma.client.findUnique({
-      where: { id: payload.sub },
-    });
-    if (!client || client.status !== 'active') {
-      throw new UnauthorizedException('비활성 계정입니다.');
-    }
+    const client = await this.prisma.client.findUnique({ where: { id: payload.sub } });
+    if (!client || client.status !== 'active') throw new UnauthorizedException('비활성 계정입니다.');
 
     const employments = await this.getActiveEmployments(client.id);
-
-    // 본인이 대표(Owner)인 회사가 있으면 "내 계정(개인)" 숨김
-    const hasOwnerEmployment = employments.some(
-      (e: any) => e.memberClientId === e.companyClientId,
-    );
+    const hasOwnerEmployment = employments.some((e: any) => e.memberClientId === e.companyClientId);
 
     const employeeContexts = employments.map((e: any) => ({
-      type: 'employee',
-      employmentId: e.id,
-      companyClientId: e.companyClientId,
-      companyName: e.company.clientName,
-      clientName: client.clientName,
-      role: e.role,
-      isOwner: e.memberClientId === e.companyClientId,
+      type: 'employee', employmentId: e.id, companyClientId: e.companyClientId,
+      companyName: e.company.clientName, clientName: client.clientName,
+      role: e.role, isOwner: e.memberClientId === e.companyClientId,
     }));
 
     return {
       email: client.email,
       contexts: [
-        ...(!hasOwnerEmployment
-          ? [
-              {
-                type: 'personal',
-                label: '내 계정',
-                clientName: client.clientName,
-                clientId: client.id,
-              },
-            ]
-          : []),
+        ...(!hasOwnerEmployment ? [{ type: 'personal', label: '내 계정', clientName: client.clientName, clientId: client.id }] : []),
         ...employeeContexts,
       ],
     };
   }
 
-  /** 컨텍스트 선택 후 최종 로그인 */
-  async loginWithContext(
-    tempToken: string,
-    contextType: string,
-    employmentId?: string,
-    rememberMe?: boolean,
-    ip?: string,
-  ) {
+  async loginWithContext(tempToken: string, contextType: string, employmentId?: string, rememberMe?: boolean, ip?: string) {
     let payload: any;
     try {
       payload = this.jwtService.verify(tempToken);
     } catch {
       throw new UnauthorizedException('인증이 만료되었습니다. 다시 로그인해주세요.');
     }
+    if (payload.purpose !== 'context-selection') throw new UnauthorizedException('유효하지 않은 토큰입니다.');
 
-    if (payload.purpose !== 'context-selection') {
-      throw new UnauthorizedException('유효하지 않은 토큰입니다.');
-    }
-
-    const client = await this.prisma.client.findUnique({
-      where: { id: payload.sub },
-    });
-    if (!client || client.status !== 'active') {
-      throw new UnauthorizedException('비활성 계정입니다.');
-    }
+    const client = await this.prisma.client.findUnique({ where: { id: payload.sub } });
+    if (!client || client.status !== 'active') throw new UnauthorizedException('비활성 계정입니다.');
 
     if (contextType === 'personal') {
       return this.loginClient(client, rememberMe ?? false, ip);
     }
 
-    // employee 컨텍스트
-    if (!employmentId) {
-      throw new BadRequestException('employmentId가 필요합니다.');
-    }
+    if (!employmentId) throw new BadRequestException('employmentId가 필요합니다.');
 
     const employment = await this.prisma.employment.findUnique({
       where: { id: employmentId },
-      include: {
-        company: {
-          select: { id: true, clientName: true, clientCode: true },
-        },
-      },
+      include: { company: { select: { id: true, clientName: true, clientCode: true } } },
     });
 
     if (!employment || employment.memberClientId !== client.id || employment.status !== 'ACTIVE') {
@@ -1180,170 +870,62 @@ export class AuthService {
     return this.loginEmployeeAsClient(client, employment, rememberMe ?? false, ip);
   }
 
-  /** Employee 로그인 (Client 기반) */
-  async loginEmployeeAsClient(
-    client: any,
-    employment: any,
-    rememberMe: boolean = false,
-    ip?: string,
-  ) {
-    // 로그인 시각/IP 기록
+  async loginEmployeeAsClient(client: any, employment: any, rememberMe: boolean = false, ip?: string) {
     await this.prisma.client.update({
       where: { id: client.id },
-      data: {
-        lastLoginAt: new Date(),
-        ...(ip && { lastLoginIp: ip }),
-      },
+      data: { lastLoginAt: new Date(), ...(ip && { lastLoginIp: ip }) },
     });
 
     const payload = {
-      sub: client.id,
-      email: client.email,
-      type: 'employee',
-      role: employment.role,
-      clientId: employment.companyClientId,
-      employmentId: employment.id,
-      canViewAllOrders: employment.canViewAllOrders,
-      canManageProducts: employment.canManageProducts,
+      sub: client.id, email: client.email, type: 'employee', role: employment.role,
+      clientId: employment.companyClientId, employmentId: employment.id,
+      canViewAllOrders: employment.canViewAllOrders, canManageProducts: employment.canManageProducts,
       canViewSettlement: employment.canViewSettlement,
     };
-
-    const accessToken = this.jwtService.sign(payload);
-    const refreshToken = this.jwtService.sign(payload, {
-      expiresIn: rememberMe ? '30d' : '7d',
-    });
 
     const isOwner = employment.memberClientId === employment.companyClientId;
 
     return {
-      accessToken,
-      refreshToken,
+      accessToken: this.jwtService.sign(payload),
+      refreshToken: this.jwtService.sign(payload, { expiresIn: rememberMe ? '30d' : '7d' }),
       user: {
-        id: client.id,
-        email: client.email,
-        name: client.clientName,
-        role: employment.role,
-        type: 'employee',
-        clientId: employment.companyClientId,
-        clientName: employment.company.clientName,
-        employmentId: employment.id,
-        employeeRole: employment.role,
-        isOwner,
-        canViewAllOrders: employment.canViewAllOrders,
-        canManageProducts: employment.canManageProducts,
+        id: client.id, email: client.email, name: client.clientName,
+        role: employment.role, type: 'employee', clientId: employment.companyClientId,
+        clientName: employment.company.clientName, employmentId: employment.id,
+        employeeRole: employment.role, isOwner,
+        canViewAllOrders: employment.canViewAllOrders, canManageProducts: employment.canManageProducts,
         canViewSettlement: employment.canViewSettlement,
       },
     };
   }
 
-  // ========== 레거시 Employee 메서드 (하위호환) ==========
-
-  async validateEmployee(email: string, password: string) {
-    const result = await this.unifiedLogin(email, password);
-    if (!result) return null;
-
-    const { client, employments } = result;
-    if (employments.length === 0) return null;
-
-    if (employments.length === 1) {
-      return { user: client, employment: employments[0] };
-    }
-
-    return { user: client, employments };
-  }
-
-  async loginEmployee(
-    user: any,
-    employment: any,
-    rememberMe: boolean = false,
-    ip?: string,
-  ) {
-    return this.loginEmployeeAsClient(user, employment, rememberMe, ip);
-  }
-
-  async loginEmployeeBySelection(
-    userId: string,
-    employmentId: string,
-    rememberMe: boolean = false,
-    ip?: string,
-  ) {
-    const employment = await this.prisma.employment.findUnique({
-      where: { id: employmentId },
-      include: {
-        company: {
-          select: { id: true, clientName: true, clientCode: true },
-        },
-      },
-    });
-
-    if (!employment || employment.memberClientId !== userId || employment.status !== 'ACTIVE') {
-      throw new UnauthorizedException('유효하지 않은 선택입니다.');
-    }
-
-    const client = await this.prisma.client.findUnique({
-      where: { id: userId },
-    });
-
-    if (!client || client.status !== 'active') {
-      throw new UnauthorizedException('비활성 계정입니다.');
-    }
-
-    return this.loginEmployeeAsClient(client, employment, rememberMe, ip);
-  }
-
-  // 관리자가 특정 회원으로 대리 로그인
   async impersonateClient(clientId: string, adminId: string) {
-    // 회원(Client) 조회
+    const adminStaff = await this.prisma.staff.findUnique({ where: { id: adminId } });
+    if (!adminStaff || !adminStaff.isActive) {
+      throw new ForbiddenException('활성 직원만 대리 로그인할 수 있습니다');
+    }
+
     const client = await this.prisma.client.findUnique({
       where: { id: clientId },
       include: { group: true },
     });
 
-    if (!client) {
-      throw new BadRequestException('회원을 찾을 수 없습니다');
-    }
+    if (!client) throw new BadRequestException('회원을 찾을 수 없습니다');
+    if (client.status !== 'active') throw new BadRequestException('비활성 회원은 대리 로그인할 수 없습니다');
 
-    if (client.status !== 'active') {
-      throw new BadRequestException('비활성 회원은 대리 로그인할 수 없습니다');
-    }
-
-    // 대리 로그인 토큰 발급 (impersonatedBy 필드 추가)
-    const payload = {
-      sub: client.id,
-      email: client.email,
-      role: 'client',
-      type: 'client',
-      impersonatedBy: adminId, // 대리 로그인한 관리자 ID
-    };
-
-    const accessToken = this.jwtService.sign(payload, {
-      expiresIn: '1h', // 대리 로그인은 1시간 제한
-    });
-    const refreshToken = this.jwtService.sign(payload, {
-      expiresIn: '1h',
-    });
+    const payload = { sub: client.id, email: client.email, role: 'client', type: 'client', impersonatedBy: adminId };
 
     return {
-      accessToken,
-      refreshToken,
+      accessToken: this.jwtService.sign(payload, { expiresIn: '1h' }),
+      refreshToken: this.jwtService.sign(payload, { expiresIn: '1h' }),
       user: {
-        id: client.id,
-        email: client.email,
-        name: client.clientName,
-        role: 'client',
-        clientId: client.id,
-        clientName: client.clientName,
-        clientCode: client.clientCode,
-        mobile: client.mobile,
-        businessNumber: client.businessNumber,
-        representative: client.representative,
-        address: client.address,
-        addressDetail: client.addressDetail,
-        contactPerson: client.contactPerson,
+        id: client.id, email: client.email, name: client.clientName, role: 'client',
+        clientId: client.id, clientName: client.clientName, clientCode: client.clientCode,
+        mobile: client.mobile, businessNumber: client.businessNumber, representative: client.representative,
+        address: client.address, addressDetail: client.addressDetail, contactPerson: client.contactPerson,
         group: client.group,
       },
       impersonated: true,
     };
   }
 }
-

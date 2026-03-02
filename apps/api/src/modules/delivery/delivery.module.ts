@@ -5,6 +5,7 @@ import { TrackingController } from './controllers/tracking.controller';
 import { ShippingMgmtController } from './controllers/shipping-mgmt.controller';
 import { ShippingLabelController } from './controllers/shipping-label.controller';
 import { LogenController } from './controllers/logen.controller';
+import { PlaceSearchController } from './controllers/place-search.controller';
 import { DeliveryPricingService } from './services/delivery-pricing.service';
 import { KakaoMapService } from './services/kakao-map.service';
 import { TrackingService } from './services/tracking.service';
@@ -24,6 +25,7 @@ import { SystemSettingsModule } from '../system-settings/system-settings.module'
     ShippingMgmtController,
     ShippingLabelController,
     LogenController,
+    PlaceSearchController,
   ],
   providers: [
     DeliveryPricingService,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect, memo, type ReactNode } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef, memo, type ReactNode } from 'react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,6 +42,8 @@ import {
   useUpdateClient,
   useDeleteClient,
   useNextClientCode,
+  checkClientEmail,
+  type EmailCheckResult,
 } from '@/hooks/use-clients';
 import { useClientConsultations } from '@/hooks/use-consultations';
 import { useStaffList } from '@/hooks/use-staff';
@@ -119,8 +121,11 @@ const MemberTableRow = memo(({
           )}
         </button>
       </TableCell>
-      <TableCell className="text-sm text-muted-foreground text-center">
-        {member.email || '-'}
+      <TableCell className="text-center">
+        <div className="text-sm text-muted-foreground">{member.email || '-'}</div>
+        {member.clientCode && (
+          <div className="text-xs text-gray-400">{member.clientCode}</div>
+        )}
       </TableCell>
       <TableCell className="text-sm text-muted-foreground text-center">
         {member.mobile || member.phone || '-'}
@@ -132,8 +137,23 @@ const MemberTableRow = memo(({
           <span className="text-muted-foreground text-sm">-</span>
         )}
       </TableCell>
-      <TableCell className="text-center text-sm text-muted-foreground">
-        {format(new Date(member.createdAt), 'yy.MM.dd')}
+      <TableCell className="text-center">
+        <div className="flex flex-col items-center gap-0.5">
+          {(() => {
+            const oauth = member.oauthProvider;
+            const channel = member.acquisitionChannel;
+            if (oauth === 'kakao') return <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-300 text-xs">카카오</Badge>;
+            if (oauth === 'naver') return <Badge variant="outline" className="bg-green-50 text-green-800 border-green-300 text-xs">네이버</Badge>;
+            if (oauth === 'google') return <Badge variant="outline" className="bg-blue-50 text-blue-800 border-blue-300 text-xs">구글</Badge>;
+            if (channel === 'referral') return <Badge variant="outline" className="text-xs">소개</Badge>;
+            if (channel === 'search') return <Badge variant="outline" className="text-xs">검색</Badge>;
+            if (channel === 'exhibition') return <Badge variant="outline" className="text-xs">전시회</Badge>;
+            if (channel === 'sns') return <Badge variant="outline" className="text-xs">SNS</Badge>;
+            if (channel === 'etc') return <Badge variant="outline" className="text-xs">기타</Badge>;
+            return <span className="text-sm text-muted-foreground">직접가입</span>;
+          })()}
+          <span className="text-xs text-muted-foreground">{format(new Date(member.createdAt), 'yy.MM.dd')}</span>
+        </div>
       </TableCell>
       <TableCell className="text-center">
         <span className="text-sm font-medium">{member._count?.consultations ?? 0}</span>
@@ -254,6 +274,8 @@ export default function MembersPage() {
     paymentTerms: 30,
     paymentCondition: '당월말',
     creditPaymentDay: undefined,
+    gender: '',
+    birthday: '',
     status: 'active',
     fileRetentionMonths: 3,
     assignedManager: '',
@@ -264,9 +286,37 @@ export default function MembersPage() {
     adminMemo: '',
     shippingType: 'conditional',
     freeShippingThreshold: 90000,
+    acquisitionChannel: '',
   });
 
+  // 이메일 중복 체크
+  const [emailDuplicate, setEmailDuplicate] = useState<EmailCheckResult | null>(null);
+  const [emailChecking, setEmailChecking] = useState(false);
+  const emailCheckTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  const handleEmailChange = useCallback((email: string) => {
+    setFormData((prev) => ({ ...prev, email }));
+    setEmailDuplicate(null);
+
+    if (emailCheckTimer.current) clearTimeout(emailCheckTimer.current);
+
+    if (!email || !email.includes('@')) return;
+
+    emailCheckTimer.current = setTimeout(async () => {
+      setEmailChecking(true);
+      try {
+        const result = await checkClientEmail(email, editingMember?.id);
+        setEmailDuplicate(result);
+      } catch {
+        // ignore
+      } finally {
+        setEmailChecking(false);
+      }
+    }, 500);
+  }, [editingMember?.id]);
+
   const handleOpenDialog = (member?: Client) => {
+    setEmailDuplicate(null);
     if (member) {
       setEditingMember(member);
       setFormData({
@@ -286,6 +336,8 @@ export default function MembersPage() {
         paymentTerms: member.paymentTerms || 30,
         paymentCondition: (member.paymentCondition as '당월말' | '익월말' | '2개월여신') || '당월말',
         creditPaymentDay: member.creditPaymentDay,
+        gender: member.gender || '',
+        birthday: member.birthday || '',
         status: member.status || 'active',
         fileRetentionMonths: member.fileRetentionMonths ?? 3,
         assignedManager: member.assignedManager || '',
@@ -296,6 +348,7 @@ export default function MembersPage() {
         adminMemo: member.adminMemo || '',
         shippingType: (member.shippingType as string) || 'conditional',
         freeShippingThreshold: (member as any).freeShippingThreshold ?? 90000,
+        acquisitionChannel: member.acquisitionChannel || '',
       });
     } else {
       setEditingMember(null);
@@ -318,6 +371,8 @@ export default function MembersPage() {
           paymentTerms: 30,
           paymentCondition: '당월말',
           creditPaymentDay: undefined,
+          gender: '',
+          birthday: '',
           status: 'active',
           fileRetentionMonths: 3,
           assignedManager: '',
@@ -328,6 +383,7 @@ export default function MembersPage() {
           adminMemo: '',
           shippingType: 'conditional',
           freeShippingThreshold: 90000,
+          acquisitionChannel: '',
         });
       });
     }
@@ -349,6 +405,11 @@ export default function MembersPage() {
   const handleSubmit = async () => {
     if (!formData.clientCode || !formData.clientName) {
       toast({ title: '필수 항목을 입력해주세요.', variant: 'destructive' });
+      return;
+    }
+
+    if (emailDuplicate?.exists) {
+      toast({ title: '이미 등록된 이메일입니다. 다른 이메일을 사용해주세요.', variant: 'destructive' });
       return;
     }
 
@@ -532,14 +593,14 @@ export default function MembersPage() {
                 <Table className="table-fixed w-full">
                   <TableHeader>
                     <TableRow className="bg-slate-50/80">
-                      <TableHead className="w-[14%] text-center">회원명</TableHead>
-                      <TableHead className="w-[17%] text-center">이메일</TableHead>
-                      <TableHead className="w-[10%] text-center">연락처</TableHead>
-                      <TableHead className="w-[9%] text-center">그룹</TableHead>
-                      <TableHead className="w-[8%] text-center whitespace-nowrap">등록일</TableHead>
+                      <TableHead className="w-[13%] text-center">회원명</TableHead>
+                      <TableHead className="w-[15%] text-center">이메일</TableHead>
+                      <TableHead className="w-[9%] text-center">연락처</TableHead>
+                      <TableHead className="w-[8%] text-center">그룹</TableHead>
+                      <TableHead className="w-[7%] text-center whitespace-nowrap">가입경로</TableHead>
                       <TableHead className="w-[5%] text-center whitespace-nowrap">상담</TableHead>
                       <TableHead className="w-[5%] text-center whitespace-nowrap">미완료</TableHead>
-                      <TableHead className="w-[8%] text-center whitespace-nowrap">영업담당</TableHead>
+                      <TableHead className="w-[7%] text-center whitespace-nowrap">영업담당</TableHead>
                       <TableHead className="w-[6%] text-center whitespace-nowrap">신용</TableHead>
                       <TableHead className="w-[6%] text-center whitespace-nowrap">상태</TableHead>
                       <TableHead className="w-[8%] text-center whitespace-nowrap">작업</TableHead>
@@ -548,7 +609,7 @@ export default function MembersPage() {
                   <TableBody>
                     {membersData?.data?.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={11} className="text-center py-12 text-muted-foreground">
+                        <TableCell colSpan={12} className="text-center py-12 text-muted-foreground">
                           <Users className="h-12 w-12 mx-auto mb-4 opacity-20" />
                           등록된 회원이 없습니다.
                         </TableCell>
@@ -738,12 +799,68 @@ export default function MembersPage() {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="email" className="text-sm font-medium">이메일</Label>
+                        <div className="relative">
+                          <Input
+                            id="email"
+                            type="email"
+                            value={formData.email}
+                            onChange={(e) => handleEmailChange(e.target.value)}
+                            placeholder="contact@example.com"
+                            className={`bg-white ${emailDuplicate?.exists ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                          />
+                          {emailChecking && (
+                            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
+                          )}
+                        </div>
+                        {emailDuplicate?.exists && emailDuplicate.member && (
+                          <div className="mt-1.5 rounded-md border border-red-200 bg-red-50 p-2.5 text-xs">
+                            <div className="flex items-center gap-1 font-semibold text-red-700 mb-1">
+                              <AlertCircle className="h-3.5 w-3.5" />
+                              이미 등록된 이메일입니다
+                            </div>
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-red-600">
+                              <span>회원코드: {emailDuplicate.member.clientCode}</span>
+                              <span>회원명: {emailDuplicate.member.clientName}</span>
+                              <span>가입일: {format(new Date(emailDuplicate.member.createdAt), 'yyyy.MM.dd')}</span>
+                              <span>가입경로: {emailDuplicate.member.oauthProvider || '일반가입'}</span>
+                              <span>유형: {emailDuplicate.member.memberType === 'business' ? '사업자' : '개인'}</span>
+                              <span>상태: {emailDuplicate.member.status === 'active' ? '활성' : emailDuplicate.member.status === 'inactive' ? '비활성' : emailDuplicate.member.status}</span>
+                              {emailDuplicate.member.groupName && (
+                                <span>그룹: {emailDuplicate.member.groupName}</span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="gender" className="text-sm font-medium">성별</Label>
+                        <Select
+                          value={formData.gender || ''}
+                          onValueChange={(value) => setFormData({ ...formData, gender: value || undefined })}
+                        >
+                          <SelectTrigger className="bg-white">
+                            <SelectValue placeholder="선택" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="male">남성</SelectItem>
+                            <SelectItem value="female">여성</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="birthday" className="text-sm font-medium">생년월일</Label>
                         <Input
-                          id="email"
-                          type="email"
-                          value={formData.email}
-                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                          placeholder="contact@example.com"
+                          id="birthday"
+                          value={formData.birthday}
+                          onChange={(e) => {
+                            const numbers = e.target.value.replace(/\D/g, '').slice(0, 8);
+                            let formatted = numbers;
+                            if (numbers.length > 6) formatted = `${numbers.slice(0, 4)}-${numbers.slice(4, 6)}-${numbers.slice(6)}`;
+                            else if (numbers.length > 4) formatted = `${numbers.slice(0, 4)}-${numbers.slice(4)}`;
+                            setFormData({ ...formData, birthday: formatted });
+                          }}
+                          placeholder="1990-01-01"
+                          maxLength={10}
                           className="bg-white"
                         />
                       </div>
@@ -800,14 +917,70 @@ export default function MembersPage() {
                           className="bg-white"
                         />
                       </div>
-                      <div className="col-span-2 space-y-2">
+                      <div className="space-y-2">
                         <Label htmlFor="email" className="text-sm font-medium">이메일</Label>
+                        <div className="relative">
+                          <Input
+                            id="email"
+                            type="email"
+                            value={formData.email}
+                            onChange={(e) => handleEmailChange(e.target.value)}
+                            placeholder="contact@example.com"
+                            className={`bg-white ${emailDuplicate?.exists ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                          />
+                          {emailChecking && (
+                            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
+                          )}
+                        </div>
+                        {emailDuplicate?.exists && emailDuplicate.member && (
+                          <div className="mt-1.5 rounded-md border border-red-200 bg-red-50 p-2.5 text-xs">
+                            <div className="flex items-center gap-1 font-semibold text-red-700 mb-1">
+                              <AlertCircle className="h-3.5 w-3.5" />
+                              이미 등록된 이메일입니다
+                            </div>
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-red-600">
+                              <span>회원코드: {emailDuplicate.member.clientCode}</span>
+                              <span>회원명: {emailDuplicate.member.clientName}</span>
+                              <span>가입일: {format(new Date(emailDuplicate.member.createdAt), 'yyyy.MM.dd')}</span>
+                              <span>가입경로: {emailDuplicate.member.oauthProvider || '일반가입'}</span>
+                              <span>유형: {emailDuplicate.member.memberType === 'business' ? '사업자' : '개인'}</span>
+                              <span>상태: {emailDuplicate.member.status === 'active' ? '활성' : emailDuplicate.member.status === 'inactive' ? '비활성' : emailDuplicate.member.status}</span>
+                              {emailDuplicate.member.groupName && (
+                                <span>그룹: {emailDuplicate.member.groupName}</span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="gender" className="text-sm font-medium">성별</Label>
+                        <Select
+                          value={formData.gender || ''}
+                          onValueChange={(value) => setFormData({ ...formData, gender: value || undefined })}
+                        >
+                          <SelectTrigger className="bg-white">
+                            <SelectValue placeholder="선택" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="male">남성</SelectItem>
+                            <SelectItem value="female">여성</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="birthday" className="text-sm font-medium">생년월일</Label>
                         <Input
-                          id="email"
-                          type="email"
-                          value={formData.email}
-                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                          placeholder="contact@example.com"
+                          id="birthday"
+                          value={formData.birthday}
+                          onChange={(e) => {
+                            const numbers = e.target.value.replace(/\D/g, '').slice(0, 8);
+                            let formatted = numbers;
+                            if (numbers.length > 6) formatted = `${numbers.slice(0, 4)}-${numbers.slice(4, 6)}-${numbers.slice(6)}`;
+                            else if (numbers.length > 4) formatted = `${numbers.slice(0, 4)}-${numbers.slice(4)}`;
+                            setFormData({ ...formData, birthday: formatted });
+                          }}
+                          placeholder="1990-01-01"
+                          maxLength={10}
                           className="bg-white"
                         />
                       </div>
@@ -866,6 +1039,32 @@ export default function MembersPage() {
                             </span>
                           </SelectItem>
                         ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* 가입경로 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="acquisitionChannel" className="text-sm font-medium">
+                      가입경로
+                    </Label>
+                    <Select
+                      value={formData.acquisitionChannel || 'none'}
+                      onValueChange={(v) => setFormData({ ...formData, acquisitionChannel: v === 'none' ? '' : v })}
+                    >
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder="가입경로 선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">
+                          <span className="text-muted-foreground">선택 안함</span>
+                        </SelectItem>
+                        <SelectItem value="direct">직접가입</SelectItem>
+                        <SelectItem value="referral">소개</SelectItem>
+                        <SelectItem value="search">검색</SelectItem>
+                        <SelectItem value="exhibition">전시회</SelectItem>
+                        <SelectItem value="sns">SNS</SelectItem>
+                        <SelectItem value="etc">기타</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1318,7 +1517,7 @@ export default function MembersPage() {
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={createMember.isPending || updateMember.isPending}
+              disabled={createMember.isPending || updateMember.isPending || !!emailDuplicate?.exists}
               className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
             >
               {(createMember.isPending || updateMember.isPending) && (

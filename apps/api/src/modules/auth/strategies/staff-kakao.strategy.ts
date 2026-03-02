@@ -23,7 +23,8 @@ export class StaffKakaoStrategy extends PassportStrategy(Strategy, 'staff-kakao'
       clientID: clientID || 'disabled',
       clientSecret: clientSecret || 'disabled',
       callbackURL: callbackURL || 'http://localhost:3001/api/v1/auth/staff/kakao/callback',
-    });
+      scope: ['profile_nickname'],
+    } as any);
   }
 
   async validate(
@@ -42,6 +43,10 @@ export class StaffKakaoStrategy extends PassportStrategy(Strategy, 'staff-kakao'
         email: kakaoAccount?.email || `kakao_${id}@kakao.com`,
         name: username || kakaoAccount?.profile?.nickname || '카카오사용자',
         profileImage: kakaoAccount?.profile?.profile_image_url,
+        gender: kakaoAccount?.gender,
+        birthday: kakaoAccount?.birthday,
+        birthyear: kakaoAccount?.birthyear,
+        mobile: kakaoAccount?.phone_number,
       });
 
       done(null, { ...staff, isNew });

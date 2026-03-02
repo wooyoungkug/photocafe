@@ -1,933 +1,404 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useCallback, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { api } from '@/lib/api';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useClientRegister, useCheckLoginId } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { PhoneInput } from '@/components/ui/phone-input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { AlertCircle, Loader2, User, Building2, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2, User, Lock, UserPlus, Phone, Mail, LogIn } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
-// 개인 고객 폼 데이터
-interface IndividualFormData {
-  name: string;
-  email: string;
-  password: string;
-  confirmPassword: string;
-  mobile: string;
-}
-
-// 스튜디오 폼 데이터
-interface StudioFormData {
-  // 기본 정보
-  studioName: string;
-  representative: string;
-  contactPerson: string;
-  contactPhone: string;
-  phone: string;
-  mobile: string;
-  email: string;
-  password: string;
-  confirmPassword: string;
-  // 사업자 정보
-  businessNumber: string;
-  businessType: string;
-  businessCategory: string;
-  postalCode: string;
-  address: string;
-  addressDetail: string;
-  taxInvoiceEmail: string;
-  taxInvoiceMethod: string;
-  // 스튜디오 특성
-  mainGenre: string;
-  monthlyOrderVolume: string;
-  colorProfile: string;
-  acquisitionChannel: string;
-  // 제품 선호도
-  preferredSize: string;
-  preferredFinish: string;
-  hasLogo: boolean;
-  deliveryNote: string;
-}
-
-// 사업자번호 포맷팅 (XXX-XX-XXXXX)
-const formatBusinessNumber = (value: string): string => {
-  const numbers = value.replace(/\D/g, '').slice(0, 10);
-  if (numbers.length <= 3) return numbers;
-  if (numbers.length <= 5) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
-  return `${numbers.slice(0, 3)}-${numbers.slice(3, 5)}-${numbers.slice(5)}`;
-};
-
-
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
-  const [memberType, setMemberType] = useState<'individual' | 'studio'>('individual');
-  const [step, setStep] = useState(1); // 스튜디오는 2단계 폼
+  const searchParams = useSearchParams();
+  const register = useClientRegister();
+  const checkLoginId = useCheckLoginId();
 
-  // 개인 고객 폼
-  const [individualForm, setIndividualForm] = useState<IndividualFormData>({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    mobile: '',
-  });
-
-  // 스튜디오 폼
-  const [studioForm, setStudioForm] = useState<StudioFormData>({
-    studioName: '',
-    representative: '',
-    contactPerson: '',
-    contactPhone: '',
-    phone: '',
-    mobile: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    businessNumber: '',
-    businessType: '',
-    businessCategory: '',
-    postalCode: '',
-    address: '',
-    addressDetail: '',
-    taxInvoiceEmail: '',
-    taxInvoiceMethod: 'electronic',
-    mainGenre: '',
-    monthlyOrderVolume: '',
-    colorProfile: 'sRGB',
-    acquisitionChannel: '',
-    preferredSize: '',
-    preferredFinish: '',
-    hasLogo: false,
-    deliveryNote: '',
-  });
-
-  const [agreeTerms, setAgreeTerms] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [loginId, setLoginId] = useState('');
+  const [password, setPassword] = useState('');
+  const [passwordConfirm, setPasswordConfirm] = useState('');
+  const [name, setName] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [emailChecked, setEmailChecked] = useState(false);
-  const [businessNumberChecked, setBusinessNumberChecked] = useState(false);
+  const [loginIdChecked, setLoginIdChecked] = useState(false);
+  const [loginIdAvailable, setLoginIdAvailable] = useState<boolean | null>(null);
+  const [socialConfirmProvider, setSocialConfirmProvider] = useState<string | null>(null);
 
-  const handleIndividualChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setIndividualForm(prev => ({ ...prev, [name]: value }));
-    if (name === 'email') setEmailChecked(false);
-  };
+  // 이미 가입된 회원 감지 상태
+  const [alreadyRegistered, setAlreadyRegistered] = useState(false);
+  const [alreadyRegisteredProvider, setAlreadyRegisteredProvider] = useState<string | null>(null);
+  const [alreadyRegisteredAt, setAlreadyRegisteredAt] = useState<string | null>(null);
 
-  const handleStudioChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    let formattedValue = value;
-
-    // 사업자번호 자동 포맷팅
-    if (name === 'businessNumber') {
-      formattedValue = formatBusinessNumber(value);
-      setBusinessNumberChecked(false);
+  // URL 에러 파라미터 감지 (이미 가입된 회원)
+  useEffect(() => {
+    const errorParam = searchParams.get('error');
+    if (errorParam === 'ALREADY_REGISTERED') {
+      setAlreadyRegistered(true);
+      setAlreadyRegisteredProvider(searchParams.get('provider'));
+      setAlreadyRegisteredAt(searchParams.get('registeredAt'));
     }
+  }, [searchParams]);
 
-    setStudioForm(prev => ({ ...prev, [name]: formattedValue }));
-    if (name === 'email') setEmailChecked(false);
-  };
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
-  const handleStudioSelectChange = (name: string, value: string) => {
-    setStudioForm(prev => ({ ...prev, [name]: value }));
-  };
-
-  // 이메일 중복 확인
-  const checkEmail = async (email: string) => {
+  const handleCheckLoginId = async () => {
+    if (!loginId) {
+      setError('아이디를 입력해주세요.');
+      return;
+    }
+    if (loginId.length < 4) {
+      setError('아이디는 4자 이상이어야 합니다.');
+      return;
+    }
+    setError(null);
     try {
-      const res = await api.get<{ exists: boolean }>(`/auth/client/check-email?email=${encodeURIComponent(email)}`);
-      if (res.exists) {
-        setError('이미 등록된 이메일입니다.');
-        return false;
+      const result = await checkLoginId.mutateAsync(loginId);
+      setLoginIdChecked(true);
+      setLoginIdAvailable(result.available);
+      if (!result.available) {
+        setError('이미 사용 중인 아이디입니다.');
       }
-      setEmailChecked(true);
-      setError(null);
-      return true;
     } catch {
-      setError('이메일 확인 중 오류가 발생했습니다.');
-      return false;
+      setError('중복 확인에 실패했습니다.');
     }
   };
 
-  // 사업자등록번호 중복 확인
-  const checkBusinessNumber = async (businessNumber: string) => {
-    try {
-      const res = await api.get<{ exists: boolean }>(`/auth/client/check-business-number?businessNumber=${encodeURIComponent(businessNumber)}`);
-      if (res.exists) {
-        setError('이미 등록된 사업자등록번호입니다.');
-        return false;
-      }
-      setBusinessNumberChecked(true);
-      setError(null);
-      return true;
-    } catch {
-      setError('사업자등록번호 확인 중 오류가 발생했습니다.');
-      return false;
-    }
+  const handleLoginIdChange = (value: string) => {
+    setLoginId(value);
+    setLoginIdChecked(false);
+    setLoginIdAvailable(null);
   };
 
-  // 개인 고객 회원가입
-  const handleIndividualSubmit = async (e: React.FormEvent) => {
+  const formatPhoneNumber = useCallback((value: string) => {
+    return value.replace(/[^0-9]/g, '').slice(0, 11);
+  }, []);
+
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (individualForm.password !== individualForm.confirmPassword) {
+    if (!loginId || !password || !name || !contactEmail) {
+      setError('필수 항목을 모두 입력해주세요.');
+      return;
+    }
+
+    if (loginId.length < 4) {
+      setError('아이디는 4자 이상이어야 합니다.');
+      return;
+    }
+
+    if (!loginIdChecked || !loginIdAvailable) {
+      setError('아이디 중복확인을 해주세요.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('비밀번호는 6자 이상이어야 합니다.');
+      return;
+    }
+
+    if (password !== passwordConfirm) {
       setError('비밀번호가 일치하지 않습니다.');
       return;
     }
 
-    if (individualForm.password.length < 6) {
-      setError('비밀번호는 최소 6자 이상이어야 합니다.');
-      return;
-    }
-
-    if (!agreeTerms) {
-      setError('이용약관에 동의해주세요.');
-      return;
-    }
-
-    if (!emailChecked) {
-      const valid = await checkEmail(individualForm.email);
-      if (!valid) return;
-    }
-
-    setIsLoading(true);
-
     try {
-      await api.post('/auth/client/register/individual', {
-        name: individualForm.name,
-        email: individualForm.email,
-        password: individualForm.password,
-        mobile: individualForm.mobile || undefined,
+      await register.mutateAsync({
+        loginId,
+        password,
+        name,
+        contactEmail,
+        phone: phone || undefined,
       });
-
-      window.location.href = '/login?registered=true';
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message || '회원가입에 실패했습니다.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // 스튜디오 회원가입
-  const handleStudioSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-
-    if (studioForm.password !== studioForm.confirmPassword) {
-      setError('비밀번호가 일치하지 않습니다.');
-      return;
-    }
-
-    if (studioForm.password.length < 6) {
-      setError('비밀번호는 최소 6자 이상이어야 합니다.');
-      return;
-    }
-
-    if (!agreeTerms) {
-      setError('이용약관에 동의해주세요.');
-      return;
-    }
-
-    if (!emailChecked) {
-      const valid = await checkEmail(studioForm.email);
-      if (!valid) return;
-    }
-
-    if (!businessNumberChecked) {
-      const valid = await checkBusinessNumber(studioForm.businessNumber);
-      if (!valid) return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      await api.post('/auth/client/register/studio', {
-        studioName: studioForm.studioName,
-        representative: studioForm.representative,
-        contactPerson: studioForm.contactPerson || undefined,
-        contactPhone: studioForm.contactPhone || undefined,
-        phone: studioForm.phone || undefined,
-        mobile: studioForm.mobile,
-        email: studioForm.email,
-        password: studioForm.password,
-        businessNumber: studioForm.businessNumber,
-        businessType: studioForm.businessType || undefined,
-        businessCategory: studioForm.businessCategory || undefined,
-        postalCode: studioForm.postalCode || undefined,
-        address: studioForm.address || undefined,
-        addressDetail: studioForm.addressDetail || undefined,
-        taxInvoiceEmail: studioForm.taxInvoiceEmail || undefined,
-        taxInvoiceMethod: studioForm.taxInvoiceMethod || undefined,
-        mainGenre: studioForm.mainGenre || undefined,
-        monthlyOrderVolume: studioForm.monthlyOrderVolume || undefined,
-        colorProfile: studioForm.colorProfile || undefined,
-        acquisitionChannel: studioForm.acquisitionChannel || undefined,
-        preferredSize: studioForm.preferredSize || undefined,
-        preferredFinish: studioForm.preferredFinish || undefined,
-        hasLogo: studioForm.hasLogo,
-        deliveryNote: studioForm.deliveryNote || undefined,
-      });
-
-      window.location.href = '/login?registered=true&type=studio';
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message || '회원가입에 실패했습니다.');
-    } finally {
-      setIsLoading(false);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : '회원가입에 실패했습니다.';
+      setError(errorMessage);
     }
   };
 
   return (
     <div className="min-h-[calc(100vh-300px)] flex items-center justify-center p-4 py-8">
-      <Card className="w-full max-w-2xl shadow-lg">
+      <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="space-y-1 text-center">
           <Link href="/" className="inline-block mb-4">
-            <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center mx-auto">
+            <div className="w-12 h-12 bg-[#E4007F] rounded-lg flex items-center justify-center mx-auto">
               <span className="text-white font-bold text-2xl">P</span>
             </div>
           </Link>
           <CardTitle className="text-2xl">회원가입</CardTitle>
-          <CardDescription>
-            PhotoCafe 회원이 되어 다양한 혜택을 누리세요
-          </CardDescription>
+          <CardDescription>Printing114 계정을 만들어보세요</CardDescription>
         </CardHeader>
 
         <CardContent>
-          <Tabs value={memberType} onValueChange={(v) => { setMemberType(v as 'individual' | 'studio'); setStep(1); setError(null); }}>
-            <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="individual" className="flex items-center gap-2">
-                <User className="h-4 w-4" />
-                개인 고객
-              </TabsTrigger>
-              <TabsTrigger value="studio" className="flex items-center gap-2">
-                <Building2 className="h-4 w-4" />
-                스튜디오 (B2B)
-              </TabsTrigger>
-            </TabsList>
+          {error && (
+            <div className="flex items-center gap-2 p-3 mb-4 text-sm text-red-800 bg-red-50 border border-red-200 rounded-md">
+              <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
+              <span>{error}</span>
+            </div>
+          )}
 
-            {error && (
-              <div className="flex items-center gap-2 p-3 text-sm text-destructive bg-destructive/10 rounded-md mb-4">
-                <AlertCircle className="h-4 w-4" />
-                <span>{error}</span>
-              </div>
-            )}
-
-            {/* 개인 고객 회원가입 */}
-            <TabsContent value="individual">
-              <form onSubmit={handleIndividualSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="ind-name">이름 *</Label>
+          <form onSubmit={handleRegister} className="space-y-3">
+            {/* 아이디 */}
+            <div className="space-y-1.5">
+              <Label htmlFor="loginId" className="text-[14px] text-black font-normal">아이디</Label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
-                    id="ind-name"
-                    name="name"
-                    placeholder="홍길동"
-                    value={individualForm.name}
-                    onChange={handleIndividualChange}
-                    required
-                    disabled={isLoading}
+                    id="loginId"
+                    type="text"
+                    placeholder="아이디 입력 (4자 이상)"
+                    value={loginId}
+                    onChange={(e) => handleLoginIdChange(e.target.value)}
+                    className="pl-10 h-11"
+                    autoComplete="username"
                   />
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="ind-email">이메일 *</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="ind-email"
-                      name="email"
-                      type="email"
-                      placeholder="example@email.com"
-                      value={individualForm.email}
-                      onChange={handleIndividualChange}
-                      required
-                      disabled={isLoading}
-                      className="flex-1"
-                    />
-                    <Button
-                      type="button"
-                      variant={emailChecked ? "default" : "outline"}
-                      onClick={() => checkEmail(individualForm.email)}
-                      disabled={!individualForm.email || isLoading}
-                    >
-                      {emailChecked ? <CheckCircle2 className="h-4 w-4" /> : '중복확인'}
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="ind-password">비밀번호 *</Label>
-                    <Input
-                      id="ind-password"
-                      name="password"
-                      type="password"
-                      placeholder="6자 이상"
-                      value={individualForm.password}
-                      onChange={handleIndividualChange}
-                      required
-                      minLength={6}
-                      disabled={isLoading}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="ind-confirmPassword">비밀번호 확인 *</Label>
-                    <Input
-                      id="ind-confirmPassword"
-                      name="confirmPassword"
-                      type="password"
-                      placeholder="비밀번호 재입력"
-                      value={individualForm.confirmPassword}
-                      onChange={handleIndividualChange}
-                      required
-                      disabled={isLoading}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="ind-mobile">휴대폰 번호</Label>
-                  <PhoneInput
-                    id="ind-mobile"
-                    placeholder="010-0000-0000"
-                    value={individualForm.mobile}
-                    onChange={(val) => setIndividualForm(prev => ({ ...prev, mobile: val }))}
-                    disabled={isLoading}
-                  />
-                </div>
-
-                <div className="pt-2">
-                  <label className="flex items-start gap-2 cursor-pointer">
-                    <Checkbox
-                      checked={agreeTerms}
-                      onCheckedChange={(checked) => setAgreeTerms(checked as boolean)}
-                      className="mt-0.5"
-                    />
-                    <span className="text-sm">
-                      <Link href="/terms" className="text-primary hover:underline">이용약관</Link>
-                      {' 및 '}
-                      <Link href="/privacy" className="text-primary hover:underline">개인정보처리방침</Link>
-                      에 동의합니다. *
-                    </span>
-                  </label>
-                </div>
-
-                <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      가입 중...
-                    </>
-                  ) : (
-                    '회원가입'
-                  )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 px-4 shrink-0"
+                  onClick={handleCheckLoginId}
+                  disabled={checkLoginId.isPending || loginId.length < 4}
+                >
+                  {checkLoginId.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : '중복확인'}
                 </Button>
-              </form>
-            </TabsContent>
+              </div>
+              {loginIdChecked && loginIdAvailable && (
+                <p className="flex items-center gap-1 text-sm text-green-600">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  사용 가능한 아이디입니다.
+                </p>
+              )}
+            </div>
 
-            {/* 스튜디오 회원가입 */}
-            <TabsContent value="studio">
-              <form onSubmit={handleStudioSubmit}>
-                {/* Step 1: 기본 정보 + 사업자 정보 */}
-                {step === 1 && (
-                  <div className="space-y-6">
-                    {/* 기본 인적 사항 */}
-                    <div>
-                      <h3 className="font-semibold text-lg mb-3 pb-2 border-b">기본 정보</h3>
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="studioName">스튜디오명 (상호) *</Label>
-                          <Input
-                            id="studioName"
-                            name="studioName"
-                            placeholder="행복스튜디오"
-                            value={studioForm.studioName}
-                            onChange={handleStudioChange}
-                            required
-                            disabled={isLoading}
-                          />
-                        </div>
+            {/* 비밀번호 */}
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-[14px] text-black font-normal">비밀번호</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="비밀번호 입력 (6자 이상)"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pl-10 h-11"
+                  autoComplete="new-password"
+                />
+              </div>
+            </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="representative">대표자명 *</Label>
-                            <Input
-                              id="representative"
-                              name="representative"
-                              placeholder="홍길동"
-                              value={studioForm.representative}
-                              onChange={handleStudioChange}
-                              required
-                              disabled={isLoading}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="contactPerson">실무 담당자명</Label>
-                            <Input
-                              id="contactPerson"
-                              name="contactPerson"
-                              placeholder="김영희"
-                              value={studioForm.contactPerson}
-                              onChange={handleStudioChange}
-                              disabled={isLoading}
-                            />
-                          </div>
-                        </div>
+            {/* 비밀번호 확인 */}
+            <div className="space-y-1.5">
+              <Label htmlFor="passwordConfirm" className="text-[14px] text-black font-normal">비밀번호 확인</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  id="passwordConfirm"
+                  type="password"
+                  placeholder="비밀번호 다시 입력"
+                  value={passwordConfirm}
+                  onChange={(e) => setPasswordConfirm(e.target.value)}
+                  className="pl-10 h-11"
+                  autoComplete="new-password"
+                />
+              </div>
+            </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="studio-mobile">휴대폰 번호 *</Label>
-                            <PhoneInput
-                              id="studio-mobile"
-                              placeholder="010-0000-0000"
-                              value={studioForm.mobile}
-                              onChange={(val) => setStudioForm(prev => ({ ...prev, mobile: val }))}
-                              required
-                              disabled={isLoading}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="contactPhone">담당자 연락처</Label>
-                            <PhoneInput
-                              id="contactPhone"
-                              placeholder="010-0000-0000"
-                              value={studioForm.contactPhone}
-                              onChange={(val) => setStudioForm(prev => ({ ...prev, contactPhone: val }))}
-                              disabled={isLoading}
-                            />
-                          </div>
-                        </div>
+            {/* 이름 */}
+            <div className="space-y-1.5">
+              <Label htmlFor="name" className="text-[14px] text-black font-normal">이름</Label>
+              <div className="relative">
+                <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  id="name"
+                  type="text"
+                  placeholder="이름 입력"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="pl-10 h-11"
+                  autoComplete="name"
+                />
+              </div>
+            </div>
 
-                        <div className="space-y-2">
-                          <Label htmlFor="studio-phone">대표 전화번호</Label>
-                          <PhoneInput
-                            id="studio-phone"
-                            placeholder="02-000-0000"
-                            value={studioForm.phone}
-                            onChange={(val) => setStudioForm(prev => ({ ...prev, phone: val }))}
-                            disabled={isLoading}
-                          />
-                        </div>
+            {/* 이메일 */}
+            <div className="space-y-1.5">
+              <Label htmlFor="contactEmail" className="text-[14px] text-black font-normal">이메일</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  id="contactEmail"
+                  type="email"
+                  placeholder="이메일 입력"
+                  value={contactEmail}
+                  onChange={(e) => setContactEmail(e.target.value)}
+                  className="pl-10 h-11"
+                  autoComplete="email"
+                />
+              </div>
+            </div>
 
-                        <div className="space-y-2">
-                          <Label htmlFor="studio-email">이메일 *</Label>
-                          <div className="flex gap-2">
-                            <Input
-                              id="studio-email"
-                              name="email"
-                              type="email"
-                              placeholder="studio@email.com"
-                              value={studioForm.email}
-                              onChange={handleStudioChange}
-                              required
-                              disabled={isLoading}
-                              className="flex-1"
-                            />
-                            <Button
-                              type="button"
-                              variant={emailChecked ? "default" : "outline"}
-                              onClick={() => checkEmail(studioForm.email)}
-                              disabled={!studioForm.email || isLoading}
-                            >
-                              {emailChecked ? <CheckCircle2 className="h-4 w-4" /> : '중복확인'}
-                            </Button>
-                          </div>
-                        </div>
+            {/* 전화번호 (선택) */}
+            <div className="space-y-1.5">
+              <Label htmlFor="phone" className="text-[14px] text-black font-normal">
+                전화번호 <span className="text-gray-400 text-xs">(선택)</span>
+              </Label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="01012345678"
+                  value={phone}
+                  onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
+                  className="pl-10 h-11"
+                  autoComplete="tel"
+                  maxLength={11}
+                />
+              </div>
+            </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="studio-password">비밀번호 *</Label>
-                            <Input
-                              id="studio-password"
-                              name="password"
-                              type="password"
-                              placeholder="6자 이상"
-                              value={studioForm.password}
-                              onChange={handleStudioChange}
-                              required
-                              minLength={6}
-                              disabled={isLoading}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="studio-confirmPassword">비밀번호 확인 *</Label>
-                            <Input
-                              id="studio-confirmPassword"
-                              name="confirmPassword"
-                              type="password"
-                              placeholder="비밀번호 재입력"
-                              value={studioForm.confirmPassword}
-                              onChange={handleStudioChange}
-                              required
-                              disabled={isLoading}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+            <Button
+              type="submit"
+              className="w-full h-11 bg-[#E4007F] hover:bg-[#C5006D] text-white mt-2"
+              disabled={register.isPending}
+            >
+              {register.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              회원가입
+            </Button>
+          </form>
 
-                    {/* 사업자 정보 */}
-                    <div>
-                      <h3 className="font-semibold text-lg mb-3 pb-2 border-b">사업자 정보</h3>
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="businessNumber">사업자등록번호 *</Label>
-                          <div className="flex gap-2">
-                            <Input
-                              id="businessNumber"
-                              name="businessNumber"
-                              placeholder="123-45-67890"
-                              value={studioForm.businessNumber}
-                              onChange={handleStudioChange}
-                              required
-                              disabled={isLoading}
-                              className="flex-1"
-                            />
-                            <Button
-                              type="button"
-                              variant={businessNumberChecked ? "default" : "outline"}
-                              onClick={() => checkBusinessNumber(studioForm.businessNumber)}
-                              disabled={!studioForm.businessNumber || isLoading}
-                            >
-                              {businessNumberChecked ? <CheckCircle2 className="h-4 w-4" /> : '중복확인'}
-                            </Button>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="businessType">업태</Label>
-                            <Input
-                              id="businessType"
-                              name="businessType"
-                              placeholder="사진촬영업"
-                              value={studioForm.businessType}
-                              onChange={handleStudioChange}
-                              disabled={isLoading}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="businessCategory">종목</Label>
-                            <Input
-                              id="businessCategory"
-                              name="businessCategory"
-                              placeholder="웨딩, 베이비"
-                              value={studioForm.businessCategory}
-                              onChange={handleStudioChange}
-                              disabled={isLoading}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="postalCode">우편번호</Label>
-                            <Input
-                              id="postalCode"
-                              name="postalCode"
-                              placeholder="06234"
-                              value={studioForm.postalCode}
-                              onChange={handleStudioChange}
-                              disabled={isLoading}
-                            />
-                          </div>
-                          <div className="col-span-2 space-y-2">
-                            <Label htmlFor="address">주소</Label>
-                            <Input
-                              id="address"
-                              name="address"
-                              placeholder="서울시 강남구 테헤란로 123"
-                              value={studioForm.address}
-                              onChange={handleStudioChange}
-                              disabled={isLoading}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="addressDetail">상세주소</Label>
-                          <Input
-                            id="addressDetail"
-                            name="addressDetail"
-                            placeholder="456호"
-                            value={studioForm.addressDetail}
-                            onChange={handleStudioChange}
-                            disabled={isLoading}
-                          />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="taxInvoiceEmail">세금계산서 이메일</Label>
-                            <Input
-                              id="taxInvoiceEmail"
-                              name="taxInvoiceEmail"
-                              type="email"
-                              placeholder="tax@email.com"
-                              value={studioForm.taxInvoiceEmail}
-                              onChange={handleStudioChange}
-                              disabled={isLoading}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>세금계산서 발행방법</Label>
-                            <Select
-                              value={studioForm.taxInvoiceMethod}
-                              onValueChange={(v) => handleStudioSelectChange('taxInvoiceMethod', v)}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="선택" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="electronic">전자발행</SelectItem>
-                                <SelectItem value="fax">팩스</SelectItem>
-                                <SelectItem value="mail">우편</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <Button
-                      type="button"
-                      className="w-full"
-                      size="lg"
-                      onClick={() => setStep(2)}
-                    >
-                      다음 단계
-                    </Button>
-                  </div>
-                )}
-
-                {/* Step 2: 스튜디오 특성 + 제품 선호도 */}
-                {step === 2 && (
-                  <div className="space-y-6">
-                    {/* 스튜디오 특성 */}
-                    <div>
-                      <h3 className="font-semibold text-lg mb-3 pb-2 border-b">스튜디오 특성 (선택)</h3>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        맞춤형 서비스와 통계 분석을 위해 활용됩니다. 입력하지 않아도 됩니다.
-                      </p>
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label>주력 촬영 장르</Label>
-                            <Select
-                              value={studioForm.mainGenre}
-                              onValueChange={(v) => handleStudioSelectChange('mainGenre', v)}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="선택" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="wedding">웨딩</SelectItem>
-                                <SelectItem value="baby">베이비/돌</SelectItem>
-                                <SelectItem value="profile">프로필</SelectItem>
-                                <SelectItem value="snap">스냅</SelectItem>
-                                <SelectItem value="family">가족</SelectItem>
-                                <SelectItem value="commercial">상업</SelectItem>
-                                <SelectItem value="etc">기타</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="space-y-2">
-                            <Label>월 평균 주문 예상량</Label>
-                            <Select
-                              value={studioForm.monthlyOrderVolume}
-                              onValueChange={(v) => handleStudioSelectChange('monthlyOrderVolume', v)}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="선택" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="under10">10권 미만</SelectItem>
-                                <SelectItem value="10to50">10~50권</SelectItem>
-                                <SelectItem value="over50">50권 이상</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label>사용 색상 프로필</Label>
-                            <Select
-                              value={studioForm.colorProfile}
-                              onValueChange={(v) => handleStudioSelectChange('colorProfile', v)}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="선택" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="sRGB">sRGB</SelectItem>
-                                <SelectItem value="AdobeRGB">Adobe RGB</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="space-y-2">
-                            <Label>유입 경로</Label>
-                            <Select
-                              value={studioForm.acquisitionChannel}
-                              onValueChange={(v) => handleStudioSelectChange('acquisitionChannel', v)}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="선택" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="referral">지인 소개</SelectItem>
-                                <SelectItem value="search">웹 검색</SelectItem>
-                                <SelectItem value="exhibition">박람회</SelectItem>
-                                <SelectItem value="sns">SNS 광고</SelectItem>
-                                <SelectItem value="etc">기타</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 제품 선호도 */}
-                    <div>
-                      <h3 className="font-semibold text-lg mb-3 pb-2 border-b">제품 선호도 (선택)</h3>
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="preferredSize">선호 앨범 규격</Label>
-                            <Input
-                              id="preferredSize"
-                              name="preferredSize"
-                              placeholder="예: 11x14, 12x12"
-                              value={studioForm.preferredSize}
-                              onChange={handleStudioChange}
-                              disabled={isLoading}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>선호 내지 재질</Label>
-                            <Select
-                              value={studioForm.preferredFinish}
-                              onValueChange={(v) => handleStudioSelectChange('preferredFinish', v)}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="선택" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="glossy">유광</SelectItem>
-                                <SelectItem value="matte">무광</SelectItem>
-                                <SelectItem value="luster">러스터</SelectItem>
-                                <SelectItem value="metallic">메탈</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <label className="flex items-center gap-2 cursor-pointer">
-                            <Checkbox
-                              checked={studioForm.hasLogo}
-                              onCheckedChange={(checked) => setStudioForm(prev => ({ ...prev, hasLogo: checked as boolean }))}
-                            />
-                            <span className="text-sm">로고/낙관 데이터 삽입을 사용합니다</span>
-                          </label>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="deliveryNote">배송 요청사항</Label>
-                          <Textarea
-                            id="deliveryNote"
-                            name="deliveryNote"
-                            placeholder="예: 박스에 '유리주의' 스티커 필수, 직접 수령 선호 등"
-                            value={studioForm.deliveryNote}
-                            onChange={handleStudioChange}
-                            disabled={isLoading}
-                            rows={3}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="pt-2">
-                      <label className="flex items-start gap-2 cursor-pointer">
-                        <Checkbox
-                          checked={agreeTerms}
-                          onCheckedChange={(checked) => setAgreeTerms(checked as boolean)}
-                          className="mt-0.5"
-                        />
-                        <span className="text-sm">
-                          <Link href="/terms" className="text-primary hover:underline">이용약관</Link>
-                          {' 및 '}
-                          <Link href="/privacy" className="text-primary hover:underline">개인정보처리방침</Link>
-                          에 동의합니다. *
-                        </span>
-                      </label>
-                    </div>
-
-                    <div className="flex gap-3">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="flex-1"
-                        size="lg"
-                        onClick={() => setStep(1)}
-                      >
-                        이전
-                      </Button>
-                      <Button
-                        type="submit"
-                        className="flex-1"
-                        size="lg"
-                        disabled={isLoading}
-                      >
-                        {isLoading ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            가입 중...
-                          </>
-                        ) : (
-                          '스튜디오 회원가입'
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </form>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-
-        <CardFooter className="flex flex-col gap-4">
-          <div className="relative w-full">
+          <div className="relative my-2">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white px-2 text-muted-foreground">
-                간편 가입
-              </span>
+              <span className="bg-white px-2 text-gray-500">또는 소셜 계정으로 가입</span>
             </div>
           </div>
 
-          <a
-            href={`${process.env.NEXT_PUBLIC_API_URL || '/api/v1'}/auth/naver`}
-            className="inline-flex items-center justify-center w-full h-11 rounded-md text-sm font-medium bg-[#03C75A] hover:bg-[#02b351] text-white transition-colors"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              className="mr-2 h-5 w-5"
-              fill="currentColor"
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => setSocialConfirmProvider('naver')}
+              className="inline-flex items-center justify-center w-full h-12 rounded-md text-sm font-medium bg-[#03C75A] hover:bg-[#02b351] text-white transition-colors"
             >
-              <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z" />
-            </svg>
-            네이버로 간편 가입
-          </a>
+              <svg viewBox="0 0 24 24" className="mr-2 h-5 w-5" fill="currentColor">
+                <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z" />
+              </svg>
+              네이버로 가입
+            </button>
 
-          <p className="text-sm text-muted-foreground text-center">
+            <button
+              type="button"
+              onClick={() => setSocialConfirmProvider('kakao')}
+              className="inline-flex items-center justify-center w-full h-12 rounded-md text-sm font-medium bg-[#FEE500] hover:bg-[#FDD835] text-[#3C1E1E] transition-colors"
+            >
+              <svg viewBox="0 0 24 24" className="mr-2 h-5 w-5" fill="currentColor">
+                <path d="M12 3C6.477 3 2 6.463 2 10.691c0 2.65 1.73 4.973 4.342 6.324-.143.532-.548 2.043-.623 2.359-.096.397.146.392.307.286.126-.083 2.016-1.368 2.838-1.925.698.103 1.43.157 2.136.157 5.523 0 10-3.463 10-7.691C21 6.463 17.523 3 12 3z" />
+              </svg>
+              카카오로 가입
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSocialConfirmProvider('google')}
+              className="inline-flex items-center justify-center w-full h-12 rounded-md text-sm font-medium border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 transition-colors"
+            >
+              <svg viewBox="0 0 24 24" className="mr-2 h-5 w-5">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+              </svg>
+              Google로 가입
+            </button>
+
+          {/* 이미 가입된 회원 안내 다이얼로그 */}
+          <Dialog open={alreadyRegistered} onOpenChange={(open) => !open && setAlreadyRegistered(false)}>
+            <DialogContent className="sm:max-w-[400px]">
+              <DialogHeader>
+                <DialogTitle className="text-[18px] text-black font-bold">이미 가입된 회원입니다</DialogTitle>
+                <DialogDescription className="text-[14px] text-black font-normal">
+                  {alreadyRegisteredProvider === 'naver' ? '네이버' : alreadyRegisteredProvider === 'kakao' ? '카카오' : 'Google'} 계정으로{' '}
+                  {alreadyRegisteredAt && (
+                    <strong>{alreadyRegisteredAt}</strong>
+                  )}
+                  에 가입하셨습니다.
+                  <br />
+                  로그인 페이지에서 로그인하시겠습니까?
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button
+                  variant="outline"
+                  onClick={() => setAlreadyRegistered(false)}
+                >
+                  닫기
+                </Button>
+                <Button
+                  className="bg-[#E4007F] hover:bg-[#C5006D] text-white"
+                  onClick={() => {
+                    if (alreadyRegisteredProvider) {
+                      window.location.href = `${apiUrl}/auth/${alreadyRegisteredProvider}-login`;
+                    } else {
+                      router.push('/login');
+                    }
+                  }}
+                >
+                  <LogIn className="mr-1.5 h-4 w-4" />
+                  로그인하기
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          </div>
+
+          {/* 소셜 회원가입 확인 다이얼로그 */}
+          <Dialog open={!!socialConfirmProvider} onOpenChange={(open) => !open && setSocialConfirmProvider(null)}>
+            <DialogContent className="sm:max-w-[400px]">
+              <DialogHeader>
+                <DialogTitle className="text-[18px] text-black font-bold">회원가입 확인</DialogTitle>
+                <DialogDescription className="text-[14px] text-black font-normal">
+                  {socialConfirmProvider === 'naver' ? '네이버' : socialConfirmProvider === 'kakao' ? '카카오' : 'Google'} 계정으로 회원가입하시겠습니까?
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button
+                  variant="outline"
+                  onClick={() => setSocialConfirmProvider(null)}
+                >
+                  취소
+                </Button>
+                <a href={`${apiUrl}/auth/${socialConfirmProvider}-register`}>
+                  <Button className="bg-[#E4007F] hover:bg-[#C5006D] text-white">
+                    회원가입
+                  </Button>
+                </a>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </CardContent>
+
+        <CardFooter className="flex justify-center">
+          <p className="text-[14px] text-black font-normal text-center">
             이미 계정이 있으신가요?{' '}
             <Link href="/login" className="text-primary hover:underline font-medium">
               로그인
@@ -936,5 +407,23 @@ export default function RegisterPage() {
         </CardFooter>
       </Card>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-[calc(100vh-300px)] flex items-center justify-center p-4 py-8">
+          <Card className="w-full max-w-md shadow-lg">
+            <CardContent className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+            </CardContent>
+          </Card>
+        </div>
+      }
+    >
+      <RegisterForm />
+    </Suspense>
   );
 }

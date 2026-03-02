@@ -77,9 +77,11 @@ export interface UpdateEmploymentRequest {
 
 export interface AcceptInvitationRequest {
   token: string;
+  loginId: string;
   name: string;
   password: string;
   phone?: string;
+  email?: string;
 }
 
 export interface AcceptInvitationExistingRequest {

@@ -8,6 +8,7 @@ import { PrismaService } from './common/prisma/prisma.service';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 
 // BigInt JSON 직렬화 지원 (Prisma BigInt 필드)
 (BigInt.prototype as any).toJSON = function () {
@@ -25,6 +26,9 @@ async function bootstrap() {
   // Nginx 리버스 프록시 신뢰 설정 (req.ip가 올바른 클라이언트 IP를 반환하도록)
   // 운영 환경에서 Nginx가 X-Forwarded-For를 설정하므로 1단계 프록시 신뢰
   app.set('trust proxy', 1);
+
+  // Cookie parser (OAuth 초대 토큰 등)
+  app.use(cookieParser());
 
   // HTTP 보안 헤더 (XSS, 클릭재킹, MIME 스니핑, HSTS 등)
   app.use(

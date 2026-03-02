@@ -16,9 +16,23 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { AddressSearch } from '@/components/address-search';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Info } from 'lucide-react';
 import type { ShootingType, CreateShootingDto, Shooting } from '@/hooks/use-shooting';
 import { SHOOTING_TYPE_LABELS } from '@/hooks/use-shooting';
+import { useAverageBudget } from '@/hooks/use-recruitment';
+
+// ==================== 촬영유형 → 구인방 유형 매핑 ====================
+
+/** 촬영일정 유형을 구인방 유형으로 매핑 (평균예산 집계용) */
+const SHOOTING_TO_RECRUITMENT_TYPES: Record<string, string[]> = {
+  wedding: ['wedding_main', 'wedding_rehearsal'],
+  studio: ['profile'],
+  outdoor: ['wedding_main', 'wedding_rehearsal'],
+  product: ['other'],
+  profile: ['profile'],
+  event: ['baby_dol', 'baby_growth', 'other'],
+  other: ['other'],
+};
 
 // ==================== Zod 스키마 ====================
 
@@ -91,6 +105,32 @@ export function ShootingForm({
     formState: { errors },
   } = form;
 
+  const watchedType = watch('type');
+
+  const { data: avgBudgetData } = useAverageBudget();
+
+  // 선택한 촬영유형의 사이트 평균 예산 (구인방 데이터 기준)
+  const averageBudgetInfo = (() => {
+    if (!watchedType || !avgBudgetData) return null;
+    const recruitTypes = SHOOTING_TO_RECRUITMENT_TYPES[watchedType] || [];
+    let totalBudget = 0;
+    let totalCount = 0;
+    for (const rt of recruitTypes) {
+      const d = avgBudgetData[rt];
+      if (d && d.avg > 0) {
+        totalBudget += d.avg * d.count;
+        totalCount += d.count;
+      }
+    }
+    if (totalCount < 1) return null;
+    const avg = Math.round(totalBudget / totalCount);
+    const typeLabel = SHOOTING_TYPE_LABELS[watchedType as ShootingType] || watchedType;
+    return {
+      formatted: avg.toLocaleString('ko-KR'),
+      label: `${typeLabel} 평균 예산 (${totalCount}건 기준)`,
+    };
+  })();
+
   const handleFormSubmit = (values: ShootingFormValues) => {
     const dto: CreateShootingDto = {
       title: values.title,
@@ -145,7 +185,10 @@ export function ShootingForm({
             </Label>
             <Select
               value={watch('type')}
-              onValueChange={(val) => setValue('type', val, { shouldValidate: true })}
+              onValueChange={(val) => {
+                setValue('type', val);
+                form.trigger('type');
+              }}
             >
               <SelectTrigger className="text-[14px]">
                 <SelectValue placeholder="유형 선택" />
@@ -198,16 +241,22 @@ export function ShootingForm({
             </div>
           </div>
 
-          {/* 예산 */}
+          {/* 촬영예산 */}
           <div className="space-y-1.5">
-            <Label className="text-[14px] text-black font-normal">예산 (원)</Label>
+            <Label className="text-[14px] text-black font-normal">촬영예산 (원)</Label>
             <Input
               type="number"
               {...register('budget')}
-              placeholder="촬영 예산"
+              placeholder={averageBudgetInfo ? `평균 ${averageBudgetInfo.formatted}원` : '촬영 예산'}
               min={0}
               className="text-[14px]"
             />
+            {averageBudgetInfo && (
+              <p className="text-[12px] text-gray-500 flex items-center gap-1">
+                <Info className="h-3 w-3" />
+                {averageBudgetInfo.label}: {averageBudgetInfo.formatted}원
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>

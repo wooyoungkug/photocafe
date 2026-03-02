@@ -36,6 +36,10 @@ export interface Client {
   addressDetail?: string;
   groupId?: string;
   group?: ClientGroup;
+  gender?: string;
+  birthday?: string;
+  oauthProvider?: string;
+  profileImage?: string;
   memberType?: 'individual' | 'business';
   shippingType?: 'conditional' | 'free' | 'prepaid' | 'cod';
   freeShippingThreshold?: number;
@@ -45,6 +49,7 @@ export interface Client {
   creditPaymentDay?: number;
   duplicateCheckMonths?: number;
   fileRetentionMonths?: number;
+  acquisitionChannel?: string;
   assignedManager?: string;
   practicalManagerName?: string;
   practicalManagerPhone?: string;
@@ -74,6 +79,8 @@ export interface CreateClientDto {
   phone?: string;
   mobile?: string;
   email?: string;
+  gender?: string;
+  birthday?: string;
   postalCode?: string;
   address?: string;
   addressDetail?: string;
@@ -94,6 +101,7 @@ export interface CreateClientDto {
   status?: 'active' | 'inactive' | 'suspended';
   duplicateCheckMonths?: number;
   fileRetentionMonths?: number;
+  acquisitionChannel?: string;
 }
 
 // 거래처 수정 DTO

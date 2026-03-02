@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
-import { useAuthStore } from '@/stores/auth-store';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -10,9 +9,52 @@ interface AuthGuardProps {
   loginPath?: string;
 }
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+
 // 전역 인증 캐시 (페이지 이동 시에도 유지)
 let authCache: { authenticated: boolean; timestamp: number } | null = null;
 const AUTH_CACHE_DURATION = 30000; // 30초간 캐시 유지
+
+// access token 없을 때 refresh token으로 복구 시도
+async function tryRecoverSession(): Promise<boolean> {
+  const refreshToken =
+    sessionStorage.getItem('refreshToken') || localStorage.getItem('refreshToken');
+  if (!refreshToken) return false;
+
+  try {
+    const res = await fetch(`${API_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+    if (!res.ok) return false;
+
+    const data = await res.json();
+    const useLocal = !!localStorage.getItem('refreshToken');
+    const storage = useLocal ? localStorage : sessionStorage;
+    storage.setItem('accessToken', data.accessToken);
+    if (data.refreshToken) storage.setItem('refreshToken', data.refreshToken);
+
+    // auth-storage도 복구
+    const raw = storage.getItem('auth-storage');
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed?.state) {
+          parsed.state.accessToken = data.accessToken;
+          if (data.refreshToken) parsed.state.refreshToken = data.refreshToken;
+          storage.setItem('auth-storage', JSON.stringify(parsed));
+        }
+      } catch { /* ignore */ }
+    }
+
+    // auth-verified 쿠키 갱신
+    document.cookie = `auth-verified=true; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export function AuthGuard({ children, requireAdmin = false, loginPath = '/admin-login' }: AuthGuardProps) {
   // 캐시된 인증 상태가 있으면 즉시 사용
@@ -28,14 +70,25 @@ export function AuthGuard({ children, requireAdmin = false, loginPath = '/admin-
     if (checkedRef.current && status === 'authenticated') return;
     if (typeof window === 'undefined') return;
 
-    // 즉시 체크 (딜레이 제거)
-    const checkAuth = () => {
+    const checkAuth = async () => {
       try {
-        const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+        let token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+
+        // 토큰이 없으면 refresh token으로 복구 시도
+        if (!token) {
+          console.warn('[AuthGuard] accessToken 없음, refresh로 복구 시도...');
+          const recovered = await tryRecoverSession();
+          if (recovered) {
+            token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+          }
+        }
 
         if (!token) {
+          console.warn('[AuthGuard] 토큰 복구 실패 → 로그인 페이지로 이동');
           checkedRef.current = true;
           authCache = null;
+          // 쿠키도 정리
+          document.cookie = 'auth-verified=; path=/; max-age=0';
           window.location.href = loginPath;
           return;
         }
@@ -65,6 +118,7 @@ export function AuthGuard({ children, requireAdmin = false, loginPath = '/admin-
       } catch {
         checkedRef.current = true;
         authCache = null;
+        document.cookie = 'auth-verified=; path=/; max-age=0';
         window.location.href = loginPath;
       }
     };

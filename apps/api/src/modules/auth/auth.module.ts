@@ -5,17 +5,19 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
-import { LocalStrategy } from './strategies/local.strategy';
 import { NaverStrategy } from './strategies/naver.strategy';
 import { KakaoStrategy } from './strategies/kakao.strategy';
 import { StaffNaverStrategy } from './strategies/staff-naver.strategy';
 import { StaffKakaoStrategy } from './strategies/staff-kakao.strategy';
 import { GoogleStrategy } from './strategies/google.strategy';
+import { CustomerGoogleStrategy } from './strategies/customer-google.strategy';
+import { EmploymentModule } from '../employment/employment.module';
 
 @Module({
   imports: [
     ConfigModule,
     PassportModule,
+    EmploymentModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
@@ -27,7 +29,7 @@ import { GoogleStrategy } from './strategies/google.strategy';
           return secret;
         })(),
         signOptions: {
-          expiresIn: '24h' as const,
+          expiresIn: '8h' as const,
         },
       }),
       inject: [ConfigService],
@@ -37,14 +39,13 @@ import { GoogleStrategy } from './strategies/google.strategy';
   providers: [
     AuthService,
     JwtStrategy,
-    LocalStrategy,
     NaverStrategy,
     KakaoStrategy,
     StaffNaverStrategy,
     StaffKakaoStrategy,
     GoogleStrategy,
+    CustomerGoogleStrategy,
   ],
   exports: [AuthService],
 })
 export class AuthModule { }
-

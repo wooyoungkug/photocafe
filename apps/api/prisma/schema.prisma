@@ -332,6 +332,7 @@ model Client {
   phone                   String?
   mobile                  String?
   email                   String?
+  contactEmail            String?
   password                String?
   postalCode              String?
   address                 String?
@@ -341,6 +342,8 @@ model Client {
   oauthProvider           String?
   oauthId                 String?
   profileImage            String?
+  gender                  String?
+  birthday                String?
   lastLoginAt             DateTime?
   lastLoginIp             String?
   priceType               String                         @default("standard")
@@ -411,6 +414,11 @@ model Client {
   companyEmployments      Employment[]                   @relation("EmploymentCompany")
   invitations             Invitation[]
   clientDepartments       ClientDepartment[]
+  recruitments            Recruitment[]      @relation("RecruitmentClient")
+  createdRecruitments     Recruitment[]      @relation("RecruitmentCreator")
+  recruitmentBids         RecruitmentBid[]   @relation("RecruitmentBidder")
+  photographerProfile     PhotographerProfile?
+  notificationsReceived   RecruitmentNotificationLog[] @relation("NotificationRecipient")
 
   @@unique([oauthProvider, oauthId])
   @@index([groupId])
@@ -423,6 +431,19 @@ model Client {
   @@index([status])
   @@index([createdAt])
   @@map("clients")
+}
+
+model EmailVerification {
+  id        String   @id @default(cuid())
+  email     String
+  code      String
+  verified  Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email, code])
+  @@index([email, createdAt])
+  @@map("email_verifications")
 }
 
 model ClientAlbumPreference {
@@ -3134,4 +3155,116 @@ model PhotographerStats {
   @@index([grade])
   @@index([reliabilityIndex])
   @@map("photographer_stats")
+}
+
+// ==================== 구인방 (Recruitment) ====================
+
+model Recruitment {
+  id               String    @id @default(cuid())
+  clientId         String                              // 등록한 스튜디오 (거래처)
+  title            String                              // 구인 제목
+  shootingType     String                              // wedding_main, baby_dol 등
+  shootingDate     DateTime                            // 촬영일
+  shootingTime     String?                             // 촬영 시간 (HH:mm)
+  duration         Int?                                // 예상 소요시간(분)
+  venueName        String                              // 장소명
+  venueAddress     String?                             // 주소
+  latitude         Float?
+  longitude        Float?
+  budget           Int?                                // 보수(원)
+  description      String?                             // 상세 설명
+  requirements     String?                             // 요구사항
+  customerName     String?                             // 신랑/신부명
+
+  status           String    @default("draft")         // draft, private_recruiting, public_recruiting, filled, expired, cancelled
+  recruitmentPhase String    @default("private")       // private | public
+  privateDeadline  DateTime?                           // 전속 모집 마감 시각
+  maxBidders       Int       @default(5)
+  urgencyLevel     String    @default("normal")        // normal | urgent | emergency
+
+  createdBy        String                              // 등록자 Client ID
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  client            Client           @relation("RecruitmentClient", fields: [clientId], references: [id])
+  creator           Client           @relation("RecruitmentCreator", fields: [createdBy], references: [id])
+  bids              RecruitmentBid[]
+  notificationLogs  RecruitmentNotificationLog[]
+
+  @@index([status])
+  @@index([clientId])
+  @@index([shootingDate])
+  @@index([recruitmentPhase, status])
+  @@map("recruitments")
+}
+
+model RecruitmentBid {
+  id             String   @id @default(cuid())
+  recruitmentId  String
+  bidderId       String                                // 응찰 포토그래퍼 Client ID
+  message        String?                               // 자기소개
+  proposedBudget Int?                                  // 제안 금액
+  status         String   @default("pending")          // pending | selected | rejected
+  bidAt          DateTime @default(now())
+
+  recruitment Recruitment @relation(fields: [recruitmentId], references: [id], onDelete: Cascade)
+  bidder      Client      @relation("RecruitmentBidder", fields: [bidderId], references: [id])
+
+  @@unique([recruitmentId, bidderId])
+  @@index([recruitmentId])
+  @@index([bidderId])
+  @@index([status])
+  @@map("recruitment_bids")
+}
+
+// ── 포토그래퍼 프로필 (희망지역 + 경력) ─────────────────────
+model PhotographerProfile {
+  id                   String   @id @default(cuid())
+  clientId             String   @unique
+
+  // 희망 지역 (시/군/구 단위, 우선순위별)
+  preferredRegion1     String?                          // "서울특별시 강남구"
+  preferredRegion2     String?                          // "경기도 성남시"
+  preferredRegion3     String?                          // "인천광역시 남동구"
+
+  // 프로필 정보
+  introduction         String?
+  career               String?
+  careerYears          Int?
+  portfolioImages      String[]  @default([])
+  specialties          String[]  @default([])
+  equipment            String?
+
+  // 가용 설정
+  isAvailableForPublic Boolean   @default(true)
+
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([preferredRegion1])
+  @@index([preferredRegion2])
+  @@index([preferredRegion3])
+  @@index([isAvailableForPublic])
+  @@map("photographer_profiles")
+}
+
+// ── 구인 알림 발송 로그 ──────────────────────────────────────
+model RecruitmentNotificationLog {
+  id             String   @id @default(cuid())
+  recruitmentId  String
+  recipientId    String                                 // Client ID (포토그래퍼)
+  regionTier     Int                                    // 1, 2, 3
+  matchedRegion  String?                                // 매칭된 지역명
+  channel        String   @default("email")             // email | alimtalk
+  status         String   @default("sent")              // sent | failed
+  sentAt         DateTime @default(now())
+
+  recruitment Recruitment @relation(fields: [recruitmentId], references: [id], onDelete: Cascade)
+  recipient   Client      @relation("NotificationRecipient", fields: [recipientId], references: [id])
+
+  @@unique([recruitmentId, recipientId])
+  @@index([recruitmentId])
+  @@map("recruitment_notification_logs")
 }

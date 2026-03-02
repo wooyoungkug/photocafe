@@ -774,11 +774,6 @@ export default function EmployeesPage() {
                       placeholder="smsl1122"
                       disabled={!!editingStaff}
                     />
-                    {editingStaff && (
-                      <p className="text-xs text-muted-foreground">
-                        비밀번호는 잊으셨을경우 파란소프트로 연락주시거나 변경해서 사용해주세요.
-                      </p>
-                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="password">

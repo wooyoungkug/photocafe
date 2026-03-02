@@ -5,13 +5,13 @@ import Link from 'next/link';
 import {
   ShoppingBag,
   Calendar,
-  CalendarDays,
   Camera,
   Wallet,
   User,
   MapPin,
   Star,
   Users,
+  Briefcase,
   ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -51,9 +51,15 @@ function getMenuItems(user: {
     items.push({ icon: Wallet, label: '입금내역', href: '/mypage/deposits' });
   }
 
-  // 일정관리 & 촬영일정: 모든 사용자
-  items.push({ icon: CalendarDays, label: '일정관리', href: '/mypage/schedule' });
-  items.push({ icon: Camera, label: '촬영일정', href: '/mypage/shooting' });
+  // 일정관리: 거래처 소유자 또는 MANAGER 직원
+  if (!isEmployee || user?.employeeRole === 'MANAGER') {
+    items.push({ icon: Camera, label: '일정관리', href: '/mypage/schedule' });
+  }
+
+  // 구인방: 거래처 소유자 또는 MANAGER 직원
+  if (!isEmployee || user?.employeeRole === 'MANAGER') {
+    items.push({ icon: Briefcase, label: '구인방', href: '/mypage/recruitment' });
+  }
 
   return items;
 }
