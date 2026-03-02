@@ -524,6 +524,12 @@ export class EmploymentService {
 
   // ==================== 직원 관리 ====================
 
+  async getEmploymentById(id: string) {
+    const employment = await this.prisma.employment.findUnique({ where: { id } });
+    if (!employment) throw new NotFoundException('직원 정보를 찾을 수 없습니다.');
+    return employment;
+  }
+
   async updateEmployment(employmentId: string, dto: UpdateEmploymentDto) {
     const employment = await this.prisma.employment.findUnique({
       where: { id: employmentId },

@@ -217,10 +217,12 @@ export default function EmployeesPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => setEditTarget(emp)}>
-                                <Settings className="h-3.5 w-3.5 mr-2" />
-                                권한 설정
-                              </DropdownMenuItem>
+                              {emp.id !== user?.employmentId && (
+                                <DropdownMenuItem onClick={() => setEditTarget(emp)}>
+                                  <Settings className="h-3.5 w-3.5 mr-2" />
+                                  권한 설정
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem
                                 className="text-red-600"
                                 onClick={() => setRemoveTarget(emp)}

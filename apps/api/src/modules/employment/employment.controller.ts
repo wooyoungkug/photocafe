@@ -146,7 +146,12 @@ export class EmploymentController {
   async updateEmployment(
     @Param('id') id: string,
     @Body() dto: UpdateEmploymentDto,
+    @Request() req: any,
   ) {
+    const employment = await this.employmentService.getEmploymentById(id);
+    if (employment.memberClientId === req.user.sub) {
+      throw new ForbiddenException('자신의 권한은 수정할 수 없습니다.');
+    }
     return this.employmentService.updateEmployment(id, dto);
   }
 
