@@ -72,6 +72,7 @@ export default function ScheduleNewPage() {
       </div>
 
       {/* 폼 */}
+      <div className="w-[70%]">
       <ShootingForm
         defaultValues={defaultValues as any}
         onSubmit={handleSubmit}
@@ -79,6 +80,7 @@ export default function ScheduleNewPage() {
         isLoading={createMutation.isPending}
         mode="create"
       />
+      </div>
     </div>
   );
 }
