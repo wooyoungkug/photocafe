@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-interface HolidayItem {
+export interface HolidayItem {
   date: string; // YYYY-MM-DD
   name: string;
   isHoliday: boolean; // 공휴일 여부 (기념일은 false)
