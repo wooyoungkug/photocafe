@@ -28,6 +28,7 @@ interface User {
   canViewAllOrders?: boolean;
   canManageProducts?: boolean;
   canViewSettlement?: boolean;
+  canManageSchedule?: boolean;
 }
 
 interface AuthState {

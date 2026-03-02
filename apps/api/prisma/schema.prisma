@@ -2987,6 +2987,7 @@ model Employment {
   canViewAllOrders  Boolean          @default(false)
   canManageProducts Boolean          @default(false)
   canViewSettlement Boolean          @default(false)
+  canManageSchedule Boolean          @default(false)
   department        String?
   joinedAt          DateTime         @default(now())
   createdAt         DateTime         @default(now())

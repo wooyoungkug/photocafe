@@ -158,8 +158,11 @@ export class EmploymentController {
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: '직원 제거' })
-  async removeEmployment(@Param('id') id: string) {
+  @ApiOperation({ summary: '직원 제거 (최고관리자 전용)' })
+  async removeEmployment(@Param('id') id: string, @Request() req: any) {
+    if (req.user.type !== 'client') {
+      throw new ForbiddenException('직원 제거는 최고관리자만 가능합니다.');
+    }
     return this.employmentService.removeEmployment(id);
   }
 

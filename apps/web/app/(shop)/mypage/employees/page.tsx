@@ -71,6 +71,8 @@ export default function EmployeesPage() {
     user?.type === 'client' ||
     (user?.type === 'employee' && user?.employeeRole === 'MANAGER');
 
+  const isOwner = user?.type === 'client';
+
   const [inviteOpen, setInviteOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Employment | null>(null);
   const [removeTarget, setRemoveTarget] = useState<Employment | null>(null);
@@ -223,13 +225,15 @@ export default function EmployeesPage() {
                                   권한 설정
                                 </DropdownMenuItem>
                               )}
-                              <DropdownMenuItem
-                                className="text-red-600"
-                                onClick={() => setRemoveTarget(emp)}
-                              >
-                                <Trash2 className="h-3.5 w-3.5 mr-2" />
-                                제거
-                              </DropdownMenuItem>
+                              {isOwner && (
+                                <DropdownMenuItem
+                                  className="text-red-600"
+                                  onClick={() => setRemoveTarget(emp)}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5 mr-2" />
+                                  제거
+                                </DropdownMenuItem>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         )}
@@ -478,6 +482,7 @@ function EditPermissionDialog({
   const [canViewAllOrders, setCanViewAllOrders] = useState(employment.canViewAllOrders);
   const [canManageProducts, setCanManageProducts] = useState(employment.canManageProducts);
   const [canViewSettlement, setCanViewSettlement] = useState(employment.canViewSettlement);
+  const [canManageSchedule, setCanManageSchedule] = useState(employment.canManageSchedule);
   const [status, setStatus] = useState<EmploymentStatus>(employment.status);
   const [department, setDepartment] = useState(employment.department || '');
 
@@ -488,7 +493,7 @@ function EditPermissionDialog({
     updateMutation.mutate(
       {
         id: employment.id,
-        data: { role, canViewAllOrders, canManageProducts, canViewSettlement, status, department },
+        data: { role, canViewAllOrders, canManageProducts, canViewSettlement, canManageSchedule, status, department },
       },
       {
         onSuccess: () => {
@@ -591,6 +596,16 @@ function EditPermissionDialog({
                 />
                 <label htmlFor="viewSettlement" className="text-[14px] text-black font-normal cursor-pointer">
                   정산/입금 정보 열람
+                </label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="manageSchedule"
+                  checked={canManageSchedule}
+                  onCheckedChange={(v) => setCanManageSchedule(v as boolean)}
+                />
+                <label htmlFor="manageSchedule" className="text-[14px] text-black font-normal cursor-pointer">
+                  일정관리
                 </label>
               </div>
             </div>

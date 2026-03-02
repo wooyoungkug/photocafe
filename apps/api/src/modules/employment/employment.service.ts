@@ -556,6 +556,9 @@ export class EmploymentService {
         ...(dto.canViewSettlement !== undefined && {
           canViewSettlement: dto.canViewSettlement,
         }),
+        ...(dto.canManageSchedule !== undefined && {
+          canManageSchedule: dto.canManageSchedule,
+        }),
         ...(dto.status !== undefined && { status: dto.status }),
         ...(dto.department !== undefined && {
           department: dto.department?.trim() || null,
