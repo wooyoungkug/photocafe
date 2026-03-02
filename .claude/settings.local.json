@@ -374,7 +374,11 @@
       "Bash(PGPASSWORD=postgres \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -c \"UPDATE staff SET \"\"isSuperAdmin\"\" = true WHERE \"\"staffId\"\" = ''admin'';\")",
       "Bash(PGPASSWORD=postgres \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -c \"SELECT \"\"staffId\"\", \"\"name\"\", \"\"isSuperAdmin\"\" FROM staff WHERE \"\"staffId\"\" = ''admin'';\")",
       "WebFetch(domain:docs.nhncloud.com)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql\" -U postgres -h localhost -d printing_erp -c \"UPDATE \"\"Staff\"\" SET password = ''$2b$10$DuXQIpqaZDxvnqXSaSnW8u9slgLq/NSHt4ryBRQB6rG/K4u8dWGJy'' WHERE \"\"staffId\"\" = ''admin'';\")",
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql\" -U postgres -h localhost -d printing_erp -c \"\\\\dt\")",
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql\" -U postgres -h localhost -d printing_erp -c \"UPDATE staff SET password = ''$2b$10$DuXQIpqaZDxvnqXSaSnW8u9slgLq/NSHt4ryBRQB6rG/K4u8dWGJy'' WHERE staff_id = ''admin'' RETURNING staff_id, name;\")",
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql\" -U postgres -h localhost -d printing_erp -c \"UPDATE staff SET password = ''$2b$10$DuXQIpqaZDxvnqXSaSnW8u9slgLq/NSHt4ryBRQB6rG/K4u8dWGJy'' WHERE \"\"staffId\"\" = ''admin'' RETURNING \"\"staffId\"\", name;\")"
     ],
     "additionalDirectories": [
       "C:\\dev\\printing114\\apps\\api\\dist",
