@@ -62,8 +62,8 @@ export class EmailService {
       this.logger.log(`이메일 발송 완료: ${result.messageId}`);
       return { success: true, messageId: result.messageId };
     } catch (error) {
-      this.logger.error(`이메일 발송 실패: ${error.message}`);
-      return { success: false, error: error.message };
+      this.logger.error(`이메일 발송 실패: ${(error as Error).message}`);
+      return { success: false, error: (error as Error).message };
     }
   }
 }

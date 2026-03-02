@@ -95,9 +95,9 @@ export class ShootingService {
         if (!clientId) {
           const user = await this.prisma.user.findUnique({
             where: { id: userId },
-            select: { clientId: true },
+            select: { client: { select: { id: true } } },
           });
-          clientId = user?.clientId || undefined;
+          clientId = user?.client?.id || undefined;
         }
 
         if (clientId) {
@@ -318,9 +318,9 @@ export class ShootingService {
         if (!clientId) {
           const user = await this.prisma.user.findUnique({
             where: { id: shooting.createdBy },
-            select: { clientId: true },
+            select: { client: { select: { id: true } } },
           });
-          clientId = user?.clientId || undefined;
+          clientId = user?.client?.id || undefined;
         }
 
         if (clientId) {

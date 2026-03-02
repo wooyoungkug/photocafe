@@ -2524,7 +2524,7 @@ export class OrderService {
         totalDeleted += result.deletedCount;
         totalFreed += result.freedBytes;
       } catch (err) {
-        this.logger.warn(`원본 삭제 실패 (item: ${item.id}): ${err.message}`);
+        this.logger.warn(`원본 삭제 실패 (item: ${item.id}): ${(err as Error).message}`);
       }
     }
 
@@ -2549,7 +2549,7 @@ export class OrderService {
         successCount++;
       } catch (err) {
         failed.push(orderId);
-        this.logger.warn(`원본 일괄 삭제 실패: ${orderId} - ${err.message}`);
+        this.logger.warn(`원본 일괄 삭제 실패: ${orderId} - ${(err as Error).message}`);
       }
     }
 

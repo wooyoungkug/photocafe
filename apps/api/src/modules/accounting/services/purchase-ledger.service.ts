@@ -164,8 +164,8 @@ export class PurchaseLedgerService {
       this.logger.log(`매입 자동분개 성공: ${ledgerNumber} (${supplier.clientName}, ${dto.totalAmount}원)`);
     } catch (err) {
       this.logger.error(
-        `매입 자동분개 실패: ${ledgerNumber} (${supplier.clientName}) - ${err.message}`,
-        err.stack,
+        `매입 자동분개 실패: ${ledgerNumber} (${supplier.clientName}) - ${(err as Error).message}`,
+        (err as Error).stack,
       );
     }
 
@@ -324,8 +324,8 @@ export class PurchaseLedgerService {
       this.logger.log(`지급 자동분개 성공: ${ledger.ledgerNumber} (${dto.paymentMethod}, ${dto.amount}원)`);
     } catch (err) {
       this.logger.error(
-        `지급 자동분개 실패: ${ledger.ledgerNumber} (${ledger.supplierName}) - ${err.message}`,
-        err.stack,
+        `지급 자동분개 실패: ${ledger.ledgerNumber} (${ledger.supplierName}) - ${(err as Error).message}`,
+        (err as Error).stack,
       );
     }
 

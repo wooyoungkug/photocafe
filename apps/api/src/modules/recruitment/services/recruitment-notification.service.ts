@@ -58,7 +58,7 @@ export class RecruitmentNotificationService {
 
     const recipients = photographers.map((p) => ({
       phone: p.member.mobile || p.member.phone || '',
-      email: p.member.email || p.member.contactEmail || undefined,
+      email: p.member.email || undefined,
       name: p.member.clientName,
     }));
 

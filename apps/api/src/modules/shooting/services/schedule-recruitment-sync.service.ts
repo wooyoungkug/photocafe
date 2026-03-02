@@ -112,7 +112,7 @@ export class ScheduleRecruitmentSyncService {
       return shooting;
     } catch (error) {
       this.logger.error(
-        `Failed to sync Recruitment → Shooting: ${error.message}`,
+        `Failed to sync Recruitment → Shooting: ${(error as Error).message}`,
       );
     } finally {
       this.isSyncing = false;
@@ -192,7 +192,7 @@ export class ScheduleRecruitmentSyncService {
       return recruitment;
     } catch (error) {
       this.logger.error(
-        `Failed to sync Shooting → Recruitment: ${error.message}`,
+        `Failed to sync Shooting → Recruitment: ${(error as Error).message}`,
       );
     } finally {
       this.isSyncing = false;
@@ -305,7 +305,7 @@ export class ScheduleRecruitmentSyncService {
         }
       }
     } catch (error) {
-      this.logger.error(`Failed to sync field update: ${error.message}`);
+      this.logger.error(`Failed to sync field update: ${(error as Error).message}`);
     } finally {
       this.isSyncing = false;
     }
@@ -357,7 +357,7 @@ export class ScheduleRecruitmentSyncService {
         }
       }
     } catch (error) {
-      this.logger.error(`Failed to sync status change: ${error.message}`);
+      this.logger.error(`Failed to sync status change: ${(error as Error).message}`);
     } finally {
       this.isSyncing = false;
     }
@@ -394,7 +394,7 @@ export class ScheduleRecruitmentSyncService {
         `Synced bid selection: Recruitment(${recruitmentId}) → ShootingSchedule confirmed, assignedClientId=${selectedClientId}`,
       );
     } catch (error) {
-      this.logger.error(`Failed to sync bid selection: ${error.message}`);
+      this.logger.error(`Failed to sync bid selection: ${(error as Error).message}`);
     } finally {
       this.isSyncing = false;
     }
@@ -434,7 +434,7 @@ export class ScheduleRecruitmentSyncService {
         }
       }
     } catch (error) {
-      this.logger.error(`Failed to unlink records: ${error.message}`);
+      this.logger.error(`Failed to unlink records: ${(error as Error).message}`);
     }
   }
 }

@@ -254,7 +254,7 @@ export class AuthService {
 
     if (existing) {
       return {
-        provider: existing.oauthProvider,
+        provider: existing.oauthProvider || '',
         date: existing.createdAt.toISOString().split('T')[0],
       };
     }
@@ -678,6 +678,7 @@ export class AuthService {
 
   async validateStaffOAuth(data: {
     oauthProvider: string; oauthId: string; email: string; name: string; profileImage?: string;
+    gender?: string; birthday?: string; birthyear?: string; mobile?: string;
   }): Promise<{ staff: any; isNew: boolean }> {
     let staff = await this.prisma.staff.findFirst({
       where: { oauthProvider: data.oauthProvider, oauthId: data.oauthId },

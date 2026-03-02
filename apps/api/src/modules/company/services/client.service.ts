@@ -83,7 +83,7 @@ export class ClientService {
     });
 
     const openCountMap = new Map(
-      openConsultationsCount.map((item: { clientId: string; _count: number }) => [item.clientId, item._count])
+      openConsultationsCount.map((item: any) => [item.clientId, item._count])
     );
 
     const data = clients.map((client: any) => ({

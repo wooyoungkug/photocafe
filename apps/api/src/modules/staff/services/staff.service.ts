@@ -605,7 +605,7 @@ export class StaffService {
 
         results.imported++;
       } catch (error) {
-        results.errors.push({ row: i + 1, staffId: row.staffId, message: error.message || '등록 실패' });
+        results.errors.push({ row: i + 1, staffId: row.staffId, message: (error as Error).message || '등록 실패' });
       }
     }
 
