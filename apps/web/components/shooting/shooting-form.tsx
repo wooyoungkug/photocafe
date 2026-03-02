@@ -206,6 +206,7 @@ export function ShootingForm({
       recruitmentBudget: undefined,
       recruitmentDescription: '',
       recruitmentRequirements: '',
+      recruitmentPrivateDeadlineHours: 24,
     },
   });
 
@@ -283,6 +284,7 @@ export function ShootingForm({
       dto.recruitmentBudget = values.recruitmentBudget || undefined;
       dto.recruitmentDescription = values.recruitmentDescription || undefined;
       dto.recruitmentRequirements = values.recruitmentRequirements || undefined;
+      dto.recruitmentPrivateDeadlineHours = values.recruitmentPrivateDeadlineHours ?? 24;
     }
 
     onSubmit(dto);
@@ -674,6 +676,32 @@ export function ShootingForm({
                   rows={3}
                   className="text-[14px]"
                 />
+              </div>
+
+              {/* 모집 설정 */}
+              <div className="space-y-1.5 pt-3 border-t">
+                <p className="text-[14px] text-black font-bold">모집 설정</p>
+                <div className="space-y-1.5">
+                  <Label className="text-[14px] text-black font-normal">전속 모집 마감 시간</Label>
+                  <p className="text-[12px] text-gray-500">
+                    전속 모집 기간이 지나면 자동으로 공개 모집으로 전환됩니다
+                  </p>
+                  <Select
+                    value={String(watch('recruitmentPrivateDeadlineHours') ?? 24)}
+                    onValueChange={(v) => setValue('recruitmentPrivateDeadlineHours', Number(v))}
+                  >
+                    <SelectTrigger className="text-[14px] w-[200px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DEADLINE_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={String(opt.value)}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
           )}

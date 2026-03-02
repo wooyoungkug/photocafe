@@ -59,7 +59,7 @@ export default function ScheduleEditPage() {
   }
 
   return (
-    <div className="space-y-4 max-w-[70%]">
+    <div className="space-y-4 max-w-[70%] mx-auto">
       {/* 헤더 */}
       <div className="flex items-center gap-2">
         <Button
