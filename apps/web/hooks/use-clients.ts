@@ -23,6 +23,7 @@ export function useClients(params?: {
   search?: string;
   groupId?: string;
   status?: string;
+  memberType?: string;
 }) {
   return useQuery({
     queryKey: [CLIENTS_KEY, params],

@@ -218,6 +218,7 @@ export default function MembersPage() {
   const [editingMember, setEditingMember] = useState<Client | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Client | null>(null);
   const [activeTab, setActiveTab] = useState('basic');
+  const [memberTypeTab, setMemberTypeTab] = useState<'all' | 'individual' | 'business'>('all');
 
   // 검색어 디바운스 처리 (500ms)
   useEffect(() => {
@@ -234,6 +235,7 @@ export default function MembersPage() {
     search: debouncedSearch || undefined,
     status: statusFilter !== 'all' ? statusFilter : undefined,
     groupId: groupFilter !== 'all' ? groupFilter : undefined,
+    memberType: memberTypeTab !== 'all' ? memberTypeTab : undefined,
   });
 
   const { data: groupsData } = useClientGroups({ limit: 100 });
@@ -315,7 +317,7 @@ export default function MembersPage() {
     }, 500);
   }, [editingMember?.id]);
 
-  const handleOpenDialog = (member?: Client) => {
+  const handleOpenDialog = (member?: Client, defaultMemberType?: 'individual' | 'business') => {
     setEmailDuplicate(null);
     if (member) {
       setEditingMember(member);
@@ -366,7 +368,7 @@ export default function MembersPage() {
           address: '',
           addressDetail: '',
           groupId: '',
-          memberType: 'individual',
+          memberType: defaultMemberType || 'individual',
           creditGrade: 'B',
           paymentTerms: 30,
           paymentCondition: '당월말',
@@ -532,12 +534,35 @@ export default function MembersPage() {
             <Users className="h-5 w-5 text-blue-600" />
             회원 목록
           </CardTitle>
-          <Button onClick={() => handleOpenDialog()} className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-md">
+          <Button onClick={() => handleOpenDialog(undefined, memberTypeTab !== 'all' ? memberTypeTab : undefined)} className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-md">
             <Plus className="h-4 w-4 mr-2" />
             회원 추가
           </Button>
         </CardHeader>
         <CardContent className="pt-6">
+          {/* 회원 타입 탭 */}
+          <div className="flex gap-1 mb-4 border-b">
+            {([
+              { value: 'all', label: '전체', icon: Users },
+              { value: 'individual', label: '개인회원', icon: User },
+              { value: 'business', label: '스튜디오사업자', icon: Building2 },
+            ] as const).map(({ value, label, icon: Icon }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => { setMemberTypeTab(value); setPage(1); }}
+                className={`flex items-center gap-1.5 px-4 py-2 text-[14px] font-medium border-b-2 transition-colors -mb-px ${
+                  memberTypeTab === value
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                {label}
+              </button>
+            ))}
+          </div>
+
           {/* 필터 영역 */}
           <div className="flex flex-wrap gap-4 mb-6 p-4 bg-slate-50/50 rounded-xl border">
             <div className="relative flex-1 min-w-[200px] max-w-sm">

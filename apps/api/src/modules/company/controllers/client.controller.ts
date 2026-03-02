@@ -28,17 +28,19 @@ export class ClientController {
   @ApiQuery({ name: 'search', required: false })
   @ApiQuery({ name: 'groupId', required: false })
   @ApiQuery({ name: 'status', required: false })
+  @ApiQuery({ name: 'memberType', required: false })
   async findAll(
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('search') search?: string,
     @Query('groupId') groupId?: string,
     @Query('status') status?: string,
+    @Query('memberType') memberType?: string,
   ) {
     const skip = page ? (page - 1) * (limit || 20) : 0;
     const take = limit || 20;
 
-    return this.clientService.findAll({ skip, take, search, groupId, status });
+    return this.clientService.findAll({ skip, take, search, groupId, status, memberType });
   }
 
   @Get('next-code')
