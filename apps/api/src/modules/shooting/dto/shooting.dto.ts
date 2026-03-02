@@ -247,6 +247,13 @@ export class UpdateShootingDto {
   @IsOptional()
   @IsString()
   recruitmentRequirements?: string;
+
+  @ApiPropertyOptional({ description: '전속 모집 마감 시간 (시간 단위)', default: 24 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Type(() => Number)
+  recruitmentPrivateDeadlineHours?: number;
 }
 
 export class QueryShootingDto {

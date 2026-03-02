@@ -101,6 +101,7 @@ export interface CreateShootingDto {
   recruitmentBudget?: number;
   recruitmentDescription?: string;
   recruitmentRequirements?: string;
+  recruitmentPrivateDeadlineHours?: number;
 }
 
 /** 촬영 수정 DTO */

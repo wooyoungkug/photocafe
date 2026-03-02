@@ -110,6 +110,7 @@ export class ShootingService {
               budget: dto.recruitmentBudget,
               description: dto.recruitmentDescription,
               requirements: dto.recruitmentRequirements,
+              privateDeadlineHours: dto.recruitmentPrivateDeadlineHours,
             })
             .catch((err) =>
               this.logger.warn(`Shooting→Recruitment sync failed: ${err.message}`),
@@ -368,6 +369,7 @@ export class ShootingService {
               budget: dto.recruitmentBudget,
               description: dto.recruitmentDescription,
               requirements: dto.recruitmentRequirements,
+              privateDeadlineHours: dto.recruitmentPrivateDeadlineHours,
             })
             .catch((err) =>
               this.logger.warn(`Shooting→Recruitment sync failed: ${err.message}`),

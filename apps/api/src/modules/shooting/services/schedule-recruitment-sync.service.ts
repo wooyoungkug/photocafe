@@ -132,6 +132,7 @@ export class ScheduleRecruitmentSyncService {
       budget?: number;
       description?: string;
       requirements?: string;
+      privateDeadlineHours?: number;
     },
   ) {
     if (this.isSyncing) return;
@@ -171,6 +172,7 @@ export class ScheduleRecruitmentSyncService {
           description: options.description,
           requirements: options.requirements,
           customerName: shooting.clientName,
+          privateDeadlineHours: options.privateDeadlineHours ?? 24,
           status: RECRUITMENT_STATUS.DRAFT,
           recruitmentPhase: RECRUITMENT_PHASE.PRIVATE,
           maxBidders: shooting.maxBidders,

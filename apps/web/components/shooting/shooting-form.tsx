@@ -56,11 +56,20 @@ const shootingFormSchema = z.object({
   recruitmentBudget: z.coerce.number().min(0).optional(),
   recruitmentDescription: z.string().optional(),
   recruitmentRequirements: z.string().optional(),
+  recruitmentPrivateDeadlineHours: z.number().optional(),
 });
 
 type ShootingFormValues = z.infer<typeof shootingFormSchema>;
 
 const SHOOTING_TYPES = Object.entries(SHOOTING_TYPE_LABELS) as [ShootingType, string][];
+
+const DEADLINE_OPTIONS = [
+  { value: 0, label: '즉시 (공개 모집)' },
+  { value: 6, label: '6시간' },
+  { value: 12, label: '12시간' },
+  { value: 24, label: '24시간' },
+  { value: 48, label: '48시간' },
+];
 
 // ==================== 프리셋 ====================
 
