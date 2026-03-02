@@ -7,6 +7,7 @@ import {
   ClientGroup,
   CreateClientDto,
   UpdateClientDto,
+  ConvertToBusinessDto,
   CreateClientGroupDto,
   UpdateClientGroupDto,
   PaginatedResponse,
@@ -132,6 +133,18 @@ export interface EmailCheckResult {
 
 export async function checkClientEmail(email: string, excludeId?: string): Promise<EmailCheckResult> {
   return api.get<EmailCheckResult>('/clients/check-email', { email, excludeId });
+}
+
+export function useConvertToBusiness() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: ConvertToBusinessDto }) =>
+      api.patch<Client>(`/clients/${id}/convert-to-business`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [CLIENTS_KEY] });
+    },
+  });
 }
 
 export function useChangeClientGroup() {

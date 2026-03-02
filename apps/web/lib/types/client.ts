@@ -28,6 +28,10 @@ export interface Client {
   clientName: string;
   businessNumber?: string;
   representative?: string;
+  businessType?: string;
+  businessCategory?: string;
+  taxInvoiceEmail?: string;
+  taxInvoiceMethod?: string;
   phone?: string;
   mobile?: string;
   email?: string;
@@ -106,6 +110,17 @@ export interface CreateClientDto {
 
 // 거래처 수정 DTO
 export type UpdateClientDto = Partial<CreateClientDto>;
+
+// 사업자 전환 DTO
+export interface ConvertToBusinessDto {
+  clientName: string;
+  businessNumber?: string;
+  representative?: string;
+  businessType?: string;
+  businessCategory?: string;
+  taxInvoiceEmail?: string;
+  taxInvoiceMethod?: string;
+}
 
 // 거래처 그룹 생성 DTO
 export interface CreateClientGroupDto {

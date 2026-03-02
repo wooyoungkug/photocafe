@@ -87,6 +87,7 @@ import { ko } from 'date-fns/locale';
 import { toast } from '@/hooks/use-toast';
 import { CopperPlateTab } from '@/components/members/copper-plate-tab';
 import { IndividualPricingTab } from '@/components/members/individual-pricing-tab';
+import { ConvertToBusinessDialog } from '@/components/members/convert-to-business-dialog';
 import { api } from '@/lib/api';
 
 // 테이블 행 컴포넌트 메모이제이션
@@ -225,6 +226,7 @@ export default function MembersPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<Client | null>(null);
   const [activeTab, setActiveTab] = useState('basic');
   const [memberTypeTab, setMemberTypeTab] = useState<'all' | 'individual' | 'business'>('all');
+  const [convertTarget, setConvertTarget] = useState<Client | null>(null);
 
   // 검색어 디바운스 처리 (500ms)
   useEffect(() => {
@@ -763,7 +765,21 @@ export default function MembersPage() {
 
                 {/* 회원 유형 선택 */}
                 <div className="mb-6 p-4 bg-white rounded-lg border-2 border-blue-200">
-                  <Label className="text-sm font-semibold text-blue-900 mb-3 block">회원 유형 선택 *</Label>
+                  <div className="flex items-center justify-between mb-3">
+                    <Label className="text-sm font-semibold text-blue-900">회원 유형 선택 *</Label>
+                    {editingMember?.memberType === 'individual' && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs border-orange-300 text-orange-700 hover:bg-orange-50"
+                        onClick={() => setConvertTarget(editingMember)}
+                      >
+                        <Building2 className="h-3.5 w-3.5 mr-1" />
+                        사업자 전환
+                      </Button>
+                    )}
+                  </div>
                   <div className="flex gap-4">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -1651,6 +1667,19 @@ export default function MembersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* 사업자 전환 다이얼로그 */}
+      {convertTarget && (
+        <ConvertToBusinessDialog
+          client={convertTarget}
+          open={!!convertTarget}
+          onOpenChange={(open) => { if (!open) setConvertTarget(null); }}
+          onSuccess={(updated) => {
+            setConvertTarget(null);
+            setIsDialogOpen(false);
+          }}
+        />
+      )}
 
       {/* 삭제 확인 다이얼로그 */}
       <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
