@@ -568,24 +568,28 @@ export function ShootingForm({
               <div className="space-y-1.5">
                 <Label className="text-[14px] text-black font-normal">상세설명</Label>
                 <div className="flex flex-wrap gap-1.5 mb-1.5">
-                  {(DESCRIPTION_PRESETS[watchedType] || []).map((p) => (
-                    <Badge
-                      key={p.label}
-                      variant="outline"
-                      className="cursor-pointer hover:bg-primary hover:text-white transition-colors text-[12px]"
-                      onClick={() => setValue('recruitmentDescription', p.text)}
-                    >
-                      {p.label}
-                    </Badge>
-                  ))}
+                  {(DESCRIPTION_PRESETS[watchedType] || []).map((p) => {
+                    const current = watch('recruitmentDescription') || '';
+                    const isSelected = current === p.text;
+                    return (
+                      <Badge
+                        key={p.label}
+                        variant="outline"
+                        className={`cursor-pointer transition-colors text-[12px] ${isSelected ? 'bg-red-600 text-white border-red-600' : 'hover:bg-red-600 hover:text-white hover:border-red-600'}`}
+                        onClick={() => setValue('recruitmentDescription', p.text)}
+                      >
+                        {isSelected ? '✓ ' : ''}{p.label}
+                      </Badge>
+                    );
+                  })}
                   {COMMON_DESCRIPTION_PRESETS.map((p) => {
                     const current = watch('recruitmentDescription') || '';
                     const alreadyIncluded = current.includes(p.text);
                     return (
                       <Badge
                         key={p.label}
-                        variant="secondary"
-                        className={`cursor-pointer transition-colors text-[12px] ${alreadyIncluded ? 'bg-primary text-white' : 'hover:bg-primary hover:text-white'}`}
+                        variant="outline"
+                        className={`cursor-pointer transition-colors text-[12px] ${alreadyIncluded ? 'bg-red-600 text-white border-red-600' : 'hover:bg-red-600 hover:text-white hover:border-red-600'}`}
                         onClick={() => {
                           if (alreadyIncluded) {
                             const removed = current
@@ -615,24 +619,28 @@ export function ShootingForm({
               <div className="space-y-1.5">
                 <Label className="text-[14px] text-black font-normal">요구사항</Label>
                 <div className="flex flex-wrap gap-1.5 mb-1.5">
-                  {(REQUIREMENTS_PRESETS[watchedType] || []).map((p) => (
-                    <Badge
-                      key={p.label}
-                      variant="outline"
-                      className="cursor-pointer hover:bg-primary hover:text-white transition-colors text-[12px]"
-                      onClick={() => setValue('recruitmentRequirements', p.text)}
-                    >
-                      {p.label}
-                    </Badge>
-                  ))}
+                  {(REQUIREMENTS_PRESETS[watchedType] || []).map((p) => {
+                    const current = watch('recruitmentRequirements') || '';
+                    const isSelected = current === p.text;
+                    return (
+                      <Badge
+                        key={p.label}
+                        variant="outline"
+                        className={`cursor-pointer transition-colors text-[12px] ${isSelected ? 'bg-red-600 text-white border-red-600' : 'hover:bg-red-600 hover:text-white hover:border-red-600'}`}
+                        onClick={() => setValue('recruitmentRequirements', p.text)}
+                      >
+                        {isSelected ? '✓ ' : ''}{p.label}
+                      </Badge>
+                    );
+                  })}
                   {COMMON_REQUIREMENTS_PRESETS.map((p) => {
                     const current = watch('recruitmentRequirements') || '';
                     const alreadyIncluded = current.includes(p.text);
                     return (
                       <Badge
                         key={p.label}
-                        variant="secondary"
-                        className={`cursor-pointer transition-colors text-[12px] ${alreadyIncluded ? 'bg-primary text-white' : 'hover:bg-primary hover:text-white'}`}
+                        variant="outline"
+                        className={`cursor-pointer transition-colors text-[12px] ${alreadyIncluded ? 'bg-red-600 text-white border-red-600' : 'hover:bg-red-600 hover:text-white hover:border-red-600'}`}
                         onClick={() => {
                           if (alreadyIncluded) {
                             const removed = current

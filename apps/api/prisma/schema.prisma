@@ -3204,10 +3204,11 @@ model Recruitment {
   requirements     String?                             // 요구사항
   customerName     String?                             // 신랑/신부명
 
-  status           String    @default("draft")         // draft, private_recruiting, public_recruiting, filled, expired, cancelled
-  recruitmentPhase String    @default("private")       // private | public
-  privateDeadline  DateTime?                           // 전속 모집 마감 시각
-  maxBidders       Int       @default(5)
+  status                String    @default("draft")         // draft, private_recruiting, public_recruiting, filled, expired, cancelled
+  recruitmentPhase      String    @default("private")       // private | public
+  privateDeadline       DateTime?                           // 전속 모집 마감 시각
+  privateDeadlineHours  Int?      @default(24)              // 전속 모집 마감 시간 (시간 단위)
+  maxBidders            Int       @default(5)
   urgencyLevel     String    @default("normal")        // normal | urgent | emergency
 
   linkedShootingId String?  @unique                     // 연동된 일정관리 ID
