@@ -119,6 +119,16 @@ function StatusDashboard({
   );
 }
 
+// 시작시간 + 소요시간으로 종료시간 계산
+function calcEndTime(shootingTime?: string, duration?: number): string | null {
+  if (!shootingTime || !duration) return null;
+  const [h, m] = shootingTime.split(':').map(Number);
+  const totalMin = h * 60 + m + duration;
+  const endH = Math.floor(totalMin / 60) % 24;
+  const endM = totalMin % 60;
+  return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+}
+
 // 주소에서 구/동 수준 추출
 // 지번: "서울특별시 강남구 청담동 11-1" → "강남구 청담동"
 // 도로명: "서울 강남구 도산대로 45" → "강남구"
@@ -141,6 +151,7 @@ function MyRecruitmentRow({ recruitment }: { recruitment: Recruitment }) {
   const shootingDate = new Date(recruitment.shootingDate);
   const isPrivate = recruitment.recruitmentPhase === 'private';
   const locationSummary = extractLocationSummary(recruitment.venueAddress);
+  const endTime = calcEndTime(recruitment.shootingTime, recruitment.duration);
 
   return (
     <Link href={`/mypage/recruitment/${recruitment.id}`}>
@@ -200,12 +211,17 @@ function MyRecruitmentRow({ recruitment }: { recruitment: Recruitment }) {
         </div>
 
         {/* 촬영일 */}
-        <div className="shrink-0 w-[120px] hidden sm:flex items-center gap-1.5">
-          <Calendar className="h-3.5 w-3.5 text-gray-400" />
-          <span className="text-[13px] text-gray-600">
-            {format(shootingDate, 'MM.dd (EEE)', { locale: ko })}
-            {recruitment.shootingTime && ` ${recruitment.shootingTime.substring(0, 5)}`}
-          </span>
+        <div className="shrink-0 w-[120px] hidden sm:flex flex-col gap-0.5">
+          <div className="flex items-center gap-1.5">
+            <Calendar className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+            <span className="text-[13px] text-gray-600">
+              {format(shootingDate, 'MM.dd (EEE)', { locale: ko })}
+              {recruitment.shootingTime && ` ${recruitment.shootingTime.substring(0, 5)}`}
+            </span>
+          </div>
+          {endTime && (
+            <span className="text-[11px] text-gray-400 pl-5">~ {endTime}</span>
+          )}
         </div>
 
         {/* 장소 */}
@@ -257,6 +273,7 @@ function PublicRecruitmentRow({ recruitment }: { recruitment: Recruitment }) {
     (shootingDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
   );
   const locationSummary = extractLocationSummary(recruitment.venueAddress);
+  const endTime = calcEndTime(recruitment.shootingTime, recruitment.duration);
 
   return (
     <Link href={`/mypage/recruitment/${recruitment.id}`}>
@@ -353,43 +370,62 @@ export default function RecruitmentListPage() {
   const [sortBy, setSortBy] = useState<string>('latest');
   const [page, setPage] = useState(1);
 
-  // 상태별 카운트를 위한 전체 조회 (내 구인 탭에서만)
-  const { data: statsResponse } = useRecruitments(
-    canManageRecruitment && activeTab === 'my'
-      ? { clientId: user?.clientId || '', limit: 200 }
+  // ── 내 구인: 전체 한 번 로드 → 클라이언트 필터/페이징
+  const { data: myResponse, isLoading: myLoading } = useRecruitments(
+    canManageRecruitment
+      ? {
+          clientId: user?.clientId || '',
+          shootingType: shootingTypeFilter !== 'all' ? (shootingTypeFilter as ShootingType) : undefined,
+          sort: sortBy as RecruitmentQueryParams['sort'],
+          limit: 200,
+        }
       : undefined,
   );
+
+  const allMyRecruitments = myResponse?.data ?? [];
+
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    (statsResponse?.data ?? []).forEach((r) => {
+    allMyRecruitments.forEach((r) => {
       counts[r.status] = (counts[r.status] ?? 0) + 1;
     });
     return counts;
-  }, [statsResponse]);
-  const totalCount = statsResponse?.data?.length ?? 0;
+  }, [allMyRecruitments]);
 
-  // 현재 탭에 따른 파라미터
-  const queryParams: RecruitmentQueryParams = activeTab === 'my'
-    ? {
-        clientId: user?.clientId || '',
-        status: statusFilter !== 'all' ? statusFilter : undefined,
-        shootingType: shootingTypeFilter !== 'all' ? (shootingTypeFilter as ShootingType) : undefined,
-        sort: sortBy as RecruitmentQueryParams['sort'],
-        page,
-        limit: 20,
-      }
-    : {
-        publicOnly: 'true',
-        shootingType: shootingTypeFilter !== 'all' ? (shootingTypeFilter as ShootingType) : undefined,
-        sort: sortBy as RecruitmentQueryParams['sort'],
-        page,
-        limit: 12,
-      };
+  const filteredMyRecruitments = useMemo(
+    () =>
+      statusFilter === 'all'
+        ? allMyRecruitments
+        : allMyRecruitments.filter((r) => r.status === statusFilter),
+    [allMyRecruitments, statusFilter],
+  );
 
-  const { data: response, isLoading } = useRecruitments(queryParams);
+  const ITEMS_PER_PAGE = 20;
+  const myPageItems = filteredMyRecruitments.slice(
+    (page - 1) * ITEMS_PER_PAGE,
+    page * ITEMS_PER_PAGE,
+  );
+  const myTotalPages = Math.ceil(filteredMyRecruitments.length / ITEMS_PER_PAGE);
 
-  const recruitments = response?.data ?? [];
-  const meta = response?.meta;
+  // ── 공개 구인방: 서버사이드 페이징 유지
+  const { data: publicResponse, isLoading: publicLoading } = useRecruitments(
+    activeTab === 'public'
+      ? {
+          publicOnly: 'true',
+          shootingType: shootingTypeFilter !== 'all' ? (shootingTypeFilter as ShootingType) : undefined,
+          sort: sortBy as RecruitmentQueryParams['sort'],
+          page,
+          limit: 12,
+        }
+      : undefined,
+  );
+
+  // 탭별 데이터 통합
+  const isLoading = activeTab === 'my' ? myLoading : publicLoading;
+  const recruitments = activeTab === 'my' ? myPageItems : (publicResponse?.data ?? []);
+  const meta = activeTab === 'my'
+    ? (myTotalPages > 1 ? { totalPages: myTotalPages } : undefined)
+    : publicResponse?.meta;
 
   const handleTabChange = (value: string) => {
     setActiveTab(value as 'my' | 'public');
@@ -482,7 +518,7 @@ export default function RecruitmentListPage() {
             <div className="mt-3">
               <StatusDashboard
                 counts={statusCounts}
-                total={totalCount}
+                total={allMyRecruitments.length}
                 activeStatus={statusFilter}
                 onSelect={(s) => {
                   setStatusFilter(s as RecruitmentStatus | 'all');
