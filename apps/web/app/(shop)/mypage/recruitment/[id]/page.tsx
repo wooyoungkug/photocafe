@@ -21,6 +21,7 @@ import {
   AlertCircle,
   Phone,
   Mail,
+  Link2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -324,6 +325,13 @@ export default function RecruitmentDetailPage() {
             등록: {format(new Date(recruitment.createdAt), 'yyyy.MM.dd HH:mm', { locale: ko })}
             {' | '}등록자: {recruitment.client?.clientName}
           </p>
+          {/* 일정관리 연동 배지 */}
+          {recruitment.linkedShootingId && (
+            <div className="flex items-center gap-1.5 mt-2 text-[12px] text-blue-600">
+              <Link2 className="h-3.5 w-3.5" />
+              <span>일정관리 연동됨</span>
+            </div>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
           {/* 기본 정보 그리드 */}

@@ -44,7 +44,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useAuthStore } from '@/stores/auth-store';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { ProcessHistoryDialog } from '@/components/order/process-history-dialog';
 import { TrackingTimeline } from '@/components/order/tracking-timeline';
 import { ReturnRequestDialog } from '@/components/order/return-request-dialog';
@@ -58,6 +58,7 @@ import {
 import { format, subDays, subMonths, subYears } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { Breadcrumb } from '@/components/ui/breadcrumb';
 
 // 취소 가능 상태 (출력 전 단계)
 const CANCELLABLE_STATUSES = ['pending_receipt', 'receipt_completed'];
@@ -163,7 +164,6 @@ function getDeliveryStatusFromOrder(order: Order): { key: string; label: string;
 
 export default function MyOrdersPage() {
   const router = useRouter();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user, isAuthenticated } = useAuthStore();
 
@@ -316,16 +316,16 @@ export default function MyOrdersPage() {
         orderIds: deletableSelected.map(o => o.id),
       });
       if (result.success > 0) {
-        toast({ title: '주문 삭제 완료', description: `${result.success}건의 주문이 삭제되었습니다.` });
+        toast.success(`${result.success}건의 주문이 삭제되었습니다.`);
       } else {
-        toast({ title: '삭제 실패', description: '주문을 삭제할 수 없습니다. 상태를 확인해주세요.', variant: 'destructive' });
+        toast.error('주문을 삭제할 수 없습니다. 상태를 확인해주세요.');
       }
       setSelectedOrders(new Set());
       setShowDeleteDialog(false);
       queryClient.invalidateQueries({ queryKey: ['orders'] });
       queryClient.invalidateQueries({ queryKey: ['order-status-counts'] });
     } catch (error) {
-      toast({ title: '삭제 실패', description: '주문 삭제 중 오류가 발생했습니다.', variant: 'destructive' });
+      toast.error('주문 삭제 중 오류가 발생했습니다.');
     } finally {
       setIsDeleting(false);
     }
@@ -341,13 +341,13 @@ export default function MyOrdersPage() {
           api.patch(`/orders/${order.id}/cancel`, { reason: '고객 요청 취소' })
         )
       );
-      toast({ title: '주문 취소 완료', description: `${cancellableSelected.length}건의 주문이 취소되었습니다.` });
+      toast.success(`${cancellableSelected.length}건의 주문이 취소되었습니다.`);
       setSelectedOrders(new Set());
       setShowCancelDialog(false);
       setCancelPreview(null);
       queryClient.invalidateQueries({ queryKey: ['orders'] });
     } catch (error) {
-      toast({ title: '취소 실패', description: '주문 취소 중 오류가 발생했습니다.', variant: 'destructive' });
+      toast.error('주문 취소 중 오류가 발생했습니다.');
     } finally {
       setIsCancelling(false);
     }
@@ -370,10 +370,15 @@ export default function MyOrdersPage() {
 
   return (
     <div className="space-y-4">
+      <Breadcrumb items={[
+        { label: '마이페이지', href: '/mypage/orders' },
+        { label: '주문완료 배송조회' },
+      ]} />
+
       {/* 헤더 */}
       <div className="flex items-center gap-2">
         <FileText className="h-5 w-5" />
-        <h1 className="text-xl font-bold">주문완료 배송조회</h1>
+        <h1 className="text-[18px] text-black font-bold">주문완료 배송조회</h1>
       </div>
 
       {/* 조회조건 (성원애드피아 스타일) */}
@@ -560,7 +565,7 @@ export default function MyOrdersPage() {
         </div>
       </div>
 
-      {/* 주문 테이블 */}
+      {/* 주문 목록 */}
       {isLoading ? (
         <div className="space-y-2">
           {[...Array(5)].map((_, i) => (
@@ -569,7 +574,126 @@ export default function MyOrdersPage() {
         </div>
       ) : orders.length > 0 ? (
         <>
-          <Card>
+          {/* 모바일 카드 레이아웃 */}
+          <div className="lg:hidden space-y-3">
+            {orders.map((order) => {
+              const items = order.items || [];
+              const statusBadge = STATUS_BADGE[order.status] || STATUS_BADGE.pending_receipt;
+              const isCancellable = CANCELLABLE_STATUSES.includes(order.status);
+              const deliveryStatus = getDeliveryStatusFromOrder(order);
+
+              return (
+                <Card key={order.id} className={cn(
+                  order.isUrgent ? 'border-red-200 bg-red-50/30' : '',
+                  order.status === 'cancelled' ? 'opacity-60' : '',
+                )}>
+                  <CardContent className="p-4 space-y-3">
+                    {/* 상단: 체크박스 + 주문번호 + 상태 */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {(isCancellable || DELETABLE_STATUSES.includes(order.status)) && (
+                          <Checkbox
+                            checked={selectedOrders.has(order.id)}
+                            onCheckedChange={() => toggleOrder(order.id)}
+                            aria-label={`${order.orderNumber} 선택`}
+                          />
+                        )}
+                        <Link href={`/mypage/orders/${order.id}`} className="text-[14px] text-primary font-medium hover:underline">
+                          {order.orderNumber}
+                        </Link>
+                        {order.isUrgent && <Badge variant="destructive" className="text-[11px] px-1.5 py-0">긴급</Badge>}
+                      </div>
+                      <Badge className={cn('text-[12px]', statusBadge.className)}>
+                        {statusBadge.label}
+                      </Badge>
+                    </div>
+
+                    {/* 주문일 */}
+                    <div className="text-[13px] text-gray-500">
+                      {format(new Date(order.orderedAt), 'yyyy-MM-dd HH:mm', { locale: ko })}
+                    </div>
+
+                    {/* 상품 목록 */}
+                    <div className="space-y-2">
+                      {items.map((item) => (
+                        <div key={item.id} className="bg-gray-50 rounded p-2.5">
+                          <Link href={`/mypage/orders/${order.id}`} className="text-[14px] text-black font-normal leading-tight line-clamp-2 hover:underline block">
+                            {item.folderName || item.productName}
+                          </Link>
+                          <div className="text-[13px] text-gray-500 mt-1 leading-tight line-clamp-1">
+                            {item.size} / {item.printMethod} / {item.pages}p / {item.quantity}건
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* 금액 + 배송정보 */}
+                    <div className="flex items-center justify-between pt-1 border-t">
+                      <div className="text-[14px] font-medium text-black">
+                        {Number(order.finalAmount).toLocaleString()}원
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {/* 배송상황 */}
+                        {order.shipping?.trackingNumber && order.shipping?.courierCode ? (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button type="button" className="flex items-center gap-1 cursor-pointer">
+                                {deliveryStatus ? (
+                                  <Badge className={cn('text-[12px]', deliveryStatus.className)}>{deliveryStatus.label}</Badge>
+                                ) : (
+                                  <Badge className="text-[12px] bg-yellow-100 text-yellow-700">배송중</Badge>
+                                )}
+                                <MapPin className="h-3.5 w-3.5 text-blue-600" />
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[320px] p-3" align="end" sideOffset={8}>
+                              <div className="text-[14px] font-medium mb-2 text-black">배송 상세 이동경로</div>
+                              <TrackingTimeline
+                                courierCode={order.shipping.courierCode}
+                                trackingNumber={order.shipping.trackingNumber}
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        ) : order.status === 'shipped' ? (
+                          <Badge className="text-[12px] bg-green-100 text-green-700">배달완료</Badge>
+                        ) : order.status === 'ready_for_shipping' ? (
+                          <span className="text-[13px] text-gray-400">배송준비중</span>
+                        ) : null}
+
+                        {/* 공정이력 */}
+                        <button
+                          type="button"
+                          className="text-[13px] text-blue-600 hover:underline"
+                          onClick={() => {
+                            setHistoryOrderId(order.id);
+                            setHistoryOrderNumber(order.orderNumber);
+                            setIsHistoryOpen(true);
+                          }}
+                        >
+                          공정이력
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 앨범수리 버튼 */}
+                    {(order.status === 'shipped' || order.status === 'ready_for_shipping') && (
+                      <button
+                        type="button"
+                        className="text-[13px] text-orange-600 hover:underline flex items-center gap-1"
+                        onClick={() => setReturnTargetOrder(order)}
+                      >
+                        <RotateCw className="h-3.5 w-3.5" />
+                        앨범수리(재발송)
+                      </button>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          {/* 데스크톱 테이블 레이아웃 */}
+          <Card className="hidden lg:block">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -581,14 +705,14 @@ export default function MyOrdersPage() {
                         aria-label="전체 선택"
                       />
                     </TableHead>
-                    <TableHead className="text-center w-[140px] text-xs">주문일<br />(주문번호)</TableHead>
-                    <TableHead className="text-xs">상품명<br />규격</TableHead>
-                    <TableHead className="text-center w-[70px] text-xs">페이지<br />/ 부수</TableHead>
-                    <TableHead className="text-right w-[100px] text-xs">주문금액</TableHead>
-                    <TableHead className="text-center w-[110px] text-xs">보내는 분</TableHead>
-                    <TableHead className="text-center w-[110px] text-xs">받는 분</TableHead>
-                    <TableHead className="text-center w-[100px] text-xs">생산공정</TableHead>
-                    <TableHead className="text-center w-[100px] text-xs">배송상황</TableHead>
+                    <TableHead className="text-center w-[140px] text-[14px]">주문일<br />(주문번호)</TableHead>
+                    <TableHead className="text-[14px]">상품명<br />규격</TableHead>
+                    <TableHead className="text-center w-[70px] text-[14px]">페이지<br />/ 부수</TableHead>
+                    <TableHead className="text-right w-[100px] text-[14px]">주문금액</TableHead>
+                    <TableHead className="text-center w-[110px] text-[14px]">보내는 분</TableHead>
+                    <TableHead className="text-center w-[110px] text-[14px]">받는 분</TableHead>
+                    <TableHead className="text-center w-[100px] text-[14px]">생산공정</TableHead>
+                    <TableHead className="text-center w-[100px] text-[14px]">배송상황</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -607,7 +731,6 @@ export default function MyOrdersPage() {
                           order.status === 'cancelled' ? 'opacity-50' : '',
                         )}
                       >
-                        {/* 체크박스 - 첫 번째 항목에만 */}
                         {idx === 0 && (
                           <TableCell className="text-center align-top pt-3" rowSpan={items.length}>
                             {(isCancellable || DELETABLE_STATUSES.includes(order.status)) ? (
@@ -617,50 +740,49 @@ export default function MyOrdersPage() {
                                 aria-label={`${order.orderNumber} 선택`}
                               />
                             ) : (
-                              <span className="text-muted-foreground text-xs">-</span>
+                              <span className="text-gray-400 text-[14px]">-</span>
                             )}
                           </TableCell>
                         )}
 
-                        {/* 주문일(주문번호) */}
                         {idx === 0 && (
                           <TableCell className="text-center align-top pt-3" rowSpan={items.length}>
                             <div className="space-y-1">
-                              <div className="text-xs text-muted-foreground">
+                              <div className="text-[14px] text-gray-500">
                                 {format(new Date(order.orderedAt), 'yyyy-MM-dd HH:mm', { locale: ko })}
                               </div>
-                              <Link href={`/mypage/orders/${order.id}`} className="text-xs text-primary hover:underline">
+                              <Link href={`/mypage/orders/${order.id}`} className="text-[14px] text-primary hover:underline">
                                 {order.orderNumber}
                               </Link>
-                              {order.isUrgent && <Badge variant="destructive" className="text-[10px] px-1 py-0">긴급</Badge>}
+                              {order.isUrgent && <Badge variant="destructive" className="text-[11px] px-1 py-0">긴급</Badge>}
                             </div>
                           </TableCell>
                         )}
 
                         <TableCell className="align-top pt-3">
                           <div className="space-y-1">
-                            <Link href={`/mypage/orders/${order.id}`} className="text-sm font-normal leading-tight line-clamp-2 hover:underline hover:text-primary block">
+                            <Link href={`/mypage/orders/${order.id}`} className="text-[14px] text-black font-normal leading-tight line-clamp-2 hover:underline hover:text-primary block">
                               {item.folderName || item.productName}
                             </Link>
-                            <div className="text-xs text-muted-foreground leading-tight line-clamp-1">
+                            <div className="text-[13px] text-gray-500 leading-tight line-clamp-1">
                               {item.productName?.split(' - ')[0]} / {item.size} / {item.printMethod} / {item.paper}
                             </div>
                           </div>
                         </TableCell>
 
-                        <TableCell className="text-center text-xs">
+                        <TableCell className="text-center text-[14px]">
                           <div>{item.pages}p</div>
                           <div>{item.quantity}건</div>
                         </TableCell>
 
                         {idx === 0 && (
-                          <TableCell className="text-right align-top pt-3 text-sm" rowSpan={items.length}>
+                          <TableCell className="text-right align-top pt-3 text-[14px]" rowSpan={items.length}>
                             <div className="space-y-1">
                               <div>{Number(order.finalAmount).toLocaleString()}원</div>
                               {(order.status === 'shipped' || order.status === 'ready_for_shipping') && (
                                 <button
                                   type="button"
-                                  className="text-[10px] text-orange-600 hover:underline flex items-center gap-0.5 ml-auto"
+                                  className="text-[12px] text-orange-600 hover:underline flex items-center gap-0.5 ml-auto"
                                   onClick={() => setReturnTargetOrder(order)}
                                 >
                                   <RotateCw className="h-3 w-3" />
@@ -671,47 +793,44 @@ export default function MyOrdersPage() {
                           </TableCell>
                         )}
 
-                        {/* 보내는 분 */}
                         <TableCell className="text-center align-top pt-3">
                           {(() => {
                             const s = item.shipping || order.shipping;
-                            if (!s?.senderName) return <span className="text-[11px] text-gray-300">-</span>;
+                            if (!s?.senderName) return <span className="text-[14px] text-gray-400">-</span>;
                             return (
                               <div className="space-y-0.5">
-                                <div className="text-[11px] text-black font-normal truncate max-w-[100px]">{s.senderName}</div>
-                                <div className="text-[10px] text-gray-500">{s.senderPhone || ''}</div>
+                                <div className="text-[14px] text-black font-normal truncate max-w-[100px]">{s.senderName}</div>
+                                <div className="text-[13px] text-gray-500">{s.senderPhone || ''}</div>
                               </div>
                             );
                           })()}
                         </TableCell>
 
-                        {/* 받는 분 */}
                         <TableCell className="text-center align-top pt-3">
                           {(() => {
                             const r = item.shipping || order.shipping;
-                            if (!r?.recipientName) return <span className="text-[11px] text-gray-300">-</span>;
+                            if (!r?.recipientName) return <span className="text-[14px] text-gray-400">-</span>;
                             const isDirectCustomer = (r as OrderItemShipping)?.receiverType === 'direct_customer';
                             return (
                               <div className="space-y-0.5">
-                                <div className="text-[11px] text-black font-normal truncate max-w-[110px]">
+                                <div className="text-[14px] text-black font-normal truncate max-w-[110px]">
                                   {r.recipientName}
                                   {isDirectCustomer && <span className="text-orange-600">(고객직배송)</span>}
                                 </div>
-                                <div className="text-[10px] text-gray-500">{r.phone || ''}</div>
+                                <div className="text-[13px] text-gray-500">{r.phone || ''}</div>
                               </div>
                             );
                           })()}
                         </TableCell>
 
-                        {/* 생산공정 */}
                         {idx === 0 && (
                           <TableCell className="text-center align-top pt-3" rowSpan={items.length}>
                             <div className="space-y-1">
-                              <Badge className={cn('text-xs', statusBadge.className)}>
+                              <Badge className={cn('text-[14px]', statusBadge.className)}>
                                 {statusBadge.label}
                               </Badge>
                               <div
-                                className="text-[11px] text-blue-600 hover:underline cursor-pointer"
+                                className="text-[13px] text-blue-600 hover:underline cursor-pointer"
                                 onClick={() => {
                                   setHistoryOrderId(order.id);
                                   setHistoryOrderNumber(order.orderNumber);
@@ -724,7 +843,6 @@ export default function MyOrdersPage() {
                           </TableCell>
                         )}
 
-                        {/* 배송상황 */}
                         {idx === 0 && (
                           <TableCell className="text-center align-top pt-3" rowSpan={items.length}>
                             {order.shipping?.trackingNumber && order.shipping?.courierCode ? (
@@ -734,21 +852,21 @@ export default function MyOrdersPage() {
                                     {(() => {
                                       const ds = getDeliveryStatusFromOrder(order);
                                       return ds ? (
-                                        <Badge className={cn('text-xs', ds.className)}>
+                                        <Badge className={cn('text-[14px]', ds.className)}>
                                           {ds.label}
                                         </Badge>
                                       ) : (
-                                        <Badge className="text-xs bg-yellow-100 text-yellow-700">배송중</Badge>
+                                        <Badge className="text-[14px] bg-yellow-100 text-yellow-700">배송중</Badge>
                                       );
                                     })()}
-                                    <span className="text-[10px] text-blue-600 group-hover:underline flex items-center gap-0.5">
+                                    <span className="text-[13px] text-blue-600 group-hover:underline flex items-center gap-0.5">
                                       <MapPin className="h-3 w-3" />
                                       이동경로
                                     </span>
                                   </button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-[360px] p-3" align="end" sideOffset={8}>
-                                  <div className="text-xs font-semibold mb-2 text-gray-700">
+                                  <div className="text-[14px] font-medium mb-2 text-black">
                                     배송 상세 이동경로
                                   </div>
                                   <TrackingTimeline
@@ -758,11 +876,11 @@ export default function MyOrdersPage() {
                                 </PopoverContent>
                               </Popover>
                             ) : order.status === 'shipped' ? (
-                              <Badge className="text-xs bg-green-100 text-green-700">배달완료</Badge>
+                              <Badge className="text-[14px] bg-green-100 text-green-700">배달완료</Badge>
                             ) : order.status === 'ready_for_shipping' ? (
-                              <span className="text-[11px] text-gray-400">배송준비중</span>
+                              <span className="text-[14px] text-gray-400">배송준비중</span>
                             ) : (
-                              <span className="text-[11px] text-gray-300">-</span>
+                              <span className="text-[14px] text-gray-400">-</span>
                             )}
                           </TableCell>
                         )}
@@ -782,7 +900,7 @@ export default function MyOrdersPage() {
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               {Array.from({ length: meta.totalPages }, (_, i) => i + 1).map((p) => (
-                <Button key={p} variant={page === p ? 'default' : 'outline'} size="sm" className="h-8 w-8 p-0 text-xs" onClick={() => setPage(p)}>{p}</Button>
+                <Button key={p} variant={page === p ? 'default' : 'outline'} size="sm" className="h-8 w-8 p-0 text-[14px]" onClick={() => setPage(p)}>{p}</Button>
               ))}
               <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => setPage(Math.min(meta.totalPages, page + 1))} disabled={page === meta.totalPages}>
                 <ChevronRight className="h-4 w-4" />

@@ -103,8 +103,8 @@ function RegisterForm() {
       return;
     }
 
-    if (password.length < 6) {
-      setError('비밀번호는 6자 이상이어야 합니다.');
+    if (password.length < 8) {
+      setError('비밀번호는 8자 이상이어야 합니다.');
       return;
     }
 
@@ -193,7 +193,7 @@ function RegisterForm() {
                 <Input
                   id="password"
                   type="password"
-                  placeholder="비밀번호 입력 (6자 이상)"
+                  placeholder="비밀번호 입력 (8자 이상)"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10 h-11"

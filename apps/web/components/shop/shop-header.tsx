@@ -51,6 +51,8 @@ export function ShopHeader() {
             <button
               className="md:hidden p-2 -ml-2"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label={mobileMenuOpen ? '메뉴 닫기' : '메뉴 열기'}
+              aria-expanded={mobileMenuOpen ? "true" : "false"}
             >
               {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
@@ -75,6 +77,7 @@ export function ShopHeader() {
                 <button
                   type="submit"
                   title={tc('search')}
+                  aria-label={tc('search')}
                   className="absolute right-0 top-0 h-9 w-9 flex items-center justify-center text-neutral-400 hover:text-neutral-900 transition-colors"
                 >
                   <Search className="h-4 w-4" />
@@ -175,6 +178,7 @@ export function ShopHeader() {
               <button
                 type="submit"
                 title={tc('search')}
+                aria-label={tc('search')}
                 className="absolute right-0 top-0 h-9 w-9 flex items-center justify-center text-neutral-400"
               >
                 <Search className="h-4 w-4" />
@@ -199,13 +203,32 @@ export function ShopHeader() {
                     {th('honorific')}
                   </span>
                 </div>
-                <Link href="/mypage/my-products" className="block py-1.5 text-sm text-neutral-600 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
-                  마이상품
-                </Link>
                 <Link href="/mypage/orders" className="block py-1.5 text-sm text-neutral-600 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
                   {th('orderHistory')}
                 </Link>
+                <Link href="/mypage/my-products" className="block py-1.5 text-sm text-neutral-600 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
+                  마이상품
+                </Link>
+                <Link href="/mypage/monthly-summary" className="block py-1.5 text-sm text-neutral-600 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
+                  월거래집계
+                </Link>
+                <Link href="/mypage/addresses" className="block py-1.5 text-sm text-neutral-600 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
+                  배송지 관리
+                </Link>
+                <Link href="/mypage/deposits" className="block py-1.5 text-sm text-neutral-600 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
+                  입금내역
+                </Link>
+                <Link href="/mypage/schedule" className="block py-1.5 text-sm text-neutral-600 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
+                  일정관리
+                </Link>
+                <Link href="/mypage/recruitment" className="block py-1.5 text-sm text-neutral-600 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
+                  구인방
+                </Link>
+                <Link href="/mypage/profile" className="block py-1.5 text-sm text-neutral-600 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
+                  회원정보
+                </Link>
                 <button
+                  type="button"
                   className="block py-1.5 text-sm text-red-500"
                   onClick={() => {
                     logout();

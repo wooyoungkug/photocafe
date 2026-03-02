@@ -17,12 +17,16 @@ import {
   SHOOTING_TYPE_COLORS,
   STATUS_TRANSITIONS,
 } from '../constants/shooting.constants';
+import { ScheduleRecruitmentSyncService } from './schedule-recruitment-sync.service';
 
 @Injectable()
 export class ShootingService {
   private readonly logger = new Logger(ShootingService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly syncService: ScheduleRecruitmentSyncService,
+  ) {}
 
   /**
    * 촬영 일정 생성
@@ -83,6 +87,38 @@ export class ShootingService {
       });
 
       this.logger.log(`촬영 일정 생성: ${shooting.id} (${dto.clientName})`);
+
+      // 구인 연동: enableRecruitment=true이면 구인방에도 등록
+      if (dto.enableRecruitment) {
+        // recruitmentClientId가 없으면 로그인 유저의 clientId로 fallback
+        let clientId = dto.recruitmentClientId;
+        if (!clientId) {
+          const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+            select: { clientId: true },
+          });
+          clientId = user?.clientId || undefined;
+        }
+
+        if (clientId) {
+          this.syncService
+            .syncShootingToRecruitment(shooting.id, {
+              clientId,
+              title: dto.recruitmentTitle,
+              budget: dto.recruitmentBudget,
+              description: dto.recruitmentDescription,
+              requirements: dto.recruitmentRequirements,
+            })
+            .catch((err) =>
+              this.logger.warn(`Shooting→Recruitment sync failed: ${err.message}`),
+            );
+        } else {
+          this.logger.warn(
+            `Shooting→Recruitment sync skipped: no clientId for user ${userId}`,
+          );
+        }
+      }
+
       return shooting;
     });
   }
@@ -104,7 +140,8 @@ export class ShootingService {
         where.shootingDate.gte = new Date(query.startDate);
       }
       if (query.endDate) {
-        where.shootingDate.lte = new Date(query.endDate);
+        // endDate를 해당 날짜의 23:59:59.999로 설정하여 종일 포함
+        where.shootingDate.lte = new Date(query.endDate + 'T23:59:59.999Z');
       }
     }
 
@@ -275,6 +312,39 @@ export class ShootingService {
         }
       }
 
+      // 구인 연동: enableRecruitment=true이고 아직 연동된 구인이 없으면 새로 생성
+      if (dto.enableRecruitment && !shooting.linkedRecruitmentId) {
+        let clientId = dto.recruitmentClientId;
+        if (!clientId) {
+          const user = await this.prisma.user.findUnique({
+            where: { id: shooting.createdBy },
+            select: { clientId: true },
+          });
+          clientId = user?.clientId || undefined;
+        }
+
+        if (clientId) {
+          this.syncService
+            .syncShootingToRecruitment(id, {
+              clientId,
+              title: dto.recruitmentTitle,
+              budget: dto.recruitmentBudget,
+              description: dto.recruitmentDescription,
+              requirements: dto.recruitmentRequirements,
+            })
+            .catch((err) =>
+              this.logger.warn(`Shooting→Recruitment sync failed: ${err.message}`),
+            );
+        }
+      } else {
+        // 구인방 연동 동기화 (공통 필드 변경 시)
+        this.syncService
+          .syncFieldUpdate('shooting', id, dto)
+          .catch((err) =>
+            this.logger.warn(`Shooting field sync failed: ${err.message}`),
+          );
+      }
+
       return updated;
     });
   }
@@ -295,6 +365,13 @@ export class ShootingService {
     if ([SHOOTING_STATUS.IN_PROGRESS, SHOOTING_STATUS.COMPLETED].includes(shooting.status as any)) {
       throw new BadRequestException('진행 중이거나 완료된 일정은 삭제할 수 없습니다.');
     }
+
+    // 구인방 연동 해제 (삭제 전)
+    await this.syncService
+      .unlinkRecords('shooting', id)
+      .catch((err) =>
+        this.logger.warn(`Shooting unlink failed: ${err.message}`),
+      );
 
     return this.prisma.$transaction(async (tx) => {
       await tx.shootingSchedule.delete({ where: { id } });
@@ -351,6 +428,13 @@ export class ShootingService {
           data: { status: scheduleStatus },
         }).catch(() => {});
       }
+
+      // 구인방 상태 동기화
+      this.syncService
+        .syncStatusChange('shooting', id, dto.status)
+        .catch((err) =>
+          this.logger.warn(`Shooting status sync failed: ${err.message}`),
+        );
 
       this.logger.log(`촬영 상태 변경: ${id} (${shooting.status} -> ${dto.status})`);
       return updated;

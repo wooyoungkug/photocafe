@@ -8,15 +8,13 @@ import {
   ArrowLeft,
   Camera,
   Calendar,
-  Clock,
   MapPin,
   User,
-  FileText,
   Star,
   Send,
   Loader2,
   AlertCircle,
-  Edit2,
+  Pencil,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -46,8 +44,8 @@ import { ShootingTypeBadge } from '@/components/shooting/shooting-type-badge';
 // ==================== 상태 전이 규칙 ====================
 
 const STATUS_TRANSITIONS: Record<ShootingStatus, ShootingStatus[]> = {
-  draft: ['published', 'cancelled'],
-  published: ['bidding', 'cancelled'],
+  draft: ['recruiting', 'cancelled'],
+  recruiting: ['bidding', 'cancelled'],
   bidding: ['confirmed', 'cancelled'],
   confirmed: ['in_progress', 'cancelled'],
   in_progress: ['completed', 'cancelled'],
@@ -57,7 +55,7 @@ const STATUS_TRANSITIONS: Record<ShootingStatus, ShootingStatus[]> = {
 
 const STATUS_ACTION_LABELS: Record<ShootingStatus, string> = {
   draft: '초안',
-  published: '공고 발행',
+  recruiting: '모집 시작',
   bidding: '응찰 시작',
   confirmed: '작가 확정',
   in_progress: '촬영 시작',
@@ -102,7 +100,7 @@ export default function ScheduleDetailPage() {
       await updateStatusMutation.mutateAsync({
         id: shooting.id,
         status: pendingStatus,
-        note: statusNote || undefined,
+        reason: statusNote || undefined,
       });
 
       toast({
@@ -144,6 +142,9 @@ export default function ScheduleDetailPage() {
     );
   }
 
+  const shootingDate = parseISO(shooting.shootingDate);
+  const bidCount = shooting._count?.bids ?? 0;
+
   return (
     <div className="space-y-4">
       {/* 헤더 */}
@@ -158,16 +159,29 @@ export default function ScheduleDetailPage() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h2 className="text-[18px] text-black font-bold">{shooting.title}</h2>
+            <h2 className="text-[18px] text-black font-bold">
+              {shooting.clientName} - {shooting.venueName}
+            </h2>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <ShootingTypeBadge type={shooting.type} />
+              <ShootingTypeBadge type={shooting.shootingType} />
               <ShootingStatusBadge status={shooting.status} />
             </div>
           </div>
         </div>
 
-        {/* 상태 변경 버튼 */}
+        {/* 수정 & 상태 변경 버튼 */}
         <div className="flex items-center gap-2">
+          {!['completed', 'cancelled'].includes(shooting.status) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push(`/mypage/schedule/${shooting.id}/edit`)}
+              className="text-[13px]"
+            >
+              <Pencil className="h-3.5 w-3.5 mr-1" />
+              수정
+            </Button>
+          )}
           {availableTransitions.map((nextStatus) => (
             <Button
               key={nextStatus}
@@ -198,16 +212,12 @@ export default function ScheduleDetailPage() {
               <div>
                 <p className="text-[12px] text-gray-500">촬영일시</p>
                 <p className="text-[14px] text-black font-normal">
-                  {format(parseISO(shooting.scheduledDate), 'yyyy년 M월 d일 (EEEE)', {
-                    locale: ko,
-                  })}
+                  {format(shootingDate, 'yyyy년 M월 d일 (EEEE)', { locale: ko })}
                 </p>
-                {shooting.scheduledTime && (
-                  <p className="text-[14px] text-black font-normal">
-                    {shooting.scheduledTime.substring(0, 5)}
-                    {shooting.estimatedDuration && ` (약 ${shooting.estimatedDuration}분)`}
-                  </p>
-                )}
+                <p className="text-[14px] text-black font-normal">
+                  {format(shootingDate, 'HH:mm')}
+                  {shooting.duration && ` (약 ${shooting.duration}분)`}
+                </p>
               </div>
             </div>
 
@@ -217,10 +227,15 @@ export default function ScheduleDetailPage() {
               <div>
                 <p className="text-[12px] text-gray-500">장소</p>
                 <p className="text-[14px] text-black font-normal">
-                  {shooting.location || '-'}
+                  {shooting.venueName || '-'}
+                  {(shooting.venueFloor || shooting.venueHall) && (
+                    <span className="text-gray-500">
+                      {' '}({[shooting.venueFloor, shooting.venueHall].filter(Boolean).join(' ')})
+                    </span>
+                  )}
                 </p>
-                {shooting.locationAddress && (
-                  <p className="text-[12px] text-gray-500">{shooting.locationAddress}</p>
+                {shooting.venueAddress && (
+                  <p className="text-[12px] text-gray-500">{shooting.venueAddress}</p>
                 )}
               </div>
             </div>
@@ -242,46 +257,20 @@ export default function ScheduleDetailPage() {
               <div>
                 <p className="text-[12px] text-gray-500">배정 작가</p>
                 <p className="text-[14px] text-black font-normal">
-                  {shooting.photographerName || '미배정'}
+                  {shooting.assignedStaff?.name || '미배정'}
                 </p>
               </div>
             </div>
-
-            {/* 예산 */}
-            {shooting.budget !== undefined && shooting.budget > 0 && (
-              <div className="flex items-start gap-2.5">
-                <FileText className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-[12px] text-gray-500">예산</p>
-                  <p className="text-[14px] text-black font-normal">
-                    {new Intl.NumberFormat('ko-KR').format(shooting.budget)}원
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
 
-          {/* 설명 */}
-          {shooting.description && (
+          {/* 메모 */}
+          {shooting.notes && (
             <>
               <Separator className="my-4" />
               <div>
-                <p className="text-[12px] text-gray-500 mb-1">설명</p>
+                <p className="text-[12px] text-gray-500 mb-1">메모</p>
                 <p className="text-[14px] text-black font-normal whitespace-pre-wrap">
-                  {shooting.description}
-                </p>
-              </div>
-            </>
-          )}
-
-          {/* 요구사항 */}
-          {shooting.requirements && (
-            <>
-              <Separator className="my-4" />
-              <div>
-                <p className="text-[12px] text-gray-500 mb-1">요구사항</p>
-                <p className="text-[14px] text-black font-normal whitespace-pre-wrap">
-                  {shooting.requirements}
+                  {shooting.notes}
                 </p>
               </div>
             </>
@@ -294,9 +283,9 @@ export default function ScheduleDetailPage() {
         <CardHeader className="pb-2">
           <CardTitle className="text-[14px] text-black font-bold">
             응찰 현황
-            {shooting.bidCount !== undefined && shooting.bidCount > 0 && (
+            {bidCount > 0 && (
               <Badge variant="secondary" className="ml-2 text-[11px]">
-                {shooting.bidCount}건
+                {bidCount}건
               </Badge>
             )}
           </CardTitle>
@@ -306,7 +295,7 @@ export default function ScheduleDetailPage() {
             <User className="h-8 w-8 text-gray-200 mx-auto mb-2" />
             <p className="text-[13px] text-gray-400">아직 응찰자가 없습니다.</p>
             <p className="text-[12px] text-gray-400 mt-1">
-              공고 발행 후 작가들이 응찰할 수 있습니다.
+              모집 시작 후 작가들이 응찰할 수 있습니다.
             </p>
           </div>
         </CardContent>

@@ -40,7 +40,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { useAuthStore } from '@/stores/auth-store';
 import { useShootingStore } from '@/stores/shooting-store';
 import type { CalendarViewMode } from '@/stores/shooting-store';
 import { useShootings } from '@/hooks/use-shooting';
@@ -63,7 +62,7 @@ const VIEW_MODE_OPTIONS: { value: CalendarViewMode; label: string }[] = [
 
 const ALL_STATUSES: ShootingStatus[] = [
   'draft',
-  'published',
+  'recruiting',
   'bidding',
   'confirmed',
   'in_progress',
@@ -72,12 +71,11 @@ const ALL_STATUSES: ShootingStatus[] = [
 ];
 
 const ALL_TYPES: ShootingType[] = [
-  'wedding',
-  'studio',
-  'outdoor',
-  'product',
+  'wedding_main',
+  'wedding_rehearsal',
+  'baby_dol',
+  'baby_growth',
   'profile',
-  'event',
   'other',
 ];
 
@@ -85,7 +83,6 @@ const ALL_TYPES: ShootingType[] = [
 
 export default function ShootingPage() {
   const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
   const {
     viewMode,
     setViewMode,
@@ -115,7 +112,7 @@ export default function ShootingPage() {
   const { data: shootingsResponse, isLoading } = useShootings({
     startDate: dateRange.startDate,
     endDate: dateRange.endDate,
-    type: (filterType as ShootingType) || undefined,
+    shootingType: (filterType as ShootingType) || undefined,
     status: (filterStatus as ShootingStatus) || undefined,
     limit: 500,
   });
@@ -125,7 +122,7 @@ export default function ShootingPage() {
   // 선택된 날짜의 촬영 목록
   const selectedDateShootings = useMemo(() => {
     return shootings.filter((s) => {
-      const dateStr = s.scheduledDate.substring(0, 10);
+      const dateStr = s.shootingDate.substring(0, 10);
       const selectedStr = format(selectedDate, 'yyyy-MM-dd');
       return dateStr === selectedStr;
     });
@@ -144,7 +141,7 @@ export default function ShootingPage() {
   const datesWithShootings = useMemo(() => {
     const dateSet = new Set<string>();
     shootings.forEach((s) => {
-      dateSet.add(s.scheduledDate.substring(0, 10));
+      dateSet.add(s.shootingDate.substring(0, 10));
     });
     return dateSet;
   }, [shootings]);
@@ -397,33 +394,39 @@ export default function ShootingPage() {
                   >
                     {/* 유형/상태 */}
                     <div className="flex items-center gap-1.5 mb-1.5">
-                      <ShootingTypeBadge type={shooting.type} />
+                      <ShootingTypeBadge type={shooting.shootingType} />
                       <ShootingStatusBadge status={shooting.status} />
                     </div>
 
-                    {/* 제목 */}
+                    {/* 고객명 */}
                     <p className="text-[14px] text-black font-bold truncate">
-                      {shooting.title}
+                      {shooting.clientName}
                     </p>
 
                     {/* 시간 */}
-                    {shooting.scheduledTime && (
-                      <div className="flex items-center gap-1 mt-1">
-                        <Clock className="h-3 w-3 text-gray-400" />
-                        <span className="text-[12px] text-gray-600">
-                          {shooting.scheduledTime.substring(0, 5)}
-                          {shooting.estimatedDuration &&
-                            ` (${shooting.estimatedDuration}분)`}
-                        </span>
-                      </div>
-                    )}
+                    {(() => {
+                      const d = new Date(shooting.shootingDate);
+                      const h = d.getHours();
+                      const m = d.getMinutes();
+                      if (h === 0 && m === 0) return null;
+                      const timeStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+                      return (
+                        <div className="flex items-center gap-1 mt-1">
+                          <Clock className="h-3 w-3 text-gray-400" />
+                          <span className="text-[12px] text-gray-600">
+                            {timeStr}
+                            {shooting.duration && ` (${shooting.duration}분)`}
+                          </span>
+                        </div>
+                      );
+                    })()}
 
                     {/* 장소 */}
-                    {shooting.location && (
+                    {shooting.venueName && (
                       <div className="flex items-center gap-1 mt-0.5">
                         <MapPin className="h-3 w-3 text-gray-400" />
                         <span className="text-[12px] text-gray-600 truncate">
-                          {shooting.location}
+                          {shooting.venueName}
                         </span>
                       </div>
                     )}
@@ -439,10 +442,10 @@ export default function ShootingPage() {
                     )}
 
                     {/* 응찰 수 */}
-                    {shooting.bidCount !== undefined && shooting.bidCount > 0 && (
+                    {shooting._count && shooting._count.bids > 0 && (
                       <div className="mt-1.5">
                         <Badge variant="secondary" className="text-[11px]">
-                          응찰 {shooting.bidCount}건
+                          응찰 {shooting._count.bids}건
                         </Badge>
                       </div>
                     )}

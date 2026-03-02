@@ -28,13 +28,15 @@ export default function HomePage() {
   ];
 
   const [activeTestimonial, setActiveTestimonial] = useState(0);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
 
   useEffect(() => {
+    if (!isAutoPlaying) return;
     const interval = setInterval(() => {
       setActiveTestimonial((prev) => (prev + 1) % testimonials.length);
     }, 5000);
     return () => clearInterval(interval);
-  }, [testimonials.length]);
+  }, [testimonials.length, isAutoPlaying]);
 
   return (
     <div className="min-h-screen bg-white">
@@ -233,18 +235,30 @@ export default function HomePage() {
                 </div>
               ))}
             </div>
-            <div className="flex justify-center gap-2 mt-8">
+            <div className="flex justify-center items-center gap-2 mt-8">
               {testimonials.map((_, index) => (
                 <button
                   key={index}
                   type="button"
-                  onClick={() => setActiveTestimonial(index)}
+                  onClick={() => { setActiveTestimonial(index); setIsAutoPlaying(false); }}
                   aria-label={`Testimonial ${index + 1}`}
                   className={`w-2 h-2 rounded-full transition-all ${
                     index === activeTestimonial ? 'bg-gold w-6' : 'bg-neutral-300'
                   }`}
                 />
               ))}
+              <button
+                type="button"
+                onClick={() => setIsAutoPlaying(!isAutoPlaying)}
+                aria-label={isAutoPlaying ? '자동 전환 일시정지' : '자동 전환 재개'}
+                className="ml-2 w-6 h-6 flex items-center justify-center rounded-full bg-neutral-200 hover:bg-neutral-300 transition-colors"
+              >
+                {isAutoPlaying ? (
+                  <svg className="w-3 h-3 text-neutral-600" viewBox="0 0 12 12" fill="currentColor"><rect x="2" y="1" width="3" height="10" rx="0.5" /><rect x="7" y="1" width="3" height="10" rx="0.5" /></svg>
+                ) : (
+                  <svg className="w-3 h-3 text-neutral-600 ml-0.5" viewBox="0 0 12 12" fill="currentColor"><polygon points="2,1 11,6 2,11" /></svg>
+                )}
+              </button>
             </div>
           </div>
         </div>

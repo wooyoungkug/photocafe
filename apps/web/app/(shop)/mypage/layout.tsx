@@ -79,8 +79,8 @@ export default function MyPageLayout({
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <Card className="w-full max-w-md mx-4">
           <CardContent className="pt-6 text-center">
-            <h2 className="text-[15px] font-medium mb-2">로그인이 필요합니다</h2>
-            <p className="text-[13px] font-normal text-gray-600 mb-4">
+            <h2 className="text-[18px] text-black font-bold mb-2">로그인이 필요합니다</h2>
+            <p className="text-[14px] font-normal text-gray-600 mb-4">
               마이페이지를 이용하려면 로그인이 필요합니다.
             </p>
             <Button size="sm" onClick={() => router.push('/login?redirect=/mypage/orders')}>
@@ -93,15 +93,15 @@ export default function MyPageLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 text-[13px] font-normal">
+    <div className="min-h-screen bg-gray-50 text-[14px] font-normal">
       {/* Header */}
       <div className="bg-white border-b">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-2">
             <User className="h-5 w-5 text-primary" />
-            <h1 className="text-[16px] font-medium">마이페이지</h1>
+            <h1 className="text-[18px] text-black font-bold">마이페이지</h1>
           </div>
-          <p className="text-[12px] text-gray-500 ml-7 mt-0.5">
+          <p className="text-[14px] text-gray-500 ml-7 mt-0.5">
             {user?.type === 'employee'
               ? user?.isOwner
                 ? `${user?.name}(최고관리자)님, 환영합니다`
@@ -112,9 +112,39 @@ export default function MyPageLayout({
       </div>
 
       <div className="container mx-auto px-4 py-6">
+        {/* 모바일 가로 스크롤 탭 */}
+        <div className="lg:hidden mb-4">
+          <div className="overflow-x-auto scrollbar-hide -mx-4 px-4">
+            <nav className="flex gap-1 min-w-max pb-2">
+              {menuItems.map((item) => {
+                const Icon = item.icon;
+                const isActive =
+                  pathname === item.href ||
+                  pathname?.startsWith(item.href + '/');
+
+                return (
+                  <Link key={item.href} href={item.href}>
+                    <button
+                      type="button"
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-[14px] font-normal whitespace-nowrap transition-colors ${
+                        isActive
+                          ? 'bg-primary text-white font-medium'
+                          : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      <span>{item.label}</span>
+                    </button>
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+        </div>
+
         <div className="grid lg:grid-cols-[18%_1fr] gap-5">
-          {/* Sidebar Navigation */}
-          <aside>
+          {/* 데스크톱 사이드바 */}
+          <aside className="hidden lg:block">
             <Card className="sticky top-4">
               <CardContent className="p-0">
                 <nav>
@@ -127,6 +157,7 @@ export default function MyPageLayout({
                     return (
                       <Link key={item.href} href={item.href}>
                         <button
+                          type="button"
                           className={`w-full flex items-center justify-between px-3.5 py-2.5 text-left text-[14px] font-normal transition-colors ${
                             isActive
                               ? 'bg-primary text-white font-medium'
@@ -147,10 +178,10 @@ export default function MyPageLayout({
             </Card>
 
             {/* User Info Card */}
-            <Card className="mt-3 hidden lg:block">
+            <Card className="mt-3">
               <CardContent className="p-3">
-                <h3 className="text-[12px] font-medium text-gray-500 mb-1.5">회원 정보</h3>
-                <div className="text-[12px] text-gray-600 space-y-0.5">
+                <h3 className="text-[14px] font-medium text-gray-500 mb-1.5">회원 정보</h3>
+                <div className="text-[14px] text-gray-600 space-y-0.5">
                   <p>{user?.clientName}</p>
                   {user?.email && <p>{user.email}</p>}
                 </div>

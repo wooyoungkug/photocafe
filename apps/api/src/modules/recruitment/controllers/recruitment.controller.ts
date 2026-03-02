@@ -8,8 +8,11 @@ import {
   Param,
   Query,
   Request,
+  UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RecruitmentService } from '../services/recruitment.service';
 import { RecruitmentNotificationService } from '../services/recruitment-notification.service';
 import {
@@ -20,6 +23,7 @@ import {
 
 @ApiTags('구인방')
 @ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('recruitments')
 export class RecruitmentController {
   constructor(
@@ -31,8 +35,12 @@ export class RecruitmentController {
   @ApiOperation({ summary: '구인 등록' })
   async create(@Body() dto: CreateRecruitmentDto, @Request() req: any) {
     const clientId = req.user.clientId;
-    const createdBy = req.user.clientId;
-    return this.recruitmentService.create(dto, clientId, createdBy);
+    if (!clientId) {
+      throw new BadRequestException(
+        '구인 등록은 거래처(스튜디오) 계정으로만 가능합니다. 관리자 계정으로는 일정관리에서 구인 연동을 사용해주세요.',
+      );
+    }
+    return this.recruitmentService.create(dto, clientId, clientId);
   }
 
   @Get()

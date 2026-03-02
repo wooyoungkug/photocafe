@@ -17,12 +17,16 @@ import {
   URGENCY_THRESHOLDS,
   URGENCY_LEVEL,
 } from '../constants/recruitment.constants';
+import { ScheduleRecruitmentSyncService } from '@/modules/shooting/services/schedule-recruitment-sync.service';
 
 @Injectable()
 export class RecruitmentService {
   private readonly logger = new Logger(RecruitmentService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly syncService: ScheduleRecruitmentSyncService,
+  ) {}
 
   /** 긴급도 자동 계산 */
   private calculateUrgency(shootingDate: Date): string {
@@ -38,7 +42,7 @@ export class RecruitmentService {
   async create(dto: CreateRecruitmentDto, clientId: string, createdBy: string) {
     const shootingDate = new Date(dto.shootingDate);
 
-    return this.prisma.recruitment.create({
+    const recruitment = await this.prisma.recruitment.create({
       data: {
         clientId,
         title: dto.title,
@@ -63,6 +67,15 @@ export class RecruitmentService {
         _count: { select: { bids: true } },
       },
     });
+
+    // 일정관리에 자동 생성 (항상)
+    await this.syncService
+      .syncRecruitmentToShooting(recruitment.id, createdBy)
+      .catch((err) =>
+        this.logger.warn(`Recruitment→Shooting sync failed: ${err.message}`),
+      );
+
+    return recruitment;
   }
 
   async findAll(query: QueryRecruitmentDto) {
@@ -174,7 +187,7 @@ export class RecruitmentService {
       data.urgencyLevel = this.calculateUrgency(data.shootingDate);
     }
 
-    return this.prisma.recruitment.update({
+    const updated = await this.prisma.recruitment.update({
       where: { id },
       data,
       include: {
@@ -182,6 +195,15 @@ export class RecruitmentService {
         _count: { select: { bids: true } },
       },
     });
+
+    // 일정관리 필드 동기화
+    this.syncService
+      .syncFieldUpdate('recruitment', id, dto)
+      .catch((err) =>
+        this.logger.warn(`Recruitment field sync failed: ${err.message}`),
+      );
+
+    return updated;
   }
 
   async delete(id: string, requesterId: string) {
@@ -200,6 +222,13 @@ export class RecruitmentService {
     if (recruitment.status === RECRUITMENT_STATUS.FILLED) {
       throw new BadRequestException('확정된 구인은 삭제할 수 없습니다.');
     }
+
+    // 일정관리 연동 해제 (삭제 전)
+    await this.syncService
+      .unlinkRecords('recruitment', id)
+      .catch((err) =>
+        this.logger.warn(`Recruitment unlink failed: ${err.message}`),
+      );
 
     return this.prisma.recruitment.delete({ where: { id } });
   }
@@ -242,9 +271,18 @@ export class RecruitmentService {
       );
     }
 
-    return this.prisma.recruitment.update({
+    const updated = await this.prisma.recruitment.update({
       where: { id },
       data: { status: newStatus },
     });
+
+    // 일정관리 상태 동기화
+    this.syncService
+      .syncStatusChange('recruitment', id, newStatus)
+      .catch((err) =>
+        this.logger.warn(`Recruitment status sync failed: ${err.message}`),
+      );
+
+    return updated;
   }
 }

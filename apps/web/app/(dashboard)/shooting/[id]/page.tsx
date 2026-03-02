@@ -20,6 +20,9 @@ import {
   Send,
   Loader2,
   AlertCircle,
+  Briefcase,
+  Link2,
+  ExternalLink,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -362,6 +365,9 @@ export default function ShootingDetailPage() {
               <ReviewSection shootingId={shootingId} />
             </CardContent>
           </Card>
+
+          {/* 구인 연동 */}
+          <RecruitmentLinkCard shooting={shooting} />
         </div>
       </div>
 
@@ -467,5 +473,64 @@ function ReviewSection({ shootingId }: { shootingId: string }) {
         촬영 완료 후 고객에게 설문을 발송하세요.
       </p>
     </div>
+  );
+}
+
+// ==================== 구인 연동 카드 ====================
+
+function RecruitmentLinkCard({ shooting }: { shooting: any }) {
+  if (!shooting?.linkedRecruitmentId) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-[18px] text-black font-bold flex items-center gap-2">
+            <Briefcase className="h-5 w-5" />
+            구인 연동
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-4">
+            <Link2 className="h-8 w-8 text-gray-200 mx-auto mb-2" />
+            <p className="text-[14px] text-gray-400">연동된 구인이 없습니다.</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-[18px] text-black font-bold flex items-center gap-2">
+          <Briefcase className="h-5 w-5" />
+          구인 연동
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[14px] text-blue-800 font-medium">구인방 연동됨</p>
+              <p className="text-[12px] text-blue-600 mt-0.5">
+                ID: {shooting.linkedRecruitmentId.substring(0, 8)}...
+              </p>
+            </div>
+            <ExternalLink className="h-4 w-4 text-blue-500" />
+          </div>
+          {/* 외부 작가 정보 */}
+          {shooting.assignedClient && (
+            <div className="mt-3 pt-3 border-t border-blue-200">
+              <p className="text-[12px] text-blue-600 mb-1">확정된 외부 작가</p>
+              <div className="flex items-center gap-2">
+                <User className="h-4 w-4 text-blue-500" />
+                <p className="text-[14px] text-black font-medium">
+                  {shooting.assignedClient.clientName}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

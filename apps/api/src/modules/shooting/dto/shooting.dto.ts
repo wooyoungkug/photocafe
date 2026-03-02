@@ -6,6 +6,7 @@ import {
   IsIn,
   IsNumber,
   IsInt,
+  IsBoolean,
   Min,
   Max,
   IsEmail,
@@ -31,6 +32,16 @@ export class CreateShootingDto {
   @ApiProperty({ description: '주소' })
   @IsString()
   venueAddress: string;
+
+  @ApiPropertyOptional({ description: '층' })
+  @IsOptional()
+  @IsString()
+  venueFloor?: string;
+
+  @ApiPropertyOptional({ description: '홀' })
+  @IsOptional()
+  @IsString()
+  venueHall?: string;
 
   @ApiPropertyOptional({ description: '위도' })
   @IsOptional()
@@ -77,6 +88,41 @@ export class CreateShootingDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  // ==================== 구인 연동 옵션 ====================
+
+  @ApiPropertyOptional({ description: '구인방 동시 등록 여부' })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  enableRecruitment?: boolean;
+
+  @ApiPropertyOptional({ description: '구인 등록할 스튜디오(거래처) ID' })
+  @IsOptional()
+  @IsString()
+  recruitmentClientId?: string;
+
+  @ApiPropertyOptional({ description: '구인 제목' })
+  @IsOptional()
+  @IsString()
+  recruitmentTitle?: string;
+
+  @ApiPropertyOptional({ description: '보수 (원)' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Type(() => Number)
+  recruitmentBudget?: number;
+
+  @ApiPropertyOptional({ description: '구인 상세설명' })
+  @IsOptional()
+  @IsString()
+  recruitmentDescription?: string;
+
+  @ApiPropertyOptional({ description: '구인 요구사항' })
+  @IsOptional()
+  @IsString()
+  recruitmentRequirements?: string;
 }
 
 export class UpdateShootingDto {
@@ -102,6 +148,16 @@ export class UpdateShootingDto {
   @IsOptional()
   @IsString()
   venueAddress?: string;
+
+  @ApiPropertyOptional({ description: '층' })
+  @IsOptional()
+  @IsString()
+  venueFloor?: string;
+
+  @ApiPropertyOptional({ description: '홀' })
+  @IsOptional()
+  @IsString()
+  venueHall?: string;
 
   @ApiPropertyOptional({ description: '위도' })
   @IsOptional()
@@ -149,6 +205,41 @@ export class UpdateShootingDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  // ==================== 구인 연동 옵션 ====================
+
+  @ApiPropertyOptional({ description: '구인방 동시 등록 여부' })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  enableRecruitment?: boolean;
+
+  @ApiPropertyOptional({ description: '구인 등록할 스튜디오(거래처) ID' })
+  @IsOptional()
+  @IsString()
+  recruitmentClientId?: string;
+
+  @ApiPropertyOptional({ description: '구인 제목' })
+  @IsOptional()
+  @IsString()
+  recruitmentTitle?: string;
+
+  @ApiPropertyOptional({ description: '보수 (원)' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Type(() => Number)
+  recruitmentBudget?: number;
+
+  @ApiPropertyOptional({ description: '구인 상세설명' })
+  @IsOptional()
+  @IsString()
+  recruitmentDescription?: string;
+
+  @ApiPropertyOptional({ description: '구인 요구사항' })
+  @IsOptional()
+  @IsString()
+  recruitmentRequirements?: string;
 }
 
 export class QueryShootingDto {

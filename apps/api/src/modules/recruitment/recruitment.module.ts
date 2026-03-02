@@ -1,10 +1,12 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { PrismaModule } from '@/common/prisma/prisma.module';
 import { SystemSettingsModule } from '@/modules/system-settings/system-settings.module';
+import { ShootingModule } from '@/modules/shooting/shooting.module';
 import {
   RecruitmentController,
   RecruitmentBidController,
   PhotographerProfileController,
+  RecruitmentTemplateController,
 } from './controllers';
 import {
   RecruitmentService,
@@ -13,14 +15,16 @@ import {
   RecruitmentNotificationService,
   RegionMatchingService,
   PhotographerProfileService,
+  RecruitmentTemplateService,
 } from './services';
 
 @Module({
-  imports: [PrismaModule, SystemSettingsModule],
+  imports: [PrismaModule, SystemSettingsModule, forwardRef(() => ShootingModule)],
   controllers: [
     RecruitmentController,
     RecruitmentBidController,
     PhotographerProfileController,
+    RecruitmentTemplateController,
   ],
   providers: [
     RecruitmentService,
@@ -29,6 +33,7 @@ import {
     RecruitmentNotificationService,
     RegionMatchingService,
     PhotographerProfileService,
+    RecruitmentTemplateService,
   ],
   exports: [RecruitmentService, RecruitmentBidService],
 })

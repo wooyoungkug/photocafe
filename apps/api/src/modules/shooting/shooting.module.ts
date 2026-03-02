@@ -15,6 +15,7 @@ import {
   PhotographerService,
   LocationService,
   ShootingNotificationService,
+  ScheduleRecruitmentSyncService,
 } from './services';
 
 @Module({
@@ -33,6 +34,7 @@ import {
     PhotographerService,
     LocationService,
     ShootingNotificationService,
+    ScheduleRecruitmentSyncService,
   ],
   exports: [
     ShootingService,
@@ -40,6 +42,7 @@ import {
     ShootingReviewService,
     PhotographerService,
     LocationService,
+    ScheduleRecruitmentSyncService,
   ],
 })
 export class ShootingModule {}

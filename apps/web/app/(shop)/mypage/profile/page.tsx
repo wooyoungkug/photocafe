@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Lock, User as UserIcon, AlertCircle, CheckCircle, Edit, Save, X } from 'lucide-react';
+import { Lock, User as UserIcon, AlertCircle, CheckCircle, Edit, Save, X, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,8 @@ import { Separator } from '@/components/ui/separator';
 import { useAuthStore } from '@/stores/auth-store';
 import { api } from '@/lib/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { AddressSearch } from '@/components/address-search';
+import { Breadcrumb } from '@/components/ui/breadcrumb';
 
 // 전화번호 자동 하이픈 포맷
 function formatPhone(value: string): string {
@@ -31,7 +33,7 @@ function formatPhone(value: string): string {
 // 읽기 전용 필드값 표시 컴포넌트
 function FieldValue({ value }: { value: string }) {
   return (
-    <p className="text-[13px] font-normal py-1.5 px-2.5 bg-gray-50 rounded border border-gray-100 min-h-[32px] flex items-center">
+    <p className="text-[14px] font-normal py-1.5 px-2.5 bg-gray-50 rounded border border-gray-100 min-h-[32px] flex items-center">
       {value || '-'}
     </p>
   );
@@ -212,21 +214,26 @@ export default function ProfilePage() {
     );
   }
 
-  const inputCls = "h-8 text-[13px] font-normal";
+  const inputCls = "h-8 text-[14px] font-normal";
 
   return (
-    <div className="space-y-4 text-[13px] font-normal">
+    <div className="space-y-4 text-[14px] font-normal">
+      <Breadcrumb items={[
+        { label: '마이페이지', href: '/mypage/orders' },
+        { label: '회원정보' },
+      ]} />
+
       {/* 알림 메시지 */}
       {error && (
         <Alert variant="destructive" className="py-2">
           <AlertCircle className="h-3.5 w-3.5" />
-          <AlertDescription className="text-[13px]">{error}</AlertDescription>
+          <AlertDescription className="text-[14px]">{error}</AlertDescription>
         </Alert>
       )}
       {success && (
         <Alert className="bg-green-50 text-green-900 border-green-200 py-2">
           <CheckCircle className="h-3.5 w-3.5" />
-          <AlertDescription className="text-[13px]">{success}</AlertDescription>
+          <AlertDescription className="text-[14px]">{success}</AlertDescription>
         </Alert>
       )}
 
@@ -235,16 +242,16 @@ export default function ProfilePage() {
         <CardHeader className="pb-3 pt-4 px-5">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="flex items-center gap-2 text-[15px] font-medium">
+              <CardTitle className="flex items-center gap-2 text-[18px] text-black font-bold">
                 <UserIcon className="h-4 w-4" />
                 회원 정보
               </CardTitle>
-              <CardDescription className="text-[12px] mt-0.5">
+              <CardDescription className="text-[14px] mt-0.5">
                 {isEditMode ? '정보를 수정하세요' : '현재 회원님의 등록된 정보입니다'}
               </CardDescription>
             </div>
             {!isEditMode && (
-              <Button onClick={() => setIsEditMode(true)} variant="outline" size="sm" className="h-7 text-[12px] px-3">
+              <Button onClick={() => setIsEditMode(true)} variant="outline" size="sm" className="h-7 text-[14px] px-3">
                 <Edit className="h-3 w-3 mr-1" />
                 수정
               </Button>
@@ -255,14 +262,14 @@ export default function ProfilePage() {
           <form onSubmit={handleProfileUpdate} className="space-y-4">
             {/* 기본 정보 */}
             <div className="space-y-3">
-              <h3 className="text-[12px] font-medium text-gray-500 tracking-wide">기본 정보</h3>
+              <h3 className="text-[14px] font-medium text-gray-500 tracking-wide">기본 정보</h3>
               <div className="grid md:grid-cols-3 gap-x-6 gap-y-3">
                 <div className="space-y-1">
-                  <Label className="text-[12px] font-normal text-gray-600">회원코드</Label>
+                  <Label className="text-[14px] font-normal text-gray-600">회원코드</Label>
                   <FieldValue value={profile?.clientCode || ''} />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="clientName" className="text-[12px] font-normal text-gray-600">
+                  <Label htmlFor="clientName" className="text-[14px] font-normal text-gray-600">
                     이름/상호명 <span className="text-red-500">*</span>
                   </Label>
                   {isEditMode ? (
@@ -273,7 +280,7 @@ export default function ProfilePage() {
                   )}
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="email" className="text-[12px] font-normal text-gray-600">
+                  <Label htmlFor="email" className="text-[14px] font-normal text-gray-600">
                     이메일 <span className="text-red-500">*</span>
                   </Label>
                   {isEditMode ? (
@@ -286,7 +293,7 @@ export default function ProfilePage() {
               </div>
               <div className="grid md:grid-cols-2 gap-x-6 gap-y-3">
                 <div className="space-y-1">
-                  <Label htmlFor="mobile" className="text-[12px] font-normal text-gray-600">휴대전화</Label>
+                  <Label htmlFor="mobile" className="text-[14px] font-normal text-gray-600">휴대전화</Label>
                   {isEditMode ? (
                     <Input id="mobile" className={inputCls} value={profileData.mobile}
                       onChange={(e) => setProfileData({ ...profileData, mobile: formatPhone(e.target.value) })}
@@ -296,7 +303,7 @@ export default function ProfilePage() {
                   )}
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="phone" className="text-[12px] font-normal text-gray-600">전화번호</Label>
+                  <Label htmlFor="phone" className="text-[14px] font-normal text-gray-600">전화번호</Label>
                   {isEditMode ? (
                     <Input id="phone" className={inputCls} value={profileData.phone}
                       onChange={(e) => setProfileData({ ...profileData, phone: formatPhone(e.target.value) })}
@@ -312,32 +319,47 @@ export default function ProfilePage() {
 
             {/* 주소 정보 */}
             <div className="space-y-3">
-              <h3 className="text-[12px] font-medium text-gray-500 tracking-wide">주소 정보</h3>
-              <div className="grid grid-cols-[120px_1fr] gap-x-4 gap-y-3">
+              <h3 className="text-[14px] font-medium text-gray-500 tracking-wide">주소 정보</h3>
+              {isEditMode && (
+                <AddressSearch
+                  inline={true}
+                  size="sm"
+                  className="h-8 text-[14px]"
+                  onComplete={(data) => {
+                    setProfileData({
+                      ...profileData,
+                      postalCode: data.postalCode,
+                      address: data.address,
+                    });
+                  }}
+                />
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-[120px_1fr] gap-x-4 gap-y-3">
                 <div className="space-y-1">
-                  <Label htmlFor="postalCode" className="text-[12px] font-normal text-gray-600">우편번호</Label>
+                  <Label htmlFor="postalCode" className="text-[14px] font-normal text-gray-600">우편번호</Label>
                   {isEditMode ? (
-                    <Input id="postalCode" className={inputCls} value={profileData.postalCode}
-                      onChange={(e) => setProfileData({ ...profileData, postalCode: e.target.value })} />
+                    <Input id="postalCode" className={inputCls} value={profileData.postalCode} readOnly
+                      placeholder="주소 검색을 이용하세요" />
                   ) : (
                     <FieldValue value={profile?.postalCode || ''} />
                   )}
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="address" className="text-[12px] font-normal text-gray-600">주소</Label>
+                  <Label htmlFor="address" className="text-[14px] font-normal text-gray-600">주소</Label>
                   {isEditMode ? (
-                    <Input id="address" className={inputCls} value={profileData.address}
-                      onChange={(e) => setProfileData({ ...profileData, address: e.target.value })} />
+                    <Input id="address" className={inputCls} value={profileData.address} readOnly
+                      placeholder="주소 검색을 이용하세요" />
                   ) : (
                     <FieldValue value={profile?.address || ''} />
                   )}
                 </div>
               </div>
               <div className="space-y-1">
-                <Label htmlFor="addressDetail" className="text-[12px] font-normal text-gray-600">상세주소</Label>
+                <Label htmlFor="addressDetail" className="text-[14px] font-normal text-gray-600">상세주소</Label>
                 {isEditMode ? (
                   <Input id="addressDetail" className={inputCls} value={profileData.addressDetail}
-                    onChange={(e) => setProfileData({ ...profileData, addressDetail: e.target.value })} />
+                    onChange={(e) => setProfileData({ ...profileData, addressDetail: e.target.value })}
+                    placeholder="상세주소를 입력하세요" />
                 ) : (
                   <FieldValue value={profile?.addressDetail || ''} />
                 )}
@@ -348,10 +370,10 @@ export default function ProfilePage() {
 
             {/* 사업자 정보 */}
             <div className="space-y-3">
-              <h3 className="text-[12px] font-medium text-gray-500 tracking-wide">사업자 정보 (선택)</h3>
+              <h3 className="text-[14px] font-medium text-gray-500 tracking-wide">사업자 정보 (선택)</h3>
               <div className="grid md:grid-cols-2 gap-x-6 gap-y-3">
                 <div className="space-y-1">
-                  <Label htmlFor="businessNumber" className="text-[12px] font-normal text-gray-600">사업자등록번호</Label>
+                  <Label htmlFor="businessNumber" className="text-[14px] font-normal text-gray-600">사업자등록번호</Label>
                   {isEditMode ? (
                     <Input id="businessNumber" className={inputCls} value={profileData.businessNumber}
                       onChange={(e) => {
@@ -367,7 +389,7 @@ export default function ProfilePage() {
                   )}
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="representative" className="text-[12px] font-normal text-gray-600">대표자명</Label>
+                  <Label htmlFor="representative" className="text-[14px] font-normal text-gray-600">대표자명</Label>
                   {isEditMode ? (
                     <Input id="representative" className={inputCls} value={profileData.representative}
                       onChange={(e) => setProfileData({ ...profileData, representative: e.target.value })}
@@ -378,7 +400,7 @@ export default function ProfilePage() {
                 </div>
               </div>
               <div className="md:w-1/2 space-y-1">
-                <Label htmlFor="contactPerson" className="text-[12px] font-normal text-gray-600">담당자</Label>
+                <Label htmlFor="contactPerson" className="text-[14px] font-normal text-gray-600">담당자</Label>
                 {isEditMode ? (
                   <Input id="contactPerson" className={inputCls} value={profileData.contactPerson}
                     onChange={(e) => setProfileData({ ...profileData, contactPerson: e.target.value })}
@@ -392,11 +414,11 @@ export default function ProfilePage() {
             {/* 버튼 */}
             {isEditMode && (
               <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" variant="outline" size="sm" className="h-7 text-[12px]" onClick={handleCancelEdit}>
+                <Button type="button" variant="outline" size="sm" className="h-7 text-[14px]" onClick={handleCancelEdit}>
                   <X className="h-3 w-3 mr-1" />
                   취소
                 </Button>
-                <Button type="submit" size="sm" className="h-7 text-[12px]" disabled={updateProfileMutation.isPending}>
+                <Button type="submit" size="sm" className="h-7 text-[14px]" disabled={updateProfileMutation.isPending}>
                   <Save className="h-3 w-3 mr-1" />
                   {updateProfileMutation.isPending ? '저장 중...' : '저장'}
                 </Button>
@@ -409,18 +431,18 @@ export default function ProfilePage() {
       {/* 비밀번호 변경 카드 */}
       <Card>
         <CardHeader className="pb-3 pt-4 px-5">
-          <CardTitle className="flex items-center gap-2 text-[15px] font-medium">
+          <CardTitle className="flex items-center gap-2 text-[18px] text-black font-bold">
             <Lock className="h-4 w-4" />
             비밀번호 변경
           </CardTitle>
-          <CardDescription className="text-[12px] mt-0.5">
+          <CardDescription className="text-[14px] mt-0.5">
             비밀번호는 최소 8자 이상이어야 합니다.
           </CardDescription>
         </CardHeader>
         <CardContent className="px-5 pb-5">
           <form onSubmit={handleChangePassword} className="space-y-3">
             <div className="space-y-1">
-              <Label htmlFor="currentPassword" className="text-[12px] font-normal text-gray-600">
+              <Label htmlFor="currentPassword" className="text-[14px] font-normal text-gray-600">
                 현재 비밀번호 <span className="text-red-500">*</span>
               </Label>
               <Input id="currentPassword" type="password" className={inputCls}
@@ -429,7 +451,7 @@ export default function ProfilePage() {
             </div>
             <div className="grid md:grid-cols-2 gap-x-6 gap-y-3">
               <div className="space-y-1">
-                <Label htmlFor="newPassword" className="text-[12px] font-normal text-gray-600">
+                <Label htmlFor="newPassword" className="text-[14px] font-normal text-gray-600">
                   새 비밀번호 <span className="text-red-500">*</span>
                 </Label>
                 <Input id="newPassword" type="password" className={inputCls}
@@ -437,7 +459,7 @@ export default function ProfilePage() {
                   placeholder="새 비밀번호 (최소 8자)" disabled={changePasswordMutation.isPending} />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="confirmPassword" className="text-[12px] font-normal text-gray-600">
+                <Label htmlFor="confirmPassword" className="text-[14px] font-normal text-gray-600">
                   새 비밀번호 확인 <span className="text-red-500">*</span>
                 </Label>
                 <Input id="confirmPassword" type="password" className={inputCls}

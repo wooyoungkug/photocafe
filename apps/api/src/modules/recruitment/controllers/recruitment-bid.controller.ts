@@ -6,13 +6,16 @@ import {
   Param,
   Request,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RecruitmentBidService } from '../services/recruitment-bid.service';
 import { CreateRecruitmentBidDto } from '../dto';
 
 @ApiTags('구인방 - 응찰')
 @ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('recruitments')
 export class RecruitmentBidController {
   constructor(private readonly bidService: RecruitmentBidService) {}
