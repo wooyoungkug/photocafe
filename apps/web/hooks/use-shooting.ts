@@ -66,8 +66,7 @@ export interface Shooting {
   creator?: {
     id: string;
     clientName: string;
-    contactPerson?: string;
-    contactPhone?: string;
+    representative?: string;
     memberType: string;
     mobile?: string;
   } | null;

@@ -210,8 +210,7 @@ export class ShootingService {
           select: {
             id: true,
             clientName: true,
-            contactPerson: true,
-            contactPhone: true,
+            representative: true,
             memberType: true,
             mobile: true,
           },
@@ -270,8 +269,7 @@ export class ShootingService {
       select: {
         id: true,
         clientName: true,
-        contactPerson: true,
-        contactPhone: true,
+        representative: true,
         memberType: true,
         mobile: true,
       },

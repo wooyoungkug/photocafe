@@ -297,8 +297,8 @@ export default function ScheduleDetailPage() {
                 <div>
                   <p className="text-[12px] text-gray-500">등록자</p>
                   <p className="text-[14px] text-black font-normal">
-                    {shooting.creator.memberType === 'business' && shooting.creator.contactPerson
-                      ? `${shooting.creator.clientName}(${shooting.creator.contactPerson})`
+                    {shooting.creator.memberType === 'business' && shooting.creator.representative
+                      ? `${shooting.creator.clientName}(${shooting.creator.representative})`
                       : shooting.creator.clientName}
                   </p>
                 </div>

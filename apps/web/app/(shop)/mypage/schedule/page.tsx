@@ -418,8 +418,8 @@ function ShootingListItem({
         <div className="flex items-center gap-1 mt-0.5">
           <Building2 className="h-3 w-3 text-gray-400" />
           <span className="text-[12px] text-gray-600 truncate">
-            {shooting.creator.memberType === 'business' && shooting.creator.contactPerson
-              ? `${shooting.creator.clientName}(${shooting.creator.contactPerson})`
+            {shooting.creator.memberType === 'business' && shooting.creator.representative
+              ? `${shooting.creator.clientName}(${shooting.creator.representative})`
               : shooting.creator.clientName}
           </span>
         </div>
