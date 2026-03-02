@@ -64,9 +64,10 @@ export function VenueSearchInput({
   };
 
   const handleSelect = (place: PlaceResult) => {
+    // 지번 주소 우선 사용 (동 단위 포함) → 없으면 도로명 주소 사용
     onSelect({
       name: place.placeName,
-      address: place.roadAddress || place.address,
+      address: place.address || place.roadAddress || '',
     });
     setIsOpen(false);
     setResults([]);
@@ -137,9 +138,16 @@ export function VenueSearchInput({
                   <p className="text-[14px] text-black font-medium truncate">
                     {place.placeName}
                   </p>
-                  <p className="text-[12px] text-gray-500 truncate">
-                    {place.roadAddress || place.address}
-                  </p>
+                  {place.roadAddress && (
+                    <p className="text-[12px] text-gray-500 truncate">
+                      {place.roadAddress}
+                    </p>
+                  )}
+                  {place.address && (
+                    <p className="text-[11px] text-gray-400 truncate">
+                      {place.address}
+                    </p>
+                  )}
                   {place.categoryName && (
                     <p className="text-[11px] text-gray-400 truncate">
                       {place.categoryName}

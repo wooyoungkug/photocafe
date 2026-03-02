@@ -120,13 +120,20 @@ function StatusDashboard({
 }
 
 // 주소에서 구/동 수준 추출
+// 지번: "서울특별시 강남구 청담동 11-1" → "강남구 청담동"
+// 도로명: "서울 강남구 도산대로 45" → "강남구"
 function extractLocationSummary(address?: string): string | null {
   if (!address) return null;
-  // "서울특별시 강남구 청담동 11-1" → "강남구 청담동"
-  const m = address.match(/([가-힣]+[구군]\s+[가-힣]+[동읍면]|[가-힣]+[동읍면])/);
-  if (m) return m[1];
-  // 매칭 안 되면 앞 2단어
-  return address.split(' ').slice(0, 2).join(' ');
+  // 구+동 패턴 (지번 주소)
+  const dongMatch = address.match(/([가-힣]+(?:구|군)\s+[가-힣]+(?:동|읍|면))/);
+  if (dongMatch) return dongMatch[1];
+  // 동만 있는 경우
+  const dongOnly = address.match(/([가-힣]+(?:동|읍|면))(?:\s|$)/);
+  if (dongOnly) return dongOnly[1];
+  // 도로명 주소: 구까지만 추출
+  const guMatch = address.match(/([가-힣]+(?:구|군))/);
+  if (guMatch) return guMatch[1];
+  return null;
 }
 
 // ==================== 내 구인 리스트 행 ====================
