@@ -413,15 +413,14 @@ function ShootingListItem({
         </div>
       )}
 
-      {/* 등록 업체 */}
+      {/* 등록자 */}
       {shooting.creator && (
         <div className="flex items-center gap-1 mt-0.5">
           <Building2 className="h-3 w-3 text-gray-400" />
           <span className="text-[12px] text-gray-600 truncate">
-            {shooting.creator.clientName}
-            {shooting.creator.contactPerson && (
-              <span className="text-gray-400"> · {shooting.creator.contactPerson}</span>
-            )}
+            {shooting.creator.memberType === 'business' && shooting.creator.contactPerson
+              ? `${shooting.creator.clientName}(${shooting.creator.contactPerson})`
+              : shooting.creator.clientName}
           </span>
         </div>
       )}

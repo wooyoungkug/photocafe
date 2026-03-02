@@ -268,18 +268,12 @@ export default function ScheduleDetailPage() {
               <div className="flex items-start gap-2.5 sm:col-span-2">
                 <Building2 className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-[12px] text-gray-500">등록 업체</p>
+                  <p className="text-[12px] text-gray-500">등록자</p>
                   <p className="text-[14px] text-black font-normal">
-                    {shooting.creator.clientName}
-                    <span className="ml-1.5 text-[12px] text-gray-400">
-                      ({shooting.creator.memberType === 'business' ? '회사' : '개인'})
-                    </span>
+                    {shooting.creator.memberType === 'business' && shooting.creator.contactPerson
+                      ? `${shooting.creator.clientName}(${shooting.creator.contactPerson})`
+                      : shooting.creator.clientName}
                   </p>
-                  {shooting.creator.contactPerson && (
-                    <p className="text-[12px] text-gray-500 mt-0.5">
-                      담당자: {shooting.creator.contactPerson}
-                    </p>
-                  )}
                 </div>
               </div>
             )}
