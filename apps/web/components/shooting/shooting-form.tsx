@@ -686,7 +686,7 @@ export function ShootingForm({
                 <div className="space-y-1.5">
                   <Label className="text-[14px] text-black font-normal">전속 모집 마감 시간</Label>
                   <p className="text-[12px] text-gray-500">
-                    전속 모집 기간이 지나면 자동으로 공개 모집으로 전환됩니다
+                    등록 즉시 구인방에 올라갑니다. 전속 모집 기간이 지나면 자동으로 공개 모집으로 전환됩니다
                   </p>
                   <Select
                     value={String(watch('recruitmentPrivateDeadlineHours') ?? 24)}
