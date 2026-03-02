@@ -170,7 +170,7 @@ function MyRecruitmentRow({ recruitment }: { recruitment: Recruitment }) {
           )}
         </div>
 
-        {/* 제목 + 촬영유형 */}
+        {/* 제목 + 촬영유형 + 스튜디오/개인명 */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-[14px] text-black font-normal truncate">
@@ -180,6 +180,23 @@ function MyRecruitmentRow({ recruitment }: { recruitment: Recruitment }) {
               {SHOOTING_TYPE_LABELS[recruitment.shootingType]}
             </Badge>
           </div>
+          {(recruitment.client?.clientName || recruitment.customerName) && (
+            <div className="flex items-center gap-1 mt-0.5">
+              {recruitment.client?.clientName && (
+                <span className="text-[12px] text-gray-400 truncate">
+                  {recruitment.client.clientName}
+                </span>
+              )}
+              {recruitment.client?.clientName && recruitment.customerName && (
+                <span className="text-[12px] text-gray-300">·</span>
+              )}
+              {recruitment.customerName && (
+                <span className="text-[12px] text-gray-400 truncate">
+                  {recruitment.customerName}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* 촬영일 */}
