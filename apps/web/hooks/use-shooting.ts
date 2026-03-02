@@ -72,22 +72,6 @@ export interface Shooting {
 
 /** 촬영 생성 DTO (백엔드 CreateShootingDto 기준) */
 export interface CreateShootingDto {
-<<<<<<< HEAD
-  title: string;
-  type: ShootingType;
-  scheduledDate: string;
-  scheduledTime?: string;
-  estimatedDuration?: number;
-  location?: string;
-  locationAddress?: string;
-  locationLat?: number;
-  locationLng?: number;
-  description?: string;
-  requirements?: string;
-  budget?: number;
-  clientId?: string;
-  clientName?: string;
-=======
   clientName: string;
   shootingType: ShootingType;
   venueName: string;
@@ -109,7 +93,6 @@ export interface CreateShootingDto {
   recruitmentBudget?: number;
   recruitmentDescription?: string;
   recruitmentRequirements?: string;
->>>>>>> 82389d12fdd93faa0fb0c3a143bf2ae00807b325
 }
 
 /** 촬영 수정 DTO */
@@ -130,13 +113,8 @@ export interface ShootingListParams {
   status?: ShootingStatus;
   startDate?: string;
   endDate?: string;
-<<<<<<< HEAD
-  clientId?: string;
-  photographerId?: string;
-  createdBy?: string;
-=======
   assignedStaffId?: string;
->>>>>>> 82389d12fdd93faa0fb0c3a143bf2ae00807b325
+  createdBy?: string;
 }
 
 /** 페이지네이션 응답 */
