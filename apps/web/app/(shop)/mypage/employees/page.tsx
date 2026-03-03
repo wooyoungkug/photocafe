@@ -219,7 +219,8 @@ export default function EmployeesPage() {
                         {emp.member.lastLoginIp || '-'}
                       </td>
                       <td className="px-3 py-2 text-right">
-                        {emp.memberClientId === emp.companyClientId ? null : (
+                        {emp.memberClientId === emp.companyClientId ? null :
+                         (emp.role === 'MANAGER' && !isOwner) ? null : (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
@@ -262,6 +263,7 @@ export default function EmployeesPage() {
           employment={editTarget}
           enableSchedule={user?.enableSchedule ?? true}
           enableRecruitment={user?.enableRecruitment ?? true}
+          isOwner={isOwner}
           onClose={() => setEditTarget(null)}
         />
       )}
@@ -482,11 +484,13 @@ function EditPermissionDialog({
   employment,
   enableSchedule,
   enableRecruitment,
+  isOwner,
   onClose,
 }: {
   employment: Employment;
   enableSchedule: boolean;
   enableRecruitment: boolean;
+  isOwner: boolean;
   onClose: () => void;
 }) {
   const { user } = useAuthStore();
@@ -555,7 +559,7 @@ function EditPermissionDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="MANAGER" className="text-[14px] text-black font-normal">Manager</SelectItem>
+                <SelectItem value="MANAGER" className="text-[14px] text-black font-normal" disabled={!isOwner}>Manager</SelectItem>
                 <SelectItem value="EDITOR" className="text-[14px] text-black font-normal">Artist</SelectItem>
                 <SelectItem value="PHOTOGRAPHER" className="text-[14px] text-black font-normal">Photographer</SelectItem>
                 <SelectItem value="STAFF" className="text-[14px] text-black font-normal">STAFF</SelectItem>
