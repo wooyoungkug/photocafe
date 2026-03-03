@@ -57,9 +57,6 @@ import {
   Building,
   Plus,
   Pencil,
-  User,
-  MapPin,
-  Star,
   ShoppingBag,
   Calendar,
   Wallet,
@@ -501,8 +498,6 @@ function EditPermissionDialog({
   const [status, setStatus] = useState<EmploymentStatus>(employment.status);
   const [department, setDepartment] = useState(employment.department || '');
 
-  const isManager = role === 'MANAGER';
-
   const { data: departments = [] } = useEmployeeDepartments(clientId);
   const updateMutation = useUpdateEmployment();
 
@@ -595,24 +590,6 @@ function EditPermissionDialog({
         {/* 메뉴 접근 권한 - 사이드메뉴 형태 */}
         <div className="space-y-2">
           <Label className="text-[14px] text-black font-normal">메뉴 접근 권한</Label>
-
-          {/* 고정 메뉴 */}
-          <div className="border rounded-lg overflow-hidden">
-            <div className="px-3 py-1.5 bg-gray-50 border-b">
-              <span className="text-[12px] font-medium text-gray-500">고정 메뉴</span>
-            </div>
-            <div className="divide-y">
-              <PermMenuRow icon={<User className="h-3.5 w-3.5" />} label="회원정보" badge="항상" />
-              <PermMenuRow
-                icon={<Users className="h-3.5 w-3.5" />}
-                label="직원관리"
-                badge={isManager ? '매니저' : '최고관리자만'}
-                badgeVariant={isManager ? 'blue' : 'gray'}
-              />
-              <PermMenuRow icon={<MapPin className="h-3.5 w-3.5" />} label="배송지 관리" badge="항상" />
-              <PermMenuRow icon={<Star className="h-3.5 w-3.5" />} label="마이상품" badge="항상" />
-            </div>
-          </div>
 
           {/* 선택 메뉴 */}
           <div className="border rounded-lg overflow-hidden">
