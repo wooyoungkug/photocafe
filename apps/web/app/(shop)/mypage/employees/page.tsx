@@ -75,7 +75,8 @@ export default function EmployeesPage() {
   const { data: employees, isLoading: employeesLoading } = useEmployeesByClient(clientId);
   const { data: invitations } = useInvitationsByClient(clientId);
 
-  const isOwner = user?.type === 'client' || user?.isOwner === true;
+  // type이 'employee'가 아니거나(client, undefined 등), 또는 isOwner=true인 경우 최고관리자로 판단
+  const isOwner = user?.type !== 'employee' || user?.isOwner === true;
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Employment | null>(null);
