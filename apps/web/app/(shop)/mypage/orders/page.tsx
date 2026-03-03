@@ -621,7 +621,7 @@ export default function MyOrdersPage() {
                             {item.folderName || item.productName}
                           </Link>
                           <div className="text-[13px] text-gray-500 mt-1 leading-tight line-clamp-1">
-                            {item.size} / {item.printMethod} / {item.pages}p / {item.quantity}건
+                            {item.size} / {item.printMethod} / {item.pages}p / {item.quantity}부
                           </div>
                         </div>
                       ))}
@@ -770,7 +770,7 @@ export default function MyOrdersPage() {
 
                         <TableCell className="text-center text-[14px]">
                           <div>{item.pages}p</div>
-                          <div>{item.quantity}건</div>
+                          <div>{item.quantity}부</div>
                         </TableCell>
 
 
