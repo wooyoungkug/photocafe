@@ -747,7 +747,8 @@ export default function MyOrdersPage() {
                           <TableCell className="text-center align-top pt-3" rowSpan={items.length}>
                             <div className="space-y-1">
                               <div className="text-[14px] text-gray-500">
-                                {format(new Date(order.orderedAt), 'yyyy-MM-dd HH:mm', { locale: ko })}
+                                <div>{format(new Date(order.orderedAt), 'yy-MM-dd', { locale: ko })}</div>
+                                <div>{format(new Date(order.orderedAt), 'HH:mm', { locale: ko })}</div>
                               </div>
                               <Link href={`/mypage/orders/${order.id}`} className="text-[14px] text-primary hover:underline">
                                 {order.orderNumber}
