@@ -137,7 +137,11 @@ export default function ProfilePage() {
       setError('이름과 이메일은 필수 입력 항목입니다.');
       return;
     }
-    updateProfileMutation.mutate(profileData);
+    // 직원은 개인 기본 정보만 저장 (주소/사업자 정보 제외)
+    const dataToSave = isEmployee
+      ? { clientName: profileData.clientName, email: profileData.email, mobile: profileData.mobile, phone: profileData.phone }
+      : profileData;
+    updateProfileMutation.mutate(dataToSave as typeof profileData);
   };
 
   const handleCancelEdit = () => {
