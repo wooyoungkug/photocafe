@@ -79,7 +79,7 @@ export default function EmployeesPage() {
     user?.type === 'client' ||
     (user?.type === 'employee' && user?.employeeRole === 'MANAGER');
 
-  const isOwner = user?.type === 'client';
+  const isOwner = user?.type === 'client' || user?.isOwner === true;
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Employment | null>(null);
