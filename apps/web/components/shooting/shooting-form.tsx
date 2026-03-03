@@ -431,8 +431,7 @@ export function ShootingForm({
             <Label className="text-[14px] text-black font-normal">주소</Label>
             <Input
               {...register('venueAddress')}
-              placeholder="장소명을 입력하면 자동으로 채워집니다"
-              readOnly
+              placeholder="장소명 선택 시 자동 입력, 또는 직접 입력"
               className="text-[14px]"
             />
           </div>
