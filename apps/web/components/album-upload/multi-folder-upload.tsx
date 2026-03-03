@@ -1120,6 +1120,11 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
 
       setTotalFolderCount(allFolders.length);
 
+      // 조기 중복 감지용 폴더명 집합 (배치 내 새로 추가된 항목도 실시간 반영)
+      const existingFolderNames = new Set<string>(
+        useMultiFolderUploadStore.getState().folders.map(f => f.folderName)
+      );
+
       const duplicateMessages: string[] = [];
       for (let i = 0; i < allFolders.length; i++) {
         if (cancelRef.current) break;
@@ -1127,6 +1132,13 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         const { entry, fullPath, depth } = allFolders[i];
         setCurrentFolderIndex(i + 1);
         setProcessingMessage(tu('processingProgress', { current: i + 1, total: allFolders.length, name: fullPath }));
+
+        // 조기 중복 감지: 무거운 processFolder 호출 전 폴더명으로 빠르게 체크
+        if (existingFolderNames.has(entry.name)) {
+          duplicateMessages.push(`"${entry.name}" 폴더가 이미 목록에 있습니다.`);
+          setOverallProgress(Math.round(((i + 1) / allFolders.length) * 100));
+          continue;
+        }
 
         // 편집스타일 자동감지 (기본값 미선택 시)
         let pageLayout: PageLayoutType;
@@ -1157,6 +1169,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
           if (!result.added) {
             duplicateMessages.push(result.reason || tu('duplicateName', { name: folder.folderName }));
           } else {
+            existingFolderNames.add(folder.folderName);
             // 색상 그룹 계산
             computeColorGroups(folder.id);
             if (result.reason) {
@@ -1170,16 +1183,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         setOverallProgress(overall);
       }
 
-      if (cancelRef.current) {
-        toast({ title: '업로드 중단', description: '업로드가 중단되었습니다.', variant: 'destructive' });
-      } else if (duplicateMessages.length > 0) {
-        toast({
-          title: tu('duplicateFolderDetected'),
-          description: duplicateMessages.join('\n'),
-          variant: 'destructive',
-        });
-      }
-
+      const wasCancelled = cancelRef.current;
       setUploading(false);
       setProcessingMessage('');
       setCurrentFolderIndex(0);
@@ -1189,6 +1193,17 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
 
       // 새 폴더로 스크롤
       scrollToNewFolder(initialFolderCount);
+
+      // 오버레이 제거 후 토스트 표시 (처리 오버레이에 가리지 않도록)
+      if (wasCancelled) {
+        toast({ title: '업로드 중단', description: '업로드가 중단되었습니다.', variant: 'destructive' });
+      } else if (duplicateMessages.length > 0) {
+        toast({
+          title: tu('duplicateFolderDetected'),
+          description: duplicateMessages.join('\n'),
+          variant: 'destructive',
+        });
+      }
     },
     [collectAllFolders, processFolder, addFolder, setUploading, setUploadProgress, defaultPageLayout, defaultBindingDirection, readDirectoryFiles, probeFileDimensions, indigoSpecs]
   );
@@ -1231,6 +1246,11 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
       const entries = Array.from(folderMap.entries());
       setTotalFolderCount(entries.length);
 
+      // 조기 중복 감지용 폴더명 집합 (배치 내 새로 추가된 항목도 실시간 반영)
+      const existingFolderNames = new Set<string>(
+        useMultiFolderUploadStore.getState().folders.map(f => f.folderName)
+      );
+
       const duplicateMessages: string[] = [];
       for (let i = 0; i < entries.length; i++) {
         if (cancelRef.current) break;
@@ -1238,6 +1258,13 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         const [folderPath, { files: folderFiles, depth, folderName }] = entries[i];
         setCurrentFolderIndex(i + 1);
         setProcessingMessage(tu('processingProgress', { current: i + 1, total: entries.length, name: folderPath }));
+
+        // 조기 중복 감지: 무거운 처리 전 폴더명으로 빠르게 체크
+        if (existingFolderNames.has(folderName)) {
+          duplicateMessages.push(`"${folderName}" 폴더가 이미 목록에 있습니다.`);
+          setOverallProgress(Math.round(((i + 1) / entries.length) * 100));
+          continue;
+        }
 
         folderFiles.sort((a, b) => a.name.localeCompare(b.name, 'ko', { numeric: true }));
 
@@ -1415,6 +1442,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         if (!result.added) {
           duplicateMessages.push(result.reason || tu('duplicateName', { name: folder.folderName }));
         } else {
+          existingFolderNames.add(folder.folderName);
           computeColorGroups(folder.id);
           if (result.reason) {
             duplicateMessages.push(result.reason);
@@ -1426,16 +1454,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
         setOverallProgress(overall);
       }
 
-      if (cancelRef.current) {
-        toast({ title: '업로드 중단', description: '업로드가 중단되었습니다.', variant: 'destructive' });
-      } else if (duplicateMessages.length > 0) {
-        toast({
-          title: tu('duplicateFolderDetected'),
-          description: duplicateMessages.join('\n'),
-          variant: 'destructive',
-        });
-      }
-
+      const wasCancelled = cancelRef.current;
       setUploading(false);
       setProcessingMessage('');
       setCurrentFolderIndex(0);
@@ -1446,6 +1465,17 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
 
       // 새 폴더로 스크롤
       scrollToNewFolder(initialFolderCount);
+
+      // 오버레이 제거 후 토스트 표시 (처리 오버레이에 가리지 않도록)
+      if (wasCancelled) {
+        toast({ title: '업로드 중단', description: '업로드가 중단되었습니다.', variant: 'destructive' });
+      } else if (duplicateMessages.length > 0) {
+        toast({
+          title: tu('duplicateFolderDetected'),
+          description: duplicateMessages.join('\n'),
+          variant: 'destructive',
+        });
+      }
     },
     [addFolder, extractFileMetadata, setUploading, setUploadProgress, defaultPageLayout, defaultBindingDirection, processHalfWidthCoversWithCanvas, indigoSpecs, probeFileDimensions, detectBlankPage, autoDetectBindingDirection]
   );
