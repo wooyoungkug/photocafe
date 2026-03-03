@@ -78,7 +78,11 @@ export class UploadController {
                     }
                     const dir = join(getUploadBasePath(), 'temp', safeTempFolderId, 'originals');
                     if (!existsSync(dir)) {
-                        mkdirSync(dir, { recursive: true });
+                        try {
+                            mkdirSync(dir, { recursive: true });
+                        } catch (mkdirErr: any) {
+                            return cb(new Error(`업로드 폴더 생성 실패 (${mkdirErr.code}): ${dir} - ${mkdirErr.message}`), '');
+                        }
                     }
                     cb(null, dir);
                 },
