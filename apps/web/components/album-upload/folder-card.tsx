@@ -933,7 +933,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
             <div className="flex items-center gap-1 flex-wrap text-[10px] text-gray-500 mt-1 mb-1">
               <span className="text-xs text-black">출력</span>
               <select
-                value={`${folder.printMethod}_${folder.colorMode || '4c'}`}
+                value={folder.printMethod === 'inkjet' ? 'inkjet' : `${folder.printMethod}_${folder.colorMode || '4c'}`}
                 onChange={(e) => {
                   const val = e.target.value;
                   if (val === 'inkjet') {
