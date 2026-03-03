@@ -10,6 +10,7 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
+  Building2,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -52,6 +53,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PageHeader } from '@/components/layout/page-header';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -60,8 +62,13 @@ import {
   useCreateFabric,
   useUpdateFabric,
   useDeleteFabric,
+  useCreateFabricSupplier,
+  useUpdateFabricSupplier,
+  useDeleteFabricSupplier,
   Fabric,
+  FabricSupplier,
   CreateFabricDto,
+  CreateFabricSupplierDto,
   FabricCategory,
   FabricMaterial,
   FabricUnitType,
@@ -98,21 +105,46 @@ const initialFormData: CreateFabricDto = {
   isActive: true,
 };
 
+const initialSupplierFormData: CreateFabricSupplierDto = {
+  code: '',
+  name: '',
+  phone: '',
+  mobile: '',
+  email: '',
+  fax: '',
+  postalCode: '',
+  address: '',
+  addressDetail: '',
+  representative: '',
+  website: '',
+  description: '',
+  memo: '',
+  sortOrder: 0,
+  isActive: true,
+};
+
 export default function FabricsPage() {
   const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState('fabrics');
+
+  // 원단 필터/페이지
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterMaterial, setFilterMaterial] = useState<string>('all');
   const [page, setPage] = useState(1);
   const [limit] = useState(20);
 
-  // 다이얼로그 상태
+  // 원단 다이얼로그 상태
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingFabric, setEditingFabric] = useState<Fabric | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-
-  // 폼 데이터
   const [formData, setFormData] = useState<CreateFabricDto>(initialFormData);
+
+  // 공급업체 다이얼로그 상태
+  const [supplierDialogOpen, setSupplierDialogOpen] = useState(false);
+  const [editingSupplier, setEditingSupplier] = useState<FabricSupplier | null>(null);
+  const [deleteSuppierId, setDeleteSupplierId] = useState<string | null>(null);
+  const [supplierFormData, setSupplierFormData] = useState<CreateFabricSupplierDto>(initialSupplierFormData);
 
   // API 훅
   const { data: fabricsData, isLoading: isFabricsLoading } = useFabrics({
@@ -123,16 +155,21 @@ export default function FabricsPage() {
     limit,
   });
 
-  const { data: suppliers } = useFabricSuppliers();
+  const { data: suppliers, isLoading: isSuppliersLoading } = useFabricSuppliers(true);
   const createFabric = useCreateFabric();
   const updateFabric = useUpdateFabric();
   const deleteFabric = useDeleteFabric();
+  const createSupplier = useCreateFabricSupplier();
+  const updateSupplier = useUpdateFabricSupplier();
+  const deleteSupplier = useDeleteFabricSupplier();
 
   const fabrics = fabricsData?.data || [];
   const meta = fabricsData?.meta;
-  const isLoading = createFabric.isPending || updateFabric.isPending || deleteFabric.isPending;
+  const isFabricMutating = createFabric.isPending || updateFabric.isPending || deleteFabric.isPending;
+  const isSupplierMutating = createSupplier.isPending || updateSupplier.isPending || deleteSupplier.isPending;
 
-  // 다이얼로그 열기
+  // ==================== 원단 핸들러 ====================
+
   const openDialog = (fabric?: Fabric) => {
     if (fabric) {
       setEditingFabric(fabric);
@@ -172,22 +209,15 @@ export default function FabricsPage() {
     setDialogOpen(true);
   };
 
-  // 저장
   const handleSubmit = async () => {
     if (!formData.name?.trim()) {
-      toast({
-        variant: 'destructive',
-        title: '원단명을 입력해주세요.',
-      });
+      toast({ variant: 'destructive', title: '원단명을 입력해주세요.' });
       return;
     }
 
     try {
       if (editingFabric) {
-        await updateFabric.mutateAsync({
-          id: editingFabric.id,
-          dto: formData,
-        });
+        await updateFabric.mutateAsync({ id: editingFabric.id, dto: formData });
         toast({ title: '원단이 수정되었습니다.' });
       } else {
         await createFabric.mutateAsync(formData);
@@ -195,26 +225,82 @@ export default function FabricsPage() {
       }
       setDialogOpen(false);
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: error?.response?.data?.message || '저장에 실패했습니다.',
-      });
+      toast({ variant: 'destructive', title: error?.response?.data?.message || '저장에 실패했습니다.' });
     }
   };
 
-  // 삭제
   const handleDelete = async () => {
     if (!deleteId) return;
-
     try {
       await deleteFabric.mutateAsync(deleteId);
       toast({ title: '원단이 삭제되었습니다.' });
       setDeleteId(null);
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: error?.response?.data?.message || '삭제에 실패했습니다.',
+      toast({ variant: 'destructive', title: error?.response?.data?.message || '삭제에 실패했습니다.' });
+    }
+  };
+
+  // ==================== 공급업체 핸들러 ====================
+
+  const openSupplierDialog = (supplier?: FabricSupplier) => {
+    if (supplier) {
+      setEditingSupplier(supplier);
+      setSupplierFormData({
+        code: supplier.code,
+        name: supplier.name,
+        phone: supplier.phone || '',
+        mobile: supplier.mobile || '',
+        email: supplier.email || '',
+        fax: supplier.fax || '',
+        postalCode: supplier.postalCode || '',
+        address: supplier.address || '',
+        addressDetail: supplier.addressDetail || '',
+        representative: supplier.representative || '',
+        website: supplier.website || '',
+        description: supplier.description || '',
+        memo: supplier.memo || '',
+        sortOrder: supplier.sortOrder,
+        isActive: supplier.isActive,
       });
+    } else {
+      setEditingSupplier(null);
+      setSupplierFormData(initialSupplierFormData);
+    }
+    setSupplierDialogOpen(true);
+  };
+
+  const handleSupplierSubmit = async () => {
+    if (!supplierFormData.code?.trim()) {
+      toast({ variant: 'destructive', title: '공급업체 코드를 입력해주세요.' });
+      return;
+    }
+    if (!supplierFormData.name?.trim()) {
+      toast({ variant: 'destructive', title: '공급업체명을 입력해주세요.' });
+      return;
+    }
+
+    try {
+      if (editingSupplier) {
+        await updateSupplier.mutateAsync({ id: editingSupplier.id, dto: supplierFormData });
+        toast({ title: '공급업체가 수정되었습니다.' });
+      } else {
+        await createSupplier.mutateAsync(supplierFormData);
+        toast({ title: '공급업체가 등록되었습니다.' });
+      }
+      setSupplierDialogOpen(false);
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: error?.response?.data?.message || '저장에 실패했습니다.' });
+    }
+  };
+
+  const handleSupplierDelete = async () => {
+    if (!deleteSuppierId) return;
+    try {
+      await deleteSupplier.mutateAsync(deleteSuppierId);
+      toast({ title: '공급업체가 삭제되었습니다.' });
+      setDeleteSupplierId(null);
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: error?.response?.data?.message || '삭제에 실패했습니다.' });
     }
   };
 
@@ -222,7 +308,7 @@ export default function FabricsPage() {
     <div className="space-y-6">
       <PageHeader
         title="표지원단 관리"
-        description="앨범 커버 등에 사용되는 표지원단을 관리합니다."
+        description="앨범 커버 등에 사용되는 표지원단과 공급업체를 관리합니다."
         breadcrumbs={[
           { label: '홈', href: '/' },
           { label: '기초정보', href: '/settings/basic' },
@@ -230,217 +316,324 @@ export default function FabricsPage() {
         ]}
       />
 
-      {/* 필터 영역 */}
-      <div className="bg-slate-50 rounded-lg p-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[200px] max-w-sm">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="원단명, 코드, 색상 검색..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setPage(1);
-              }}
-              className="pl-9 bg-white"
-            />
-          </div>
-          <Select
-            value={filterCategory}
-            onValueChange={(v) => {
-              setFilterCategory(v);
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-[130px] bg-white">
-              <SelectValue placeholder="카테고리" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">전체 카테고리</SelectItem>
-              {Object.entries(FABRIC_CATEGORY_LABELS).map(([value, label]) => (
-                <SelectItem key={value} value={value}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={filterMaterial}
-            onValueChange={(v) => {
-              setFilterMaterial(v);
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-[130px] bg-white">
-              <SelectValue placeholder="소재" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">전체 소재</SelectItem>
-              {Object.entries(FABRIC_MATERIAL_LABELS).map(([value, label]) => (
-                <SelectItem key={value} value={value}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="flex-1" />
-          <Button onClick={() => openDialog()} className="bg-indigo-600 hover:bg-indigo-700">
-            <Plus className="h-4 w-4 mr-2" />
-            원단 추가
-          </Button>
-        </div>
-      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="fabrics">
+            <Scissors className="h-4 w-4 mr-2" />
+            원단 목록
+          </TabsTrigger>
+          <TabsTrigger value="suppliers">
+            <Building2 className="h-4 w-4 mr-2" />
+            공급업체
+          </TabsTrigger>
+        </TabsList>
 
-      {/* 테이블 */}
-      <div className="border rounded-lg overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-slate-50">
-              <TableHead className="w-[100px]">코드</TableHead>
-              <TableHead>원단명</TableHead>
-              <TableHead>카테고리</TableHead>
-              <TableHead>색상</TableHead>
-              <TableHead>소재</TableHead>
-              <TableHead>폭 (cm)</TableHead>
-              <TableHead className="text-right">단가 (원)</TableHead>
-              <TableHead className="text-right">재고</TableHead>
-              <TableHead>공급처</TableHead>
-              <TableHead className="text-center">상태</TableHead>
-              <TableHead className="w-[80px] text-center">관리</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isFabricsLoading ? (
-              [...Array(5)].map((_, i) => (
-                <TableRow key={i}>
-                  {[...Array(11)].map((_, j) => (
-                    <TableCell key={j}>
-                      <Skeleton className="h-4 w-full" />
-                    </TableCell>
+        {/* ==================== 원단 탭 ==================== */}
+        <TabsContent value="fabrics" className="space-y-4 mt-4">
+          {/* 필터 영역 */}
+          <div className="bg-slate-50 rounded-lg p-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative flex-1 min-w-[200px] max-w-sm">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="원단명, 코드, 색상 검색..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setPage(1);
+                  }}
+                  className="pl-9 bg-white"
+                />
+              </div>
+              <Select
+                value={filterCategory}
+                onValueChange={(v) => {
+                  setFilterCategory(v);
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="w-[130px] bg-white">
+                  <SelectValue placeholder="카테고리" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체 카테고리</SelectItem>
+                  {Object.entries(FABRIC_CATEGORY_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
                   ))}
-                </TableRow>
-              ))
-            ) : fabrics.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={11} className="text-center py-12">
-                  <div className="text-muted-foreground">
-                    <Scissors className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    등록된 원단이 없습니다
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : (
-              fabrics.map((fabric) => (
-                <TableRow key={fabric.id} className="hover:bg-slate-50">
-                  <TableCell className="font-mono text-sm">{fabric.code}</TableCell>
-                  <TableCell className="font-medium">{fabric.name}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={FABRIC_CATEGORY_COLORS[fabric.category] || ''}
-                    >
-                      {FABRIC_CATEGORY_LABELS[fabric.category] || fabric.category}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {fabric.colorCode && (
-                        <div
-                          className="w-4 h-4 rounded border"
-                          style={{ backgroundColor: fabric.colorCode }}
-                        />
-                      )}
-                      {fabric.colorName || '-'}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {FABRIC_MATERIAL_LABELS[fabric.material] || fabric.material}
-                  </TableCell>
-                  <TableCell>{fabric.widthCm ? `${fabric.widthCm}cm` : '-'}</TableCell>
-                  <TableCell className="text-right font-medium">
-                    {Number(fabric.basePrice).toLocaleString()}원/{FABRIC_UNIT_LABELS[fabric.unitType] || 'm'}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <span
-                      className={
-                        fabric.stockQuantity <= fabric.minStockLevel
-                          ? 'text-red-600 font-medium'
-                          : ''
-                      }
-                    >
-                      {fabric.stockQuantity}
-                    </span>
-                  </TableCell>
-                  <TableCell>{fabric.supplier?.name || '-'}</TableCell>
-                  <TableCell className="text-center">
-                    <Badge variant={fabric.isActive ? 'default' : 'outline'} className="text-xs">
-                      {fabric.isActive ? '활성' : '비활성'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => openDialog(fabric)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-red-500 hover:text-red-600"
-                        onClick={() => setDeleteId(fabric.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* 페이지네이션 */}
-      {meta && meta.totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
-            전체 {meta.total}개 중 {fabrics.length}개 표시
+                </SelectContent>
+              </Select>
+              <Select
+                value={filterMaterial}
+                onValueChange={(v) => {
+                  setFilterMaterial(v);
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="w-[130px] bg-white">
+                  <SelectValue placeholder="소재" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체 소재</SelectItem>
+                  {Object.entries(FABRIC_MATERIAL_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex-1" />
+              <Button onClick={() => openDialog()} className="bg-indigo-600 hover:bg-indigo-700">
+                <Plus className="h-4 w-4 mr-2" />
+                원단 추가
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="text-sm">
-              {page} / {meta.totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => Math.min(meta.totalPages, p + 1))}
-              disabled={page === meta.totalPages}
-            >
-              <ChevronRight className="h-4 w-4" />
+
+          {/* 테이블 */}
+          <div className="border rounded-lg overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-slate-50">
+                  <TableHead className="w-[100px]">코드</TableHead>
+                  <TableHead>원단명</TableHead>
+                  <TableHead>카테고리</TableHead>
+                  <TableHead>색상</TableHead>
+                  <TableHead>소재</TableHead>
+                  <TableHead>폭 (cm)</TableHead>
+                  <TableHead className="text-right">단가 (원)</TableHead>
+                  <TableHead className="text-right">재고</TableHead>
+                  <TableHead>공급처</TableHead>
+                  <TableHead className="text-center">상태</TableHead>
+                  <TableHead className="w-[80px] text-center">관리</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isFabricsLoading ? (
+                  [...Array(5)].map((_, i) => (
+                    <TableRow key={i}>
+                      {[...Array(11)].map((_, j) => (
+                        <TableCell key={j}>
+                          <Skeleton className="h-4 w-full" />
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : fabrics.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={11} className="text-center py-12">
+                      <div className="text-muted-foreground">
+                        <Scissors className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        등록된 원단이 없습니다
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  fabrics.map((fabric) => (
+                    <TableRow key={fabric.id} className="hover:bg-slate-50">
+                      <TableCell className="font-mono text-sm">{fabric.code}</TableCell>
+                      <TableCell className="font-medium">{fabric.name}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={FABRIC_CATEGORY_COLORS[fabric.category] || ''}
+                        >
+                          {FABRIC_CATEGORY_LABELS[fabric.category] || fabric.category}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {fabric.colorCode && (
+                            <div
+                              className="w-4 h-4 rounded border"
+                              style={{ backgroundColor: fabric.colorCode }}
+                            />
+                          )}
+                          {fabric.colorName || '-'}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {FABRIC_MATERIAL_LABELS[fabric.material] || fabric.material}
+                      </TableCell>
+                      <TableCell>{fabric.widthCm ? `${fabric.widthCm}cm` : '-'}</TableCell>
+                      <TableCell className="text-right font-medium">
+                        {Number(fabric.basePrice).toLocaleString()}원/{FABRIC_UNIT_LABELS[fabric.unitType] || 'm'}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <span
+                          className={
+                            fabric.stockQuantity <= fabric.minStockLevel
+                              ? 'text-red-600 font-medium'
+                              : ''
+                          }
+                        >
+                          {fabric.stockQuantity}
+                        </span>
+                      </TableCell>
+                      <TableCell>{fabric.supplier?.name || '-'}</TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant={fabric.isActive ? 'default' : 'outline'} className="text-xs">
+                          {fabric.isActive ? '활성' : '비활성'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => openDialog(fabric)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-red-500 hover:text-red-600"
+                            onClick={() => setDeleteId(fabric.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* 페이지네이션 */}
+          {meta && meta.totalPages > 1 && (
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">
+                전체 {meta.total}개 중 {fabrics.length}개 표시
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-sm">
+                  {page} / {meta.totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.min(meta.totalPages, p + 1))}
+                  disabled={page === meta.totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {!meta && !isFabricsLoading && (
+            <div className="text-sm text-muted-foreground text-center">
+              전체 {fabrics.length}개 표시
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ==================== 공급업체 탭 ==================== */}
+        <TabsContent value="suppliers" className="space-y-4 mt-4">
+          <div className="flex justify-end">
+            <Button onClick={() => openSupplierDialog()} className="bg-indigo-600 hover:bg-indigo-700">
+              <Plus className="h-4 w-4 mr-2" />
+              공급업체 추가
             </Button>
           </div>
-        </div>
-      )}
 
-      {!meta && !isFabricsLoading && (
-        <div className="text-sm text-muted-foreground text-center">
-          전체 {fabrics.length}개 표시
-        </div>
-      )}
+          <div className="border rounded-lg overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-slate-50">
+                  <TableHead className="w-[100px]">코드</TableHead>
+                  <TableHead>공급업체명</TableHead>
+                  <TableHead>담당자</TableHead>
+                  <TableHead>전화</TableHead>
+                  <TableHead>휴대폰</TableHead>
+                  <TableHead>이메일</TableHead>
+                  <TableHead className="text-center">원단 수</TableHead>
+                  <TableHead className="text-center">상태</TableHead>
+                  <TableHead className="w-[80px] text-center">관리</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isSuppliersLoading ? (
+                  [...Array(4)].map((_, i) => (
+                    <TableRow key={i}>
+                      {[...Array(9)].map((_, j) => (
+                        <TableCell key={j}>
+                          <Skeleton className="h-4 w-full" />
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : !suppliers || suppliers.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-12">
+                      <div className="text-muted-foreground">
+                        <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        등록된 공급업체가 없습니다
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  suppliers.map((supplier) => (
+                    <TableRow key={supplier.id} className="hover:bg-slate-50">
+                      <TableCell className="font-mono text-sm">{supplier.code}</TableCell>
+                      <TableCell className="font-medium">{supplier.name}</TableCell>
+                      <TableCell>{supplier.representative || '-'}</TableCell>
+                      <TableCell>{supplier.phone || '-'}</TableCell>
+                      <TableCell>{supplier.mobile || '-'}</TableCell>
+                      <TableCell>{supplier.email || '-'}</TableCell>
+                      <TableCell className="text-center">
+                        {supplier._count?.fabrics ?? 0}개
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant={supplier.isActive ? 'default' : 'outline'} className="text-xs">
+                          {supplier.isActive ? '활성' : '비활성'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => openSupplierDialog(supplier)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-red-500 hover:text-red-600"
+                            onClick={() => setDeleteSupplierId(supplier.id)}
+                            disabled={(supplier._count?.fabrics ?? 0) > 0}
+                            title={(supplier._count?.fabrics ?? 0) > 0 ? '원단이 연결되어 삭제 불가' : '삭제'}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+      </Tabs>
 
-      {/* 원단 등록/수정 다이얼로그 */}
+      {/* ==================== 원단 등록/수정 다이얼로그 ==================== */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -621,9 +814,7 @@ export default function FabricsPage() {
                   <Input
                     type="number"
                     value={formData.stockQuantity || ''}
-                    onChange={(e) =>
-                      setFormData({ ...formData, stockQuantity: Number(e.target.value) })
-                    }
+                    onChange={(e) => setFormData({ ...formData, stockQuantity: Number(e.target.value) })}
                     placeholder="100"
                   />
                 </div>
@@ -632,9 +823,7 @@ export default function FabricsPage() {
                   <Input
                     type="number"
                     value={formData.minStockLevel || ''}
-                    onChange={(e) =>
-                      setFormData({ ...formData, minStockLevel: Number(e.target.value) })
-                    }
+                    onChange={(e) => setFormData({ ...formData, minStockLevel: Number(e.target.value) })}
                     placeholder="20"
                   />
                 </div>
@@ -733,8 +922,8 @@ export default function FabricsPage() {
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
                 취소
               </Button>
-              <Button onClick={handleSubmit} disabled={isLoading}>
-                {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              <Button onClick={handleSubmit} disabled={isFabricMutating}>
+                {isFabricMutating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 {editingFabric ? '수정' : '등록'}
               </Button>
             </div>
@@ -742,7 +931,7 @@ export default function FabricsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* 삭제 확인 */}
+      {/* 원단 삭제 확인 */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -756,9 +945,201 @@ export default function FabricsPage() {
             <AlertDialogAction
               onClick={handleDelete}
               className="bg-destructive text-destructive-foreground"
-              disabled={isLoading}
+              disabled={isFabricMutating}
             >
-              {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {isFabricMutating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              삭제
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ==================== 공급업체 등록/수정 다이얼로그 ==================== */}
+      <Dialog open={supplierDialogOpen} onOpenChange={setSupplierDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingSupplier ? '공급업체 수정' : '공급업체 등록'}</DialogTitle>
+            <DialogDescription>공급업체 정보를 입력하세요.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            {/* 기본 정보 */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-slate-500 border-b pb-2">기본 정보</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>코드 *</Label>
+                  <Input
+                    value={supplierFormData.code}
+                    onChange={(e) => setSupplierFormData({ ...supplierFormData, code: e.target.value })}
+                    placeholder="SUP001"
+                    disabled={!!editingSupplier}
+                    className={editingSupplier ? 'bg-slate-100 cursor-not-allowed' : ''}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>공급업체명 *</Label>
+                  <Input
+                    value={supplierFormData.name}
+                    onChange={(e) => setSupplierFormData({ ...supplierFormData, name: e.target.value })}
+                    placeholder="(주)원단공급"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>담당자</Label>
+                  <Input
+                    value={supplierFormData.representative}
+                    onChange={(e) => setSupplierFormData({ ...supplierFormData, representative: e.target.value })}
+                    placeholder="홍길동"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>웹사이트</Label>
+                  <Input
+                    value={supplierFormData.website}
+                    onChange={(e) => setSupplierFormData({ ...supplierFormData, website: e.target.value })}
+                    placeholder="https://example.com"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 연락처 */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-slate-500 border-b pb-2">연락처</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>전화번호</Label>
+                  <Input
+                    value={supplierFormData.phone}
+                    onChange={(e) => setSupplierFormData({ ...supplierFormData, phone: e.target.value })}
+                    placeholder="02-1234-5678"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>휴대폰</Label>
+                  <Input
+                    value={supplierFormData.mobile}
+                    onChange={(e) => setSupplierFormData({ ...supplierFormData, mobile: e.target.value })}
+                    placeholder="010-1234-5678"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>이메일</Label>
+                  <Input
+                    type="email"
+                    value={supplierFormData.email}
+                    onChange={(e) => setSupplierFormData({ ...supplierFormData, email: e.target.value })}
+                    placeholder="contact@example.com"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>팩스</Label>
+                  <Input
+                    value={supplierFormData.fax}
+                    onChange={(e) => setSupplierFormData({ ...supplierFormData, fax: e.target.value })}
+                    placeholder="02-1234-5679"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 주소 */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-slate-500 border-b pb-2">주소</h3>
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label>우편번호</Label>
+                  <Input
+                    value={supplierFormData.postalCode}
+                    onChange={(e) => setSupplierFormData({ ...supplierFormData, postalCode: e.target.value })}
+                    placeholder="12345"
+                    className="max-w-[160px]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>주소</Label>
+                  <Input
+                    value={supplierFormData.address}
+                    onChange={(e) => setSupplierFormData({ ...supplierFormData, address: e.target.value })}
+                    placeholder="서울시 강남구 테헤란로 123"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>상세주소</Label>
+                  <Input
+                    value={supplierFormData.addressDetail}
+                    onChange={(e) => setSupplierFormData({ ...supplierFormData, addressDetail: e.target.value })}
+                    placeholder="5층 501호"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 메모 */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-slate-500 border-b pb-2">추가 정보</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>설명</Label>
+                  <Textarea
+                    value={supplierFormData.description}
+                    onChange={(e) => setSupplierFormData({ ...supplierFormData, description: e.target.value })}
+                    placeholder="공급업체 설명"
+                    rows={3}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>관리자 메모</Label>
+                  <Textarea
+                    value={supplierFormData.memo}
+                    onChange={(e) => setSupplierFormData({ ...supplierFormData, memo: e.target.value })}
+                    placeholder="관리자 메모"
+                    rows={3}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={supplierFormData.isActive}
+                onCheckedChange={(v) => setSupplierFormData({ ...supplierFormData, isActive: v })}
+              />
+              <Label>활성화</Label>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setSupplierDialogOpen(false)}>
+                취소
+              </Button>
+              <Button onClick={handleSupplierSubmit} disabled={isSupplierMutating}>
+                {isSupplierMutating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                {editingSupplier ? '수정' : '등록'}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 공급업체 삭제 확인 */}
+      <AlertDialog open={!!deleteSuppierId} onOpenChange={() => setDeleteSupplierId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>공급업체 삭제</AlertDialogTitle>
+            <AlertDialogDescription>
+              이 공급업체를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSupplierDelete}
+              className="bg-destructive text-destructive-foreground"
+              disabled={isSupplierMutating}
+            >
+              {isSupplierMutating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               삭제
             </AlertDialogAction>
           </AlertDialogFooter>
