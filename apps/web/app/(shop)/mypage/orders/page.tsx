@@ -707,7 +707,7 @@ export default function MyOrdersPage() {
                     </TableHead>
                     <TableHead className="text-center w-[140px] text-[14px]">주문일<br />(주문번호)</TableHead>
                     <TableHead className="text-[14px]">상품명<br />규격</TableHead>
-                    <TableHead className="text-center w-[70px] text-[14px]">페이지<br />/ 부수</TableHead>
+                    <TableHead className="text-center w-[70px] text-[14px]">페이지<br />부수</TableHead>
                     <TableHead className="text-center w-[110px] text-[14px]">보내는 분</TableHead>
                     <TableHead className="text-center w-[110px] text-[14px]">받는 분</TableHead>
                     <TableHead className="text-center w-[120px] text-[14px]">진행공정</TableHead>
