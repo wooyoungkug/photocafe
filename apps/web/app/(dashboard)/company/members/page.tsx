@@ -82,6 +82,7 @@ import {
   CalendarDays,
   LogIn,
   LogOut,
+  Settings,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -1431,15 +1432,18 @@ export default function MembersPage() {
               </div>
 
               {/* 서비스 기능 설정 */}
-              <div className="border rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-primary mb-2">서비스 기능 설정</h3>
+              <div className="p-5 border rounded-xl bg-gradient-to-r from-green-50/70 to-transparent">
+                <h3 className="font-semibold mb-1 text-green-700 flex items-center gap-2">
+                  <Settings className="h-4 w-4" />
+                  서비스 기능 설정
+                </h3>
                 <p className="text-xs text-muted-foreground mb-4">
                   비활성 시 메뉴가 숨겨지며, 소속 직원 권한 설정에서도 노출되지 않습니다.
                 </p>
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border">
                     <div>
-                      <Label className="text-sm font-medium">일정관리</Label>
+                      <p className="text-sm font-medium">일정관리</p>
                       <p className="text-xs text-muted-foreground">촬영 일정 등록·관리 기능</p>
                     </div>
                     <Switch
@@ -1447,9 +1451,9 @@ export default function MembersPage() {
                       onCheckedChange={(v) => setFormData(prev => ({ ...prev, enableSchedule: v }))}
                     />
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border">
                     <div>
-                      <Label className="text-sm font-medium">구인방</Label>
+                      <p className="text-sm font-medium">구인방</p>
                       <p className="text-xs text-muted-foreground">촬영 작가 구인·응찰 기능</p>
                     </div>
                     <Switch
