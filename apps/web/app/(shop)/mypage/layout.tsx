@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useEffect } from 'react';
 import {
   ShoppingBag,
   Calendar,
@@ -77,8 +78,25 @@ export default function MyPageLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, updateUser } = useAuthStore();
   const menuItems = getMenuItems(user);
+
+  // 마운트 시 최신 서비스 기능 설정 반영 (관리자가 변경했을 수 있으므로)
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+    if (user.type !== 'client' && user.type !== 'employee') return;
+    const token = sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
+    if (!token) return;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+    fetch(`${apiUrl}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data && (data.enableSchedule !== undefined || data.enableRecruitment !== undefined)) {
+          updateUser({ enableSchedule: data.enableSchedule, enableRecruitment: data.enableRecruitment });
+        }
+      })
+      .catch(() => {});
+  }, [isAuthenticated]);
 
   if (!isAuthenticated) {
     return (

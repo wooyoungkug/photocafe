@@ -59,7 +59,7 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: '내 정보 조회' })
   async getProfile(@Request() req: any) {
-    return this.authService.getProfile(req.user.sub);
+    return this.authService.getProfile(req.user.sub, req.user.type);
   }
 
   // ========== 컨텍스트 선택 ==========
