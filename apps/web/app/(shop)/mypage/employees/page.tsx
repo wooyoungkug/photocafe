@@ -165,8 +165,8 @@ export default function EmployeesPage() {
                     <th className="text-left px-3 py-2 font-medium">가입일</th>
                     <th className="text-left px-3 py-2 font-medium">이름</th>
                     <th className="text-left px-3 py-2 font-medium">이메일</th>
-                    <th className="text-left px-3 py-2 font-medium">역할</th>
                     <th className="text-left px-3 py-2 font-medium">부서</th>
+                    <th className="text-left px-3 py-2 font-medium">역할</th>
                     <th className="text-left px-3 py-2 font-medium">주문 열람</th>
                     <th className="text-left px-3 py-2 font-medium">상태</th>
                     <th className="text-left px-3 py-2 font-medium">최근 접속</th>
@@ -182,13 +182,13 @@ export default function EmployeesPage() {
                       </td>
                       <td className="px-3 py-2">{emp.member.clientName}</td>
                       <td className="px-3 py-2 text-gray-500">{emp.member.email}</td>
+                      <td className="px-3 py-2 text-gray-500">
+                        {emp.department || '-'}
+                      </td>
                       <td className="px-3 py-2">
                         {emp.memberClientId === emp.companyClientId
                           ? '최고관리자'
                           : emp.role === 'MANAGER' ? 'Manager' : emp.role === 'EDITOR' ? 'Artist' : emp.role === 'PHOTOGRAPHER' ? 'Photographer' : 'STAFF'}
-                      </td>
-                      <td className="px-3 py-2 text-gray-500">
-                        {emp.department || '-'}
                       </td>
                       <td className="px-3 py-2">
                         {emp.canViewAllOrders ? '전체' : '본인만'}
