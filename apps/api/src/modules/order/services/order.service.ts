@@ -211,7 +211,7 @@ export class OrderService {
               clientCode: true,
               clientName: true,
               assignedStaff: {
-                where: { isPrimary: true },
+                orderBy: { isPrimary: 'desc' },
                 select: {
                   staff: {
                     select: { id: true, name: true },
@@ -1207,7 +1207,7 @@ export class OrderService {
               clientCode: true,
               clientName: true,
               assignedStaff: {
-                where: { isPrimary: true },
+                orderBy: { isPrimary: 'desc' },
                 select: { staff: { select: { id: true, name: true } } },
                 take: 1,
               },
