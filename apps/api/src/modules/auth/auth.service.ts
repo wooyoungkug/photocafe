@@ -953,4 +953,19 @@ export class AuthService {
       impersonated: true,
     };
   }
+
+  // ========== 관리자 회원 비밀번호 초기화 ==========
+
+  async resetClientPassword(clientId: string) {
+    const client = await this.prisma.client.findUnique({ where: { id: clientId } });
+    if (!client) throw new NotFoundException('회원을 찾을 수 없습니다');
+
+    const hashedPassword = await bcrypt.hash('1111', 10);
+    await this.prisma.client.update({
+      where: { id: clientId },
+      data: { password: hashedPassword },
+    });
+
+    return { success: true, message: '비밀번호가 1111로 초기화되었습니다' };
+  }
 }

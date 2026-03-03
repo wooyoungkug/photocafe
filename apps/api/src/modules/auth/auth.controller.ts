@@ -493,4 +493,15 @@ export class AuthController {
     }
     return this.authService.impersonateClient(clientId, req.user.sub);
   }
+
+  @Patch('reset-client-password/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '관리자가 회원 비밀번호를 1111로 초기화' })
+  async resetClientPassword(@Param('id') id: string, @Request() req: any) {
+    if (req.user.type !== 'staff') {
+      throw new ForbiddenException('직원 계정만 비밀번호를 초기화할 수 있습니다');
+    }
+    return this.authService.resetClientPassword(id);
+  }
 }
