@@ -24,8 +24,14 @@ function getMenuItems(user: {
   canViewAllOrders?: boolean;
   canManageProducts?: boolean;
   canViewSettlement?: boolean;
+  canManageSchedule?: boolean;
+  canManageRecruitment?: boolean;
+  enableSchedule?: boolean;
+  enableRecruitment?: boolean;
 } | null) {
   const isEmployee = user?.type === 'employee';
+  const enableSchedule = user?.enableSchedule ?? true;
+  const enableRecruitment = user?.enableRecruitment ?? true;
   const items: { icon: typeof User; label: string; href: string }[] = [
     { icon: User, label: '회원정보', href: '/mypage/profile' },
   ];
@@ -51,13 +57,13 @@ function getMenuItems(user: {
     items.push({ icon: Wallet, label: '입금내역', href: '/mypage/deposits' });
   }
 
-  // 일정관리: 거래처 소유자 또는 MANAGER 직원
-  if (!isEmployee || user?.employeeRole === 'MANAGER') {
+  // 일정관리: 1차(스튜디오 활성) AND (거래처 소유자 OR 직원 권한 있음)
+  if (enableSchedule && (!isEmployee || user?.canManageSchedule)) {
     items.push({ icon: Camera, label: '일정관리', href: '/mypage/schedule' });
   }
 
-  // 구인방: 거래처 소유자 또는 MANAGER 직원
-  if (!isEmployee || user?.employeeRole === 'MANAGER') {
+  // 구인방: 1차(스튜디오 활성) AND (거래처 소유자 OR 직원 권한 있음)
+  if (enableRecruitment && (!isEmployee || user?.canManageRecruitment)) {
     items.push({ icon: Briefcase, label: '구인방', href: '/mypage/recruitment' });
   }
 
