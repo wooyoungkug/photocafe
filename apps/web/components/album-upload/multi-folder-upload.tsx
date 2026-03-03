@@ -194,7 +194,10 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
   const [pendingMobileFiles, setPendingMobileFiles] = useState<File[]>([]);
 
   useEffect(() => {
-    setIsMobile(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+    const ua = navigator.userAgent;
+    // iPadOS 13+는 Desktop Mode로 UA가 Macintosh처럼 보이므로 maxTouchPoints로 구분
+    const isIpadOS = /Macintosh/i.test(ua) && navigator.maxTouchPoints > 1;
+    setIsMobile(/Android|iPhone|iPad|iPod/i.test(ua) || isIpadOS);
   }, []);
 
   // 빈페이지 감지 (먹색/백색 판별)

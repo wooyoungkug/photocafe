@@ -73,6 +73,8 @@ async function bootstrap() {
       process.env.FRONTEND_URL,
     ].filter(Boolean) as string[],
     credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });
 
   // Validation pipe - 화이트리스트 외 필드 차단 활성화
