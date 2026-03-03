@@ -1507,24 +1507,6 @@ export default function MembersPage() {
                 </div>
               </div>
 
-              {/* MY 상품 */}
-              <div className="p-5 border rounded-xl bg-gradient-to-r from-pink-50/70 to-transparent">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-pink-700 flex items-center gap-2">
-                    <Star className="h-4 w-4" />
-                    MY 상품 (즐겨찾기)
-                  </h3>
-                  <Button variant="outline" size="sm">
-                    <Plus className="h-4 w-4 mr-1" />
-                    MY상품 추가
-                  </Button>
-                </div>
-                <div className="text-center py-12 text-muted-foreground">
-                  <Star className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                  <p>등록된 MY상품이 없습니다.</p>
-                  <p className="text-xs mt-2">자주 주문하는 상품을 MY상품으로 등록합니다.</p>
-                </div>
-              </div>
             </TabsContent>
 
             <TabsContent value="fabrics" className="space-y-6">
