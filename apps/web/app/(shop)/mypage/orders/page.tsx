@@ -730,7 +730,7 @@ export default function MyOrdersPage() {
                         )}
                       >
                         {idx === 0 && (
-                          <TableCell className="text-center align-top pt-3" rowSpan={items.length}>
+                          <TableCell className="text-center align-middle" rowSpan={items.length}>
                             {(isCancellable || DELETABLE_STATUSES.includes(order.status)) ? (
                               <Checkbox
                                 checked={selectedOrders.has(order.id)}
@@ -744,7 +744,7 @@ export default function MyOrdersPage() {
                         )}
 
                         {idx === 0 && (
-                          <TableCell className="text-center align-top pt-3" rowSpan={items.length}>
+                          <TableCell className="text-center align-middle" rowSpan={items.length}>
                             <div className="space-y-1">
                               <div className="text-[14px] text-gray-500">
                                 {format(new Date(order.orderedAt), 'yy-MM-dd HH:mm', { locale: ko })}
@@ -757,7 +757,7 @@ export default function MyOrdersPage() {
                           </TableCell>
                         )}
 
-                        <TableCell className="align-top pt-3">
+                        <TableCell className="align-middle">
                           <div className="space-y-1">
                             <Link href={`/mypage/orders/${order.id}`} className="text-[14px] text-black font-normal leading-tight line-clamp-2 hover:underline hover:text-primary block">
                               {item.folderName || item.productName}
@@ -774,7 +774,7 @@ export default function MyOrdersPage() {
                         </TableCell>
 
 
-                        <TableCell className="text-center align-top pt-3">
+                        <TableCell className="text-center align-middle">
                           {(() => {
                             const s = item.shipping || order.shipping;
                             if (!s?.senderName) return <span className="text-[14px] text-gray-400">-</span>;
@@ -787,7 +787,7 @@ export default function MyOrdersPage() {
                           })()}
                         </TableCell>
 
-                        <TableCell className="text-center align-top pt-3">
+                        <TableCell className="text-center align-middle">
                           {(() => {
                             const r = item.shipping || order.shipping;
                             if (!r?.recipientName) return <span className="text-[14px] text-gray-400">-</span>;
@@ -805,7 +805,7 @@ export default function MyOrdersPage() {
                         </TableCell>
 
                         {idx === 0 && (
-                          <TableCell className="text-center align-top pt-3" rowSpan={items.length}>
+                          <TableCell className="text-center align-middle" rowSpan={items.length}>
                             <div className="space-y-1">
                               <Badge className={cn('text-[14px]', statusBadge.className)}>
                                 {statusBadge.label}
