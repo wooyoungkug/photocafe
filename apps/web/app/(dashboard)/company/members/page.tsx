@@ -1431,38 +1431,6 @@ export default function MembersPage() {
                 </RadioGroup>
               </div>
 
-              {/* 서비스 기능 설정 */}
-              <div className="p-5 border rounded-xl bg-gradient-to-r from-green-50/70 to-transparent">
-                <h3 className="font-semibold mb-1 text-green-700 flex items-center gap-2">
-                  <Settings className="h-4 w-4" />
-                  서비스 기능 설정
-                </h3>
-                <p className="text-xs text-muted-foreground mb-4">
-                  비활성 시 메뉴가 숨겨지며, 소속 직원 권한 설정에서도 노출되지 않습니다.
-                </p>
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border">
-                    <div>
-                      <p className="text-sm font-medium">일정관리</p>
-                      <p className="text-xs text-muted-foreground">촬영 일정 등록·관리 기능</p>
-                    </div>
-                    <Switch
-                      checked={formData.enableSchedule ?? true}
-                      onCheckedChange={(v) => setFormData(prev => ({ ...prev, enableSchedule: v }))}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border">
-                    <div>
-                      <p className="text-sm font-medium">구인방</p>
-                      <p className="text-xs text-muted-foreground">촬영 작가 구인·응찰 기능</p>
-                    </div>
-                    <Switch
-                      checked={formData.enableRecruitment ?? true}
-                      onCheckedChange={(v) => setFormData(prev => ({ ...prev, enableRecruitment: v }))}
-                    />
-                  </div>
-                </div>
-              </div>
 
             </TabsContent>
 
@@ -1506,6 +1474,39 @@ export default function MembersPage() {
             </TabsContent>
 
             <TabsContent value="myproducts" className="space-y-6">
+              {/* 서비스 기능 설정 */}
+              <div className="p-5 border rounded-xl bg-gradient-to-r from-green-50/70 to-transparent">
+                <h3 className="font-semibold mb-1 text-green-700 flex items-center gap-2">
+                  <Settings className="h-4 w-4" />
+                  서비스 기능 설정
+                </h3>
+                <p className="text-xs text-muted-foreground mb-4">
+                  비활성 시 메뉴가 숨겨지며, 소속 직원 권한 설정에서도 노출되지 않습니다.
+                </p>
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border">
+                    <div>
+                      <p className="text-sm font-medium">일정관리</p>
+                      <p className="text-xs text-muted-foreground">촬영 일정 등록·관리 기능</p>
+                    </div>
+                    <Switch
+                      checked={formData.enableSchedule ?? true}
+                      onCheckedChange={(v) => setFormData(prev => ({ ...prev, enableSchedule: v }))}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border">
+                    <div>
+                      <p className="text-sm font-medium">구인방</p>
+                      <p className="text-xs text-muted-foreground">촬영 작가 구인·응찰 기능</p>
+                    </div>
+                    <Switch
+                      checked={formData.enableRecruitment ?? true}
+                      onCheckedChange={(v) => setFormData(prev => ({ ...prev, enableRecruitment: v }))}
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* MY 상품 */}
               <div className="p-5 border rounded-xl bg-gradient-to-r from-pink-50/70 to-transparent">
                 <div className="flex items-center justify-between mb-4">
