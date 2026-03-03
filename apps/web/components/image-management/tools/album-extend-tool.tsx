@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Upload, Expand, Download, Info, Eye, FolderOpen } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,6 +35,21 @@ export function AlbumExtendTool() {
   const cleanup = useCallback(() => {
     if (resultUrl) URL.revokeObjectURL(resultUrl);
   }, [resultUrl]);
+
+  const resetTool = useCallback(() => {
+    cleanup();
+    setOriginalImage(null);
+    setFileName('');
+    setOriginalDPI(300);
+    setResultBlob(null);
+    setResultUrl('');
+    setShowInfo(false);
+    setShowPreview(false);
+    setShowResult(false);
+    setOutputName('');
+    sourceFileHandleRef.current = null;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [cleanup]);
 
   const loadImage = useCallback((file: File) => {
     cleanup();
@@ -196,23 +211,30 @@ export function AlbumExtendTool() {
   const handleSave = useCallback(async () => {
     if (!resultBlob) return;
     const filename = `${outputName || 'output'}.jpg`;
+    let saved = false;
     if (directoryHandle) {
       const ok = await saveToFolder(directoryHandle, resultBlob, filename);
-      if (ok) toast.success(`${filename} 저장 완료`);
+      if (ok) saved = true;
       else toast.error('저장 실패');
-    } else {
+    } else if ('showSaveFilePicker' in window) {
       const ok = await saveWithPicker(resultBlob, filename);
-      if (!ok) {
-        // showSaveFilePicker 미지원 브라우저 폴백
-        const url = URL.createObjectURL(resultBlob);
-        const link = document.createElement('a');
-        link.download = filename;
-        link.href = url;
-        link.click();
-        setTimeout(() => URL.revokeObjectURL(url), 100);
-      }
+      if (ok) saved = true;
+      // else: 사용자가 취소 → 아무것도 안 함
+    } else {
+      // showSaveFilePicker 미지원 브라우저 폴백
+      const url = URL.createObjectURL(resultBlob);
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = url;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+      saved = true;
     }
-  }, [resultBlob, directoryHandle, outputName, saveWithPicker]);
+    if (saved) {
+      toast.success(`${filename} 저장 완료! 잠시 후 초기화됩니다.`);
+      setTimeout(resetTool, 1500);
+    }
+  }, [resultBlob, directoryHandle, outputName, saveWithPicker, resetTool]);
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;

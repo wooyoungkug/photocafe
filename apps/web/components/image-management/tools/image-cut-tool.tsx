@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
-import { Upload, Scissors, Download, Info, Eye, FolderOpen } from 'lucide-react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { Upload, Scissors, Download, Info, Eye, FolderOpen, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +25,8 @@ export function ImageCutTool() {
   const [showResult, setShowResult] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [savedLeft, setSavedLeft] = useState(false);
+  const [savedRight, setSavedRight] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const leftCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -36,6 +38,33 @@ export function ImageCutTool() {
     if (leftUrl) URL.revokeObjectURL(leftUrl);
     if (rightUrl) URL.revokeObjectURL(rightUrl);
   }, [leftUrl, rightUrl]);
+
+  const resetTool = useCallback(() => {
+    cleanup();
+    setOriginalImage(null);
+    setFileName('');
+    setOriginalDPI(300);
+    setLeftBlob(null);
+    setRightBlob(null);
+    setLeftUrl('');
+    setRightUrl('');
+    setShowInfo(false);
+    setShowPreview(false);
+    setShowResult(false);
+    setSavedLeft(false);
+    setSavedRight(false);
+    sourceFileHandleRef.current = null;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [cleanup]);
+
+  // 양쪽 개별 저장이 모두 완료되면 자동 초기화
+  useEffect(() => {
+    if (savedLeft && savedRight) {
+      toast.success('왼쪽 + 오른쪽 모두 저장됐습니다! 잠시 후 초기화됩니다.');
+      const timer = setTimeout(resetTool, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [savedLeft, savedRight, resetTool]);
 
   const loadImage = useCallback((file: File) => {
     cleanup();
@@ -211,26 +240,36 @@ export function ImageCutTool() {
 
   const handleSaveLeft = useCallback(async () => {
     if (!leftBlob) return;
+    let saved = false;
     if (directoryHandle) {
       const ok = await saveToFolder(directoryHandle, leftBlob, leftFileName);
-      if (ok) toast.success(`${leftFileName} 저장 완료`);
+      if (ok) saved = true;
       else toast.error('저장 실패');
-    } else {
+    } else if ('showSaveFilePicker' in window) {
       const ok = await saveWithPicker(leftBlob, leftFileName);
-      if (!ok) fallbackDownload(leftBlob, leftFileName);
+      if (ok) saved = true;
+    } else {
+      fallbackDownload(leftBlob, leftFileName);
+      saved = true;
     }
+    if (saved) { toast.success(`${leftFileName} 저장 완료`); setSavedLeft(true); }
   }, [leftBlob, directoryHandle, leftFileName, saveWithPicker]);
 
   const handleSaveRight = useCallback(async () => {
     if (!rightBlob) return;
+    let saved = false;
     if (directoryHandle) {
       const ok = await saveToFolder(directoryHandle, rightBlob, rightFileName);
-      if (ok) toast.success(`${rightFileName} 저장 완료`);
+      if (ok) saved = true;
       else toast.error('저장 실패');
-    } else {
+    } else if ('showSaveFilePicker' in window) {
       const ok = await saveWithPicker(rightBlob, rightFileName);
-      if (!ok) fallbackDownload(rightBlob, rightFileName);
+      if (ok) saved = true;
+    } else {
+      fallbackDownload(rightBlob, rightFileName);
+      saved = true;
     }
+    if (saved) { toast.success(`${rightFileName} 저장 완료`); setSavedRight(true); }
   }, [rightBlob, directoryHandle, rightFileName, saveWithPicker]);
 
   const handleSaveBoth = useCallback(async () => {
@@ -238,15 +277,25 @@ export function ImageCutTool() {
     if (directoryHandle) {
       const ok1 = await saveToFolder(directoryHandle, leftBlob, leftFileName);
       const ok2 = await saveToFolder(directoryHandle, rightBlob, rightFileName);
-      if (ok1 && ok2) toast.success('양쪽 모두 저장 완료');
-      else toast.error('일부 파일 저장 실패');
-    } else {
+      if (ok1 && ok2) {
+        toast.success('양쪽 모두 저장 완료! 잠시 후 초기화됩니다.');
+        setTimeout(resetTool, 1500);
+      } else toast.error('일부 파일 저장 실패');
+    } else if ('showSaveFilePicker' in window) {
       const ok1 = await saveWithPicker(leftBlob, leftFileName);
       if (!ok1) return; // 취소 시 중단
       const ok2 = await saveWithPicker(rightBlob, rightFileName);
-      if (ok1 && ok2) toast.success('양쪽 모두 저장 완료');
+      if (ok2) {
+        toast.success('양쪽 모두 저장 완료! 잠시 후 초기화됩니다.');
+        setTimeout(resetTool, 1500);
+      }
+    } else {
+      fallbackDownload(leftBlob, leftFileName);
+      fallbackDownload(rightBlob, rightFileName);
+      toast.success('양쪽 모두 저장 완료! 잠시 후 초기화됩니다.');
+      setTimeout(resetTool, 1500);
     }
-  }, [leftBlob, rightBlob, directoryHandle, leftFileName, rightFileName, saveWithPicker]);
+  }, [leftBlob, rightBlob, directoryHandle, leftFileName, rightFileName, saveWithPicker, resetTool]);
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
@@ -429,9 +478,15 @@ export function ImageCutTool() {
                     <img src={leftUrl} alt="왼쪽" className="w-full h-auto object-contain max-h-[300px]" />
                   )}
                 </div>
-                <Button variant="outline" size="sm" className="w-full" onClick={handleSaveLeft}>
-                  <Download className="h-4 w-4 mr-2" />
-                  왼쪽 저장
+                <Button
+                  variant={savedLeft ? 'secondary' : 'outline'}
+                  size="sm"
+                  className={`w-full ${savedLeft ? 'text-green-700 border-green-300 bg-green-50' : ''}`}
+                  onClick={handleSaveLeft}
+                  disabled={savedLeft}
+                >
+                  {savedLeft ? <CheckCircle className="h-4 w-4 mr-2 text-green-600" /> : <Download className="h-4 w-4 mr-2" />}
+                  {savedLeft ? '왼쪽 저장 완료' : '왼쪽 저장'}
                 </Button>
               </div>
 
@@ -451,9 +506,15 @@ export function ImageCutTool() {
                     <img src={rightUrl} alt="오른쪽" className="w-full h-auto object-contain max-h-[300px]" />
                   )}
                 </div>
-                <Button variant="outline" size="sm" className="w-full" onClick={handleSaveRight}>
-                  <Download className="h-4 w-4 mr-2" />
-                  오른쪽 저장
+                <Button
+                  variant={savedRight ? 'secondary' : 'outline'}
+                  size="sm"
+                  className={`w-full ${savedRight ? 'text-green-700 border-green-300 bg-green-50' : ''}`}
+                  onClick={handleSaveRight}
+                  disabled={savedRight}
+                >
+                  {savedRight ? <CheckCircle className="h-4 w-4 mr-2 text-green-600" /> : <Download className="h-4 w-4 mr-2" />}
+                  {savedRight ? '오른쪽 저장 완료' : '오른쪽 저장'}
                 </Button>
               </div>
             </div>
