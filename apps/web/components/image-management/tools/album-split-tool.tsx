@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Upload, Scissors, Download, Info, Eye, FolderOpen, CheckCircle, Trash2, AlertTriangle } from 'lucide-react';
+import { Upload, Scissors, Download, Info, Eye, FolderOpen, CheckCircle, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { extractDPIFromJPEG, canvasToJPEGWithDPI } from '@/lib/image-tools/dpi-utils';
 import { saveToFolder, fallbackDownload, pickDirectory, isJpegOrPng } from '@/lib/image-tools/file-utils';
@@ -28,7 +30,7 @@ export function AlbumSplitTool() {
 
   const [savedLeft, setSavedLeft] = useState(false);
   const [savedRight, setSavedRight] = useState(false);
-  const [deleteConfirming, setDeleteConfirming] = useState(false);
+  const [deleteOriginalOnSave, setDeleteOriginalOnSave] = useState(false);
   const [originalDeleted, setOriginalDeleted] = useState(false);
   const uploadZoneRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -80,7 +82,7 @@ export function AlbumSplitTool() {
     setShowResult(false);
     setSavedLeft(false);
     setSavedRight(false);
-    setDeleteConfirming(false);
+    setDeleteOriginalOnSave(false);
     setOriginalDeleted(false);
     sourceFileHandleRef.current = null;
     sourceDirectoryHandleRef.current = null;
@@ -292,67 +294,72 @@ export function AlbumSplitTool() {
     }
   }, [rightBlob, directoryHandle, saveWithPicker]);
 
-  const handleSaveBoth = useCallback(async () => {
-    if (!leftBlob || !rightBlob) return;
-    if (directoryHandle) {
-      const ok1 = await saveToFolder(directoryHandle, leftBlob, '첫장.jpg');
-      const ok2 = await saveToFolder(directoryHandle, rightBlob, '막장.jpg');
-      if (ok1 && ok2) {
-        toast.success('첫장 + 막장 저장 완료! 잠시 후 초기화됩니다.');
-        setTimeout(resetTool, 1500);
-      } else toast.error('일부 파일 저장 실패');
-    } else {
-      const ok1 = await saveWithPicker(leftBlob, '첫장.jpg');
-      if (!ok1) return; // 취소 시 중단
-      const ok2 = await saveWithPicker(rightBlob, '막장.jpg');
-      if (ok1 && ok2) {
-        toast.success('첫장 + 막장 저장 완료! 잠시 후 초기화됩니다.');
-        setTimeout(resetTool, 1500);
-      }
-    }
-  }, [leftBlob, rightBlob, directoryHandle, resetTool, saveWithPicker]);
-
-  const handleDeleteOriginal = useCallback(async () => {
-    if (!fileName) return;
+  /** 원본 파일 삭제 (확인 없이 즉시 실행) - 반환값: 성공 여부 */
+  const doDeleteOriginal = useCallback(async (): Promise<boolean> => {
+    if (!fileName) return false;
 
     // 1) FileSystemFileHandle.remove() 지원 브라우저 (Chrome 117+)
     if (sourceFileHandleRef.current && 'remove' in (sourceFileHandleRef.current as any)) {
       try {
         await (sourceFileHandleRef.current as any).remove();
-        toast.success(`${fileName} 삭제 완료`);
         setOriginalDeleted(true);
-        setDeleteConfirming(false);
-        return;
-      } catch { /* 권한 없음 등 → 폴더 선택 방식으로 폴백 */ }
+        return true;
+      } catch { /* 권한 없음 → 폴더 선택 방식으로 폴백 */ }
     }
 
     // 2) 폴더 선택 후 removeEntry
     if (!sourceDirectoryHandleRef.current) {
-      if (!('showDirectoryPicker' in window)) {
-        toast.error('이 브라우저는 원본 삭제를 지원하지 않습니다.');
-        setDeleteConfirming(false);
-        return;
-      }
+      if (!('showDirectoryPicker' in window)) return false;
       try {
         const options: any = { mode: 'readwrite' };
         if (sourceFileHandleRef.current) options.startIn = sourceFileHandleRef.current;
         sourceDirectoryHandleRef.current = await (window as any).showDirectoryPicker(options);
       } catch {
-        setDeleteConfirming(false);
-        return; // 사용자 취소
+        return false; // 사용자 취소
       }
     }
 
     try {
       await (sourceDirectoryHandleRef.current as any).removeEntry(fileName);
-      toast.success(`${fileName} 삭제 완료`);
       setOriginalDeleted(true);
+      return true;
     } catch {
-      toast.error('삭제 실패: 해당 폴더에서 파일을 찾을 수 없습니다.');
+      toast.error('원본 삭제 실패: 해당 폴더에서 파일을 찾을 수 없습니다.');
       sourceDirectoryHandleRef.current = null;
+      return false;
     }
-    setDeleteConfirming(false);
   }, [fileName]);
+
+  const handleSaveBoth = useCallback(async () => {
+    if (!leftBlob || !rightBlob) return;
+
+    let saved = false;
+    if (directoryHandle) {
+      const ok1 = await saveToFolder(directoryHandle, leftBlob, '첫장.jpg');
+      const ok2 = await saveToFolder(directoryHandle, rightBlob, '막장.jpg');
+      if (ok1 && ok2) saved = true;
+      else toast.error('일부 파일 저장 실패');
+    } else {
+      const ok1 = await saveWithPicker(leftBlob, '첫장.jpg');
+      if (!ok1) return; // 취소 시 중단
+      const ok2 = await saveWithPicker(rightBlob, '막장.jpg');
+      if (ok2) saved = true;
+    }
+
+    if (!saved) return;
+
+    let deleted = false;
+    if (deleteOriginalOnSave) {
+      deleted = await doDeleteOriginal();
+    }
+
+    toast.success(
+      deleteOriginalOnSave
+        ? deleted ? '저장 + 원본 삭제 완료! 잠시 후 초기화됩니다.' : '저장 완료! (원본 삭제 실패) 잠시 후 초기화됩니다.'
+        : '첫장 + 막장 저장 완료! 잠시 후 초기화됩니다.',
+    );
+    setTimeout(resetTool, 1500);
+  }, [leftBlob, rightBlob, directoryHandle, resetTool, saveWithPicker, deleteOriginalOnSave, doDeleteOriginal]);
 
   // 첫장·막장 개별 저장이 모두 완료되면 자동 초기화
   useEffect(() => {
@@ -601,67 +608,39 @@ export function AlbumSplitTool() {
               </div>
             </div>
 
-            <div className="mt-4 flex justify-center">
-              <Button onClick={handleSaveBoth} size="lg">
-                <Download className="h-4 w-4 mr-2" />
-                첫장 + 막장 모두 저장
-              </Button>
-            </div>
-
-            {/* 원본 삭제 */}
-            {!originalDeleted ? (
-              <div className="mt-4 border-t pt-4">
-                {!deleteConfirming ? (
-                  <div className="flex justify-center">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-400"
-                      onClick={() => setDeleteConfirming(true)}
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      원본 삭제
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="rounded-lg border border-red-200 bg-red-50 p-3 space-y-3">
-                    <div className="flex items-start gap-2">
-                      <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
-                      <div>
-                        <p className="text-sm font-medium text-red-700">원본 파일을 삭제하시겠습니까?</p>
-                        <p className="text-xs text-red-500 mt-0.5">
-                          <span className="font-medium">{fileName}</span> 을(를) 영구 삭제합니다. 되돌릴 수 없습니다.
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2 justify-end">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setDeleteConfirming(false)}
-                      >
-                        취소
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="bg-red-600 hover:bg-red-700 text-white"
-                        onClick={handleDeleteOriginal}
-                      >
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        삭제 확인
-                      </Button>
-                    </div>
-                  </div>
+            <div className="mt-4 space-y-3">
+              {/* 원본 삭제 체크박스 */}
+              <div className="flex items-center justify-center gap-2">
+                <Checkbox
+                  id="delete-original-on-save"
+                  checked={deleteOriginalOnSave}
+                  onCheckedChange={(checked) => setDeleteOriginalOnSave(checked === true)}
+                  disabled={originalDeleted}
+                  className="border-red-300 data-[state=checked]:bg-red-500 data-[state=checked]:border-red-500"
+                />
+                <Label
+                  htmlFor="delete-original-on-save"
+                  className={`text-sm cursor-pointer flex items-center gap-1 ${originalDeleted ? 'text-slate-400 line-through' : 'text-red-600'}`}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  원본 삭제
+                </Label>
+                {originalDeleted && (
+                  <span className="text-xs text-slate-400 flex items-center gap-1">
+                    <CheckCircle className="h-3.5 w-3.5" />
+                    삭제 완료
+                  </span>
                 )}
               </div>
-            ) : (
-              <div className="mt-4 border-t pt-4 flex justify-center">
-                <span className="text-xs text-slate-400 flex items-center gap-1">
-                  <CheckCircle className="h-3.5 w-3.5 text-slate-400" />
-                  원본 파일 삭제 완료
-                </span>
+
+              {/* 모두 저장 버튼 */}
+              <div className="flex justify-center">
+                <Button onClick={handleSaveBoth} size="lg">
+                  <Download className="h-4 w-4 mr-2" />
+                  {deleteOriginalOnSave ? '저장 + 원본 삭제' : '첫장 + 막장 모두 저장'}
+                </Button>
               </div>
-            )}
+            </div>
           </CardContent>
         </Card>
       )}
