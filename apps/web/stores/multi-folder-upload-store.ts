@@ -420,6 +420,9 @@ interface MultiFolderUploadState {
   // 파일 순서 변경 (드래그 앤 드롭)
   reorderFolderFiles: (folderId: string, fromIndex: number, toIndex: number) => void;
 
+  // 개별 파일 삭제
+  removeFileFromFolder: (folderId: string, fileId: string) => void;
+
   // 색상 그룹핑
   setFileColorInfo: (folderId: string, fileId: string, colorInfo: PhotoColorInfo) => void;
   computeColorGroups: (folderId: string) => void;
@@ -1278,6 +1281,55 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
           autoBindingDetected = true;
         } else {
           // 빈페이지가 첫/끝에 없으면 기본 좌시작→우끝
+          bindingDirection = 'LEFT_START_RIGHT_END';
+        }
+
+        const pageCount = calculatePageCount(reindexed.length, f.pageLayout, bindingDirection);
+
+        return {
+          ...f,
+          files: reindexed,
+          firstPageBlank,
+          lastPageBlank,
+          autoBindingDetected,
+          bindingDirection,
+          pageCount,
+        };
+      }),
+    }));
+  },
+
+  // 개별 파일 삭제
+  removeFileFromFolder: (folderId: string, fileId: string) => {
+    set(state => ({
+      folders: state.folders.map(f => {
+        if (f.id !== folderId) return f;
+        const files = f.files.filter(file => file.id !== fileId);
+
+        // 페이지 번호 및 순번 파일명 재할당
+        const totalCount = files.length;
+        const reindexed = files.map((file, idx) => ({
+          ...file,
+          pageNumber: idx + 1,
+          newFileName: generateSequentialFileName(idx, file.fileName, totalCount),
+        }));
+
+        // 빈페이지 위치 변경에 따라 제본방향 재계산
+        const firstPageBlank = reindexed[0]?.isBlankPage === true;
+        const lastPageBlank = reindexed[reindexed.length - 1]?.isBlankPage === true;
+        let bindingDirection = f.bindingDirection;
+        let autoBindingDetected = false;
+
+        if (firstPageBlank || lastPageBlank) {
+          if (firstPageBlank && lastPageBlank) {
+            bindingDirection = 'RIGHT_START_LEFT_END';
+          } else if (firstPageBlank) {
+            bindingDirection = 'RIGHT_START_RIGHT_END';
+          } else {
+            bindingDirection = 'LEFT_START_LEFT_END';
+          }
+          autoBindingDetected = true;
+        } else {
           bindingDirection = 'LEFT_START_RIGHT_END';
         }
 

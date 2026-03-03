@@ -394,6 +394,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     setFolderPageLayout,
     setFolderBindingDirection,
     reorderFolderFiles,
+    removeFileFromFolder,
     updateFolder,
     setFolderFabric,
     availablePapers,
@@ -625,6 +626,17 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <ZoomIn className="w-6 h-6 text-white" />
                       </div>
+                      <button
+                        type="button"
+                        className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-red-700 z-10"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeFileFromFolder(folder.id, file.id);
+                        }}
+                        title="파일 삭제"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
                     </div>
                     <div className={cn(
                       'text-[9px] leading-tight p-1 border border-t-0 rounded-b-md',
