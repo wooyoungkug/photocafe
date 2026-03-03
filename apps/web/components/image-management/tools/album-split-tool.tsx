@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Upload, Scissors, Download, Info, Eye, FolderOpen, CheckCircle } from 'lucide-react';
+import { Upload, Scissors, Download, Info, Eye, FolderOpen, CheckCircle, Trash2, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -28,6 +28,8 @@ export function AlbumSplitTool() {
 
   const [savedLeft, setSavedLeft] = useState(false);
   const [savedRight, setSavedRight] = useState(false);
+  const [deleteConfirming, setDeleteConfirming] = useState(false);
+  const [originalDeleted, setOriginalDeleted] = useState(false);
   const uploadZoneRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const leftCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -35,6 +37,7 @@ export function AlbumSplitTool() {
   const trackUseRef = useRef<(() => void) | null>(null);
   const resultCardRef = useRef<HTMLDivElement>(null);
   const sourceFileHandleRef = useRef<FileSystemFileHandle | null>(null);
+  const sourceDirectoryHandleRef = useRef<FileSystemDirectoryHandle | null>(null);
 
   const playBeep = useCallback(() => {
     try {
@@ -77,7 +80,10 @@ export function AlbumSplitTool() {
     setShowResult(false);
     setSavedLeft(false);
     setSavedRight(false);
+    setDeleteConfirming(false);
+    setOriginalDeleted(false);
     sourceFileHandleRef.current = null;
+    sourceDirectoryHandleRef.current = null;
     // 업로드 영역으로 스크롤
     uploadZoneRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [cleanup]);
@@ -305,6 +311,48 @@ export function AlbumSplitTool() {
       }
     }
   }, [leftBlob, rightBlob, directoryHandle, resetTool, saveWithPicker]);
+
+  const handleDeleteOriginal = useCallback(async () => {
+    if (!fileName) return;
+
+    // 1) FileSystemFileHandle.remove() 지원 브라우저 (Chrome 117+)
+    if (sourceFileHandleRef.current && 'remove' in (sourceFileHandleRef.current as any)) {
+      try {
+        await (sourceFileHandleRef.current as any).remove();
+        toast.success(`${fileName} 삭제 완료`);
+        setOriginalDeleted(true);
+        setDeleteConfirming(false);
+        return;
+      } catch { /* 권한 없음 등 → 폴더 선택 방식으로 폴백 */ }
+    }
+
+    // 2) 폴더 선택 후 removeEntry
+    if (!sourceDirectoryHandleRef.current) {
+      if (!('showDirectoryPicker' in window)) {
+        toast.error('이 브라우저는 원본 삭제를 지원하지 않습니다.');
+        setDeleteConfirming(false);
+        return;
+      }
+      try {
+        const options: any = { mode: 'readwrite' };
+        if (sourceFileHandleRef.current) options.startIn = sourceFileHandleRef.current;
+        sourceDirectoryHandleRef.current = await (window as any).showDirectoryPicker(options);
+      } catch {
+        setDeleteConfirming(false);
+        return; // 사용자 취소
+      }
+    }
+
+    try {
+      await (sourceDirectoryHandleRef.current as any).removeEntry(fileName);
+      toast.success(`${fileName} 삭제 완료`);
+      setOriginalDeleted(true);
+    } catch {
+      toast.error('삭제 실패: 해당 폴더에서 파일을 찾을 수 없습니다.');
+      sourceDirectoryHandleRef.current = null;
+    }
+    setDeleteConfirming(false);
+  }, [fileName]);
 
   // 첫장·막장 개별 저장이 모두 완료되면 자동 초기화
   useEffect(() => {
@@ -559,6 +607,61 @@ export function AlbumSplitTool() {
                 첫장 + 막장 모두 저장
               </Button>
             </div>
+
+            {/* 원본 삭제 */}
+            {!originalDeleted ? (
+              <div className="mt-4 border-t pt-4">
+                {!deleteConfirming ? (
+                  <div className="flex justify-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-400"
+                      onClick={() => setDeleteConfirming(true)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      원본 삭제
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-red-200 bg-red-50 p-3 space-y-3">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-red-700">원본 파일을 삭제하시겠습니까?</p>
+                        <p className="text-xs text-red-500 mt-0.5">
+                          <span className="font-medium">{fileName}</span> 을(를) 영구 삭제합니다. 되돌릴 수 없습니다.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setDeleteConfirming(false)}
+                      >
+                        취소
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="bg-red-600 hover:bg-red-700 text-white"
+                        onClick={handleDeleteOriginal}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        삭제 확인
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="mt-4 border-t pt-4 flex justify-center">
+                <span className="text-xs text-slate-400 flex items-center gap-1">
+                  <CheckCircle className="h-3.5 w-3.5 text-slate-400" />
+                  원본 파일 삭제 완료
+                </span>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
