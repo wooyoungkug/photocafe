@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { extractDPIFromJPEG, canvasToJPEGWithDPI } from '@/lib/image-tools/dpi-utils';
-import { saveToFolder, fallbackDownload, pickDirectory, isJpegOrPng } from '@/lib/image-tools/file-utils';
+import { saveToFolder, fallbackDownload, isJpegOrPng } from '@/lib/image-tools/file-utils';
 import { ToolGuide } from './tool-guide';
 import { ToolUsageCounter } from './tool-usage-counter';
 
@@ -30,6 +30,7 @@ export function ImageCutTool() {
   const leftCanvasRef = useRef<HTMLCanvasElement>(null);
   const rightCanvasRef = useRef<HTMLCanvasElement>(null);
   const trackUseRef = useRef<(() => void) | null>(null);
+  const sourceFileHandleRef = useRef<FileSystemFileHandle | null>(null);
 
   const cleanup = useCallback(() => {
     if (leftUrl) URL.revokeObjectURL(leftUrl);
@@ -68,11 +69,36 @@ export function ImageCutTool() {
     e.target.value = '';
   }, [loadImage]);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  const handleClickUpload = useCallback(async () => {
+    if ('showOpenFilePicker' in window) {
+      try {
+        const [fileHandle] = await (window as any).showOpenFilePicker({
+          types: [{ description: '이미지 파일', accept: { 'image/*': ['.jpg', '.jpeg', '.png'] } }],
+          multiple: false,
+        });
+        sourceFileHandleRef.current = fileHandle;
+        const file = await fileHandle.getFile();
+        loadImage(file);
+      } catch { /* 사용자가 파일 선택 취소 */ }
+    } else {
+      fileInputRef.current?.click();
+    }
+  }, [loadImage]);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
     const file = e.dataTransfer.files[0];
     if (file && isJpegOrPng(file)) {
+      const item = e.dataTransfer.items[0];
+      if (item && 'getAsFileSystemHandle' in item) {
+        try {
+          const handle = await (item as any).getAsFileSystemHandle();
+          if (handle?.kind === 'file') {
+            sourceFileHandleRef.current = handle as FileSystemFileHandle;
+          }
+        } catch { /* 핸들 획득 실패 - 무시 */ }
+      }
       loadImage(file);
     } else {
       toast.error('JPEG 또는 PNG 파일만 지원합니다.');
@@ -145,11 +171,38 @@ export function ImageCutTool() {
     }
   }, [originalImage, originalDPI, cleanup]);
 
+  /** showSaveFilePicker로 원본 경로에서 저장 다이얼로그 열기 */
+  const saveWithPicker = useCallback(async (blob: Blob, suggestedName: string): Promise<boolean> => {
+    if (!('showSaveFilePicker' in window)) return false;
+    try {
+      const options: any = {
+        suggestedName,
+        types: [{ description: 'JPEG Image', accept: { 'image/jpeg': ['.jpg', '.jpeg'] } }],
+      };
+      if (sourceFileHandleRef.current) {
+        options.startIn = sourceFileHandleRef.current;
+      }
+      const fileHandle = await (window as any).showSaveFilePicker(options);
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return true;
+    } catch {
+      return false; // 사용자 취소
+    }
+  }, []);
+
   const handleSelectDirectory = useCallback(async () => {
-    const handle = await pickDirectory();
-    if (handle) {
-      setDirectoryHandle(handle);
-      toast.success(`저장 폴더: ${handle.name}`);
+    if ('showDirectoryPicker' in window) {
+      try {
+        const options: any = { mode: 'readwrite' };
+        if (sourceFileHandleRef.current) {
+          options.startIn = sourceFileHandleRef.current;
+        }
+        const handle = await (window as any).showDirectoryPicker(options);
+        setDirectoryHandle(handle);
+        toast.success(`저장 폴더: ${handle.name}`);
+      } catch { /* 사용자가 취소 */ }
     }
   }, []);
 
@@ -163,9 +216,10 @@ export function ImageCutTool() {
       if (ok) toast.success(`${leftFileName} 저장 완료`);
       else toast.error('저장 실패');
     } else {
-      fallbackDownload(leftBlob, leftFileName);
+      const ok = await saveWithPicker(leftBlob, leftFileName);
+      if (!ok) fallbackDownload(leftBlob, leftFileName);
     }
-  }, [leftBlob, directoryHandle, leftFileName]);
+  }, [leftBlob, directoryHandle, leftFileName, saveWithPicker]);
 
   const handleSaveRight = useCallback(async () => {
     if (!rightBlob) return;
@@ -174,9 +228,10 @@ export function ImageCutTool() {
       if (ok) toast.success(`${rightFileName} 저장 완료`);
       else toast.error('저장 실패');
     } else {
-      fallbackDownload(rightBlob, rightFileName);
+      const ok = await saveWithPicker(rightBlob, rightFileName);
+      if (!ok) fallbackDownload(rightBlob, rightFileName);
     }
-  }, [rightBlob, directoryHandle, rightFileName]);
+  }, [rightBlob, directoryHandle, rightFileName, saveWithPicker]);
 
   const handleSaveBoth = useCallback(async () => {
     if (!leftBlob || !rightBlob) return;
@@ -186,10 +241,12 @@ export function ImageCutTool() {
       if (ok1 && ok2) toast.success('양쪽 모두 저장 완료');
       else toast.error('일부 파일 저장 실패');
     } else {
-      fallbackDownload(leftBlob, leftFileName);
-      fallbackDownload(rightBlob, rightFileName);
+      const ok1 = await saveWithPicker(leftBlob, leftFileName);
+      if (!ok1) return; // 취소 시 중단
+      const ok2 = await saveWithPicker(rightBlob, rightFileName);
+      if (ok1 && ok2) toast.success('양쪽 모두 저장 완료');
     }
-  }, [leftBlob, rightBlob, directoryHandle, leftFileName, rightFileName]);
+  }, [leftBlob, rightBlob, directoryHandle, leftFileName, rightFileName, saveWithPicker]);
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
@@ -242,7 +299,7 @@ export function ImageCutTool() {
             onDrop={handleDrop}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
-            onClick={() => fileInputRef.current?.click()}
+            onClick={handleClickUpload}
             className={`
               border-2 border-dashed rounded-lg p-10 text-center transition-colors cursor-pointer
               ${isDragOver ? 'border-blue-500 bg-blue-50' : 'border-slate-300 hover:border-slate-400 bg-slate-50'}
