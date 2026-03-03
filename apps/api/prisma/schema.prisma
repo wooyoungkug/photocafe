@@ -381,6 +381,8 @@ model Client {
   hasLogo                 Boolean                        @default(false)
   isBlacklist             Boolean                        @default(false)
   isWhitelist             Boolean                        @default(false)
+  enableSchedule          Boolean                        @default(true)
+  enableRecruitment       Boolean                        @default(true)
   logoPath                String?
   mainGenre               String?
   memberGrade             String                         @default("normal")
@@ -2987,7 +2989,8 @@ model Employment {
   canViewAllOrders  Boolean          @default(false)
   canManageProducts Boolean          @default(false)
   canViewSettlement Boolean          @default(false)
-  canManageSchedule Boolean          @default(false)
+  canManageSchedule     Boolean          @default(false)
+  canManageRecruitment  Boolean          @default(false)
   department        String?
   joinedAt          DateTime         @default(now())
   createdAt         DateTime         @default(now())

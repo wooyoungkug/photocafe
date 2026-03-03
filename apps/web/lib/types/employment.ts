@@ -25,6 +25,7 @@ export interface Employment {
   canManageProducts: boolean;
   canViewSettlement: boolean;
   canManageSchedule: boolean;
+  canManageRecruitment: boolean;
   department?: string | null;
   joinedAt: string;
   createdAt: string;
@@ -73,6 +74,7 @@ export interface UpdateEmploymentRequest {
   canManageProducts?: boolean;
   canViewSettlement?: boolean;
   canManageSchedule?: boolean;
+  canManageRecruitment?: boolean;
   status?: EmploymentStatus;
   department?: string;
 }

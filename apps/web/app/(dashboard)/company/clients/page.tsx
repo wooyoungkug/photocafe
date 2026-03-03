@@ -123,6 +123,8 @@ export default function ClientsPage() {
     creditGrade: 'B',
     paymentTerms: 30,
     status: 'active',
+    enableSchedule: true,
+    enableRecruitment: true,
   });
 
   // 영업담당자 상태
@@ -187,6 +189,8 @@ export default function ClientsPage() {
         status: client.status || 'active',
         duplicateCheckMonths: client.duplicateCheckMonths ?? undefined,
         fileRetentionMonths: client.fileRetentionMonths ?? undefined,
+        enableSchedule: client.enableSchedule ?? true,
+        enableRecruitment: client.enableRecruitment ?? true,
       });
 
       // 영업담당자 정보 불러오기

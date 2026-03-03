@@ -29,6 +29,9 @@ interface User {
   canManageProducts?: boolean;
   canViewSettlement?: boolean;
   canManageSchedule?: boolean;
+  canManageRecruitment?: boolean;
+  enableSchedule?: boolean;
+  enableRecruitment?: boolean;
 }
 
 interface AuthState {

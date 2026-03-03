@@ -420,6 +420,7 @@ export class AuthService {
         clientId: client.id, clientName: client.clientName, mobile: client.mobile,
         businessNumber: client.businessNumber, representative: client.representative,
         address: client.address, addressDetail: client.addressDetail, contactPerson: client.contactPerson,
+        enableSchedule: client.enableSchedule ?? true, enableRecruitment: client.enableRecruitment ?? true,
       },
     };
   }
@@ -861,7 +862,7 @@ export class AuthService {
 
     const employment = await this.prisma.employment.findUnique({
       where: { id: employmentId },
-      include: { company: { select: { id: true, clientName: true, clientCode: true } } },
+      include: { company: { select: { id: true, clientName: true, clientCode: true, enableSchedule: true, enableRecruitment: true } } },
     });
 
     if (!employment || employment.memberClientId !== client.id || employment.status !== 'ACTIVE') {
@@ -882,6 +883,8 @@ export class AuthService {
       clientId: employment.companyClientId, employmentId: employment.id,
       canViewAllOrders: employment.canViewAllOrders, canManageProducts: employment.canManageProducts,
       canViewSettlement: employment.canViewSettlement,
+      canManageSchedule: employment.canManageSchedule, canManageRecruitment: employment.canManageRecruitment,
+      enableSchedule: employment.company.enableSchedule, enableRecruitment: employment.company.enableRecruitment,
     };
 
     const isOwner = employment.memberClientId === employment.companyClientId;
@@ -896,6 +899,8 @@ export class AuthService {
         employeeRole: employment.role, isOwner,
         canViewAllOrders: employment.canViewAllOrders, canManageProducts: employment.canManageProducts,
         canViewSettlement: employment.canViewSettlement,
+        canManageSchedule: employment.canManageSchedule, canManageRecruitment: employment.canManageRecruitment,
+        enableSchedule: employment.company.enableSchedule, enableRecruitment: employment.company.enableRecruitment,
       },
     };
   }

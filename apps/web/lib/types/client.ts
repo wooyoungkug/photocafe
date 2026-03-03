@@ -61,6 +61,8 @@ export interface Client {
   approvalManagerPhone?: string;
   adminMemo?: string;
   status: 'active' | 'inactive' | 'suspended';
+  enableSchedule?: boolean;
+  enableRecruitment?: boolean;
   createdAt: string;
   updatedAt: string;
   assignedStaff?: Array<{
@@ -103,6 +105,8 @@ export interface CreateClientDto {
   approvalManagerPhone?: string;
   adminMemo?: string;
   status?: 'active' | 'inactive' | 'suspended';
+  enableSchedule?: boolean;
+  enableRecruitment?: boolean;
   duplicateCheckMonths?: number;
   fileRetentionMonths?: number;
   acquisitionChannel?: string;
