@@ -18,6 +18,7 @@ import {
   Check,
   AlertCircle,
   Search,
+  ChevronDown,
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek, isToday, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -174,6 +175,7 @@ export default function SchedulePage() {
   const [activeTab, setActiveTab] = useState('calendar');
   const [scopeFilter, setScopeFilter] = useState<'all' | 'personal' | 'department' | 'company'>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showCompleted, setShowCompleted] = useState(false);
 
   // 다이얼로그 상태
   const [isTodoDialogOpen, setIsTodoDialogOpen] = useState(false);
@@ -254,6 +256,9 @@ export default function SchedulePage() {
       todo.creatorName?.toLowerCase().includes(term)
     );
   }, [todos, searchTerm]);
+
+  const activeTodos = useMemo(() => filteredTodos.filter(t => t.status !== 'completed'), [filteredTodos]);
+  const completedTodos = useMemo(() => filteredTodos.filter(t => t.status === 'completed'), [filteredTodos]);
 
   const filteredSchedules = useMemo(() => {
     if (!schedules) return [];
@@ -670,76 +675,132 @@ export default function SchedulePage() {
                 <div className="flex justify-center py-12">
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
-              ) : filteredTodos?.length === 0 ? (
+              ) : activeTodos.length === 0 && completedTodos.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <CheckSquare className="h-12 w-12 mx-auto mb-3 opacity-20" />
                   {searchTerm ? '검색 결과가 없습니다.' : '등록된 할일이 없습니다.'}
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {filteredTodos?.map((todo) => (
-                    <div
-                      key={todo.id}
-                      className={cn(
-                        'flex items-center gap-3 p-3 rounded-lg border hover:bg-slate-50 transition-colors',
-                        todo.status === 'completed' && 'opacity-60 bg-slate-50'
-                      )}
-                    >
-                      <Checkbox
-                        checked={todo.status === 'completed'}
-                        onCheckedChange={() => todo.status !== 'completed' && handleCompleteTodo(todo.id)}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className={cn('font-medium', todo.status === 'completed' && 'line-through')}>
-                            {todo.title}
-                          </span>
-                          {renderScopeIcon(todo)}
-                          <Badge variant="outline" className={priorityColors[todo.priority]}>
-                            {priorityLabels[todo.priority]}
-                          </Badge>
-                          <Badge variant="outline" className={statusColors[todo.status]}>
-                            {statusLabels[todo.status]}
-                          </Badge>
+                  {/* 미완료 항목 */}
+                  {activeTodos.length === 0 ? (
+                    <div className="text-center py-6 text-muted-foreground text-sm">
+                      미완료 항목이 없습니다.
+                    </div>
+                  ) : (
+                    activeTodos.map((todo) => (
+                      <div
+                        key={todo.id}
+                        className="flex items-center gap-3 p-3 rounded-lg border hover:bg-slate-50 transition-colors"
+                      >
+                        <Checkbox
+                          checked={false}
+                          onCheckedChange={() => handleCompleteTodo(todo.id)}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{todo.title}</span>
+                            {renderScopeIcon(todo)}
+                            <Badge variant="outline" className={priorityColors[todo.priority]}>
+                              {priorityLabels[todo.priority]}
+                            </Badge>
+                            <Badge variant="outline" className={statusColors[todo.status]}>
+                              {statusLabels[todo.status]}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                            <span>작성: {todo.creatorName}</span>
+                            {todo.dueDate && (
+                              <span>마감: {format(parseISO(todo.dueDate), 'yyyy-MM-dd HH:mm')}</span>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                          <span>작성: {todo.creatorName}</span>
-                          {todo.dueDate && (
-                            <span>마감: {format(parseISO(todo.dueDate), 'yyyy-MM-dd HH:mm')}</span>
-                          )}
-                          {todo.completedAt && (
-                            <span className="text-green-600">완료: {format(parseISO(todo.completedAt), 'yyyy-MM-dd HH:mm')} ({todo.completedBy})</span>
-                          )}
-                        </div>
-                      </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openTodoDialog(todo)}>
-                            <Edit className="h-4 w-4 mr-2" />
-                            수정
-                          </DropdownMenuItem>
-                          {todo.status !== 'completed' && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openTodoDialog(todo)}>
+                              <Edit className="h-4 w-4 mr-2" />
+                              수정
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleCompleteTodo(todo.id)}>
                               <Check className="h-4 w-4 mr-2" />
                               완료
                             </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onClick={() => setDeleteConfirm({ type: 'todo', id: todo.id })}
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            삭제
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={() => setDeleteConfirm({ type: 'todo', id: todo.id })}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              삭제
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    ))
+                  )}
+
+                  {/* 완료 항목 토글 */}
+                  {completedTodos.length > 0 && (
+                    <div className="mt-4">
+                      <button
+                        type="button"
+                        onClick={() => setShowCompleted(!showCompleted)}
+                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
+                      >
+                        <ChevronDown className={cn('h-4 w-4 transition-transform', showCompleted && 'rotate-180')} />
+                        완료된 항목 {completedTodos.length}개
+                      </button>
+                      {showCompleted && (
+                        <div className="space-y-2 mt-2">
+                          {completedTodos.map((todo) => (
+                            <div
+                              key={todo.id}
+                              className="flex items-center gap-3 p-3 rounded-lg border bg-slate-50 opacity-60"
+                            >
+                              <Checkbox checked={true} disabled />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium line-through">{todo.title}</span>
+                                  {renderScopeIcon(todo)}
+                                  <Badge variant="outline" className={priorityColors[todo.priority]}>
+                                    {priorityLabels[todo.priority]}
+                                  </Badge>
+                                </div>
+                                <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                                  <span>작성: {todo.creatorName}</span>
+                                  {todo.completedAt && (
+                                    <span className="text-green-600">
+                                      완료: {format(parseISO(todo.completedAt), 'yyyy-MM-dd HH:mm')} ({todo.completedBy})
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem
+                                    className="text-destructive"
+                                    onClick={() => setDeleteConfirm({ type: 'todo', id: todo.id })}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    삭제
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
             </CardContent>

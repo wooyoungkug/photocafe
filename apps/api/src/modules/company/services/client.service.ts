@@ -188,8 +188,8 @@ export class ClientService {
       }
     }
 
-    // 자동 그룹 할당: group이 없고 memberType이 있는 경우
-    if (!data.group && data.memberType) {
+    // 자동 그룹 할당: groupId도 없고 group도 없는 경우에만 자동 할당
+    if (!data.group && !(data as any).groupId && data.memberType) {
       const groupName = data.memberType === 'individual' ? '일반고객그룹' : '스튜디오회원';
       const defaultGroup = await this.prisma.clientGroup.findFirst({
         where: { groupName },
@@ -198,6 +198,11 @@ export class ClientService {
       if (defaultGroup) {
         data.group = { connect: { id: defaultGroup.id } };
       }
+    }
+
+    // groupId(스칼라)가 있으면 group 중첩 객체 제거 (Prisma XOR 충돌 방지)
+    if ((data as any).groupId && data.group) {
+      delete data.group;
     }
 
     return this.prisma.client.create({

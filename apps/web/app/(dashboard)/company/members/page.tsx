@@ -449,8 +449,9 @@ export default function MembersPage() {
         toast({ title: '회원이 추가되었습니다.' });
       }
       setIsDialogOpen(false);
-    } catch (err) {
-      toast({ title: '오류가 발생했습니다.', variant: 'destructive' });
+    } catch (err: any) {
+      const message = err?.message || '알 수 없는 오류가 발생했습니다.';
+      toast({ title: '오류가 발생했습니다.', description: message, variant: 'destructive' });
     }
   };
 
