@@ -259,6 +259,16 @@ export class ShootingService {
           orderBy: { recordedAt: 'asc' },
         },
         review: true,
+        linkedRecruitment: {
+          select: {
+            id: true,
+            title: true,
+            budget: true,
+            description: true,
+            requirements: true,
+            privateDeadlineHours: true,
+          },
+        },
       },
     });
 

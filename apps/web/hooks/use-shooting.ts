@@ -58,6 +58,14 @@ export interface Shooting {
     email?: string;
   };
   linkedRecruitmentId?: string;
+  linkedRecruitment?: {
+    id: string;
+    title?: string;
+    budget?: number;
+    description?: string;
+    requirements?: string;
+    privateDeadlineHours?: number;
+  };
   maxBidders: number;
   customerPhone?: string;
   customerEmail?: string;

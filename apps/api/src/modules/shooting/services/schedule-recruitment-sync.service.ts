@@ -308,6 +308,17 @@ export class ScheduleRecruitmentSyncService {
           recruitmentUpdate.customerName = updatedFields.clientName;
         if (updatedFields.maxBidders !== undefined)
           recruitmentUpdate.maxBidders = updatedFields.maxBidders;
+        // 구인방 전용 필드 동기화
+        if (updatedFields.recruitmentTitle !== undefined && updatedFields.recruitmentTitle !== '')
+          recruitmentUpdate.title = updatedFields.recruitmentTitle;
+        if (updatedFields.recruitmentBudget !== undefined)
+          recruitmentUpdate.budget = updatedFields.recruitmentBudget;
+        if (updatedFields.recruitmentDescription !== undefined && updatedFields.recruitmentDescription !== '')
+          recruitmentUpdate.description = updatedFields.recruitmentDescription;
+        if (updatedFields.recruitmentRequirements !== undefined && updatedFields.recruitmentRequirements !== '')
+          recruitmentUpdate.requirements = updatedFields.recruitmentRequirements;
+        if (updatedFields.recruitmentPrivateDeadlineHours !== undefined)
+          recruitmentUpdate.privateDeadlineHours = updatedFields.recruitmentPrivateDeadlineHours;
 
         if (Object.keys(recruitmentUpdate).length > 0) {
           await this.prisma.recruitment.update({

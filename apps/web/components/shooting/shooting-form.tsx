@@ -204,11 +204,11 @@ export function ShootingForm({
       customerPhone: defaultValues?.customerPhone || '',
       customerEmail: defaultValues?.customerEmail || '',
       notes: defaultValues?.notes || '',
-      recruitmentTitle: '',
-      recruitmentBudget: undefined,
-      recruitmentDescription: '',
-      recruitmentRequirements: '',
-      recruitmentPrivateDeadlineHours: 24,
+      recruitmentTitle: defaultValues?.linkedRecruitment?.title || '',
+      recruitmentBudget: defaultValues?.linkedRecruitment?.budget ?? undefined,
+      recruitmentDescription: defaultValues?.linkedRecruitment?.description || '',
+      recruitmentRequirements: defaultValues?.linkedRecruitment?.requirements || '',
+      recruitmentPrivateDeadlineHours: defaultValues?.linkedRecruitment?.privateDeadlineHours ?? 24,
     },
   });
 
