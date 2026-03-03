@@ -708,7 +708,6 @@ export default function MyOrdersPage() {
                     <TableHead className="text-center w-[140px] text-[14px]">주문일<br />(주문번호)</TableHead>
                     <TableHead className="text-[14px]">상품명<br />규격</TableHead>
                     <TableHead className="text-center w-[70px] text-[14px]">페이지<br />/ 부수</TableHead>
-                    <TableHead className="text-right w-[100px] text-[14px]">주문금액</TableHead>
                     <TableHead className="text-center w-[110px] text-[14px]">보내는 분</TableHead>
                     <TableHead className="text-center w-[110px] text-[14px]">받는 분</TableHead>
                     <TableHead className="text-center w-[120px] text-[14px]">진행공정</TableHead>
@@ -774,23 +773,6 @@ export default function MyOrdersPage() {
                           <div>{item.quantity}건</div>
                         </TableCell>
 
-                        {idx === 0 && (
-                          <TableCell className="text-right align-top pt-3 text-[14px]" rowSpan={items.length}>
-                            <div className="space-y-1">
-                              <div>{Number(order.finalAmount).toLocaleString()}원</div>
-                              {(order.status === 'shipped' || order.status === 'ready_for_shipping') && (
-                                <button
-                                  type="button"
-                                  className="text-[12px] text-orange-600 hover:underline flex items-center gap-0.5 ml-auto"
-                                  onClick={() => setReturnTargetOrder(order)}
-                                >
-                                  <RotateCw className="h-3 w-3" />
-                                  앨범수리(재발송)
-                                </button>
-                              )}
-                            </div>
-                          </TableCell>
-                        )}
 
                         <TableCell className="text-center align-top pt-3">
                           {(() => {
