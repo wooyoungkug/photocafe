@@ -30,8 +30,9 @@ async function tryRecoverSession(): Promise<boolean> {
     if (!res.ok) return false;
 
     const data = await res.json();
-    const useLocal = !!localStorage.getItem('refreshToken');
-    const storage = useLocal ? localStorage : sessionStorage;
+    // 대리로그인 세션(sessionStorage)이 있으면 sessionStorage에 저장 (localStorage 어드민 토큰 보호)
+    const useSession = !!sessionStorage.getItem('refreshToken');
+    const storage = useSession ? sessionStorage : localStorage;
     storage.setItem('accessToken', data.accessToken);
     if (data.refreshToken) storage.setItem('refreshToken', data.refreshToken);
 

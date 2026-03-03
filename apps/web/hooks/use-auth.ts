@@ -78,8 +78,29 @@ export function useLogout() {
   const logout = useAuthStore((state) => state.logout);
 
   return () => {
+    // 대리로그인 세션 여부 확인 (logout() 호출 전에 체크)
+    const wasImpersonating = (() => {
+      if (typeof window === 'undefined') return false;
+      const hasSessionToken = !!sessionStorage.getItem('accessToken');
+      if (!hasSessionToken) return false;
+      try {
+        const raw = localStorage.getItem('auth-storage');
+        if (!raw) return false;
+        const parsed = JSON.parse(raw);
+        const role = parsed?.state?.user?.role;
+        return (role === 'admin' || role === 'staff') && !!localStorage.getItem('accessToken');
+      } catch { return false; }
+    })();
+
     logout();
-    router.push('/login');
+
+    if (wasImpersonating) {
+      // 대리로그인 종료 → 원본 어드민 세션 복원 후 대시보드로 이동
+      useAuthStore.persist.rehydrate();
+      router.push('/dashboard');
+    } else {
+      router.push('/login');
+    }
   };
 }
 

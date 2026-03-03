@@ -191,6 +191,8 @@ export default function OrderListPage() {
 
   // 회원 임퍼스네이션: 해당 거래처로 쇼핑몰 로그인 (관리자 토큰 보존)
   const handleImpersonate = async (clientId: string) => {
+    // 팝업 차단 방지: async/await 이전, 사용자 제스처 컨텍스트에서 새 탭 먼저 열기
+    const newTab = window.open('about:blank', '_blank');
     try {
       const res = await api.post<{
         accessToken: string;
@@ -205,9 +207,14 @@ export default function OrderListPage() {
         refreshToken: res.refreshToken,
       }));
 
-      // 쇼핑몰 새 탭으로 열기
-      window.open('/', '_blank');
+      // 미리 열어둔 탭으로 쇼핑몰 이동
+      if (newTab) {
+        newTab.location.href = '/';
+      } else {
+        window.open('/', '_blank');
+      }
     } catch {
+      if (newTab) newTab.close();
       toast({ title: '회원 로그인에 실패했습니다.', variant: 'destructive' });
     }
   };

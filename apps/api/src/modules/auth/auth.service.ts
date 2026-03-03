@@ -471,6 +471,7 @@ export class AuthService {
       user: {
         id: targetStaff.id, staffId: targetStaff.staffId, name: targetStaff.name,
         role: 'admin', email: targetStaff.email, branch: targetStaff.branch, department: targetStaff.department,
+        isSuperAdmin: targetStaff.isSuperAdmin ?? false,
       },
       impersonated: true,
     };
