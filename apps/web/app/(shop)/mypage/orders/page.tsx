@@ -762,8 +762,13 @@ export default function MyOrdersPage() {
                             <Link href={`/mypage/orders/${order.id}`} className="text-[14px] text-black font-normal leading-tight line-clamp-2 hover:underline hover:text-primary block">
                               {item.folderName || item.productName}
                             </Link>
+                            {item.folderName && (
+                              <div className="text-[14px] text-black font-normal leading-tight line-clamp-1">
+                                {item.productName}
+                              </div>
+                            )}
                             <div className="text-[13px] text-gray-500 leading-tight line-clamp-1">
-                              {item.productName?.split(' - ')[0]} / {item.size} / {item.printMethod} / {item.paper}
+                              {item.size} / {item.printMethod} / {item.paper}
                             </div>
                           </div>
                         </TableCell>
