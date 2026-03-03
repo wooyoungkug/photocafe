@@ -19,7 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogContent,
@@ -57,6 +57,14 @@ import {
   Building,
   Plus,
   Pencil,
+  User,
+  MapPin,
+  Star,
+  ShoppingBag,
+  Calendar,
+  Wallet,
+  Camera,
+  Briefcase,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -65,7 +73,7 @@ export default function EmployeesPage() {
   const clientId = user?.type === 'employee' ? user.clientId : user?.id;
 
   const { data: employees, isLoading: employeesLoading } = useEmployeesByClient(clientId);
-  const { data: invitations, isLoading: invitationsLoading } = useInvitationsByClient(clientId);
+  const { data: invitations } = useInvitationsByClient(clientId);
 
   const isManager =
     user?.type === 'client' ||
@@ -485,13 +493,14 @@ function EditPermissionDialog({
   const clientId = user?.type === 'employee' ? user.clientId : user?.id;
 
   const [role, setRole] = useState<EmployeeRole>(employment.role);
-  const [canViewAllOrders, setCanViewAllOrders] = useState(employment.canViewAllOrders);
-  const [canManageProducts, setCanManageProducts] = useState(employment.canManageProducts);
+  const [canViewAllOrders, setCanViewAllOrders] = useState(employment.canViewAllOrders); // 주문내역
   const [canViewSettlement, setCanViewSettlement] = useState(employment.canViewSettlement);
   const [canManageSchedule, setCanManageSchedule] = useState(employment.canManageSchedule);
   const [canManageRecruitment, setCanManageRecruitment] = useState(employment.canManageRecruitment);
   const [status, setStatus] = useState<EmploymentStatus>(employment.status);
   const [department, setDepartment] = useState(employment.department || '');
+
+  const isManager = role === 'MANAGER';
 
   const { data: departments = [] } = useEmployeeDepartments(clientId);
   const updateMutation = useUpdateEmployment();
@@ -500,7 +509,16 @@ function EditPermissionDialog({
     updateMutation.mutate(
       {
         id: employment.id,
-        data: { role, canViewAllOrders, canManageProducts, canViewSettlement, canManageSchedule, canManageRecruitment, status, department },
+        data: {
+          role,
+          canViewAllOrders,      // 주문내역 표시 여부
+          canManageProducts: true, // 마이상품 항상 허용
+          canViewSettlement,
+          canManageSchedule,
+          canManageRecruitment,
+          status,
+          department,
+        },
       },
       {
         onSuccess: () => {
@@ -516,7 +534,7 @@ function EditPermissionDialog({
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-[18px] text-black font-bold">
             권한 설정 — {employment.member.clientName}
@@ -526,8 +544,9 @@ function EditPermissionDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="space-y-2">
+        {/* 기본 정보 */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="space-y-1.5">
             <Label className="text-[14px] text-black font-normal">역할</Label>
             <Select value={role} onValueChange={(v) => setRole(v as EmployeeRole)}>
               <SelectTrigger className="text-[14px] text-black font-normal">
@@ -541,8 +560,7 @@ function EditPermissionDialog({
               </SelectContent>
             </Select>
           </div>
-
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label className="text-[14px] text-black font-normal">상태</Label>
             <Select value={status} onValueChange={(v) => setStatus(v as EmploymentStatus)}>
               <SelectTrigger className="text-[14px] text-black font-normal">
@@ -554,8 +572,7 @@ function EditPermissionDialog({
               </SelectContent>
             </Select>
           </div>
-
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label className="text-[14px] text-black font-normal">부서</Label>
             <Select value={department || '__none__'} onValueChange={(v) => setDepartment(v === '__none__' ? '' : v)}>
               <SelectTrigger className="text-[14px] text-black font-normal">
@@ -571,63 +588,70 @@ function EditPermissionDialog({
               </SelectContent>
             </Select>
           </div>
+        </div>
 
-          <div className="space-y-3">
-            <Label className="text-[14px] text-black font-normal">권한</Label>
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="viewAllOrders"
-                  checked={canViewAllOrders}
-                  onCheckedChange={(v) => setCanViewAllOrders(v as boolean)}
-                />
-                <label htmlFor="viewAllOrders" className="text-[14px] text-black font-normal cursor-pointer">
-                  전체 주문 열람 (미체크 시 본인 주문만)
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="manageProducts"
-                  checked={canManageProducts}
-                  onCheckedChange={(v) => setCanManageProducts(v as boolean)}
-                />
-                <label htmlFor="manageProducts" className="text-[14px] text-black font-normal cursor-pointer">
-                  상품 관리 (마이상품)
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="viewSettlement"
-                  checked={canViewSettlement}
-                  onCheckedChange={(v) => setCanViewSettlement(v as boolean)}
-                />
-                <label htmlFor="viewSettlement" className="text-[14px] text-black font-normal cursor-pointer">
-                  정산/입금 정보 열람
-                </label>
-              </div>
+        {/* 메뉴 접근 권한 - 사이드메뉴 형태 */}
+        <div className="space-y-2">
+          <Label className="text-[14px] text-black font-normal">메뉴 접근 권한</Label>
+
+          {/* 고정 메뉴 */}
+          <div className="border rounded-lg overflow-hidden">
+            <div className="px-3 py-1.5 bg-gray-50 border-b">
+              <span className="text-[12px] font-medium text-gray-500">고정 메뉴</span>
+            </div>
+            <div className="divide-y">
+              <PermMenuRow icon={<User className="h-3.5 w-3.5" />} label="회원정보" badge="항상" />
+              <PermMenuRow
+                icon={<Users className="h-3.5 w-3.5" />}
+                label="직원관리"
+                badge={isManager ? '매니저' : '최고관리자만'}
+                badgeVariant={isManager ? 'blue' : 'gray'}
+              />
+              <PermMenuRow icon={<MapPin className="h-3.5 w-3.5" />} label="배송지 관리" badge="항상" />
+              <PermMenuRow icon={<Star className="h-3.5 w-3.5" />} label="마이상품" badge="항상" />
+            </div>
+          </div>
+
+          {/* 선택 메뉴 */}
+          <div className="border rounded-lg overflow-hidden">
+            <div className="px-3 py-1.5 bg-gray-50 border-b">
+              <span className="text-[12px] font-medium text-gray-500">선택 메뉴</span>
+            </div>
+            <div className="divide-y">
+              <PermMenuToggleRow
+                icon={<ShoppingBag className="h-3.5 w-3.5" />}
+                label="주문내역"
+                checked={canViewAllOrders}
+                onCheckedChange={setCanViewAllOrders}
+              />
+              <PermMenuToggleRow
+                icon={<Calendar className="h-3.5 w-3.5" />}
+                label="월거래집계"
+                checked={canViewSettlement}
+                onCheckedChange={setCanViewSettlement}
+              />
+              <PermMenuRow
+                icon={<Wallet className="h-3.5 w-3.5" />}
+                label="입금내역"
+                badge="월거래집계 연동"
+                badgeVariant={canViewSettlement ? 'blue' : 'gray'}
+                dim={!canViewSettlement}
+              />
               {enableSchedule && (
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="manageSchedule"
-                    checked={canManageSchedule}
-                    onCheckedChange={(v) => setCanManageSchedule(v as boolean)}
-                  />
-                  <label htmlFor="manageSchedule" className="text-[14px] text-black font-normal cursor-pointer">
-                    일정관리
-                  </label>
-                </div>
+                <PermMenuToggleRow
+                  icon={<Camera className="h-3.5 w-3.5" />}
+                  label="일정관리"
+                  checked={canManageSchedule}
+                  onCheckedChange={setCanManageSchedule}
+                />
               )}
               {enableRecruitment && (
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="manageRecruitment"
-                    checked={canManageRecruitment}
-                    onCheckedChange={(v) => setCanManageRecruitment(v as boolean)}
-                  />
-                  <label htmlFor="manageRecruitment" className="text-[14px] text-black font-normal cursor-pointer">
-                    구인방
-                  </label>
-                </div>
+                <PermMenuToggleRow
+                  icon={<Briefcase className="h-3.5 w-3.5" />}
+                  label="구인방"
+                  checked={canManageRecruitment}
+                  onCheckedChange={setCanManageRecruitment}
+                />
               )}
             </div>
           </div>
@@ -648,6 +672,63 @@ function EditPermissionDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ==================== Permission Menu Row Helpers ====================
+
+function PermMenuRow({
+  icon,
+  label,
+  badge,
+  badgeVariant = 'green',
+  dim = false,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  badge: string;
+  badgeVariant?: 'green' | 'blue' | 'gray';
+  dim?: boolean;
+}) {
+  const badgeClass =
+    badgeVariant === 'green'
+      ? 'bg-green-50 text-green-700 border-green-200'
+      : badgeVariant === 'blue'
+      ? 'bg-blue-50 text-blue-700 border-blue-200'
+      : 'bg-gray-50 text-gray-500 border-gray-200';
+
+  return (
+    <div className={`flex items-center justify-between px-3.5 py-2.5 ${dim ? 'opacity-40' : ''}`}>
+      <div className="flex items-center gap-2.5 text-[14px] text-black font-normal">
+        <span className="text-gray-500">{icon}</span>
+        {label}
+      </div>
+      <span className={`text-[11px] px-2 py-0.5 rounded-full border ${badgeClass}`}>
+        {badge}
+      </span>
+    </div>
+  );
+}
+
+function PermMenuToggleRow({
+  icon,
+  label,
+  checked,
+  onCheckedChange,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  checked: boolean;
+  onCheckedChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between px-3.5 py-2.5">
+      <div className={`flex items-center gap-2.5 text-[14px] font-normal ${checked ? 'text-black' : 'text-gray-400'}`}>
+        <span className={checked ? 'text-gray-600' : 'text-gray-300'}>{icon}</span>
+        {label}
+      </div>
+      <Switch checked={checked} onCheckedChange={onCheckedChange} />
+    </div>
   );
 }
 

@@ -1481,7 +1481,7 @@ export default function MembersPage() {
                   서비스 기능 설정
                 </h3>
                 <p className="text-xs text-muted-foreground mb-4">
-                  비활성 시 메뉴가 숨겨지며, 소속 직원 권한 설정에서도 노출되지 않습니다.
+                  비활성 시 해당 메뉴가 완전히 숨겨지며, 직원 권한 설정의 선택 메뉴에서도 표시되지 않습니다.
                 </p>
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border">

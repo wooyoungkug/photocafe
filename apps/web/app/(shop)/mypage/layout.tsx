@@ -44,13 +44,13 @@ function getMenuItems(user: {
 
   items.push({ icon: MapPin, label: '배송지 관리', href: '/mypage/addresses' });
 
-  // 마이상품: 거래처 소유자 또는 canManageProducts 권한 직원
-  if (!isEmployee || user?.canManageProducts) {
-    items.push({ icon: Star, label: '마이상품', href: '/mypage/my-products' });
-  }
+  // 마이상품: 항상 표시 (모든 직원 포함)
+  items.push({ icon: Star, label: '마이상품', href: '/mypage/my-products' });
 
-  // 주문내역: 항상 표시 (canViewAllOrders=false면 본인 주문만 보임)
-  items.push({ icon: ShoppingBag, label: '주문내역', href: '/mypage/orders' });
+  // 주문내역: 선택사항 — 거래처 소유자는 항상, 직원은 canViewAllOrders 권한 필요
+  if (!isEmployee || user?.canViewAllOrders) {
+    items.push({ icon: ShoppingBag, label: '주문내역', href: '/mypage/orders' });
+  }
 
   // 월거래집계, 입금내역: 거래처 소유자 또는 canViewSettlement 권한 직원
   if (!isEmployee || user?.canViewSettlement) {
