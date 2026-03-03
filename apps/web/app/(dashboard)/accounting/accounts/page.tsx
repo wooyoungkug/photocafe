@@ -76,7 +76,7 @@ interface SeedResult {
 }
 
 // ===== 상수 =====
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
 const ACCOUNT_TYPES: { value: AccountType; label: string }[] = [
   { value: 'ASSET', label: '자산' },

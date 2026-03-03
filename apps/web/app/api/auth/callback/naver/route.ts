@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const FRONTEND_URL = process.env.NEXT_PUBLIC_FRONTEND_URL || "http://localhost:3002";
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
+const FRONTEND_URL = process.env.FRONTEND_URL || process.env.NEXT_PUBLIC_FRONTEND_URL || "http://localhost:3002";
+const API_URL = process.env.INTERNAL_API_URL ? `${process.env.INTERNAL_API_URL}/api/v1` : (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1");
 
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");

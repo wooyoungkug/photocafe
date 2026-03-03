@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Shield, AlertCircle, Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
 export default function AdminLoginPage() {
   const router = useRouter();
