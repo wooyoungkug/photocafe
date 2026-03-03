@@ -252,6 +252,8 @@ export default function EmployeesPage() {
       {editTarget && (
         <EditPermissionDialog
           employment={editTarget}
+          enableSchedule={user?.enableSchedule ?? true}
+          enableRecruitment={user?.enableRecruitment ?? true}
           onClose={() => setEditTarget(null)}
         />
       )}
@@ -470,9 +472,13 @@ function InviteDialog({
 
 function EditPermissionDialog({
   employment,
+  enableSchedule,
+  enableRecruitment,
   onClose,
 }: {
   employment: Employment;
+  enableSchedule: boolean;
+  enableRecruitment: boolean;
   onClose: () => void;
 }) {
   const { user } = useAuthStore();
@@ -483,6 +489,7 @@ function EditPermissionDialog({
   const [canManageProducts, setCanManageProducts] = useState(employment.canManageProducts);
   const [canViewSettlement, setCanViewSettlement] = useState(employment.canViewSettlement);
   const [canManageSchedule, setCanManageSchedule] = useState(employment.canManageSchedule);
+  const [canManageRecruitment, setCanManageRecruitment] = useState(employment.canManageRecruitment);
   const [status, setStatus] = useState<EmploymentStatus>(employment.status);
   const [department, setDepartment] = useState(employment.department || '');
 
@@ -493,7 +500,7 @@ function EditPermissionDialog({
     updateMutation.mutate(
       {
         id: employment.id,
-        data: { role, canViewAllOrders, canManageProducts, canViewSettlement, canManageSchedule, status, department },
+        data: { role, canViewAllOrders, canManageProducts, canViewSettlement, canManageSchedule, canManageRecruitment, status, department },
       },
       {
         onSuccess: () => {
@@ -598,16 +605,30 @@ function EditPermissionDialog({
                   정산/입금 정보 열람
                 </label>
               </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="manageSchedule"
-                  checked={canManageSchedule}
-                  onCheckedChange={(v) => setCanManageSchedule(v as boolean)}
-                />
-                <label htmlFor="manageSchedule" className="text-[14px] text-black font-normal cursor-pointer">
-                  일정관리
-                </label>
-              </div>
+              {enableSchedule && (
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="manageSchedule"
+                    checked={canManageSchedule}
+                    onCheckedChange={(v) => setCanManageSchedule(v as boolean)}
+                  />
+                  <label htmlFor="manageSchedule" className="text-[14px] text-black font-normal cursor-pointer">
+                    일정관리
+                  </label>
+                </div>
+              )}
+              {enableRecruitment && (
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="manageRecruitment"
+                    checked={canManageRecruitment}
+                    onCheckedChange={(v) => setCanManageRecruitment(v as boolean)}
+                  />
+                  <label htmlFor="manageRecruitment" className="text-[14px] text-black font-normal cursor-pointer">
+                    구인방
+                  </label>
+                </div>
+              )}
             </div>
           </div>
         </div>
