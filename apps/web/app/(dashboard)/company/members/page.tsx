@@ -308,6 +308,10 @@ export default function MembersPage() {
     enableRecruitment: true,
   });
 
+  // 비밀번호 설정
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
   // 이메일 중복 체크
   const [emailDuplicate, setEmailDuplicate] = useState<EmailCheckResult | null>(null);
   const [emailChecking, setEmailChecking] = useState(false);
@@ -336,6 +340,8 @@ export default function MembersPage() {
 
   const handleOpenDialog = (member?: Client, defaultMemberType?: 'individual' | 'business') => {
     setEmailDuplicate(null);
+    setNewPassword('');
+    setConfirmPassword('');
     if (member) {
       setEditingMember(member);
       setFormData({
@@ -434,11 +440,22 @@ export default function MembersPage() {
       return;
     }
 
+    if (newPassword && newPassword.length < 4) {
+      toast({ title: '비밀번호는 4자 이상이어야 합니다.', variant: 'destructive' });
+      return;
+    }
+
+    if (newPassword && newPassword !== confirmPassword) {
+      toast({ title: '새 비밀번호와 확인 비밀번호가 일치하지 않습니다.', variant: 'destructive' });
+      return;
+    }
+
     try {
       const submitData = {
         ...formData,
         groupId: formData.groupId || undefined,
         assignedManager: formData.assignedManager || null,
+        ...(newPassword ? { password: newPassword } : {}),
       };
 
       if (editingMember) {
@@ -1155,6 +1172,59 @@ export default function MembersPage() {
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">거래 완료 후 원본 파일 보관 기간</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 로그인 정보 섹션 */}
+              <div className="p-5 border rounded-xl bg-gradient-to-r from-blue-50/70 to-transparent">
+                <h3 className="font-semibold mb-4 text-blue-700 flex items-center gap-2">
+                  <Key className="h-4 w-4" />
+                  로그인 정보
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2 col-span-2">
+                    <Label className="text-sm font-medium">로그인 아이디</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={formData.email || ''}
+                        readOnly
+                        className="bg-slate-50 text-muted-foreground"
+                        placeholder="이메일을 먼저 설정하세요"
+                      />
+                      {editingMember && (
+                        <Badge className={editingMember.hasPassword ? 'bg-green-100 text-green-800 border-green-200 shrink-0 hover:bg-green-100' : 'shrink-0'} variant={editingMember.hasPassword ? 'outline' : 'secondary'}>
+                          {editingMember.hasPassword ? '비밀번호 설정됨' : '비밀번호 미설정'}
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">이메일이 로그인 아이디입니다</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">
+                      새 비밀번호
+                      <span className="text-xs text-muted-foreground ml-1">{editingMember ? '(변경 시에만 입력)' : '(선택)'}</span>
+                    </Label>
+                    <Input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="새 비밀번호 입력"
+                      className="bg-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">비밀번호 확인</Label>
+                    <Input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="비밀번호 확인"
+                      className={`bg-white ${newPassword && confirmPassword && newPassword !== confirmPassword ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                    />
+                    {newPassword && confirmPassword && newPassword !== confirmPassword && (
+                      <p className="text-xs text-red-500">비밀번호가 일치하지 않습니다</p>
+                    )}
                   </div>
                 </div>
               </div>

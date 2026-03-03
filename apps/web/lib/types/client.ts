@@ -44,6 +44,7 @@ export interface Client {
   birthday?: string;
   oauthProvider?: string;
   profileImage?: string;
+  hasPassword?: boolean;
   memberType?: 'individual' | 'business';
   shippingType?: 'conditional' | 'free' | 'prepaid' | 'cod';
   freeShippingThreshold?: number;

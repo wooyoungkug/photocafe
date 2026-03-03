@@ -86,13 +86,17 @@ export class ClientService {
       openConsultationsCount.map((item: any) => [item.clientId, item._count])
     );
 
-    const data = clients.map((client: any) => ({
-      ...client,
-      _count: {
-        consultations: client._count.consultations,
-        openConsultations: openCountMap.get(client.id) || 0,
-      },
-    }));
+    const data = clients.map((client: any) => {
+      const { password, ...rest } = client;
+      return {
+        ...rest,
+        hasPassword: !!password,
+        _count: {
+          consultations: client._count.consultations,
+          openConsultations: openCountMap.get(client.id) || 0,
+        },
+      };
+    });
 
     return {
       data,
@@ -138,7 +142,8 @@ export class ClientService {
       throw new NotFoundException('거래처를 찾을 수 없습니다');
     }
 
-    return client;
+    const { password, ...clientData } = client;
+    return { ...clientData, hasPassword: !!password };
   }
 
   async checkEmailDuplicate(email: string, excludeId?: string) {
@@ -211,14 +216,23 @@ export class ClientService {
     });
   }
 
-  async update(id: string, data: Prisma.ClientUpdateInput) {
+  async update(id: string, data: any) {
     await this.findOne(id);
 
-    return this.prisma.client.update({
+    if (data.password) {
+      data.password = await bcrypt.hash(data.password, 10);
+    } else {
+      delete data.password;
+    }
+
+    const result = await this.prisma.client.update({
       where: { id },
       data,
       include: { group: true },
     });
+
+    const { password, ...rest } = result;
+    return { ...rest, hasPassword: !!password };
   }
 
   async delete(id: string) {
