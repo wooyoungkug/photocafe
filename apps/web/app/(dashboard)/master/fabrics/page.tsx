@@ -264,7 +264,8 @@ export default function FabricsPage() {
       });
     } else {
       setEditingSupplier(null);
-      setSupplierFormData(initialSupplierFormData);
+      const autoCode = `SUP${Date.now().toString(36).toUpperCase()}`;
+      setSupplierFormData({ ...initialSupplierFormData, code: autoCode });
     }
     setSupplierDialogOpen(true);
   };
@@ -968,13 +969,11 @@ export default function FabricsPage() {
               <h3 className="text-sm font-semibold text-slate-500 border-b pb-2">기본 정보</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>코드 *</Label>
+                  <Label>코드</Label>
                   <Input
                     value={supplierFormData.code}
-                    onChange={(e) => setSupplierFormData({ ...supplierFormData, code: e.target.value })}
-                    placeholder="SUP001"
-                    disabled={!!editingSupplier}
-                    className={editingSupplier ? 'bg-slate-100 cursor-not-allowed' : ''}
+                    className="bg-slate-100 cursor-not-allowed"
+                    disabled
                   />
                 </div>
                 <div className="space-y-2">
