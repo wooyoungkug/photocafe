@@ -126,7 +126,7 @@ export default function EmployeesPage() {
                     <th className="text-left px-3 py-2 font-medium">가입 URL</th>
                     <th className="text-left px-3 py-2 font-medium">역할</th>
                     <th className="text-left px-3 py-2 font-medium">만료일</th>
-                    <th className="text-center px-3 py-2 font-medium">액션</th>
+                    <th className="text-center px-3 py-2 font-medium">권한</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -171,7 +171,7 @@ export default function EmployeesPage() {
                     <th className="text-left px-3 py-2 font-medium">상태</th>
                     <th className="text-left px-3 py-2 font-medium">최근 접속</th>
                     <th className="text-left px-3 py-2 font-medium">접속 IP</th>
-                    <th className="text-right px-3 py-2 font-medium">액션</th>
+                    <th className="text-right px-3 py-2 font-medium">권한</th>
                   </tr>
                 </thead>
                 <tbody>
