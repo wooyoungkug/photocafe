@@ -75,10 +75,6 @@ export default function EmployeesPage() {
   const { data: employees, isLoading: employeesLoading } = useEmployeesByClient(clientId);
   const { data: invitations } = useInvitationsByClient(clientId);
 
-  const isManager =
-    user?.type === 'client' ||
-    (user?.type === 'employee' && user?.employeeRole === 'MANAGER');
-
   const isOwner = user?.type === 'client' || user?.isOwner === true;
 
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -219,8 +215,7 @@ export default function EmployeesPage() {
                         {emp.member.lastLoginIp || '-'}
                       </td>
                       <td className="px-3 py-2 text-right">
-                        {emp.memberClientId === emp.companyClientId ? null :
-                         (emp.role === 'MANAGER' && !isOwner) ? null : (
+                        {emp.memberClientId === emp.companyClientId ? null : (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
@@ -228,7 +223,7 @@ export default function EmployeesPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              {(isOwner || emp.id !== user?.employmentId) && (
+                              {emp.id !== user?.employmentId && (
                                 <DropdownMenuItem onClick={() => setEditTarget(emp)}>
                                   <Settings className="h-3.5 w-3.5 mr-2" />
                                   권한 설정
