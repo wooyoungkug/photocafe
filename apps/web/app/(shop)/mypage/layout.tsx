@@ -84,7 +84,7 @@ export default function MyPageLayout({
   // 마운트 시 최신 서비스 기능 설정 반영 (관리자가 변경했을 수 있으므로)
   useEffect(() => {
     if (!isAuthenticated || !user) return;
-    if (user.type !== 'client' && user.type !== 'employee') return;
+    if (user.role !== 'client' && user.type !== 'employee') return;
     const token = sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
     if (!token) return;
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1';

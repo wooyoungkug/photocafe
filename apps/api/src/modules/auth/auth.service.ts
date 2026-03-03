@@ -196,11 +196,13 @@ export class AuthService {
     }
   }
 
-  async getProfile(userId: string, type?: string) {
+  async getProfile(userId: string, type?: string, companyClientId?: string) {
     // client / employee 타입: Client 테이블에서 최신 설정값 반환
     if (type === 'client' || type === 'employee') {
+      // employee는 소속 회사(companyClientId) 기준, client는 본인 ID
+      const lookupId = type === 'employee' && companyClientId ? companyClientId : userId;
       const client = await this.prisma.client.findUnique({
-        where: { id: userId },
+        where: { id: lookupId },
         select: { id: true, email: true, clientName: true, enableSchedule: true, enableRecruitment: true },
       });
       if (!client) throw new UnauthorizedException('User not found');
