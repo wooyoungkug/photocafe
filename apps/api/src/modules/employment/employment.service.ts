@@ -562,6 +562,9 @@ export class EmploymentService {
         ...(dto.canManageSchedule !== undefined && {
           canManageSchedule: dto.canManageSchedule,
         }),
+        ...(dto.canManageRecruitment !== undefined && {
+          canManageRecruitment: dto.canManageRecruitment,
+        }),
         ...(dto.status !== undefined && { status: dto.status }),
         ...(dto.department !== undefined && {
           department: dto.department?.trim() || null,
