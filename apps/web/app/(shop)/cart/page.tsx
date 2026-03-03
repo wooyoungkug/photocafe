@@ -550,6 +550,7 @@ export default function CartPage() {
           selectedTotal={selectedTotal}
           totalShippingFee={totalShippingFee}
           sameDayRefund={sameDayRefund}
+          hasShippingIncomplete={shippingCompleteCount < items.length}
           hasUploadInProgress={hasUploadInProgress}
           hasUploadFailed={hasUploadFailed}
           hasFileMissing={hasFileMissing}

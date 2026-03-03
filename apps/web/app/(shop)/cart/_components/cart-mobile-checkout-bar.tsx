@@ -12,6 +12,7 @@ interface CartMobileCheckoutBarProps {
   selectedTotal: number;
   totalShippingFee: number;
   sameDayRefund?: number;
+  hasShippingIncomplete?: boolean;
   hasUploadInProgress?: boolean;
   hasUploadFailed?: boolean;
   hasFileMissing?: boolean;
@@ -23,6 +24,7 @@ export function CartMobileCheckoutBar({
   selectedTotal,
   totalShippingFee,
   sameDayRefund = 0,
+  hasShippingIncomplete,
   hasUploadInProgress,
   hasUploadFailed,
   hasFileMissing,
@@ -91,7 +93,7 @@ export function CartMobileCheckoutBar({
           size="lg"
           className="w-full h-12 text-base font-semibold gradient-primary text-white"
           onClick={onCheckout}
-          disabled={selectedCount === 0 || hasUploadInProgress || hasUploadFailed || hasFileMissing}
+          disabled={selectedCount === 0 || hasShippingIncomplete || hasUploadInProgress || hasUploadFailed || hasFileMissing}
         >
           <ShoppingBag className="h-5 w-5 mr-2" />
           {t('checkout')} ({selectedCount})

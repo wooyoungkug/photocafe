@@ -327,7 +327,7 @@ export function CartOrderSummary({
             size="lg"
             className="w-full h-12 text-base font-semibold gradient-primary text-white shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all disabled:opacity-50 disabled:shadow-none"
             onClick={onCheckout}
-            disabled={selectedCount === 0 || hasUploadInProgress || hasUploadFailed || hasFileMissing}
+            disabled={selectedCount === 0 || incompleteCount > 0 || hasUploadInProgress || hasUploadFailed || hasFileMissing}
           >
             <ShoppingBag className="h-5 w-5 mr-2" />
             {t('checkout')} ({selectedCount})
