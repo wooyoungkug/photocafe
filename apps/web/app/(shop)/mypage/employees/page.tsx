@@ -493,8 +493,9 @@ function EditPermissionDialog({
   const clientId = user?.type === 'employee' ? user.clientId : user?.id;
 
   const [role, setRole] = useState<EmployeeRole>(employment.role);
-  const [canViewAllOrders, setCanViewAllOrders] = useState(employment.canViewAllOrders); // 주문내역
+  const [canViewAllOrders, setCanViewAllOrders] = useState(employment.canViewAllOrders); // 주문내역 범위: true=전체, false=본인것만
   const [canViewSettlement, setCanViewSettlement] = useState(employment.canViewSettlement);
+  const [canViewAllSettlement, setCanViewAllSettlement] = useState(employment.canViewAllSettlement ?? false); // 월거래집계 범위
   const [canManageSchedule, setCanManageSchedule] = useState(employment.canManageSchedule);
   const [canManageRecruitment, setCanManageRecruitment] = useState(employment.canManageRecruitment);
   const [status, setStatus] = useState<EmploymentStatus>(employment.status);
@@ -511,9 +512,10 @@ function EditPermissionDialog({
         id: employment.id,
         data: {
           role,
-          canViewAllOrders,      // 주문내역 표시 여부
-          canManageProducts: true, // 마이상품 항상 허용
+          canViewAllOrders,
+          canManageProducts: true,
           canViewSettlement,
+          canViewAllSettlement,
           canManageSchedule,
           canManageRecruitment,
           status,
@@ -618,17 +620,22 @@ function EditPermissionDialog({
               <span className="text-[12px] font-medium text-gray-500">선택 메뉴</span>
             </div>
             <div className="divide-y">
-              <PermMenuToggleRow
+              <PermMenuScopeRow
                 icon={<ShoppingBag className="h-3.5 w-3.5" />}
                 label="주문내역"
-                checked={canViewAllOrders}
-                onCheckedChange={setCanViewAllOrders}
+                allValue={canViewAllOrders}
+                onChange={setCanViewAllOrders}
               />
-              <PermMenuToggleRow
+              <PermMenuToggleScopeRow
                 icon={<Calendar className="h-3.5 w-3.5" />}
                 label="월거래집계"
                 checked={canViewSettlement}
-                onCheckedChange={setCanViewSettlement}
+                onCheckedChange={(v) => {
+                  setCanViewSettlement(v);
+                  if (!v) setCanViewAllSettlement(false);
+                }}
+                allValue={canViewAllSettlement}
+                onAllValueChange={setCanViewAllSettlement}
               />
               <PermMenuRow
                 icon={<Wallet className="h-3.5 w-3.5" />}
@@ -728,6 +735,99 @@ function PermMenuToggleRow({
         {label}
       </div>
       <Switch checked={checked} onCheckedChange={onCheckedChange} />
+    </div>
+  );
+}
+
+/** 주문내역처럼 항상 보이지만 범위(전체/본인것만)를 선택하는 행 */
+function PermMenuScopeRow({
+  icon,
+  label,
+  allValue,
+  onChange,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  allValue: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between px-3.5 py-2.5">
+      <div className="flex items-center gap-2.5 text-[14px] text-black font-normal">
+        <span className="text-gray-600">{icon}</span>
+        {label}
+      </div>
+      <div className="flex rounded border border-gray-200 overflow-hidden">
+        <button
+          type="button"
+          onClick={() => onChange(true)}
+          className={`text-[12px] px-2.5 py-0.5 transition-colors ${
+            allValue ? 'bg-primary text-white' : 'bg-white text-gray-500 hover:bg-gray-50'
+          }`}
+        >
+          전체
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange(false)}
+          className={`text-[12px] px-2.5 py-0.5 border-l border-gray-200 transition-colors ${
+            !allValue ? 'bg-primary text-white' : 'bg-white text-gray-500 hover:bg-gray-50'
+          }`}
+        >
+          본인것만
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** ON/OFF 스위치 + 활성화 시 범위(전체/본인것만) 선택 행 */
+function PermMenuToggleScopeRow({
+  icon,
+  label,
+  checked,
+  onCheckedChange,
+  allValue,
+  onAllValueChange,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  checked: boolean;
+  onCheckedChange: (v: boolean) => void;
+  allValue: boolean;
+  onAllValueChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between px-3.5 py-2.5">
+      <div className={`flex items-center gap-2.5 text-[14px] font-normal ${checked ? 'text-black' : 'text-gray-400'}`}>
+        <span className={checked ? 'text-gray-600' : 'text-gray-300'}>{icon}</span>
+        {label}
+      </div>
+      <div className="flex items-center gap-2">
+        {checked && (
+          <div className="flex rounded border border-gray-200 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => onAllValueChange(true)}
+              className={`text-[12px] px-2.5 py-0.5 transition-colors ${
+                allValue ? 'bg-primary text-white' : 'bg-white text-gray-500 hover:bg-gray-50'
+              }`}
+            >
+              전체
+            </button>
+            <button
+              type="button"
+              onClick={() => onAllValueChange(false)}
+              className={`text-[12px] px-2.5 py-0.5 border-l border-gray-200 transition-colors ${
+                !allValue ? 'bg-primary text-white' : 'bg-white text-gray-500 hover:bg-gray-50'
+              }`}
+            >
+              본인것만
+            </button>
+          </div>
+        )}
+        <Switch checked={checked} onCheckedChange={onCheckedChange} />
+      </div>
     </div>
   );
 }

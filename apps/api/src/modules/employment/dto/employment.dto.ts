@@ -47,6 +47,11 @@ export class UpdateEmploymentDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
+  canViewAllSettlement?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
   canManageSchedule?: boolean;
 
   @ApiPropertyOptional()

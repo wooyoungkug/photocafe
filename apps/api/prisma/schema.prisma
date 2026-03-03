@@ -2986,9 +2986,10 @@ model Employment {
   companyClientId   String
   role              EmployeeRole     @default(STAFF)
   status            EmploymentStatus @default(ACTIVE)
-  canViewAllOrders  Boolean          @default(false)
-  canManageProducts Boolean          @default(false)
-  canViewSettlement Boolean          @default(false)
+  canViewAllOrders      Boolean          @default(false)
+  canManageProducts     Boolean          @default(false)
+  canViewSettlement     Boolean          @default(false)
+  canViewAllSettlement  Boolean          @default(false)
   canManageSchedule     Boolean          @default(false)
   canManageRecruitment  Boolean          @default(false)
   department        String?
