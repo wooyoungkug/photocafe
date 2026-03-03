@@ -223,7 +223,7 @@ export default function EmployeesPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              {emp.id !== user?.employmentId && (
+                              {emp.id !== user?.employmentId && (isOwner || emp.role !== 'MANAGER') && (
                                 <DropdownMenuItem onClick={() => setEditTarget(emp)}>
                                   <Settings className="h-3.5 w-3.5 mr-2" />
                                   권한 설정
