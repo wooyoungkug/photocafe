@@ -706,7 +706,7 @@ export default function MyOrdersPage() {
                       />
                     </TableHead>
                     <TableHead className="text-center w-[140px] text-[14px]">주문일<br />(주문번호)</TableHead>
-                    <TableHead className="text-[14px]">상품명<br />규격</TableHead>
+                    <TableHead className="text-center text-[14px]">상품명<br />규격</TableHead>
                     <TableHead className="text-center w-[70px] text-[14px]">페이지<br />부수</TableHead>
                     <TableHead className="text-center w-[110px] text-[14px]">보내는 분</TableHead>
                     <TableHead className="text-center w-[110px] text-[14px]">받는 분</TableHead>
@@ -757,7 +757,7 @@ export default function MyOrdersPage() {
                           </TableCell>
                         )}
 
-                        <TableCell className="align-middle">
+                        <TableCell className="text-center align-middle">
                           <div className="space-y-1">
                             <Link href={`/mypage/orders/${order.id}`} className="text-[14px] text-black font-normal leading-tight line-clamp-2 hover:underline hover:text-primary block">
                               {item.folderName || item.productName}
@@ -768,7 +768,7 @@ export default function MyOrdersPage() {
                           </div>
                         </TableCell>
 
-                        <TableCell className="text-center text-[14px]">
+                        <TableCell className="text-center align-middle text-[14px]">
                           <div>{item.pages}p</div>
                           <div>{item.quantity}부</div>
                         </TableCell>
