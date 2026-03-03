@@ -374,7 +374,9 @@
       "Bash(PGPASSWORD=postgres \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -c \"UPDATE staff SET \"\"isSuperAdmin\"\" = true WHERE \"\"staffId\"\" = ''admin'';\")",
       "Bash(PGPASSWORD=postgres \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -c \"SELECT \"\"staffId\"\", \"\"name\"\", \"\"isSuperAdmin\"\" FROM staff WHERE \"\"staffId\"\" = ''admin'';\")",
       "WebFetch(domain:docs.nhncloud.com)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:community.cloudflare.com)",
+      "WebFetch(domain:gridpane.com)"
     ],
     "additionalDirectories": [
       "C:\\dev\\printing114\\apps\\api\\dist",
