@@ -423,12 +423,13 @@ export default function SchedulePage() {
       });
     } else {
       setEditingTodo(null);
+      const nowStr = format(new Date(), "yyyy-MM-dd'T'HH:mm");
       setTodoForm({
         title: '',
         content: '',
         priority: 'normal',
-        startDate: selectedDate ? format(selectedDate, "yyyy-MM-dd'T'HH:mm") : undefined,
-        dueDate: selectedDate ? format(selectedDate, "yyyy-MM-dd'T'23:59") : undefined,
+        startDate: selectedDate ? format(selectedDate, "yyyy-MM-dd'T'HH:mm") : nowStr,
+        dueDate: selectedDate ? format(selectedDate, "yyyy-MM-dd'T'HH:mm") : nowStr,
         isPersonal: true,
         isDepartment: false,
         isCompany: false,
