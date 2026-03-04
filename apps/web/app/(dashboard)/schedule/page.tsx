@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   Calendar,
   CheckSquare,
@@ -19,6 +19,9 @@ import {
   AlertCircle,
   Search,
   ChevronDown,
+  FileText,
+  Save,
+  StickyNote,
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek, isToday, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -168,11 +171,112 @@ const getRecurringSummary = (config: RecurringConfig, startDate: Date): string =
   return summary;
 };
 
+// 메모 타입
+interface Memo {
+  id: string;
+  title: string;
+  content: string;
+  color: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const MEMO_COLORS = [
+  { value: '#FEF9C3', label: '노랑' },
+  { value: '#DCFCE7', label: '초록' },
+  { value: '#DBEAFE', label: '파랑' },
+  { value: '#FCE7F3', label: '핑크' },
+  { value: '#F3F4F6', label: '회색' },
+];
+
+const MEMO_STORAGE_KEY = 'dashboard_memos';
+
+function loadMemos(): Memo[] {
+  try {
+    const raw = localStorage.getItem(MEMO_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveMemos(memos: Memo[]) {
+  localStorage.setItem(MEMO_STORAGE_KEY, JSON.stringify(memos));
+}
+
 export default function SchedulePage() {
   const { toast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState('calendar');
+
+  // 메모 상태
+  const [memos, setMemos] = useState<Memo[]>([]);
+  const [editingMemo, setEditingMemo] = useState<Memo | null>(null);
+  const [isMemoDialogOpen, setIsMemoDialogOpen] = useState(false);
+  const [memoForm, setMemoForm] = useState({ title: '', content: '', color: '#FEF9C3' });
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setMemos(loadMemos());
+  }, []);
+
+  const handleOpenMemoDialog = useCallback((memo?: Memo) => {
+    if (memo) {
+      setEditingMemo(memo);
+      setMemoForm({ title: memo.title, content: memo.content, color: memo.color });
+    } else {
+      setEditingMemo(null);
+      setMemoForm({ title: '', content: '', color: '#FEF9C3' });
+    }
+    setIsMemoDialogOpen(true);
+  }, []);
+
+  const handleSaveMemo = useCallback(() => {
+    if (!memoForm.title.trim() && !memoForm.content.trim()) {
+      toast({ title: '제목 또는 내용을 입력하세요.', variant: 'destructive' });
+      return;
+    }
+    const now = new Date().toISOString();
+    let updated: Memo[];
+    if (editingMemo) {
+      updated = memos.map(m =>
+        m.id === editingMemo.id
+          ? { ...m, title: memoForm.title, content: memoForm.content, color: memoForm.color, updatedAt: now }
+          : m
+      );
+    } else {
+      const newMemo: Memo = {
+        id: `memo_${Date.now()}`,
+        title: memoForm.title,
+        content: memoForm.content,
+        color: memoForm.color,
+        createdAt: now,
+        updatedAt: now,
+      };
+      updated = [newMemo, ...memos];
+    }
+    setMemos(updated);
+    saveMemos(updated);
+    setIsMemoDialogOpen(false);
+    toast({ title: editingMemo ? '메모가 수정되었습니다.' : '메모가 저장되었습니다.' });
+  }, [memoForm, editingMemo, memos, toast]);
+
+  const handleDeleteMemo = useCallback((id: string) => {
+    const updated = memos.filter(m => m.id !== id);
+    setMemos(updated);
+    saveMemos(updated);
+    toast({ title: '메모가 삭제되었습니다.' });
+  }, [memos, toast]);
+
+  // 메모 인라인 편집 (카드 클릭 시 내용 바로 수정)
+  const handleMemoContentChange = useCallback((id: string, content: string) => {
+    const now = new Date().toISOString();
+    const updated = memos.map(m => m.id === id ? { ...m, content, updatedAt: now } : m);
+    setMemos(updated);
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => saveMemos(updated), 800);
+  }, [memos]);
   const [scopeFilter, setScopeFilter] = useState<'all' | 'personal' | 'department' | 'company'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [showCompleted, setShowCompleted] = useState(false);
@@ -535,6 +639,10 @@ export default function SchedulePage() {
           <TabsTrigger value="todos">
             <CheckSquare className="h-4 w-4 mr-2" />
             할일 목록
+          </TabsTrigger>
+          <TabsTrigger value="memos">
+            <StickyNote className="h-4 w-4 mr-2" />
+            메모장
           </TabsTrigger>
         </TabsList>
 

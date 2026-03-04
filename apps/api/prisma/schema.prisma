@@ -1850,6 +1850,7 @@ model ConsultationStatSnapshot {
 
 model Todo {
   id              String    @id @default(cuid())
+  clientId        String?   // 테넌트 격리 (어느 회사/스튜디오의 데이터인지)
   creatorId       String
   creatorName     String
   creatorDeptId   String?
@@ -1884,6 +1885,7 @@ model Todo {
   @@index([status])
   @@index([dueDate])
   @@index([isPersonal])
+  @@index([clientId])
   @@index([isDepartment])
   @@index([isCompany])
   @@map("todos")
@@ -1891,6 +1893,7 @@ model Todo {
 
 model Schedule {
   id              String    @id @default(cuid())
+  clientId        String?   // 테넌트 격리 (어느 회사/스튜디오의 데이터인지)
   creatorId       String
   creatorName     String
   creatorDeptId   String?
@@ -1923,6 +1926,7 @@ model Schedule {
 
   shootingSchedule ShootingSchedule?
 
+  @@index([clientId])
   @@index([creatorId])
   @@index([creatorDeptId])
   @@index([startAt])

@@ -8,6 +8,7 @@ interface CurrentUser {
   departmentId?: string;
   departmentName?: string;
   role: string;
+  clientId?: string; // 테넌트 식별자
 }
 
 @Injectable()
@@ -17,6 +18,7 @@ export class TodoService {
   async create(dto: CreateTodoDto, user: CurrentUser) {
     return this.prisma.todo.create({
       data: {
+        clientId: user.clientId || null,
         title: dto.title,
         content: dto.content,
         priority: dto.priority || 'normal',
@@ -44,7 +46,10 @@ export class TodoService {
   }
 
   async findAll(query: QueryTodoDto, user: CurrentUser) {
-    const where: any = {};
+    const where: any = {
+      // 테넌트 격리: 반드시 같은 clientId 내에서만 조회
+      ...(user.clientId ? { clientId: user.clientId } : { clientId: null }),
+    };
 
     // 상태 필터
     if (query.status) {
@@ -231,9 +236,19 @@ export class TodoService {
     });
   }
 
+  // 테넌트 경계 확인 (다른 회사/스튜디오 데이터 차단)
+  private isSameTenant(todo: any, user: CurrentUser): boolean {
+    if (user.clientId && todo.clientId) return user.clientId === todo.clientId;
+    if (!user.clientId && !todo.clientId) return true;
+    return false;
+  }
+
   // 접근 권한 확인
   private canAccess(todo: any, user: CurrentUser): boolean {
-    // 관리자는 모든 접근 가능
+    // 테넌트 경계 먼저 확인
+    if (!this.isSameTenant(todo, user)) return false;
+
+    // 관리자는 같은 회사 내 모든 접근 가능
     if (user.role === 'admin') return true;
 
     // 작성자 본인
@@ -253,24 +268,16 @@ export class TodoService {
 
   // 수정 권한 확인
   private canEdit(todo: any, user: CurrentUser): boolean {
-    // 관리자는 모든 수정 가능
+    if (!this.isSameTenant(todo, user)) return false;
     if (user.role === 'admin') return true;
-
-    // 작성자 본인만 수정 가능
     return todo.creatorId === user.id;
   }
 
   // 삭제 권한 확인 (담당자, 부서장, 관리자)
   private canDelete(todo: any, user: CurrentUser): boolean {
-    // 관리자는 모든 삭제 가능
+    if (!this.isSameTenant(todo, user)) return false;
     if (user.role === 'admin') return true;
-
-    // 부서장 (같은 부서의 일정)
-    if (user.role === 'manager' && todo.creatorDeptId === user.departmentId) {
-      return true;
-    }
-
-    // 작성자 본인
+    if (user.role === 'manager' && todo.creatorDeptId === user.departmentId) return true;
     return todo.creatorId === user.id;
   }
 }
