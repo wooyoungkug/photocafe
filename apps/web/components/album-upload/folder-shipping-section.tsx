@@ -91,9 +91,7 @@ export function FolderShippingSection({
           return { fee: baseFee, feeType: 'conditional' };
         }
         if (shippingType === 'prepaid') {
-          const parcelPricing = pricingMap['parcel'];
-          const baseFee = parcelPricing ? Number(parcelPricing.baseFee) : 3500;
-          return { fee: baseFee, feeType: 'standard' };
+          return { fee: 0, feeType: 'free' };
         }
         // cod (착불): 주문에서는 0원
         return { fee: 0, feeType: 'free' };

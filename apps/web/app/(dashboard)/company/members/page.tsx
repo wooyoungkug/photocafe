@@ -1469,7 +1469,7 @@ export default function MembersPage() {
                   <div className="flex items-center gap-2">
                     <RadioGroupItem value="prepaid" id="ship-direct" />
                     <Label htmlFor="ship-direct" className="font-normal cursor-pointer">
-                      직배송 <span className="text-xs text-muted-foreground ml-1">— 항상 기본 배송비 청구</span>
+                      직배송 <span className="text-xs text-muted-foreground ml-1">— 항상 무료</span>
                     </Label>
                   </div>
                   <div className="flex items-center gap-2">

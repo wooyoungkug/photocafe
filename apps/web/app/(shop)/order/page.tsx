@@ -469,6 +469,7 @@ export default function OrderPage() {
   // 스튜디오배송 무료 여부 (거래처 배송타입 + 합배송 포함)
   const isStudioFree = useMemo(() => {
     return shippingClientInfo?.shippingType === 'free' ||
+      shippingClientInfo?.shippingType === 'prepaid' ||
       (shippingClientInfo?.shippingType === 'conditional' && studioItemsTotal >= freeShippingThreshold) ||
       !!combinedShipping?.isStudioFree;
   }, [shippingClientInfo?.shippingType, studioItemsTotal, freeShippingThreshold, combinedShipping?.isStudioFree]);
