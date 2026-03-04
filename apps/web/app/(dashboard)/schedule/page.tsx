@@ -914,7 +914,137 @@ export default function SchedulePage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* 메모장 탭 */}
+        <TabsContent value="memos" className="mt-4">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-[18px] text-black font-bold flex items-center gap-2">
+                <StickyNote className="h-5 w-5 text-yellow-500" />
+                개인 메모장
+              </h2>
+              <p className="text-[14px] text-black font-normal mt-0.5">이 기기에만 저장되는 개인 메모입니다.</p>
+            </div>
+            <Button onClick={() => handleOpenMemoDialog()}>
+              <Plus className="h-4 w-4 mr-2" />
+              메모 추가
+            </Button>
+          </div>
+
+          {memos.length === 0 ? (
+            <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-xl">
+              <StickyNote className="h-12 w-12 mx-auto mb-3 opacity-30" />
+              <p className="text-[14px]">메모가 없습니다.</p>
+              <p className="text-[14px] mt-1">상단 버튼으로 새 메모를 추가하세요.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {memos.map((memo) => (
+                <div
+                  key={memo.id}
+                  className="rounded-xl p-4 shadow-sm border border-black/5 flex flex-col gap-2 min-h-[180px] relative group"
+                  style={{ backgroundColor: memo.color }}
+                >
+                  {/* 제목 + 액션 버튼 */}
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-[14px] text-black font-bold flex-1 break-words leading-snug">
+                      {memo.title || '(제목 없음)'}
+                    </span>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => handleOpenMemoDialog(memo)}
+                      >
+                        <Edit className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-destructive hover:text-destructive"
+                        onClick={() => handleDeleteMemo(memo.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* 내용 - 인라인 편집 */}
+                  <textarea
+                    className="flex-1 resize-none text-[14px] text-black font-normal bg-transparent border-none outline-none w-full leading-relaxed min-h-[80px]"
+                    value={memo.content}
+                    placeholder="내용을 입력하세요..."
+                    onChange={(e) => handleMemoContentChange(memo.id, e.target.value)}
+                  />
+
+                  {/* 수정 시각 */}
+                  <div className="flex items-center gap-1 text-[12px] text-black/40 mt-auto pt-1 border-t border-black/10">
+                    <Save className="h-3 w-3" />
+                    {format(new Date(memo.updatedAt), 'MM/dd HH:mm', { locale: ko })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
       </Tabs>
+
+      {/* 메모 다이얼로그 */}
+      <Dialog open={isMemoDialogOpen} onOpenChange={setIsMemoDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <StickyNote className="h-5 w-5 text-yellow-500" />
+              {editingMemo ? '메모 수정' : '새 메모'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>제목</Label>
+              <Input
+                placeholder="메모 제목"
+                value={memoForm.title}
+                onChange={(e) => setMemoForm({ ...memoForm, title: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>내용</Label>
+              <Textarea
+                placeholder="메모 내용..."
+                rows={6}
+                value={memoForm.content}
+                onChange={(e) => setMemoForm({ ...memoForm, content: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>색상</Label>
+              <div className="flex gap-2">
+                {MEMO_COLORS.map((c) => (
+                  <button
+                    key={c.value}
+                    type="button"
+                    title={c.label}
+                    className={cn(
+                      'w-8 h-8 rounded-full border-2 transition-transform',
+                      memoForm.color === c.value ? 'border-gray-600 scale-110' : 'border-transparent'
+                    )}
+                    style={{ backgroundColor: c.value }}
+                    onClick={() => setMemoForm({ ...memoForm, color: c.value })}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsMemoDialogOpen(false)}>취소</Button>
+            <Button onClick={handleSaveMemo}>
+              <Save className="h-4 w-4 mr-2" />
+              {editingMemo ? '수정' : '저장'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Todo 다이얼로그 */}
       <Dialog open={isTodoDialogOpen} onOpenChange={setIsTodoDialogOpen}>
