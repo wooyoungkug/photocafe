@@ -35,6 +35,11 @@ export class LogenService {
     return this.config.get<string>('LOGEN_CUST_CD', '');
   }
 
+  /** API Key */
+  private get apiKey(): string {
+    return this.config.get<string>('LOGEN_API_KEY', '');
+  }
+
   /** API 설정 여부 확인 */
   isConfigured(): boolean {
     return !!this.userId && !!this.custCd;
@@ -278,11 +283,18 @@ export class LogenService {
   private async callApi<T>(path: string, body: unknown): Promise<T> {
     const url = `${this.baseUrl}${path}`;
 
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (this.apiKey) {
+      headers['Authorization'] = `Bearer ${this.apiKey}`;
+    }
+
     let response: Response;
     try {
       response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(body),
         signal: AbortSignal.timeout(15000),
       });
