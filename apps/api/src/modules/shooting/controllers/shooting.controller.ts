@@ -36,7 +36,7 @@ export class ShootingController {
   @Post()
   @ApiOperation({ summary: '촬영 일정 생성' })
   async create(@Body() dto: CreateShootingDto, @Request() req: any) {
-    return this.shootingService.create(dto, req.user.id);
+    return this.shootingService.create(dto, req.user.id, req.user.clientId);
   }
 
   @Get()

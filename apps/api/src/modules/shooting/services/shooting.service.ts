@@ -33,7 +33,7 @@ export class ShootingService {
    * - ShootingSchedule 생성
    * - 기존 Schedule 테이블에 연동 레코드 생성 (relatedType='shooting')
    */
-  async create(dto: CreateShootingDto, userId: string) {
+  async create(dto: CreateShootingDto, userId: string, clientId?: string) {
     const shootingDate = new Date(dto.shootingDate);
     const durationMinutes = dto.duration || 120;
     const endDate = new Date(shootingDate.getTime() + durationMinutes * 60 * 1000);
@@ -51,6 +51,7 @@ export class ShootingService {
           startAt: shootingDate,
           endAt: endDate,
           isAllDay: false,
+          clientId: clientId || null,
           isCompany: true,
           scheduleType: 'event',
           relatedType: 'shooting',
