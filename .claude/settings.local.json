@@ -376,7 +376,10 @@
       "WebFetch(domain:docs.nhncloud.com)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:community.cloudflare.com)",
-      "WebFetch(domain:gridpane.com)"
+      "WebFetch(domain:gridpane.com)",
+      "Bash(reg query \"HKLM\\\\SOFTWARE\\\\OpenVPN-GUI\")",
+      "Bash(reg query \"HKLM\\\\SOFTWARE\\\\OpenVPN\")",
+      "Bash(reg query \"HKCU\\\\SOFTWARE\\\\OpenVPN-GUI\")"
     ],
     "additionalDirectories": [
       "C:\\dev\\printing114\\apps\\api\\dist",
