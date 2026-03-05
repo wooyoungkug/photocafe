@@ -117,6 +117,8 @@ export class ScheduleService {
     const where: any = {
       // 테넌트 격리: 반드시 같은 clientId 내에서만 조회
       ...(user.clientId ? { clientId: user.clientId } : { clientId: null }),
+      // 촬영관리에 연동된 일정은 일정관리 캘린더에서 제외
+      shootingSchedule: null,
       // 기간 필터 (필수)
       OR: [
         // 시작일이 조회 범위 내
