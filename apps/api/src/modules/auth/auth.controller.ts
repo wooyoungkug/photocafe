@@ -332,7 +332,7 @@ export class AuthController {
 
   @Public()
   @Post('staff/login')
-  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  @Throttle({ default: { ttl: 60000, limit: 20 } })
   @ApiOperation({ summary: '직원 ID/PW 로그인' })
   async staffLogin(@Body() dto: StaffLoginDto, @Ip() ip: string) {
     return this.authService.loginStaffWithPassword(dto.staffId, dto.password, ip);
