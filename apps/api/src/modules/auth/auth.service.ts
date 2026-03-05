@@ -427,7 +427,7 @@ export class AuthService {
       data: { lastLoginAt: new Date(), ...(ip && { lastLoginIp: ip }) },
     });
 
-    const payload = { sub: client.id, email: client.email, role: 'client', type: 'client' };
+    const payload = { sub: client.id, email: client.email, role: 'client', type: 'client', clientId: client.id };
     const accessToken = this.jwtService.sign(payload);
     const refreshToken = this.jwtService.sign(payload, { expiresIn: rememberMe ? '30d' : '7d' });
 
@@ -938,7 +938,7 @@ export class AuthService {
     if (!client) throw new BadRequestException('회원을 찾을 수 없습니다');
     if (client.status !== 'active') throw new BadRequestException('비활성 회원은 대리 로그인할 수 없습니다');
 
-    const payload = { sub: client.id, email: client.email, role: 'client', type: 'client', impersonatedBy: adminId };
+    const payload = { sub: client.id, email: client.email, role: 'client', type: 'client', clientId: client.id, impersonatedBy: adminId };
 
     return {
       accessToken: this.jwtService.sign(payload, { expiresIn: '1h' }),

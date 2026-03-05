@@ -400,7 +400,7 @@ export default function RecruitmentListPage() {
           clientId: user?.clientId || '',
           shootingType: shootingTypeFilter !== 'all' ? (shootingTypeFilter as ShootingType) : undefined,
           sort: sortBy as RecruitmentQueryParams['sort'],
-          limit: 200,
+          limit: 100,
         }
       : undefined,
   );
