@@ -324,7 +324,6 @@ export function ShootingForm({
               value={watch('shootingType')}
               onValueChange={(val) => {
                 setValue('shootingType', val);
-                form.trigger('shootingType');
               }}
             >
               <SelectTrigger className="text-[14px]">
