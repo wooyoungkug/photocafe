@@ -2,7 +2,24 @@
   "permissions": {
     "allow": [
       "Bash(powershell -Command \"Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force\")",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(ssh -i ~/.ssh/synology_deploy printing114-web \"sudo -n /usr/local/bin/docker images photocafe-web --format ''{{.CreatedAt}}''\")",
+      "Bash(ssh -i ~/.ssh/synology_deploy printing114-web \"sudo -n /usr/local/bin/docker build   --build-arg NEXT_PUBLIC_API_URL=https://api.printing114.com/api/v1   -f /volume1/docker/printing114-web/apps/web/Dockerfile   -t photocafe-web:new   /volume1/docker/printing114-web\")",
+      "Bash(ssh -i ~/.ssh/synology_deploy printing114-web \"sudo -n /usr/local/bin/docker run --rm photocafe-web:new grep -r ''api.printing114\\\\|1.212.201.147'' /app/apps/web/.next/server/ 2>/dev/null | head -5 || echo ''grep 실패''\")",
+      "Bash(ssh -i ~/.ssh/synology_deploy printing114-web \"sudo -n /usr/local/bin/docker run --rm photocafe-web:new sh -c ''grep -r \"\"1\\\\.212\\\\.201\\\\.147\"\" /app/apps/web/.next/server/chunks/ 2>/dev/null | head -3''\")",
+      "Bash(ssh -i ~/.ssh/synology_deploy printing114-web \"sudo -n /usr/local/bin/docker run --rm photocafe-web:new sh -c ''grep -r \"\"api.printing114\\\\|1.212.201.147\"\" /app/apps/web/.next/ 2>/dev/null | grep -v Binary | head -5''\")",
+      "Bash(ssh -i ~/.ssh/synology_deploy printing114-web \"sudo -n /usr/local/bin/docker run --rm photocafe-web:new sh -c ''grep -o \"\"http://1\\\\.212\\\\.201\\\\.147:3001/api/v1\\\\|https://api\\\\.printing114\\\\.com/api/v1\"\" /app/apps/web/.next/server/app/\\\\\\\\\\(admin\\\\\\\\\\)/admin-login/page.js''\")",
+      "Bash(ssh -i ~/.ssh/synology_deploy printing114-web \"sudo -n /usr/local/bin/docker inspect photocafe-web --format ''{{.HostConfig.Binds}} {{.HostConfig.NetworkMode}} {{range .NetworkSettings.Networks}}{{.NetworkID}}{{end}} {{.HostConfig.RestartPolicy.Name}}''\")",
+      "Bash(ssh -i ~/.ssh/synology_deploy printing114-web \"sudo -n /usr/local/bin/docker inspect photocafe-web --format ''{{json .HostConfig}}''\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(''Ports:'', d.get\\(''PortBindings''\\)\\); print\\(''Network:'', d.get\\(''NetworkMode''\\)\\); print\\(''Env:'', [e for e in \\(d.get\\(''Env''\\) or []\\) if ''API'' in e or ''NODE'' in e]\\)\")",
+      "Bash(ssh -i ~/.ssh/synology_deploy printing114-web \"sudo -n /usr/local/bin/docker inspect photocafe-web --format ''{{.HostConfig.PortBindings}}''\")",
+      "Bash(ssh -i ~/.ssh/synology_deploy printing114-web \"sudo -n /usr/local/bin/docker inspect photocafe-web --format ''{{range .Config.Env}}{{.}}\\\\n{{end}}''\")",
+      "Bash(ssh -i ~/.ssh/synology_deploy printing114-web \":*)",
+      "Bash(ssh -i ~/.ssh/synology_deploy printing114-web \"sudo -n /usr/local/bin/docker stop photocafe-web\")",
+      "Bash(ssh -i ~/.ssh/synology_deploy printing114-web \"sudo -n /usr/local/bin/docker rm photocafe-web\")",
+      "Bash(NETWORK=\"fbe152b0b9d9c44764c052e6698ef0355d135e3458af7f8b8295475fdd8928e8\")",
+      "Bash(ssh -i ~/.ssh/synology_deploy printing114-web \"sudo -n /usr/local/bin/docker run -d   --name photocafe-web   --restart always   -p 3000:3000   --network $NETWORK   -e NODE_ENV=production   -e TZ=Asia/Seoul   -e INTERNAL_API_URL=http://photocafe-api:3001   -e NEXT_PUBLIC_API_URL=https://api.printing114.com/api/v1   photocafe-web:new\")",
+      "Bash(ssh -i ~/.ssh/synology_deploy printing114-web \"sudo -n /usr/local/bin/docker ps | grep photocafe-web\")"
     ],
     "deny": [],
     "ask": [],
