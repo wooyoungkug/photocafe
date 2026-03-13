@@ -472,6 +472,7 @@ export class AuthService {
         id: targetStaff.id, staffId: targetStaff.staffId, name: targetStaff.name,
         role: 'admin', email: targetStaff.email, branch: targetStaff.branch, department: targetStaff.department,
         isSuperAdmin: targetStaff.isSuperAdmin ?? false,
+        canEditMemberInfo: targetStaff.canEditMemberInfo ?? false,
       },
       impersonated: true,
     };
@@ -689,6 +690,7 @@ export class AuthService {
       user: {
         id: staff.id, staffId: staff.staffId, name: staff.name, role: 'admin',
         email: staff.companyEmail || staff.email, isSuperAdmin: staff.isSuperAdmin ?? false,
+        canEditMemberInfo: staff.canEditMemberInfo ?? false,
         profileImage: staff.profileImage,
       },
     };
@@ -747,6 +749,7 @@ export class AuthService {
       user: {
         id: staff.id, staffId: staff.staffId, name: staff.name, role: 'admin',
         email: staff.companyEmail || staff.email, isSuperAdmin: staff.isSuperAdmin ?? false,
+        canEditMemberInfo: staff.canEditMemberInfo ?? false,
         profileImage: staff.profileImage,
       },
     };

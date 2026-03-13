@@ -82,6 +82,15 @@ export class StaffController {
         throw new ForbiddenException('다른 직원의 정보를 수정할 권한이 없습니다.');
       }
     }
+
+    // isSuperAdmin 변경은 최고관리자만 가능
+    if (data.isSuperAdmin !== undefined) {
+      const isSA = await this.staffService.checkSuperAdminPermission(req.user.id);
+      if (!isSA) {
+        throw new ForbiddenException('최고관리자 권한 변경은 최고관리자만 할 수 있습니다.');
+      }
+    }
+
     return this.staffService.update(id, data);
   }
 
@@ -229,6 +238,28 @@ export class StaffController {
       throw new ForbiddenException('임시 비밀번호 발급 권한이 없습니다.');
     }
     return this.staffService.issueTemporaryPassword(id, { id: req.user.id, name: req.user.name });
+  }
+
+  // ==================== 최고관리자 설정 ====================
+
+  @Patch(':id/super-admin')
+  @ApiOperation({ summary: '최고관리자 권한 설정/해제' })
+  @ApiResponse({ status: 200, description: '설정 성공' })
+  @ApiResponse({ status: 403, description: '권한 없음' })
+  async toggleSuperAdmin(
+    @Param('id') id: string,
+    @Body() data: { isSuperAdmin: boolean },
+    @Request() req: any,
+  ) {
+    const isSA = await this.staffService.checkSuperAdminPermission(req.user.id);
+    if (!isSA) {
+      throw new ForbiddenException('최고관리자만 최고관리자 권한을 설정할 수 있습니다.');
+    }
+    // 자기 자신 최고관리자 해제 방지
+    if (req.user.id === id && !data.isSuperAdmin) {
+      throw new ForbiddenException('자기 자신의 최고관리자 권한을 해제할 수 없습니다.');
+    }
+    return this.staffService.toggleSuperAdmin(id, data.isSuperAdmin, { id: req.user.id, name: req.user.name });
   }
 
 }

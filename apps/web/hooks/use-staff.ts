@@ -325,6 +325,20 @@ export interface Branch {
   isActive: boolean;
 }
 
+// ==================== 최고관리자 설정 ====================
+
+export function useToggleSuperAdmin() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, isSuperAdmin }: { id: string; isSuperAdmin: boolean }) =>
+      api.patch<{ id: string; isSuperAdmin: boolean }>(`/staff/${id}/super-admin`, { isSuperAdmin }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [STAFF_KEY] });
+    },
+  });
+}
+
 export function useBranches(isActive?: boolean) {
   return useQuery({
     queryKey: [BRANCHES_KEY, isActive],
