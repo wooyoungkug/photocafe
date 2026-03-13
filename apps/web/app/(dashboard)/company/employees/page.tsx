@@ -1074,61 +1074,6 @@ export default function EmployeesPage() {
                 </div>
               )}
 
-              {/* 기본 권한 */}
-              <div className="p-4 border rounded-lg">
-                <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  <Shield className="h-4 w-4" />
-                  표지공장 로그인
-                </h3>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="isStaffLogin"
-                    checked={false}
-                    disabled
-                  />
-                  <Label htmlFor="isStaffLogin" className="text-sm">
-                    표지공장 로그인
-                  </Label>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  ※ 표지공장은 아래의 접근권한 메뉴가 적용이 안됩니다.
-                </p>
-              </div>
-
-              {/* View 권한 */}
-              <div className="p-4 border rounded-lg">
-                <h3 className="font-semibold mb-4">View 권한</h3>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="canEditInManagerView"
-                    checked={formData.canEditInManagerView}
-                    onCheckedChange={(checked) =>
-                      setFormData({ ...formData, canEditInManagerView: checked === true })
-                    }
-                  />
-                  <Label htmlFor="canEditInManagerView" className="text-sm">
-                    체크시 관리자 화면에서 수정가능
-                  </Label>
-                </div>
-              </div>
-
-              {/* 접근 권한 */}
-              <div className="p-4 border rounded-lg">
-                <h3 className="font-semibold mb-4">접근 권한</h3>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="canLoginAsManager"
-                    checked={formData.canLoginAsManager}
-                    onCheckedChange={(checked) =>
-                      setFormData({ ...formData, canLoginAsManager: checked === true })
-                    }
-                  />
-                  <Label htmlFor="canLoginAsManager" className="text-sm">
-                    체크시 관리자 로그인 허용
-                  </Label>
-                </div>
-              </div>
-
               {/* IP 접근 제한 */}
               <div className="p-4 border rounded-lg">
                 <h3 className="font-semibold mb-4 flex items-center gap-2">
