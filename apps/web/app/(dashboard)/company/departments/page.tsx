@@ -414,7 +414,7 @@ export default function DepartmentsPage() {
           { label: '부서/팀 관리' },
         ]}
         actions={
-          <Button onClick={() => openDeptDialog()} className="text-[16px]">
+          <Button onClick={() => openDeptDialog()} className="text-[30px]">
             <Plus className="h-4 w-4 mr-1" />
             부서 추가
           </Button>
@@ -426,7 +426,7 @@ export default function DepartmentsPage() {
         {/* ---- 좌측 패널: 부서 목록 ---- */}
         <Card className="w-72 shrink-0">
           <CardHeader className="pb-3">
-            <CardTitle className="text-[16px] text-black font-normal flex items-center gap-2">
+            <CardTitle className="text-[30px] text-black font-normal flex items-center gap-2">
               <FolderTree className="h-4 w-4" />
               부서 목록
             </CardTitle>
@@ -439,12 +439,12 @@ export default function DepartmentsPage() {
                 ))}
               </div>
             ) : deptsError ? (
-              <div className="flex items-center justify-center py-8 text-destructive text-[16px]">
+              <div className="flex items-center justify-center py-8 text-destructive text-[30px]">
                 <AlertCircle className="h-4 w-4 mr-1" />
                 데이터 로딩 실패
               </div>
             ) : !departments || departments.length === 0 ? (
-              <div className="text-center py-8 text-[16px] text-black font-normal opacity-60">
+              <div className="text-center py-8 text-[30px] text-black font-normal opacity-60">
                 등록된 부서가 없습니다
               </div>
             ) : (
@@ -485,7 +485,7 @@ export default function DepartmentsPage() {
                           </button>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5">
-                              <span className="text-[16px] text-black font-normal truncate">
+                              <span className="text-[30px] text-black font-normal truncate">
                                 {dept.name}
                               </span>
                               {!dept.isActive && (
@@ -517,7 +517,7 @@ export default function DepartmentsPage() {
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>
-                                <p className="text-[16px]">수정</p>
+                                <p className="text-[30px]">수정</p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
@@ -537,7 +537,7 @@ export default function DepartmentsPage() {
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>
-                                <p className="text-[16px]">삭제</p>
+                                <p className="text-[30px]">삭제</p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
@@ -552,7 +552,7 @@ export default function DepartmentsPage() {
                             .map((team, idx) => (
                               <div
                                 key={team.id}
-                                className={`flex items-center gap-2 pl-8 pr-3 py-1.5 text-[16px] text-black font-normal ${
+                                className={`flex items-center gap-2 pl-8 pr-3 py-1.5 text-[30px] text-black font-normal ${
                                   idx < dept.teams!.length - 1 ? 'border-b border-gray-100' : ''
                                 }`}
                               >
@@ -581,7 +581,7 @@ export default function DepartmentsPage() {
               <CardContent className="flex items-center justify-center py-20">
                 <div className="text-center">
                   <Building2 className="h-10 w-10 mx-auto mb-3 text-gray-300" />
-                  <p className="text-[16px] text-black font-normal opacity-60">
+                  <p className="text-[30px] text-black font-normal opacity-60">
                     좌측에서 부서를 선택해주세요
                   </p>
                 </div>
@@ -593,7 +593,7 @@ export default function DepartmentsPage() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-3">
                   <div>
-                    <CardTitle className="text-[16px] text-black font-normal flex items-center gap-2">
+                    <CardTitle className="text-[30px] text-black font-normal flex items-center gap-2">
                       <Building2 className="h-4 w-4" />
                       {selectedDept.name}
                       {!selectedDept.isActive && (
@@ -614,7 +614,7 @@ export default function DepartmentsPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="text-[16px] h-7"
+                      className="text-[30px] h-7"
                       onClick={() => openDeptDialog(selectedDept)}
                     >
                       <Edit className="h-3 w-3 mr-1" />
@@ -627,7 +627,7 @@ export default function DepartmentsPage() {
               {/* 팀 목록 테이블 */}
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-3">
-                  <CardTitle className="text-[16px] text-black font-normal flex items-center gap-2">
+                  <CardTitle className="text-[30px] text-black font-normal flex items-center gap-2">
                     <Users className="h-4 w-4" />
                     팀 목록
                     <Badge variant="secondary" className="text-[10px] ml-1">
@@ -636,7 +636,7 @@ export default function DepartmentsPage() {
                   </CardTitle>
                   <Button
                     size="sm"
-                    className="text-[16px] h-7"
+                    className="text-[30px] h-7"
                     onClick={() => openTeamDialog()}
                   >
                     <Plus className="h-3 w-3 mr-1" />
@@ -653,13 +653,13 @@ export default function DepartmentsPage() {
                   ) : !teamsForDept || teamsForDept.length === 0 ? (
                     <div className="text-center py-10">
                       <Users className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                      <p className="text-[16px] text-black font-normal opacity-60">
+                      <p className="text-[30px] text-black font-normal opacity-60">
                         등록된 팀이 없습니다
                       </p>
                       <Button
                         variant="outline"
                         size="sm"
-                        className="mt-3 text-[16px] h-7"
+                        className="mt-3 text-[30px] h-7"
                         onClick={() => openTeamDialog()}
                       >
                         <Plus className="h-3 w-3 mr-1" />
@@ -670,25 +670,25 @@ export default function DepartmentsPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="text-[16px] text-black font-normal w-20">
+                          <TableHead className="text-[30px] text-black font-normal w-20">
                             코드
                           </TableHead>
-                          <TableHead className="text-[16px] text-black font-normal">
+                          <TableHead className="text-[30px] text-black font-normal">
                             팀명
                           </TableHead>
-                          <TableHead className="text-[16px] text-black font-normal">
+                          <TableHead className="text-[30px] text-black font-normal">
                             팀 리더
                           </TableHead>
-                          <TableHead className="text-[16px] text-black font-normal text-center w-20">
+                          <TableHead className="text-[30px] text-black font-normal text-center w-20">
                             인원
                           </TableHead>
-                          <TableHead className="text-[16px] text-black font-normal text-center w-20">
+                          <TableHead className="text-[30px] text-black font-normal text-center w-20">
                             상태
                           </TableHead>
-                          <TableHead className="text-[16px] text-black font-normal text-center w-16">
+                          <TableHead className="text-[30px] text-black font-normal text-center w-16">
                             정렬
                           </TableHead>
-                          <TableHead className="text-[16px] text-black font-normal text-right w-32">
+                          <TableHead className="text-[30px] text-black font-normal text-right w-32">
                             작업
                           </TableHead>
                         </TableRow>
@@ -698,13 +698,13 @@ export default function DepartmentsPage() {
                           .sort((a, b) => a.sortOrder - b.sortOrder)
                           .map((team) => (
                             <TableRow key={team.id}>
-                              <TableCell className="text-[16px] text-black font-normal font-mono">
+                              <TableCell className="text-[30px] text-black font-normal font-mono">
                                 {team.code}
                               </TableCell>
-                              <TableCell className="text-[16px] text-black font-normal">
+                              <TableCell className="text-[30px] text-black font-normal">
                                 {team.name}
                               </TableCell>
-                              <TableCell className="text-[16px] text-black font-normal">
+                              <TableCell className="text-[30px] text-black font-normal">
                                 {team.leader ? (
                                   <span className="flex items-center gap-1">
                                     <Crown className="h-3 w-3 text-amber-500" />
@@ -732,7 +732,7 @@ export default function DepartmentsPage() {
                                   {team.isActive ? '활성' : '비활성'}
                                 </Badge>
                               </TableCell>
-                              <TableCell className="text-center text-[16px] text-black font-normal">
+                              <TableCell className="text-center text-[30px] text-black font-normal">
                                 {team.sortOrder}
                               </TableCell>
                               <TableCell className="text-right">
@@ -750,7 +750,7 @@ export default function DepartmentsPage() {
                                         </Button>
                                       </TooltipTrigger>
                                       <TooltipContent>
-                                        <p className="text-[16px]">멤버 관리</p>
+                                        <p className="text-[30px]">멤버 관리</p>
                                       </TooltipContent>
                                     </Tooltip>
                                   </TooltipProvider>
@@ -767,7 +767,7 @@ export default function DepartmentsPage() {
                                         </Button>
                                       </TooltipTrigger>
                                       <TooltipContent>
-                                        <p className="text-[16px]">수정</p>
+                                        <p className="text-[30px]">수정</p>
                                       </TooltipContent>
                                     </Tooltip>
                                   </TooltipProvider>
@@ -784,7 +784,7 @@ export default function DepartmentsPage() {
                                         </Button>
                                       </TooltipTrigger>
                                       <TooltipContent>
-                                        <p className="text-[16px]">삭제</p>
+                                        <p className="text-[30px]">삭제</p>
                                       </TooltipContent>
                                     </Tooltip>
                                   </TooltipProvider>
@@ -802,7 +802,7 @@ export default function DepartmentsPage() {
               {unassignedStaff.length > 0 && (
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-[16px] text-black font-normal flex items-center gap-2">
+                    <CardTitle className="text-[30px] text-black font-normal flex items-center gap-2">
                       <AlertCircle className="h-4 w-4 text-amber-500" />
                       미배정 직원
                       <Badge variant="secondary" className="text-[10px] ml-1">
@@ -817,16 +817,16 @@ export default function DepartmentsPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="text-[16px] text-black font-normal w-24">
+                          <TableHead className="text-[30px] text-black font-normal w-24">
                             직원ID
                           </TableHead>
-                          <TableHead className="text-[16px] text-black font-normal">
+                          <TableHead className="text-[30px] text-black font-normal">
                             이름
                           </TableHead>
-                          <TableHead className="text-[16px] text-black font-normal">
+                          <TableHead className="text-[30px] text-black font-normal">
                             직책
                           </TableHead>
-                          <TableHead className="text-[16px] text-black font-normal text-center w-20">
+                          <TableHead className="text-[30px] text-black font-normal text-center w-20">
                             상태
                           </TableHead>
                         </TableRow>
@@ -834,13 +834,13 @@ export default function DepartmentsPage() {
                       <TableBody>
                         {unassignedStaff.map((staff) => (
                           <TableRow key={staff.id}>
-                            <TableCell className="text-[16px] text-black font-normal font-mono">
+                            <TableCell className="text-[30px] text-black font-normal font-mono">
                               {staff.staffId}
                             </TableCell>
-                            <TableCell className="text-[16px] text-black font-normal">
+                            <TableCell className="text-[30px] text-black font-normal">
                               {staff.name}
                             </TableCell>
-                            <TableCell className="text-[16px] text-black font-normal">
+                            <TableCell className="text-[30px] text-black font-normal">
                               {staff.position || '-'}
                             </TableCell>
                             <TableCell className="text-center">
@@ -867,21 +867,21 @@ export default function DepartmentsPage() {
       <Dialog open={deptDialogOpen} onOpenChange={setDeptDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-[16px] text-black font-normal">
+            <DialogTitle className="text-[30px] text-black font-normal">
               {editingDept ? '부서 수정' : '부서 추가'}
             </DialogTitle>
-            <DialogDescription className="text-[16px]">
+            <DialogDescription className="text-[30px]">
               {editingDept ? '부서 정보를 수정합니다.' : '새 부서를 등록합니다.'}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label className="text-[16px] text-black font-normal">
+              <Label className="text-[30px] text-black font-normal">
                 부서 코드 <span className="text-destructive">*</span>
               </Label>
               <Input
-                className="text-[16px] text-black font-normal h-8"
+                className="text-[30px] text-black font-normal h-8"
                 placeholder="예: DEPT001"
                 value={deptForm.code}
                 onChange={(e) => setDeptForm((prev) => ({ ...prev, code: e.target.value }))}
@@ -893,11 +893,11 @@ export default function DepartmentsPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-[16px] text-black font-normal">
+              <Label className="text-[30px] text-black font-normal">
                 부서명 <span className="text-destructive">*</span>
               </Label>
               <Input
-                className="text-[16px] text-black font-normal h-8"
+                className="text-[30px] text-black font-normal h-8"
                 placeholder="예: 생산팀"
                 value={deptForm.name}
                 onChange={(e) => setDeptForm((prev) => ({ ...prev, name: e.target.value }))}
@@ -905,9 +905,9 @@ export default function DepartmentsPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-[16px] text-black font-normal">설명</Label>
+              <Label className="text-[30px] text-black font-normal">설명</Label>
               <Textarea
-                className="text-[16px] text-black font-normal min-h-[60px] resize-none"
+                className="text-[30px] text-black font-normal min-h-[60px] resize-none"
                 placeholder="부서에 대한 설명을 입력하세요"
                 value={deptForm.description}
                 onChange={(e) => setDeptForm((prev) => ({ ...prev, description: e.target.value }))}
@@ -916,10 +916,10 @@ export default function DepartmentsPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-[16px] text-black font-normal">정렬 순서</Label>
+                <Label className="text-[30px] text-black font-normal">정렬 순서</Label>
                 <Input
                   type="number"
-                  className="text-[16px] text-black font-normal h-8"
+                  className="text-[30px] text-black font-normal h-8"
                   value={deptForm.sortOrder}
                   onChange={(e) =>
                     setDeptForm((prev) => ({ ...prev, sortOrder: parseInt(e.target.value) || 0 }))
@@ -927,7 +927,7 @@ export default function DepartmentsPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-[16px] text-black font-normal">활성 상태</Label>
+                <Label className="text-[30px] text-black font-normal">활성 상태</Label>
                 <div className="flex items-center gap-2 h-8">
                   <Switch
                     checked={deptForm.isActive}
@@ -935,7 +935,7 @@ export default function DepartmentsPage() {
                       setDeptForm((prev) => ({ ...prev, isActive: checked }))
                     }
                   />
-                  <span className="text-[16px] text-black font-normal">
+                  <span className="text-[30px] text-black font-normal">
                     {deptForm.isActive ? '활성' : '비활성'}
                   </span>
                 </div>
@@ -946,13 +946,13 @@ export default function DepartmentsPage() {
           <DialogFooter>
             <Button
               variant="outline"
-              className="text-[16px] h-8"
+              className="text-[30px] h-8"
               onClick={() => setDeptDialogOpen(false)}
             >
               취소
             </Button>
             <Button
-              className="text-[16px] h-8"
+              className="text-[30px] h-8"
               onClick={handleDeptSubmit}
               disabled={createDepartment.isPending || updateDepartment.isPending}
             >
@@ -969,10 +969,10 @@ export default function DepartmentsPage() {
       <Dialog open={teamDialogOpen} onOpenChange={setTeamDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-[16px] text-black font-normal">
+            <DialogTitle className="text-[30px] text-black font-normal">
               {editingTeam ? '팀 수정' : '팀 추가'}
             </DialogTitle>
-            <DialogDescription className="text-[16px]">
+            <DialogDescription className="text-[30px]">
               {editingTeam
                 ? '팀 정보를 수정합니다.'
                 : `${selectedDept?.name || '선택된 부서'}에 새 팀을 등록합니다.`}
@@ -981,11 +981,11 @@ export default function DepartmentsPage() {
 
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label className="text-[16px] text-black font-normal">
+              <Label className="text-[30px] text-black font-normal">
                 팀 코드 <span className="text-destructive">*</span>
               </Label>
               <Input
-                className="text-[16px] text-black font-normal h-8"
+                className="text-[30px] text-black font-normal h-8"
                 placeholder="예: T001"
                 value={teamForm.code}
                 onChange={(e) => setTeamForm((prev) => ({ ...prev, code: e.target.value }))}
@@ -997,11 +997,11 @@ export default function DepartmentsPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-[16px] text-black font-normal">
+              <Label className="text-[30px] text-black font-normal">
                 팀명 <span className="text-destructive">*</span>
               </Label>
               <Input
-                className="text-[16px] text-black font-normal h-8"
+                className="text-[30px] text-black font-normal h-8"
                 placeholder="예: 1팀"
                 value={teamForm.name}
                 onChange={(e) => setTeamForm((prev) => ({ ...prev, name: e.target.value }))}
@@ -1009,14 +1009,14 @@ export default function DepartmentsPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-[16px] text-black font-normal">
+              <Label className="text-[30px] text-black font-normal">
                 소속 부서 <span className="text-destructive">*</span>
               </Label>
               <Select
                 value={teamForm.departmentId}
                 onValueChange={(val) => setTeamForm((prev) => ({ ...prev, departmentId: val }))}
               >
-                <SelectTrigger className="text-[16px] text-black font-normal h-8">
+                <SelectTrigger className="text-[30px] text-black font-normal h-8">
                   <SelectValue placeholder="부서 선택" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1024,7 +1024,7 @@ export default function DepartmentsPage() {
                     <SelectItem
                       key={dept.id}
                       value={dept.id}
-                      className="text-[16px] text-black font-normal"
+                      className="text-[30px] text-black font-normal"
                     >
                       {dept.name}
                     </SelectItem>
@@ -1034,25 +1034,25 @@ export default function DepartmentsPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-[16px] text-black font-normal">팀 리더</Label>
+              <Label className="text-[30px] text-black font-normal">팀 리더</Label>
               <Select
                 value={teamForm.leaderId || '_none'}
                 onValueChange={(val) =>
                   setTeamForm((prev) => ({ ...prev, leaderId: val === '_none' ? '' : val }))
                 }
               >
-                <SelectTrigger className="text-[16px] text-black font-normal h-8">
+                <SelectTrigger className="text-[30px] text-black font-normal h-8">
                   <SelectValue placeholder="리더 선택 (선택사항)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="_none" className="text-[16px] text-black font-normal">
+                  <SelectItem value="_none" className="text-[30px] text-black font-normal">
                     미지정
                   </SelectItem>
                   {deptStaffData?.data?.map((staff) => (
                     <SelectItem
                       key={staff.id}
                       value={staff.id}
-                      className="text-[16px] text-black font-normal"
+                      className="text-[30px] text-black font-normal"
                     >
                       {staff.name}
                       {staff.position ? ` (${staff.position})` : ''}
@@ -1063,9 +1063,9 @@ export default function DepartmentsPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-[16px] text-black font-normal">설명</Label>
+              <Label className="text-[30px] text-black font-normal">설명</Label>
               <Textarea
-                className="text-[16px] text-black font-normal min-h-[60px] resize-none"
+                className="text-[30px] text-black font-normal min-h-[60px] resize-none"
                 placeholder="팀에 대한 설명을 입력하세요"
                 value={teamForm.description}
                 onChange={(e) => setTeamForm((prev) => ({ ...prev, description: e.target.value }))}
@@ -1074,10 +1074,10 @@ export default function DepartmentsPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-[16px] text-black font-normal">정렬 순서</Label>
+                <Label className="text-[30px] text-black font-normal">정렬 순서</Label>
                 <Input
                   type="number"
-                  className="text-[16px] text-black font-normal h-8"
+                  className="text-[30px] text-black font-normal h-8"
                   value={teamForm.sortOrder}
                   onChange={(e) =>
                     setTeamForm((prev) => ({ ...prev, sortOrder: parseInt(e.target.value) || 0 }))
@@ -1085,7 +1085,7 @@ export default function DepartmentsPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-[16px] text-black font-normal">활성 상태</Label>
+                <Label className="text-[30px] text-black font-normal">활성 상태</Label>
                 <div className="flex items-center gap-2 h-8">
                   <Switch
                     checked={teamForm.isActive}
@@ -1093,7 +1093,7 @@ export default function DepartmentsPage() {
                       setTeamForm((prev) => ({ ...prev, isActive: checked }))
                     }
                   />
-                  <span className="text-[16px] text-black font-normal">
+                  <span className="text-[30px] text-black font-normal">
                     {teamForm.isActive ? '활성' : '비활성'}
                   </span>
                 </div>
@@ -1104,13 +1104,13 @@ export default function DepartmentsPage() {
           <DialogFooter>
             <Button
               variant="outline"
-              className="text-[16px] h-8"
+              className="text-[30px] h-8"
               onClick={() => setTeamDialogOpen(false)}
             >
               취소
             </Button>
             <Button
-              className="text-[16px] h-8"
+              className="text-[30px] h-8"
               onClick={handleTeamSubmit}
               disabled={createTeam.isPending || updateTeam.isPending}
             >
@@ -1127,7 +1127,7 @@ export default function DepartmentsPage() {
       <Dialog open={membersDialogOpen} onOpenChange={setMembersDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-[16px] text-black font-normal flex items-center gap-2">
+            <DialogTitle className="text-[30px] text-black font-normal flex items-center gap-2">
               <Users className="h-4 w-4" />
               팀 멤버 관리
               {selectedTeamDetail && (
@@ -1136,7 +1136,7 @@ export default function DepartmentsPage() {
                 </Badge>
               )}
             </DialogTitle>
-            <DialogDescription className="text-[16px]">
+            <DialogDescription className="text-[30px]">
               팀 멤버를 추가/제외하고 리더를 지정합니다.
             </DialogDescription>
           </DialogHeader>
@@ -1144,7 +1144,7 @@ export default function DepartmentsPage() {
           <div className="space-y-4 py-2">
             {/* 현재 멤버 */}
             <div>
-              <h4 className="text-[16px] text-black font-normal mb-2 flex items-center gap-1">
+              <h4 className="text-[30px] text-black font-normal mb-2 flex items-center gap-1">
                 현재 멤버
                 <Badge variant="secondary" className="text-[10px]">
                   {selectedTeamDetail?.staff?.length || 0}명
@@ -1152,7 +1152,7 @@ export default function DepartmentsPage() {
               </h4>
               {!selectedTeamDetail?.staff || selectedTeamDetail.staff.length === 0 ? (
                 <div className="text-center py-6 bg-gray-50 rounded-md">
-                  <p className="text-[16px] text-black font-normal opacity-60">
+                  <p className="text-[30px] text-black font-normal opacity-60">
                     배정된 멤버가 없습니다
                   </p>
                 </div>
@@ -1161,12 +1161,12 @@ export default function DepartmentsPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="text-[16px] text-black font-normal">이름</TableHead>
-                        <TableHead className="text-[16px] text-black font-normal">직책</TableHead>
-                        <TableHead className="text-[16px] text-black font-normal text-center w-16">
+                        <TableHead className="text-[30px] text-black font-normal">이름</TableHead>
+                        <TableHead className="text-[30px] text-black font-normal">직책</TableHead>
+                        <TableHead className="text-[30px] text-black font-normal text-center w-16">
                           리더
                         </TableHead>
-                        <TableHead className="text-[16px] text-black font-normal text-right w-20">
+                        <TableHead className="text-[30px] text-black font-normal text-right w-20">
                           작업
                         </TableHead>
                       </TableRow>
@@ -1174,7 +1174,7 @@ export default function DepartmentsPage() {
                     <TableBody>
                       {selectedTeamDetail.staff.map((member) => (
                         <TableRow key={member.id}>
-                          <TableCell className="text-[16px] text-black font-normal">
+                          <TableCell className="text-[30px] text-black font-normal">
                             <span className="flex items-center gap-1">
                               {selectedTeamDetail.leaderId === member.id && (
                                 <Crown className="h-3 w-3 text-amber-500" />
@@ -1182,7 +1182,7 @@ export default function DepartmentsPage() {
                               {member.name}
                             </span>
                           </TableCell>
-                          <TableCell className="text-[16px] text-black font-normal">
+                          <TableCell className="text-[30px] text-black font-normal">
                             {member.position || '-'}
                           </TableCell>
                           <TableCell className="text-center">
@@ -1225,7 +1225,7 @@ export default function DepartmentsPage() {
 
             {/* 배정 가능한 직원 */}
             <div>
-              <h4 className="text-[16px] text-black font-normal mb-2 flex items-center gap-1">
+              <h4 className="text-[30px] text-black font-normal mb-2 flex items-center gap-1">
                 배정 가능한 직원
                 <Badge variant="secondary" className="text-[10px]">
                   {availableForAssign.length}명
@@ -1233,7 +1233,7 @@ export default function DepartmentsPage() {
               </h4>
               {availableForAssign.length === 0 ? (
                 <div className="text-center py-6 bg-gray-50 rounded-md">
-                  <p className="text-[16px] text-black font-normal opacity-60">
+                  <p className="text-[30px] text-black font-normal opacity-60">
                     배정 가능한 직원이 없습니다
                   </p>
                   <p className="text-[10px] text-gray-400 mt-1">
@@ -1245,10 +1245,10 @@ export default function DepartmentsPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="text-[16px] text-black font-normal">직원ID</TableHead>
-                        <TableHead className="text-[16px] text-black font-normal">이름</TableHead>
-                        <TableHead className="text-[16px] text-black font-normal">직책</TableHead>
-                        <TableHead className="text-[16px] text-black font-normal text-right w-16">
+                        <TableHead className="text-[30px] text-black font-normal">직원ID</TableHead>
+                        <TableHead className="text-[30px] text-black font-normal">이름</TableHead>
+                        <TableHead className="text-[30px] text-black font-normal">직책</TableHead>
+                        <TableHead className="text-[30px] text-black font-normal text-right w-16">
                           추가
                         </TableHead>
                       </TableRow>
@@ -1256,13 +1256,13 @@ export default function DepartmentsPage() {
                     <TableBody>
                       {availableForAssign.map((staff) => (
                         <TableRow key={staff.id}>
-                          <TableCell className="text-[16px] text-black font-normal font-mono">
+                          <TableCell className="text-[30px] text-black font-normal font-mono">
                             {staff.staffId}
                           </TableCell>
-                          <TableCell className="text-[16px] text-black font-normal">
+                          <TableCell className="text-[30px] text-black font-normal">
                             {staff.name}
                           </TableCell>
-                          <TableCell className="text-[16px] text-black font-normal">
+                          <TableCell className="text-[30px] text-black font-normal">
                             {staff.position || '-'}
                           </TableCell>
                           <TableCell className="text-right">
@@ -1288,7 +1288,7 @@ export default function DepartmentsPage() {
           <DialogFooter>
             <Button
               variant="outline"
-              className="text-[16px] h-8"
+              className="text-[30px] h-8"
               onClick={() => setMembersDialogOpen(false)}
             >
               닫기
@@ -1301,23 +1301,23 @@ export default function DepartmentsPage() {
       <Dialog open={!!deleteDeptConfirm} onOpenChange={() => setDeleteDeptConfirm(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-[16px] text-black font-normal">부서 삭제</DialogTitle>
-            <DialogDescription className="text-[16px]">
+            <DialogTitle className="text-[30px] text-black font-normal">부서 삭제</DialogTitle>
+            <DialogDescription className="text-[30px]">
               이 작업은 되돌릴 수 없습니다.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <p className="text-[16px] text-black font-normal">
+            <p className="text-[30px] text-black font-normal">
               <strong>{deleteDeptConfirm?.name}</strong> 부서를 삭제하시겠습니까?
             </p>
             {deleteDeptConfirm && (deleteDeptConfirm._count?.staff || 0) > 0 && (
-              <p className="text-[16px] text-destructive mt-2">
+              <p className="text-[30px] text-destructive mt-2">
                 이 부서에 {deleteDeptConfirm._count?.staff}명의 직원이 소속되어 있습니다.
                 직원을 먼저 다른 부서로 이동해주세요.
               </p>
             )}
             {deleteDeptConfirm && (deleteDeptConfirm._count?.teams || 0) > 0 && (
-              <p className="text-[16px] text-destructive mt-1">
+              <p className="text-[30px] text-destructive mt-1">
                 이 부서에 {deleteDeptConfirm._count?.teams}개의 팀이 등록되어 있습니다.
               </p>
             )}
@@ -1325,14 +1325,14 @@ export default function DepartmentsPage() {
           <DialogFooter>
             <Button
               variant="outline"
-              className="text-[16px] h-8"
+              className="text-[30px] h-8"
               onClick={() => setDeleteDeptConfirm(null)}
             >
               취소
             </Button>
             <Button
               variant="destructive"
-              className="text-[16px] h-8"
+              className="text-[30px] h-8"
               onClick={handleDeptDelete}
               disabled={deleteDepartment.isPending}
             >
@@ -1349,17 +1349,17 @@ export default function DepartmentsPage() {
       <Dialog open={!!deleteTeamConfirm} onOpenChange={() => setDeleteTeamConfirm(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-[16px] text-black font-normal">팀 삭제</DialogTitle>
-            <DialogDescription className="text-[16px]">
+            <DialogTitle className="text-[30px] text-black font-normal">팀 삭제</DialogTitle>
+            <DialogDescription className="text-[30px]">
               이 작업은 되돌릴 수 없습니다.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <p className="text-[16px] text-black font-normal">
+            <p className="text-[30px] text-black font-normal">
               <strong>{deleteTeamConfirm?.name}</strong> 팀을 삭제하시겠습니까?
             </p>
             {deleteTeamConfirm && (deleteTeamConfirm._count?.staff || 0) > 0 && (
-              <p className="text-[16px] text-destructive mt-2">
+              <p className="text-[30px] text-destructive mt-2">
                 이 팀에 {deleteTeamConfirm._count?.staff}명의 멤버가 소속되어 있습니다.
               </p>
             )}
@@ -1367,14 +1367,14 @@ export default function DepartmentsPage() {
           <DialogFooter>
             <Button
               variant="outline"
-              className="text-[16px] h-8"
+              className="text-[30px] h-8"
               onClick={() => setDeleteTeamConfirm(null)}
             >
               취소
             </Button>
             <Button
               variant="destructive"
-              className="text-[16px] h-8"
+              className="text-[30px] h-8"
               onClick={handleTeamDelete}
               disabled={deleteTeam.isPending}
             >
