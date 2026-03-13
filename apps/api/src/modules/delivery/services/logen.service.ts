@@ -6,7 +6,10 @@ import type {
   LogenOrderData,
   LogenSlipNoResponse,
   LogenRegisterResponse,
+  LogenTrackingResponse,
+  LogenTrackingDetail,
 } from '../dto/logen.dto';
+import type { TrackingInfo } from './tracking.service';
 
 @Injectable()
 export class LogenService {
@@ -261,6 +264,73 @@ export class LogenService {
 
     const successCount = results.filter((r) => r.success).length;
     return { results, total: orderIds.length, successCount };
+  }
+
+  // -------------------------------------------------------------------------
+  // 6) 배송 조회
+  // -------------------------------------------------------------------------
+
+  /** 로젠 API로 배송 추적 정보 조회. 실패 시 null 반환 (폴백 가능하도록) */
+  async getTrackingInfo(slipNo: string): Promise<TrackingInfo | null> {
+    if (!this.isConfigured()) return null;
+
+    let res: LogenTrackingResponse;
+    try {
+      res = await this.callApi<LogenTrackingResponse>('/getTrackingInfo', {
+        userId: this.userId,
+        data: { slipNo },
+      });
+    } catch (e) {
+      this.logger.warn(`로젠 배송조회 API 호출 실패: ${slipNo}`, e);
+      return null;
+    }
+
+    if (res.sttsCd === 'FAIL') {
+      this.logger.warn(`로젠 배송조회 FAIL: ${res.sttsMsg}`);
+      return null;
+    }
+
+    // 응답 포맷 확인용 (처음 연동 시 로그 확인 가능)
+    this.logger.debug(`로젠 배송조회 raw: ${JSON.stringify(res)}`);
+
+    const history: LogenTrackingDetail[] = res.data1 ?? [];
+    const details = history.map((d) => ({
+      status: d.statusNm ?? '',
+      level: this.statusCdToLevel(d.statusCd ?? ''),
+      location: d.location ?? d.branchNm ?? '',
+      time: d.processDt ?? d.regDt ?? '',
+    }));
+
+    // 현재 전체 단계: 이력 중 가장 높은 level
+    const currentLevel = details.length > 0
+      ? Math.max(...details.map((d) => d.level))
+      : 0;
+
+    // 현황 데이터 (data가 배열일 수도 있음에 대비)
+    const mainData = Array.isArray(res.data) ? res.data[0] : res.data;
+    const isDelivered =
+      mainData?.statusCd === '91' ||
+      mainData?.statusNm?.includes('완료') ||
+      currentLevel >= 6;
+
+    return {
+      courierName: '로젠택배',
+      invoiceNo: slipNo,
+      level: currentLevel,
+      isDelivered,
+      details,
+    };
+  }
+
+  /** 로젠 상태코드 → Sweettracker 호환 level (1~6) 변환 */
+  private statusCdToLevel(statusCd: string): number {
+    if (statusCd === '01') return 1;                          // 접수
+    if (statusCd === '11') return 2;                          // 집하
+    if (['12', '21', '22', '31', '32'].includes(statusCd)) return 3; // 이동중
+    if (['41', '42'].includes(statusCd)) return 4;            // 지역도착
+    if (statusCd === '82') return 5;                          // 배달중
+    if (statusCd === '91') return 6;                          // 배달완료
+    return 0;
   }
 
   // -------------------------------------------------------------------------

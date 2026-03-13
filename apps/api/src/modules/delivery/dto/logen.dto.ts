@@ -52,3 +52,29 @@ export interface LogenSlipNoResponse extends LogenApiResponse {
 export interface LogenRegisterResponse extends LogenApiResponse {
   data: Array<{ fixTakeNo: string; resultCd: string; resultMsg: string | null }>;
 }
+
+/** 배송조회 - 현황 */
+export interface LogenTrackingData {
+  slipNo?: string;
+  rcvNm?: string;
+  statusNm?: string;
+  statusCd?: string;
+  takeDt?: string;
+  dlvDt?: string;
+}
+
+/** 배송조회 - 이력 1건 */
+export interface LogenTrackingDetail {
+  processDt?: string;   // "2026/03/10 14:30:00"
+  regDt?: string;       // 필드명 대안
+  statusNm?: string;
+  statusCd?: string;
+  location?: string;
+  branchNm?: string;    // 필드명 대안
+}
+
+/** 배송조회 응답 */
+export interface LogenTrackingResponse extends LogenApiResponse {
+  data?: LogenTrackingData | LogenTrackingData[];
+  data1?: LogenTrackingDetail[];
+}
