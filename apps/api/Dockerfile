@@ -59,5 +59,5 @@ EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD curl -f http://localhost:3001/health || exit 1
 
-# Run prisma db push on startup, then start server
-CMD ["sh", "-c", "npx prisma db push --skip-generate --accept-data-loss && node dist/main.js"]
+# Run prisma db push on startup, then start server (--accept-data-loss 제거 - 데이터 손실 방지)
+CMD ["sh", "-c", "npx prisma db push --skip-generate && node dist/main.js"]
