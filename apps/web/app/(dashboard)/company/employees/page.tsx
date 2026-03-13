@@ -1182,9 +1182,9 @@ export default function EmployeesPage() {
                 </div>
               </div>
 
-              {/* 버튼 노출 권한 */}
+              {/* 직원 관리 권한 */}
               <div className="p-4 border rounded-lg">
-                <h3 className="font-semibold mb-4">버튼 노출 권한</h3>
+                <h3 className="font-semibold mb-4">직원 관리 권한</h3>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <Checkbox
@@ -1195,9 +1195,16 @@ export default function EmployeesPage() {
                       }
                     />
                     <Label htmlFor="canEditMemberInfo" className="text-sm">
-                      ※ 회원수정 버튼이 노출 안됩니다.
+                      ※ 직원 정보 수정 및 상태변경(활성/비활성)이 가능합니다.
                     </Label>
                   </div>
+                </div>
+              </div>
+
+              {/* 버튼 노출 권한 */}
+              <div className="p-4 border rounded-lg">
+                <h3 className="font-semibold mb-4">버튼 노출 권한</h3>
+                <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <Checkbox
                       id="canViewSettlement"
