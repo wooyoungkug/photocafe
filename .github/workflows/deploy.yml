@@ -102,8 +102,13 @@ jobs:
             echo "  시각: $(date '+%Y-%m-%d %H:%M:%S')"
             echo "=========================================="
 
-            # 0. .env 파일 확인
-            echo "=== [0/7] 환경설정 확인 ==="
+            # 0-1. 배포 전 DB 백업 (데이터 손실 방지)
+            echo "=== [0/8] 배포 전 DB 백업 ==="
+            export SUDO_PASS="$SUDO_PASS"
+            /volume1/docker/scripts/db-backup.sh || echo "백업 실패 - 계속 진행"
+
+            # 0-2. .env 파일 확인
+            echo "=== [1/8] 환경설정 확인 ==="
             cd "$DEPLOY_DIR"
             if [ ! -f .env ]; then
               echo "ERROR: $DEPLOY_DIR/.env 파일이 없습니다!"
@@ -118,11 +123,11 @@ jobs:
             echo ".env 확인 완료"
 
             # 1. GHCR 로그인
-            echo "=== [1/7] GHCR 로그인 ==="
+            echo "=== [2/8] GHCR 로그인 ==="
             run_sudo $DOCKER login ghcr.io -u wooyoungkug --password "$GHCR_TOKEN"
 
             # 2. 최신 이미지 Pull (재시도 로직 포함)
-            echo "=== [2/7] 이미지 Pull ==="
+            echo "=== [3/8] 이미지 Pull ==="
             pull_with_retry() {
               local image=$1
               local max_retries=3
@@ -142,12 +147,12 @@ jobs:
             pull_with_retry ghcr.io/wooyoungkug/photocafe-web:latest
 
             # 3. 설정 파일 동기화
-            echo "=== [3/7] 설정 동기화 ==="
+            echo "=== [4/8] 설정 동기화 ==="
             git fetch origin main
             git checkout origin/main -- docker-compose.prod.yml
 
             # 4. 이전 방식 컨테이너 정리 (printing114-api/web → photocafe-api/web 전환)
-            echo "=== [4/7] 이전 컨테이너 정리 ==="
+            echo "=== [5/8] 이전 컨테이너 정리 ==="
             for OLD_NAME in printing114-api printing114-web; do
               OLD_RUNNING=$(run_sudo $DOCKER ps -q --filter "name=$OLD_NAME" 2>/dev/null || true)
               if [ -n "$OLD_RUNNING" ]; then
@@ -158,7 +163,7 @@ jobs:
             done
 
             # 5. DB 컨테이너 확인 (건드리지 않고 상태만 확인)
-            echo "=== [5/7] DB 상태 확인 ==="
+            echo "=== [6/8] DB 상태 확인 ==="
             DB_RUNNING=$(run_sudo $DOCKER ps --filter "name=photocafe-db" --filter "status=running" -q 2>/dev/null || true)
             if [ -z "$DB_RUNNING" ]; then
               echo "DB 컨테이너가 실행 중이 아닙니다. 시작합니다..."
@@ -171,13 +176,13 @@ jobs:
             fi
 
             # 6. API/Web 컨테이너만 교체 (--no-deps: DB 건드리지 않음)
-            echo "=== [6/7] 컨테이너 교체 (API + Web) ==="
+            echo "=== [7/8] 컨테이너 교체 (API + Web) ==="
             run_sudo $COMPOSE --env-file .env -f docker-compose.prod.yml stop api web 2>/dev/null || true
             run_sudo $COMPOSE --env-file .env -f docker-compose.prod.yml rm -f api web 2>/dev/null || true
             run_sudo $COMPOSE --env-file .env -f docker-compose.prod.yml up -d --no-deps api web
 
             # 7. Health Check
-            echo "=== [7/7] Health Check ==="
+            echo "=== [8/8] Health Check ==="
             API_OK=false
             for i in $(seq 1 24); do
               sleep 5
