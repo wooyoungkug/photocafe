@@ -485,7 +485,7 @@ export default function DepartmentsPage() {
                           </button>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5">
-                              <span className="text-[16px] text-black font-normal truncate">
+                              <span className="text-[14px] text-black font-normal truncate">
                                 {dept.name}
                               </span>
                               {!dept.isActive && (
@@ -494,7 +494,7 @@ export default function DepartmentsPage() {
                                 </Badge>
                               )}
                             </div>
-                            <div className="text-[16px] text-gray-400">
+                            <div className="text-[10px] text-gray-400">
                               {dept._count?.staff || 0}명 / {dept._count?.teams || 0}팀
                             </div>
                           </div>
