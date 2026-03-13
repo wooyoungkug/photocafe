@@ -18,6 +18,7 @@ RUN npm install
 COPY apps/api/src ./src
 COPY apps/api/tsconfig*.json ./
 COPY apps/api/nest-cli.json ./
+COPY apps/api/fonts ./fonts
 
 # Generate Prisma client and build
 RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npx prisma generate
@@ -44,6 +45,7 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/fonts ./fonts
 
 # Create uploads directory
 RUN mkdir -p /app/uploads/temp /app/uploads/orders
