@@ -375,6 +375,13 @@ export class LogenService {
       );
     }
 
+    if (response.status === 401) {
+      throw new HttpException(
+        '로젠택배 API 인증 실패. 서버 IP가 로젠 허용 목록에 없거나 API 키가 올바르지 않습니다.',
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
     if (!response.ok) {
       throw new HttpException(
         `로젠택배 API 응답 오류 (${response.status})`,
