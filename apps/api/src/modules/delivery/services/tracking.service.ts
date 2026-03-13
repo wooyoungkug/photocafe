@@ -67,8 +67,9 @@ export class TrackingService {
     const apiKey = this.configService.get<string>('SWEETTRACKER_API_KEY');
 
     if (!apiKey) {
+      const directUrl = this.getDirectTrackingUrl(courierCode, trackingNumber);
       throw new HttpException(
-        '배송 추적 서비스가 설정되지 않았습니다. (SWEETTRACKER_API_KEY 미설정)',
+        { message: '배송 조회 서비스가 준비되지 않았습니다. 아래 링크에서 직접 조회해 주세요.', directTrackingUrl: directUrl },
         HttpStatus.SERVICE_UNAVAILABLE,
       );
     }
