@@ -403,7 +403,8 @@
       "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql\" -U postgres -h localhost -d printing_erp -c \"SELECT COUNT\\(*\\) FROM clients;\")",
       "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/16/bin/psql\" -U postgres -h localhost -d printing_erp -c \"\\\\d clients\")",
       "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -c \"UPDATE client_departments SET name = ''촬영팀'' WHERE name = ''사진작가''; UPDATE client_departments SET name = ''편집팀'' WHERE name = ''편집디자이너''; UPDATE client_departments SET name = ''관리팀'' WHERE name = ''관리부'';\")",
-      "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -f update_depts.sql)"
+      "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -f update_depts.sql)",
+      "Bash(\"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\pg_dump.exe\" -h 192.168.0.67 -p 5433 -U postgres -d printing_erp -f C:tmpprod_backup.sql)"
     ],
     "deny": [],
     "ask": [],
