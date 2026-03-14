@@ -2,13 +2,18 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Search, ShoppingCart, User, Menu, X, Star, ClipboardList, BarChart3, MapPin } from 'lucide-react';
+import { Search, ShoppingCart, User, Menu, Star, ClipboardList, BarChart3, MapPin, CreditCard, CalendarDays, Users } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCartStore } from '@/stores/cart-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { useLocale, useTranslations } from 'next-intl';
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+} from '@/components/ui/sheet';
 
 export function ShopHeader() {
   const router = useRouter();
@@ -50,11 +55,10 @@ export function ShopHeader() {
             {/* Mobile Menu Button */}
             <button
               className="md:hidden p-2 -ml-2"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              aria-label={mobileMenuOpen ? '메뉴 닫기' : '메뉴 열기'}
-              aria-expanded={mobileMenuOpen ? "true" : "false"}
+              onClick={() => setMobileMenuOpen(true)}
+              aria-label="메뉴 열기"
             >
-              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              <Menu className="h-5 w-5" />
             </button>
 
             {/* Logo */}
@@ -186,80 +190,149 @@ export function ShopHeader() {
         </div>
       </div>
 
-      {/* Mobile Menu */}
-      {mobileMenuOpen && (
-        <div className="md:hidden bg-white border-b border-neutral-100">
-          <div className="container mx-auto px-4 py-5 space-y-4">
-            {isAuthenticated ? (
-              <>
-                <div className="flex items-center gap-2 pb-3 border-b border-neutral-100">
-                  <User className="h-4 w-4 text-neutral-500" />
-                  <span className="text-sm font-medium text-neutral-900">
-                    {user?.type === 'employee'
-                      ? `${user?.clientName} ${user?.name}(${user?.employeeRole === 'MANAGER' ? 'Manager' : user?.employeeRole === 'EDITOR' ? 'Editor' : 'Staff'})`
-                      : user?.name}
-                    {th('honorific')}
-                  </span>
-                </div>
-                <Link href="/mypage/orders" className="block py-1.5 text-sm text-neutral-600 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
-                  {th('orderHistory')}
-                </Link>
-                <Link href="/mypage/my-products" className="block py-1.5 text-sm text-neutral-600 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
-                  마이상품
-                </Link>
-                <Link href="/mypage/monthly-summary" className="block py-1.5 text-sm text-neutral-600 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
-                  월거래집계
-                </Link>
-                <Link href="/mypage/addresses" className="block py-1.5 text-sm text-neutral-600 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
-                  배송지 관리
-                </Link>
-                <Link href="/mypage/deposits" className="block py-1.5 text-sm text-neutral-600 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
-                  입금내역
-                </Link>
-                <Link href="/mypage/schedule" className="block py-1.5 text-sm text-neutral-600 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
-                  일정관리
-                </Link>
-                <Link href="/mypage/recruitment" className="block py-1.5 text-sm text-neutral-600 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
-                  구인방
-                </Link>
-                <Link href="/mypage/profile" className="block py-1.5 text-sm text-neutral-600 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
-                  회원정보
-                </Link>
-                <button
-                  type="button"
-                  className="block py-1.5 text-sm text-red-500"
-                  onClick={() => {
-                    logout();
-                    setMobileMenuOpen(false);
-                  }}
-                >
-                  {tc('logout')}
-                </button>
-              </>
-            ) : (
-              <div className="flex gap-3">
-                <Link href="/login" className="flex-1" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="outline" className="w-full rounded-none border-neutral-300 text-neutral-700 text-sm h-10">{tc('login')}</Button>
-                </Link>
-                <Link href="/register" className="flex-1" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="outline" className="w-full rounded-none border-neutral-300 text-neutral-700 text-sm h-10">{tc('register')}</Button>
-                </Link>
-              </div>
-            )}
-            <div className="border-t border-neutral-100 pt-4 space-y-1">
-              <Link href="/notice" className="block py-1.5 text-sm text-neutral-500 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
-                {th('notice')}
-              </Link>
-              <Link href="/guide" className="block py-1.5 text-sm text-neutral-500 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
-                {th('guide')}
-              </Link>
-              <Link href="/support" className="block py-1.5 text-sm text-neutral-500 hover:text-neutral-900" onClick={() => setMobileMenuOpen(false)}>
-                {th('support')}
+      {/* Mobile Menu - Sheet 드로어 */}
+      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+        <SheetContent side="left" className="w-72 max-w-[85vw] p-0 border-r-0 gap-0 [&>button:last-child]:hidden">
+          <SheetTitle className="sr-only">메뉴</SheetTitle>
+          <div className="flex flex-col h-full bg-white">
+            {/* 헤더 */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100">
+              <Link href="/" onClick={() => setMobileMenuOpen(false)} className="flex items-center">
+                <span className="text-xl font-light tracking-tight text-neutral-900">
+                  printing<span className="font-normal">114</span>
+                </span>
               </Link>
             </div>
+
+            {/* 메뉴 콘텐츠 */}
+            <nav className="flex-1 overflow-y-auto overscroll-contain px-5 py-4 space-y-1">
+              {isAuthenticated ? (
+                <>
+                  {/* 사용자 정보 */}
+                  <div className="flex items-center gap-2 pb-3 mb-3 border-b border-neutral-100">
+                    <div className="h-8 w-8 rounded-full bg-neutral-100 flex items-center justify-center">
+                      <User className="h-4 w-4 text-neutral-500" />
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-neutral-900 block">
+                        {user?.type === 'employee'
+                          ? `${user?.clientName} ${user?.name}`
+                          : user?.name}
+                        {th('honorific')}
+                      </span>
+                      {user?.type === 'employee' && (
+                        <span className="text-[11px] text-neutral-400">
+                          {user?.employeeRole === 'MANAGER' ? 'Manager' : user?.employeeRole === 'EDITOR' ? 'Editor' : 'Staff'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 메뉴 링크 */}
+                  <Link href="/mypage/orders" className="flex items-center gap-3 py-2.5 text-sm text-neutral-700 hover:text-neutral-900 transition-colors" onClick={() => setMobileMenuOpen(false)}>
+                    <ClipboardList className="h-4 w-4 text-neutral-400" />
+                    {th('orderHistory')}
+                  </Link>
+                  <Link href="/mypage/my-products" className="flex items-center gap-3 py-2.5 text-sm text-neutral-700 hover:text-neutral-900 transition-colors" onClick={() => setMobileMenuOpen(false)}>
+                    <Star className="h-4 w-4 text-neutral-400" />
+                    마이상품
+                  </Link>
+                  <Link href="/mypage/monthly-summary" className="flex items-center gap-3 py-2.5 text-sm text-neutral-700 hover:text-neutral-900 transition-colors" onClick={() => setMobileMenuOpen(false)}>
+                    <BarChart3 className="h-4 w-4 text-neutral-400" />
+                    월거래집계
+                  </Link>
+                  <Link href="/mypage/addresses" className="flex items-center gap-3 py-2.5 text-sm text-neutral-700 hover:text-neutral-900 transition-colors" onClick={() => setMobileMenuOpen(false)}>
+                    <MapPin className="h-4 w-4 text-neutral-400" />
+                    배송지 관리
+                  </Link>
+                  <Link href="/mypage/deposits" className="flex items-center gap-3 py-2.5 text-sm text-neutral-700 hover:text-neutral-900 transition-colors" onClick={() => setMobileMenuOpen(false)}>
+                    <CreditCard className="h-4 w-4 text-neutral-400" />
+                    입금내역
+                  </Link>
+                  <Link href="/mypage/schedule" className="flex items-center gap-3 py-2.5 text-sm text-neutral-700 hover:text-neutral-900 transition-colors" onClick={() => setMobileMenuOpen(false)}>
+                    <CalendarDays className="h-4 w-4 text-neutral-400" />
+                    일정관리
+                  </Link>
+                  <Link href="/mypage/recruitment" className="flex items-center gap-3 py-2.5 text-sm text-neutral-700 hover:text-neutral-900 transition-colors" onClick={() => setMobileMenuOpen(false)}>
+                    <Users className="h-4 w-4 text-neutral-400" />
+                    구인방
+                  </Link>
+                  <Link href="/mypage/profile" className="flex items-center gap-3 py-2.5 text-sm text-neutral-700 hover:text-neutral-900 transition-colors" onClick={() => setMobileMenuOpen(false)}>
+                    <User className="h-4 w-4 text-neutral-400" />
+                    회원정보
+                  </Link>
+
+                  {/* 로그아웃 */}
+                  <div className="pt-3 mt-3 border-t border-neutral-100">
+                    <button
+                      type="button"
+                      className="flex items-center gap-3 py-2.5 text-sm text-red-500 hover:text-red-600 transition-colors w-full"
+                      onClick={() => {
+                        logout();
+                        setMobileMenuOpen(false);
+                      }}
+                    >
+                      {tc('logout')}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="flex gap-3 mb-4">
+                  <Link href="/login" className="flex-1" onClick={() => setMobileMenuOpen(false)}>
+                    <Button variant="outline" className="w-full rounded-none border-neutral-300 text-neutral-700 text-sm h-10">{tc('login')}</Button>
+                  </Link>
+                  <Link href="/register" className="flex-1" onClick={() => setMobileMenuOpen(false)}>
+                    <Button variant="outline" className="w-full rounded-none border-neutral-300 text-neutral-700 text-sm h-10">{tc('register')}</Button>
+                  </Link>
+                </div>
+              )}
+
+              {/* 공통 링크 */}
+              <div className="border-t border-neutral-100 pt-3 mt-3 space-y-1">
+                <Link href="/notice" className="block py-2.5 text-sm text-neutral-500 hover:text-neutral-900 transition-colors" onClick={() => setMobileMenuOpen(false)}>
+                  {th('notice')}
+                </Link>
+                <Link href="/guide" className="block py-2.5 text-sm text-neutral-500 hover:text-neutral-900 transition-colors" onClick={() => setMobileMenuOpen(false)}>
+                  {th('guide')}
+                </Link>
+                <Link href="/support" className="block py-2.5 text-sm text-neutral-500 hover:text-neutral-900 transition-colors" onClick={() => setMobileMenuOpen(false)}>
+                  {th('support')}
+                </Link>
+              </div>
+            </nav>
           </div>
-        </div>
-      )}
+        </SheetContent>
+      </Sheet>
     </header>
+  );
+}
+
+// 아이콘 헬퍼 (lucide에서 추가 import 대신 간단 SVG)
+function CreditCardIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect width="20" height="14" x="2" y="5" rx="2" />
+      <line x1="2" x2="22" y1="10" y2="10" />
+    </svg>
+  );
+}
+
+function CalendarIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M8 2v4" /><path d="M16 2v4" />
+      <rect width="18" height="18" x="3" y="4" rx="2" />
+      <path d="M3 10h18" />
+    </svg>
+  );
+}
+
+function UsersIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
   );
 }
