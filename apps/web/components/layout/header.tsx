@@ -174,7 +174,7 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
             <TooltipTrigger asChild>
               <button
                 type="button"
-                className="p-2 rounded-lg text-red-200 hover:text-white hover:bg-red-800/50 active:bg-red-900/60 transition-all duration-150 md:hidden"
+                className="p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100/80 active:bg-slate-200/60 transition-all duration-150 md:hidden"
                 aria-label="검색"
               >
                 <Search className="h-5 w-5" />
@@ -222,34 +222,34 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
           </Tooltip>
 
           {/* Divider - tablet and above */}
-          <div className="hidden sm:block h-6 w-px bg-red-600/50 mx-1" />
+          <div className="hidden sm:block h-6 w-px bg-slate-200/80 mx-1" />
 
           {/* User dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="flex items-center gap-2 sm:gap-2.5 cursor-pointer rounded-lg hover:bg-red-800/50 px-1.5 sm:px-2.5 py-1.5 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300/30"
+                className="flex items-center gap-2 sm:gap-2.5 cursor-pointer rounded-lg hover:bg-slate-50/80 px-1.5 sm:px-2.5 py-1.5 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/30"
                 aria-label="사용자 메뉴"
               >
                 {/* Avatar with gradient */}
-                <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-red-400 to-red-600 text-white shadow-md shadow-red-900/40 ring-2 ring-red-300/50">
+                <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-md shadow-indigo-500/20 ring-2 ring-white">
                   <User className="h-4 w-4" />
                 </div>
                 {/* User info - tablet and above */}
                 <div className="hidden sm:flex flex-col items-start">
-                  <span className="text-sm font-semibold text-white leading-tight">
+                  <span className="text-sm font-semibold text-slate-800 leading-tight">
                     {user?.type === 'employee'
                       ? user?.isOwner
                         ? `${user?.name || '사용자'}(최고관리자)`
                         : `${user?.name || '사용자'} (${user?.employeeRole === 'MANAGER' ? 'Manager' : user?.employeeRole === 'EDITOR' ? 'Editor' : 'Staff'})`
                       : `${user?.name || '사용자'}(최고관리자)`}
                   </span>
-                  <span className="text-[11px] text-red-200 leading-tight">
+                  <span className="text-[11px] text-slate-400 leading-tight">
                     {user?.type === 'employee' ? user?.clientName : (user?.role === "ADMIN" ? "관리자" : "사용자")}
                   </span>
                 </div>
-                <ChevronDown className="hidden sm:block h-3.5 w-3.5 text-red-200 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                <ChevronDown className="hidden sm:block h-3.5 w-3.5 text-slate-400 transition-transform duration-200 group-data-[state=open]:rotate-180" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52 p-1">

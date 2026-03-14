@@ -30,26 +30,26 @@ export function ShopHeader() {
   };
 
   return (
-    <header className="bg-blue-700 sticky top-0 z-50">
+    <header className="bg-white sticky top-0 z-50">
       {/* Announcement Bar */}
-      <div className="bg-blue-900 text-blue-300 text-[11px]">
+      <div className="bg-neutral-900 text-neutral-400 text-[11px]">
         <div className="container mx-auto px-4 py-1.5 flex justify-between items-center">
           <span className="tracking-wider">{th('slogan')}</span>
           <div className="hidden md:flex items-center gap-6">
-            <Link href="/notice" className="hover:text-blue-100 transition-colors">{th('notice')}</Link>
-            <Link href="/guide" className="hover:text-blue-100 transition-colors">{th('guide')}</Link>
-            <Link href="/support" className="hover:text-blue-100 transition-colors">{th('support')}</Link>
+            <Link href="/notice" className="hover:text-white transition-colors">{th('notice')}</Link>
+            <Link href="/guide" className="hover:text-white transition-colors">{th('guide')}</Link>
+            <Link href="/support" className="hover:text-white transition-colors">{th('support')}</Link>
           </div>
         </div>
       </div>
 
       {/* Main Header */}
-      <div className="border-b border-blue-600">
+      <div className="border-b border-neutral-100">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-14 md:h-16">
             {/* Mobile Menu Button */}
             <button
-              className="md:hidden p-2 -ml-2 text-blue-200 hover:text-white"
+              className="md:hidden p-2 -ml-2"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label={mobileMenuOpen ? '메뉴 닫기' : '메뉴 열기'}
               aria-expanded={mobileMenuOpen ? "true" : "false"}
@@ -59,7 +59,7 @@ export function ShopHeader() {
 
             {/* Logo */}
             <Link href="/" className="flex items-center">
-              <span className="shop-heading text-xl md:text-2xl font-light tracking-tight text-white">
+              <span className="shop-heading text-xl md:text-2xl font-light tracking-tight text-neutral-900">
                 printing<span className="font-normal">114</span>
               </span>
             </Link>
@@ -72,7 +72,7 @@ export function ShopHeader() {
                   placeholder={th('searchPlaceholder')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-4 pr-10 h-9 text-sm border-blue-500/60 focus:border-blue-300 rounded-none bg-blue-800/30 text-white placeholder:text-blue-300"
+                  className="w-full pl-4 pr-10 h-9 text-sm border-neutral-200 focus:border-neutral-400 rounded-none bg-neutral-50 placeholder:text-neutral-400"
                 />
                 <button
                   type="submit"
