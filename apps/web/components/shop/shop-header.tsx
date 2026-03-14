@@ -126,10 +126,8 @@ export function ShopHeader() {
                     <User className="h-4 w-4 text-neutral-600" />
                     <span className="text-sm text-neutral-700">
                       {user?.type === 'employee'
-                        ? user?.isOwner
-                          ? `${user?.name}(최고관리자)`
-                          : `${user?.clientName} ${user?.name}(${user?.employeeRole === 'MANAGER' ? 'Manager' : user?.employeeRole === 'EDITOR' ? 'Editor' : 'Staff'})`
-                        : `${user?.name}(최고관리자)`}
+                        ? `${user?.clientName ? user.clientName + ' ' : ''}${user?.name}(${user?.employeeRole === 'MANAGER' ? 'Manager' : user?.employeeRole === 'EDITOR' ? 'Editor' : 'Staff'})`
+                        : user?.name}
                       {th('honorific')}
                     </span>
                   </Link>
@@ -199,7 +197,7 @@ export function ShopHeader() {
                   <span className="text-sm font-medium text-neutral-900">
                     {user?.type === 'employee'
                       ? `${user?.clientName} ${user?.name}(${user?.employeeRole === 'MANAGER' ? 'Manager' : user?.employeeRole === 'EDITOR' ? 'Editor' : 'Staff'})`
-                      : `${user?.name} 최고관리자`}
+                      : user?.name}
                     {th('honorific')}
                   </span>
                 </div>
