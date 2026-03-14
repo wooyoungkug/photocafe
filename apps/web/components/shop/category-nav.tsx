@@ -62,53 +62,81 @@ export function CategoryNav() {
               {t('allProducts')}
             </Link>
           </li>
-          {sortedCategories.map((category) => (
-            <li
-              key={category.id}
-              className="relative"
-              onMouseEnter={() => setActiveCategory(category.id)}
-              onMouseLeave={() => setActiveCategory(null)}
-            >
-              <Link
-                href={getCategoryHref(category)}
-                className={cn(
-                  "flex items-center gap-1.5 px-4 py-2 text-[14px] tracking-wider uppercase font-medium transition-colors",
-                  pathname === getCategoryHref(category) || pathname.startsWith(getCategoryHref(category) + '/') || activeCategory === category.id
-                    ? "text-gold"
-                    : "text-neutral-500 hover:text-neutral-900"
-                )}
+          {sortedCategories.map((category) => {
+            const hasChildren = category.children && category.children.length > 0;
+            return (
+              <li
+                key={category.id}
+                className="relative"
+                onMouseEnter={() => setActiveCategory(category.id)}
+                onMouseLeave={() => setActiveCategory(null)}
               >
-                {category.iconUrl && (
-                  <img
-                    src={category.iconUrl.startsWith('/api')
-                      ? `${API_BASE_URL}${category.iconUrl}`
-                      : category.iconUrl}
-                    alt=""
-                    className="h-4 w-auto object-contain"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                    }}
-                  />
+                {hasChildren ? (
+                  <button
+                    type="button"
+                    onClick={() => setActiveCategory(activeCategory === category.id ? null : category.id)}
+                    className={cn(
+                      "flex items-center gap-1.5 px-4 py-2 text-[14px] tracking-wider uppercase font-medium transition-colors",
+                      pathname === getCategoryHref(category) || pathname.startsWith(getCategoryHref(category) + '/') || activeCategory === category.id
+                        ? "text-gold"
+                        : "text-neutral-500 hover:text-neutral-900"
+                    )}
+                  >
+                    {category.iconUrl && (
+                      <img
+                        src={category.iconUrl.startsWith('/api')
+                          ? `${API_BASE_URL}${category.iconUrl}`
+                          : category.iconUrl}
+                        alt=""
+                        className="h-4 w-auto object-contain"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    )}
+                    {getLocalizedName(category, locale)}
+                    <ChevronDown className={cn("h-3 w-3 opacity-50 transition-transform", activeCategory === category.id && "rotate-180")} />
+                  </button>
+                ) : (
+                  <Link
+                    href={getCategoryHref(category)}
+                    className={cn(
+                      "flex items-center gap-1.5 px-4 py-2 text-[14px] tracking-wider uppercase font-medium transition-colors",
+                      pathname === getCategoryHref(category) || pathname.startsWith(getCategoryHref(category) + '/')
+                        ? "text-gold"
+                        : "text-neutral-500 hover:text-neutral-900"
+                    )}
+                  >
+                    {category.iconUrl && (
+                      <img
+                        src={category.iconUrl.startsWith('/api')
+                          ? `${API_BASE_URL}${category.iconUrl}`
+                          : category.iconUrl}
+                        alt=""
+                        className="h-4 w-auto object-contain"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    )}
+                    {getLocalizedName(category, locale)}
+                  </Link>
                 )}
-                {getLocalizedName(category, locale)}
-                {category.children && category.children.length > 0 && (
-                  <ChevronDown className="h-3 w-3 opacity-50" />
-                )}
-              </Link>
 
-              {/* Dropdown Menu */}
-              {category.children && category.children.length > 0 && activeCategory === category.id && (
-                <div className="absolute top-full left-0 w-56 bg-white border border-neutral-100 shadow-lg py-2 pt-3 before:content-[''] before:absolute before:top-[-8px] before:left-0 before:w-full before:h-[10px] before:bg-transparent">
-                  {[...category.children]
-                    .filter(c => c.isVisible)
-                    .sort((a, b) => a.sortOrder - b.sortOrder)
-                    .map((child) => (
-                      <CategoryMenuItem key={child.id} category={child} level={1} />
-                    ))}
-                </div>
-              )}
-            </li>
-          ))}
+                {/* Dropdown Menu */}
+                {hasChildren && activeCategory === category.id && (
+                  <div className="absolute top-full left-0 w-56 bg-white border border-neutral-100 shadow-lg py-2 pt-3 before:content-[''] before:absolute before:top-[-8px] before:left-0 before:w-full before:h-[10px] before:bg-transparent">
+                    {[...category.children!]
+                      .filter(c => c.isVisible)
+                      .sort((a, b) => a.sortOrder - b.sortOrder)
+                      .map((child) => (
+                        <CategoryMenuItem key={child.id} category={child} level={1} onClose={() => setActiveCategory(null)} />
+                      ))}
+                  </div>
+                )}
+              </li>
+            );
+          })}
           {isAuthenticated && (
             <li>
               <Link
@@ -191,22 +219,35 @@ export function CategoryNav() {
   );
 }
 
-function CategoryMenuItem({ category, level }: { category: Category; level: number }) {
+function CategoryMenuItem({ category, level, onClose }: { category: Category; level: number; onClose?: () => void }) {
   const [isOpen, setIsOpen] = useState(false);
   const hasChildren = category.children && category.children.length > 0;
   const locale = useLocale();
 
   return (
-    <div className="relative">
+    <div
+      className="relative"
+      onMouseEnter={() => hasChildren && setIsOpen(true)}
+      onMouseLeave={() => hasChildren && setIsOpen(false)}
+    >
       <Link
         href={getCategoryHref(category)}
+        onClick={(e) => {
+          if (hasChildren) {
+            // 터치 디바이스에서 첫 탭은 하위 메뉴를 열고, 이미 열려 있으면 링크 이동
+            if (!isOpen) {
+              e.preventDefault();
+              setIsOpen(true);
+              return;
+            }
+          }
+          onClose?.();
+        }}
         className={cn(
           "flex items-center justify-between px-4 py-2 text-sm transition-colors",
           "text-neutral-600 hover:text-gold hover:bg-neutral-50",
           level > 1 && "pl-8"
         )}
-        onMouseEnter={() => hasChildren && setIsOpen(true)}
-        onMouseLeave={() => hasChildren && setIsOpen(false)}
       >
         <span className="flex items-center gap-2">
           {category.iconUrl && (
@@ -223,20 +264,16 @@ function CategoryMenuItem({ category, level }: { category: Category; level: numb
           )}
           {getLocalizedName(category, locale)}
         </span>
-        {hasChildren && <ChevronRight className="h-3 w-3 opacity-40" />}
+        {hasChildren && <ChevronRight className={cn("h-3 w-3 opacity-40 transition-transform", isOpen && "rotate-90")} />}
       </Link>
 
       {hasChildren && isOpen && (
-        <div
-          className="absolute left-full top-0 w-52 bg-white border border-neutral-100 shadow-lg py-2 pl-1 before:content-[''] before:absolute before:top-0 before:left-[-8px] before:w-[10px] before:h-full before:bg-transparent"
-          onMouseEnter={() => setIsOpen(true)}
-          onMouseLeave={() => setIsOpen(false)}
-        >
+        <div className="absolute left-full top-0 w-52 bg-white border border-neutral-100 shadow-lg py-2 pl-1 before:content-[''] before:absolute before:top-0 before:left-[-8px] before:w-[10px] before:h-full before:bg-transparent">
           {[...category.children!]
             .filter(c => c.isVisible)
             .sort((a, b) => a.sortOrder - b.sortOrder)
             .map((child) => (
-              <CategoryMenuItem key={child.id} category={child} level={level + 1} />
+              <CategoryMenuItem key={child.id} category={child} level={level + 1} onClose={onClose} />
             ))}
         </div>
       )}
