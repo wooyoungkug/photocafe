@@ -30,26 +30,26 @@ export function ShopHeader() {
   };
 
   return (
-    <header className="bg-white sticky top-0 z-50">
+    <header className="bg-blue-700 sticky top-0 z-50">
       {/* Announcement Bar */}
-      <div className="bg-neutral-900 text-neutral-400 text-[11px]">
+      <div className="bg-blue-900 text-blue-300 text-[11px]">
         <div className="container mx-auto px-4 py-1.5 flex justify-between items-center">
           <span className="tracking-wider">{th('slogan')}</span>
           <div className="hidden md:flex items-center gap-6">
-            <Link href="/notice" className="hover:text-white transition-colors">{th('notice')}</Link>
-            <Link href="/guide" className="hover:text-white transition-colors">{th('guide')}</Link>
-            <Link href="/support" className="hover:text-white transition-colors">{th('support')}</Link>
+            <Link href="/notice" className="hover:text-blue-100 transition-colors">{th('notice')}</Link>
+            <Link href="/guide" className="hover:text-blue-100 transition-colors">{th('guide')}</Link>
+            <Link href="/support" className="hover:text-blue-100 transition-colors">{th('support')}</Link>
           </div>
         </div>
       </div>
 
       {/* Main Header */}
-      <div className="border-b border-neutral-100">
+      <div className="border-b border-blue-600">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-14 md:h-16">
             {/* Mobile Menu Button */}
             <button
-              className="md:hidden p-2 -ml-2"
+              className="md:hidden p-2 -ml-2 text-blue-200 hover:text-white"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label={mobileMenuOpen ? '메뉴 닫기' : '메뉴 열기'}
               aria-expanded={mobileMenuOpen ? "true" : "false"}
@@ -59,7 +59,7 @@ export function ShopHeader() {
 
             {/* Logo */}
             <Link href="/" className="flex items-center">
-              <span className="shop-heading text-xl md:text-2xl font-light tracking-tight text-neutral-900">
+              <span className="shop-heading text-xl md:text-2xl font-light tracking-tight text-white">
                 printing<span className="font-normal">114</span>
               </span>
             </Link>
@@ -72,13 +72,13 @@ export function ShopHeader() {
                   placeholder={th('searchPlaceholder')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-4 pr-10 h-9 text-sm border-neutral-200 focus:border-neutral-400 rounded-none bg-neutral-50 placeholder:text-neutral-400"
+                  className="w-full pl-4 pr-10 h-9 text-sm border-blue-500/60 focus:border-blue-300 rounded-none bg-blue-800/30 text-white placeholder:text-blue-300"
                 />
                 <button
                   type="submit"
                   title={tc('search')}
                   aria-label={tc('search')}
-                  className="absolute right-0 top-0 h-9 w-9 flex items-center justify-center text-neutral-400 hover:text-neutral-900 transition-colors"
+                  className="absolute right-0 top-0 h-9 w-9 flex items-center justify-center text-blue-300 hover:text-white transition-colors"
                 >
                   <Search className="h-4 w-4" />
                 </button>
@@ -90,21 +90,21 @@ export function ShopHeader() {
               {/* Quick Links - 로그인 시만 표시 */}
               {isAuthenticated && (
                 <>
-                  <Link href="/mypage/orders" className="hidden md:flex relative p-2 hover:opacity-60 transition-opacity" title="주문내역">
-                    <ClipboardList className="h-5 w-5 text-neutral-700" />
+                  <Link href="/mypage/orders" className="hidden md:flex relative p-2 hover:opacity-75 transition-opacity" title="주문내역">
+                    <ClipboardList className="h-5 w-5 text-blue-200" />
                   </Link>
-                  <Link href="/mypage/monthly-summary" className="hidden md:flex relative p-2 hover:opacity-60 transition-opacity" title="월거래집계">
-                    <BarChart3 className="h-5 w-5 text-neutral-700" />
+                  <Link href="/mypage/monthly-summary" className="hidden md:flex relative p-2 hover:opacity-75 transition-opacity" title="월거래집계">
+                    <BarChart3 className="h-5 w-5 text-blue-200" />
                   </Link>
-                  <Link href="/mypage/addresses" className="hidden md:flex relative p-2 hover:opacity-60 transition-opacity" title="배송지관리">
-                    <MapPin className="h-5 w-5 text-neutral-700" />
+                  <Link href="/mypage/addresses" className="hidden md:flex relative p-2 hover:opacity-75 transition-opacity" title="배송지관리">
+                    <MapPin className="h-5 w-5 text-blue-200" />
                   </Link>
                 </>
               )}
 
               {/* Cart */}
-              <Link href="/cart" className="relative p-2 hover:opacity-60 transition-opacity">
-                <ShoppingCart className="h-5 w-5 text-neutral-700" />
+              <Link href="/cart" className="relative p-2 hover:opacity-75 transition-opacity">
+                <ShoppingCart className="h-5 w-5 text-white" />
                 {cartItemCount > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 bg-gold text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-medium">
                     {cartItemCount > 99 ? '99' : cartItemCount}
@@ -114,17 +114,17 @@ export function ShopHeader() {
 
               {/* My Products */}
               {isAuthenticated && (
-                <Link href="/mypage/my-products" className="hidden md:flex relative p-2 hover:opacity-60 transition-opacity" title="마이상품">
-                  <Star className="h-5 w-5 text-neutral-700" />
+                <Link href="/mypage/my-products" className="hidden md:flex relative p-2 hover:opacity-75 transition-opacity" title="마이상품">
+                  <Star className="h-5 w-5 text-blue-200" />
                 </Link>
               )}
 
               {/* User */}
               {isAuthenticated ? (
                 <div className="hidden md:flex items-center gap-2 ml-2">
-                  <Link href="/mypage/profile" className="flex items-center gap-1.5 p-2 hover:opacity-60 transition-opacity">
-                    <User className="h-4 w-4 text-neutral-600" />
-                    <span className="text-sm text-neutral-700">
+                  <Link href="/mypage/profile" className="flex items-center gap-1.5 p-2 hover:opacity-75 transition-opacity">
+                    <User className="h-4 w-4 text-blue-200" />
+                    <span className="text-sm text-white">
                       {user?.type === 'employee'
                         ? user?.isOwner
                           ? `${user?.name}(최고관리자)`
@@ -135,7 +135,7 @@ export function ShopHeader() {
                   </Link>
                   <button
                     onClick={logout}
-                    className="text-xs text-neutral-400 hover:text-neutral-900 transition-colors tracking-wide uppercase"
+                    className="text-xs text-blue-300 hover:text-white transition-colors tracking-wide uppercase"
                   >
                     {tc('logout')}
                   </button>
@@ -146,7 +146,7 @@ export function ShopHeader() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="text-xs tracking-wider uppercase rounded-none h-8 px-4 border-neutral-300 text-neutral-700 hover:bg-neutral-50"
+                      className="text-xs tracking-wider uppercase rounded-none h-8 px-4 border-blue-400/60 text-white hover:bg-blue-600"
                     >
                       {tc('login')}
                     </Button>
@@ -155,7 +155,7 @@ export function ShopHeader() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="text-xs tracking-wider uppercase rounded-none h-8 px-4 border-neutral-300 text-neutral-700 hover:bg-neutral-50"
+                      className="text-xs tracking-wider uppercase rounded-none h-8 px-4 border-blue-400/60 text-white hover:bg-blue-600"
                     >
                       {tc('register')}
                     </Button>
@@ -173,7 +173,7 @@ export function ShopHeader() {
                 placeholder={th('searchPlaceholderMobile')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-4 pr-10 h-9 text-sm border-neutral-200 rounded-none bg-neutral-50 placeholder:text-neutral-400"
+                className="w-full pl-4 pr-10 h-9 text-sm border-blue-500/60 rounded-none bg-blue-800/30 text-white placeholder:text-blue-300"
               />
               <button
                 type="submit"

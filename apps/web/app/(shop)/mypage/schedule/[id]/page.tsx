@@ -34,6 +34,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { useAuthStore } from '@/stores/auth-store';
 import {
   useShooting,
   useUpdateShootingStatus,

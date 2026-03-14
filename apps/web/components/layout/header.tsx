@@ -111,7 +111,7 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <header className="sticky top-0 z-30 flex h-14 sm:h-16 items-center justify-between border-b border-slate-200/80 bg-white/70 backdrop-blur-xl px-3 sm:px-4 lg:px-6 shadow-[0_1px_3px_0_rgba(0,0,0,0.04)]">
+      <header className="sticky top-0 z-30 flex h-14 sm:h-16 items-center justify-between border-b border-red-800 bg-red-700 px-3 sm:px-4 lg:px-6 shadow-[0_1px_3px_0_rgba(0,0,0,0.2)]">
         {/* Left section */}
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Mobile menu button */}
@@ -121,7 +121,7 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
                 <button
                   type="button"
                   onClick={onMenuClick}
-                  className="p-2 -ml-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100/80 active:bg-slate-200/60 transition-all duration-150 lg:hidden"
+                  className="p-2 -ml-2 rounded-lg text-red-200 hover:text-white hover:bg-red-800/50 active:bg-red-900/60 transition-all duration-150 lg:hidden"
                   aria-label="메뉴 열기"
                 >
                   <Menu className="h-5 w-5" />
@@ -133,7 +133,7 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
 
           {/* Search bar - tablet and above */}
           <div className="relative group hidden md:block">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-colors duration-200 group-focus-within:text-indigo-500" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-red-300 transition-colors duration-200 group-focus-within:text-white" />
             <input
               ref={searchInputRef}
               type="text"
@@ -142,7 +142,7 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
               onFocus={() => setIsSearchFocused(true)}
               onBlur={() => setIsSearchFocused(false)}
               placeholder="검색어를 입력하세요..."
-              className="h-9 w-52 lg:w-64 rounded-lg border border-slate-200/80 bg-slate-50/80 pl-9 pr-20 text-sm text-slate-700 placeholder:text-slate-400 transition-all duration-300 ease-out focus:w-72 lg:focus:w-80 focus:border-indigo-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:shadow-sm"
+              className="h-9 w-52 lg:w-64 rounded-lg border border-red-600/60 bg-red-800/30 pl-9 pr-20 text-sm text-white placeholder:text-red-300 transition-all duration-300 ease-out focus:w-72 lg:focus:w-80 focus:border-red-300 focus:bg-red-800/50 focus:outline-none focus:ring-2 focus:ring-red-300/30 focus:shadow-sm"
               aria-label="검색"
             />
             {/* Keyboard shortcut badge */}
@@ -174,7 +174,7 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
             <TooltipTrigger asChild>
               <button
                 type="button"
-                className="p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100/80 active:bg-slate-200/60 transition-all duration-150 md:hidden"
+                className="p-2 rounded-lg text-red-200 hover:text-white hover:bg-red-800/50 active:bg-red-900/60 transition-all duration-150 md:hidden"
                 aria-label="검색"
               >
                 <Search className="h-5 w-5" />
@@ -193,7 +193,7 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
                 href="/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="hidden lg:inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm font-medium text-indigo-600 bg-indigo-50/80 hover:bg-indigo-100 border border-indigo-100/80 transition-all duration-150 hover:shadow-sm"
+                className="hidden lg:inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm font-medium text-white bg-red-800/50 hover:bg-red-900 border border-red-600/60 transition-all duration-150 hover:shadow-sm"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
                 <span>쇼핑몰</span>
@@ -207,10 +207,10 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
             <TooltipTrigger asChild>
               <button
                 type="button"
-                className="relative p-2 rounded-lg hover:bg-slate-100/80 active:bg-slate-200/60 transition-all duration-150 group"
+                className="relative p-2 rounded-lg hover:bg-red-800/50 active:bg-red-900/60 transition-all duration-150 group"
                 aria-label="알림"
               >
-                <Bell className="h-5 w-5 text-slate-500 group-hover:text-slate-700 transition-colors duration-150" />
+                <Bell className="h-5 w-5 text-red-200 group-hover:text-white transition-colors duration-150" />
                 {/* Notification indicator */}
                 <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
@@ -222,34 +222,34 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
           </Tooltip>
 
           {/* Divider - tablet and above */}
-          <div className="hidden sm:block h-6 w-px bg-slate-200/80 mx-1" />
+          <div className="hidden sm:block h-6 w-px bg-red-600/50 mx-1" />
 
           {/* User dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="flex items-center gap-2 sm:gap-2.5 cursor-pointer rounded-lg hover:bg-slate-50/80 px-1.5 sm:px-2.5 py-1.5 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/30"
+                className="flex items-center gap-2 sm:gap-2.5 cursor-pointer rounded-lg hover:bg-red-800/50 px-1.5 sm:px-2.5 py-1.5 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300/30"
                 aria-label="사용자 메뉴"
               >
                 {/* Avatar with gradient */}
-                <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-md shadow-indigo-500/20 ring-2 ring-white">
+                <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-red-400 to-red-600 text-white shadow-md shadow-red-900/40 ring-2 ring-red-300/50">
                   <User className="h-4 w-4" />
                 </div>
                 {/* User info - tablet and above */}
                 <div className="hidden sm:flex flex-col items-start">
-                  <span className="text-sm font-semibold text-slate-800 leading-tight">
+                  <span className="text-sm font-semibold text-white leading-tight">
                     {user?.type === 'employee'
                       ? user?.isOwner
                         ? `${user?.name || '사용자'}(최고관리자)`
                         : `${user?.name || '사용자'} (${user?.employeeRole === 'MANAGER' ? 'Manager' : user?.employeeRole === 'EDITOR' ? 'Editor' : 'Staff'})`
                       : `${user?.name || '사용자'}(최고관리자)`}
                   </span>
-                  <span className="text-[11px] text-slate-400 leading-tight">
+                  <span className="text-[11px] text-red-200 leading-tight">
                     {user?.type === 'employee' ? user?.clientName : (user?.role === "ADMIN" ? "관리자" : "사용자")}
                   </span>
                 </div>
-                <ChevronDown className="hidden sm:block h-3.5 w-3.5 text-slate-400 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                <ChevronDown className="hidden sm:block h-3.5 w-3.5 text-red-200 transition-transform duration-200 group-data-[state=open]:rotate-180" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52 p-1">
