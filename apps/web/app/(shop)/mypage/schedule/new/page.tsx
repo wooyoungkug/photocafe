@@ -1,9 +1,10 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Camera } from 'lucide-react';
+import { ArrowLeft, Camera, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { useAuthStore } from '@/stores/auth-store';
 import { useCreateShooting } from '@/hooks/use-shooting';
 import type { CreateShootingDto } from '@/hooks/use-shooting';
 import { ShootingForm } from '@/components/shooting/shooting-form';
@@ -12,6 +13,19 @@ export default function ScheduleNewPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
+  const { user } = useAuthStore();
+
+  const isAdmin = user?.role === 'admin' || user?.role === 'staff';
+  if (isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <AlertCircle className="h-12 w-12 text-gray-300 mb-4" />
+        <p className="text-[18px] text-black font-bold mb-2">접근 불가</p>
+        <p className="text-[14px] text-gray-500">관리자 계정은 일정관리를 이용할 수 없습니다.</p>
+        <p className="text-[14px] text-gray-400">스튜디오 계정으로 로그인해 주세요.</p>
+      </div>
+    );
+  }
   const createMutation = useCreateShooting();
 
   // URL ?date=YYYY-MM-DD 파라미터로 초기 날짜 설정, 기본값은 오늘 + 현재 시간
