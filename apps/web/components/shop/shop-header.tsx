@@ -78,7 +78,7 @@ export function ShopHeader() {
                   type="submit"
                   title={tc('search')}
                   aria-label={tc('search')}
-                  className="absolute right-0 top-0 h-9 w-9 flex items-center justify-center text-blue-300 hover:text-white transition-colors"
+                  className="absolute right-0 top-0 h-9 w-9 flex items-center justify-center text-neutral-400 hover:text-neutral-900 transition-colors"
                 >
                   <Search className="h-4 w-4" />
                 </button>
@@ -90,21 +90,21 @@ export function ShopHeader() {
               {/* Quick Links - 로그인 시만 표시 */}
               {isAuthenticated && (
                 <>
-                  <Link href="/mypage/orders" className="hidden md:flex relative p-2 hover:opacity-75 transition-opacity" title="주문내역">
-                    <ClipboardList className="h-5 w-5 text-blue-200" />
+                  <Link href="/mypage/orders" className="hidden md:flex relative p-2 hover:opacity-60 transition-opacity" title="주문내역">
+                    <ClipboardList className="h-5 w-5 text-neutral-700" />
                   </Link>
-                  <Link href="/mypage/monthly-summary" className="hidden md:flex relative p-2 hover:opacity-75 transition-opacity" title="월거래집계">
-                    <BarChart3 className="h-5 w-5 text-blue-200" />
+                  <Link href="/mypage/monthly-summary" className="hidden md:flex relative p-2 hover:opacity-60 transition-opacity" title="월거래집계">
+                    <BarChart3 className="h-5 w-5 text-neutral-700" />
                   </Link>
-                  <Link href="/mypage/addresses" className="hidden md:flex relative p-2 hover:opacity-75 transition-opacity" title="배송지관리">
-                    <MapPin className="h-5 w-5 text-blue-200" />
+                  <Link href="/mypage/addresses" className="hidden md:flex relative p-2 hover:opacity-60 transition-opacity" title="배송지관리">
+                    <MapPin className="h-5 w-5 text-neutral-700" />
                   </Link>
                 </>
               )}
 
               {/* Cart */}
-              <Link href="/cart" className="relative p-2 hover:opacity-75 transition-opacity">
-                <ShoppingCart className="h-5 w-5 text-white" />
+              <Link href="/cart" className="relative p-2 hover:opacity-60 transition-opacity">
+                <ShoppingCart className="h-5 w-5 text-neutral-700" />
                 {cartItemCount > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 bg-gold text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-medium">
                     {cartItemCount > 99 ? '99' : cartItemCount}
@@ -114,8 +114,8 @@ export function ShopHeader() {
 
               {/* My Products */}
               {isAuthenticated && (
-                <Link href="/mypage/my-products" className="hidden md:flex relative p-2 hover:opacity-75 transition-opacity" title="마이상품">
-                  <Star className="h-5 w-5 text-blue-200" />
+                <Link href="/mypage/my-products" className="hidden md:flex relative p-2 hover:opacity-60 transition-opacity" title="마이상품">
+                  <Star className="h-5 w-5 text-neutral-700" />
                 </Link>
               )}
 
