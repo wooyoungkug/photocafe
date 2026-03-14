@@ -52,6 +52,7 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
   const changePassword = useChangePassword();
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [passwordForm, setPasswordForm] = useState({
@@ -174,10 +175,15 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
             <TooltipTrigger asChild>
               <button
                 type="button"
+                onClick={() => setIsMobileSearchOpen((prev) => !prev)}
                 className="p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100/80 active:bg-slate-200/60 transition-all duration-150 md:hidden"
                 aria-label="검색"
               >
-                <Search className="h-5 w-5" />
+                {isMobileSearchOpen ? (
+                  <X className="h-5 w-5" />
+                ) : (
+                  <Search className="h-5 w-5" />
+                )}
               </button>
             </TooltipTrigger>
             <TooltipContent side="bottom">검색</TooltipContent>
@@ -318,6 +324,34 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
           </DropdownMenu>
         </div>
       </header>
+
+      {/* Mobile search bar - slides down below header */}
+      {isMobileSearchOpen && (
+        <div className="md:hidden border-b border-slate-200/80 bg-white px-3 py-2 animate-in slide-in-from-top-2 duration-200">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="검색어를 입력하세요..."
+              className="h-9 w-full rounded-lg border border-slate-200/80 bg-slate-50/80 pl-9 pr-9 text-sm text-slate-700 placeholder:text-slate-400 focus:border-indigo-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              aria-label="검색"
+              autoFocus
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-slate-400 hover:text-slate-600 transition-colors"
+                aria-label="검색어 지우기"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Password change dialog */}
       <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>

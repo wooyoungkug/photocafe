@@ -684,7 +684,7 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
       </div>
 
       {/* ── Navigation ── */}
-      <nav className="flex-1 overflow-y-auto py-3 px-3 custom-scrollbar">
+      <nav className="flex-1 overflow-y-auto overscroll-contain py-3 px-3 custom-scrollbar">
         {!isAdmin ? (
           /* Access denied state */
           <div className="flex flex-col items-center justify-center h-full px-4 text-center">
