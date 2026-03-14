@@ -122,9 +122,9 @@ export function ShopHeader() {
               {/* User */}
               {isAuthenticated ? (
                 <div className="hidden md:flex items-center gap-2 ml-2">
-                  <Link href="/mypage/profile" className="flex items-center gap-1.5 p-2 hover:opacity-75 transition-opacity">
-                    <User className="h-4 w-4 text-blue-200" />
-                    <span className="text-sm text-white">
+                  <Link href="/mypage/profile" className="flex items-center gap-1.5 p-2 hover:opacity-60 transition-opacity">
+                    <User className="h-4 w-4 text-neutral-600" />
+                    <span className="text-sm text-neutral-700">
                       {user?.type === 'employee'
                         ? user?.isOwner
                           ? `${user?.name}(최고관리자)`
@@ -135,7 +135,7 @@ export function ShopHeader() {
                   </Link>
                   <button
                     onClick={logout}
-                    className="text-xs text-blue-300 hover:text-white transition-colors tracking-wide uppercase"
+                    className="text-xs text-neutral-400 hover:text-neutral-900 transition-colors tracking-wide uppercase"
                   >
                     {tc('logout')}
                   </button>
@@ -146,7 +146,7 @@ export function ShopHeader() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="text-xs tracking-wider uppercase rounded-none h-8 px-4 border-blue-400/60 text-white hover:bg-blue-600"
+                      className="text-xs tracking-wider uppercase rounded-none h-8 px-4 border-neutral-300 text-neutral-700 hover:bg-neutral-50"
                     >
                       {tc('login')}
                     </Button>
@@ -155,7 +155,7 @@ export function ShopHeader() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="text-xs tracking-wider uppercase rounded-none h-8 px-4 border-blue-400/60 text-white hover:bg-blue-600"
+                      className="text-xs tracking-wider uppercase rounded-none h-8 px-4 border-neutral-300 text-neutral-700 hover:bg-neutral-50"
                     >
                       {tc('register')}
                     </Button>
@@ -173,7 +173,7 @@ export function ShopHeader() {
                 placeholder={th('searchPlaceholderMobile')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-4 pr-10 h-9 text-sm border-blue-500/60 rounded-none bg-blue-800/30 text-white placeholder:text-blue-300"
+                className="w-full pl-4 pr-10 h-9 text-sm border-neutral-200 rounded-none bg-neutral-50 placeholder:text-neutral-400"
               />
               <button
                 type="submit"

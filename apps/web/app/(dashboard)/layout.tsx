@@ -20,6 +20,23 @@ export default function DashboardLayout({
   usePageView();
   useNotificationConfig();
 
+  // 관리자 탭 파비콘을 빨간색으로 변경
+  useEffect(() => {
+    const link = document.querySelector("link[rel='icon']") as HTMLLinkElement;
+    if (link) {
+      link.href = '/favicon-red.svg';
+    } else {
+      const newLink = document.createElement('link');
+      newLink.rel = 'icon';
+      newLink.href = '/favicon-red.svg';
+      document.head.appendChild(newLink);
+    }
+    return () => {
+      const link = document.querySelector("link[rel='icon']") as HTMLLinkElement;
+      if (link) link.href = '/favicon.svg';
+    };
+  }, []);
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
