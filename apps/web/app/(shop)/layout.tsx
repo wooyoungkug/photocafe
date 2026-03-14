@@ -14,6 +14,14 @@ export default function ShopLayout({
 }) {
   usePageView();
 
+  // 스튜디오 탭 파비콘을 파란색으로 명시적 설정
+  useEffect(() => {
+    const link = document.querySelector("link[rel='icon']") as HTMLLinkElement;
+    if (link) {
+      link.href = '/favicon.svg';
+    }
+  }, []);
+
   // 대리로그인 데이터가 있으면 sessionStorage에 직접 적용
   // setAuth를 쓰면 localStorage의 관리자 토큰이 삭제되므로, 직접 sessionStorage에 저장
   useEffect(() => {
