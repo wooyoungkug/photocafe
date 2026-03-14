@@ -222,14 +222,14 @@ export default function OrderListPage() {
   return (
     <div className="space-y-4">
       {/* 헤더: 제목 + 상태필터 + 검색 */}
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
         <h1 className="text-xl font-bold flex items-center gap-2 shrink-0">
           <FileText className="h-5 w-5" />
           주문목록
         </h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-            <SelectTrigger className="w-[130px] h-9 text-xs">
+            <SelectTrigger className="w-[100px] sm:w-[130px] h-9 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -238,7 +238,7 @@ export default function OrderListPage() {
               ))}
             </SelectContent>
           </Select>
-          <div className="relative w-64">
+          <div className="relative flex-1 sm:w-64 sm:flex-none">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="주문번호, 주문자 검색..."
