@@ -65,14 +65,8 @@ export class ScheduleController {
     return this.scheduleService.delete(id, user);
   }
 
-  // 사용자 정보 추출 (임시 - 실제로는 JWT에서 추출)
+  // JWT에서 사용자 정보 추출 (JwtAuthGuard가 req.user를 보장)
   private extractUser(req: any) {
-    return req.user || {
-      id: 'staff-1',
-      name: '관리자',
-      departmentId: 'dept-1',
-      departmentName: '관리팀',
-      role: 'admin',
-    };
+    return req.user;
   }
 }

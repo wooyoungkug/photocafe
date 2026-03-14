@@ -21,6 +21,7 @@ import {
   CheckSquare,
   Clock,
   MapPin,
+  Building2,
   Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -81,6 +82,18 @@ const ALL_TYPES: ShootingType[] = [
 export default function SchedulePage() {
   const router = useRouter();
   const { user } = useAuthStore();
+
+  const isAdmin = user?.role === 'admin' || user?.role === 'staff';
+  if (isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <Camera className="h-12 w-12 text-gray-300 mb-4" />
+        <p className="text-[18px] text-black font-bold mb-2">일정관리</p>
+        <p className="text-[14px] text-gray-500">관리자 계정은 일정관리를 이용할 수 없습니다.</p>
+        <p className="text-[14px] text-gray-400">스튜디오 계정으로 로그인해 주세요.</p>
+      </div>
+    );
+  }
 
   const [pageView, setPageView] = useState<'calendar' | 'todo'>('calendar');
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -409,6 +422,18 @@ function ShootingListItem({
         <div className="flex items-center gap-1 mt-0.5">
           <MapPin className="h-3 w-3 text-gray-400" />
           <span className="text-[12px] text-gray-600 truncate">{shooting.venueName}</span>
+        </div>
+      )}
+
+      {/* 등록자 */}
+      {shooting.creator && (
+        <div className="flex items-center gap-1 mt-0.5">
+          <Building2 className="h-3 w-3 text-gray-400" />
+          <span className="text-[12px] text-gray-600 truncate">
+            {shooting.creator.memberType === 'business' && shooting.creator.representative
+              ? `${shooting.creator.clientName}(${shooting.creator.representative})`
+              : shooting.creator.clientName}
+          </span>
         </div>
       )}
 

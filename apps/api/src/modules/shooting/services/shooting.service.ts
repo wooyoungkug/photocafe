@@ -33,7 +33,7 @@ export class ShootingService {
    * - ShootingSchedule 생성
    * - 기존 Schedule 테이블에 연동 레코드 생성 (relatedType='shooting')
    */
-  async create(dto: CreateShootingDto, userId: string) {
+  async create(dto: CreateShootingDto, userId: string, clientId?: string) {
     const shootingDate = new Date(dto.shootingDate);
     const durationMinutes = dto.duration || 120;
     const endDate = new Date(shootingDate.getTime() + durationMinutes * 60 * 1000);
@@ -51,6 +51,7 @@ export class ShootingService {
           startAt: shootingDate,
           endAt: endDate,
           isAllDay: false,
+          clientId: clientId || null,
           isCompany: true,
           scheduleType: 'event',
           relatedType: 'shooting',
@@ -68,6 +69,8 @@ export class ShootingService {
           shootingType: dto.shootingType,
           venueName: dto.venueName,
           venueAddress: dto.venueAddress,
+          venueFloor: dto.venueFloor,
+          venueHall: dto.venueHall,
           latitude: dto.latitude,
           longitude: dto.longitude,
           shootingDate,
@@ -95,9 +98,9 @@ export class ShootingService {
         if (!clientId) {
           const user = await this.prisma.user.findUnique({
             where: { id: userId },
-            select: { clientId: true },
+            select: { client: { select: { id: true } } },
           });
-          clientId = user?.clientId || undefined;
+          clientId = user?.client?.id || undefined;
         }
 
         if (clientId) {
@@ -108,6 +111,7 @@ export class ShootingService {
               budget: dto.recruitmentBudget,
               description: dto.recruitmentDescription,
               requirements: dto.recruitmentRequirements,
+              privateDeadlineHours: dto.recruitmentPrivateDeadlineHours,
             })
             .catch((err) =>
               this.logger.warn(`Shooting→Recruitment sync failed: ${err.message}`),
@@ -125,8 +129,9 @@ export class ShootingService {
 
   /**
    * 촬영 일정 목록 조회 (페이지네이션, 필터링)
+   * @param createdByIds 컨트롤러에서 내부적으로 전달하는 생성자 ID 목록 (employee 포함 처리용)
    */
-  async findAll(query: QueryShootingDto) {
+  async findAll(query: QueryShootingDto, createdByIds?: string[]) {
     const page = query.page || 1;
     const limit = query.limit || 20;
     const skip = (page - 1) * limit;
@@ -158,6 +163,13 @@ export class ShootingService {
     // 담당 작가 필터
     if (query.assignedStaffId) {
       where.assignedStaffId = query.assignedStaffId;
+    }
+
+    // 생성자 필터: 컨트롤러에서 전달한 목록 우선, 없으면 단일 createdBy 사용
+    if (createdByIds && createdByIds.length > 0) {
+      where.createdBy = { in: createdByIds };
+    } else if (query.createdBy) {
+      where.createdBy = query.createdBy;
     }
 
     // 검색어 필터 (고객명, 장소명)
@@ -194,8 +206,29 @@ export class ShootingService {
       this.prisma.shootingSchedule.count({ where }),
     ]);
 
+    // 등록자(creator) 정보 배치 조회 (createdBy = Client.id)
+    const creatorIds = [...new Set(data.map((s) => s.createdBy).filter(Boolean))];
+    const creators = creatorIds.length
+      ? await this.prisma.client.findMany({
+          where: { id: { in: creatorIds } },
+          select: {
+            id: true,
+            clientName: true,
+            representative: true,
+            memberType: true,
+            mobile: true,
+          },
+        })
+      : [];
+    const creatorMap = Object.fromEntries(creators.map((c) => [c.id, c]));
+
+    const enrichedData = data.map((s) => ({
+      ...s,
+      creator: creatorMap[s.createdBy] ?? null,
+    }));
+
     return {
-      data,
+      data: enrichedData,
       meta: {
         total,
         page,
@@ -227,6 +260,16 @@ export class ShootingService {
           orderBy: { recordedAt: 'asc' },
         },
         review: true,
+        linkedRecruitment: {
+          select: {
+            id: true,
+            title: true,
+            budget: true,
+            description: true,
+            requirements: true,
+            privateDeadlineHours: true,
+          },
+        },
       },
     });
 
@@ -234,7 +277,19 @@ export class ShootingService {
       throw new NotFoundException('촬영 일정을 찾을 수 없습니다.');
     }
 
-    return shooting;
+    // 등록자 정보 조회 (createdBy = Client.id)
+    const creator = await this.prisma.client.findUnique({
+      where: { id: shooting.createdBy },
+      select: {
+        id: true,
+        clientName: true,
+        representative: true,
+        memberType: true,
+        mobile: true,
+      },
+    });
+
+    return { ...shooting, creator: creator ?? null };
   }
 
   /**
@@ -313,9 +368,9 @@ export class ShootingService {
         if (!clientId) {
           const user = await this.prisma.user.findUnique({
             where: { id: shooting.createdBy },
-            select: { clientId: true },
+            select: { client: { select: { id: true } } },
           });
-          clientId = user?.clientId || undefined;
+          clientId = user?.client?.id || undefined;
         }
 
         if (clientId) {
@@ -326,6 +381,7 @@ export class ShootingService {
               budget: dto.recruitmentBudget,
               description: dto.recruitmentDescription,
               requirements: dto.recruitmentRequirements,
+              privateDeadlineHours: dto.recruitmentPrivateDeadlineHours,
             })
             .catch((err) =>
               this.logger.warn(`Shooting→Recruitment sync failed: ${err.message}`),

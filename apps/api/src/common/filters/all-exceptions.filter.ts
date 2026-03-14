@@ -77,6 +77,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
       ...(details && process.env.NODE_ENV === 'development' ? { details } : {}),
     };
 
+    // 에러 응답에도 CORS 헤더 유지 (프록시가 제거할 경우 대비)
+    const origin = request.headers.origin as string | undefined;
+    if (origin) {
+      response.setHeader('Access-Control-Allow-Origin', origin);
+      response.setHeader('Access-Control-Allow-Credentials', 'true');
+    }
+
     response.status(status).json(errorResponse);
   }
 }

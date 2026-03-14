@@ -33,7 +33,7 @@ export class RecruitmentSchedulerService {
       await this.autoTransitionToPublic();
       await this.updateUrgencyLevels();
     } catch (err) {
-      this.logger.error(`스케줄러 오류: ${err.message}`);
+      this.logger.error(`스케줄러 오류: ${(err as Error).message}`);
     } finally {
       this.isRunning = false;
     }
@@ -78,7 +78,7 @@ export class RecruitmentSchedulerService {
             clientName: recruitment.client.clientName,
           })
           .catch((err) =>
-            this.logger.error(`공개 전환 알림 실패: ${err.message}`),
+            this.logger.error(`공개 전환 알림 실패: ${(err as Error).message}`),
           );
 
         this.logger.log(
@@ -86,7 +86,7 @@ export class RecruitmentSchedulerService {
         );
       } catch (err) {
         this.logger.error(
-          `공개 전환 실패 (${recruitment.id}): ${err.message}`,
+          `공개 전환 실패 (${recruitment.id}): ${(err as Error).message}`,
         );
       }
     }

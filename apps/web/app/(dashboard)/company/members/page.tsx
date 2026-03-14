@@ -32,6 +32,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -42,8 +43,10 @@ import {
   useUpdateClient,
   useDeleteClient,
   useNextClientCode,
+  useClientEmploymentHistory,
   checkClientEmail,
   type EmailCheckResult,
+  type EmploymentHistoryItem,
 } from '@/hooks/use-clients';
 import { useClientConsultations } from '@/hooks/use-consultations';
 import { useStaffList } from '@/hooks/use-staff';
@@ -75,12 +78,18 @@ import {
   Key,
   UserCheck,
   Truck,
+  History,
+  CalendarDays,
+  LogIn,
+  LogOut,
+  Settings,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { toast } from '@/hooks/use-toast';
 import { CopperPlateTab } from '@/components/members/copper-plate-tab';
 import { IndividualPricingTab } from '@/components/members/individual-pricing-tab';
+import { ConvertToBusinessDialog } from '@/components/members/convert-to-business-dialog';
 import { api } from '@/lib/api';
 
 // 테이블 행 컴포넌트 메모이제이션
@@ -218,6 +227,8 @@ export default function MembersPage() {
   const [editingMember, setEditingMember] = useState<Client | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Client | null>(null);
   const [activeTab, setActiveTab] = useState('basic');
+  const [memberTypeTab, setMemberTypeTab] = useState<'all' | 'individual' | 'business'>('all');
+  const [convertTarget, setConvertTarget] = useState<Client | null>(null);
 
   // 검색어 디바운스 처리 (500ms)
   useEffect(() => {
@@ -234,6 +245,7 @@ export default function MembersPage() {
     search: debouncedSearch || undefined,
     status: statusFilter !== 'all' ? statusFilter : undefined,
     groupId: groupFilter !== 'all' ? groupFilter : undefined,
+    memberType: memberTypeTab !== 'all' ? memberTypeTab : undefined,
   });
 
   const { data: groupsData } = useClientGroups({ limit: 100 });
@@ -251,6 +263,11 @@ export default function MembersPage() {
     editingMember?.id || '',
     5,
     { enabled: isDialogOpen && !!editingMember?.id }
+  );
+  // 개인회원 소속 이력 조회
+  const { data: employmentHistory } = useClientEmploymentHistory(
+    editingMember?.id || '',
+    { enabled: isDialogOpen && !!editingMember?.id && editingMember?.memberType === 'individual' }
   );
   const { refetch: refetchNextCode } = useNextClientCode(false);
   const createMember = useCreateClient();
@@ -287,12 +304,18 @@ export default function MembersPage() {
     shippingType: 'conditional',
     freeShippingThreshold: 90000,
     acquisitionChannel: '',
+    enableSchedule: true,
+    enableRecruitment: true,
   });
+
+  // 비밀번호 설정
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   // 이메일 중복 체크
   const [emailDuplicate, setEmailDuplicate] = useState<EmailCheckResult | null>(null);
   const [emailChecking, setEmailChecking] = useState(false);
-  const emailCheckTimer = useRef<ReturnType<typeof setTimeout>>();
+  const emailCheckTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const handleEmailChange = useCallback((email: string) => {
     setFormData((prev) => ({ ...prev, email }));
@@ -315,8 +338,10 @@ export default function MembersPage() {
     }, 500);
   }, [editingMember?.id]);
 
-  const handleOpenDialog = (member?: Client) => {
+  const handleOpenDialog = (member?: Client, defaultMemberType?: 'individual' | 'business') => {
     setEmailDuplicate(null);
+    setNewPassword('');
+    setConfirmPassword('');
     if (member) {
       setEditingMember(member);
       setFormData({
@@ -349,6 +374,8 @@ export default function MembersPage() {
         shippingType: (member.shippingType as string) || 'conditional',
         freeShippingThreshold: (member as any).freeShippingThreshold ?? 90000,
         acquisitionChannel: member.acquisitionChannel || '',
+        enableSchedule: member.enableSchedule ?? true,
+        enableRecruitment: member.enableRecruitment ?? true,
       });
     } else {
       setEditingMember(null);
@@ -366,7 +393,7 @@ export default function MembersPage() {
           address: '',
           addressDetail: '',
           groupId: '',
-          memberType: 'individual',
+          memberType: defaultMemberType || 'individual',
           creditGrade: 'B',
           paymentTerms: 30,
           paymentCondition: '당월말',
@@ -413,11 +440,22 @@ export default function MembersPage() {
       return;
     }
 
+    if (newPassword && newPassword.length < 4) {
+      toast({ title: '비밀번호는 4자 이상이어야 합니다.', variant: 'destructive' });
+      return;
+    }
+
+    if (newPassword && newPassword !== confirmPassword) {
+      toast({ title: '새 비밀번호와 확인 비밀번호가 일치하지 않습니다.', variant: 'destructive' });
+      return;
+    }
+
     try {
       const submitData = {
         ...formData,
         groupId: formData.groupId || undefined,
         assignedManager: formData.assignedManager || null,
+        ...(newPassword ? { password: newPassword } : {}),
       };
 
       if (editingMember) {
@@ -428,8 +466,9 @@ export default function MembersPage() {
         toast({ title: '회원이 추가되었습니다.' });
       }
       setIsDialogOpen(false);
-    } catch (err) {
-      toast({ title: '오류가 발생했습니다.', variant: 'destructive' });
+    } catch (err: any) {
+      const message = err?.message || '알 수 없는 오류가 발생했습니다.';
+      toast({ title: '오류가 발생했습니다.', description: message, variant: 'destructive' });
     }
   };
 
@@ -532,12 +571,35 @@ export default function MembersPage() {
             <Users className="h-5 w-5 text-blue-600" />
             회원 목록
           </CardTitle>
-          <Button onClick={() => handleOpenDialog()} className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-md">
+          <Button onClick={() => handleOpenDialog(undefined, memberTypeTab !== 'all' ? memberTypeTab : undefined)} className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-md">
             <Plus className="h-4 w-4 mr-2" />
             회원 추가
           </Button>
         </CardHeader>
         <CardContent className="pt-6">
+          {/* 회원 타입 탭 */}
+          <div className="flex gap-1 mb-4 border-b">
+            {([
+              { value: 'all', label: '전체', icon: Users },
+              { value: 'individual', label: '개인회원', icon: User },
+              { value: 'business', label: '스튜디오사업자', icon: Building2 },
+            ] as const).map(({ value, label, icon: Icon }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => { setMemberTypeTab(value); setPage(1); }}
+                className={`flex items-center gap-1.5 px-4 py-2 text-[14px] font-medium border-b-2 transition-colors -mb-px ${
+                  memberTypeTab === value
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                {label}
+              </button>
+            ))}
+          </div>
+
           {/* 필터 영역 */}
           <div className="flex flex-wrap gap-4 mb-6 p-4 bg-slate-50/50 rounded-xl border">
             <div className="relative flex-1 min-w-[200px] max-w-sm">
@@ -676,7 +738,7 @@ export default function MembersPage() {
           </DialogHeader>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-            <TabsList className="grid w-full grid-cols-8 mb-6">
+            <TabsList className={`grid w-full mb-6 ${formData.memberType === 'individual' ? 'grid-cols-9' : 'grid-cols-8'}`}>
               <TabsTrigger value="basic" className="flex items-center gap-1 text-xs px-2">
                 <User className="h-3.5 w-3.5" />
                 기본정보
@@ -709,6 +771,12 @@ export default function MembersPage() {
                 <MessageSquare className="h-3.5 w-3.5" />
                 상담이력
               </TabsTrigger>
+              {formData.memberType === 'individual' && (
+                <TabsTrigger value="affiliation" className="flex items-center gap-1 text-xs px-2" disabled={!editingMember}>
+                  <History className="h-3.5 w-3.5" />
+                  소속이력
+                </TabsTrigger>
+              )}
             </TabsList>
 
             <TabsContent value="basic" className="space-y-6">
@@ -721,7 +789,21 @@ export default function MembersPage() {
 
                 {/* 회원 유형 선택 */}
                 <div className="mb-6 p-4 bg-white rounded-lg border-2 border-blue-200">
-                  <Label className="text-sm font-semibold text-blue-900 mb-3 block">회원 유형 선택 *</Label>
+                  <div className="flex items-center justify-between mb-3">
+                    <Label className="text-sm font-semibold text-blue-900">회원 유형 선택 *</Label>
+                    {editingMember?.memberType === 'individual' && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs border-orange-300 text-orange-700 hover:bg-orange-50"
+                        onClick={() => setConvertTarget(editingMember)}
+                      >
+                        <Building2 className="h-3.5 w-3.5 mr-1" />
+                        사업자 전환
+                      </Button>
+                    )}
+                  </div>
                   <div className="flex gap-4">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -1094,6 +1176,59 @@ export default function MembersPage() {
                 </div>
               </div>
 
+              {/* 로그인 정보 섹션 */}
+              <div className="p-5 border rounded-xl bg-gradient-to-r from-blue-50/70 to-transparent">
+                <h3 className="font-semibold mb-4 text-blue-700 flex items-center gap-2">
+                  <Key className="h-4 w-4" />
+                  로그인 정보
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2 col-span-2">
+                    <Label className="text-sm font-medium">로그인 아이디</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={formData.email || ''}
+                        readOnly
+                        className="bg-slate-50 text-muted-foreground"
+                        placeholder="이메일을 먼저 설정하세요"
+                      />
+                      {editingMember && (
+                        <Badge className={editingMember.hasPassword ? 'bg-green-100 text-green-800 border-green-200 shrink-0 hover:bg-green-100' : 'shrink-0'} variant={editingMember.hasPassword ? 'outline' : 'secondary'}>
+                          {editingMember.hasPassword ? '비밀번호 설정됨' : '비밀번호 미설정'}
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">이메일이 로그인 아이디입니다</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">
+                      새 비밀번호
+                      <span className="text-xs text-muted-foreground ml-1">{editingMember ? '(변경 시에만 입력)' : '(선택)'}</span>
+                    </Label>
+                    <Input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="새 비밀번호 입력"
+                      className="bg-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">비밀번호 확인</Label>
+                    <Input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="비밀번호 확인"
+                      className={`bg-white ${newPassword && confirmPassword && newPassword !== confirmPassword ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                    />
+                    {newPassword && confirmPassword && newPassword !== confirmPassword && (
+                      <p className="text-xs text-red-500">비밀번호가 일치하지 않습니다</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* 주소 정보 섹션 */}
               <div className="p-5 border rounded-xl bg-gradient-to-r from-green-50/70 to-transparent">
                 <div className="flex items-center justify-between mb-4">
@@ -1334,7 +1469,7 @@ export default function MembersPage() {
                   <div className="flex items-center gap-2">
                     <RadioGroupItem value="prepaid" id="ship-direct" />
                     <Label htmlFor="ship-direct" className="font-normal cursor-pointer">
-                      직배송 <span className="text-xs text-muted-foreground ml-1">— 항상 기본 배송비 청구</span>
+                      직배송 <span className="text-xs text-muted-foreground ml-1">— 항상 무료</span>
                     </Label>
                   </div>
                   <div className="flex items-center gap-2">
@@ -1366,6 +1501,7 @@ export default function MembersPage() {
                   </div>
                 </RadioGroup>
               </div>
+
 
             </TabsContent>
 
@@ -1409,24 +1545,39 @@ export default function MembersPage() {
             </TabsContent>
 
             <TabsContent value="myproducts" className="space-y-6">
-              {/* MY 상품 */}
-              <div className="p-5 border rounded-xl bg-gradient-to-r from-pink-50/70 to-transparent">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-pink-700 flex items-center gap-2">
-                    <Star className="h-4 w-4" />
-                    MY 상품 (즐겨찾기)
-                  </h3>
-                  <Button variant="outline" size="sm">
-                    <Plus className="h-4 w-4 mr-1" />
-                    MY상품 추가
-                  </Button>
-                </div>
-                <div className="text-center py-12 text-muted-foreground">
-                  <Star className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                  <p>등록된 MY상품이 없습니다.</p>
-                  <p className="text-xs mt-2">자주 주문하는 상품을 MY상품으로 등록합니다.</p>
+              {/* 서비스 기능 설정 */}
+              <div className="p-5 border rounded-xl bg-gradient-to-r from-green-50/70 to-transparent">
+                <h3 className="font-semibold mb-1 text-green-700 flex items-center gap-2">
+                  <Settings className="h-4 w-4" />
+                  서비스 기능 설정
+                </h3>
+                <p className="text-xs text-muted-foreground mb-4">
+                  비활성 시 해당 메뉴가 완전히 숨겨지며, 직원 권한 설정의 선택 메뉴에서도 표시되지 않습니다.
+                </p>
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border">
+                    <div>
+                      <p className="text-sm font-medium">일정관리</p>
+                      <p className="text-xs text-muted-foreground">촬영 일정 등록·관리 기능</p>
+                    </div>
+                    <Switch
+                      checked={formData.enableSchedule ?? true}
+                      onCheckedChange={(v) => setFormData(prev => ({ ...prev, enableSchedule: v }))}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border">
+                    <div>
+                      <p className="text-sm font-medium">구인방</p>
+                      <p className="text-xs text-muted-foreground">촬영 작가 구인·응찰 기능</p>
+                    </div>
+                    <Switch
+                      checked={formData.enableRecruitment ?? true}
+                      onCheckedChange={(v) => setFormData(prev => ({ ...prev, enableRecruitment: v }))}
+                    />
+                  </div>
                 </div>
               </div>
+
             </TabsContent>
 
             <TabsContent value="fabrics" className="space-y-6">
@@ -1509,6 +1660,87 @@ export default function MembersPage() {
                 )}
               </div>
             </TabsContent>
+
+            {/* 소속이력 탭 - 개인회원 전용 */}
+            <TabsContent value="affiliation" className="space-y-6">
+              <div className="p-5 border rounded-xl bg-gradient-to-r from-indigo-50/70 to-transparent">
+                <h3 className="font-semibold text-indigo-700 flex items-center gap-2 mb-4">
+                  <History className="h-4 w-4" />
+                  스튜디오 소속 이력
+                </h3>
+
+                {!employmentHistory || employmentHistory.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <CalendarDays className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                    <p className="text-[14px]">소속 이력이 없습니다.</p>
+                    <p className="text-xs mt-1">스튜디오 초대를 수락하면 이력이 자동으로 기록됩니다.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {employmentHistory.map((item) => {
+                      const isActive = item.leftAt === null;
+                      const joinDate = new Date(item.joinedAt);
+                      const leftDate = item.leftAt ? new Date(item.leftAt) : null;
+                      const durationMs = leftDate
+                        ? leftDate.getTime() - joinDate.getTime()
+                        : Date.now() - joinDate.getTime();
+                      const durationDays = Math.floor(durationMs / (1000 * 60 * 60 * 24));
+                      const durationMonths = Math.floor(durationDays / 30);
+
+                      return (
+                        <div
+                          key={item.id}
+                          className={`p-4 bg-white border rounded-xl transition-shadow hover:shadow-sm ${isActive ? 'border-indigo-200 bg-indigo-50/30' : ''}`}
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-[14px] font-semibold text-gray-900 truncate">
+                                  {item.company.clientName}
+                                </span>
+                                {item.company.representative && (
+                                  <span className="text-xs text-muted-foreground">({item.company.representative})</span>
+                                )}
+                                {isActive && (
+                                  <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200 text-xs">재직중</Badge>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                                <span className="flex items-center gap-1">
+                                  <LogIn className="h-3 w-3 text-green-500" />
+                                  가입: {format(joinDate, 'yyyy.MM.dd')}
+                                </span>
+                                {leftDate ? (
+                                  <span className="flex items-center gap-1">
+                                    <LogOut className="h-3 w-3 text-red-400" />
+                                    탈퇴: {format(leftDate, 'yyyy.MM.dd')}
+                                  </span>
+                                ) : (
+                                  <span className="flex items-center gap-1 text-indigo-500">
+                                    <LogOut className="h-3 w-3 opacity-30" />
+                                    현재 재직 중
+                                  </span>
+                                )}
+                                <span className="text-gray-400">
+                                  {durationMonths > 0 ? `${durationMonths}개월` : `${durationDays}일`}
+                                  {isActive ? ' 경과' : ' 근무'}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <div className="text-xs text-muted-foreground">{item.company.clientCode}</div>
+                              <div className="text-xs text-muted-foreground mt-0.5">
+                                {item.role === 'MANAGER' ? '관리자' : item.role === 'STAFF' ? '직원' : item.role === 'EDITOR' ? '편집자' : item.role === 'PHOTOGRAPHER' ? '사진작가' : item.role}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </TabsContent>
           </Tabs>
 
           <DialogFooter className="mt-6 border-t pt-4">
@@ -1528,6 +1760,19 @@ export default function MembersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* 사업자 전환 다이얼로그 */}
+      {convertTarget && (
+        <ConvertToBusinessDialog
+          client={convertTarget}
+          open={!!convertTarget}
+          onOpenChange={(open) => { if (!open) setConvertTarget(null); }}
+          onSuccess={(updated) => {
+            setConvertTarget(null);
+            setIsDialogOpen(false);
+          }}
+        />
+      )}
 
       {/* 삭제 확인 다이얼로그 */}
       <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>

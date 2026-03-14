@@ -196,7 +196,25 @@ export class AuthService {
     }
   }
 
-  async getProfile(userId: string) {
+  async getProfile(userId: string, type?: string, companyClientId?: string) {
+    // client / employee 타입: Client 테이블에서 최신 설정값 반환
+    if (type === 'client' || type === 'employee') {
+      // employee는 소속 회사(companyClientId) 기준, client는 본인 ID
+      const lookupId = type === 'employee' && companyClientId ? companyClientId : userId;
+      const client = await this.prisma.client.findUnique({
+        where: { id: lookupId },
+        select: { id: true, email: true, clientName: true, enableSchedule: true, enableRecruitment: true },
+      });
+      if (!client) throw new UnauthorizedException('User not found');
+      return {
+        id: client.id,
+        email: client.email,
+        name: client.clientName,
+        enableSchedule: client.enableSchedule ?? true,
+        enableRecruitment: client.enableRecruitment ?? true,
+      };
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, email: true, name: true, createdAt: true },
@@ -254,7 +272,7 @@ export class AuthService {
 
     if (existing) {
       return {
-        provider: existing.oauthProvider,
+        provider: existing.oauthProvider || '',
         date: existing.createdAt.toISOString().split('T')[0],
       };
     }
@@ -409,7 +427,7 @@ export class AuthService {
       data: { lastLoginAt: new Date(), ...(ip && { lastLoginIp: ip }) },
     });
 
-    const payload = { sub: client.id, email: client.email, role: 'client', type: 'client' };
+    const payload = { sub: client.id, email: client.email, role: 'client', type: 'client', clientId: client.id };
     const accessToken = this.jwtService.sign(payload);
     const refreshToken = this.jwtService.sign(payload, { expiresIn: rememberMe ? '30d' : '7d' });
 
@@ -420,6 +438,7 @@ export class AuthService {
         clientId: client.id, clientName: client.clientName, mobile: client.mobile,
         businessNumber: client.businessNumber, representative: client.representative,
         address: client.address, addressDetail: client.addressDetail, contactPerson: client.contactPerson,
+        enableSchedule: client.enableSchedule ?? true, enableRecruitment: client.enableRecruitment ?? true,
       },
     };
   }
@@ -452,6 +471,8 @@ export class AuthService {
       user: {
         id: targetStaff.id, staffId: targetStaff.staffId, name: targetStaff.name,
         role: 'admin', email: targetStaff.email, branch: targetStaff.branch, department: targetStaff.department,
+        isSuperAdmin: targetStaff.isSuperAdmin ?? false,
+        canEditMemberInfo: targetStaff.canEditMemberInfo ?? false,
       },
       impersonated: true,
     };
@@ -669,6 +690,7 @@ export class AuthService {
       user: {
         id: staff.id, staffId: staff.staffId, name: staff.name, role: 'admin',
         email: staff.companyEmail || staff.email, isSuperAdmin: staff.isSuperAdmin ?? false,
+        canEditMemberInfo: staff.canEditMemberInfo ?? false,
         profileImage: staff.profileImage,
       },
     };
@@ -678,6 +700,7 @@ export class AuthService {
 
   async validateStaffOAuth(data: {
     oauthProvider: string; oauthId: string; email: string; name: string; profileImage?: string;
+    gender?: string; birthday?: string; birthyear?: string; mobile?: string;
   }): Promise<{ staff: any; isNew: boolean }> {
     let staff = await this.prisma.staff.findFirst({
       where: { oauthProvider: data.oauthProvider, oauthId: data.oauthId },
@@ -726,6 +749,7 @@ export class AuthService {
       user: {
         id: staff.id, staffId: staff.staffId, name: staff.name, role: 'admin',
         email: staff.companyEmail || staff.email, isSuperAdmin: staff.isSuperAdmin ?? false,
+        canEditMemberInfo: staff.canEditMemberInfo ?? false,
         profileImage: staff.profileImage,
       },
     };
@@ -860,7 +884,7 @@ export class AuthService {
 
     const employment = await this.prisma.employment.findUnique({
       where: { id: employmentId },
-      include: { company: { select: { id: true, clientName: true, clientCode: true } } },
+      include: { company: { select: { id: true, clientName: true, clientCode: true, enableSchedule: true, enableRecruitment: true } } },
     });
 
     if (!employment || employment.memberClientId !== client.id || employment.status !== 'ACTIVE') {
@@ -881,6 +905,8 @@ export class AuthService {
       clientId: employment.companyClientId, employmentId: employment.id,
       canViewAllOrders: employment.canViewAllOrders, canManageProducts: employment.canManageProducts,
       canViewSettlement: employment.canViewSettlement,
+      canManageSchedule: employment.canManageSchedule, canManageRecruitment: employment.canManageRecruitment,
+      enableSchedule: employment.company.enableSchedule, enableRecruitment: employment.company.enableRecruitment,
     };
 
     const isOwner = employment.memberClientId === employment.companyClientId;
@@ -895,6 +921,8 @@ export class AuthService {
         employeeRole: employment.role, isOwner,
         canViewAllOrders: employment.canViewAllOrders, canManageProducts: employment.canManageProducts,
         canViewSettlement: employment.canViewSettlement,
+        canManageSchedule: employment.canManageSchedule, canManageRecruitment: employment.canManageRecruitment,
+        enableSchedule: employment.company.enableSchedule, enableRecruitment: employment.company.enableRecruitment,
       },
     };
   }
@@ -913,7 +941,7 @@ export class AuthService {
     if (!client) throw new BadRequestException('회원을 찾을 수 없습니다');
     if (client.status !== 'active') throw new BadRequestException('비활성 회원은 대리 로그인할 수 없습니다');
 
-    const payload = { sub: client.id, email: client.email, role: 'client', type: 'client', impersonatedBy: adminId };
+    const payload = { sub: client.id, email: client.email, role: 'client', type: 'client', clientId: client.id, impersonatedBy: adminId };
 
     return {
       accessToken: this.jwtService.sign(payload, { expiresIn: '1h' }),
@@ -927,5 +955,20 @@ export class AuthService {
       },
       impersonated: true,
     };
+  }
+
+  // ========== 관리자 회원 비밀번호 초기화 ==========
+
+  async resetClientPassword(clientId: string) {
+    const client = await this.prisma.client.findUnique({ where: { id: clientId } });
+    if (!client) throw new NotFoundException('회원을 찾을 수 없습니다');
+
+    const hashedPassword = await bcrypt.hash('1111', 10);
+    await this.prisma.client.update({
+      where: { id: clientId },
+      data: { password: hashedPassword },
+    });
+
+    return { success: true, message: '비밀번호가 1111로 초기화되었습니다' };
   }
 }

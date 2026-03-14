@@ -287,6 +287,7 @@ export default function CartPage() {
     ?? (pricingMap['parcel']?.freeThreshold != null ? Number(pricingMap['parcel'].freeThreshold) : 90000);
   const isStudioFree =
     clientInfo?.shippingType === 'free' ||
+    clientInfo?.shippingType === 'prepaid' ||
     (clientInfo?.shippingType === 'conditional' && studioItemsTotal >= freeThreshold) ||
     sameDayFreeEligible;
 
@@ -326,6 +327,7 @@ export default function CartPage() {
       return isSameDayThresholdMet ? '묶음배송 조건부 무료배송 달성' : '묶음배송 무료';
     }
     if (clientInfo?.shippingType === 'free') return '무료배송 거래처';
+    if (clientInfo?.shippingType === 'prepaid') return '직배송 무료';
     if (clientInfo?.shippingType === 'conditional') return '조건부 무료배송';
     return null;
   })();
@@ -550,6 +552,7 @@ export default function CartPage() {
           selectedTotal={selectedTotal}
           totalShippingFee={totalShippingFee}
           sameDayRefund={sameDayRefund}
+          hasShippingIncomplete={shippingCompleteCount < items.length}
           hasUploadInProgress={hasUploadInProgress}
           hasUploadFailed={hasUploadFailed}
           hasFileMissing={hasFileMissing}

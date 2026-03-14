@@ -44,6 +44,8 @@ export default function ProfilePage() {
   const { user, isAuthenticated, updateUser } = useAuthStore();
   const queryClient = useQueryClient();
 
+  const isEmployee = user?.type === 'employee';
+
   const [isEditMode, setIsEditMode] = useState(false);
   const [profileData, setProfileData] = useState({
     clientName: '',
@@ -135,7 +137,11 @@ export default function ProfilePage() {
       setError('이름과 이메일은 필수 입력 항목입니다.');
       return;
     }
-    updateProfileMutation.mutate(profileData);
+    // 직원은 개인 기본 정보만 저장 (주소/사업자 정보 제외)
+    const dataToSave = isEmployee
+      ? { clientName: profileData.clientName, email: profileData.email, mobile: profileData.mobile, phone: profileData.phone }
+      : profileData;
+    updateProfileMutation.mutate(dataToSave as typeof profileData);
   };
 
   const handleCancelEdit = () => {
@@ -244,10 +250,10 @@ export default function ProfilePage() {
             <div>
               <CardTitle className="flex items-center gap-2 text-[18px] text-black font-bold">
                 <UserIcon className="h-4 w-4" />
-                회원 정보
+                {isEmployee ? '개인 정보' : '회원 정보'}
               </CardTitle>
               <CardDescription className="text-[14px] mt-0.5">
-                {isEditMode ? '정보를 수정하세요' : '현재 회원님의 등록된 정보입니다'}
+                {isEditMode ? '정보를 수정하세요' : isEmployee ? '개인 정보를 확인하고 수정할 수 있습니다' : '현재 회원님의 등록된 정보입니다'}
               </CardDescription>
             </div>
             {!isEditMode && (
@@ -315,10 +321,10 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            <Separator />
+            {!isEmployee && <Separator />}
 
-            {/* 주소 정보 */}
-            <div className="space-y-3">
+            {/* 주소 정보 - 직원은 비표시 */}
+            {!isEmployee && <div className="space-y-3">
               <h3 className="text-[14px] font-medium text-gray-500 tracking-wide">주소 정보</h3>
               {isEditMode && (
                 <AddressSearch
@@ -364,12 +370,12 @@ export default function ProfilePage() {
                   <FieldValue value={profile?.addressDetail || ''} />
                 )}
               </div>
-            </div>
+            </div>}
 
-            <Separator />
+            {!isEmployee && <Separator />}
 
-            {/* 사업자 정보 */}
-            <div className="space-y-3">
+            {/* 사업자 정보 - 직원은 비표시 */}
+            {!isEmployee && <div className="space-y-3">
               <h3 className="text-[14px] font-medium text-gray-500 tracking-wide">사업자 정보 (선택)</h3>
               <div className="grid md:grid-cols-2 gap-x-6 gap-y-3">
                 <div className="space-y-1">
@@ -409,7 +415,7 @@ export default function ProfilePage() {
                   <FieldValue value={profile?.contactPerson || ''} />
                 )}
               </div>
-            </div>
+            </div>}
 
             {/* 버튼 */}
             {isEditMode && (

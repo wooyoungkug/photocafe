@@ -10,6 +10,7 @@ interface User {
   role: string;
   staffId?: string;
   isSuperAdmin?: boolean;
+  canEditMemberInfo?: boolean;
   profileImage?: string;
   status?: string;
   clientId?: string;
@@ -28,6 +29,10 @@ interface User {
   canViewAllOrders?: boolean;
   canManageProducts?: boolean;
   canViewSettlement?: boolean;
+  canManageSchedule?: boolean;
+  canManageRecruitment?: boolean;
+  enableSchedule?: boolean;
+  enableRecruitment?: boolean;
 }
 
 interface AuthState {
@@ -63,11 +68,10 @@ const createCustomStorage = (): StateStorage => {
       try {
         const parsed = JSON.parse(value);
         const rememberMe = parsed?.state?.rememberMe ?? false;
-        const newRole = parsed?.state?.user?.role;
-        const isNewAdmin = newRole === 'admin' || newRole === 'staff';
 
-        // localStorage에 admin 세션이 있고 비관리자 로그인이면 → sessionStorage에만 저장
-        if (!isNewAdmin && name === 'auth-storage') {
+        // localStorage에 admin 세션이 있고 rememberMe 없으면 → sessionStorage에만 저장
+        // (비관리자 로그인 + 직원 대리로그인 모두 포함)
+        if (!rememberMe && name === 'auth-storage') {
           const existing = localStorage.getItem(name);
           if (existing) {
             try {
@@ -123,9 +127,9 @@ export const useAuthStore = create<AuthState>()(
             } catch { return false; }
           })();
 
-          if (hasAdminInLocal && !isNewLoginAdmin) {
-            // 핵심: localStorage에 admin 세션이 있고, 비관리자 로그인이면
-            // sessionStorage에만 저장 (다른 탭의 admin 세션 보호)
+          if (hasAdminInLocal && !rememberMe) {
+            // localStorage에 admin 세션이 있고 rememberMe 없으면 → sessionStorage에만 저장
+            // (비관리자 대리로그인 + 직원 대리로그인 모두 포함, 원본 어드민 세션 보호)
             sessionStorage.setItem('accessToken', accessToken);
             sessionStorage.setItem('refreshToken', refreshToken);
           } else {
@@ -175,11 +179,12 @@ export const useAuthStore = create<AuthState>()(
           })();
 
           if (hasSessionToken && hasLocalAdminSession) {
-            // 대리로그인/비관리자 탭: sessionStorage만 정리
+            // 대리로그인 세션 종료: sessionStorage만 정리 (원본 어드민 세션 보존)
             sessionStorage.removeItem('accessToken');
             sessionStorage.removeItem('refreshToken');
             sessionStorage.removeItem('auth-storage');
             sessionStorage.removeItem('impersonate-session');
+            return; // set({ user: null }) 호출 안 함 → 어드민 세션 메모리 유지
           } else {
             // 일반 로그아웃: 모두 정리
             localStorage.removeItem('accessToken');

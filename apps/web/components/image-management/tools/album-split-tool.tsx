@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Upload, Scissors, Download, Info, Eye, FolderOpen, CheckCircle } from 'lucide-react';
+import { Upload, Scissors, Download, Info, Eye, FolderOpen, CheckCircle, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { extractDPIFromJPEG, canvasToJPEGWithDPI } from '@/lib/image-tools/dpi-utils';
 import { saveToFolder, fallbackDownload, pickDirectory, isJpegOrPng } from '@/lib/image-tools/file-utils';
@@ -28,6 +30,8 @@ export function AlbumSplitTool() {
 
   const [savedLeft, setSavedLeft] = useState(false);
   const [savedRight, setSavedRight] = useState(false);
+  const [deleteOriginalOnSave, setDeleteOriginalOnSave] = useState(false);
+  const [originalDeleted, setOriginalDeleted] = useState(false);
   const uploadZoneRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const leftCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -35,6 +39,7 @@ export function AlbumSplitTool() {
   const trackUseRef = useRef<(() => void) | null>(null);
   const resultCardRef = useRef<HTMLDivElement>(null);
   const sourceFileHandleRef = useRef<FileSystemFileHandle | null>(null);
+  const sourceDirectoryHandleRef = useRef<FileSystemDirectoryHandle | null>(null);
 
   const playBeep = useCallback(() => {
     try {
@@ -77,7 +82,10 @@ export function AlbumSplitTool() {
     setShowResult(false);
     setSavedLeft(false);
     setSavedRight(false);
+    setDeleteOriginalOnSave(false);
+    setOriginalDeleted(false);
     sourceFileHandleRef.current = null;
+    sourceDirectoryHandleRef.current = null;
     // 업로드 영역으로 스크롤
     uploadZoneRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [cleanup]);
@@ -286,25 +294,72 @@ export function AlbumSplitTool() {
     }
   }, [rightBlob, directoryHandle, saveWithPicker]);
 
+  /** 원본 파일 삭제 (확인 없이 즉시 실행) - 반환값: 성공 여부 */
+  const doDeleteOriginal = useCallback(async (): Promise<boolean> => {
+    if (!fileName) return false;
+
+    // 1) FileSystemFileHandle.remove() 지원 브라우저 (Chrome 117+)
+    if (sourceFileHandleRef.current && 'remove' in (sourceFileHandleRef.current as any)) {
+      try {
+        await (sourceFileHandleRef.current as any).remove();
+        setOriginalDeleted(true);
+        return true;
+      } catch { /* 권한 없음 → 폴더 선택 방식으로 폴백 */ }
+    }
+
+    // 2) 폴더 선택 후 removeEntry
+    if (!sourceDirectoryHandleRef.current) {
+      if (!('showDirectoryPicker' in window)) return false;
+      try {
+        const options: any = { mode: 'readwrite' };
+        if (sourceFileHandleRef.current) options.startIn = sourceFileHandleRef.current;
+        sourceDirectoryHandleRef.current = await (window as any).showDirectoryPicker(options);
+      } catch {
+        return false; // 사용자 취소
+      }
+    }
+
+    try {
+      await (sourceDirectoryHandleRef.current as any).removeEntry(fileName);
+      setOriginalDeleted(true);
+      return true;
+    } catch {
+      toast.error('원본 삭제 실패: 해당 폴더에서 파일을 찾을 수 없습니다.');
+      sourceDirectoryHandleRef.current = null;
+      return false;
+    }
+  }, [fileName]);
+
   const handleSaveBoth = useCallback(async () => {
     if (!leftBlob || !rightBlob) return;
+
+    let saved = false;
     if (directoryHandle) {
       const ok1 = await saveToFolder(directoryHandle, leftBlob, '첫장.jpg');
       const ok2 = await saveToFolder(directoryHandle, rightBlob, '막장.jpg');
-      if (ok1 && ok2) {
-        toast.success('첫장 + 막장 저장 완료! 잠시 후 초기화됩니다.');
-        setTimeout(resetTool, 1500);
-      } else toast.error('일부 파일 저장 실패');
+      if (ok1 && ok2) saved = true;
+      else toast.error('일부 파일 저장 실패');
     } else {
       const ok1 = await saveWithPicker(leftBlob, '첫장.jpg');
       if (!ok1) return; // 취소 시 중단
       const ok2 = await saveWithPicker(rightBlob, '막장.jpg');
-      if (ok1 && ok2) {
-        toast.success('첫장 + 막장 저장 완료! 잠시 후 초기화됩니다.');
-        setTimeout(resetTool, 1500);
-      }
+      if (ok2) saved = true;
     }
-  }, [leftBlob, rightBlob, directoryHandle, resetTool, saveWithPicker]);
+
+    if (!saved) return;
+
+    let deleted = false;
+    if (deleteOriginalOnSave) {
+      deleted = await doDeleteOriginal();
+    }
+
+    toast.success(
+      deleteOriginalOnSave
+        ? deleted ? '저장 + 원본 삭제 완료! 잠시 후 초기화됩니다.' : '저장 완료! (원본 삭제 실패) 잠시 후 초기화됩니다.'
+        : '첫장 + 막장 저장 완료! 잠시 후 초기화됩니다.',
+    );
+    setTimeout(resetTool, 1500);
+  }, [leftBlob, rightBlob, directoryHandle, resetTool, saveWithPicker, deleteOriginalOnSave, doDeleteOriginal]);
 
   // 첫장·막장 개별 저장이 모두 완료되면 자동 초기화
   useEffect(() => {
@@ -553,11 +608,38 @@ export function AlbumSplitTool() {
               </div>
             </div>
 
-            <div className="mt-4 flex justify-center">
-              <Button onClick={handleSaveBoth} size="lg">
-                <Download className="h-4 w-4 mr-2" />
-                첫장 + 막장 모두 저장
-              </Button>
+            <div className="mt-4 space-y-3">
+              {/* 원본 삭제 체크박스 */}
+              <div className="flex items-center justify-center gap-2">
+                <Checkbox
+                  id="delete-original-on-save"
+                  checked={deleteOriginalOnSave}
+                  onCheckedChange={(checked) => setDeleteOriginalOnSave(checked === true)}
+                  disabled={originalDeleted}
+                  className="border-red-300 data-[state=checked]:bg-red-500 data-[state=checked]:border-red-500"
+                />
+                <Label
+                  htmlFor="delete-original-on-save"
+                  className={`text-sm cursor-pointer flex items-center gap-1 ${originalDeleted ? 'text-slate-400 line-through' : 'text-red-600'}`}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  원본 삭제
+                </Label>
+                {originalDeleted && (
+                  <span className="text-xs text-slate-400 flex items-center gap-1">
+                    <CheckCircle className="h-3.5 w-3.5" />
+                    삭제 완료
+                  </span>
+                )}
+              </div>
+
+              {/* 모두 저장 버튼 */}
+              <div className="flex justify-center">
+                <Button onClick={handleSaveBoth} size="lg">
+                  <Download className="h-4 w-4 mr-2" />
+                  {deleteOriginalOnSave ? '저장 + 원본 삭제' : '첫장 + 막장 모두 저장'}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>

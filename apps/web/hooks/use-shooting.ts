@@ -58,11 +58,26 @@ export interface Shooting {
     email?: string;
   };
   linkedRecruitmentId?: string;
+  linkedRecruitment?: {
+    id: string;
+    title?: string;
+    budget?: number;
+    description?: string;
+    requirements?: string;
+    privateDeadlineHours?: number;
+  };
   maxBidders: number;
   customerPhone?: string;
   customerEmail?: string;
   notes?: string;
   createdBy: string;
+  creator?: {
+    id: string;
+    clientName: string;
+    representative?: string;
+    memberType: string;
+    mobile?: string;
+  } | null;
   createdAt: string;
   updatedAt: string;
   _count?: {
@@ -93,6 +108,7 @@ export interface CreateShootingDto {
   recruitmentBudget?: number;
   recruitmentDescription?: string;
   recruitmentRequirements?: string;
+  recruitmentPrivateDeadlineHours?: number;
 }
 
 /** 촬영 수정 DTO */
@@ -114,6 +130,7 @@ export interface ShootingListParams {
   startDate?: string;
   endDate?: string;
   assignedStaffId?: string;
+  createdBy?: string;
 }
 
 /** 페이지네이션 응답 */

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   Calendar,
   CheckSquare,
@@ -18,6 +18,10 @@ import {
   Check,
   AlertCircle,
   Search,
+  ChevronDown,
+  FileText,
+  Save,
+  StickyNote,
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek, isToday, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -167,13 +171,115 @@ const getRecurringSummary = (config: RecurringConfig, startDate: Date): string =
   return summary;
 };
 
+// 메모 타입
+interface Memo {
+  id: string;
+  title: string;
+  content: string;
+  color: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const MEMO_COLORS = [
+  { value: '#FEF9C3', label: '노랑' },
+  { value: '#DCFCE7', label: '초록' },
+  { value: '#DBEAFE', label: '파랑' },
+  { value: '#FCE7F3', label: '핑크' },
+  { value: '#F3F4F6', label: '회색' },
+];
+
+const MEMO_STORAGE_KEY = 'dashboard_memos';
+
+function loadMemos(): Memo[] {
+  try {
+    const raw = localStorage.getItem(MEMO_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveMemos(memos: Memo[]) {
+  localStorage.setItem(MEMO_STORAGE_KEY, JSON.stringify(memos));
+}
+
 export default function SchedulePage() {
   const { toast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState('calendar');
+
+  // 메모 상태
+  const [memos, setMemos] = useState<Memo[]>([]);
+  const [editingMemo, setEditingMemo] = useState<Memo | null>(null);
+  const [isMemoDialogOpen, setIsMemoDialogOpen] = useState(false);
+  const [memoForm, setMemoForm] = useState({ title: '', content: '', color: '#FEF9C3' });
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setMemos(loadMemos());
+  }, []);
+
+  const handleOpenMemoDialog = useCallback((memo?: Memo) => {
+    if (memo) {
+      setEditingMemo(memo);
+      setMemoForm({ title: memo.title, content: memo.content, color: memo.color });
+    } else {
+      setEditingMemo(null);
+      setMemoForm({ title: '', content: '', color: '#FEF9C3' });
+    }
+    setIsMemoDialogOpen(true);
+  }, []);
+
+  const handleSaveMemo = useCallback(() => {
+    if (!memoForm.title.trim() && !memoForm.content.trim()) {
+      toast({ title: '제목 또는 내용을 입력하세요.', variant: 'destructive' });
+      return;
+    }
+    const now = new Date().toISOString();
+    let updated: Memo[];
+    if (editingMemo) {
+      updated = memos.map(m =>
+        m.id === editingMemo.id
+          ? { ...m, title: memoForm.title, content: memoForm.content, color: memoForm.color, updatedAt: now }
+          : m
+      );
+    } else {
+      const newMemo: Memo = {
+        id: `memo_${Date.now()}`,
+        title: memoForm.title,
+        content: memoForm.content,
+        color: memoForm.color,
+        createdAt: now,
+        updatedAt: now,
+      };
+      updated = [newMemo, ...memos];
+    }
+    setMemos(updated);
+    saveMemos(updated);
+    setIsMemoDialogOpen(false);
+    toast({ title: editingMemo ? '메모가 수정되었습니다.' : '메모가 저장되었습니다.' });
+  }, [memoForm, editingMemo, memos, toast]);
+
+  const handleDeleteMemo = useCallback((id: string) => {
+    const updated = memos.filter(m => m.id !== id);
+    setMemos(updated);
+    saveMemos(updated);
+    toast({ title: '메모가 삭제되었습니다.' });
+  }, [memos, toast]);
+
+  // 메모 인라인 편집 (카드 클릭 시 내용 바로 수정)
+  const handleMemoContentChange = useCallback((id: string, content: string) => {
+    const now = new Date().toISOString();
+    const updated = memos.map(m => m.id === id ? { ...m, content, updatedAt: now } : m);
+    setMemos(updated);
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => saveMemos(updated), 800);
+  }, [memos]);
   const [scopeFilter, setScopeFilter] = useState<'all' | 'personal' | 'department' | 'company'>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showCompleted, setShowCompleted] = useState(false);
 
   // 다이얼로그 상태
   const [isTodoDialogOpen, setIsTodoDialogOpen] = useState(false);
@@ -255,6 +361,9 @@ export default function SchedulePage() {
     );
   }, [todos, searchTerm]);
 
+  const activeTodos = useMemo(() => filteredTodos.filter(t => t.status !== 'completed'), [filteredTodos]);
+  const completedTodos = useMemo(() => filteredTodos.filter(t => t.status === 'completed'), [filteredTodos]);
+
   const filteredSchedules = useMemo(() => {
     if (!schedules) return [];
     if (!searchTerm.trim()) return schedules;
@@ -314,12 +423,13 @@ export default function SchedulePage() {
       });
     } else {
       setEditingTodo(null);
+      const nowStr = format(new Date(), "yyyy-MM-dd'T'HH:mm");
       setTodoForm({
         title: '',
         content: '',
         priority: 'normal',
-        startDate: selectedDate ? format(selectedDate, "yyyy-MM-dd'T'HH:mm") : undefined,
-        dueDate: selectedDate ? format(selectedDate, "yyyy-MM-dd'T'23:59") : undefined,
+        startDate: selectedDate ? format(selectedDate, "yyyy-MM-dd'T'HH:mm") : nowStr,
+        dueDate: selectedDate ? format(selectedDate, "yyyy-MM-dd'T'HH:mm") : nowStr,
         isPersonal: true,
         isDepartment: false,
         isCompany: false,
@@ -531,6 +641,10 @@ export default function SchedulePage() {
             <CheckSquare className="h-4 w-4 mr-2" />
             할일 목록
           </TabsTrigger>
+          <TabsTrigger value="memos">
+            <StickyNote className="h-4 w-4 mr-2" />
+            메모장
+          </TabsTrigger>
         </TabsList>
 
         {/* 캘린더 탭 */}
@@ -670,82 +784,268 @@ export default function SchedulePage() {
                 <div className="flex justify-center py-12">
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
-              ) : filteredTodos?.length === 0 ? (
+              ) : activeTodos.length === 0 && completedTodos.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <CheckSquare className="h-12 w-12 mx-auto mb-3 opacity-20" />
                   {searchTerm ? '검색 결과가 없습니다.' : '등록된 할일이 없습니다.'}
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {filteredTodos?.map((todo) => (
-                    <div
-                      key={todo.id}
-                      className={cn(
-                        'flex items-center gap-3 p-3 rounded-lg border hover:bg-slate-50 transition-colors',
-                        todo.status === 'completed' && 'opacity-60 bg-slate-50'
-                      )}
-                    >
-                      <Checkbox
-                        checked={todo.status === 'completed'}
-                        onCheckedChange={() => todo.status !== 'completed' && handleCompleteTodo(todo.id)}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className={cn('font-medium', todo.status === 'completed' && 'line-through')}>
-                            {todo.title}
-                          </span>
-                          {renderScopeIcon(todo)}
-                          <Badge variant="outline" className={priorityColors[todo.priority]}>
-                            {priorityLabels[todo.priority]}
-                          </Badge>
-                          <Badge variant="outline" className={statusColors[todo.status]}>
-                            {statusLabels[todo.status]}
-                          </Badge>
+                  {/* 미완료 항목 */}
+                  {activeTodos.length === 0 ? (
+                    <div className="text-center py-6 text-muted-foreground text-sm">
+                      미완료 항목이 없습니다.
+                    </div>
+                  ) : (
+                    activeTodos.map((todo) => (
+                      <div
+                        key={todo.id}
+                        className="flex items-center gap-3 p-3 rounded-lg border hover:bg-slate-50 transition-colors"
+                      >
+                        <Checkbox
+                          checked={false}
+                          onCheckedChange={() => handleCompleteTodo(todo.id)}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{todo.title}</span>
+                            {renderScopeIcon(todo)}
+                            <Badge variant="outline" className={priorityColors[todo.priority]}>
+                              {priorityLabels[todo.priority]}
+                            </Badge>
+                            <Badge variant="outline" className={statusColors[todo.status]}>
+                              {statusLabels[todo.status]}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                            <span>작성: {todo.creatorName}</span>
+                            {todo.dueDate && (
+                              <span>마감: {format(parseISO(todo.dueDate), 'yyyy-MM-dd HH:mm')}</span>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                          <span>작성: {todo.creatorName}</span>
-                          {todo.dueDate && (
-                            <span>마감: {format(parseISO(todo.dueDate), 'yyyy-MM-dd HH:mm')}</span>
-                          )}
-                          {todo.completedAt && (
-                            <span className="text-green-600">완료: {format(parseISO(todo.completedAt), 'yyyy-MM-dd HH:mm')} ({todo.completedBy})</span>
-                          )}
-                        </div>
-                      </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openTodoDialog(todo)}>
-                            <Edit className="h-4 w-4 mr-2" />
-                            수정
-                          </DropdownMenuItem>
-                          {todo.status !== 'completed' && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openTodoDialog(todo)}>
+                              <Edit className="h-4 w-4 mr-2" />
+                              수정
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleCompleteTodo(todo.id)}>
                               <Check className="h-4 w-4 mr-2" />
                               완료
                             </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onClick={() => setDeleteConfirm({ type: 'todo', id: todo.id })}
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            삭제
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={() => setDeleteConfirm({ type: 'todo', id: todo.id })}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              삭제
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    ))
+                  )}
+
+                  {/* 완료 항목 토글 */}
+                  {completedTodos.length > 0 && (
+                    <div className="mt-4">
+                      <button
+                        type="button"
+                        onClick={() => setShowCompleted(!showCompleted)}
+                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
+                      >
+                        <ChevronDown className={cn('h-4 w-4 transition-transform', showCompleted && 'rotate-180')} />
+                        완료된 항목 {completedTodos.length}개
+                      </button>
+                      {showCompleted && (
+                        <div className="space-y-2 mt-2">
+                          {completedTodos.map((todo) => (
+                            <div
+                              key={todo.id}
+                              className="flex items-center gap-3 p-3 rounded-lg border bg-slate-50 opacity-60"
+                            >
+                              <Checkbox checked={true} disabled />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium line-through">{todo.title}</span>
+                                  {renderScopeIcon(todo)}
+                                  <Badge variant="outline" className={priorityColors[todo.priority]}>
+                                    {priorityLabels[todo.priority]}
+                                  </Badge>
+                                </div>
+                                <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                                  <span>작성: {todo.creatorName}</span>
+                                  {todo.completedAt && (
+                                    <span className="text-green-600">
+                                      완료: {format(parseISO(todo.completedAt), 'yyyy-MM-dd HH:mm')} ({todo.completedBy})
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem
+                                    className="text-destructive"
+                                    onClick={() => setDeleteConfirm({ type: 'todo', id: todo.id })}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    삭제
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* 메모장 탭 */}
+        <TabsContent value="memos" className="mt-4">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-[18px] text-black font-bold flex items-center gap-2">
+                <StickyNote className="h-5 w-5 text-yellow-500" />
+                개인 메모장
+              </h2>
+              <p className="text-[14px] text-black font-normal mt-0.5">이 기기에만 저장되는 개인 메모입니다.</p>
+            </div>
+            <Button onClick={() => handleOpenMemoDialog()}>
+              <Plus className="h-4 w-4 mr-2" />
+              메모 추가
+            </Button>
+          </div>
+
+          {memos.length === 0 ? (
+            <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-xl">
+              <StickyNote className="h-12 w-12 mx-auto mb-3 opacity-30" />
+              <p className="text-[14px]">메모가 없습니다.</p>
+              <p className="text-[14px] mt-1">상단 버튼으로 새 메모를 추가하세요.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {memos.map((memo) => (
+                <div
+                  key={memo.id}
+                  className="rounded-xl p-4 shadow-sm border border-black/5 flex flex-col gap-2 min-h-[180px] relative group"
+                  style={{ backgroundColor: memo.color }}
+                >
+                  {/* 제목 + 액션 버튼 */}
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-[14px] text-black font-bold flex-1 break-words leading-snug">
+                      {memo.title || '(제목 없음)'}
+                    </span>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => handleOpenMemoDialog(memo)}
+                      >
+                        <Edit className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-destructive hover:text-destructive"
+                        onClick={() => handleDeleteMemo(memo.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* 내용 - 인라인 편집 */}
+                  <textarea
+                    className="flex-1 resize-none text-[14px] text-black font-normal bg-transparent border-none outline-none w-full leading-relaxed min-h-[80px]"
+                    value={memo.content}
+                    placeholder="내용을 입력하세요..."
+                    onChange={(e) => handleMemoContentChange(memo.id, e.target.value)}
+                  />
+
+                  {/* 수정 시각 */}
+                  <div className="flex items-center gap-1 text-[12px] text-black/40 mt-auto pt-1 border-t border-black/10">
+                    <Save className="h-3 w-3" />
+                    {format(new Date(memo.updatedAt), 'MM/dd HH:mm', { locale: ko })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
       </Tabs>
+
+      {/* 메모 다이얼로그 */}
+      <Dialog open={isMemoDialogOpen} onOpenChange={setIsMemoDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <StickyNote className="h-5 w-5 text-yellow-500" />
+              {editingMemo ? '메모 수정' : '새 메모'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>제목</Label>
+              <Input
+                placeholder="메모 제목"
+                value={memoForm.title}
+                onChange={(e) => setMemoForm({ ...memoForm, title: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>내용</Label>
+              <Textarea
+                placeholder="메모 내용..."
+                rows={6}
+                value={memoForm.content}
+                onChange={(e) => setMemoForm({ ...memoForm, content: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>색상</Label>
+              <div className="flex gap-2">
+                {MEMO_COLORS.map((c) => (
+                  <button
+                    key={c.value}
+                    type="button"
+                    title={c.label}
+                    className={cn(
+                      'w-8 h-8 rounded-full border-2 transition-transform',
+                      memoForm.color === c.value ? 'border-gray-600 scale-110' : 'border-transparent'
+                    )}
+                    style={{ backgroundColor: c.value }}
+                    onClick={() => setMemoForm({ ...memoForm, color: c.value })}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsMemoDialogOpen(false)}>취소</Button>
+            <Button onClick={handleSaveMemo}>
+              <Save className="h-4 w-4 mr-2" />
+              {editingMemo ? '수정' : '저장'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Todo 다이얼로그 */}
       <Dialog open={isTodoDialogOpen} onOpenChange={setIsTodoDialogOpen}>

@@ -83,16 +83,20 @@ export class ClientService {
     });
 
     const openCountMap = new Map(
-      openConsultationsCount.map((item: { clientId: string; _count: number }) => [item.clientId, item._count])
+      openConsultationsCount.map((item: any) => [item.clientId, item._count])
     );
 
-    const data = clients.map((client: any) => ({
-      ...client,
-      _count: {
-        consultations: client._count.consultations,
-        openConsultations: openCountMap.get(client.id) || 0,
-      },
-    }));
+    const data = clients.map((client: any) => {
+      const { password, ...rest } = client;
+      return {
+        ...rest,
+        hasPassword: !!password,
+        _count: {
+          consultations: client._count.consultations,
+          openConsultations: openCountMap.get(client.id) || 0,
+        },
+      };
+    });
 
     return {
       data,
@@ -138,7 +142,8 @@ export class ClientService {
       throw new NotFoundException('거래처를 찾을 수 없습니다');
     }
 
-    return client;
+    const { password, ...clientData } = client;
+    return { ...clientData, hasPassword: !!password };
   }
 
   async checkEmailDuplicate(email: string, excludeId?: string) {
@@ -188,8 +193,8 @@ export class ClientService {
       }
     }
 
-    // 자동 그룹 할당: group이 없고 memberType이 있는 경우
-    if (!data.group && data.memberType) {
+    // 자동 그룹 할당: groupId도 없고 group도 없는 경우에만 자동 할당
+    if (!data.group && !(data as any).groupId && data.memberType) {
       const groupName = data.memberType === 'individual' ? '일반고객그룹' : '스튜디오회원';
       const defaultGroup = await this.prisma.clientGroup.findFirst({
         where: { groupName },
@@ -200,20 +205,34 @@ export class ClientService {
       }
     }
 
+    // groupId(스칼라)가 있으면 group 중첩 객체 제거 (Prisma XOR 충돌 방지)
+    if ((data as any).groupId && data.group) {
+      delete data.group;
+    }
+
     return this.prisma.client.create({
       data,
       include: { group: true },
     });
   }
 
-  async update(id: string, data: Prisma.ClientUpdateInput) {
+  async update(id: string, data: any) {
     await this.findOne(id);
 
-    return this.prisma.client.update({
+    if (data.password) {
+      data.password = await bcrypt.hash(data.password, 10);
+    } else {
+      delete data.password;
+    }
+
+    const result = await this.prisma.client.update({
       where: { id },
       data,
       include: { group: true },
     });
+
+    const { password, ...rest } = result;
+    return { ...rest, hasPassword: !!password };
   }
 
   async delete(id: string) {
@@ -298,5 +317,43 @@ export class ClientService {
     });
 
     return this.findOne(clientId);
+  }
+
+  // ==================== 사업자 전환 ====================
+  async convertToBusiness(id: string, data: {
+    clientName: string;
+    businessNumber?: string;
+    representative?: string;
+    businessType?: string;
+    businessCategory?: string;
+    taxInvoiceEmail?: string;
+    taxInvoiceMethod?: string;
+  }) {
+    const client = await this.findOne(id);
+
+    if (client.memberType !== 'individual') {
+      throw new ConflictException('이미 사업자 회원입니다');
+    }
+
+    // 사업자 전용 기본 그룹 조회
+    const businessGroup = await this.prisma.clientGroup.findFirst({
+      where: { groupName: '스튜디오회원' },
+    });
+
+    return this.prisma.client.update({
+      where: { id },
+      data: {
+        memberType: 'business',
+        clientName: data.clientName,
+        businessNumber: data.businessNumber || null,
+        representative: data.representative || null,
+        businessType: data.businessType || null,
+        businessCategory: data.businessCategory || null,
+        taxInvoiceEmail: data.taxInvoiceEmail || null,
+        taxInvoiceMethod: data.taxInvoiceMethod || null,
+        ...(businessGroup && !client.groupId ? { groupId: businessGroup.id } : {}),
+      },
+      include: { group: true },
+    });
   }
 }

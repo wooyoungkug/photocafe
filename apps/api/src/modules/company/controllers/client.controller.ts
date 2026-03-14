@@ -28,17 +28,19 @@ export class ClientController {
   @ApiQuery({ name: 'search', required: false })
   @ApiQuery({ name: 'groupId', required: false })
   @ApiQuery({ name: 'status', required: false })
+  @ApiQuery({ name: 'memberType', required: false })
   async findAll(
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('search') search?: string,
     @Query('groupId') groupId?: string,
     @Query('status') status?: string,
+    @Query('memberType') memberType?: string,
   ) {
     const skip = page ? (page - 1) * (limit || 20) : 0;
     const take = limit || 20;
 
-    return this.clientService.findAll({ skip, take, search, groupId, status });
+    return this.clientService.findAll({ skip, take, search, groupId, status, memberType });
   }
 
   @Get('next-code')
@@ -108,5 +110,22 @@ export class ClientController {
     @Param('staffId') staffId: string,
   ) {
     return this.clientService.removeStaff(id, staffId);
+  }
+
+  @Patch(':id/convert-to-business')
+  @ApiOperation({ summary: '개인회원 → 사업자회원 전환' })
+  async convertToBusiness(
+    @Param('id') id: string,
+    @Body() data: {
+      clientName: string;
+      businessNumber?: string;
+      representative?: string;
+      businessType?: string;
+      businessCategory?: string;
+      taxInvoiceEmail?: string;
+      taxInvoiceMethod?: string;
+    },
+  ) {
+    return this.clientService.convertToBusiness(id, data);
   }
 }

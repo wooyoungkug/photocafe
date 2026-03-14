@@ -437,7 +437,7 @@ export function useLastProductOptions(clientId?: string, productId?: string) {
       api.get<LastProductOptions | null>('/orders/last-product-options', {
         clientId,
         productId,
-      }),
+      }).then(data => data ?? null),
     enabled: !!clientId && !!productId,
     staleTime: 1000 * 60 * 5, // 5분 캐시
   });

@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
-import { Upload, Scissors, Download, Info, Eye, FolderOpen } from 'lucide-react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { Upload, Scissors, Download, Info, Eye, FolderOpen, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { extractDPIFromJPEG, canvasToJPEGWithDPI } from '@/lib/image-tools/dpi-utils';
-import { saveToFolder, fallbackDownload, pickDirectory, isJpegOrPng } from '@/lib/image-tools/file-utils';
+import { saveToFolder, fallbackDownload, isJpegOrPng } from '@/lib/image-tools/file-utils';
 import { ToolGuide } from './tool-guide';
 import { ToolUsageCounter } from './tool-usage-counter';
 
@@ -25,16 +25,46 @@ export function ImageCutTool() {
   const [showResult, setShowResult] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [savedLeft, setSavedLeft] = useState(false);
+  const [savedRight, setSavedRight] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const leftCanvasRef = useRef<HTMLCanvasElement>(null);
   const rightCanvasRef = useRef<HTMLCanvasElement>(null);
   const trackUseRef = useRef<(() => void) | null>(null);
+  const sourceFileHandleRef = useRef<FileSystemFileHandle | null>(null);
 
   const cleanup = useCallback(() => {
     if (leftUrl) URL.revokeObjectURL(leftUrl);
     if (rightUrl) URL.revokeObjectURL(rightUrl);
   }, [leftUrl, rightUrl]);
+
+  const resetTool = useCallback(() => {
+    cleanup();
+    setOriginalImage(null);
+    setFileName('');
+    setOriginalDPI(300);
+    setLeftBlob(null);
+    setRightBlob(null);
+    setLeftUrl('');
+    setRightUrl('');
+    setShowInfo(false);
+    setShowPreview(false);
+    setShowResult(false);
+    setSavedLeft(false);
+    setSavedRight(false);
+    sourceFileHandleRef.current = null;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [cleanup]);
+
+  // 양쪽 개별 저장이 모두 완료되면 자동 초기화
+  useEffect(() => {
+    if (savedLeft && savedRight) {
+      toast.success('왼쪽 + 오른쪽 모두 저장됐습니다! 잠시 후 초기화됩니다.');
+      const timer = setTimeout(resetTool, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [savedLeft, savedRight, resetTool]);
 
   const loadImage = useCallback((file: File) => {
     cleanup();
@@ -68,11 +98,36 @@ export function ImageCutTool() {
     e.target.value = '';
   }, [loadImage]);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  const handleClickUpload = useCallback(async () => {
+    if ('showOpenFilePicker' in window) {
+      try {
+        const [fileHandle] = await (window as any).showOpenFilePicker({
+          types: [{ description: '이미지 파일', accept: { 'image/*': ['.jpg', '.jpeg', '.png'] } }],
+          multiple: false,
+        });
+        sourceFileHandleRef.current = fileHandle;
+        const file = await fileHandle.getFile();
+        loadImage(file);
+      } catch { /* 사용자가 파일 선택 취소 */ }
+    } else {
+      fileInputRef.current?.click();
+    }
+  }, [loadImage]);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
     const file = e.dataTransfer.files[0];
     if (file && isJpegOrPng(file)) {
+      const item = e.dataTransfer.items[0];
+      if (item && 'getAsFileSystemHandle' in item) {
+        try {
+          const handle = await (item as any).getAsFileSystemHandle();
+          if (handle?.kind === 'file') {
+            sourceFileHandleRef.current = handle as FileSystemFileHandle;
+          }
+        } catch { /* 핸들 획득 실패 - 무시 */ }
+      }
       loadImage(file);
     } else {
       toast.error('JPEG 또는 PNG 파일만 지원합니다.');
@@ -145,11 +200,38 @@ export function ImageCutTool() {
     }
   }, [originalImage, originalDPI, cleanup]);
 
+  /** showSaveFilePicker로 원본 경로에서 저장 다이얼로그 열기 */
+  const saveWithPicker = useCallback(async (blob: Blob, suggestedName: string): Promise<boolean> => {
+    if (!('showSaveFilePicker' in window)) return false;
+    try {
+      const options: any = {
+        suggestedName,
+        types: [{ description: 'JPEG Image', accept: { 'image/jpeg': ['.jpg', '.jpeg'] } }],
+      };
+      if (sourceFileHandleRef.current) {
+        options.startIn = sourceFileHandleRef.current;
+      }
+      const fileHandle = await (window as any).showSaveFilePicker(options);
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return true;
+    } catch {
+      return false; // 사용자 취소
+    }
+  }, []);
+
   const handleSelectDirectory = useCallback(async () => {
-    const handle = await pickDirectory();
-    if (handle) {
-      setDirectoryHandle(handle);
-      toast.success(`저장 폴더: ${handle.name}`);
+    if ('showDirectoryPicker' in window) {
+      try {
+        const options: any = { mode: 'readwrite' };
+        if (sourceFileHandleRef.current) {
+          options.startIn = sourceFileHandleRef.current;
+        }
+        const handle = await (window as any).showDirectoryPicker(options);
+        setDirectoryHandle(handle);
+        toast.success(`저장 폴더: ${handle.name}`);
+      } catch { /* 사용자가 취소 */ }
     }
   }, []);
 
@@ -158,38 +240,62 @@ export function ImageCutTool() {
 
   const handleSaveLeft = useCallback(async () => {
     if (!leftBlob) return;
+    let saved = false;
     if (directoryHandle) {
       const ok = await saveToFolder(directoryHandle, leftBlob, leftFileName);
-      if (ok) toast.success(`${leftFileName} 저장 완료`);
+      if (ok) saved = true;
       else toast.error('저장 실패');
+    } else if ('showSaveFilePicker' in window) {
+      const ok = await saveWithPicker(leftBlob, leftFileName);
+      if (ok) saved = true;
     } else {
       fallbackDownload(leftBlob, leftFileName);
+      saved = true;
     }
-  }, [leftBlob, directoryHandle, leftFileName]);
+    if (saved) { toast.success(`${leftFileName} 저장 완료`); setSavedLeft(true); }
+  }, [leftBlob, directoryHandle, leftFileName, saveWithPicker]);
 
   const handleSaveRight = useCallback(async () => {
     if (!rightBlob) return;
+    let saved = false;
     if (directoryHandle) {
       const ok = await saveToFolder(directoryHandle, rightBlob, rightFileName);
-      if (ok) toast.success(`${rightFileName} 저장 완료`);
+      if (ok) saved = true;
       else toast.error('저장 실패');
+    } else if ('showSaveFilePicker' in window) {
+      const ok = await saveWithPicker(rightBlob, rightFileName);
+      if (ok) saved = true;
     } else {
       fallbackDownload(rightBlob, rightFileName);
+      saved = true;
     }
-  }, [rightBlob, directoryHandle, rightFileName]);
+    if (saved) { toast.success(`${rightFileName} 저장 완료`); setSavedRight(true); }
+  }, [rightBlob, directoryHandle, rightFileName, saveWithPicker]);
 
   const handleSaveBoth = useCallback(async () => {
     if (!leftBlob || !rightBlob) return;
     if (directoryHandle) {
       const ok1 = await saveToFolder(directoryHandle, leftBlob, leftFileName);
       const ok2 = await saveToFolder(directoryHandle, rightBlob, rightFileName);
-      if (ok1 && ok2) toast.success('양쪽 모두 저장 완료');
-      else toast.error('일부 파일 저장 실패');
+      if (ok1 && ok2) {
+        toast.success('양쪽 모두 저장 완료! 잠시 후 초기화됩니다.');
+        setTimeout(resetTool, 1500);
+      } else toast.error('일부 파일 저장 실패');
+    } else if ('showSaveFilePicker' in window) {
+      const ok1 = await saveWithPicker(leftBlob, leftFileName);
+      if (!ok1) return; // 취소 시 중단
+      const ok2 = await saveWithPicker(rightBlob, rightFileName);
+      if (ok2) {
+        toast.success('양쪽 모두 저장 완료! 잠시 후 초기화됩니다.');
+        setTimeout(resetTool, 1500);
+      }
     } else {
       fallbackDownload(leftBlob, leftFileName);
       fallbackDownload(rightBlob, rightFileName);
+      toast.success('양쪽 모두 저장 완료! 잠시 후 초기화됩니다.');
+      setTimeout(resetTool, 1500);
     }
-  }, [leftBlob, rightBlob, directoryHandle, leftFileName, rightFileName]);
+  }, [leftBlob, rightBlob, directoryHandle, leftFileName, rightFileName, saveWithPicker, resetTool]);
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
@@ -242,7 +348,7 @@ export function ImageCutTool() {
             onDrop={handleDrop}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
-            onClick={() => fileInputRef.current?.click()}
+            onClick={handleClickUpload}
             className={`
               border-2 border-dashed rounded-lg p-10 text-center transition-colors cursor-pointer
               ${isDragOver ? 'border-blue-500 bg-blue-50' : 'border-slate-300 hover:border-slate-400 bg-slate-50'}
@@ -372,9 +478,15 @@ export function ImageCutTool() {
                     <img src={leftUrl} alt="왼쪽" className="w-full h-auto object-contain max-h-[300px]" />
                   )}
                 </div>
-                <Button variant="outline" size="sm" className="w-full" onClick={handleSaveLeft}>
-                  <Download className="h-4 w-4 mr-2" />
-                  왼쪽 저장
+                <Button
+                  variant={savedLeft ? 'secondary' : 'outline'}
+                  size="sm"
+                  className={`w-full ${savedLeft ? 'text-green-700 border-green-300 bg-green-50' : ''}`}
+                  onClick={handleSaveLeft}
+                  disabled={savedLeft}
+                >
+                  {savedLeft ? <CheckCircle className="h-4 w-4 mr-2 text-green-600" /> : <Download className="h-4 w-4 mr-2" />}
+                  {savedLeft ? '왼쪽 저장 완료' : '왼쪽 저장'}
                 </Button>
               </div>
 
@@ -394,9 +506,15 @@ export function ImageCutTool() {
                     <img src={rightUrl} alt="오른쪽" className="w-full h-auto object-contain max-h-[300px]" />
                   )}
                 </div>
-                <Button variant="outline" size="sm" className="w-full" onClick={handleSaveRight}>
-                  <Download className="h-4 w-4 mr-2" />
-                  오른쪽 저장
+                <Button
+                  variant={savedRight ? 'secondary' : 'outline'}
+                  size="sm"
+                  className={`w-full ${savedRight ? 'text-green-700 border-green-300 bg-green-50' : ''}`}
+                  onClick={handleSaveRight}
+                  disabled={savedRight}
+                >
+                  {savedRight ? <CheckCircle className="h-4 w-4 mr-2 text-green-600" /> : <Download className="h-4 w-4 mr-2" />}
+                  {savedRight ? '오른쪽 저장 완료' : '오른쪽 저장'}
                 </Button>
               </div>
             </div>

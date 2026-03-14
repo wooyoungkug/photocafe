@@ -187,7 +187,7 @@ export class SalesLedgerService {
           },
         });
       } catch (err) {
-        this.logger.warn(`선불 수금 자동 생성 실패: ${err.message}`);
+        this.logger.warn(`선불 수금 자동 생성 실패: ${(err as Error).message}`);
       }
     }
 
@@ -251,7 +251,7 @@ export class SalesLedgerService {
         });
         created++;
       } catch (err) {
-        this.logger.warn(`백필 실패 (ledgerId: ${ledger.id}): ${err.message}`);
+        this.logger.warn(`백필 실패 (ledgerId: ${ledger.id}): ${(err as Error).message}`);
         errors++;
       }
     }

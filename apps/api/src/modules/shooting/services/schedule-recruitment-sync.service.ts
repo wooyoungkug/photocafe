@@ -112,7 +112,7 @@ export class ScheduleRecruitmentSyncService {
       return shooting;
     } catch (error) {
       this.logger.error(
-        `Failed to sync Recruitment → Shooting: ${error.message}`,
+        `Failed to sync Recruitment → Shooting: ${(error as Error).message}`,
       );
     } finally {
       this.isSyncing = false;
@@ -132,6 +132,7 @@ export class ScheduleRecruitmentSyncService {
       budget?: number;
       description?: string;
       requirements?: string;
+      privateDeadlineHours?: number;
     },
   ) {
     if (this.isSyncing) return;
@@ -153,6 +154,16 @@ export class ScheduleRecruitmentSyncService {
           ? null
           : `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 
+      // privateDeadlineHours=0 → 즉시 공개모집, 그 외 → 전속모집
+      const deadlineHours = options.privateDeadlineHours ?? 24;
+      const isImmediate = deadlineHours === 0;
+      const initStatus = isImmediate
+        ? RECRUITMENT_STATUS.PUBLIC_RECRUITING
+        : RECRUITMENT_STATUS.PRIVATE_RECRUITING;
+      const initPhase = isImmediate
+        ? RECRUITMENT_PHASE.PUBLIC
+        : RECRUITMENT_PHASE.PRIVATE;
+
       const recruitment = await this.prisma.recruitment.create({
         data: {
           clientId: options.clientId,
@@ -171,8 +182,9 @@ export class ScheduleRecruitmentSyncService {
           description: options.description,
           requirements: options.requirements,
           customerName: shooting.clientName,
-          status: RECRUITMENT_STATUS.DRAFT,
-          recruitmentPhase: RECRUITMENT_PHASE.PRIVATE,
+          privateDeadlineHours: deadlineHours,
+          status: initStatus,
+          recruitmentPhase: initPhase,
           maxBidders: shooting.maxBidders,
           linkedShootingId: shooting.id,
           createdBy: options.clientId,
@@ -192,7 +204,7 @@ export class ScheduleRecruitmentSyncService {
       return recruitment;
     } catch (error) {
       this.logger.error(
-        `Failed to sync Shooting → Recruitment: ${error.message}`,
+        `Failed to sync Shooting → Recruitment: ${(error as Error).message}`,
       );
     } finally {
       this.isSyncing = false;
@@ -296,6 +308,17 @@ export class ScheduleRecruitmentSyncService {
           recruitmentUpdate.customerName = updatedFields.clientName;
         if (updatedFields.maxBidders !== undefined)
           recruitmentUpdate.maxBidders = updatedFields.maxBidders;
+        // 구인방 전용 필드 동기화
+        if (updatedFields.recruitmentTitle !== undefined && updatedFields.recruitmentTitle !== '')
+          recruitmentUpdate.title = updatedFields.recruitmentTitle;
+        if (updatedFields.recruitmentBudget !== undefined)
+          recruitmentUpdate.budget = updatedFields.recruitmentBudget;
+        if (updatedFields.recruitmentDescription !== undefined && updatedFields.recruitmentDescription !== '')
+          recruitmentUpdate.description = updatedFields.recruitmentDescription;
+        if (updatedFields.recruitmentRequirements !== undefined && updatedFields.recruitmentRequirements !== '')
+          recruitmentUpdate.requirements = updatedFields.recruitmentRequirements;
+        if (updatedFields.recruitmentPrivateDeadlineHours !== undefined)
+          recruitmentUpdate.privateDeadlineHours = updatedFields.recruitmentPrivateDeadlineHours;
 
         if (Object.keys(recruitmentUpdate).length > 0) {
           await this.prisma.recruitment.update({
@@ -305,7 +328,7 @@ export class ScheduleRecruitmentSyncService {
         }
       }
     } catch (error) {
-      this.logger.error(`Failed to sync field update: ${error.message}`);
+      this.logger.error(`Failed to sync field update: ${(error as Error).message}`);
     } finally {
       this.isSyncing = false;
     }
@@ -357,7 +380,7 @@ export class ScheduleRecruitmentSyncService {
         }
       }
     } catch (error) {
-      this.logger.error(`Failed to sync status change: ${error.message}`);
+      this.logger.error(`Failed to sync status change: ${(error as Error).message}`);
     } finally {
       this.isSyncing = false;
     }
@@ -394,7 +417,7 @@ export class ScheduleRecruitmentSyncService {
         `Synced bid selection: Recruitment(${recruitmentId}) → ShootingSchedule confirmed, assignedClientId=${selectedClientId}`,
       );
     } catch (error) {
-      this.logger.error(`Failed to sync bid selection: ${error.message}`);
+      this.logger.error(`Failed to sync bid selection: ${(error as Error).message}`);
     } finally {
       this.isSyncing = false;
     }
@@ -434,7 +457,7 @@ export class ScheduleRecruitmentSyncService {
         }
       }
     } catch (error) {
-      this.logger.error(`Failed to unlink records: ${error.message}`);
+      this.logger.error(`Failed to unlink records: ${(error as Error).message}`);
     }
   }
 }

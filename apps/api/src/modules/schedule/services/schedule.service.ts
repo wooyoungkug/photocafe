@@ -9,6 +9,7 @@ interface CurrentUser {
   departmentId?: string;
   departmentName?: string;
   role: string;
+  clientId?: string; // 테넌트 식별자
 }
 
 @Injectable()
@@ -24,6 +25,7 @@ export class ScheduleService {
 
     return this.prisma.schedule.create({
       data: {
+        clientId: user.clientId || null,
         title: dto.title,
         description: dto.description,
         location: dto.location,
@@ -113,6 +115,10 @@ export class ScheduleService {
 
   async findAll(query: QueryScheduleDto, user: CurrentUser) {
     const where: any = {
+      // 테넌트 격리: 반드시 같은 clientId 내에서만 조회
+      ...(user.clientId ? { clientId: user.clientId } : { clientId: null }),
+      // 촬영관리에 연동된 일정은 일정관리 캘린더에서 제외
+      shootingSchedule: null,
       // 기간 필터 (필수)
       OR: [
         // 시작일이 조회 범위 내
@@ -280,9 +286,24 @@ export class ScheduleService {
     });
   }
 
+  // 테넌트 경계 확인 (다른 회사/스튜디오 데이터 차단)
+  private isSameTenant(schedule: any, user: CurrentUser): boolean {
+    // 둘 다 clientId가 있으면 반드시 일치해야 함
+    if (user.clientId && schedule.clientId) {
+      return user.clientId === schedule.clientId;
+    }
+    // 둘 다 없으면 레거시 데이터 (호환)
+    if (!user.clientId && !schedule.clientId) return true;
+    // 한쪽만 있으면 접근 불가
+    return false;
+  }
+
   // 접근 권한 확인
   private canAccess(schedule: any, user: CurrentUser): boolean {
-    // 관리자는 모든 접근 가능
+    // 테넌트 경계 먼저 확인 (다른 회사 데이터는 절대 접근 불가)
+    if (!this.isSameTenant(schedule, user)) return false;
+
+    // 관리자는 같은 회사 내 모든 접근 가능
     if (user.role === 'admin') return true;
 
     // 작성자 본인
@@ -308,7 +329,10 @@ export class ScheduleService {
 
   // 수정 권한 확인
   private canEdit(schedule: any, user: CurrentUser): boolean {
-    // 관리자는 모든 수정 가능
+    // 테넌트 경계 확인
+    if (!this.isSameTenant(schedule, user)) return false;
+
+    // 관리자는 같은 회사 내 모든 수정 가능
     if (user.role === 'admin') return true;
 
     // 작성자 본인만 수정 가능
@@ -317,7 +341,10 @@ export class ScheduleService {
 
   // 삭제 권한 확인 (담당자, 부서장, 관리자)
   private canDelete(schedule: any, user: CurrentUser): boolean {
-    // 관리자는 모든 삭제 가능
+    // 테넌트 경계 확인
+    if (!this.isSameTenant(schedule, user)) return false;
+
+    // 관리자는 같은 회사 내 모든 삭제 가능
     if (user.role === 'admin') return true;
 
     // 부서장 (같은 부서의 일정)

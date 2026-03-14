@@ -2,15 +2,16 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useEffect } from 'react';
 import {
   ShoppingBag,
   Calendar,
+  Camera,
   Wallet,
   User,
   MapPin,
   Star,
   Users,
-  Camera,
   Briefcase,
   ChevronRight,
 } from 'lucide-react';
@@ -24,8 +25,14 @@ function getMenuItems(user: {
   canViewAllOrders?: boolean;
   canManageProducts?: boolean;
   canViewSettlement?: boolean;
+  canManageSchedule?: boolean;
+  canManageRecruitment?: boolean;
+  enableSchedule?: boolean;
+  enableRecruitment?: boolean;
 } | null) {
   const isEmployee = user?.type === 'employee';
+  const enableSchedule = user?.enableSchedule ?? true;
+  const enableRecruitment = user?.enableRecruitment ?? true;
   const items: { icon: typeof User; label: string; href: string }[] = [
     { icon: User, label: '회원정보', href: '/mypage/profile' },
   ];
@@ -37,13 +44,13 @@ function getMenuItems(user: {
 
   items.push({ icon: MapPin, label: '배송지 관리', href: '/mypage/addresses' });
 
-  // 마이상품: 거래처 소유자 또는 canManageProducts 권한 직원
-  if (!isEmployee || user?.canManageProducts) {
-    items.push({ icon: Star, label: '마이상품', href: '/mypage/my-products' });
-  }
+  // 마이상품: 항상 표시 (모든 직원 포함)
+  items.push({ icon: Star, label: '마이상품', href: '/mypage/my-products' });
 
-  // 주문내역: 항상 표시 (canViewAllOrders=false면 본인 주문만 보임)
-  items.push({ icon: ShoppingBag, label: '주문내역', href: '/mypage/orders' });
+  // 주문내역: 선택사항 — 거래처 소유자는 항상, 직원은 canViewAllOrders 권한 필요
+  if (!isEmployee || user?.canViewAllOrders) {
+    items.push({ icon: ShoppingBag, label: '주문내역', href: '/mypage/orders' });
+  }
 
   // 월거래집계, 입금내역: 거래처 소유자 또는 canViewSettlement 권한 직원
   if (!isEmployee || user?.canViewSettlement) {
@@ -51,13 +58,13 @@ function getMenuItems(user: {
     items.push({ icon: Wallet, label: '입금내역', href: '/mypage/deposits' });
   }
 
-  // 일정관리: 거래처 소유자 또는 MANAGER 직원
-  if (!isEmployee || user?.employeeRole === 'MANAGER') {
+  // 일정관리: 1차(스튜디오 활성) AND (거래처 소유자 OR 직원 권한 있음)
+  if (enableSchedule && (!isEmployee || user?.canManageSchedule)) {
     items.push({ icon: Camera, label: '일정관리', href: '/mypage/schedule' });
   }
 
-  // 구인방: 거래처 소유자 또는 MANAGER 직원
-  if (!isEmployee || user?.employeeRole === 'MANAGER') {
+  // 구인방: 1차(스튜디오 활성) AND (거래처 소유자 OR 직원 권한 있음)
+  if (enableRecruitment && (!isEmployee || user?.canManageRecruitment)) {
     items.push({ icon: Briefcase, label: '구인방', href: '/mypage/recruitment' });
   }
 
@@ -71,8 +78,25 @@ export default function MyPageLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, updateUser } = useAuthStore();
   const menuItems = getMenuItems(user);
+
+  // 마운트 시 최신 서비스 기능 설정 반영 (관리자가 변경했을 수 있으므로)
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+    if (user.role !== 'client' && user.type !== 'employee') return;
+    const token = sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
+    if (!token) return;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+    fetch(`${apiUrl}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data && (data.enableSchedule !== undefined || data.enableRecruitment !== undefined)) {
+          updateUser({ enableSchedule: data.enableSchedule, enableRecruitment: data.enableRecruitment });
+        }
+      })
+      .catch(() => {});
+  }, [isAuthenticated]);
 
   if (!isAuthenticated) {
     return (

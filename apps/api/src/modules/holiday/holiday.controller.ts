@@ -1,6 +1,6 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { Public } from '@/common/decorators/public.decorator';
-import { HolidayService } from './holiday.service';
+import { HolidayService, HolidayItem } from './holiday.service';
 
 @Controller('holidays')
 export class HolidayController {
@@ -12,7 +12,7 @@ export class HolidayController {
    */
   @Public()
   @Get()
-  async getHolidays(@Query('year') yearStr?: string) {
+  async getHolidays(@Query('year') yearStr?: string): Promise<{ data: HolidayItem[] }> {
     const year = yearStr ? parseInt(yearStr, 10) : new Date().getFullYear();
 
     if (isNaN(year) || year < 2000 || year > 2100) {

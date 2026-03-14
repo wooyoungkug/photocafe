@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
@@ -123,6 +124,8 @@ export default function ClientsPage() {
     creditGrade: 'B',
     paymentTerms: 30,
     status: 'active',
+    enableSchedule: true,
+    enableRecruitment: true,
   });
 
   // 영업담당자 상태
@@ -187,6 +190,8 @@ export default function ClientsPage() {
         status: client.status || 'active',
         duplicateCheckMonths: client.duplicateCheckMonths ?? undefined,
         fileRetentionMonths: client.fileRetentionMonths ?? undefined,
+        enableSchedule: client.enableSchedule ?? true,
+        enableRecruitment: client.enableRecruitment ?? true,
       });
 
       // 영업담당자 정보 불러오기
@@ -882,6 +887,35 @@ export default function ClientsPage() {
                       <span className="text-sm text-muted-foreground">개월</span>
                     </div>
                     <p className="text-xs text-muted-foreground">거래완료 후 원본파일 보관기간. 비워두면 기본 3개월.</p>
+                  </div>
+                </div>
+              </div>
+              {/* 서비스 기능 설정 */}
+              <div className="border rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-primary mb-2">서비스 기능 설정</h3>
+                <p className="text-xs text-muted-foreground mb-4">
+                  비활성 시 메뉴가 숨겨지며, 소속 직원 권한 설정에서도 노출되지 않습니다.
+                </p>
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-sm font-medium">일정관리</Label>
+                      <p className="text-xs text-muted-foreground">촬영 일정 등록·관리 기능</p>
+                    </div>
+                    <Switch
+                      checked={formData.enableSchedule ?? true}
+                      onCheckedChange={(v) => setFormData({ ...formData, enableSchedule: v })}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-sm font-medium">구인방</Label>
+                      <p className="text-xs text-muted-foreground">촬영 작가 구인·응찰 기능</p>
+                    </div>
+                    <Switch
+                      checked={formData.enableRecruitment ?? true}
+                      onCheckedChange={(v) => setFormData({ ...formData, enableRecruitment: v })}
+                    />
                   </div>
                 </div>
               </div>

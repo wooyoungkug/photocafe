@@ -621,7 +621,7 @@ export default function MyOrdersPage() {
                             {item.folderName || item.productName}
                           </Link>
                           <div className="text-[13px] text-gray-500 mt-1 leading-tight line-clamp-1">
-                            {item.size} / {item.printMethod} / {item.pages}p / {item.quantity}건
+                            {item.size} / {item.printMethod} / {item.pages}p / {item.quantity}부
                           </div>
                         </div>
                       ))}
@@ -706,13 +706,11 @@ export default function MyOrdersPage() {
                       />
                     </TableHead>
                     <TableHead className="text-center w-[140px] text-[14px]">주문일<br />(주문번호)</TableHead>
-                    <TableHead className="text-[14px]">상품명<br />규격</TableHead>
-                    <TableHead className="text-center w-[70px] text-[14px]">페이지<br />/ 부수</TableHead>
-                    <TableHead className="text-right w-[100px] text-[14px]">주문금액</TableHead>
+                    <TableHead className="text-center text-[14px]">상품명<br />규격</TableHead>
+                    <TableHead className="text-center w-[70px] text-[14px]">페이지<br />부수</TableHead>
                     <TableHead className="text-center w-[110px] text-[14px]">보내는 분</TableHead>
                     <TableHead className="text-center w-[110px] text-[14px]">받는 분</TableHead>
-                    <TableHead className="text-center w-[100px] text-[14px]">생산공정</TableHead>
-                    <TableHead className="text-center w-[100px] text-[14px]">배송상황</TableHead>
+                    <TableHead className="text-center w-[120px] text-[14px]">진행공정</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -732,7 +730,7 @@ export default function MyOrdersPage() {
                         )}
                       >
                         {idx === 0 && (
-                          <TableCell className="text-center align-top pt-3" rowSpan={items.length}>
+                          <TableCell className="text-center align-middle" rowSpan={items.length}>
                             {(isCancellable || DELETABLE_STATUSES.includes(order.status)) ? (
                               <Checkbox
                                 checked={selectedOrders.has(order.id)}
@@ -746,10 +744,10 @@ export default function MyOrdersPage() {
                         )}
 
                         {idx === 0 && (
-                          <TableCell className="text-center align-top pt-3" rowSpan={items.length}>
+                          <TableCell className="text-center align-middle" rowSpan={items.length}>
                             <div className="space-y-1">
                               <div className="text-[14px] text-gray-500">
-                                {format(new Date(order.orderedAt), 'yyyy-MM-dd HH:mm', { locale: ko })}
+                                {format(new Date(order.orderedAt), 'yy-MM-dd HH:mm', { locale: ko })}
                               </div>
                               <Link href={`/mypage/orders/${order.id}`} className="text-[14px] text-primary hover:underline">
                                 {order.orderNumber}
@@ -759,41 +757,29 @@ export default function MyOrdersPage() {
                           </TableCell>
                         )}
 
-                        <TableCell className="align-top pt-3">
+                        <TableCell className="text-center align-middle">
                           <div className="space-y-1">
                             <Link href={`/mypage/orders/${order.id}`} className="text-[14px] text-black font-normal leading-tight line-clamp-2 hover:underline hover:text-primary block">
                               {item.folderName || item.productName}
                             </Link>
+                            {item.folderName && (
+                              <div className="text-[14px] text-black font-normal leading-tight line-clamp-1">
+                                {item.productName}
+                              </div>
+                            )}
                             <div className="text-[13px] text-gray-500 leading-tight line-clamp-1">
-                              {item.productName?.split(' - ')[0]} / {item.size} / {item.printMethod} / {item.paper}
+                              {item.size} / {item.printMethod} / {item.paper}
                             </div>
                           </div>
                         </TableCell>
 
-                        <TableCell className="text-center text-[14px]">
+                        <TableCell className="text-center align-middle text-[14px]">
                           <div>{item.pages}p</div>
-                          <div>{item.quantity}건</div>
+                          <div>{item.quantity}부</div>
                         </TableCell>
 
-                        {idx === 0 && (
-                          <TableCell className="text-right align-top pt-3 text-[14px]" rowSpan={items.length}>
-                            <div className="space-y-1">
-                              <div>{Number(order.finalAmount).toLocaleString()}원</div>
-                              {(order.status === 'shipped' || order.status === 'ready_for_shipping') && (
-                                <button
-                                  type="button"
-                                  className="text-[12px] text-orange-600 hover:underline flex items-center gap-0.5 ml-auto"
-                                  onClick={() => setReturnTargetOrder(order)}
-                                >
-                                  <RotateCw className="h-3 w-3" />
-                                  앨범수리(재발송)
-                                </button>
-                              )}
-                            </div>
-                          </TableCell>
-                        )}
 
-                        <TableCell className="text-center align-top pt-3">
+                        <TableCell className="text-center align-middle">
                           {(() => {
                             const s = item.shipping || order.shipping;
                             if (!s?.senderName) return <span className="text-[14px] text-gray-400">-</span>;
@@ -806,7 +792,7 @@ export default function MyOrdersPage() {
                           })()}
                         </TableCell>
 
-                        <TableCell className="text-center align-top pt-3">
+                        <TableCell className="text-center align-middle">
                           {(() => {
                             const r = item.shipping || order.shipping;
                             if (!r?.recipientName) return <span className="text-[14px] text-gray-400">-</span>;
@@ -824,7 +810,7 @@ export default function MyOrdersPage() {
                         </TableCell>
 
                         {idx === 0 && (
-                          <TableCell className="text-center align-top pt-3" rowSpan={items.length}>
+                          <TableCell className="text-center align-middle" rowSpan={items.length}>
                             <div className="space-y-1">
                               <Badge className={cn('text-[14px]', statusBadge.className)}>
                                 {statusBadge.label}
@@ -839,49 +825,42 @@ export default function MyOrdersPage() {
                               >
                                 {order.processHistory?.[0]?.processedByName || '-'}
                               </div>
+                              {order.shipping?.trackingNumber && order.shipping?.courierCode ? (
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <button type="button" className="flex flex-col items-center gap-1 w-full group cursor-pointer">
+                                      {(() => {
+                                        const ds = getDeliveryStatusFromOrder(order);
+                                        return ds ? (
+                                          <Badge className={cn('text-[14px]', ds.className)}>
+                                            {ds.label}
+                                          </Badge>
+                                        ) : (
+                                          <Badge className="text-[14px] bg-yellow-100 text-yellow-700">배송중</Badge>
+                                        );
+                                      })()}
+                                      <span className="text-[13px] text-blue-600 group-hover:underline flex items-center gap-0.5">
+                                        <MapPin className="h-3 w-3" />
+                                        이동경로
+                                      </span>
+                                    </button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-[360px] p-3" align="end" sideOffset={8}>
+                                    <div className="text-[14px] font-medium mb-2 text-black">
+                                      배송 상세 이동경로
+                                    </div>
+                                    <TrackingTimeline
+                                      courierCode={order.shipping.courierCode}
+                                      trackingNumber={order.shipping.trackingNumber}
+                                    />
+                                  </PopoverContent>
+                                </Popover>
+                              ) : order.status === 'shipped' ? (
+                                <Badge className="text-[14px] bg-green-100 text-green-700">배달완료</Badge>
+                              ) : order.status === 'ready_for_shipping' ? (
+                                <span className="text-[14px] text-gray-400">배송준비중</span>
+                              ) : null}
                             </div>
-                          </TableCell>
-                        )}
-
-                        {idx === 0 && (
-                          <TableCell className="text-center align-top pt-3" rowSpan={items.length}>
-                            {order.shipping?.trackingNumber && order.shipping?.courierCode ? (
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <button type="button" className="flex flex-col items-center gap-1 w-full group cursor-pointer">
-                                    {(() => {
-                                      const ds = getDeliveryStatusFromOrder(order);
-                                      return ds ? (
-                                        <Badge className={cn('text-[14px]', ds.className)}>
-                                          {ds.label}
-                                        </Badge>
-                                      ) : (
-                                        <Badge className="text-[14px] bg-yellow-100 text-yellow-700">배송중</Badge>
-                                      );
-                                    })()}
-                                    <span className="text-[13px] text-blue-600 group-hover:underline flex items-center gap-0.5">
-                                      <MapPin className="h-3 w-3" />
-                                      이동경로
-                                    </span>
-                                  </button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-[360px] p-3" align="end" sideOffset={8}>
-                                  <div className="text-[14px] font-medium mb-2 text-black">
-                                    배송 상세 이동경로
-                                  </div>
-                                  <TrackingTimeline
-                                    courierCode={order.shipping.courierCode}
-                                    trackingNumber={order.shipping.trackingNumber}
-                                  />
-                                </PopoverContent>
-                              </Popover>
-                            ) : order.status === 'shipped' ? (
-                              <Badge className="text-[14px] bg-green-100 text-green-700">배달완료</Badge>
-                            ) : order.status === 'ready_for_shipping' ? (
-                              <span className="text-[14px] text-gray-400">배송준비중</span>
-                            ) : (
-                              <span className="text-[14px] text-gray-400">-</span>
-                            )}
                           </TableCell>
                         )}
 

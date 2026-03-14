@@ -41,10 +41,6 @@ export class StaffNaverStrategy extends PassportStrategy(Strategy, 'staff-naver'
         email: email || `naver_${id}@naver.com`,
         name: name || nickname || '네이버사용자',
         profileImage,
-        gender: gender,
-        birthday: birthday,
-        birthyear: birthYear,
-        mobile: mobile,
       });
 
       done(null, { ...staff, isNew });

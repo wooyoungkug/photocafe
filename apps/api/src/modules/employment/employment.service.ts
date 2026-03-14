@@ -317,11 +317,21 @@ export class EmploymentService {
         });
       }
 
+      const now = new Date();
       const employment = await tx.employment.create({
         data: {
           memberClientId: client.id,
           companyClientId: invitation.clientId,
           role: invitation.role,
+        },
+      });
+
+      await tx.employmentHistory.create({
+        data: {
+          memberClientId: client.id,
+          companyClientId: invitation.clientId,
+          role: invitation.role,
+          joinedAt: now,
         },
       });
 
@@ -390,11 +400,21 @@ export class EmploymentService {
 
     // 트랜잭션: Employment 생성 + Invitation 상태 변경
     const result = await this.prisma.$transaction(async (tx) => {
+      const now = new Date();
       const employment = await tx.employment.create({
         data: {
           memberClientId: client.id,
           companyClientId: invitation.clientId,
           role: invitation.role,
+        },
+      });
+
+      await tx.employmentHistory.create({
+        data: {
+          memberClientId: client.id,
+          companyClientId: invitation.clientId,
+          role: invitation.role,
+          joinedAt: now,
         },
       });
 
@@ -473,11 +493,20 @@ export class EmploymentService {
 
     // Employment 생성 + Invitation 수락
     await this.prisma.$transaction(async (tx) => {
+      const now = new Date();
       await tx.employment.create({
         data: {
           memberClientId: client!.id,
           companyClientId: invitation.clientId,
           role: invitation.role,
+        },
+      });
+      await tx.employmentHistory.create({
+        data: {
+          memberClientId: client!.id,
+          companyClientId: invitation.clientId,
+          role: invitation.role,
+          joinedAt: now,
         },
       });
       await tx.invitation.update({
@@ -494,6 +523,12 @@ export class EmploymentService {
   }
 
   // ==================== 직원 관리 ====================
+
+  async getEmploymentById(id: string) {
+    const employment = await this.prisma.employment.findUnique({ where: { id } });
+    if (!employment) throw new NotFoundException('직원 정보를 찾을 수 없습니다.');
+    return employment;
+  }
 
   async updateEmployment(employmentId: string, dto: UpdateEmploymentDto) {
     const employment = await this.prisma.employment.findUnique({
@@ -520,6 +555,15 @@ export class EmploymentService {
         }),
         ...(dto.canViewSettlement !== undefined && {
           canViewSettlement: dto.canViewSettlement,
+        }),
+        ...(dto.canViewAllSettlement !== undefined && {
+          canViewAllSettlement: dto.canViewAllSettlement,
+        }),
+        ...(dto.canManageSchedule !== undefined && {
+          canManageSchedule: dto.canManageSchedule,
+        }),
+        ...(dto.canManageRecruitment !== undefined && {
+          canManageRecruitment: dto.canManageRecruitment,
         }),
         ...(dto.status !== undefined && { status: dto.status }),
         ...(dto.department !== undefined && {
@@ -646,7 +690,47 @@ export class EmploymentService {
       throw new BadRequestException('최고관리자는 제거할 수 없습니다.');
     }
 
-    await this.prisma.employment.delete({ where: { id: employmentId } });
+    const now = new Date();
+    await this.prisma.$transaction(async (tx) => {
+      // 히스토리에 탈퇴 일시 기록 (가장 최근 미탈퇴 레코드에 leftAt 설정)
+      const historyRecord = await tx.employmentHistory.findFirst({
+        where: {
+          memberClientId: employment.memberClientId,
+          companyClientId: employment.companyClientId,
+          leftAt: null,
+        },
+        orderBy: { joinedAt: 'desc' },
+      });
+      if (historyRecord) {
+        await tx.employmentHistory.update({
+          where: { id: historyRecord.id },
+          data: { leftAt: now },
+        });
+      }
+      await tx.employment.delete({ where: { id: employmentId } });
+    });
+
     return { success: true, message: '직원이 제거되었습니다.' };
+  }
+
+  // ==================== 소속 이력 조회 ====================
+
+  async getEmploymentHistoryByMember(memberClientId: string) {
+    return this.prisma.employmentHistory.findMany({
+      where: { memberClientId },
+      include: {
+        company: {
+          select: {
+            id: true,
+            clientName: true,
+            clientCode: true,
+            representative: true,
+            mobile: true,
+            phone: true,
+          },
+        },
+      },
+      orderBy: { joinedAt: 'desc' },
+    });
   }
 }

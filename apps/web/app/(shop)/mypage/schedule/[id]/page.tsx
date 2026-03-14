@@ -10,11 +10,13 @@ import {
   Calendar,
   MapPin,
   User,
+  Building2,
   Star,
   Send,
   Loader2,
   AlertCircle,
   Pencil,
+  Trash2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,6 +37,7 @@ import { useToast } from '@/hooks/use-toast';
 import {
   useShooting,
   useUpdateShootingStatus,
+  useDeleteShooting,
 } from '@/hooks/use-shooting';
 import type { ShootingStatus } from '@/hooks/use-shooting';
 import { SHOOTING_STATUS_LABELS } from '@/hooks/use-shooting';
@@ -75,10 +78,12 @@ export default function ScheduleDetailPage() {
   const [statusNote, setStatusNote] = useState('');
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<ShootingStatus | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   // 데이터 조회
   const { data: shooting, isLoading, error } = useShooting(shootingId);
   const updateStatusMutation = useUpdateShootingStatus();
+  const deleteMutation = useDeleteShooting();
 
   // 가능한 상태 전이
   const availableTransitions = useMemo(() => {
@@ -119,6 +124,18 @@ export default function ScheduleDetailPage() {
       });
     }
   }, [pendingStatus, shooting, statusNote, updateStatusMutation, toast]);
+
+  const handleDelete = useCallback(async () => {
+    if (!shooting) return;
+    try {
+      await deleteMutation.mutateAsync(shooting.id);
+      toast({ title: '삭제 완료', description: '촬영 일정이 삭제되었습니다.' });
+      router.push('/mypage/schedule');
+    } catch {
+      toast({ title: '삭제 실패', description: '삭제 중 오류가 발생했습니다.', variant: 'destructive' });
+    }
+    setDeleteDialogOpen(false);
+  }, [shooting, deleteMutation, toast, router]);
 
   // 로딩
   if (isLoading) {
@@ -169,7 +186,7 @@ export default function ScheduleDetailPage() {
           </div>
         </div>
 
-        {/* 수정 & 상태 변경 버튼 */}
+        {/* 수정 & 상태 변경 & 삭제 버튼 */}
         <div className="flex items-center gap-2">
           {!['completed', 'cancelled'].includes(shooting.status) && (
             <Button
@@ -180,6 +197,17 @@ export default function ScheduleDetailPage() {
             >
               <Pencil className="h-3.5 w-3.5 mr-1" />
               수정
+            </Button>
+          )}
+          {['draft', 'cancelled'].includes(shooting.status) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDeleteDialogOpen(true)}
+              className="text-[13px] text-red-500 border-red-200 hover:bg-red-50"
+            >
+              <Trash2 className="h-3.5 w-3.5 mr-1" />
+              삭제
             </Button>
           )}
           {availableTransitions.map((nextStatus) => (
@@ -261,6 +289,21 @@ export default function ScheduleDetailPage() {
                 </p>
               </div>
             </div>
+
+            {/* 등록 업체 / 담당자 */}
+            {shooting.creator && (
+              <div className="flex items-start gap-2.5 sm:col-span-2">
+                <Building2 className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-[12px] text-gray-500">등록자</p>
+                  <p className="text-[14px] text-black font-normal">
+                    {shooting.creator.memberType === 'business' && shooting.creator.representative
+                      ? `${shooting.creator.clientName}(${shooting.creator.representative})`
+                      : shooting.creator.clientName}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* 메모 */}
@@ -387,6 +430,38 @@ export default function ScheduleDetailPage() {
                 <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
               )}
               확인
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 삭제 확인 다이얼로그 */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-[18px] text-black font-bold">일정 삭제</DialogTitle>
+            <DialogDescription className="text-[14px]">
+              이 촬영 일정을 삭제하면 복구할 수 없습니다. 정말 삭제하시겠습니까?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              className="text-[14px]"
+            >
+              취소
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleteMutation.isPending}
+              className="text-[14px]"
+            >
+              {deleteMutation.isPending && (
+                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+              )}
+              삭제
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -40,6 +40,16 @@ export class EmploymentController {
     return this.employmentService.getEmployeesByClient(clientId);
   }
 
+  @Get('history/member/:memberClientId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '개인회원 스튜디오 소속 이력 조회 (관리자용)' })
+  async getEmploymentHistoryByMember(
+    @Param('memberClientId') memberClientId: string,
+  ) {
+    return this.employmentService.getEmploymentHistoryByMember(memberClientId);
+  }
+
   @Get('invitations/:clientId')
   @UseGuards(JwtAuthGuard, ClientOwnerOrManagerGuard)
   @ApiBearerAuth()
@@ -136,15 +146,23 @@ export class EmploymentController {
   async updateEmployment(
     @Param('id') id: string,
     @Body() dto: UpdateEmploymentDto,
+    @Request() req: any,
   ) {
+    const employment = await this.employmentService.getEmploymentById(id);
+    if (employment.memberClientId === req.user.sub) {
+      throw new ForbiddenException('자신의 권한은 수정할 수 없습니다.');
+    }
     return this.employmentService.updateEmployment(id, dto);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: '직원 제거' })
-  async removeEmployment(@Param('id') id: string) {
+  @ApiOperation({ summary: '직원 제거 (최고관리자 전용)' })
+  async removeEmployment(@Param('id') id: string, @Request() req: any) {
+    if (req.user.type !== 'client') {
+      throw new ForbiddenException('직원 제거는 최고관리자만 가능합니다.');
+    }
     return this.employmentService.removeEmployment(id);
   }
 

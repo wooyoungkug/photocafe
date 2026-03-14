@@ -7,6 +7,7 @@ import {
   ClientGroup,
   CreateClientDto,
   UpdateClientDto,
+  ConvertToBusinessDto,
   CreateClientGroupDto,
   UpdateClientGroupDto,
   PaginatedResponse,
@@ -23,6 +24,7 @@ export function useClients(params?: {
   search?: string;
   groupId?: string;
   status?: string;
+  memberType?: string;
 }) {
   return useQuery({
     queryKey: [CLIENTS_KEY, params],
@@ -36,6 +38,39 @@ export function useClient(id: string) {
     queryKey: [CLIENTS_KEY, id],
     queryFn: () => api.get<Client>(`/clients/${id}`),
     enabled: !!id,
+  });
+}
+
+export interface EmploymentHistoryItem {
+  id: string;
+  memberClientId: string;
+  companyClientId: string;
+  role: string;
+  joinedAt: string;
+  leftAt: string | null;
+  createdAt: string;
+  company: {
+    id: string;
+    clientName: string;
+    clientCode: string;
+    representative: string | null;
+    mobile: string | null;
+    phone: string | null;
+  };
+}
+
+export function useClientEmploymentHistory(
+  memberClientId: string,
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: [CLIENTS_KEY, memberClientId, 'employment-history'],
+    queryFn: () =>
+      api.get<EmploymentHistoryItem[]>(
+        `/employments/history/member/${memberClientId}`,
+      ),
+    enabled: options?.enabled !== false && !!memberClientId,
+    staleTime: 30 * 1000,
   });
 }
 
@@ -98,6 +133,18 @@ export interface EmailCheckResult {
 
 export async function checkClientEmail(email: string, excludeId?: string): Promise<EmailCheckResult> {
   return api.get<EmailCheckResult>('/clients/check-email', { email, excludeId });
+}
+
+export function useConvertToBusiness() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: ConvertToBusinessDto }) =>
+      api.patch<Client>(`/clients/${id}/convert-to-business`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [CLIENTS_KEY] });
+    },
+  });
 }
 
 export function useChangeClientGroup() {

@@ -65,7 +65,7 @@ export class KakaoAlimtalkService {
         }
         this.logger.warn('카카오 알림톡 실패, 이메일 fallback 시도');
       } catch (err) {
-        this.logger.error(`카카오 알림톡 발송 오류: ${err.message}`);
+        this.logger.error(`카카오 알림톡 발송 오류: ${(err as Error).message}`);
       }
     }
 

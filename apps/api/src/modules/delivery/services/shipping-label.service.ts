@@ -10,8 +10,21 @@ const PDFDocument = require('pdfkit');
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const bwipjs = require('bwip-js');
 
-// 한글 폰트 경로
-const FONT_DIR = path.resolve(__dirname, '../../../../fonts');
+// 한글 폰트 경로 (여러 경로 순서대로 탐색)
+function findFontDir(): string {
+  const candidates = [
+    path.resolve(process.cwd(), 'fonts'),                // 실행 디렉토리 기준 (Docker: /app/fonts)
+    path.resolve(__dirname, '../../../../fonts'),         // dist/modules/delivery/services 기준
+    path.resolve(__dirname, '../../../../../fonts'),      // 한 단계 더 위
+    '/app/fonts',                                         // Docker 절대 경로
+  ];
+  for (const dir of candidates) {
+    if (fs.existsSync(path.join(dir, 'NanumGothic.ttf'))) return dir;
+  }
+  return candidates[0]; // 찾지 못하면 첫 번째 경로 반환 (경고는 생성자에서 출력)
+}
+
+const FONT_DIR = findFontDir();
 const FONT_REGULAR = path.join(FONT_DIR, 'NanumGothic.ttf');
 const FONT_BOLD = path.join(FONT_DIR, 'NanumGothicBold.ttf');
 

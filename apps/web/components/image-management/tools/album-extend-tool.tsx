@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Upload, Expand, Download, Info, Eye, FolderOpen } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { extractDPIFromJPEG, canvasToJPEGWithDPI } from '@/lib/image-tools/dpi-utils';
-import { saveToFolder, fallbackDownload, pickDirectory, isJpegOrPng } from '@/lib/image-tools/file-utils';
+import { saveToFolder, isJpegOrPng } from '@/lib/image-tools/file-utils';
 import { ToolGuide } from './tool-guide';
 import { ToolUsageCounter } from './tool-usage-counter';
 
@@ -30,10 +30,26 @@ export function AlbumExtendTool() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const trackUseRef = useRef<(() => void) | null>(null);
+  const sourceFileHandleRef = useRef<FileSystemFileHandle | null>(null);
 
   const cleanup = useCallback(() => {
     if (resultUrl) URL.revokeObjectURL(resultUrl);
   }, [resultUrl]);
+
+  const resetTool = useCallback(() => {
+    cleanup();
+    setOriginalImage(null);
+    setFileName('');
+    setOriginalDPI(300);
+    setResultBlob(null);
+    setResultUrl('');
+    setShowInfo(false);
+    setShowPreview(false);
+    setShowResult(false);
+    setOutputName('');
+    sourceFileHandleRef.current = null;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [cleanup]);
 
   const loadImage = useCallback((file: File) => {
     cleanup();
@@ -68,11 +84,36 @@ export function AlbumExtendTool() {
     e.target.value = '';
   }, [loadImage]);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  const handleClickUpload = useCallback(async () => {
+    if ('showOpenFilePicker' in window) {
+      try {
+        const [fileHandle] = await (window as any).showOpenFilePicker({
+          types: [{ description: '이미지 파일', accept: { 'image/*': ['.jpg', '.jpeg', '.png'] } }],
+          multiple: false,
+        });
+        sourceFileHandleRef.current = fileHandle;
+        const file = await fileHandle.getFile();
+        loadImage(file);
+      } catch { /* 사용자가 파일 선택 취소 */ }
+    } else {
+      fileInputRef.current?.click();
+    }
+  }, [loadImage]);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
     const file = e.dataTransfer.files[0];
     if (file && isJpegOrPng(file)) {
+      const item = e.dataTransfer.items[0];
+      if (item && 'getAsFileSystemHandle' in item) {
+        try {
+          const handle = await (item as any).getAsFileSystemHandle();
+          if (handle?.kind === 'file') {
+            sourceFileHandleRef.current = handle as FileSystemFileHandle;
+          }
+        } catch { /* 핸들 획득 실패 - 무시 */ }
+      }
       loadImage(file);
     } else {
       toast.error('JPEG 또는 PNG 파일만 지원합니다.');
@@ -132,25 +173,68 @@ export function AlbumExtendTool() {
     }
   }, [originalImage, originalDPI, cleanup]);
 
+  /** showSaveFilePicker로 원본 경로에서 저장 다이얼로그 열기 */
+  const saveWithPicker = useCallback(async (blob: Blob, suggestedName: string): Promise<boolean> => {
+    if (!('showSaveFilePicker' in window)) return false;
+    try {
+      const options: any = {
+        suggestedName,
+        types: [{ description: 'JPEG Image', accept: { 'image/jpeg': ['.jpg', '.jpeg'] } }],
+      };
+      if (sourceFileHandleRef.current) {
+        options.startIn = sourceFileHandleRef.current;
+      }
+      const fileHandle = await (window as any).showSaveFilePicker(options);
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return true;
+    } catch {
+      return false; // 사용자 취소
+    }
+  }, []);
+
   const handleSelectDirectory = useCallback(async () => {
-    const handle = await pickDirectory();
-    if (handle) {
-      setDirectoryHandle(handle);
-      toast.success(`저장 폴더: ${handle.name}`);
+    if ('showDirectoryPicker' in window) {
+      try {
+        const options: any = { mode: 'readwrite' };
+        if (sourceFileHandleRef.current) {
+          options.startIn = sourceFileHandleRef.current;
+        }
+        const handle = await (window as any).showDirectoryPicker(options);
+        setDirectoryHandle(handle);
+        toast.success(`저장 폴더: ${handle.name}`);
+      } catch { /* 사용자가 취소 */ }
     }
   }, []);
 
   const handleSave = useCallback(async () => {
     if (!resultBlob) return;
     const filename = `${outputName || 'output'}.jpg`;
+    let saved = false;
     if (directoryHandle) {
       const ok = await saveToFolder(directoryHandle, resultBlob, filename);
-      if (ok) toast.success(`${filename} 저장 완료`);
+      if (ok) saved = true;
       else toast.error('저장 실패');
+    } else if ('showSaveFilePicker' in window) {
+      const ok = await saveWithPicker(resultBlob, filename);
+      if (ok) saved = true;
+      // else: 사용자가 취소 → 아무것도 안 함
     } else {
-      fallbackDownload(resultBlob, filename);
+      // showSaveFilePicker 미지원 브라우저 폴백
+      const url = URL.createObjectURL(resultBlob);
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = url;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+      saved = true;
     }
-  }, [resultBlob, directoryHandle, outputName]);
+    if (saved) {
+      toast.success(`${filename} 저장 완료! 잠시 후 초기화됩니다.`);
+      setTimeout(resetTool, 1500);
+    }
+  }, [resultBlob, directoryHandle, outputName, saveWithPicker, resetTool]);
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
@@ -227,7 +311,7 @@ export function AlbumExtendTool() {
             onDrop={handleDrop}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
-            onClick={() => fileInputRef.current?.click()}
+            onClick={handleClickUpload}
             className={`
               border-2 border-dashed rounded-lg p-10 text-center transition-colors cursor-pointer
               ${isDragOver ? 'border-blue-500 bg-blue-50' : 'border-slate-300 hover:border-slate-400 bg-slate-50'}

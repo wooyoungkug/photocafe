@@ -56,11 +56,20 @@ const shootingFormSchema = z.object({
   recruitmentBudget: z.coerce.number().min(0).optional(),
   recruitmentDescription: z.string().optional(),
   recruitmentRequirements: z.string().optional(),
+  recruitmentPrivateDeadlineHours: z.number().optional(),
 });
 
 type ShootingFormValues = z.infer<typeof shootingFormSchema>;
 
 const SHOOTING_TYPES = Object.entries(SHOOTING_TYPE_LABELS) as [ShootingType, string][];
+
+const DEADLINE_OPTIONS = [
+  { value: 0, label: '즉시 (공개 모집)' },
+  { value: 6, label: '6시간' },
+  { value: 12, label: '12시간' },
+  { value: 24, label: '24시간' },
+  { value: 48, label: '48시간' },
+];
 
 // ==================== 프리셋 ====================
 
@@ -145,6 +154,7 @@ interface ShootingFormProps {
   onCancel: () => void;
   isLoading?: boolean;
   mode?: 'create' | 'edit';
+  defaultEnableRecruitment?: boolean;
 }
 
 export function ShootingForm({
@@ -153,9 +163,10 @@ export function ShootingForm({
   onCancel,
   isLoading = false,
   mode = 'create',
+  defaultEnableRecruitment,
 }: ShootingFormProps) {
   const [enableRecruitment, setEnableRecruitment] = useState(
-    !!defaultValues?.linkedRecruitmentId,
+    defaultEnableRecruitment ?? !!defaultValues?.linkedRecruitmentId,
   );
   const { user } = useAuthStore();
 
@@ -193,10 +204,11 @@ export function ShootingForm({
       customerPhone: defaultValues?.customerPhone || '',
       customerEmail: defaultValues?.customerEmail || '',
       notes: defaultValues?.notes || '',
-      recruitmentTitle: '',
-      recruitmentBudget: undefined,
-      recruitmentDescription: '',
-      recruitmentRequirements: '',
+      recruitmentTitle: defaultValues?.linkedRecruitment?.title || '',
+      recruitmentBudget: defaultValues?.linkedRecruitment?.budget ?? undefined,
+      recruitmentDescription: defaultValues?.linkedRecruitment?.description || '',
+      recruitmentRequirements: defaultValues?.linkedRecruitment?.requirements || '',
+      recruitmentPrivateDeadlineHours: defaultValues?.linkedRecruitment?.privateDeadlineHours ?? 24,
     },
   });
 
@@ -274,6 +286,7 @@ export function ShootingForm({
       dto.recruitmentBudget = values.recruitmentBudget || undefined;
       dto.recruitmentDescription = values.recruitmentDescription || undefined;
       dto.recruitmentRequirements = values.recruitmentRequirements || undefined;
+      dto.recruitmentPrivateDeadlineHours = values.recruitmentPrivateDeadlineHours ?? 24;
     }
 
     onSubmit(dto);
@@ -311,7 +324,6 @@ export function ShootingForm({
               value={watch('shootingType')}
               onValueChange={(val) => {
                 setValue('shootingType', val);
-                form.trigger('shootingType');
               }}
             >
               <SelectTrigger className="text-[14px]">
@@ -567,24 +579,28 @@ export function ShootingForm({
               <div className="space-y-1.5">
                 <Label className="text-[14px] text-black font-normal">상세설명</Label>
                 <div className="flex flex-wrap gap-1.5 mb-1.5">
-                  {(DESCRIPTION_PRESETS[watchedType] || []).map((p) => (
-                    <Badge
-                      key={p.label}
-                      variant="outline"
-                      className="cursor-pointer hover:bg-primary hover:text-white transition-colors text-[12px]"
-                      onClick={() => setValue('recruitmentDescription', p.text)}
-                    >
-                      {p.label}
-                    </Badge>
-                  ))}
+                  {(DESCRIPTION_PRESETS[watchedType] || []).map((p) => {
+                    const current = watch('recruitmentDescription') || '';
+                    const isSelected = current === p.text;
+                    return (
+                      <Badge
+                        key={p.label}
+                        variant="outline"
+                        className={`cursor-pointer transition-colors text-[12px] ${isSelected ? 'bg-red-600 text-white border-red-600' : 'hover:bg-red-600 hover:text-white hover:border-red-600'}`}
+                        onClick={() => setValue('recruitmentDescription', p.text)}
+                      >
+                        {isSelected ? '✓ ' : ''}{p.label}
+                      </Badge>
+                    );
+                  })}
                   {COMMON_DESCRIPTION_PRESETS.map((p) => {
                     const current = watch('recruitmentDescription') || '';
                     const alreadyIncluded = current.includes(p.text);
                     return (
                       <Badge
                         key={p.label}
-                        variant="secondary"
-                        className={`cursor-pointer transition-colors text-[12px] ${alreadyIncluded ? 'bg-primary text-white' : 'hover:bg-primary hover:text-white'}`}
+                        variant="outline"
+                        className={`cursor-pointer transition-colors text-[12px] ${alreadyIncluded ? 'bg-red-600 text-white border-red-600' : 'hover:bg-red-600 hover:text-white hover:border-red-600'}`}
                         onClick={() => {
                           if (alreadyIncluded) {
                             const removed = current
@@ -614,24 +630,28 @@ export function ShootingForm({
               <div className="space-y-1.5">
                 <Label className="text-[14px] text-black font-normal">요구사항</Label>
                 <div className="flex flex-wrap gap-1.5 mb-1.5">
-                  {(REQUIREMENTS_PRESETS[watchedType] || []).map((p) => (
-                    <Badge
-                      key={p.label}
-                      variant="outline"
-                      className="cursor-pointer hover:bg-primary hover:text-white transition-colors text-[12px]"
-                      onClick={() => setValue('recruitmentRequirements', p.text)}
-                    >
-                      {p.label}
-                    </Badge>
-                  ))}
+                  {(REQUIREMENTS_PRESETS[watchedType] || []).map((p) => {
+                    const current = watch('recruitmentRequirements') || '';
+                    const isSelected = current === p.text;
+                    return (
+                      <Badge
+                        key={p.label}
+                        variant="outline"
+                        className={`cursor-pointer transition-colors text-[12px] ${isSelected ? 'bg-red-600 text-white border-red-600' : 'hover:bg-red-600 hover:text-white hover:border-red-600'}`}
+                        onClick={() => setValue('recruitmentRequirements', p.text)}
+                      >
+                        {isSelected ? '✓ ' : ''}{p.label}
+                      </Badge>
+                    );
+                  })}
                   {COMMON_REQUIREMENTS_PRESETS.map((p) => {
                     const current = watch('recruitmentRequirements') || '';
                     const alreadyIncluded = current.includes(p.text);
                     return (
                       <Badge
                         key={p.label}
-                        variant="secondary"
-                        className={`cursor-pointer transition-colors text-[12px] ${alreadyIncluded ? 'bg-primary text-white' : 'hover:bg-primary hover:text-white'}`}
+                        variant="outline"
+                        className={`cursor-pointer transition-colors text-[12px] ${alreadyIncluded ? 'bg-red-600 text-white border-red-600' : 'hover:bg-red-600 hover:text-white hover:border-red-600'}`}
                         onClick={() => {
                           if (alreadyIncluded) {
                             const removed = current
@@ -656,6 +676,32 @@ export function ShootingForm({
                   rows={3}
                   className="text-[14px]"
                 />
+              </div>
+
+              {/* 모집 설정 */}
+              <div className="space-y-1.5 pt-3 border-t">
+                <p className="text-[14px] text-black font-bold">모집 설정</p>
+                <div className="space-y-1.5">
+                  <Label className="text-[14px] text-black font-normal">전속 모집 마감 시간</Label>
+                  <p className="text-[12px] text-gray-500">
+                    등록 즉시 구인방에 올라갑니다. 전속 모집 기간이 지나면 자동으로 공개 모집으로 전환됩니다
+                  </p>
+                  <Select
+                    value={String(watch('recruitmentPrivateDeadlineHours') ?? 24)}
+                    onValueChange={(v) => setValue('recruitmentPrivateDeadlineHours', Number(v))}
+                  >
+                    <SelectTrigger className="text-[14px] w-[200px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DEADLINE_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={String(opt.value)}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
           )}

@@ -41,6 +41,44 @@ export class StaffService {
     return !!requester && (requester.isSuperAdmin || requester.canEditMemberInfo);
   }
 
+  /**
+   * 요청자가 최고관리자(isSuperAdmin)인지 확인합니다.
+   */
+  async checkSuperAdminPermission(requesterId: string): Promise<boolean> {
+    const requester = await this.prisma.staff.findUnique({
+      where: { id: requesterId },
+      select: { isSuperAdmin: true },
+    });
+    return !!requester?.isSuperAdmin;
+  }
+
+  /**
+   * 최고관리자 권한 부여/해제
+   */
+  async toggleSuperAdmin(targetId: string, isSuperAdmin: boolean, actor: { id: string; name: string }) {
+    const target = await this.prisma.staff.findUnique({ where: { id: targetId }, select: { name: true, staffId: true } });
+    if (!target) throw new NotFoundException('직원을 찾을 수 없습니다');
+
+    const updated = await this.prisma.staff.update({
+      where: { id: targetId },
+      data: { isSuperAdmin },
+    });
+
+    await this.auditLogService.log({
+      entityType: 'staff',
+      entityId: targetId,
+      action: isSuperAdmin ? 'GRANT_SUPER_ADMIN' : 'REVOKE_SUPER_ADMIN',
+      performedBy: actor.id,
+      performerName: actor.name,
+      metadata: {
+        isSuperAdmin,
+        description: `${target.name}(${target.staffId}) 최고관리자 권한 ${isSuperAdmin ? '부여' : '해제'}`,
+      },
+    });
+
+    return updated;
+  }
+
   // ==================== 직원 CRUD ====================
 
   async findAll(query: StaffQueryDto) {
@@ -605,7 +643,7 @@ export class StaffService {
 
         results.imported++;
       } catch (error) {
-        results.errors.push({ row: i + 1, staffId: row.staffId, message: error.message || '등록 실패' });
+        results.errors.push({ row: i + 1, staffId: row.staffId, message: (error as Error).message || '등록 실패' });
       }
     }
 

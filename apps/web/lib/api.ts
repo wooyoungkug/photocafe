@@ -24,6 +24,8 @@ function getRefreshToken(): string | null {
 
 function isRememberMe(): boolean {
   if (typeof window === 'undefined') return false;
+  // 대리로그인 등 현재 세션이 sessionStorage 기반이면 false (localStorage 어드민 토큰 덮어쓰기 방지)
+  if (sessionStorage.getItem('accessToken')) return false;
   return !!localStorage.getItem('accessToken');
 }
 

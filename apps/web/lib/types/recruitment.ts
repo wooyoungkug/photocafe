@@ -12,8 +12,9 @@ export type UrgencyLevel = 'normal' | 'urgent' | 'emergency';
 
 export type RecruitmentBidStatus = 'pending' | 'selected' | 'rejected';
 
-// 공용 상수에서 re-export
-export type { ShootingType } from '@/lib/constants/shooting-types';
+// 공용 상수에서 import & re-export
+import type { ShootingType } from '@/lib/constants/shooting-types';
+export type { ShootingType };
 export { SHOOTING_TYPE_LABELS } from '@/lib/constants/shooting-types';
 
 export const RECRUITMENT_STATUS_LABELS: Record<RecruitmentStatus, string> = {

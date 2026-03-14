@@ -1,5 +1,6 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { LogenService } from './logen.service';
 
 export interface TrackingDetail {
   status: string;
@@ -44,9 +45,12 @@ const DIRECT_TRACKING_URLS: Record<string, (trackingNumber: string) => string> =
 export class TrackingService {
   /** 인메모리 캐시: key = "courierCode:trackingNumber" */
   private cache = new Map<string, { data: TrackingInfo; expiresAt: number }>();
-  private readonly CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6시간 (스마트택배 하루 요청 리미트 방지)
+  private readonly CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6시간
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly logenService: LogenService,
+  ) {}
 
   /** 택배사 직접 조회 URL 반환 */
   getDirectTrackingUrl(courierCode: string, trackingNumber: string): string | undefined {
@@ -64,11 +68,22 @@ export class TrackingService {
     if (!bypassCache && cached && cached.expiresAt > Date.now()) {
       return cached.data;
     }
+
     const apiKey = this.configService.get<string>('SWEETTRACKER_API_KEY');
 
     if (!apiKey) {
+      // SWEETTRACKER 미설정 시 로젠 API 직접 조회 시도 (courierCode=06)
+      if (courierCode === '06' && this.logenService.isConfigured()) {
+        const logenResult = await this.logenService.getTrackingInfo(trackingNumber);
+        if (logenResult) {
+          this.cache.set(cacheKey, { data: logenResult, expiresAt: Date.now() + this.CACHE_TTL_MS });
+          return logenResult;
+        }
+      }
+      // 로젠 API도 실패하면 직접 조회 URL 안내
+      const directUrl = this.getDirectTrackingUrl(courierCode, trackingNumber);
       throw new HttpException(
-        '배송 추적 서비스가 설정되지 않았습니다. (SWEETTRACKER_API_KEY 미설정)',
+        { message: '배송 조회 서비스가 준비되지 않았습니다. 아래 링크에서 직접 조회해 주세요.', directTrackingUrl: directUrl },
         HttpStatus.SERVICE_UNAVAILABLE,
       );
     }

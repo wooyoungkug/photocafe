@@ -169,6 +169,7 @@ async function seedFoilColors() {
     { code: 'white', name: '흰색박', colorHex: '#FFFFFF', sortOrder: 6 },
     { code: 'black', name: '먹박', colorHex: '#000000', sortOrder: 7 },
     { code: 'hologram', name: '홀로그램박', colorHex: '#E6E6FA', sortOrder: 8 },
+    { code: 'fire', name: '불박', colorHex: '#FF4500', sortOrder: 9 },
   ];
 
   for (const color of foilColors) {

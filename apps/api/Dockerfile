@@ -1,7 +1,7 @@
 # ================================
 # Stage 1: Dependencies & Build
 # ================================
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 
 # Install dependencies for native modules
@@ -18,6 +18,7 @@ RUN npm install
 COPY apps/api/src ./src
 COPY apps/api/tsconfig*.json ./
 COPY apps/api/nest-cli.json ./
+COPY apps/api/fonts ./fonts
 
 # Generate Prisma client and build
 RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npx prisma generate
@@ -26,7 +27,7 @@ RUN npm run build
 # ================================
 # Stage 2: Production
 # ================================
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
@@ -44,6 +45,7 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/fonts ./fonts
 
 # Create uploads directory
 RUN mkdir -p /app/uploads/temp /app/uploads/orders
@@ -59,5 +61,5 @@ EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD curl -f http://localhost:3001/health || exit 1
 
-# Run prisma db push on startup, then start server
-CMD ["sh", "-c", "npx prisma db push --skip-generate --accept-data-loss && node dist/main.js"]
+# Run prisma db push on startup, then start server (--accept-data-loss 제거 - 데이터 손실 방지)
+CMD ["sh", "-c", "npx prisma db push --skip-generate && node dist/main.js"]

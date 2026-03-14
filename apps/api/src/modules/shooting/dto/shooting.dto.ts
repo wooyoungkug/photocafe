@@ -123,6 +123,13 @@ export class CreateShootingDto {
   @IsOptional()
   @IsString()
   recruitmentRequirements?: string;
+
+  @ApiPropertyOptional({ description: '전속 모집 마감 시간 (시간 단위)', default: 24 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Type(() => Number)
+  recruitmentPrivateDeadlineHours?: number;
 }
 
 export class UpdateShootingDto {
@@ -240,6 +247,13 @@ export class UpdateShootingDto {
   @IsOptional()
   @IsString()
   recruitmentRequirements?: string;
+
+  @ApiPropertyOptional({ description: '전속 모집 마감 시간 (시간 단위)', default: 24 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Type(() => Number)
+  recruitmentPrivateDeadlineHours?: number;
 }
 
 export class QueryShootingDto {
@@ -293,6 +307,11 @@ export class QueryShootingDto {
   @IsOptional()
   @IsString()
   assignedStaffId?: string;
+
+  @ApiPropertyOptional({ description: '생성자 ID 필터' })
+  @IsOptional()
+  @IsString()
+  createdBy?: string;
 }
 
 export class UpdateShootingStatusDto {

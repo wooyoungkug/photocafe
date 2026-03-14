@@ -485,6 +485,15 @@ export default function ProductPage() {
       foilColor: opts.foilColor, foilPosition: opts.foilPosition,
     });
     if (opts.coverSourceType) applyGlobalCoverSource(opts.coverSourceType);
+    // 마이상품 로드 시 모든 폴더의 출력방식/용지를 강제 업데이트
+    uploadFolders.forEach(f => {
+      updateUploadFolder(f.id, {
+        printMethod: (opts.printMethod as 'indigo' | 'inkjet') || 'indigo',
+        colorMode: (opts.colorMode as '4c' | '6c') || '4c',
+        selectedPaperId: opts.paperId || null,
+        selectedPaperName: opts.paperName || null,
+      });
+    });
     if (opts.fabricId && opts.fabricName) {
       setFabricSelection({ id: opts.fabricId, name: opts.fabricName, thumbnail: opts.fabricThumbnail || null, basePrice: 0, category: '', colorCode: null, colorName: null });
       uploadFolders.forEach(f => {
@@ -668,6 +677,15 @@ export default function ProductPage() {
       foilColor: opts.foilColor, foilPosition: opts.foilPosition,
     });
     if (opts.coverSourceType) applyGlobalCoverSource(opts.coverSourceType);
+    // 마이상품 로드 시 모든 폴더의 출력방식/용지를 강제 업데이트
+    uploadFolders.forEach(f => {
+      updateUploadFolder(f.id, {
+        printMethod: (opts.printMethod as 'indigo' | 'inkjet') || 'indigo',
+        colorMode: (opts.colorMode as '4c' | '6c') || '4c',
+        selectedPaperId: opts.paperId || null,
+        selectedPaperName: opts.paperName || null,
+      });
+    });
     if (opts.fabricId && opts.fabricName) {
       setFabricSelection({ id: opts.fabricId, name: opts.fabricName, thumbnail: opts.fabricThumbnail || null, basePrice: 0, category: '', colorCode: null, colorName: null });
       uploadFolders.forEach(f => setFolderFabric(f.id, opts.fabricId!, opts.fabricName!, opts.fabricThumbnail || null, 0, '', null, null));

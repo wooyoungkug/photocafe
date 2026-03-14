@@ -59,7 +59,7 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: '내 정보 조회' })
   async getProfile(@Request() req: any) {
-    return this.authService.getProfile(req.user.sub);
+    return this.authService.getProfile(req.user.sub, req.user.type, req.user.clientId);
   }
 
   // ========== 컨텍스트 선택 ==========
@@ -332,7 +332,7 @@ export class AuthController {
 
   @Public()
   @Post('staff/login')
-  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  @Throttle({ default: { ttl: 60000, limit: 20 } })
   @ApiOperation({ summary: '직원 ID/PW 로그인' })
   async staffLogin(@Body() dto: StaffLoginDto, @Ip() ip: string) {
     return this.authService.loginStaffWithPassword(dto.staffId, dto.password, ip);
@@ -492,5 +492,16 @@ export class AuthController {
       throw new ForbiddenException('직원 계정만 대리 로그인할 수 있습니다');
     }
     return this.authService.impersonateClient(clientId, req.user.sub);
+  }
+
+  @Patch('reset-client-password/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '관리자가 회원 비밀번호를 1111로 초기화' })
+  async resetClientPassword(@Param('id') id: string, @Request() req: any) {
+    if (req.user.type !== 'staff') {
+      throw new ForbiddenException('직원 계정만 비밀번호를 초기화할 수 있습니다');
+    }
+    return this.authService.resetClientPassword(id);
   }
 }

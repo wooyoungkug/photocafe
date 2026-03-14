@@ -44,6 +44,21 @@ export class UpdateEmploymentDto {
   @IsBoolean()
   canViewSettlement?: boolean;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  canViewAllSettlement?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  canManageSchedule?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  canManageRecruitment?: boolean;
+
   @ApiPropertyOptional({ enum: ['ACTIVE', 'SUSPENDED'] })
   @IsOptional()
   @IsIn(['ACTIVE', 'SUSPENDED'])

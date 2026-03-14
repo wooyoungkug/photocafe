@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   format,
@@ -27,11 +27,21 @@ import {
   MapPin,
   User,
   Loader2,
+  Trash2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
 import {
   Select,
   SelectContent,
@@ -42,7 +52,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useShootingStore } from '@/stores/shooting-store';
 import type { CalendarViewMode } from '@/stores/shooting-store';
-import { useShootings } from '@/hooks/use-shooting';
+import { useShootings, useDeleteShooting } from '@/hooks/use-shooting';
 import type { Shooting, ShootingType, ShootingStatus } from '@/hooks/use-shooting';
 import { SHOOTING_TYPE_LABELS, SHOOTING_STATUS_LABELS } from '@/hooks/use-shooting';
 import { ShootingCalendar } from '@/components/shooting/shooting-calendar';
@@ -83,6 +93,7 @@ const ALL_TYPES: ShootingType[] = [
 
 export default function ShootingPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const {
     viewMode,
     setViewMode,
@@ -95,6 +106,9 @@ export default function ShootingPage() {
     filterStatus,
     setFilterStatus,
   } = useShootingStore();
+
+  const [deleteTarget, setDeleteTarget] = useState<Shooting | null>(null);
+  const deleteMutation = useDeleteShooting();
 
   // 날짜 범위 계산 (캘린더에 표시할 범위)
   const dateRange = useMemo(() => {
@@ -386,76 +400,133 @@ export default function ShootingPage() {
                 </div>
               ) : (
                 selectedDateShootings.map((shooting) => (
-                  <button
+                  <div
                     key={shooting.id}
-                    type="button"
-                    onClick={() => handleShootingClick(shooting)}
-                    className="w-full text-left p-3 rounded-lg border transition-colors hover:bg-gray-50"
+                    className="relative rounded-lg border transition-colors hover:bg-gray-50"
                   >
-                    {/* 유형/상태 */}
-                    <div className="flex items-center gap-1.5 mb-1.5">
-                      <ShootingTypeBadge type={shooting.shootingType} />
-                      <ShootingStatusBadge status={shooting.status} />
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleShootingClick(shooting)}
+                      className="w-full text-left p-3"
+                    >
+                      {/* 유형/상태 */}
+                      <div className="flex items-center gap-1.5 mb-1.5 pr-6">
+                        <ShootingTypeBadge type={shooting.shootingType} />
+                        <ShootingStatusBadge status={shooting.status} />
+                      </div>
 
-                    {/* 고객명 */}
-                    <p className="text-[14px] text-black font-bold truncate">
-                      {shooting.clientName}
-                    </p>
+                      {/* 고객명 */}
+                      <p className="text-[14px] text-black font-bold truncate">
+                        {shooting.clientName}
+                      </p>
 
-                    {/* 시간 */}
-                    {(() => {
-                      const d = new Date(shooting.shootingDate);
-                      const h = d.getHours();
-                      const m = d.getMinutes();
-                      if (h === 0 && m === 0) return null;
-                      const timeStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-                      return (
-                        <div className="flex items-center gap-1 mt-1">
-                          <Clock className="h-3 w-3 text-gray-400" />
-                          <span className="text-[12px] text-gray-600">
-                            {timeStr}
-                            {shooting.duration && ` (${shooting.duration}분)`}
+                      {/* 시간 */}
+                      {(() => {
+                        const d = new Date(shooting.shootingDate);
+                        const h = d.getHours();
+                        const m = d.getMinutes();
+                        if (h === 0 && m === 0) return null;
+                        const timeStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+                        return (
+                          <div className="flex items-center gap-1 mt-1">
+                            <Clock className="h-3 w-3 text-gray-400" />
+                            <span className="text-[12px] text-gray-600">
+                              {timeStr}
+                              {shooting.duration && ` (${shooting.duration}분)`}
+                            </span>
+                          </div>
+                        );
+                      })()}
+
+                      {/* 장소 */}
+                      {shooting.venueName && (
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <MapPin className="h-3 w-3 text-gray-400" />
+                          <span className="text-[12px] text-gray-600 truncate">
+                            {shooting.venueName}
                           </span>
                         </div>
-                      );
-                    })()}
+                      )}
 
-                    {/* 장소 */}
-                    {shooting.venueName && (
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <MapPin className="h-3 w-3 text-gray-400" />
-                        <span className="text-[12px] text-gray-600 truncate">
-                          {shooting.venueName}
-                        </span>
-                      </div>
-                    )}
+                      {/* 고객 */}
+                      {shooting.clientName && (
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <User className="h-3 w-3 text-gray-400" />
+                          <span className="text-[12px] text-gray-600">
+                            {shooting.clientName}
+                          </span>
+                        </div>
+                      )}
 
-                    {/* 고객 */}
-                    {shooting.clientName && (
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <User className="h-3 w-3 text-gray-400" />
-                        <span className="text-[12px] text-gray-600">
-                          {shooting.clientName}
-                        </span>
-                      </div>
-                    )}
+                      {/* 응찰 수 */}
+                      {shooting._count && shooting._count.bids > 0 && (
+                        <div className="mt-1.5">
+                          <Badge variant="secondary" className="text-[11px]">
+                            응찰 {shooting._count.bids}건
+                          </Badge>
+                        </div>
+                      )}
+                    </button>
 
-                    {/* 응찰 수 */}
-                    {shooting._count && shooting._count.bids > 0 && (
-                      <div className="mt-1.5">
-                        <Badge variant="secondary" className="text-[11px]">
-                          응찰 {shooting._count.bids}건
-                        </Badge>
-                      </div>
+                    {/* 삭제 버튼 (진행중/완료 제외) */}
+                    {!['in_progress', 'completed'].includes(shooting.status) && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteTarget(shooting);
+                        }}
+                        title="삭제"
+                        className="absolute top-2 right-2 p-1 text-gray-300 hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
                     )}
-                  </button>
+                  </div>
                 ))
               )}
             </CardContent>
           </Card>
         </div>
       </div>
+      {/* 삭제 확인 다이얼로그 */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-[18px] text-black font-bold">촬영 일정 삭제</DialogTitle>
+            <DialogDescription className="text-[14px]">
+              <span className="font-medium text-black">{deleteTarget?.clientName}</span> 일정을 삭제합니다. 이 작업은 되돌릴 수 없습니다.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteTarget(null)}
+              className="text-[14px]"
+            >
+              취소
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                if (!deleteTarget) return;
+                try {
+                  await deleteMutation.mutateAsync(deleteTarget.id);
+                  toast({ title: '삭제 완료', description: '촬영 일정이 삭제되었습니다.' });
+                  setDeleteTarget(null);
+                } catch {
+                  toast({ title: '삭제 실패', variant: 'destructive' });
+                }
+              }}
+              disabled={deleteMutation.isPending}
+              className="text-[14px]"
+            >
+              {deleteMutation.isPending && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+              삭제
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

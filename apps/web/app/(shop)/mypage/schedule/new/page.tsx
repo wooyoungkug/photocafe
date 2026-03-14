@@ -14,9 +14,23 @@ export default function ScheduleNewPage() {
   const { toast } = useToast();
   const createMutation = useCreateShooting();
 
-  // URL ?date=YYYY-MM-DD 파라미터로 초기 날짜 설정
+  // URL ?date=YYYY-MM-DD 파라미터로 초기 날짜 설정, 기본값은 오늘 + 현재 시간
   const dateParam = searchParams.get('date');
-  const defaultValues = dateParam ? { shootingDate: `${dateParam}T00:00:00.000Z` } : undefined;
+
+  const now = new Date();
+  const y = now.getFullYear();
+  const mo = (now.getMonth() + 1).toString().padStart(2, '0');
+  const d = now.getDate().toString().padStart(2, '0');
+  const todayStr = `${y}-${mo}-${d}`;
+  const h = now.getHours();
+  const rawM = now.getMinutes();
+  const roundedM = Math.round(rawM / 10) * 10;
+  const adjustedM = roundedM === 60 ? 0 : roundedM;
+  const adjustedH = roundedM === 60 ? (h + 1) % 24 : h;
+  const timeStr = `${adjustedH.toString().padStart(2, '0')}:${adjustedM.toString().padStart(2, '0')}:00`;
+
+  const targetDate = dateParam || todayStr;
+  const defaultValues = { shootingDate: `${targetDate}T${timeStr}` };
 
   const handleSubmit = async (data: CreateShootingDto) => {
     try {
@@ -58,6 +72,7 @@ export default function ScheduleNewPage() {
       </div>
 
       {/* 폼 */}
+      <div className="w-[70%]">
       <ShootingForm
         defaultValues={defaultValues as any}
         onSubmit={handleSubmit}
@@ -65,6 +80,7 @@ export default function ScheduleNewPage() {
         isLoading={createMutation.isPending}
         mode="create"
       />
+      </div>
     </div>
   );
 }

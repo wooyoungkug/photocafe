@@ -200,6 +200,16 @@ export class CreateClientDto {
   @IsOptional()
   @IsIn(['direct', 'referral', 'search', 'exhibition', 'sns', 'etc'])
   acquisitionChannel?: string;
+
+  @ApiPropertyOptional({ description: '일정관리 기능 사용 여부', default: true })
+  @IsOptional()
+  @IsBoolean()
+  enableSchedule?: boolean;
+
+  @ApiPropertyOptional({ description: '구인방 기능 사용 여부', default: true })
+  @IsOptional()
+  @IsBoolean()
+  enableRecruitment?: boolean;
 }
 
 export class UpdateClientDto extends PartialType(CreateClientDto) { }

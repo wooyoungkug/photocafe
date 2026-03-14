@@ -48,6 +48,7 @@ import {
   useChangeStaffStatus,
   useIssueTemporaryPassword,
   useBulkImportStaff,
+  useToggleSuperAdmin,
 } from '@/hooks/use-staff';
 import { useTeams } from '@/hooks/use-team';
 import { useEntityAuditLogs } from '@/hooks/use-audit-log';
@@ -78,6 +79,7 @@ import {
   History,
   FileText,
   MoreHorizontal,
+  Crown,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -97,6 +99,7 @@ export default function EmployeesPage() {
   const { toast } = useToast();
   const currentUser = useAuthStore((state) => state.user);
   const isSuperAdmin = currentUser?.isSuperAdmin === true;
+  const canManageStaff = isSuperAdmin || (currentUser?.canEditMemberInfo === true);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
@@ -124,6 +127,8 @@ export default function EmployeesPage() {
   const [statusChangeValue, setStatusChangeValue] = useState('');
   const [statusChangeReason, setStatusChangeReason] = useState('');
   const [auditLogTarget, setAuditLogTarget] = useState<Staff | null>(null);
+  const [superAdminToggleTarget, setSuperAdminToggleTarget] = useState<Staff | null>(null);
+  const [superAdminToggleValue, setSuperAdminToggleValue] = useState(false);
 
   // Queries
   const { data: staffData, isLoading, error } = useStaffList({
@@ -155,6 +160,7 @@ export default function EmployeesPage() {
   const changeStatus = useChangeStaffStatus();
   const issueTempPassword = useIssueTemporaryPassword();
   const bulkImport = useBulkImportStaff();
+  const toggleSuperAdmin = useToggleSuperAdmin();
 
   // 상세 정보 조회 (수정 시)
   const { data: staffDetail } = useStaff(editingStaff?.id || '');
@@ -522,16 +528,18 @@ export default function EmployeesPage() {
             <Users className="h-5 w-5" />
             직원 목록
           </CardTitle>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setBulkImportOpen(true)}>
-              <Upload className="h-4 w-4 mr-2" />
-              일괄등록
-            </Button>
-            <Button onClick={() => handleOpenDialog()}>
-              <Plus className="h-4 w-4 mr-2" />
-              직원 등록
-            </Button>
-          </div>
+          {canManageStaff && (
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setBulkImportOpen(true)}>
+                <Upload className="h-4 w-4 mr-2" />
+                일괄등록
+              </Button>
+              <Button onClick={() => handleOpenDialog()}>
+                <Plus className="h-4 w-4 mr-2" />
+                직원 등록
+              </Button>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           {/* 필터 영역 */}
@@ -598,6 +606,7 @@ export default function EmployeesPage() {
                     <TableHead>직책</TableHead>
                     <TableHead className="text-center">정산등급</TableHead>
                     <TableHead className="text-center">관리자 로그인</TableHead>
+                    <TableHead className="text-center">최고관리자</TableHead>
                     <TableHead className="text-center">상태</TableHead>
                     <TableHead className="text-right">작업</TableHead>
                   </TableRow>
@@ -605,7 +614,7 @@ export default function EmployeesPage() {
                 <TableBody>
                   {staffData?.data?.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                         등록된 직원이 없습니다.
                       </TableCell>
                     </TableRow>
@@ -654,6 +663,13 @@ export default function EmployeesPage() {
                           )}
                         </TableCell>
                         <TableCell className="text-center">
+                          {staff.isSuperAdmin ? (
+                            <Crown className="h-4 w-4 text-yellow-500 mx-auto" />
+                          ) : (
+                            <span className="text-gray-300">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
                           <Badge variant={staff.isActive ? 'default' : 'secondary'}>
                             {staff.isActive ? '활성' : '비활성'}
                           </Badge>
@@ -675,29 +691,44 @@ export default function EmployeesPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => setTempPasswordTarget(staff)}>
-                                  <KeyRound className="h-4 w-4 mr-2" />
-                                  임시 비밀번호 발급
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => {
-                                  setStatusChangeTarget(staff);
-                                  setStatusChangeValue(staff.isActive ? 'suspended' : 'active');
-                                  setStatusChangeReason('');
-                                }}>
-                                  <Power className="h-4 w-4 mr-2" />
-                                  상태 변경
-                                </DropdownMenuItem>
+                                {canManageStaff && (
+                                  <DropdownMenuItem onClick={() => setTempPasswordTarget(staff)}>
+                                    <KeyRound className="h-4 w-4 mr-2" />
+                                    임시 비밀번호 발급
+                                  </DropdownMenuItem>
+                                )}
+                                {canManageStaff && (
+                                  <DropdownMenuItem onClick={() => {
+                                    setStatusChangeTarget(staff);
+                                    setStatusChangeValue(staff.isActive ? 'suspended' : 'active');
+                                    setStatusChangeReason('');
+                                  }}>
+                                    <Power className="h-4 w-4 mr-2" />
+                                    상태 변경
+                                  </DropdownMenuItem>
+                                )}
+                                {isSuperAdmin && staff.id !== currentUser?.id && (
+                                  <DropdownMenuItem onClick={() => {
+                                    setSuperAdminToggleTarget(staff);
+                                    setSuperAdminToggleValue(!staff.isSuperAdmin);
+                                  }}>
+                                    <Crown className="h-4 w-4 mr-2" />
+                                    {staff.isSuperAdmin ? '최고관리자 해제' : '최고관리자 지정'}
+                                  </DropdownMenuItem>
+                                )}
                                 <DropdownMenuItem onClick={() => setAuditLogTarget(staff)}>
                                   <History className="h-4 w-4 mr-2" />
                                   변경 이력
                                 </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  className="text-destructive"
-                                  onClick={() => setDeleteConfirm(staff)}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  삭제
-                                </DropdownMenuItem>
+                                {canManageStaff && (
+                                  <DropdownMenuItem
+                                    className="text-destructive"
+                                    onClick={() => setDeleteConfirm(staff)}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    삭제
+                                  </DropdownMenuItem>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
@@ -1043,61 +1074,6 @@ export default function EmployeesPage() {
                 </div>
               )}
 
-              {/* 기본 권한 */}
-              <div className="p-4 border rounded-lg">
-                <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  <Shield className="h-4 w-4" />
-                  표지공장 로그인
-                </h3>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="isStaffLogin"
-                    checked={false}
-                    disabled
-                  />
-                  <Label htmlFor="isStaffLogin" className="text-sm">
-                    표지공장 로그인
-                  </Label>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  ※ 표지공장은 아래의 접근권한 메뉴가 적용이 안됩니다.
-                </p>
-              </div>
-
-              {/* View 권한 */}
-              <div className="p-4 border rounded-lg">
-                <h3 className="font-semibold mb-4">View 권한</h3>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="canEditInManagerView"
-                    checked={formData.canEditInManagerView}
-                    onCheckedChange={(checked) =>
-                      setFormData({ ...formData, canEditInManagerView: checked === true })
-                    }
-                  />
-                  <Label htmlFor="canEditInManagerView" className="text-sm">
-                    체크시 관리자 화면에서 수정가능
-                  </Label>
-                </div>
-              </div>
-
-              {/* 접근 권한 */}
-              <div className="p-4 border rounded-lg">
-                <h3 className="font-semibold mb-4">접근 권한</h3>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="canLoginAsManager"
-                    checked={formData.canLoginAsManager}
-                    onCheckedChange={(checked) =>
-                      setFormData({ ...formData, canLoginAsManager: checked === true })
-                    }
-                  />
-                  <Label htmlFor="canLoginAsManager" className="text-sm">
-                    체크시 관리자 로그인 허용
-                  </Label>
-                </div>
-              </div>
-
               {/* IP 접근 제한 */}
               <div className="p-4 border rounded-lg">
                 <h3 className="font-semibold mb-4 flex items-center gap-2">
@@ -1182,9 +1158,9 @@ export default function EmployeesPage() {
                 </div>
               </div>
 
-              {/* 버튼 노출 권한 */}
+              {/* 직원 관리 권한 */}
               <div className="p-4 border rounded-lg">
-                <h3 className="font-semibold mb-4">버튼 노출 권한</h3>
+                <h3 className="font-semibold mb-4">직원 관리 권한</h3>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <Checkbox
@@ -1195,9 +1171,16 @@ export default function EmployeesPage() {
                       }
                     />
                     <Label htmlFor="canEditMemberInfo" className="text-sm">
-                      ※ 회원수정 버튼이 노출 안됩니다.
+                      ※ 직원 정보 수정 및 상태변경(활성/비활성)이 가능합니다.
                     </Label>
                   </div>
+                </div>
+              </div>
+
+              {/* 버튼 노출 권한 */}
+              <div className="p-4 border rounded-lg">
+                <h3 className="font-semibold mb-4">버튼 노출 권한</h3>
+                <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <Checkbox
                       id="canViewSettlement"
@@ -1674,6 +1657,58 @@ kim01,pass1234,김철수,과장,kim@email.com,010-2345-6789</pre>
             >
               {changeStatus.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               변경
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 최고관리자 설정 확인 다이얼로그 */}
+      <Dialog open={!!superAdminToggleTarget} onOpenChange={() => setSuperAdminToggleTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Crown className="h-5 w-5 text-yellow-500" />
+              최고관리자 {superAdminToggleValue ? '지정' : '해제'}
+            </DialogTitle>
+            <DialogDescription>
+              &apos;{superAdminToggleTarget?.name}&apos; ({superAdminToggleTarget?.staffId}) 직원을
+              최고관리자로 {superAdminToggleValue ? '지정' : '해제'}하시겠습니까?
+              {superAdminToggleValue && (
+                <><br /><span className="text-orange-600 font-medium">최고관리자는 모든 작업을 수행할 수 있습니다.</span></>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSuperAdminToggleTarget(null)}>
+              취소
+            </Button>
+            <Button
+              className={superAdminToggleValue ? 'bg-yellow-500 hover:bg-yellow-600' : ''}
+              variant={superAdminToggleValue ? 'default' : 'destructive'}
+              onClick={async () => {
+                if (!superAdminToggleTarget) return;
+                try {
+                  await toggleSuperAdmin.mutateAsync({
+                    id: superAdminToggleTarget.id,
+                    isSuperAdmin: superAdminToggleValue,
+                  });
+                  toast({
+                    title: '최고관리자 설정',
+                    description: `${superAdminToggleTarget.name} 직원의 최고관리자 권한이 ${superAdminToggleValue ? '부여' : '해제'}되었습니다`,
+                  });
+                  setSuperAdminToggleTarget(null);
+                } catch (error) {
+                  toast({
+                    title: '오류',
+                    description: error instanceof Error ? error.message : '설정 실패',
+                    variant: 'destructive',
+                  });
+                }
+              }}
+              disabled={toggleSuperAdmin.isPending}
+            >
+              {toggleSuperAdmin.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {superAdminToggleValue ? '지정' : '해제'}
             </Button>
           </DialogFooter>
         </DialogContent>
