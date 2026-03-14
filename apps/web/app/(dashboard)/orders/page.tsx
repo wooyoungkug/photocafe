@@ -269,7 +269,130 @@ export default function OrderListPage() {
         </div>
       ) : orders.length > 0 ? (
         <>
-          <Card>
+          {/* ── 모바일 카드 뷰 ── */}
+          <div className="md:hidden space-y-2">
+            {orders.map((order) => {
+              const items = order.items || [];
+              const statusBadge = order.status === 'pending_receipt' && order.currentProcess === 'inspection'
+                ? { label: '파일검수 중', className: 'bg-yellow-100 text-yellow-700' }
+                : (STATUS_BADGE[order.status] || STATUS_BADGE.pending_receipt);
+              const isSelected = selectedOrderIds.has(order.id);
+
+              return (
+                <Card
+                  key={order.id}
+                  className={cn(
+                    'overflow-hidden',
+                    isSelected && 'ring-2 ring-blue-400',
+                    order.isUrgent && 'border-red-200 bg-red-50/30'
+                  )}
+                >
+                  <CardContent className="p-3 space-y-2">
+                    {/* 상단: 체크박스 + 날짜/주문번호 + 상태 */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start gap-2">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleOrder(order.id)}
+                          className="mt-0.5"
+                          aria-label={`주문 ${order.orderNumber} 선택`}
+                        />
+                        <div>
+                          <div className="text-[11px] text-muted-foreground">
+                            {format(new Date(order.orderedAt), 'yy-MM-dd HH:mm', { locale: ko })}
+                          </div>
+                          <Link
+                            href={`/mypage/orders/${order.id}`}
+                            className="text-sm font-semibold text-foreground hover:underline"
+                          >
+                            {order.orderNumber}
+                          </Link>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            {order.isUrgent && (
+                              <Badge variant="destructive" className="text-[10px] px-1 py-0">긴급</Badge>
+                            )}
+                            {order.isDuplicateOverride && (
+                              <Badge variant="outline" className="text-[10px] px-1 py-0 border-amber-400 text-amber-600 bg-amber-50">중복주의</Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <Badge className={cn('text-[11px] font-semibold whitespace-nowrap shrink-0', statusBadge.className)}>
+                        {statusBadge.label}
+                      </Badge>
+                    </div>
+
+                    {/* 거래처 + 금액 */}
+                    <div className="flex items-center justify-between text-sm">
+                      <span
+                        className="text-foreground font-medium flex items-center gap-0.5 cursor-pointer hover:underline"
+                        onClick={() => handleImpersonate(order.clientId)}
+                      >
+                        {order.client?.clientName}
+                        <ExternalLink className="h-2.5 w-2.5" />
+                      </span>
+                      <span className="font-bold">
+                        {Math.round(Number(order.finalAmount)).toLocaleString()}원
+                      </span>
+                    </div>
+
+                    {/* 주문 항목들 */}
+                    {items.map((item, idx) => (
+                      <div
+                        key={item.id}
+                        className={cn(
+                          'text-xs space-y-0.5',
+                          idx > 0 && 'pt-1.5 border-t border-dashed'
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium text-foreground truncate">
+                            {item.productName?.split(' - ')?.[0] || item.productName}
+                          </span>
+                          <span className="text-muted-foreground shrink-0">
+                            {item.pages}p / {item.quantity}건
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-muted-foreground truncate">
+                          {item.folderName || item.productName}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground truncate">
+                          {[item.size, item.printMethod, item.paper, item.bindingType, item.coverMaterial].filter(Boolean).join(' / ')}
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* 액션 버튼 */}
+                    <div className="flex items-center gap-2 pt-1">
+                      <Link href={`/mypage/orders/${order.id}`} className="flex-1">
+                        <Button variant="outline" size="sm" className="w-full text-xs h-8">
+                          <Eye className="h-3 w-3 mr-1" />
+                          상세보기
+                        </Button>
+                      </Link>
+                      {order.status === 'ready_for_shipping' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs h-8 text-blue-600"
+                          onClick={() => {
+                            setShippingOrder(order);
+                            setIsShippingDialogOpen(true);
+                          }}
+                        >
+                          <Truck className="h-3 w-3 mr-1" />
+                          {order.shipping?.trackingNumber ? '송장확인' : '송장입력'}
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          {/* ── 데스크탑 테이블 뷰 ── */}
+          <Card className="hidden md:block">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
