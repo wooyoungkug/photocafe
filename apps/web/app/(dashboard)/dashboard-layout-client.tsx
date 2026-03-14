@@ -38,17 +38,15 @@ export function DashboardLayoutClient({
     const mq = window.matchMedia("(max-width: 1023px)");
     setIsMobile(mq.matches);
 
-    // 관리자 페이지 빨간 파비콘 적용
-    const existing = document.querySelector<HTMLLinkElement>("link[rel='icon']");
-    if (existing) {
-      existing.href = "/favicon-red.svg";
-    } else {
-      const link = document.createElement("link");
-      link.rel = "icon";
-      link.type = "image/svg+xml";
-      link.href = "/favicon-red.svg";
-      document.head.appendChild(link);
-    }
+    // 관리자 페이지 빨간 파비콘 적용 (캐시 무효화용 버전 파라미터)
+    const faviconUrl = "/favicon-red.svg?v=2";
+    // 기존 아이콘 모두 제거 후 새로 추가 (브라우저 캐시 우회)
+    document.querySelectorAll<HTMLLinkElement>("link[rel='icon'], link[rel='shortcut icon']").forEach(el => el.remove());
+    const link = document.createElement("link");
+    link.rel = "icon";
+    link.type = "image/svg+xml";
+    link.href = faviconUrl;
+    document.head.appendChild(link);
     return () => {
       // 대시보드를 벗어나면 기본 파비콘 복원
       const icon = document.querySelector<HTMLLinkElement>("link[rel='icon']");
