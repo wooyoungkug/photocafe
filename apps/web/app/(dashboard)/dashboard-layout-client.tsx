@@ -40,13 +40,17 @@ export function DashboardLayoutClient({
 
     // 관리자 페이지 빨간 파비콘 적용 (캐시 무효화용 버전 파라미터)
     const faviconUrl = "/favicon-red.svg?v=2";
-    // 기존 아이콘 모두 제거 후 새로 추가 (브라우저 캐시 우회)
-    document.querySelectorAll<HTMLLinkElement>("link[rel='icon'], link[rel='shortcut icon']").forEach(el => el.remove());
-    const link = document.createElement("link");
-    link.rel = "icon";
-    link.type = "image/svg+xml";
-    link.href = faviconUrl;
-    document.head.appendChild(link);
+    // 기존 아이콘의 href만 변경 (DOM 노드 제거 시 React reconciliation 충돌 방지)
+    const existing = document.querySelector<HTMLLinkElement>("link[rel='icon']");
+    if (existing) {
+      existing.href = faviconUrl;
+    } else {
+      const link = document.createElement("link");
+      link.rel = "icon";
+      link.type = "image/svg+xml";
+      link.href = faviconUrl;
+      document.head.appendChild(link);
+    }
     return () => {
       // 대시보드를 벗어나면 기본 파비콘 복원
       const icon = document.querySelector<HTMLLinkElement>("link[rel='icon']");
