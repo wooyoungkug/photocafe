@@ -181,8 +181,8 @@ export class EmploymentService {
     if (!invitation) {
       throw new NotFoundException('초대를 찾을 수 없습니다.');
     }
-    if (invitation.status !== 'PENDING') {
-      throw new BadRequestException('대기 중인 초대만 취소할 수 있습니다.');
+    if (invitation.status === 'ACCEPTED') {
+      throw new BadRequestException('이미 수락된 초대는 취소할 수 없습니다.');
     }
     await this.prisma.invitation.delete({ where: { id: invitationId } });
     return { success: true, message: '초대가 취소되었습니다.' };
