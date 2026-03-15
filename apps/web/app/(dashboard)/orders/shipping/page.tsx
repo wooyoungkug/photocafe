@@ -36,7 +36,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useShippingReady, useGenerateLabel, useDownloadLabel } from '@/hooks/use-shipping-mgmt';
+import { useShippingReady, useGenerateLabel, useDownloadLabel, type ShippingReadyOrder } from '@/hooks/use-shipping-mgmt';
 import { useCourierList } from '@/hooks/use-delivery-tracking';
 import { useLogenStatus, useGenerateLogenTracking, useBulkLogenTracking } from '@/hooks/use-logen';
 import {
@@ -143,6 +143,10 @@ export default function ShippingManagementPage() {
   const orders = data?.data ?? [];
   const meta = data?.meta ?? { total: 0, page: 1, limit, totalPages: 0 };
 
+  // 묶음배송 여부 판별 (bundleId 설정됨 또는 같은 주소 묶음 후보)
+  const isBundleOrder = (order: ShippingReadyOrder) =>
+    !!order.shipping?.bundleId || !!order.bundleKey;
+
   // 통계 계산
   const stats = useMemo(() => {
     const noTracking = orders.filter(
@@ -244,7 +248,7 @@ export default function ShippingManagementPage() {
     }
     // 송장 없는 주문만 필터 (묶음배송 제외)
     const idsWithoutTracking = orders
-      .filter((o) => selectedIds.has(o.id) && !o.shipping?.trackingNumber && !o.shipping?.bundleId)
+      .filter((o) => selectedIds.has(o.id) && !o.shipping?.trackingNumber && !isBundleOrder(o))
       .map((o) => o.id);
 
     if (idsWithoutTracking.length === 0) {
@@ -587,7 +591,7 @@ export default function ShippingManagementPage() {
                           </TableCell>
                           <TableCell className="text-xs text-center">
                             <div className="flex flex-col gap-0.5 items-center">
-                              {order.shipping?.bundleId && (
+                              {isBundleOrder(order) && (
                                 <Badge variant="secondary" className="text-[10px] px-1 py-0 bg-transparent text-purple-700 w-fit">
                                   묶음배송
                                 </Badge>
@@ -634,7 +638,7 @@ export default function ShippingManagementPage() {
                                 배송정보
                               </Button>
                               {!order.shipping?.trackingNumber && (
-                                order.shipping?.bundleId ? (
+                                isBundleOrder(order) ? (
                                   <Badge variant="secondary" className="h-7 px-2 text-xs bg-purple-50 text-purple-700 border border-purple-200">
                                     <Link2 className="h-3 w-3 mr-1" />
                                     묶음배송
@@ -785,7 +789,7 @@ export default function ShippingManagementPage() {
                               </Badge>
                             );
                           })()}
-                          {order.shipping?.bundleId && (
+                          {isBundleOrder(order) && (
                             <Badge variant="secondary" className="text-[10px] px-1 py-0 bg-transparent text-purple-700">
                               묶음배송
                             </Badge>
@@ -841,7 +845,7 @@ export default function ShippingManagementPage() {
                           배송정보
                         </Button>
                         {!order.shipping?.trackingNumber && (
-                          order.shipping?.bundleId ? (
+                          isBundleOrder(order) ? (
                             <Badge variant="secondary" className="flex-1 h-8 text-xs bg-purple-50 text-purple-700 border border-purple-200 flex items-center justify-center">
                               <Link2 className="h-3 w-3 mr-1" />
                               묶음배송

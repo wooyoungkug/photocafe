@@ -8,9 +8,14 @@ import type { Order, OrderShipping } from '@/hooks/use-orders';
 // Types
 // ---------------------------------------------------------------------------
 
+/** 배송관리용 주문 (bundleKey 포함) */
+export interface ShippingReadyOrder extends Order {
+  bundleKey?: string | null;
+}
+
 /** 제작완료 주문 목록 응답 */
 export interface ShippingReadyResponse {
-  data: Order[];
+  data: ShippingReadyOrder[];
   meta: {
     total: number;
     page: number;
