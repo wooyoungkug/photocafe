@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Truck, Building2, MapPin, Package } from 'lucide-react';
+import { Truck, Building2, MapPin, Package, Search } from 'lucide-react';
 import { AddressSearch } from '@/components/address-search';
 import {
   type FolderShippingInfo,
@@ -303,80 +303,22 @@ export function FolderShippingSection({
             </div>
           </div>
         ) : receiverType === 'direct_customer' ? (
-          <div className="space-y-2 border rounded-md p-3">
-            <div className="grid grid-cols-3 gap-2">
-              <div>
-                <Label className="text-xs text-gray-500">수령인 <span className="text-red-500">*</span></Label>
-                <Input
-                  placeholder="수령인명"
-                  value={directRecipientName}
-                  onChange={(e) => setDirectRecipientName(e.target.value)}
-                  className={`h-8 text-sm ${!directRecipientName.trim() ? 'border-red-300 focus-visible:ring-red-400' : ''}`}
-                />
-              </div>
-              <div>
-                <Label className="text-xs text-gray-500">연락처1 <span className="text-red-500">*</span></Label>
-                <PhoneInput
-                  placeholder="010-0000-0000"
-                  value={directPhone}
-                  onChange={(value) => setDirectPhone(value)}
-                  className={`h-8 text-sm ${!directPhone.trim() ? 'border-red-300 focus-visible:ring-red-400' : ''}`}
-                />
-              </div>
-              <div>
-                <Label className="text-xs text-gray-500">연락처2 (백업)</Label>
-                <PhoneInput
-                  placeholder="010-0000-0000"
-                  value={directPhone2}
-                  onChange={(value) => setDirectPhone2(value)}
-                  className="h-8 text-sm"
-                />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2">
-                <Label className="text-xs text-gray-500">주소 <span className="text-red-500">*</span></Label>
-                <AddressSearch
-                  inline
-                  size="sm"
-                  variant="outline"
-                  className="h-6 text-xs px-2"
-                  onComplete={(data) => {
-                    setDirectPostalCode(data.postalCode);
-                    setDirectAddress(data.address);
-                  }}
-                />
-              </div>
-              {directAddress ? (
-                <div className="bg-gray-50 rounded px-2.5 py-1.5 text-xs text-gray-700">
-                  {directPostalCode && <span className="text-gray-500">[{directPostalCode}] </span>}
-                  {directAddress}
-                </div>
-              ) : (
-                <div className={`bg-gray-50 rounded px-2.5 py-1.5 text-xs ${!directAddress.trim() ? 'text-red-400 border border-red-200' : 'text-gray-400'}`}>
-                  주소 검색 버튼을 클릭하여 주소를 입력해주세요
-                </div>
-              )}
-              <Input
-                placeholder="상세주소 (동/호수/층 등)"
-                value={directAddressDetail}
-                onChange={(e) => setDirectAddressDetail(e.target.value)}
-                className="h-8 text-sm"
-              />
-            </div>
-            {(!directRecipientName.trim() || !directPhone.trim() || !directAddress.trim()) && (
-              <div className="flex items-center gap-1.5 text-xs text-red-500 bg-red-50 rounded px-2.5 py-1.5">
-                <svg className="h-3.5 w-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.168 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg>
-                <span>
-                  {[
-                    !directRecipientName.trim() && '수령인',
-                    !directPhone.trim() && '연락처',
-                    !directAddress.trim() && '주소',
-                  ].filter(Boolean).join(', ')}를 입력해주세요
-                </span>
-              </div>
-            )}
-          </div>
+          <DirectCustomerForm
+            directRecipientName={directRecipientName}
+            setDirectRecipientName={setDirectRecipientName}
+            directPhone={directPhone}
+            setDirectPhone={setDirectPhone}
+            directPhone2={directPhone2}
+            setDirectPhone2={setDirectPhone2}
+            directPostalCode={directPostalCode}
+            directAddress={directAddress}
+            directAddressDetail={directAddressDetail}
+            setDirectAddressDetail={setDirectAddressDetail}
+            onAddressComplete={(data) => {
+              setDirectPostalCode(data.postalCode);
+              setDirectAddress(data.address);
+            }}
+          />
         ) : null}
       </div>
 
@@ -452,6 +394,177 @@ export function FolderShippingSection({
           className="h-8 text-sm"
         />
       </div>
+    </div>
+  );
+}
+
+/**
+ * 고객직배송 입력 폼 (컴팩트 버전)
+ * - 주소 입력 필드 클릭 시 바로 다음 우편번호 검색 인라인 표시
+ * - 연락처2는 토글로 숨김 처리 (기본 접힘)
+ * - 최소 클릭, 최소 공간으로 빠른 입력
+ */
+function DirectCustomerForm({
+  directRecipientName,
+  setDirectRecipientName,
+  directPhone,
+  setDirectPhone,
+  directPhone2,
+  setDirectPhone2,
+  directPostalCode,
+  directAddress,
+  directAddressDetail,
+  setDirectAddressDetail,
+  onAddressComplete,
+}: {
+  directRecipientName: string;
+  setDirectRecipientName: (v: string) => void;
+  directPhone: string;
+  setDirectPhone: (v: string) => void;
+  directPhone2: string;
+  setDirectPhone2: (v: string) => void;
+  directPostalCode: string;
+  directAddress: string;
+  directAddressDetail: string;
+  setDirectAddressDetail: (v: string) => void;
+  onAddressComplete: (data: { postalCode: string; address: string }) => void;
+}) {
+  const [showPhone2, setShowPhone2] = useState(!!directPhone2);
+  const [addressSearchOpen, setAddressSearchOpen] = useState(false);
+
+  const missingFields = [
+    !directRecipientName.trim() && '수령인',
+    !directPhone.trim() && '연락처',
+    !directAddress.trim() && '주소',
+  ].filter(Boolean);
+
+  return (
+    <div className="space-y-2 border rounded-md p-3">
+      {/* Row 1: 수령인 + 연락처1 (2 columns) */}
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <Label className="text-xs text-gray-500">수령인 <span className="text-red-500">*</span></Label>
+          <Input
+            placeholder="수령인명"
+            value={directRecipientName}
+            onChange={(e) => setDirectRecipientName(e.target.value)}
+            className={`h-8 text-sm ${!directRecipientName.trim() ? 'border-red-300 focus-visible:ring-red-400' : ''}`}
+          />
+        </div>
+        <div>
+          <div className="flex items-center justify-between">
+            <Label className="text-xs text-gray-500">연락처 <span className="text-red-500">*</span></Label>
+            {!showPhone2 && (
+              <button
+                type="button"
+                onClick={() => setShowPhone2(true)}
+                className="text-[11px] text-blue-500 hover:text-blue-700 hover:underline"
+              >
+                +백업번호
+              </button>
+            )}
+          </div>
+          <PhoneInput
+            placeholder="010-0000-0000"
+            value={directPhone}
+            onChange={(value) => setDirectPhone(value)}
+            className={`h-8 text-sm ${!directPhone.trim() ? 'border-red-300 focus-visible:ring-red-400' : ''}`}
+          />
+        </div>
+      </div>
+
+      {/* 연락처2: 토글로 표시/숨김 */}
+      {showPhone2 && (
+        <div className="flex items-end gap-2">
+          <div className="flex-1">
+            <Label className="text-xs text-gray-500">연락처2 (백업)</Label>
+            <PhoneInput
+              placeholder="010-0000-0000"
+              value={directPhone2}
+              onChange={(value) => setDirectPhone2(value)}
+              className="h-8 text-sm"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => { setShowPhone2(false); setDirectPhone2(''); }}
+            className="h-8 px-2 text-xs text-gray-400 hover:text-red-500"
+            title="백업번호 삭제"
+          >
+            삭제
+          </button>
+        </div>
+      )}
+
+      {/* Row 2: 주소 - 클릭하면 바로 다음 검색 열림 */}
+      <div className="space-y-1.5">
+        <Label className="text-xs text-gray-500">주소 <span className="text-red-500">*</span></Label>
+        {directAddress ? (
+          // 주소가 입력된 상태: 주소 표시 + 재검색 클릭 영역
+          <div
+            className="flex items-center gap-2 bg-gray-50 rounded px-2.5 py-1.5 text-[14px] text-black font-normal cursor-pointer hover:bg-gray-100 transition-colors"
+            onClick={() => setAddressSearchOpen(true)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setAddressSearchOpen(true); }}
+          >
+            <Search className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+            <span className="flex-1 truncate">
+              {directPostalCode && <span className="text-gray-500 text-xs">[{directPostalCode}] </span>}
+              {directAddress}
+            </span>
+            <span className="text-[11px] text-blue-500 flex-shrink-0">변경</span>
+          </div>
+        ) : (
+          // 주소 미입력: 검색 유도 클릭 영역
+          <div
+            className={`flex items-center gap-2 rounded px-2.5 py-2 cursor-pointer transition-colors ${
+              !directAddress.trim()
+                ? 'bg-red-50 border border-red-200 text-red-400 hover:bg-red-100'
+                : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+            }`}
+            onClick={() => setAddressSearchOpen(true)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setAddressSearchOpen(true); }}
+          >
+            <Search className="h-3.5 w-3.5 flex-shrink-0" />
+            <span className="text-sm">클릭하여 주소 검색</span>
+          </div>
+        )}
+
+        {/* 다음 우편번호 인라인 embed */}
+        <AddressSearch
+          headless
+          inline
+          isOpen={addressSearchOpen}
+          onOpenChange={setAddressSearchOpen}
+          embedHeight={350}
+          onComplete={(data) => {
+            onAddressComplete(data);
+            setAddressSearchOpen(false);
+          }}
+        />
+
+        {/* 상세주소: 주소 선택 후 표시 */}
+        {directAddress && (
+          <Input
+            placeholder="상세주소 (동/호수/층 등)"
+            value={directAddressDetail}
+            onChange={(e) => setDirectAddressDetail(e.target.value)}
+            className="h-8 text-sm"
+            autoFocus
+          />
+        )}
+      </div>
+
+      {/* 미입력 경고 - 인라인 간결 표시 */}
+      {missingFields.length > 0 && !addressSearchOpen && (
+        <div className="flex items-center gap-1.5 text-xs text-red-500 bg-red-50 rounded px-2.5 py-1.5">
+          <svg className="h-3.5 w-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.168 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg>
+          <span>{missingFields.join(', ')}를 입력해주세요</span>
+        </div>
+      )}
     </div>
   );
 }

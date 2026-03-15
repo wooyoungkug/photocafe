@@ -57,6 +57,14 @@ interface AddressSearchProps {
   size?: 'default' | 'sm' | 'lg' | 'icon';
   /** true이면 카드 안에 인라인 임베드, false이면 팝업 */
   inline?: boolean;
+  /** 외부에서 open/close 제어 (controlled mode) */
+  isOpen?: boolean;
+  /** controlled mode에서 닫힐 때 호출 */
+  onOpenChange?: (open: boolean) => void;
+  /** true이면 버튼 숨기고 embed 영역만 렌더 (controlled mode용) */
+  headless?: boolean;
+  /** embed 영역 높이 (기본: 400px) */
+  embedHeight?: number;
 }
 
 export function AddressSearch({
@@ -65,9 +73,20 @@ export function AddressSearch({
   variant = 'outline',
   size = 'default',
   inline = false,
+  isOpen: controlledOpen,
+  onOpenChange,
+  headless = false,
+  embedHeight = 400,
 }: AddressSearchProps) {
-  const [showEmbed, setShowEmbed] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
   const embedRef = useRef<HTMLDivElement>(null);
+
+  // controlled vs uncontrolled
+  const showEmbed = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setShowEmbed = useCallback((open: boolean) => {
+    if (onOpenChange) onOpenChange(open);
+    setInternalOpen(open);
+  }, [onOpenChange]);
 
   // 다음 우편번호 스크립트 로드
   useEffect(() => {
@@ -100,7 +119,7 @@ export function AddressSearch({
 
       setShowEmbed(false);
     },
-    [onComplete]
+    [onComplete, setShowEmbed]
   );
 
   const handleSearch = useCallback(() => {
@@ -109,18 +128,18 @@ export function AddressSearch({
       return;
     }
 
-    if (inline) {
+    if (inline || headless) {
       setShowEmbed(true);
     } else {
       new window.daum.Postcode({
         oncomplete: handleComplete,
       }).open();
     }
-  }, [inline, handleComplete]);
+  }, [inline, headless, handleComplete, setShowEmbed]);
 
   // 인라인 모드: showEmbed가 true가 되면 embed 렌더
   useEffect(() => {
-    if (inline && showEmbed && embedRef.current) {
+    if ((inline || headless) && showEmbed && embedRef.current) {
       if (!window.daum) return;
       embedRef.current.innerHTML = '';
       new window.daum.Postcode({
@@ -129,23 +148,25 @@ export function AddressSearch({
         height: '100%',
       }).embed(embedRef.current, { autoClose: false });
     }
-  }, [inline, showEmbed, handleComplete]);
+  }, [inline, headless, showEmbed, handleComplete]);
 
   return (
-    <div className={inline ? 'w-full' : undefined}>
-      <Button
-        type="button"
-        variant={variant}
-        size={size}
-        onClick={handleSearch}
-        className={className}
-      >
-        <MapPin className="h-4 w-4 mr-2" />
-        주소 검색
-      </Button>
+    <div className={(inline || headless) ? 'w-full' : undefined}>
+      {!headless && (
+        <Button
+          type="button"
+          variant={variant}
+          size={size}
+          onClick={handleSearch}
+          className={className}
+        >
+          <MapPin className="h-4 w-4 mr-2" />
+          주소 검색
+        </Button>
+      )}
 
-      {inline && showEmbed && (
-        <div className="mt-2 border rounded-lg overflow-hidden relative">
+      {(inline || headless) && showEmbed && (
+        <div className={`${headless ? '' : 'mt-2 '}border rounded-lg overflow-hidden relative`}>
           <button
             type="button"
             title="닫기"
@@ -154,7 +175,7 @@ export function AddressSearch({
           >
             <X className="h-4 w-4 text-gray-500" />
           </button>
-          <div ref={embedRef} className="h-[400px]" />
+          <div ref={embedRef} style={{ height: `${embedHeight}px` }} />
         </div>
       )}
     </div>
