@@ -396,7 +396,7 @@ export default function ProductPage() {
       });
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uploadFolders.length, selectedOptions.printMethod, selectedOptions.paper?.id]);
+  }, [uploadFolders.length, selectedOptions.printMethod, selectedOptions.colorMode, selectedOptions.paper?.id]);
 
   // ===== 최근 주문 옵션 자동 적용 =====
   const [lastOptionsApplied, setLastOptionsApplied] = useState(false);
@@ -462,7 +462,10 @@ export default function ProductPage() {
     // 공용 동판을 사용하는 경우 allPublicCopperPlates 데이터가 로드될 때까지 대기
     if (opts.copperPlateType === 'public' && allPublicCopperPlates === undefined) return;
     setSelectedOptions({
-      specification: undefined,
+      specification: opts.specificationId
+        ? (product.specifications?.find(s => s.specificationId === opts.specificationId || s.id === opts.specificationId)
+          || product.specifications?.find(s => s.name === opts.specificationName))
+        : (product.specifications?.find(s => s.isDefault) || product.specifications?.[0]),
       binding: product.bindings?.find(b => b.id === opts.bindingId),
       paper: product.papers?.find(p => p.id === opts.paperId),
       cover: product.covers?.find(c => c.id === opts.coverId),
@@ -615,6 +618,8 @@ export default function ProductPage() {
       return;
     }
     const opts: MyProductOptions = {
+      specificationId: selectedOptions.specification?.specificationId || selectedOptions.specification?.id,
+      specificationName: selectedOptions.specification?.name,
       bindingId: selectedOptions.binding?.id,
       bindingName: selectedOptions.binding?.name,
       paperId: selectedOptions.paper?.id, paperName: selectedOptions.paper?.name,
@@ -655,7 +660,10 @@ export default function ProductPage() {
   const handleLoadMyProduct = (myProduct: MyProduct) => {
     const opts = myProduct.options;
     setSelectedOptions({
-      specification: undefined,
+      specification: opts.specificationId
+        ? (product?.specifications?.find(s => s.specificationId === opts.specificationId || s.id === opts.specificationId)
+          || product?.specifications?.find(s => s.name === opts.specificationName))
+        : (product?.specifications?.find(s => s.isDefault) || product?.specifications?.[0]),
       binding: product?.bindings?.find(b => b.id === opts.bindingId),
       paper: product?.papers?.find(p => p.id === opts.paperId),
       cover: product?.covers?.find(c => c.id === opts.coverId),
@@ -763,7 +771,11 @@ export default function ProductPage() {
               {product.bindings && product.bindings.length > 0 && (
                 <OptionCard title={t('binding')} summary={selectedOptions.binding?.name?.split(' - ')[0].replace(/\s*\(.*?\)$/, '')}>
                   <OptionBinding bindings={product.bindings} selectedBindingId={selectedOptions.binding?.id}
-                    onSelect={(binding) => setSelectedOptions(prev => ({ ...prev, binding, printSide: getDefaultPrintSideByBinding(binding.name) }))} />
+                    onSelect={(binding) => setSelectedOptions(prev => ({
+                      ...prev, binding,
+                      // 고객선택(customer) 모드일 때는 사용자가 명시적으로 선택한 printSide를 유지
+                      printSide: product.printType === 'customer' ? prev.printSide : getDefaultPrintSideByBinding(binding.name),
+                    }))} />
                 </OptionCard>
               )}
 

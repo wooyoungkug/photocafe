@@ -59,11 +59,15 @@ export function OptionPaper({
   const handleMethodChange = (value: string) => {
     if (value === 'inkjet') {
       const p = papers.filter(x => x.printMethod === 'inkjet' && x.isActive !== false);
-      onChangePrintMethod('inkjet', '4c', p.find(x => x.isDefault) || p[0]);
+      // 현재 선택된 용지가 새 목록에 있으면 유지
+      const currentPaper = selectedPaperId ? p.find(x => x.id === selectedPaperId) : undefined;
+      onChangePrintMethod('inkjet', '4c', currentPaper || p.find(x => x.isDefault) || p[0]);
     } else {
       const mode = value === 'indigo_6c' ? '6c' : '4c';
       const p = papers.filter(x => x.printMethod === 'indigo' && isIndigoPaperActive(x, mode));
-      onChangePrintMethod('indigo', mode, p.find(x => x.isDefault) || p[0]);
+      // 현재 선택된 용지가 새 목록에 있으면 유지
+      const currentPaper = selectedPaperId ? p.find(x => x.id === selectedPaperId) : undefined;
+      onChangePrintMethod('indigo', mode, currentPaper || p.find(x => x.isDefault) || p[0]);
     }
   };
 
