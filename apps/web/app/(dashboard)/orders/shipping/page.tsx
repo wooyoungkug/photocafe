@@ -242,9 +242,9 @@ export default function ShippingManagementPage() {
       toast({ title: '발급할 주문을 선택해주세요.', variant: 'destructive' });
       return;
     }
-    // 송장 없는 주문만 필터
+    // 송장 없는 주문만 필터 (묶음배송 제외)
     const idsWithoutTracking = orders
-      .filter((o) => selectedIds.has(o.id) && !o.shipping?.trackingNumber)
+      .filter((o) => selectedIds.has(o.id) && !o.shipping?.trackingNumber && !o.shipping?.bundleId)
       .map((o) => o.id);
 
     if (idsWithoutTracking.length === 0) {
@@ -634,26 +634,33 @@ export default function ShippingManagementPage() {
                                 배송정보
                               </Button>
                               {!order.shipping?.trackingNumber && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 px-2 text-xs text-green-600 hover:text-green-700"
-                                  onClick={() => {
-                                    if (!logenStatus?.configured) {
-                                      toast({ title: '로젠택배 API 미설정 (.env에 LOGEN_USER_ID, LOGEN_CUST_CD 입력 필요)', variant: 'destructive' });
-                                      return;
-                                    }
-                                    handleLogenGenerate(order.id);
-                                  }}
-                                  disabled={generateLogen.isPending}
-                                >
-                                  {generateLogen.isPending ? (
-                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                  ) : (
-                                    <Zap className="h-3 w-3 mr-1" />
-                                  )}
-                                  자동발급
-                                </Button>
+                                order.shipping?.bundleId ? (
+                                  <Badge variant="secondary" className="h-7 px-2 text-xs bg-purple-50 text-purple-700 border border-purple-200">
+                                    <Link2 className="h-3 w-3 mr-1" />
+                                    묶음배송
+                                  </Badge>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 px-2 text-xs text-green-600 hover:text-green-700"
+                                    onClick={() => {
+                                      if (!logenStatus?.configured) {
+                                        toast({ title: '로젠택배 API 미설정 (.env에 LOGEN_USER_ID, LOGEN_CUST_CD 입력 필요)', variant: 'destructive' });
+                                        return;
+                                      }
+                                      handleLogenGenerate(order.id);
+                                    }}
+                                    disabled={generateLogen.isPending}
+                                  >
+                                    {generateLogen.isPending ? (
+                                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                    ) : (
+                                      <Zap className="h-3 w-3 mr-1" />
+                                    )}
+                                    자동발급
+                                  </Button>
+                                )
                               )}
                               <Button
                                 size="sm"
@@ -834,22 +841,29 @@ export default function ShippingManagementPage() {
                           배송정보
                         </Button>
                         {!order.shipping?.trackingNumber && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="flex-1 h-8 text-xs text-green-600"
-                            onClick={() => {
-                              if (!logenStatus?.configured) {
-                                toast({ title: '로젠택배 API 미설정 (.env에 LOGEN_USER_ID, LOGEN_CUST_CD 입력 필요)', variant: 'destructive' });
-                                return;
-                              }
-                              handleLogenGenerate(order.id);
-                            }}
-                            disabled={generateLogen.isPending}
-                          >
-                            <Zap className="h-3 w-3 mr-1" />
-                            자동발급
-                          </Button>
+                          order.shipping?.bundleId ? (
+                            <Badge variant="secondary" className="flex-1 h-8 text-xs bg-purple-50 text-purple-700 border border-purple-200 flex items-center justify-center">
+                              <Link2 className="h-3 w-3 mr-1" />
+                              묶음배송
+                            </Badge>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 h-8 text-xs text-green-600"
+                              onClick={() => {
+                                if (!logenStatus?.configured) {
+                                  toast({ title: '로젠택배 API 미설정 (.env에 LOGEN_USER_ID, LOGEN_CUST_CD 입력 필요)', variant: 'destructive' });
+                                  return;
+                                }
+                                handleLogenGenerate(order.id);
+                              }}
+                              disabled={generateLogen.isPending}
+                            >
+                              <Zap className="h-3 w-3 mr-1" />
+                              자동발급
+                            </Button>
+                          )
                         )}
                         <Button
                           size="sm"
