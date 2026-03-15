@@ -9,6 +9,7 @@ import { PanelLeftClose, PanelLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePageView } from "@/hooks/use-page-view";
 import { useNotificationConfig } from "@/hooks/use-notification-config";
+import { useCurrentUser } from "@/hooks/use-auth";
 import {
   Sheet,
   SheetContent,
@@ -24,6 +25,15 @@ export function DashboardLayoutClient({
 }) {
   usePageView();
   useNotificationConfig();
+  const { user } = useCurrentUser();
+
+  // 브라우저 탭 타이틀에 스튜디오명 표시
+  useEffect(() => {
+    const studioName = user?.type === 'employee' ? user?.clientName : user?.name;
+    document.title = studioName
+      ? `printing114 - ${studioName}`
+      : 'printing114';
+  }, [user?.name, user?.clientName, user?.type]);
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);

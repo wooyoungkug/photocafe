@@ -14,6 +14,15 @@ export default function ShopLayout({
 }) {
   usePageView();
 
+  // 로그인 시 브라우저 탭 타이틀에 스튜디오명 표시
+  const { user, isAuthenticated } = useAuthStore();
+  useEffect(() => {
+    const studioName = user?.type === 'employee' ? user?.clientName : user?.name;
+    document.title = isAuthenticated && studioName
+      ? `printing114 - ${studioName}`
+      : 'printing114';
+  }, [isAuthenticated, user?.name, user?.clientName, user?.type]);
+
   // 대리로그인 데이터가 있으면 sessionStorage에 직접 적용
   // setAuth를 쓰면 localStorage의 관리자 토큰이 삭제되므로, 직접 sessionStorage에 저장
   useEffect(() => {
