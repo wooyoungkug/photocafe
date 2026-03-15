@@ -1087,7 +1087,7 @@ export default function ProductPage() {
               <p className="font-medium text-gray-700 mb-2">{t('selectedOptions')}</p>
               {selectedOptions.binding && <p className="text-gray-600">{t('binding')}: {selectedOptions.binding.name}</p>}
               {effectiveFabricInfo?.name && <p className="text-gray-600">{t('albumCover')}: {effectiveFabricInfo.name}</p>}
-              {selectedOptions.paper && <p className="text-gray-600">{t('paper')}: {selectedOptions.paper.name}</p>}
+              {selectedOptions.paper && <p className="text-gray-600">{t('paper')}: {selectedOptions.printMethod === 'inkjet' ? '잉크젯' : selectedOptions.colorMode === '6c' ? '인디고 6도' : '인디고 4도'} - {selectedOptions.paper.name}</p>}
               {selectedOptions.printSide && <p className="text-gray-600">{t('printSection')}: {selectedOptions.printSide === 'single' ? t('singleSided') : t('doubleSided')}</p>}
               <p className="text-gray-600">{t('copperPlate')}: {selectedOptions.copperPlateType === 'none' ? t('none') : selectedOptions.copperPlateType === 'public' ? `${t('publicCopperPlate')} - ${selectedOptions.publicCopperPlate?.plateName || ''}` : `${t('ownedCopperPlate')} - ${selectedOptions.ownedCopperPlate?.plateName || ''}`}</p>
               {selectedOptions.copperPlateType !== 'none' && (<>
