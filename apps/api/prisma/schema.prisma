@@ -3052,6 +3052,7 @@ model Invitation {
   inviteeEmail String
   token        String           @unique @default(cuid())
   role         EmployeeRole     @default(STAFF)
+  oauthProvider String?          // 'naver' | 'kakao' | 'google'
   status       InvitationStatus @default(PENDING)
   expiresAt    DateTime
   sentById     String?

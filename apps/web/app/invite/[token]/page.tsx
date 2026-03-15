@@ -1,78 +1,17 @@
 'use client';
 
-import { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import {
-  useValidateInvitation,
-  useAcceptInvitation,
-  useAcceptInvitationExisting,
-  useCheckLoginId,
-} from '@/hooks/use-employment';
+import { useValidateInvitation } from '@/hooks/use-employment';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { AlertCircle, CheckCircle2, Loader2, UserPlus, Globe } from 'lucide-react';
-
-type AcceptMode = 'choose' | 'new' | 'existing' | 'oauth';
+import { AlertCircle, Loader2 } from 'lucide-react';
 
 export default function InviteAcceptPage() {
   const params = useParams();
-  const router = useRouter();
   const token = params.token as string;
 
   const { data: validation, isLoading, error: fetchError } = useValidateInvitation(token);
-  const acceptNewMutation = useAcceptInvitation();
-  const acceptExistingMutation = useAcceptInvitationExisting();
-
-  const [mode, setMode] = useState<AcceptMode>('choose');
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-
-  // 신규 계정 폼
-  const [newLoginId, setNewLoginId] = useState('');
-  const [checkedLoginId, setCheckedLoginId] = useState('');
-  const [newName, setNewName] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [newPhone, setNewPhone] = useState('');
-  const [newEmail, setNewEmail] = useState('');
-
-  // 아이디 중복 확인 (버튼 클릭 시)
-  const { data: loginIdCheck, isFetching: isCheckingLoginId } = useCheckLoginId(checkedLoginId);
-
-  // 기존 계정 폼
-  const [existEmail, setExistEmail] = useState('');
-  const [existPassword, setExistPassword] = useState('');
-
-  // 아이디 입력 (영문소문자, 숫자만 허용)
-  const handleLoginIdChange = (value: string) => {
-    const sanitized = value.replace(/[^a-z0-9]/g, '').slice(0, 20);
-    setNewLoginId(sanitized);
-    // 아이디가 변경되면 중복확인 상태 초기화
-    if (sanitized !== checkedLoginId) {
-      setCheckedLoginId('');
-    }
-  };
-
-  // 중복확인 버튼 클릭
-  const handleCheckLoginId = () => {
-    if (newLoginId.length >= 4) {
-      setCheckedLoginId(newLoginId);
-    }
-  };
-
-  const loginIdChecked = checkedLoginId === newLoginId && checkedLoginId.length >= 4;
-  const loginIdValid = loginIdChecked && loginIdCheck?.available === true;
-  const loginIdDuplicate = loginIdChecked && loginIdCheck?.available === false;
-
-  // 전화번호 포맷팅 (숫자만 입력, 자동 하이픈)
-  const formatPhone = (value: string) => {
-    const digits = value.replace(/\D/g, '').slice(0, 11);
-    if (digits.length <= 3) return digits;
-    if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
-    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
-  };
 
   // 로딩
   if (isLoading) {
@@ -115,57 +54,10 @@ export default function InviteAcceptPage() {
     );
   }
 
-  // 성공 완료
-  if (success) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
-        <Card className="w-full max-w-md shadow-lg">
-          <CardHeader className="text-center">
-            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-              <CheckCircle2 className="h-6 w-6 text-green-600" />
-            </div>
-            <CardTitle className="text-[16px]">초대 수락 완료</CardTitle>
-            <CardDescription className="text-[12px]">
-              {validation.client?.clientName}의 직원으로 등록되었습니다.
-              직원 로그인으로 이용해주세요.
-            </CardDescription>
-          </CardHeader>
-          <CardFooter className="justify-center">
-            <Link href="/login">
-              <Button size="sm">로그인하기</Button>
-            </Link>
-          </CardFooter>
-        </Card>
-      </div>
-    );
-  }
-
-  const handleAcceptNew = () => {
-    setError(null);
-    acceptNewMutation.mutate(
-      { token, loginId: newLoginId, name: newName, password: newPassword, phone: newPhone.replace(/\D/g, '') || undefined, email: newEmail || undefined },
-      {
-        onSuccess: () => setSuccess(true),
-        onError: (err) =>
-          setError(err instanceof Error ? err.message : '수락에 실패했습니다'),
-      },
-    );
-  };
-
-  const handleAcceptExisting = () => {
-    setError(null);
-    acceptExistingMutation.mutate(
-      { token, email: existEmail, password: existPassword },
-      {
-        onSuccess: () => setSuccess(true),
-        onError: (err) =>
-          setError(err instanceof Error ? err.message : '수락에 실패했습니다'),
-      },
-    );
-  };
-
   const inv = validation.invitation!;
   const client = validation.client!;
+  const provider = inv.oauthProvider;
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
@@ -186,232 +78,47 @@ export default function InviteAcceptPage() {
           </CardDescription>
         </CardHeader>
 
-        <CardContent className="space-y-4">
-          {error && (
-            <div className="flex items-center gap-2 p-3 text-[11px] text-destructive bg-destructive/10 rounded-md">
-              <AlertCircle className="h-4 w-4 flex-shrink-0" />
-              <span>{error}</span>
-            </div>
+        <CardContent className="space-y-3">
+          <p className="text-[14px] text-gray-600 text-center">
+            소셜 계정으로 가입하고 초대를 수락합니다
+          </p>
+
+          {/* 지정된 Provider만 표시, 미지정(기존 초대) 시 모두 표시 */}
+          {(!provider || provider === 'naver') && (
+            <a
+              href={`${apiUrl}/auth/naver-invite/${token}`}
+              className="flex items-center justify-center gap-2 w-full h-10 rounded-md text-[12px] font-medium text-white bg-[#03C75A] hover:bg-[#03C75A]/90"
+            >
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M13.5 10.56L6.26 0H0v20h6.5V9.44L13.74 20H20V0h-6.5v10.56z" fill="#fff"/></svg>
+              네이버로 가입
+            </a>
+          )}
+          {(!provider || provider === 'kakao') && (
+            <a
+              href={`${apiUrl}/auth/kakao-invite/${token}`}
+              className="flex items-center justify-center gap-2 w-full h-10 rounded-md text-[12px] font-medium text-black/85 bg-[#FEE500] hover:bg-[#FEE500]/90"
+            >
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path fillRule="evenodd" clipRule="evenodd" d="M10 1C4.477 1 0 4.477 0 8.667c0 2.7 1.746 5.075 4.38 6.423l-.89 3.29a.42.42 0 00.638.46l3.877-2.563c.649.09 1.315.138 1.995.138 5.523 0 10-3.477 10-7.748C20 4.477 15.523 1 10 1z" fill="#191919"/></svg>
+              카카오로 가입
+            </a>
+          )}
+          {(!provider || provider === 'google') && (
+            <a
+              href={`${apiUrl}/auth/google-invite/${token}`}
+              className="flex items-center justify-center gap-2 w-full h-10 rounded-md border text-[12px] font-medium text-gray-700 bg-white hover:bg-gray-50"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18A11.96 11.96 0 001 12c0 1.94.46 3.77 1.18 5.07l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+              Google로 가입
+            </a>
           )}
 
-          {mode === 'choose' && (
-            <div className="space-y-3">
-              <Button
-                variant="outline"
-                className="w-full h-auto py-3 justify-start"
-                onClick={() => { setError(null); setMode('oauth'); }}
-              >
-                <Globe className="h-4 w-4 mr-3 flex-shrink-0" />
-                <div className="text-left">
-                  <div className="text-[14px] font-medium">소셜 로그인으로 가입</div>
-                  <div className="text-[10px] text-gray-500">네이버, 카카오, 구글 계정으로 빠르게 가입</div>
-                </div>
+          <div className="pt-2">
+            <Link href="/login">
+              <Button variant="outline" size="sm" className="w-full">
+                뒤로
               </Button>
-              <Button
-                variant="outline"
-                className="w-full h-auto py-3 justify-start"
-                onClick={() => { setError(null); setMode('new'); }}
-              >
-                <UserPlus className="h-4 w-4 mr-3 flex-shrink-0" />
-                <div className="text-left">
-                  <div className="text-[14px] font-medium">새 계정 만들기</div>
-                  <div className="text-[10px] text-gray-500">아이디/비밀번호로 가입</div>
-                </div>
-              </Button>
-            </div>
-          )}
-
-          {mode === 'new' && (
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label className="text-[14px]">아이디 <span className="text-red-500">*</span></Label>
-                <div className="flex gap-2">
-                  <Input
-                    className="text-[14px] flex-1"
-                    placeholder="영문소문자, 숫자 4자 이상"
-                    value={newLoginId}
-                    onChange={(e) => handleLoginIdChange(e.target.value)}
-                    autoComplete="username"
-                  />
-                  <Button
-                    type="button"
-                    variant={loginIdValid ? 'outline' : 'secondary'}
-                    size="sm"
-                    className="shrink-0 text-[13px] px-3"
-                    disabled={newLoginId.length < 4 || isCheckingLoginId || loginIdValid}
-                    onClick={handleCheckLoginId}
-                  >
-                    {isCheckingLoginId ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : loginIdValid ? (
-                      <><CheckCircle2 className="h-4 w-4 text-green-500 mr-1" />확인됨</>
-                    ) : (
-                      '중복확인'
-                    )}
-                  </Button>
-                </div>
-                {newLoginId.length > 0 && newLoginId.length < 4 && (
-                  <p className="text-[12px] text-gray-500">4자 이상 입력해주세요</p>
-                )}
-                {loginIdDuplicate && (
-                  <p className="text-[12px] text-red-500">이미 사용 중인 아이디입니다</p>
-                )}
-                {loginIdValid && (
-                  <p className="text-[12px] text-green-600">사용 가능한 아이디입니다</p>
-                )}
-                {!loginIdChecked && newLoginId.length >= 4 && (
-                  <p className="text-[12px] text-orange-500">중복확인을 해주세요</p>
-                )}
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-[14px]">비밀번호</Label>
-                <Input
-                  className="text-[14px]"
-                  type="password"
-                  placeholder="6자 이상"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-[14px]">이름</Label>
-                <Input
-                  className="text-[14px]"
-                  placeholder="이름을 입력하세요"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-[14px]">연락처 (선택)</Label>
-                <Input
-                  className="text-[14px]"
-                  placeholder="010-0000-0000"
-                  inputMode="numeric"
-                  value={newPhone}
-                  onChange={(e) => setNewPhone(formatPhone(e.target.value))}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-[14px]">이메일 (선택)</Label>
-                <Input
-                  className="text-[14px]"
-                  type="email"
-                  placeholder="example@email.com"
-                  value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
-                />
-              </div>
-              <div className="flex gap-2 pt-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => { setError(null); setMode('choose'); }}
-                >
-                  뒤로
-                </Button>
-                <Button
-                  size="sm"
-                  className="flex-1"
-                  disabled={!loginIdValid || !newName || newPassword.length < 6 || acceptNewMutation.isPending}
-                  onClick={handleAcceptNew}
-                >
-                  {acceptNewMutation.isPending && (
-                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                  )}
-                  가입 및 수락
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {mode === 'existing' && (
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label className="text-[11px]">이메일</Label>
-                <Input
-                  className="text-[11px]"
-                  type="email"
-                  placeholder="기존 계정 이메일"
-                  value={existEmail}
-                  onChange={(e) => setExistEmail(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-[11px]">비밀번호</Label>
-                <Input
-                  className="text-[11px]"
-                  type="password"
-                  placeholder="기존 계정 비밀번호"
-                  value={existPassword}
-                  onChange={(e) => setExistPassword(e.target.value)}
-                />
-              </div>
-              <div className="flex gap-2 pt-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => { setError(null); setMode('choose'); }}
-                >
-                  뒤로
-                </Button>
-                <Button
-                  size="sm"
-                  className="flex-1"
-                  disabled={!existEmail || !existPassword || acceptExistingMutation.isPending}
-                  onClick={handleAcceptExisting}
-                >
-                  {acceptExistingMutation.isPending && (
-                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                  )}
-                  연결 및 수락
-                </Button>
-              </div>
-            </div>
-          )}
-          {mode === 'oauth' && (
-            <div className="space-y-3">
-              <p className="text-[11px] text-gray-600 text-center">
-                소셜 계정으로 가입하고 초대를 수락합니다
-              </p>
-              {/* 네이버 */}
-              <a
-                href={`${process.env.NEXT_PUBLIC_API_URL || '/api/v1'}/auth/naver-invite/${token}`}
-                className="flex items-center justify-center gap-2 w-full h-10 rounded-md text-[12px] font-medium text-white bg-[#03C75A] hover:bg-[#03C75A]/90"
-              >
-                <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M13.5 10.56L6.26 0H0v20h6.5V9.44L13.74 20H20V0h-6.5v10.56z" fill="#fff"/></svg>
-                네이버로 가입
-              </a>
-              {/* 카카오 */}
-              <a
-                href={`${process.env.NEXT_PUBLIC_API_URL || '/api/v1'}/auth/kakao-invite/${token}`}
-                className="flex items-center justify-center gap-2 w-full h-10 rounded-md text-[12px] font-medium text-black/85 bg-[#FEE500] hover:bg-[#FEE500]/90"
-              >
-                <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path fillRule="evenodd" clipRule="evenodd" d="M10 1C4.477 1 0 4.477 0 8.667c0 2.7 1.746 5.075 4.38 6.423l-.89 3.29a.42.42 0 00.638.46l3.877-2.563c.649.09 1.315.138 1.995.138 5.523 0 10-3.477 10-7.748C20 4.477 15.523 1 10 1z" fill="#191919"/></svg>
-                카카오로 가입
-              </a>
-              {/* Google */}
-              <a
-                href={`${process.env.NEXT_PUBLIC_API_URL || '/api/v1'}/auth/google-invite/${token}`}
-                className="flex items-center justify-center gap-2 w-full h-10 rounded-md border text-[12px] font-medium text-gray-700 bg-white hover:bg-gray-50"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18A11.96 11.96 0 001 12c0 1.94.46 3.77 1.18 5.07l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-                Google로 가입
-              </a>
-              <div className="pt-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => { setError(null); setMode('choose'); }}
-                >
-                  뒤로
-                </Button>
-              </div>
-            </div>
-          )}
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>

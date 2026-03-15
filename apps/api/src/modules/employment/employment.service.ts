@@ -108,6 +108,7 @@ export class EmploymentService {
         where: { id: existingInvitation.id },
         data: {
           role: dto.role,
+          oauthProvider: dto.oauthProvider,
           expiresAt,
           sentById,
         },
@@ -122,6 +123,7 @@ export class EmploymentService {
           clientId,
           inviteeEmail: dto.inviteeEmail,
           role: dto.role,
+          oauthProvider: dto.oauthProvider,
           expiresAt,
           sentById,
         },
@@ -132,6 +134,7 @@ export class EmploymentService {
           clientId,
           inviteeEmail: dto.inviteeEmail,
           role: dto.role,
+          oauthProvider: dto.oauthProvider,
           expiresAt,
           sentById,
         },
@@ -226,6 +229,7 @@ export class EmploymentService {
         inviteeEmail: invitation.inviteeEmail,
         role: invitation.role,
         expiresAt: invitation.expiresAt,
+        oauthProvider: invitation.oauthProvider,
       },
       client: invitation.client,
     };
@@ -247,6 +251,9 @@ export class EmploymentService {
 
     if (!invitation || invitation.status !== 'PENDING') {
       throw new BadRequestException('유효하지 않은 초대입니다.');
+    }
+    if (invitation.oauthProvider) {
+      throw new BadRequestException('이 초대는 소셜 로그인으로만 수락할 수 있습니다.');
     }
     if (invitation.expiresAt < new Date()) {
       await this.prisma.invitation.update({
@@ -360,6 +367,9 @@ export class EmploymentService {
     if (!invitation || invitation.status !== 'PENDING') {
       throw new BadRequestException('유효하지 않은 초대입니다.');
     }
+    if (invitation.oauthProvider) {
+      throw new BadRequestException('이 초대는 소셜 로그인으로만 수락할 수 있습니다.');
+    }
     if (invitation.expiresAt < new Date()) {
       await this.prisma.invitation.update({
         where: { id: invitation.id },
@@ -455,6 +465,12 @@ export class EmploymentService {
         data: { status: 'EXPIRED' },
       });
       throw new BadRequestException('만료된 초대입니다.');
+    }
+
+    // 지정된 provider와 일치하는지 확인
+    if (invitation.oauthProvider && invitation.oauthProvider !== dto.oauthProvider) {
+      const providerName = invitation.oauthProvider === 'naver' ? '네이버' : invitation.oauthProvider === 'kakao' ? '카카오' : 'Google';
+      throw new BadRequestException(`이 초대는 ${providerName} 로그인으로만 수락할 수 있습니다.`);
     }
 
     // OAuth로 기존 Client 검색 (oauthProvider + oauthId로만 검색)

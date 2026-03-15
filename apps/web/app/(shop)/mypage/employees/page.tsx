@@ -125,6 +125,7 @@ export default function EmployeesPage() {
                     <th className="text-left px-3 py-2 font-medium">이메일</th>
                     <th className="text-left px-3 py-2 font-medium">가입 URL</th>
                     <th className="text-left px-3 py-2 font-medium">역할</th>
+                    <th className="text-left px-3 py-2 font-medium">로그인</th>
                     <th className="text-left px-3 py-2 font-medium">만료일</th>
                     <th className="text-center px-3 py-2 font-medium">권한</th>
                   </tr>
@@ -321,6 +322,9 @@ function InvitationRow({ invitation }: { invitation: Invitation }) {
           {invitation.role === 'MANAGER' ? 'Manager' : invitation.role === 'EDITOR' ? 'Artist' : invitation.role === 'PHOTOGRAPHER' ? 'Photographer' : 'STAFF'}
         </span>
       </td>
+      <td className="px-3 py-2 text-[14px] text-gray-500">
+        {invitation.oauthProvider === 'naver' ? '네이버' : invitation.oauthProvider === 'kakao' ? '카카오' : invitation.oauthProvider === 'google' ? 'Google' : '-'}
+      </td>
       <td className="px-3 py-2 text-gray-500">
         {(() => { const d = new Date(invitation.expiresAt); return `${d.getFullYear()}년 ${String(d.getMonth()+1).padStart(2,'0')}월 ${String(d.getDate()).padStart(2,'0')}일`; })()}
       </td>
@@ -358,13 +362,14 @@ function InviteDialog({
 }) {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<EmployeeRole>('STAFF');
+  const [oauthProvider, setOauthProvider] = useState<'naver' | 'kakao' | 'google'>('naver');
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const createMutation = useCreateInvitation();
 
   const handleSubmit = () => {
     createMutation.mutate(
-      { clientId, inviteeEmail: email, role },
+      { clientId, inviteeEmail: email, role, oauthProvider },
       {
         onSuccess: (result) => {
           setInviteLink(result.inviteLink);
@@ -388,6 +393,7 @@ function InviteDialog({
   const handleClose = () => {
     setEmail('');
     setRole('STAFF');
+    setOauthProvider('naver');
     setInviteLink(null);
     setCopied(false);
     onClose();
@@ -448,6 +454,19 @@ function InviteDialog({
                   <SelectItem value="EDITOR" className="text-[14px]">Artist</SelectItem>
                   <SelectItem value="PHOTOGRAPHER" className="text-[14px]">Photographer</SelectItem>
                   <SelectItem value="STAFF" className="text-[14px]">STAFF</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[14px]">로그인 방법</Label>
+              <Select value={oauthProvider} onValueChange={(v) => setOauthProvider(v as 'naver' | 'kakao' | 'google')}>
+                <SelectTrigger className="text-[14px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="naver" className="text-[14px]">네이버</SelectItem>
+                  <SelectItem value="kakao" className="text-[14px]">카카오</SelectItem>
+                  <SelectItem value="google" className="text-[14px]">Google</SelectItem>
                 </SelectContent>
               </Select>
             </div>

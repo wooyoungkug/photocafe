@@ -40,6 +40,7 @@ export interface Invitation {
   inviteeEmail: string;
   token: string;
   role: EmployeeRole;
+  oauthProvider?: 'naver' | 'kakao' | 'google' | null;
   status: InvitationStatus;
   expiresAt: string;
   sentById?: string;
@@ -56,6 +57,7 @@ export interface InvitationValidation {
     inviteeEmail: string;
     role: EmployeeRole;
     expiresAt: string;
+    oauthProvider?: 'naver' | 'kakao' | 'google' | null;
   };
   client?: {
     id: string;
@@ -67,6 +69,7 @@ export interface CreateInvitationRequest {
   clientId: string;
   inviteeEmail: string;
   role: EmployeeRole;
+  oauthProvider: 'naver' | 'kakao' | 'google';
 }
 
 export interface UpdateEmploymentRequest {
