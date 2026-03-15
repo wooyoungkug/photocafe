@@ -14,6 +14,7 @@ import {
   useUpdateClientDepartment,
   useDeleteClientDepartment,
 } from '@/hooks/use-employment';
+import { useImpersonateEmployee } from '@/hooks/use-auth';
 import { Employment, Invitation, EmployeeRole, EmploymentStatus } from '@/lib/types/employment';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -62,6 +63,7 @@ import {
   Wallet,
   Camera,
   Briefcase,
+  LogIn,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -79,6 +81,7 @@ export default function EmployeesPage() {
   const [editTarget, setEditTarget] = useState<Employment | null>(null);
   const [removeTarget, setRemoveTarget] = useState<Employment | null>(null);
   const [deptManageOpen, setDeptManageOpen] = useState(false);
+  const impersonateEmployee = useImpersonateEmployee();
 
   const pendingInvitations = invitations?.filter((i) => i.status === 'PENDING') || [];
 
@@ -181,7 +184,23 @@ export default function EmployeesPage() {
                       <td className="px-3 py-2 text-gray-500 whitespace-nowrap">
                         {(() => { const d = new Date(emp.joinedAt); return `${d.getFullYear()}년 ${String(d.getMonth()+1).padStart(2,'0')}월 ${String(d.getDate()).padStart(2,'0')}일`; })()}
                       </td>
-                      <td className="px-3 py-2">{emp.member.clientName}</td>
+                      <td className="px-3 py-2">
+                        {isOwner && emp.memberClientId !== emp.companyClientId && emp.status === 'ACTIVE' ? (
+                          <button
+                            className="text-blue-600 hover:underline cursor-pointer"
+                            title="대리 로그인"
+                            onClick={() => {
+                              if (confirm(`${emp.member.clientName} 직원으로 대리 로그인하시겠습니까?`)) {
+                                impersonateEmployee.mutate(emp.id);
+                              }
+                            }}
+                          >
+                            {emp.member.clientName}
+                          </button>
+                        ) : (
+                          emp.member.clientName
+                        )}
+                      </td>
                       <td className="px-3 py-2 text-gray-500">{emp.member.email}</td>
                       <td className="px-3 py-2 text-gray-500">
                         {emp.department || '-'}
@@ -226,6 +245,18 @@ export default function EmployeesPage() {
                                 <DropdownMenuItem onClick={() => setEditTarget(emp)}>
                                   <Settings className="h-3.5 w-3.5 mr-2" />
                                   권한 설정
+                                </DropdownMenuItem>
+                              )}
+                              {isOwner && emp.status === 'ACTIVE' && (
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    if (confirm(`${emp.member.clientName} 직원으로 대리 로그인하시겠습니까?`)) {
+                                      impersonateEmployee.mutate(emp.id);
+                                    }
+                                  }}
+                                >
+                                  <LogIn className="h-3.5 w-3.5 mr-2" />
+                                  대리 로그인
                                 </DropdownMenuItem>
                               )}
                               {isOwner && (

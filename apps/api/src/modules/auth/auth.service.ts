@@ -927,6 +927,59 @@ export class AuthService {
     };
   }
 
+  async impersonateEmployee(targetEmploymentId: string, requestorSub: string, requestorClientId: string) {
+    // 요청자의 employment 확인 (최고관리자인지)
+    const requestorEmployment = await this.prisma.employment.findFirst({
+      where: { companyClientId: requestorClientId, memberClientId: requestorSub, status: 'ACTIVE' },
+    });
+    if (!requestorEmployment || requestorEmployment.memberClientId !== requestorEmployment.companyClientId) {
+      throw new ForbiddenException('최고관리자만 대리 로그인할 수 있습니다');
+    }
+
+    // 대상 employment 조회
+    const targetEmployment = await this.prisma.employment.findUnique({
+      where: { id: targetEmploymentId },
+      include: { member: true, company: true },
+    });
+    if (!targetEmployment) throw new BadRequestException('직원을 찾을 수 없습니다');
+    if (targetEmployment.companyClientId !== requestorClientId) {
+      throw new ForbiddenException('같은 거래처 직원만 대리 로그인할 수 있습니다');
+    }
+    if (targetEmployment.status !== 'ACTIVE') throw new BadRequestException('비활성 직원은 대리 로그인할 수 없습니다');
+    if (targetEmployment.memberClientId === targetEmployment.companyClientId) {
+      throw new BadRequestException('최고관리자 계정은 대리 로그인 대상이 아닙니다');
+    }
+
+    const client = targetEmployment.member;
+    const payload = {
+      sub: client.id, email: client.email, type: 'employee', role: targetEmployment.role,
+      clientId: targetEmployment.companyClientId, employmentId: targetEmployment.id,
+      canViewAllOrders: targetEmployment.canViewAllOrders, canManageProducts: targetEmployment.canManageProducts,
+      canViewSettlement: targetEmployment.canViewSettlement,
+      canManageSchedule: targetEmployment.canManageSchedule, canManageRecruitment: targetEmployment.canManageRecruitment,
+      enableSchedule: targetEmployment.company.enableSchedule, enableRecruitment: targetEmployment.company.enableRecruitment,
+      impersonatedBy: requestorSub,
+    };
+
+    const isOwner = targetEmployment.memberClientId === targetEmployment.companyClientId;
+
+    return {
+      accessToken: this.jwtService.sign(payload, { expiresIn: '2h' }),
+      refreshToken: this.jwtService.sign(payload, { expiresIn: '2h' }),
+      user: {
+        id: client.id, email: client.email, name: client.clientName,
+        role: targetEmployment.role, type: 'employee', clientId: targetEmployment.companyClientId,
+        clientName: targetEmployment.company.clientName, employmentId: targetEmployment.id,
+        employeeRole: targetEmployment.role, isOwner,
+        canViewAllOrders: targetEmployment.canViewAllOrders, canManageProducts: targetEmployment.canManageProducts,
+        canViewSettlement: targetEmployment.canViewSettlement,
+        canManageSchedule: targetEmployment.canManageSchedule, canManageRecruitment: targetEmployment.canManageRecruitment,
+        enableSchedule: targetEmployment.company.enableSchedule, enableRecruitment: targetEmployment.company.enableRecruitment,
+      },
+      impersonated: true,
+    };
+  }
+
   async impersonateClient(clientId: string, adminId: string) {
     const adminStaff = await this.prisma.staff.findUnique({ where: { id: adminId } });
     if (!adminStaff || !adminStaff.isActive) {

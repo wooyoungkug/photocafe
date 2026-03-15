@@ -483,6 +483,17 @@ export class AuthController {
     return this.authService.impersonateStaff(staffId, req.user.sub);
   }
 
+  @Post('impersonate-employee/:employmentId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '스튜디오 최고관리자가 소속 직원으로 대리 로그인' })
+  async impersonateEmployee(@Param('employmentId') employmentId: string, @Request() req: any) {
+    if (req.user.type !== 'employee') {
+      throw new ForbiddenException('직원 계정만 대리 로그인할 수 있습니다');
+    }
+    return this.authService.impersonateEmployee(employmentId, req.user.sub, req.user.clientId);
+  }
+
   @Post('impersonate/:clientId')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
