@@ -764,7 +764,7 @@ export default function MyOrdersPage() {
                             </Link>
                             {item.folderName && (
                               <div className="text-[14px] text-black font-normal leading-tight line-clamp-1">
-                                {item.productName}
+                                {item.productName?.replace(` - ${item.folderName}`, '') || item.productName}
                               </div>
                             )}
                             <div className="text-[13px] text-gray-500 leading-tight line-clamp-1">
