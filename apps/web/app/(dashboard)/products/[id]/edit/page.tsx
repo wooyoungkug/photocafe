@@ -1099,37 +1099,7 @@ export default function EditProductPage() {
                             </button>
                           </div>
 
-                          {/* INKJET: 규격 체크박스 */}
-                          {groupSpecs.length > 0 && (
-                            <div className="flex flex-wrap gap-1 px-3 pb-2 border-t border-slate-100 pt-2">
-                              {groupSpecs.map(sel => {
-                                const isChecked = selectedSpecs.includes(sel.specificationId!);
-                                return (
-                                  <label
-                                    key={sel.id}
-                                    className={cn(
-                                      'flex items-center gap-1.5 px-2.5 py-1.5 rounded cursor-pointer transition-colors text-[12px]',
-                                      isChecked
-                                        ? 'bg-blue-50 text-blue-700 font-medium'
-                                        : 'hover:bg-slate-100 text-slate-500'
-                                    )}
-                                  >
-                                    <Checkbox
-                                      checked={isChecked}
-                                      onCheckedChange={(checked) => {
-                                        if (checked) {
-                                          setSelectedSpecs(prev => [...new Set([...prev, sel.specificationId!])]);
-                                        } else {
-                                          setSelectedSpecs(prev => prev.filter(id => id !== sel.specificationId));
-                                        }
-                                      }}
-                                    />
-                                    {sel.specificationName || specifications?.find(s => s.id === sel.specificationId)?.name || sel.specificationId}
-                                  </label>
-                                );
-                              })}
-                            </div>
-                          )}
+                          {/* INKJET: 규격 개수만 표시 (상세는 하단 규격정보에서 관리) */}
                         </div>
                       );
                     })}
