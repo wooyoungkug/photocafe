@@ -46,7 +46,10 @@ async function bootstrap() {
 
   // Static file serving (uploads) - DB 설정 경로 반영
   const prisma = app.get(PrismaService);
-  let uploadPath = join(process.cwd(), process.env.UPLOAD_BASE_PATH || 'uploads');
+  const envUploadPath = process.env.UPLOAD_BASE_PATH || 'uploads';
+  let uploadPath = (envUploadPath.startsWith('/') || /^[A-Z]:/i.test(envUploadPath))
+    ? envUploadPath
+    : join(process.cwd(), envUploadPath);
   try {
     const setting = await prisma.systemSetting.findUnique({ where: { key: 'server_upload_base_path' } });
     if (setting?.value) {
