@@ -1062,7 +1062,7 @@ export default function EditProductPage() {
                       const groupSpecs = g.method === 'INKJET'
                         ? outputPriceSelections.filter(sel =>
                             g.ids.includes(sel.id) && sel.specificationId
-                          )
+                          ).filter((sel, idx, arr) => arr.findIndex(s => s.specificationId === sel.specificationId) === idx)
                         : [];
                       const checkedSpecCount = groupSpecs.filter(sel => selectedSpecs.includes(sel.specificationId!)).length;
 
@@ -2602,7 +2602,11 @@ function OutputPriceSelectionForm({
         const existsInkjet = localSelected.some(
           s => s.productionSettingId === selectedSetting.id && s.specificationId === specPrice.specificationId
         );
-        if (!existsInkjet) {
+        // 같은 배치 내 중복도 체크 (priceGroups 간 동일 규격 방지)
+        const existsInBatch = newSelections.some(
+          s => s.specificationId === specPrice.specificationId
+        );
+        if (!existsInkjet && !existsInBatch) {
           newSelections.push({
             id: `${Date.now()}-${specPrice.specificationId}-${Math.random().toString(36).substr(2, 6)}`,
             outputMethod,
