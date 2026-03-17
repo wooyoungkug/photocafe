@@ -1210,13 +1210,10 @@ export default function EditProductPage() {
                   const classifiedIds = new Set([...indigoSpecIds, ...inkjetAlbumSpecIds, ...inkjetOutputSpecIds, ...frameSpecIds, ...bookletSpecIds]);
                   const unclassifiedSpecIds = selectedSpecs.filter(id => !classifiedIds.has(id));
 
+                  // 앨범상품: 출력단가에서 선택된 방식의 앨범 규격만 표시
                   const specGroups = [
-                    { label: '인디고', color: 'purple', specIds: indigoSpecIds, show: hasIndigo && indigoSpecIds.length > 0 },
+                    { label: '인디고앨범', color: 'purple', specIds: indigoSpecIds, show: hasIndigo && indigoSpecIds.length > 0 },
                     { label: '잉크젯앨범', color: 'blue', specIds: inkjetAlbumSpecIds, show: hasInkjet && inkjetAlbumSpecIds.length > 0 },
-                    { label: '잉크젯출력', color: 'cyan', specIds: inkjetOutputSpecIds, show: hasInkjet && inkjetOutputSpecIds.length > 0 },
-                    { label: '액자', color: 'amber', specIds: frameSpecIds, show: frameSpecIds.length > 0 },
-                    { label: '책자', color: 'green', specIds: bookletSpecIds, show: bookletSpecIds.length > 0 },
-                    { label: '기타', color: 'slate', specIds: unclassifiedSpecIds, show: unclassifiedSpecIds.length > 0 },
                   ].filter(g => g.show);
 
                   const colorMap: Record<string, { border: string; bg: string; badge: string }> = {
