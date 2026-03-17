@@ -52,7 +52,6 @@ export default async function RootLayout({
     <html lang={locale} suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
-        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
       </head>
       <body
         className={`${inter.variable} ${notoSansKR.variable} font-sans`}
