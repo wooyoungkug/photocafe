@@ -38,7 +38,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCategories } from '@/hooks/use-categories';
 import { useSpecifications } from '@/hooks/use-specifications';
 import { useHalfProducts } from '@/hooks/use-half-products';
-import { useProduct, useUpdateProduct, useSyncProductPapers, useProcessTemplates, useProductTypeOptions } from '@/hooks/use-products';
+import { useProduct, useUpdateProduct, useProcessTemplates, useProductTypeOptions } from '@/hooks/use-products';
 import { ProcessFlowSection } from '../../components/ProcessFlowSection';
 import { useProductionGroupTree, useProductionSettings, type ProductionGroup, type ProductionSetting, type OutputPriceSelection, type IndigoUpPrice, type InkjetSpecPrice } from '@/hooks/use-production';
 import { useFoilColors, type FoilColorItem } from '@/hooks/use-copper-plates';
@@ -175,7 +175,6 @@ export default function EditProductPage() {
   const { data: product, isLoading: isProductLoading, refetch: refetchProduct } = useProduct(productId);
   const { data: productionGroupTree, isLoading: isTreeLoading } = useProductionGroupTree();
   const updateProduct = useUpdateProduct();
-  const syncPapers = useSyncProductPapers();
   const { data: fabricsData } = useFabrics({ forAlbumCover: true, isActive: true, limit: 200 });
 
   // 상품 유형 기반 공정/옵션 설정
@@ -324,17 +323,6 @@ export default function EditProductPage() {
 
   // 초기 데이터 로드 여부 추적
   const isInitialLoadDone = useRef(false);
-  const isSyncDone = useRef(false);
-
-  // 마스터 용지 동기화 (초기 1회)
-  useEffect(() => {
-    if (product && !isSyncDone.current) {
-      isSyncDone.current = true;
-      syncPapers.mutateAsync({ productId }).then(() => {
-        refetchProduct();
-      }).catch(() => { /* 동기화 실패 시 무시 */ });
-    }
-  }, [product]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 기존 상품 데이터 로드 (초기 1회만 실행)
   useEffect(() => {
@@ -2387,17 +2375,6 @@ export default function EditProductPage() {
                     else if (firstSpec.forInkjet) setSpecType('inkjet');
                     else if (firstSpec.forIndigo) setSpecType('indigo');
                   }
-                }
-              }
-
-              // 출력방식 변경 시 용지 동기화 (추가/비활성화 처리)
-              if (methodsChanged) {
-                const activePrintMethods = [...newMethods].map(m => m.toLowerCase());
-                try {
-                  await syncPapers.mutateAsync({ productId, printMethods: activePrintMethods });
-                  await refetchProduct();
-                } catch {
-                  // 동기화 실패해도 다이얼로그는 닫음
                 }
               }
 
