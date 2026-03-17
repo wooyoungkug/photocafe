@@ -2212,14 +2212,18 @@ export default function EditProductPage() {
             </DialogTitle>
           </DialogHeader>
           <div className="flex gap-1 p-1 bg-slate-100 rounded-lg w-fit">
-            {[
-              { key: 'indigoAlbum', label: '인디고앨범' },
-              { key: 'indigo', label: '인디고출력' },
-              { key: 'inkjet', label: '잉크젯출력' },
-              { key: 'album', label: '잉크젯앨범' },
-              { key: 'frame', label: '액자' },
-              { key: 'booklet', label: '책자' },
-            ].map(tab => (
+            {(() => {
+              const hasIndigoOutput = outputPriceSelections.some(s => s.outputMethod === 'INDIGO');
+              const hasInkjetOutput = outputPriceSelections.some(s => s.outputMethod === 'INKJET');
+              return [
+                { key: 'indigoAlbum', label: '인디고앨범', visible: hasIndigoOutput },
+                { key: 'indigo', label: '인디고출력', visible: hasIndigoOutput },
+                { key: 'inkjet', label: '잉크젯출력', visible: hasInkjetOutput },
+                { key: 'album', label: '잉크젯앨범', visible: hasInkjetOutput },
+                { key: 'frame', label: '액자', visible: !hasIndigoOutput && !hasInkjetOutput },
+                { key: 'booklet', label: '책자', visible: !hasIndigoOutput && !hasInkjetOutput },
+              ].filter(tab => tab.visible);
+            })().map(tab => (
               <Button
                 key={tab.key}
                 type="button"
