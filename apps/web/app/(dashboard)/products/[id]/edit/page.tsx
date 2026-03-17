@@ -1159,7 +1159,7 @@ export default function EditProductPage() {
             </div>)}
           </div>
 
-          {/* 규격정보 - 출력단가 토글과 연동 */}
+          {/* 규격정보 - 출력방식별 그룹핑 */}
           {showOutputPrice && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -1176,40 +1176,100 @@ export default function EditProductPage() {
                 </Button>
               </div>
               {selectedSpecs.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {selectedSpecs.map(specId => {
-                    const spec = specifications?.find(s => s.id === specId);
-                    if (!spec) return null;
-                    // 출력단가에서 연결된 규격인지 표시
-                    const linkedOutput = outputPriceSelections.find(sel => sel.specificationId === specId);
-                    return (
-                      <Badge
-                        key={specId}
-                        variant="outline"
-                        className={cn(
-                          'flex items-center gap-1.5 px-2 py-1 bg-white',
-                          linkedOutput ? 'border-orange-200 bg-orange-50/50' : ''
-                        )}
-                      >
-                        <span className="text-[12px] font-normal">{spec.name}</span>
-                        <span className="text-[12px] font-normal text-slate-400">{spec.widthMm}×{spec.heightMm}mm</span>
-                        {linkedOutput && (
-                          <span className="text-[9px] text-orange-500 font-medium">
-                            {linkedOutput.outputMethod === 'INKJET' ? '잉크젯' : '인디고'}
-                          </span>
-                        )}
-                        <button
-                          type="button"
-                          title="삭제"
-                          className="ml-0.5 hover:text-red-500 transition-colors"
-                          onClick={() => setSelectedSpecs(prev => prev.filter(id => id !== specId))}
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    );
-                  })}
-                </div>
+                (() => {
+                  // 출력방식별 규격 분류
+                  const hasIndigo = outputPriceSelections.some(s => s.outputMethod === 'INDIGO');
+                  const hasInkjet = outputPriceSelections.some(s => s.outputMethod === 'INKJET');
+
+                  // 인디고 규격: forIndigo 또는 forIndigoAlbum
+                  const indigoSpecIds = selectedSpecs.filter(id => {
+                    const spec = specifications?.find(s => s.id === id);
+                    return spec && (spec.forIndigo || spec.forIndigoAlbum);
+                  });
+                  // 잉크젯앨범 규격: forAlbum
+                  const inkjetAlbumSpecIds = selectedSpecs.filter(id => {
+                    const spec = specifications?.find(s => s.id === id);
+                    return spec && spec.forAlbum;
+                  });
+                  // 잉크젯출력 규격: forInkjet (forAlbum 제외)
+                  const inkjetOutputSpecIds = selectedSpecs.filter(id => {
+                    const spec = specifications?.find(s => s.id === id);
+                    return spec && spec.forInkjet && !spec.forAlbum;
+                  });
+                  // 액자 규격
+                  const frameSpecIds = selectedSpecs.filter(id => {
+                    const spec = specifications?.find(s => s.id === id);
+                    return spec && spec.forFrame;
+                  });
+                  // 책자 규격
+                  const bookletSpecIds = selectedSpecs.filter(id => {
+                    const spec = specifications?.find(s => s.id === id);
+                    return spec && spec.forBooklet;
+                  });
+                  // 미분류 규격 (위 어디에도 포함되지 않는 것)
+                  const classifiedIds = new Set([...indigoSpecIds, ...inkjetAlbumSpecIds, ...inkjetOutputSpecIds, ...frameSpecIds, ...bookletSpecIds]);
+                  const unclassifiedSpecIds = selectedSpecs.filter(id => !classifiedIds.has(id));
+
+                  const specGroups = [
+                    { label: '인디고', color: 'purple', specIds: indigoSpecIds, show: hasIndigo && indigoSpecIds.length > 0 },
+                    { label: '잉크젯앨범', color: 'blue', specIds: inkjetAlbumSpecIds, show: hasInkjet && inkjetAlbumSpecIds.length > 0 },
+                    { label: '잉크젯출력', color: 'cyan', specIds: inkjetOutputSpecIds, show: hasInkjet && inkjetOutputSpecIds.length > 0 },
+                    { label: '액자', color: 'amber', specIds: frameSpecIds, show: frameSpecIds.length > 0 },
+                    { label: '책자', color: 'green', specIds: bookletSpecIds, show: bookletSpecIds.length > 0 },
+                    { label: '기타', color: 'slate', specIds: unclassifiedSpecIds, show: unclassifiedSpecIds.length > 0 },
+                  ].filter(g => g.show);
+
+                  const colorMap: Record<string, { border: string; bg: string; badge: string }> = {
+                    purple: { border: 'border-purple-200', bg: 'bg-purple-50/50', badge: 'bg-purple-100 text-purple-700' },
+                    blue: { border: 'border-blue-200', bg: 'bg-blue-50/50', badge: 'bg-blue-100 text-blue-700' },
+                    cyan: { border: 'border-cyan-200', bg: 'bg-cyan-50/50', badge: 'bg-cyan-100 text-cyan-700' },
+                    amber: { border: 'border-amber-200', bg: 'bg-amber-50/50', badge: 'bg-amber-100 text-amber-700' },
+                    green: { border: 'border-green-200', bg: 'bg-green-50/50', badge: 'bg-green-100 text-green-700' },
+                    slate: { border: 'border-slate-200', bg: 'bg-slate-50/50', badge: 'bg-slate-100 text-slate-700' },
+                  };
+
+                  return (
+                    <div className="space-y-2">
+                      {specGroups.map(group => {
+                        const colors = colorMap[group.color];
+                        return (
+                          <div key={group.label} className={cn('rounded-lg border p-2.5', colors.border, colors.bg)}>
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className={cn('text-[11px] font-semibold px-2 py-0.5 rounded-full', colors.badge)}>
+                                {group.label}
+                              </span>
+                              <span className="text-[11px] text-slate-400">{group.specIds.length}개</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {group.specIds.map(specId => {
+                                const spec = specifications?.find(s => s.id === specId);
+                                if (!spec) return null;
+                                return (
+                                  <Badge
+                                    key={specId}
+                                    variant="outline"
+                                    className="flex items-center gap-1 px-2 py-0.5 bg-white text-[11px]"
+                                  >
+                                    <span className="font-normal">{spec.name}</span>
+                                    <span className="font-normal text-slate-400">{spec.widthMm}×{spec.heightMm}mm</span>
+                                    <button
+                                      type="button"
+                                      title="삭제"
+                                      className="ml-0.5 hover:text-red-500 transition-colors"
+                                      onClick={() => setSelectedSpecs(prev => prev.filter(id => id !== specId))}
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  </Badge>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()
               ) : (
                 <p className="text-xs text-slate-400 py-2">선택된 규격이 없습니다. 출력단가에서 잉크젯 규격을 선택하거나 &apos;규격 선택&apos; 버튼으로 추가하세요.</p>
               )}
