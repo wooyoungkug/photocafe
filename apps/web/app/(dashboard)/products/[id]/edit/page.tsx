@@ -1195,10 +1195,22 @@ export default function EditProductPage() {
                     slate: { border: 'border-slate-200', bg: 'bg-slate-50/50', badge: 'bg-slate-100 text-slate-700' },
                   };
 
+                  // 출력단가에 연결된 잉크젯 규격 ID 목록
+                  const linkedInkjetSpecIds = new Set(
+                    outputPriceSelections
+                      .filter(s => s.outputMethod === 'INKJET' && s.specificationId)
+                      .map(s => s.specificationId!)
+                  );
+
                   return (
                     <div className="space-y-2">
                       {specGroups.map(group => {
                         const colors = colorMap[group.color];
+                        const isInkjetGroup = group.label === '잉크젯앨범' || group.label === '잉크젯출력';
+                        // 단가 미설정 규격 수
+                        const missingCount = isInkjetGroup
+                          ? group.specIds.filter(id => !linkedInkjetSpecIds.has(id)).length
+                          : 0;
                         return (
                           <div key={group.label} className={cn('rounded-lg border p-2.5', colors.border, colors.bg)}>
                             <div className="flex items-center gap-2 mb-2">
@@ -1206,19 +1218,32 @@ export default function EditProductPage() {
                                 {group.label}
                               </span>
                               <span className="text-[11px] text-slate-400">{group.specIds.length}개</span>
+                              {missingCount > 0 && (
+                                <span className="text-[10px] text-red-500 font-medium">
+                                  (단가미설정 {missingCount}개)
+                                </span>
+                              )}
                             </div>
                             <div className="flex flex-wrap gap-1">
                               {group.specIds.map(specId => {
                                 const spec = specifications?.find(s => s.id === specId);
                                 if (!spec) return null;
+                                // 잉크젯 그룹: 출력단가에 해당 규격이 연결되어 있는지 확인
+                                const hasPricing = isInkjetGroup ? linkedInkjetSpecIds.has(specId) : true;
                                 return (
                                   <Badge
                                     key={specId}
                                     variant="outline"
-                                    className="flex items-center gap-1 px-2 py-0.5 bg-white text-[11px]"
+                                    className={cn(
+                                      'flex items-center gap-1 px-2 py-0.5 bg-white text-[11px]',
+                                      !hasPricing && 'border-red-400 bg-red-50/50'
+                                    )}
                                   >
                                     <span className="font-normal">{spec.name}</span>
                                     <span className="font-normal text-slate-400">{spec.widthMm}×{spec.heightMm}mm</span>
+                                    {!hasPricing && (
+                                      <span className="text-[9px] text-red-500 font-medium">단가없음</span>
+                                    )}
                                     <button
                                       type="button"
                                       title="삭제"
