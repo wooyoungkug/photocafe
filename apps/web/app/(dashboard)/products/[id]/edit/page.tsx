@@ -1228,8 +1228,12 @@ export default function EditProductPage() {
                               {group.specIds.map(specId => {
                                 const spec = specifications?.find(s => s.id === specId);
                                 if (!spec) return null;
-                                // 잉크젯 그룹: 출력단가에 해당 규격이 연결되어 있는지 확인
+                                // 출력단가에서 해당 규격의 단가 정보 찾기
+                                const linkedPrice = outputPriceSelections.find(
+                                  s => s.specificationId === specId && s.selectedSpecPrice
+                                );
                                 const hasPricing = isInkjetGroup ? linkedInkjetSpecIds.has(specId) : true;
+                                const price = linkedPrice?.selectedSpecPrice?.singleSidedPrice;
                                 return (
                                   <Badge
                                     key={specId}
@@ -1240,8 +1244,9 @@ export default function EditProductPage() {
                                     )}
                                   >
                                     <span className="font-normal">{spec.name}</span>
-                                    <span className="font-normal text-slate-400">{spec.widthMm}×{spec.heightMm}mm</span>
-                                    {!hasPricing && (
+                                    {hasPricing && price != null ? (
+                                      <span className="font-medium text-emerald-600">₩{price.toLocaleString()}</span>
+                                    ) : (
                                       <span className="text-[9px] text-red-500 font-medium">단가없음</span>
                                     )}
                                     <button
