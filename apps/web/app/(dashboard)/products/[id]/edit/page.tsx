@@ -1274,7 +1274,7 @@ export default function EditProductPage() {
           )}
 
           {/* 앨범 표지 원단 선택 */}
-          {shouldShow('fabric') && hasCoverFabric && (<div className="space-y-3">
+          {hasCoverFabric && (<div className="space-y-3">
             <Label className="text-[13px] font-medium text-slate-600 flex items-center gap-1.5">
               <Palette className="h-4 w-4 text-slate-400" />
               앨범 표지 원단

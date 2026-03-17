@@ -1039,7 +1039,7 @@ export default function NewProductPage() {
             )}
 
             {/* 앨범 표지 원단 선택 (표지원단 토글 ON일 때만 표시) */}
-            {shouldShow('fabric') && hasCoverFabric && (
+            {hasCoverFabric && (
               <div className="col-span-2 space-y-3">
                 <Label className="text-[13px] font-semibold text-slate-700 flex items-center gap-2">
                   <Palette className="h-4 w-4 text-emerald-500" />
