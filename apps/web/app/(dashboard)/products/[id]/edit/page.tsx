@@ -451,6 +451,10 @@ export default function EditProductPage() {
             }
           }
         }
+        // 용지가 있으면 출력단가 토글 자동 활성화
+        if (product.papers && Array.isArray(product.papers) && product.papers.length > 0) {
+          setShowOutputPrice(true);
+        }
 
         setIsFormReady(true);
       } catch (error) {
