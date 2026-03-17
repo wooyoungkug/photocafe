@@ -2230,28 +2230,33 @@ export default function EditProductPage() {
               </TableBody>
             </Table>
           </div>
-          {selectedSpecs.length > 0 && (
-            <div className="p-3 bg-slate-50 rounded-lg">
-              <p className="text-sm font-medium mb-2">선택된 규격 ({selectedSpecs.length}개)</p>
-              <div className="flex flex-wrap gap-2">
-                {selectedSpecs.map(specId => {
-                  const spec = specifications?.find(s => s.id === specId);
-                  return spec ? (
-                    <Badge key={specId} variant="secondary" className="flex items-center gap-1">
-                      {spec.name}
-                      <button
-                        type="button"
-                        className="ml-1 hover:bg-red-100 rounded-full p-0.5"
-                        onClick={() => setSelectedSpecs(prev => prev.filter(id => id !== specId))}
-                      >
-                        <X className="h-3 w-3 text-red-500" />
-                      </button>
-                    </Badge>
-                  ) : null;
-                })}
+          {(() => {
+            const currentTabSpecIds = getFilteredSpecs(specType).map(s => s.id);
+            const currentTabSelected = selectedSpecs.filter(id => currentTabSpecIds.includes(id));
+            return currentTabSelected.length > 0 ? (
+              <div className="p-3 bg-slate-50 rounded-lg">
+                <p className="text-sm font-medium mb-2">선택된 규격 ({currentTabSelected.length}개)</p>
+                <div className="flex flex-wrap gap-2">
+                  {currentTabSelected.map(specId => {
+                    const spec = specifications?.find(s => s.id === specId);
+                    return spec ? (
+                      <Badge key={specId} variant="secondary" className="flex items-center gap-1">
+                        {spec.name}
+                        <button
+                          type="button"
+                          title="규격 제거"
+                          className="ml-1 hover:bg-red-100 rounded-full p-0.5"
+                          onClick={() => setSelectedSpecs(prev => prev.filter(id => id !== specId))}
+                        >
+                          <X className="h-3 w-3 text-red-500" />
+                        </button>
+                      </Badge>
+                    ) : null;
+                  })}
+                </div>
               </div>
-            </div>
-          )}
+            ) : null;
+          })()}
           <DialogFooter>
             <Button variant="outline" onClick={() => setSelectedSpecs([])}>전체 해제</Button>
             <Button onClick={() => setSpecDialogOpen(false)}>확인</Button>
