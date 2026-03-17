@@ -1124,7 +1124,7 @@ export default function EditProductPage() {
                                         }
                                       }}
                                     />
-                                    {sel.specificationName || sel.specificationId}
+                                    {sel.specificationName || specifications?.find(s => s.id === sel.specificationId)?.name || sel.specificationId}
                                   </label>
                                 );
                               })}
@@ -2609,6 +2609,7 @@ function OutputPriceSelectionForm({
             productionSettingId: selectedSetting.id,
             productionSettingName: selectedSetting.settingName || selectedSetting.codeName || '단가설정',
             specificationId: specPrice.specificationId,
+            specificationName: getSpecName(specPrice.specificationId),
             selectedSpecPrice: specPrice,
           });
         }
