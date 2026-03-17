@@ -1228,12 +1228,34 @@ export default function EditProductPage() {
                               {group.specIds.map(specId => {
                                 const spec = specifications?.find(s => s.id === specId);
                                 if (!spec) return null;
-                                // 출력단가에서 해당 규격의 단가 정보 찾기
-                                const linkedPrice = outputPriceSelections.find(
-                                  s => s.specificationId === specId && s.selectedSpecPrice
-                                );
-                                const hasPricing = isInkjetGroup ? linkedInkjetSpecIds.has(specId) : true;
-                                const price = linkedPrice?.selectedSpecPrice?.singleSidedPrice;
+
+                                let hasPricing = false;
+                                let price: number | undefined;
+
+                                if (isInkjetGroup) {
+                                  // 잉크젯: 규격별 단가 (outputPriceSelections에서)
+                                  const linkedPrice = outputPriceSelections.find(
+                                    s => s.specificationId === specId && s.selectedSpecPrice
+                                  );
+                                  hasPricing = linkedInkjetSpecIds.has(specId);
+                                  price = linkedPrice?.selectedSpecPrice?.singleSidedPrice;
+                                } else {
+                                  // 인디고: 첫번째 용지그룹의 Nup 4도단면 가격
+                                  const indigoSel = outputPriceSelections.find(s => s.outputMethod === 'INDIGO');
+                                  if (indigoSel?.productionSettingId) {
+                                    const setting = allFinishingSettings?.find(s => s.id === indigoSel.productionSettingId);
+                                    const firstGroup = setting?.priceGroups?.[0];
+                                    if (firstGroup?.upPrices) {
+                                      const nupNum = spec.nup ? parseInt(spec.nup.replace('up', '')) : 1;
+                                      const upPrice = firstGroup.upPrices.find((u: any) => u.up === nupNum);
+                                      if (upPrice) {
+                                        price = (upPrice as any).fourColorSinglePrice ?? upPrice.singleSidedPrice;
+                                        hasPricing = true;
+                                      }
+                                    }
+                                  }
+                                  if (!hasPricing) hasPricing = false;
+                                }
                                 return (
                                   <Badge
                                     key={specId}
