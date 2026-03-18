@@ -1247,12 +1247,16 @@ export default function EditProductPage() {
                           currentPriceGroups.forEach((_pg: any, idx: number) => {
                             groupPaperNames[idx] = [];
                           });
-                          Object.entries(currentPaperGroupMap).forEach(([paperId, groupId]) => {
+                          Object.entries(currentPaperGroupMap).forEach(([masterId, groupId]) => {
                             if (!groupId) return;
                             const pgIdx = currentPriceGroups.findIndex((pg: any) => pg.id === groupId);
                             if (pgIdx >= 0) {
-                              const paper = allPapers.find((p: any) => p.id === paperId);
-                              if (paper) groupPaperNames[pgIdx].push(paper.name);
+                              // paperId(마스터 용지 ID) 또는 paper.id로 매칭
+                              const paper = allPapers.find((p: any) => p.paperId === masterId || p.paper?.id === masterId);
+                              const paperName = paper?.paper?.name || paper?.name;
+                              if (paperName && !groupPaperNames[pgIdx].includes(paperName)) {
+                                groupPaperNames[pgIdx].push(paperName);
+                              }
                             }
                           });
                         }
