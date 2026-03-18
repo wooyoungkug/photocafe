@@ -361,7 +361,7 @@ export class SpecificationService {
             nupSqInch = undefined;
         }
 
-        return this.prisma.specification.update({
+        const updatedSpec = await this.prisma.specification.update({
             where: { id },
             data: {
                 name: dto.name,
@@ -383,28 +383,63 @@ export class SpecificationService {
                 nupSqInch,
             },
         });
+
+        // 연결된 ProductSpecification 이름/치수 동기화
+        const syncData: any = {};
+        if (dto.name !== undefined || dto.widthMm !== undefined || dto.heightMm !== undefined) {
+            if (dto.name !== undefined) syncData.name = dto.name;
+            if (dto.widthMm !== undefined) syncData.widthMm = dto.widthMm;
+            if (dto.heightMm !== undefined) syncData.heightMm = dto.heightMm;
+        }
+        // 이름이 자동 생성되는 경우 (widthInch/heightInch 변경 시)
+        if (Object.keys(syncData).length === 0 && (dto.widthInch !== undefined || dto.heightInch !== undefined)) {
+            syncData.name = updatedSpec.name;
+            syncData.widthMm = Number(updatedSpec.widthMm);
+            syncData.heightMm = Number(updatedSpec.heightMm);
+        }
+
+        if (Object.keys(syncData).length > 0) {
+            await this.prisma.productSpecification.updateMany({
+                where: { specificationId: id },
+                data: syncData,
+            });
+        }
+
+        return updatedSpec;
     }
 
     async delete(id: string) {
         const spec = await this.findOne(id); // Check if exists
 
+        const specIdsToDelete = spec.pairId ? [id, spec.pairId] : [id];
+
+        // 연결된 ProductSpecification 먼저 삭제
+        const deletedLinks = await this.prisma.productSpecification.deleteMany({
+            where: { specificationId: { in: specIdsToDelete } },
+        });
+
         // 쌍이 있으면 함께 삭제
         if (spec.pairId) {
             await this.prisma.specification.deleteMany({
-                where: {
-                    OR: [
-                        { id: id },
-                        { id: spec.pairId },
-                    ],
-                },
+                where: { id: { in: specIdsToDelete } },
             });
-            return { deleted: 2, message: '규격과 쌍이 함께 삭제되었습니다.' };
+            return {
+                deleted: 2,
+                unlinkedProducts: deletedLinks.count,
+                message: `규격과 쌍이 함께 삭제되었습니다. ${deletedLinks.count}개 상품에서 자동 제거됨.`,
+            };
         }
 
         await this.prisma.specification.delete({
             where: { id },
         });
-        return { deleted: 1 };
+        return {
+            deleted: 1,
+            unlinkedProducts: deletedLinks.count,
+            message: deletedLinks.count > 0
+                ? `규격이 삭제되었습니다. ${deletedLinks.count}개 상품에서 자동 제거됨.`
+                : undefined,
+        };
     }
 
     async updateSortOrder(items: { id: string; sortOrder: number }[]) {

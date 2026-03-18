@@ -262,9 +262,12 @@ export default function SpecificationsPage() {
     mutationFn: async (data: SpecificationForm) => {
       return api.post("/specifications", transformFormToApi(data));
     },
-    onSuccess: () => {
+    onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ["specifications"] });
-      toast({ title: "규격이 등록되었습니다." });
+      const linkedMsg = result?.autoLinked?.linkedProducts > 0
+        ? ` (${result.autoLinked.linkedProducts}개 상품에 자동 추가)`
+        : '';
+      toast({ title: `규격이 등록되었습니다.${linkedMsg}` });
       closeDialog();
     },
     onError: (error: Error) => {
@@ -279,7 +282,7 @@ export default function SpecificationsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["specifications"] });
-      toast({ title: "규격이 수정되었습니다." });
+      toast({ title: "규격이 수정되었습니다. (연결 상품 자동 동기화)" });
       closeDialog();
     },
     onError: (error: Error) => {
@@ -290,11 +293,14 @@ export default function SpecificationsPage() {
   // 규격 삭제
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      return api.delete(`/specifications/${id}`);
+      return api.delete<{ deleted: number; unlinkedProducts?: number; message?: string }>(`/specifications/${id}`);
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["specifications"] });
-      toast({ title: "규격이 삭제되었습니다." });
+      const unlinkedMsg = result?.unlinkedProducts
+        ? ` (${result.unlinkedProducts}개 상품에서 자동 제거)`
+        : '';
+      toast({ title: `규격이 삭제되었습니다.${unlinkedMsg}` });
     },
     onError: (error: Error) => {
       toast({ variant: "destructive", title: "삭제 실패", description: error.message });
