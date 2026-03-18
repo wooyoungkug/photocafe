@@ -262,10 +262,12 @@ export default function EditProductPage() {
   const [outputPriceSelections, setOutputPriceSelections] = useState<OutputPriceSelection[]>([]);
   const [outputPriceDialogOpen, setOutputPriceDialogOpen] = useState(false);
   const [printType, setPrintType] = useState<'single' | 'double' | 'customer'>('double');
-  // 인디고 규격 가격 필터
+  // 규격 가격 필터 (인디고)
   const [indigoColorFilter, setIndigoColorFilter] = useState<'4도' | '6도'>('4도');
   const [indigoGroupIndex, setIndigoGroupIndex] = useState(0);
   const [indigoPrintSide, setIndigoPrintSide] = useState<'single' | 'double'>('single');
+  // 규격 가격 필터 (잉크젯)
+  const [inkjetGroupIndex, setInkjetGroupIndex] = useState(0);
   const [selectedFoils, setSelectedFoils] = useState<{ id: string; name: string; color: string; price: number }[]>([]);
   // 용지 사용 여부 관리
   const [paperActiveMap, setPaperActiveMap] = useState<Record<string, boolean>>({});
@@ -1215,16 +1217,50 @@ export default function EditProductPage() {
                         const missingCount = isInkjetGroup
                           ? group.specIds.filter(id => !linkedInkjetSpecIds.has(id)).length
                           : 0;
-                        // 인디고 그룹인 경우 priceGroups 정보 추출
+                        // 해당 출력방식의 setting 추출
                         const isIndigoGroup = !isInkjetGroup && group.label === '인디고앨범';
-                        let indigoPriceGroups: any[] = [];
+                        let currentSetting: any = null;
+                        let currentPriceGroups: any[] = [];
+                        let currentPaperGroupMap: Record<string, string | null> = {};
+
                         if (isIndigoGroup) {
                           const indigoSel = outputPriceSelections.find(s => s.outputMethod === 'INDIGO');
                           if (indigoSel?.productionSettingId) {
-                            const setting = allFinishingSettings?.find(s => s.id === indigoSel.productionSettingId);
-                            indigoPriceGroups = setting?.priceGroups ?? [];
+                            currentSetting = allFinishingSettings?.find(s => s.id === indigoSel.productionSettingId);
+                          }
+                        } else if (isInkjetGroup) {
+                          // 잉크젯: 첫번째 INKJET selection의 setting
+                          const inkjetSel = outputPriceSelections.find(s => s.outputMethod === 'INKJET');
+                          if (inkjetSel?.productionSettingId) {
+                            currentSetting = allFinishingSettings?.find(s => s.id === inkjetSel.productionSettingId);
                           }
                         }
+                        if (currentSetting) {
+                          currentPriceGroups = currentSetting.priceGroups ?? [];
+                          currentPaperGroupMap = (currentSetting as any).paperPriceGroupMap ?? {};
+                        }
+
+                        // 그룹별 용지 매핑 구축
+                        const allPapers = (product?.papers as any[]) ?? [];
+                        const groupPaperNames: Record<number, string[]> = {};
+                        if (currentPriceGroups.length > 0) {
+                          currentPriceGroups.forEach((_pg: any, idx: number) => {
+                            groupPaperNames[idx] = [];
+                          });
+                          Object.entries(currentPaperGroupMap).forEach(([paperId, groupId]) => {
+                            if (!groupId) return;
+                            const pgIdx = currentPriceGroups.findIndex((pg: any) => pg.id === groupId);
+                            if (pgIdx >= 0) {
+                              const paper = allPapers.find((p: any) => p.id === paperId);
+                              if (paper) groupPaperNames[pgIdx].push(paper.name);
+                            }
+                          });
+                        }
+
+                        // 필터 상태 (인디고/잉크젯 각각 독립 그룹 인덱스)
+                        const activeGroupIndex = isIndigoGroup ? indigoGroupIndex : (isInkjetGroup ? inkjetGroupIndex : 0);
+                        const setActiveGroupIndex = isIndigoGroup ? setIndigoGroupIndex : setInkjetGroupIndex;
+                        const safeGroupIndex = currentPriceGroups.length > 0 ? Math.min(activeGroupIndex, currentPriceGroups.length - 1) : 0;
 
                         return (
                           <div key={group.label} className={cn('rounded-lg border p-2.5', colors.border, colors.bg)}>
@@ -1240,79 +1276,90 @@ export default function EditProductPage() {
                               )}
                             </div>
 
-                            {/* 인디고 가격 필터 컨트롤 */}
-                            {isIndigoGroup && indigoPriceGroups.length > 0 && (
-                              <div className="flex flex-wrap items-center gap-3 mb-2 p-1.5 bg-white/70 rounded border border-purple-100">
-                                {/* 색상 선택 (4도/6도) */}
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-[10px] text-slate-500 font-medium">색상</span>
-                                  <div className="flex rounded overflow-hidden border border-slate-200">
-                                    {(['4도', '6도'] as const).map(ct => (
-                                      <button
-                                        key={ct}
-                                        type="button"
-                                        className={cn(
-                                          'px-2 py-0.5 text-[10px] font-medium transition-colors',
-                                          indigoColorFilter === ct
-                                            ? 'bg-purple-600 text-white'
-                                            : 'bg-white text-slate-600 hover:bg-slate-50'
-                                        )}
-                                        onClick={() => setIndigoColorFilter(ct)}
-                                      >
-                                        {ct}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-
-                                {/* 출력면 선택 (단면/양면) */}
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-[10px] text-slate-500 font-medium">출력</span>
-                                  <div className="flex rounded overflow-hidden border border-slate-200">
-                                    {([{ value: 'single', label: '단면' }, { value: 'double', label: '양면' }] as const).map(opt => (
-                                      <button
-                                        key={opt.value}
-                                        type="button"
-                                        className={cn(
-                                          'px-2 py-0.5 text-[10px] font-medium transition-colors',
-                                          indigoPrintSide === opt.value
-                                            ? 'bg-purple-600 text-white'
-                                            : 'bg-white text-slate-600 hover:bg-slate-50'
-                                        )}
-                                        onClick={() => setIndigoPrintSide(opt.value as 'single' | 'double')}
-                                      >
-                                        {opt.label}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-
-                                {/* 그룹 선택 (2개 이상일 때만 표시) */}
-                                {indigoPriceGroups.length > 1 && (
+                            {/* 가격 필터 컨트롤 (priceGroups가 있을 때) */}
+                            {currentPriceGroups.length > 0 && (
+                              <div className="flex flex-wrap items-center gap-3 mb-2 p-1.5 bg-white/70 rounded border border-slate-200/80">
+                                {/* 인디고 전용: 색상 선택 (4도/6도) */}
+                                {isIndigoGroup && (
                                   <div className="flex items-center gap-1.5">
-                                    <span className="text-[10px] text-slate-500 font-medium">그룹</span>
+                                    <span className="text-[10px] text-slate-500 font-medium">색상</span>
                                     <div className="flex rounded overflow-hidden border border-slate-200">
-                                      {indigoPriceGroups.map((pg: any, idx: number) => (
+                                      {(['4도', '6도'] as const).map(ct => (
                                         <button
-                                          key={pg.id}
+                                          key={ct}
                                           type="button"
                                           className={cn(
                                             'px-2 py-0.5 text-[10px] font-medium transition-colors',
-                                            indigoGroupIndex === idx
+                                            indigoColorFilter === ct
+                                              ? (isIndigoGroup ? 'bg-purple-600 text-white' : 'bg-blue-600 text-white')
+                                              : 'bg-white text-slate-600 hover:bg-slate-50'
+                                          )}
+                                          onClick={() => setIndigoColorFilter(ct)}
+                                        >
+                                          {ct}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* 인디고 전용: 출력면 선택 (단면/양면) */}
+                                {isIndigoGroup && (
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] text-slate-500 font-medium">출력</span>
+                                    <div className="flex rounded overflow-hidden border border-slate-200">
+                                      {([{ value: 'single', label: '단면' }, { value: 'double', label: '양면' }] as const).map(opt => (
+                                        <button
+                                          key={opt.value}
+                                          type="button"
+                                          className={cn(
+                                            'px-2 py-0.5 text-[10px] font-medium transition-colors',
+                                            indigoPrintSide === opt.value
                                               ? 'bg-purple-600 text-white'
                                               : 'bg-white text-slate-600 hover:bg-slate-50'
                                           )}
-                                          onClick={() => setIndigoGroupIndex(idx)}
+                                          onClick={() => setIndigoPrintSide(opt.value as 'single' | 'double')}
                                         >
-                                          {pg.name || `그룹${idx + 1}`}
-                                          {pg.color && (
-                                            <span
-                                              className="inline-block w-2 h-2 rounded-full ml-1"
-                                              style={{ backgroundColor: pg.color === 'green' ? '#22c55e' : pg.color === 'blue' ? '#3b82f6' : pg.color === 'red' ? '#ef4444' : pg.color === 'orange' ? '#f97316' : pg.color }}
-                                            />
-                                          )}
+                                          {opt.label}
                                         </button>
                                       ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* 그룹 선택 (공통 - 용지명 포함) */}
+                                {currentPriceGroups.length > 1 && (
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] text-slate-500 font-medium">용지그룹</span>
+                                    <div className="flex rounded overflow-hidden border border-slate-200">
+                                      {currentPriceGroups.map((pg: any, idx: number) => {
+                                        const paperNames = groupPaperNames[idx] ?? [];
+                                        const label = paperNames.length > 0
+                                          ? paperNames.join('·')
+                                          : (pg.name || `그룹${idx + 1}`);
+                                        return (
+                                          <button
+                                            key={pg.id}
+                                            type="button"
+                                            title={paperNames.length > 0 ? `용지: ${paperNames.join(', ')}` : undefined}
+                                            className={cn(
+                                              'px-2 py-0.5 text-[10px] font-medium transition-colors',
+                                              safeGroupIndex === idx
+                                                ? (isIndigoGroup ? 'bg-purple-600 text-white' : 'bg-blue-600 text-white')
+                                                : 'bg-white text-slate-600 hover:bg-slate-50'
+                                            )}
+                                            onClick={() => setActiveGroupIndex(idx)}
+                                          >
+                                            {label}
+                                            {pg.color && (
+                                              <span
+                                                className="inline-block w-2 h-2 rounded-full ml-1"
+                                                style={{ backgroundColor: pg.color === 'green' ? '#22c55e' : pg.color === 'blue' ? '#3b82f6' : pg.color === 'red' ? '#ef4444' : pg.color === 'orange' ? '#f97316' : pg.color }}
+                                              />
+                                            )}
+                                          </button>
+                                        );
+                                      })}
                                     </div>
                                   </div>
                                 )}
@@ -1327,21 +1374,32 @@ export default function EditProductPage() {
                                 let hasPricing = false;
                                 let price: number | undefined;
 
-                                if (isInkjetGroup) {
-                                  // 잉크젯: 규격별 단가 (outputPriceSelections에서)
+                                if (isInkjetGroup && currentPriceGroups.length > 0) {
+                                  // 잉크젯: 선택된 그룹의 specPrices에서 가격 조회
+                                  const selectedGroup = currentPriceGroups[safeGroupIndex];
+                                  if (selectedGroup?.specPrices) {
+                                    const specPrice = selectedGroup.specPrices.find(
+                                      (sp: any) => sp.specificationId === specId
+                                    );
+                                    if (specPrice) {
+                                      price = specPrice.singleSidedPrice;
+                                      hasPricing = true;
+                                    }
+                                  }
+                                } else if (isInkjetGroup) {
+                                  // 잉크젯 fallback: outputPriceSelections에서
                                   const linkedPrice = outputPriceSelections.find(
                                     s => s.specificationId === specId && s.selectedSpecPrice
                                   );
                                   hasPricing = linkedInkjetSpecIds.has(specId);
                                   price = linkedPrice?.selectedSpecPrice?.singleSidedPrice;
-                                } else if (isIndigoGroup && indigoPriceGroups.length > 0) {
+                                } else if (isIndigoGroup && currentPriceGroups.length > 0) {
                                   // 인디고: 선택된 그룹/색상/출력면에 따라 가격 표시
-                                  const selectedGroup = indigoPriceGroups[indigoGroupIndex] ?? indigoPriceGroups[0];
+                                  const selectedGroup = currentPriceGroups[safeGroupIndex];
                                   if (selectedGroup?.upPrices) {
                                     const nupNum = spec.nup ? parseInt(spec.nup.replace(/[^0-9]/g, '')) || 1 : 1;
                                     const upPrice = selectedGroup.upPrices.find((u: any) => u.up === nupNum);
                                     if (upPrice) {
-                                      // 4도/6도 × 단면/양면 매트릭스
                                       if (indigoColorFilter === '4도') {
                                         price = indigoPrintSide === 'single'
                                           ? upPrice.fourColorSinglePrice
@@ -1355,7 +1413,7 @@ export default function EditProductPage() {
                                     }
                                   }
                                 } else {
-                                  // 인디고 fallback (priceGroups 없는 경우)
+                                  // fallback (priceGroups 없는 경우)
                                   const indigoSel = outputPriceSelections.find(s => s.outputMethod === 'INDIGO');
                                   if (indigoSel?.productionSettingId) {
                                     const setting = allFinishingSettings?.find(s => s.id === indigoSel.productionSettingId);

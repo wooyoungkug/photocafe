@@ -114,6 +114,8 @@ export interface ProductionSetting {
   inkjetSpecPrices?: InkjetSpecPrice[];
   // 단가 그룹 (priceGroups JSON 필드에서 로드)
   priceGroups?: PriceGroup[];
+  // 용지 → 그룹 매핑 (paperPriceGroupMap JSON 필드)
+  paperPriceGroupMap?: Record<string, string | null>;
   sortOrder: number;
   isActive: boolean;
   createdAt: string;
