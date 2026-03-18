@@ -1330,37 +1330,49 @@ export default function EditProductPage() {
                                 {/* 그룹 선택 (공통 - 용지명 포함) */}
                                 {currentPriceGroups.length > 1 && (
                                   <div className="flex items-center gap-1.5">
-                                    <span className="text-[10px] text-slate-500 font-medium">용지그룹</span>
-                                    <div className="flex rounded overflow-hidden border border-slate-200">
+                                    <span className="text-[10px] text-slate-500 font-medium shrink-0">용지그룹</span>
+                                    <div className="flex gap-1 flex-wrap">
                                       {currentPriceGroups.map((pg: any, idx: number) => {
                                         const paperNames = groupPaperNames[idx] ?? [];
-                                        const label = paperNames.length > 0
-                                          ? paperNames.join('·')
-                                          : (pg.name || `그룹${idx + 1}`);
+                                        const isActive = safeGroupIndex === idx;
+                                        const activeBg = isIndigoGroup ? 'bg-purple-600' : 'bg-blue-600';
                                         return (
                                           <button
                                             key={pg.id}
                                             type="button"
-                                            title={paperNames.length > 0 ? `용지: ${paperNames.join(', ')}` : undefined}
                                             className={cn(
-                                              'px-2 py-0.5 text-[10px] font-medium transition-colors',
-                                              safeGroupIndex === idx
-                                                ? (isIndigoGroup ? 'bg-purple-600 text-white' : 'bg-blue-600 text-white')
-                                                : 'bg-white text-slate-600 hover:bg-slate-50'
+                                              'flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-medium transition-colors',
+                                              isActive
+                                                ? `${activeBg} text-white border-transparent`
+                                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                                             )}
                                             onClick={() => setActiveGroupIndex(idx)}
                                           >
-                                            {label}
                                             {pg.color && (
                                               <span
-                                                className="inline-block w-2 h-2 rounded-full ml-1"
+                                                className={cn('inline-block w-2 h-2 rounded-full shrink-0', isActive && 'ring-1 ring-white/50')}
                                                 style={{ backgroundColor: pg.color === 'green' ? '#22c55e' : pg.color === 'blue' ? '#3b82f6' : pg.color === 'red' ? '#ef4444' : pg.color === 'orange' ? '#f97316' : pg.color }}
                                               />
+                                            )}
+                                            <span>{pg.name || `그룹${idx + 1}`}</span>
+                                            {paperNames.length > 0 && (
+                                              <span className={cn('text-[9px]', isActive ? 'text-white/80' : 'text-slate-400')}>
+                                                ({paperNames.join(', ')})
+                                              </span>
                                             )}
                                           </button>
                                         );
                                       })}
                                     </div>
+                                  </div>
+                                )}
+                                {/* 그룹 1개인 경우에도 소속 용지 표시 */}
+                                {currentPriceGroups.length === 1 && (groupPaperNames[0] ?? []).length > 0 && (
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] text-slate-500 font-medium shrink-0">용지</span>
+                                    <span className="text-[10px] text-slate-600">
+                                      {(groupPaperNames[0] ?? []).join(', ')}
+                                    </span>
                                   </div>
                                 )}
                               </div>
