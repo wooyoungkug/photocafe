@@ -1496,203 +1496,6 @@ export default function EditProductPage() {
             </div>
           )}
 
-          {/* 앨범 표지 원단 선택 */}
-          {hasCoverFabric && (<div className="space-y-3">
-            <Label className="text-[13px] font-medium text-slate-600 flex items-center gap-1.5">
-              <Palette className="h-4 w-4 text-slate-400" />
-              앨범 표지 원단
-              {selectedFabricIds.length > 0 && (
-                <Badge variant="secondary" className="text-[10px] h-4 px-1.5">{selectedFabricIds.length}개 선택</Badge>
-              )}
-            </Label>
-            {(() => {
-              const allFabrics = fabricsData?.data || [];
-              if (allFabrics.length === 0) {
-                return <p className="text-xs text-slate-400 py-2">등록된 앨범 커버용 원단이 없습니다. 기초정보 &gt; 표지원단 관리에서 원단을 등록하세요.</p>;
-              }
-
-              const searchLower = fabricSearch.toLowerCase();
-              const filteredFabrics = searchLower
-                ? allFabrics.filter(f => f.name.toLowerCase().includes(searchLower))
-                : null;
-
-              const categories = [...new Set(allFabrics.map(f => f.category))] as FabricCategory[];
-
-              return (
-                <div className="space-y-2">
-                  {/* 검색 + 전체선택/해제 */}
-                  <div className="flex items-center gap-2">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                      <Input
-                        placeholder="원단명 검색..."
-                        value={fabricSearch}
-                        onChange={e => setFabricSearch(e.target.value)}
-                        className="pl-7 h-7 text-[12px]"
-                      />
-                      {fabricSearch && (
-                        <button type="button" onClick={() => setFabricSearch('')}
-                          className="absolute right-2 top-1/2 -translate-y-1/2">
-                          <X className="h-3 w-3 text-slate-400 hover:text-slate-600" />
-                        </button>
-                      )}
-                    </div>
-                    <button type="button"
-                      onClick={() => setSelectedFabricIds(allFabrics.map(f => f.id))}
-                      className="text-[11px] text-slate-500 hover:text-slate-800 whitespace-nowrap px-2 py-1 rounded border border-slate-200 hover:border-slate-400 transition-colors">
-                      전체선택
-                    </button>
-                    <button type="button"
-                      onClick={() => setSelectedFabricIds([])}
-                      className="text-[11px] text-slate-500 hover:text-slate-800 whitespace-nowrap px-2 py-1 rounded border border-slate-200 hover:border-slate-400 transition-colors">
-                      전체해제
-                    </button>
-                  </div>
-
-                  {/* 검색 결과 (칩 형태) */}
-                  {filteredFabrics ? (
-                    <div className="border rounded-md p-2 max-h-[280px] overflow-y-auto">
-                      {filteredFabrics.length === 0 ? (
-                        <p className="text-xs text-slate-400 py-3 text-center">검색 결과가 없습니다.</p>
-                      ) : (
-                        <div className="flex flex-wrap gap-1.5">
-                          {filteredFabrics.map(fabric => {
-                            const isSelected = selectedFabricIds.includes(fabric.id);
-                            return (
-                              <button key={fabric.id} type="button"
-                                onClick={() => setSelectedFabricIds(prev =>
-                                  isSelected ? prev.filter(id => id !== fabric.id) : [...prev, fabric.id]
-                                )}
-                                className={cn(
-                                  'inline-flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-full text-[11px] border transition-all duration-150',
-                                  isSelected
-                                    ? 'bg-blue-50 border-blue-300 text-blue-700 shadow-sm'
-                                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
-                                )}>
-                                {fabric.thumbnailUrl ? (
-                                  <div className="w-4 h-4 rounded-full border bg-cover bg-center flex-shrink-0"
-                                    style={{ backgroundImage: `url(${normalizeImageUrl(fabric.thumbnailUrl)})` }} />
-                                ) : (
-                                  <div className="w-4 h-4 rounded-full border bg-slate-100 flex-shrink-0" />
-                                )}
-                                <span>{fabric.name}</span>
-                                {isSelected && <Check className="h-3 w-3 ml-0.5" />}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    /* 커튼 블라인드 스타일 */
-                    <div className="space-y-0">
-                      {categories.map((cat, idx) => {
-                        const catFabrics = allFabrics.filter(f => f.category === cat);
-                        const selectedCount = catFabrics.filter(f => selectedFabricIds.includes(f.id)).length;
-                        const allSelected = selectedCount === catFabrics.length;
-                        const someSelected = selectedCount > 0 && !allSelected;
-                        const isCollapsed = collapsedFabricCats.has(cat);
-
-                        return (
-                          <div key={cat}>
-                            {/* 블라인드 슬랫 */}
-                            <div
-                              className={cn(
-                                'flex items-center gap-2 px-3 py-2 cursor-pointer select-none transition-all duration-200',
-                                'border border-slate-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)]',
-                                idx === 0 && 'rounded-t-md',
-                                idx === categories.length - 1 && isCollapsed && 'rounded-b-md',
-                                !isCollapsed
-                                  ? 'bg-gradient-to-r from-blue-50/80 to-slate-50 shadow-[0_1px_3px_rgba(0,0,0,0.06)]'
-                                  : 'bg-gradient-to-r from-slate-50 to-white',
-                                idx > 0 && '-mt-px'
-                              )}
-                            >
-                              <Checkbox
-                                checked={someSelected ? 'indeterminate' : allSelected}
-                                onCheckedChange={checked => {
-                                  const catIds = catFabrics.map(f => f.id);
-                                  setSelectedFabricIds(prev =>
-                                    checked
-                                      ? [...new Set([...prev, ...catIds])]
-                                      : prev.filter(id => !catIds.includes(id))
-                                  );
-                                }}
-                              />
-                              <button type="button"
-                                className="flex-1 flex items-center gap-2 text-left min-w-0"
-                                onClick={() => setCollapsedFabricCats(prev => {
-                                  const next = new Set(prev);
-                                  next.has(cat) ? next.delete(cat) : next.add(cat);
-                                  return next;
-                                })}>
-                                <span className="text-[12px] font-semibold text-slate-700 truncate">
-                                  {FABRIC_CATEGORY_LABELS[cat] || cat}
-                                </span>
-                                {selectedCount > 0 ? (
-                                  <Badge variant="default" className="text-[9px] h-4 px-1.5 rounded-full bg-blue-500">
-                                    {selectedCount}/{catFabrics.length}
-                                  </Badge>
-                                ) : (
-                                  <span className="text-[10px] text-slate-400">{catFabrics.length}</span>
-                                )}
-                                <ChevronDown className={cn(
-                                  'h-3.5 w-3.5 text-slate-400 ml-auto transition-transform duration-300',
-                                  isCollapsed ? '-rotate-90' : 'rotate-0'
-                                )} />
-                              </button>
-                            </div>
-
-                            {/* 블라인드 펼침 영역 - 커튼 내려가듯 */}
-                            <div
-                              className={cn(
-                                'overflow-hidden transition-all duration-300 ease-in-out',
-                                isCollapsed ? 'max-h-0 opacity-0' : 'max-h-[300px] opacity-100'
-                              )}
-                            >
-                              <div className="px-2.5 py-2 border-x border-slate-200 bg-white -mt-px">
-                                <div className="flex flex-wrap gap-1.5">
-                                  {catFabrics.map(fabric => {
-                                    const isSelected = selectedFabricIds.includes(fabric.id);
-                                    return (
-                                      <button key={fabric.id} type="button"
-                                        onClick={() => setSelectedFabricIds(prev =>
-                                          isSelected ? prev.filter(id => id !== fabric.id) : [...prev, fabric.id]
-                                        )}
-                                        className={cn(
-                                          'inline-flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-full text-[11px] border transition-all duration-150',
-                                          isSelected
-                                            ? 'bg-blue-50 border-blue-300 text-blue-700 shadow-sm'
-                                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
-                                        )}>
-                                        {fabric.thumbnailUrl ? (
-                                          <div className="w-4 h-4 rounded-full border bg-cover bg-center flex-shrink-0"
-                                            style={{ backgroundImage: `url(${normalizeImageUrl(fabric.thumbnailUrl)})` }} />
-                                        ) : (
-                                          <div className="w-4 h-4 rounded-full border bg-slate-100 flex-shrink-0" />
-                                        )}
-                                        <span>{fabric.name}</span>
-                                        {isSelected && <Check className="h-3 w-3 ml-0.5 text-blue-500" />}
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                              {/* 블라인드 하단 그림자 라인 */}
-                              {idx === categories.length - 1 && !isCollapsed && (
-                                <div className="h-px border-b border-slate-200 rounded-b-md" />
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-          </div>)}
-
           {/* 용지 사용 여부 - 출력방식별 그룹화 (출력단가 토글이 켜져있을 때만 표시) */}
           {showOutputPrice && product?.papers && product.papers.length > 0 && (
             <div className="space-y-3">
@@ -2161,6 +1964,209 @@ export default function EditProductPage() {
           )}
         </CardContent>
       </Card>
+      )}
+
+      {/* 앨범 표지 원단 선택 */}
+      {hasCoverFabric && (
+        <Card className="overflow-hidden border border-teal-200 shadow-none rounded-lg">
+          <CardContent className="px-6 py-4">
+            <div className="space-y-3">
+            <Label className="text-[13px] font-medium text-slate-600 flex items-center gap-1.5">
+              <Palette className="h-4 w-4 text-slate-400" />
+              앨범 표지 원단
+              {selectedFabricIds.length > 0 && (
+                <Badge variant="secondary" className="text-[10px] h-4 px-1.5">{selectedFabricIds.length}개 선택</Badge>
+              )}
+            </Label>
+            {(() => {
+              const allFabrics = fabricsData?.data || [];
+              if (allFabrics.length === 0) {
+                return <p className="text-xs text-slate-400 py-2">등록된 앨범 커버용 원단이 없습니다. 기초정보 &gt; 표지원단 관리에서 원단을 등록하세요.</p>;
+              }
+
+              const searchLower = fabricSearch.toLowerCase();
+              const filteredFabrics = searchLower
+                ? allFabrics.filter(f => f.name.toLowerCase().includes(searchLower))
+                : null;
+
+              const categories = [...new Set(allFabrics.map(f => f.category))] as FabricCategory[];
+
+              return (
+                <div className="space-y-2">
+                  {/* 검색 + 전체선택/해제 */}
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                      <Input
+                        placeholder="원단명 검색..."
+                        value={fabricSearch}
+                        onChange={e => setFabricSearch(e.target.value)}
+                        className="pl-7 h-7 text-[12px]"
+                      />
+                      {fabricSearch && (
+                        <button type="button" onClick={() => setFabricSearch('')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2">
+                          <X className="h-3 w-3 text-slate-400 hover:text-slate-600" />
+                        </button>
+                      )}
+                    </div>
+                    <button type="button"
+                      onClick={() => setSelectedFabricIds(allFabrics.map(f => f.id))}
+                      className="text-[11px] text-slate-500 hover:text-slate-800 whitespace-nowrap px-2 py-1 rounded border border-slate-200 hover:border-slate-400 transition-colors">
+                      전체선택
+                    </button>
+                    <button type="button"
+                      onClick={() => setSelectedFabricIds([])}
+                      className="text-[11px] text-slate-500 hover:text-slate-800 whitespace-nowrap px-2 py-1 rounded border border-slate-200 hover:border-slate-400 transition-colors">
+                      전체해제
+                    </button>
+                  </div>
+
+                  {/* 검색 결과 (칩 형태) */}
+                  {filteredFabrics ? (
+                    <div className="border rounded-md p-2 max-h-[280px] overflow-y-auto">
+                      {filteredFabrics.length === 0 ? (
+                        <p className="text-xs text-slate-400 py-3 text-center">검색 결과가 없습니다.</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5">
+                          {filteredFabrics.map(fabric => {
+                            const isSelected = selectedFabricIds.includes(fabric.id);
+                            return (
+                              <button key={fabric.id} type="button"
+                                onClick={() => setSelectedFabricIds(prev =>
+                                  isSelected ? prev.filter(id => id !== fabric.id) : [...prev, fabric.id]
+                                )}
+                                className={cn(
+                                  'inline-flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-full text-[11px] border transition-all duration-150',
+                                  isSelected
+                                    ? 'bg-blue-50 border-blue-300 text-blue-700 shadow-sm'
+                                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
+                                )}>
+                                {fabric.thumbnailUrl ? (
+                                  <div className="w-4 h-4 rounded-full border bg-cover bg-center flex-shrink-0"
+                                    style={{ backgroundImage: `url(${normalizeImageUrl(fabric.thumbnailUrl)})` }} />
+                                ) : (
+                                  <div className="w-4 h-4 rounded-full border bg-slate-100 flex-shrink-0" />
+                                )}
+                                <span>{fabric.name}</span>
+                                {isSelected && <Check className="h-3 w-3 ml-0.5" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* 커튼 블라인드 스타일 */
+                    <div className="space-y-0">
+                      {categories.map((cat, idx) => {
+                        const catFabrics = allFabrics.filter(f => f.category === cat);
+                        const selectedCount = catFabrics.filter(f => selectedFabricIds.includes(f.id)).length;
+                        const allSelected = selectedCount === catFabrics.length;
+                        const someSelected = selectedCount > 0 && !allSelected;
+                        const isCollapsed = collapsedFabricCats.has(cat);
+
+                        return (
+                          <div key={cat}>
+                            {/* 블라인드 슬랫 */}
+                            <div
+                              className={cn(
+                                'flex items-center gap-2 px-3 py-2 cursor-pointer select-none transition-all duration-200',
+                                'border border-slate-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)]',
+                                idx === 0 && 'rounded-t-md',
+                                idx === categories.length - 1 && isCollapsed && 'rounded-b-md',
+                                !isCollapsed
+                                  ? 'bg-gradient-to-r from-blue-50/80 to-slate-50 shadow-[0_1px_3px_rgba(0,0,0,0.06)]'
+                                  : 'bg-gradient-to-r from-slate-50 to-white',
+                                idx > 0 && '-mt-px'
+                              )}
+                            >
+                              <Checkbox
+                                checked={someSelected ? 'indeterminate' : allSelected}
+                                onCheckedChange={checked => {
+                                  const catIds = catFabrics.map(f => f.id);
+                                  setSelectedFabricIds(prev =>
+                                    checked
+                                      ? [...new Set([...prev, ...catIds])]
+                                      : prev.filter(id => !catIds.includes(id))
+                                  );
+                                }}
+                              />
+                              <button type="button"
+                                className="flex-1 flex items-center gap-2 text-left min-w-0"
+                                onClick={() => setCollapsedFabricCats(prev => {
+                                  const next = new Set(prev);
+                                  next.has(cat) ? next.delete(cat) : next.add(cat);
+                                  return next;
+                                })}>
+                                <span className="text-[12px] font-semibold text-slate-700 truncate">
+                                  {FABRIC_CATEGORY_LABELS[cat] || cat}
+                                </span>
+                                {selectedCount > 0 ? (
+                                  <Badge variant="default" className="text-[9px] h-4 px-1.5 rounded-full bg-blue-500">
+                                    {selectedCount}/{catFabrics.length}
+                                  </Badge>
+                                ) : (
+                                  <span className="text-[10px] text-slate-400">{catFabrics.length}</span>
+                                )}
+                                <ChevronDown className={cn(
+                                  'h-3.5 w-3.5 text-slate-400 ml-auto transition-transform duration-300',
+                                  isCollapsed ? '-rotate-90' : 'rotate-0'
+                                )} />
+                              </button>
+                            </div>
+
+                            {/* 블라인드 펼침 영역 - 커튼 내려가듯 */}
+                            <div
+                              className={cn(
+                                'overflow-hidden transition-all duration-300 ease-in-out',
+                                isCollapsed ? 'max-h-0 opacity-0' : 'max-h-[300px] opacity-100'
+                              )}
+                            >
+                              <div className="px-2.5 py-2 border-x border-slate-200 bg-white -mt-px">
+                                <div className="flex flex-wrap gap-1.5">
+                                  {catFabrics.map(fabric => {
+                                    const isSelected = selectedFabricIds.includes(fabric.id);
+                                    return (
+                                      <button key={fabric.id} type="button"
+                                        onClick={() => setSelectedFabricIds(prev =>
+                                          isSelected ? prev.filter(id => id !== fabric.id) : [...prev, fabric.id]
+                                        )}
+                                        className={cn(
+                                          'inline-flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-full text-[11px] border transition-all duration-150',
+                                          isSelected
+                                            ? 'bg-blue-50 border-blue-300 text-blue-700 shadow-sm'
+                                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
+                                        )}>
+                                        {fabric.thumbnailUrl ? (
+                                          <div className="w-4 h-4 rounded-full border bg-cover bg-center flex-shrink-0"
+                                            style={{ backgroundImage: `url(${normalizeImageUrl(fabric.thumbnailUrl)})` }} />
+                                        ) : (
+                                          <div className="w-4 h-4 rounded-full border bg-slate-100 flex-shrink-0" />
+                                        )}
+                                        <span>{fabric.name}</span>
+                                        {isSelected && <Check className="h-3 w-3 ml-0.5 text-blue-500" />}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                              {/* 블라인드 하단 그림자 라인 */}
+                              {idx === categories.length - 1 && !isCollapsed && (
+                                <div className="h-px border-b border-slate-200 rounded-b-md" />
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* 박(Foil) 선택 - 동판 토글이 켜져있을 때만 표시 */}
@@ -3565,7 +3571,7 @@ function BindingPriceDetail({ setting }: { setting: ProductionSetting & { prices
   // 기타 타입: 기본 가격만 표시
   return (
     <div className="border-2 border-green-400 rounded-lg p-3">
-      <div className="text-xs font-medium text-green-700 mb-1">제본 단가 ({setting.settingName || setting.codeName})</div>
+      <div className="text-xs font-medium text-green-700 mb-1">제�� 단가 ({setting.settingName || setting.codeName})</div>
       <div className="text-xs">기본가: {Number(setting.basePrice).toLocaleString()}원</div>
     </div>
   );
