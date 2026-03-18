@@ -3823,7 +3823,7 @@ export default function ProductionSettingPage() {
                       </div>
 
                       {/* Nup 그룹별 단가 설정 */}
-                      <div className="border rounded-lg p-4 max-h-[500px] overflow-y-auto">
+                      <div className="border-2 border-green-400 rounded-lg p-4 max-h-[500px] overflow-y-auto">
 
                         {/* 테이블 헤더 - Nup 그룹 기반 */}
                         <div
