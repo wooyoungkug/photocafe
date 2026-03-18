@@ -1383,7 +1383,13 @@ export default function EditProductPage() {
                             )}
 
                             <div className="flex flex-wrap gap-1">
-                              {group.specIds.map(specId => {
+                              {[...group.specIds].sort((a, b) => {
+                                const sa = specifications?.find(s => s.id === a);
+                                const sb = specifications?.find(s => s.id === b);
+                                const areaA = sa ? (Number(sa.squareMeters) || sa.widthInch * sa.heightInch) : 0;
+                                const areaB = sb ? (Number(sb.squareMeters) || sb.widthInch * sb.heightInch) : 0;
+                                return areaA - areaB;
+                              }).map(specId => {
                                 const spec = specifications?.find(s => s.id === specId);
                                 if (!spec) return null;
 
