@@ -1876,15 +1876,15 @@ function OutputPriceSelectionForm({
     return groups.map(group => {
       const filteredGroupSettings = group.settings?.filter(s => {
         if (s.pricingType !== 'paper_output_spec') return false;
-        if (method === 'INDIGO') return s.printMethod === 'indigo' || hasIndigoUpPrices(s);
-        else return s.printMethod === 'inkjet' || hasInkjetSpecs(s);
+        if (method === 'INDIGO') return s.printMethod === 'indigo';
+        else return s.printMethod === 'inkjet';
       }) || [];
       const hasSettings = filteredGroupSettings.length > 0;
       const childrenWithSettings = group.children?.filter(child => {
         const childSettings = child.settings?.filter(s => {
           if (s.pricingType !== 'paper_output_spec') return false;
-          if (method === 'INDIGO') return s.printMethod === 'indigo' || hasIndigoUpPrices(s);
-          else return s.printMethod === 'inkjet' || hasInkjetSpecs(s);
+          if (method === 'INDIGO') return s.printMethod === 'indigo';
+          else return s.printMethod === 'inkjet';
         }) || [];
         return childSettings.length > 0 || (child.children && child.children.length > 0);
       }) || [];

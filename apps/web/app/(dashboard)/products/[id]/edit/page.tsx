@@ -2803,9 +2803,9 @@ function OutputPriceSelectionForm({
   const filteredSettings = productionSettings?.filter(setting => {
     if (!outputMethod) return false;
     if (outputMethod === 'INDIGO') {
-      return setting.printMethod === 'indigo' || hasIndigoUpPrices(setting);
+      return setting.printMethod === 'indigo';
     } else {
-      return setting.printMethod === 'inkjet' || hasInkjetSpecs(setting);
+      return setting.printMethod === 'inkjet';
     }
   }) || [];
 
@@ -2816,9 +2816,9 @@ function OutputPriceSelectionForm({
       const filtered = group.settings.filter(s => {
         if (s.pricingType !== 'paper_output_spec') return false;
         if (outputMethod === 'INDIGO') {
-          return s.printMethod === 'indigo' || hasIndigoUpPrices(s);
+          return s.printMethod === 'indigo';
         } else if (outputMethod === 'INKJET') {
-          return s.printMethod === 'inkjet' || hasInkjetSpecs(s);
+          return s.printMethod === 'inkjet';
         }
         return false;
       });
@@ -2946,9 +2946,9 @@ function OutputPriceSelectionForm({
       const filteredGroupSettings = group.settings?.filter(s => {
         if (s.pricingType !== 'paper_output_spec') return false;
         if (method === 'INDIGO') {
-          return s.printMethod === 'indigo' || hasIndigoUpPrices(s);
+          return s.printMethod === 'indigo';
         } else {
-          return s.printMethod === 'inkjet' || hasInkjetSpecs(s);
+          return s.printMethod === 'inkjet';
         }
       }) || [];
 
@@ -2958,9 +2958,9 @@ function OutputPriceSelectionForm({
         const childSettings = child.settings?.filter(s => {
           if (s.pricingType !== 'paper_output_spec') return false;
           if (method === 'INDIGO') {
-            return s.printMethod === 'indigo' || hasIndigoUpPrices(s);
+            return s.printMethod === 'indigo';
           } else {
-            return s.printMethod === 'inkjet' || hasInkjetSpecs(s);
+            return s.printMethod === 'inkjet';
           }
         }) || [];
         return childSettings.length > 0 || (child.children && child.children.length > 0);
@@ -3069,9 +3069,9 @@ function OutputPriceSelectionForm({
                 .filter(s => {
                   if (s.pricingType !== 'paper_output_spec') return false;
                   if (outputMethod === 'INDIGO') {
-                    return s.printMethod === 'indigo' || hasIndigoUpPrices(s);
+                    return s.printMethod === 'indigo';
                   } else if (outputMethod === 'INKJET') {
-                    return s.printMethod === 'inkjet' || hasInkjetSpecs(s);
+                    return s.printMethod === 'inkjet';
                   }
                   return false;
                 })
