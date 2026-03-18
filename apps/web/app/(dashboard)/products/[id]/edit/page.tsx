@@ -3485,27 +3485,30 @@ function BindingPriceDetail({ setting }: { setting: ProductionSetting & { prices
       if (ss.specification) specMap.set(ss.specificationId || ss.specification.id, ss.specification);
     });
 
-    // prices를 specificationId별로 그룹 → Nup 추출
-    const priceRows = prices
+    // prices를 Nup별로 그룹화하여 대표 1행만 표시 (같은 Nup의 모든 규격은 동일 가격)
+    const nupGroupMap = new Map<string, { nup: string; pricePerPage: number; rangePrices: Record<string, number> }>();
+    prices
       .filter((p: any) => p.specificationId)
-      .map((p: any) => {
+      .forEach((p: any) => {
         const spec = specMap.get(p.specificationId);
-        return {
-          specId: p.specificationId,
-          nup: spec?.nup || spec?.name || '-',
-          specName: spec?.name || '-',
-          pricePerPage: Number(p.pricePerPage) || 0,
-          rangePrices: (p.rangePrices && typeof p.rangePrices === 'object') ? p.rangePrices as Record<string, number> : {},
-        };
+        const nup = spec?.nup || spec?.name || '-';
+        if (!nupGroupMap.has(nup)) {
+          nupGroupMap.set(nup, {
+            nup,
+            pricePerPage: Number(p.pricePerPage) || 0,
+            rangePrices: (p.rangePrices && typeof p.rangePrices === 'object') ? p.rangePrices as Record<string, number> : {},
+          });
+        }
       });
 
-    // Nup 순서
+    // Nup 순서대로 정렬
     const nupOrder = ['1++up', '1+up', '1up', '2up', '4up', '8up'];
-    priceRows.sort((a, b) => {
-      const ai = nupOrder.indexOf(a.nup);
-      const bi = nupOrder.indexOf(b.nup);
-      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
-    });
+    const priceRows = nupOrder
+      .filter(nup => nupGroupMap.has(nup))
+      .map(nup => nupGroupMap.get(nup)!)
+      .concat(
+        Array.from(nupGroupMap.values()).filter(r => !nupOrder.includes(r.nup))
+      );
 
     const formatNum = (n: number) => n ? n.toLocaleString() : '-';
 
@@ -3525,7 +3528,7 @@ function BindingPriceDetail({ setting }: { setting: ProductionSetting & { prices
             </thead>
             <tbody>
               {priceRows.map((row) => (
-                <tr key={row.specId} className="border-b last:border-b-0">
+                <tr key={row.nup} className="border-b last:border-b-0">
                   <td className="py-1 px-1 font-semibold text-violet-700">{row.nup}</td>
                   <td className="py-1 px-1 text-right font-mono">{formatNum(row.pricePerPage)}</td>
                   {pageRanges.map(r => (
