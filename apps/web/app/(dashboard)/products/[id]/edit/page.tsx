@@ -3090,8 +3090,8 @@ function OutputPriceSelectionForm({
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {inkjetSpecs.map((specPrice) => (
-                            <TableRow key={specPrice.specificationId} className="bg-blue-50/30">
+                          {inkjetSpecs.map((specPrice, idx) => (
+                            <TableRow key={`${specPrice.specificationId}-${idx}`} className="bg-blue-50/30">
                               <TableCell className="font-medium">{getSpecName(specPrice.specificationId)}</TableCell>
                               <TableCell className="text-right">{specPrice.singleSidedPrice.toLocaleString()}원</TableCell>
                               <TableCell className="text-center">
