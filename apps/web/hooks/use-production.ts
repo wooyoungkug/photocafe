@@ -155,6 +155,10 @@ export interface ProductionSettingPrice {
   minQuantity: number | null;
   maxQuantity: number | null;
   price: number;
+  basePages?: number | null;
+  basePrice?: number | null;
+  pricePerPage?: number | null;
+  rangePrices?: Record<string, number> | null;
 }
 
 const PRODUCTION_KEY = 'production';

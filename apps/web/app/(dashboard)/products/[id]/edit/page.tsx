@@ -40,7 +40,7 @@ import { useSpecifications } from '@/hooks/use-specifications';
 import { useHalfProducts } from '@/hooks/use-half-products';
 import { useProduct, useUpdateProduct, useProcessTemplates, useProductTypeOptions } from '@/hooks/use-products';
 import { ProcessFlowSection } from '../../components/ProcessFlowSection';
-import { useProductionGroupTree, useProductionSettings, type ProductionGroup, type ProductionSetting, type OutputPriceSelection, type IndigoUpPrice, type InkjetSpecPrice } from '@/hooks/use-production';
+import { useProductionGroupTree, useProductionSettings, useProductionSetting, type ProductionGroup, type ProductionSetting, type OutputPriceSelection, type IndigoUpPrice, type InkjetSpecPrice } from '@/hooks/use-production';
 import { useFoilColors, type FoilColorItem } from '@/hooks/use-copper-plates';
 import { useFabrics, FABRIC_CATEGORY_LABELS, type FabricCategory } from '@/hooks/use-fabrics';
 import { useToast } from '@/hooks/use-toast';
@@ -258,6 +258,9 @@ export default function EditProductPage() {
   const [selectedHalfProductId, setSelectedHalfProductId] = useState('');
   const [selectedBindings, setSelectedBindings] = useState<{ id: string; name: string; price: number; productionSettingId?: string; pricingType?: string }[]>([]);
   const [bindingDirection, setBindingDirection] = useState<'left' | 'right' | 'customer'>('left');
+  // 선택된 제본 설정의 상세 데이터 로드 (단가 정보 포함)
+  const firstBindingSettingId = selectedBindings[0]?.productionSettingId || '';
+  const { data: bindingSettingDetail } = useProductionSetting(firstBindingSettingId);
   // 출력단가 선택 (새로운 방식)
   const [outputPriceSelections, setOutputPriceSelections] = useState<OutputPriceSelection[]>([]);
   const [outputPriceDialogOpen, setOutputPriceDialogOpen] = useState(false);
@@ -1014,6 +1017,10 @@ export default function EditProductPage() {
                     </div>
                   ))}
                 </div>
+              )}
+              {/* 선택된 제본 단가 상세 (초록박스) */}
+              {selectedBindings.length > 0 && bindingSettingDetail && (
+                <BindingPriceDetail setting={bindingSettingDetail} />
               )}
               {shouldShow('bindingDirection') && (<div className="flex gap-4 pt-2">
                 <Label className="text-xs text-slate-500">제본방향</Label>
@@ -3461,6 +3468,102 @@ function OptionForm({ onSubmit, onCancel }: { onSubmit: (opt: Omit<ProductOption
         <Button variant="outline" onClick={onCancel}>취소</Button>
         <Button onClick={() => onSubmit({ name, type, quantityType, values: values.filter(v => v.name) })}>추가</Button>
       </DialogFooter>
+    </div>
+  );
+}
+
+// 제본 단가 상세 표시 컴포넌트 (초록박스)
+function BindingPriceDetail({ setting }: { setting: ProductionSetting & { prices?: any[]; pageRanges?: number[] | null; specifications?: any[] } }) {
+  const prices = setting.prices || [];
+  const pageRanges: number[] = Array.isArray(setting.pageRanges) ? (setting.pageRanges as number[]) : [];
+
+  // nup_page_range 타입: Nup별 구간 가격 테이블
+  if (setting.pricingType === 'nup_page_range' && prices.length > 0) {
+    // specificationId → specification 매핑
+    const specMap = new Map<string, any>();
+    (setting.specifications || []).forEach((ss: any) => {
+      if (ss.specification) specMap.set(ss.specificationId || ss.specification.id, ss.specification);
+    });
+
+    // prices를 specificationId별로 그룹 → Nup 추출
+    const priceRows = prices
+      .filter((p: any) => p.specificationId)
+      .map((p: any) => {
+        const spec = specMap.get(p.specificationId);
+        return {
+          specId: p.specificationId,
+          nup: spec?.nup || spec?.name || '-',
+          specName: spec?.name || '-',
+          pricePerPage: Number(p.pricePerPage) || 0,
+          rangePrices: (p.rangePrices && typeof p.rangePrices === 'object') ? p.rangePrices as Record<string, number> : {},
+        };
+      });
+
+    // Nup 순서
+    const nupOrder = ['1++up', '1+up', '1up', '2up', '4up', '8up'];
+    priceRows.sort((a, b) => {
+      const ai = nupOrder.indexOf(a.nup);
+      const bi = nupOrder.indexOf(b.nup);
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+    });
+
+    const formatNum = (n: number) => n ? n.toLocaleString() : '-';
+
+    return (
+      <div className="border-2 border-green-400 rounded-lg p-3 space-y-2">
+        <div className="text-xs font-medium text-green-700 mb-1">제본 단가 ({setting.settingName || setting.codeName})</div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b text-gray-500">
+                <th className="text-left py-1 px-1 font-medium">Nup</th>
+                <th className="text-right py-1 px-1 font-medium">1p당</th>
+                {pageRanges.map(r => (
+                  <th key={r} className="text-center py-1 px-1 font-medium">{r}p</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {priceRows.map((row) => (
+                <tr key={row.specId} className="border-b last:border-b-0">
+                  <td className="py-1 px-1 font-semibold text-violet-700">{row.nup}</td>
+                  <td className="py-1 px-1 text-right font-mono">{formatNum(row.pricePerPage)}</td>
+                  {pageRanges.map(r => (
+                    <td key={r} className="py-1 px-1 text-center font-mono">
+                      {formatNum(Number(row.rangePrices[String(r)]) || 0)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
+  // binding_page 타입: 간단한 가격 표시
+  if (setting.pricingType === 'binding_page' && prices.length > 0) {
+    return (
+      <div className="border-2 border-green-400 rounded-lg p-3">
+        <div className="text-xs font-medium text-green-700 mb-1">제본 단가 ({setting.settingName || setting.codeName})</div>
+        <div className="space-y-1">
+          {prices.map((p: any, idx: number) => (
+            <div key={idx} className="flex justify-between text-xs">
+              <span>{p.minQuantity && p.maxQuantity ? `${p.minQuantity}~${p.maxQuantity}p` : '기본'}</span>
+              <span className="font-mono">{Number(p.price).toLocaleString()}원</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // 기타 타입: 기본 가격만 표시
+  return (
+    <div className="border-2 border-green-400 rounded-lg p-3">
+      <div className="text-xs font-medium text-green-700 mb-1">제본 단가 ({setting.settingName || setting.codeName})</div>
+      <div className="text-xs">기본가: {Number(setting.basePrice).toLocaleString()}원</div>
     </div>
   );
 }
