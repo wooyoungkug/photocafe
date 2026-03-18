@@ -1536,10 +1536,7 @@ export default function EditProductPage() {
                   outputPriceSelections.map(s => s.outputMethod?.toLowerCase())
                 );
                 const sortedMethods = methodOrder.filter(m =>
-                  printMethodGroups[m] && (
-                    // indigo/inkjet은 해당 출력방법이 선택되어 있을 때만 표시
-                    m === 'etc' || m === 'offset' || activeOutputMethods.has(m)
-                  )
+                  printMethodGroups[m] && activeOutputMethods.has(m)
                 );
 
                 const getPaperType = (name: string) =>
