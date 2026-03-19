@@ -364,7 +364,7 @@
     "shippingNotSet": "配送情報未設定",
     "unitPriceInfo": "(単価 {price}ウォン × {qty}部)",
     "vatIncluded": "VAT込み",
-    "priceFormulaUnit": "(製本{binding} + @{perPage}×{pages}p={printPrice} + 後加工{cover} = 単価 {unitPrice}ウォン)",
+    "priceFormulaUnit": "(出力費{printPrice} + 製本費{bindingPrice} + 後加工費{postProcessingPrice} = 単価 {unitPrice}ウォン)",
     "priceFormulaTotal": "({unitPrice}×{qty}部={total}ウォン VAT込み)",
     "additionalSetOrder": "追加セット注文",
     "specLabelShort": "仕様",

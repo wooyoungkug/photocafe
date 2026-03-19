@@ -18,7 +18,8 @@ import {
   type Specification,
 } from '@/hooks/use-specifications';
 import { calculateAspectRatio, isRatioMatch } from '@/lib/album-utils';
-import { calculateTotalQuotation, formatPrice } from '@/lib/album-pricing';
+import { api } from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
 
 export function StepSpecification() {
   const {
@@ -185,27 +186,30 @@ export function StepSpecification() {
   );
 }
 
-// 견적 요약 컴포넌트
+// 견적 요약 컴포넌트 (DB 기반 가격 조회)
 function QuotationSummary({ specification }: { specification?: Specification }) {
-  const { folders, printMethod, colorMode, pageLayout } = useAlbumOrderStore();
+  const { folders, productId, colorMode, pageLayout } = useAlbumOrderStore();
 
-  // 견적 계산
-  const quotation = useMemo(() => {
-    if (!specification || folders.length === 0) return null;
+  // 대표 폴더의 페이지 수로 DB 가격 조회
+  const firstFolder = folders[0];
+  const { data: priceData, isLoading } = useQuery({
+    queryKey: ['pricing', 'album-order-preview', productId, specification?.id, firstFolder?.pageCount, colorMode, pageLayout],
+    queryFn: () =>
+      api.post<{
+        bindingPrice: number; pricePerPage: number; printPrice: number;
+        paperPrice: number; postProcessingPrice: number; unitPrice: number;
+      }>('/pricing/calculate/album-order', {
+        productId,
+        widthInch: specification!.widthInch,
+        heightInch: specification!.heightInch,
+        pageCount: firstFolder?.pageCount || 10,
+        colorMode,
+        pageLayout,
+      }),
+    enabled: !!specification && !!productId && folders.length > 0,
+  });
 
-    const specName = `${specification.widthInch}x${specification.heightInch}`;
-
-    return calculateTotalQuotation(folders, {
-      albumType: 'premium-photo', // 화보 기본
-      coverType: 'hard-standard',
-      printMethod,
-      colorMode,
-      pageLayout,
-      specName,
-    });
-  }, [folders, printMethod, colorMode, pageLayout, specification]);
-
-  if (!specification || !quotation) return null;
+  if (!specification || folders.length === 0) return null;
 
   return (
     <div className="bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-lg p-4 space-y-4">
@@ -220,7 +224,6 @@ function QuotationSummary({ specification }: { specification?: Specification }) 
 
       {/* 옵션 요약 */}
       <div className="flex flex-wrap gap-2 text-sm">
-        <Badge variant="outline">{PRINT_METHOD_LABELS[printMethod]}</Badge>
         <Badge variant="outline">{COLOR_MODE_LABELS[colorMode]}</Badge>
         <Badge variant="outline">{PAGE_LAYOUT_LABELS[pageLayout]}</Badge>
       </div>
@@ -232,23 +235,55 @@ function QuotationSummary({ specification }: { specification?: Specification }) 
           견적 요약
         </div>
 
-        <div className="space-y-1 text-sm">
-          {quotation.quotations.map((q, idx) => (
-            <div key={idx} className="flex justify-between">
-              <span className="text-muted-foreground">
-                폴더 {idx + 1}: {q.options.pages}p × {q.quantity}부
-              </span>
-              <span className="font-medium">{formatPrice(q.subtotal)}원</span>
+        {isLoading ? (
+          <div className="text-sm text-muted-foreground">가격 조회 중...</div>
+        ) : priceData ? (
+          <>
+            {/* 단가 산출근거 */}
+            <div className="space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">출력비</span>
+                <span className="font-medium">{priceData.printPrice.toLocaleString()}원</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">제본비</span>
+                <span className="font-medium">{priceData.bindingPrice.toLocaleString()}원</span>
+              </div>
+              {priceData.postProcessingPrice > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">후가공비</span>
+                  <span className="font-medium">{priceData.postProcessingPrice.toLocaleString()}원</span>
+                </div>
+              )}
             </div>
-          ))}
-        </div>
 
-        <div className="border-t pt-2 mt-2">
-          <div className="flex justify-between text-lg font-bold mt-2 text-primary">
-            <span>총 예상 금액 (VAT포함)</span>
-            <span>{formatPrice(quotation.totalPrice)}원</span>
-          </div>
-        </div>
+            {/* 폴더별 합계 */}
+            <div className="border-t pt-2 mt-2 space-y-1 text-sm">
+              {folders.map((folder, idx) => {
+                const folderTotal = priceData.unitPrice * folder.quantity;
+                return (
+                  <div key={idx} className="flex justify-between">
+                    <span className="text-muted-foreground">
+                      폴더 {idx + 1}: {folder.pageCount}p × {folder.quantity}부
+                    </span>
+                    <span className="font-medium">{folderTotal.toLocaleString()}원</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="border-t pt-2 mt-2">
+              <div className="flex justify-between text-lg font-bold mt-2 text-primary">
+                <span>총 예상 금액 (VAT포함)</span>
+                <span>
+                  {folders.reduce((sum, f) => sum + priceData.unitPrice * f.quantity, 0).toLocaleString()}원
+                </span>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="text-sm text-red-500">가격 미등록 - 관리자 문의</div>
+        )}
       </div>
 
       <p className="text-xs text-muted-foreground">

@@ -452,7 +452,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
   // DB 가격 정보 구성
   const dbPriceInfo: DbPriceInfo = useMemo(() => ({
     pricePerPage: albumPriceData?.pricePerPage || 0,
-    bindingPrice: dbBindingPrice,
+    bindingPrice: dbBindingPrice || 0,
     coverPrice: albumPriceData?.coverPrice || 0,
   }), [albumPriceData, dbBindingPrice]);
 
@@ -1153,24 +1153,33 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
 
         {/* 가격 표시 */}
         <div className="text-right flex-shrink-0">
-          <div className="text-sm font-bold text-primary">
-            {t('priceWon', { price: Math.round(folderPrice.totalPrice).toLocaleString() })}
-          </div>
-          <div className="text-[10px] text-gray-400">
-            {t('priceFormulaUnit', {
-              printPrice: Math.round(folderPrice.printPrice).toLocaleString(),
-              bindingPrice: Math.round(folderPrice.bindingPrice).toLocaleString(),
-              postProcessingPrice: Math.round(folderPrice.postProcessingPrice).toLocaleString(),
-              unitPrice: Math.round(folderPrice.unitPrice).toLocaleString(),
-            })}
-          </div>
-          <div className="text-[10px] text-gray-400">
-            {t('priceFormulaTotal', {
-              unitPrice: folderPrice.unitPrice.toLocaleString(),
-              qty: folder.quantity,
-              total: folderPrice.totalPrice.toLocaleString(),
-            })}
-          </div>
+          {isPriceMissing ? (
+            <div className="text-sm font-bold text-red-500">
+              가격 미등록
+              <div className="text-[10px] text-red-400">관리자 문의</div>
+            </div>
+          ) : (
+            <>
+              <div className="text-sm font-bold text-primary">
+                {t('priceWon', { price: Math.round(folderPrice.totalPrice).toLocaleString() })}
+              </div>
+              <div className="text-[10px] text-gray-400">
+                {t('priceFormulaUnit', {
+                  printPrice: Math.round(folderPrice.printPrice).toLocaleString(),
+                  bindingPrice: Math.round(folderPrice.bindingPrice).toLocaleString(),
+                  postProcessingPrice: Math.round(folderPrice.postProcessingPrice).toLocaleString(),
+                  unitPrice: Math.round(folderPrice.unitPrice).toLocaleString(),
+                })}
+              </div>
+              <div className="text-[10px] text-gray-400">
+                {t('priceFormulaTotal', {
+                  unitPrice: folderPrice.unitPrice.toLocaleString(),
+                  qty: folder.quantity,
+                  total: folderPrice.totalPrice.toLocaleString(),
+                })}
+              </div>
+            </>
+          )}
         </div>
 
         {/* 삭제 버튼 */}
