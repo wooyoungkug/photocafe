@@ -304,8 +304,8 @@ export class CalculateAlbumOrderPriceDto {
 }
 
 export class AlbumOrderPriceResultDto {
-  @ApiProperty({ description: '표지 단가 (basePrice)' })
-  coverPrice: number;
+  @ApiProperty({ description: '제본비 (순수 제본 + 표지비 포함)' })
+  bindingPrice: number;
 
   @ApiProperty({ description: '1p당 출력단가' })
   pricePerPage: number;
@@ -316,10 +316,10 @@ export class AlbumOrderPriceResultDto {
   @ApiProperty({ description: '용지 추가금 (0 if 없음)' })
   paperPrice: number;
 
-  @ApiProperty({ description: '제본비 (0 if 포함)' })
-  bindingPrice: number;
+  @ApiProperty({ description: '후가공비 (코팅, 라미네이션 등)' })
+  postProcessingPrice: number;
 
-  @ApiProperty({ description: '총 단가 (coverPrice + printPrice + paperPrice + bindingPrice)' })
+  @ApiProperty({ description: '총 단가 (출력비 + 제본비 + 후가공비, VAT 포함)' })
   unitPrice: number;
 
   @ApiProperty({ description: '매칭된 규격 ID' })

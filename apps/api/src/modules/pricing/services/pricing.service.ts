@@ -34,13 +34,14 @@ export class PricingService {
   async getAlbumPagePrice(
     clientId: string | null,
     dto: GetAlbumPagePriceDto,
-  ): Promise<{ pricePerPage: number; bindingBasePrice: number; bindingPricePerPage: number; bindingRangePrices: Record<string, number> | null }> {
+  ): Promise<{ pricePerPage: number; bindingBasePrice: number; bindingPricePerPage: number; bindingRangePrices: Record<string, number> | null; coverPrice: number }> {
     const { productionSettingId, specificationId, colorMode, pageLayout } = dto;
 
     // 색상+레이아웃 조합에 따른 필드명 결정
     const priceField = this.getColorLayoutPriceField(colorMode, pageLayout);
 
     let pricePerPage = 0;
+    let coverPrice = 0;
 
     // 1. 거래처 개별 단가 조회
     if (clientId) {
@@ -54,6 +55,12 @@ export class PricingService {
 
       if (clientPrice && clientPrice[priceField] != null) {
         pricePerPage = Number(clientPrice[priceField]);
+        coverPrice = Number(clientPrice.basePrice) || 0;
+        // rangePrices.__coverPrice 우선
+        const rp = clientPrice.rangePrices as Record<string, any> | null;
+        if (rp && rp['__coverPrice'] != null) {
+          coverPrice = Number(rp['__coverPrice']);
+        }
       }
 
       // 2. 거래처의 그룹 단가 조회
@@ -74,7 +81,29 @@ export class PricingService {
 
           if (groupPrice && groupPrice[priceField] != null) {
             pricePerPage = Number(groupPrice[priceField]);
+            coverPrice = Number(groupPrice.basePrice) || 0;
+            const rp = groupPrice.rangePrices as Record<string, any> | null;
+            if (rp && rp['__coverPrice'] != null) {
+              coverPrice = Number(rp['__coverPrice']);
+            }
           }
+        }
+      }
+    }
+
+    // 2-1. 표준 단가에서 coverPrice 조회 (거래처/그룹에서 못 찾은 경우)
+    if (!coverPrice) {
+      const standardPrice = await this.prisma.productionSettingPrice.findFirst({
+        where: {
+          productionSettingId,
+          specificationId,
+        },
+      });
+      if (standardPrice) {
+        coverPrice = Number(standardPrice.basePrice) || 0;
+        const rp = standardPrice.rangePrices as Record<string, any> | null;
+        if (rp && rp['__coverPrice'] != null) {
+          coverPrice = Number(rp['__coverPrice']);
         }
       }
     }
@@ -115,7 +144,7 @@ export class PricingService {
       bindingRangePrices = bindingPriceRecord.rangePrices as Record<string, number> | null;
     }
 
-    return { pricePerPage, bindingBasePrice, bindingPricePerPage, bindingRangePrices };
+    return { pricePerPage, bindingBasePrice, bindingPricePerPage, bindingRangePrices, coverPrice };
   }
 
   /**
@@ -386,7 +415,7 @@ export class PricingService {
     }
 
     // 7. 제본비: 제본 생산설정의 ProductionSettingPrice에서 rangePrices 조회
-    let bindingPrice = 0;
+    let rawBindingPrice = 0;
     const defaultBinding = (product.bindings || []).find((b: any) => b.isDefault)
       || (product.bindings || [])[0];
     if (defaultBinding?.productionSettingId) {
@@ -412,24 +441,37 @@ export class PricingService {
         const bindingRangePrices = bindingPriceRecord.rangePrices as Record<string, any> | null;
         const pageKey = String(dto.pageCount);
         if (bindingRangePrices && pageKey in bindingRangePrices) {
-          bindingPrice = Number(bindingRangePrices[pageKey]);
+          rawBindingPrice = Number(bindingRangePrices[pageKey]);
         } else {
           // rangePrices에 없으면 basePrice + pricePerPage * pageCount
-          bindingPrice = Number(bindingPriceRecord.basePrice || 0)
+          rawBindingPrice = Number(bindingPriceRecord.basePrice || 0)
             + Number(bindingPriceRecord.pricePerPage || 0) * dto.pageCount;
         }
       }
     }
 
-    // 총 단가에 용지금+제본비 합산
-    unitPrice = unitPrice + paperPrice + bindingPrice;
+    // 제본비 = 순수 제본비 + 표지비 (표지비는 제본비에 포함)
+    const bindingPrice = rawBindingPrice + coverPrice;
+
+    // 8. 후가공비: 상품의 ProductFinishing 가격 합산 (코팅, 라미네이션, 박 등)
+    let postProcessingPrice = 0;
+    const finishings = await this.prisma.productFinishing.findMany({
+      where: { productId: dto.productId },
+      select: { price: true },
+    });
+    for (const f of finishings) {
+      postProcessingPrice += Number(f.price) || 0;
+    }
+
+    // 총 단가 = 출력비 + 용지추가금 + 제본비(표지포함) + 후가공비 (VAT 포함)
+    unitPrice = printPrice + paperPrice + bindingPrice + postProcessingPrice;
 
     return {
-      coverPrice,
+      bindingPrice,
       pricePerPage: Math.round(pricePerPage * 100) / 100,
       printPrice,
       paperPrice,
-      bindingPrice,
+      postProcessingPrice,
       unitPrice,
       specificationId: specification.id,
       nup: specification.nup || '',

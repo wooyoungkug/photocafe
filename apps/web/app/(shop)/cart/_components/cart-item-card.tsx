@@ -718,14 +718,13 @@ export function CartItemCard({
                       const info = item.albumOrderInfo;
                       const paperPrice = info.paperPrice ?? 0;
                       const fabricPrice = info.fabricBasePrice ?? 0;
-                      const bindingPrice = info.bindingPrice ?? 0;
-                      const coverPrice = info.coverPrice ?? 0;
+                      const bindingPrice = info.bindingPrice ?? 0; // 제본비 (표지비 포함)
                       const dbPricePerPage = info.pricePerPage;
-                      // DB에서 조회된 가격이 있으면 coverPrice + pricePerPage*pageCount, 없으면 기존 방식
-                      const basePrintPrice = (dbPricePerPage != null && coverPrice > 0)
-                        ? (coverPrice + dbPricePerPage * info.pageCount)
+                      // 출력비 = pricePerPage * pageCount
+                      const printPrice = dbPricePerPage != null
+                        ? dbPricePerPage * info.pageCount
                         : (item.basePrice - paperPrice - fabricPrice - bindingPrice);
-                      const effectivePricePerPage = dbPricePerPage ?? (info.pageCount > 0 ? Math.round((basePrintPrice - coverPrice) / info.pageCount) : 0);
+                      const effectivePricePerPage = dbPricePerPage ?? (info.pageCount > 0 ? Math.round(printPrice / info.pageCount) : 0);
                       const printMethodLabel = info.printMethod === 'indigo' ? '인디고' : '잉크젯';
                       const colorModeLabel = info.colorMode === '6c' ? '6도' : '4도';
                       const pageLayoutLabel = info.pageLayout === 'spread' ? '펼친면' : '낱장';
@@ -740,13 +739,13 @@ export function CartItemCard({
                             </span>
                           </div>
                           <div className="px-3 py-2.5 space-y-2">
-                            {/* 기본 인쇄비 */}
+                            {/* 출력비 */}
                             <div className="flex justify-between items-baseline text-xs">
                               <div className="text-gray-600">
-                                <span>기본 인쇄비</span>
+                                <span>출력비</span>
                                 <span className="ml-1.5 text-gray-400">({printMethodLabel} {colorModeLabel} {info.pageCount}p)</span>
                               </div>
-                              <span className="font-medium text-gray-800 tabular-nums">{basePrintPrice.toLocaleString()}원</span>
+                              <span className="font-medium text-gray-800 tabular-nums">{printPrice.toLocaleString()}원</span>
                             </div>
                             {/* 출력단가 */}
                             {info.pageCount > 0 && (
@@ -793,10 +792,10 @@ export function CartItemCard({
                                 <span className="text-gray-400 tabular-nums">포함</span>
                               </div>
                             )}
-                            {/* 제본단가 */}
+                            {/* 제본비 (표지비 포함) */}
                             {bindingPrice > 0 && (
                               <div className="flex justify-between items-baseline text-xs">
-                                <span className="text-gray-600">제본단가</span>
+                                <span className="text-gray-600">제본비</span>
                                 <span className="text-gray-800 tabular-nums">+{bindingPrice.toLocaleString()}원</span>
                               </div>
                             )}

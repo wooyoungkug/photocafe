@@ -27,7 +27,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MultiFolderUpload } from '@/components/album-upload';
-import { useMultiFolderUploadStore, type UploadedFolder, calculateUploadedFolderPrice, calculateAdditionalOrderPrice } from '@/stores/multi-folder-upload-store';
+import { useMultiFolderUploadStore, type UploadedFolder } from '@/stores/multi-folder-upload-store';
 import { type FabricCategory } from '@/hooks/use-fabrics';
 import { useTranslations } from 'next-intl';
 import { startBackgroundUpload, type FolderUploadData } from '@/lib/background-upload';
@@ -229,45 +229,31 @@ export default function ProductPage() {
           ];
           const allThumbnailUrls = folder.files.map(f => f.thumbnailUrl).filter((url): url is string => !!url);
 
-          // DB API로 가격 조회, 실패 시 하드코딩 fallback
-          let folderPrice: { unitPrice: number; totalPrice: number; bindingPrice: number; coverPrice: number; pricePerPage: number; specificationId?: string };
-          try {
-            const apiResult = await api.post<{
-              coverPrice: number; pricePerPage: number; printPrice: number;
-              paperPrice: number; bindingPrice: number; unitPrice: number;
-              specificationId?: string; nup?: string;
-            }>('/pricing/calculate/album-order', {
-              productId: product.id,
-              widthInch: folder.albumWidth,
-              heightInch: folder.albumHeight,
-              pageCount: folder.pageCount,
-              colorMode: folder.colorMode || selectedOptions.colorMode || '4c',
-              pageLayout: folder.pageLayout || 'single',
-              paperId: folder.selectedPaperId || undefined,
-              clientId: user?.clientId || undefined,
-            });
-            const quantity = folder.quantity;
-            const subtotal = apiResult.unitPrice * quantity;
-            const tax = Math.round(subtotal * 0.1);
-            folderPrice = {
-              unitPrice: apiResult.unitPrice,
-              totalPrice: subtotal + tax,
-              bindingPrice: apiResult.bindingPrice,
-              coverPrice: apiResult.coverPrice,
-              pricePerPage: apiResult.pricePerPage,
-              specificationId: apiResult.specificationId,
-            };
-          } catch (err) {
-            console.warn('가격 API 조회 실패, 하드코딩 fallback 사용:', err);
-            const fallback = calculateUploadedFolderPrice(folder);
-            folderPrice = {
-              unitPrice: fallback.unitPrice,
-              totalPrice: fallback.totalPrice,
-              bindingPrice: fallback.bindingPrice,
-              coverPrice: fallback.coverPrice,
-              pricePerPage: fallback.pricePerPage,
-            };
-          }
+          // DB API로 가격 조회 (필수 - 하드코딩 없음)
+          let folderPrice: { unitPrice: number; totalPrice: number; bindingPrice: number; pricePerPage: number; specificationId?: string };
+          const apiResult = await api.post<{
+            pricePerPage: number; printPrice: number;
+            paperPrice: number; bindingPrice: number; postProcessingPrice: number;
+            unitPrice: number; specificationId?: string; nup?: string;
+          }>('/pricing/calculate/album-order', {
+            productId: product.id,
+            widthInch: folder.albumWidth,
+            heightInch: folder.albumHeight,
+            pageCount: folder.pageCount,
+            colorMode: folder.colorMode || selectedOptions.colorMode || '4c',
+            pageLayout: folder.pageLayout || 'single',
+            paperId: folder.selectedPaperId || undefined,
+            clientId: user?.clientId || undefined,
+          });
+          const quantity = folder.quantity;
+          const subtotal = apiResult.unitPrice * quantity;
+          folderPrice = {
+            unitPrice: apiResult.unitPrice,
+            totalPrice: subtotal, // VAT 포함 금액
+            bindingPrice: apiResult.bindingPrice,
+            pricePerPage: apiResult.pricePerPage,
+            specificationId: apiResult.specificationId,
+          };
 
           const shippingInfoData = folder.shippingInfo ? {
             senderType: folder.shippingInfo.senderType, senderName: folder.shippingInfo.senderName,
@@ -308,7 +294,6 @@ export default function ProductPage() {
               fabricCategory: folder.selectedFabricCategory || undefined,
               fabricBasePrice: folder.selectedFabricPrice || undefined,
               bindingPrice: folderPrice.bindingPrice,
-              coverPrice: folderPrice.coverPrice,
               pricePerPage: folderPrice.pricePerPage,
             },
             uploadStatus: 'pending', totalFileCount: folder.files.length, isDuplicateOverride,
@@ -316,45 +301,31 @@ export default function ProductPage() {
           });
 
           for (const additional of folder.additionalOrders) {
-            // DB API로 추가 주문 가격 조회
-            let additionalPrice: { unitPrice: number; totalPrice: number; bindingPrice: number; coverPrice: number; pricePerPage: number; specificationId?: string };
-            try {
-              const apiResult = await api.post<{
-                coverPrice: number; pricePerPage: number; printPrice: number;
-                paperPrice: number; bindingPrice: number; unitPrice: number;
-                specificationId?: string; nup?: string;
-              }>('/pricing/calculate/album-order', {
-                productId: product.id,
-                widthInch: additional.albumWidth,
-                heightInch: additional.albumHeight,
-                pageCount: folder.pageCount,
-                colorMode: additional.colorMode || folder.colorMode || selectedOptions.colorMode || '4c',
-                pageLayout: folder.pageLayout || 'single',
-                paperId: additional.selectedPaperId || folder.selectedPaperId || undefined,
-                clientId: user?.clientId || undefined,
-              });
-              const quantity = additional.quantity;
-              const subtotal = apiResult.unitPrice * quantity;
-              const tax = Math.round(subtotal * 0.1);
-              additionalPrice = {
-                unitPrice: apiResult.unitPrice,
-                totalPrice: subtotal + tax,
-                bindingPrice: apiResult.bindingPrice,
-                coverPrice: apiResult.coverPrice,
-                pricePerPage: apiResult.pricePerPage,
-                specificationId: apiResult.specificationId,
-              };
-            } catch (err) {
-              console.warn('추가주문 가격 API 조회 실패, 하드코딩 fallback 사용:', err);
-              const fallback = calculateAdditionalOrderPrice(additional, folder);
-              additionalPrice = {
-                unitPrice: fallback.unitPrice,
-                totalPrice: fallback.totalPrice,
-                bindingPrice: fallback.bindingPrice,
-                coverPrice: fallback.coverPrice,
-                pricePerPage: fallback.pricePerPage,
-              };
-            }
+            // DB API로 추가 주문 가격 조회 (필수 - 하드코딩 없음)
+            let additionalPrice: { unitPrice: number; totalPrice: number; bindingPrice: number; pricePerPage: number; specificationId?: string };
+            const apiResult2 = await api.post<{
+              pricePerPage: number; printPrice: number;
+              paperPrice: number; bindingPrice: number; postProcessingPrice: number;
+              unitPrice: number; specificationId?: string; nup?: string;
+            }>('/pricing/calculate/album-order', {
+              productId: product.id,
+              widthInch: additional.albumWidth,
+              heightInch: additional.albumHeight,
+              pageCount: folder.pageCount,
+              colorMode: additional.colorMode || folder.colorMode || selectedOptions.colorMode || '4c',
+              pageLayout: folder.pageLayout || 'single',
+              paperId: additional.selectedPaperId || folder.selectedPaperId || undefined,
+              clientId: user?.clientId || undefined,
+            });
+            const addQuantity = additional.quantity;
+            const addSubtotal = apiResult2.unitPrice * addQuantity;
+            additionalPrice = {
+              unitPrice: apiResult2.unitPrice,
+              totalPrice: addSubtotal, // VAT 포함 금액
+              bindingPrice: apiResult2.bindingPrice,
+              pricePerPage: apiResult2.pricePerPage,
+              specificationId: apiResult2.specificationId,
+            };
 
             addItem({
               productId: product.id, productType: 'album-order',
@@ -391,7 +362,6 @@ export default function ProductPage() {
                 fabricCategory: (additional.selectedFabricCategory ?? folder.selectedFabricCategory) || undefined,
                 fabricBasePrice: (additional.selectedFabricPrice ?? folder.selectedFabricPrice) || undefined,
                 bindingPrice: additionalPrice.bindingPrice,
-                coverPrice: additionalPrice.coverPrice,
                 pricePerPage: additionalPrice.pricePerPage,
               },
               uploadStatus: 'pending', totalFileCount: folder.files.length, isDuplicateOverride,

@@ -53,6 +53,7 @@ import {
   useMultiFolderUploadStore,
   calculateUploadedFolderPrice,
   calculateAdditionalOrderPrice,
+  type DbPriceInfo,
 } from '@/stores/multi-folder-upload-store';
 import { useAlbumPagePrice } from '@/hooks/use-pricing';
 
@@ -448,10 +449,20 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     return defaultBindingPrice;
   }, [albumPriceData, folder.pageCount, defaultBindingPrice]);
 
-  // 가격 계산 (DB 단가 우선, 없으면 fallback)
+  // DB 가격 정보 구성
+  const dbPriceInfo: DbPriceInfo = useMemo(() => ({
+    pricePerPage: albumPriceData?.pricePerPage || 0,
+    bindingPrice: dbBindingPrice,
+    coverPrice: albumPriceData?.coverPrice || 0,
+  }), [albumPriceData, dbBindingPrice]);
+
+  // DB 가격 미등록 여부
+  const isPriceMissing = !albumPriceData || albumPriceData.pricePerPage === 0;
+
+  // 가격 계산 (DB 단가 필수)
   const folderPrice = useMemo(
-    () => calculateUploadedFolderPrice(folder, albumPriceData?.pricePerPage, dbBindingPrice),
-    [folder, albumPriceData?.pricePerPage, dbBindingPrice]
+    () => calculateUploadedFolderPrice(folder, dbPriceInfo),
+    [folder, dbPriceInfo]
   );
 
   const handleSaveTitle = () => {
@@ -1147,11 +1158,9 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
           </div>
           <div className="text-[10px] text-gray-400">
             {t('priceFormulaUnit', {
-              perPage: Math.round(folderPrice.pricePerPage).toLocaleString(),
-              pages: folderPrice.pageCount,
               printPrice: Math.round(folderPrice.printPrice).toLocaleString(),
-              cover: Math.round(folderPrice.coverPrice).toLocaleString(),
-              binding: Math.round(folderPrice.bindingPrice).toLocaleString(),
+              bindingPrice: Math.round(folderPrice.bindingPrice).toLocaleString(),
+              postProcessingPrice: Math.round(folderPrice.postProcessingPrice).toLocaleString(),
               unitPrice: Math.round(folderPrice.unitPrice).toLocaleString(),
             })}
           </div>
@@ -1224,7 +1233,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
               </div>
               <div className="space-y-2">
                 {folder.additionalOrders.map((order) => {
-                  const orderPrice = calculateAdditionalOrderPrice(order, folder, undefined, dbBindingPrice);
+                  const orderPrice = calculateAdditionalOrderPrice(order, folder, dbPriceInfo);
                   // 메인 규격 + 다른 추가주문 규격 제외 (자기 자신은 포함)
                   const usedByOthers = new Set([
                     `${folder.albumWidth}x${folder.albumHeight}`,
@@ -1460,11 +1469,9 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                         <span className="text-sm font-bold text-primary">{t('priceWon', { price: orderPrice.totalPrice.toLocaleString() })}</span>
                         <div className="text-[10px] text-gray-400">
                           {t('priceFormulaUnit', {
-                            perPage: orderPrice.pricePerPage.toLocaleString(),
-                            pages: orderPrice.pageCount,
                             printPrice: orderPrice.printPrice.toLocaleString(),
-                            cover: orderPrice.coverPrice.toLocaleString(),
-                            binding: orderPrice.bindingPrice.toLocaleString(),
+                            bindingPrice: orderPrice.bindingPrice.toLocaleString(),
+                            postProcessingPrice: orderPrice.postProcessingPrice.toLocaleString(),
                             unitPrice: orderPrice.unitPrice.toLocaleString(),
                           })}
                         </div>

@@ -36,12 +36,14 @@ import {
   findClosestStandardSize,
   calculatePageCount,
   calculateTotalUploadedPrice,
+  type DbPriceInfo,
   autoDetectPageLayout,
   detectBindingFromName,
   hasDesignCoverFiles,
   type CoverSourceType,
 } from '@/stores/multi-folder-upload-store';
 import { useIndigoSpecifications } from '@/hooks/use-specifications';
+import { useAlbumPagePrice } from '@/hooks/use-pricing';
 import { toast } from '@/hooks/use-toast';
 import { extractColorsFromImage, buildPhotoColorInfo } from '@/lib/color-analysis';
 
@@ -1803,11 +1805,37 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId }: MultiFol
     selected: folders.filter(f => f.isSelected).length,
   };
 
-  // 선택된 폴더들의 총 견적
+  // 선택된 폴더들의 총 견적 (DB 가격 기반)
   const selectedFolders = folders.filter(f => f.isSelected);
+  const firstSelected = selectedFolders[0];
+  const { data: albumPriceForTotal } = useAlbumPagePrice(
+    productionSettingId,
+    firstSelected?.specificationId,
+    firstSelected?.colorMode || '6c',
+    firstSelected?.pageLayout === 'spread' ? 'spread' : 'single'
+  );
+
+  const totalDbPrice: DbPriceInfo = useMemo(() => {
+    if (!albumPriceForTotal) return { pricePerPage: 0, bindingPrice: 0, coverPrice: 0 };
+    const { bindingRangePrices, bindingBasePrice, bindingPricePerPage } = albumPriceForTotal;
+    const pageCount = firstSelected?.pageCount || 0;
+    const pageKey = String(pageCount);
+    let binding = 0;
+    if (bindingRangePrices && pageKey in bindingRangePrices) {
+      binding = bindingRangePrices[pageKey];
+    } else if (bindingBasePrice || bindingPricePerPage) {
+      binding = bindingBasePrice + bindingPricePerPage * pageCount;
+    }
+    return {
+      pricePerPage: albumPriceForTotal.pricePerPage,
+      bindingPrice: binding,
+      coverPrice: albumPriceForTotal.coverPrice || 0,
+    };
+  }, [albumPriceForTotal, firstSelected]);
+
   const totalPriceInfo = useMemo(
-    () => calculateTotalUploadedPrice(selectedFolders),
-    [selectedFolders]
+    () => calculateTotalUploadedPrice(selectedFolders, totalDbPrice),
+    [selectedFolders, totalDbPrice]
   );
 
   // 항상 업로드 가능 (미선택 시 자동감지)

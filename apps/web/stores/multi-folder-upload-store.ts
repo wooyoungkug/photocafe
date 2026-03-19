@@ -1518,151 +1518,109 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
 // 유틸리티 함수들 export
 export { checkRatioMatch, findAvailableSizes, getSpecLabel, findClosestStandardSize, RATIO_TOLERANCE, isRatioEquivalent };
 
-// ==================== 견적 계산 ====================
+// ==================== 견적 계산 (모든 가격은 DB에서 조회, VAT 포함) ====================
 
-// 인디고 출력 단가 (규격별, 면당) - 기본 4도
-const INDIGO_PRINT_PRICES: Record<string, { single: number; spread: number }> = {
-  '6x6': { single: 250, spread: 450 },
-  '8x8': { single: 300, spread: 500 },
-  '10x10': { single: 350, spread: 600 },
-  '11x11': { single: 400, spread: 700 },
-  '12x12': { single: 400, spread: 700 },
-  '14x14': { single: 500, spread: 850 },
-  '16x16': { single: 600, spread: 1000 },
-  '12x8': { single: 350, spread: 600 },
-  '15x10': { single: 450, spread: 750 },
-  '14x11': { single: 450, spread: 750 },
-  default: { single: 400, spread: 700 },
-};
-
-// 표지 단가
-const COVER_PRICE = 5000; // 원단표지 기본 단가
-const DESIGN_COVER_PRICE = 3000; // 디자인표지 출력 단가
-
-// 제본비 (DB 조회 실패 시 fallback)
-const BINDING_PRICE_FALLBACK = 0;
-
-// 규격 키 추출
-function getSpecKey(width: number, height: number): string {
-  return `${Math.round(width)}x${Math.round(height)}`;
+/** DB 가격 정보 */
+export interface DbPriceInfo {
+  pricePerPage: number;   // 출력 단가 (1p당)
+  bindingPrice: number;   // 제본비 (표지비 포함)
+  coverPrice: number;     // 표지비 (제본비에 합산용)
+  postProcessingPrice?: number; // 후가공비
 }
 
 /**
- * 폴더(주문건) 견적 계산
+ * 폴더(주문건) 견적 계산 - DB 가격 필수
  * @param folder 업로드된 폴더 정보
- * @param dbPricePerPage DB에서 조회한 페이지 단가 (있으면 우선 사용, 없으면 하드코딩 fallback)
+ * @param dbPrice DB에서 조회한 가격 정보 (필수)
  */
-export function calculateUploadedFolderPrice(folder: UploadedFolder, dbPricePerPage?: number, dbBindingPrice?: number): {
+export function calculateUploadedFolderPrice(folder: UploadedFolder, dbPrice: DbPriceInfo): {
   pricePerPage: number;
   pageCount: number;
   printPrice: number;
-  coverPrice: number;
   bindingPrice: number;
+  postProcessingPrice: number;
   unitPrice: number;
   quantity: number;
   subtotal: number;
-  tax: number;
   totalPrice: number;
 } {
-  let pricePerPage: number;
-  if (dbPricePerPage != null) {
-    // DB 가격 우선 사용
-    pricePerPage = dbPricePerPage;
-  } else {
-    // 하드코딩 fallback
-    const specKey = getSpecKey(folder.albumWidth, folder.albumHeight);
-    const prices = INDIGO_PRINT_PRICES[specKey] || INDIGO_PRINT_PRICES.default;
-    pricePerPage = folder.pageLayout === 'spread' ? prices.spread : prices.single;
-  }
-
+  const pricePerPage = dbPrice.pricePerPage;
   const printPrice = pricePerPage * folder.pageCount;
 
-  // 표지 유형별 단가 분기
-  const coverPrice = folder.coverSourceType === 'design' ? DESIGN_COVER_PRICE : COVER_PRICE;
+  // 제본비 (표지비 포함, DB에서 조회)
+  const bindingPrice = dbPrice.bindingPrice + dbPrice.coverPrice;
 
-  // 제본비 (DB 가격 우선)
-  const bindingPrice = dbBindingPrice ?? BINDING_PRICE_FALLBACK;
+  // 후가공비 (DB에서 조회)
+  const postProcessingPrice = dbPrice.postProcessingPrice || 0;
 
-  const unitPrice = printPrice + coverPrice + bindingPrice;
+  // 단가 = 출력비 + 제본비 + 후가공비 (VAT 포함)
+  const unitPrice = printPrice + bindingPrice + postProcessingPrice;
   const quantity = folder.quantity;
   const subtotal = unitPrice * quantity;
-  const tax = Math.round(subtotal * 0.1);
-  const totalPrice = subtotal + tax;
+  const totalPrice = subtotal; // VAT 포함 금액
 
   return {
     pricePerPage,
     pageCount: folder.pageCount,
     printPrice,
-    coverPrice,
     bindingPrice,
+    postProcessingPrice,
     unitPrice,
     quantity,
     subtotal,
-    tax,
     totalPrice,
   };
 }
 
 /**
- * 추가 주문 건 견적 계산
+ * 추가 주문 건 견적 계산 - DB 가격 필수
  */
 export function calculateAdditionalOrderPrice(
   order: AdditionalOrder,
   folder: UploadedFolder,
-  dbPricePerPage?: number,
-  dbBindingPrice?: number
+  dbPrice: DbPriceInfo
 ): {
   pricePerPage: number;
   pageCount: number;
   printPrice: number;
-  coverPrice: number;
   bindingPrice: number;
+  postProcessingPrice: number;
   unitPrice: number;
   quantity: number;
   subtotal: number;
-  tax: number;
   totalPrice: number;
 } {
-  let pricePerPage: number;
-  if (dbPricePerPage != null) {
-    pricePerPage = dbPricePerPage;
-  } else {
-    const specKey = getSpecKey(order.albumWidth, order.albumHeight);
-    const prices = INDIGO_PRINT_PRICES[specKey] || INDIGO_PRINT_PRICES.default;
-    pricePerPage = folder.pageLayout === 'spread' ? prices.spread : prices.single;
-  }
-
+  const pricePerPage = dbPrice.pricePerPage;
   const printPrice = pricePerPage * folder.pageCount;
 
-  // 추가 주문도 동일한 표지 유형 적용
-  const coverPrice = folder.coverSourceType === 'design' ? DESIGN_COVER_PRICE : COVER_PRICE;
+  // 제본비 (표지비 포함)
+  const bindingPrice = dbPrice.bindingPrice + dbPrice.coverPrice;
 
-  // 제본비 (DB 가격 우선)
-  const bindingPrice = dbBindingPrice ?? BINDING_PRICE_FALLBACK;
+  // 후가공비
+  const postProcessingPrice = dbPrice.postProcessingPrice || 0;
 
-  const unitPrice = printPrice + coverPrice + bindingPrice;
+  // 단가 = 출력비 + 제본비 + 후가공비 (VAT 포함)
+  const unitPrice = printPrice + bindingPrice + postProcessingPrice;
   const quantity = order.quantity;
   const subtotal = unitPrice * quantity;
-  const tax = Math.round(subtotal * 0.1);
-  const totalPrice = subtotal + tax;
+  const totalPrice = subtotal; // VAT 포함 금액
 
-  return { pricePerPage, pageCount: folder.pageCount, printPrice, coverPrice, bindingPrice, unitPrice, quantity, subtotal, tax, totalPrice };
+  return { pricePerPage, pageCount: folder.pageCount, printPrice, bindingPrice, postProcessingPrice, unitPrice, quantity, subtotal, totalPrice };
 }
 
 /**
- * 여러 폴더 총 견적 계산
+ * 여러 폴더 총 견적 계산 - DB 가격 필수
  */
-export function calculateTotalUploadedPrice(folders: UploadedFolder[], dbBindingPrice?: number): {
+export function calculateTotalUploadedPrice(folders: UploadedFolder[], dbPrice: DbPriceInfo): {
   folderPrices: Array<{ folderId: string; price: ReturnType<typeof calculateUploadedFolderPrice> }>;
   totalOrderCount: number;
   totalQuantity: number;
   subtotal: number;
-  tax: number;
   totalPrice: number;
 } {
   const folderPrices = folders.map(folder => ({
     folderId: folder.id,
-    price: calculateUploadedFolderPrice(folder, undefined, dbBindingPrice),
+    price: calculateUploadedFolderPrice(folder, dbPrice),
   }));
 
   // 메인 주문 합계
@@ -1673,22 +1631,20 @@ export function calculateTotalUploadedPrice(folders: UploadedFolder[], dbBinding
   let totalOrderCount = folders.length; // 메인 주문 건수
   folders.forEach(folder => {
     folder.additionalOrders.forEach(order => {
-      const additionalPrice = calculateAdditionalOrderPrice(order, folder, undefined, dbBindingPrice);
+      const additionalPrice = calculateAdditionalOrderPrice(order, folder, dbPrice);
       totalOrderCount += 1;
       totalQuantity += additionalPrice.quantity;
       subtotal += additionalPrice.subtotal;
     });
   });
 
-  const tax = Math.round(subtotal * 0.1);
-  const totalPrice = subtotal + tax;
+  const totalPrice = subtotal; // VAT 포함 금액
 
   return {
     folderPrices,
     totalOrderCount,
     totalQuantity,
     subtotal,
-    tax,
     totalPrice,
   };
 }

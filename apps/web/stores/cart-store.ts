@@ -76,8 +76,7 @@ export interface AlbumOrderCartInfo {
   fabricColorName?: string;        // 원단 색상명
   fabricCategory?: string;         // 원단 카테고리
   fabricBasePrice?: number;        // 원단 단가 (주문 시점)
-  bindingPrice?: number;           // 제본단가
-  coverPrice?: number;             // 표지단가 (DB 조회)
+  bindingPrice?: number;           // 제본비 (표지비 포함)
   pricePerPage?: number;           // 1p당 출력단가 (DB 조회)
 }
 
