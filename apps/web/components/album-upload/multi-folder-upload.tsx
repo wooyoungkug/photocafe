@@ -1110,6 +1110,7 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId }: MultiFol
       setUploadProgress(0);
       cancelRef.current = false;
 
+      try {
       // 업로드 전 폴더 개수 저장
       const initialFolderCount = useMultiFolderUploadStore.getState().folders.length;
 
@@ -1196,12 +1197,6 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId }: MultiFol
       }
 
       const wasCancelled = cancelRef.current;
-      setUploading(false);
-      setProcessingMessage('');
-      setCurrentFolderIndex(0);
-      setTotalFolderCount(0);
-      setOverallProgress(0);
-      cancelRef.current = false;
 
       // 새 폴더로 스크롤
       scrollToNewFolder(initialFolderCount);
@@ -1215,6 +1210,17 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId }: MultiFol
           description: duplicateMessages.join('\n'),
           variant: 'destructive',
         });
+      }
+      } catch (error) {
+        console.error('폴더 드롭 처리 중 오류:', error);
+        toast({ title: '업로드 오류', description: '파일 처리 중 오류가 발생했습니다. 다시 시도해주세요.', variant: 'destructive' });
+      } finally {
+        setUploading(false);
+        setProcessingMessage('');
+        setCurrentFolderIndex(0);
+        setTotalFolderCount(0);
+        setOverallProgress(0);
+        cancelRef.current = false;
       }
     },
     [collectAllFolders, processFolder, addFolder, setUploading, setUploadProgress, defaultPageLayout, defaultBindingDirection, readDirectoryFiles, probeFileDimensions, indigoSpecs]
@@ -1230,6 +1236,7 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId }: MultiFol
       setUploadProgress(0);
       cancelRef.current = false;
 
+      try {
       // 업로드 전 폴더 개수 저장
       const initialFolderCount = useMultiFolderUploadStore.getState().folders.length;
 
@@ -1467,12 +1474,6 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId }: MultiFol
       }
 
       const wasCancelled = cancelRef.current;
-      setUploading(false);
-      setProcessingMessage('');
-      setCurrentFolderIndex(0);
-      setTotalFolderCount(0);
-      setOverallProgress(0);
-      cancelRef.current = false;
       e.target.value = '';
 
       // 새 폴더로 스크롤
@@ -1487,6 +1488,17 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId }: MultiFol
           description: duplicateMessages.join('\n'),
           variant: 'destructive',
         });
+      }
+      } catch (error) {
+        console.error('파일 선택 처리 중 오류:', error);
+        toast({ title: '업로드 오류', description: '파일 처리 중 오류가 발생했습니다. 다시 시도해주세요.', variant: 'destructive' });
+      } finally {
+        setUploading(false);
+        setProcessingMessage('');
+        setCurrentFolderIndex(0);
+        setTotalFolderCount(0);
+        setOverallProgress(0);
+        cancelRef.current = false;
       }
     },
     [addFolder, extractFileMetadata, setUploading, setUploadProgress, defaultPageLayout, defaultBindingDirection, processHalfWidthCoversWithCanvas, indigoSpecs, probeFileDimensions, detectBlankPage, autoDetectBindingDirection]
@@ -1526,6 +1538,7 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId }: MultiFol
       setShowMobileFolderNameDialog(false);
       cancelRef.current = false;
 
+      try {
       // 업로드 전 폴더 개수 저장
       const initialFolderCount = useMultiFolderUploadStore.getState().folders.length;
 
@@ -1726,15 +1739,20 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId }: MultiFol
         computeColorGroups(folder.id);
       }
 
-      setUploading(false);
-      setProcessingMessage('');
-      setCurrentFolderIndex(0);
-      setTotalFolderCount(0);
-      setOverallProgress(0);
-      setPendingMobileFiles([]);
-
       // 새 폴더로 스크롤
       scrollToNewFolder(initialFolderCount);
+      } catch (error) {
+        console.error('모바일 파일 처리 중 오류:', error);
+        toast({ title: '업로드 오류', description: '파일 처리 중 오류가 발생했습니다. 다시 시도해주세요.', variant: 'destructive' });
+      } finally {
+        setUploading(false);
+        setProcessingMessage('');
+        setCurrentFolderIndex(0);
+        setTotalFolderCount(0);
+        setOverallProgress(0);
+        setPendingMobileFiles([]);
+        cancelRef.current = false;
+      }
     },
     [addFolder, extractFileMetadata, setUploading, setUploadProgress, defaultPageLayout, defaultBindingDirection, processHalfWidthCoversWithCanvas, indigoSpecs, probeFileDimensions, detectBlankPage, autoDetectBindingDirection]
   );
