@@ -2049,7 +2049,7 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId }: MultiFol
                     {totalPriceInfo.totalPrice.toLocaleString()}원
                   </div>
                   <div className="text-xs text-gray-500">
-                    공급가 {totalPriceInfo.subtotal.toLocaleString()}원 + VAT {totalPriceInfo.tax.toLocaleString()}원
+                    VAT 포함
                   </div>
                 </div>
               </div>

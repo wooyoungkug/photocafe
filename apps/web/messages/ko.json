@@ -365,7 +365,7 @@
     "unitPriceInfo": "(단가 {price}원 × {qty}부)",
     "vatIncluded": "VAT 포함",
     "priceFormulaUnit": "(제본{binding} + @{perPage}×{pages}p={printPrice} + 후가공{cover} = 단가 {unitPrice}원)",
-    "priceFormulaTotal": "({unitPrice}×{qty}부={subtotal} + VAT {tax} = {total}원)",
+    "priceFormulaTotal": "({unitPrice}×{qty}부={total}원 VAT포함)",
     "additionalSetOrder": "추가세트주문",
     "specLabelShort": "규격",
     "copiesLabelShort": "부수",

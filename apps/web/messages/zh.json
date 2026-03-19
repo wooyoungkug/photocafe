@@ -365,7 +365,7 @@
     "unitPriceInfo": "(单价 {price}韩元 × {qty}份)",
     "vatIncluded": "含VAT",
     "priceFormulaUnit": "(装订{binding} + @{perPage}×{pages}p={printPrice} + 后加工{cover} = 单价 {unitPrice}韩元)",
-    "priceFormulaTotal": "({unitPrice}×{qty}份={subtotal} + VAT {tax} = {total}韩元)",
+    "priceFormulaTotal": "({unitPrice}×{qty}份={total}韩元 含VAT)",
     "additionalSetOrder": "追加套装订单",
     "specLabelShort": "规格",
     "copiesLabelShort": "份数",

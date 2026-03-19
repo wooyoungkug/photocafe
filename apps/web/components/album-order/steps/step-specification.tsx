@@ -244,16 +244,8 @@ function QuotationSummary({ specification }: { specification?: Specification }) 
         </div>
 
         <div className="border-t pt-2 mt-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">소계</span>
-            <span>{formatPrice(quotation.subtotal)}원</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">부가세 (10%)</span>
-            <span>{formatPrice(quotation.tax)}원</span>
-          </div>
           <div className="flex justify-between text-lg font-bold mt-2 text-primary">
-            <span>총 예상 금액</span>
+            <span>총 예상 금액 (VAT포함)</span>
             <span>{formatPrice(quotation.totalPrice)}원</span>
           </div>
         </div>

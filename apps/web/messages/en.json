@@ -365,7 +365,7 @@
     "unitPriceInfo": "(Unit price {price} KRW × {qty} copies)",
     "vatIncluded": "VAT Included",
     "priceFormulaUnit": "(Binding {binding} + @{perPage}×{pages}p={printPrice} + Finishing {cover} = Unit {unitPrice} KRW)",
-    "priceFormulaTotal": "({unitPrice}×{qty}={subtotal} + VAT {tax} = {total} KRW)",
+    "priceFormulaTotal": "({unitPrice}×{qty}={total} KRW VAT included)",
     "additionalSetOrder": "Additional Set Order",
     "specLabelShort": "Spec",
     "copiesLabelShort": "Copies",

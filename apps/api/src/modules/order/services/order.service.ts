@@ -562,8 +562,8 @@ export class OrderService {
         }
       }
 
-      const tax = Math.round(productPrice * 0.1); // 부가세 10%
-      const totalAmount = productPrice + tax;
+      const tax = 0; // 가격은 부가세 포함 금액
+      const totalAmount = productPrice;
 
       // Race condition 방어: adjustmentAmount > 0 (합배송 환급)인 경우
       // 트랜잭션 안에서 당일 이미 적용된 환급 누계를 재확인하여 중복 환급 차단
@@ -1033,9 +1033,9 @@ export class OrderService {
     // 항목 삭제 후 주문 금액 재계산
     const remainingItems = order.items.filter(i => i.id !== itemId);
     const productPrice = remainingItems.reduce((sum, i) => sum + Number(i.totalPrice), 0);
-    const tax = Math.round(productPrice * 0.1);
+    const tax = 0; // 가격은 부가세 포함 금액
     const shippingFee = Number(order.shippingFee);
-    const totalAmount = productPrice + tax + shippingFee;
+    const totalAmount = productPrice + shippingFee;
 
     // adjustmentAmount도 재계산에 반영
     const adjustmentAmount = Number(order.adjustmentAmount);
@@ -1175,10 +1175,10 @@ export class OrderService {
       const productPrice = updatedItems.reduce(
         (sum, item) => sum + Number(item.totalPrice), 0,
       );
-      const tax = Math.round(productPrice * 0.1);
+      const tax = 0; // 가격은 부가세 포함 금액
       const shippingFee = Number(order.shippingFee);
       const adjustmentAmount = dto.adjustmentAmount ?? Number(order.adjustmentAmount);
-      const totalAmount = productPrice + tax + shippingFee;
+      const totalAmount = productPrice + shippingFee;
       const finalAmount = totalAmount - adjustmentAmount;
 
       // 3. 주문 금액 업데이트 + 이력 기록

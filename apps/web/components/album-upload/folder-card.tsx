@@ -1159,8 +1159,6 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
             {t('priceFormulaTotal', {
               unitPrice: folderPrice.unitPrice.toLocaleString(),
               qty: folder.quantity,
-              subtotal: folderPrice.subtotal.toLocaleString(),
-              tax: folderPrice.tax.toLocaleString(),
               total: folderPrice.totalPrice.toLocaleString(),
             })}
           </div>
@@ -1474,8 +1472,6 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                           {t('priceFormulaTotal', {
                             unitPrice: orderPrice.unitPrice.toLocaleString(),
                             qty: order.quantity,
-                            subtotal: orderPrice.subtotal.toLocaleString(),
-                            tax: orderPrice.tax.toLocaleString(),
                             total: orderPrice.totalPrice.toLocaleString(),
                           })}
                         </div>

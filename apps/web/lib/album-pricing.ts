@@ -238,8 +238,8 @@ export function calculateCompressedAlbumQuotation(params: {
 
   const unitPrice = coverPrice.unitPrice + printPrice.unitPrice + bindingPrice.unitPrice;
   const subtotal = unitPrice * quantity;
-  const tax = Math.round(subtotal * 0.1);
-  const totalPrice = subtotal + tax;
+  const tax = 0; // 가격은 부가세 포함 금액
+  const totalPrice = subtotal;
 
   return {
     albumType: 'compressed',
@@ -300,8 +300,8 @@ export function calculatePremiumAlbumQuotation(params: {
 
   const unitPrice = coverPrice.unitPrice + printPrice.unitPrice;
   const subtotal = unitPrice * quantity;
-  const tax = Math.round(subtotal * 0.1);
-  const totalPrice = subtotal + tax;
+  const tax = 0; // 가격은 부가세 포함 금액
+  const totalPrice = subtotal;
 
   return {
     albumType,
@@ -394,8 +394,8 @@ export function calculateTotalQuotation(
 
   const totalQuantity = quotations.reduce((sum, q) => sum + q.quantity, 0);
   const subtotal = quotations.reduce((sum, q) => sum + q.subtotal, 0);
-  const tax = Math.round(subtotal * 0.1);
-  const totalPrice = subtotal + tax;
+  const tax = 0; // 가격은 부가세 포함 금액
+  const totalPrice = subtotal;
 
   return {
     quotations,
