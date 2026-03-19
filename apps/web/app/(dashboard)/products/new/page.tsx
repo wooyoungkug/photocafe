@@ -1905,7 +1905,31 @@ function OutputPriceSelectionForm({
               {filteredGroupSettings.map(setting => (
                 <div key={setting.id}
                   className={`flex items-center gap-1.5 py-1.5 px-2 rounded cursor-pointer text-xs transition-all ${selectedSettingId === setting.id ? 'bg-emerald-100 border border-emerald-400 font-medium' : 'bg-white border border-slate-200 hover:bg-emerald-50 hover:border-emerald-300'}`}
-                  onClick={() => { setSelectedSettingId(setting.id); setSelectedSetting(setting); setStep(3); }}>
+                  onClick={() => {
+                    setSelectedSettingId(setting.id);
+                    setSelectedSetting(setting);
+                    // 바로 추가 (Step 3 생략)
+                    if (outputMethod) {
+                      const tempSetting = setting;
+                      if (outputMethod === 'INDIGO') {
+                        const exists4do = localSelected.some(s => s.productionSettingId === tempSetting.id && s.colorType === '4도');
+                        const exists6do = localSelected.some(s => s.productionSettingId === tempSetting.id && s.colorType === '6도');
+                        const newSelections: OutputPriceSelection[] = [];
+                        if (!exists4do) newSelections.push({ id: `${Date.now()}-4do-${Math.random().toString(36).substr(2, 9)}`, outputMethod, productionSettingId: tempSetting.id, productionSettingName: tempSetting.settingName || tempSetting.codeName || '단가설정', colorType: '4도', selectedUpPrices: getIndigoUpPrices(tempSetting) });
+                        if (!exists6do) newSelections.push({ id: `${Date.now()}-6do-${Math.random().toString(36).substr(2, 9)}`, outputMethod, productionSettingId: tempSetting.id, productionSettingName: tempSetting.settingName || tempSetting.codeName || '단가설정', colorType: '6도', selectedUpPrices: getIndigoUpPrices(tempSetting) });
+                        if (newSelections.length > 0) setLocalSelected(prev => [...prev, ...newSelections]);
+                      } else if (outputMethod === 'INKJET') {
+                        const inkjetSpecs = getInkjetSpecPrices(tempSetting);
+                        const newSelections: OutputPriceSelection[] = [];
+                        inkjetSpecs.forEach(specPrice => {
+                          const existsInkjet = localSelected.some(s => s.productionSettingId === tempSetting.id && s.specificationId === specPrice.specificationId);
+                          const existsInBatch = newSelections.some(s => s.specificationId === specPrice.specificationId);
+                          if (!existsInkjet && !existsInBatch) newSelections.push({ id: `${Date.now()}-${specPrice.specificationId}-${Math.random().toString(36).substr(2, 6)}`, outputMethod, productionSettingId: tempSetting.id, productionSettingName: tempSetting.settingName || tempSetting.codeName || '단가설정', specificationId: specPrice.specificationId, selectedSpecPrice: specPrice });
+                        });
+                        if (newSelections.length > 0) setLocalSelected(prev => [...prev, ...newSelections]);
+                      }
+                    }
+                  }}>
                   <Settings className="h-3 w-3 text-emerald-600" />
                   <span className="truncate flex-1">{setting.settingName || setting.codeName}</span>
                 </div>
@@ -1979,13 +2003,11 @@ function OutputPriceSelectionForm({
               {selectedSetting.indigoUpPrices && selectedSetting.indigoUpPrices.length > 0 && (
                 <div className="border rounded-lg overflow-hidden">
                   <Table>
-                    <TableHeader><TableRow className="bg-slate-50"><TableHead>Up</TableHead><TableHead className="text-right">단면 가격</TableHead><TableHead className="text-right">양면 가격</TableHead></TableRow></TableHeader>
+                    <TableHeader><TableRow className="bg-slate-50"><TableHead>Up</TableHead></TableRow></TableHeader>
                     <TableBody>
                       {selectedSetting.indigoUpPrices.map(upPrice => (
                         <TableRow key={upPrice.up}>
                           <TableCell className="font-medium">{upPrice.up}Up</TableCell>
-                          <TableCell className="text-right">{upPrice.singleSidedPrice.toLocaleString()}원</TableCell>
-                          <TableCell className="text-right">{upPrice.doubleSidedPrice.toLocaleString()}원</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -2008,12 +2030,11 @@ function OutputPriceSelectionForm({
                   return inkjetSpecs.length > 0 ? (
                     <div className="border rounded-lg overflow-hidden">
                       <Table>
-                        <TableHeader><TableRow className="bg-slate-50"><TableHead>규격명</TableHead><TableHead className="text-right">단면가격</TableHead><TableHead className="text-center">기준규격</TableHead></TableRow></TableHeader>
+                        <TableHeader><TableRow className="bg-slate-50"><TableHead>규격명</TableHead><TableHead className="text-center">기준규격</TableHead></TableRow></TableHeader>
                         <TableBody>
                           {inkjetSpecs.map(specPrice => (
                             <TableRow key={specPrice.specificationId} className="bg-blue-50/30">
                               <TableCell className="font-medium">{getSpecName(specPrice.specificationId)}</TableCell>
-                              <TableCell className="text-right">{specPrice.singleSidedPrice.toLocaleString()}원</TableCell>
                               <TableCell className="text-center">{specPrice.isBaseSpec && <Badge variant="secondary">기준</Badge>}</TableCell>
                             </TableRow>
                           ))}
