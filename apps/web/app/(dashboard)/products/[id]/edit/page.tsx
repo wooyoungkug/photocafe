@@ -3167,13 +3167,29 @@ function OutputPriceSelectionForm({
             )}
           </div>
 
-          {/* 단가설정 트리 */}
+          {/* 단가설정 목록 (세팅값만 플랫하게 표시) */}
           {outputMethod && (
             <div className={`border rounded-lg p-3 flex-1 overflow-y-auto ${outputMethod === 'INDIGO' ? 'bg-emerald-50/30 border-emerald-200' : 'bg-blue-50/30 border-blue-200'}`}>
               <p className="text-xs font-medium text-slate-500 mb-2">단가설정을 선택하세요</p>
-              {productionGroupTree && productionGroupTree.length > 0 ? (
-                <div className="space-y-0.5">
-                  {renderGroupTreeCompact(productionGroupTree, outputMethod)}
+              {filteredSettings.length > 0 ? (
+                <div className="space-y-1">
+                  {filteredSettings.map(setting => (
+                    <div
+                      key={setting.id}
+                      className={`flex items-center gap-2 py-2 px-3 rounded-lg cursor-pointer text-sm transition-all ${selectedSettingId === setting.id
+                        ? 'bg-emerald-100 border border-emerald-400 font-medium'
+                        : 'bg-white border border-slate-200 hover:bg-emerald-50 hover:border-emerald-300'
+                        }`}
+                      onClick={() => {
+                        setSelectedSettingId(setting.id);
+                        setSelectedSetting(setting);
+                        setStep(3);
+                      }}
+                    >
+                      <Settings className="h-4 w-4 text-emerald-600" />
+                      <span className="truncate flex-1">{setting.settingName || setting.codeName}</span>
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <p className="text-xs text-slate-400 text-center py-6">등록된 단가설정이 없습니다.</p>
