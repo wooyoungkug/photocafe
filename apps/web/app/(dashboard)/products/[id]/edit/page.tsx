@@ -1619,10 +1619,16 @@ export default function EditProductPage() {
                   let toggleActive: (val: boolean) => void;
                   if (colorType === '4도') {
                     isActive = paperActive4Map[paper.id] !== false;
-                    toggleActive = (val) => setPaperActive4Map(prev => ({ ...prev, [paper.id]: val }));
+                    toggleActive = (val) => {
+                      setPaperActive4Map(prev => ({ ...prev, [paper.id]: val }));
+                      setPaperActive6Map(prev => ({ ...prev, [paper.id]: val }));
+                    };
                   } else if (colorType === '6도') {
                     isActive = paperActive6Map[paper.id] !== false;
-                    toggleActive = (val) => setPaperActive6Map(prev => ({ ...prev, [paper.id]: val }));
+                    toggleActive = (val) => {
+                      setPaperActive6Map(prev => ({ ...prev, [paper.id]: val }));
+                      setPaperActive4Map(prev => ({ ...prev, [paper.id]: val }));
+                    };
                   } else {
                     isActive = paperActiveMap[paper.id] !== false;
                     toggleActive = (val) => setPaperActiveMap(prev => ({ ...prev, [paper.id]: val }));
