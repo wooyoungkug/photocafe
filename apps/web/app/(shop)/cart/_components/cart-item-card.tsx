@@ -743,10 +743,10 @@ export function CartItemCard({
                               <span className="font-medium text-gray-800 tabular-nums">{basePrintPrice.toLocaleString()}원</span>
                             </div>
                             {/* 출력단가 */}
-                            {info.printPricePerPage != null && (
+                            {info.pageCount > 0 && (
                               <div className="flex justify-between items-baseline text-xs text-gray-400 -mt-1">
                                 <span className="pl-2">└ 출력단가</span>
-                                <span className="tabular-nums">{info.printPricePerPage.toLocaleString()}원/p × {info.pageCount}p</span>
+                                <span className="tabular-nums">{Math.round(basePrintPrice / info.pageCount).toLocaleString()}원/p × {info.pageCount}p</span>
                               </div>
                             )}
                             {/* 용지 추가단가 */}
