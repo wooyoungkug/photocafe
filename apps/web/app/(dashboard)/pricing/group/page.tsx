@@ -88,11 +88,11 @@ const PRINT_METHOD_LABELS: Record<string, string> = SPEC_PURPOSE_LABELS;
 
 // 단가 그룹 색상 스타일
 const PRICE_GROUP_STYLES: Record<string, { bg: string; border: string; text: string; dot: string; label: string }> = {
-  green: { bg: 'bg-green-50', border: 'border-green-300', text: 'text-green-700', dot: 'bg-green-500', label: '그룹1' },
-  blue: { bg: 'bg-blue-50', border: 'border-blue-300', text: 'text-blue-700', dot: 'bg-blue-500', label: '그룹2' },
-  yellow: { bg: 'bg-yellow-50', border: 'border-yellow-300', text: 'text-yellow-700', dot: 'bg-yellow-500', label: '그룹3' },
-  red: { bg: 'bg-red-50', border: 'border-red-300', text: 'text-red-700', dot: 'bg-red-500', label: '그룹4' },
-  purple: { bg: 'bg-purple-50', border: 'border-purple-300', text: 'text-purple-700', dot: 'bg-purple-500', label: '그룹5' },
+  green: { bg: 'bg-green-50', border: 'border-green-300', text: 'text-green-700', dot: 'bg-green-500', label: '광택지' },
+  blue: { bg: 'bg-blue-50', border: 'border-blue-300', text: 'text-blue-700', dot: 'bg-blue-500', label: '무광지' },
+  yellow: { bg: 'bg-yellow-50', border: 'border-yellow-300', text: 'text-yellow-700', dot: 'bg-yellow-500', label: '특수지' },
+  red: { bg: 'bg-red-50', border: 'border-red-300', text: 'text-red-700', dot: 'bg-red-500', label: '프리미엄' },
+  purple: { bg: 'bg-purple-50', border: 'border-purple-300', text: 'text-purple-700', dot: 'bg-purple-500', label: '캔버스' },
   none: { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-500', dot: 'bg-gray-400', label: '기타' },
 };
 
@@ -857,8 +857,6 @@ export default function GroupPricingPage() {
                 const linkedPapers = linkedPaperIds
                   .map(id => papersMap.get(id))
                   .filter((p: any) => p && (!p.printMethods || p.printMethods.includes(printMethod)));
-                const linkedPaperNames = linkedPapers.map((p: any) => p.name).slice(0, 3);
-
                 return (
                   <div key={group.id} className={cn("border rounded-lg p-3", style.border, style.bg)}>
                     {/* 그룹 헤더 */}
@@ -866,7 +864,7 @@ export default function GroupPricingPage() {
                       <div className="flex items-center gap-2">
                         <div className={cn("w-3 h-3 rounded-full", style.dot)} />
                         <span className={cn("font-semibold text-sm", style.text)}>
-                          {group.name || `그룹 ${group.id.slice(-4)}`}
+                          {style.label}
                         </span>
                         <Badge variant="outline" className="text-[10px] h-5">
                           {linkedPapers.length > 0 ? `${linkedPapers.length}개 용지` : `${upPrices.length}개 Up`}
@@ -912,9 +910,9 @@ export default function GroupPricingPage() {
                       </div>
                     </div>
                     {/* 연결된 용지명 */}
-                    {linkedPaperNames.length > 0 && (
+                    {linkedPapers.length > 0 && (
                       <div className="text-[11px] text-gray-500 mb-2 pl-5">
-                        {linkedPaperNames.join(', ')}
+                        {linkedPapers.slice(0, 3).map((p: any) => `${p.name}${p.grammage ? ` ${p.grammage}g` : ''}`).join(', ')}
                         {linkedPapers.length > 3 && ` 외 ${linkedPapers.length - 3}개`}
                       </div>
                     )}
@@ -1112,7 +1110,7 @@ export default function GroupPricingPage() {
                     <div className="flex items-center gap-2 mb-1">
                       <div className={cn("w-2.5 h-2.5 rounded-full", style.dot)} />
                       <span className={cn("font-semibold text-xs", style.text)}>
-                        {group.name || style.label}
+                        {style.label}
                       </span>
                       <Badge variant="outline" className="text-[10px] h-4">
                         {specCount}개 규격
@@ -1125,7 +1123,7 @@ export default function GroupPricingPage() {
                     </div>
                     {linkedPapers.length > 0 && (
                       <div className="text-[10px] text-gray-500 pl-4.5 truncate">
-                        {linkedPapers.map((p: any) => p.name).slice(0, 2).join(', ')}
+                        {linkedPapers.slice(0, 2).map((p: any) => `${p.name}${p.grammage ? ` ${p.grammage}g` : ''}`).join(', ')}
                         {linkedPapers.length > 2 && ` 외 ${linkedPapers.length - 2}개`}
                       </div>
                     )}
@@ -2032,7 +2030,7 @@ export default function GroupPricingPage() {
                         <div className="flex items-center gap-1.5">
                           <div className={cn("w-3 h-3 rounded-full", style.dot)} />
                           <span className={cn("text-sm font-semibold", style.text)}>
-                            {group.name || style.label}
+                            {style.label}
                           </span>
                           <Badge variant="outline" className="text-[10px] h-5">
                             {(group.specPrices || []).length}개 규격
@@ -2080,7 +2078,7 @@ export default function GroupPricingPage() {
                       {/* 연결된 용지 */}
                       {linkedPapers.length > 0 && (
                         <div className="text-[10px] text-gray-500 mb-2 truncate">
-                          {linkedPapers.map((p: any) => p.name).slice(0, 3).join(', ')}
+                          {linkedPapers.slice(0, 3).map((p: any) => `${p.name}${p.grammage ? ` ${p.grammage}g` : ''}`).join(', ')}
                           {linkedPapers.length > 3 && ` 외 ${linkedPapers.length - 3}개`}
                         </div>
                       )}
