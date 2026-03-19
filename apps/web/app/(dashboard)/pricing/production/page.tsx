@@ -3752,7 +3752,7 @@ export default function ProductionSettingPage() {
                                               <input
                                                 type="checkbox"
                                                 className="h-3 w-3"
-                                                checked={specPrices.length === settingForm.specificationIds.length}
+                                                checked={specPrices.length === effectiveSpecIds.length}
                                                 onChange={(e) => {
                                                   const checked = e.target.checked;
                                                   setSettingForm((prev) => ({
@@ -3760,7 +3760,7 @@ export default function ProductionSettingPage() {
                                                     priceGroups: prev.priceGroups.map(g => {
                                                       if (g.id !== group.id) return g;
                                                       if (checked) {
-                                                        const allSpecPrices = settingForm.specificationIds.map((specId) => {
+                                                        const allSpecPrices = effectiveSpecIds.map((specId) => {
                                                           const existing = (g.specPrices || []).find(sp => sp.specificationId === specId);
                                                           return existing || { specificationId: specId, singleSidedPrice: 0, weight: 1.0 };
                                                         });
@@ -3779,7 +3779,7 @@ export default function ProductionSettingPage() {
                                           </tr>
                                         </thead>
                                         <tbody className="max-h-[200px] overflow-y-auto">
-                                          {[...settingForm.specificationIds]
+                                          {[...effectiveSpecIds]
                                             .map(specId => {
                                               const spec = specifications?.find((s) => s.id === specId);
                                               const area = spec ? Number(spec.widthInch) * Number(spec.heightInch) : 0;
