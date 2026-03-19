@@ -4051,9 +4051,10 @@ export default function ProductionSettingPage() {
                                           setSettingForm(prev => {
                                             const currentData = prev.nupPageRanges.find(p => p.specificationId === representativeSpec.id);
                                             const currentPricePerPage = currentData?.pricePerPage || 0;
+                                            const currentPaperPrice = currentData?.paperPrice || 0;
                                             const newRangePrices: Record<number, number> = {};
                                             prev.pageRanges.forEach(range => {
-                                              newRangePrices[range] = Math.round(newCoverPrice + currentPricePerPage * range);
+                                              newRangePrices[range] = Math.round(newCoverPrice + (currentPricePerPage + currentPaperPrice) * range);
                                             });
                                             const exists = !!currentData;
                                             return {
@@ -4079,18 +4080,31 @@ export default function ProductionSettingPage() {
                                         onChange={(e) => {
                                           const newPaperPrice = Number(e.target.value);
                                           setSettingForm(prev => {
-                                            const exists = prev.nupPageRanges.some(p => p.specificationId === representativeSpec.id);
-                                            const defaultRangePrices: Record<number, number> = {};
-                                            prev.pageRanges.forEach(r => { defaultRangePrices[r] = 0; });
+                                            const currentData = prev.nupPageRanges.find(p => p.specificationId === representativeSpec.id);
+                                            const cp = currentData?.coverPrice || 0;
+                                            const ppp = currentData?.pricePerPage || 0;
+                                            const newRangePrices: Record<number, number> = {};
+                                            if (cp > 0) {
+                                              prev.pageRanges.forEach(range => {
+                                                newRangePrices[range] = Math.round(cp + (ppp + newPaperPrice) * range);
+                                              });
+                                            } else {
+                                              const firstRange = prev.pageRanges[0] || 20;
+                                              const firstPrice = currentData?.rangePrices?.[firstRange] || 0;
+                                              prev.pageRanges.forEach((range, idx) => {
+                                                newRangePrices[range] = idx === 0 ? firstPrice : Math.round(firstPrice + ((range - firstRange) * (ppp + newPaperPrice)));
+                                              });
+                                            }
+                                            const exists = !!currentData;
                                             return {
                                               ...prev,
                                               nupPageRanges: exists
                                                 ? prev.nupPageRanges.map(p =>
                                                     p.specificationId === representativeSpec.id
-                                                      ? { ...p, paperPrice: newPaperPrice }
+                                                      ? { ...p, paperPrice: newPaperPrice, rangePrices: newRangePrices }
                                                       : p
                                                   )
-                                                : [...prev.nupPageRanges, { specificationId: representativeSpec.id, pricePerPage: 0, paperPrice: newPaperPrice, rangePrices: defaultRangePrices }],
+                                                : [...prev.nupPageRanges, { specificationId: representativeSpec.id, pricePerPage: 0, paperPrice: newPaperPrice, rangePrices: newRangePrices }],
                                             };
                                           });
                                         }}
@@ -4109,9 +4123,10 @@ export default function ProductionSettingPage() {
                                             const currentData = prev.nupPageRanges.find(p => p.specificationId === representativeSpec.id);
                                             const newRangePrices: Record<number, number> = {};
                                             const cp = currentData?.coverPrice || 0;
+                                            const pp = currentData?.paperPrice || 0;
                                             if (cp > 0) {
                                               prev.pageRanges.forEach(range => {
-                                                newRangePrices[range] = Math.round(cp + value * range);
+                                                newRangePrices[range] = Math.round(cp + (value + pp) * range);
                                               });
                                             } else {
                                               const firstPrice = currentData?.rangePrices?.[firstRange] || 0;
@@ -4119,7 +4134,7 @@ export default function ProductionSettingPage() {
                                                 if (idx === 0) {
                                                   newRangePrices[range] = firstPrice;
                                                 } else {
-                                                  newRangePrices[range] = Math.round((firstPrice + ((range - firstRange) * value)) * 100) / 100;
+                                                  newRangePrices[range] = Math.round(firstPrice + ((range - firstRange) * (value + pp)));
                                                 }
                                               });
                                             }
