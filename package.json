@@ -37,6 +37,7 @@
     "deploy:setup": "powershell -ExecutionPolicy Bypass -File scripts/setup-synology-deploy.ps1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@swc/cli": "^0.8.0",
     "@swc/core": "^1.15.13",
     "@types/cookie-parser": "^1.4.10",
