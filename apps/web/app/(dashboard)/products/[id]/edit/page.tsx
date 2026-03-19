@@ -2860,57 +2860,34 @@ function OutputPriceSelectionForm({
     if (!outputMethod || !selectedSetting) return;
 
     if (outputMethod === 'INDIGO') {
-      // 인디고 출력: 4도와 6도 둘 다 자동 추가 (고객이 선택)
-      // 중복 체크: 같은 productionSettingId + colorType 조합이 있으면 추가하지 않음
-      const exists4do = localSelected.some(
-        s => s.productionSettingId === selectedSetting.id && s.colorType === '4도'
-      );
-      const exists6do = localSelected.some(
-        s => s.productionSettingId === selectedSetting.id && s.colorType === '6도'
-      );
-
-      const newSelections: OutputPriceSelection[] = [];
-
-      if (!exists4do) {
-        newSelections.push({
+      // 인디고: 기존 INDIGO 항목 모두 제거 후 새 설정으로 교체 (1개만 허용)
+      const newSelections: OutputPriceSelection[] = [
+        {
           id: `${Date.now()}-4do-${Math.random().toString(36).substr(2, 9)}`,
           outputMethod,
           productionSettingId: selectedSetting.id,
           productionSettingName: selectedSetting.settingName || selectedSetting.codeName || '단가설정',
           colorType: '4도',
           selectedUpPrices: getIndigoUpPrices(selectedSetting),
-        });
-      }
-
-      if (!exists6do) {
-        newSelections.push({
+        },
+        {
           id: `${Date.now()}-6do-${Math.random().toString(36).substr(2, 9)}`,
           outputMethod,
           productionSettingId: selectedSetting.id,
           productionSettingName: selectedSetting.settingName || selectedSetting.codeName || '단가설정',
           colorType: '6도',
           selectedUpPrices: getIndigoUpPrices(selectedSetting),
-        });
-      }
-
-      if (newSelections.length > 0) {
-        setLocalSelected(prev => [...prev, ...newSelections]);
-      }
+        },
+      ];
+      setLocalSelected(prev => [...prev.filter(s => s.outputMethod !== 'INDIGO'), ...newSelections]);
     } else if (outputMethod === 'INKJET') {
-      // 잉크젯 출력 - 해당 설정의 전체 규격을 일괄 추가
+      // 잉크젯: 기존 INKJET 항목 모두 제거 후 새 설정으로 교체 (1개만 허용)
       const inkjetSpecs = getInkjetSpecPrices(selectedSetting);
       const newSelections: OutputPriceSelection[] = [];
 
       inkjetSpecs.forEach(specPrice => {
-        // 중복 체크: 같은 productionSettingId + specificationId 조합이 있으면 추가하지 않음
-        const existsInkjet = localSelected.some(
-          s => s.productionSettingId === selectedSetting.id && s.specificationId === specPrice.specificationId
-        );
-        // 같은 배치 내 중복도 체크 (priceGroups 간 동일 규격 방지)
-        const existsInBatch = newSelections.some(
-          s => s.specificationId === specPrice.specificationId
-        );
-        if (!existsInkjet && !existsInBatch) {
+        const existsInBatch = newSelections.some(s => s.specificationId === specPrice.specificationId);
+        if (!existsInBatch) {
           newSelections.push({
             id: `${Date.now()}-${specPrice.specificationId}-${Math.random().toString(36).substr(2, 6)}`,
             outputMethod,
@@ -2924,7 +2901,7 @@ function OutputPriceSelectionForm({
       });
 
       if (newSelections.length > 0) {
-        setLocalSelected(prev => [...prev, ...newSelections]);
+        setLocalSelected(prev => [...prev.filter(s => s.outputMethod !== 'INKJET'), ...newSelections]);
       }
     }
 
@@ -3011,21 +2988,19 @@ function OutputPriceSelectionForm({
                     if (outputMethod) {
                       const tempSetting = setting;
                       if (outputMethod === 'INDIGO') {
-                        const exists4do = localSelected.some(s => s.productionSettingId === tempSetting.id && s.colorType === '4도');
-                        const exists6do = localSelected.some(s => s.productionSettingId === tempSetting.id && s.colorType === '6도');
-                        const newSelections: OutputPriceSelection[] = [];
-                        if (!exists4do) newSelections.push({ id: `${Date.now()}-4do-${Math.random().toString(36).substr(2, 9)}`, outputMethod, productionSettingId: tempSetting.id, productionSettingName: tempSetting.settingName || tempSetting.codeName || '단가설정', colorType: '4도', selectedUpPrices: getIndigoUpPrices(tempSetting) });
-                        if (!exists6do) newSelections.push({ id: `${Date.now()}-6do-${Math.random().toString(36).substr(2, 9)}`, outputMethod, productionSettingId: tempSetting.id, productionSettingName: tempSetting.settingName || tempSetting.codeName || '단가설정', colorType: '6도', selectedUpPrices: getIndigoUpPrices(tempSetting) });
-                        if (newSelections.length > 0) setLocalSelected(prev => [...prev, ...newSelections]);
+                        const newSelections: OutputPriceSelection[] = [
+                          { id: `${Date.now()}-4do-${Math.random().toString(36).substr(2, 9)}`, outputMethod, productionSettingId: tempSetting.id, productionSettingName: tempSetting.settingName || tempSetting.codeName || '단가설정', colorType: '4도', selectedUpPrices: getIndigoUpPrices(tempSetting) },
+                          { id: `${Date.now()}-6do-${Math.random().toString(36).substr(2, 9)}`, outputMethod, productionSettingId: tempSetting.id, productionSettingName: tempSetting.settingName || tempSetting.codeName || '단가설정', colorType: '6도', selectedUpPrices: getIndigoUpPrices(tempSetting) },
+                        ];
+                        setLocalSelected(prev => [...prev.filter(s => s.outputMethod !== 'INDIGO'), ...newSelections]);
                       } else if (outputMethod === 'INKJET') {
                         const inkjetSpecs = getInkjetSpecPrices(tempSetting);
                         const newSelections: OutputPriceSelection[] = [];
                         inkjetSpecs.forEach(specPrice => {
-                          const existsInkjet = localSelected.some(s => s.productionSettingId === tempSetting.id && s.specificationId === specPrice.specificationId);
                           const existsInBatch = newSelections.some(s => s.specificationId === specPrice.specificationId);
-                          if (!existsInkjet && !existsInBatch) newSelections.push({ id: `${Date.now()}-${specPrice.specificationId}-${Math.random().toString(36).substr(2, 6)}`, outputMethod, productionSettingId: tempSetting.id, productionSettingName: tempSetting.settingName || tempSetting.codeName || '단가설정', specificationId: specPrice.specificationId, specificationName: getSpecName(specPrice.specificationId), selectedSpecPrice: specPrice });
+                          if (!existsInBatch) newSelections.push({ id: `${Date.now()}-${specPrice.specificationId}-${Math.random().toString(36).substr(2, 6)}`, outputMethod, productionSettingId: tempSetting.id, productionSettingName: tempSetting.settingName || tempSetting.codeName || '단가설정', specificationId: specPrice.specificationId, specificationName: getSpecName(specPrice.specificationId), selectedSpecPrice: specPrice });
                         });
-                        if (newSelections.length > 0) setLocalSelected(prev => [...prev, ...newSelections]);
+                        if (newSelections.length > 0) setLocalSelected(prev => [...prev.filter(s => s.outputMethod !== 'INKJET'), ...newSelections]);
                       }
                     }
                   }}
@@ -3213,21 +3188,19 @@ function OutputPriceSelectionForm({
                         if (outputMethod) {
                           const tempSetting = setting;
                           if (outputMethod === 'INDIGO') {
-                            const exists4do = localSelected.some(s => s.productionSettingId === tempSetting.id && s.colorType === '4도');
-                            const exists6do = localSelected.some(s => s.productionSettingId === tempSetting.id && s.colorType === '6도');
-                            const newSelections: OutputPriceSelection[] = [];
-                            if (!exists4do) newSelections.push({ id: `${Date.now()}-4do-${Math.random().toString(36).substr(2, 9)}`, outputMethod, productionSettingId: tempSetting.id, productionSettingName: tempSetting.settingName || tempSetting.codeName || '단가설정', colorType: '4도', selectedUpPrices: getIndigoUpPrices(tempSetting) });
-                            if (!exists6do) newSelections.push({ id: `${Date.now()}-6do-${Math.random().toString(36).substr(2, 9)}`, outputMethod, productionSettingId: tempSetting.id, productionSettingName: tempSetting.settingName || tempSetting.codeName || '단가설정', colorType: '6도', selectedUpPrices: getIndigoUpPrices(tempSetting) });
-                            if (newSelections.length > 0) setLocalSelected(prev => [...prev, ...newSelections]);
+                            const newSelections: OutputPriceSelection[] = [
+                              { id: `${Date.now()}-4do-${Math.random().toString(36).substr(2, 9)}`, outputMethod, productionSettingId: tempSetting.id, productionSettingName: tempSetting.settingName || tempSetting.codeName || '단가설정', colorType: '4도', selectedUpPrices: getIndigoUpPrices(tempSetting) },
+                              { id: `${Date.now()}-6do-${Math.random().toString(36).substr(2, 9)}`, outputMethod, productionSettingId: tempSetting.id, productionSettingName: tempSetting.settingName || tempSetting.codeName || '단가설정', colorType: '6도', selectedUpPrices: getIndigoUpPrices(tempSetting) },
+                            ];
+                            setLocalSelected(prev => [...prev.filter(s => s.outputMethod !== 'INDIGO'), ...newSelections]);
                           } else if (outputMethod === 'INKJET') {
                             const inkjetSpecs = getInkjetSpecPrices(tempSetting);
                             const newSelections: OutputPriceSelection[] = [];
                             inkjetSpecs.forEach(specPrice => {
-                              const existsInkjet = localSelected.some(s => s.productionSettingId === tempSetting.id && s.specificationId === specPrice.specificationId);
                               const existsInBatch = newSelections.some(s => s.specificationId === specPrice.specificationId);
-                              if (!existsInkjet && !existsInBatch) newSelections.push({ id: `${Date.now()}-${specPrice.specificationId}-${Math.random().toString(36).substr(2, 6)}`, outputMethod, productionSettingId: tempSetting.id, productionSettingName: tempSetting.settingName || tempSetting.codeName || '단가설정', specificationId: specPrice.specificationId, specificationName: getSpecName(specPrice.specificationId), selectedSpecPrice: specPrice });
+                              if (!existsInBatch) newSelections.push({ id: `${Date.now()}-${specPrice.specificationId}-${Math.random().toString(36).substr(2, 6)}`, outputMethod, productionSettingId: tempSetting.id, productionSettingName: tempSetting.settingName || tempSetting.codeName || '단가설정', specificationId: specPrice.specificationId, specificationName: getSpecName(specPrice.specificationId), selectedSpecPrice: specPrice });
                             });
-                            if (newSelections.length > 0) setLocalSelected(prev => [...prev, ...newSelections]);
+                            if (newSelections.length > 0) setLocalSelected(prev => [...prev.filter(s => s.outputMethod !== 'INKJET'), ...newSelections]);
                           }
                         }
                       }}
