@@ -3393,11 +3393,19 @@ export default function ProductionSettingPage() {
                             </div>
                           </div>
 
-                          {settingForm.specificationIds.length === 0 && (
-                            <div className="border p-4 text-center text-muted-foreground text-sm">
-                              먼저 규격을 선택하세요.
-                            </div>
-                          )}
+                          {(() => {
+                            // specificationIds가 비어있지만 priceGroups.specPrices에 데이터가 있는 경우 복원
+                            const hasGroupSpecPrices = settingForm.priceGroups.some(g => (g.specPrices || []).length > 0);
+                            if (settingForm.specificationIds.length === 0 && hasGroupSpecPrices) return null;
+                            if (settingForm.specificationIds.length === 0) {
+                              return (
+                                <div className="border p-4 text-center text-muted-foreground text-sm">
+                                  먼저 규격을 선택하세요.
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()}
 
                           {/* 그룹별 규격 단가 입력 - 3열 레이아웃 */}
                           {settingForm.priceGroups.length === 0 && settingForm.specificationIds.length > 0 ? (
@@ -3413,6 +3421,10 @@ export default function ProductionSettingPage() {
                                   .map(([pid]) => papersForPricing?.find(p => p.id === pid))
                                   .filter(Boolean);
                                 const specPrices = group.specPrices || [];
+                                // specificationIds가 비어있으면 specPrices의 ID를 대체로 사용
+                                const effectiveSpecIds = settingForm.specificationIds.length > 0
+                                  ? settingForm.specificationIds
+                                  : specPrices.map((sp: any) => sp.specificationId).filter(Boolean);
 
                                 return (
                                   <div key={group.id} className={cn("p-2 border-2", style.bg, style.border)}>
@@ -3422,7 +3434,7 @@ export default function ProductionSettingPage() {
                                           {style.dot} {style.label}
                                         </span>
                                         <span className="text-[10px] bg-gray-200 text-gray-700 px-1 py-0.5">
-                                          {specPrices.length}/{settingForm.specificationIds.length}개
+                                          {specPrices.length}/{effectiveSpecIds.length}개
                                         </span>
                                       </div>
                                       <Button
