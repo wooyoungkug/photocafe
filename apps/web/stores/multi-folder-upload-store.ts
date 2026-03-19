@@ -35,6 +35,7 @@ function isRatioEquivalent(ratio1: number, ratio2: number): boolean {
 
 // 표준 규격 타입 (DB 인디고 규격에서 변환)
 export interface StandardSize {
+  id: string;      // specificationId (DB에서 가져온 규격 ID)
   width: number;
   height: number;
   label: string;
@@ -340,6 +341,9 @@ export interface UploadedFolder {
   selectedPaperId?: string | null;
   selectedPaperName?: string | null;
 
+  // DB 매칭된 규격 ID (가격 조회용)
+  specificationId?: string;
+
   // 업로드 시각
   uploadedAt: number; // Date.now()
 }
@@ -365,11 +369,17 @@ interface MultiFolderUploadState {
   // DB 인디고출력 규격 리스트
   indigoSpecs: StandardSize[];
 
+  // 상품의 생산설정 ID (가격 조회용)
+  productionSettingId?: string;
+
   // 상품 용지 목록 (폴더별 용지 변경용)
   availablePapers: ProductPaper[];
 
   // 인디고 규격 설정
   setIndigoSpecs: (specs: StandardSize[]) => void;
+
+  // 생산설정 ID 설정
+  setProductionSettingId: (id: string) => void;
 
   // 용지 목록 설정
   setAvailablePapers: (papers: ProductPaper[]) => void;
@@ -408,7 +418,7 @@ interface MultiFolderUploadState {
   updateAdditionalOrderFoil: (folderId: string, orderId: string, foilName: string | null, foilColor: string | null, foilPosition: string | null) => void;
 
   // 규격 변경 (앨범규격 기준)
-  changeFolderSpec: (folderId: string, spec: { width: number; height: number; label: string }) => void;
+  changeFolderSpec: (folderId: string, spec: { id?: string; width: number; height: number; label: string }) => void;
 
   // 업로드 상태
   setUploading: (uploading: boolean) => void;
@@ -460,6 +470,7 @@ const initialState = {
   targetSpecHeight: 12,
   targetSpecRatio: 1,
   indigoSpecs: [] as StandardSize[],
+  productionSettingId: undefined as string | undefined,
   availablePapers: [] as ProductPaper[],
 };
 
@@ -740,6 +751,7 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
   ...initialState,
 
   setIndigoSpecs: (specs) => set({ indigoSpecs: specs }),
+  setProductionSettingId: (id) => set({ productionSettingId: id }),
   setAvailablePapers: (papers) => set({ availablePapers: papers }),
 
   addFolder: (folder) => {
@@ -890,6 +902,7 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
           specRatio: isLayoutSnapped ? calculateNormalizedRatio(closestSize!.width, closestSize!.height) : albumRatio,
           specLabel: isLayoutSnapped ? closestSize!.label : getSpecLabel(specs, albumWidth, albumHeight),
           specFoundInDB: isLayoutSnapped,
+          specificationId: isLayoutSnapped ? closestSize!.id : undefined,
           availableSizes,
         };
       }),
@@ -1076,6 +1089,7 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
           specHeight: spec.height,
           specLabel: spec.label,
           specRatio: calculateNormalizedRatio(spec.width, spec.height),
+          specificationId: spec.id,
         };
       }),
     }));
@@ -1240,6 +1254,7 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
       specLabel: isSnapped ? closestSize!.label : getSpecLabel(specs, albumWidth, albumHeight),
       // DB 표준 규격에 매칭됐는지 여부 (false면 DB에 해당 규격 미등록)
       specFoundInDB: isSnapped,
+      specificationId: isSnapped ? closestSize!.id : undefined,
       // 정확히 일치하는 경우만 자동 선택 가능
       isSelected: false,
       isApproved: validationStatus === 'EXACT_MATCH',
@@ -1526,8 +1541,10 @@ function getSpecKey(width: number, height: number): string {
 
 /**
  * 폴더(주문건) 견적 계산
+ * @param folder 업로드된 폴더 정보
+ * @param dbPricePerPage DB에서 조회한 페이지 단가 (있으면 우선 사용, 없으면 하드코딩 fallback)
  */
-export function calculateUploadedFolderPrice(folder: UploadedFolder): {
+export function calculateUploadedFolderPrice(folder: UploadedFolder, dbPricePerPage?: number): {
   pricePerPage: number;
   pageCount: number;
   printPrice: number;
@@ -1539,9 +1556,16 @@ export function calculateUploadedFolderPrice(folder: UploadedFolder): {
   tax: number;
   totalPrice: number;
 } {
-  const specKey = getSpecKey(folder.albumWidth, folder.albumHeight);
-  const prices = INDIGO_PRINT_PRICES[specKey] || INDIGO_PRINT_PRICES.default;
-  const pricePerPage = folder.pageLayout === 'spread' ? prices.spread : prices.single;
+  let pricePerPage: number;
+  if (dbPricePerPage != null) {
+    // DB 가격 우선 사용
+    pricePerPage = dbPricePerPage;
+  } else {
+    // 하드코딩 fallback
+    const specKey = getSpecKey(folder.albumWidth, folder.albumHeight);
+    const prices = INDIGO_PRINT_PRICES[specKey] || INDIGO_PRINT_PRICES.default;
+    pricePerPage = folder.pageLayout === 'spread' ? prices.spread : prices.single;
+  }
 
   const printPrice = pricePerPage * folder.pageCount;
 
@@ -1576,7 +1600,8 @@ export function calculateUploadedFolderPrice(folder: UploadedFolder): {
  */
 export function calculateAdditionalOrderPrice(
   order: AdditionalOrder,
-  folder: UploadedFolder
+  folder: UploadedFolder,
+  dbPricePerPage?: number
 ): {
   pricePerPage: number;
   pageCount: number;
@@ -1589,9 +1614,14 @@ export function calculateAdditionalOrderPrice(
   tax: number;
   totalPrice: number;
 } {
-  const specKey = getSpecKey(order.albumWidth, order.albumHeight);
-  const prices = INDIGO_PRINT_PRICES[specKey] || INDIGO_PRINT_PRICES.default;
-  const pricePerPage = folder.pageLayout === 'spread' ? prices.spread : prices.single;
+  let pricePerPage: number;
+  if (dbPricePerPage != null) {
+    pricePerPage = dbPricePerPage;
+  } else {
+    const specKey = getSpecKey(order.albumWidth, order.albumHeight);
+    const prices = INDIGO_PRINT_PRICES[specKey] || INDIGO_PRINT_PRICES.default;
+    pricePerPage = folder.pageLayout === 'spread' ? prices.spread : prices.single;
+  }
 
   const printPrice = pricePerPage * folder.pageCount;
 

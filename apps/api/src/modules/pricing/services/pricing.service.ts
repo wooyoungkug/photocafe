@@ -9,6 +9,8 @@ import {
   SetGroupProductionSettingPricesDto,
   SetClientProductionSettingPricesDto,
   GetAlbumPagePriceDto,
+  CalculateAlbumOrderPriceDto,
+  AlbumOrderPriceResultDto,
 } from '../dto';
 
 /**

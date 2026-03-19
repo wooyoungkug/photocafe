@@ -17,6 +17,8 @@ export interface ProductBinding {
   price: number;
   isDefault: boolean;
   sortOrder: number;
+  pricingType?: string;
+  productionSettingId?: string;
 }
 
 export interface ProductPaper {

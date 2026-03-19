@@ -339,6 +339,12 @@ export default function ProductPage() {
   const isAlbum = useMemo(() => isAlbumProduct(product?.bindings, product?.category?.name), [product?.bindings, product?.category?.name]);
   const needsUpload = isAlbum || product?.requiresUpload;
 
+  // 기본 제본의 생산설정 ID (앨범 페이지 단가 조회용)
+  const defaultProductionSettingId = useMemo(() => {
+    const defaultBinding = product?.bindings?.find(b => b.isDefault) || product?.bindings?.[0];
+    return defaultBinding?.productionSettingId;
+  }, [product?.bindings]);
+
   useEffect(() => {
     if (product) {
       const defaultBinding = product.bindings?.find(b => b.isDefault) || product.bindings?.[0];
@@ -924,7 +930,7 @@ export default function ProductPage() {
             <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
               <Upload className="h-5 w-5" />{t('dataUpload')}
             </h3>
-            <MultiFolderUpload onAddToCart={async (folders) => {
+            <MultiFolderUpload productionSettingId={defaultProductionSettingId} onAddToCart={async (folders) => {
               if (user?.clientId) {
                 try {
                   const result = await api.post<{ duplicates: { folderName: string; orderNumber: string; orderedAt: string; status: string }[]; months: number }>(

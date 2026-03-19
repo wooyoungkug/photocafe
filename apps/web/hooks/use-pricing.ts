@@ -257,3 +257,29 @@ export function useDeleteClientProductionSettingPrices() {
     },
   });
 }
+
+// ==================== 앨범 페이지 단가 조회 ====================
+
+export interface AlbumPagePriceResult {
+  pricePerPage: number;
+}
+
+export function useAlbumPagePrice(
+  productionSettingId: string | undefined,
+  specificationId: string | undefined,
+  colorMode: '4c' | '6c',
+  pageLayout: 'single' | 'spread'
+) {
+  return useQuery({
+    queryKey: [PRICING_KEY, 'album-page-price', productionSettingId, specificationId, colorMode, pageLayout],
+    queryFn: () =>
+      api.get<AlbumPagePriceResult>('/pricing/album-page-price', {
+        productionSettingId,
+        specificationId,
+        colorMode,
+        pageLayout,
+      }),
+    enabled: !!productionSettingId && !!specificationId,
+    staleTime: 5 * 60 * 1000, // 5분 캐시
+  });
+}

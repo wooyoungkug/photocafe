@@ -260,6 +260,78 @@ export class SetClientProductionSettingPricesDto {
   prices: ClientProductionSettingPriceDto[];
 }
 
+// ==================== 앨범 주문 가격 계산 DTO ====================
+
+export class CalculateAlbumOrderPriceDto {
+  @ApiProperty({ description: '상품 ID' })
+  @IsString()
+  productId: string;
+
+  @ApiProperty({ description: '앨범 가로(inch)', example: 12 })
+  @IsNumber()
+  @Min(0)
+  widthInch: number;
+
+  @ApiProperty({ description: '앨범 세로(inch)', example: 15 })
+  @IsNumber()
+  @Min(0)
+  heightInch: number;
+
+  @ApiProperty({ description: '페이지 수', example: 30 })
+  @IsNumber()
+  @Min(1)
+  pageCount: number;
+
+  @ApiProperty({ description: '색상 모드 (4도/6도)', enum: ['4c', '6c'] })
+  @IsString()
+  @IsIn(['4c', '6c'])
+  colorMode: '4c' | '6c';
+
+  @ApiProperty({ description: '페이지 레이아웃 (단면/양면)', enum: ['single', 'spread'] })
+  @IsString()
+  @IsIn(['single', 'spread'])
+  pageLayout: 'single' | 'spread';
+
+  @ApiPropertyOptional({ description: '용지 규격 ID (용지 추가금)' })
+  @IsOptional()
+  @IsString()
+  paperId?: string;
+
+  @ApiPropertyOptional({ description: '거래처 ID (그룹/개별 단가 적용)' })
+  @IsOptional()
+  @IsString()
+  clientId?: string;
+}
+
+export class AlbumOrderPriceResultDto {
+  @ApiProperty({ description: '표지 단가 (basePrice)' })
+  coverPrice: number;
+
+  @ApiProperty({ description: '1p당 출력단가' })
+  pricePerPage: number;
+
+  @ApiProperty({ description: '출력비 (pricePerPage * pageCount)' })
+  printPrice: number;
+
+  @ApiProperty({ description: '용지 추가금 (0 if 없음)' })
+  paperPrice: number;
+
+  @ApiProperty({ description: '제본비 (0 if 포함)' })
+  bindingPrice: number;
+
+  @ApiProperty({ description: '총 단가 (coverPrice + printPrice + paperPrice + bindingPrice)' })
+  unitPrice: number;
+
+  @ApiProperty({ description: '매칭된 규격 ID' })
+  specificationId: string;
+
+  @ApiProperty({ description: 'nup 값 (예: 1+up)' })
+  nup: string;
+
+  @ApiPropertyOptional({ description: '적용된 가격 정책' })
+  appliedPolicy?: string;
+}
+
 // ==================== 가격 계산 요청 DTO ====================
 export class OptionSelectionDto {
   @ApiProperty({ description: '옵션 타입 (specification, binding, paper, cover, foil, finishing)' })
