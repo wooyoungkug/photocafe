@@ -162,11 +162,11 @@ jobs:
               fi
             done
 
-            # 5. DB 상태 확인 (포트 5433 기준 - 컨테이너 이름 무관)
+            # 5. DB 상태 확인 (Docker 포트 매핑 기준 - 컨테이너 이름 무관)
             echo "=== [6/8] DB 상태 확인 ==="
-            DB_PORT_USED=$(run_sudo ss -tlnp 2>/dev/null | grep ":5433" || true)
+            DB_PORT_USED=$(run_sudo $DOCKER ps --format '{{.Ports}}' 2>/dev/null | grep ":5433->" || true)
             if [ -z "$DB_PORT_USED" ]; then
-              echo "DB 포트 5433이 비어 있습니다. photocafe-db 시작합니다..."
+              echo "DB 포트 5433 사용 컨테이너 없음. photocafe-db 시작합니다..."
               run_sudo $COMPOSE --env-file .env -f docker-compose.prod.yml rm -f postgres 2>/dev/null || true
               run_sudo $COMPOSE --env-file .env -f docker-compose.prod.yml up -d postgres
               echo "DB 시작 대기 (30초)..."
