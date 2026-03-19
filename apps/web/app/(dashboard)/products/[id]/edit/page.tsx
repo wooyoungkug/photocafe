@@ -1353,6 +1353,17 @@ export default function EditProductPage() {
                                         const paperNames = groupPaperNames[idx] ?? [];
                                         const isActive = safeGroupIndex === idx;
                                         const activeBg = isIndigoGroup ? 'bg-purple-600' : 'bg-blue-600';
+                                        // 이 그룹에 속한 용지 중 활성(선택된) 용지가 하나라도 있는지 확인
+                                        const groupPapers = filteredPapers.filter((p: any) => {
+                                          const mid = p.paperId || p.paper?.id;
+                                          return currentPaperGroupMap[mid] === pg.id;
+                                        });
+                                        const hasActivePaper = groupPapers.length === 0 || groupPapers.some((p: any) =>
+                                          isIndigoGroup
+                                            ? (paperActive4Map[p.id] !== false || paperActive6Map[p.id] !== false)
+                                            : (paperActiveMap[p.id] !== false)
+                                        );
+                                        if (!hasActivePaper) return null;
                                         return (
                                           <button
                                             key={pg.id}
