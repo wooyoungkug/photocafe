@@ -734,6 +734,71 @@ export class ProductionGroupService {
     return this.findSettingById(id);
   }
 
+  async copySetting(id: string) {
+    const original = await this.prisma.productionSetting.findUnique({
+      where: { id },
+      include: {
+        specifications: { orderBy: { sortOrder: 'asc' } },
+        prices: true,
+      },
+    });
+
+    if (!original) {
+      throw new NotFoundException(`생산설정을 찾을 수 없습니다: ${id}`);
+    }
+
+    // sortOrder: 원본 바로 다음에 배치
+    // 원본 이후의 설정들 sortOrder를 1씩 밀기
+    await this.prisma.productionSetting.updateMany({
+      where: {
+        groupId: original.groupId,
+        sortOrder: { gt: original.sortOrder },
+      },
+      data: { sortOrder: { increment: 1 } },
+    });
+
+    const newSortOrder = original.sortOrder + 1;
+
+    // 원본에서 복사할 필드 추출 (id, createdAt, updatedAt 제외)
+    const {
+      id: _id, createdAt: _c, updatedAt: _u,
+      ...settingData
+    } = original;
+
+    // 새 설정 생성
+    const copied = await this.prisma.productionSetting.create({
+      data: {
+        ...settingData,
+        settingName: `${original.settingName || ''}_복사`,
+        sortOrder: newSortOrder,
+      },
+    });
+
+    // 가격 복사
+    if (original.prices.length > 0) {
+      await this.prisma.productionSettingPrice.createMany({
+        data: original.prices.map((p) => {
+          const { id: _pid, productionSettingId: _psid, ...priceData } = p;
+          return { ...priceData, productionSettingId: copied.id };
+        }),
+      });
+    }
+
+    // 규격 연결 복사
+    if (original.specifications.length > 0) {
+      await this.prisma.productionSettingSpecification.createMany({
+        data: original.specifications.map((s) => ({
+          productionSettingId: copied.id,
+          specificationId: s.specificationId,
+          price: s.price,
+          sortOrder: s.sortOrder,
+        })),
+      });
+    }
+
+    return this.findSettingById(copied.id);
+  }
+
   async moveSettingUp(id: string) {
     const setting = await this.findSettingById(id);
 
