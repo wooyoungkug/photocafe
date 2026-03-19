@@ -34,11 +34,13 @@ export class PricingService {
   async getAlbumPagePrice(
     clientId: string | null,
     dto: GetAlbumPagePriceDto,
-  ): Promise<{ pricePerPage: number }> {
+  ): Promise<{ pricePerPage: number; bindingBasePrice: number; bindingPricePerPage: number; bindingRangePrices: Record<string, number> | null }> {
     const { productionSettingId, specificationId, colorMode, pageLayout } = dto;
 
     // 색상+레이아웃 조합에 따른 필드명 결정
     const priceField = this.getColorLayoutPriceField(colorMode, pageLayout);
+
+    let pricePerPage = 0;
 
     // 1. 거래처 개별 단가 조회
     if (clientId) {
@@ -51,32 +53,69 @@ export class PricingService {
       });
 
       if (clientPrice && clientPrice[priceField] != null) {
-        return { pricePerPage: Number(clientPrice[priceField]) };
+        pricePerPage = Number(clientPrice[priceField]);
       }
 
       // 2. 거래처의 그룹 단가 조회
-      const client = await this.prisma.client.findUnique({
-        where: { id: clientId },
-        select: { groupId: true },
-      });
-
-      if (client?.groupId) {
-        const groupPrice = await this.prisma.groupProductionSettingPrice.findFirst({
-          where: {
-            clientGroupId: client.groupId,
-            productionSettingId,
-            specificationId,
-          },
+      if (!pricePerPage) {
+        const client = await this.prisma.client.findUnique({
+          where: { id: clientId },
+          select: { groupId: true },
         });
 
-        if (groupPrice && groupPrice[priceField] != null) {
-          return { pricePerPage: Number(groupPrice[priceField]) };
+        if (client?.groupId) {
+          const groupPrice = await this.prisma.groupProductionSettingPrice.findFirst({
+            where: {
+              clientGroupId: client.groupId,
+              productionSettingId,
+              specificationId,
+            },
+          });
+
+          if (groupPrice && groupPrice[priceField] != null) {
+            pricePerPage = Number(groupPrice[priceField]);
+          }
         }
       }
     }
 
-    // 3. 값이 없으면 0원 반환
-    return { pricePerPage: 0 };
+    // 3. 제본단가 정보 조회 (productionSettingId의 basePrice/pricePerPage/rangePrices)
+    // 제본 생산설정은 forIndigoAlbum=false 규격을 사용하므로 동일 치수 규격으로 매칭
+    let bindingBasePrice = 0;
+    let bindingPricePerPage = 0;
+    let bindingRangePrices: Record<string, number> | null = null;
+
+    let bindingSpecId = specificationId;
+    const spec = await this.prisma.specification.findUnique({
+      where: { id: specificationId },
+      select: { widthInch: true, heightInch: true, forIndigoAlbum: true },
+    });
+    if (spec?.forIndigoAlbum) {
+      const bindingSpec = await this.prisma.specification.findFirst({
+        where: {
+          widthInch: spec.widthInch,
+          heightInch: spec.heightInch,
+          forIndigoAlbum: false,
+          isActive: true,
+        },
+      });
+      if (bindingSpec) bindingSpecId = bindingSpec.id;
+    }
+
+    const bindingPriceRecord = await this.prisma.productionSettingPrice.findFirst({
+      where: {
+        productionSettingId,
+        specificationId: bindingSpecId,
+      },
+    });
+
+    if (bindingPriceRecord) {
+      bindingBasePrice = Number(bindingPriceRecord.basePrice) || 0;
+      bindingPricePerPage = Number(bindingPriceRecord.pricePerPage) || 0;
+      bindingRangePrices = bindingPriceRecord.rangePrices as Record<string, number> | null;
+    }
+
+    return { pricePerPage, bindingBasePrice, bindingPricePerPage, bindingRangePrices };
   }
 
   /**
@@ -351,10 +390,22 @@ export class PricingService {
     const defaultBinding = (product.bindings || []).find((b: any) => b.isDefault)
       || (product.bindings || [])[0];
     if (defaultBinding?.productionSettingId) {
+      // 제본 생산설정은 forIndigoAlbum=false 규격을 사용하므로
+      // 동일 치수의 규격을 찾아서 매칭
+      const bindingSpec = await this.prisma.specification.findFirst({
+        where: {
+          widthInch: dto.widthInch,
+          heightInch: dto.heightInch,
+          forIndigoAlbum: false,
+          isActive: true,
+        },
+      });
+
+      const bindingSpecId = bindingSpec?.id || specification.id;
       const bindingPriceRecord = await this.prisma.productionSettingPrice.findFirst({
         where: {
           productionSettingId: defaultBinding.productionSettingId,
-          specificationId: specification.id,
+          specificationId: bindingSpecId,
         },
       });
       if (bindingPriceRecord) {

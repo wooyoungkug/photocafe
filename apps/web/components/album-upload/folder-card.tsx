@@ -434,10 +434,24 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     folder.pageLayout === 'spread' ? 'spread' : 'single'
   );
 
+  // 제본단가 계산 (rangePrices 우선, 없으면 basePrice + pricePerPage * pageCount)
+  const dbBindingPrice = useMemo(() => {
+    if (!albumPriceData) return defaultBindingPrice;
+    const { bindingRangePrices, bindingBasePrice, bindingPricePerPage } = albumPriceData;
+    const pageKey = String(folder.pageCount);
+    if (bindingRangePrices && pageKey in bindingRangePrices) {
+      return bindingRangePrices[pageKey];
+    }
+    if (bindingBasePrice || bindingPricePerPage) {
+      return bindingBasePrice + bindingPricePerPage * folder.pageCount;
+    }
+    return defaultBindingPrice;
+  }, [albumPriceData, folder.pageCount, defaultBindingPrice]);
+
   // 가격 계산 (DB 단가 우선, 없으면 fallback)
   const folderPrice = useMemo(
-    () => calculateUploadedFolderPrice(folder, albumPriceData?.pricePerPage, defaultBindingPrice),
-    [folder, albumPriceData?.pricePerPage, defaultBindingPrice]
+    () => calculateUploadedFolderPrice(folder, albumPriceData?.pricePerPage, dbBindingPrice),
+    [folder, albumPriceData?.pricePerPage, dbBindingPrice]
   );
 
   const handleSaveTitle = () => {
@@ -1212,7 +1226,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
               </div>
               <div className="space-y-2">
                 {folder.additionalOrders.map((order) => {
-                  const orderPrice = calculateAdditionalOrderPrice(order, folder, undefined, defaultBindingPrice);
+                  const orderPrice = calculateAdditionalOrderPrice(order, folder, undefined, dbBindingPrice);
                   // 메인 규격 + 다른 추가주문 규격 제외 (자기 자신은 포함)
                   const usedByOthers = new Set([
                     `${folder.albumWidth}x${folder.albumHeight}`,

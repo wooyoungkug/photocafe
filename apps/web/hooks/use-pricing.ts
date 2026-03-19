@@ -262,6 +262,9 @@ export function useDeleteClientProductionSettingPrices() {
 
 export interface AlbumPagePriceResult {
   pricePerPage: number;
+  bindingBasePrice: number;
+  bindingPricePerPage: number;
+  bindingRangePrices: Record<string, number> | null;
 }
 
 export function useAlbumPagePrice(
