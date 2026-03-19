@@ -1621,13 +1621,11 @@ export default function EditProductPage() {
                     isActive = paperActive4Map[paper.id] !== false;
                     toggleActive = (val) => {
                       setPaperActive4Map(prev => ({ ...prev, [paper.id]: val }));
-                      setPaperActive6Map(prev => ({ ...prev, [paper.id]: val }));
                     };
                   } else if (colorType === '6도') {
                     isActive = paperActive6Map[paper.id] !== false;
                     toggleActive = (val) => {
                       setPaperActive6Map(prev => ({ ...prev, [paper.id]: val }));
-                      setPaperActive4Map(prev => ({ ...prev, [paper.id]: val }));
                     };
                   } else {
                     isActive = paperActiveMap[paper.id] !== false;
