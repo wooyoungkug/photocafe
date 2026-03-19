@@ -398,6 +398,11 @@ export class CreateProductDto {
   @IsBoolean()
   showCustomOptions?: boolean;
 
+  @ApiPropertyOptional({ description: '후가공 사용 여부', default: false })
+  @IsOptional()
+  @IsBoolean()
+  showFinishing?: boolean;
+
   @ApiPropertyOptional({ description: '제본 방향', enum: ['left', 'right', 'customer'] })
   @IsOptional()
   @IsIn(['left', 'right', 'customer'])

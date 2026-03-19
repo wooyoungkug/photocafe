@@ -393,6 +393,7 @@ export default function EditProductPage() {
         setShowBinding((product as any).showBinding ?? true);
         setShowCover((product as any).showCover ?? false);
         setShowCustomOptions((product as any).showCustomOptions ?? false);
+        setShowFinishing((product as any).showFinishing ?? false);
         setMemberType(product.memberType);
         setSortOrder(product.sortOrder);
         setBasePrice(Number(product.basePrice));
@@ -733,6 +734,7 @@ export default function EditProductPage() {
         showBinding,
         showCover,
         showCustomOptions,
+        showFinishing,
         memberType: memberType as 'all' | 'member_only' | 'specific_groups',
         sortOrder,
         thumbnailUrl: thumbnailUrl || undefined,
