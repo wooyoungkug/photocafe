@@ -127,10 +127,11 @@ const MAX_DEPTH = 4;
 interface MultiFolderUploadProps {
   onAddToCart?: (folders: UploadedFolder[]) => void;
   productionSettingId?: string;
+  bindingProductionSettingId?: string;
   productId?: string;
 }
 
-export function MultiFolderUpload({ onAddToCart, productionSettingId }: MultiFolderUploadProps) {
+export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingProductionSettingId }: MultiFolderUploadProps) {
   const {
     folders,
     isUploading,
@@ -147,6 +148,7 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId }: MultiFol
     setDefaultBindingDirection,
     setIndigoSpecs,
     setProductionSettingId,
+    setBindingProductionSettingId,
     getSelectedFolders,
     computeColorGroups,
     selectAllFolders,
@@ -158,6 +160,11 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId }: MultiFol
   useEffect(() => {
     if (productionSettingId) setProductionSettingId(productionSettingId);
   }, [productionSettingId, setProductionSettingId]);
+
+  // bindingProductionSettingId를 store에 저장
+  useEffect(() => {
+    if (bindingProductionSettingId) setBindingProductionSettingId(bindingProductionSettingId);
+  }, [bindingProductionSettingId, setBindingProductionSettingId]);
 
   const tc = useTranslations('common');
   const tu = useTranslations('upload');
@@ -1808,11 +1815,13 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId }: MultiFol
   // 선택된 폴더들의 총 견적 (DB 가격 기반)
   const selectedFolders = folders.filter(f => f.isSelected);
   const firstSelected = selectedFolders[0];
+  const storeBindingPsId = useMultiFolderUploadStore(s => s.bindingProductionSettingId);
   const { data: albumPriceForTotal } = useAlbumPagePrice(
     productionSettingId,
     firstSelected?.specificationId,
     firstSelected?.colorMode || '6c',
-    firstSelected?.pageLayout === 'spread' ? 'spread' : 'single'
+    firstSelected?.pageLayout === 'spread' ? 'spread' : 'single',
+    storeBindingPsId,
   );
 
   const totalDbPrice: DbPriceInfo = useMemo(() => {

@@ -401,6 +401,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     setFolderFabric,
     availablePapers,
     productionSettingId,
+    bindingProductionSettingId,
     bindingName,
     defaultBindingPrice,
   } = useMultiFolderUploadStore();
@@ -433,7 +434,8 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     productionSettingId,
     folder.specificationId,
     folder.colorMode || '6c',
-    folder.pageLayout === 'spread' ? 'spread' : 'single'
+    folder.pageLayout === 'spread' ? 'spread' : 'single',
+    bindingProductionSettingId,
   );
 
   // 제본단가 계산 (rangePrices 우선, 없으면 basePrice + pricePerPage * pageCount)

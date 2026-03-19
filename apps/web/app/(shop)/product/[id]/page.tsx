@@ -392,8 +392,19 @@ export default function ProductPage() {
   const isAlbum = useMemo(() => isAlbumProduct(product?.bindings, product?.category?.name), [product?.bindings, product?.category?.name]);
   const needsUpload = isAlbum || product?.requiresUpload;
 
-  // 기본 제본의 생산설정 ID (앨범 페이지 단가 조회용)
-  const defaultProductionSettingId = useMemo(() => {
+  // 출력 생산설정 ID (앨범 페이지 출력단가 조회용) - outputPriceSettings에서 추출
+  const defaultOutputProductionSettingId = useMemo(() => {
+    const outputSettings = (product as any)?.outputPriceSettings as any[] | undefined;
+    if (outputSettings && outputSettings.length > 0) {
+      return outputSettings[0]?.productionSettingId;
+    }
+    // fallback: 제본의 productionSettingId
+    const defaultBinding = product?.bindings?.find(b => b.isDefault) || product?.bindings?.[0];
+    return defaultBinding?.productionSettingId;
+  }, [product]);
+
+  // 제본 생산설정 ID (제본단가 조회용)
+  const defaultBindingProductionSettingId = useMemo(() => {
     const defaultBinding = product?.bindings?.find(b => b.isDefault) || product?.bindings?.[0];
     return defaultBinding?.productionSettingId;
   }, [product?.bindings]);
@@ -1003,7 +1014,7 @@ export default function ProductPage() {
             <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
               <Upload className="h-5 w-5" />{t('dataUpload')}
             </h3>
-            <MultiFolderUpload productionSettingId={defaultProductionSettingId} productId={product?.id} onAddToCart={async (folders) => {
+            <MultiFolderUpload productionSettingId={defaultOutputProductionSettingId} bindingProductionSettingId={defaultBindingProductionSettingId} productId={product?.id} onAddToCart={async (folders) => {
               if (user?.clientId) {
                 try {
                   const result = await api.post<{ duplicates: { folderName: string; orderNumber: string; orderedAt: string; status: string }[]; months: number }>(

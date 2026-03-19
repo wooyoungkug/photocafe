@@ -287,16 +287,18 @@ export function useAlbumPagePrice(
   productionSettingId: string | undefined,
   specificationId: string | undefined,
   colorMode: '4c' | '6c',
-  pageLayout: 'single' | 'spread'
+  pageLayout: 'single' | 'spread',
+  bindingProductionSettingId?: string,
 ) {
   return useQuery({
-    queryKey: [PRICING_KEY, 'album-page-price', productionSettingId, specificationId, colorMode, pageLayout],
+    queryKey: [PRICING_KEY, 'album-page-price', productionSettingId, specificationId, colorMode, pageLayout, bindingProductionSettingId],
     queryFn: () =>
       api.get<AlbumPagePriceResult>('/pricing/album-page-price', {
         productionSettingId,
         specificationId,
         colorMode,
         pageLayout,
+        ...(bindingProductionSettingId ? { bindingProductionSettingId } : {}),
       }),
     enabled: !!productionSettingId && !!specificationId,
     staleTime: 5 * 60 * 1000, // 5분 캐시

@@ -36,11 +36,22 @@ export class PricingService {
     dto: GetAlbumPagePriceDto,
   ): Promise<{ pricePerPage: number; bindingBasePrice: number; bindingPricePerPage: number; bindingRangePrices: Record<string, number> | null; coverPrice: number; missingReason: string | null }> {
     const { productionSettingId, specificationId, colorMode, pageLayout } = dto;
+    // 출력 단가는 productionSettingId, 제본 단가는 bindingProductionSettingId 사용
+    const bindingPsId = dto.bindingProductionSettingId || productionSettingId;
 
     // 색상+레이아웃 조합에 따른 필드명 결정
     const priceField = this.getColorLayoutPriceField(colorMode, pageLayout);
     const colorLabel = colorMode === '4c' ? '4도' : '6도';
     const layoutLabel = pageLayout === 'single' ? '단면' : '양면';
+
+    // nup 파싱 (규격의 nup 값으로 minQuantity 매칭)
+    const specInfo = await this.prisma.specification.findUnique({
+      where: { id: specificationId },
+      select: { name: true, widthInch: true, heightInch: true, forIndigoAlbum: true, nup: true },
+    });
+    const nupNum = specInfo?.nup
+      ? parseInt(specInfo.nup.replace(/[^0-9]/g, '')) || 1
+      : 1;
 
     let pricePerPage = 0;
     let coverPrice = 0;
@@ -49,13 +60,16 @@ export class PricingService {
     // 생산설정 이름 조회
     const prodSetting = await this.prisma.productionSetting.findUnique({
       where: { id: productionSettingId },
-      select: { name: true },
+      select: { settingName: true },
     });
-    // 규격 이름 조회
-    const specInfo = await this.prisma.specification.findUnique({
-      where: { id: specificationId },
-      select: { name: true, widthInch: true, heightInch: true, forIndigoAlbum: true },
-    });
+
+    // 출력 단가 조회용 OR 조건: specificationId 매칭 또는 minQuantity(nup) 매칭
+    const outputPriceWhere = {
+      OR: [
+        { specificationId },
+        { minQuantity: nupNum, specificationId: null as string | null },
+      ],
+    };
 
     // 1. 거래처 개별 단가 조회
     if (clientId) {
@@ -63,14 +77,13 @@ export class PricingService {
         where: {
           clientId,
           productionSettingId,
-          specificationId,
+          ...outputPriceWhere,
         },
       });
 
       if (clientPrice && clientPrice[priceField] != null) {
         pricePerPage = Number(clientPrice[priceField]);
         coverPrice = Number(clientPrice.basePrice) || 0;
-        // rangePrices.__coverPrice 우선
         const rp = clientPrice.rangePrices as Record<string, any> | null;
         if (rp && rp['__coverPrice'] != null) {
           coverPrice = Number(rp['__coverPrice']);
@@ -82,7 +95,7 @@ export class PricingService {
       if (!pricePerPage) {
         const client = await this.prisma.client.findUnique({
           where: { id: clientId },
-          select: { groupId: true, group: { select: { name: true } } },
+          select: { groupId: true },
         });
 
         if (client?.groupId) {
@@ -90,7 +103,7 @@ export class PricingService {
             where: {
               clientGroupId: client.groupId,
               productionSettingId,
-              specificationId,
+              ...outputPriceWhere,
             },
           });
 
@@ -112,7 +125,7 @@ export class PricingService {
       const standardPrice = await this.prisma.productionSettingPrice.findFirst({
         where: {
           productionSettingId,
-          specificationId,
+          ...outputPriceWhere,
         },
       });
       if (standardPrice) {
@@ -130,33 +143,16 @@ export class PricingService {
       }
     }
 
-    // 3. 제본단가 정보 조회 (productionSettingId의 basePrice/pricePerPage/rangePrices)
-    // 제본 생산설정은 forIndigoAlbum=false 규격을 사용하므로 동일 치수 규격으로 매칭
+    // 3. 제본단가 정보 조회 (bindingPsId의 basePrice/pricePerPage/rangePrices)
     let bindingBasePrice = 0;
     let bindingPricePerPage = 0;
     let bindingRangePrices: Record<string, number> | null = null;
 
-    let bindingSpecId = specificationId;
-    const spec = await this.prisma.specification.findUnique({
-      where: { id: specificationId },
-      select: { widthInch: true, heightInch: true, forIndigoAlbum: true },
-    });
-    if (spec?.forIndigoAlbum) {
-      const bindingSpec = await this.prisma.specification.findFirst({
-        where: {
-          widthInch: spec.widthInch,
-          heightInch: spec.heightInch,
-          forIndigoAlbum: false,
-          isActive: true,
-        },
-      });
-      if (bindingSpec) bindingSpecId = bindingSpec.id;
-    }
-
+    // 제본 단가는 specificationId로 직접 매칭
     const bindingPriceRecord = await this.prisma.productionSettingPrice.findFirst({
       where: {
-        productionSettingId,
-        specificationId: bindingSpecId,
+        productionSettingId: bindingPsId,
+        specificationId,
       },
     });
 
@@ -164,12 +160,34 @@ export class PricingService {
       bindingBasePrice = Number(bindingPriceRecord.basePrice) || 0;
       bindingPricePerPage = Number(bindingPriceRecord.pricePerPage) || 0;
       bindingRangePrices = bindingPriceRecord.rangePrices as Record<string, number> | null;
+    } else {
+      // 거래처/그룹 제본 단가도 확인
+      if (clientId) {
+        const client = await this.prisma.client.findUnique({
+          where: { id: clientId },
+          select: { groupId: true },
+        });
+        if (client?.groupId) {
+          const groupBindingPrice = await this.prisma.groupProductionSettingPrice.findFirst({
+            where: {
+              clientGroupId: client.groupId,
+              productionSettingId: bindingPsId,
+              specificationId,
+            },
+          });
+          if (groupBindingPrice) {
+            bindingBasePrice = Number(groupBindingPrice.basePrice) || 0;
+            bindingPricePerPage = Number(groupBindingPrice.pricePerPage) || 0;
+            bindingRangePrices = groupBindingPrice.rangePrices as Record<string, number> | null;
+          }
+        }
+      }
     }
 
     // 미등록 사유 생성
     let missingReason: string | null = null;
     if (!pricePerPage) {
-      const settingName = prodSetting?.name || productionSettingId;
+      const settingName = prodSetting?.settingName || productionSettingId;
       const specName = specInfo?.name || specificationId;
       missingReason = `[${settingName}] ${specName} ${colorLabel}/${layoutLabel}(${priceField}) 단가 미등록`;
     }

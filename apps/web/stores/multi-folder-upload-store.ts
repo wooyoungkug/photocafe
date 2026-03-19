@@ -369,8 +369,11 @@ interface MultiFolderUploadState {
   // DB 인디고출력 규격 리스트
   indigoSpecs: StandardSize[];
 
-  // 상품의 생산설정 ID (가격 조회용)
+  // 상품의 출력 생산설정 ID (가격 조회용)
   productionSettingId?: string;
+
+  // 상품의 제본 생산설정 ID (제본 단가 조회용)
+  bindingProductionSettingId?: string;
 
   // 제본 이름 (가격 표시용)
   bindingName?: string;
@@ -384,8 +387,11 @@ interface MultiFolderUploadState {
   // 인디고 규격 설정
   setIndigoSpecs: (specs: StandardSize[]) => void;
 
-  // 생산설정 ID 설정
+  // 출력 생산설정 ID 설정
   setProductionSettingId: (id: string) => void;
+
+  // 제본 생산설정 ID 설정
+  setBindingProductionSettingId: (id: string) => void;
 
   // 제본 이름 설정
   setBindingName: (name: string) => void;
@@ -483,6 +489,7 @@ const initialState = {
   targetSpecRatio: 1,
   indigoSpecs: [] as StandardSize[],
   productionSettingId: undefined as string | undefined,
+  bindingProductionSettingId: undefined as string | undefined,
   bindingName: undefined as string | undefined,
   defaultBindingPrice: undefined as number | undefined,
   availablePapers: [] as ProductPaper[],
@@ -766,6 +773,7 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
 
   setIndigoSpecs: (specs) => set({ indigoSpecs: specs }),
   setProductionSettingId: (id) => set({ productionSettingId: id }),
+  setBindingProductionSettingId: (id) => set({ bindingProductionSettingId: id }),
   setBindingName: (name) => set({ bindingName: name }),
   setDefaultBindingPrice: (price) => set({ defaultBindingPrice: price }),
   setAvailablePapers: (papers) => set({ availablePapers: papers }),
