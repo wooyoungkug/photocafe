@@ -1608,14 +1608,22 @@ export default function EditProductPage() {
                     return groups;
                   }, {} as Record<string, any[]>);
 
-                  return Object.entries(paperGroups).map(([type, typePapers]) => (
-                    <div key={`${type}-${colorType ?? 'common'}`} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50/50">
-                      <span className="w-20 text-[12px] font-medium text-slate-600 flex-shrink-0">{type}</span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {typePapers.map(p => renderPaperChip(p, colorType))}
+                  return Object.entries(paperGroups).map(([type, typePapers]) => {
+                    const activePapers = typePapers.filter(p => {
+                      if (colorType === '4도') return paperActive4Map[p.id] !== false;
+                      if (colorType === '6도') return paperActive6Map[p.id] !== false;
+                      return paperActiveMap[p.id] !== false;
+                    });
+                    if (activePapers.length === 0) return null;
+                    return (
+                      <div key={`${type}-${colorType ?? 'common'}`} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50/50">
+                        <span className="w-20 text-[12px] font-medium text-slate-600 flex-shrink-0">{type}</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {typePapers.map(p => renderPaperChip(p, colorType))}
+                        </div>
                       </div>
-                    </div>
-                  ));
+                    );
+                  });
                 };
 
                 // 상품 outputPriceSettings에서 인디고 4도/6도 존재 여부 파악
