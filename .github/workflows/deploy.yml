@@ -175,6 +175,19 @@ jobs:
               echo "DB 포트 5433 사용 중 - DB 정상 운영 중"
             fi
 
+            # 5-2. Prisma DB Push (스키마 동기화 - 배포 시 1회만 실행)
+            echo "=== [6.5/8] Prisma 스키마 동기화 ==="
+            DB_USER_VAL=$(grep "^DB_USER=" .env | cut -d= -f2 || echo "postgres")
+            DB_PASSWORD_VAL=$(grep "^DB_PASSWORD=" .env | cut -d= -f2 || echo "postgres")
+            DB_NAME_VAL=$(grep "^DB_NAME=" .env | cut -d= -f2 || echo "postgres")
+            run_sudo $DOCKER run --rm \
+              --network photocafe-network \
+              -e DATABASE_URL="postgresql://${DB_USER_VAL}:${DB_PASSWORD_VAL}@postgres:5432/${DB_NAME_VAL}" \
+              ghcr.io/wooyoungkug/photocafe-api:latest \
+              sh -c "npx prisma db push --skip-generate" \
+              && echo "Prisma 스키마 동기화 완료" \
+              || { echo "ERROR: Prisma 스키마 동기화 실패! 배포를 중단합니다."; exit 1; }
+
             # 6. API/Web 컨테이너만 교체 (--no-deps: DB 건드리지 않음)
             echo "=== [7/8] 컨테이너 교체 (API + Web) ==="
             run_sudo $COMPOSE --env-file .env -f docker-compose.prod.yml stop api web 2>/dev/null || true
