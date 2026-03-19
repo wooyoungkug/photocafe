@@ -1593,17 +1593,22 @@ export default function ProductionSettingPage() {
         ? prices
           .filter((p: any) => p.specificationId)
           .map((p: any) => {
-            // DB에서 string 키로 저장된 rangePrices를 number 키로 변환
+            // DB에서 string 키로 저장된 rangePrices를 number 키로 변환 (__coverPrice 제외)
             const rangePrices: Record<number, number> = {};
+            let loadedCoverPrice: number | undefined = undefined;
             if (p.rangePrices && typeof p.rangePrices === 'object') {
               Object.entries(p.rangePrices).forEach(([key, value]) => {
-                rangePrices[Number(key)] = Number(value);
+                if (key === '__coverPrice') {
+                  loadedCoverPrice = Number(value);
+                } else {
+                  rangePrices[Number(key)] = Number(value);
+                }
               });
             }
             return {
               specificationId: p.specificationId,
               pricePerPage: Number(p.pricePerPage) || 0,
-              coverPrice: p.coverPrice != null ? Number(p.coverPrice) : undefined,
+              coverPrice: loadedCoverPrice,
               rangePrices,
             };
           })

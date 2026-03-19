@@ -412,8 +412,11 @@ export class PricingService {
           basePages: priceData.basePages,
           basePrice: priceData.basePrice,
           pricePerPage: priceData.pricePerPage,
-          coverPrice: priceData.coverPrice,
-          rangePrices: priceData.rangePrices,
+          rangePrices: (() => {
+            const rp = priceData.rangePrices ? JSON.parse(JSON.stringify(priceData.rangePrices)) : {};
+            if (priceData.coverPrice != null) rp.__coverPrice = priceData.coverPrice;
+            return Object.keys(rp).length > 0 ? rp : null;
+          })(),
         };
 
         const existing = existingMap.get(key);
@@ -556,8 +559,11 @@ export class PricingService {
           basePages: priceData.basePages,
           basePrice: priceData.basePrice,
           pricePerPage: priceData.pricePerPage,
-          coverPrice: priceData.coverPrice,
-          rangePrices: priceData.rangePrices,
+          rangePrices: (() => {
+            const rp = priceData.rangePrices ? JSON.parse(JSON.stringify(priceData.rangePrices)) : {};
+            if (priceData.coverPrice != null) rp.__coverPrice = priceData.coverPrice;
+            return Object.keys(rp).length > 0 ? rp : null;
+          })(),
         };
 
         const existing = existingMap.get(key);
