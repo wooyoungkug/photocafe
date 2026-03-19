@@ -267,6 +267,7 @@ export default function ProductPage() {
               fabricColorName: folder.selectedFabricColorName || undefined,
               fabricCategory: folder.selectedFabricCategory || undefined,
               fabricBasePrice: folder.selectedFabricPrice || undefined,
+              bindingPrice: folderPrice.bindingPrice,
             },
             uploadStatus: 'pending', totalFileCount: folder.files.length, isDuplicateOverride,
             orderMemo: orderMemo || undefined,
