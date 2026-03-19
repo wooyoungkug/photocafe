@@ -92,6 +92,19 @@ const PRINT_TYPE_OPTIONS = [
   { value: 'customer', label: '단면/양면 고객선택' },
 ];
 
+// 카테고리명/상품명에 따른 출력구분 자동결정
+// 압축앨범·맞장앨범·레이플릿앨범 → 단면, 화보·포토북 → 양면
+const getPrintTypeByName = (name: string): 'single' | 'double' | null => {
+  if (!name) return null;
+  if (name.includes('압축앨범') || name.includes('맞장앨범') || name.includes('레이플릿앨범')) {
+    return 'single';
+  }
+  if (name.includes('화보') || name.includes('포토북')) {
+    return 'double';
+  }
+  return null;
+};
+
 // 출력방법 옵션 (단품출력용)
 const OUTPUT_METHOD_OPTIONS = [
   { value: 'inkjet', label: '잉크젯출력' },
@@ -312,6 +325,28 @@ export default function NewProductPage() {
   const largeCategories = categories?.filter(c => c.level === 'large') || [];
   const mediumCategories = categories?.filter(c => c.level === 'medium' && c.parentId === largeCategoryId) || [];
   const smallCategories = categories?.filter(c => c.level === 'small' && c.parentId === mediumCategoryId) || [];
+
+  // 카테고리명/상품명 기반 출력구분 자동결정 (소분류 > 중분류 > 대분류 > 상품명 순 우선순위)
+  const autoPrintType = useMemo((): 'single' | 'double' | null => {
+    const names = [
+      smallCategories.find(c => c.id === smallCategoryId)?.name,
+      mediumCategories.find(c => c.id === mediumCategoryId)?.name,
+      largeCategories.find(c => c.id === largeCategoryId)?.name,
+      productName,
+    ].filter(Boolean) as string[];
+    for (const name of names) {
+      const result = getPrintTypeByName(name);
+      if (result) return result;
+    }
+    return null;
+  }, [smallCategoryId, mediumCategoryId, largeCategoryId, productName, smallCategories, mediumCategories, largeCategories]);
+
+  // 카테고리/상품명으로 출력구분이 자동결정되면 즉시 반영
+  useEffect(() => {
+    if (autoPrintType) {
+      setPrintType(autoPrintType);
+    }
+  }, [autoPrintType]);
 
   // 자동 상품코드 생성
   useEffect(() => {
@@ -974,19 +1009,23 @@ export default function NewProductPage() {
                   <Label className="text-xs text-slate-500">출력구분</Label>
                   <div className="flex gap-3">
                     {PRINT_TYPE_OPTIONS.map(opt => (
-                      <label key={opt.value} className="flex items-center gap-1.5 cursor-pointer">
+                      <label key={opt.value} className={`flex items-center gap-1.5 ${autoPrintType ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}>
                         <input
                           type="radio"
                           name="printType"
                           value={opt.value}
                           checked={printType === opt.value}
-                          onChange={(e) => setPrintType(e.target.value as 'single' | 'double' | 'customer')}
-                          className="w-3.5 h-3.5 text-emerald-600"
+                          onChange={(e) => { if (!autoPrintType) setPrintType(e.target.value as 'single' | 'double' | 'customer'); }}
+                          disabled={!!autoPrintType}
+                          className="w-3.5 h-3.5 text-emerald-600 disabled:opacity-60"
                         />
                         <span className="text-xs">{opt.label}</span>
                       </label>
                     ))}
                   </div>
+                  {autoPrintType && (
+                    <span className="text-xs text-slate-400">(카테고리/상품명 자동결정)</span>
+                  )}
                 </div>
               </div>
             </div>

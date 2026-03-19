@@ -109,6 +109,19 @@ const getPrintTypeByBinding = (bindingName: string): 'single' | 'double' | 'cust
   return 'double'; // 기본값
 };
 
+// 카테고리명/상품명에 따른 출력구분 자동결정
+// 압축앨범·맞장앨범·레이플릿앨범 → 단면, 화보·포토북 → 양면
+const getPrintTypeByName = (name: string): 'single' | 'double' | null => {
+  if (!name) return null;
+  if (name.includes('압축앨범') || name.includes('맞장앨범') || name.includes('레이플릿앨범')) {
+    return 'single';
+  }
+  if (name.includes('화보') || name.includes('포토북')) {
+    return 'double';
+  }
+  return null;
+};
+
 
 interface ProductOption {
   id: string;
@@ -344,6 +357,21 @@ export default function EditProductPage() {
   const mediumCategories = categories?.filter(c => c.level === 'medium' && c.parentId === largeCategoryId) || [];
   const smallCategories = categories?.filter(c => c.level === 'small' && c.parentId === mediumCategoryId) || [];
 
+  // 카테고리명/상품명 기반 출력구분 자동결정 (소분류 > 중분류 > 대분류 > 상품명 순 우선순위)
+  const autoPrintType = useMemo((): 'single' | 'double' | null => {
+    const names = [
+      smallCategories.find(c => c.id === smallCategoryId)?.name,
+      mediumCategories.find(c => c.id === mediumCategoryId)?.name,
+      largeCategories.find(c => c.id === largeCategoryId)?.name,
+      productName,
+    ].filter(Boolean) as string[];
+    for (const name of names) {
+      const result = getPrintTypeByName(name);
+      if (result) return result;
+    }
+    return null;
+  }, [smallCategoryId, mediumCategoryId, largeCategoryId, productName, smallCategories, mediumCategories, largeCategories]);
+
   // 초기 데이터 로드 여부 추적
   const isInitialLoadDone = useRef(false);
 
@@ -576,15 +604,23 @@ export default function EditProductPage() {
     });
   }, [paperActiveMap, specifications, isFormReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 제본 선택에 따른 출력구분 자동 설정
+  // 제본 선택에 따른 출력구분 자동 설정 (카테고리/상품명으로 이미 결정된 경우 제외)
   useEffect(() => {
+    if (autoPrintType) return;
     if (selectedBindings.length > 0) {
       // 첫 번째 제본의 이름으로 출력구분 결정
       const firstBinding = selectedBindings[0];
-      const autoPrintType = getPrintTypeByBinding(firstBinding.name);
+      const bindingPrintType = getPrintTypeByBinding(firstBinding.name);
+      setPrintType(bindingPrintType);
+    }
+  }, [selectedBindings, autoPrintType]);
+
+  // 카테고리/상품명으로 출력구분이 자동결정되면 즉시 반영
+  useEffect(() => {
+    if (autoPrintType) {
       setPrintType(autoPrintType);
     }
-  }, [selectedBindings]);
+  }, [autoPrintType]);
 
   const handleImageUpload = async (file: File, index: number) => {
     const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
@@ -1138,19 +1174,23 @@ export default function EditProductPage() {
                   <Label className="text-xs text-slate-500">출력구분</Label>
                   <div className="flex gap-3">
                     {PRINT_TYPE_OPTIONS.map(opt => (
-                      <label key={opt.value} className="flex items-center gap-1.5 cursor-pointer">
+                      <label key={opt.value} className={`flex items-center gap-1.5 ${autoPrintType ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}>
                         <input
                           type="radio"
                           name="printType"
                           value={opt.value}
                           checked={printType === opt.value}
-                          onChange={(e) => setPrintType(e.target.value as 'single' | 'double' | 'customer')}
-                          className="w-3.5 h-3.5 text-emerald-600"
+                          onChange={(e) => { if (!autoPrintType) setPrintType(e.target.value as 'single' | 'double' | 'customer'); }}
+                          disabled={!!autoPrintType}
+                          className="w-3.5 h-3.5 text-emerald-600 disabled:opacity-60"
                         />
                         <span className="text-xs">{opt.label}</span>
                       </label>
                     ))}
                   </div>
+                  {autoPrintType && (
+                    <span className="text-xs text-slate-400">(카테고리/상품명 자동결정)</span>
+                  )}
                 </div>
               </div>
             </div>)}
