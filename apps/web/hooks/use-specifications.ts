@@ -102,6 +102,7 @@ export function useSpecifications(params?: {
   return useQuery({
     queryKey: [SPECIFICATIONS_KEY, 'global', params],
     queryFn: () => api.get<Specification[]>('/specifications', params),
+    staleTime: 0,
   });
 }
 

@@ -37,6 +37,7 @@ import {
   useCreateClientGroup,
   useUpdateClientGroup,
   useDeleteClientGroup,
+  useReorderClientGroups,
 } from '@/hooks/use-clients';
 import { ClientGroup, CreateClientGroupDto } from '@/lib/types/client';
 import {
@@ -47,6 +48,8 @@ import {
   Users,
   Loader2,
   AlertCircle,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 
 export default function MemberGroupsPage() {
@@ -67,6 +70,7 @@ export default function MemberGroupsPage() {
   const createGroup = useCreateClientGroup();
   const updateGroup = useUpdateClientGroup();
   const deleteGroup = useDeleteClientGroup();
+  const reorderGroups = useReorderClientGroups();
 
   const [formData, setFormData] = useState<CreateClientGroupDto>({
     groupCode: '',
@@ -113,6 +117,22 @@ export default function MemberGroupsPage() {
       await deleteGroup.mutateAsync(deleteConfirm.id);
       setDeleteConfirm(null);
     }
+  };
+
+  const handleMove = async (index: number, direction: 'up' | 'down') => {
+    const groups = groupsData?.data;
+    if (!groups) return;
+
+    const swapIndex = direction === 'up' ? index - 1 : index + 1;
+    if (swapIndex < 0 || swapIndex >= groups.length) return;
+
+    const current = groups[index];
+    const target = groups[swapIndex];
+
+    await reorderGroups.mutateAsync([
+      { id: current.id, sortOrder: target.sortOrder ?? swapIndex },
+      { id: target.id, sortOrder: current.sortOrder ?? index },
+    ]);
   };
 
   return (
@@ -176,6 +196,7 @@ export default function MemberGroupsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[80px]">순서</TableHead>
                     <TableHead>그룹코드</TableHead>
                     <TableHead>그룹명</TableHead>
                     <TableHead>일반 할인율</TableHead>
@@ -189,13 +210,35 @@ export default function MemberGroupsPage() {
                 <TableBody>
                   {groupsData?.data?.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                         등록된 그룹이 없습니다.
                       </TableCell>
                     </TableRow>
                   ) : (
-                    groupsData?.data?.map((group) => (
+                    groupsData?.data?.map((group, index) => (
                       <TableRow key={group.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              disabled={index === 0 || reorderGroups.isPending}
+                              onClick={() => handleMove(index, 'up')}
+                            >
+                              <ArrowUp className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              disabled={index === (groupsData?.data?.length || 0) - 1 || reorderGroups.isPending}
+                              onClick={() => handleMove(index, 'down')}
+                            >
+                              <ArrowDown className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
                         <TableCell className="font-mono">{group.groupCode}</TableCell>
                         <TableCell className="font-medium">{group.groupName}</TableCell>
                         <TableCell>

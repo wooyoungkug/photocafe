@@ -38,7 +38,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCategories } from '@/hooks/use-categories';
 import { useSpecifications } from '@/hooks/use-specifications';
 import { useHalfProducts } from '@/hooks/use-half-products';
-import { useProduct, useUpdateProduct, useSyncProductPapers, useProcessTemplates, useProductTypeOptions } from '@/hooks/use-products';
+import { useProduct, useUpdateProduct, useProcessTemplates, useProductTypeOptions } from '@/hooks/use-products';
 import { ProcessFlowSection } from '../../components/ProcessFlowSection';
 import { useProductionGroupTree, useProductionSettings, type ProductionGroup, type ProductionSetting, type OutputPriceSelection, type IndigoUpPrice, type InkjetSpecPrice } from '@/hooks/use-production';
 import { useFoilColors, type FoilColorItem } from '@/hooks/use-copper-plates';
@@ -109,6 +109,19 @@ const getPrintTypeByBinding = (bindingName: string): 'single' | 'double' | 'cust
   return 'double'; // 기본값
 };
 
+// 카테고리명/상품명에 따른 출력구분 자동결정
+// 압축앨범·맞장앨범·레이플릿앨범 → 단면, 화보·포토북 → 양면
+const getPrintTypeByName = (name: string): 'single' | 'double' | null => {
+  if (!name) return null;
+  if (name.includes('압축앨범') || name.includes('맞장앨범') || name.includes('레이플릿앨범')) {
+    return 'single';
+  }
+  if (name.includes('화보') || name.includes('포토북')) {
+    return 'double';
+  }
+  return null;
+};
+
 
 interface ProductOption {
   id: string;
@@ -175,7 +188,6 @@ export default function EditProductPage() {
   const { data: product, isLoading: isProductLoading, refetch: refetchProduct } = useProduct(productId);
   const { data: productionGroupTree, isLoading: isTreeLoading } = useProductionGroupTree();
   const updateProduct = useUpdateProduct();
-  const syncPapers = useSyncProductPapers();
   const { data: fabricsData } = useFabrics({ forAlbumCover: true, isActive: true, limit: 200 });
 
   // 상품 유형 기반 공정/옵션 설정
@@ -259,10 +271,33 @@ export default function EditProductPage() {
   const [selectedHalfProductId, setSelectedHalfProductId] = useState('');
   const [selectedBindings, setSelectedBindings] = useState<{ id: string; name: string; price: number; productionSettingId?: string; pricingType?: string }[]>([]);
   const [bindingDirection, setBindingDirection] = useState<'left' | 'right' | 'customer'>('left');
+  // 선택된 제본 설정의 상세 데이터 - productionGroupTree에서 직접 검색
+  const firstBindingSettingId = selectedBindings[0]?.productionSettingId || '';
+  const bindingSettingDetail = useMemo(() => {
+    if (!firstBindingSettingId || !productionGroupTree) return null;
+    const findSetting = (groups: ProductionGroup[]): ProductionSetting | null => {
+      for (const group of groups) {
+        const found = group.settings?.find(s => s.id === firstBindingSettingId);
+        if (found) return found;
+        if (group.children) {
+          const nested = findSetting(group.children);
+          if (nested) return nested;
+        }
+      }
+      return null;
+    };
+    return findSetting(productionGroupTree);
+  }, [firstBindingSettingId, productionGroupTree]);
   // 출력단가 선택 (새로운 방식)
   const [outputPriceSelections, setOutputPriceSelections] = useState<OutputPriceSelection[]>([]);
   const [outputPriceDialogOpen, setOutputPriceDialogOpen] = useState(false);
   const [printType, setPrintType] = useState<'single' | 'double' | 'customer'>('double');
+  // 규격 가격 필터 (인디고)
+  const [indigoColorFilter, setIndigoColorFilter] = useState<'4도' | '6도'>('4도');
+  const [indigoGroupIndex, setIndigoGroupIndex] = useState(0);
+  const [indigoPrintSide, setIndigoPrintSide] = useState<'single' | 'double'>('single');
+  // 규격 가격 필터 (잉크젯)
+  const [inkjetGroupIndex, setInkjetGroupIndex] = useState(0);
   const [selectedFoils, setSelectedFoils] = useState<{ id: string; name: string; color: string; price: number }[]>([]);
   // 용지 사용 여부 관리
   const [paperActiveMap, setPaperActiveMap] = useState<Record<string, boolean>>({});
@@ -322,19 +357,23 @@ export default function EditProductPage() {
   const mediumCategories = categories?.filter(c => c.level === 'medium' && c.parentId === largeCategoryId) || [];
   const smallCategories = categories?.filter(c => c.level === 'small' && c.parentId === mediumCategoryId) || [];
 
+  // 카테고리명/상품명 기반 출력구분 자동결정 (소분류 > 중분류 > 대분류 > 상품명 순 우선순위)
+  const autoPrintType = useMemo((): 'single' | 'double' | null => {
+    const names = [
+      smallCategories.find(c => c.id === smallCategoryId)?.name,
+      mediumCategories.find(c => c.id === mediumCategoryId)?.name,
+      largeCategories.find(c => c.id === largeCategoryId)?.name,
+      productName,
+    ].filter(Boolean) as string[];
+    for (const name of names) {
+      const result = getPrintTypeByName(name);
+      if (result) return result;
+    }
+    return null;
+  }, [smallCategoryId, mediumCategoryId, largeCategoryId, productName, smallCategories, mediumCategories, largeCategories]);
+
   // 초기 데이터 로드 여부 추적
   const isInitialLoadDone = useRef(false);
-  const isSyncDone = useRef(false);
-
-  // 마스터 용지 동기화 (초기 1회)
-  useEffect(() => {
-    if (product && !isSyncDone.current) {
-      isSyncDone.current = true;
-      syncPapers.mutateAsync({ productId }).then(() => {
-        refetchProduct();
-      }).catch(() => { /* 동기화 실패 시 무시 */ });
-    }
-  }, [product]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 기존 상품 데이터 로드 (초기 1회만 실행)
   useEffect(() => {
@@ -451,6 +490,10 @@ export default function EditProductPage() {
             }
           }
         }
+        // 용지가 있으면 출력단가 토글 자동 활성화
+        if (product.papers && Array.isArray(product.papers) && product.papers.length > 0) {
+          setShowOutputPrice(true);
+        }
 
         setIsFormReady(true);
       } catch (error) {
@@ -561,15 +604,23 @@ export default function EditProductPage() {
     });
   }, [paperActiveMap, specifications, isFormReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 제본 선택에 따른 출력구분 자동 설정
+  // 제본 선택에 따른 출력구분 자동 설정 (카테고리/상품명으로 이미 결정된 경우 제외)
   useEffect(() => {
+    if (autoPrintType) return;
     if (selectedBindings.length > 0) {
       // 첫 번째 제본의 이름으로 출력구분 결정
       const firstBinding = selectedBindings[0];
-      const autoPrintType = getPrintTypeByBinding(firstBinding.name);
+      const bindingPrintType = getPrintTypeByBinding(firstBinding.name);
+      setPrintType(bindingPrintType);
+    }
+  }, [selectedBindings, autoPrintType]);
+
+  // 카테고리/상품명으로 출력구분이 자동결정되면 즉시 반영
+  useEffect(() => {
+    if (autoPrintType) {
       setPrintType(autoPrintType);
     }
-  }, [selectedBindings]);
+  }, [autoPrintType]);
 
   const handleImageUpload = async (file: File, index: number) => {
     const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
@@ -1017,6 +1068,10 @@ export default function EditProductPage() {
                   ))}
                 </div>
               )}
+              {/* 선택된 제본 단가 상세 (초록박스) */}
+              {selectedBindings.length > 0 && bindingSettingDetail && (
+                <BindingPriceDetail setting={bindingSettingDetail} />
+              )}
               {shouldShow('bindingDirection') && (<div className="flex gap-4 pt-2">
                 <Label className="text-xs text-slate-500">제본방향</Label>
                 <div className="flex gap-3">
@@ -1070,7 +1125,7 @@ export default function EditProductPage() {
                       const groupSpecs = g.method === 'INKJET'
                         ? outputPriceSelections.filter(sel =>
                             g.ids.includes(sel.id) && sel.specificationId
-                          )
+                          ).filter((sel, idx, arr) => arr.findIndex(s => s.specificationId === sel.specificationId) === idx)
                         : [];
                       const checkedSpecCount = groupSpecs.filter(sel => selectedSpecs.includes(sel.specificationId!)).length;
 
@@ -1107,37 +1162,7 @@ export default function EditProductPage() {
                             </button>
                           </div>
 
-                          {/* INKJET: 규격 체크박스 */}
-                          {groupSpecs.length > 0 && (
-                            <div className="flex flex-wrap gap-1 px-3 pb-2 border-t border-slate-100 pt-2">
-                              {groupSpecs.map(sel => {
-                                const isChecked = selectedSpecs.includes(sel.specificationId!);
-                                return (
-                                  <label
-                                    key={sel.id}
-                                    className={cn(
-                                      'flex items-center gap-1.5 px-2.5 py-1.5 rounded cursor-pointer transition-colors text-[12px]',
-                                      isChecked
-                                        ? 'bg-blue-50 text-blue-700 font-medium'
-                                        : 'hover:bg-slate-100 text-slate-500'
-                                    )}
-                                  >
-                                    <Checkbox
-                                      checked={isChecked}
-                                      onCheckedChange={(checked) => {
-                                        if (checked) {
-                                          setSelectedSpecs(prev => [...new Set([...prev, sel.specificationId!])]);
-                                        } else {
-                                          setSelectedSpecs(prev => prev.filter(id => id !== sel.specificationId));
-                                        }
-                                      }}
-                                    />
-                                    {sel.specificationName || sel.specificationId}
-                                  </label>
-                                );
-                              })}
-                            </div>
-                          )}
+                          {/* INKJET: 규격 개수만 표시 (상세는 하단 규격정보에서 관리) */}
                         </div>
                       );
                     })}
@@ -1149,25 +1174,29 @@ export default function EditProductPage() {
                   <Label className="text-xs text-slate-500">출력구분</Label>
                   <div className="flex gap-3">
                     {PRINT_TYPE_OPTIONS.map(opt => (
-                      <label key={opt.value} className="flex items-center gap-1.5 cursor-pointer">
+                      <label key={opt.value} className={`flex items-center gap-1.5 ${autoPrintType ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}>
                         <input
                           type="radio"
                           name="printType"
                           value={opt.value}
                           checked={printType === opt.value}
-                          onChange={(e) => setPrintType(e.target.value as 'single' | 'double' | 'customer')}
-                          className="w-3.5 h-3.5 text-emerald-600"
+                          onChange={(e) => { if (!autoPrintType) setPrintType(e.target.value as 'single' | 'double' | 'customer'); }}
+                          disabled={!!autoPrintType}
+                          className="w-3.5 h-3.5 text-emerald-600 disabled:opacity-60"
                         />
                         <span className="text-xs">{opt.label}</span>
                       </label>
                     ))}
                   </div>
+                  {autoPrintType && (
+                    <span className="text-xs text-slate-400">(카테고리/상품명 자동결정)</span>
+                  )}
                 </div>
               </div>
             </div>)}
           </div>
 
-          {/* 규격정보 - 출력단가 토글과 연동 */}
+          {/* 규격정보 - 출력방식별 그룹핑 */}
           {showOutputPrice && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -1184,279 +1213,360 @@ export default function EditProductPage() {
                 </Button>
               </div>
               {selectedSpecs.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {selectedSpecs.map(specId => {
-                    const spec = specifications?.find(s => s.id === specId);
-                    if (!spec) return null;
-                    // 출력단가에서 연결된 규격인지 표시
-                    const linkedOutput = outputPriceSelections.find(sel => sel.specificationId === specId);
-                    return (
-                      <Badge
-                        key={specId}
-                        variant="outline"
-                        className={cn(
-                          'flex items-center gap-1.5 px-2 py-1 bg-white',
-                          linkedOutput ? 'border-orange-200 bg-orange-50/50' : ''
-                        )}
-                      >
-                        <span className="text-[12px] font-normal">{spec.name}</span>
-                        <span className="text-[12px] font-normal text-slate-400">{spec.widthMm}×{spec.heightMm}mm</span>
-                        {linkedOutput && (
-                          <span className="text-[9px] text-orange-500 font-medium">
-                            {linkedOutput.outputMethod === 'INKJET' ? '잉크젯' : '인디고'}
-                          </span>
-                        )}
-                        <button
-                          type="button"
-                          title="삭제"
-                          className="ml-0.5 hover:text-red-500 transition-colors"
-                          onClick={() => setSelectedSpecs(prev => prev.filter(id => id !== specId))}
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-xs text-slate-400 py-2">선택된 규격이 없습니다. 출력단가에서 잉크젯 규격을 선택하거나 &apos;규격 선택&apos; 버튼으로 추가하세요.</p>
-              )}
-            </div>
-          )}
+                (() => {
+                  // 출력방식별 규격 분류
+                  const hasIndigo = outputPriceSelections.some(s => s.outputMethod === 'INDIGO');
+                  const hasInkjet = outputPriceSelections.some(s => s.outputMethod === 'INKJET');
 
-          {/* 앨범 표지 원단 선택 */}
-          {shouldShow('fabric') && hasCoverFabric && (<div className="space-y-3">
-            <Label className="text-[13px] font-medium text-slate-600 flex items-center gap-1.5">
-              <Palette className="h-4 w-4 text-slate-400" />
-              앨범 표지 원단
-              {selectedFabricIds.length > 0 && (
-                <Badge variant="secondary" className="text-[10px] h-4 px-1.5">{selectedFabricIds.length}개 선택</Badge>
-              )}
-            </Label>
-            {(() => {
-              const allFabrics = fabricsData?.data || [];
-              if (allFabrics.length === 0) {
-                return <p className="text-xs text-slate-400 py-2">등록된 앨범 커버용 원단이 없습니다. 기초정보 &gt; 표지원단 관리에서 원단을 등록하세요.</p>;
-              }
+                  // 인디고 규격: forIndigo 또는 forIndigoAlbum
+                  const indigoSpecIds = selectedSpecs.filter(id => {
+                    const spec = specifications?.find(s => s.id === id);
+                    return spec && (spec.forIndigo || spec.forIndigoAlbum);
+                  });
+                  // 잉크젯앨범 규격: forAlbum
+                  const inkjetAlbumSpecIds = selectedSpecs.filter(id => {
+                    const spec = specifications?.find(s => s.id === id);
+                    return spec && spec.forAlbum;
+                  });
+                  // 잉크젯출력 규격: forInkjet (forAlbum 제외)
+                  const inkjetOutputSpecIds = selectedSpecs.filter(id => {
+                    const spec = specifications?.find(s => s.id === id);
+                    return spec && spec.forInkjet && !spec.forAlbum;
+                  });
+                  // 액자 규격
+                  const frameSpecIds = selectedSpecs.filter(id => {
+                    const spec = specifications?.find(s => s.id === id);
+                    return spec && spec.forFrame;
+                  });
+                  // 책자 규격
+                  const bookletSpecIds = selectedSpecs.filter(id => {
+                    const spec = specifications?.find(s => s.id === id);
+                    return spec && spec.forBooklet;
+                  });
+                  // 미분류 규격 (위 어디에도 포함되지 않는 것)
+                  const classifiedIds = new Set([...indigoSpecIds, ...inkjetAlbumSpecIds, ...inkjetOutputSpecIds, ...frameSpecIds, ...bookletSpecIds]);
+                  const unclassifiedSpecIds = selectedSpecs.filter(id => !classifiedIds.has(id));
 
-              const searchLower = fabricSearch.toLowerCase();
-              const filteredFabrics = searchLower
-                ? allFabrics.filter(f => f.name.toLowerCase().includes(searchLower))
-                : null;
+                  // 앨범상품: 출력단가에서 선택된 방식의 앨범 규격만 표시
+                  const specGroups = [
+                    { label: '인디고앨범', color: 'purple', specIds: indigoSpecIds, show: hasIndigo && indigoSpecIds.length > 0 },
+                    { label: '잉크젯앨범', color: 'blue', specIds: inkjetAlbumSpecIds, show: hasInkjet && inkjetAlbumSpecIds.length > 0 },
+                  ].filter(g => g.show);
 
-              const categories = [...new Set(allFabrics.map(f => f.category))] as FabricCategory[];
+                  const colorMap: Record<string, { border: string; bg: string; badge: string }> = {
+                    purple: { border: 'border-purple-200', bg: 'bg-purple-50/50', badge: 'bg-purple-100 text-purple-700' },
+                    blue: { border: 'border-blue-200', bg: 'bg-blue-50/50', badge: 'bg-blue-100 text-blue-700' },
+                    cyan: { border: 'border-cyan-200', bg: 'bg-cyan-50/50', badge: 'bg-cyan-100 text-cyan-700' },
+                    amber: { border: 'border-amber-200', bg: 'bg-amber-50/50', badge: 'bg-amber-100 text-amber-700' },
+                    green: { border: 'border-green-200', bg: 'bg-green-50/50', badge: 'bg-green-100 text-green-700' },
+                    slate: { border: 'border-slate-200', bg: 'bg-slate-50/50', badge: 'bg-slate-100 text-slate-700' },
+                  };
 
-              return (
-                <div className="space-y-2">
-                  {/* 검색 + 전체선택/해제 */}
-                  <div className="flex items-center gap-2">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                      <Input
-                        placeholder="원단명 검색..."
-                        value={fabricSearch}
-                        onChange={e => setFabricSearch(e.target.value)}
-                        className="pl-7 h-7 text-[12px]"
-                      />
-                      {fabricSearch && (
-                        <button type="button" onClick={() => setFabricSearch('')}
-                          className="absolute right-2 top-1/2 -translate-y-1/2">
-                          <X className="h-3 w-3 text-slate-400 hover:text-slate-600" />
-                        </button>
-                      )}
-                    </div>
-                    <button type="button"
-                      onClick={() => setSelectedFabricIds(allFabrics.map(f => f.id))}
-                      className="text-[11px] text-slate-500 hover:text-slate-800 whitespace-nowrap px-2 py-1 rounded border border-slate-200 hover:border-slate-400 transition-colors">
-                      전체선택
-                    </button>
-                    <button type="button"
-                      onClick={() => setSelectedFabricIds([])}
-                      className="text-[11px] text-slate-500 hover:text-slate-800 whitespace-nowrap px-2 py-1 rounded border border-slate-200 hover:border-slate-400 transition-colors">
-                      전체해제
-                    </button>
-                  </div>
+                  // 출력단가에 연결된 잉크젯 규격 ID 목록
+                  const linkedInkjetSpecIds = new Set(
+                    outputPriceSelections
+                      .filter(s => s.outputMethod === 'INKJET' && s.specificationId)
+                      .map(s => s.specificationId!)
+                  );
 
-                  {/* 검색 결과 (칩 형태) */}
-                  {filteredFabrics ? (
-                    <div className="border rounded-md p-2 max-h-[280px] overflow-y-auto">
-                      {filteredFabrics.length === 0 ? (
-                        <p className="text-xs text-slate-400 py-3 text-center">검색 결과가 없습니다.</p>
-                      ) : (
-                        <div className="flex flex-wrap gap-1.5">
-                          {filteredFabrics.map(fabric => {
-                            const isSelected = selectedFabricIds.includes(fabric.id);
-                            return (
-                              <button key={fabric.id} type="button"
-                                onClick={() => setSelectedFabricIds(prev =>
-                                  isSelected ? prev.filter(id => id !== fabric.id) : [...prev, fabric.id]
-                                )}
-                                className={cn(
-                                  'inline-flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-full text-[11px] border transition-all duration-150',
-                                  isSelected
-                                    ? 'bg-blue-50 border-blue-300 text-blue-700 shadow-sm'
-                                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
-                                )}>
-                                {fabric.thumbnailUrl ? (
-                                  <div className="w-4 h-4 rounded-full border bg-cover bg-center flex-shrink-0"
-                                    style={{ backgroundImage: `url(${normalizeImageUrl(fabric.thumbnailUrl)})` }} />
-                                ) : (
-                                  <div className="w-4 h-4 rounded-full border bg-slate-100 flex-shrink-0" />
-                                )}
-                                <span>{fabric.name}</span>
-                                {isSelected && <Check className="h-3 w-3 ml-0.5" />}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    /* 커튼 블라인드 스타일 */
-                    <div className="space-y-0">
-                      {categories.map((cat, idx) => {
-                        const catFabrics = allFabrics.filter(f => f.category === cat);
-                        const selectedCount = catFabrics.filter(f => selectedFabricIds.includes(f.id)).length;
-                        const allSelected = selectedCount === catFabrics.length;
-                        const someSelected = selectedCount > 0 && !allSelected;
-                        const isCollapsed = collapsedFabricCats.has(cat);
+                  return (
+                    <div className="space-y-2">
+                      {specGroups.map(group => {
+                        const colors = colorMap[group.color];
+                        const isInkjetGroup = group.label === '잉크젯앨범' || group.label === '잉크젯출력';
+                        // 단가 미설정 규격 수
+                        const missingCount = isInkjetGroup
+                          ? group.specIds.filter(id => !linkedInkjetSpecIds.has(id)).length
+                          : 0;
+                        // 해당 출력방식의 setting 추출
+                        const isIndigoGroup = !isInkjetGroup && group.label === '인디고앨범';
+                        let currentSetting: any = null;
+                        let currentPriceGroups: any[] = [];
+                        let currentPaperGroupMap: Record<string, string | null> = {};
+
+                        if (isIndigoGroup) {
+                          const indigoSel = outputPriceSelections.find(s => s.outputMethod === 'INDIGO');
+                          if (indigoSel?.productionSettingId) {
+                            currentSetting = allFinishingSettings?.find(s => s.id === indigoSel.productionSettingId);
+                          }
+                        } else if (isInkjetGroup) {
+                          // 잉크젯: 첫번째 INKJET selection의 setting
+                          const inkjetSel = outputPriceSelections.find(s => s.outputMethod === 'INKJET');
+                          if (inkjetSel?.productionSettingId) {
+                            currentSetting = allFinishingSettings?.find(s => s.id === inkjetSel.productionSettingId);
+                          }
+                        }
+                        if (currentSetting) {
+                          currentPriceGroups = currentSetting.priceGroups ?? [];
+                          currentPaperGroupMap = (currentSetting as any).paperPriceGroupMap ?? {};
+                        }
+
+                        // 그룹별 용지 매핑 구축 (현재 출력방식에 맞는 용지만 필터)
+                        const allPapers = (product?.papers as any[]) ?? [];
+                        const methodFilter = isIndigoGroup ? 'indigo' : isInkjetGroup ? 'inkjet' : null;
+                        const filteredPapers = methodFilter
+                          ? allPapers.filter((p: any) => p.printMethod === methodFilter)
+                          : allPapers;
+                        const groupPaperNames: Record<number, string[]> = {};
+                        if (currentPriceGroups.length > 0) {
+                          currentPriceGroups.forEach((_pg: any, idx: number) => {
+                            groupPaperNames[idx] = [];
+                          });
+                          Object.entries(currentPaperGroupMap).forEach(([masterId, groupId]) => {
+                            if (!groupId) return;
+                            const pgIdx = currentPriceGroups.findIndex((pg: any) => pg.id === groupId);
+                            if (pgIdx >= 0) {
+                              // paperId(마스터 용지 ID) 또는 paper.id로 매칭
+                              const paper = filteredPapers.find((p: any) => p.paperId === masterId || p.paper?.id === masterId);
+                              if (!paper) return;
+                              // 선택된(활성) 용지만 표시 - 현재 선택된 색상 탭(4도/6도)에 맞는 용지만 필터
+                              const isActivePaper = isIndigoGroup
+                                ? (indigoColorFilter === '4도' ? paperActive4Map[paper.id] !== false : paperActive6Map[paper.id] !== false)
+                                : (paperActiveMap[paper.id] !== false);
+                              if (!isActivePaper) return;
+                              const baseName = paper?.paper?.name || paper?.name;
+                              const grammage = paper?.grammage || paper?.paper?.grammage;
+                              const paperName = baseName ? (grammage ? `${baseName} ${grammage}g` : baseName) : null;
+                              if (paperName && !groupPaperNames[pgIdx].includes(paperName)) {
+                                groupPaperNames[pgIdx].push(paperName);
+                              }
+                            }
+                          });
+                        }
+
+                        // 필터 상태 (인디고/잉크젯 각각 독립 그룹 인덱스)
+                        const activeGroupIndex = isIndigoGroup ? indigoGroupIndex : (isInkjetGroup ? inkjetGroupIndex : 0);
+                        const setActiveGroupIndex = isIndigoGroup ? setIndigoGroupIndex : setInkjetGroupIndex;
+                        const safeGroupIndex = currentPriceGroups.length > 0 ? Math.min(activeGroupIndex, currentPriceGroups.length - 1) : 0;
 
                         return (
-                          <div key={cat}>
-                            {/* 블라인드 슬랫 */}
-                            <div
-                              className={cn(
-                                'flex items-center gap-2 px-3 py-2 cursor-pointer select-none transition-all duration-200',
-                                'border border-slate-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)]',
-                                idx === 0 && 'rounded-t-md',
-                                idx === categories.length - 1 && isCollapsed && 'rounded-b-md',
-                                !isCollapsed
-                                  ? 'bg-gradient-to-r from-blue-50/80 to-slate-50 shadow-[0_1px_3px_rgba(0,0,0,0.06)]'
-                                  : 'bg-gradient-to-r from-slate-50 to-white',
-                                idx > 0 && '-mt-px'
-                              )}
-                            >
-                              <Checkbox
-                                checked={someSelected ? 'indeterminate' : allSelected}
-                                onCheckedChange={checked => {
-                                  const catIds = catFabrics.map(f => f.id);
-                                  setSelectedFabricIds(prev =>
-                                    checked
-                                      ? [...new Set([...prev, ...catIds])]
-                                      : prev.filter(id => !catIds.includes(id))
-                                  );
-                                }}
-                              />
-                              <button type="button"
-                                className="flex-1 flex items-center gap-2 text-left min-w-0"
-                                onClick={() => setCollapsedFabricCats(prev => {
-                                  const next = new Set(prev);
-                                  next.has(cat) ? next.delete(cat) : next.add(cat);
-                                  return next;
-                                })}>
-                                <span className="text-[12px] font-semibold text-slate-700 truncate">
-                                  {FABRIC_CATEGORY_LABELS[cat] || cat}
+                          <div key={group.label} className={cn('rounded-lg border p-2.5', colors.border, colors.bg)}>
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className={cn('text-[11px] font-semibold px-2 py-0.5 rounded-full', colors.badge)}>
+                                {group.label}
+                              </span>
+                              <span className="text-[11px] text-slate-400">{group.specIds.length}개</span>
+                              {missingCount > 0 && (
+                                <span className="text-[10px] text-red-500 font-medium">
+                                  (단가미설정 {missingCount}개)
                                 </span>
-                                {selectedCount > 0 ? (
-                                  <Badge variant="default" className="text-[9px] h-4 px-1.5 rounded-full bg-blue-500">
-                                    {selectedCount}/{catFabrics.length}
-                                  </Badge>
-                                ) : (
-                                  <span className="text-[10px] text-slate-400">{catFabrics.length}</span>
-                                )}
-                                <ChevronDown className={cn(
-                                  'h-3.5 w-3.5 text-slate-400 ml-auto transition-transform duration-300',
-                                  isCollapsed ? '-rotate-90' : 'rotate-0'
-                                )} />
-                              </button>
+                              )}
                             </div>
 
-                            {/* 블라인드 펼침 영역 - 커튼 내려가듯 */}
-                            <div
-                              className={cn(
-                                'overflow-hidden transition-all duration-300 ease-in-out',
-                                isCollapsed ? 'max-h-0 opacity-0' : 'max-h-[300px] opacity-100'
-                              )}
-                            >
-                              <div className="px-2.5 py-2 border-x border-slate-200 bg-white -mt-px">
-                                <div className="flex flex-wrap gap-1.5">
-                                  {catFabrics.map(fabric => {
-                                    const isSelected = selectedFabricIds.includes(fabric.id);
-                                    return (
-                                      <button key={fabric.id} type="button"
-                                        onClick={() => setSelectedFabricIds(prev =>
-                                          isSelected ? prev.filter(id => id !== fabric.id) : [...prev, fabric.id]
-                                        )}
-                                        className={cn(
-                                          'inline-flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-full text-[11px] border transition-all duration-150',
-                                          isSelected
-                                            ? 'bg-blue-50 border-blue-300 text-blue-700 shadow-sm'
-                                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
-                                        )}>
-                                        {fabric.thumbnailUrl ? (
-                                          <div className="w-4 h-4 rounded-full border bg-cover bg-center flex-shrink-0"
-                                            style={{ backgroundImage: `url(${normalizeImageUrl(fabric.thumbnailUrl)})` }} />
-                                        ) : (
-                                          <div className="w-4 h-4 rounded-full border bg-slate-100 flex-shrink-0" />
-                                        )}
-                                        <span>{fabric.name}</span>
-                                        {isSelected && <Check className="h-3 w-3 ml-0.5 text-blue-500" />}
-                                      </button>
-                                    );
-                                  })}
-                                </div>
+                            {/* 가격 필터 컨트롤 (priceGroups가 있을 때) */}
+                            {currentPriceGroups.length > 0 && (
+                              <div className="flex flex-wrap items-center gap-3 mb-2 p-1.5 bg-white/70 rounded border border-slate-200/80">
+                                {/* 인디고 전용: 색상 선택 (4도/6도) */}
+                                {isIndigoGroup && (
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] text-slate-500 font-medium">색상</span>
+                                    <div className="flex rounded overflow-hidden border border-slate-200">
+                                      {(['4도', '6도'] as const).map(ct => (
+                                        <button
+                                          key={ct}
+                                          type="button"
+                                          className={cn(
+                                            'px-2 py-0.5 text-[10px] font-medium transition-colors',
+                                            indigoColorFilter === ct
+                                              ? (isIndigoGroup ? 'bg-purple-600 text-white' : 'bg-blue-600 text-white')
+                                              : 'bg-white text-slate-600 hover:bg-slate-50'
+                                          )}
+                                          onClick={() => setIndigoColorFilter(ct)}
+                                        >
+                                          {ct}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* 인디고 전용: 출력면 선택 (단면/양면) */}
+                                {isIndigoGroup && (
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] text-slate-500 font-medium">출력</span>
+                                    <div className="flex rounded overflow-hidden border border-slate-200">
+                                      {([{ value: 'single', label: '단면' }, { value: 'double', label: '양면' }] as const).map(opt => (
+                                        <button
+                                          key={opt.value}
+                                          type="button"
+                                          className={cn(
+                                            'px-2 py-0.5 text-[10px] font-medium transition-colors',
+                                            indigoPrintSide === opt.value
+                                              ? 'bg-purple-600 text-white'
+                                              : 'bg-white text-slate-600 hover:bg-slate-50'
+                                          )}
+                                          onClick={() => setIndigoPrintSide(opt.value as 'single' | 'double')}
+                                        >
+                                          {opt.label}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* 그룹 선택 (공통 - 용지명 포함) */}
+                                {currentPriceGroups.length > 1 && (
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] text-slate-500 font-medium shrink-0">용지그룹</span>
+                                    <div className="flex gap-1 flex-wrap">
+                                      {currentPriceGroups.map((pg: any, idx: number) => {
+                                        const paperNames = groupPaperNames[idx] ?? [];
+                                        const isActive = safeGroupIndex === idx;
+                                        const activeBg = isIndigoGroup ? 'bg-purple-600' : 'bg-blue-600';
+                                        // 선택된 용지가 하나도 없는 그룹은 숨김 (groupPaperNames는 활성 용지만 포함)
+                                        const groupPapersAll = filteredPapers.filter((p: any) => {
+                                          const mid = p.paperId || p.paper?.id;
+                                          return currentPaperGroupMap[mid] === pg.id;
+                                        });
+                                        if (groupPapersAll.length > 0 && paperNames.length === 0) return null;
+                                        return (
+                                          <button
+                                            key={pg.id}
+                                            type="button"
+                                            className={cn(
+                                              'flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-medium transition-colors',
+                                              isActive
+                                                ? `${activeBg} text-white border-transparent`
+                                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                                            )}
+                                            onClick={() => setActiveGroupIndex(idx)}
+                                          >
+                                            {pg.color && (
+                                              <span
+                                                className={cn('inline-block w-2 h-2 rounded-full shrink-0', isActive && 'ring-1 ring-white/50')}
+                                                style={{ backgroundColor: pg.color === 'green' ? '#22c55e' : pg.color === 'blue' ? '#3b82f6' : pg.color === 'red' ? '#ef4444' : pg.color === 'orange' ? '#f97316' : pg.color }}
+                                              />
+                                            )}
+                                            <span>{pg.name || `그룹${idx + 1}`}</span>
+                                            {paperNames.length > 0 && (
+                                              <span className={cn('text-[9px]', isActive ? 'text-white/80' : 'text-slate-400')}>
+                                                ({paperNames.join(', ')})
+                                              </span>
+                                            )}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+                                {/* 그룹 1개인 경우에도 소속 용지 표시 */}
+                                {currentPriceGroups.length === 1 && (groupPaperNames[0] ?? []).length > 0 && (
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] text-slate-500 font-medium shrink-0">용지</span>
+                                    <span className="text-[10px] text-slate-600">
+                                      {(groupPaperNames[0] ?? []).join(', ')}
+                                    </span>
+                                  </div>
+                                )}
                               </div>
-                              {/* 블라인드 하단 그림자 라인 */}
-                              {idx === categories.length - 1 && !isCollapsed && (
-                                <div className="h-px border-b border-slate-200 rounded-b-md" />
-                              )}
+                            )}
+
+                            <div className="flex flex-wrap gap-1">
+                              {[...group.specIds].sort((a, b) => {
+                                const sa = specifications?.find(s => s.id === a);
+                                const sb = specifications?.find(s => s.id === b);
+                                const areaA = sa ? (Number(sa.squareMeters) || sa.widthInch * sa.heightInch) : 0;
+                                const areaB = sb ? (Number(sb.squareMeters) || sb.widthInch * sb.heightInch) : 0;
+                                return areaA - areaB;
+                              }).map(specId => {
+                                const spec = specifications?.find(s => s.id === specId);
+                                if (!spec) return null;
+
+                                let hasPricing = false;
+                                let price: number | undefined;
+
+                                if (isInkjetGroup && currentPriceGroups.length > 0) {
+                                  // 잉크젯: 선택된 그룹의 specPrices에서 가격 조회
+                                  const selectedGroup = currentPriceGroups[safeGroupIndex];
+                                  if (selectedGroup?.specPrices) {
+                                    const specPrice = selectedGroup.specPrices.find(
+                                      (sp: any) => sp.specificationId === specId
+                                    );
+                                    if (specPrice) {
+                                      price = specPrice.singleSidedPrice;
+                                      hasPricing = true;
+                                    }
+                                  }
+                                } else if (isInkjetGroup) {
+                                  // 잉크젯 fallback: outputPriceSelections에서
+                                  const linkedPrice = outputPriceSelections.find(
+                                    s => s.specificationId === specId && s.selectedSpecPrice
+                                  );
+                                  hasPricing = linkedInkjetSpecIds.has(specId);
+                                  price = linkedPrice?.selectedSpecPrice?.singleSidedPrice;
+                                } else if (isIndigoGroup && currentPriceGroups.length > 0) {
+                                  // 인디고: 선택된 그룹/색상/출력면에 따라 가격 표시
+                                  const selectedGroup = currentPriceGroups[safeGroupIndex];
+                                  if (selectedGroup?.upPrices) {
+                                    const nupNum = spec.nup ? parseInt(spec.nup.replace(/[^0-9]/g, '')) || 1 : 1;
+                                    const upPrice = selectedGroup.upPrices.find((u: any) => u.up === nupNum);
+                                    if (upPrice) {
+                                      if (indigoColorFilter === '4도') {
+                                        price = indigoPrintSide === 'single'
+                                          ? upPrice.fourColorSinglePrice
+                                          : upPrice.fourColorDoublePrice;
+                                      } else {
+                                        price = indigoPrintSide === 'single'
+                                          ? upPrice.sixColorSinglePrice
+                                          : upPrice.sixColorDoublePrice;
+                                      }
+                                      if (price != null) hasPricing = true;
+                                    }
+                                  }
+                                } else {
+                                  // fallback (priceGroups 없는 경우)
+                                  const indigoSel = outputPriceSelections.find(s => s.outputMethod === 'INDIGO');
+                                  if (indigoSel?.productionSettingId) {
+                                    const setting = allFinishingSettings?.find(s => s.id === indigoSel.productionSettingId);
+                                    const firstGrp = setting?.priceGroups?.[0];
+                                    if (firstGrp?.upPrices) {
+                                      const nupNum = spec.nup ? parseInt(spec.nup.replace(/[^0-9]/g, '')) || 1 : 1;
+                                      const upPrice = firstGrp.upPrices.find((u: any) => u.up === nupNum);
+                                      if (upPrice) {
+                                        price = (upPrice as any).fourColorSinglePrice ?? upPrice.singleSidedPrice;
+                                        hasPricing = true;
+                                      }
+                                    }
+                                  }
+                                }
+                                return (
+                                  <Badge
+                                    key={specId}
+                                    variant="outline"
+                                    className={cn(
+                                      'flex items-center gap-1 px-2 py-0.5 bg-white text-[11px]',
+                                      !hasPricing && 'border-red-400 bg-red-50/50'
+                                    )}
+                                  >
+                                    <span className="font-normal">{spec.name}</span>
+                                    {hasPricing && price != null ? (
+                                      <span className="font-medium text-emerald-600">₩{price.toLocaleString()}</span>
+                                    ) : (
+                                      <span className="text-[9px] text-red-500 font-medium">단가없음</span>
+                                    )}
+                                    <button
+                                      type="button"
+                                      title="삭제"
+                                      className="ml-0.5 hover:text-red-500 transition-colors"
+                                      onClick={() => setSelectedSpecs(prev => prev.filter(id => id !== specId))}
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  </Badge>
+                                );
+                              })}
                             </div>
                           </div>
                         );
                       })}
                     </div>
-                  )}
-                </div>
-              );
-            })()}
-          </div>)}
-
-          {/* 박(Foil) 선택 - 동판 토글이 켜져있을 때만 표시 */}
-          {useCopperPlate && (<div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-[13px] font-medium text-slate-600 flex items-center gap-1.5">
-                <Sparkles className="h-4 w-4 text-slate-400" />
-                박 컬러 선택
-                {selectedFoils.length > 0 && (
-                  <Badge variant="secondary" className="text-[10px] h-4 px-1.5">{selectedFoils.length}개 선택</Badge>
-                )}
-              </Label>
-              <Button type="button" variant="outline" size="sm" className="h-7 text-[11px] gap-1"
-                onClick={() => setFoilDialogOpen(true)}>
-                <Plus className="h-3 w-3" />
-                박 추가
-              </Button>
+                  );
+                })()
+              ) : (
+                <p className="text-xs text-slate-400 py-2">선택된 규격이 없습니다. 출력단가에서 잉크젯 규격을 선택하거나 &apos;규격 선택&apos; 버튼으로 추가하세요.</p>
+              )}
             </div>
-            {selectedFoils.length === 0 ? (
-              <p className="text-xs text-slate-400 py-2">선택된 박 컬러가 없습니다. &apos;박 추가&apos; 버튼으로 거래처에 등록된 박 컬러를 선택하세요.</p>
-            ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {selectedFoils.map((foil) => (
-                  <Badge key={foil.id} variant="outline" className="flex items-center gap-1.5 px-2 py-1 bg-white">
-                    {foil.color && (
-                      <div className="w-3 h-3 rounded-full border border-slate-200 flex-shrink-0"
-                        style={{ backgroundColor: foil.color }} />
-                    )}
-                    <span className="text-[11px]">{foil.name}</span>
-                    <button type="button" title="삭제" className="ml-0.5 hover:text-red-500 transition-colors"
-                      onClick={() => setSelectedFoils(prev => prev.filter(f => f.id !== foil.id))}>
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>)}
+          )}
 
           {/* 용지 사용 여부 - 출력방식별 그룹화 (출력단가 토글이 켜져있을 때만 표시) */}
           {showOutputPrice && product?.papers && product.papers.length > 0 && (
@@ -1498,10 +1608,7 @@ export default function EditProductPage() {
                   outputPriceSelections.map(s => s.outputMethod?.toLowerCase())
                 );
                 const sortedMethods = methodOrder.filter(m =>
-                  printMethodGroups[m] && (
-                    // indigo/inkjet은 해당 출력방법이 선택되어 있을 때만 표시
-                    m === 'etc' || m === 'offset' || activeOutputMethods.has(m)
-                  )
+                  printMethodGroups[m] && activeOutputMethods.has(m)
                 );
 
                 const getPaperType = (name: string) =>
@@ -1512,10 +1619,14 @@ export default function EditProductPage() {
                   let toggleActive: (val: boolean) => void;
                   if (colorType === '4도') {
                     isActive = paperActive4Map[paper.id] !== false;
-                    toggleActive = (val) => setPaperActive4Map(prev => ({ ...prev, [paper.id]: val }));
+                    toggleActive = (val) => {
+                      setPaperActive4Map(prev => ({ ...prev, [paper.id]: val }));
+                    };
                   } else if (colorType === '6도') {
                     isActive = paperActive6Map[paper.id] !== false;
-                    toggleActive = (val) => setPaperActive6Map(prev => ({ ...prev, [paper.id]: val }));
+                    toggleActive = (val) => {
+                      setPaperActive6Map(prev => ({ ...prev, [paper.id]: val }));
+                    };
                   } else {
                     isActive = paperActiveMap[paper.id] !== false;
                     toggleActive = (val) => setPaperActiveMap(prev => ({ ...prev, [paper.id]: val }));
@@ -1612,9 +1723,24 @@ export default function EditProductPage() {
                               <div className="grid grid-cols-2">
                                 {indigoColorOrder.map(ct => (
                                   <div key={ct} className={ct === '4도' ? 'border-r border-indigo-100' : ''}>
-                                    <div className="px-3 py-1 text-[11px] font-semibold text-indigo-600 bg-indigo-50/60 border-b border-indigo-100">
-                                      인디고{ct}
-                                      <span className="ml-1 font-normal opacity-70">({papers.length}개)</span>
+                                    <div className="px-3 py-1 text-[11px] font-semibold text-indigo-600 bg-indigo-50/60 border-b border-indigo-100 flex items-center justify-between">
+                                      <span>
+                                        인디고{ct}
+                                        <span className="ml-1 font-normal opacity-70">({papers.length}개)</span>
+                                      </span>
+                                      {ct === '6도' && (
+                                        <button
+                                          type="button"
+                                          className="text-[10px] font-normal text-indigo-400 hover:text-indigo-700 underline"
+                                          onClick={() => {
+                                            const newMap = { ...paperActive6Map };
+                                            papers.forEach((p: any) => { newMap[p.id] = paperActive4Map[p.id] !== false; });
+                                            setPaperActive6Map(newMap);
+                                          }}
+                                        >
+                                          4도와 동기화
+                                        </button>
+                                      )}
                                     </div>
                                     <div className="divide-y">
                                       {renderPaperTypeRows(papers, ct)}
@@ -1928,6 +2054,252 @@ export default function EditProductPage() {
       </Card>
       )}
 
+      {/* 앨범 표지 원단 선택 */}
+      {hasCoverFabric && (
+        <Card className="overflow-hidden border border-teal-200 shadow-none rounded-lg">
+          <CardContent className="px-6 py-4">
+            <div className="space-y-3">
+            <Label className="text-[13px] font-medium text-slate-600 flex items-center gap-1.5">
+              <Palette className="h-4 w-4 text-slate-400" />
+              앨범 표지 원단
+              {selectedFabricIds.length > 0 && (
+                <Badge variant="secondary" className="text-[10px] h-4 px-1.5">{selectedFabricIds.length}개 선택</Badge>
+              )}
+            </Label>
+            {(() => {
+              const allFabrics = fabricsData?.data || [];
+              if (allFabrics.length === 0) {
+                return <p className="text-xs text-slate-400 py-2">등록된 앨범 커버용 원단이 없습니다. 기초정보 &gt; 표지원단 관리에서 원단을 등록하세요.</p>;
+              }
+
+              const searchLower = fabricSearch.toLowerCase();
+              const filteredFabrics = searchLower
+                ? allFabrics.filter(f => f.name.toLowerCase().includes(searchLower))
+                : null;
+
+              const categories = [...new Set(allFabrics.map(f => f.category))] as FabricCategory[];
+
+              return (
+                <div className="space-y-2">
+                  {/* 검색 + 전체선택/해제 */}
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                      <Input
+                        placeholder="원단명 검색..."
+                        value={fabricSearch}
+                        onChange={e => setFabricSearch(e.target.value)}
+                        className="pl-7 h-7 text-[12px]"
+                      />
+                      {fabricSearch && (
+                        <button type="button" onClick={() => setFabricSearch('')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2">
+                          <X className="h-3 w-3 text-slate-400 hover:text-slate-600" />
+                        </button>
+                      )}
+                    </div>
+                    <button type="button"
+                      onClick={() => setSelectedFabricIds(allFabrics.map(f => f.id))}
+                      className="text-[11px] text-slate-500 hover:text-slate-800 whitespace-nowrap px-2 py-1 rounded border border-slate-200 hover:border-slate-400 transition-colors">
+                      전체선택
+                    </button>
+                    <button type="button"
+                      onClick={() => setSelectedFabricIds([])}
+                      className="text-[11px] text-slate-500 hover:text-slate-800 whitespace-nowrap px-2 py-1 rounded border border-slate-200 hover:border-slate-400 transition-colors">
+                      전체해제
+                    </button>
+                  </div>
+
+                  {/* 검색 결과 (칩 형태) */}
+                  {filteredFabrics ? (
+                    <div className="border rounded-md p-2 max-h-[280px] overflow-y-auto">
+                      {filteredFabrics.length === 0 ? (
+                        <p className="text-xs text-slate-400 py-3 text-center">검색 결과가 없습니다.</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5">
+                          {filteredFabrics.map(fabric => {
+                            const isSelected = selectedFabricIds.includes(fabric.id);
+                            return (
+                              <button key={fabric.id} type="button"
+                                onClick={() => setSelectedFabricIds(prev =>
+                                  isSelected ? prev.filter(id => id !== fabric.id) : [...prev, fabric.id]
+                                )}
+                                className={cn(
+                                  'inline-flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-full text-[11px] border transition-all duration-150',
+                                  isSelected
+                                    ? 'bg-blue-50 border-blue-300 text-blue-700 shadow-sm'
+                                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
+                                )}>
+                                {fabric.thumbnailUrl ? (
+                                  <div className="w-4 h-4 rounded-full border bg-cover bg-center flex-shrink-0"
+                                    style={{ backgroundImage: `url(${normalizeImageUrl(fabric.thumbnailUrl)})` }} />
+                                ) : (
+                                  <div className="w-4 h-4 rounded-full border bg-slate-100 flex-shrink-0" />
+                                )}
+                                <span>{fabric.name}</span>
+                                {isSelected && <Check className="h-3 w-3 ml-0.5" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* 커튼 블라인드 스타일 */
+                    <div className="space-y-0">
+                      {categories.map((cat, idx) => {
+                        const catFabrics = allFabrics.filter(f => f.category === cat);
+                        const selectedCount = catFabrics.filter(f => selectedFabricIds.includes(f.id)).length;
+                        const allSelected = selectedCount === catFabrics.length;
+                        const someSelected = selectedCount > 0 && !allSelected;
+                        const isCollapsed = collapsedFabricCats.has(cat);
+
+                        return (
+                          <div key={cat}>
+                            {/* 블라인드 슬랫 */}
+                            <div
+                              className={cn(
+                                'flex items-center gap-2 px-3 py-2 cursor-pointer select-none transition-all duration-200',
+                                'border border-slate-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)]',
+                                idx === 0 && 'rounded-t-md',
+                                idx === categories.length - 1 && isCollapsed && 'rounded-b-md',
+                                !isCollapsed
+                                  ? 'bg-gradient-to-r from-blue-50/80 to-slate-50 shadow-[0_1px_3px_rgba(0,0,0,0.06)]'
+                                  : 'bg-gradient-to-r from-slate-50 to-white',
+                                idx > 0 && '-mt-px'
+                              )}
+                            >
+                              <Checkbox
+                                checked={someSelected ? 'indeterminate' : allSelected}
+                                onCheckedChange={checked => {
+                                  const catIds = catFabrics.map(f => f.id);
+                                  setSelectedFabricIds(prev =>
+                                    checked
+                                      ? [...new Set([...prev, ...catIds])]
+                                      : prev.filter(id => !catIds.includes(id))
+                                  );
+                                }}
+                              />
+                              <button type="button"
+                                className="flex-1 flex items-center gap-2 text-left min-w-0"
+                                onClick={() => setCollapsedFabricCats(prev => {
+                                  const next = new Set(prev);
+                                  next.has(cat) ? next.delete(cat) : next.add(cat);
+                                  return next;
+                                })}>
+                                <span className="text-[12px] font-semibold text-slate-700 truncate">
+                                  {FABRIC_CATEGORY_LABELS[cat] || cat}
+                                </span>
+                                {selectedCount > 0 ? (
+                                  <Badge variant="default" className="text-[9px] h-4 px-1.5 rounded-full bg-blue-500">
+                                    {selectedCount}/{catFabrics.length}
+                                  </Badge>
+                                ) : (
+                                  <span className="text-[10px] text-slate-400">{catFabrics.length}</span>
+                                )}
+                                <ChevronDown className={cn(
+                                  'h-3.5 w-3.5 text-slate-400 ml-auto transition-transform duration-300',
+                                  isCollapsed ? '-rotate-90' : 'rotate-0'
+                                )} />
+                              </button>
+                            </div>
+
+                            {/* 블라인드 펼침 영역 - 커튼 내려가듯 */}
+                            <div
+                              className={cn(
+                                'overflow-hidden transition-all duration-300 ease-in-out',
+                                isCollapsed ? 'max-h-0 opacity-0' : 'max-h-[300px] opacity-100'
+                              )}
+                            >
+                              <div className="px-2.5 py-2 border-x border-slate-200 bg-white -mt-px">
+                                <div className="flex flex-wrap gap-1.5">
+                                  {catFabrics.map(fabric => {
+                                    const isSelected = selectedFabricIds.includes(fabric.id);
+                                    return (
+                                      <button key={fabric.id} type="button"
+                                        onClick={() => setSelectedFabricIds(prev =>
+                                          isSelected ? prev.filter(id => id !== fabric.id) : [...prev, fabric.id]
+                                        )}
+                                        className={cn(
+                                          'inline-flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-full text-[11px] border transition-all duration-150',
+                                          isSelected
+                                            ? 'bg-blue-50 border-blue-300 text-blue-700 shadow-sm'
+                                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
+                                        )}>
+                                        {fabric.thumbnailUrl ? (
+                                          <div className="w-4 h-4 rounded-full border bg-cover bg-center flex-shrink-0"
+                                            style={{ backgroundImage: `url(${normalizeImageUrl(fabric.thumbnailUrl)})` }} />
+                                        ) : (
+                                          <div className="w-4 h-4 rounded-full border bg-slate-100 flex-shrink-0" />
+                                        )}
+                                        <span>{fabric.name}</span>
+                                        {isSelected && <Check className="h-3 w-3 ml-0.5 text-blue-500" />}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                              {/* 블라인드 하단 그림자 라인 */}
+                              {idx === categories.length - 1 && !isCollapsed && (
+                                <div className="h-px border-b border-slate-200 rounded-b-md" />
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 박(Foil) 선택 - 동판 토글이 켜져있을 때만 표시 */}
+      {useCopperPlate && (
+        <Card className="overflow-hidden border border-amber-200 shadow-none rounded-lg">
+          <CardContent className="px-6 py-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-[13px] font-medium text-slate-600 flex items-center gap-1.5">
+                  <Sparkles className="h-4 w-4 text-slate-400" />
+                  박 컬러 선택
+                  {selectedFoils.length > 0 && (
+                    <Badge variant="secondary" className="text-[10px] h-4 px-1.5">{selectedFoils.length}개 선택</Badge>
+                  )}
+                </Label>
+                <Button type="button" variant="outline" size="sm" className="h-7 text-[11px] gap-1"
+                  onClick={() => setFoilDialogOpen(true)}>
+                  <Plus className="h-3 w-3" />
+                  박 추가
+                </Button>
+              </div>
+              {selectedFoils.length === 0 ? (
+                <p className="text-xs text-slate-400 py-2">선택된 박 컬러가 없습니다. &apos;박 추가&apos; 버튼으로 거래처에 등록된 박 컬러를 선택하세요.</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedFoils.map((foil) => (
+                    <Badge key={foil.id} variant="outline" className="flex items-center gap-1.5 px-2 py-1 bg-white">
+                      {foil.color && (
+                        <div className="w-3 h-3 rounded-full border border-slate-200 flex-shrink-0"
+                          style={{ backgroundColor: foil.color }} />
+                      )}
+                      <span className="text-[11px]">{foil.name}</span>
+                      <button type="button" title="삭제" className="ml-0.5 hover:text-red-500 transition-colors"
+                        onClick={() => setSelectedFoils(prev => prev.filter(f => f.id !== foil.id))}>
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* 데이터 업로드 미리보기 - 업로드 토글 ON 시 표시 */}
       {requiresUpload && (
         <Card className="overflow-hidden border border-violet-200 shadow-none rounded-lg">
@@ -2163,14 +2535,18 @@ export default function EditProductPage() {
             </DialogTitle>
           </DialogHeader>
           <div className="flex gap-1 p-1 bg-slate-100 rounded-lg w-fit">
-            {[
-              { key: 'indigoAlbum', label: '인디고앨범' },
-              { key: 'indigo', label: '인디고출력' },
-              { key: 'inkjet', label: '잉크젯출력' },
-              { key: 'album', label: '잉크젯앨범' },
-              { key: 'frame', label: '액자' },
-              { key: 'booklet', label: '책자' },
-            ].map(tab => (
+            {(() => {
+              const hasIndigoOutput = outputPriceSelections.some(s => s.outputMethod === 'INDIGO');
+              const hasInkjetOutput = outputPriceSelections.some(s => s.outputMethod === 'INKJET');
+              return [
+                { key: 'indigoAlbum', label: '인디고앨범', visible: hasIndigoOutput },
+                { key: 'indigo', label: '인디고출력', visible: hasIndigoOutput },
+                { key: 'inkjet', label: '잉크젯출력', visible: hasInkjetOutput },
+                { key: 'album', label: '잉크젯앨범', visible: hasInkjetOutput },
+                { key: 'frame', label: '액자', visible: !hasIndigoOutput && !hasInkjetOutput },
+                { key: 'booklet', label: '책자', visible: !hasIndigoOutput && !hasInkjetOutput },
+              ].filter(tab => tab.visible);
+            })().map(tab => (
               <Button
                 key={tab.key}
                 type="button"
@@ -2238,28 +2614,33 @@ export default function EditProductPage() {
               </TableBody>
             </Table>
           </div>
-          {selectedSpecs.length > 0 && (
-            <div className="p-3 bg-slate-50 rounded-lg">
-              <p className="text-sm font-medium mb-2">선택된 규격 ({selectedSpecs.length}개)</p>
-              <div className="flex flex-wrap gap-2">
-                {selectedSpecs.map(specId => {
-                  const spec = specifications?.find(s => s.id === specId);
-                  return spec ? (
-                    <Badge key={specId} variant="secondary" className="flex items-center gap-1">
-                      {spec.name}
-                      <button
-                        type="button"
-                        className="ml-1 hover:bg-red-100 rounded-full p-0.5"
-                        onClick={() => setSelectedSpecs(prev => prev.filter(id => id !== specId))}
-                      >
-                        <X className="h-3 w-3 text-red-500" />
-                      </button>
-                    </Badge>
-                  ) : null;
-                })}
+          {(() => {
+            const currentTabSpecIds = getFilteredSpecs(specType).map(s => s.id);
+            const currentTabSelected = selectedSpecs.filter(id => currentTabSpecIds.includes(id));
+            return currentTabSelected.length > 0 ? (
+              <div className="p-3 bg-slate-50 rounded-lg">
+                <p className="text-sm font-medium mb-2">선택된 규격 ({currentTabSelected.length}개)</p>
+                <div className="flex flex-wrap gap-2">
+                  {currentTabSelected.map(specId => {
+                    const spec = specifications?.find(s => s.id === specId);
+                    return spec ? (
+                      <Badge key={specId} variant="secondary" className="flex items-center gap-1">
+                        {spec.name}
+                        <button
+                          type="button"
+                          title="규격 제거"
+                          className="ml-1 hover:bg-red-100 rounded-full p-0.5"
+                          onClick={() => setSelectedSpecs(prev => prev.filter(id => id !== specId))}
+                        >
+                          <X className="h-3 w-3 text-red-500" />
+                        </button>
+                      </Badge>
+                    ) : null;
+                  })}
+                </div>
               </div>
-            </div>
-          )}
+            ) : null;
+          })()}
           <DialogFooter>
             <Button variant="outline" onClick={() => setSelectedSpecs([])}>전체 해제</Button>
             <Button onClick={() => setSpecDialogOpen(false)}>확인</Button>
@@ -2383,17 +2764,6 @@ export default function EditProductPage() {
                     else if (firstSpec.forInkjet) setSpecType('inkjet');
                     else if (firstSpec.forIndigo) setSpecType('indigo');
                   }
-                }
-              }
-
-              // 출력방식 변경 시 용지 동기화 (추가/비활성화 처리)
-              if (methodsChanged) {
-                const activePrintMethods = [...newMethods].map(m => m.toLowerCase());
-                try {
-                  await syncPapers.mutateAsync({ productId, printMethods: activePrintMethods });
-                  await refetchProduct();
-                } catch {
-                  // 동기화 실패해도 다이얼로그는 닫음
                 }
               }
 
@@ -2521,9 +2891,9 @@ function OutputPriceSelectionForm({
   const filteredSettings = productionSettings?.filter(setting => {
     if (!outputMethod) return false;
     if (outputMethod === 'INDIGO') {
-      return setting.printMethod === 'indigo' || hasIndigoUpPrices(setting);
+      return setting.printMethod === 'indigo';
     } else {
-      return setting.printMethod === 'inkjet' || hasInkjetSpecs(setting);
+      return setting.printMethod === 'inkjet';
     }
   }) || [];
 
@@ -2534,9 +2904,9 @@ function OutputPriceSelectionForm({
       const filtered = group.settings.filter(s => {
         if (s.pricingType !== 'paper_output_spec') return false;
         if (outputMethod === 'INDIGO') {
-          return s.printMethod === 'indigo' || hasIndigoUpPrices(s);
+          return s.printMethod === 'indigo';
         } else if (outputMethod === 'INKJET') {
-          return s.printMethod === 'inkjet' || hasInkjetSpecs(s);
+          return s.printMethod === 'inkjet';
         }
         return false;
       });
@@ -2575,66 +2945,48 @@ function OutputPriceSelectionForm({
     if (!outputMethod || !selectedSetting) return;
 
     if (outputMethod === 'INDIGO') {
-      // 인디고 출력: 4도와 6도 둘 다 자동 추가 (고객이 선택)
-      // 중복 체크: 같은 productionSettingId + colorType 조합이 있으면 추가하지 않음
-      const exists4do = localSelected.some(
-        s => s.productionSettingId === selectedSetting.id && s.colorType === '4도'
-      );
-      const exists6do = localSelected.some(
-        s => s.productionSettingId === selectedSetting.id && s.colorType === '6도'
-      );
-
-      const newSelections: OutputPriceSelection[] = [];
-
-      if (!exists4do) {
-        newSelections.push({
+      // 인디고: 기존 INDIGO 항목 모두 제거 후 새 설정으로 교체 (1개만 허용)
+      const newSelections: OutputPriceSelection[] = [
+        {
           id: `${Date.now()}-4do-${Math.random().toString(36).substr(2, 9)}`,
           outputMethod,
           productionSettingId: selectedSetting.id,
           productionSettingName: selectedSetting.settingName || selectedSetting.codeName || '단가설정',
           colorType: '4도',
           selectedUpPrices: getIndigoUpPrices(selectedSetting),
-        });
-      }
-
-      if (!exists6do) {
-        newSelections.push({
+        },
+        {
           id: `${Date.now()}-6do-${Math.random().toString(36).substr(2, 9)}`,
           outputMethod,
           productionSettingId: selectedSetting.id,
           productionSettingName: selectedSetting.settingName || selectedSetting.codeName || '단가설정',
           colorType: '6도',
           selectedUpPrices: getIndigoUpPrices(selectedSetting),
-        });
-      }
-
-      if (newSelections.length > 0) {
-        setLocalSelected(prev => [...prev, ...newSelections]);
-      }
+        },
+      ];
+      setLocalSelected(prev => [...prev.filter(s => s.outputMethod !== 'INDIGO'), ...newSelections]);
     } else if (outputMethod === 'INKJET') {
-      // 잉크젯 출력 - 해당 설정의 전체 규격을 일괄 추가
+      // 잉크젯: 기존 INKJET 항목 모두 제거 후 새 설정으로 교체 (1개만 허용)
       const inkjetSpecs = getInkjetSpecPrices(selectedSetting);
       const newSelections: OutputPriceSelection[] = [];
 
       inkjetSpecs.forEach(specPrice => {
-        // 중복 체크: 같은 productionSettingId + specificationId 조합이 있으면 추가하지 않음
-        const existsInkjet = localSelected.some(
-          s => s.productionSettingId === selectedSetting.id && s.specificationId === specPrice.specificationId
-        );
-        if (!existsInkjet) {
+        const existsInBatch = newSelections.some(s => s.specificationId === specPrice.specificationId);
+        if (!existsInBatch) {
           newSelections.push({
             id: `${Date.now()}-${specPrice.specificationId}-${Math.random().toString(36).substr(2, 6)}`,
             outputMethod,
             productionSettingId: selectedSetting.id,
             productionSettingName: selectedSetting.settingName || selectedSetting.codeName || '단가설정',
             specificationId: specPrice.specificationId,
+            specificationName: getSpecName(specPrice.specificationId),
             selectedSpecPrice: specPrice,
           });
         }
       });
 
       if (newSelections.length > 0) {
-        setLocalSelected(prev => [...prev, ...newSelections]);
+        setLocalSelected(prev => [...prev.filter(s => s.outputMethod !== 'INKJET'), ...newSelections]);
       }
     }
 
@@ -2652,6 +3004,14 @@ function OutputPriceSelectionForm({
     setLocalSelected(prev => prev.filter(p => p.id !== id));
   };
 
+  // 그룹(및 하위 전체)에 해당 출력방식 설정이 있는지 재귀 체크
+  const groupHasMatchingSettings = (group: ProductionGroup, method: 'INDIGO' | 'INKJET'): boolean => {
+    const printMethodStr = method === 'INDIGO' ? 'indigo' : 'inkjet';
+    const direct = group.settings?.some(s => s.pricingType === 'paper_output_spec' && s.printMethod === printMethodStr) || false;
+    if (direct) return true;
+    return group.children?.some(child => groupHasMatchingSettings(child, method)) || false;
+  };
+
   // 컴팩트 그룹 트리 렌더링 (Step 1에서 출력방식 선택 시 하단에 표시)
   const renderGroupTreeCompact = (groups: ProductionGroup[], method: 'INDIGO' | 'INKJET', depth = 0): React.ReactNode[] => {
     return groups.map(group => {
@@ -2659,25 +3019,15 @@ function OutputPriceSelectionForm({
       const filteredGroupSettings = group.settings?.filter(s => {
         if (s.pricingType !== 'paper_output_spec') return false;
         if (method === 'INDIGO') {
-          return s.printMethod === 'indigo' || hasIndigoUpPrices(s);
+          return s.printMethod === 'indigo';
         } else {
-          return s.printMethod === 'inkjet' || hasInkjetSpecs(s);
+          return s.printMethod === 'inkjet';
         }
       }) || [];
 
       const hasSettings = filteredGroupSettings.length > 0;
       const hasChildren = group.children && group.children.length > 0;
-      const childrenWithSettings = group.children?.filter(child => {
-        const childSettings = child.settings?.filter(s => {
-          if (s.pricingType !== 'paper_output_spec') return false;
-          if (method === 'INDIGO') {
-            return s.printMethod === 'indigo' || hasIndigoUpPrices(s);
-          } else {
-            return s.printMethod === 'inkjet' || hasInkjetSpecs(s);
-          }
-        }) || [];
-        return childSettings.length > 0 || (child.children && child.children.length > 0);
-      }) || [];
+      const childrenWithSettings = group.children?.filter(child => groupHasMatchingSettings(child, method)) || [];
 
       if (!hasSettings && childrenWithSettings.length === 0) return null;
 
@@ -2719,7 +3069,25 @@ function OutputPriceSelectionForm({
                   onClick={() => {
                     setSelectedSettingId(setting.id);
                     setSelectedSetting(setting);
-                    setStep(3); // 세부 옵션으로 이동
+                    // 바로 추가 (Step 3 생략)
+                    if (outputMethod) {
+                      const tempSetting = setting;
+                      if (outputMethod === 'INDIGO') {
+                        const newSelections: OutputPriceSelection[] = [
+                          { id: `${Date.now()}-4do-${Math.random().toString(36).substr(2, 9)}`, outputMethod, productionSettingId: tempSetting.id, productionSettingName: tempSetting.settingName || tempSetting.codeName || '단가설정', colorType: '4도', selectedUpPrices: getIndigoUpPrices(tempSetting) },
+                          { id: `${Date.now()}-6do-${Math.random().toString(36).substr(2, 9)}`, outputMethod, productionSettingId: tempSetting.id, productionSettingName: tempSetting.settingName || tempSetting.codeName || '단가설정', colorType: '6도', selectedUpPrices: getIndigoUpPrices(tempSetting) },
+                        ];
+                        setLocalSelected(prev => [...prev.filter(s => s.outputMethod !== 'INDIGO'), ...newSelections]);
+                      } else if (outputMethod === 'INKJET') {
+                        const inkjetSpecs = getInkjetSpecPrices(tempSetting);
+                        const newSelections: OutputPriceSelection[] = [];
+                        inkjetSpecs.forEach(specPrice => {
+                          const existsInBatch = newSelections.some(s => s.specificationId === specPrice.specificationId);
+                          if (!existsInBatch) newSelections.push({ id: `${Date.now()}-${specPrice.specificationId}-${Math.random().toString(36).substr(2, 6)}`, outputMethod, productionSettingId: tempSetting.id, productionSettingName: tempSetting.settingName || tempSetting.codeName || '단가설정', specificationId: specPrice.specificationId, specificationName: getSpecName(specPrice.specificationId), selectedSpecPrice: specPrice });
+                        });
+                        if (newSelections.length > 0) setLocalSelected(prev => [...prev.filter(s => s.outputMethod !== 'INKJET'), ...newSelections]);
+                      }
+                    }
                   }}
                 >
                   <Settings className="h-3 w-3 text-emerald-600" />
@@ -2782,9 +3150,9 @@ function OutputPriceSelectionForm({
                 .filter(s => {
                   if (s.pricingType !== 'paper_output_spec') return false;
                   if (outputMethod === 'INDIGO') {
-                    return s.printMethod === 'indigo' || hasIndigoUpPrices(s);
+                    return s.printMethod === 'indigo';
                   } else if (outputMethod === 'INKJET') {
-                    return s.printMethod === 'inkjet' || hasInkjetSpecs(s);
+                    return s.printMethod === 'inkjet';
                   }
                   return false;
                 })
@@ -2885,13 +3253,47 @@ function OutputPriceSelectionForm({
             )}
           </div>
 
-          {/* 단가설정 트리 */}
+          {/* 단가설정 목록 (세팅값만 플랫하게 표시) */}
           {outputMethod && (
             <div className={`border rounded-lg p-3 flex-1 overflow-y-auto ${outputMethod === 'INDIGO' ? 'bg-emerald-50/30 border-emerald-200' : 'bg-blue-50/30 border-blue-200'}`}>
               <p className="text-xs font-medium text-slate-500 mb-2">단가설정을 선택하세요</p>
-              {productionGroupTree && productionGroupTree.length > 0 ? (
-                <div className="space-y-0.5">
-                  {renderGroupTreeCompact(productionGroupTree, outputMethod)}
+              {filteredSettings.length > 0 ? (
+                <div className="space-y-1">
+                  {filteredSettings.map(setting => (
+                    <div
+                      key={setting.id}
+                      className={`flex items-center gap-2 py-2 px-3 rounded-lg cursor-pointer text-sm transition-all ${selectedSettingId === setting.id
+                        ? 'bg-emerald-100 border border-emerald-400 font-medium'
+                        : 'bg-white border border-slate-200 hover:bg-emerald-50 hover:border-emerald-300'
+                        }`}
+                      onClick={() => {
+                        setSelectedSettingId(setting.id);
+                        setSelectedSetting(setting);
+                        // 바로 추가 (Step 3 생략)
+                        if (outputMethod) {
+                          const tempSetting = setting;
+                          if (outputMethod === 'INDIGO') {
+                            const newSelections: OutputPriceSelection[] = [
+                              { id: `${Date.now()}-4do-${Math.random().toString(36).substr(2, 9)}`, outputMethod, productionSettingId: tempSetting.id, productionSettingName: tempSetting.settingName || tempSetting.codeName || '단가설정', colorType: '4도', selectedUpPrices: getIndigoUpPrices(tempSetting) },
+                              { id: `${Date.now()}-6do-${Math.random().toString(36).substr(2, 9)}`, outputMethod, productionSettingId: tempSetting.id, productionSettingName: tempSetting.settingName || tempSetting.codeName || '단가설정', colorType: '6도', selectedUpPrices: getIndigoUpPrices(tempSetting) },
+                            ];
+                            setLocalSelected(prev => [...prev.filter(s => s.outputMethod !== 'INDIGO'), ...newSelections]);
+                          } else if (outputMethod === 'INKJET') {
+                            const inkjetSpecs = getInkjetSpecPrices(tempSetting);
+                            const newSelections: OutputPriceSelection[] = [];
+                            inkjetSpecs.forEach(specPrice => {
+                              const existsInBatch = newSelections.some(s => s.specificationId === specPrice.specificationId);
+                              if (!existsInBatch) newSelections.push({ id: `${Date.now()}-${specPrice.specificationId}-${Math.random().toString(36).substr(2, 6)}`, outputMethod, productionSettingId: tempSetting.id, productionSettingName: tempSetting.settingName || tempSetting.codeName || '단가설정', specificationId: specPrice.specificationId, specificationName: getSpecName(specPrice.specificationId), selectedSpecPrice: specPrice });
+                            });
+                            if (newSelections.length > 0) setLocalSelected(prev => [...prev.filter(s => s.outputMethod !== 'INKJET'), ...newSelections]);
+                          }
+                        }
+                      }}
+                    >
+                      <Settings className="h-4 w-4 text-emerald-600" />
+                      <span className="truncate flex-1">{setting.settingName || setting.codeName}</span>
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <p className="text-xs text-slate-400 text-center py-6">등록된 단가설정이 없습니다.</p>
@@ -2965,16 +3367,12 @@ function OutputPriceSelectionForm({
                     <TableHeader>
                       <TableRow className="bg-slate-50">
                         <TableHead>Up</TableHead>
-                        <TableHead className="text-right">단면 가격</TableHead>
-                        <TableHead className="text-right">양면 가격</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {selectedSetting.indigoUpPrices.map((upPrice) => (
                         <TableRow key={upPrice.up}>
                           <TableCell className="font-medium">{upPrice.up}Up</TableCell>
-                          <TableCell className="text-right">{upPrice.singleSidedPrice.toLocaleString()}원</TableCell>
-                          <TableCell className="text-right">{upPrice.doubleSidedPrice.toLocaleString()}원</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -3005,15 +3403,13 @@ function OutputPriceSelectionForm({
                         <TableHeader>
                           <TableRow className="bg-slate-50">
                             <TableHead>규격명</TableHead>
-                            <TableHead className="text-right">단면가격</TableHead>
                             <TableHead className="text-center">기준규격</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {inkjetSpecs.map((specPrice) => (
-                            <TableRow key={specPrice.specificationId} className="bg-blue-50/30">
+                          {inkjetSpecs.map((specPrice, idx) => (
+                            <TableRow key={`${specPrice.specificationId}-${idx}`} className="bg-blue-50/30">
                               <TableCell className="font-medium">{getSpecName(specPrice.specificationId)}</TableCell>
-                              <TableCell className="text-right">{specPrice.singleSidedPrice.toLocaleString()}원</TableCell>
                               <TableCell className="text-center">
                                 {specPrice.isBaseSpec && <Badge variant="secondary">기준</Badge>}
                               </TableCell>
@@ -3187,6 +3583,112 @@ function OptionForm({ onSubmit, onCancel }: { onSubmit: (opt: Omit<ProductOption
         <Button variant="outline" onClick={onCancel}>취소</Button>
         <Button onClick={() => onSubmit({ name, type, quantityType, values: values.filter(v => v.name) })}>추가</Button>
       </DialogFooter>
+    </div>
+  );
+}
+
+// 제본 단가 상세 표시 컴포넌트 (초록박스)
+function BindingPriceDetail({ setting }: { setting: ProductionSetting & { prices?: any[]; pageRanges?: number[] | null; specifications?: any[] } }) {
+  const prices = setting.prices || [];
+  const pageRanges: number[] = Array.isArray(setting.pageRanges) ? (setting.pageRanges as number[]) : [];
+
+  // nup_page_range 타입: Nup별 구간 가격 테이블
+  if (setting.pricingType === 'nup_page_range' && prices.length > 0) {
+    // specificationId → specification 매핑
+    const specMap = new Map<string, any>();
+    (setting.specifications || []).forEach((ss: any) => {
+      if (ss.specification) specMap.set(ss.specificationId || ss.specification.id, ss.specification);
+    });
+
+    // prices를 Nup별로 그룹화하여 대표 1행만 표시 (같은 Nup의 모든 규격은 동일 가격)
+    const nupGroupMap = new Map<string, { nup: string; pricePerPage: number; coverPrice: number; paperPrice: number; rangePrices: Record<string, number> }>();
+    prices
+      .filter((p: any) => p.specificationId)
+      .forEach((p: any) => {
+        const spec = specMap.get(p.specificationId);
+        const nup = spec?.nup || spec?.name || '-';
+        if (!nupGroupMap.has(nup)) {
+          const rp = (p.rangePrices && typeof p.rangePrices === 'object') ? p.rangePrices as Record<string, number> : {};
+          nupGroupMap.set(nup, {
+            nup,
+            pricePerPage: Number(p.pricePerPage) || 0,
+            coverPrice: Number(p.coverPrice ?? rp['__coverPrice']) || 0,
+            paperPrice: Number(p.paperPrice ?? rp['__paperPrice']) || 0,
+            rangePrices: rp,
+          });
+        }
+      });
+
+    // Nup 순서대로 정렬
+    const nupOrder = ['1++up', '1+up', '1up', '2up', '4up', '8up'];
+    const priceRows = nupOrder
+      .filter(nup => nupGroupMap.has(nup))
+      .map(nup => nupGroupMap.get(nup)!)
+      .concat(
+        Array.from(nupGroupMap.values()).filter(r => !nupOrder.includes(r.nup))
+      );
+
+    const formatNum = (n: number) => n ? n.toLocaleString() : '-';
+
+    return (
+      <div className="border-2 border-green-400 rounded-lg p-3 space-y-2">
+        <div className="text-xs font-medium text-green-700 mb-1">제본 단가 ({setting.settingName || setting.codeName})</div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b text-gray-500">
+                <th className="text-left py-1 px-1 font-medium">Nup</th>
+                <th className="text-right py-1 px-1 font-medium text-pink-600">표지</th>
+                <th className="text-right py-1 px-1 font-medium text-amber-600">용지</th>
+                <th className="text-right py-1 px-1 font-medium">1p당</th>
+                {pageRanges.map(r => (
+                  <th key={r} className="text-center py-1 px-1 font-medium">{r}p</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {priceRows.map((row) => (
+                <tr key={row.nup} className="border-b last:border-b-0">
+                  <td className="py-1 px-1 font-semibold text-violet-700">{row.nup}</td>
+                  <td className="py-1 px-1 text-right font-mono text-pink-700">{row.coverPrice ? formatNum(row.coverPrice) : '-'}</td>
+                  <td className="py-1 px-1 text-right font-mono text-amber-700">{row.paperPrice ? formatNum(row.paperPrice) : '-'}</td>
+                  <td className="py-1 px-1 text-right font-mono">{formatNum(row.pricePerPage)}</td>
+                  {pageRanges.map(r => (
+                    <td key={r} className="py-1 px-1 text-center font-mono">
+                      {formatNum(Number(row.rangePrices[String(r)]) || 0)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
+  // binding_page 타입: 간단한 가격 표시
+  if (setting.pricingType === 'binding_page' && prices.length > 0) {
+    return (
+      <div className="border-2 border-green-400 rounded-lg p-3">
+        <div className="text-xs font-medium text-green-700 mb-1">제본 단가 ({setting.settingName || setting.codeName})</div>
+        <div className="space-y-1">
+          {prices.map((p: any, idx: number) => (
+            <div key={idx} className="flex justify-between text-xs">
+              <span>{p.minQuantity && p.maxQuantity ? `${p.minQuantity}~${p.maxQuantity}p` : '기본'}</span>
+              <span className="font-mono">{Number(p.price).toLocaleString()}원</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // 기타 타입: 기본 가격만 표시
+  return (
+    <div className="border-2 border-green-400 rounded-lg p-3">
+      <div className="text-xs font-medium text-green-700 mb-1">제�� 단가 ({setting.settingName || setting.codeName})</div>
+      <div className="text-xs">기본가: {Number(setting.basePrice).toLocaleString()}원</div>
     </div>
   );
 }

@@ -525,7 +525,12 @@ export class ProductionGroupService {
           basePages: range.basePages,
           basePrice: range.basePrice,
           pricePerPage: range.pricePerPage,
-          rangePrices: range.rangePrices ? JSON.parse(JSON.stringify(range.rangePrices)) : Prisma.JsonNull,
+          rangePrices: (() => {
+            const rp = range.rangePrices ? JSON.parse(JSON.stringify(range.rangePrices)) : {};
+            if (range.coverPrice != null) rp.__coverPrice = range.coverPrice;
+            if ((range as any).paperPrice != null) rp.__paperPrice = (range as any).paperPrice;
+            return Object.keys(rp).length > 0 ? rp : Prisma.JsonNull;
+          })(),
           price: range.basePrice, // 기본 가격 호환용
         })),
       });
@@ -651,7 +656,12 @@ export class ProductionGroupService {
             basePages: range.basePages,
             basePrice: range.basePrice,
             pricePerPage: range.pricePerPage,
-            rangePrices: range.rangePrices ? JSON.parse(JSON.stringify(range.rangePrices)) : Prisma.JsonNull,
+            rangePrices: (() => {
+              const rp = range.rangePrices ? JSON.parse(JSON.stringify(range.rangePrices)) : {};
+              if (range.coverPrice != null) rp.__coverPrice = range.coverPrice;
+              if ((range as any).paperPrice != null) rp.__paperPrice = (range as any).paperPrice;
+              return Object.keys(rp).length > 0 ? rp : Prisma.JsonNull;
+            })(),
             price: range.basePrice, // 기본 가격 호환용
           })),
         });
@@ -732,6 +742,89 @@ export class ProductionGroupService {
     }
 
     return this.findSettingById(id);
+  }
+
+  async copySetting(id: string) {
+    const original = await this.prisma.productionSetting.findUnique({
+      where: { id },
+      include: {
+        specifications: { orderBy: { sortOrder: 'asc' } },
+        prices: true,
+      },
+    });
+
+    if (!original) {
+      throw new NotFoundException(`생산설정을 찾을 수 없습니다: ${id}`);
+    }
+
+    // sortOrder: 원본 바로 다음에 배치
+    // 원본 이후의 설정들 sortOrder를 1씩 밀기
+    await this.prisma.productionSetting.updateMany({
+      where: {
+        groupId: original.groupId,
+        sortOrder: { gt: original.sortOrder },
+      },
+      data: { sortOrder: { increment: 1 } },
+    });
+
+    const newSortOrder = original.sortOrder + 1;
+
+    // 원본에서 복사할 필드 추출 (id, 관계 필드, 타임스탬프 제외)
+    const {
+      id: _id, createdAt: _c, updatedAt: _u,
+      specifications: _specs, prices: _prices,
+      ...settingData
+    } = original;
+
+    // JSON 필드 Prisma 호환 변환
+    const jsonFields = ['priceGroups', 'paperPriceGroupMap', 'pageRanges', 'lengthPriceRanges', 'areaPriceRanges', 'distancePriceRanges', 'weightInfo'] as const;
+    const cleanData: any = { ...settingData };
+    for (const field of jsonFields) {
+      if (cleanData[field] === null) {
+        cleanData[field] = Prisma.JsonNull;
+      } else if (cleanData[field] !== undefined) {
+        cleanData[field] = JSON.parse(JSON.stringify(cleanData[field]));
+      }
+    }
+
+    // 새 설정 생성
+    const copied = await this.prisma.productionSetting.create({
+      data: {
+        ...cleanData,
+        settingName: `${original.settingName || ''}_복사`,
+        sortOrder: newSortOrder,
+      },
+    });
+
+    // 가격 복사
+    if (original.prices.length > 0) {
+      await this.prisma.productionSettingPrice.createMany({
+        data: original.prices.map((p) => {
+          const { id: _pid, productionSettingId: _psid, createdAt: _pc, updatedAt: _pu, ...priceData } = p;
+          const cleanPrice: any = { ...priceData, productionSettingId: copied.id };
+          if (cleanPrice.rangePrices === null) {
+            cleanPrice.rangePrices = Prisma.JsonNull;
+          } else if (cleanPrice.rangePrices !== undefined) {
+            cleanPrice.rangePrices = JSON.parse(JSON.stringify(cleanPrice.rangePrices));
+          }
+          return cleanPrice;
+        }),
+      });
+    }
+
+    // 규격 연결 복사
+    if (original.specifications.length > 0) {
+      await this.prisma.productionSettingSpecification.createMany({
+        data: original.specifications.map((s) => ({
+          productionSettingId: copied.id,
+          specificationId: s.specificationId,
+          price: s.price,
+          sortOrder: s.sortOrder,
+        })),
+      });
+    }
+
+    return this.findSettingById(copied.id);
   }
 
   async moveSettingUp(id: string) {

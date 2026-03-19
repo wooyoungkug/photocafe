@@ -35,6 +35,7 @@ async function bootstrap() {
     helmet({
       contentSecurityPolicy: false, // Swagger UI와 호환을 위해 비활성화 (필요 시 세부 설정)
       crossOriginEmbedderPolicy: false, // 프론트엔드 리소스 로딩 호환
+      crossOriginResourcePolicy: { policy: 'cross-origin' }, // 이미지 등 정적 리소스 크로스오리진 허용
     }),
   );
 
@@ -46,7 +47,10 @@ async function bootstrap() {
 
   // Static file serving (uploads) - DB 설정 경로 반영
   const prisma = app.get(PrismaService);
-  let uploadPath = join(process.cwd(), process.env.UPLOAD_BASE_PATH || 'uploads');
+  const envUploadPath = process.env.UPLOAD_BASE_PATH || 'uploads';
+  let uploadPath = (envUploadPath.startsWith('/') || /^[A-Z]:/i.test(envUploadPath))
+    ? envUploadPath
+    : join(process.cwd(), envUploadPath);
   try {
     const setting = await prisma.systemSetting.findUnique({ where: { key: 'server_upload_base_path' } });
     if (setting?.value) {

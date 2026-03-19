@@ -166,6 +166,18 @@ export class ClientGroupService {
     });
   }
 
+  async reorder(items: { id: string; sortOrder: number }[]) {
+    await this.prisma.$transaction(
+      items.map((item) =>
+        this.prisma.clientGroup.update({
+          where: { id: item.id },
+          data: { sortOrder: item.sortOrder },
+        }),
+      ),
+    );
+    return { success: true };
+  }
+
   async getClients(id: string) {
     await this.findOne(id);
 

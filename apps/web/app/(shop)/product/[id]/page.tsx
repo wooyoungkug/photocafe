@@ -181,8 +181,8 @@ export default function ProductPage() {
     pendingFolders: UploadedFolder[]; months: number;
   } | null>(null);
 
-  // --- addFoldersToCart (unchanged logic) ---
-  const addFoldersToCart = useCallback((folders: UploadedFolder[], isDuplicateOverride = false) => {
+  // --- addFoldersToCart ---
+  const addFoldersToCart = useCallback(async (folders: UploadedFolder[], isDuplicateOverride = false) => {
     if (!product) return;
     // 파일이 없는 폴더 필터링
     const validFolders = folders.filter(f => f.files.length > 0);
@@ -193,7 +193,7 @@ export default function ProductPage() {
     if (validFolders.length < folders.length) {
       toast({ title: '일부 폴더 제외', description: `파일이 없는 ${folders.length - validFolders.length}개 폴더가 제외되었습니다.` });
     }
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
         const itemIdsBefore = new Set(useCartStore.getState().items.map(i => i.id));
         const folderUploadMap = new Map<string, FolderUploadData>();
@@ -222,13 +222,53 @@ export default function ProductPage() {
           folder.foilPosition = foilPositionName || null;
         });
 
-        validFolders.forEach((folder) => {
+        for (const folder of validFolders) {
           const options: CartItemOption[] = [
             { name: '규격', value: folder.specLabel, price: 0 },
             { name: '페이지', value: `${folder.pageCount}p`, price: 0 },
           ];
           const allThumbnailUrls = folder.files.map(f => f.thumbnailUrl).filter((url): url is string => !!url);
-          const folderPrice = calculateUploadedFolderPrice(folder);
+
+          // DB API로 가격 조회, 실패 시 하드코딩 fallback
+          let folderPrice: { unitPrice: number; totalPrice: number; bindingPrice: number; coverPrice: number; pricePerPage: number; specificationId?: string };
+          try {
+            const apiResult = await api.post<{
+              coverPrice: number; pricePerPage: number; printPrice: number;
+              paperPrice: number; bindingPrice: number; unitPrice: number;
+              specificationId?: string; nup?: string;
+            }>('/pricing/calculate/album-order', {
+              productId: product.id,
+              widthInch: folder.albumWidth,
+              heightInch: folder.albumHeight,
+              pageCount: folder.pageCount,
+              colorMode: folder.colorMode || selectedOptions.colorMode || '4c',
+              pageLayout: folder.pageLayout || 'single',
+              paperId: folder.selectedPaperId || undefined,
+              clientId: user?.clientId || undefined,
+            });
+            const quantity = folder.quantity;
+            const subtotal = apiResult.unitPrice * quantity;
+            const tax = Math.round(subtotal * 0.1);
+            folderPrice = {
+              unitPrice: apiResult.unitPrice,
+              totalPrice: subtotal + tax,
+              bindingPrice: apiResult.bindingPrice,
+              coverPrice: apiResult.coverPrice,
+              pricePerPage: apiResult.pricePerPage,
+              specificationId: apiResult.specificationId,
+            };
+          } catch (err) {
+            console.warn('가격 API 조회 실패, 하드코딩 fallback 사용:', err);
+            const fallback = calculateUploadedFolderPrice(folder);
+            folderPrice = {
+              unitPrice: fallback.unitPrice,
+              totalPrice: fallback.totalPrice,
+              bindingPrice: fallback.bindingPrice,
+              coverPrice: fallback.coverPrice,
+              pricePerPage: fallback.pricePerPage,
+            };
+          }
+
           const shippingInfoData = folder.shippingInfo ? {
             senderType: folder.shippingInfo.senderType, senderName: folder.shippingInfo.senderName,
             senderPhone: folder.shippingInfo.senderPhone, senderPostalCode: folder.shippingInfo.senderPostalCode,
@@ -253,7 +293,7 @@ export default function ProductPage() {
               colorMode: folder.colorMode || selectedOptions.colorMode || '4c',
               pageLayout: folder.pageLayout || 'single',
               bindingDirection: folder.bindingDirection || 'LEFT_START_RIGHT_END',
-              specificationId: '', specificationName: folder.specLabel,
+              specificationId: folderPrice.specificationId || '', specificationName: folder.specLabel,
               bindingName: selectedOptions.binding?.name,
               paperName: folder.selectedPaperName || selectedOptions.paper?.name,
               coverMaterial: selectedOptions.cover?.name, totalSize: folder.totalFileSize || 0,
@@ -267,13 +307,55 @@ export default function ProductPage() {
               fabricColorName: folder.selectedFabricColorName || undefined,
               fabricCategory: folder.selectedFabricCategory || undefined,
               fabricBasePrice: folder.selectedFabricPrice || undefined,
+              bindingPrice: folderPrice.bindingPrice,
+              coverPrice: folderPrice.coverPrice,
+              pricePerPage: folderPrice.pricePerPage,
             },
             uploadStatus: 'pending', totalFileCount: folder.files.length, isDuplicateOverride,
             orderMemo: orderMemo || undefined,
           });
 
-          folder.additionalOrders.forEach((additional) => {
-            const additionalPrice = calculateAdditionalOrderPrice(additional, folder);
+          for (const additional of folder.additionalOrders) {
+            // DB API로 추가 주문 가격 조회
+            let additionalPrice: { unitPrice: number; totalPrice: number; bindingPrice: number; coverPrice: number; pricePerPage: number; specificationId?: string };
+            try {
+              const apiResult = await api.post<{
+                coverPrice: number; pricePerPage: number; printPrice: number;
+                paperPrice: number; bindingPrice: number; unitPrice: number;
+                specificationId?: string; nup?: string;
+              }>('/pricing/calculate/album-order', {
+                productId: product.id,
+                widthInch: additional.albumWidth,
+                heightInch: additional.albumHeight,
+                pageCount: folder.pageCount,
+                colorMode: additional.colorMode || folder.colorMode || selectedOptions.colorMode || '4c',
+                pageLayout: folder.pageLayout || 'single',
+                paperId: additional.selectedPaperId || folder.selectedPaperId || undefined,
+                clientId: user?.clientId || undefined,
+              });
+              const quantity = additional.quantity;
+              const subtotal = apiResult.unitPrice * quantity;
+              const tax = Math.round(subtotal * 0.1);
+              additionalPrice = {
+                unitPrice: apiResult.unitPrice,
+                totalPrice: subtotal + tax,
+                bindingPrice: apiResult.bindingPrice,
+                coverPrice: apiResult.coverPrice,
+                pricePerPage: apiResult.pricePerPage,
+                specificationId: apiResult.specificationId,
+              };
+            } catch (err) {
+              console.warn('추가주문 가격 API 조회 실패, 하드코딩 fallback 사용:', err);
+              const fallback = calculateAdditionalOrderPrice(additional, folder);
+              additionalPrice = {
+                unitPrice: fallback.unitPrice,
+                totalPrice: fallback.totalPrice,
+                bindingPrice: fallback.bindingPrice,
+                coverPrice: fallback.coverPrice,
+                pricePerPage: fallback.pricePerPage,
+              };
+            }
+
             addItem({
               productId: product.id, productType: 'album-order',
               name: `${product.productName} - ${folder.orderTitle} (${additional.albumLabel})`,
@@ -292,7 +374,7 @@ export default function ProductPage() {
                 colorMode: folder.colorMode || selectedOptions.colorMode || '4c',
                 pageLayout: folder.pageLayout || 'single',
                 bindingDirection: folder.bindingDirection || 'LEFT_START_RIGHT_END',
-                specificationId: '', specificationName: additional.albumLabel,
+                specificationId: additionalPrice.specificationId || '', specificationName: additional.albumLabel,
                 bindingName: selectedOptions.binding?.name,
                 paperName: folder.selectedPaperName || selectedOptions.paper?.name,
                 coverMaterial: selectedOptions.cover?.name, totalSize: folder.totalFileSize || 0,
@@ -308,11 +390,14 @@ export default function ProductPage() {
                 fabricColorName: (additional.selectedFabricColorName ?? folder.selectedFabricColorName) || undefined,
                 fabricCategory: (additional.selectedFabricCategory ?? folder.selectedFabricCategory) || undefined,
                 fabricBasePrice: (additional.selectedFabricPrice ?? folder.selectedFabricPrice) || undefined,
+                bindingPrice: additionalPrice.bindingPrice,
+                coverPrice: additionalPrice.coverPrice,
+                pricePerPage: additionalPrice.pricePerPage,
               },
               uploadStatus: 'pending', totalFileCount: folder.files.length, isDuplicateOverride,
             });
-          });
-        });
+          }
+        }
 
         const allItems = useCartStore.getState().items;
         const newItems = allItems.filter((i) => !itemIdsBefore.has(i.id));
@@ -332,10 +417,16 @@ export default function ProductPage() {
         toast({ title: '오류 발생', description: '장바구니에 담는 중 문제가 발생했습니다. 다시 시도해주세요.', variant: 'destructive' });
       }
     }, 50);
-  }, [product, addItem, clearFolders, router, toast, defaultPageLayout, defaultBindingDirection, selectedOptions, copperPlateLabels]);
+  }, [product, addItem, clearFolders, router, toast, defaultPageLayout, defaultBindingDirection, selectedOptions, copperPlateLabels, user?.clientId]);
 
   const isAlbum = useMemo(() => isAlbumProduct(product?.bindings, product?.category?.name), [product?.bindings, product?.category?.name]);
   const needsUpload = isAlbum || product?.requiresUpload;
+
+  // 기본 제본의 생산설정 ID (앨범 페이지 단가 조회용)
+  const defaultProductionSettingId = useMemo(() => {
+    const defaultBinding = product?.bindings?.find(b => b.isDefault) || product?.bindings?.[0];
+    return defaultBinding?.productionSettingId;
+  }, [product?.bindings]);
 
   useEffect(() => {
     if (product) {
@@ -934,7 +1025,7 @@ export default function ProductPage() {
             <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
               <Upload className="h-5 w-5" />{t('dataUpload')}
             </h3>
-            <MultiFolderUpload onAddToCart={async (folders) => {
+            <MultiFolderUpload productionSettingId={defaultProductionSettingId} productId={product?.id} onAddToCart={async (folders) => {
               if (user?.clientId) {
                 try {
                   const result = await api.post<{ duplicates: { folderName: string; orderNumber: string; orderedAt: string; status: string }[]; months: number }>(

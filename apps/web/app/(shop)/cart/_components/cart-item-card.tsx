@@ -713,6 +713,116 @@ export function CartItemCard({
                 </AccordionTrigger>
                 <AccordionContent className="px-4 pb-4 pt-0">
                   <div className="p-4 bg-gray-50 rounded-lg space-y-4">
+                    {/* 앨범 가격 산출근거 */}
+                    {item.albumOrderInfo && (() => {
+                      const info = item.albumOrderInfo;
+                      const paperPrice = info.paperPrice ?? 0;
+                      const fabricPrice = info.fabricBasePrice ?? 0;
+                      const bindingPrice = info.bindingPrice ?? 0;
+                      const coverPrice = info.coverPrice ?? 0;
+                      const dbPricePerPage = info.pricePerPage;
+                      // DB에서 조회된 가격이 있으면 coverPrice + pricePerPage*pageCount, 없으면 기존 방식
+                      const basePrintPrice = (dbPricePerPage != null && coverPrice > 0)
+                        ? (coverPrice + dbPricePerPage * info.pageCount)
+                        : (item.basePrice - paperPrice - fabricPrice - bindingPrice);
+                      const effectivePricePerPage = dbPricePerPage ?? (info.pageCount > 0 ? Math.round((basePrintPrice - coverPrice) / info.pageCount) : 0);
+                      const printMethodLabel = info.printMethod === 'indigo' ? '인디고' : '잉크젯';
+                      const colorModeLabel = info.colorMode === '6c' ? '6도' : '4도';
+                      const pageLayoutLabel = info.pageLayout === 'spread' ? '펼친면' : '낱장';
+                      const bindingLabel = info.bindingName || getBindingDirectionLabel(info.bindingDirection);
+                      return (
+                        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                          <div className="bg-gray-50 border-b border-gray-200 px-3 py-2 flex items-center justify-between">
+                            <span className="text-[12px] font-semibold text-gray-700">가격 산출근거</span>
+                            <span className="text-[11px] text-gray-400">
+                              {printMethodLabel} {colorModeLabel} · {info.pageCount}p · {pageLayoutLabel} · {bindingLabel}
+                              {info.specificationName ? ` · ${info.specificationName}` : ''}
+                            </span>
+                          </div>
+                          <div className="px-3 py-2.5 space-y-2">
+                            {/* 기본 인쇄비 */}
+                            <div className="flex justify-between items-baseline text-xs">
+                              <div className="text-gray-600">
+                                <span>기본 인쇄비</span>
+                                <span className="ml-1.5 text-gray-400">({printMethodLabel} {colorModeLabel} {info.pageCount}p)</span>
+                              </div>
+                              <span className="font-medium text-gray-800 tabular-nums">{basePrintPrice.toLocaleString()}원</span>
+                            </div>
+                            {/* 출력단가 */}
+                            {info.pageCount > 0 && (
+                              <div className="flex justify-between items-baseline text-xs text-gray-400 -mt-1">
+                                <span className="pl-2">└ 출력단가</span>
+                                <span className="tabular-nums">{effectivePricePerPage.toLocaleString()}원/p × {info.pageCount}p</span>
+                              </div>
+                            )}
+                            {/* 표지단가 */}
+                            {coverPrice > 0 && (
+                              <div className="flex justify-between items-baseline text-xs text-gray-400 -mt-1">
+                                <span className="pl-2">└ 표지단가</span>
+                                <span className="tabular-nums">+{coverPrice.toLocaleString()}원</span>
+                              </div>
+                            )}
+                            {/* 용지 추가단가 */}
+                            {paperPrice > 0 ? (
+                              <div className="flex justify-between items-baseline text-xs">
+                                <div className="text-gray-600">
+                                  <span>용지 추가단가</span>
+                                  <span className="ml-1.5 text-gray-400">({info.paperName})</span>
+                                </div>
+                                <span className="text-gray-800 tabular-nums">+{paperPrice.toLocaleString()}원</span>
+                              </div>
+                            ) : info.paperName ? (
+                              <div className="flex justify-between items-baseline text-xs">
+                                <div className="text-gray-600">
+                                  <span>용지</span>
+                                  <span className="ml-1.5 text-gray-400">({info.paperName})</span>
+                                </div>
+                                <span className="text-gray-400 tabular-nums">포함</span>
+                              </div>
+                            ) : null}
+                            {/* 원단 */}
+                            {fabricPrice > 0 && (
+                              <div className="flex justify-between items-baseline text-xs">
+                                <div className="text-gray-600">
+                                  <span>원단</span>
+                                  <span className="ml-1.5 text-gray-400">({info.fabricName})</span>
+                                </div>
+                                <span className="text-gray-800 tabular-nums">+{fabricPrice.toLocaleString()}원</span>
+                              </div>
+                            )}
+                            {/* 박 */}
+                            {info.foilName && (
+                              <div className="flex justify-between items-baseline text-xs">
+                                <div className="text-gray-600">
+                                  <span>박</span>
+                                  <span className="ml-1.5 text-gray-400">({info.foilName}{info.foilColor ? ` · ${info.foilColor}` : ''}{info.foilPosition ? ` · ${info.foilPosition}` : ''})</span>
+                                </div>
+                                <span className="text-gray-400 tabular-nums">포함</span>
+                              </div>
+                            )}
+                            {/* 제본단가 */}
+                            {bindingPrice > 0 && (
+                              <div className="flex justify-between items-baseline text-xs">
+                                <span className="text-gray-600">제본단가</span>
+                                <span className="text-gray-800 tabular-nums">+{bindingPrice.toLocaleString()}원</span>
+                              </div>
+                            )}
+                            {/* 단가 합계 */}
+                            <div className="flex justify-between items-baseline text-xs font-semibold text-gray-900 border-t border-gray-100 pt-2">
+                              <span>단가 (1권)</span>
+                              <span className="tabular-nums">{item.basePrice.toLocaleString()}원</span>
+                            </div>
+                            {/* 수량 × 단가 */}
+                            {item.quantity > 1 && (
+                              <div className="flex justify-between items-baseline text-xs text-gray-600 bg-gray-50 -mx-3 px-3 py-1.5 border-t border-gray-100">
+                                <span>{item.basePrice.toLocaleString()}원 × {item.quantity}권</span>
+                                <span className="font-semibold text-gray-900 tabular-nums">{item.totalPrice.toLocaleString()}원</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
                     <FolderShippingSection
                       shippingInfo={itemShipping as unknown as FolderShippingInfo | undefined}
                       companyInfo={companyInfo}

@@ -124,9 +124,11 @@ const MAX_DEPTH = 4;
 
 interface MultiFolderUploadProps {
   onAddToCart?: (folders: UploadedFolder[]) => void;
+  productionSettingId?: string;
+  productId?: string;
 }
 
-export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
+export function MultiFolderUpload({ onAddToCart, productionSettingId }: MultiFolderUploadProps) {
   const {
     folders,
     isUploading,
@@ -142,12 +144,18 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
     setDefaultPageLayout,
     setDefaultBindingDirection,
     setIndigoSpecs,
+    setProductionSettingId,
     getSelectedFolders,
     computeColorGroups,
     selectAllFolders,
     applyGlobalCoverSource,
     setFolderCoverSource,
   } = useMultiFolderUploadStore();
+
+  // productionSettingId를 store에 저장
+  useEffect(() => {
+    if (productionSettingId) setProductionSettingId(productionSettingId);
+  }, [productionSettingId, setProductionSettingId]);
 
   const tc = useTranslations('common');
   const tu = useTranslations('upload');
@@ -164,6 +172,7 @@ export function MultiFolderUpload({ onAddToCart }: MultiFolderUploadProps) {
   useEffect(() => {
     if (indigoSpecsRaw && indigoSpecsRaw.length > 0) {
       const converted: StandardSize[] = indigoSpecsRaw.map(spec => ({
+        id: spec.id,
         width: Number(spec.widthInch),
         height: Number(spec.heightInch),
         label: `${spec.widthInch}×${spec.heightInch}인치`,

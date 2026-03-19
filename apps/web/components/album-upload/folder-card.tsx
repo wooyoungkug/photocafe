@@ -54,6 +54,7 @@ import {
   calculateUploadedFolderPrice,
   calculateAdditionalOrderPrice,
 } from '@/stores/multi-folder-upload-store';
+import { useAlbumPagePrice } from '@/hooks/use-pricing';
 
 interface FolderCardProps {
   folder: UploadedFolder;
@@ -398,6 +399,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     updateFolder,
     setFolderFabric,
     availablePapers,
+    productionSettingId,
   } = useMultiFolderUploadStore();
 
   // 현재 폴더의 출력방법/도수에 맞는 용지 필터링
@@ -423,8 +425,19 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
 
   const canSelect = hasValidStatus && folder.specFoundInDB !== false;
 
-  // 가격 계산
-  const folderPrice = useMemo(() => calculateUploadedFolderPrice(folder), [folder]);
+  // DB 기반 앨범 페이지 단가 조회
+  const { data: albumPriceData } = useAlbumPagePrice(
+    productionSettingId,
+    folder.specificationId,
+    folder.colorMode || '6c',
+    folder.pageLayout === 'spread' ? 'spread' : 'single'
+  );
+
+  // 가격 계산 (DB 단가 우선, 없으면 하드코딩 fallback)
+  const folderPrice = useMemo(
+    () => calculateUploadedFolderPrice(folder, albumPriceData?.pricePerPage),
+    [folder, albumPriceData?.pricePerPage]
+  );
 
   const handleSaveTitle = () => {
     setFolderTitle(folder.id, editTitle);

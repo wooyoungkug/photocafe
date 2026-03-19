@@ -92,6 +92,19 @@ const PRINT_TYPE_OPTIONS = [
   { value: 'customer', label: '단면/양면 고객선택' },
 ];
 
+// 카테고리명/상품명에 따른 출력구분 자동결정
+// 압축앨범·맞장앨범·레이플릿앨범 → 단면, 화보·포토북 → 양면
+const getPrintTypeByName = (name: string): 'single' | 'double' | null => {
+  if (!name) return null;
+  if (name.includes('압축앨범') || name.includes('맞장앨범') || name.includes('레이플릿앨범')) {
+    return 'single';
+  }
+  if (name.includes('화보') || name.includes('포토북')) {
+    return 'double';
+  }
+  return null;
+};
+
 // 출력방법 옵션 (단품출력용)
 const OUTPUT_METHOD_OPTIONS = [
   { value: 'inkjet', label: '잉크젯출력' },
@@ -312,6 +325,28 @@ export default function NewProductPage() {
   const largeCategories = categories?.filter(c => c.level === 'large') || [];
   const mediumCategories = categories?.filter(c => c.level === 'medium' && c.parentId === largeCategoryId) || [];
   const smallCategories = categories?.filter(c => c.level === 'small' && c.parentId === mediumCategoryId) || [];
+
+  // 카테고리명/상품명 기반 출력구분 자동결정 (소분류 > 중분류 > 대분류 > 상품명 순 우선순위)
+  const autoPrintType = useMemo((): 'single' | 'double' | null => {
+    const names = [
+      smallCategories.find(c => c.id === smallCategoryId)?.name,
+      mediumCategories.find(c => c.id === mediumCategoryId)?.name,
+      largeCategories.find(c => c.id === largeCategoryId)?.name,
+      productName,
+    ].filter(Boolean) as string[];
+    for (const name of names) {
+      const result = getPrintTypeByName(name);
+      if (result) return result;
+    }
+    return null;
+  }, [smallCategoryId, mediumCategoryId, largeCategoryId, productName, smallCategories, mediumCategories, largeCategories]);
+
+  // 카테고리/상품명으로 출력구분이 자동결정되면 즉시 반영
+  useEffect(() => {
+    if (autoPrintType) {
+      setPrintType(autoPrintType);
+    }
+  }, [autoPrintType]);
 
   // 자동 상품코드 생성
   useEffect(() => {
@@ -974,19 +1009,23 @@ export default function NewProductPage() {
                   <Label className="text-xs text-slate-500">출력구분</Label>
                   <div className="flex gap-3">
                     {PRINT_TYPE_OPTIONS.map(opt => (
-                      <label key={opt.value} className="flex items-center gap-1.5 cursor-pointer">
+                      <label key={opt.value} className={`flex items-center gap-1.5 ${autoPrintType ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}>
                         <input
                           type="radio"
                           name="printType"
                           value={opt.value}
                           checked={printType === opt.value}
-                          onChange={(e) => setPrintType(e.target.value as 'single' | 'double' | 'customer')}
-                          className="w-3.5 h-3.5 text-emerald-600"
+                          onChange={(e) => { if (!autoPrintType) setPrintType(e.target.value as 'single' | 'double' | 'customer'); }}
+                          disabled={!!autoPrintType}
+                          className="w-3.5 h-3.5 text-emerald-600 disabled:opacity-60"
                         />
                         <span className="text-xs">{opt.label}</span>
                       </label>
                     ))}
                   </div>
+                  {autoPrintType && (
+                    <span className="text-xs text-slate-400">(카테고리/상품명 자동결정)</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -1039,7 +1078,7 @@ export default function NewProductPage() {
             )}
 
             {/* 앨범 표지 원단 선택 (표지원단 토글 ON일 때만 표시) */}
-            {shouldShow('fabric') && hasCoverFabric && (
+            {hasCoverFabric && (
               <div className="col-span-2 space-y-3">
                 <Label className="text-[13px] font-semibold text-slate-700 flex items-center gap-2">
                   <Palette className="h-4 w-4 text-emerald-500" />
@@ -1831,32 +1870,19 @@ function OutputPriceSelectionForm({
     if (!outputMethod || !selectedSetting) return;
 
     if (outputMethod === 'INDIGO') {
-      const exists4do = localSelected.some(s => s.productionSettingId === selectedSetting.id && s.colorType === '4도');
-      const exists6do = localSelected.some(s => s.productionSettingId === selectedSetting.id && s.colorType === '6도');
-      const newSelections: OutputPriceSelection[] = [];
-      if (!exists4do) {
-        newSelections.push({
-          id: `${Date.now()}-4do-${Math.random().toString(36).substr(2, 9)}`,
-          outputMethod, productionSettingId: selectedSetting.id,
-          productionSettingName: selectedSetting.settingName || selectedSetting.codeName || '단가설정',
-          colorType: '4도', selectedUpPrices: getIndigoUpPrices(selectedSetting),
-        });
-      }
-      if (!exists6do) {
-        newSelections.push({
-          id: `${Date.now()}-6do-${Math.random().toString(36).substr(2, 9)}`,
-          outputMethod, productionSettingId: selectedSetting.id,
-          productionSettingName: selectedSetting.settingName || selectedSetting.codeName || '단가설정',
-          colorType: '6도', selectedUpPrices: getIndigoUpPrices(selectedSetting),
-        });
-      }
-      if (newSelections.length > 0) setLocalSelected(prev => [...prev, ...newSelections]);
+      // 인디고: 기존 INDIGO 항목 모두 제거 후 새 설정으로 교체 (1개만 허용)
+      const newSelections: OutputPriceSelection[] = [
+        { id: `${Date.now()}-4do-${Math.random().toString(36).substr(2, 9)}`, outputMethod, productionSettingId: selectedSetting.id, productionSettingName: selectedSetting.settingName || selectedSetting.codeName || '단가설정', colorType: '4도', selectedUpPrices: getIndigoUpPrices(selectedSetting) },
+        { id: `${Date.now()}-6do-${Math.random().toString(36).substr(2, 9)}`, outputMethod, productionSettingId: selectedSetting.id, productionSettingName: selectedSetting.settingName || selectedSetting.codeName || '단가설정', colorType: '6도', selectedUpPrices: getIndigoUpPrices(selectedSetting) },
+      ];
+      setLocalSelected(prev => [...prev.filter(s => s.outputMethod !== 'INDIGO'), ...newSelections]);
     } else if (outputMethod === 'INKJET') {
+      // 잉크젯: 기존 INKJET 항목 모두 제거 후 새 설정으로 교체 (1개만 허용)
       const inkjetSpecs = getInkjetSpecPrices(selectedSetting);
       const newSelections: OutputPriceSelection[] = [];
       inkjetSpecs.forEach(specPrice => {
-        const existsInkjet = localSelected.some(s => s.productionSettingId === selectedSetting.id && s.specificationId === specPrice.specificationId);
-        if (!existsInkjet) {
+        const existsInBatch = newSelections.some(s => s.specificationId === specPrice.specificationId);
+        if (!existsInBatch) {
           newSelections.push({
             id: `${Date.now()}-${specPrice.specificationId}-${Math.random().toString(36).substr(2, 6)}`,
             outputMethod, productionSettingId: selectedSetting.id,
@@ -1865,29 +1891,29 @@ function OutputPriceSelectionForm({
           });
         }
       });
-      if (newSelections.length > 0) setLocalSelected(prev => [...prev, ...newSelections]);
+      if (newSelections.length > 0) setLocalSelected(prev => [...prev.filter(s => s.outputMethod !== 'INKJET'), ...newSelections]);
     }
 
     setStep(1); setOutputMethod(null); setSelectedSettingId(''); setSelectedSetting(null);
     setColorType('4도'); setSelectedSpecId('');
   };
 
+  const groupHasMatchingSettings = (group: ProductionGroup, method: 'INDIGO' | 'INKJET'): boolean => {
+    const printMethodStr = method === 'INDIGO' ? 'indigo' : 'inkjet';
+    const direct = group.settings?.some(s => s.pricingType === 'paper_output_spec' && s.printMethod === printMethodStr) || false;
+    if (direct) return true;
+    return group.children?.some(child => groupHasMatchingSettings(child, method)) || false;
+  };
+
   const renderGroupTreeCompact = (groups: ProductionGroup[], method: 'INDIGO' | 'INKJET', depth = 0): React.ReactNode[] => {
     return groups.map(group => {
       const filteredGroupSettings = group.settings?.filter(s => {
         if (s.pricingType !== 'paper_output_spec') return false;
-        if (method === 'INDIGO') return s.printMethod === 'indigo' || hasIndigoUpPrices(s);
-        else return s.printMethod === 'inkjet' || hasInkjetSpecs(s);
+        if (method === 'INDIGO') return s.printMethod === 'indigo';
+        else return s.printMethod === 'inkjet';
       }) || [];
       const hasSettings = filteredGroupSettings.length > 0;
-      const childrenWithSettings = group.children?.filter(child => {
-        const childSettings = child.settings?.filter(s => {
-          if (s.pricingType !== 'paper_output_spec') return false;
-          if (method === 'INDIGO') return s.printMethod === 'indigo' || hasIndigoUpPrices(s);
-          else return s.printMethod === 'inkjet' || hasInkjetSpecs(s);
-        }) || [];
-        return childSettings.length > 0 || (child.children && child.children.length > 0);
-      }) || [];
+      const childrenWithSettings = group.children?.filter(child => groupHasMatchingSettings(child, method)) || [];
       if (!hasSettings && childrenWithSettings.length === 0) return null;
       const isExpanded = expandedGroups.has(group.id);
       return (
@@ -1905,7 +1931,29 @@ function OutputPriceSelectionForm({
               {filteredGroupSettings.map(setting => (
                 <div key={setting.id}
                   className={`flex items-center gap-1.5 py-1.5 px-2 rounded cursor-pointer text-xs transition-all ${selectedSettingId === setting.id ? 'bg-emerald-100 border border-emerald-400 font-medium' : 'bg-white border border-slate-200 hover:bg-emerald-50 hover:border-emerald-300'}`}
-                  onClick={() => { setSelectedSettingId(setting.id); setSelectedSetting(setting); setStep(3); }}>
+                  onClick={() => {
+                    setSelectedSettingId(setting.id);
+                    setSelectedSetting(setting);
+                    // 바로 추가 (Step 3 생략)
+                    if (outputMethod) {
+                      const tempSetting = setting;
+                      if (outputMethod === 'INDIGO') {
+                        const newSelections: OutputPriceSelection[] = [
+                          { id: `${Date.now()}-4do-${Math.random().toString(36).substr(2, 9)}`, outputMethod, productionSettingId: tempSetting.id, productionSettingName: tempSetting.settingName || tempSetting.codeName || '단가설정', colorType: '4도', selectedUpPrices: getIndigoUpPrices(tempSetting) },
+                          { id: `${Date.now()}-6do-${Math.random().toString(36).substr(2, 9)}`, outputMethod, productionSettingId: tempSetting.id, productionSettingName: tempSetting.settingName || tempSetting.codeName || '단가설정', colorType: '6도', selectedUpPrices: getIndigoUpPrices(tempSetting) },
+                        ];
+                        setLocalSelected(prev => [...prev.filter(s => s.outputMethod !== 'INDIGO'), ...newSelections]);
+                      } else if (outputMethod === 'INKJET') {
+                        const inkjetSpecs = getInkjetSpecPrices(tempSetting);
+                        const newSelections: OutputPriceSelection[] = [];
+                        inkjetSpecs.forEach(specPrice => {
+                          const existsInBatch = newSelections.some(s => s.specificationId === specPrice.specificationId);
+                          if (!existsInBatch) newSelections.push({ id: `${Date.now()}-${specPrice.specificationId}-${Math.random().toString(36).substr(2, 6)}`, outputMethod, productionSettingId: tempSetting.id, productionSettingName: tempSetting.settingName || tempSetting.codeName || '단가설정', specificationId: specPrice.specificationId, selectedSpecPrice: specPrice });
+                        });
+                        if (newSelections.length > 0) setLocalSelected(prev => [...prev.filter(s => s.outputMethod !== 'INKJET'), ...newSelections]);
+                      }
+                    }
+                  }}>
                   <Settings className="h-3 w-3 text-emerald-600" />
                   <span className="truncate flex-1">{setting.settingName || setting.codeName}</span>
                 </div>
@@ -1979,13 +2027,11 @@ function OutputPriceSelectionForm({
               {selectedSetting.indigoUpPrices && selectedSetting.indigoUpPrices.length > 0 && (
                 <div className="border rounded-lg overflow-hidden">
                   <Table>
-                    <TableHeader><TableRow className="bg-slate-50"><TableHead>Up</TableHead><TableHead className="text-right">단면 가격</TableHead><TableHead className="text-right">양면 가격</TableHead></TableRow></TableHeader>
+                    <TableHeader><TableRow className="bg-slate-50"><TableHead>Up</TableHead></TableRow></TableHeader>
                     <TableBody>
                       {selectedSetting.indigoUpPrices.map(upPrice => (
                         <TableRow key={upPrice.up}>
                           <TableCell className="font-medium">{upPrice.up}Up</TableCell>
-                          <TableCell className="text-right">{upPrice.singleSidedPrice.toLocaleString()}원</TableCell>
-                          <TableCell className="text-right">{upPrice.doubleSidedPrice.toLocaleString()}원</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -2008,12 +2054,11 @@ function OutputPriceSelectionForm({
                   return inkjetSpecs.length > 0 ? (
                     <div className="border rounded-lg overflow-hidden">
                       <Table>
-                        <TableHeader><TableRow className="bg-slate-50"><TableHead>규격명</TableHead><TableHead className="text-right">단면가격</TableHead><TableHead className="text-center">기준규격</TableHead></TableRow></TableHeader>
+                        <TableHeader><TableRow className="bg-slate-50"><TableHead>규격명</TableHead><TableHead className="text-center">기준규격</TableHead></TableRow></TableHeader>
                         <TableBody>
                           {inkjetSpecs.map(specPrice => (
                             <TableRow key={specPrice.specificationId} className="bg-blue-50/30">
                               <TableCell className="font-medium">{getSpecName(specPrice.specificationId)}</TableCell>
-                              <TableCell className="text-right">{specPrice.singleSidedPrice.toLocaleString()}원</TableCell>
                               <TableCell className="text-center">{specPrice.isBaseSpec && <Badge variant="secondary">기준</Badge>}</TableCell>
                             </TableRow>
                           ))}

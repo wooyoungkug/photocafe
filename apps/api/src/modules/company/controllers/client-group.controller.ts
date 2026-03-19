@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Body,
   Param,
@@ -62,6 +63,12 @@ export class ClientGroupController {
   @ApiOperation({ summary: '거래처 그룹 수정' })
   async update(@Param('id') id: string, @Body() data: any) {
     return this.clientGroupService.update(id, data);
+  }
+
+  @Patch('reorder')
+  @ApiOperation({ summary: '거래처 그룹 순서 변경' })
+  async reorder(@Body() data: { items: { id: string; sortOrder: number }[] }) {
+    return this.clientGroupService.reorder(data.items);
   }
 
   @Delete(':id')

@@ -8,6 +8,9 @@ import {
   SetGroupHalfProductPriceDto,
   SetGroupProductionSettingPricesDto,
   SetClientProductionSettingPricesDto,
+  GetAlbumPagePriceDto,
+  CalculateAlbumOrderPriceDto,
+  AlbumOrderPriceResultDto,
 } from '../dto';
 
 /**
@@ -21,6 +24,265 @@ import {
 @Injectable()
 export class PricingService {
   constructor(private prisma: PrismaService) {}
+
+  // ==================== 앨범 페이지 단가 조회 ====================
+
+  /**
+   * 앨범 업로드 시 DB 기반 실제 페이지 단가 조회
+   * 우선순위: 1) 거래처 개별 단가 → 2) 그룹 단가 → 3) 0원 반환
+   */
+  async getAlbumPagePrice(
+    clientId: string | null,
+    dto: GetAlbumPagePriceDto,
+  ): Promise<{ pricePerPage: number }> {
+    const { productionSettingId, specificationId, colorMode, pageLayout } = dto;
+
+    // 색상+레이아웃 조합에 따른 필드명 결정
+    const priceField = this.getColorLayoutPriceField(colorMode, pageLayout);
+
+    // 1. 거래처 개별 단가 조회
+    if (clientId) {
+      const clientPrice = await this.prisma.clientProductionSettingPrice.findFirst({
+        where: {
+          clientId,
+          productionSettingId,
+          specificationId,
+        },
+      });
+
+      if (clientPrice && clientPrice[priceField] != null) {
+        return { pricePerPage: Number(clientPrice[priceField]) };
+      }
+
+      // 2. 거래처의 그룹 단가 조회
+      const client = await this.prisma.client.findUnique({
+        where: { id: clientId },
+        select: { groupId: true },
+      });
+
+      if (client?.groupId) {
+        const groupPrice = await this.prisma.groupProductionSettingPrice.findFirst({
+          where: {
+            clientGroupId: client.groupId,
+            productionSettingId,
+            specificationId,
+          },
+        });
+
+        if (groupPrice && groupPrice[priceField] != null) {
+          return { pricePerPage: Number(groupPrice[priceField]) };
+        }
+      }
+    }
+
+    // 3. 값이 없으면 0원 반환
+    return { pricePerPage: 0 };
+  }
+
+  /**
+   * 색상 모드와 페이지 레이아웃에 따른 가격 필드명 반환
+   */
+  private getColorLayoutPriceField(
+    colorMode: '4c' | '6c',
+    pageLayout: 'single' | 'spread',
+  ): 'fourColorSinglePrice' | 'fourColorDoublePrice' | 'sixColorSinglePrice' | 'sixColorDoublePrice' {
+    if (colorMode === '4c') {
+      return pageLayout === 'single' ? 'fourColorSinglePrice' : 'fourColorDoublePrice';
+    }
+    return pageLayout === 'single' ? 'sixColorSinglePrice' : 'sixColorDoublePrice';
+  }
+
+  // ==================== 앨범 주문 가격 계산 ====================
+
+  /**
+   * 앨범 주문 가격 계산
+   * 1. Product → outputPriceSettings에서 productionSettingId 추출
+   * 2. Specification에서 widthInch + heightInch + forIndigoAlbum 매칭
+   * 3. ProductionSettingPrice 조회 (또는 거래처/그룹 override)
+   * 4. rangePrices 우선 → 없으면 basePrice + pricePerPage * pageCount
+   */
+  async calculateAlbumOrderPrice(dto: CalculateAlbumOrderPriceDto): Promise<AlbumOrderPriceResultDto> {
+    // 1. 상품 조회 (bindings 포함 - 제본 단가의 productionSettingId 확보)
+    const product = await this.prisma.product.findUnique({
+      where: { id: dto.productId },
+      select: {
+        id: true,
+        productName: true,
+        outputPriceSettings: true,
+        bindings: {
+          select: { productionSettingId: true },
+        },
+      },
+    });
+
+    if (!product) {
+      throw new NotFoundException('상품을 찾을 수 없습니다.');
+    }
+
+    // 2. 규격 조회 (widthInch + heightInch + forIndigoAlbum)
+    const specification = await this.prisma.specification.findFirst({
+      where: {
+        widthInch: dto.widthInch,
+        heightInch: dto.heightInch,
+        forIndigoAlbum: true,
+        isActive: true,
+      },
+    });
+
+    if (!specification) {
+      throw new NotFoundException(
+        `규격을 찾을 수 없습니다 (${dto.widthInch}" x ${dto.heightInch}", 인디고앨범).`,
+      );
+    }
+
+    // 3. productionSettingId 목록 수집: bindings 우선, 없으면 outputPriceSettings JSON
+    const bindingSettingIds = (product.bindings || [])
+      .map((b: any) => b.productionSettingId)
+      .filter(Boolean) as string[];
+
+    const outputSettings = (product.outputPriceSettings as any[]) || [];
+    const outputSettingIds = outputSettings
+      .filter((s: any) => s?.productionSettingId)
+      .map((s: any) => s.productionSettingId as string);
+
+    const productionSettingIds = [...new Set([...bindingSettingIds, ...outputSettingIds])];
+
+    if (productionSettingIds.length === 0) {
+      throw new NotFoundException('상품에 제본/출력단가 설정이 없습니다.');
+    }
+
+    // 4. 가격 조회: 거래처 개별 → 그룹 → 표준 순서
+    let priceRecord: any = null;
+    let matchedProductionSettingId: string | null = null;
+    let appliedPolicy = '표준 단가';
+
+    // 4-1. 거래처 개별 단가 조회
+    if (dto.clientId) {
+      const clientPrice = await this.prisma.clientProductionSettingPrice.findFirst({
+        where: {
+          clientId: dto.clientId,
+          productionSettingId: { in: productionSettingIds },
+          specificationId: specification.id,
+        },
+      });
+
+      if (clientPrice) {
+        priceRecord = clientPrice;
+        matchedProductionSettingId = clientPrice.productionSettingId;
+        appliedPolicy = '거래처 개별 단가';
+      }
+
+      // 4-2. 거래처 그룹 단가 조회
+      if (!priceRecord) {
+        const client = await this.prisma.client.findUnique({
+          where: { id: dto.clientId },
+          select: { groupId: true },
+        });
+
+        if (client?.groupId) {
+          const groupPrice = await this.prisma.groupProductionSettingPrice.findFirst({
+            where: {
+              clientGroupId: client.groupId,
+              productionSettingId: { in: productionSettingIds },
+              specificationId: specification.id,
+            },
+          });
+
+          if (groupPrice) {
+            priceRecord = groupPrice;
+            matchedProductionSettingId = groupPrice.productionSettingId;
+            appliedPolicy = '그룹 단가';
+          }
+        }
+      }
+    }
+
+    // 4-3. 표준 단가 조회 (ProductionSettingPrice)
+    if (!priceRecord) {
+      const standardPrice = await this.prisma.productionSettingPrice.findFirst({
+        where: {
+          productionSettingId: { in: productionSettingIds },
+          specificationId: specification.id,
+        },
+      });
+
+      if (standardPrice) {
+        priceRecord = standardPrice;
+        matchedProductionSettingId = standardPrice.productionSettingId;
+        appliedPolicy = '표준 단가';
+      }
+    }
+
+    if (!priceRecord) {
+      throw new NotFoundException(
+        `해당 규격(${specification.nup || specification.code})에 대한 가격 정보가 없습니다.`,
+      );
+    }
+
+    // 5. 가격 계산
+    const coverPrice = Number(priceRecord.basePrice) || 0;
+    const rangePrices = priceRecord.rangePrices as Record<string, any> | null;
+
+    // 색상+레이아웃에 따른 pricePerPage 결정
+    const colorLayoutField = this.getColorLayoutPriceField(dto.colorMode, dto.pageLayout);
+    let pricePerPage = Number(priceRecord[colorLayoutField]) || Number(priceRecord.pricePerPage) || 0;
+
+    let printPrice: number;
+    let unitPrice: number;
+
+    // rangePrices에 pageCount 키가 있으면 해당 값 사용
+    const pageCountKey = String(dto.pageCount);
+    if (rangePrices && pageCountKey in rangePrices && rangePrices[pageCountKey] != null) {
+      // rangePrices 값은 표지 포함 총액
+      unitPrice = Number(rangePrices[pageCountKey]);
+      // __coverPrice가 rangePrices에 저장되어 있을 수 있음
+      const storedCoverPrice = rangePrices['__coverPrice'] != null
+        ? Number(rangePrices['__coverPrice'])
+        : coverPrice;
+      printPrice = unitPrice - storedCoverPrice;
+      // pricePerPage 역산 (참고용)
+      if (dto.pageCount > 0) {
+        pricePerPage = printPrice / dto.pageCount;
+      }
+    } else {
+      // 기본 계산: coverPrice + pricePerPage * pageCount
+      printPrice = pricePerPage * dto.pageCount;
+      unitPrice = coverPrice + printPrice;
+    }
+
+    // 6. 용지 추가금 계산
+    let paperPrice = 0;
+    if (dto.paperId) {
+      const specPrice = await this.prisma.specificationPrice.findFirst({
+        where: {
+          specificationId: specification.id,
+          groupId: dto.paperId,
+        },
+      });
+
+      if (specPrice) {
+        paperPrice = Number(specPrice.price) * dto.pageCount;
+      }
+    }
+
+    // 7. 제본비 (현재 별도 제본비 모델 없음 → 0)
+    const bindingPrice = 0;
+
+    // 총 단가에 용지금+제본비 합산
+    unitPrice = unitPrice + paperPrice + bindingPrice;
+
+    return {
+      coverPrice,
+      pricePerPage: Math.round(pricePerPage * 100) / 100,
+      printPrice,
+      paperPrice,
+      bindingPrice,
+      unitPrice,
+      specificationId: specification.id,
+      nup: specification.nup || '',
+      appliedPolicy,
+    };
+  }
 
   // ==================== 상품 가격 계산 ====================
 
@@ -412,7 +674,11 @@ export class PricingService {
           basePages: priceData.basePages,
           basePrice: priceData.basePrice,
           pricePerPage: priceData.pricePerPage,
-          rangePrices: priceData.rangePrices,
+          rangePrices: (() => {
+            const rp = priceData.rangePrices ? JSON.parse(JSON.stringify(priceData.rangePrices)) : {};
+            if (priceData.coverPrice != null) rp.__coverPrice = priceData.coverPrice;
+            return Object.keys(rp).length > 0 ? rp : null;
+          })(),
         };
 
         const existing = existingMap.get(key);
@@ -555,7 +821,11 @@ export class PricingService {
           basePages: priceData.basePages,
           basePrice: priceData.basePrice,
           pricePerPage: priceData.pricePerPage,
-          rangePrices: priceData.rangePrices,
+          rangePrices: (() => {
+            const rp = priceData.rangePrices ? JSON.parse(JSON.stringify(priceData.rangePrices)) : {};
+            if (priceData.coverPrice != null) rp.__coverPrice = priceData.coverPrice;
+            return Object.keys(rp).length > 0 ? rp : null;
+          })(),
         };
 
         const existing = existingMap.get(key);

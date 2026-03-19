@@ -114,6 +114,8 @@ export interface ProductionSetting {
   inkjetSpecPrices?: InkjetSpecPrice[];
   // 단가 그룹 (priceGroups JSON 필드에서 로드)
   priceGroups?: PriceGroup[];
+  // 용지 → 그룹 매핑 (paperPriceGroupMap JSON 필드)
+  paperPriceGroupMap?: Record<string, string | null>;
   sortOrder: number;
   isActive: boolean;
   createdAt: string;
@@ -153,6 +155,10 @@ export interface ProductionSettingPrice {
   minQuantity: number | null;
   maxQuantity: number | null;
   price: number;
+  basePages?: number | null;
+  basePrice?: number | null;
+  pricePerPage?: number | null;
+  rangePrices?: Record<string, number> | null;
 }
 
 const PRODUCTION_KEY = 'production';
@@ -371,6 +377,18 @@ export function useUpdateSettingPrices() {
         price: number;
       }>;
     }) => api.put<ProductionSetting>(`/production/settings/${id}/prices`, { prices }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [PRODUCTION_KEY] });
+    },
+  });
+}
+
+export function useCopyProductionSetting() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) =>
+      api.post<ProductionSetting>(`/production/settings/${id}/copy`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [PRODUCTION_KEY] });
     },

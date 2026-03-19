@@ -18,6 +18,7 @@ import {
   Ruler,
   Users,
   FolderInput,
+  Copy,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,7 @@ import {
   useCreateProductionSetting,
   useUpdateProductionSetting,
   useDeleteProductionSetting,
+  useCopyProductionSetting,
   useMoveProductionSetting,
   useMoveProductionGroupTo,
   useMoveProductionSettingTo,
@@ -79,7 +81,7 @@ import { toast } from "@/hooks/use-toast";
 import { useSystemSettings, settingsToMap, getNumericValue } from "@/hooks/use-system-settings";
 
 // 보호되는 그룹 이름 (삭제/수정 불가)
-const PROTECTED_GROUP_NAMES = ['기타', '배송'];
+const PROTECTED_GROUP_NAMES = ['기타', '배송', '출력', '인디고출력', '잉크젯출력'];
 
 // 보호되는 그룹인지 확인
 const isProtectedGroup = (name: string): boolean => {
@@ -222,6 +224,15 @@ const getNupGroupLabel = (specs: Specification[]): string => {
 // 숫자 포맷
 const formatCurrency = (num: number) => {
   return new Intl.NumberFormat("ko-KR").format(num);
+};
+
+// 그룹명에 따른 단면/양면 고정 결정
+// 압축/레이플릿/맞장 → 단면, 화보/포토북 → 양면
+const getFixedPrintSide = (groupName: string): 'single' | 'double' | null => {
+  const lower = groupName.toLowerCase();
+  if (lower.includes('압축') || lower.includes('레이플릿') || lower.includes('맞장')) return 'single';
+  if (lower.includes('화보') || lower.includes('포토북')) return 'double';
+  return null;
 };
 
 // 인디고 원가 계산 헬퍼 함수
@@ -775,18 +786,23 @@ const SettingCard = ({
   setting,
   onEdit,
   onDelete,
+  onCopy,
   onMove,
   onMoveTo,
+  groupName,
 }: {
   setting: ProductionSetting;
   onEdit: (setting: ProductionSetting) => void;
   onDelete: (setting: ProductionSetting) => void;
+  onCopy?: (setting: ProductionSetting) => void;
   onMove: (id: string, direction: "up" | "down") => void;
   onMoveTo?: (setting: ProductionSetting) => void;
+  groupName?: string;
 }) => {
   // prices 배열에서 가격 정보 추출
   const prices = (setting as any).prices || [];
   const printMethod = (setting as any).printMethod;
+  const fixedPrintSide = getFixedPrintSide(groupName || '');
 
   // 인디고 Up별 가격 (minQuantity로 구분) - 4도/6도 칼라 구분
   const indigoUpPrices = [1, 2, 4, 8].map(up => {
@@ -856,51 +872,59 @@ const SettingCard = ({
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {/* 4도칼라 */}
-                  <tr className="group/row hover:bg-gray-50">
-                    <td className="px-2 py-1.5 text-left">
-                      <span className="font-semibold text-blue-600 mr-1.5">4도</span>
-                      <span className="text-gray-600">단면</span>
-                    </td>
-                    {indigoUpPrices.map((p) => (
-                      <td key={p.up} className="px-2 py-1.5 font-mono text-gray-900">
-                        {p.fourColorSinglePrice > 0 ? p.fourColorSinglePrice.toLocaleString() : "-"}
+                  {fixedPrintSide !== 'double' && (
+                    <tr className="group/row hover:bg-gray-50">
+                      <td className="px-2 py-1.5 text-left">
+                        <span className="font-semibold text-blue-600 mr-1.5">4도</span>
+                        <span className="text-gray-600">단면</span>
                       </td>
-                    ))}
-                  </tr>
-                  <tr className="group/row hover:bg-gray-50">
-                    <td className="px-2 py-1.5 text-left">
-                      <span className="font-semibold text-blue-600 mr-1.5">4도</span>
-                      <span className="text-gray-600">양면</span>
-                    </td>
-                    {indigoUpPrices.map((p) => (
-                      <td key={p.up} className="px-2 py-1.5 font-mono text-gray-900">
-                        {p.fourColorDoublePrice > 0 ? p.fourColorDoublePrice.toLocaleString() : "-"}
+                      {indigoUpPrices.map((p) => (
+                        <td key={p.up} className="px-2 py-1.5 font-mono text-gray-900">
+                          {p.fourColorSinglePrice > 0 ? p.fourColorSinglePrice.toLocaleString() : "-"}
+                        </td>
+                      ))}
+                    </tr>
+                  )}
+                  {fixedPrintSide !== 'single' && (
+                    <tr className="group/row hover:bg-gray-50">
+                      <td className="px-2 py-1.5 text-left">
+                        <span className="font-semibold text-blue-600 mr-1.5">4도</span>
+                        <span className="text-gray-600">양면</span>
                       </td>
-                    ))}
-                  </tr>
+                      {indigoUpPrices.map((p) => (
+                        <td key={p.up} className="px-2 py-1.5 font-mono text-gray-900">
+                          {p.fourColorDoublePrice > 0 ? p.fourColorDoublePrice.toLocaleString() : "-"}
+                        </td>
+                      ))}
+                    </tr>
+                  )}
                   {/* 6도칼라 */}
-                  <tr className="group/row hover:bg-gray-50">
-                    <td className="px-2 py-1.5 text-left">
-                      <span className="font-semibold text-purple-600 mr-1.5">6도</span>
-                      <span className="text-gray-600">단면</span>
-                    </td>
-                    {indigoUpPrices.map((p) => (
-                      <td key={p.up} className="px-2 py-1.5 font-mono text-gray-900">
-                        {p.sixColorSinglePrice > 0 ? p.sixColorSinglePrice.toLocaleString() : "-"}
+                  {fixedPrintSide !== 'double' && (
+                    <tr className="group/row hover:bg-gray-50">
+                      <td className="px-2 py-1.5 text-left">
+                        <span className="font-semibold text-purple-600 mr-1.5">6도</span>
+                        <span className="text-gray-600">단면</span>
                       </td>
-                    ))}
-                  </tr>
-                  <tr className="group/row hover:bg-gray-50">
-                    <td className="px-2 py-1.5 text-left">
-                      <span className="font-semibold text-purple-600 mr-1.5">6도</span>
-                      <span className="text-gray-600">양면</span>
-                    </td>
-                    {indigoUpPrices.map((p) => (
-                      <td key={p.up} className="px-2 py-1.5 font-mono text-gray-900">
-                        {p.sixColorDoublePrice > 0 ? p.sixColorDoublePrice.toLocaleString() : "-"}
+                      {indigoUpPrices.map((p) => (
+                        <td key={p.up} className="px-2 py-1.5 font-mono text-gray-900">
+                          {p.sixColorSinglePrice > 0 ? p.sixColorSinglePrice.toLocaleString() : "-"}
+                        </td>
+                      ))}
+                    </tr>
+                  )}
+                  {fixedPrintSide !== 'single' && (
+                    <tr className="group/row hover:bg-gray-50">
+                      <td className="px-2 py-1.5 text-left">
+                        <span className="font-semibold text-purple-600 mr-1.5">6도</span>
+                        <span className="text-gray-600">양면</span>
                       </td>
-                    ))}
-                  </tr>
+                      {indigoUpPrices.map((p) => (
+                        <td key={p.up} className="px-2 py-1.5 font-mono text-gray-900">
+                          {p.sixColorDoublePrice > 0 ? p.sixColorDoublePrice.toLocaleString() : "-"}
+                        </td>
+                      ))}
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -991,6 +1015,17 @@ const SettingCard = ({
             </Button>
           )}
           <div className="w-px h-4 bg-gray-200 mx-1" />
+          {onCopy && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-gray-400 hover:text-green-600"
+              onClick={() => onCopy(setting)}
+              title="단가 복사"
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"
@@ -1057,12 +1092,15 @@ export default function ProductionSettingPage() {
     code: "",
     name: "",
   });
-  // 인디고 Up 단위 (1up만 사용)
-  const INDIGO_UP_UNITS = [1] as const;
+  // 인디고 Up 단위
+  const INDIGO_UP_UNITS = [1, 2, 4, 8] as const;
 
   // 인디고 기본 가중치 (기본값 1)
   const DEFAULT_INDIGO_WEIGHTS: Record<number, number> = {
     1: 1.0,    // 1up 기준
+    2: 1.2,
+    4: 1.3,
+    8: 1.4,
   };
 
   const [settingForm, setSettingForm] = useState({
@@ -1078,7 +1116,7 @@ export default function ProductionSettingPage() {
     specificationIds: [] as string[],
     specUsageType: "all" as "indigo" | "inkjet" | "album" | "frame" | "booklet" | "all",
     // 용지별출력단가 전용 필드
-    printMethod: "indigo" as "indigo" | "inkjet" | "album" | "frame" | "booklet",
+    printMethod: "indigo" as "indigo" | "inkjet" | "album" | "frame" | "booklet" | "indigoAlbum",
     paperIds: [] as string[],
     singleSidedPrice: 0,
     doubleSidedPrice: 0,
@@ -1130,7 +1168,9 @@ export default function ProductionSettingPage() {
     // [제본전용] 구간별 Nup/1p가격 필드
     nupPageRanges: [] as Array<{
       specificationId: string;  // 규격 ID (Nup 정보 연동)
-      pricePerPage: number;     // 1p당 추가 가격 (예: 500원)
+      pricePerPage: number;     // 단가/1p 추가 가격 (예: 500원)
+      coverPrice?: number;      // 표지가격
+      paperPrice?: number;      // 용지가격
       rangePrices: Record<number, number>;  // 구간별 가격 {20: 35000, 30: 40000, ...}
     }>,
     // 페이지 구간 설정 (전역)
@@ -1184,7 +1224,7 @@ export default function ProductionSettingPage() {
   // API 호출
   const router = useRouter();
   const { data: groupTree, isLoading: isLoadingGroups } = useProductionGroupTree();
-  const { data: specifications } = useSpecifications();
+  const { data: specifications, refetch: refetchSpecifications } = useSpecifications();
   const { data: pricingTypes } = usePricingTypes();
   const { data: clientGroupsData } = useClientGroups({ limit: 100 });
 
@@ -1196,6 +1236,7 @@ export default function ProductionSettingPage() {
   const createSettingMutation = useCreateProductionSetting();
   const updateSettingMutation = useUpdateProductionSetting();
   const deleteSettingMutation = useDeleteProductionSetting();
+  const copySettingMutation = useCopyProductionSetting();
   const moveSettingMutation = useMoveProductionSetting();
   const moveGroupToMutation = useMoveProductionGroupTo();
   const moveSettingToMutation = useMoveProductionSettingTo();
@@ -1543,6 +1584,9 @@ export default function ProductionSettingPage() {
       return;
     }
 
+    // 비동기로 백그라운드에서 스펙 갱신 (모달은 바로 열림)
+    refetchSpecifications();
+
     if (setting) {
       setEditingSetting(setting);
 
@@ -1576,20 +1620,76 @@ export default function ProductionSettingPage() {
         ? prices
           .filter((p: any) => p.specificationId)
           .map((p: any) => {
-            // DB에서 string 키로 저장된 rangePrices를 number 키로 변환
+            // DB에서 string 키로 저장된 rangePrices를 number 키로 변환 (__coverPrice, __paperPrice 제외)
             const rangePrices: Record<number, number> = {};
+            let loadedCoverPrice: number | undefined = undefined;
+            let loadedPaperPrice: number | undefined = undefined;
             if (p.rangePrices && typeof p.rangePrices === 'object') {
               Object.entries(p.rangePrices).forEach(([key, value]) => {
-                rangePrices[Number(key)] = Number(value);
+                if (key === '__coverPrice') {
+                  loadedCoverPrice = Number(value);
+                } else if (key === '__paperPrice') {
+                  loadedPaperPrice = Number(value);
+                } else {
+                  rangePrices[Number(key)] = Number(value);
+                }
               });
             }
             return {
               specificationId: p.specificationId,
               pricePerPage: Number(p.pricePerPage) || 0,
+              coverPrice: loadedCoverPrice,
+              paperPrice: loadedPaperPrice,
               rangePrices,
             };
           })
         : [];
+
+      // Nup별 중복 제거: representativeSpec.id를 키로 하는 단일 항목만 유지
+      const normalizedNupPageRanges = (() => {
+        if (!nupPageRangesFromDB.length) return nupPageRangesFromDB;
+        const method = (setting as any).printMethod || 'indigo';
+        const filteredSpecs = (specifications || []).filter((s: any) => {
+          if (!s.nup) return false;
+          if (method === 'indigoAlbum') return s.forIndigoAlbum;
+          if (method === 'indigo') return s.forIndigo;
+          if (method === 'inkjet') return s.forInkjet;
+          if (method === 'album') return s.forAlbum;
+          if (method === 'frame') return s.forFrame;
+          if (method === 'booklet') return s.forBooklet;
+          return true;
+        });
+        // nup -> specsInGroup 맵
+        const nupGroupMap = new Map<string, any[]>();
+        filteredSpecs.forEach((s: any) => {
+          if (!s.nup) return;
+          if (!nupGroupMap.has(s.nup)) nupGroupMap.set(s.nup, []);
+          nupGroupMap.get(s.nup)!.push(s);
+        });
+        // nup별 단일 항목만 남김 (representativeSpec.id로 재설정)
+        const resultMap = new Map<string, any>();
+        nupPageRangesFromDB.forEach((item: any) => {
+          const spec = filteredSpecs.find((s: any) => s.id === item.specificationId);
+          if (!spec?.nup) {
+            // nup 없는 항목은 그대로 유지
+            resultMap.set(item.specificationId, item);
+            return;
+          }
+          const specsInGroup = nupGroupMap.get(spec.nup) || [];
+          const representativeSpecId = specsInGroup[0]?.id;
+          if (!representativeSpecId) return;
+          const existing = resultMap.get(spec.nup);
+          if (!existing) {
+            // 첫 번째 발견 - representativeSpec.id로 저장
+            resultMap.set(spec.nup, { ...item, specificationId: representativeSpecId });
+          }
+          // representativeSpec.id의 데이터가 있으면 덮어씀 (정확한 데이터 우선)
+          if (item.specificationId === representativeSpecId) {
+            resultMap.set(spec.nup, item);
+          }
+        });
+        return Array.from(resultMap.values());
+      })();
 
       // 페이지 구간 설정 로드
       const pageRangesFromDB = (setting as any).pageRanges || [20, 30, 40, 50, 60];
@@ -1607,9 +1707,19 @@ export default function ProductionSettingPage() {
         }
       });
 
-      // 규격 ID: 기존 specifications 또는 priceGroups에서 추출
+      // 규격 ID: 기존 specifications → priceGroups.specPrices 순으로 추출 (합집합)
       const specIdsFromDB = setting.specifications?.map((s) => s.specificationId) || [];
-      const allSpecIds = specIdsFromDB.length > 0 ? specIdsFromDB : Array.from(specIdsFromPriceGroups);
+      // specIdsFromDB와 specIdsFromPriceGroups를 합쳐서 누락 없이 복원
+      const mergedSpecIds = new Set<string>([...specIdsFromDB, ...Array.from(specIdsFromPriceGroups)]);
+      const allSpecIds = mergedSpecIds.size > 0 ? Array.from(mergedSpecIds) : [];
+
+      // nup_page_range/finishing_spec_nup는 normalizedNupPageRanges의 대표 spec ID만 사용
+      // (DB에는 Nup 그룹 내 모든 spec이 저장되지만, 폼에서는 대표 spec 1개만 관리)
+      const normalizedSpecIds = (setting.pricingType === 'nup_page_range' || setting.pricingType === 'finishing_spec_nup')
+        ? (normalizedNupPageRanges.length > 0
+            ? normalizedNupPageRanges.map((r: any) => r.specificationId)
+            : allSpecIds)
+        : allSpecIds;
 
       setSettingForm({
         codeName: setting.codeName || "",
@@ -1621,7 +1731,7 @@ export default function ProductionSettingPage() {
         basePrice: Number(setting.basePrice),
         workDays: Number(setting.workDays),
         weightInfo: setting.weightInfo || "",
-        specificationIds: allSpecIds,
+        specificationIds: normalizedSpecIds,
         specUsageType: (setting as any).specUsageType || "all",
         printMethod: (setting as any).printMethod || "indigo",
         paperIds: (setting as any).paperIds || [],
@@ -1637,7 +1747,7 @@ export default function ProductionSettingPage() {
           pricingMode: g.pricingMode || 'spec',
         })),
         paperPriceGroupMap: (setting as any).paperPriceGroupMap || {},
-        nupPageRanges: nupPageRangesFromDB,
+        nupPageRanges: normalizedNupPageRanges,
         pageRanges: pageRangesFromDB,
         lengthUnit: (setting as any).lengthUnit || 'cm',
         lengthPriceRanges: (setting as any).lengthPriceRanges || [],
@@ -1720,11 +1830,11 @@ export default function ProductionSettingPage() {
     try {
       const formData = settingForm;
 
-      // 필수값 검증: 용지별그룹명 (settingName)
+      // 필수값 검증: 세팅명 (settingName)
       if (!formData.settingName || formData.settingName.trim() === "") {
         toast({
           title: "필수 입력 누락",
-          description: "용지별그룹명을 입력해주세요.",
+          description: "세팅명을 입력해주세요.",
           variant: "destructive"
         });
         return;
@@ -1774,11 +1884,8 @@ export default function ProductionSettingPage() {
 
           apiData.specificationIds = allSpecIds;
           apiData.baseSpecificationId = formData.inkjetBaseSpecId;
-          // isBaseSpec 플래그 추가
-          apiData.inkjetSpecPrices = formData.inkjetSpecPrices.map((sp) => ({
-            ...sp,
-            isBaseSpec: sp.specificationId === formData.inkjetBaseSpecId,
-          }));
+          // priceGroups 방식(신형)에서는 inkjetSpecPrices(구형 prices 테이블) 저장 생략 → 중복 방지
+          // inkjetSpecPrices는 priceGroups.specPrices로 대체됨
         }
       }
       // nup_page_range: 구간별 Nup/1p가격
@@ -1789,7 +1896,8 @@ export default function ProductionSettingPage() {
         const method = formData.printMethod;
         const filteredSpecs = specifications?.filter((s: any) => {
           if (!s.nup) return false;
-          if (method === 'indigo') return s.forIndigo && s.nup;
+          if (method === 'indigoAlbum') return s.forIndigoAlbum;
+          if (method === 'indigo') return s.forIndigo;
           if (method === 'inkjet') return s.forInkjet;
           if (method === 'album') return s.forAlbum;
           if (method === 'frame') return s.forFrame;
@@ -1808,17 +1916,37 @@ export default function ProductionSettingPage() {
         const allSpecIds: string[] = [];
         const expandedNupPageRanges: typeof formData.nupPageRanges = [];
 
+        // Nup별 대표 항목 선택 (representativeSpec.id 우선, 없으면 첫 번째)
+        const nupSpecGroupMap = new Map<string, any[]>();
+        filteredSpecs.forEach((s: any) => {
+          if (!s.nup) return;
+          if (!nupSpecGroupMap.has(s.nup)) nupSpecGroupMap.set(s.nup, []);
+          nupSpecGroupMap.get(s.nup)!.push(s);
+        });
+
+        // nup -> 최우선 item 선택 (representativeSpec.id 항목 > 첫 번째 항목)
+        const nupBestItemMap = new Map<string, (typeof formData.nupPageRanges)[0]>();
         formData.nupPageRanges.forEach(item => {
+          const spec = filteredSpecs.find((s: any) => s.id === item.specificationId);
+          if (!spec?.nup) return;
+          const specsInGroup = nupSpecGroupMap.get(spec.nup) || [];
+          const representativeSpecId = specsInGroup[0]?.id;
+          if (!nupBestItemMap.has(spec.nup)) {
+            nupBestItemMap.set(spec.nup, item);
+          }
+          // representativeSpec.id 항목이면 덮어씀 (사용자가 편집한 항목)
+          if (item.specificationId === representativeSpecId) {
+            nupBestItemMap.set(spec.nup, item);
+          }
+        });
+
+        nupBestItemMap.forEach((item) => {
           const representativeSpec = filteredSpecs.find((s: any) => s.id === item.specificationId);
           if (!representativeSpec?.nup) return;
-
-          // 같은 Nup을 가진 모든 규격 찾기
           const sameNupSpecs = filteredSpecs.filter((s: any) => s.nup === representativeSpec.nup);
-
           sameNupSpecs.forEach((spec: any) => {
             if (!allSpecIds.includes(spec.id)) {
               allSpecIds.push(spec.id);
-              // 동일한 가격 데이터를 각 규격에 복사
               expandedNupPageRanges.push({
                 ...item,
                 specificationId: spec.id,
@@ -1839,13 +1967,20 @@ export default function ProductionSettingPage() {
               stringRangePrices[String(key)] = value;
             });
           }
-          return {
+          const result: any = {
             specificationId: item.specificationId,
             basePages: firstRange,
             basePrice: item.rangePrices?.[firstRange] || 0,
             pricePerPage: item.pricePerPage || 0,
             rangePrices: stringRangePrices,
           };
+          if (item.coverPrice != null && item.coverPrice > 0) {
+            result.coverPrice = item.coverPrice;
+          }
+          if (item.paperPrice != null && item.paperPrice > 0) {
+            result.paperPrice = item.paperPrice;
+          }
+          return result;
         });
         // 페이지 구간 설정도 저장 (설정값에 포함)
         apiData.pageRanges = formData.pageRanges;
@@ -1864,13 +1999,19 @@ export default function ProductionSettingPage() {
         apiData.specUsageType = formData.specUsageType;
         // nupPageRanges에서 pricePerPage 저장
         if (formData.nupPageRanges && formData.nupPageRanges.length > 0) {
-          apiData.nupPageRanges = formData.nupPageRanges.map(item => ({
-            specificationId: item.specificationId,
-            basePages: 1,
-            basePrice: 0,
-            pricePerPage: item.pricePerPage || 0,
-            rangePrices: {},
-          }));
+          apiData.nupPageRanges = formData.nupPageRanges.map(item => {
+            const r: any = {
+              specificationId: item.specificationId,
+              basePages: 1,
+              basePrice: 0,
+              pricePerPage: item.pricePerPage || 0,
+              rangePrices: {},
+            };
+            if (item.coverPrice != null && item.coverPrice > 0) {
+              r.coverPrice = item.coverPrice;
+            }
+            return r;
+          });
         }
       }
       // finishing_length: 길이별단가
@@ -2329,10 +2470,25 @@ export default function ProductionSettingPage() {
                     <SettingCard
                       key={setting.id}
                       setting={setting}
+                      groupName={selectedGroup?.name}
                       onEdit={handleOpenSettingDialog}
                       onDelete={(s) => {
                         setDeletingItem({ type: "setting", item: s });
                         setIsDeleteDialogOpen(true);
+                      }}
+                      onCopy={(s) => {
+                        copySettingMutation.mutate(s.id, {
+                          onSuccess: () => {
+                            toast({ title: "단가가 복사되었습니다." });
+                          },
+                          onError: (error: any) => {
+                            toast({
+                              title: "복사 실패",
+                              description: error?.response?.data?.message || "단가 복사 중 오류가 발생했습니다.",
+                              variant: "destructive",
+                            });
+                          },
+                        });
                       }}
                       onMove={handleMoveSetting}
                       onMoveTo={handleOpenMoveSettingDialog}
@@ -2393,7 +2549,7 @@ export default function ProductionSettingPage() {
 
       {/* 설정 다이얼로그 */}
       <Dialog open={isSettingDialogOpen} onOpenChange={setIsSettingDialogOpen}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col p-6">
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col p-6">
           <DialogHeader className="mb-2">
             <DialogTitle className="text-xl">
               {editingSetting ? "단가 설정 수정" : "단가 설정 추가"}
@@ -2413,10 +2569,10 @@ export default function ProductionSettingPage() {
                   </h3>
 
                   <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-                    {/* 1행: 용지별그룹명, 작업시간 */}
+                    {/* 1행: 세팅명, 작업시간 */}
                     <div className="flex items-center gap-3">
                       <Label className="text-xs font-medium text-gray-500 w-24 shrink-0">
-                        용지별그룹명 <span className="text-red-500">*</span>
+                        세팅명 <span className="text-red-500">*</span>
                       </Label>
                       <Input
                         placeholder="예: 박Color"
@@ -2836,14 +2992,19 @@ export default function ProductionSettingPage() {
                                     <div className="border border-gray-200 overflow-hidden">
                                       <table className="w-full text-xs">
                                         <thead>
-                                          <tr className="bg-gray-100 border-b border-gray-200">
-                                            <th className="text-center py-1 px-1 font-medium text-gray-600">Up</th>
-                                            <th className="text-center py-1 px-1 font-medium text-gray-400 text-[10px]">가중치</th>
-                                            <th className="text-center py-1 px-1 font-medium text-gray-600">4도단면</th>
-                                            <th className="text-center py-1 px-1 font-medium text-gray-600">4도양면</th>
-                                            <th className="text-center py-1 px-1 font-medium text-gray-600">6도단면</th>
-                                            <th className="text-center py-1 px-1 font-medium text-gray-600">6도양면</th>
-                                          </tr>
+                                          {(() => {
+                                            const fps = getFixedPrintSide(selectedGroup?.name || '');
+                                            return (
+                                              <tr className="bg-gray-100 border-b border-gray-200">
+                                                <th className="text-center py-1 px-1 font-medium text-gray-600">Up</th>
+                                                <th className="text-center py-1 px-1 font-medium text-gray-400 text-[10px]">가중치</th>
+                                                {fps !== 'double' && <th className="text-center py-1 px-1 font-medium text-gray-600">4도단면</th>}
+                                                {fps !== 'single' && <th className="text-center py-1 px-1 font-medium text-gray-600">4도양면</th>}
+                                                {fps !== 'double' && <th className="text-center py-1 px-1 font-medium text-gray-600">6도단면</th>}
+                                                {fps !== 'single' && <th className="text-center py-1 px-1 font-medium text-gray-600">6도양면</th>}
+                                              </tr>
+                                            );
+                                          })()}
                                         </thead>
                                         <tbody>
                                           {upPrices.map((upPrice, idx) => {
@@ -2893,7 +3054,12 @@ export default function ProductionSettingPage() {
                                                     />
                                                   </div>
                                                 </td>
-                                                {['fourColorSinglePrice', 'fourColorDoublePrice', 'sixColorSinglePrice', 'sixColorDoublePrice'].map((field) => {
+                                                {(['fourColorSinglePrice', 'fourColorDoublePrice', 'sixColorSinglePrice', 'sixColorDoublePrice'] as const).filter(f => {
+                                                  const fps = getFixedPrintSide(selectedGroup?.name || '');
+                                                  if (fps === 'single') return !f.includes('Double');
+                                                  if (fps === 'double') return !f.includes('Single');
+                                                  return true;
+                                                }).map((field) => {
                                                   const costDisplay = getCostDisplay(field, upPrice.up);
                                                   return (
                                                     <td key={field} className="px-0.5 py-0.5">
@@ -2972,7 +3138,7 @@ export default function ProductionSettingPage() {
 
                         {/* 용지 목록 + 그룹 할당 드롭다운 */}
                         <div className="space-y-2">
-                          <Label className="text-sm font-semibold">용지별그룹명</Label>
+                          <Label className="text-sm font-semibold">세팅명</Label>
                           <div className="border rounded-lg p-3 max-h-[200px] overflow-y-auto">
                             {!papersForPricing || papersForPricing.length === 0 ? (
                               <p className="text-center text-muted-foreground py-2 text-sm">
@@ -3227,11 +3393,19 @@ export default function ProductionSettingPage() {
                             </div>
                           </div>
 
-                          {settingForm.specificationIds.length === 0 && (
-                            <div className="border p-4 text-center text-muted-foreground text-sm">
-                              먼저 규격을 선택하세요.
-                            </div>
-                          )}
+                          {(() => {
+                            // specificationIds가 비어있지만 priceGroups.specPrices에 데이터가 있는 경우 복원
+                            const hasGroupSpecPrices = settingForm.priceGroups.some(g => (g.specPrices || []).length > 0);
+                            if (settingForm.specificationIds.length === 0 && hasGroupSpecPrices) return null;
+                            if (settingForm.specificationIds.length === 0) {
+                              return (
+                                <div className="border p-4 text-center text-muted-foreground text-sm">
+                                  먼저 규격을 선택하세요.
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()}
 
                           {/* 그룹별 규격 단가 입력 - 3열 레이아웃 */}
                           {settingForm.priceGroups.length === 0 && settingForm.specificationIds.length > 0 ? (
@@ -3247,6 +3421,10 @@ export default function ProductionSettingPage() {
                                   .map(([pid]) => papersForPricing?.find(p => p.id === pid))
                                   .filter(Boolean);
                                 const specPrices = group.specPrices || [];
+                                // specificationIds가 비어있으면 specPrices의 ID를 대체로 사용
+                                const effectiveSpecIds = settingForm.specificationIds.length > 0
+                                  ? settingForm.specificationIds
+                                  : specPrices.map((sp: any) => sp.specificationId).filter(Boolean);
 
                                 return (
                                   <div key={group.id} className={cn("p-2 border-2", style.bg, style.border)}>
@@ -3256,7 +3434,7 @@ export default function ProductionSettingPage() {
                                           {style.dot} {style.label}
                                         </span>
                                         <span className="text-[10px] bg-gray-200 text-gray-700 px-1 py-0.5">
-                                          {specPrices.length}/{settingForm.specificationIds.length}개
+                                          {specPrices.length}/{effectiveSpecIds.length}개
                                         </span>
                                       </div>
                                       <Button
@@ -3574,7 +3752,7 @@ export default function ProductionSettingPage() {
                                               <input
                                                 type="checkbox"
                                                 className="h-3 w-3"
-                                                checked={specPrices.length === settingForm.specificationIds.length}
+                                                checked={specPrices.length === effectiveSpecIds.length}
                                                 onChange={(e) => {
                                                   const checked = e.target.checked;
                                                   setSettingForm((prev) => ({
@@ -3582,7 +3760,7 @@ export default function ProductionSettingPage() {
                                                     priceGroups: prev.priceGroups.map(g => {
                                                       if (g.id !== group.id) return g;
                                                       if (checked) {
-                                                        const allSpecPrices = settingForm.specificationIds.map((specId) => {
+                                                        const allSpecPrices = effectiveSpecIds.map((specId) => {
                                                           const existing = (g.specPrices || []).find(sp => sp.specificationId === specId);
                                                           return existing || { specificationId: specId, singleSidedPrice: 0, weight: 1.0 };
                                                         });
@@ -3601,7 +3779,7 @@ export default function ProductionSettingPage() {
                                           </tr>
                                         </thead>
                                         <tbody className="max-h-[200px] overflow-y-auto">
-                                          {[...settingForm.specificationIds]
+                                          {[...effectiveSpecIds]
                                             .map(specId => {
                                               const spec = specifications?.find((s) => s.id === specId);
                                               const area = spec ? Number(spec.widthInch) * Number(spec.heightInch) : 0;
@@ -3724,6 +3902,7 @@ export default function ProductionSettingPage() {
                               const method = settingForm.printMethod;
                               const nupSpecs = specifications?.filter(s => {
                                 if (!s.nup) return false;
+                                if (method === 'indigoAlbum') return s.forIndigoAlbum;
                                 if (method === 'indigo') return s.forIndigo;
                                 if (method === 'inkjet') return s.forInkjet;
                                 if (method === 'album') return s.forAlbum;
@@ -3823,13 +4002,13 @@ export default function ProductionSettingPage() {
                       </div>
 
                       {/* Nup 그룹별 단가 설정 */}
-                      <div className="border rounded-lg p-4 max-h-[500px] overflow-y-auto">
+                      <div className="border-2 border-green-400 rounded-lg p-4 max-h-[500px] overflow-y-auto">
 
                         {/* 테이블 헤더 - Nup 그룹 기반 */}
                         <div
                           className="grid gap-0 pb-2 border-b mb-2 text-xs font-medium text-gray-600 sticky top-0 bg-white items-center"
                           style={{
-                            gridTemplateColumns: `28px 60px minmax(120px, 1fr) 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
+                            gridTemplateColumns: `28px 60px minmax(80px, 1fr) 70px 70px 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
                           }}
                         >
                           <Checkbox
@@ -3837,7 +4016,8 @@ export default function ProductionSettingPage() {
                               const method = settingForm.printMethod;
                               const filtered = specifications?.filter(s => {
                                 if (!s.nup) return false;
-                                if (method === 'indigo') return s.forIndigo && s.nup;
+                                if (method === 'indigoAlbum') return s.forIndigoAlbum;
+                                if (method === 'indigo') return s.forIndigo;
                                 if (method === 'inkjet') return s.forInkjet;
                                 if (method === 'album') return s.forAlbum;
                                 if (method === 'frame') return s.forFrame;
@@ -3857,7 +4037,8 @@ export default function ProductionSettingPage() {
                               const method = settingForm.printMethod;
                               const filtered = specifications?.filter(s => {
                                 if (!s.nup) return false;
-                                if (method === 'indigo') return s.forIndigo && s.nup;
+                                if (method === 'indigoAlbum') return s.forIndigoAlbum;
+                                if (method === 'indigo') return s.forIndigo;
                                 if (method === 'inkjet') return s.forInkjet;
                                 if (method === 'album') return s.forAlbum;
                                 if (method === 'frame') return s.forFrame;
@@ -3893,7 +4074,9 @@ export default function ProductionSettingPage() {
                           />
                           <span>Nup</span>
                           <span>규격 목록</span>
-                          <span className="text-right pr-2">1p당</span>
+                          <span className="text-center text-[10px]">표지가격</span>
+                          <span className="text-center text-[10px]">용지가격(1p)</span>
+                          <span className="text-right pr-2 text-[10px]">제본단가(1p)</span>
                           {settingForm.pageRanges.map(range => (
                             <span key={range} className="text-center">{range}p</span>
                           ))}
@@ -3904,7 +4087,8 @@ export default function ProductionSettingPage() {
                             const method = settingForm.printMethod;
                             const filtered = specifications?.filter(s => {
                               if (!s.nup) return false;
-                              if (method === 'indigo') return s.forIndigo && s.nup;
+                              if (method === 'indigoAlbum') return s.forIndigoAlbum;
+                              if (method === 'indigo') return s.forIndigo;
                               if (method === 'inkjet') return s.forInkjet;
                               if (method === 'album') return s.forAlbum;
                               if (method === 'frame') return s.forFrame;
@@ -3931,10 +4115,16 @@ export default function ProductionSettingPage() {
                               const representativeSpec = specsInGroup[0];
                               if (!representativeSpec) return null;
 
-                              const isSelected = settingForm.specificationIds.includes(representativeSpec.id);
-                              const rangeData = settingForm.nupPageRanges.find(p => p.specificationId === representativeSpec.id);
+                              // 그룹 내 아무 spec이라도 선택되어 있으면 선택 처리 (DB 저장 순서 불일치 대응)
+                              const isSelected = specsInGroup.some(s => settingForm.specificationIds.includes(s.id));
+                              // 그룹 내 아무 spec에 대한 rangeData라도 우선 사용
+                              const rangeData = settingForm.nupPageRanges.find(p => p.specificationId === representativeSpec.id)
+                                ?? settingForm.nupPageRanges.find(p => specsInGroup.some(s => s.id === p.specificationId));
                               const pricePerPage = rangeData?.pricePerPage || 0;
+                              const coverPrice = rangeData?.coverPrice || 0;
+                              const paperPrice = rangeData?.paperPrice || 0;
                               const rangePrices = rangeData?.rangePrices || {};
+                              const isOnePlusUp = nup === '1+up';
 
                               // 규격 목록 문자열 (예: 5x7, 7x5, 6x8, 8x6)
                               const specNames = specsInGroup.map(s => s.name).join(', ');
@@ -3947,7 +4137,7 @@ export default function ProductionSettingPage() {
                                     isSelected && "bg-amber-50/50"
                                   )}
                                   style={{
-                                    gridTemplateColumns: `28px 60px minmax(120px, 1fr) 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
+                                    gridTemplateColumns: `28px 60px minmax(80px, 1fr) 70px 70px 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
                                   }}
                                 >
                                   <Checkbox
@@ -3967,10 +4157,11 @@ export default function ProductionSettingPage() {
                                             }],
                                           };
                                         } else {
+                                          const groupSpecIds = new Set(specsInGroup.map(s => s.id));
                                           return {
                                             ...prev,
-                                            specificationIds: prev.specificationIds.filter(id => id !== representativeSpec.id),
-                                            nupPageRanges: prev.nupPageRanges.filter(p => p.specificationId !== representativeSpec.id),
+                                            specificationIds: prev.specificationIds.filter(id => !groupSpecIds.has(id)),
+                                            nupPageRanges: prev.nupPageRanges.filter(p => !groupSpecIds.has(p.specificationId)),
                                           };
                                         }
                                       });
@@ -3981,7 +4172,77 @@ export default function ProductionSettingPage() {
 
                                   {isSelected ? (
                                     <>
-                                      {/* 1p당 가격 입력 - 변경시 나머지 구간 자동 계산 */}
+                                      {/* 표지가격 입력 (모든 행) */}
+                                      <Input
+                                        type="number"
+                                        step="1"
+                                        value={coverPrice || ''}
+                                        onChange={(e) => {
+                                          const newCoverPrice = Number(e.target.value);
+                                          setSettingForm(prev => {
+                                            const currentData = prev.nupPageRanges.find(p => p.specificationId === representativeSpec.id);
+                                            const currentPricePerPage = currentData?.pricePerPage || 0;
+                                            const currentPaperPrice = currentData?.paperPrice || 0;
+                                            const newRangePrices: Record<number, number> = {};
+                                            prev.pageRanges.forEach(range => {
+                                              newRangePrices[range] = Math.round(newCoverPrice + (currentPricePerPage + currentPaperPrice) * range);
+                                            });
+                                            const exists = !!currentData;
+                                            return {
+                                              ...prev,
+                                              nupPageRanges: exists
+                                                ? prev.nupPageRanges.map(p =>
+                                                    p.specificationId === representativeSpec.id
+                                                      ? { ...p, coverPrice: newCoverPrice, rangePrices: newRangePrices }
+                                                      : p
+                                                  )
+                                                : [...prev.nupPageRanges, { specificationId: representativeSpec.id, pricePerPage: 0, coverPrice: newCoverPrice, rangePrices: newRangePrices }],
+                                            };
+                                          });
+                                        }}
+                                        className="h-7 text-center font-mono text-sm bg-pink-50 border-pink-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        placeholder="0"
+                                      />
+                                      {/* 용지가격 입력 (모든 행) */}
+                                      <Input
+                                        type="number"
+                                        step="1"
+                                        value={paperPrice || ''}
+                                        onChange={(e) => {
+                                          const newPaperPrice = Number(e.target.value);
+                                          setSettingForm(prev => {
+                                            const currentData = prev.nupPageRanges.find(p => p.specificationId === representativeSpec.id);
+                                            const cp = currentData?.coverPrice || 0;
+                                            const ppp = currentData?.pricePerPage || 0;
+                                            const newRangePrices: Record<number, number> = {};
+                                            if (cp > 0) {
+                                              prev.pageRanges.forEach(range => {
+                                                newRangePrices[range] = Math.round(cp + (ppp + newPaperPrice) * range);
+                                              });
+                                            } else {
+                                              const firstRange = prev.pageRanges[0] || 20;
+                                              const firstPrice = currentData?.rangePrices?.[firstRange] || 0;
+                                              prev.pageRanges.forEach((range, idx) => {
+                                                newRangePrices[range] = idx === 0 ? firstPrice : Math.round(firstPrice + ((range - firstRange) * (ppp + newPaperPrice)));
+                                              });
+                                            }
+                                            const exists = !!currentData;
+                                            return {
+                                              ...prev,
+                                              nupPageRanges: exists
+                                                ? prev.nupPageRanges.map(p =>
+                                                    p.specificationId === representativeSpec.id
+                                                      ? { ...p, paperPrice: newPaperPrice, rangePrices: newRangePrices }
+                                                      : p
+                                                  )
+                                                : [...prev.nupPageRanges, { specificationId: representativeSpec.id, pricePerPage: 0, paperPrice: newPaperPrice, rangePrices: newRangePrices }],
+                                            };
+                                          });
+                                        }}
+                                        className="h-7 text-center font-mono text-sm bg-yellow-50 border-yellow-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        placeholder="0"
+                                      />
+                                      {/* 단가/1p 입력 - 변경시 나머지 구간 자동 계산 */}
                                       <Input
                                         type="number"
                                         step="0.01"
@@ -3991,31 +4252,49 @@ export default function ProductionSettingPage() {
                                           const firstRange = settingForm.pageRanges[0] || 20;
                                           setSettingForm(prev => {
                                             const currentData = prev.nupPageRanges.find(p => p.specificationId === representativeSpec.id);
-                                            const firstPrice = currentData?.rangePrices?.[firstRange] || 0;
                                             const newRangePrices: Record<number, number> = {};
-                                            prev.pageRanges.forEach((range, idx) => {
-                                              if (idx === 0) {
-                                                newRangePrices[range] = firstPrice;
-                                              } else {
-                                                newRangePrices[range] = Math.round((firstPrice + ((range - firstRange) * value)) * 100) / 100;
-                                              }
-                                            });
+                                            const cp = currentData?.coverPrice || 0;
+                                            const pp = currentData?.paperPrice || 0;
+                                            if (cp > 0) {
+                                              prev.pageRanges.forEach(range => {
+                                                newRangePrices[range] = Math.round(cp + (value + pp) * range);
+                                              });
+                                            } else {
+                                              const firstPrice = currentData?.rangePrices?.[firstRange] || 0;
+                                              prev.pageRanges.forEach((range, idx) => {
+                                                if (idx === 0) {
+                                                  newRangePrices[range] = firstPrice;
+                                                } else {
+                                                  newRangePrices[range] = Math.round(firstPrice + ((range - firstRange) * (value + pp)));
+                                                }
+                                              });
+                                            }
+                                            const exists = !!currentData;
                                             return {
                                               ...prev,
-                                              nupPageRanges: prev.nupPageRanges.map(p =>
-                                                p.specificationId === representativeSpec.id
-                                                  ? { ...p, pricePerPage: value, rangePrices: newRangePrices }
-                                                  : p
-                                              ),
+                                              nupPageRanges: exists
+                                                ? prev.nupPageRanges.map(p =>
+                                                    p.specificationId === representativeSpec.id
+                                                      ? { ...p, pricePerPage: value, rangePrices: newRangePrices }
+                                                      : p
+                                                  )
+                                                : [...prev.nupPageRanges, { specificationId: representativeSpec.id, pricePerPage: value, rangePrices: newRangePrices }],
                                             };
                                           });
                                         }}
                                         className="h-7 text-right font-mono text-sm pr-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                         placeholder="0"
                                       />
-                                      {/* 첫 구간 가격 입력 - 변경시 나머지 구간 자동 계산 */}
+                                      {/* 구간별 가격: 표지가격 있으면 자동계산 표시, 없으면 첫 구간 직접입력 */}
                                       {settingForm.pageRanges.map((range, idx) => (
-                                        idx === 0 ? (
+                                        coverPrice > 0 ? (
+                                          <span
+                                            key={range}
+                                            className="h-7 flex items-center justify-center font-mono text-sm text-gray-600 bg-gray-50 rounded border"
+                                          >
+                                            {formatNumber(rangePrices[range])}
+                                          </span>
+                                        ) : idx === 0 ? (
                                           <Input
                                             key={range}
                                             type="number"
@@ -4035,13 +4314,16 @@ export default function ProductionSettingPage() {
                                                     newRangePrices[r] = Math.round((value + ((r - firstRange) * currentPricePerPage)) * 100) / 100;
                                                   }
                                                 });
+                                                const exists = !!currentData;
                                                 return {
                                                   ...prev,
-                                                  nupPageRanges: prev.nupPageRanges.map(p =>
-                                                    p.specificationId === representativeSpec.id
-                                                      ? { ...p, rangePrices: newRangePrices }
-                                                      : p
-                                                  ),
+                                                  nupPageRanges: exists
+                                                    ? prev.nupPageRanges.map(p =>
+                                                        p.specificationId === representativeSpec.id
+                                                          ? { ...p, rangePrices: newRangePrices }
+                                                          : p
+                                                      )
+                                                    : [...prev.nupPageRanges, { specificationId: representativeSpec.id, pricePerPage: 0, rangePrices: newRangePrices }],
                                                 };
                                               });
                                             }}
@@ -4060,6 +4342,8 @@ export default function ProductionSettingPage() {
                                     </>
                                   ) : (
                                     <>
+                                      <span className="text-center text-gray-400 text-sm">-</span>
+                                      <span className="text-center text-gray-400 text-sm">-</span>
                                       <span className="text-right text-gray-400 text-sm pr-2">-</span>
                                       {settingForm.pageRanges.map(range => (
                                         <span key={range} className="text-center text-gray-400 text-sm">-</span>
@@ -4073,6 +4357,7 @@ export default function ProductionSettingPage() {
                           {(!specifications || specifications.filter(s => {
                             if (!s.nup) return false;
                             const method = settingForm.printMethod;
+                            if (method === 'indigoAlbum') return s.forIndigoAlbum;
                             if (method === 'indigo') return s.forIndigo;
                             if (method === 'inkjet') return s.forInkjet;
                             if (method === 'album') return s.forAlbum;
