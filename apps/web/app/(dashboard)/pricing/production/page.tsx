@@ -1619,6 +1619,51 @@ export default function ProductionSettingPage() {
           })
         : [];
 
+      // Nup별 중복 제거: representativeSpec.id를 키로 하는 단일 항목만 유지
+      const normalizedNupPageRanges = (() => {
+        if (!nupPageRangesFromDB.length) return nupPageRangesFromDB;
+        const method = (setting as any).printMethod || 'indigo';
+        const filteredSpecs = (specifications || []).filter((s: any) => {
+          if (!s.nup) return false;
+          if (method === 'indigo') return s.forIndigo && s.nup;
+          if (method === 'inkjet') return s.forInkjet;
+          if (method === 'album') return s.forAlbum;
+          if (method === 'frame') return s.forFrame;
+          if (method === 'booklet') return s.forBooklet;
+          return true;
+        });
+        // nup -> specsInGroup 맵
+        const nupGroupMap = new Map<string, any[]>();
+        filteredSpecs.forEach((s: any) => {
+          if (!s.nup) return;
+          if (!nupGroupMap.has(s.nup)) nupGroupMap.set(s.nup, []);
+          nupGroupMap.get(s.nup)!.push(s);
+        });
+        // nup별 단일 항목만 남김 (representativeSpec.id로 재설정)
+        const resultMap = new Map<string, any>();
+        nupPageRangesFromDB.forEach((item: any) => {
+          const spec = filteredSpecs.find((s: any) => s.id === item.specificationId);
+          if (!spec?.nup) {
+            // nup 없는 항목은 그대로 유지
+            resultMap.set(item.specificationId, item);
+            return;
+          }
+          const specsInGroup = nupGroupMap.get(spec.nup) || [];
+          const representativeSpecId = specsInGroup[0]?.id;
+          if (!representativeSpecId) return;
+          const existing = resultMap.get(spec.nup);
+          if (!existing) {
+            // 첫 번째 발견 - representativeSpec.id로 저장
+            resultMap.set(spec.nup, { ...item, specificationId: representativeSpecId });
+          }
+          // representativeSpec.id의 데이터가 있으면 덮어씀 (정확한 데이터 우선)
+          if (item.specificationId === representativeSpecId) {
+            resultMap.set(spec.nup, item);
+          }
+        });
+        return Array.from(resultMap.values());
+      })();
+
       // 페이지 구간 설정 로드
       const pageRangesFromDB = (setting as any).pageRanges || [20, 30, 40, 50, 60];
 
@@ -1665,7 +1710,7 @@ export default function ProductionSettingPage() {
           pricingMode: g.pricingMode || 'spec',
         })),
         paperPriceGroupMap: (setting as any).paperPriceGroupMap || {},
-        nupPageRanges: nupPageRangesFromDB,
+        nupPageRanges: normalizedNupPageRanges,
         pageRanges: pageRangesFromDB,
         lengthUnit: (setting as any).lengthUnit || 'cm',
         lengthPriceRanges: (setting as any).lengthPriceRanges || [],
@@ -1836,17 +1881,37 @@ export default function ProductionSettingPage() {
         const allSpecIds: string[] = [];
         const expandedNupPageRanges: typeof formData.nupPageRanges = [];
 
+        // Nup별 대표 항목 선택 (representativeSpec.id 우선, 없으면 첫 번째)
+        const nupSpecGroupMap = new Map<string, any[]>();
+        filteredSpecs.forEach((s: any) => {
+          if (!s.nup) return;
+          if (!nupSpecGroupMap.has(s.nup)) nupSpecGroupMap.set(s.nup, []);
+          nupSpecGroupMap.get(s.nup)!.push(s);
+        });
+
+        // nup -> 최우선 item 선택 (representativeSpec.id 항목 > 첫 번째 항목)
+        const nupBestItemMap = new Map<string, (typeof formData.nupPageRanges)[0]>();
         formData.nupPageRanges.forEach(item => {
+          const spec = filteredSpecs.find((s: any) => s.id === item.specificationId);
+          if (!spec?.nup) return;
+          const specsInGroup = nupSpecGroupMap.get(spec.nup) || [];
+          const representativeSpecId = specsInGroup[0]?.id;
+          if (!nupBestItemMap.has(spec.nup)) {
+            nupBestItemMap.set(spec.nup, item);
+          }
+          // representativeSpec.id 항목이면 덮어씀 (사용자가 편집한 항목)
+          if (item.specificationId === representativeSpecId) {
+            nupBestItemMap.set(spec.nup, item);
+          }
+        });
+
+        nupBestItemMap.forEach((item) => {
           const representativeSpec = filteredSpecs.find((s: any) => s.id === item.specificationId);
           if (!representativeSpec?.nup) return;
-
-          // 같은 Nup을 가진 모든 규격 찾기
           const sameNupSpecs = filteredSpecs.filter((s: any) => s.nup === representativeSpec.nup);
-
           sameNupSpecs.forEach((spec: any) => {
             if (!allSpecIds.includes(spec.id)) {
               allSpecIds.push(spec.id);
-              // 동일한 가격 데이터를 각 규격에 복사
               expandedNupPageRanges.push({
                 ...item,
                 specificationId: spec.id,
