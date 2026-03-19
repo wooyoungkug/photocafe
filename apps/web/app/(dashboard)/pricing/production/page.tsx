@@ -1145,7 +1145,8 @@ export default function ProductionSettingPage() {
     // [제본전용] 구간별 Nup/1p가격 필드
     nupPageRanges: [] as Array<{
       specificationId: string;  // 규격 ID (Nup 정보 연동)
-      pricePerPage: number;     // 1p당 추가 가격 (예: 500원)
+      pricePerPage: number;     // 단가/1p 추가 가격 (예: 500원)
+      coverPrice?: number;      // 표지가격 (1+up 전용)
       rangePrices: Record<number, number>;  // 구간별 가격 {20: 35000, 30: 40000, ...}
     }>,
     // 페이지 구간 설정 (전역)
@@ -1602,6 +1603,7 @@ export default function ProductionSettingPage() {
             return {
               specificationId: p.specificationId,
               pricePerPage: Number(p.pricePerPage) || 0,
+              coverPrice: p.coverPrice != null ? Number(p.coverPrice) : undefined,
               rangePrices,
             };
           })
@@ -1860,6 +1862,7 @@ export default function ProductionSettingPage() {
             basePages: firstRange,
             basePrice: item.rangePrices?.[firstRange] || 0,
             pricePerPage: item.pricePerPage || 0,
+            coverPrice: item.coverPrice ?? null,
             rangePrices: stringRangePrices,
           };
         });
@@ -1885,6 +1888,7 @@ export default function ProductionSettingPage() {
             basePages: 1,
             basePrice: 0,
             pricePerPage: item.pricePerPage || 0,
+            coverPrice: item.coverPrice ?? null,
             rangePrices: {},
           }));
         }
@@ -3859,7 +3863,7 @@ export default function ProductionSettingPage() {
                         <div
                           className="grid gap-0 pb-2 border-b mb-2 text-xs font-medium text-gray-600 sticky top-0 bg-white items-center"
                           style={{
-                            gridTemplateColumns: `28px 60px minmax(120px, 1fr) 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
+                            gridTemplateColumns: `28px 60px minmax(120px, 1fr) 70px 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
                           }}
                         >
                           <Checkbox
@@ -3923,7 +3927,8 @@ export default function ProductionSettingPage() {
                           />
                           <span>Nup</span>
                           <span>규격 목록</span>
-                          <span className="text-right pr-2">1p당</span>
+                          <span className="text-center text-xs">표지가격</span>
+                          <span className="text-right pr-2">단가/1p</span>
                           {settingForm.pageRanges.map(range => (
                             <span key={range} className="text-center">{range}p</span>
                           ))}
@@ -3964,7 +3969,9 @@ export default function ProductionSettingPage() {
                               const isSelected = settingForm.specificationIds.includes(representativeSpec.id);
                               const rangeData = settingForm.nupPageRanges.find(p => p.specificationId === representativeSpec.id);
                               const pricePerPage = rangeData?.pricePerPage || 0;
+                              const coverPrice = rangeData?.coverPrice || 0;
                               const rangePrices = rangeData?.rangePrices || {};
+                              const isOnePlusUp = nup === '1+up';
 
                               // 규격 목록 문자열 (예: 5x7, 7x5, 6x8, 8x6)
                               const specNames = specsInGroup.map(s => s.name).join(', ');
@@ -3977,7 +3984,7 @@ export default function ProductionSettingPage() {
                                     isSelected && "bg-amber-50/50"
                                   )}
                                   style={{
-                                    gridTemplateColumns: `28px 60px minmax(120px, 1fr) 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
+                                    gridTemplateColumns: `28px 60px minmax(120px, 1fr) 70px 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
                                   }}
                                 >
                                   <Checkbox
@@ -4011,7 +4018,38 @@ export default function ProductionSettingPage() {
 
                                   {isSelected ? (
                                     <>
-                                      {/* 1p당 가격 입력 - 변경시 나머지 구간 자동 계산 */}
+                                      {/* 표지가격 (1+up 전용 입력, 나머지는 빈칸) */}
+                                      {isOnePlusUp ? (
+                                        <Input
+                                          type="number"
+                                          step="1"
+                                          value={coverPrice || ''}
+                                          onChange={(e) => {
+                                            const newCoverPrice = Number(e.target.value);
+                                            setSettingForm(prev => {
+                                              const currentData = prev.nupPageRanges.find(p => p.specificationId === representativeSpec.id);
+                                              const currentPricePerPage = currentData?.pricePerPage || 0;
+                                              const newRangePrices: Record<number, number> = {};
+                                              prev.pageRanges.forEach(range => {
+                                                newRangePrices[range] = Math.round(newCoverPrice + currentPricePerPage * range);
+                                              });
+                                              return {
+                                                ...prev,
+                                                nupPageRanges: prev.nupPageRanges.map(p =>
+                                                  p.specificationId === representativeSpec.id
+                                                    ? { ...p, coverPrice: newCoverPrice, rangePrices: newRangePrices }
+                                                    : p
+                                                ),
+                                              };
+                                            });
+                                          }}
+                                          className="h-7 text-center font-mono text-sm bg-pink-50 border-pink-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                          placeholder="0"
+                                        />
+                                      ) : (
+                                        <span className="h-7 flex items-center justify-center text-gray-300 text-sm">-</span>
+                                      )}
+                                      {/* 단가/1p 입력 - 변경시 나머지 구간 자동 계산 */}
                                       <Input
                                         type="number"
                                         step="0.01"
@@ -4021,15 +4059,23 @@ export default function ProductionSettingPage() {
                                           const firstRange = settingForm.pageRanges[0] || 20;
                                           setSettingForm(prev => {
                                             const currentData = prev.nupPageRanges.find(p => p.specificationId === representativeSpec.id);
-                                            const firstPrice = currentData?.rangePrices?.[firstRange] || 0;
                                             const newRangePrices: Record<number, number> = {};
-                                            prev.pageRanges.forEach((range, idx) => {
-                                              if (idx === 0) {
-                                                newRangePrices[range] = firstPrice;
-                                              } else {
-                                                newRangePrices[range] = Math.round((firstPrice + ((range - firstRange) * value)) * 100) / 100;
-                                              }
-                                            });
+                                            if (isOnePlusUp) {
+                                              // 1+up: 표지가격 + 단가/1p × 페이지수
+                                              const cp = currentData?.coverPrice || 0;
+                                              prev.pageRanges.forEach(range => {
+                                                newRangePrices[range] = Math.round(cp + value * range);
+                                              });
+                                            } else {
+                                              const firstPrice = currentData?.rangePrices?.[firstRange] || 0;
+                                              prev.pageRanges.forEach((range, idx) => {
+                                                if (idx === 0) {
+                                                  newRangePrices[range] = firstPrice;
+                                                } else {
+                                                  newRangePrices[range] = Math.round((firstPrice + ((range - firstRange) * value)) * 100) / 100;
+                                                }
+                                              });
+                                            }
                                             return {
                                               ...prev,
                                               nupPageRanges: prev.nupPageRanges.map(p =>
@@ -4043,9 +4089,16 @@ export default function ProductionSettingPage() {
                                         className="h-7 text-right font-mono text-sm pr-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                         placeholder="0"
                                       />
-                                      {/* 첫 구간 가격 입력 - 변경시 나머지 구간 자동 계산 */}
+                                      {/* 구간별 가격: 1+up은 자동계산 표시, 나머지는 첫 구간 직접입력 */}
                                       {settingForm.pageRanges.map((range, idx) => (
-                                        idx === 0 ? (
+                                        isOnePlusUp ? (
+                                          <span
+                                            key={range}
+                                            className="h-7 flex items-center justify-center font-mono text-sm text-gray-600 bg-gray-50 rounded border"
+                                          >
+                                            {formatNumber(rangePrices[range])}
+                                          </span>
+                                        ) : idx === 0 ? (
                                           <Input
                                             key={range}
                                             type="number"
@@ -4090,6 +4143,7 @@ export default function ProductionSettingPage() {
                                     </>
                                   ) : (
                                     <>
+                                      <span className="text-center text-gray-400 text-sm">-</span>
                                       <span className="text-right text-gray-400 text-sm pr-2">-</span>
                                       {settingForm.pageRanges.map(range => (
                                         <span key={range} className="text-center text-gray-400 text-sm">-</span>
