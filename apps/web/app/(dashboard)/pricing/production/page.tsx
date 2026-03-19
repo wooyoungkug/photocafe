@@ -4018,37 +4018,33 @@ export default function ProductionSettingPage() {
 
                                   {isSelected ? (
                                     <>
-                                      {/* 표지가격 (1+up 전용 입력, 나머지는 빈칸) */}
-                                      {isOnePlusUp ? (
-                                        <Input
-                                          type="number"
-                                          step="1"
-                                          value={coverPrice || ''}
-                                          onChange={(e) => {
-                                            const newCoverPrice = Number(e.target.value);
-                                            setSettingForm(prev => {
-                                              const currentData = prev.nupPageRanges.find(p => p.specificationId === representativeSpec.id);
-                                              const currentPricePerPage = currentData?.pricePerPage || 0;
-                                              const newRangePrices: Record<number, number> = {};
-                                              prev.pageRanges.forEach(range => {
-                                                newRangePrices[range] = Math.round(newCoverPrice + currentPricePerPage * range);
-                                              });
-                                              return {
-                                                ...prev,
-                                                nupPageRanges: prev.nupPageRanges.map(p =>
-                                                  p.specificationId === representativeSpec.id
-                                                    ? { ...p, coverPrice: newCoverPrice, rangePrices: newRangePrices }
-                                                    : p
-                                                ),
-                                              };
+                                      {/* 표지가격 입력 (모든 행) */}
+                                      <Input
+                                        type="number"
+                                        step="1"
+                                        value={coverPrice || ''}
+                                        onChange={(e) => {
+                                          const newCoverPrice = Number(e.target.value);
+                                          setSettingForm(prev => {
+                                            const currentData = prev.nupPageRanges.find(p => p.specificationId === representativeSpec.id);
+                                            const currentPricePerPage = currentData?.pricePerPage || 0;
+                                            const newRangePrices: Record<number, number> = {};
+                                            prev.pageRanges.forEach(range => {
+                                              newRangePrices[range] = Math.round(newCoverPrice + currentPricePerPage * range);
                                             });
-                                          }}
-                                          className="h-7 text-center font-mono text-sm bg-pink-50 border-pink-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                          placeholder="0"
-                                        />
-                                      ) : (
-                                        <span className="h-7 flex items-center justify-center text-gray-300 text-sm">-</span>
-                                      )}
+                                            return {
+                                              ...prev,
+                                              nupPageRanges: prev.nupPageRanges.map(p =>
+                                                p.specificationId === representativeSpec.id
+                                                  ? { ...p, coverPrice: newCoverPrice, rangePrices: newRangePrices }
+                                                  : p
+                                              ),
+                                            };
+                                          });
+                                        }}
+                                        className="h-7 text-center font-mono text-sm bg-pink-50 border-pink-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        placeholder="0"
+                                      />
                                       {/* 단가/1p 입력 - 변경시 나머지 구간 자동 계산 */}
                                       <Input
                                         type="number"
@@ -4060,9 +4056,9 @@ export default function ProductionSettingPage() {
                                           setSettingForm(prev => {
                                             const currentData = prev.nupPageRanges.find(p => p.specificationId === representativeSpec.id);
                                             const newRangePrices: Record<number, number> = {};
-                                            if (isOnePlusUp) {
-                                              // 1+up: 표지가격 + 단가/1p × 페이지수
-                                              const cp = currentData?.coverPrice || 0;
+                                            const cp = currentData?.coverPrice || 0;
+                                            if (cp > 0) {
+                                              // 표지가격이 있으면: 표지가격 + 단가/1p × 페이지수
                                               prev.pageRanges.forEach(range => {
                                                 newRangePrices[range] = Math.round(cp + value * range);
                                               });
@@ -4089,9 +4085,9 @@ export default function ProductionSettingPage() {
                                         className="h-7 text-right font-mono text-sm pr-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                         placeholder="0"
                                       />
-                                      {/* 구간별 가격: 1+up은 자동계산 표시, 나머지는 첫 구간 직접입력 */}
+                                      {/* 구간별 가격: 표지가격 있으면 자동계산 표시, 없으면 첫 구간 직접입력 */}
                                       {settingForm.pageRanges.map((range, idx) => (
-                                        isOnePlusUp ? (
+                                        coverPrice > 0 ? (
                                           <span
                                             key={range}
                                             className="h-7 flex items-center justify-center font-mono text-sm text-gray-600 bg-gray-50 rounded border"
