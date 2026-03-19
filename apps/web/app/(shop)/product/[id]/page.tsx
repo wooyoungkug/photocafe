@@ -268,6 +268,7 @@ export default function ProductPage() {
               fabricCategory: folder.selectedFabricCategory || undefined,
               fabricBasePrice: folder.selectedFabricPrice || undefined,
               bindingPrice: folderPrice.bindingPrice,
+              printPricePerPage: folderPrice.pricePerPage,
             },
             uploadStatus: 'pending', totalFileCount: folder.files.length, isDuplicateOverride,
             orderMemo: orderMemo || undefined,
@@ -310,6 +311,7 @@ export default function ProductPage() {
                 fabricCategory: (additional.selectedFabricCategory ?? folder.selectedFabricCategory) || undefined,
                 fabricBasePrice: (additional.selectedFabricPrice ?? folder.selectedFabricPrice) || undefined,
                 bindingPrice: additionalPrice.bindingPrice,
+                printPricePerPage: additionalPrice.pricePerPage,
               },
               uploadStatus: 'pending', totalFileCount: folder.files.length, isDuplicateOverride,
             });
