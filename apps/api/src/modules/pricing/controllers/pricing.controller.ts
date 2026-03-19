@@ -16,6 +16,7 @@ import { PricingService } from '../services/pricing.service';
 import {
   CalculateProductPriceDto,
   CalculateHalfProductPriceDto,
+  CalculateAlbumOrderPriceDto,
   SetGroupProductPriceDto,
   SetGroupHalfProductPriceDto,
   SetGroupProductionSettingPricesDto,
@@ -48,6 +49,13 @@ export class PricingController {
   }
 
   // ==================== 가격 계산 ====================
+
+  @Post('calculate/album-order')
+  @Public()
+  @ApiOperation({ summary: '앨범 주문 가격 계산 (DB 기반)' })
+  async calculateAlbumOrderPrice(@Body() dto: CalculateAlbumOrderPriceDto) {
+    return this.pricingService.calculateAlbumOrderPrice(dto);
+  }
 
   @Post('calculate/product')
   @ApiOperation({ summary: '상품 가격 계산' })
