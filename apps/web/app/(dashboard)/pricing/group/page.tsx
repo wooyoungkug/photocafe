@@ -714,6 +714,28 @@ export default function GroupPricingPage() {
     const standardPrices = setting.prices || [];
     const hasInkjetSpecs = printMethod === 'inkjet' && specifications.length > 0 && !hasPriceGroups;
 
+    // prices 배열에서 nupPageRanges 변환 (nup_page_range, finishing_spec_nup용)
+    const nupPageRanges = useMemo(() => {
+      if (pricingType !== 'nup_page_range' && pricingType !== 'finishing_spec_nup') return [];
+      return standardPrices
+        .filter((p: any) => p.specificationId)
+        .map((p: any) => {
+          const rangePrices: Record<number, number> = {};
+          if (p.rangePrices && typeof p.rangePrices === 'object') {
+            Object.entries(p.rangePrices).forEach(([key, value]: [string, any]) => {
+              if (key !== '__coverPrice' && key !== '__paperPrice') {
+                rangePrices[Number(key)] = Number(value);
+              }
+            });
+          }
+          return {
+            specificationId: p.specificationId,
+            pricePerPage: Number(p.pricePerPage) || 0,
+            rangePrices,
+          };
+        });
+    }, [standardPrices, pricingType]);
+
     // 1up 변경 시 다른 nup 자동 계산 (그룹별)
     const handleOneUpChange = (groupId: string, field: string, value: string) => {
       const oneUpPrice = parseFloat(value) || 0;
@@ -1136,7 +1158,6 @@ export default function GroupPricingPage() {
 
         {/* ====== 구간별 Nup/1p가격 (nup_page_range) ====== */}
         {pricingType === 'nup_page_range' && (() => {
-          const nupPageRanges = setting.nupPageRanges || [];
           const pageRanges = setting.pageRanges || [20, 30, 40, 50, 60];
           const settingSpecs = setting.specifications || [];
 
@@ -1305,7 +1326,6 @@ export default function GroupPricingPage() {
 
         {/* ====== 규격별 Nup/1p단가 (finishing_spec_nup) ====== */}
         {pricingType === 'finishing_spec_nup' && (() => {
-          const nupPageRanges = setting.nupPageRanges || [];
           const settingSpecs = setting.specifications || [];
 
           if (nupPageRanges.length === 0) {
