@@ -400,6 +400,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     setFolderFabric,
     availablePapers,
     productionSettingId,
+    defaultBindingPrice,
   } = useMultiFolderUploadStore();
 
   // 현재 폴더의 출력방법/도수에 맞는 용지 필터링
@@ -433,10 +434,10 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     folder.pageLayout === 'spread' ? 'spread' : 'single'
   );
 
-  // 가격 계산 (DB 단가 우선, 없으면 하드코딩 fallback)
+  // 가격 계산 (DB 단가 우선, 없으면 fallback)
   const folderPrice = useMemo(
-    () => calculateUploadedFolderPrice(folder, albumPriceData?.pricePerPage),
-    [folder, albumPriceData?.pricePerPage]
+    () => calculateUploadedFolderPrice(folder, albumPriceData?.pricePerPage, defaultBindingPrice),
+    [folder, albumPriceData?.pricePerPage, defaultBindingPrice]
   );
 
   const handleSaveTitle = () => {

@@ -6,7 +6,9 @@ import type { ImageColorSpace } from '@/stores/multi-folder-upload-store';
  */
 export async function detectImageColorSpace(file: File): Promise<ImageColorSpace> {
   try {
-    const arrayBuffer = await file.arrayBuffer();
+    // 헤더/메타데이터만 필요하므로 첫 256KB만 읽기 (대용량 파일에서 전체 읽기 방지)
+    const sliceSize = Math.min(file.size, 262144);
+    const arrayBuffer = await file.slice(0, sliceSize).arrayBuffer();
     const bytes = new Uint8Array(arrayBuffer);
 
     const ext = file.name.toLowerCase();

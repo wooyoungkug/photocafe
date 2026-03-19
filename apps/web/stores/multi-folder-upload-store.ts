@@ -372,6 +372,9 @@ interface MultiFolderUploadState {
   // 상품의 생산설정 ID (가격 조회용)
   productionSettingId?: string;
 
+  // DB에서 조회한 기본 제본단가
+  defaultBindingPrice?: number;
+
   // 상품 용지 목록 (폴더별 용지 변경용)
   availablePapers: ProductPaper[];
 
@@ -380,6 +383,9 @@ interface MultiFolderUploadState {
 
   // 생산설정 ID 설정
   setProductionSettingId: (id: string) => void;
+
+  // 기본 제본단가 설정
+  setDefaultBindingPrice: (price: number) => void;
 
   // 용지 목록 설정
   setAvailablePapers: (papers: ProductPaper[]) => void;
@@ -471,6 +477,7 @@ const initialState = {
   targetSpecRatio: 1,
   indigoSpecs: [] as StandardSize[],
   productionSettingId: undefined as string | undefined,
+  defaultBindingPrice: undefined as number | undefined,
   availablePapers: [] as ProductPaper[],
 };
 
@@ -752,6 +759,7 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
 
   setIndigoSpecs: (specs) => set({ indigoSpecs: specs }),
   setProductionSettingId: (id) => set({ productionSettingId: id }),
+  setDefaultBindingPrice: (price) => set({ defaultBindingPrice: price }),
   setAvailablePapers: (papers) => set({ availablePapers: papers }),
 
   addFolder: (folder) => {
@@ -1531,8 +1539,8 @@ const INDIGO_PRINT_PRICES: Record<string, { single: number; spread: number }> = 
 const COVER_PRICE = 5000; // 원단표지 기본 단가
 const DESIGN_COVER_PRICE = 3000; // 디자인표지 출력 단가
 
-// 제본비
-const BINDING_PRICE = 2000; // 제본비 기본 단가
+// 제본비 (DB 조회 실패 시 fallback)
+const BINDING_PRICE_FALLBACK = 0;
 
 // 규격 키 추출
 function getSpecKey(width: number, height: number): string {
@@ -1544,7 +1552,7 @@ function getSpecKey(width: number, height: number): string {
  * @param folder 업로드된 폴더 정보
  * @param dbPricePerPage DB에서 조회한 페이지 단가 (있으면 우선 사용, 없으면 하드코딩 fallback)
  */
-export function calculateUploadedFolderPrice(folder: UploadedFolder, dbPricePerPage?: number): {
+export function calculateUploadedFolderPrice(folder: UploadedFolder, dbPricePerPage?: number, dbBindingPrice?: number): {
   pricePerPage: number;
   pageCount: number;
   printPrice: number;
@@ -1572,8 +1580,8 @@ export function calculateUploadedFolderPrice(folder: UploadedFolder, dbPricePerP
   // 표지 유형별 단가 분기
   const coverPrice = folder.coverSourceType === 'design' ? DESIGN_COVER_PRICE : COVER_PRICE;
 
-  // 제본비
-  const bindingPrice = BINDING_PRICE;
+  // 제본비 (DB 가격 우선)
+  const bindingPrice = dbBindingPrice ?? BINDING_PRICE_FALLBACK;
 
   const unitPrice = printPrice + coverPrice + bindingPrice;
   const quantity = folder.quantity;
@@ -1601,7 +1609,8 @@ export function calculateUploadedFolderPrice(folder: UploadedFolder, dbPricePerP
 export function calculateAdditionalOrderPrice(
   order: AdditionalOrder,
   folder: UploadedFolder,
-  dbPricePerPage?: number
+  dbPricePerPage?: number,
+  dbBindingPrice?: number
 ): {
   pricePerPage: number;
   pageCount: number;
@@ -1628,8 +1637,8 @@ export function calculateAdditionalOrderPrice(
   // 추가 주문도 동일한 표지 유형 적용
   const coverPrice = folder.coverSourceType === 'design' ? DESIGN_COVER_PRICE : COVER_PRICE;
 
-  // 제본비
-  const bindingPrice = BINDING_PRICE;
+  // 제본비 (DB 가격 우선)
+  const bindingPrice = dbBindingPrice ?? BINDING_PRICE_FALLBACK;
 
   const unitPrice = printPrice + coverPrice + bindingPrice;
   const quantity = order.quantity;
@@ -1643,7 +1652,7 @@ export function calculateAdditionalOrderPrice(
 /**
  * 여러 폴더 총 견적 계산
  */
-export function calculateTotalUploadedPrice(folders: UploadedFolder[]): {
+export function calculateTotalUploadedPrice(folders: UploadedFolder[], dbBindingPrice?: number): {
   folderPrices: Array<{ folderId: string; price: ReturnType<typeof calculateUploadedFolderPrice> }>;
   totalOrderCount: number;
   totalQuantity: number;
@@ -1653,7 +1662,7 @@ export function calculateTotalUploadedPrice(folders: UploadedFolder[]): {
 } {
   const folderPrices = folders.map(folder => ({
     folderId: folder.id,
-    price: calculateUploadedFolderPrice(folder),
+    price: calculateUploadedFolderPrice(folder, undefined, dbBindingPrice),
   }));
 
   // 메인 주문 합계
@@ -1664,7 +1673,7 @@ export function calculateTotalUploadedPrice(folders: UploadedFolder[]): {
   let totalOrderCount = folders.length; // 메인 주문 건수
   folders.forEach(folder => {
     folder.additionalOrders.forEach(order => {
-      const additionalPrice = calculateAdditionalOrderPrice(order, folder);
+      const additionalPrice = calculateAdditionalOrderPrice(order, folder, undefined, dbBindingPrice);
       totalOrderCount += 1;
       totalQuantity += additionalPrice.quantity;
       subtotal += additionalPrice.subtotal;

@@ -145,9 +145,10 @@ export class PricingService {
       .filter((s: any) => s?.productionSettingId)
       .map((s: any) => s.productionSettingId as string);
 
-    const productionSettingIds = [...new Set([...bindingSettingIds, ...outputSettingIds])];
+    // 출력단가만 사용 (제본단가는 별도 조회)
+    const productionSettingIds = [...new Set(outputSettingIds)];
 
-    if (productionSettingIds.length === 0) {
+    if (productionSettingIds.length === 0 && bindingSettingIds.length === 0) {
       throw new NotFoundException('상품에 제본/출력단가 설정이 없습니다.');
     }
 
@@ -345,10 +346,29 @@ export class PricingService {
       }
     }
 
-    // 7. 제본비: ProductBinding에서 기본(isDefault) 제본 옵션 price 조회
+    // 7. 제본비: 제본 생산설정의 ProductionSettingPrice에서 rangePrices 조회
+    let bindingPrice = 0;
     const defaultBinding = (product.bindings || []).find((b: any) => b.isDefault)
       || (product.bindings || [])[0];
-    const bindingPrice = defaultBinding ? Number(defaultBinding.price) || 0 : 0;
+    if (defaultBinding?.productionSettingId) {
+      const bindingPriceRecord = await this.prisma.productionSettingPrice.findFirst({
+        where: {
+          productionSettingId: defaultBinding.productionSettingId,
+          specificationId: specification.id,
+        },
+      });
+      if (bindingPriceRecord) {
+        const bindingRangePrices = bindingPriceRecord.rangePrices as Record<string, any> | null;
+        const pageKey = String(dto.pageCount);
+        if (bindingRangePrices && pageKey in bindingRangePrices) {
+          bindingPrice = Number(bindingRangePrices[pageKey]);
+        } else {
+          // rangePrices에 없으면 basePrice + pricePerPage * pageCount
+          bindingPrice = Number(bindingPriceRecord.basePrice || 0)
+            + Number(bindingPriceRecord.pricePerPage || 0) * dto.pageCount;
+        }
+      }
+    }
 
     // 총 단가에 용지금+제본비 합산
     unitPrice = unitPrice + paperPrice + bindingPrice;
