@@ -227,6 +227,11 @@ export class NupPageRangeDto {
   @IsNumber()
   pricePerPage: number;
 
+  @ApiPropertyOptional({ description: '표지가격' })
+  @IsOptional()
+  @IsNumber()
+  coverPrice?: number;
+
   @ApiPropertyOptional({ description: '구간별 가격 (예: { "30": 20000, "40": 23000 })' })
   @IsOptional()
   @IsObject()

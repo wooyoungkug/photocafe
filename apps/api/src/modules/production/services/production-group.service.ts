@@ -525,6 +525,7 @@ export class ProductionGroupService {
           basePages: range.basePages,
           basePrice: range.basePrice,
           pricePerPage: range.pricePerPage,
+          coverPrice: range.coverPrice ?? null,
           rangePrices: range.rangePrices ? JSON.parse(JSON.stringify(range.rangePrices)) : Prisma.JsonNull,
           price: range.basePrice, // 기본 가격 호환용
         })),
@@ -651,6 +652,7 @@ export class ProductionGroupService {
             basePages: range.basePages,
             basePrice: range.basePrice,
             pricePerPage: range.pricePerPage,
+            coverPrice: range.coverPrice ?? null,
             rangePrices: range.rangePrices ? JSON.parse(JSON.stringify(range.rangePrices)) : Prisma.JsonNull,
             price: range.basePrice, // 기본 가격 호환용
           })),
