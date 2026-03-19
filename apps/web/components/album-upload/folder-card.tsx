@@ -1184,7 +1184,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
 
             // 합계
             const totalPrice = folderPrice.totalPrice;
-            const hasAllPrices = !!albumPriceData && perPage > 0;
+            const hasAllPrices = !!albumPriceData && !!perPage && perPage > 0;
 
             return (
               <div className="space-y-0.5">
@@ -1506,24 +1506,36 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                             )}
                         </div>
                       </div>
-                      {/* 가격 */}
-                      <div className="text-right flex-shrink-0">
-                        <span className="text-sm font-bold text-primary">{t('priceWon', { price: orderPrice.totalPrice.toLocaleString() })}</span>
-                        <div className="text-[10px] text-gray-400">
-                          {t('priceFormulaUnit', {
-                            printPrice: orderPrice.printPrice.toLocaleString(),
-                            bindingPrice: orderPrice.bindingPrice.toLocaleString(),
-                            postProcessingPrice: orderPrice.postProcessingPrice.toLocaleString(),
-                            unitPrice: orderPrice.unitPrice.toLocaleString(),
-                          })}
-                        </div>
-                        <div className="text-[10px] text-gray-400">
-                          {t('priceFormulaTotal', {
-                            unitPrice: orderPrice.unitPrice.toLocaleString(),
-                            qty: order.quantity,
-                            total: orderPrice.totalPrice.toLocaleString(),
-                          })}
-                        </div>
+                      {/* 가격 단계별 표시 */}
+                      <div className="text-right flex-shrink-0 max-w-[280px]">
+                        {(() => {
+                          const pages = folder.pageCount;
+                          const colorLabel = (order.colorMode ?? folder.colorMode) === '6c' ? '인디고6도' : '인디고4도';
+                          const paperLabel = order.selectedPaperName ?? folder.selectedPaperName ?? '';
+                          const perPage = orderPrice.pricePerPage;
+                          const bName = bindingName || '제본';
+
+                          return (
+                            <div className="space-y-0.5">
+                              <div className="text-[11px] text-gray-600">
+                                <span className="text-gray-400">제본:</span> {bName} {pages}p {orderPrice.bindingPrice === 0 ? '0' : `${Math.round(orderPrice.bindingPrice).toLocaleString()}원`}
+                              </div>
+                              <div className="text-[11px] text-gray-600">
+                                <span className="text-gray-400">출력:</span> {colorLabel} {paperLabel} {pages}p {perPage > 0 ? `${perPage.toLocaleString()}원×${pages}p = ${(perPage * pages).toLocaleString()}원` : <span className="text-red-500">No</span>}
+                              </div>
+                              <div className="text-[11px] text-gray-600">
+                                <span className="text-gray-400">코팅:</span> {orderPrice.postProcessingPrice === 0 ? '0' : `${Math.round(orderPrice.postProcessingPrice / pages).toLocaleString()}원×${pages}p = ${Math.round(orderPrice.postProcessingPrice).toLocaleString()}원`}
+                              </div>
+                              <div className="text-sm font-bold text-primary border-t border-gray-200 pt-0.5 mt-0.5">
+                                <span className="text-gray-400 text-[11px] font-normal">합계:</span>{' '}
+                                {order.quantity > 1
+                                  ? <>{Math.round(orderPrice.unitPrice).toLocaleString()}원 ×{order.quantity}부 = {Math.round(orderPrice.totalPrice).toLocaleString()}원</>
+                                  : <>{Math.round(orderPrice.totalPrice).toLocaleString()}원</>
+                                }
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
                       {/* 삭제 버튼 */}
                       <Button
