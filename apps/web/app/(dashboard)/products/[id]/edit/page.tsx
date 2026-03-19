@@ -1719,9 +1719,24 @@ export default function EditProductPage() {
                               <div className="grid grid-cols-2">
                                 {indigoColorOrder.map(ct => (
                                   <div key={ct} className={ct === '4도' ? 'border-r border-indigo-100' : ''}>
-                                    <div className="px-3 py-1 text-[11px] font-semibold text-indigo-600 bg-indigo-50/60 border-b border-indigo-100">
-                                      인디고{ct}
-                                      <span className="ml-1 font-normal opacity-70">({papers.length}개)</span>
+                                    <div className="px-3 py-1 text-[11px] font-semibold text-indigo-600 bg-indigo-50/60 border-b border-indigo-100 flex items-center justify-between">
+                                      <span>
+                                        인디고{ct}
+                                        <span className="ml-1 font-normal opacity-70">({papers.length}개)</span>
+                                      </span>
+                                      {ct === '6도' && (
+                                        <button
+                                          type="button"
+                                          className="text-[10px] font-normal text-indigo-400 hover:text-indigo-700 underline"
+                                          onClick={() => {
+                                            const newMap = { ...paperActive6Map };
+                                            papers.forEach((p: any) => { newMap[p.id] = paperActive4Map[p.id] !== false; });
+                                            setPaperActive6Map(newMap);
+                                          }}
+                                        >
+                                          4도와 동기화
+                                        </button>
+                                      )}
                                     </div>
                                     <div className="divide-y">
                                       {renderPaperTypeRows(papers, ct)}
@@ -3582,17 +3597,20 @@ function BindingPriceDetail({ setting }: { setting: ProductionSetting & { prices
     });
 
     // prices를 Nup별로 그룹화하여 대표 1행만 표시 (같은 Nup의 모든 규격은 동일 가격)
-    const nupGroupMap = new Map<string, { nup: string; pricePerPage: number; rangePrices: Record<string, number> }>();
+    const nupGroupMap = new Map<string, { nup: string; pricePerPage: number; coverPrice: number; paperPrice: number; rangePrices: Record<string, number> }>();
     prices
       .filter((p: any) => p.specificationId)
       .forEach((p: any) => {
         const spec = specMap.get(p.specificationId);
         const nup = spec?.nup || spec?.name || '-';
         if (!nupGroupMap.has(nup)) {
+          const rp = (p.rangePrices && typeof p.rangePrices === 'object') ? p.rangePrices as Record<string, number> : {};
           nupGroupMap.set(nup, {
             nup,
             pricePerPage: Number(p.pricePerPage) || 0,
-            rangePrices: (p.rangePrices && typeof p.rangePrices === 'object') ? p.rangePrices as Record<string, number> : {},
+            coverPrice: Number(p.coverPrice ?? rp['__coverPrice']) || 0,
+            paperPrice: Number(p.paperPrice ?? rp['__paperPrice']) || 0,
+            rangePrices: rp,
           });
         }
       });
@@ -3616,6 +3634,8 @@ function BindingPriceDetail({ setting }: { setting: ProductionSetting & { prices
             <thead>
               <tr className="border-b text-gray-500">
                 <th className="text-left py-1 px-1 font-medium">Nup</th>
+                <th className="text-right py-1 px-1 font-medium text-pink-600">표지</th>
+                <th className="text-right py-1 px-1 font-medium text-amber-600">용지</th>
                 <th className="text-right py-1 px-1 font-medium">1p당</th>
                 {pageRanges.map(r => (
                   <th key={r} className="text-center py-1 px-1 font-medium">{r}p</th>
@@ -3626,6 +3646,8 @@ function BindingPriceDetail({ setting }: { setting: ProductionSetting & { prices
               {priceRows.map((row) => (
                 <tr key={row.nup} className="border-b last:border-b-0">
                   <td className="py-1 px-1 font-semibold text-violet-700">{row.nup}</td>
+                  <td className="py-1 px-1 text-right font-mono text-pink-700">{row.coverPrice ? formatNum(row.coverPrice) : '-'}</td>
+                  <td className="py-1 px-1 text-right font-mono text-amber-700">{row.paperPrice ? formatNum(row.paperPrice) : '-'}</td>
                   <td className="py-1 px-1 text-right font-mono">{formatNum(row.pricePerPage)}</td>
                   {pageRanges.map(r => (
                     <td key={r} className="py-1 px-1 text-center font-mono">
