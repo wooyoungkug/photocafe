@@ -1146,7 +1146,8 @@ export default function ProductionSettingPage() {
     nupPageRanges: [] as Array<{
       specificationId: string;  // 규격 ID (Nup 정보 연동)
       pricePerPage: number;     // 단가/1p 추가 가격 (예: 500원)
-      coverPrice?: number;      // 표지가격 (1+up 전용)
+      coverPrice?: number;      // 표지가격
+      paperPrice?: number;      // 용지가격
       rangePrices: Record<number, number>;  // 구간별 가격 {20: 35000, 30: 40000, ...}
     }>,
     // 페이지 구간 설정 (전역)
@@ -1593,13 +1594,16 @@ export default function ProductionSettingPage() {
         ? prices
           .filter((p: any) => p.specificationId)
           .map((p: any) => {
-            // DB에서 string 키로 저장된 rangePrices를 number 키로 변환 (__coverPrice 제외)
+            // DB에서 string 키로 저장된 rangePrices를 number 키로 변환 (__coverPrice, __paperPrice 제외)
             const rangePrices: Record<number, number> = {};
             let loadedCoverPrice: number | undefined = undefined;
+            let loadedPaperPrice: number | undefined = undefined;
             if (p.rangePrices && typeof p.rangePrices === 'object') {
               Object.entries(p.rangePrices).forEach(([key, value]) => {
                 if (key === '__coverPrice') {
                   loadedCoverPrice = Number(value);
+                } else if (key === '__paperPrice') {
+                  loadedPaperPrice = Number(value);
                 } else {
                   rangePrices[Number(key)] = Number(value);
                 }
@@ -1609,6 +1613,7 @@ export default function ProductionSettingPage() {
               specificationId: p.specificationId,
               pricePerPage: Number(p.pricePerPage) || 0,
               coverPrice: loadedCoverPrice,
+              paperPrice: loadedPaperPrice,
               rangePrices,
             };
           })
@@ -1871,6 +1876,9 @@ export default function ProductionSettingPage() {
           };
           if (item.coverPrice != null && item.coverPrice > 0) {
             result.coverPrice = item.coverPrice;
+          }
+          if (item.paperPrice != null && item.paperPrice > 0) {
+            result.paperPrice = item.paperPrice;
           }
           return result;
         });
@@ -3876,7 +3884,7 @@ export default function ProductionSettingPage() {
                         <div
                           className="grid gap-0 pb-2 border-b mb-2 text-xs font-medium text-gray-600 sticky top-0 bg-white items-center"
                           style={{
-                            gridTemplateColumns: `28px 60px minmax(80px, 1fr) 70px 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
+                            gridTemplateColumns: `28px 60px minmax(80px, 1fr) 70px 70px 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
                           }}
                         >
                           <Checkbox
@@ -3941,6 +3949,7 @@ export default function ProductionSettingPage() {
                           <span>Nup</span>
                           <span>규격 목록</span>
                           <span className="text-center text-xs">표지가격</span>
+                          <span className="text-center text-xs">용지가격</span>
                           <span className="text-right pr-2">제본단가/1p</span>
                           {settingForm.pageRanges.map(range => (
                             <span key={range} className="text-center">{range}p</span>
@@ -3983,6 +3992,7 @@ export default function ProductionSettingPage() {
                               const rangeData = settingForm.nupPageRanges.find(p => p.specificationId === representativeSpec.id);
                               const pricePerPage = rangeData?.pricePerPage || 0;
                               const coverPrice = rangeData?.coverPrice || 0;
+                              const paperPrice = rangeData?.paperPrice || 0;
                               const rangePrices = rangeData?.rangePrices || {};
                               const isOnePlusUp = nup === '1+up';
 
@@ -3997,7 +4007,7 @@ export default function ProductionSettingPage() {
                                     isSelected && "bg-amber-50/50"
                                   )}
                                   style={{
-                                    gridTemplateColumns: `28px 60px minmax(80px, 1fr) 70px 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
+                                    gridTemplateColumns: `28px 60px minmax(80px, 1fr) 70px 70px 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
                                   }}
                                 >
                                   <Checkbox
@@ -4056,6 +4066,25 @@ export default function ProductionSettingPage() {
                                           });
                                         }}
                                         className="h-7 text-center font-mono text-sm bg-pink-50 border-pink-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        placeholder="0"
+                                      />
+                                      {/* 용지가격 입력 (모든 행) */}
+                                      <Input
+                                        type="number"
+                                        step="1"
+                                        value={paperPrice || ''}
+                                        onChange={(e) => {
+                                          const newPaperPrice = Number(e.target.value);
+                                          setSettingForm(prev => ({
+                                            ...prev,
+                                            nupPageRanges: prev.nupPageRanges.map(p =>
+                                              p.specificationId === representativeSpec.id
+                                                ? { ...p, paperPrice: newPaperPrice }
+                                                : p
+                                            ),
+                                          }));
+                                        }}
+                                        className="h-7 text-center font-mono text-sm bg-yellow-50 border-yellow-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                         placeholder="0"
                                       />
                                       {/* 단가/1p 입력 - 변경시 나머지 구간 자동 계산 */}
@@ -4152,6 +4181,7 @@ export default function ProductionSettingPage() {
                                     </>
                                   ) : (
                                     <>
+                                      <span className="text-center text-gray-400 text-sm">-</span>
                                       <span className="text-center text-gray-400 text-sm">-</span>
                                       <span className="text-right text-gray-400 text-sm pr-2">-</span>
                                       {settingForm.pageRanges.map(range => (

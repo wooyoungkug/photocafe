@@ -528,6 +528,7 @@ export class ProductionGroupService {
           rangePrices: (() => {
             const rp = range.rangePrices ? JSON.parse(JSON.stringify(range.rangePrices)) : {};
             if (range.coverPrice != null) rp.__coverPrice = range.coverPrice;
+            if ((range as any).paperPrice != null) rp.__paperPrice = (range as any).paperPrice;
             return Object.keys(rp).length > 0 ? rp : Prisma.JsonNull;
           })(),
           price: range.basePrice, // 기본 가격 호환용
@@ -658,6 +659,7 @@ export class ProductionGroupService {
             rangePrices: (() => {
               const rp = range.rangePrices ? JSON.parse(JSON.stringify(range.rangePrices)) : {};
               if (range.coverPrice != null) rp.__coverPrice = range.coverPrice;
+              if ((range as any).paperPrice != null) rp.__paperPrice = (range as any).paperPrice;
               return Object.keys(rp).length > 0 ? rp : Prisma.JsonNull;
             })(),
             price: range.basePrice, // 기본 가격 호환용
