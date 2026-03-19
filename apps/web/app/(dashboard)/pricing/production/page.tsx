@@ -3928,7 +3928,7 @@ export default function ProductionSettingPage() {
                           <span>Nup</span>
                           <span>규격 목록</span>
                           <span className="text-center text-xs">표지가격</span>
-                          <span className="text-right pr-2">단가/1p</span>
+                          <span className="text-right pr-2">제본단가/1p</span>
                           {settingForm.pageRanges.map(range => (
                             <span key={range} className="text-center">{range}p</span>
                           ))}
