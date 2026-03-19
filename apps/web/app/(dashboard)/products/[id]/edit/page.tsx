@@ -1264,6 +1264,12 @@ export default function EditProductPage() {
                             if (pgIdx >= 0) {
                               // paperId(마스터 용지 ID) 또는 paper.id로 매칭
                               const paper = filteredPapers.find((p: any) => p.paperId === masterId || p.paper?.id === masterId);
+                              if (!paper) return;
+                              // 선택된(활성) 용지만 표시
+                              const isActivePaper = isIndigoGroup
+                                ? (paperActive4Map[paper.id] !== false || paperActive6Map[paper.id] !== false)
+                                : (paperActiveMap[paper.id] !== false);
+                              if (!isActivePaper) return;
                               const baseName = paper?.paper?.name || paper?.name;
                               const grammage = paper?.grammage || paper?.paper?.grammage;
                               const paperName = baseName ? (grammage ? `${baseName} ${grammage}g` : baseName) : null;
@@ -1353,17 +1359,12 @@ export default function EditProductPage() {
                                         const paperNames = groupPaperNames[idx] ?? [];
                                         const isActive = safeGroupIndex === idx;
                                         const activeBg = isIndigoGroup ? 'bg-purple-600' : 'bg-blue-600';
-                                        // 이 그룹에 속한 용지 중 활성(선택된) 용지가 하나라도 있는지 확인
-                                        const groupPapers = filteredPapers.filter((p: any) => {
+                                        // 선택된 용지가 하나도 없는 그룹은 숨김 (groupPaperNames는 활성 용지만 포함)
+                                        const groupPapersAll = filteredPapers.filter((p: any) => {
                                           const mid = p.paperId || p.paper?.id;
                                           return currentPaperGroupMap[mid] === pg.id;
                                         });
-                                        const hasActivePaper = groupPapers.length === 0 || groupPapers.some((p: any) =>
-                                          isIndigoGroup
-                                            ? (paperActive4Map[p.id] !== false || paperActive6Map[p.id] !== false)
-                                            : (paperActiveMap[p.id] !== false)
-                                        );
-                                        if (!hasActivePaper) return null;
+                                        if (groupPapersAll.length > 0 && paperNames.length === 0) return null;
                                         return (
                                           <button
                                             key={pg.id}
