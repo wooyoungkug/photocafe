@@ -4,9 +4,14 @@ import { Type } from 'class-transformer';
 
 // ==================== 앨범 페이지 단가 조회 DTO ====================
 export class GetAlbumPagePriceDto {
-  @ApiProperty({ description: '생산설정 ID' })
+  @ApiProperty({ description: '출력 생산설정 ID' })
   @IsString()
   productionSettingId: string;
+
+  @ApiPropertyOptional({ description: '제본 생산설정 ID (없으면 productionSettingId 사용)' })
+  @IsOptional()
+  @IsString()
+  bindingProductionSettingId?: string;
 
   @ApiProperty({ description: '규격 ID' })
   @IsString()
