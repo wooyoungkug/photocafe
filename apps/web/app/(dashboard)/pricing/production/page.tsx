@@ -1707,9 +1707,11 @@ export default function ProductionSettingPage() {
         }
       });
 
-      // 규격 ID: 기존 specifications 또는 priceGroups에서 추출
+      // 규격 ID: 기존 specifications → priceGroups.specPrices 순으로 추출 (합집합)
       const specIdsFromDB = setting.specifications?.map((s) => s.specificationId) || [];
-      const allSpecIds = specIdsFromDB.length > 0 ? specIdsFromDB : Array.from(specIdsFromPriceGroups);
+      // specIdsFromDB와 specIdsFromPriceGroups를 합쳐서 누락 없이 복원
+      const mergedSpecIds = new Set<string>([...specIdsFromDB, ...Array.from(specIdsFromPriceGroups)]);
+      const allSpecIds = mergedSpecIds.size > 0 ? Array.from(mergedSpecIds) : [];
 
       // nup_page_range/finishing_spec_nup는 normalizedNupPageRanges의 대표 spec ID만 사용
       // (DB에는 Nup 그룹 내 모든 spec이 저장되지만, 폼에서는 대표 spec 1개만 관리)
@@ -1882,11 +1884,8 @@ export default function ProductionSettingPage() {
 
           apiData.specificationIds = allSpecIds;
           apiData.baseSpecificationId = formData.inkjetBaseSpecId;
-          // isBaseSpec 플래그 추가
-          apiData.inkjetSpecPrices = formData.inkjetSpecPrices.map((sp) => ({
-            ...sp,
-            isBaseSpec: sp.specificationId === formData.inkjetBaseSpecId,
-          }));
+          // priceGroups 방식(신형)에서는 inkjetSpecPrices(구형 prices 테이블) 저장 생략 → 중복 방지
+          // inkjetSpecPrices는 priceGroups.specPrices로 대체됨
         }
       }
       // nup_page_range: 구간별 Nup/1p가격
