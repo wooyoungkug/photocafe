@@ -125,6 +125,7 @@ const MAX_DEPTH = 4;
 interface MultiFolderUploadProps {
   onAddToCart?: (folders: UploadedFolder[]) => void;
   productionSettingId?: string;
+  productId?: string;
 }
 
 export function MultiFolderUpload({ onAddToCart, productionSettingId }: MultiFolderUploadProps) {

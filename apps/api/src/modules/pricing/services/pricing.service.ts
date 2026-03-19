@@ -102,13 +102,16 @@ export class PricingService {
    * 4. rangePrices 우선 → 없으면 basePrice + pricePerPage * pageCount
    */
   async calculateAlbumOrderPrice(dto: CalculateAlbumOrderPriceDto): Promise<AlbumOrderPriceResultDto> {
-    // 1. 상품 조회
+    // 1. 상품 조회 (bindings 포함 - 제본 단가의 productionSettingId 확보)
     const product = await this.prisma.product.findUnique({
       where: { id: dto.productId },
       select: {
         id: true,
         productName: true,
         outputPriceSettings: true,
+        bindings: {
+          select: { productionSettingId: true },
+        },
       },
     });
 
@@ -132,14 +135,20 @@ export class PricingService {
       );
     }
 
-    // 3. 상품의 outputPriceSettings에서 productionSettingId 목록 추출
+    // 3. productionSettingId 목록 수집: bindings 우선, 없으면 outputPriceSettings JSON
+    const bindingSettingIds = (product.bindings || [])
+      .map((b: any) => b.productionSettingId)
+      .filter(Boolean) as string[];
+
     const outputSettings = (product.outputPriceSettings as any[]) || [];
-    const productionSettingIds = outputSettings
+    const outputSettingIds = outputSettings
       .filter((s: any) => s?.productionSettingId)
       .map((s: any) => s.productionSettingId as string);
 
+    const productionSettingIds = [...new Set([...bindingSettingIds, ...outputSettingIds])];
+
     if (productionSettingIds.length === 0) {
-      throw new NotFoundException('상품에 출력단가 설정이 없습니다.');
+      throw new NotFoundException('상품에 제본/출력단가 설정이 없습니다.');
     }
 
     // 4. 가격 조회: 거래처 개별 → 그룹 → 표준 순서

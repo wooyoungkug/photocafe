@@ -719,7 +719,13 @@ export function CartItemCard({
                       const paperPrice = info.paperPrice ?? 0;
                       const fabricPrice = info.fabricBasePrice ?? 0;
                       const bindingPrice = info.bindingPrice ?? 0;
-                      const basePrintPrice = item.basePrice - paperPrice - fabricPrice - bindingPrice;
+                      const coverPrice = info.coverPrice ?? 0;
+                      const dbPricePerPage = info.pricePerPage;
+                      // DB에서 조회된 가격이 있으면 coverPrice + pricePerPage*pageCount, 없으면 기존 방식
+                      const basePrintPrice = (dbPricePerPage != null && coverPrice > 0)
+                        ? (coverPrice + dbPricePerPage * info.pageCount)
+                        : (item.basePrice - paperPrice - fabricPrice - bindingPrice);
+                      const effectivePricePerPage = dbPricePerPage ?? (info.pageCount > 0 ? Math.round((basePrintPrice - coverPrice) / info.pageCount) : 0);
                       const printMethodLabel = info.printMethod === 'indigo' ? '인디고' : '잉크젯';
                       const colorModeLabel = info.colorMode === '6c' ? '6도' : '4도';
                       const pageLayoutLabel = info.pageLayout === 'spread' ? '펼친면' : '낱장';
@@ -746,7 +752,14 @@ export function CartItemCard({
                             {info.pageCount > 0 && (
                               <div className="flex justify-between items-baseline text-xs text-gray-400 -mt-1">
                                 <span className="pl-2">└ 출력단가</span>
-                                <span className="tabular-nums">{Math.round(basePrintPrice / info.pageCount).toLocaleString()}원/p × {info.pageCount}p</span>
+                                <span className="tabular-nums">{effectivePricePerPage.toLocaleString()}원/p × {info.pageCount}p</span>
+                              </div>
+                            )}
+                            {/* 표지단가 */}
+                            {coverPrice > 0 && (
+                              <div className="flex justify-between items-baseline text-xs text-gray-400 -mt-1">
+                                <span className="pl-2">└ 표지단가</span>
+                                <span className="tabular-nums">+{coverPrice.toLocaleString()}원</span>
                               </div>
                             )}
                             {/* 용지 추가단가 */}
