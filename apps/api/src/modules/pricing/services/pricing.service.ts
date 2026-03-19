@@ -1269,4 +1269,316 @@ export class PricingService {
       ...p.productionSetting,
     }));
   }
+
+  // ==================== 복사 체인 메서드 ====================
+
+  /**
+   * 표준단가에서 가격 데이터를 추출하는 헬퍼
+   */
+  private async extractStandardPrices(productionSettingId: string): Promise<any[]> {
+    const setting = await this.prisma.productionSetting.findUnique({
+      where: { id: productionSettingId },
+      include: {
+        prices: true,
+        specifications: {
+          include: { specification: { select: { id: true } } },
+        },
+      },
+    });
+
+    if (!setting) {
+      throw new NotFoundException('생산설정을 찾을 수 없습니다');
+    }
+
+    const prices: any[] = [];
+
+    // priceGroups JSON의 upPrices (인디고)
+    const priceGroups = (setting.priceGroups as any[]) || [];
+    for (const group of priceGroups) {
+      const upPrices = group.upPrices || [];
+      for (const upPrice of upPrices) {
+        prices.push({
+          priceGroupId: group.id,
+          minQuantity: upPrice.up,
+          fourColorSinglePrice: upPrice.fourColorSinglePrice ? Number(upPrice.fourColorSinglePrice) : undefined,
+          fourColorDoublePrice: upPrice.fourColorDoublePrice ? Number(upPrice.fourColorDoublePrice) : undefined,
+          sixColorSinglePrice: upPrice.sixColorSinglePrice ? Number(upPrice.sixColorSinglePrice) : undefined,
+          sixColorDoublePrice: upPrice.sixColorDoublePrice ? Number(upPrice.sixColorDoublePrice) : undefined,
+        });
+      }
+
+      // priceGroups JSON의 specPrices (잉크젯)
+      const specPrices = group.specPrices || [];
+      for (const specPrice of specPrices) {
+        prices.push({
+          priceGroupId: group.id,
+          specificationId: specPrice.specificationId,
+          singleSidedPrice: specPrice.singleSidedPrice ? Number(specPrice.singleSidedPrice) : undefined,
+          doubleSidedPrice: specPrice.doubleSidedPrice ? Number(specPrice.doubleSidedPrice) : undefined,
+          price: specPrice.price ? Number(specPrice.price) : undefined,
+        });
+      }
+    }
+
+    // ProductionSettingPrice 테이블 레코드
+    for (const p of setting.prices) {
+      prices.push({
+        specificationId: p.specificationId || undefined,
+        minQuantity: p.minQuantity ?? undefined,
+        maxQuantity: p.maxQuantity ?? undefined,
+        price: Number(p.price) || 0,
+        singleSidedPrice: p.singleSidedPrice ? Number(p.singleSidedPrice) : undefined,
+        doubleSidedPrice: p.doubleSidedPrice ? Number(p.doubleSidedPrice) : undefined,
+        fourColorSinglePrice: p.fourColorSinglePrice ? Number(p.fourColorSinglePrice) : undefined,
+        fourColorDoublePrice: p.fourColorDoublePrice ? Number(p.fourColorDoublePrice) : undefined,
+        sixColorSinglePrice: p.sixColorSinglePrice ? Number(p.sixColorSinglePrice) : undefined,
+        sixColorDoublePrice: p.sixColorDoublePrice ? Number(p.sixColorDoublePrice) : undefined,
+        basePages: p.basePages ?? undefined,
+        basePrice: p.basePrice ? Number(p.basePrice) : undefined,
+        pricePerPage: p.pricePerPage ? Number(p.pricePerPage) : undefined,
+        rangePrices: p.rangePrices || undefined,
+      });
+    }
+
+    return prices;
+  }
+
+  /**
+   * 그룹 단가 레코드를 가격 배열로 변환하는 헬퍼
+   */
+  private groupRecordsToPriceArray(records: any[]): any[] {
+    return records.map(r => ({
+      specificationId: r.specificationId || undefined,
+      priceGroupId: r.priceGroupId || undefined,
+      minQuantity: r.minQuantity ?? undefined,
+      maxQuantity: r.maxQuantity ?? undefined,
+      weight: r.weight ?? undefined,
+      price: Number(r.price) || 0,
+      singleSidedPrice: r.singleSidedPrice ? Number(r.singleSidedPrice) : undefined,
+      doubleSidedPrice: r.doubleSidedPrice ? Number(r.doubleSidedPrice) : undefined,
+      fourColorSinglePrice: r.fourColorSinglePrice ? Number(r.fourColorSinglePrice) : undefined,
+      fourColorDoublePrice: r.fourColorDoublePrice ? Number(r.fourColorDoublePrice) : undefined,
+      sixColorSinglePrice: r.sixColorSinglePrice ? Number(r.sixColorSinglePrice) : undefined,
+      sixColorDoublePrice: r.sixColorDoublePrice ? Number(r.sixColorDoublePrice) : undefined,
+      basePages: r.basePages ?? undefined,
+      basePrice: r.basePrice ? Number(r.basePrice) : undefined,
+      pricePerPage: r.pricePerPage ? Number(r.pricePerPage) : undefined,
+      rangePrices: r.rangePrices || undefined,
+    }));
+  }
+
+  /**
+   * 표준단가를 거래처 개별단가로 복사
+   */
+  async cloneStandardToClientPrices(clientId: string, productionSettingId: string) {
+    const prices = await this.extractStandardPrices(productionSettingId);
+    if (prices.length === 0) return [];
+
+    return this.setClientProductionSettingPrices({
+      clientId,
+      productionSettingId,
+      prices,
+    });
+  }
+
+  /**
+   * 그룹단가를 거래처 개별단가로 복사
+   */
+  async cloneGroupToClientPrices(clientGroupId: string, clientId: string, productionSettingId: string) {
+    const records = await this.prisma.groupProductionSettingPrice.findMany({
+      where: { clientGroupId, productionSettingId },
+    });
+
+    if (records.length === 0) return [];
+
+    const prices = this.groupRecordsToPriceArray(records);
+    return this.setClientProductionSettingPrices({
+      clientId,
+      productionSettingId,
+      prices,
+    });
+  }
+
+  /**
+   * 그룹A 단가를 그룹B로 복사
+   */
+  async cloneGroupToGroup(sourceGroupId: string, targetGroupId: string, productionSettingId: string) {
+    const records = await this.prisma.groupProductionSettingPrice.findMany({
+      where: { clientGroupId: sourceGroupId, productionSettingId },
+    });
+
+    if (records.length === 0) return [];
+
+    const prices = this.groupRecordsToPriceArray(records);
+    return this.setGroupProductionSettingPrices({
+      clientGroupId: targetGroupId,
+      productionSettingId,
+      prices,
+    });
+  }
+
+  /**
+   * 거래처A 개별단가를 거래처B로 복사
+   */
+  async cloneClientToClient(sourceClientId: string, targetClientId: string, productionSettingId: string) {
+    const records = await this.prisma.clientProductionSettingPrice.findMany({
+      where: { clientId: sourceClientId, productionSettingId },
+    });
+
+    if (records.length === 0) return [];
+
+    const prices = this.groupRecordsToPriceArray(records);
+    return this.setClientProductionSettingPrices({
+      clientId: targetClientId,
+      productionSettingId,
+      prices,
+    });
+  }
+
+  /**
+   * 전체 생산설정 단가 일괄 복사 (그룹 대상)
+   */
+  async cloneAllToGroup(targetGroupId: string, dto: CloneAllDto) {
+    const settingIds = await this.getAllProductionSettingIds();
+    let totalCount = 0;
+
+    for (const settingId of settingIds) {
+      try {
+        let result: any[];
+        if (dto.sourceType === 'standard') {
+          result = await this.cloneStandardToGroupPrices(targetGroupId, settingId);
+        } else if (dto.sourceType === 'group' && dto.sourceId) {
+          result = await this.cloneGroupToGroup(dto.sourceId, targetGroupId, settingId);
+        } else {
+          continue;
+        }
+        totalCount += result.length;
+      } catch {
+        // 개별 설정 복사 실패는 무시하고 계속 진행
+      }
+    }
+
+    return { copiedSettings: settingIds.length, copiedPrices: totalCount };
+  }
+
+  /**
+   * 전체 생산설정 단가 일괄 복사 (거래처 대상)
+   */
+  async cloneAllToClient(clientId: string, dto: CloneAllDto) {
+    const settingIds = await this.getAllProductionSettingIds();
+    let totalCount = 0;
+
+    for (const settingId of settingIds) {
+      try {
+        let result: any[];
+        if (dto.sourceType === 'standard') {
+          result = await this.cloneStandardToClientPrices(clientId, settingId);
+        } else if (dto.sourceType === 'group' && dto.sourceId) {
+          result = await this.cloneGroupToClientPrices(dto.sourceId, clientId, settingId);
+        } else if (dto.sourceType === 'client' && dto.sourceId) {
+          result = await this.cloneClientToClient(dto.sourceId, clientId, settingId);
+        } else {
+          continue;
+        }
+        totalCount += result.length;
+      } catch {
+        // 개별 설정 복사 실패는 무시하고 계속 진행
+      }
+    }
+
+    return { copiedSettings: settingIds.length, copiedPrices: totalCount };
+  }
+
+  /**
+   * 모든 생산설정 ID 조회 헬퍼
+   */
+  private async getAllProductionSettingIds(categoryId?: string): Promise<string[]> {
+    const where: any = {};
+    if (categoryId) {
+      where.group = {
+        OR: [
+          { id: categoryId },
+          { parentId: categoryId },
+          { parent: { parentId: categoryId } },
+        ],
+      };
+    }
+
+    const settings = await this.prisma.productionSetting.findMany({
+      where,
+      select: { id: true },
+    });
+
+    return settings.map(s => s.id);
+  }
+
+  // ==================== 일괄 가중치 적용 ====================
+
+  /**
+   * 전체 생산설정에 가중치 일괄 적용 (표준단가 × weightPercent%)
+   */
+  async applyWeightAll(
+    targetType: 'group' | 'client',
+    targetId: string,
+    dto: ApplyWeightAllDto,
+  ) {
+    const settingIds = await this.getAllProductionSettingIds(dto.categoryId);
+    const weightMultiplier = dto.weightPercent / 100;
+    let totalCount = 0;
+
+    for (const settingId of settingIds) {
+      try {
+        const standardPrices = await this.extractStandardPrices(settingId);
+        if (standardPrices.length === 0) continue;
+
+        // 모든 가격 필드에 가중치 적용
+        const weightedPrices = standardPrices.map(p => {
+          const weighted: any = { ...p };
+          const priceFields = [
+            'price', 'singleSidedPrice', 'doubleSidedPrice',
+            'fourColorSinglePrice', 'fourColorDoublePrice',
+            'sixColorSinglePrice', 'sixColorDoublePrice',
+            'basePrice', 'pricePerPage',
+          ];
+          for (const field of priceFields) {
+            if (weighted[field] != null) {
+              weighted[field] = Math.round(weighted[field] * weightMultiplier);
+            }
+          }
+          // rangePrices 내부 값도 가중치 적용
+          if (weighted.rangePrices && typeof weighted.rangePrices === 'object') {
+            const weightedRange: Record<string, number> = {};
+            for (const [key, value] of Object.entries(weighted.rangePrices)) {
+              if (typeof value === 'number') {
+                weightedRange[key] = Math.round(value * weightMultiplier);
+              }
+            }
+            weighted.rangePrices = weightedRange;
+          }
+          weighted.weight = dto.weightPercent;
+          return weighted;
+        });
+
+        let result: any[];
+        if (targetType === 'group') {
+          result = await this.setGroupProductionSettingPrices({
+            clientGroupId: targetId,
+            productionSettingId: settingId,
+            prices: weightedPrices,
+          });
+        } else {
+          result = await this.setClientProductionSettingPrices({
+            clientId: targetId,
+            productionSettingId: settingId,
+            prices: weightedPrices,
+          });
+        }
+        totalCount += result.length;
+      } catch {
+        // 개별 설정 실패는 무시
+      }
+    }
+
+    return { appliedSettings: settingIds.length, appliedPrices: totalCount, weightPercent: dto.weightPercent };
+  }
 }
