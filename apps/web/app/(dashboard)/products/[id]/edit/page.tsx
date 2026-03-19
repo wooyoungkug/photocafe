@@ -1319,9 +1319,9 @@ export default function EditProductPage() {
                               // paperId(마스터 용지 ID) 또는 paper.id로 매칭
                               const paper = filteredPapers.find((p: any) => p.paperId === masterId || p.paper?.id === masterId);
                               if (!paper) return;
-                              // 선택된(활성) 용지만 표시
+                              // 선택된(활성) 용지만 표시 - 현재 선택된 색상 탭(4도/6도)에 맞는 용지만 필터
                               const isActivePaper = isIndigoGroup
-                                ? (paperActive4Map[paper.id] !== false || paperActive6Map[paper.id] !== false)
+                                ? (indigoColorFilter === '4도' ? paperActive4Map[paper.id] !== false : paperActive6Map[paper.id] !== false)
                                 : (paperActiveMap[paper.id] !== false);
                               if (!isActivePaper) return;
                               const baseName = paper?.paper?.name || paper?.name;
