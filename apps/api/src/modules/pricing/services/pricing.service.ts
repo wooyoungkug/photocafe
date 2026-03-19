@@ -412,6 +412,7 @@ export class PricingService {
           basePages: priceData.basePages,
           basePrice: priceData.basePrice,
           pricePerPage: priceData.pricePerPage,
+          coverPrice: priceData.coverPrice,
           rangePrices: priceData.rangePrices,
         };
 
@@ -555,6 +556,7 @@ export class PricingService {
           basePages: priceData.basePages,
           basePrice: priceData.basePrice,
           pricePerPage: priceData.pricePerPage,
+          coverPrice: priceData.coverPrice,
           rangePrices: priceData.rangePrices,
         };
 

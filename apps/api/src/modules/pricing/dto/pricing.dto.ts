@@ -110,6 +110,11 @@ export class GroupProductionSettingPriceDto {
   @IsNumber()
   pricePerPage?: number;
 
+  @ApiPropertyOptional({ description: '표지가격' })
+  @IsOptional()
+  @IsNumber()
+  coverPrice?: number;
+
   @ApiPropertyOptional({ description: '구간별 가격 (JSON)' })
   @IsOptional()
   rangePrices?: Record<string, number>;
@@ -207,6 +212,11 @@ export class ClientProductionSettingPriceDto {
   @IsOptional()
   @IsNumber()
   pricePerPage?: number;
+
+  @ApiPropertyOptional({ description: '표지가격' })
+  @IsOptional()
+  @IsNumber()
+  coverPrice?: number;
 
   @ApiPropertyOptional({ description: '구간별 가격 (JSON)' })
   @IsOptional()

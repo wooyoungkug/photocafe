@@ -1532,6 +1532,7 @@ model GroupProductionSettingPrice {
   basePages    Int?
   basePrice    Decimal? @db.Decimal(12, 2)
   pricePerPage Decimal? @db.Decimal(12, 2)
+  coverPrice   Decimal? @db.Decimal(12, 2)
   rangePrices  Json?
 
   createdAt DateTime @default(now())
@@ -1572,6 +1573,7 @@ model ClientProductionSettingPrice {
   basePages    Int?
   basePrice    Decimal? @db.Decimal(12, 2)
   pricePerPage Decimal? @db.Decimal(12, 2)
+  coverPrice   Decimal? @db.Decimal(12, 2)
   rangePrices  Json?
 
   createdAt DateTime @default(now())
