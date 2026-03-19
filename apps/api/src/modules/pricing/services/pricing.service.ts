@@ -847,6 +847,87 @@ export class PricingService {
   }
 
   /**
+   * 표준단가를 그룹단가로 복사
+   */
+  async cloneStandardToGroupPrices(clientGroupId: string, productionSettingId: string) {
+    // 1. ProductionSetting 조회 (priceGroups JSON + prices + specifications)
+    const setting = await this.prisma.productionSetting.findUnique({
+      where: { id: productionSettingId },
+      include: {
+        prices: true,
+        specifications: {
+          include: { specification: { select: { id: true } } },
+        },
+      },
+    });
+
+    if (!setting) {
+      throw new NotFoundException('생산설정을 찾을 수 없습니다');
+    }
+
+    const prices: any[] = [];
+
+    // 2a. priceGroups JSON의 upPrices (인디고) → priceGroupId + minQuantity 기반
+    const priceGroups = (setting.priceGroups as any[]) || [];
+    for (const group of priceGroups) {
+      const upPrices = group.upPrices || [];
+      for (const upPrice of upPrices) {
+        prices.push({
+          priceGroupId: group.id,
+          minQuantity: upPrice.up,
+          fourColorSinglePrice: upPrice.fourColorSinglePrice ? Number(upPrice.fourColorSinglePrice) : undefined,
+          fourColorDoublePrice: upPrice.fourColorDoublePrice ? Number(upPrice.fourColorDoublePrice) : undefined,
+          sixColorSinglePrice: upPrice.sixColorSinglePrice ? Number(upPrice.sixColorSinglePrice) : undefined,
+          sixColorDoublePrice: upPrice.sixColorDoublePrice ? Number(upPrice.sixColorDoublePrice) : undefined,
+        });
+      }
+
+      // 2b. priceGroups JSON의 specPrices (잉크젯) → priceGroupId + specificationId 기반
+      const specPrices = group.specPrices || [];
+      for (const specPrice of specPrices) {
+        prices.push({
+          priceGroupId: group.id,
+          specificationId: specPrice.specificationId,
+          singleSidedPrice: specPrice.singleSidedPrice ? Number(specPrice.singleSidedPrice) : undefined,
+          doubleSidedPrice: specPrice.doubleSidedPrice ? Number(specPrice.doubleSidedPrice) : undefined,
+          price: specPrice.price ? Number(specPrice.price) : undefined,
+        });
+      }
+    }
+
+    // 2c. ProductionSettingPrice 테이블 레코드 복사
+    for (const p of setting.prices) {
+      prices.push({
+        specificationId: p.specificationId || undefined,
+        minQuantity: p.minQuantity ?? undefined,
+        maxQuantity: p.maxQuantity ?? undefined,
+        price: Number(p.price) || 0,
+        singleSidedPrice: p.singleSidedPrice ? Number(p.singleSidedPrice) : undefined,
+        doubleSidedPrice: p.doubleSidedPrice ? Number(p.doubleSidedPrice) : undefined,
+        fourColorSinglePrice: p.fourColorSinglePrice ? Number(p.fourColorSinglePrice) : undefined,
+        fourColorDoublePrice: p.fourColorDoublePrice ? Number(p.fourColorDoublePrice) : undefined,
+        sixColorSinglePrice: p.sixColorSinglePrice ? Number(p.sixColorSinglePrice) : undefined,
+        sixColorDoublePrice: p.sixColorDoublePrice ? Number(p.sixColorDoublePrice) : undefined,
+        basePages: p.basePages ?? undefined,
+        basePrice: p.basePrice ? Number(p.basePrice) : undefined,
+        pricePerPage: p.pricePerPage ? Number(p.pricePerPage) : undefined,
+        rangePrices: p.rangePrices || undefined,
+      });
+    }
+
+    if (prices.length === 0) {
+      return [];
+    }
+
+    // 3. 기존 setGroupProductionSettingPrices() 재사용
+    return this.setGroupProductionSettingPrices({
+      clientGroupId,
+      productionSettingId,
+      prices,
+    });
+  }
+
+  /**
    * 그룹별 생산설정 단가 설정 (upsert) - 트랜잭션 배치 처리
    */
   async setGroupProductionSettingPrices(dto: SetGroupProductionSettingPricesDto) {

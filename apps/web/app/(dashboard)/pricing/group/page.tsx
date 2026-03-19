@@ -33,6 +33,7 @@ import {
 import {
   useGroupProductionSettingPrices,
   useSetGroupProductionSettingPrices,
+  useCloneStandardToGroupPrices,
 } from '@/hooks/use-pricing';
 import { usePapersByPrintMethod } from '@/hooks/use-paper';
 import {
@@ -43,7 +44,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Edit, Trash2 } from 'lucide-react';
+import { Edit, Trash2, Copy } from 'lucide-react';
 import {
   Loader2,
   DollarSign,
@@ -270,6 +271,7 @@ export default function GroupPricingPage() {
   const { data: productionTree, isLoading: treeLoading } = useProductionGroupTree();
   const { data: groupPrices, isLoading: groupPricesLoading } = useGroupProductionSettingPrices(selectedClientGroupId);
   const setGroupPricesMutation = useSetGroupProductionSettingPrices();
+  const cloneStandardMutation = useCloneStandardToGroupPrices();
   const { data: indigoPapers } = usePapersByPrintMethod('indigo');
   const { data: inkjetPapers } = usePapersByPrintMethod('inkjet');
   const { toast } = useToast();
@@ -447,6 +449,30 @@ export default function GroupPricingPage() {
   // 특정 설정에 편집 중인 가격이 있는지 확인
   const hasEditingPricesForSetting = (settingId: string) => {
     return Object.keys(editingPrices).some(key => key.startsWith(settingId + '_'));
+  };
+
+  // 표준단가를 그룹단가로 복사
+  const handleCloneStandard = async (productionSettingId: string) => {
+    if (!selectedClientGroupId) return;
+    if (!confirm('표준단가를 그룹단가로 복사하시겠습니까?\n기존 그룹단가가 있으면 덮어씁니다.')) return;
+
+    try {
+      await cloneStandardMutation.mutateAsync({
+        clientGroupId: selectedClientGroupId,
+        productionSettingId,
+      });
+      toast({ title: '복사 완료', description: '표준단가가 그룹단가로 복사되었습니다.' });
+      // 편집 상태 초기화
+      setEditingPrices(prev => {
+        const next = { ...prev };
+        Object.keys(next).forEach(key => {
+          if (key.startsWith(productionSettingId + '_')) delete next[key];
+        });
+        return next;
+      });
+    } catch {
+      toast({ title: '복사 실패', description: '표준단가 복사에 실패했습니다.', variant: 'destructive' });
+    }
   };
 
   // 그룹별 가격 저장 핸들러 (인디고 upPrices + 잉크젯 specPrices 모두 지원)
@@ -753,6 +779,21 @@ export default function GroupPricingPage() {
 
           {/* 우측: 액션 버튼 */}
           <div className="flex items-center gap-2 shrink-0">
+            {/* 표준단가 복사 버튼 */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 px-2 text-xs text-blue-600 border-blue-200 hover:bg-blue-50"
+              disabled={cloneStandardMutation.isPending}
+              onClick={() => handleCloneStandard(setting.id)}
+            >
+              {cloneStandardMutation.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+              ) : (
+                <Copy className="h-3.5 w-3.5 mr-1" />
+              )}
+              표준단가 복사
+            </Button>
             {/* 단가맞춤 버튼 - 인디고 그룹이 있을 때만 */}
             {printMethod === 'indigo' && hasPriceGroups && (
               <Button

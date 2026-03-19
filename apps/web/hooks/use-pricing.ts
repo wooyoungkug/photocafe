@@ -184,6 +184,20 @@ export function useSetGroupProductionSettingPrices() {
   });
 }
 
+export function useCloneStandardToGroupPrices() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ clientGroupId, productionSettingId }: { clientGroupId: string; productionSettingId: string }) =>
+      api.post<GroupProductionSettingPrice[]>(`/pricing/groups/${clientGroupId}/clone-standard/${productionSettingId}`),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: [PRICING_KEY, 'group-production-settings', variables.clientGroupId],
+      });
+    },
+  });
+}
+
 export function useDeleteGroupProductionSettingPrices() {
   const queryClient = useQueryClient();
 

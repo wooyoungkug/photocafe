@@ -127,6 +127,15 @@ export class PricingController {
     return this.pricingService.getGroupProductionSettingPrices(clientGroupId, productionSettingId);
   }
 
+  @Post('groups/:clientGroupId/clone-standard/:productionSettingId')
+  @ApiOperation({ summary: '표준단가를 그룹단가로 복사' })
+  async cloneStandardToGroupPrices(
+    @Param('clientGroupId') clientGroupId: string,
+    @Param('productionSettingId') productionSettingId: string,
+  ) {
+    return this.pricingService.cloneStandardToGroupPrices(clientGroupId, productionSettingId);
+  }
+
   @Post('groups/production-settings')
   @ApiOperation({ summary: '그룹 생산설정 단가 설정' })
   async setGroupProductionSettingPrices(@Body() dto: SetGroupProductionSettingPricesDto) {
