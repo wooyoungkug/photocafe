@@ -4168,13 +4168,16 @@ export default function ProductionSettingPage() {
                                                     newRangePrices[r] = Math.round((value + ((r - firstRange) * currentPricePerPage)) * 100) / 100;
                                                   }
                                                 });
+                                                const exists = !!currentData;
                                                 return {
                                                   ...prev,
-                                                  nupPageRanges: prev.nupPageRanges.map(p =>
-                                                    p.specificationId === representativeSpec.id
-                                                      ? { ...p, rangePrices: newRangePrices }
-                                                      : p
-                                                  ),
+                                                  nupPageRanges: exists
+                                                    ? prev.nupPageRanges.map(p =>
+                                                        p.specificationId === representativeSpec.id
+                                                          ? { ...p, rangePrices: newRangePrices }
+                                                          : p
+                                                      )
+                                                    : [...prev.nupPageRanges, { specificationId: representativeSpec.id, pricePerPage: 0, rangePrices: newRangePrices }],
                                                 };
                                               });
                                             }}
