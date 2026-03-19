@@ -1072,12 +1072,15 @@ export default function ProductionSettingPage() {
     code: "",
     name: "",
   });
-  // 인디고 Up 단위 (1up만 사용)
-  const INDIGO_UP_UNITS = [1] as const;
+  // 인디고 Up 단위
+  const INDIGO_UP_UNITS = [1, 2, 4, 8] as const;
 
   // 인디고 기본 가중치 (기본값 1)
   const DEFAULT_INDIGO_WEIGHTS: Record<number, number> = {
     1: 1.0,    // 1up 기준
+    2: 1.2,
+    4: 1.3,
+    8: 1.4,
   };
 
   const [settingForm, setSettingForm] = useState({
