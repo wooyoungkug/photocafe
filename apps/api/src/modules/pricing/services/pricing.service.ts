@@ -11,6 +11,8 @@ import {
   GetAlbumPagePriceDto,
   CalculateAlbumOrderPriceDto,
   AlbumOrderPriceResultDto,
+  CloneAllDto,
+  ApplyWeightAllDto,
 } from '../dto';
 
 /**
@@ -143,44 +145,64 @@ export class PricingService {
       }
     }
 
-    // 3. 제본단가 정보 조회 (bindingPsId의 basePrice/pricePerPage/rangePrices)
+    // 3. 제본단가 정보 조회: 거래처 개별 → 그룹 → 표준 순서
     let bindingBasePrice = 0;
     let bindingPricePerPage = 0;
     let bindingRangePrices: Record<string, number> | null = null;
+    let bindingFound = false;
 
-    // 제본 단가는 specificationId로 직접 매칭
-    const bindingPriceRecord = await this.prisma.productionSettingPrice.findFirst({
-      where: {
-        productionSettingId: bindingPsId,
-        specificationId,
-      },
-    });
+    // 3-1. 거래처 개별 제본 단가
+    if (clientId && !bindingFound) {
+      const clientBindingPrice = await this.prisma.clientProductionSettingPrice.findFirst({
+        where: {
+          clientId,
+          productionSettingId: bindingPsId,
+          specificationId,
+        },
+      });
+      if (clientBindingPrice && (Number(clientBindingPrice.basePrice) || Number(clientBindingPrice.pricePerPage))) {
+        bindingBasePrice = Number(clientBindingPrice.basePrice) || 0;
+        bindingPricePerPage = Number(clientBindingPrice.pricePerPage) || 0;
+        bindingRangePrices = clientBindingPrice.rangePrices as Record<string, number> | null;
+        bindingFound = true;
+      }
+    }
 
-    if (bindingPriceRecord) {
-      bindingBasePrice = Number(bindingPriceRecord.basePrice) || 0;
-      bindingPricePerPage = Number(bindingPriceRecord.pricePerPage) || 0;
-      bindingRangePrices = bindingPriceRecord.rangePrices as Record<string, number> | null;
-    } else {
-      // 거래처/그룹 제본 단가도 확인
-      if (clientId) {
-        const client = await this.prisma.client.findUnique({
-          where: { id: clientId },
-          select: { groupId: true },
+    // 3-2. 거래처 그룹 제본 단가
+    if (clientId && !bindingFound) {
+      const clientForBinding = await this.prisma.client.findUnique({
+        where: { id: clientId },
+        select: { groupId: true },
+      });
+      if (clientForBinding?.groupId) {
+        const groupBindingPrice = await this.prisma.groupProductionSettingPrice.findFirst({
+          where: {
+            clientGroupId: clientForBinding.groupId,
+            productionSettingId: bindingPsId,
+            specificationId,
+          },
         });
-        if (client?.groupId) {
-          const groupBindingPrice = await this.prisma.groupProductionSettingPrice.findFirst({
-            where: {
-              clientGroupId: client.groupId,
-              productionSettingId: bindingPsId,
-              specificationId,
-            },
-          });
-          if (groupBindingPrice) {
-            bindingBasePrice = Number(groupBindingPrice.basePrice) || 0;
-            bindingPricePerPage = Number(groupBindingPrice.pricePerPage) || 0;
-            bindingRangePrices = groupBindingPrice.rangePrices as Record<string, number> | null;
-          }
+        if (groupBindingPrice && (Number(groupBindingPrice.basePrice) || Number(groupBindingPrice.pricePerPage))) {
+          bindingBasePrice = Number(groupBindingPrice.basePrice) || 0;
+          bindingPricePerPage = Number(groupBindingPrice.pricePerPage) || 0;
+          bindingRangePrices = groupBindingPrice.rangePrices as Record<string, number> | null;
+          bindingFound = true;
         }
+      }
+    }
+
+    // 3-3. 표준 제본 단가
+    if (!bindingFound) {
+      const standardBindingPrice = await this.prisma.productionSettingPrice.findFirst({
+        where: {
+          productionSettingId: bindingPsId,
+          specificationId,
+        },
+      });
+      if (standardBindingPrice) {
+        bindingBasePrice = Number(standardBindingPrice.basePrice) || 0;
+        bindingPricePerPage = Number(standardBindingPrice.pricePerPage) || 0;
+        bindingRangePrices = standardBindingPrice.rangePrices as Record<string, number> | null;
       }
     }
 

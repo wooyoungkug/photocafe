@@ -397,6 +397,31 @@ export class CalculateHalfProductPriceDto {
   optionSelections?: { optionId: string; value: string }[];
 }
 
+// ==================== 복사 체인 DTO ====================
+export class CloneAllDto {
+  @ApiProperty({ description: '소스 타입', enum: ['standard', 'group', 'client'] })
+  @IsString()
+  @IsIn(['standard', 'group', 'client'])
+  sourceType: 'standard' | 'group' | 'client';
+
+  @ApiPropertyOptional({ description: '소스 ID (그룹 ID 또는 거래처 ID, standard일 경우 불필요)' })
+  @IsOptional()
+  @IsString()
+  sourceId?: string;
+}
+
+export class ApplyWeightAllDto {
+  @ApiProperty({ description: '가중치 퍼센트 (예: 85 = 표준단가의 85%)', example: 85 })
+  @IsNumber()
+  @Min(1)
+  weightPercent: number;
+
+  @ApiPropertyOptional({ description: '특정 카테고리 ID (없으면 전체)' })
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
+}
+
 // ==================== 가격 계산 결과 DTO ====================
 export class PriceCalculationResultDto {
   @ApiProperty({ description: '기본 가격' })

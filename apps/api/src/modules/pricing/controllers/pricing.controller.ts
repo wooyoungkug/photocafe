@@ -22,6 +22,8 @@ import {
   SetGroupProductionSettingPricesDto,
   SetClientProductionSettingPricesDto,
   GetAlbumPagePriceDto,
+  CloneAllDto,
+  ApplyWeightAllDto,
 } from '../dto';
 
 @ApiTags('가격관리')
@@ -158,6 +160,34 @@ export class PricingController {
     return this.pricingService.deleteGroupProductionSettingPrice(id);
   }
 
+  @Post('groups/:targetGroupId/clone-group/:sourceGroupId/:productionSettingId')
+  @ApiOperation({ summary: '그룹A 단가를 그룹B로 복사 (설정 단위)' })
+  async cloneGroupToGroup(
+    @Param('targetGroupId') targetGroupId: string,
+    @Param('sourceGroupId') sourceGroupId: string,
+    @Param('productionSettingId') productionSettingId: string,
+  ) {
+    return this.pricingService.cloneGroupToGroup(sourceGroupId, targetGroupId, productionSettingId);
+  }
+
+  @Post('groups/:targetGroupId/clone-all')
+  @ApiOperation({ summary: '전체 생산설정 단가 일괄 복사 (그룹 대상)' })
+  async cloneAllToGroup(
+    @Param('targetGroupId') targetGroupId: string,
+    @Body() dto: CloneAllDto,
+  ) {
+    return this.pricingService.cloneAllToGroup(targetGroupId, dto);
+  }
+
+  @Post('groups/:clientGroupId/apply-weight-all')
+  @ApiOperation({ summary: '그룹 전체 생산설정에 가중치 일괄 적용' })
+  async applyWeightAllToGroup(
+    @Param('clientGroupId') clientGroupId: string,
+    @Body() dto: ApplyWeightAllDto,
+  ) {
+    return this.pricingService.applyWeightAll('group', clientGroupId, dto);
+  }
+
   // ==================== 거래처 개별 생산설정 단가 관리 ====================
 
   @Get('clients/:clientId/production-settings')
@@ -195,5 +225,53 @@ export class PricingController {
   @ApiOperation({ summary: '거래처 개별 생산설정 단가 개별 삭제' })
   async deleteClientProductionSettingPrice(@Param('id') id: string) {
     return this.pricingService.deleteClientProductionSettingPrice(id);
+  }
+
+  @Post('clients/:clientId/clone-standard/:productionSettingId')
+  @ApiOperation({ summary: '표준단가를 거래처 개별단가로 복사' })
+  async cloneStandardToClientPrices(
+    @Param('clientId') clientId: string,
+    @Param('productionSettingId') productionSettingId: string,
+  ) {
+    return this.pricingService.cloneStandardToClientPrices(clientId, productionSettingId);
+  }
+
+  @Post('clients/:clientId/clone-group/:productionSettingId')
+  @ApiOperation({ summary: '그룹단가를 거래처 개별단가로 복사' })
+  @ApiQuery({ name: 'clientGroupId', required: true, description: '소스 그룹 ID' })
+  async cloneGroupToClientPrices(
+    @Param('clientId') clientId: string,
+    @Param('productionSettingId') productionSettingId: string,
+    @Query('clientGroupId') clientGroupId: string,
+  ) {
+    return this.pricingService.cloneGroupToClientPrices(clientGroupId, clientId, productionSettingId);
+  }
+
+  @Post('clients/:targetClientId/clone-client/:sourceClientId/:productionSettingId')
+  @ApiOperation({ summary: '거래처A 개별단가를 거래처B로 복사' })
+  async cloneClientToClient(
+    @Param('targetClientId') targetClientId: string,
+    @Param('sourceClientId') sourceClientId: string,
+    @Param('productionSettingId') productionSettingId: string,
+  ) {
+    return this.pricingService.cloneClientToClient(sourceClientId, targetClientId, productionSettingId);
+  }
+
+  @Post('clients/:clientId/clone-all')
+  @ApiOperation({ summary: '전체 생산설정 단가 일괄 복사 (거래처 대상)' })
+  async cloneAllToClient(
+    @Param('clientId') clientId: string,
+    @Body() dto: CloneAllDto,
+  ) {
+    return this.pricingService.cloneAllToClient(clientId, dto);
+  }
+
+  @Post('clients/:clientId/apply-weight-all')
+  @ApiOperation({ summary: '거래처 전체 생산설정에 가중치 일괄 적용' })
+  async applyWeightAllToClient(
+    @Param('clientId') clientId: string,
+    @Body() dto: ApplyWeightAllDto,
+  ) {
+    return this.pricingService.applyWeightAll('client', clientId, dto);
   }
 }
