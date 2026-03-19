@@ -110,7 +110,7 @@ export class PricingService {
         productName: true,
         outputPriceSettings: true,
         bindings: {
-          select: { productionSettingId: true },
+          select: { productionSettingId: true, price: true, isDefault: true },
         },
       },
     });
@@ -265,8 +265,10 @@ export class PricingService {
       }
     }
 
-    // 7. 제본비 (현재 별도 제본비 모델 없음 → 0)
-    const bindingPrice = 0;
+    // 7. 제본비: ProductBinding에서 기본(isDefault) 제본 옵션 price 조회
+    const defaultBinding = (product.bindings || []).find((b: any) => b.isDefault)
+      || (product.bindings || [])[0];
+    const bindingPrice = defaultBinding ? Number(defaultBinding.price) || 0 : 0;
 
     // 총 단가에 용지금+제본비 합산
     unitPrice = unitPrice + paperPrice + bindingPrice;
