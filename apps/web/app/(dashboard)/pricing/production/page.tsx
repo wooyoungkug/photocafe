@@ -3948,9 +3948,9 @@ export default function ProductionSettingPage() {
                           />
                           <span>Nup</span>
                           <span>규격 목록</span>
-                          <span className="text-center text-xs">표지가격</span>
-                          <span className="text-center text-xs">용지가격(1p)</span>
-                          <span className="text-right pr-2">제본단가(1p)</span>
+                          <span className="text-center text-[10px]">표지가격</span>
+                          <span className="text-center text-[10px]">용지가격(1p)</span>
+                          <span className="text-right pr-2 text-[10px]">제본단가(1p)</span>
                           {settingForm.pageRanges.map(range => (
                             <span key={range} className="text-center">{range}p</span>
                           ))}
@@ -4055,13 +4055,16 @@ export default function ProductionSettingPage() {
                                             prev.pageRanges.forEach(range => {
                                               newRangePrices[range] = Math.round(newCoverPrice + currentPricePerPage * range);
                                             });
+                                            const exists = !!currentData;
                                             return {
                                               ...prev,
-                                              nupPageRanges: prev.nupPageRanges.map(p =>
-                                                p.specificationId === representativeSpec.id
-                                                  ? { ...p, coverPrice: newCoverPrice, rangePrices: newRangePrices }
-                                                  : p
-                                              ),
+                                              nupPageRanges: exists
+                                                ? prev.nupPageRanges.map(p =>
+                                                    p.specificationId === representativeSpec.id
+                                                      ? { ...p, coverPrice: newCoverPrice, rangePrices: newRangePrices }
+                                                      : p
+                                                  )
+                                                : [...prev.nupPageRanges, { specificationId: representativeSpec.id, pricePerPage: 0, coverPrice: newCoverPrice, rangePrices: newRangePrices }],
                                             };
                                           });
                                         }}
@@ -4075,14 +4078,21 @@ export default function ProductionSettingPage() {
                                         value={paperPrice || ''}
                                         onChange={(e) => {
                                           const newPaperPrice = Number(e.target.value);
-                                          setSettingForm(prev => ({
-                                            ...prev,
-                                            nupPageRanges: prev.nupPageRanges.map(p =>
-                                              p.specificationId === representativeSpec.id
-                                                ? { ...p, paperPrice: newPaperPrice }
-                                                : p
-                                            ),
-                                          }));
+                                          setSettingForm(prev => {
+                                            const exists = prev.nupPageRanges.some(p => p.specificationId === representativeSpec.id);
+                                            const defaultRangePrices: Record<number, number> = {};
+                                            prev.pageRanges.forEach(r => { defaultRangePrices[r] = 0; });
+                                            return {
+                                              ...prev,
+                                              nupPageRanges: exists
+                                                ? prev.nupPageRanges.map(p =>
+                                                    p.specificationId === representativeSpec.id
+                                                      ? { ...p, paperPrice: newPaperPrice }
+                                                      : p
+                                                  )
+                                                : [...prev.nupPageRanges, { specificationId: representativeSpec.id, pricePerPage: 0, paperPrice: newPaperPrice, rangePrices: defaultRangePrices }],
+                                            };
+                                          });
                                         }}
                                         className="h-7 text-center font-mono text-sm bg-yellow-50 border-yellow-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                         placeholder="0"
@@ -4100,7 +4110,6 @@ export default function ProductionSettingPage() {
                                             const newRangePrices: Record<number, number> = {};
                                             const cp = currentData?.coverPrice || 0;
                                             if (cp > 0) {
-                                              // 표지가격이 있으면: 표지가격 + 단가/1p × 페이지수
                                               prev.pageRanges.forEach(range => {
                                                 newRangePrices[range] = Math.round(cp + value * range);
                                               });
@@ -4114,13 +4123,16 @@ export default function ProductionSettingPage() {
                                                 }
                                               });
                                             }
+                                            const exists = !!currentData;
                                             return {
                                               ...prev,
-                                              nupPageRanges: prev.nupPageRanges.map(p =>
-                                                p.specificationId === representativeSpec.id
-                                                  ? { ...p, pricePerPage: value, rangePrices: newRangePrices }
-                                                  : p
-                                              ),
+                                              nupPageRanges: exists
+                                                ? prev.nupPageRanges.map(p =>
+                                                    p.specificationId === representativeSpec.id
+                                                      ? { ...p, pricePerPage: value, rangePrices: newRangePrices }
+                                                      : p
+                                                  )
+                                                : [...prev.nupPageRanges, { specificationId: representativeSpec.id, pricePerPage: value, rangePrices: newRangePrices }],
                                             };
                                           });
                                         }}
