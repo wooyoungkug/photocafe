@@ -206,6 +206,18 @@ export function useUpdateClientGroup() {
   });
 }
 
+export function useReorderClientGroups() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (items: { id: string; sortOrder: number }[]) =>
+      api.patch('/client-groups/reorder', { items }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [CLIENT_GROUPS_KEY] });
+    },
+  });
+}
+
 export function useDeleteClientGroup() {
   const queryClient = useQueryClient();
 
