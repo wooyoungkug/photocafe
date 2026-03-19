@@ -1212,7 +1212,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
               </div>
               <div className="space-y-2">
                 {folder.additionalOrders.map((order) => {
-                  const orderPrice = calculateAdditionalOrderPrice(order, folder);
+                  const orderPrice = calculateAdditionalOrderPrice(order, folder, undefined, defaultBindingPrice);
                   // 메인 규격 + 다른 추가주문 규격 제외 (자기 자신은 포함)
                   const usedByOthers = new Set([
                     `${folder.albumWidth}x${folder.albumHeight}`,
