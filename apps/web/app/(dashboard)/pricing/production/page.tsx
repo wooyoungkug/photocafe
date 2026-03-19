@@ -1204,7 +1204,7 @@ export default function ProductionSettingPage() {
   // API 호출
   const router = useRouter();
   const { data: groupTree, isLoading: isLoadingGroups } = useProductionGroupTree();
-  const { data: specifications } = useSpecifications();
+  const { data: specifications, refetch: refetchSpecifications } = useSpecifications();
   const { data: pricingTypes } = usePricingTypes();
   const { data: clientGroupsData } = useClientGroups({ limit: 100 });
 
@@ -1564,6 +1564,9 @@ export default function ProductionSettingPage() {
       return;
     }
 
+    // 비동기로 백그라운드에서 스펙 갱신 (모달은 바로 열림)
+    refetchSpecifications();
+
     if (setting) {
       setEditingSetting(setting);
 
@@ -1628,7 +1631,8 @@ export default function ProductionSettingPage() {
         const method = (setting as any).printMethod || 'indigo';
         const filteredSpecs = (specifications || []).filter((s: any) => {
           if (!s.nup) return false;
-          if (method === 'indigo') return s.forIndigo && s.nup;
+          if (method === 'indigoAlbum') return s.forIndigoAlbum;
+          if (method === 'indigo') return s.forIndigo;
           if (method === 'inkjet') return s.forInkjet;
           if (method === 'album') return s.forAlbum;
           if (method === 'frame') return s.forFrame;
@@ -1873,7 +1877,8 @@ export default function ProductionSettingPage() {
         const method = formData.printMethod;
         const filteredSpecs = specifications?.filter((s: any) => {
           if (!s.nup) return false;
-          if (method === 'indigo') return s.forIndigo && s.nup;
+          if (method === 'indigoAlbum') return s.forIndigoAlbum;
+          if (method === 'indigo') return s.forIndigo;
           if (method === 'inkjet') return s.forInkjet;
           if (method === 'album') return s.forAlbum;
           if (method === 'frame') return s.forFrame;
@@ -3855,6 +3860,7 @@ export default function ProductionSettingPage() {
                               const method = settingForm.printMethod;
                               const nupSpecs = specifications?.filter(s => {
                                 if (!s.nup) return false;
+                                if (method === 'indigoAlbum') return s.forIndigoAlbum;
                                 if (method === 'indigo') return s.forIndigo;
                                 if (method === 'inkjet') return s.forInkjet;
                                 if (method === 'album') return s.forAlbum;
@@ -3968,7 +3974,8 @@ export default function ProductionSettingPage() {
                               const method = settingForm.printMethod;
                               const filtered = specifications?.filter(s => {
                                 if (!s.nup) return false;
-                                if (method === 'indigo') return s.forIndigo && s.nup;
+                                if (method === 'indigoAlbum') return s.forIndigoAlbum;
+                                if (method === 'indigo') return s.forIndigo;
                                 if (method === 'inkjet') return s.forInkjet;
                                 if (method === 'album') return s.forAlbum;
                                 if (method === 'frame') return s.forFrame;
@@ -3988,7 +3995,8 @@ export default function ProductionSettingPage() {
                               const method = settingForm.printMethod;
                               const filtered = specifications?.filter(s => {
                                 if (!s.nup) return false;
-                                if (method === 'indigo') return s.forIndigo && s.nup;
+                                if (method === 'indigoAlbum') return s.forIndigoAlbum;
+                                if (method === 'indigo') return s.forIndigo;
                                 if (method === 'inkjet') return s.forInkjet;
                                 if (method === 'album') return s.forAlbum;
                                 if (method === 'frame') return s.forFrame;
@@ -4037,7 +4045,8 @@ export default function ProductionSettingPage() {
                             const method = settingForm.printMethod;
                             const filtered = specifications?.filter(s => {
                               if (!s.nup) return false;
-                              if (method === 'indigo') return s.forIndigo && s.nup;
+                              if (method === 'indigoAlbum') return s.forIndigoAlbum;
+                              if (method === 'indigo') return s.forIndigo;
                               if (method === 'inkjet') return s.forInkjet;
                               if (method === 'album') return s.forAlbum;
                               if (method === 'frame') return s.forFrame;
@@ -4306,6 +4315,7 @@ export default function ProductionSettingPage() {
                           {(!specifications || specifications.filter(s => {
                             if (!s.nup) return false;
                             const method = settingForm.printMethod;
+                            if (method === 'indigoAlbum') return s.forIndigoAlbum;
                             if (method === 'indigo') return s.forIndigo;
                             if (method === 'inkjet') return s.forInkjet;
                             if (method === 'album') return s.forAlbum;
