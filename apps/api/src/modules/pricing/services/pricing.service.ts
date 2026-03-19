@@ -34,14 +34,28 @@ export class PricingService {
   async getAlbumPagePrice(
     clientId: string | null,
     dto: GetAlbumPagePriceDto,
-  ): Promise<{ pricePerPage: number; bindingBasePrice: number; bindingPricePerPage: number; bindingRangePrices: Record<string, number> | null; coverPrice: number }> {
+  ): Promise<{ pricePerPage: number; bindingBasePrice: number; bindingPricePerPage: number; bindingRangePrices: Record<string, number> | null; coverPrice: number; missingReason: string | null }> {
     const { productionSettingId, specificationId, colorMode, pageLayout } = dto;
 
     // 색상+레이아웃 조합에 따른 필드명 결정
     const priceField = this.getColorLayoutPriceField(colorMode, pageLayout);
+    const colorLabel = colorMode === '4c' ? '4도' : '6도';
+    const layoutLabel = pageLayout === 'single' ? '단면' : '양면';
 
     let pricePerPage = 0;
     let coverPrice = 0;
+    let priceSource: string | null = null;
+
+    // 생산설정 이름 조회
+    const prodSetting = await this.prisma.productionSetting.findUnique({
+      where: { id: productionSettingId },
+      select: { name: true },
+    });
+    // 규격 이름 조회
+    const specInfo = await this.prisma.specification.findUnique({
+      where: { id: specificationId },
+      select: { name: true, widthInch: true, heightInch: true, forIndigoAlbum: true },
+    });
 
     // 1. 거래처 개별 단가 조회
     if (clientId) {
@@ -61,13 +75,14 @@ export class PricingService {
         if (rp && rp['__coverPrice'] != null) {
           coverPrice = Number(rp['__coverPrice']);
         }
+        if (pricePerPage) priceSource = 'client';
       }
 
       // 2. 거래처의 그룹 단가 조회
       if (!pricePerPage) {
         const client = await this.prisma.client.findUnique({
           where: { id: clientId },
-          select: { groupId: true },
+          select: { groupId: true, group: { select: { name: true } } },
         });
 
         if (client?.groupId) {
@@ -86,6 +101,7 @@ export class PricingService {
             if (rp && rp['__coverPrice'] != null) {
               coverPrice = Number(rp['__coverPrice']);
             }
+            if (pricePerPage) priceSource = 'group';
           }
         }
       }
@@ -144,7 +160,15 @@ export class PricingService {
       bindingRangePrices = bindingPriceRecord.rangePrices as Record<string, number> | null;
     }
 
-    return { pricePerPage, bindingBasePrice, bindingPricePerPage, bindingRangePrices, coverPrice };
+    // 미등록 사유 생성
+    let missingReason: string | null = null;
+    if (!pricePerPage) {
+      const settingName = prodSetting?.name || productionSettingId;
+      const specName = specInfo?.name || specificationId;
+      missingReason = `[${settingName}] ${specName} ${colorLabel}/${layoutLabel}(${priceField}) 단가 미등록`;
+    }
+
+    return { pricePerPage, bindingBasePrice, bindingPricePerPage, bindingRangePrices, coverPrice, missingReason };
   }
 
   /**

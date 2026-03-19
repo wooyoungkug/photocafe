@@ -1156,7 +1156,9 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
           {isPriceMissing ? (
             <div className="text-sm font-bold text-red-500">
               가격 미등록
-              <div className="text-[10px] text-red-400">관리자 문의</div>
+              <div className="text-[10px] text-red-400 max-w-[200px] break-words">
+                {albumPriceData?.missingReason || '관리자 문의'}
+              </div>
             </div>
           ) : (
             <>
