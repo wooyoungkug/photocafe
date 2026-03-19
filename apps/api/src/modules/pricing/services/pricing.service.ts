@@ -107,8 +107,8 @@ export class PricingService {
       }
     }
 
-    // 2-1. 표준 단가에서 coverPrice 조회 (거래처/그룹에서 못 찾은 경우)
-    if (!coverPrice) {
+    // 2-1. 표준 단가에서 pricePerPage + coverPrice 조회 (거래처/그룹에서 못 찾은 경우)
+    if (!pricePerPage || !coverPrice) {
       const standardPrice = await this.prisma.productionSettingPrice.findFirst({
         where: {
           productionSettingId,
@@ -116,10 +116,16 @@ export class PricingService {
         },
       });
       if (standardPrice) {
-        coverPrice = Number(standardPrice.basePrice) || 0;
-        const rp = standardPrice.rangePrices as Record<string, any> | null;
-        if (rp && rp['__coverPrice'] != null) {
-          coverPrice = Number(rp['__coverPrice']);
+        if (!pricePerPage && standardPrice[priceField] != null) {
+          pricePerPage = Number(standardPrice[priceField]);
+          if (pricePerPage) priceSource = 'standard';
+        }
+        if (!coverPrice) {
+          coverPrice = Number(standardPrice.basePrice) || 0;
+          const rp = standardPrice.rangePrices as Record<string, any> | null;
+          if (rp && rp['__coverPrice'] != null) {
+            coverPrice = Number(rp['__coverPrice']);
+          }
         }
       }
     }

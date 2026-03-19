@@ -1165,16 +1165,16 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
 
             // 제본단가: null이면 No, 0이면 0, 그 외 금액
             const bindingDisplay = !albumPriceData
-              ? <span className="text-red-500">No</span>
+              ? <span className="text-red-500">None</span>
               : bindPrice === 0
                 ? <span>0</span>
                 : <span>{Math.round(bindPrice).toLocaleString()}원</span>;
 
             // 출력단가: null이면 No, 0이면 0, 그 외 계산식
             const printDisplay = perPage === null || perPage === undefined
-              ? <span className="text-red-500">No</span>
+              ? <span className="text-red-500">None</span>
               : perPage === 0
-                ? <span className="text-red-500">No</span>
+                ? <span className="text-red-500">None</span>
                 : <span>{perPage.toLocaleString()}원×{pages}p = {(perPage * pages).toLocaleString()}원</span>;
 
             // 코팅(후가공): 0이면 0, 그 외 계산식
@@ -1521,7 +1521,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                                 <span className="text-gray-400">제본:</span> {bName} {pages}p {orderPrice.bindingPrice === 0 ? '0' : `${Math.round(orderPrice.bindingPrice).toLocaleString()}원`}
                               </div>
                               <div className="text-[11px] text-gray-600">
-                                <span className="text-gray-400">출력:</span> {colorLabel} {paperLabel} {pages}p {perPage > 0 ? `${perPage.toLocaleString()}원×${pages}p = ${(perPage * pages).toLocaleString()}원` : <span className="text-red-500">No</span>}
+                                <span className="text-gray-400">출력:</span> {colorLabel} {paperLabel} {pages}p {perPage > 0 ? `${perPage.toLocaleString()}원×${pages}p = ${(perPage * pages).toLocaleString()}원` : <span className="text-red-500">None</span>}
                               </div>
                               <div className="text-[11px] text-gray-600">
                                 <span className="text-gray-400">코팅:</span> {orderPrice.postProcessingPrice === 0 ? '0' : `${Math.round(orderPrice.postProcessingPrice / pages).toLocaleString()}원×${pages}p = ${Math.round(orderPrice.postProcessingPrice).toLocaleString()}원`}
