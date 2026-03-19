@@ -718,7 +718,8 @@ export function CartItemCard({
                       const info = item.albumOrderInfo;
                       const paperPrice = info.paperPrice ?? 0;
                       const fabricPrice = info.fabricBasePrice ?? 0;
-                      const basePrintPrice = item.basePrice - paperPrice - fabricPrice;
+                      const bindingPrice = info.bindingPrice ?? 0;
+                      const basePrintPrice = item.basePrice - paperPrice - fabricPrice - bindingPrice;
                       const printMethodLabel = info.printMethod === 'indigo' ? '인디고' : '잉크젯';
                       const colorModeLabel = info.colorMode === '6c' ? '6도' : '4도';
                       const pageLayoutLabel = info.pageLayout === 'spread' ? '펼친면' : '낱장';
@@ -777,6 +778,13 @@ export function CartItemCard({
                                   <span className="ml-1.5 text-gray-400">({info.foilName}{info.foilColor ? ` · ${info.foilColor}` : ''}{info.foilPosition ? ` · ${info.foilPosition}` : ''})</span>
                                 </div>
                                 <span className="text-gray-400 tabular-nums">포함</span>
+                              </div>
+                            )}
+                            {/* 제본단가 */}
+                            {bindingPrice > 0 && (
+                              <div className="flex justify-between items-baseline text-xs">
+                                <span className="text-gray-600">제본단가</span>
+                                <span className="text-gray-800 tabular-nums">+{bindingPrice.toLocaleString()}원</span>
                               </div>
                             )}
                             {/* 단가 합계 */}

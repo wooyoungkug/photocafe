@@ -309,6 +309,7 @@ export default function ProductPage() {
                 fabricColorName: (additional.selectedFabricColorName ?? folder.selectedFabricColorName) || undefined,
                 fabricCategory: (additional.selectedFabricCategory ?? folder.selectedFabricCategory) || undefined,
                 fabricBasePrice: (additional.selectedFabricPrice ?? folder.selectedFabricPrice) || undefined,
+                bindingPrice: additionalPrice.bindingPrice,
               },
               uploadStatus: 'pending', totalFileCount: folder.files.length, isDuplicateOverride,
             });
