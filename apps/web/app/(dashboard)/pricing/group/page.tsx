@@ -815,7 +815,7 @@ export default function GroupPricingPage() {
                   .map(([paperId]) => paperId);
                 const linkedPapers = linkedPaperIds
                   .map(id => papersMap.get(id))
-                  .filter(Boolean);
+                  .filter((p: any) => p && (!p.printMethods || p.printMethods.includes(printMethod)));
                 const linkedPaperNames = linkedPapers.map((p: any) => p.name).slice(0, 3);
 
                 return (
@@ -920,7 +920,7 @@ export default function GroupPricingPage() {
                                             !isOneUp && "bg-gray-50"
                                           )}
                                           placeholder="-"
-                                          value={editingPrices[key] ?? (savedPrice ? String(savedPrice) : '')}
+                                          value={editingPrices[key] ?? (savedPrice ? String(savedPrice) : (standardPrice > 0 ? String(standardPrice) : ''))}
                                           onChange={(e) => {
                                             if (isOneUp) {
                                               handleOneUpChange(group.id, field, e.target.value);
@@ -1056,7 +1056,9 @@ export default function GroupPricingPage() {
                 const linkedPaperIds = Object.entries(paperPriceGroupMap)
                   .filter(([_, gId]) => gId === group.id)
                   .map(([paperId]) => paperId);
-                const linkedPapers = linkedPaperIds.map(id => papersMap.get(id)).filter(Boolean);
+                const linkedPapers = linkedPaperIds
+                  .map(id => papersMap.get(id))
+                  .filter((p: any) => p && (!p.printMethods || p.printMethods.includes(printMethod)));
 
                 // 그룹단가 설정 개수
                 const groupPriceCount = (group.specPrices || []).filter((sp: any) => {
@@ -1980,7 +1982,7 @@ export default function GroupPricingPage() {
                     .map(([paperId]) => paperId);
                   const linkedPapers = linkedPaperIds
                     .map(id => papersMap.get(id))
-                    .filter(Boolean);
+                    .filter((p: any) => p && (!p.printMethods || p.printMethods.includes((inkjetDialogSetting as any)?.printMethod)));
 
                   return (
                     <div key={group.id} className={cn("p-3 border-2 rounded-lg", style.bg, style.border)}>
@@ -2196,7 +2198,7 @@ export default function GroupPricingPage() {
                                       type="number"
                                       className="h-6 w-16 text-[10px] text-right font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                       placeholder="-"
-                                      value={editingPrices[key] ?? (savedGroupPrice?.price ? String(Number(savedGroupPrice.price)) : '')}
+                                      value={editingPrices[key] ?? (savedGroupPrice?.price ? String(Number(savedGroupPrice.price)) : (specPrice.singleSidedPrice ? String(specPrice.singleSidedPrice) : ''))}
                                       onChange={(e) => {
                                         setEditingPrices(prev => ({ ...prev, [key]: e.target.value }));
                                       }}
