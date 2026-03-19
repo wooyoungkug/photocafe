@@ -6,10 +6,12 @@ import {
   Body,
   Param,
   Query,
+  Request,
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
+import { Public } from '@/common/decorators/public.decorator';
 import { PricingService } from '../services/pricing.service';
 import {
   CalculateProductPriceDto,
@@ -18,6 +20,7 @@ import {
   SetGroupHalfProductPriceDto,
   SetGroupProductionSettingPricesDto,
   SetClientProductionSettingPricesDto,
+  GetAlbumPagePriceDto,
 } from '../dto';
 
 @ApiTags('가격관리')
@@ -26,6 +29,23 @@ import {
 @Controller('pricing')
 export class PricingController {
   constructor(private pricingService: PricingService) {}
+
+  // ==================== 앨범 페이지 단가 조회 ====================
+
+  @Get('album-page-price')
+  @Public()
+  @ApiOperation({ summary: '앨범 페이지 단가 조회 (DB 기반)' })
+  @ApiQuery({ name: 'productionSettingId', required: true, description: '생산설정 ID' })
+  @ApiQuery({ name: 'specificationId', required: true, description: '규격 ID' })
+  @ApiQuery({ name: 'colorMode', required: true, enum: ['4c', '6c'], description: '색상 모드 (4도/6도)' })
+  @ApiQuery({ name: 'pageLayout', required: true, enum: ['single', 'spread'], description: '페이지 레이아웃 (단면/양면)' })
+  async getAlbumPagePrice(
+    @Query() query: GetAlbumPagePriceDto,
+    @Request() req: any,
+  ) {
+    const clientId = req.user?.clientId || null;
+    return this.pricingService.getAlbumPagePrice(clientId, query);
+  }
 
   // ==================== 가격 계산 ====================
 

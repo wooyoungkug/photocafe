@@ -8,6 +8,7 @@ import {
   SetGroupHalfProductPriceDto,
   SetGroupProductionSettingPricesDto,
   SetClientProductionSettingPricesDto,
+  GetAlbumPagePriceDto,
 } from '../dto';
 
 /**
@@ -21,6 +22,73 @@ import {
 @Injectable()
 export class PricingService {
   constructor(private prisma: PrismaService) {}
+
+  // ==================== 앨범 페이지 단가 조회 ====================
+
+  /**
+   * 앨범 업로드 시 DB 기반 실제 페이지 단가 조회
+   * 우선순위: 1) 거래처 개별 단가 → 2) 그룹 단가 → 3) 0원 반환
+   */
+  async getAlbumPagePrice(
+    clientId: string | null,
+    dto: GetAlbumPagePriceDto,
+  ): Promise<{ pricePerPage: number }> {
+    const { productionSettingId, specificationId, colorMode, pageLayout } = dto;
+
+    // 색상+레이아웃 조합에 따른 필드명 결정
+    const priceField = this.getColorLayoutPriceField(colorMode, pageLayout);
+
+    // 1. 거래처 개별 단가 조회
+    if (clientId) {
+      const clientPrice = await this.prisma.clientProductionSettingPrice.findFirst({
+        where: {
+          clientId,
+          productionSettingId,
+          specificationId,
+        },
+      });
+
+      if (clientPrice && clientPrice[priceField] != null) {
+        return { pricePerPage: Number(clientPrice[priceField]) };
+      }
+
+      // 2. 거래처의 그룹 단가 조회
+      const client = await this.prisma.client.findUnique({
+        where: { id: clientId },
+        select: { groupId: true },
+      });
+
+      if (client?.groupId) {
+        const groupPrice = await this.prisma.groupProductionSettingPrice.findFirst({
+          where: {
+            clientGroupId: client.groupId,
+            productionSettingId,
+            specificationId,
+          },
+        });
+
+        if (groupPrice && groupPrice[priceField] != null) {
+          return { pricePerPage: Number(groupPrice[priceField]) };
+        }
+      }
+    }
+
+    // 3. 값이 없으면 0원 반환
+    return { pricePerPage: 0 };
+  }
+
+  /**
+   * 색상 모드와 페이지 레이아웃에 따른 가격 필드명 반환
+   */
+  private getColorLayoutPriceField(
+    colorMode: '4c' | '6c',
+    pageLayout: 'single' | 'spread',
+  ): 'fourColorSinglePrice' | 'fourColorDoublePrice' | 'sixColorSinglePrice' | 'sixColorDoublePrice' {
+    if (colorMode === '4c') {
+      return pageLayout === 'single' ? 'fourColorSinglePrice' : 'fourColorDoublePrice';
+    }
+    return pageLayout === 'single' ? 'sixColorSinglePrice' : 'sixColorDoublePrice';
+  }
 
   // ==================== 상품 가격 계산 ====================
 

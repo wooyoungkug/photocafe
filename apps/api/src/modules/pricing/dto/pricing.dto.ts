@@ -1,6 +1,27 @@
-import { IsString, IsNumber, IsOptional, IsArray, ValidateNested, Min } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsArray, IsIn, ValidateNested, Min } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
+
+// ==================== 앨범 페이지 단가 조회 DTO ====================
+export class GetAlbumPagePriceDto {
+  @ApiProperty({ description: '생산설정 ID' })
+  @IsString()
+  productionSettingId: string;
+
+  @ApiProperty({ description: '규격 ID' })
+  @IsString()
+  specificationId: string;
+
+  @ApiProperty({ description: '색상 모드', enum: ['4c', '6c'] })
+  @IsString()
+  @IsIn(['4c', '6c'])
+  colorMode: '4c' | '6c';
+
+  @ApiProperty({ description: '페이지 레이아웃', enum: ['single', 'spread'] })
+  @IsString()
+  @IsIn(['single', 'spread'])
+  pageLayout: 'single' | 'spread';
+}
 
 // ==================== 그룹 가격 설정 DTO ====================
 export class SetGroupProductPriceDto {
