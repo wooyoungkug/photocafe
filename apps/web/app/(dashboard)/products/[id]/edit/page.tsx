@@ -1247,8 +1247,12 @@ export default function EditProductPage() {
                           currentPaperGroupMap = (currentSetting as any).paperPriceGroupMap ?? {};
                         }
 
-                        // 그룹별 용지 매핑 구축
+                        // 그룹별 용지 매핑 구축 (현재 출력방식에 맞는 용지만 필터)
                         const allPapers = (product?.papers as any[]) ?? [];
+                        const methodFilter = isIndigoGroup ? 'indigo' : isInkjetGroup ? 'inkjet' : null;
+                        const filteredPapers = methodFilter
+                          ? allPapers.filter((p: any) => p.printMethod === methodFilter)
+                          : allPapers;
                         const groupPaperNames: Record<number, string[]> = {};
                         if (currentPriceGroups.length > 0) {
                           currentPriceGroups.forEach((_pg: any, idx: number) => {
@@ -1259,7 +1263,7 @@ export default function EditProductPage() {
                             const pgIdx = currentPriceGroups.findIndex((pg: any) => pg.id === groupId);
                             if (pgIdx >= 0) {
                               // paperId(마스터 용지 ID) 또는 paper.id로 매칭
-                              const paper = allPapers.find((p: any) => p.paperId === masterId || p.paper?.id === masterId);
+                              const paper = filteredPapers.find((p: any) => p.paperId === masterId || p.paper?.id === masterId);
                               const paperName = paper?.paper?.name || paper?.name;
                               if (paperName && !groupPaperNames[pgIdx].includes(paperName)) {
                                 groupPaperNames[pgIdx].push(paperName);
