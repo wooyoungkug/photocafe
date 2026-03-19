@@ -126,7 +126,7 @@ export default function ProductPage() {
     defaultPageLayout, defaultBindingDirection,
     folders: uploadFolders, clearFolders,
     applyGlobalCoverSource, setFolderFabric, setAllFoldersFoil,
-    setAvailablePapers, setDefaultBindingPrice, updateFolder: updateUploadFolder,
+    setAvailablePapers, setDefaultBindingPrice, setBindingName, updateFolder: updateUploadFolder,
   } = useMultiFolderUploadStore();
 
   const [selectedFabricCategory, setSelectedFabricCategory] = useState<FabricCategory | null>(null);
@@ -442,6 +442,14 @@ export default function ProductPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product?.papers]);
+
+  // 제본 이름을 업로드 스토어에 전달 (가격 표시용)
+  useEffect(() => {
+    if (selectedOptions.binding?.name) {
+      setBindingName(selectedOptions.binding.name);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedOptions.binding?.name]);
 
   // 새 폴더가 추가될 때 현재 선택된 출력방법/용지를 자동 적용
   useEffect(() => {

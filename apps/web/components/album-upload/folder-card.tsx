@@ -401,6 +401,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     setFolderFabric,
     availablePapers,
     productionSettingId,
+    bindingName,
     defaultBindingPrice,
   } = useMultiFolderUploadStore();
 
@@ -1151,37 +1152,67 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
           )}
         </div>
 
-        {/* 가격 표시 */}
-        <div className="text-right flex-shrink-0">
-          {isPriceMissing ? (
-            <div className="text-sm font-bold text-red-500">
-              가격 미등록
-              <div className="text-[10px] text-red-400 max-w-[200px] break-words">
-                {albumPriceData?.missingReason || '관리자 문의'}
+        {/* 가격 단계별 표시 */}
+        <div className="text-right flex-shrink-0 max-w-[280px]">
+          {(() => {
+            const pages = folder.pageCount;
+            const colorLabel = folder.colorMode === '6c' ? '인디고6도' : '인디고4도';
+            const paperLabel = folder.selectedPaperName || '';
+            const perPage = albumPriceData?.pricePerPage ?? null;
+            const bindPrice = folderPrice.bindingPrice;
+            const postPrice = folderPrice.postProcessingPrice;
+            const bName = bindingName || '제본';
+
+            // 제본단가: null이면 No, 0이면 0, 그 외 금액
+            const bindingDisplay = !albumPriceData
+              ? <span className="text-red-500">No</span>
+              : bindPrice === 0
+                ? <span>0</span>
+                : <span>{Math.round(bindPrice).toLocaleString()}원</span>;
+
+            // 출력단가: null이면 No, 0이면 0, 그 외 계산식
+            const printDisplay = perPage === null || perPage === undefined
+              ? <span className="text-red-500">No</span>
+              : perPage === 0
+                ? <span className="text-red-500">No</span>
+                : <span>{perPage.toLocaleString()}원×{pages}p = {(perPage * pages).toLocaleString()}원</span>;
+
+            // 코팅(후가공): 0이면 0, 그 외 계산식
+            const coatingDisplay = postPrice === 0
+              ? <span>0</span>
+              : <span>{Math.round(postPrice / pages).toLocaleString()}원×{pages}p = {Math.round(postPrice).toLocaleString()}원</span>;
+
+            // 합계
+            const totalPrice = folderPrice.totalPrice;
+            const hasAllPrices = !!albumPriceData && perPage > 0;
+
+            return (
+              <div className="space-y-0.5">
+                <div className="text-[11px] text-gray-600">
+                  <span className="text-gray-400">제본:</span> {bName} {pages}p {bindingDisplay}
+                </div>
+                <div className="text-[11px] text-gray-600">
+                  <span className="text-gray-400">출력:</span> {colorLabel} {paperLabel} {pages}p {printDisplay}
+                </div>
+                <div className="text-[11px] text-gray-600">
+                  <span className="text-gray-400">코팅:</span> {postPrice > 0 ? `1up ` : ''}{coatingDisplay}
+                </div>
+                <div className={cn(
+                  "text-sm font-bold border-t border-gray-200 pt-0.5 mt-0.5",
+                  hasAllPrices ? "text-primary" : "text-red-500"
+                )}>
+                  <span className="text-gray-400 text-[11px] font-normal">합계:</span>{' '}
+                  {hasAllPrices
+                    ? <>{folder.quantity > 1
+                        ? <>{Math.round(folderPrice.unitPrice).toLocaleString()}원 ×{folder.quantity}부 = {Math.round(totalPrice).toLocaleString()}원</>
+                        : <>{Math.round(totalPrice).toLocaleString()}원</>
+                      }</>
+                    : <span className="text-red-500">가격 미등록 <span className="text-[10px] font-normal">관리자 문의</span></span>
+                  }
+                </div>
               </div>
-            </div>
-          ) : (
-            <>
-              <div className="text-sm font-bold text-primary">
-                {t('priceWon', { price: Math.round(folderPrice.totalPrice).toLocaleString() })}
-              </div>
-              <div className="text-[10px] text-gray-400">
-                {t('priceFormulaUnit', {
-                  printPrice: Math.round(folderPrice.printPrice).toLocaleString(),
-                  bindingPrice: Math.round(folderPrice.bindingPrice).toLocaleString(),
-                  postProcessingPrice: Math.round(folderPrice.postProcessingPrice).toLocaleString(),
-                  unitPrice: Math.round(folderPrice.unitPrice).toLocaleString(),
-                })}
-              </div>
-              <div className="text-[10px] text-gray-400">
-                {t('priceFormulaTotal', {
-                  unitPrice: folderPrice.unitPrice.toLocaleString(),
-                  qty: folder.quantity,
-                  total: folderPrice.totalPrice.toLocaleString(),
-                })}
-              </div>
-            </>
-          )}
+            );
+          })()}
         </div>
 
         {/* 삭제 버튼 */}
