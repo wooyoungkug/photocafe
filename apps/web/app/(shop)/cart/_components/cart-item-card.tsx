@@ -755,13 +755,6 @@ export function CartItemCard({
                                 <span className="tabular-nums">{effectivePricePerPage.toLocaleString()}원/p × {info.pageCount}p</span>
                               </div>
                             )}
-                            {/* 표지단가 */}
-                            {coverPrice > 0 && (
-                              <div className="flex justify-between items-baseline text-xs text-gray-400 -mt-1">
-                                <span className="pl-2">└ 표지단가</span>
-                                <span className="tabular-nums">+{coverPrice.toLocaleString()}원</span>
-                              </div>
-                            )}
                             {/* 용지 추가단가 */}
                             {paperPrice > 0 ? (
                               <div className="flex justify-between items-baseline text-xs">
