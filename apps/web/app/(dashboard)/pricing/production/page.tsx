@@ -1684,6 +1684,14 @@ export default function ProductionSettingPage() {
       const specIdsFromDB = setting.specifications?.map((s) => s.specificationId) || [];
       const allSpecIds = specIdsFromDB.length > 0 ? specIdsFromDB : Array.from(specIdsFromPriceGroups);
 
+      // nup_page_range/finishing_spec_nup는 normalizedNupPageRanges의 대표 spec ID만 사용
+      // (DB에는 Nup 그룹 내 모든 spec이 저장되지만, 폼에서는 대표 spec 1개만 관리)
+      const normalizedSpecIds = (setting.pricingType === 'nup_page_range' || setting.pricingType === 'finishing_spec_nup')
+        ? (normalizedNupPageRanges.length > 0
+            ? normalizedNupPageRanges.map((r: any) => r.specificationId)
+            : allSpecIds)
+        : allSpecIds;
+
       setSettingForm({
         codeName: setting.codeName || "",
         vendorType: setting.vendorType,
@@ -1694,7 +1702,7 @@ export default function ProductionSettingPage() {
         basePrice: Number(setting.basePrice),
         workDays: Number(setting.workDays),
         weightInfo: setting.weightInfo || "",
-        specificationIds: allSpecIds,
+        specificationIds: normalizedSpecIds,
         specUsageType: (setting as any).specUsageType || "all",
         printMethod: (setting as any).printMethod || "indigo",
         paperIds: (setting as any).paperIds || [],
@@ -4053,8 +4061,11 @@ export default function ProductionSettingPage() {
                               const representativeSpec = specsInGroup[0];
                               if (!representativeSpec) return null;
 
-                              const isSelected = settingForm.specificationIds.includes(representativeSpec.id);
-                              const rangeData = settingForm.nupPageRanges.find(p => p.specificationId === representativeSpec.id);
+                              // 그룹 내 아무 spec이라도 선택되어 있으면 선택 처리 (DB 저장 순서 불일치 대응)
+                              const isSelected = specsInGroup.some(s => settingForm.specificationIds.includes(s.id));
+                              // 그룹 내 아무 spec에 대한 rangeData라도 우선 사용
+                              const rangeData = settingForm.nupPageRanges.find(p => p.specificationId === representativeSpec.id)
+                                ?? settingForm.nupPageRanges.find(p => specsInGroup.some(s => s.id === p.specificationId));
                               const pricePerPage = rangeData?.pricePerPage || 0;
                               const coverPrice = rangeData?.coverPrice || 0;
                               const paperPrice = rangeData?.paperPrice || 0;
@@ -4092,10 +4103,11 @@ export default function ProductionSettingPage() {
                                             }],
                                           };
                                         } else {
+                                          const groupSpecIds = new Set(specsInGroup.map(s => s.id));
                                           return {
                                             ...prev,
-                                            specificationIds: prev.specificationIds.filter(id => id !== representativeSpec.id),
-                                            nupPageRanges: prev.nupPageRanges.filter(p => p.specificationId !== representativeSpec.id),
+                                            specificationIds: prev.specificationIds.filter(id => !groupSpecIds.has(id)),
+                                            nupPageRanges: prev.nupPageRanges.filter(p => !groupSpecIds.has(p.specificationId)),
                                           };
                                         }
                                       });
