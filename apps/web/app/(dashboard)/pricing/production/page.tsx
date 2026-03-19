@@ -2448,7 +2448,7 @@ export default function ProductionSettingPage() {
 
       {/* 설정 다이얼로그 */}
       <Dialog open={isSettingDialogOpen} onOpenChange={setIsSettingDialogOpen}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col p-6">
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col p-6">
           <DialogHeader className="mb-2">
             <DialogTitle className="text-xl">
               {editingSetting ? "단가 설정 수정" : "단가 설정 추가"}
