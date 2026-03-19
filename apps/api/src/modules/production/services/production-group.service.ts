@@ -759,16 +759,28 @@ export class ProductionGroupService {
 
     const newSortOrder = original.sortOrder + 1;
 
-    // 원본에서 복사할 필드 추출 (id, createdAt, updatedAt 제외)
+    // 원본에서 복사할 필드 추출 (id, 관계 필드, 타임스탬프 제외)
     const {
       id: _id, createdAt: _c, updatedAt: _u,
+      specifications: _specs, prices: _prices,
       ...settingData
     } = original;
+
+    // JSON 필드 Prisma 호환 변환
+    const jsonFields = ['priceGroups', 'paperPriceGroupMap', 'pageRanges', 'lengthPriceRanges', 'areaPriceRanges', 'distancePriceRanges', 'weightInfo'] as const;
+    const cleanData: any = { ...settingData };
+    for (const field of jsonFields) {
+      if (cleanData[field] === null) {
+        cleanData[field] = Prisma.JsonNull;
+      } else if (cleanData[field] !== undefined) {
+        cleanData[field] = JSON.parse(JSON.stringify(cleanData[field]));
+      }
+    }
 
     // 새 설정 생성
     const copied = await this.prisma.productionSetting.create({
       data: {
-        ...settingData,
+        ...cleanData,
         settingName: `${original.settingName || ''}_복사`,
         sortOrder: newSortOrder,
       },
@@ -778,8 +790,14 @@ export class ProductionGroupService {
     if (original.prices.length > 0) {
       await this.prisma.productionSettingPrice.createMany({
         data: original.prices.map((p) => {
-          const { id: _pid, productionSettingId: _psid, ...priceData } = p;
-          return { ...priceData, productionSettingId: copied.id };
+          const { id: _pid, productionSettingId: _psid, createdAt: _pc, updatedAt: _pu, ...priceData } = p;
+          const cleanPrice: any = { ...priceData, productionSettingId: copied.id };
+          if (cleanPrice.rangePrices === null) {
+            cleanPrice.rangePrices = Prisma.JsonNull;
+          } else if (cleanPrice.rangePrices !== undefined) {
+            cleanPrice.rangePrices = JSON.parse(JSON.stringify(cleanPrice.rangePrices));
+          }
+          return cleanPrice;
         }),
       });
     }

@@ -18,6 +18,7 @@ import {
   Ruler,
   Users,
   FolderInput,
+  Copy,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,7 @@ import {
   useCreateProductionSetting,
   useUpdateProductionSetting,
   useDeleteProductionSetting,
+  useCopyProductionSetting,
   useMoveProductionSetting,
   useMoveProductionGroupTo,
   useMoveProductionSettingTo,
@@ -775,12 +777,14 @@ const SettingCard = ({
   setting,
   onEdit,
   onDelete,
+  onCopy,
   onMove,
   onMoveTo,
 }: {
   setting: ProductionSetting;
   onEdit: (setting: ProductionSetting) => void;
   onDelete: (setting: ProductionSetting) => void;
+  onCopy?: (setting: ProductionSetting) => void;
   onMove: (id: string, direction: "up" | "down") => void;
   onMoveTo?: (setting: ProductionSetting) => void;
 }) => {
@@ -991,6 +995,17 @@ const SettingCard = ({
             </Button>
           )}
           <div className="w-px h-4 bg-gray-200 mx-1" />
+          {onCopy && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-gray-400 hover:text-green-600"
+              onClick={() => onCopy(setting)}
+              title="단가 복사"
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"
@@ -1196,6 +1211,7 @@ export default function ProductionSettingPage() {
   const createSettingMutation = useCreateProductionSetting();
   const updateSettingMutation = useUpdateProductionSetting();
   const deleteSettingMutation = useDeleteProductionSetting();
+  const copySettingMutation = useCopyProductionSetting();
   const moveSettingMutation = useMoveProductionSetting();
   const moveGroupToMutation = useMoveProductionGroupTo();
   const moveSettingToMutation = useMoveProductionSettingTo();
@@ -1720,11 +1736,11 @@ export default function ProductionSettingPage() {
     try {
       const formData = settingForm;
 
-      // 필수값 검증: 용지별그룹명 (settingName)
+      // 필수값 검증: 세팅명 (settingName)
       if (!formData.settingName || formData.settingName.trim() === "") {
         toast({
           title: "필수 입력 누락",
-          description: "용지별그룹명을 입력해주세요.",
+          description: "세팅명을 입력해주세요.",
           variant: "destructive"
         });
         return;
@@ -2334,6 +2350,20 @@ export default function ProductionSettingPage() {
                         setDeletingItem({ type: "setting", item: s });
                         setIsDeleteDialogOpen(true);
                       }}
+                      onCopy={(s) => {
+                        copySettingMutation.mutate(s.id, {
+                          onSuccess: () => {
+                            toast({ title: "단가가 복사되었습니다." });
+                          },
+                          onError: (error: any) => {
+                            toast({
+                              title: "복사 실패",
+                              description: error?.response?.data?.message || "단가 복사 중 오류가 발생했습니다.",
+                              variant: "destructive",
+                            });
+                          },
+                        });
+                      }}
                       onMove={handleMoveSetting}
                       onMoveTo={handleOpenMoveSettingDialog}
                     />
@@ -2413,10 +2443,10 @@ export default function ProductionSettingPage() {
                   </h3>
 
                   <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-                    {/* 1행: 용지별그룹명, 작업시간 */}
+                    {/* 1행: 세팅명, 작업시간 */}
                     <div className="flex items-center gap-3">
                       <Label className="text-xs font-medium text-gray-500 w-24 shrink-0">
-                        용지별그룹명 <span className="text-red-500">*</span>
+                        세팅명 <span className="text-red-500">*</span>
                       </Label>
                       <Input
                         placeholder="예: 박Color"
@@ -2972,7 +3002,7 @@ export default function ProductionSettingPage() {
 
                         {/* 용지 목록 + 그룹 할당 드롭다운 */}
                         <div className="space-y-2">
-                          <Label className="text-sm font-semibold">용지별그룹명</Label>
+                          <Label className="text-sm font-semibold">세팅명</Label>
                           <div className="border rounded-lg p-3 max-h-[200px] overflow-y-auto">
                             {!papersForPricing || papersForPricing.length === 0 ? (
                               <p className="text-center text-muted-foreground py-2 text-sm">

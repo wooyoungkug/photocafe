@@ -383,6 +383,18 @@ export function useUpdateSettingPrices() {
   });
 }
 
+export function useCopyProductionSetting() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) =>
+      api.post<ProductionSetting>(`/production/settings/${id}/copy`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [PRODUCTION_KEY] });
+    },
+  });
+}
+
 export function useMoveProductionSetting() {
   const queryClient = useQueryClient();
 

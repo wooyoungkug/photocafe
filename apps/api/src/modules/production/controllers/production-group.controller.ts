@@ -159,6 +159,12 @@ export class ProductionGroupController {
     return this.productionGroupService.updateSettingPrices(id, data);
   }
 
+  @Post('settings/:id/copy')
+  @ApiOperation({ summary: '생산설정 복사' })
+  async copySetting(@Param('id') id: string) {
+    return this.productionGroupService.copySetting(id);
+  }
+
   @Post('settings/:id/move-up')
   @ApiOperation({ summary: '생산설정 위로 이동' })
   async moveSettingUp(@Param('id') id: string) {
