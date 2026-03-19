@@ -79,7 +79,7 @@ import { toast } from "@/hooks/use-toast";
 import { useSystemSettings, settingsToMap, getNumericValue } from "@/hooks/use-system-settings";
 
 // 보호되는 그룹 이름 (삭제/수정 불가)
-const PROTECTED_GROUP_NAMES = ['기타', '배송'];
+const PROTECTED_GROUP_NAMES = ['기타', '배송', '출력', '인디고출력', '잉크젯출력'];
 
 // 보호되는 그룹인지 확인
 const isProtectedGroup = (name: string): boolean => {

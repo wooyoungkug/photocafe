@@ -2936,6 +2936,14 @@ function OutputPriceSelectionForm({
     setLocalSelected(prev => prev.filter(p => p.id !== id));
   };
 
+  // 그룹(및 하위 전체)에 해당 출력방식 설정이 있는지 재귀 체크
+  const groupHasMatchingSettings = (group: ProductionGroup, method: 'INDIGO' | 'INKJET'): boolean => {
+    const printMethodStr = method === 'INDIGO' ? 'indigo' : 'inkjet';
+    const direct = group.settings?.some(s => s.pricingType === 'paper_output_spec' && s.printMethod === printMethodStr) || false;
+    if (direct) return true;
+    return group.children?.some(child => groupHasMatchingSettings(child, method)) || false;
+  };
+
   // 컴팩트 그룹 트리 렌더링 (Step 1에서 출력방식 선택 시 하단에 표시)
   const renderGroupTreeCompact = (groups: ProductionGroup[], method: 'INDIGO' | 'INKJET', depth = 0): React.ReactNode[] => {
     return groups.map(group => {
@@ -2951,17 +2959,7 @@ function OutputPriceSelectionForm({
 
       const hasSettings = filteredGroupSettings.length > 0;
       const hasChildren = group.children && group.children.length > 0;
-      const childrenWithSettings = group.children?.filter(child => {
-        const childSettings = child.settings?.filter(s => {
-          if (s.pricingType !== 'paper_output_spec') return false;
-          if (method === 'INDIGO') {
-            return s.printMethod === 'indigo';
-          } else {
-            return s.printMethod === 'inkjet';
-          }
-        }) || [];
-        return childSettings.length > 0 || (child.children && child.children.length > 0);
-      }) || [];
+      const childrenWithSettings = group.children?.filter(child => groupHasMatchingSettings(child, method)) || [];
 
       if (!hasSettings && childrenWithSettings.length === 0) return null;
 

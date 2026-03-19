@@ -1872,6 +1872,13 @@ function OutputPriceSelectionForm({
     setColorType('4도'); setSelectedSpecId('');
   };
 
+  const groupHasMatchingSettings = (group: ProductionGroup, method: 'INDIGO' | 'INKJET'): boolean => {
+    const printMethodStr = method === 'INDIGO' ? 'indigo' : 'inkjet';
+    const direct = group.settings?.some(s => s.pricingType === 'paper_output_spec' && s.printMethod === printMethodStr) || false;
+    if (direct) return true;
+    return group.children?.some(child => groupHasMatchingSettings(child, method)) || false;
+  };
+
   const renderGroupTreeCompact = (groups: ProductionGroup[], method: 'INDIGO' | 'INKJET', depth = 0): React.ReactNode[] => {
     return groups.map(group => {
       const filteredGroupSettings = group.settings?.filter(s => {
@@ -1880,14 +1887,7 @@ function OutputPriceSelectionForm({
         else return s.printMethod === 'inkjet';
       }) || [];
       const hasSettings = filteredGroupSettings.length > 0;
-      const childrenWithSettings = group.children?.filter(child => {
-        const childSettings = child.settings?.filter(s => {
-          if (s.pricingType !== 'paper_output_spec') return false;
-          if (method === 'INDIGO') return s.printMethod === 'indigo';
-          else return s.printMethod === 'inkjet';
-        }) || [];
-        return childSettings.length > 0 || (child.children && child.children.length > 0);
-      }) || [];
+      const childrenWithSettings = group.children?.filter(child => groupHasMatchingSettings(child, method)) || [];
       if (!hasSettings && childrenWithSettings.length === 0) return null;
       const isExpanded = expandedGroups.has(group.id);
       return (
