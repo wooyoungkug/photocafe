@@ -1264,7 +1264,9 @@ export default function EditProductPage() {
                             if (pgIdx >= 0) {
                               // paperId(마스터 용지 ID) 또는 paper.id로 매칭
                               const paper = filteredPapers.find((p: any) => p.paperId === masterId || p.paper?.id === masterId);
-                              const paperName = paper?.paper?.name || paper?.name;
+                              const baseName = paper?.paper?.name || paper?.name;
+                              const grammage = paper?.grammage || paper?.paper?.grammage;
+                              const paperName = baseName ? (grammage ? `${baseName} ${grammage}g` : baseName) : null;
                               if (paperName && !groupPaperNames[pgIdx].includes(paperName)) {
                                 groupPaperNames[pgIdx].push(paperName);
                               }
