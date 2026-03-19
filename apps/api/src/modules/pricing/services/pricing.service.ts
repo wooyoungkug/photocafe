@@ -151,18 +151,26 @@ export class PricingService {
       throw new NotFoundException('상품에 제본/출력단가 설정이 없습니다.');
     }
 
-    // 4. 가격 조회: 거래처 개별 → 그룹 → 표준 순서
+    // nup 파싱 (e.g., "1+up" → 1, "2up" → 2, "4up" → 4)
+    const nupNum = specification.nup
+      ? parseInt(specification.nup.replace(/[^0-9]/g, '')) || 1
+      : 1;
+
+    // 4. 가격 조회: 거래처 개별 → 그룹 → 표준(priceGroups JSON) 순서
     let priceRecord: any = null;
     let matchedProductionSettingId: string | null = null;
     let appliedPolicy = '표준 단가';
 
-    // 4-1. 거래처 개별 단가 조회
+    // 4-1. 거래처 개별 단가 조회 (specificationId 또는 minQuantity=nup으로 매칭)
     if (dto.clientId) {
       const clientPrice = await this.prisma.clientProductionSettingPrice.findFirst({
         where: {
           clientId: dto.clientId,
           productionSettingId: { in: productionSettingIds },
-          specificationId: specification.id,
+          OR: [
+            { specificationId: specification.id },
+            { minQuantity: nupNum, specificationId: null },
+          ],
         },
       });
 
@@ -184,7 +192,10 @@ export class PricingService {
             where: {
               clientGroupId: client.groupId,
               productionSettingId: { in: productionSettingIds },
-              specificationId: specification.id,
+              OR: [
+                { specificationId: specification.id },
+                { minQuantity: nupNum, specificationId: null },
+              ],
             },
           });
 
@@ -197,12 +208,15 @@ export class PricingService {
       }
     }
 
-    // 4-3. 표준 단가 조회 (ProductionSettingPrice)
+    // 4-3. 표준 단가 조회: ProductionSettingPrice (specificationId 또는 minQuantity=nup)
     if (!priceRecord) {
       const standardPrice = await this.prisma.productionSettingPrice.findFirst({
         where: {
           productionSettingId: { in: productionSettingIds },
-          specificationId: specification.id,
+          OR: [
+            { specificationId: specification.id },
+            { minQuantity: nupNum, specificationId: null },
+          ],
         },
       });
 
@@ -210,6 +224,72 @@ export class PricingService {
         priceRecord = standardPrice;
         matchedProductionSettingId = standardPrice.productionSettingId;
         appliedPolicy = '표준 단가';
+      }
+    }
+
+    // 4-4. ProductionSettingPrice에서도 못 찾으면 → priceGroups JSON에서 직접 조회
+    if (!priceRecord) {
+      const settings = await this.prisma.productionSetting.findMany({
+        where: { id: { in: productionSettingIds } },
+        select: { id: true, priceGroups: true, paperPriceGroupMap: true, printMethod: true },
+      });
+
+      for (const setting of settings) {
+        const priceGroups = setting.priceGroups as any[] | null;
+        if (!priceGroups || priceGroups.length === 0) continue;
+
+        // 용지 ID로 해당하는 그룹 인덱스 결정
+        let groupIndex = 0;
+        if (dto.paperId && setting.paperPriceGroupMap) {
+          const paperMap = setting.paperPriceGroupMap as Record<string, string>;
+          const mappedGroupId = paperMap[dto.paperId];
+          if (mappedGroupId) {
+            const idx = priceGroups.findIndex((g: any) => g.id === mappedGroupId);
+            if (idx >= 0) groupIndex = idx;
+          }
+        }
+
+        const group = priceGroups[groupIndex];
+        if (!group) continue;
+
+        // 인디고: upPrices에서 nup 매칭
+        if (group.upPrices && Array.isArray(group.upPrices)) {
+          const upPrice = group.upPrices.find((u: any) => u.up === nupNum);
+          if (upPrice) {
+            // priceRecord 형태로 변환
+            priceRecord = {
+              fourColorSinglePrice: upPrice.fourColorSinglePrice ?? null,
+              fourColorDoublePrice: upPrice.fourColorDoublePrice ?? null,
+              sixColorSinglePrice: upPrice.sixColorSinglePrice ?? null,
+              sixColorDoublePrice: upPrice.sixColorDoublePrice ?? null,
+              basePrice: null,
+              rangePrices: null,
+              pricePerPage: null,
+            };
+            matchedProductionSettingId = setting.id;
+            appliedPolicy = '표준 단가 (출력설정)';
+            break;
+          }
+        }
+
+        // 잉크젯: specPrices에서 specificationId 매칭
+        if (group.specPrices && Array.isArray(group.specPrices)) {
+          const specPrice = group.specPrices.find(
+            (sp: any) => sp.specificationId === specification.id,
+          );
+          if (specPrice) {
+            priceRecord = {
+              singleSidedPrice: specPrice.singleSidedPrice ?? null,
+              doubleSidedPrice: specPrice.doubleSidedPrice ?? null,
+              basePrice: null,
+              rangePrices: null,
+              pricePerPage: specPrice.singleSidedPrice ?? null,
+            };
+            matchedProductionSettingId = setting.id;
+            appliedPolicy = '표준 단가 (출력설정)';
+            break;
+          }
+        }
       }
     }
 
