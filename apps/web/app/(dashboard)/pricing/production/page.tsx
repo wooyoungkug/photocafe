@@ -3863,7 +3863,7 @@ export default function ProductionSettingPage() {
                         <div
                           className="grid gap-0 pb-2 border-b mb-2 text-xs font-medium text-gray-600 sticky top-0 bg-white items-center"
                           style={{
-                            gridTemplateColumns: `28px 60px minmax(120px, 1fr) 70px 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
+                            gridTemplateColumns: `28px 60px minmax(80px, 1fr) 70px 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
                           }}
                         >
                           <Checkbox
@@ -3984,7 +3984,7 @@ export default function ProductionSettingPage() {
                                     isSelected && "bg-amber-50/50"
                                   )}
                                   style={{
-                                    gridTemplateColumns: `28px 60px minmax(120px, 1fr) 70px 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
+                                    gridTemplateColumns: `28px 60px minmax(80px, 1fr) 70px 80px ${settingForm.pageRanges.map(() => '80px').join(' ')}`
                                   }}
                                 >
                                   <Checkbox
