@@ -226,6 +226,15 @@ const formatCurrency = (num: number) => {
   return new Intl.NumberFormat("ko-KR").format(num);
 };
 
+// 그룹명에 따른 단면/양면 고정 결정
+// 압축/레이플릿/맞장 → 단면, 화보/포토북 → 양면
+const getFixedPrintSide = (groupName: string): 'single' | 'double' | null => {
+  const lower = groupName.toLowerCase();
+  if (lower.includes('압축') || lower.includes('레이플릿') || lower.includes('맞장')) return 'single';
+  if (lower.includes('화보') || lower.includes('포토북')) return 'double';
+  return null;
+};
+
 // 인디고 원가 계산 헬퍼 함수
 // 인디고 규격: 315x467mm (국전지 4절 기준)
 // 국전지 basePrice / 2000장 = 장당 원가
@@ -780,6 +789,7 @@ const SettingCard = ({
   onCopy,
   onMove,
   onMoveTo,
+  groupName,
 }: {
   setting: ProductionSetting;
   onEdit: (setting: ProductionSetting) => void;
@@ -787,10 +797,12 @@ const SettingCard = ({
   onCopy?: (setting: ProductionSetting) => void;
   onMove: (id: string, direction: "up" | "down") => void;
   onMoveTo?: (setting: ProductionSetting) => void;
+  groupName?: string;
 }) => {
   // prices 배열에서 가격 정보 추출
   const prices = (setting as any).prices || [];
   const printMethod = (setting as any).printMethod;
+  const fixedPrintSide = getFixedPrintSide(groupName || '');
 
   // 인디고 Up별 가격 (minQuantity로 구분) - 4도/6도 칼라 구분
   const indigoUpPrices = [1, 2, 4, 8].map(up => {
@@ -860,51 +872,59 @@ const SettingCard = ({
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {/* 4도칼라 */}
-                  <tr className="group/row hover:bg-gray-50">
-                    <td className="px-2 py-1.5 text-left">
-                      <span className="font-semibold text-blue-600 mr-1.5">4도</span>
-                      <span className="text-gray-600">단면</span>
-                    </td>
-                    {indigoUpPrices.map((p) => (
-                      <td key={p.up} className="px-2 py-1.5 font-mono text-gray-900">
-                        {p.fourColorSinglePrice > 0 ? p.fourColorSinglePrice.toLocaleString() : "-"}
+                  {fixedPrintSide !== 'double' && (
+                    <tr className="group/row hover:bg-gray-50">
+                      <td className="px-2 py-1.5 text-left">
+                        <span className="font-semibold text-blue-600 mr-1.5">4도</span>
+                        <span className="text-gray-600">단면</span>
                       </td>
-                    ))}
-                  </tr>
-                  <tr className="group/row hover:bg-gray-50">
-                    <td className="px-2 py-1.5 text-left">
-                      <span className="font-semibold text-blue-600 mr-1.5">4도</span>
-                      <span className="text-gray-600">양면</span>
-                    </td>
-                    {indigoUpPrices.map((p) => (
-                      <td key={p.up} className="px-2 py-1.5 font-mono text-gray-900">
-                        {p.fourColorDoublePrice > 0 ? p.fourColorDoublePrice.toLocaleString() : "-"}
+                      {indigoUpPrices.map((p) => (
+                        <td key={p.up} className="px-2 py-1.5 font-mono text-gray-900">
+                          {p.fourColorSinglePrice > 0 ? p.fourColorSinglePrice.toLocaleString() : "-"}
+                        </td>
+                      ))}
+                    </tr>
+                  )}
+                  {fixedPrintSide !== 'single' && (
+                    <tr className="group/row hover:bg-gray-50">
+                      <td className="px-2 py-1.5 text-left">
+                        <span className="font-semibold text-blue-600 mr-1.5">4도</span>
+                        <span className="text-gray-600">양면</span>
                       </td>
-                    ))}
-                  </tr>
+                      {indigoUpPrices.map((p) => (
+                        <td key={p.up} className="px-2 py-1.5 font-mono text-gray-900">
+                          {p.fourColorDoublePrice > 0 ? p.fourColorDoublePrice.toLocaleString() : "-"}
+                        </td>
+                      ))}
+                    </tr>
+                  )}
                   {/* 6도칼라 */}
-                  <tr className="group/row hover:bg-gray-50">
-                    <td className="px-2 py-1.5 text-left">
-                      <span className="font-semibold text-purple-600 mr-1.5">6도</span>
-                      <span className="text-gray-600">단면</span>
-                    </td>
-                    {indigoUpPrices.map((p) => (
-                      <td key={p.up} className="px-2 py-1.5 font-mono text-gray-900">
-                        {p.sixColorSinglePrice > 0 ? p.sixColorSinglePrice.toLocaleString() : "-"}
+                  {fixedPrintSide !== 'double' && (
+                    <tr className="group/row hover:bg-gray-50">
+                      <td className="px-2 py-1.5 text-left">
+                        <span className="font-semibold text-purple-600 mr-1.5">6도</span>
+                        <span className="text-gray-600">단면</span>
                       </td>
-                    ))}
-                  </tr>
-                  <tr className="group/row hover:bg-gray-50">
-                    <td className="px-2 py-1.5 text-left">
-                      <span className="font-semibold text-purple-600 mr-1.5">6도</span>
-                      <span className="text-gray-600">양면</span>
-                    </td>
-                    {indigoUpPrices.map((p) => (
-                      <td key={p.up} className="px-2 py-1.5 font-mono text-gray-900">
-                        {p.sixColorDoublePrice > 0 ? p.sixColorDoublePrice.toLocaleString() : "-"}
+                      {indigoUpPrices.map((p) => (
+                        <td key={p.up} className="px-2 py-1.5 font-mono text-gray-900">
+                          {p.sixColorSinglePrice > 0 ? p.sixColorSinglePrice.toLocaleString() : "-"}
+                        </td>
+                      ))}
+                    </tr>
+                  )}
+                  {fixedPrintSide !== 'single' && (
+                    <tr className="group/row hover:bg-gray-50">
+                      <td className="px-2 py-1.5 text-left">
+                        <span className="font-semibold text-purple-600 mr-1.5">6도</span>
+                        <span className="text-gray-600">양면</span>
                       </td>
-                    ))}
-                  </tr>
+                      {indigoUpPrices.map((p) => (
+                        <td key={p.up} className="px-2 py-1.5 font-mono text-gray-900">
+                          {p.sixColorDoublePrice > 0 ? p.sixColorDoublePrice.toLocaleString() : "-"}
+                        </td>
+                      ))}
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -2451,6 +2471,7 @@ export default function ProductionSettingPage() {
                     <SettingCard
                       key={setting.id}
                       setting={setting}
+                      groupName={selectedGroup?.name}
                       onEdit={handleOpenSettingDialog}
                       onDelete={(s) => {
                         setDeletingItem({ type: "setting", item: s });
@@ -2972,14 +2993,19 @@ export default function ProductionSettingPage() {
                                     <div className="border border-gray-200 overflow-hidden">
                                       <table className="w-full text-xs">
                                         <thead>
-                                          <tr className="bg-gray-100 border-b border-gray-200">
-                                            <th className="text-center py-1 px-1 font-medium text-gray-600">Up</th>
-                                            <th className="text-center py-1 px-1 font-medium text-gray-400 text-[10px]">가중치</th>
-                                            <th className="text-center py-1 px-1 font-medium text-gray-600">4도단면</th>
-                                            <th className="text-center py-1 px-1 font-medium text-gray-600">4도양면</th>
-                                            <th className="text-center py-1 px-1 font-medium text-gray-600">6도단면</th>
-                                            <th className="text-center py-1 px-1 font-medium text-gray-600">6도양면</th>
-                                          </tr>
+                                          {(() => {
+                                            const fps = getFixedPrintSide(selectedGroup?.name || '');
+                                            return (
+                                              <tr className="bg-gray-100 border-b border-gray-200">
+                                                <th className="text-center py-1 px-1 font-medium text-gray-600">Up</th>
+                                                <th className="text-center py-1 px-1 font-medium text-gray-400 text-[10px]">가중치</th>
+                                                {fps !== 'double' && <th className="text-center py-1 px-1 font-medium text-gray-600">4도단면</th>}
+                                                {fps !== 'single' && <th className="text-center py-1 px-1 font-medium text-gray-600">4도양면</th>}
+                                                {fps !== 'double' && <th className="text-center py-1 px-1 font-medium text-gray-600">6도단면</th>}
+                                                {fps !== 'single' && <th className="text-center py-1 px-1 font-medium text-gray-600">6도양면</th>}
+                                              </tr>
+                                            );
+                                          })()}
                                         </thead>
                                         <tbody>
                                           {upPrices.map((upPrice, idx) => {
@@ -3029,7 +3055,12 @@ export default function ProductionSettingPage() {
                                                     />
                                                   </div>
                                                 </td>
-                                                {['fourColorSinglePrice', 'fourColorDoublePrice', 'sixColorSinglePrice', 'sixColorDoublePrice'].map((field) => {
+                                                {(['fourColorSinglePrice', 'fourColorDoublePrice', 'sixColorSinglePrice', 'sixColorDoublePrice'] as const).filter(f => {
+                                                  const fps = getFixedPrintSide(selectedGroup?.name || '');
+                                                  if (fps === 'single') return !f.includes('Double');
+                                                  if (fps === 'double') return !f.includes('Single');
+                                                  return true;
+                                                }).map((field) => {
                                                   const costDisplay = getCostDisplay(field, upPrice.up);
                                                   return (
                                                     <td key={field} className="px-0.5 py-0.5">
