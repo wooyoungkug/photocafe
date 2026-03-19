@@ -1862,14 +1862,17 @@ export default function ProductionSettingPage() {
               stringRangePrices[String(key)] = value;
             });
           }
-          return {
+          const result: any = {
             specificationId: item.specificationId,
             basePages: firstRange,
             basePrice: item.rangePrices?.[firstRange] || 0,
             pricePerPage: item.pricePerPage || 0,
-            coverPrice: item.coverPrice ?? null,
             rangePrices: stringRangePrices,
           };
+          if (item.coverPrice != null && item.coverPrice > 0) {
+            result.coverPrice = item.coverPrice;
+          }
+          return result;
         });
         // 페이지 구간 설정도 저장 (설정값에 포함)
         apiData.pageRanges = formData.pageRanges;
@@ -1888,14 +1891,19 @@ export default function ProductionSettingPage() {
         apiData.specUsageType = formData.specUsageType;
         // nupPageRanges에서 pricePerPage 저장
         if (formData.nupPageRanges && formData.nupPageRanges.length > 0) {
-          apiData.nupPageRanges = formData.nupPageRanges.map(item => ({
-            specificationId: item.specificationId,
-            basePages: 1,
-            basePrice: 0,
-            pricePerPage: item.pricePerPage || 0,
-            coverPrice: item.coverPrice ?? null,
-            rangePrices: {},
-          }));
+          apiData.nupPageRanges = formData.nupPageRanges.map(item => {
+            const r: any = {
+              specificationId: item.specificationId,
+              basePages: 1,
+              basePrice: 0,
+              pricePerPage: item.pricePerPage || 0,
+              rangePrices: {},
+            };
+            if (item.coverPrice != null && item.coverPrice > 0) {
+              r.coverPrice = item.coverPrice;
+            }
+            return r;
+          });
         }
       }
       // finishing_length: 길이별단가
