@@ -713,6 +713,43 @@ export function CartItemCard({
                 </AccordionTrigger>
                 <AccordionContent className="px-4 pb-4 pt-0">
                   <div className="p-4 bg-gray-50 rounded-lg space-y-4">
+                    {/* 앨범 가격 산출근거 */}
+                    {item.albumOrderInfo && (() => {
+                      const paperPrice = item.albumOrderInfo.paperPrice ?? 0;
+                      const fabricPrice = item.albumOrderInfo.fabricBasePrice ?? 0;
+                      const basePrintPrice = item.basePrice - paperPrice - fabricPrice;
+                      return (
+                        <div className="bg-white border border-gray-200 rounded-lg p-3 space-y-1.5">
+                          <p className="text-[13px] font-semibold text-gray-700 pb-1.5 border-b border-gray-100">가격 산출근거</p>
+                          <div className="flex justify-between text-xs text-gray-600">
+                            <span>기본 인쇄비</span>
+                            <span>{basePrintPrice.toLocaleString()}원</span>
+                          </div>
+                          {paperPrice > 0 && (
+                            <div className="flex justify-between text-xs text-gray-600">
+                              <span>용지 추가 ({item.albumOrderInfo.paperName})</span>
+                              <span>+{paperPrice.toLocaleString()}원</span>
+                            </div>
+                          )}
+                          {fabricPrice > 0 && (
+                            <div className="flex justify-between text-xs text-gray-600">
+                              <span>원단 ({item.albumOrderInfo.fabricName})</span>
+                              <span>+{fabricPrice.toLocaleString()}원</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-xs font-semibold text-gray-800 border-t border-gray-100 pt-1.5">
+                            <span>단가 (1권)</span>
+                            <span>{item.basePrice.toLocaleString()}원</span>
+                          </div>
+                          {item.quantity > 1 && (
+                            <div className="flex justify-between text-xs text-gray-600">
+                              <span>× {item.quantity}권</span>
+                              <span>{item.totalPrice.toLocaleString()}원</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                     <FolderShippingSection
                       shippingInfo={itemShipping as unknown as FolderShippingInfo | undefined}
                       companyInfo={companyInfo}
