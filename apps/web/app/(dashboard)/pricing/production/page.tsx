@@ -1116,7 +1116,7 @@ export default function ProductionSettingPage() {
     specificationIds: [] as string[],
     specUsageType: "all" as "indigo" | "inkjet" | "album" | "frame" | "booklet" | "all",
     // 용지별출력단가 전용 필드
-    printMethod: "indigo" as "indigo" | "inkjet" | "album" | "frame" | "booklet",
+    printMethod: "indigo" as "indigo" | "inkjet" | "album" | "frame" | "booklet" | "indigoAlbum",
     paperIds: [] as string[],
     singleSidedPrice: 0,
     doubleSidedPrice: 0,
