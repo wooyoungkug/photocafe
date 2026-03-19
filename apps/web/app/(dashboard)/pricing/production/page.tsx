@@ -3950,10 +3950,31 @@ export default function ProductionSettingPage() {
                             className="h-7 text-xs text-blue-600"
                             onClick={() => {
                               const newRange = Math.max(...settingForm.pageRanges) + 10;
-                              setSettingForm(prev => ({
-                                ...prev,
-                                pageRanges: [...prev.pageRanges, newRange].sort((a, b) => a - b),
-                              }));
+                              setSettingForm(prev => {
+                                const sortedRanges = [...prev.pageRanges, newRange].sort((a, b) => a - b);
+                                const updatedNupPageRanges = prev.nupPageRanges.map(rangeData => {
+                                  const cp = rangeData.coverPrice || 0;
+                                  const ppp = rangeData.pricePerPage || 0;
+                                  const pp = rangeData.paperPrice || 0;
+                                  let newRangePrice = 0;
+                                  if (cp > 0) {
+                                    newRangePrice = Math.round(cp + (ppp + pp) * newRange);
+                                  } else {
+                                    const firstRange = prev.pageRanges[0] || 20;
+                                    const firstPrice = rangeData.rangePrices?.[firstRange] || 0;
+                                    newRangePrice = Math.round(firstPrice + ((newRange - firstRange) * (ppp + pp)));
+                                  }
+                                  return {
+                                    ...rangeData,
+                                    rangePrices: { ...rangeData.rangePrices, [newRange]: newRangePrice }
+                                  };
+                                });
+                                return {
+                                  ...prev,
+                                  pageRanges: sortedRanges,
+                                  nupPageRanges: updatedNupPageRanges,
+                                };
+                              });
                             }}
                           >
                             + 구간 추가
