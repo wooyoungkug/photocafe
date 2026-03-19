@@ -40,7 +40,7 @@ import { useSpecifications } from '@/hooks/use-specifications';
 import { useHalfProducts } from '@/hooks/use-half-products';
 import { useProduct, useUpdateProduct, useProcessTemplates, useProductTypeOptions } from '@/hooks/use-products';
 import { ProcessFlowSection } from '../../components/ProcessFlowSection';
-import { useProductionGroupTree, useProductionSettings, useProductionSetting, type ProductionGroup, type ProductionSetting, type OutputPriceSelection, type IndigoUpPrice, type InkjetSpecPrice } from '@/hooks/use-production';
+import { useProductionGroupTree, useProductionSettings, type ProductionGroup, type ProductionSetting, type OutputPriceSelection, type IndigoUpPrice, type InkjetSpecPrice } from '@/hooks/use-production';
 import { useFoilColors, type FoilColorItem } from '@/hooks/use-copper-plates';
 import { useFabrics, FABRIC_CATEGORY_LABELS, type FabricCategory } from '@/hooks/use-fabrics';
 import { useToast } from '@/hooks/use-toast';
@@ -258,9 +258,23 @@ export default function EditProductPage() {
   const [selectedHalfProductId, setSelectedHalfProductId] = useState('');
   const [selectedBindings, setSelectedBindings] = useState<{ id: string; name: string; price: number; productionSettingId?: string; pricingType?: string }[]>([]);
   const [bindingDirection, setBindingDirection] = useState<'left' | 'right' | 'customer'>('left');
-  // 선택된 제본 설정의 상세 데이터 로드 (단가 정보 포함)
+  // 선택된 제본 설정의 상세 데이터 - productionGroupTree에서 직접 검색
   const firstBindingSettingId = selectedBindings[0]?.productionSettingId || '';
-  const { data: bindingSettingDetail } = useProductionSetting(firstBindingSettingId);
+  const bindingSettingDetail = useMemo(() => {
+    if (!firstBindingSettingId || !productionGroupTree) return null;
+    const findSetting = (groups: ProductionGroup[]): ProductionSetting | null => {
+      for (const group of groups) {
+        const found = group.settings?.find(s => s.id === firstBindingSettingId);
+        if (found) return found;
+        if (group.children) {
+          const nested = findSetting(group.children);
+          if (nested) return nested;
+        }
+      }
+      return null;
+    };
+    return findSetting(productionGroupTree);
+  }, [firstBindingSettingId, productionGroupTree]);
   // 출력단가 선택 (새로운 방식)
   const [outputPriceSelections, setOutputPriceSelections] = useState<OutputPriceSelection[]>([]);
   const [outputPriceDialogOpen, setOutputPriceDialogOpen] = useState(false);
