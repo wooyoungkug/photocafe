@@ -849,7 +849,12 @@ export default function ProductPage() {
           {/* Options - RIGHT */}
           <div className="flex-1 min-w-0">
             {/* Product name */}
-            <h1 className="text-xl md:text-2xl font-bold">{product.productName}</h1>
+            <h1 className="text-xl md:text-2xl font-bold">
+              {product.productName}
+              {product.productCode && (
+                <span className="ml-2 text-sm font-mono opacity-60">{product.productCode}</span>
+              )}
+            </h1>
 
             {/* Actions */}
             <div className="flex flex-wrap items-center gap-2 mt-2 mb-4">

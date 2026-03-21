@@ -141,6 +141,11 @@ export class ProductPaperDto {
   @IsBoolean()
   isActive6?: boolean;
 
+  @ApiPropertyOptional({ description: '기본 도수 (인디고 용지: 4도 또는 6도)' })
+  @IsOptional()
+  @IsString()
+  defaultColorType?: string;
+
   @ApiPropertyOptional({ description: '정렬 순서' })
   @IsOptional()
   @IsNumber()
