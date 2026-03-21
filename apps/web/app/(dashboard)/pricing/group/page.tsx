@@ -1976,46 +1976,68 @@ export default function GroupPricingPage() {
             nupGroups.get(nup)!.push({ ...item, specInfo });
           });
 
+          // Nup 정렬
+          const nupOrder = ['1++up', '1+up', '1up', '2up', '4up', '6up', '8up'];
+          const sortedNups = nupOrder.filter(nup => nupGroups.has(nup));
+          nupGroups.forEach((_, nup) => {
+            if (!sortedNups.includes(nup)) sortedNups.push(nup);
+          });
+
           return (
             <div className="mt-3 space-y-3">
-              {Array.from(nupGroups.entries()).map(([nup, items]) => (
-                <div key={nup} className="border rounded-lg p-3 bg-white">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Badge variant="secondary" className="bg-violet-100 text-violet-700 font-semibold">
-                      {nup}
-                    </Badge>
-                    <span className="text-xs text-gray-500">{items.length}개 규격</span>
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                    {items.map((item: any) => {
-                      const standardPrice = item.pricePerPage || 0;
-                      const key = `${setting.id}_nup_${item.specificationId}_perPage`;
-                      const savedGroupPrice = groupPricesMap.get(`${setting.id}_${item.specificationId}_perPage`);
-                      const displayValue = editingPrices[key] ?? (savedGroupPrice?.price ? String(Number(savedGroupPrice.price)) : '');
+              <div className="border rounded-lg p-4 bg-white">
+                <div className="space-y-0">
+                  {sortedNups.map((nup) => {
+                    const items = nupGroups.get(nup) || [];
+                    if (items.length === 0) return null;
+                    const standardPrice = items[0]?.pricePerPage || 0;
+                    // 그룹단가: Nup 그룹 단위로 하나의 가격 (첫 번째 spec 기준)
+                    const firstSpecId = items[0]?.specificationId;
+                    const nupKey = `${setting.id}_nup_${firstSpecId}_perPage`;
+                    const savedGroupPrice = groupPricesMap.get(`${setting.id}_${firstSpecId}_perPage`);
+                    const displayValue = editingPrices[nupKey] ?? (savedGroupPrice?.price ? String(Number(savedGroupPrice.price)) : '');
+                    const specNames = items.map((item: any) => item.specInfo.name || '').filter(Boolean).join(', ');
 
-                      return (
-                        <div key={item.specificationId} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
-                          <span className="text-xs text-gray-600 truncate flex-1">
-                            {item.specInfo.name || item.specificationId?.slice(-6)}
-                          </span>
-                          <div className="flex flex-col items-end">
-                            <span className="text-[9px] text-gray-400">{formatNumber(standardPrice)}</span>
+                    return (
+                      <div key={nup} className="py-2 border-b last:border-0">
+                        <div className="flex items-center gap-3">
+                          {/* Nup 뱃지 */}
+                          <div className="w-14 shrink-0">
+                            <Badge variant="secondary" className="bg-violet-100 text-violet-700 font-semibold w-full justify-center">
+                              {nup}
+                            </Badge>
+                          </div>
+                          {/* 표준단가 */}
+                          <div className="w-16 shrink-0 text-right">
+                            <span className="text-xs text-gray-400 font-mono">{formatNumber(standardPrice)}</span>
+                          </div>
+                          {/* 그룹단가 입력 */}
+                          <div className="w-24 shrink-0">
                             <Input
                               type="number"
-                              className="h-6 w-16 text-xs text-center font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                              placeholder="-"
+                              placeholder="단가"
+                              className="w-full h-7 text-sm text-right font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                               value={displayValue}
                               onChange={(e) => {
-                                setEditingPrices(prev => ({ ...prev, [key]: e.target.value }));
+                                const newPrices: Record<string, string> = {};
+                                // 같은 Nup 그룹의 모든 규격에 동일한 가격 적용
+                                items.forEach((item: any) => {
+                                  newPrices[`${setting.id}_nup_${item.specificationId}_perPage`] = e.target.value;
+                                });
+                                setEditingPrices(prev => ({ ...prev, ...newPrices }));
                               }}
                             />
                           </div>
+                          {/* 규격 목록 */}
+                          <div className="flex-1 text-xs text-gray-500 truncate">
+                            {specNames}
+                          </div>
                         </div>
-                      );
-                    })}
-                  </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
+              </div>
 
               {/* 저장 버튼 */}
               {Object.keys(editingPrices).some(k => k.startsWith(`${setting.id}_nup_`)) && (
