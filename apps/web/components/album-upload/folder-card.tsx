@@ -516,7 +516,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
   }, [folder.selectedPaperId, availablePapers]);
 
   // DB 기반 앨범 페이지 단가 조회 (용지 ID로 용지그룹별 단가 매칭)
-  const { data: albumPriceData } = useAlbumPagePrice(
+  const { data: albumPriceData, isFetching: isPriceFetching } = useAlbumPagePrice(
     productionSettingId,
     folder.specificationId,
     folder.colorMode || '6c',
@@ -1277,7 +1277,10 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
         </div>
 
         {/* 가격 단계별 표시 */}
-        <div className="text-right flex-shrink-0 max-w-[320px]">
+        <div className="text-right flex-shrink-0 max-w-[320px] relative">
+          {isPriceFetching && (
+            <div className="absolute top-0 right-0 text-[9px] text-blue-400 animate-pulse">단가계산중...</div>
+          )}
           {(() => {
             const pages = folder.pageCount;
             const colorLabel = folder.colorMode === '6c' ? '인디고6도' : '인디고4도';

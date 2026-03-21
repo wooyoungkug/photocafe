@@ -306,6 +306,7 @@ export function useAlbumPagePrice(
       }),
     enabled: !!productionSettingId && !!specificationId,
     staleTime: 5 * 60 * 1000, // 5분 캐시
+    placeholderData: (previousData: AlbumPagePriceResult | undefined) => previousData, // 조건 변경 중 이전 데이터 유지 (깜빡임 방지)
   });
 }
 
