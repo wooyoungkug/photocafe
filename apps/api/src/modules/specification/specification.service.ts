@@ -210,11 +210,15 @@ export class SpecificationService {
                 { spec: pairSpec, name: pairName, widthMm: heightMm, heightMm: widthMm },
             ], dto);
 
+            // 6. 매칭되는 생산설정에 규격 자동 추가 (메인 + 페어)
+            const autoLinkedPS = await this.autoLinkToProductionSettings([mainSpec.id, pairSpec.id], dto);
+
             return {
                 main: mainSpec,
                 pair: pairSpec,
                 autoLinked,
-                message: `${this.getOrientationLabel(orientation)} 규격과 ${this.getOrientationLabel(pairOrientation)} 규격이 함께 생성되었습니다. ${autoLinked.linkedProducts}개 상품에 자동 추가됨.`,
+                autoLinkedProductionSettings: autoLinkedPS,
+                message: `${this.getOrientationLabel(orientation)} 규격과 ${this.getOrientationLabel(pairOrientation)} 규격이 함께 생성되었습니다. ${autoLinked.linkedProducts}개 상품, ${autoLinkedPS.linkedSettings}개 생산설정에 자동 추가됨.`,
             };
         }
 
@@ -223,11 +227,15 @@ export class SpecificationService {
             { spec: mainSpec, name, widthMm, heightMm },
         ], dto);
 
+        // 6. 매칭되는 생산설정에 규격 자동 추가 (단일)
+        const autoLinkedPS = await this.autoLinkToProductionSettings([mainSpec.id], dto);
+
         return {
             ...mainSpec,
             autoLinked,
-            message: autoLinked.linkedProducts > 0
-                ? `규격이 생성되었습니다. ${autoLinked.linkedProducts}개 상품에 자동 추가됨.`
+            autoLinkedProductionSettings: autoLinkedPS,
+            message: autoLinked.linkedProducts > 0 || autoLinkedPS.linkedSettings > 0
+                ? `규격이 생성되었습니다. ${autoLinked.linkedProducts}개 상품, ${autoLinkedPS.linkedSettings}개 생산설정에 자동 추가됨.`
                 : undefined,
         };
     }
@@ -331,6 +339,84 @@ export class SpecificationService {
             linkedProducts: details.length,
             details,
         };
+    }
+
+    /**
+     * 새로 생성된 규격을 매칭되는 생산설정에 자동으로 ProductionSettingSpecification으로 추가
+     * - specUsageType: 'all' → 용도 플래그가 하나라도 있으면 연결
+     * - specUsageType: 'indigo' → forIndigo || forIndigoAlbum
+     * - specUsageType: 'inkjet' → forInkjet || forAlbum || forFrame || forBooklet
+     */
+    private async autoLinkToProductionSettings(
+        specIds: string[],
+        dto: CreateSpecificationDto,
+    ) {
+        const forIndigo = dto.forIndigo ?? false;
+        const forInkjet = dto.forInkjet ?? false;
+        const forAlbum = dto.forAlbum ?? false;
+        const forIndigoAlbum = dto.forIndigoAlbum ?? false;
+        const forFrame = dto.forFrame ?? false;
+        const forBooklet = dto.forBooklet ?? false;
+
+        const hasAnyFlag = forIndigo || forInkjet || forAlbum || forIndigoAlbum || forFrame || forBooklet;
+        if (!hasAnyFlag) {
+            return { linkedSettings: 0, details: [] };
+        }
+
+        const productionSettings = await this.prisma.productionSetting.findMany({
+            where: { isActive: true },
+            select: {
+                id: true,
+                settingName: true,
+                specUsageType: true,
+                specifications: { select: { specificationId: true, sortOrder: true } },
+            },
+        });
+
+        const details: Array<{ settingId: string; settingName: string; addedSpecs: number }> = [];
+
+        for (const ps of productionSettings) {
+            const usageType = ps.specUsageType as string | null;
+
+            // specUsageType 기반 매칭
+            const isMatch =
+                usageType === 'all' ? hasAnyFlag :
+                usageType === 'indigo' ? (forIndigo || forIndigoAlbum) :
+                usageType === 'inkjet' ? (forInkjet || forAlbum || forFrame || forBooklet) :
+                false;
+
+            if (!isMatch) continue;
+
+            const existingIds = new Set(
+                ps.specifications.map(s => s.specificationId).filter(Boolean),
+            );
+            const maxSortOrder = ps.specifications.reduce((max, s) => Math.max(max, s.sortOrder ?? 0), 0);
+
+            let addedCount = 0;
+            for (let i = 0; i < specIds.length; i++) {
+                const specId = specIds[i];
+                if (existingIds.has(specId)) continue;
+
+                await this.prisma.productionSettingSpecification.create({
+                    data: {
+                        productionSettingId: ps.id,
+                        specificationId: specId,
+                        price: null,
+                        sortOrder: maxSortOrder + i + 1,
+                    },
+                }).catch(() => {
+                    // unique constraint 충돌 무시
+                });
+
+                addedCount++;
+            }
+
+            if (addedCount > 0) {
+                details.push({ settingId: ps.id, settingName: ps.settingName, addedSpecs: addedCount });
+            }
+        }
+
+        return { linkedSettings: details.length, details };
     }
 
     async update(id: string, dto: UpdateSpecificationDto) {
