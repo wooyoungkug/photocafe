@@ -60,7 +60,7 @@ import {
 
 function generateProductCode(name: string): string {
   const clean = name.replace(/[_\s\-()（）]/g, '');
-  const prefix = clean.slice(0, 4) || 'PROD';
+  const prefix = clean.slice(0, 2) || 'PR';
   const num = String(Math.floor(Math.random() * 900) + 100);
   return `${prefix}-${num}`;
 }
