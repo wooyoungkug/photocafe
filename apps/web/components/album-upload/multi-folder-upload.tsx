@@ -1816,12 +1816,20 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
   const selectedFolders = folders.filter(f => f.isSelected);
   const firstSelected = selectedFolders[0];
   const storeBindingPsId = useMultiFolderUploadStore(s => s.bindingProductionSettingId);
+  const storePrintType = useMultiFolderUploadStore(s => s.printType);
+  // 출력구분: 상품의 printType 기반 (pageLayout은 파일 편집스타일)
+  const totalPrintSide = useMemo(() => {
+    if (storePrintType === 'single') return 'single' as const;
+    if (storePrintType === 'double') return 'spread' as const;
+    return firstSelected?.pageLayout === 'spread' ? 'single' as const : 'spread' as const;
+  }, [storePrintType, firstSelected?.pageLayout]);
   const { data: albumPriceForTotal } = useAlbumPagePrice(
     productionSettingId,
     firstSelected?.specificationId,
     firstSelected?.colorMode || '6c',
-    firstSelected?.pageLayout === 'spread' ? 'spread' : 'single',
+    totalPrintSide,
     storeBindingPsId,
+    firstSelected?.selectedPaperId,
   );
 
   const totalDbPrice: DbPriceInfo = useMemo(() => {

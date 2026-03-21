@@ -439,13 +439,14 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     return folder.pageLayout === 'spread' ? 'single' : 'spread';
   }, [printType, folder.pageLayout]);
 
-  // DB 기반 앨범 페이지 단가 조회
+  // DB 기반 앨범 페이지 단가 조회 (용지 ID로 용지그룹별 단가 매칭)
   const { data: albumPriceData } = useAlbumPagePrice(
     productionSettingId,
     folder.specificationId,
     folder.colorMode || '6c',
     resolvedPrintSide,
     bindingProductionSettingId,
+    folder.selectedPaperId,
   );
 
   // 제본단가 계산 (rangePrices 우선, 없으면 basePrice + pricePerPage * pageCount)

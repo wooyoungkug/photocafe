@@ -153,8 +153,16 @@ export class PricingService {
       if (setting) {
         const priceGroups = setting.priceGroups as any[] | null;
         if (priceGroups && priceGroups.length > 0) {
-          // 기본 첫 번째 그룹 사용
-          const group = priceGroups[0];
+          // paperId가 있으면 paperPriceGroupMap에서 해당 용지의 그룹을 찾기
+          let group = priceGroups[0]; // 기본 첫 번째 그룹
+          if (dto.paperId && setting.paperPriceGroupMap) {
+            const groupMap = setting.paperPriceGroupMap as Record<string, string>;
+            const targetGroupId = groupMap[dto.paperId];
+            if (targetGroupId) {
+              const matchedGroup = priceGroups.find((g: any) => g.id === targetGroupId);
+              if (matchedGroup) group = matchedGroup;
+            }
+          }
 
           // 인디고: upPrices에서 nup 매칭
           if (group?.upPrices && Array.isArray(group.upPrices)) {

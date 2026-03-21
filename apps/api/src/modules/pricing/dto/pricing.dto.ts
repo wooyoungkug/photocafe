@@ -26,6 +26,11 @@ export class GetAlbumPagePriceDto {
   @IsString()
   @IsIn(['single', 'spread'])
   pageLayout: 'single' | 'spread';
+
+  @ApiPropertyOptional({ description: '용지 ID (용지그룹별 단가 조회용)' })
+  @IsOptional()
+  @IsString()
+  paperId?: string;
 }
 
 // ==================== 그룹 가격 설정 DTO ====================
