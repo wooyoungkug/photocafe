@@ -36,7 +36,7 @@ export class PricingService {
   async getAlbumPagePrice(
     clientId: string | null,
     dto: GetAlbumPagePriceDto,
-  ): Promise<{ pricePerPage: number; bindingBasePrice: number; bindingPricePerPage: number; bindingRangePrices: Record<string, number> | null; coverPrice: number; missingReason: string | null }> {
+  ): Promise<{ pricePerPage: number; bindingBasePrice: number; bindingPricePerPage: number; bindingRangePrices: Record<string, number> | null; coverPrice: number; missingReason: string | null; billingExtraPages: number; nup: string | null; priceSource: string | null; groupName: string | null }> {
     const { productionSettingId, specificationId, colorMode, pageLayout } = dto;
     // 출력 단가는 productionSettingId, 제본 단가는 bindingProductionSettingId 사용
     const bindingPsId = dto.bindingProductionSettingId || productionSettingId;
@@ -58,6 +58,7 @@ export class PricingService {
     let pricePerPage = 0;
     let coverPrice = 0;
     let priceSource: string | null = null;
+    let groupName: string | null = null;
 
     // 생산설정 이름 조회
     const prodSetting = await this.prisma.productionSetting.findUnique({
@@ -116,7 +117,14 @@ export class PricingService {
             if (rp && rp['__coverPrice'] != null) {
               coverPrice = Number(rp['__coverPrice']);
             }
-            if (pricePerPage) priceSource = 'group';
+            if (pricePerPage) {
+              priceSource = 'group';
+              const group = await this.prisma.clientGroup.findUnique({
+                where: { id: client.groupId },
+                select: { groupName: true },
+              });
+              groupName = group?.groupName || null;
+            }
           }
         }
       }
@@ -145,7 +153,51 @@ export class PricingService {
       }
     }
 
-    // 3. 제본단가 정보 조회: 거래처 개별 → 그룹 → 표준 순서
+    // 2-2. priceGroups JSON 폴백 (ProductionSettingPrice에 가격이 없는 경우)
+    if (!pricePerPage) {
+      const setting = await this.prisma.productionSetting.findUnique({
+        where: { id: productionSettingId },
+        select: { priceGroups: true, paperPriceGroupMap: true, printMethod: true },
+      });
+
+      if (setting) {
+        const priceGroups = setting.priceGroups as any[] | null;
+        if (priceGroups && priceGroups.length > 0) {
+          // paperId가 있으면 paperPriceGroupMap에서 해당 용지의 그룹을 찾기
+          let group = priceGroups[0]; // 기본 첫 번째 그룹
+          if (dto.paperId && setting.paperPriceGroupMap) {
+            const groupMap = setting.paperPriceGroupMap as Record<string, string>;
+            const targetGroupId = groupMap[dto.paperId];
+            if (targetGroupId) {
+              const matchedGroup = priceGroups.find((g: any) => g.id === targetGroupId);
+              if (matchedGroup) group = matchedGroup;
+            }
+          }
+
+          // 인디고: upPrices에서 nup 매칭
+          if (group?.upPrices && Array.isArray(group.upPrices)) {
+            const upPrice = group.upPrices.find((u: any) => u.up === nupNum);
+            if (upPrice && upPrice[priceField] != null) {
+              pricePerPage = Number(upPrice[priceField]);
+              if (pricePerPage) priceSource = 'priceGroups';
+            }
+          }
+
+          // 잉크젯: specPrices에서 specificationId 매칭
+          if (!pricePerPage && group?.specPrices && Array.isArray(group.specPrices)) {
+            const specPrice = group.specPrices.find(
+              (sp: any) => sp.specificationId === specificationId,
+            );
+            if (specPrice) {
+              pricePerPage = Number(specPrice.singleSidedPrice) || 0;
+              if (pricePerPage) priceSource = 'priceGroups';
+            }
+          }
+        }
+      }
+    }
+
+    // 3. 제본단가 정보 조회 (bindingPsId의 basePrice/pricePerPage/rangePrices)
     let bindingBasePrice = 0;
     let bindingPricePerPage = 0;
     let bindingRangePrices: Record<string, number> | null = null;
@@ -214,7 +266,9 @@ export class PricingService {
       missingReason = `[${settingName}] ${specName} ${colorLabel}/${layoutLabel}(${priceField}) 단가 미등록`;
     }
 
-    return { pricePerPage, bindingBasePrice, bindingPricePerPage, bindingRangePrices, coverPrice, missingReason };
+    // 추가 청구 페이지 없음 (1+up 표지 비용은 coverPrice로 별도 청구)
+    const billingExtraPages = 0;
+    return { pricePerPage, bindingBasePrice, bindingPricePerPage, bindingRangePrices, coverPrice, missingReason, billingExtraPages, nup: specInfo?.nup ?? null, priceSource, groupName };
   }
 
   /**
@@ -228,6 +282,32 @@ export class PricingService {
       return pageLayout === 'single' ? 'fourColorSinglePrice' : 'fourColorDoublePrice';
     }
     return pageLayout === 'single' ? 'sixColorSinglePrice' : 'sixColorDoublePrice';
+  }
+
+  /**
+   * rangePrices에서 pageCount에 해당하는 가격을 보간
+   * - 정확한 key가 있으면 그 값 사용
+   * - 없으면 가장 가까운 하위 key에서 보간: rangePrices[lowerKey] + pricePerPage * (pageCount - lowerKey)
+   */
+  private interpolateRangePrice(
+    rangePrices: Record<string, any>,
+    pageCount: number,
+    pricePerPage: number,
+  ): number {
+    const exactKey = String(pageCount);
+    if (exactKey in rangePrices && rangePrices[exactKey] != null) {
+      return Number(rangePrices[exactKey]);
+    }
+    const numericKeys = Object.keys(rangePrices)
+      .filter((k) => !k.startsWith('__'))
+      .map(Number)
+      .filter((k) => !isNaN(k))
+      .sort((a, b) => a - b);
+    const lowerKey = numericKeys.filter((k) => k <= pageCount).pop();
+    if (lowerKey !== undefined) {
+      return (Number(rangePrices[String(lowerKey)]) || 0) + pricePerPage * (pageCount - lowerKey);
+    }
+    return pricePerPage * pageCount;
   }
 
   // ==================== 앨범 주문 가격 계산 ====================
@@ -273,14 +353,20 @@ export class PricingService {
       );
     }
 
+    // 추가 청구 페이지 없음 (1+up 표지 비용은 coverPrice로 별도 청구)
+    const billingExtraPages = 0;
+    const billingPageCount = dto.pageCount + billingExtraPages;
+
     // 3. productionSettingId 목록 수집: bindings 우선, 없으면 outputPriceSettings JSON
     const bindingSettingIds = (product.bindings || [])
       .map((b: any) => b.productionSettingId)
       .filter(Boolean) as string[];
 
     const outputSettings = (product.outputPriceSettings as any[]) || [];
+    // calculateAlbumOrderPrice는 인디고 앨범 전용이므로 INDIGO outputMethod만 필터링
+    // INKJET 설정의 upPrices(0값)가 먼저 매칭되어 가격이 0으로 계산되는 버그 방지
     const outputSettingIds = outputSettings
-      .filter((s: any) => s?.productionSettingId)
+      .filter((s: any) => s?.productionSettingId && s?.outputMethod === 'INDIGO')
       .map((s: any) => s.productionSettingId as string);
 
     // 출력단가만 사용 (제본단가는 별도 조회)
@@ -299,6 +385,8 @@ export class PricingService {
     let priceRecord: any = null;
     let matchedProductionSettingId: string | null = null;
     let appliedPolicy = '표준 단가';
+    let priceSource: 'client' | 'group' | 'standard' = 'standard';
+    let groupName: string | null = null;
 
     // 4-1. 거래처 개별 단가 조회 (specificationId 또는 minQuantity=nup으로 매칭)
     if (dto.clientId) {
@@ -317,6 +405,7 @@ export class PricingService {
         priceRecord = clientPrice;
         matchedProductionSettingId = clientPrice.productionSettingId;
         appliedPolicy = '거래처 개별 단가';
+        priceSource = 'client';
       }
 
       // 4-2. 거래처 그룹 단가 조회
@@ -342,6 +431,12 @@ export class PricingService {
             priceRecord = groupPrice;
             matchedProductionSettingId = groupPrice.productionSettingId;
             appliedPolicy = '그룹 단가';
+            priceSource = 'group';
+            const group = await this.prisma.clientGroup.findUnique({
+              where: { id: client.groupId },
+              select: { groupName: true },
+            });
+            groupName = group?.groupName || null;
           }
         }
       }
@@ -360,9 +455,17 @@ export class PricingService {
       });
 
       if (standardPrice) {
-        priceRecord = standardPrice;
-        matchedProductionSettingId = standardPrice.productionSettingId;
-        appliedPolicy = '표준 단가';
+        // 색상+레이아웃 단가가 모두 0이고 rangePrices도 없으면 priceGroups JSON 조회로 넘김
+        const colorField = this.getColorLayoutPriceField(dto.colorMode, dto.pageLayout);
+        const hasValidPrice =
+          Number(standardPrice[colorField]) > 0 ||
+          Number(standardPrice.pricePerPage) > 0 ||
+          (standardPrice.rangePrices != null);
+        if (hasValidPrice) {
+          priceRecord = standardPrice;
+          matchedProductionSettingId = standardPrice.productionSettingId;
+          appliedPolicy = '표준 단가';
+        }
       }
     }
 
@@ -450,7 +553,7 @@ export class PricingService {
     let unitPrice: number;
 
     // rangePrices에 pageCount 키가 있으면 해당 값 사용
-    const pageCountKey = String(dto.pageCount);
+    const pageCountKey = String(billingPageCount);
     if (rangePrices && pageCountKey in rangePrices && rangePrices[pageCountKey] != null) {
       // rangePrices 값은 표지 포함 총액
       unitPrice = Number(rangePrices[pageCountKey]);
@@ -464,8 +567,8 @@ export class PricingService {
         pricePerPage = printPrice / dto.pageCount;
       }
     } else {
-      // 기본 계산: coverPrice + pricePerPage * pageCount
-      printPrice = pricePerPage * dto.pageCount;
+      // 기본 계산: coverPrice + pricePerPage * billingPageCount
+      printPrice = pricePerPage * billingPageCount;
       unitPrice = coverPrice + printPrice;
     }
 
@@ -486,6 +589,9 @@ export class PricingService {
 
     // 7. 제본비: 제본 생산설정의 ProductionSettingPrice에서 rangePrices 조회
     let rawBindingPrice = 0;
+    let bindingRangePricesForResult: Record<string, number> | null = null;
+    let bindingBasePriceForResult = 0;
+    let bindingPricePerPageForResult = 0;
     const defaultBinding = (product.bindings || []).find((b: any) => b.isDefault)
       || (product.bindings || [])[0];
     if (defaultBinding?.productionSettingId) {
@@ -508,15 +614,13 @@ export class PricingService {
         },
       });
       if (bindingPriceRecord) {
-        const bindingRangePrices = bindingPriceRecord.rangePrices as Record<string, any> | null;
-        const pageKey = String(dto.pageCount);
-        if (bindingRangePrices && pageKey in bindingRangePrices) {
-          rawBindingPrice = Number(bindingRangePrices[pageKey]);
-        } else {
-          // rangePrices에 없으면 basePrice + pricePerPage * pageCount
-          rawBindingPrice = Number(bindingPriceRecord.basePrice || 0)
-            + Number(bindingPriceRecord.pricePerPage || 0) * dto.pageCount;
-        }
+        const bindingRangePricesNum = bindingPriceRecord.rangePrices as Record<string, any> | null;
+        bindingRangePricesForResult = bindingRangePricesNum as Record<string, number> | null;
+        bindingBasePriceForResult = Number(bindingPriceRecord.basePrice || 0);
+        bindingPricePerPageForResult = Number(bindingPriceRecord.pricePerPage || 0);
+        rawBindingPrice = bindingRangePricesNum
+          ? this.interpolateRangePrice(bindingRangePricesNum, billingPageCount, Number(bindingPriceRecord.pricePerPage || 0))
+          : bindingBasePriceForResult + bindingPricePerPageForResult * billingPageCount;
       }
     }
 
@@ -546,6 +650,14 @@ export class PricingService {
       specificationId: specification.id,
       nup: specification.nup || '',
       appliedPolicy,
+      priceSource,
+      groupName,
+      coverPrice,
+      bindingOnlyPrice: rawBindingPrice,
+      bindingRangePrices: bindingRangePricesForResult,
+      bindingBasePrice: bindingBasePriceForResult,
+      bindingPricePerPage: bindingPricePerPageForResult,
+      billingExtraPages,
     };
   }
 

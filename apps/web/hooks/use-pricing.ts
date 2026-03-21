@@ -281,6 +281,10 @@ export interface AlbumPagePriceResult {
   bindingRangePrices: Record<string, number> | null;
   coverPrice: number;
   missingReason: string | null;
+  billingExtraPages: number;
+  nup?: string | null;
+  priceSource?: string | null; // 'client' | 'group' | 'standard'
+  groupName?: string | null;   // 그룹 단가인 경우 그룹명
 }
 
 export function useAlbumPagePrice(
@@ -289,9 +293,11 @@ export function useAlbumPagePrice(
   colorMode: '4c' | '6c',
   pageLayout: 'single' | 'spread',
   bindingProductionSettingId?: string,
+  paperId?: string,
+  clientId?: string,
 ) {
   return useQuery({
-    queryKey: [PRICING_KEY, 'album-page-price', productionSettingId, specificationId, colorMode, pageLayout, bindingProductionSettingId],
+    queryKey: [PRICING_KEY, 'album-page-price', productionSettingId, specificationId, colorMode, pageLayout, bindingProductionSettingId, paperId, clientId],
     queryFn: () =>
       api.get<AlbumPagePriceResult>('/pricing/album-page-price', {
         productionSettingId,
@@ -299,8 +305,56 @@ export function useAlbumPagePrice(
         colorMode,
         pageLayout,
         ...(bindingProductionSettingId ? { bindingProductionSettingId } : {}),
+        ...(paperId ? { paperId } : {}),
+        ...(clientId ? { clientId } : {}),
       }),
     enabled: !!productionSettingId && !!specificationId,
     staleTime: 5 * 60 * 1000, // 5분 캐시
+    placeholderData: (previousData: AlbumPagePriceResult | undefined) => previousData, // 조건 변경 중 이전 데이터 유지 (깜빡임 방지)
+  });
+}
+
+// ==================== 추가주문 단가 계산 ====================
+
+export interface AlbumOrderCalculateResult {
+  pricePerPage: number;
+  printPrice: number;
+  paperPrice: number;
+  bindingPrice: number;
+  postProcessingPrice: number;
+  unitPrice: number;
+  specificationId?: string;
+  nup?: string;
+  coverPrice?: number;
+  bindingOnlyPrice?: number;
+  bindingRangePrices?: Record<string, number> | null;
+  bindingBasePrice?: number;
+  bindingPricePerPage?: number;
+  billingExtraPages?: number;
+  appliedPolicy?: string;
+  priceSource?: string; // 'client' | 'group' | 'standard'
+  groupName?: string | null;
+}
+
+export function useCalculateAlbumOrderPrice(params: {
+  productId: string | undefined;
+  widthInch: number | undefined;
+  heightInch: number | undefined;
+  pageCount: number | undefined;
+  colorMode: '4c' | '6c';
+  pageLayout: 'single' | 'spread';
+  paperId?: string;
+  clientId?: string;
+}) {
+  return useQuery({
+    queryKey: [
+      PRICING_KEY, 'calculate-album-order',
+      params.productId, params.widthInch, params.heightInch,
+      params.pageCount, params.colorMode, params.pageLayout,
+      params.paperId, params.clientId,
+    ],
+    queryFn: () => api.post<AlbumOrderCalculateResult>('/pricing/calculate/album-order', params),
+    enabled: !!params.productId && !!params.widthInch && !!params.heightInch && !!params.pageCount,
+    staleTime: 5 * 60 * 1000,
   });
 }

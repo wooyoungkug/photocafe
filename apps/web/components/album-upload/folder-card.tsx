@@ -52,10 +52,9 @@ import {
   type BindingDirection,
   useMultiFolderUploadStore,
   calculateUploadedFolderPrice,
-  calculateAdditionalOrderPrice,
   type DbPriceInfo,
 } from '@/stores/multi-folder-upload-store';
-import { useAlbumPagePrice } from '@/hooks/use-pricing';
+import { useAlbumPagePrice, useCalculateAlbumOrderPrice } from '@/hooks/use-pricing';
 
 interface FolderCardProps {
   folder: UploadedFolder;
@@ -153,6 +152,151 @@ function getSpreadPageNumbers(
 }
 
 const ZOOM_SCALES = [1, 1.5, 2, 3];
+
+// 추가주문 단가 블록: 각 추가주문의 규격/출력방식에 맞는 단가를 API로 조회
+function AdditionalOrderPriceBlock({
+  productId,
+  order,
+  folder,
+  bindingName,
+  clientId,
+}: {
+  productId: string | undefined;
+  order: import('@/stores/multi-folder-upload-store').AdditionalOrder;
+  folder: import('@/stores/multi-folder-upload-store').UploadedFolder;
+  bindingName: string | undefined;
+  clientId?: string;
+}) {
+  const colorMode = (order.colorMode ?? folder.colorMode ?? '4c') as '4c' | '6c';
+  const pageLayout = (folder.pageLayout ?? 'single') as 'single' | 'spread';
+  const paperId = order.selectedPaperId ?? folder.selectedPaperId ?? undefined;
+
+  const { data, isLoading } = useCalculateAlbumOrderPrice({
+    productId,
+    widthInch: order.albumWidth,
+    heightInch: order.albumHeight,
+    pageCount: folder.pageCount,
+    colorMode,
+    pageLayout,
+    paperId: paperId || undefined,
+    clientId,
+  });
+
+  const pages = folder.pageCount;
+  const colorLabel = colorMode === '6c' ? '인디고6도' : '인디고4도';
+  const paperLabel = order.selectedPaperName ?? folder.selectedPaperName ?? '';
+  const bName = bindingName || '제본';
+
+  if (isLoading || !data) {
+    return (
+      <div className="text-right flex-shrink-0 max-w-[280px]">
+        <div className="text-[11px] text-gray-400">단가 조회 중...</div>
+      </div>
+    );
+  }
+
+  const perPage = data.pricePerPage;
+  const bindingPrice = data.bindingPrice;
+  const postProcessingPrice = data.postProcessingPrice;
+  const unitPrice = data.unitPrice;
+  const totalPrice = unitPrice * order.quantity;
+
+  // 제본 산출 방식 판별
+  const billingExtraPages = data.billingExtraPages ?? 0;
+  const billingPages = pages + billingExtraPages;
+  const bindingOnlyPrice = data.bindingOnlyPrice ?? 0;
+  const coverPrice = data.coverPrice ?? 0;
+  const rangePrices = data.bindingRangePrices ?? null;
+  const bindingBasePrice = data.bindingBasePrice ?? 0;
+  const bindingPricePerPage = data.bindingPricePerPage ?? 0;
+  const billingPageKey = String(billingPages);
+  const isRangePricing = rangePrices && billingPageKey in rangePrices;
+  const isInterpolatedRange = rangePrices && !(billingPageKey in rangePrices) &&
+    Object.keys(rangePrices).filter(k => !k.startsWith('__')).some(k => Number(k) <= billingPages);
+
+  const renderBindingCalc = () => {
+    if (isRangePricing) {
+      return <><span className="text-gray-400">산출:</span> 구간단가({billingPages}p) = {Math.round(bindingOnlyPrice).toLocaleString()}원</>;
+    }
+    if (isInterpolatedRange) {
+      const numericKeys = Object.keys(rangePrices!).filter(k => !k.startsWith('__')).map(Number).filter(k => !isNaN(k)).sort((a, b) => a - b);
+      const lowerKey = numericKeys.filter(k => k <= billingPages).pop();
+      const lowerPrice = lowerKey !== undefined ? (rangePrices![String(lowerKey)] || 0) : 0;
+      return <><span className="text-gray-400">산출:</span> {lowerKey}p구간 {lowerPrice.toLocaleString()} + {bindingPricePerPage.toLocaleString()}원×{billingPages - (lowerKey ?? 0)}p = {Math.round(bindingOnlyPrice).toLocaleString()}원</>;
+    }
+    if (bindingBasePrice > 0 || bindingPricePerPage > 0) {
+      return bindingPricePerPage > 0
+        ? <><span className="text-gray-400">산출:</span> 기본 {bindingBasePrice.toLocaleString()} + {bindingPricePerPage.toLocaleString()}원×{billingPages}p = {Math.round(bindingOnlyPrice).toLocaleString()}원</>
+        : <><span className="text-gray-400">산출:</span> 고정가 {Math.round(bindingOnlyPrice).toLocaleString()}원</>;
+    }
+    return <><span className="text-gray-400">산출:</span> {Math.round(bindingOnlyPrice).toLocaleString()}원</>;
+  };
+
+  return (
+    <div className="text-right flex-shrink-0 max-w-[280px]">
+      <div className="space-y-0.5">
+        <div className="text-[11px] text-gray-500 font-medium">■ 표지+제본비</div>
+        <div className="text-[11px] text-gray-600 pl-2">
+          <span className="text-gray-400">방식:</span> {bName}
+        </div>
+        {billingExtraPages > 0 && (
+          <div className="text-[11px] text-gray-600 pl-2">
+            <span className="text-gray-400">청구:</span> {pages}p + 추가{billingExtraPages}p = <span className="font-medium">{billingPages}p</span>
+          </div>
+        )}
+        <div className="text-[11px] text-gray-600 pl-2">{renderBindingCalc()}</div>
+        {coverPrice > 0 && (
+          <div className="text-[11px] text-gray-600 pl-2">
+            <span className="text-gray-400">표지비:</span> {Math.round(coverPrice).toLocaleString()}원
+          </div>
+        )}
+        <div className="text-[11px] text-gray-700 pl-2 font-medium">
+          <span className="text-gray-400 font-normal">소계:</span> {Math.round(bindingPrice).toLocaleString()}원
+          {coverPrice > 0 && <span className="text-gray-400 font-normal text-[10px]"> (제본+표지)</span>}
+        </div>
+        <div className="text-[11px] text-gray-500 font-medium mt-0.5">■ 출력비</div>
+        <div className="text-[11px] text-gray-600 pl-2">
+          {colorLabel} {paperLabel}{data?.nup ? ` ${data.nup}` : ''} · <span className="text-gray-400">단가</span> {perPage > 0 ? `${perPage.toLocaleString()}원/p` : <span className="text-red-500">None</span>}
+        </div>
+        {perPage > 0 && (
+          <div className="text-[11px] text-gray-700 pl-2 font-medium">
+            <span className="text-gray-400 font-normal">소계:</span> {perPage.toLocaleString()}원 × {billingPages}p = {Math.round(perPage * billingPages).toLocaleString()}원
+          </div>
+        )}
+        <div className="text-[11px] text-gray-500 font-medium mt-0.5">■ 후가공비</div>
+        <div className="text-[11px] text-gray-600 pl-2">
+          {postProcessingPrice === 0
+            ? <span className="text-gray-400">없음 (0원)</span>
+            : <><span className="text-gray-400">소계:</span> {Math.round(postProcessingPrice / billingPages).toLocaleString()}원 × {billingPages}p = {Math.round(postProcessingPrice).toLocaleString()}원</>
+          }
+        </div>
+        <div className="text-sm font-bold text-primary border-t border-gray-200 pt-0.5 mt-0.5">
+          <span className="text-gray-400 text-[11px] font-normal">합계:</span>{' '}
+          {order.quantity > 1
+            ? <>{Math.round(unitPrice).toLocaleString()}원 ×{order.quantity}부 = {Math.round(totalPrice).toLocaleString()}원</>
+            : <>{Math.round(totalPrice).toLocaleString()}원</>
+          }
+          {data?.priceSource && (
+            <span className={cn(
+              "ml-1.5 text-[10px] font-normal px-1 py-0 rounded border",
+              data.priceSource === 'client'
+                ? "text-blue-600 border-blue-200 bg-blue-50"
+                : data.priceSource === 'group'
+                ? "text-purple-600 border-purple-200 bg-purple-50"
+                : "text-gray-500 border-gray-200 bg-gray-50"
+            )}>
+              {data.priceSource === 'client'
+                ? '개별단가'
+                : data.priceSource === 'group'
+                ? `그룹단가${data.groupName ? ` (${data.groupName})` : ''}`
+                : '표준단가'}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
   const t = useTranslations('folder');
@@ -400,10 +544,12 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     updateFolder,
     setFolderFabric,
     availablePapers,
+    productId,
     productionSettingId,
     bindingProductionSettingId,
     bindingName,
     defaultBindingPrice,
+    printType,
   } = useMultiFolderUploadStore();
 
   // 현재 폴더의 출력방법/도수에 맞는 용지 필터링
@@ -429,25 +575,56 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
 
   const canSelect = hasValidStatus && folder.specFoundInDB !== false;
 
-  // DB 기반 앨범 페이지 단가 조회
-  const { data: albumPriceData } = useAlbumPagePrice(
+  // 출력구분 결정: 상품의 printType 사용 (pageLayout은 파일 편집스타일이므로 출력구분과 다름)
+  // single(단면출력), double(양면출력), customer(고객선택) → customer일 때는 pageLayout 기반 추론
+  const resolvedPrintSide = useMemo(() => {
+    if (printType === 'single') return 'single' as const;
+    if (printType === 'double') return 'spread' as const;
+    // customer 또는 미설정: 펼친면 파일은 단면출력, 낱장 파일은 양면출력
+    return folder.pageLayout === 'spread' ? 'single' : 'spread';
+  }, [printType, folder.pageLayout]);
+
+  // selectedPaperId는 product_papers.id → 실제 papers.id(paperId)로 변환
+  const actualPaperId = useMemo(() => {
+    if (!folder.selectedPaperId) return undefined;
+    const pp = availablePapers.find(p => p.id === folder.selectedPaperId);
+    return pp?.paperId || folder.selectedPaperId;
+  }, [folder.selectedPaperId, availablePapers]);
+
+  // DB 기반 앨범 페이지 단가 조회 (용지 ID로 용지그룹별 단가 매칭, 로그인 거래처의 개별/그룹 단가 적용)
+  const { data: albumPriceData, isFetching: isPriceFetching } = useAlbumPagePrice(
     productionSettingId,
     folder.specificationId,
     folder.colorMode || '6c',
-    folder.pageLayout === 'spread' ? 'spread' : 'single',
+    resolvedPrintSide,
     bindingProductionSettingId,
+    actualPaperId,
+    user?.clientId,
   );
 
   // 제본단가 계산 (rangePrices 우선, 없으면 basePrice + pricePerPage * pageCount)
   const dbBindingPrice = useMemo(() => {
     if (!albumPriceData) return defaultBindingPrice;
     const { bindingRangePrices, bindingBasePrice, bindingPricePerPage } = albumPriceData;
-    const pageKey = String(folder.pageCount);
+    const billingPc = folder.pageCount + (albumPriceData.billingExtraPages || 0);
+    const pageKey = String(billingPc);
     if (bindingRangePrices && pageKey in bindingRangePrices) {
       return bindingRangePrices[pageKey];
     }
+    // 보간: 가장 가까운 하위 구간에서 pricePerPage 적용
+    if (bindingRangePrices) {
+      const numericKeys = Object.keys(bindingRangePrices)
+        .filter((k) => !k.startsWith('__'))
+        .map(Number)
+        .filter((k) => !isNaN(k))
+        .sort((a, b) => a - b);
+      const lowerKey = numericKeys.filter((k) => k <= billingPc).pop();
+      if (lowerKey !== undefined) {
+        return (bindingRangePrices[String(lowerKey)] || 0) + bindingPricePerPage * (billingPc - lowerKey);
+      }
+    }
     if (bindingBasePrice || bindingPricePerPage) {
-      return bindingBasePrice + bindingPricePerPage * folder.pageCount;
+      return bindingBasePrice + bindingPricePerPage * billingPc;
     }
     return defaultBindingPrice;
   }, [albumPriceData, folder.pageCount, defaultBindingPrice]);
@@ -457,7 +634,8 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     pricePerPage: albumPriceData?.pricePerPage || 0,
     bindingPrice: dbBindingPrice || 0,
     coverPrice: albumPriceData?.coverPrice || 0,
-  }), [albumPriceData, dbBindingPrice]);
+    billingPageCount: folder.pageCount + (albumPriceData?.billingExtraPages || 0),
+  }), [albumPriceData, dbBindingPrice, folder.pageCount]);
 
   // DB 가격 미등록 여부
   const isPriceMissing = !albumPriceData || albumPriceData.pricePerPage === 0;
@@ -467,6 +645,24 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     () => calculateUploadedFolderPrice(folder, dbPriceInfo),
     [folder, dbPriceInfo]
   );
+
+  // 계산된 가격을 store에 저장 (장바구니 담을 때 동일한 값 사용)
+  // folderPrice 객체 전체를 dep으로 쓰면 updateFolder 호출 후 folder 참조가 바뀌어 무한루프 발생
+  // 개별 원시값으로 dep을 구성해야 함
+  useEffect(() => {
+    if (!isPriceMissing && folderPrice.pricePerPage > 0) {
+      updateFolder(folder.id, {
+        computedPriceInfo: {
+          pricePerPage: folderPrice.pricePerPage,
+          printPrice: folderPrice.printPrice,
+          bindingPrice: folderPrice.bindingPrice,
+          postProcessingPrice: folderPrice.postProcessingPrice,
+          unitPrice: folderPrice.unitPrice,
+        },
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [folder.id, folderPrice.pricePerPage, folderPrice.printPrice, folderPrice.bindingPrice, folderPrice.postProcessingPrice, folderPrice.unitPrice, isPriceMissing]);
 
   const handleSaveTitle = () => {
     setFolderTitle(folder.id, editTitle);
@@ -1041,6 +1237,9 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
+              <span className="text-xs text-black ml-3">
+                {resolvedPrintSide === 'single' ? '단면' : '양면'}
+              </span>
             </div>
           )}
           {/* 패브릭/포일 편집 */}
@@ -1063,18 +1262,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
               {/* 동판: DB 데이터 기반 드롭다운 */}
               {(folder.foilName || folder.foilColor || folder.foilPosition) && (
                 <>
-                  <span className="text-xs text-black ml-5">동판정보</span>
-                  <span className="text-[10px] text-gray-400">색상</span>
-                  <select
-                    value={folder.foilColor ?? ''}
-                    onChange={(e) => updateFolder(folder.id, { foilColor: e.target.value || null })}
-                    className="text-[12px] border rounded px-1.5 py-0.5 w-24 bg-yellow-50 text-black"
-                  >
-                    <option value="">색상 선택</option>
-                    {copperPlateLabels?.foilColors?.filter(c => c.isActive).map(color => (
-                      <option key={color.id} value={color.name}>{color.name}</option>
-                    ))}
-                  </select>
+                  <span className="text-xs text-black">동판정보</span>
                   <span className="text-[10px] text-gray-400">동판</span>
                   <select
                     value={folder.foilName ?? ''}
@@ -1084,6 +1272,17 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                     <option value="">동판 선택</option>
                     {availablePlateNames.map(name => (
                       <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
+                  <span className="text-[10px] text-gray-400">색상</span>
+                  <select
+                    value={folder.foilColor ?? ''}
+                    onChange={(e) => updateFolder(folder.id, { foilColor: e.target.value || null })}
+                    className="text-[12px] border rounded px-1.5 py-0.5 w-24 bg-yellow-50 text-black"
+                  >
+                    <option value="">색상 선택</option>
+                    {copperPlateLabels?.foilColors?.filter(c => c.isActive).map(color => (
+                      <option key={color.id} value={color.name}>{color.name}</option>
                     ))}
                   </select>
                   <span className="text-[10px] text-gray-400">위치</span>
@@ -1155,62 +1354,149 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
         </div>
 
         {/* 가격 단계별 표시 */}
-        <div className="text-right flex-shrink-0 max-w-[280px]">
+        <div className="text-right flex-shrink-0 max-w-[320px] relative">
+          {isPriceFetching && (
+            <div className="absolute top-0 right-0 text-[9px] text-blue-400 animate-pulse">단가계산중...</div>
+          )}
           {(() => {
             const pages = folder.pageCount;
             const colorLabel = folder.colorMode === '6c' ? '인디고6도' : '인디고4도';
             const paperLabel = folder.selectedPaperName || '';
             const perPage = albumPriceData?.pricePerPage ?? null;
-            const bindPrice = folderPrice.bindingPrice;
-            const postPrice = folderPrice.postProcessingPrice;
             const bName = bindingName || '제본';
-
-            // 제본단가: null이면 No, 0이면 0, 그 외 금액
-            const bindingDisplay = !albumPriceData
-              ? <span className="text-red-500">None</span>
-              : bindPrice === 0
-                ? <span>0</span>
-                : <span>{Math.round(bindPrice).toLocaleString()}원</span>;
-
-            // 출력단가: null이면 No, 0이면 0, 그 외 계산식
-            const printDisplay = perPage === null || perPage === undefined
-              ? <span className="text-red-500">None</span>
-              : perPage === 0
-                ? <span className="text-red-500">None</span>
-                : <span>{perPage.toLocaleString()}원×{pages}p = {(perPage * pages).toLocaleString()}원</span>;
-
-            // 코팅(후가공): 0이면 0, 그 외 계산식
-            const coatingDisplay = postPrice === 0
-              ? <span>0</span>
-              : <span>{Math.round(postPrice / pages).toLocaleString()}원×{pages}p = {Math.round(postPrice).toLocaleString()}원</span>;
-
-            // 합계
-            const totalPrice = folderPrice.totalPrice;
             const hasAllPrices = !!albumPriceData && !!perPage && perPage > 0;
 
+            // 청구 페이지 정보
+            const extraPages = albumPriceData?.billingExtraPages || 0;
+            const billingPages = pages + extraPages;
+
+            // 제본비 상세 산출
+            const coverPrice = albumPriceData?.coverPrice || 0;
+            const bindingOnlyPrice = dbBindingPrice || 0; // 표지비 제외 제본비
+            const totalBindingPrice = folderPrice.bindingPrice; // 제본비 + 표지비
+
+            // 제본 산출 방식 판별
+            const rangePrices = albumPriceData?.bindingRangePrices;
+            const basePrice = albumPriceData?.bindingBasePrice || 0;
+            const pricePerPageBinding = albumPriceData?.bindingPricePerPage || 0;
+            const billingPageKey = String(billingPages);
+            const isRangePricing = rangePrices && billingPageKey in rangePrices;
+            const isInterpolatedRange = rangePrices && !(billingPageKey in rangePrices) &&
+              Object.keys(rangePrices).filter(k => !k.startsWith('__')).some(k => Number(k) <= billingPages);
+
+            // 출력비
+            const printPrice = folderPrice.printPrice;
+            const postPrice = folderPrice.postProcessingPrice;
+            const totalPrice = folderPrice.totalPrice;
+            const unitPrice = folderPrice.unitPrice;
+
+            if (!hasAllPrices) {
+              return (
+                <div className="text-[11px] text-red-500">
+                  가격 미등록 <span className="text-[10px] font-normal">관리자 문의</span>
+                </div>
+              );
+            }
+
             return (
-              <div className="space-y-0.5">
-                <div className="text-[11px] text-gray-600">
-                  <span className="text-gray-400">제본:</span> {bName} {pages}p {bindingDisplay}
+              <div className="space-y-1 text-[11px]">
+                {/* 제본비 */}
+                <div className="space-y-0.5">
+                  <div className="text-gray-500 font-medium">■ 표지+제본비</div>
+                  <div className="text-gray-600 pl-2">
+                    <span className="text-gray-400">방식:</span> {bName}
+                  </div>
+                  {extraPages > 0 && (
+                    <div className="text-gray-600 pl-2">
+                      <span className="text-gray-400">청구:</span> {pages}p + 추가{extraPages}p = <span className="font-medium">{billingPages}p</span>
+                    </div>
+                  )}
+                  <div className="text-gray-600 pl-2">
+                    {isRangePricing ? (
+                      <><span className="text-gray-400">산출:</span> 구간단가({billingPages}p) = {Math.round(bindingOnlyPrice).toLocaleString()}원</>
+                    ) : isInterpolatedRange ? (
+                      (() => {
+                        const numericKeys = Object.keys(rangePrices!).filter(k => !k.startsWith('__')).map(Number).filter(k => !isNaN(k)).sort((a, b) => a - b);
+                        const lowerKey = numericKeys.filter(k => k <= billingPages).pop();
+                        const lowerPrice = lowerKey !== undefined ? (rangePrices![String(lowerKey)] || 0) : 0;
+                        return <><span className="text-gray-400">산출:</span> {lowerKey}p구간 {lowerPrice.toLocaleString()} + {pricePerPageBinding.toLocaleString()}원×{billingPages - (lowerKey ?? 0)}p = {Math.round(bindingOnlyPrice).toLocaleString()}원</>;
+                      })()
+                    ) : basePrice > 0 || pricePerPageBinding > 0 ? (
+                      pricePerPageBinding > 0
+                        ? <><span className="text-gray-400">산출:</span> 기본 {basePrice.toLocaleString()} + {pricePerPageBinding.toLocaleString()}원×{billingPages}p = {Math.round(bindingOnlyPrice).toLocaleString()}원</>
+                        : <><span className="text-gray-400">산출:</span> 고정가 {Math.round(bindingOnlyPrice).toLocaleString()}원</>
+                    ) : (
+                      <><span className="text-gray-400">산출:</span> {Math.round(bindingOnlyPrice).toLocaleString()}원</>
+                    )}
+                  </div>
+                  {coverPrice > 0 && (
+                    <div className="text-gray-600 pl-2">
+                      <span className="text-gray-400">표지비:</span> {Math.round(coverPrice).toLocaleString()}원
+                    </div>
+                  )}
+                  <div className="text-gray-700 pl-2 font-medium">
+                    <span className="text-gray-400 font-normal">소계:</span> {Math.round(totalBindingPrice).toLocaleString()}원
+                    {coverPrice > 0 && <span className="text-gray-400 font-normal text-[10px]"> (제본+표지)</span>}
+                  </div>
                 </div>
-                <div className="text-[11px] text-gray-600">
-                  <span className="text-gray-400">출력:</span> {colorLabel} {paperLabel} {pages}p {printDisplay}
+
+                {/* 출력비 */}
+                <div className="space-y-0.5">
+                  <div className="text-gray-500 font-medium">■ 출력비</div>
+                  <div className="text-gray-600 pl-2 truncate">
+                    {colorLabel} | {paperLabel} | {folder.pageLayout === 'spread' ? '양면' : '단면'} · <span className="text-gray-400">단가</span> {perPage!.toLocaleString()}원/p
+                  </div>
+                  <div className="text-gray-700 pl-2 font-medium">
+                    <span className="text-gray-400 font-normal">소계:</span>{' '}
+                    {extraPages > 0
+                      ? <>{perPage!.toLocaleString()}원 × {billingPages}p({pages}+{extraPages}) = {Math.round(printPrice).toLocaleString()}원</>
+                      : <>{perPage!.toLocaleString()}원 × {pages}p = {Math.round(printPrice).toLocaleString()}원</>
+                    }
+                  </div>
                 </div>
-                <div className="text-[11px] text-gray-600">
-                  <span className="text-gray-400">코팅:</span> {postPrice > 0 ? `1up ` : ''}{coatingDisplay}
+
+                {/* 후가공비 */}
+                <div className="space-y-0.5">
+                  <div className="text-gray-500 font-medium">■ 후가공비</div>
+                  <div className="text-gray-600 pl-2">
+                    {postPrice === 0
+                      ? <span className="text-gray-400">없음 (0원)</span>
+                      : <><span className="text-gray-400">소계:</span> {Math.round(postPrice / billingPages).toLocaleString()}원 × {billingPages}p = {Math.round(postPrice).toLocaleString()}원</>
+                    }
+                  </div>
                 </div>
-                <div className={cn(
-                  "text-sm font-bold border-t border-gray-200 pt-0.5 mt-0.5",
-                  hasAllPrices ? "text-primary" : "text-red-500"
-                )}>
-                  <span className="text-gray-400 text-[11px] font-normal">합계:</span>{' '}
-                  {hasAllPrices
-                    ? <>{folder.quantity > 1
-                        ? <>{Math.round(folderPrice.unitPrice).toLocaleString()}원 ×{folder.quantity}부 = {Math.round(totalPrice).toLocaleString()}원</>
-                        : <>{Math.round(totalPrice).toLocaleString()}원</>
-                      }</>
-                    : <span className="text-red-500">가격 미등록 <span className="text-[10px] font-normal">관리자 문의</span></span>
-                  }
+
+                {/* 단가 소계 */}
+                <div className="border-t border-gray-200 pt-0.5 space-y-0.5">
+                  <div className="text-gray-600">
+                    <span className="text-gray-400">단가(1권):</span>{' '}
+                    {Math.round(totalBindingPrice).toLocaleString()} + {Math.round(printPrice).toLocaleString()}
+                    {postPrice > 0 && <> + {Math.round(postPrice).toLocaleString()}</>}
+                    {' '}= <span className="font-medium">{Math.round(unitPrice).toLocaleString()}원</span>
+                  </div>
+                  <div className={cn("font-bold", "text-primary")}>
+                    <span className="text-gray-400 font-normal">합계:</span>{' '}
+                    {folder.quantity > 1
+                      ? <>{Math.round(unitPrice).toLocaleString()}원 × {folder.quantity}부 = {Math.round(totalPrice).toLocaleString()}원</>
+                      : <>{Math.round(totalPrice).toLocaleString()}원</>
+                    }
+                    {albumPriceData?.priceSource && (
+                      <span className={cn(
+                        "ml-1.5 text-[10px] font-normal px-1 py-0 rounded border",
+                        albumPriceData.priceSource === 'client'
+                          ? "text-blue-600 border-blue-200 bg-blue-50"
+                          : albumPriceData.priceSource === 'group'
+                          ? "text-purple-600 border-purple-200 bg-purple-50"
+                          : "text-gray-500 border-gray-200 bg-gray-50"
+                      )}>
+                        {albumPriceData.priceSource === 'client'
+                          ? '개별단가'
+                          : albumPriceData.priceSource === 'group'
+                          ? `그룹단가${albumPriceData.groupName ? ` (${albumPriceData.groupName})` : ''}`
+                          : '표준단가'}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -1277,7 +1563,6 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
               </div>
               <div className="space-y-2">
                 {folder.additionalOrders.map((order) => {
-                  const orderPrice = calculateAdditionalOrderPrice(order, folder, dbPriceInfo);
                   // 메인 규격 + 다른 추가주문 규격 제외 (자기 자신은 포함)
                   const usedByOthers = new Set([
                     `${folder.albumWidth}x${folder.albumHeight}`,
@@ -1411,18 +1696,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                             {/* 동판: DB 데이터 기반 드롭다운 */}
                             {(order.foilColor ?? folder.foilColor ?? order.foilName ?? folder.foilName ?? order.foilPosition ?? folder.foilPosition) && (
                               <>
-                                <span className="text-xs text-black ml-5">동판정보</span>
-                                <span className="text-[10px] text-gray-400">색상</span>
-                                <select
-                                  value={order.foilColor ?? folder.foilColor ?? ''}
-                                  onChange={(e) => updateAdditionalOrderFoil(folder.id, order.id, order.foilName ?? folder.foilName ?? null, e.target.value || null, order.foilPosition ?? folder.foilPosition ?? null)}
-                                  className="text-[12px] border rounded px-1.5 py-0.5 w-24 bg-yellow-50 text-black"
-                                >
-                                  <option value="">색상 선택</option>
-                                  {copperPlateLabels?.foilColors?.filter(c => c.isActive).map(color => (
-                                    <option key={color.id} value={color.name}>{color.name}</option>
-                                  ))}
-                                </select>
+                                <span className="text-xs text-black">동판정보</span>
                                 <span className="text-[10px] text-gray-400">동판</span>
                                 <select
                                   value={order.foilName ?? folder.foilName ?? ''}
@@ -1432,6 +1706,17 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                                   <option value="">동판 선택</option>
                                   {availablePlateNames.map(name => (
                                     <option key={name} value={name}>{name}</option>
+                                  ))}
+                                </select>
+                                <span className="text-[10px] text-gray-400">색상</span>
+                                <select
+                                  value={order.foilColor ?? folder.foilColor ?? ''}
+                                  onChange={(e) => updateAdditionalOrderFoil(folder.id, order.id, order.foilName ?? folder.foilName ?? null, e.target.value || null, order.foilPosition ?? folder.foilPosition ?? null)}
+                                  className="text-[12px] border rounded px-1.5 py-0.5 w-24 bg-yellow-50 text-black"
+                                >
+                                  <option value="">색상 선택</option>
+                                  {copperPlateLabels?.foilColors?.filter(c => c.isActive).map(color => (
+                                    <option key={color.id} value={color.name}>{color.name}</option>
                                   ))}
                                 </select>
                                 <span className="text-[10px] text-gray-400">위치</span>
@@ -1508,37 +1793,14 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                             )}
                         </div>
                       </div>
-                      {/* 가격 단계별 표시 */}
-                      <div className="text-right flex-shrink-0 max-w-[280px]">
-                        {(() => {
-                          const pages = folder.pageCount;
-                          const colorLabel = (order.colorMode ?? folder.colorMode) === '6c' ? '인디고6도' : '인디고4도';
-                          const paperLabel = order.selectedPaperName ?? folder.selectedPaperName ?? '';
-                          const perPage = orderPrice.pricePerPage;
-                          const bName = bindingName || '제본';
-
-                          return (
-                            <div className="space-y-0.5">
-                              <div className="text-[11px] text-gray-600">
-                                <span className="text-gray-400">제본:</span> {bName} {pages}p {orderPrice.bindingPrice === 0 ? '0' : `${Math.round(orderPrice.bindingPrice).toLocaleString()}원`}
-                              </div>
-                              <div className="text-[11px] text-gray-600">
-                                <span className="text-gray-400">출력:</span> {colorLabel} {paperLabel} {pages}p {perPage > 0 ? `${perPage.toLocaleString()}원×${pages}p = ${(perPage * pages).toLocaleString()}원` : <span className="text-red-500">None</span>}
-                              </div>
-                              <div className="text-[11px] text-gray-600">
-                                <span className="text-gray-400">코팅:</span> {orderPrice.postProcessingPrice === 0 ? '0' : `${Math.round(orderPrice.postProcessingPrice / pages).toLocaleString()}원×${pages}p = ${Math.round(orderPrice.postProcessingPrice).toLocaleString()}원`}
-                              </div>
-                              <div className="text-sm font-bold text-primary border-t border-gray-200 pt-0.5 mt-0.5">
-                                <span className="text-gray-400 text-[11px] font-normal">합계:</span>{' '}
-                                {order.quantity > 1
-                                  ? <>{Math.round(orderPrice.unitPrice).toLocaleString()}원 ×{order.quantity}부 = {Math.round(orderPrice.totalPrice).toLocaleString()}원</>
-                                  : <>{Math.round(orderPrice.totalPrice).toLocaleString()}원</>
-                                }
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </div>
+                      {/* 가격 단계별 표시 - 추가주문 규격/출력방식에 맞는 단가를 API로 조회 */}
+                      <AdditionalOrderPriceBlock
+                        productId={productId}
+                        order={order}
+                        folder={folder}
+                        bindingName={bindingName}
+                        clientId={user?.clientId}
+                      />
                       {/* 삭제 버튼 */}
                       <Button
                         size="icon"

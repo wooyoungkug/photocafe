@@ -126,7 +126,7 @@ export default function ProductPage() {
     defaultPageLayout, defaultBindingDirection,
     folders: uploadFolders, clearFolders,
     applyGlobalCoverSource, setFolderFabric, setAllFoldersFoil,
-    setAvailablePapers, setDefaultBindingPrice, setBindingName, updateFolder: updateUploadFolder,
+    setAvailablePapers, setDefaultBindingPrice, setBindingName, setPrintType, updateFolder: updateUploadFolder,
   } = useMultiFolderUploadStore();
 
   const [selectedFabricCategory, setSelectedFabricCategory] = useState<FabricCategory | null>(null);
@@ -225,35 +225,49 @@ export default function ProductPage() {
         for (const folder of validFolders) {
           const options: CartItemOption[] = [
             { name: '규격', value: folder.specLabel, price: 0 },
+            { name: '인쇄면', value: selectedOptions.printSide === 'single' ? '단면' : '양면', price: 0 },
             { name: '페이지', value: `${folder.pageCount}p`, price: 0 },
           ];
           const allThumbnailUrls = folder.files.map(f => f.thumbnailUrl).filter((url): url is string => !!url);
 
-          // DB API로 가격 조회 (필수 - 하드코딩 없음)
-          let folderPrice: { unitPrice: number; totalPrice: number; bindingPrice: number; pricePerPage: number; specificationId?: string };
-          const apiResult = await api.post<{
-            pricePerPage: number; printPrice: number;
-            paperPrice: number; bindingPrice: number; postProcessingPrice: number;
-            unitPrice: number; specificationId?: string; nup?: string;
-          }>('/pricing/calculate/album-order', {
-            productId: product.id,
-            widthInch: folder.albumWidth,
-            heightInch: folder.albumHeight,
-            pageCount: folder.pageCount,
-            colorMode: folder.colorMode || selectedOptions.colorMode || '4c',
-            pageLayout: folder.pageLayout || 'single',
-            paperId: folder.selectedPaperId || undefined,
-            clientId: user?.clientId || undefined,
-          });
-          const quantity = folder.quantity;
-          const subtotal = apiResult.unitPrice * quantity;
-          folderPrice = {
-            unitPrice: apiResult.unitPrice,
-            totalPrice: subtotal, // VAT 포함 금액
-            bindingPrice: apiResult.bindingPrice,
-            pricePerPage: apiResult.pricePerPage,
-            specificationId: apiResult.specificationId,
-          };
+          // 업로드 시 계산된 가격 사용 (없으면 API 재조회)
+          let folderPrice: { unitPrice: number; totalPrice: number; bindingPrice: number; pricePerPage: number; printPrice: number; postProcessingPrice: number; specificationId?: string };
+          if (folder.computedPriceInfo) {
+            const cp = folder.computedPriceInfo;
+            folderPrice = {
+              unitPrice: cp.unitPrice,
+              totalPrice: cp.unitPrice * folder.quantity,
+              bindingPrice: cp.bindingPrice,
+              pricePerPage: cp.pricePerPage,
+              printPrice: cp.printPrice,
+              postProcessingPrice: cp.postProcessingPrice,
+              specificationId: folder.specificationId,
+            };
+          } else {
+            const apiResult = await api.post<{
+              pricePerPage: number; printPrice: number;
+              paperPrice: number; bindingPrice: number; postProcessingPrice: number;
+              unitPrice: number; specificationId?: string; nup?: string;
+            }>('/pricing/calculate/album-order', {
+              productId: product.id,
+              widthInch: folder.albumWidth,
+              heightInch: folder.albumHeight,
+              pageCount: folder.pageCount,
+              colorMode: folder.colorMode || selectedOptions.colorMode || '4c',
+              pageLayout: folder.pageLayout || 'single',
+              paperId: folder.selectedPaperId || undefined,
+              clientId: user?.clientId || undefined,
+            });
+            folderPrice = {
+              unitPrice: apiResult.unitPrice,
+              totalPrice: apiResult.unitPrice * folder.quantity,
+              bindingPrice: apiResult.bindingPrice,
+              pricePerPage: apiResult.pricePerPage,
+              printPrice: apiResult.printPrice,
+              postProcessingPrice: apiResult.postProcessingPrice,
+              specificationId: apiResult.specificationId,
+            };
+          }
 
           const shippingInfoData = folder.shippingInfo ? {
             senderType: folder.shippingInfo.senderType, senderName: folder.shippingInfo.senderName,
@@ -285,6 +299,7 @@ export default function ProductPage() {
               coverMaterial: selectedOptions.cover?.name, totalSize: folder.totalFileSize || 0,
               foilName: folder.foilName || undefined, foilColor: folder.foilColor || undefined,
               foilPosition: folder.foilPosition || undefined, shippingInfo: shippingInfoData,
+              printSide: selectedOptions.printSide,
               coverSourceType: folder.coverSourceType || undefined,
               fabricId: folder.selectedFabricId || undefined,
               fabricName: folder.selectedFabricName || undefined,
@@ -295,6 +310,8 @@ export default function ProductPage() {
               fabricBasePrice: folder.selectedFabricPrice || undefined,
               bindingPrice: folderPrice.bindingPrice,
               pricePerPage: folderPrice.pricePerPage,
+              printPrice: folderPrice.printPrice,
+              postProcessingPrice: folderPrice.postProcessingPrice || undefined,
             },
             uploadStatus: 'pending', totalFileCount: folder.files.length, isDuplicateOverride,
             orderMemo: orderMemo || undefined,
@@ -302,7 +319,7 @@ export default function ProductPage() {
 
           for (const additional of folder.additionalOrders) {
             // DB API로 추가 주문 가격 조회 (필수 - 하드코딩 없음)
-            let additionalPrice: { unitPrice: number; totalPrice: number; bindingPrice: number; pricePerPage: number; specificationId?: string };
+            let additionalPrice: { unitPrice: number; totalPrice: number; bindingPrice: number; pricePerPage: number; printPrice: number; postProcessingPrice: number; specificationId?: string };
             const apiResult2 = await api.post<{
               pricePerPage: number; printPrice: number;
               paperPrice: number; bindingPrice: number; postProcessingPrice: number;
@@ -317,13 +334,13 @@ export default function ProductPage() {
               paperId: additional.selectedPaperId || folder.selectedPaperId || undefined,
               clientId: user?.clientId || undefined,
             });
-            const addQuantity = additional.quantity;
-            const addSubtotal = apiResult2.unitPrice * addQuantity;
             additionalPrice = {
               unitPrice: apiResult2.unitPrice,
-              totalPrice: addSubtotal, // VAT 포함 금액
+              totalPrice: apiResult2.unitPrice * additional.quantity,
               bindingPrice: apiResult2.bindingPrice,
               pricePerPage: apiResult2.pricePerPage,
+              printPrice: apiResult2.printPrice,
+              postProcessingPrice: apiResult2.postProcessingPrice,
               specificationId: apiResult2.specificationId,
             };
 
@@ -335,6 +352,7 @@ export default function ProductPage() {
               quantity: additional.quantity,
               options: [
                 { name: '규격', value: additional.albumLabel, price: 0 },
+                { name: '인쇄면', value: selectedOptions.printSide === 'single' ? '단면' : '양면', price: 0 },
                 { name: '페이지', value: `${folder.pageCount}p`, price: 0 },
               ],
               totalPrice: additionalPrice.totalPrice,
@@ -353,6 +371,7 @@ export default function ProductPage() {
                 foilColor: (additional.foilColor ?? folder.foilColor) || undefined,
                 foilPosition: (additional.foilPosition ?? folder.foilPosition) || undefined,
                 shippingInfo: shippingInfoData,
+                printSide: selectedOptions.printSide,
                 coverSourceType: folder.coverSourceType || undefined,
                 fabricId: (additional.selectedFabricId ?? folder.selectedFabricId) || undefined,
                 fabricName: (additional.selectedFabricName ?? folder.selectedFabricName) || undefined,
@@ -363,6 +382,8 @@ export default function ProductPage() {
                 fabricBasePrice: (additional.selectedFabricPrice ?? folder.selectedFabricPrice) || undefined,
                 bindingPrice: additionalPrice.bindingPrice,
                 pricePerPage: additionalPrice.pricePerPage,
+                printPrice: additionalPrice.printPrice,
+                postProcessingPrice: additionalPrice.postProcessingPrice || undefined,
               },
               uploadStatus: 'pending', totalFileCount: folder.files.length, isDuplicateOverride,
             });
@@ -461,6 +482,14 @@ export default function ProductPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedOptions.binding?.name]);
+
+  // 상품의 출력구분(printType)을 업로드 스토어에 전달
+  useEffect(() => {
+    if (product?.printType) {
+      setPrintType(product.printType as 'single' | 'double' | 'customer');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.printType]);
 
   // 새 폴더가 추가될 때 현재 선택된 출력방법/용지를 자동 적용
   useEffect(() => {
@@ -693,8 +722,12 @@ export default function ProductPage() {
 
   // --- handleSaveMyProduct ---
   const handleSaveMyProduct = async () => {
-    if (!isAuthenticated || !user?.clientId || !product) {
+    if (!isAuthenticated || !product) {
       toast({ title: t('loginRequired'), description: t('loginRequiredDesc'), variant: 'destructive' });
+      return;
+    }
+    if (!user?.clientId) {
+      toast({ title: '거래처 계정 필요', description: '마이상품 저장은 거래처 계정으로 로그인 후 이용 가능합니다.', variant: 'destructive' });
       return;
     }
     const opts: MyProductOptions = {
@@ -816,17 +849,22 @@ export default function ProductPage() {
           {/* Options - RIGHT */}
           <div className="flex-1 min-w-0">
             {/* Product name */}
-            <h1 className="text-xl md:text-2xl font-bold">{product.productName}</h1>
+            <h1 className="text-xl md:text-2xl font-bold">
+              {product.productName}
+              {product.productCode && (
+                <span className="ml-2 text-sm font-mono opacity-60">{product.productCode}</span>
+              )}
+            </h1>
 
             {/* Actions */}
             <div className="flex flex-wrap items-center gap-2 mt-2 mb-4">
-              {isAuthenticated && user?.clientId && (
+              {isAuthenticated && (
                 <>
                   <button type="button" onClick={() => { setMyProductName(product.productName); setShowSaveMyProductModal(true); }}
                     className="text-xs text-primary hover:underline flex items-center gap-1">
                     <Star className="h-3 w-3" />{t('saveMyProduct')}
                   </button>
-                  {myProducts && myProducts.length > 0 && (
+                  {user?.clientId && myProducts && myProducts.filter(mp => mp.productId === product.id).length > 0 && (
                     <button type="button" onClick={() => setShowLoadMyProductModal(true)}
                       className="text-xs text-orange-600 hover:underline flex items-center gap-1">
                       <FolderHeart className="h-3 w-3" />{t('loadMyProduct')} ({myProducts.filter(mp => mp.productId === product.id).length})
@@ -849,7 +887,7 @@ export default function ProductPage() {
             {/* Options - simple text sections */}
             <div className="bg-white border py-2 px-4 space-y-0">
               {product.bindings && product.bindings.length > 0 && (
-                <OptionCard title={t('binding')} summary={selectedOptions.binding?.name?.split(' - ')[0].replace(/\s*\(.*?\)$/, '')}>
+                <OptionCard title={t('binding')}>
                   <OptionBinding bindings={product.bindings} selectedBindingId={selectedOptions.binding?.id}
                     onSelect={(binding) => setSelectedOptions(prev => ({
                       ...prev, binding,
@@ -1170,32 +1208,44 @@ export default function ProductPage() {
             <DialogTitle className="flex items-center gap-2"><Star className="h-5 w-5 text-primary" />{t('saveAsMyProduct')}</DialogTitle>
             <DialogDescription>{t('saveMyProductDescription')}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="myProductName">{t('myProductName')}</Label>
-              <Input id="myProductName" value={myProductName} onChange={(e) => setMyProductName(e.target.value)} placeholder={t('myProductNameExample')} />
+          {!user?.clientId ? (
+            <div className="py-6 text-center space-y-3">
+              <Star className="h-10 w-10 text-gray-300 mx-auto" />
+              <p className="text-sm text-gray-600">마이상품 저장은 거래처 계정으로 로그인 후 이용 가능합니다.</p>
+              <DialogFooter className="justify-center">
+                <Button variant="outline" onClick={() => setShowSaveMyProductModal(false)}>{tc('close')}</Button>
+              </DialogFooter>
             </div>
-            <div className="bg-gray-50 rounded-lg p-3 space-y-1 text-sm">
-              <p className="font-medium text-gray-700 mb-2">{t('selectedOptions')}</p>
-              {selectedOptions.binding && <p className="text-gray-600">{t('binding')}: {selectedOptions.binding.name}</p>}
-              {effectiveFabricInfo?.name && <p className="text-gray-600">{t('albumCover')}: {effectiveFabricInfo.name}</p>}
-              {selectedOptions.paper && <p className="text-gray-600">{t('paper')}: {selectedOptions.printMethod === 'inkjet' ? '잉크젯' : selectedOptions.colorMode === '6c' ? '인디고 6도' : '인디고 4도'} - {selectedOptions.paper.name}</p>}
-              {selectedOptions.printSide && <p className="text-gray-600">{t('printSection')}: {selectedOptions.printSide === 'single' ? t('singleSided') : t('doubleSided')}</p>}
-              <p className="text-gray-600">{t('copperPlate')}: {selectedOptions.copperPlateType === 'none' ? t('none') : selectedOptions.copperPlateType === 'public' ? `${t('publicCopperPlate')} - ${selectedOptions.publicCopperPlate?.plateName || ''}` : `${t('ownedCopperPlate')} - ${selectedOptions.ownedCopperPlate?.plateName || ''}`}</p>
-              {selectedOptions.copperPlateType !== 'none' && (<>
-                {selectedOptions.foilColor && <p className="text-gray-600">{t('foilColorColon')} {copperPlateLabels?.foilColors?.find(c => c.code === selectedOptions.foilColor)?.name || selectedOptions.foilColor}</p>}
-                {selectedOptions.foilPosition && <p className="text-gray-600">{t('foilPositionColon')} {copperPlateLabels?.platePositions?.find(p => p.code === selectedOptions.foilPosition)?.name || selectedOptions.foilPosition}</p>}
-              </>)}
-              {selectedOptions.finishings.length > 0 && <p className="text-gray-600">{t('finishing')}: {selectedOptions.finishings.map(f => f.name).join(', ')}</p>}
-              <p className="text-gray-600">{tc('quantity')}: {t('countUnit', { count: quantity })}</p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowSaveMyProductModal(false)}>{tc('cancel')}</Button>
-            <Button onClick={handleSaveMyProduct} disabled={createMyProduct.isPending}>
-              {createMyProduct.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}{tc('save')}
-            </Button>
-          </DialogFooter>
+          ) : (
+            <>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="myProductName">{t('myProductName')}</Label>
+                  <Input id="myProductName" value={myProductName} onChange={(e) => setMyProductName(e.target.value)} placeholder={t('myProductNameExample')} />
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3 space-y-1 text-sm">
+                  <p className="font-medium text-gray-700 mb-2">{t('selectedOptions')}</p>
+                  {selectedOptions.binding && <p className="text-gray-600">{t('binding')}: {selectedOptions.binding.name}</p>}
+                  {effectiveFabricInfo?.name && <p className="text-gray-600">{t('albumCover')}: {effectiveFabricInfo.name}</p>}
+                  {selectedOptions.paper && <p className="text-gray-600">{t('paper')}: {selectedOptions.printMethod === 'inkjet' ? '잉크젯' : selectedOptions.colorMode === '6c' ? '인디고 6도' : '인디고 4도'} - {selectedOptions.paper.name}</p>}
+                  {selectedOptions.printSide && <p className="text-gray-600">{t('printSection')}: {selectedOptions.printSide === 'single' ? t('singleSided') : t('doubleSided')}</p>}
+                  <p className="text-gray-600">{t('copperPlate')}: {selectedOptions.copperPlateType === 'none' ? t('none') : selectedOptions.copperPlateType === 'public' ? `${t('publicCopperPlate')} - ${selectedOptions.publicCopperPlate?.plateName || ''}` : `${t('ownedCopperPlate')} - ${selectedOptions.ownedCopperPlate?.plateName || ''}`}</p>
+                  {selectedOptions.copperPlateType !== 'none' && (<>
+                    {selectedOptions.foilColor && <p className="text-gray-600">{t('foilColorColon')} {copperPlateLabels?.foilColors?.find(c => c.code === selectedOptions.foilColor)?.name || selectedOptions.foilColor}</p>}
+                    {selectedOptions.foilPosition && <p className="text-gray-600">{t('foilPositionColon')} {copperPlateLabels?.platePositions?.find(p => p.code === selectedOptions.foilPosition)?.name || selectedOptions.foilPosition}</p>}
+                  </>)}
+                  {selectedOptions.finishings.length > 0 && <p className="text-gray-600">{t('finishing')}: {selectedOptions.finishings.map(f => f.name).join(', ')}</p>}
+                  <p className="text-gray-600">{tc('quantity')}: {t('countUnit', { count: quantity })}</p>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowSaveMyProductModal(false)}>{tc('cancel')}</Button>
+                <Button onClick={handleSaveMyProduct} disabled={createMyProduct.isPending}>
+                  {createMyProduct.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}{tc('save')}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 

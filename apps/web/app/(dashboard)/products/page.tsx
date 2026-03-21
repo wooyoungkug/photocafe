@@ -58,6 +58,14 @@ import {
   ExternalLink,
 } from 'lucide-react';
 
+function generateProductCode(name: string): string {
+  // 첫 번째 단어(공백/_로 분리) 추출, 최대 4글자
+  const firstWord = name.split(/[\s_]/)[0] || name;
+  const prefix = firstWord.slice(0, 4) || 'PROD';
+  const num = String(Math.floor(Math.random() * 900) + 100);
+  return `${prefix}_${num}`;
+}
+
 export default function ProductsPage() {
   const router = useRouter();
   const [search, setSearch] = useState('');
@@ -321,6 +329,7 @@ export default function ProductsPage() {
                           <div className="flex flex-col items-center">
                             <span className="truncate max-w-[120px] sm:max-w-none flex items-center gap-1">
                               {product.productName}
+                              <span className="text-[11px] font-mono opacity-60 shrink-0">{product.productCode}</span>
                               <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100" />
                             </span>
                             <span className="md:hidden text-xs text-muted-foreground">{product.category?.name}</span>
@@ -441,6 +450,11 @@ export default function ProductsPage() {
                 id="productName"
                 value={formData.productName}
                 onChange={(e) => setFormData({ ...formData, productName: e.target.value })}
+                onBlur={(e) => {
+                  if (!editingProduct && !formData.productCode.trim() && e.target.value) {
+                    setFormData((prev) => ({ ...prev, productCode: generateProductCode(e.target.value) }));
+                  }
+                }}
                 placeholder="프리미엄 포토북 A4"
               />
             </div>

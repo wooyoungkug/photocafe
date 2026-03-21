@@ -210,11 +210,18 @@ export class SpecificationService {
                 { spec: pairSpec, name: pairName, widthMm: heightMm, heightMm: widthMm },
             ], dto);
 
+            // 6. 매칭되는 생산설정에 규격 자동 추가 (메인 + 페어)
+            const autoLinkedPS = await this.autoLinkToProductionSettings([
+                { id: mainSpec.id, widthInch: Number(mainSpec.widthInch), heightInch: Number(mainSpec.heightInch) },
+                { id: pairSpec.id, widthInch: Number(pairSpec.widthInch), heightInch: Number(pairSpec.heightInch) },
+            ], dto);
+
             return {
                 main: mainSpec,
                 pair: pairSpec,
                 autoLinked,
-                message: `${this.getOrientationLabel(orientation)} 규격과 ${this.getOrientationLabel(pairOrientation)} 규격이 함께 생성되었습니다. ${autoLinked.linkedProducts}개 상품에 자동 추가됨.`,
+                autoLinkedProductionSettings: autoLinkedPS,
+                message: `${this.getOrientationLabel(orientation)} 규격과 ${this.getOrientationLabel(pairOrientation)} 규격이 함께 생성되었습니다. ${autoLinked.linkedProducts}개 상품, ${autoLinkedPS.linkedSettings}개 생산설정에 자동 추가됨.`,
             };
         }
 
@@ -223,11 +230,17 @@ export class SpecificationService {
             { spec: mainSpec, name, widthMm, heightMm },
         ], dto);
 
+        // 6. 매칭되는 생산설정에 규격 자동 추가 (단일)
+        const autoLinkedPS = await this.autoLinkToProductionSettings([
+            { id: mainSpec.id, widthInch: Number(mainSpec.widthInch), heightInch: Number(mainSpec.heightInch) },
+        ], dto);
+
         return {
             ...mainSpec,
             autoLinked,
-            message: autoLinked.linkedProducts > 0
-                ? `규격이 생성되었습니다. ${autoLinked.linkedProducts}개 상품에 자동 추가됨.`
+            autoLinkedProductionSettings: autoLinkedPS,
+            message: autoLinked.linkedProducts > 0 || autoLinkedPS.linkedSettings > 0
+                ? `규격이 생성되었습니다. ${autoLinked.linkedProducts}개 상품, ${autoLinkedPS.linkedSettings}개 생산설정에 자동 추가됨.`
                 : undefined,
         };
     }
@@ -331,6 +344,125 @@ export class SpecificationService {
             linkedProducts: details.length,
             details,
         };
+    }
+
+    /**
+     * 새로 생성된 규격을 매칭되는 생산설정에 자동으로 추가
+     * 1) ProductionSettingSpecification (관계 테이블)
+     * 2) priceGroups.specPrices (JSON) - sqinch 단가가 있으면 자동 계산, 없으면 0원
+     *
+     * specUsageType 매칭 규칙:
+     * - 'all' → 용도 플래그 하나라도 있으면 연결
+     * - 'indigo' → forIndigo || forIndigoAlbum
+     * - 'inkjet' → forInkjet || forAlbum || forFrame || forBooklet
+     */
+    private async autoLinkToProductionSettings(
+        specs: Array<{ id: string; widthInch: number; heightInch: number }>,
+        dto: CreateSpecificationDto,
+    ) {
+        const forIndigo = dto.forIndigo ?? false;
+        const forInkjet = dto.forInkjet ?? false;
+        const forAlbum = dto.forAlbum ?? false;
+        const forIndigoAlbum = dto.forIndigoAlbum ?? false;
+        const forFrame = dto.forFrame ?? false;
+        const forBooklet = dto.forBooklet ?? false;
+
+        const hasAnyFlag = forIndigo || forInkjet || forAlbum || forIndigoAlbum || forFrame || forBooklet;
+        if (!hasAnyFlag) {
+            return { linkedSettings: 0, details: [] };
+        }
+
+        const productionSettings = await this.prisma.productionSetting.findMany({
+            where: { isActive: true },
+            select: {
+                id: true,
+                settingName: true,
+                specUsageType: true,
+                priceGroups: true,
+                specifications: { select: { specificationId: true, sortOrder: true } },
+            },
+        });
+
+        const details: Array<{ settingId: string; settingName: string; addedSpecs: number }> = [];
+
+        for (const ps of productionSettings) {
+            const usageType = ps.specUsageType as string | null;
+
+            const isMatch =
+                usageType === 'all' ? hasAnyFlag :
+                usageType === 'indigo' ? (forIndigo || forIndigoAlbum) :
+                usageType === 'inkjet' ? (forInkjet || forAlbum || forFrame || forBooklet) :
+                false;
+
+            if (!isMatch) continue;
+
+            const existingIds = new Set(
+                ps.specifications.map(s => s.specificationId).filter(Boolean),
+            );
+            const maxSortOrder = ps.specifications.reduce((max, s) => Math.max(max, s.sortOrder ?? 0), 0);
+
+            // 1) ProductionSettingSpecification 추가
+            let addedCount = 0;
+            for (let i = 0; i < specs.length; i++) {
+                const { id: specId } = specs[i];
+                if (existingIds.has(specId)) continue;
+
+                await this.prisma.productionSettingSpecification.create({
+                    data: {
+                        productionSettingId: ps.id,
+                        specificationId: specId,
+                        price: null,
+                        sortOrder: maxSortOrder + i + 1,
+                    },
+                }).catch(() => { /* unique constraint 충돌 무시 */ });
+
+                addedCount++;
+            }
+
+            // 2) priceGroups.specPrices 업데이트
+            const priceGroups = ps.priceGroups as any[] | null;
+            if (priceGroups && Array.isArray(priceGroups) && priceGroups.length > 0) {
+                const hasSpecPrices = priceGroups.some(g => g.specPrices && Array.isArray(g.specPrices) && g.specPrices.length > 0);
+
+                if (hasSpecPrices) {
+                    const updatedGroups = priceGroups.map(g => {
+                        if (!g.specPrices || !Array.isArray(g.specPrices) || g.specPrices.length === 0) return g;
+
+                        const existingSpecPriceIds = new Set(
+                            (g.specPrices as any[]).map((sp: any) => sp.specificationId).filter(Boolean),
+                        );
+
+                        const newSpecPrices = [...g.specPrices];
+                        for (const { id: specId, widthInch, heightInch } of specs) {
+                            if (existingSpecPriceIds.has(specId)) continue;
+
+                            const area = widthInch * heightInch;
+                            const basePrice = g.inkjetBasePrice || 0;
+                            const calculatedPrice = Math.round(area * basePrice * 1.0);
+
+                            newSpecPrices.push({
+                                specificationId: specId,
+                                singleSidedPrice: calculatedPrice,
+                                weight: 1.0,
+                            });
+                        }
+
+                        return { ...g, specPrices: newSpecPrices };
+                    });
+
+                    await this.prisma.productionSetting.update({
+                        where: { id: ps.id },
+                        data: { priceGroups: updatedGroups },
+                    });
+                }
+            }
+
+            if (addedCount > 0) {
+                details.push({ settingId: ps.id, settingName: ps.settingName ?? '', addedSpecs: addedCount });
+            }
+        }
+
+        return { linkedSettings: details.length, details };
     }
 
     async update(id: string, dto: UpdateSpecificationDto) {

@@ -448,11 +448,19 @@ export default function EditProductPage() {
           const active4Map: Record<string, boolean> = {};
           const active6Map: Record<string, boolean> = {};
           let foundDefaultId = '';
-          product.papers.forEach((p: { id: string; isActive?: boolean; isActive4?: boolean; isActive6?: boolean; isDefault?: boolean }) => {
+          product.papers.forEach((p: { id: string; isActive?: boolean; isActive4?: boolean; isActive6?: boolean; isDefault?: boolean; printMethod?: string; defaultColorType?: string }) => {
             activeMap[p.id] = p.isActive !== false;
             active4Map[p.id] = p.isActive4 !== false;
             active6Map[p.id] = p.isActive6 !== false;
-            if (p.isDefault) foundDefaultId = p.id;
+            if (p.isDefault) {
+              if (p.printMethod === 'indigo') {
+                // defaultColorType이 저장된 경우 그것을 사용, 없으면 4도를 기본값으로
+                const colorType = p.defaultColorType || '4도';
+                foundDefaultId = `${p.id}:${colorType}`;
+              } else {
+                foundDefaultId = p.id;
+              }
+            }
           });
           setPaperActiveMap(activeMap);
           setPaperActive4Map(active4Map);
@@ -762,21 +770,30 @@ export default function EditProductPage() {
           productionSettingId: b.productionSettingId,
           pricingType: b.pricingType,
         })),
-        papers: product?.papers?.map((p: any, idx: number) => ({
-          paperId: p.paperId || undefined,
-          name: p.name,
-          type: p.type || 'normal',
-          printMethod: p.printMethod,
-          grammage: p.grammage,
-          frontCoating: p.frontCoating,
-          grade: p.grade,
-          price: Number(p.price) || 0,
-          isDefault: defaultPaperKey === p.id || defaultPaperKey.startsWith(p.id + ':'),
-          isActive: paperActiveMap[p.id] !== false,
-          isActive4: paperActive4Map[p.id] !== false,
-          isActive6: paperActive6Map[p.id] !== false,
-          sortOrder: p.sortOrder ?? idx,
-        })),
+        papers: product?.papers?.map((p: any, idx: number) => {
+          const isDefaultPaper = defaultPaperKey === p.id || defaultPaperKey.startsWith(p.id + ':');
+          // defaultPaperKey가 'paperId:4도' 형태일 때 colorType 추출
+          let defaultColorType: string | undefined = undefined;
+          if (isDefaultPaper && defaultPaperKey.includes(':')) {
+            defaultColorType = defaultPaperKey.split(':').slice(1).join(':');
+          }
+          return {
+            paperId: p.paperId || undefined,
+            name: p.name,
+            type: p.type || 'normal',
+            printMethod: p.printMethod,
+            grammage: p.grammage,
+            frontCoating: p.frontCoating,
+            grade: p.grade,
+            price: Number(p.price) || 0,
+            isDefault: isDefaultPaper,
+            defaultColorType,
+            isActive: paperActiveMap[p.id] !== false,
+            isActive4: paperActive4Map[p.id] !== false,
+            isActive6: paperActive6Map[p.id] !== false,
+            sortOrder: p.sortOrder ?? idx,
+          };
+        }),
         foils: selectedFoils.map((f, idx) => ({
           name: f.name, color: f.color, price: f.price, isDefault: idx === 0, sortOrder: idx,
         })),
@@ -1634,8 +1651,7 @@ export default function EditProductPage() {
                     toggleActive = (val) => setPaperActiveMap(prev => ({ ...prev, [paper.id]: val }));
                   }
                   const chipKey = colorType ? `${paper.id}:${colorType}` : paper.id;
-                  // DB 로드 시 defaultPaperKey에 colorType 접미사가 없으므로 paperId 직접 비교도 허용
-                  const isDefault = defaultPaperKey === chipKey || (!!colorType && defaultPaperKey === paper.id);
+                  const isDefault = defaultPaperKey === chipKey;
                   return (
                     <div
                       key={`${paper.id}-${colorType ?? 'common'}`}

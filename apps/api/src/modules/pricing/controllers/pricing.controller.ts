@@ -47,7 +47,8 @@ export class PricingController {
     @Query() query: GetAlbumPagePriceDto,
     @Request() req: any,
   ) {
-    const clientId = req.user?.clientId || null;
+    // 쿼리 파라미터 clientId 우선, 없으면 JWT에서 추출
+    const clientId = query.clientId || req.user?.clientId || null;
     return this.pricingService.getAlbumPagePrice(clientId, query);
   }
 

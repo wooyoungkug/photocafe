@@ -234,6 +234,7 @@ export default function GroupPricingPage() {
     router.push(`/pricing/group?groupId=${groupId}`, { scroll: false });
   };
   const [selectedProductionGroupId, setSelectedProductionGroupId] = useState<string | null>(null);
+  const [selectedSettingId, setSelectedSettingId] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   // 단가 편집 상태
@@ -249,6 +250,7 @@ export default function GroupPricingPage() {
   ]);
   const [priceAdjustSettingId, setPriceAdjustSettingId] = useState<string | null>(null);
   const [priceAdjustPriceGroups, setPriceAdjustPriceGroups] = useState<any[]>([]);
+  const [priceAdjustPrintMethod, setPriceAdjustPrintMethod] = useState<string>('indigo');
 
   // 가중치 상태 (그룹별 weight 퍼센트, 100 = 동일가격, 85 = 15% 할인)
   const [weights, setWeights] = useState<Record<string, number>>({});
@@ -259,11 +261,11 @@ export default function GroupPricingPage() {
 
   const { data: clientGroupsData, isLoading: clientGroupsLoading } = useClientGroups({ limit: 100 });
 
-  // URL에서 groupId가 전달된 경우 자동 선택
+  // URL에서 groupId가 전달된 경우 자동 선택 (표준단가그룹 제외)
   useEffect(() => {
     if (groupIdFromUrl && clientGroupsData?.data) {
       const group = clientGroupsData.data.find(g => g.id === groupIdFromUrl);
-      if (group && selectedClientGroupId !== groupIdFromUrl) {
+      if (group && group.groupName !== '표준단가그룹' && selectedClientGroupId !== groupIdFromUrl) {
         setSelectedClientGroupId(groupIdFromUrl);
       }
     }
@@ -539,9 +541,10 @@ export default function GroupPricingPage() {
   };
 
   // 단가 맞춤 다이얼로그 열기
-  const openPriceAdjustDialog = (settingId: string, priceGroups: any[]) => {
+  const openPriceAdjustDialog = (settingId: string, priceGroups: any[], printMethod: string = 'indigo') => {
     setPriceAdjustSettingId(settingId);
     setPriceAdjustPriceGroups(priceGroups);
+    setPriceAdjustPrintMethod(printMethod);
     setIsPriceAdjustDialogOpen(true);
   };
 
@@ -639,31 +642,53 @@ export default function GroupPricingPage() {
     let adjustedCount = 0;
     const newPrices: Record<string, string> = {};
 
-    priceAdjustPriceGroups.forEach((group: any) => {
-      const upPrices = group.upPrices || [];
-
-      upPrices.forEach((upPrice: any) => {
-        ['fourColorSinglePrice', 'fourColorDoublePrice', 'sixColorSinglePrice', 'sixColorDoublePrice'].forEach(field => {
-          const key = `${priceAdjustSettingId}_${group.id}_${upPrice.up}_${field}`;
+    if (priceAdjustPrintMethod === 'inkjet') {
+      // 잉크젯: specPrices 처리
+      priceAdjustPriceGroups.forEach((group: any) => {
+        const specPrices = group.specPrices || [];
+        specPrices.forEach((specPrice: any) => {
+          const key = `${priceAdjustSettingId}_${group.id}_spec_${specPrice.specificationId}`;
           const editedValue = editingPrices[key];
-          const savedGroupPrice = groupPricesMap.get(`${priceAdjustSettingId}_${group.id}_${upPrice.up}`)?.[field];
-          const currentValue = editedValue ?? (savedGroupPrice ? String(savedGroupPrice) : null);
-
+          const savedGroupPrice = groupPricesMap.get(`${priceAdjustSettingId}_${group.id}_${specPrice.specificationId}`);
+          const currentValue = editedValue ?? (savedGroupPrice?.price ? String(Number(savedGroupPrice.price)) : (specPrice.singleSidedPrice ? String(specPrice.singleSidedPrice) : null));
           if (currentValue) {
             const originalPrice = parseFloat(currentValue) || 0;
             if (originalPrice > 0) {
               const adjustedPrice = adjustPrice(originalPrice);
-              if (adjustedPrice !== originalPrice) {
-                newPrices[key] = adjustedPrice.toString();
-                adjustedCount++;
-              } else {
-                newPrices[key] = currentValue;
-              }
+              newPrices[key] = adjustedPrice.toString();
+              if (adjustedPrice !== originalPrice) adjustedCount++;
             }
           }
         });
       });
-    });
+    } else {
+      // 인디고: upPrices 처리
+      priceAdjustPriceGroups.forEach((group: any) => {
+        const upPrices = group.upPrices || [];
+
+        upPrices.forEach((upPrice: any) => {
+          ['fourColorSinglePrice', 'fourColorDoublePrice', 'sixColorSinglePrice', 'sixColorDoublePrice'].forEach(field => {
+            const key = `${priceAdjustSettingId}_${group.id}_${upPrice.up}_${field}`;
+            const editedValue = editingPrices[key];
+            const savedGroupPrice = groupPricesMap.get(`${priceAdjustSettingId}_${group.id}_${upPrice.up}`)?.[field];
+            const currentValue = editedValue ?? (savedGroupPrice ? String(savedGroupPrice) : null);
+
+            if (currentValue) {
+              const originalPrice = parseFloat(currentValue) || 0;
+              if (originalPrice > 0) {
+                const adjustedPrice = adjustPrice(originalPrice);
+                if (adjustedPrice !== originalPrice) {
+                  newPrices[key] = adjustedPrice.toString();
+                  adjustedCount++;
+                } else {
+                  newPrices[key] = currentValue;
+                }
+              }
+            }
+          });
+        });
+      });
+    }
 
     if (Object.keys(newPrices).length > 0) {
       setEditingPrices(prev => ({ ...prev, ...newPrices }));
@@ -822,23 +847,34 @@ export default function GroupPricingPage() {
                 variant="outline"
                 size="sm"
                 className="h-7 px-2 text-xs"
-                onClick={() => openPriceAdjustDialog(setting.id, priceGroups)}
+                onClick={() => openPriceAdjustDialog(setting.id, priceGroups, 'indigo')}
               >
                 <SlidersHorizontal className="h-3.5 w-3.5 mr-1" />
                 단가맞춤
               </Button>
             )}
-            {/* 잉크젯: 모달로 단가 입력 */}
+            {/* 잉크젯: 모달로 단가 입력 + 단가맞춤 */}
             {printMethod === 'inkjet' && hasPriceGroups && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 px-2 text-xs text-indigo-600 border-indigo-200 hover:bg-indigo-50"
-                onClick={() => openInkjetPriceDialog(setting)}
-              >
-                <Edit className="h-3.5 w-3.5 mr-1" />
-                단가 입력
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => openPriceAdjustDialog(setting.id, priceGroups, 'inkjet')}
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5 mr-1" />
+                  단가맞춤
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                  onClick={() => openInkjetPriceDialog(setting)}
+                >
+                  <Edit className="h-3.5 w-3.5 mr-1" />
+                  단가 입력
+                </Button>
+              </>
             )}
             {/* 저장 버튼 */}
             {hasChanges && (
@@ -1144,9 +1180,54 @@ export default function GroupPricingPage() {
                       )}
                     </div>
                     {linkedPapers.length > 0 && (
-                      <div className="text-[10px] text-gray-500 pl-4.5 truncate">
+                      <div className="text-[10px] text-gray-500 mb-1.5 truncate">
                         {linkedPapers.slice(0, 2).map((p: any) => `${p.name}${p.grammage ? ` ${p.grammage}g` : ''}`).join(', ')}
                         {linkedPapers.length > 2 && ` 외 ${linkedPapers.length - 2}개`}
+                      </div>
+                    )}
+                    {/* 규격별 단가 테이블 */}
+                    {(group.specPrices || []).length > 0 && (
+                      <div className="border rounded bg-white overflow-hidden">
+                        <table className="w-full text-[11px]">
+                          <thead>
+                            <tr className="bg-gray-50 border-b">
+                              <th className="text-left px-2 py-1 font-medium text-gray-500">규격</th>
+                              <th className="text-right px-2 py-1 font-medium text-gray-500 w-16">표준</th>
+                              <th className="text-right px-2 py-1 font-medium text-indigo-600 w-16">그룹</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(group.specPrices || []).map((specPrice: any) => {
+                              const specId = specPrice.specificationId;
+                              const specInfo = specifications.find((s: any) =>
+                                (s.specificationId || s.id) === specId
+                              )?.specification || {};
+                              const savedGroupPrice = groupPricesMap.get(`${setting.id}_${group.id}_${specId}`);
+                              const baseSpecId = group.inkjetBaseSpecId || (group.specPrices?.[0]?.specificationId || '');
+                              const isBase = specId === baseSpecId;
+                              const groupPriceVal = savedGroupPrice?.price ? Number(savedGroupPrice.price) : null;
+
+                              return (
+                                <tr key={specId} className={cn("border-b border-gray-100 last:border-0", isBase && "bg-indigo-50/50")}>
+                                  <td className="px-2 py-1 text-gray-700 truncate max-w-[80px]">
+                                    {specInfo.name || specId?.slice(-6)}
+                                    {isBase && <span className="text-indigo-400 ml-0.5 text-[9px]">기준</span>}
+                                  </td>
+                                  <td className="px-2 py-1 text-right text-gray-400 font-mono">
+                                    {specPrice.singleSidedPrice ? formatNumber(specPrice.singleSidedPrice) : '-'}
+                                  </td>
+                                  <td className="px-2 py-1 text-right font-mono font-semibold">
+                                    {groupPriceVal !== null ? (
+                                      <span className="text-indigo-700">{formatNumber(groupPriceVal)}</span>
+                                    ) : (
+                                      <span className="text-gray-300">-</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
                       </div>
                     )}
                   </div>
@@ -1249,37 +1330,18 @@ export default function GroupPricingPage() {
                         return (
                           <div key={range} className="flex flex-col items-center">
                             <span className="text-[9px] text-gray-400">{formatNumber(standardPrice)}</span>
-                            {isFirstRange ? (
-                              <Input
-                                type="number"
-                                className="h-7 w-16 text-xs text-center font-mono bg-blue-50 border-blue-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                placeholder="-"
-                                value={displayValue}
-                                onChange={(e) => {
-                                  const value = Number(e.target.value);
-                                  const firstRange = pageRanges[0] || 20;
-                                  const perPageKey = `${setting.id}_nup_${nupRange.specificationId}_perPage`;
-                                  const currentPerPage = editingPrices[perPageKey] ? Number(editingPrices[perPageKey]) : standardPricePerPage;
-
-                                  const updates: Record<string, string> = {
-                                    [key]: e.target.value
-                                  };
-
-                                  pageRanges.forEach((r: number, i: number) => {
-                                    if (i > 0) {
-                                      const calcPrice = Math.round((value + ((r - firstRange) * currentPerPage)) * 100) / 100;
-                                      updates[`${setting.id}_nup_${nupRange.specificationId}_range_${r}`] = String(calcPrice);
-                                    }
-                                  });
-
-                                  setEditingPrices(prev => ({ ...prev, ...updates }));
-                                }}
-                              />
-                            ) : (
-                              <span className="h-7 flex items-center justify-center w-16 font-mono text-xs text-gray-600 bg-gray-50 rounded border">
-                                {displayValue ? formatNumber(Number(displayValue)) : '-'}
-                              </span>
-                            )}
+                            <Input
+                              type="number"
+                              className={cn(
+                                "h-7 w-16 text-xs text-center font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+                                isFirstRange ? "bg-blue-50 border-blue-300" : ""
+                              )}
+                              placeholder="-"
+                              value={displayValue}
+                              onChange={(e) => {
+                                setEditingPrices(prev => ({ ...prev, [key]: e.target.value }));
+                              }}
+                            />
                           </div>
                         );
                       })}
@@ -1721,7 +1783,7 @@ export default function GroupPricingPage() {
                     <SelectValue placeholder="그룹 선택" />
                   </SelectTrigger>
                   <SelectContent>
-                    {clientGroupsData?.data?.map((group) => (
+                    {clientGroupsData?.data?.filter(g => g.groupName !== '표준단가그룹').map((group) => (
                       <SelectItem key={group.id} value={group.id}>
                         {group.groupName}
                         {group.generalDiscount !== 100 && (
@@ -1786,7 +1848,7 @@ export default function GroupPricingPage() {
                       expandedIds={expandedIds}
                       toggleExpand={toggleExpand}
                       selectedGroupId={selectedProductionGroupId}
-                      onSelectGroup={(g) => setSelectedProductionGroupId(g.id)}
+                      onSelectGroup={(g) => { setSelectedProductionGroupId(g.id); setSelectedSettingId(null); }}
                     />
                   ))}
                 </div>
@@ -1802,6 +1864,17 @@ export default function GroupPricingPage() {
                   {selectedProductionGroup ? (
                     <>
                       <div className="flex items-center gap-2">
+                        {selectedSettingId && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs text-gray-500 hover:text-gray-700"
+                            onClick={() => setSelectedSettingId(null)}
+                          >
+                            <ArrowLeft className="h-3.5 w-3.5 mr-1" />
+                            목록
+                          </Button>
+                        )}
                         <CardTitle className="text-base font-semibold">
                           {selectedProductionGroup.name}
                         </CardTitle>
@@ -1836,11 +1909,56 @@ export default function GroupPricingPage() {
                   <p>등록된 설정이 없습니다.</p>
                   <p className="text-sm mt-2">표준단가 페이지에서 먼저 설정을 추가해주세요.</p>
                 </div>
+              ) : !selectedSettingId ? (
+                /* 세팅 목록 (표준단가처럼 컴팩트하게) */
+                <div className="space-y-2">
+                  {selectedProductionGroup.settings?.map((setting: any) => {
+                    const pricingType = setting.pricingType || '';
+                    const printMethod = setting.printMethod;
+                    const savedGroupPriceCount = groupPrices?.filter((gp: any) => gp.productionSettingId === setting.id).length || 0;
+
+                    return (
+                      <div
+                        key={setting.id}
+                        className="group flex items-center justify-between gap-3 p-3 border rounded-lg cursor-pointer hover:bg-indigo-50 hover:border-indigo-200 transition-colors"
+                        onClick={() => setSelectedSettingId(setting.id)}
+                      >
+                        <div className="flex items-center gap-3 flex-wrap min-w-0">
+                          <span className="text-[14px] font-bold text-black">
+                            {setting.settingName || setting.codeName || "설정"}
+                          </span>
+                          <Badge variant="outline" className="text-xs font-normal text-gray-600 bg-gray-50 shrink-0">
+                            {PRICING_TYPE_LABELS[pricingType] || pricingType}
+                          </Badge>
+                          {printMethod && (
+                            <Badge variant="secondary" className="text-xs shrink-0">
+                              {PRINT_METHOD_LABELS[printMethod] || printMethod}
+                            </Badge>
+                          )}
+                          <span className="text-xs text-gray-500 shrink-0">
+                            작업시간: <span className="font-mono font-medium text-gray-900">{Number(setting.workDays) || 1}일</span>
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {savedGroupPriceCount > 0 && (
+                            <Badge className="text-[10px] h-5 bg-indigo-100 text-indigo-700 hover:bg-indigo-100">
+                              {savedGroupPriceCount}개 그룹단가
+                            </Badge>
+                          )}
+                          <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-indigo-500" />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               ) : (
+                /* 선택된 세팅의 단가 편집 */
                 <div>
-                  {selectedProductionGroup.settings?.map((setting) => (
-                    <GroupSettingCard key={setting.id} setting={setting} />
-                  ))}
+                  {selectedProductionGroup.settings
+                    ?.filter((setting: any) => setting.id === selectedSettingId)
+                    .map((setting: any) => (
+                      <GroupSettingCard key={setting.id} setting={setting} />
+                    ))}
                 </div>
               )}
             </CardContent>
@@ -2277,6 +2395,18 @@ export default function GroupPricingPage() {
           )}
 
           <DialogFooter className="gap-2 mt-4">
+            <Button
+              variant="outline"
+              className="h-10 px-4 text-xs mr-auto"
+              onClick={() => {
+                if (inkjetDialogSetting) {
+                  openPriceAdjustDialog(inkjetDialogSetting.id, (inkjetDialogSetting as any).priceGroups || [], 'inkjet');
+                }
+              }}
+            >
+              <SlidersHorizontal className="h-4 w-4 mr-1.5" />
+              단가맞춤
+            </Button>
             <Button variant="outline" onClick={() => setIsInkjetPriceDialogOpen(false)}>
               취소
             </Button>

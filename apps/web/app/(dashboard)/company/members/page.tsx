@@ -1072,7 +1072,7 @@ export default function MembersPage() {
                   {/* 회원 그룹 선택 (기본값 자동 할당, 수정 가능) */}
                   <div className="space-y-2">
                     <Label htmlFor="groupId" className="text-sm font-medium">
-                      회원 그룹 {!editingMember && <span className="text-xs text-blue-500">(기본: {formData.memberType === 'business' ? '스튜디오회원' : '일반고객그룹'})</span>}
+                      회원 그룹 {!editingMember && <span className="text-xs text-blue-500">(기본: 표준단가그룹)</span>}
                     </Label>
                     <Select
                       value={formData.groupId || 'auto'}
@@ -1084,7 +1084,7 @@ export default function MembersPage() {
                       <SelectContent>
                         <SelectItem value="auto">
                           <span className="text-blue-600">자동 할당</span>
-                          <span className="text-gray-400 ml-1 text-xs">({formData.memberType === 'business' ? '스튜디오회원' : '일반고객그룹'})</span>
+                          <span className="text-gray-400 ml-1 text-xs">(표준단가그룹)</span>
                         </SelectItem>
                         {groupsData?.data?.map((group) => (
                           <SelectItem key={group.id} value={group.id}>
@@ -1211,6 +1211,7 @@ export default function MembersPage() {
                       onChange={(e) => setNewPassword(e.target.value)}
                       placeholder="새 비밀번호 입력"
                       className="bg-white"
+                      autoComplete="new-password"
                     />
                   </div>
                   <div className="space-y-2">
@@ -1220,6 +1221,7 @@ export default function MembersPage() {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="비밀번호 확인"
+                      autoComplete="new-password"
                       className={`bg-white ${newPassword && confirmPassword && newPassword !== confirmPassword ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                     />
                     {newPassword && confirmPassword && newPassword !== confirmPassword && (

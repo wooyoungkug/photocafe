@@ -346,6 +346,15 @@ export interface UploadedFolder {
 
   // 업로드 시각
   uploadedAt: number; // Date.now()
+
+  // 업로드 시 계산된 가격 정보 (FolderCard에서 설정, 장바구니 담을 때 그대로 사용)
+  computedPriceInfo?: {
+    pricePerPage: number;
+    printPrice: number;
+    bindingPrice: number;
+    postProcessingPrice: number;
+    unitPrice: number;
+  };
 }
 
 interface MultiFolderUploadState {
@@ -369,6 +378,12 @@ interface MultiFolderUploadState {
   // DB 인디고출력 규격 리스트
   indigoSpecs: StandardSize[];
 
+  // 상품의 출력구분 (단면/양면/고객선택)
+  printType?: 'single' | 'double' | 'customer';
+
+  // 상품 ID (추가주문 단가 조회용)
+  productId?: string;
+
   // 상품의 출력 생산설정 ID (가격 조회용)
   productionSettingId?: string;
 
@@ -386,6 +401,12 @@ interface MultiFolderUploadState {
 
   // 인디고 규격 설정
   setIndigoSpecs: (specs: StandardSize[]) => void;
+
+  // 출력구분 설정
+  setPrintType: (type: 'single' | 'double' | 'customer') => void;
+
+  // 상품 ID 설정
+  setProductId: (id: string) => void;
 
   // 출력 생산설정 ID 설정
   setProductionSettingId: (id: string) => void;
@@ -488,6 +509,8 @@ const initialState = {
   targetSpecHeight: 12,
   targetSpecRatio: 1,
   indigoSpecs: [] as StandardSize[],
+  printType: undefined as 'single' | 'double' | 'customer' | undefined,
+  productId: undefined as string | undefined,
   productionSettingId: undefined as string | undefined,
   bindingProductionSettingId: undefined as string | undefined,
   bindingName: undefined as string | undefined,
@@ -772,6 +795,8 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
   ...initialState,
 
   setIndigoSpecs: (specs) => set({ indigoSpecs: specs }),
+  setPrintType: (type) => set({ printType: type }),
+  setProductId: (id) => set({ productId: id }),
   setProductionSettingId: (id) => set({ productionSettingId: id }),
   setBindingProductionSettingId: (id) => set({ bindingProductionSettingId: id }),
   setBindingName: (name) => set({ bindingName: name }),
@@ -1542,6 +1567,7 @@ export interface DbPriceInfo {
   bindingPrice: number;   // 제본비 (표지비 포함)
   coverPrice: number;     // 표지비 (제본비에 합산용)
   postProcessingPrice?: number; // 후가공비
+  billingPageCount?: number; // 1+up 앨범 등 추가 페이지 포함 청구 페이지 수
 }
 
 /**
@@ -1561,7 +1587,8 @@ export function calculateUploadedFolderPrice(folder: UploadedFolder, dbPrice: Db
   totalPrice: number;
 } {
   const pricePerPage = dbPrice.pricePerPage;
-  const printPrice = pricePerPage * folder.pageCount;
+  const billingPageCount = dbPrice.billingPageCount ?? folder.pageCount;
+  const printPrice = pricePerPage * billingPageCount;
 
   // 제본비 (표지비 포함, DB에서 조회)
   const bindingPrice = dbPrice.bindingPrice + dbPrice.coverPrice;
@@ -1607,7 +1634,8 @@ export function calculateAdditionalOrderPrice(
   totalPrice: number;
 } {
   const pricePerPage = dbPrice.pricePerPage;
-  const printPrice = pricePerPage * folder.pageCount;
+  const billingPageCount = dbPrice.billingPageCount ?? folder.pageCount;
+  const printPrice = pricePerPage * billingPageCount;
 
   // 제본비 (표지비 포함)
   const bindingPrice = dbPrice.bindingPrice + dbPrice.coverPrice;
