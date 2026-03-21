@@ -250,6 +250,7 @@ export default function GroupPricingPage() {
   ]);
   const [priceAdjustSettingId, setPriceAdjustSettingId] = useState<string | null>(null);
   const [priceAdjustPriceGroups, setPriceAdjustPriceGroups] = useState<any[]>([]);
+  const [priceAdjustPrintMethod, setPriceAdjustPrintMethod] = useState<string>('indigo');
 
   // 가중치 상태 (그룹별 weight 퍼센트, 100 = 동일가격, 85 = 15% 할인)
   const [weights, setWeights] = useState<Record<string, number>>({});
@@ -540,9 +541,10 @@ export default function GroupPricingPage() {
   };
 
   // 단가 맞춤 다이얼로그 열기
-  const openPriceAdjustDialog = (settingId: string, priceGroups: any[]) => {
+  const openPriceAdjustDialog = (settingId: string, priceGroups: any[], printMethod: string = 'indigo') => {
     setPriceAdjustSettingId(settingId);
     setPriceAdjustPriceGroups(priceGroups);
+    setPriceAdjustPrintMethod(printMethod);
     setIsPriceAdjustDialogOpen(true);
   };
 
@@ -640,31 +642,53 @@ export default function GroupPricingPage() {
     let adjustedCount = 0;
     const newPrices: Record<string, string> = {};
 
-    priceAdjustPriceGroups.forEach((group: any) => {
-      const upPrices = group.upPrices || [];
-
-      upPrices.forEach((upPrice: any) => {
-        ['fourColorSinglePrice', 'fourColorDoublePrice', 'sixColorSinglePrice', 'sixColorDoublePrice'].forEach(field => {
-          const key = `${priceAdjustSettingId}_${group.id}_${upPrice.up}_${field}`;
+    if (priceAdjustPrintMethod === 'inkjet') {
+      // 잉크젯: specPrices 처리
+      priceAdjustPriceGroups.forEach((group: any) => {
+        const specPrices = group.specPrices || [];
+        specPrices.forEach((specPrice: any) => {
+          const key = `${priceAdjustSettingId}_${group.id}_spec_${specPrice.specificationId}`;
           const editedValue = editingPrices[key];
-          const savedGroupPrice = groupPricesMap.get(`${priceAdjustSettingId}_${group.id}_${upPrice.up}`)?.[field];
-          const currentValue = editedValue ?? (savedGroupPrice ? String(savedGroupPrice) : null);
-
+          const savedGroupPrice = groupPricesMap.get(`${priceAdjustSettingId}_${group.id}_${specPrice.specificationId}`);
+          const currentValue = editedValue ?? (savedGroupPrice?.price ? String(Number(savedGroupPrice.price)) : (specPrice.singleSidedPrice ? String(specPrice.singleSidedPrice) : null));
           if (currentValue) {
             const originalPrice = parseFloat(currentValue) || 0;
             if (originalPrice > 0) {
               const adjustedPrice = adjustPrice(originalPrice);
-              if (adjustedPrice !== originalPrice) {
-                newPrices[key] = adjustedPrice.toString();
-                adjustedCount++;
-              } else {
-                newPrices[key] = currentValue;
-              }
+              newPrices[key] = adjustedPrice.toString();
+              if (adjustedPrice !== originalPrice) adjustedCount++;
             }
           }
         });
       });
-    });
+    } else {
+      // 인디고: upPrices 처리
+      priceAdjustPriceGroups.forEach((group: any) => {
+        const upPrices = group.upPrices || [];
+
+        upPrices.forEach((upPrice: any) => {
+          ['fourColorSinglePrice', 'fourColorDoublePrice', 'sixColorSinglePrice', 'sixColorDoublePrice'].forEach(field => {
+            const key = `${priceAdjustSettingId}_${group.id}_${upPrice.up}_${field}`;
+            const editedValue = editingPrices[key];
+            const savedGroupPrice = groupPricesMap.get(`${priceAdjustSettingId}_${group.id}_${upPrice.up}`)?.[field];
+            const currentValue = editedValue ?? (savedGroupPrice ? String(savedGroupPrice) : null);
+
+            if (currentValue) {
+              const originalPrice = parseFloat(currentValue) || 0;
+              if (originalPrice > 0) {
+                const adjustedPrice = adjustPrice(originalPrice);
+                if (adjustedPrice !== originalPrice) {
+                  newPrices[key] = adjustedPrice.toString();
+                  adjustedCount++;
+                } else {
+                  newPrices[key] = currentValue;
+                }
+              }
+            }
+          });
+        });
+      });
+    }
 
     if (Object.keys(newPrices).length > 0) {
       setEditingPrices(prev => ({ ...prev, ...newPrices }));
@@ -823,23 +847,34 @@ export default function GroupPricingPage() {
                 variant="outline"
                 size="sm"
                 className="h-7 px-2 text-xs"
-                onClick={() => openPriceAdjustDialog(setting.id, priceGroups)}
+                onClick={() => openPriceAdjustDialog(setting.id, priceGroups, 'indigo')}
               >
                 <SlidersHorizontal className="h-3.5 w-3.5 mr-1" />
                 단가맞춤
               </Button>
             )}
-            {/* 잉크젯: 모달로 단가 입력 */}
+            {/* 잉크젯: 모달로 단가 입력 + 단가맞춤 */}
             {printMethod === 'inkjet' && hasPriceGroups && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 px-2 text-xs text-indigo-600 border-indigo-200 hover:bg-indigo-50"
-                onClick={() => openInkjetPriceDialog(setting)}
-              >
-                <Edit className="h-3.5 w-3.5 mr-1" />
-                단가 입력
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => openPriceAdjustDialog(setting.id, priceGroups, 'inkjet')}
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5 mr-1" />
+                  단가맞춤
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                  onClick={() => openInkjetPriceDialog(setting)}
+                >
+                  <Edit className="h-3.5 w-3.5 mr-1" />
+                  단가 입력
+                </Button>
+              </>
             )}
             {/* 저장 버튼 */}
             {hasChanges && (
@@ -2379,6 +2414,18 @@ export default function GroupPricingPage() {
           )}
 
           <DialogFooter className="gap-2 mt-4">
+            <Button
+              variant="outline"
+              className="h-10 px-4 text-xs mr-auto"
+              onClick={() => {
+                if (inkjetDialogSetting) {
+                  openPriceAdjustDialog(inkjetDialogSetting.id, (inkjetDialogSetting as any).priceGroups || [], 'inkjet');
+                }
+              }}
+            >
+              <SlidersHorizontal className="h-4 w-4 mr-1.5" />
+              단가맞춤
+            </Button>
             <Button variant="outline" onClick={() => setIsInkjetPriceDialogOpen(false)}>
               취소
             </Button>
