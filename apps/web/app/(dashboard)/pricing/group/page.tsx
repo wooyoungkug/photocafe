@@ -260,11 +260,11 @@ export default function GroupPricingPage() {
 
   const { data: clientGroupsData, isLoading: clientGroupsLoading } = useClientGroups({ limit: 100 });
 
-  // URL에서 groupId가 전달된 경우 자동 선택
+  // URL에서 groupId가 전달된 경우 자동 선택 (표준단가그룹 제외)
   useEffect(() => {
     if (groupIdFromUrl && clientGroupsData?.data) {
       const group = clientGroupsData.data.find(g => g.id === groupIdFromUrl);
-      if (group && selectedClientGroupId !== groupIdFromUrl) {
+      if (group && group.groupName !== '표준단가그룹' && selectedClientGroupId !== groupIdFromUrl) {
         setSelectedClientGroupId(groupIdFromUrl);
       }
     }
@@ -1767,7 +1767,7 @@ export default function GroupPricingPage() {
                     <SelectValue placeholder="그룹 선택" />
                   </SelectTrigger>
                   <SelectContent>
-                    {clientGroupsData?.data?.map((group) => (
+                    {clientGroupsData?.data?.filter(g => g.groupName !== '표준단가그룹').map((group) => (
                       <SelectItem key={group.id} value={group.id}>
                         {group.groupName}
                         {group.generalDiscount !== 100 && (
