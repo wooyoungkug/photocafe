@@ -1066,6 +1066,9 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
+              <span className="text-xs text-black ml-3">
+                {resolvedPrintSide === 'single' ? '단면' : '양면'}
+              </span>
             </div>
           )}
           {/* 패브릭/포일 편집 */}
