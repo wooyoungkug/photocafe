@@ -958,18 +958,7 @@ export default function GroupPricingPage() {
           </div>
         </div>
 
-        {/* DEBUG: 단가 입력창 디버그 */}
-        {typeof window !== 'undefined' && console.log('[GroupSettingCard DEBUG]', {
-          settingName: setting.settingName,
-          printMethod,
-          pricingType,
-          priceGroupsLength: priceGroups.length,
-          hasPriceGroups,
-          hasInkjetSpecs,
-          priceGroupsRaw: setting.priceGroups,
-          priceGroupsType: typeof setting.priceGroups,
-          isArray: Array.isArray(setting.priceGroups),
-        })}
+        {/* DEBUG removed */}
 
         {/* ====== 인디고/인디고앨범: 가격그룹별 Up×색상 매트릭스 (항상 표시) ====== */}
         {hasPriceGroups && (printMethod === 'indigo' || printMethod === 'indigoAlbum') && (
