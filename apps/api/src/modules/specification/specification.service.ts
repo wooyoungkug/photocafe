@@ -267,7 +267,7 @@ export class SpecificationService {
         }
 
         // outputPriceSettings가 있는 상품 조회
-        const products = await this.prisma.products.findMany({
+        const products = await this.prisma.product.findMany({
             where: {
                 isActive: true,
                 NOT: { outputPriceSettings: { equals: Prisma.DbNull } },

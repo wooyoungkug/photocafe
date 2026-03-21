@@ -26,19 +26,19 @@ export class StatisticsService {
       activeClients,
     ] = await Promise.all([
       // 오늘 주문 건수 및 매출
-      this.prisma.orders.aggregate({
+      this.prisma.order.aggregate({
         where: { orderedAt: { gte: today } },
         _count: { id: true },
         _sum: { finalAmount: true },
       }),
       // 이번 달 주문
-      this.prisma.orders.aggregate({
+      this.prisma.order.aggregate({
         where: { orderedAt: { gte: thisMonth } },
         _count: { id: true },
         _sum: { finalAmount: true },
       }),
       // 지난 달 주문
-      this.prisma.orders.aggregate({
+      this.prisma.order.aggregate({
         where: {
           orderedAt: { gte: lastMonth, lte: lastMonthEnd },
         },
@@ -46,17 +46,17 @@ export class StatisticsService {
         _sum: { finalAmount: true },
       }),
       // 접수대기 주문
-      this.prisma.orders.count({
+      this.prisma.order.count({
         where: { status: 'pending_receipt' },
       }),
       // 생산중 주문
-      this.prisma.orders.count({
+      this.prisma.order.count({
         where: { status: 'in_production' },
       }),
       // 전체 거래처
-      this.prisma.clients.count(),
+      this.prisma.client.count(),
       // 활성 거래처 (최근 30일 주문)
-      this.prisma.clients.count({
+      this.prisma.client.count({
         where: {
           orders: {
             some: {
@@ -184,7 +184,7 @@ export class StatisticsService {
         : {}),
     };
 
-    const clientStats = await this.prisma.orders.groupBy({
+    const clientStats = await this.prisma.order.groupBy({
       by: ['clientId'],
       where,
       _count: { id: true },
@@ -193,7 +193,7 @@ export class StatisticsService {
 
     // 거래처 정보 조회
     const clientIds = clientStats.map((s: { clientId: string }) => s.clientId);
-    const clients = await this.prisma.clients.findMany({
+    const clients = await this.prisma.client.findMany({
       where: { id: { in: clientIds } },
       include: {
         group: {
@@ -357,7 +357,7 @@ export class StatisticsService {
     const categoryIds = rows.map(r => r.categoryId);
 
     // Category 정보 조회
-    const categories = await this.prisma.categories.findMany({
+    const categories = await this.prisma.category.findMany({
       where: {
         id: { in: categoryIds },
         ...(level && { level }),
@@ -405,7 +405,7 @@ export class StatisticsService {
     const { startDate, endDate } = query;
 
     // 모든 카테고리 조회
-    const allCategories = await this.prisma.categories.findMany({
+    const allCategories = await this.prisma.category.findMany({
       where: { isActive: true },
       orderBy: [{ sortOrder: 'asc' }],
     });
