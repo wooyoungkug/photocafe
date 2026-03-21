@@ -1140,6 +1140,7 @@ export class PricingService {
           rangePrices: (() => {
             const rp = priceData.rangePrices ? JSON.parse(JSON.stringify(priceData.rangePrices)) : {};
             if (priceData.coverPrice != null) rp.__coverPrice = priceData.coverPrice;
+            if (priceData.paperPrice != null) rp.__paperPrice = priceData.paperPrice;
             return Object.keys(rp).length > 0 ? rp : null;
           })(),
         };
@@ -1288,6 +1289,7 @@ export class PricingService {
           rangePrices: (() => {
             const rp = priceData.rangePrices ? JSON.parse(JSON.stringify(priceData.rangePrices)) : {};
             if (priceData.coverPrice != null) rp.__coverPrice = priceData.coverPrice;
+            if (priceData.paperPrice != null) rp.__paperPrice = priceData.paperPrice;
             return Object.keys(rp).length > 0 ? rp : null;
           })(),
         };
