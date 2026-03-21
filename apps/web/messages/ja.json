@@ -336,7 +336,7 @@
     "combinedCover": "表裏表紙",
     "frontCover": "表紙",
     "backCover": "裏表紙",
-    "blank": "空白",
+    "blank": "Blank page",
     "albumSpecSelect": "アルバム仕様選択",
     "bindingSelect": "綴じ方向選択",
     "bindingLeftRight": "左→右",
@@ -481,7 +481,7 @@
     "retentionInfo": "カート内の商品は30日間保管されます。",
     "priceChangeInfo": "価格やオプションは変更される場合があります。",
     "thumbnailPreview": "サムネイルプレビュー",
-    "blank": "空白",
+    "blank": "Blank page",
     "album": "アルバム",
     "halfProduct": "半製品",
     "steps": {

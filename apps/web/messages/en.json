@@ -336,7 +336,7 @@
     "combinedCover": "Combined Cover",
     "frontCover": "Front Cover",
     "backCover": "Back Cover",
-    "blank": "Blank",
+    "blank": "Blank page",
     "albumSpecSelect": "Select Album Spec",
     "bindingSelect": "Select Binding Direction",
     "bindingLeftRight": "L→R",
@@ -481,7 +481,7 @@
     "retentionInfo": "Cart items are kept for 30 days.",
     "priceChangeInfo": "Prices and options are subject to change.",
     "thumbnailPreview": "Thumbnail Preview",
-    "blank": "Blank",
+    "blank": "Blank page",
     "album": "Album",
     "halfProduct": "Half Product",
     "steps": {

@@ -785,7 +785,7 @@ function PreviewThumb({ item }: { item: PdfFileItem | null }) {
   if (!item) {
     return (
       <div className="w-16 h-20 flex items-center justify-center bg-slate-100 text-xs text-slate-400">
-        빈 페이지
+        Blank page
       </div>
     );
   }

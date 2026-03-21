@@ -77,13 +77,13 @@ export function CartThumbnailGallery({ thumbnailUrls, pageLayout, bindingDirecti
               'absolute top-0.5 left-0.5 w-4 h-4 rounded-full flex items-center justify-center text-white text-[7px] font-medium',
               pages.left !== null ? 'bg-red-600' : 'bg-yellow-500'
             )}>
-              {pages.left !== null ? pages.left : t('blank') ?? '빈'}
+              {pages.left !== null ? pages.left : t('blank') ?? 'Blank page'}
             </div>
             <div className={cn(
               'absolute top-0.5 right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-white text-[7px] font-medium',
               pages.right !== null ? 'bg-red-600' : 'bg-yellow-500'
             )}>
-              {pages.right !== null ? pages.right : t('blank') ?? '빈'}
+              {pages.right !== null ? pages.right : t('blank') ?? 'Blank page'}
             </div>
           </>
         );

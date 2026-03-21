@@ -336,7 +336,7 @@
     "combinedCover": "合本封面",
     "frontCover": "封面",
     "backCover": "封底",
-    "blank": "空白",
+    "blank": "Blank page",
     "albumSpecSelect": "选择相册规格",
     "bindingSelect": "选择装订方向",
     "bindingLeftRight": "左→右",
@@ -481,7 +481,7 @@
     "retentionInfo": "购物车商品保留30天。",
     "priceChangeInfo": "价格和选项可能会有变动。",
     "thumbnailPreview": "缩略图预览",
-    "blank": "空白",
+    "blank": "Blank page",
     "album": "相册",
     "halfProduct": "半成品",
     "steps": {
