@@ -719,11 +719,14 @@ export function CartItemCard({
                       const paperPrice = info.paperPrice ?? 0;
                       const fabricPrice = info.fabricBasePrice ?? 0;
                       const bindingPrice = info.bindingPrice ?? 0; // 제본비 (표지비 포함)
+                      const postProcessingPrice = info.postProcessingPrice ?? 0;
                       const dbPricePerPage = info.pricePerPage;
-                      // 출력비 = pricePerPage * pageCount
-                      const printPrice = dbPricePerPage != null
-                        ? dbPricePerPage * info.pageCount
-                        : (item.basePrice - paperPrice - fabricPrice - bindingPrice);
+                      // 업로드 시 계산된 printPrice 우선 사용 (정확한 청구페이지 반영)
+                      const printPrice = info.printPrice != null
+                        ? info.printPrice
+                        : (dbPricePerPage != null
+                          ? dbPricePerPage * info.pageCount
+                          : (item.basePrice - paperPrice - fabricPrice - bindingPrice - postProcessingPrice));
                       const effectivePricePerPage = dbPricePerPage ?? (info.pageCount > 0 ? Math.round(printPrice / info.pageCount) : 0);
                       const printMethodLabel = info.printMethod === 'indigo' ? '인디고' : '잉크젯';
                       const colorModeLabel = info.colorMode === '6c' ? '6도' : '4도';
@@ -790,6 +793,13 @@ export function CartItemCard({
                                   <span className="ml-1.5 text-gray-400">({info.foilName}{info.foilColor ? ` · ${info.foilColor}` : ''}{info.foilPosition ? ` · ${info.foilPosition}` : ''})</span>
                                 </div>
                                 <span className="text-gray-400 tabular-nums">포함</span>
+                              </div>
+                            )}
+                            {/* 후가공비 (코팅 등) */}
+                            {postProcessingPrice > 0 && (
+                              <div className="flex justify-between items-baseline text-xs">
+                                <span className="text-gray-600">후가공비</span>
+                                <span className="text-gray-800 tabular-nums">+{postProcessingPrice.toLocaleString()}원</span>
                               </div>
                             )}
                             {/* 제본비 (표지비 포함) */}

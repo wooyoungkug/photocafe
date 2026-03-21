@@ -229,31 +229,44 @@ export default function ProductPage() {
           ];
           const allThumbnailUrls = folder.files.map(f => f.thumbnailUrl).filter((url): url is string => !!url);
 
-          // DB API로 가격 조회 (필수 - 하드코딩 없음)
-          let folderPrice: { unitPrice: number; totalPrice: number; bindingPrice: number; pricePerPage: number; specificationId?: string };
-          const apiResult = await api.post<{
-            pricePerPage: number; printPrice: number;
-            paperPrice: number; bindingPrice: number; postProcessingPrice: number;
-            unitPrice: number; specificationId?: string; nup?: string;
-          }>('/pricing/calculate/album-order', {
-            productId: product.id,
-            widthInch: folder.albumWidth,
-            heightInch: folder.albumHeight,
-            pageCount: folder.pageCount,
-            colorMode: folder.colorMode || selectedOptions.colorMode || '4c',
-            pageLayout: folder.pageLayout || 'single',
-            paperId: folder.selectedPaperId || undefined,
-            clientId: user?.clientId || undefined,
-          });
-          const quantity = folder.quantity;
-          const subtotal = apiResult.unitPrice * quantity;
-          folderPrice = {
-            unitPrice: apiResult.unitPrice,
-            totalPrice: subtotal, // VAT 포함 금액
-            bindingPrice: apiResult.bindingPrice,
-            pricePerPage: apiResult.pricePerPage,
-            specificationId: apiResult.specificationId,
-          };
+          // 업로드 시 계산된 가격 사용 (없으면 API 재조회)
+          let folderPrice: { unitPrice: number; totalPrice: number; bindingPrice: number; pricePerPage: number; printPrice: number; postProcessingPrice: number; specificationId?: string };
+          if (folder.computedPriceInfo) {
+            const cp = folder.computedPriceInfo;
+            folderPrice = {
+              unitPrice: cp.unitPrice,
+              totalPrice: cp.unitPrice * folder.quantity,
+              bindingPrice: cp.bindingPrice,
+              pricePerPage: cp.pricePerPage,
+              printPrice: cp.printPrice,
+              postProcessingPrice: cp.postProcessingPrice,
+              specificationId: folder.specificationId,
+            };
+          } else {
+            const apiResult = await api.post<{
+              pricePerPage: number; printPrice: number;
+              paperPrice: number; bindingPrice: number; postProcessingPrice: number;
+              unitPrice: number; specificationId?: string; nup?: string;
+            }>('/pricing/calculate/album-order', {
+              productId: product.id,
+              widthInch: folder.albumWidth,
+              heightInch: folder.albumHeight,
+              pageCount: folder.pageCount,
+              colorMode: folder.colorMode || selectedOptions.colorMode || '4c',
+              pageLayout: folder.pageLayout || 'single',
+              paperId: folder.selectedPaperId || undefined,
+              clientId: user?.clientId || undefined,
+            });
+            folderPrice = {
+              unitPrice: apiResult.unitPrice,
+              totalPrice: apiResult.unitPrice * folder.quantity,
+              bindingPrice: apiResult.bindingPrice,
+              pricePerPage: apiResult.pricePerPage,
+              printPrice: apiResult.printPrice,
+              postProcessingPrice: apiResult.postProcessingPrice,
+              specificationId: apiResult.specificationId,
+            };
+          }
 
           const shippingInfoData = folder.shippingInfo ? {
             senderType: folder.shippingInfo.senderType, senderName: folder.shippingInfo.senderName,
@@ -295,6 +308,8 @@ export default function ProductPage() {
               fabricBasePrice: folder.selectedFabricPrice || undefined,
               bindingPrice: folderPrice.bindingPrice,
               pricePerPage: folderPrice.pricePerPage,
+              printPrice: folderPrice.printPrice,
+              postProcessingPrice: folderPrice.postProcessingPrice || undefined,
             },
             uploadStatus: 'pending', totalFileCount: folder.files.length, isDuplicateOverride,
             orderMemo: orderMemo || undefined,
@@ -302,7 +317,7 @@ export default function ProductPage() {
 
           for (const additional of folder.additionalOrders) {
             // DB API로 추가 주문 가격 조회 (필수 - 하드코딩 없음)
-            let additionalPrice: { unitPrice: number; totalPrice: number; bindingPrice: number; pricePerPage: number; specificationId?: string };
+            let additionalPrice: { unitPrice: number; totalPrice: number; bindingPrice: number; pricePerPage: number; printPrice: number; postProcessingPrice: number; specificationId?: string };
             const apiResult2 = await api.post<{
               pricePerPage: number; printPrice: number;
               paperPrice: number; bindingPrice: number; postProcessingPrice: number;
@@ -317,13 +332,13 @@ export default function ProductPage() {
               paperId: additional.selectedPaperId || folder.selectedPaperId || undefined,
               clientId: user?.clientId || undefined,
             });
-            const addQuantity = additional.quantity;
-            const addSubtotal = apiResult2.unitPrice * addQuantity;
             additionalPrice = {
               unitPrice: apiResult2.unitPrice,
-              totalPrice: addSubtotal, // VAT 포함 금액
+              totalPrice: apiResult2.unitPrice * additional.quantity,
               bindingPrice: apiResult2.bindingPrice,
               pricePerPage: apiResult2.pricePerPage,
+              printPrice: apiResult2.printPrice,
+              postProcessingPrice: apiResult2.postProcessingPrice,
               specificationId: apiResult2.specificationId,
             };
 
@@ -363,6 +378,8 @@ export default function ProductPage() {
                 fabricBasePrice: (additional.selectedFabricPrice ?? folder.selectedFabricPrice) || undefined,
                 bindingPrice: additionalPrice.bindingPrice,
                 pricePerPage: additionalPrice.pricePerPage,
+                printPrice: additionalPrice.printPrice,
+                postProcessingPrice: additionalPrice.postProcessingPrice || undefined,
               },
               uploadStatus: 'pending', totalFileCount: folder.files.length, isDuplicateOverride,
             });

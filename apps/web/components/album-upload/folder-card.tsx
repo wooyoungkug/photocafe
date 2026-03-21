@@ -500,6 +500,21 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     [folder, dbPriceInfo]
   );
 
+  // 계산된 가격을 store에 저장 (장바구니 담을 때 동일한 값 사용)
+  useEffect(() => {
+    if (!isPriceMissing && folderPrice.pricePerPage > 0) {
+      updateFolder(folder.id, {
+        computedPriceInfo: {
+          pricePerPage: folderPrice.pricePerPage,
+          printPrice: folderPrice.printPrice,
+          bindingPrice: folderPrice.bindingPrice,
+          postProcessingPrice: folderPrice.postProcessingPrice,
+          unitPrice: folderPrice.unitPrice,
+        },
+      });
+    }
+  }, [folder.id, folderPrice, isPriceMissing, updateFolder]);
+
   const handleSaveTitle = () => {
     setFolderTitle(folder.id, editTitle);
     setIsEditingTitle(false);

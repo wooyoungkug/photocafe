@@ -346,6 +346,15 @@ export interface UploadedFolder {
 
   // 업로드 시각
   uploadedAt: number; // Date.now()
+
+  // 업로드 시 계산된 가격 정보 (FolderCard에서 설정, 장바구니 담을 때 그대로 사용)
+  computedPriceInfo?: {
+    pricePerPage: number;
+    printPrice: number;
+    bindingPrice: number;
+    postProcessingPrice: number;
+    unitPrice: number;
+  };
 }
 
 interface MultiFolderUploadState {
