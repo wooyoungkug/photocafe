@@ -205,7 +205,7 @@ function AdditionalOrderPriceBlock({
           <span className="text-gray-400">제본:</span> {bName} | {folder.albumLabel} {pages}p {bindingPrice === 0 ? '0' : `${Math.round(bindingPrice).toLocaleString()}원`}
         </div>
         <div className="text-[11px] text-gray-600">
-          <span className="text-gray-400">출력:</span> {colorLabel} {paperLabel}{data?.nup ? ` Nup${data.nup.replace(/[^0-9]/g, '')}` : ''} {pages}p {perPage > 0 ? `${perPage.toLocaleString()}원×${pages}p = ${(perPage * pages).toLocaleString()}원` : <span className="text-red-500">None</span>}
+          <span className="text-gray-400">출력:</span> {colorLabel} {paperLabel}{data?.nup ? ` ${data.nup}` : ''} {pages}p {perPage > 0 ? `${perPage.toLocaleString()}원×${pages}p = ${(perPage * pages).toLocaleString()}원` : <span className="text-red-500">None</span>}
         </div>
         <div className="text-[11px] text-gray-600">
           <span className="text-gray-400">코팅:</span> {postProcessingPrice === 0 ? '0' : `${Math.round(postProcessingPrice / pages).toLocaleString()}원×${pages}p = ${Math.round(postProcessingPrice).toLocaleString()}원`}
