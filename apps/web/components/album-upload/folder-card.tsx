@@ -439,6 +439,13 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     return folder.pageLayout === 'spread' ? 'single' : 'spread';
   }, [printType, folder.pageLayout]);
 
+  // selectedPaperId는 product_papers.id → 실제 papers.id(paperId)로 변환
+  const actualPaperId = useMemo(() => {
+    if (!folder.selectedPaperId) return undefined;
+    const pp = availablePapers.find(p => p.id === folder.selectedPaperId);
+    return pp?.paperId || folder.selectedPaperId;
+  }, [folder.selectedPaperId, availablePapers]);
+
   // DB 기반 앨범 페이지 단가 조회 (용지 ID로 용지그룹별 단가 매칭)
   const { data: albumPriceData } = useAlbumPagePrice(
     productionSettingId,
@@ -446,7 +453,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     folder.colorMode || '6c',
     resolvedPrintSide,
     bindingProductionSettingId,
-    folder.selectedPaperId,
+    actualPaperId,
   );
 
   // 제본단가 계산 (rangePrices 우선, 없으면 basePrice + pricePerPage * pageCount)

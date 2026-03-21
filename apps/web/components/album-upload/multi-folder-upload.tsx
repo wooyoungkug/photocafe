@@ -1823,13 +1823,20 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
     if (storePrintType === 'double') return 'spread' as const;
     return firstSelected?.pageLayout === 'spread' ? 'single' as const : 'spread' as const;
   }, [storePrintType, firstSelected?.pageLayout]);
+  const storeAvailablePapers = useMultiFolderUploadStore(s => s.availablePapers);
+  // selectedPaperId(product_papers.id) → 실제 papers.id로 변환
+  const totalActualPaperId = useMemo(() => {
+    if (!firstSelected?.selectedPaperId) return undefined;
+    const pp = storeAvailablePapers.find(p => p.id === firstSelected.selectedPaperId);
+    return pp?.paperId || firstSelected.selectedPaperId;
+  }, [firstSelected?.selectedPaperId, storeAvailablePapers]);
   const { data: albumPriceForTotal } = useAlbumPagePrice(
     productionSettingId,
     firstSelected?.specificationId,
     firstSelected?.colorMode || '6c',
     totalPrintSide,
     storeBindingPsId,
-    firstSelected?.selectedPaperId,
+    totalActualPaperId,
   );
 
   const totalDbPrice: DbPriceInfo = useMemo(() => {
