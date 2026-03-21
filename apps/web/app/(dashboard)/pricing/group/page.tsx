@@ -780,9 +780,15 @@ export default function GroupPricingPage() {
         .filter((p: any) => p.specificationId)
         .map((p: any) => {
           const rangePrices: Record<number, number> = {};
+          let coverPrice: number | undefined = undefined;
+          let paperPrice: number | undefined = undefined;
           if (p.rangePrices && typeof p.rangePrices === 'object') {
             Object.entries(p.rangePrices).forEach(([key, value]: [string, any]) => {
-              if (key !== '__coverPrice' && key !== '__paperPrice') {
+              if (key === '__coverPrice') {
+                coverPrice = Number(value);
+              } else if (key === '__paperPrice') {
+                paperPrice = Number(value);
+              } else {
                 rangePrices[Number(key)] = Number(value);
               }
             });
@@ -790,6 +796,8 @@ export default function GroupPricingPage() {
           return {
             specificationId: p.specificationId,
             pricePerPage: Number(p.pricePerPage) || 0,
+            coverPrice,
+            paperPrice,
             rangePrices,
           };
         });
@@ -1483,10 +1491,12 @@ export default function GroupPricingPage() {
               <div
                 className="grid gap-0 pb-2 border-b text-xs font-medium text-gray-600 items-center"
                 style={{
-                  gridTemplateColumns: `80px 80px ${pageRanges.map(() => '80px').join(' ')}`
+                  gridTemplateColumns: `80px 80px 80px 80px ${pageRanges.map(() => '80px').join(' ')}`
                 }}
               >
                 <span>Nup</span>
+                <span className="text-center text-[10px]">표지가격</span>
+                <span className="text-center text-[10px]">용지가격(1p)</span>
                 <span className="text-right pr-2">1p당</span>
                 {pageRanges.map((range: number) => (
                   <span key={range} className="text-center">{range}p</span>
@@ -1501,17 +1511,55 @@ export default function GroupPricingPage() {
                   )?.specification || {};
                   const nupLabel = specInfo.nup || '?';
                   const standardPricePerPage = nupRange.pricePerPage || 0;
+                  const standardCoverPrice = nupRange.coverPrice || 0;
+                  const standardPaperPrice = nupRange.paperPrice || 0;
                   const standardRangePrices = nupRange.rangePrices || {};
+
+                  // 그룹단가의 coverPrice/paperPrice 로드 (groupPricesMap에서 rangePrices.__coverPrice/__paperPrice)
+                  const savedGroupRangeData = groupPricesMap.get(`${setting.id}_${nupRange.specificationId}_${pageRanges[0]}`);
+                  const savedGroupCoverPrice = savedGroupRangeData?.rangePrices?.__coverPrice != null
+                    ? Number(savedGroupRangeData.rangePrices.__coverPrice) : undefined;
+                  const savedGroupPaperPrice = savedGroupRangeData?.rangePrices?.__paperPrice != null
+                    ? Number(savedGroupRangeData.rangePrices.__paperPrice) : undefined;
+
+                  const coverPriceKey = `${setting.id}_nup_${nupRange.specificationId}_coverPrice`;
+                  const paperPriceKey = `${setting.id}_nup_${nupRange.specificationId}_paperPrice`;
 
                   return (
                     <div
                       key={nupRange.specificationId}
                       className="grid gap-0 py-1 items-center bg-white rounded"
                       style={{
-                        gridTemplateColumns: `80px 80px ${pageRanges.map(() => '80px').join(' ')}`
+                        gridTemplateColumns: `80px 80px 80px 80px ${pageRanges.map(() => '80px').join(' ')}`
                       }}
                     >
                       <span className="text-sm font-semibold text-violet-700">{nupLabel}</span>
+                      {/* 표지가격 */}
+                      <div className="flex flex-col items-center">
+                        <span className="text-[9px] text-gray-400">{standardCoverPrice > 0 ? formatNumber(standardCoverPrice) : '-'}</span>
+                        <Input
+                          type="number"
+                          className="h-7 w-16 text-xs text-center font-mono bg-pink-50 border-pink-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          placeholder="-"
+                          value={editingPrices[coverPriceKey] ?? (savedGroupCoverPrice != null ? String(savedGroupCoverPrice) : '')}
+                          onChange={(e) => {
+                            setEditingPrices(prev => ({ ...prev, [coverPriceKey]: e.target.value }));
+                          }}
+                        />
+                      </div>
+                      {/* 용지가격 */}
+                      <div className="flex flex-col items-center">
+                        <span className="text-[9px] text-gray-400">{standardPaperPrice > 0 ? formatNumber(standardPaperPrice) : '-'}</span>
+                        <Input
+                          type="number"
+                          className="h-7 w-16 text-xs text-center font-mono bg-green-50 border-green-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          placeholder="-"
+                          value={editingPrices[paperPriceKey] ?? (savedGroupPaperPrice != null ? String(savedGroupPaperPrice) : '')}
+                          onChange={(e) => {
+                            setEditingPrices(prev => ({ ...prev, [paperPriceKey]: e.target.value }));
+                          }}
+                        />
+                      </div>
                       {/* 1p당 그룹단가 입력 */}
                       <div className="flex flex-col items-end pr-2">
                         <span className="text-[9px] text-gray-400">{formatNumber(standardPricePerPage)}</span>
@@ -1585,20 +1633,49 @@ export default function GroupPricingPage() {
                     className="h-8 bg-indigo-600 hover:bg-indigo-700"
                     disabled={isSaving}
                     onClick={() => {
-                      const prices: any[] = [];
+                      // specificationId별로 하나의 price 레코드에 rangePrices + coverPrice + paperPrice + pricePerPage를 묶어서 저장
+                      const pricesBySpec = new Map<string, any>();
                       nupPageRanges.forEach((nupRange: any) => {
+                        const specId = nupRange.specificationId;
+                        const rangePrices: Record<string, number> = {};
+                        let hasData = false;
+
+                        // 구간별 가격
                         pageRanges.forEach((range: number) => {
-                          const key = `${setting.id}_nup_${nupRange.specificationId}_range_${range}`;
+                          const key = `${setting.id}_nup_${specId}_range_${range}`;
                           const editedValue = editingPrices[key];
                           if (editedValue) {
-                            prices.push({
-                              specificationId: nupRange.specificationId,
-                              minQuantity: range,
-                              price: parseFloat(editedValue),
-                            });
+                            rangePrices[String(range)] = parseFloat(editedValue);
+                            hasData = true;
                           }
                         });
+
+                        // coverPrice
+                        const coverKey = `${setting.id}_nup_${specId}_coverPrice`;
+                        const coverVal = editingPrices[coverKey];
+
+                        // paperPrice
+                        const paperKey = `${setting.id}_nup_${specId}_paperPrice`;
+                        const paperVal = editingPrices[paperKey];
+
+                        // pricePerPage
+                        const perPageKey = `${setting.id}_nup_${specId}_perPage`;
+                        const perPageVal = editingPrices[perPageKey];
+
+                        if (hasData || coverVal || paperVal || perPageVal) {
+                          const firstRange = pageRanges[0] || 20;
+                          pricesBySpec.set(specId, {
+                            specificationId: specId,
+                            basePages: firstRange,
+                            basePrice: rangePrices[String(firstRange)] || 0,
+                            pricePerPage: perPageVal ? parseFloat(perPageVal) : undefined,
+                            coverPrice: coverVal ? parseFloat(coverVal) : undefined,
+                            rangePrices: Object.keys(rangePrices).length > 0 ? rangePrices : undefined,
+                          });
+                        }
                       });
+
+                      const prices = Array.from(pricesBySpec.values());
                       if (prices.length > 0) {
                         handleSavePrices(setting.id, prices);
                       }

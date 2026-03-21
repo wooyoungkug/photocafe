@@ -1255,7 +1255,7 @@ export class PricingService {
 
       const existingMap = new Map(
         existingRecords.map(r => [
-          `${r.specificationId || ''}|${r.priceGroupId || ''}|${r.minQuantity ?? ''}`,
+          `${r.specificationId || ''}|${r.priceGroupId || ''}|${r.minQuantity ?? ''}|${r.nupKey || ''}`,
           r,
         ])
       );
@@ -1265,7 +1265,7 @@ export class PricingService {
       const updateOps: Promise<any>[] = [];
 
       for (const priceData of dto.prices) {
-        const key = `${priceData.specificationId || ''}|${priceData.priceGroupId || ''}|${priceData.minQuantity ?? ''}`;
+        const key = `${priceData.specificationId || ''}|${priceData.priceGroupId || ''}|${priceData.minQuantity ?? ''}|${priceData.nupKey || ''}`;
         const data = {
           clientId: dto.clientId,
           productionSettingId: dto.productionSettingId,
@@ -1273,6 +1273,7 @@ export class PricingService {
           priceGroupId: priceData.priceGroupId,
           minQuantity: priceData.minQuantity,
           maxQuantity: priceData.maxQuantity,
+          nupKey: priceData.nupKey,
           weight: priceData.weight,
           price: priceData.price || 0,
           singleSidedPrice: priceData.singleSidedPrice,
