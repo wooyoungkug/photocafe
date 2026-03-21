@@ -242,7 +242,7 @@ export function useCreateLeaveRequest() {
 
   return useMutation({
     mutationFn: (
-      data: Omit<LeaveRequest, 'id' | 'status' | 'approvals' | 'staff' | 'createdAt'>,
+      data: Omit<LeaveRequest, 'id' | 'staffId' | 'status' | 'approvals' | 'staff' | 'createdAt'>,
     ) => api.post<LeaveRequest>('/leave-requests', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [LEAVE_REQUESTS_KEY] });
@@ -312,7 +312,7 @@ export function useLeaveCalendar(query: LeaveCalendarQuery) {
     queryFn: () =>
       api.get<LeaveCalendarEntry[]>(
         '/leave-calendar',
-        query as Record<string, string | number | boolean | undefined>,
+        query as unknown as Record<string, string | number | boolean | undefined>,
       ),
   });
 }
