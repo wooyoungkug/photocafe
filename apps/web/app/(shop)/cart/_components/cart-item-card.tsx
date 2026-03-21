@@ -275,6 +275,7 @@ export function CartItemCard({
               'flex items-center justify-center w-10 sm:w-12 border-r transition-colors flex-shrink-0',
               isSelected ? 'bg-primary/5' : 'bg-transparent'
             )}
+            onPointerDown={(e) => e.stopPropagation()}
           >
             {hasShipping ? (
               <Checkbox
