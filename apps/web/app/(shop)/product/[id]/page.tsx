@@ -1203,32 +1203,44 @@ export default function ProductPage() {
             <DialogTitle className="flex items-center gap-2"><Star className="h-5 w-5 text-primary" />{t('saveAsMyProduct')}</DialogTitle>
             <DialogDescription>{t('saveMyProductDescription')}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="myProductName">{t('myProductName')}</Label>
-              <Input id="myProductName" value={myProductName} onChange={(e) => setMyProductName(e.target.value)} placeholder={t('myProductNameExample')} />
+          {!user?.clientId ? (
+            <div className="py-6 text-center space-y-3">
+              <Star className="h-10 w-10 text-gray-300 mx-auto" />
+              <p className="text-sm text-gray-600">마이상품 저장은 거래처 계정으로 로그인 후 이용 가능합니다.</p>
+              <DialogFooter className="justify-center">
+                <Button variant="outline" onClick={() => setShowSaveMyProductModal(false)}>{tc('close')}</Button>
+              </DialogFooter>
             </div>
-            <div className="bg-gray-50 rounded-lg p-3 space-y-1 text-sm">
-              <p className="font-medium text-gray-700 mb-2">{t('selectedOptions')}</p>
-              {selectedOptions.binding && <p className="text-gray-600">{t('binding')}: {selectedOptions.binding.name}</p>}
-              {effectiveFabricInfo?.name && <p className="text-gray-600">{t('albumCover')}: {effectiveFabricInfo.name}</p>}
-              {selectedOptions.paper && <p className="text-gray-600">{t('paper')}: {selectedOptions.printMethod === 'inkjet' ? '잉크젯' : selectedOptions.colorMode === '6c' ? '인디고 6도' : '인디고 4도'} - {selectedOptions.paper.name}</p>}
-              {selectedOptions.printSide && <p className="text-gray-600">{t('printSection')}: {selectedOptions.printSide === 'single' ? t('singleSided') : t('doubleSided')}</p>}
-              <p className="text-gray-600">{t('copperPlate')}: {selectedOptions.copperPlateType === 'none' ? t('none') : selectedOptions.copperPlateType === 'public' ? `${t('publicCopperPlate')} - ${selectedOptions.publicCopperPlate?.plateName || ''}` : `${t('ownedCopperPlate')} - ${selectedOptions.ownedCopperPlate?.plateName || ''}`}</p>
-              {selectedOptions.copperPlateType !== 'none' && (<>
-                {selectedOptions.foilColor && <p className="text-gray-600">{t('foilColorColon')} {copperPlateLabels?.foilColors?.find(c => c.code === selectedOptions.foilColor)?.name || selectedOptions.foilColor}</p>}
-                {selectedOptions.foilPosition && <p className="text-gray-600">{t('foilPositionColon')} {copperPlateLabels?.platePositions?.find(p => p.code === selectedOptions.foilPosition)?.name || selectedOptions.foilPosition}</p>}
-              </>)}
-              {selectedOptions.finishings.length > 0 && <p className="text-gray-600">{t('finishing')}: {selectedOptions.finishings.map(f => f.name).join(', ')}</p>}
-              <p className="text-gray-600">{tc('quantity')}: {t('countUnit', { count: quantity })}</p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowSaveMyProductModal(false)}>{tc('cancel')}</Button>
-            <Button onClick={handleSaveMyProduct} disabled={createMyProduct.isPending}>
-              {createMyProduct.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}{tc('save')}
-            </Button>
-          </DialogFooter>
+          ) : (
+            <>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="myProductName">{t('myProductName')}</Label>
+                  <Input id="myProductName" value={myProductName} onChange={(e) => setMyProductName(e.target.value)} placeholder={t('myProductNameExample')} />
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3 space-y-1 text-sm">
+                  <p className="font-medium text-gray-700 mb-2">{t('selectedOptions')}</p>
+                  {selectedOptions.binding && <p className="text-gray-600">{t('binding')}: {selectedOptions.binding.name}</p>}
+                  {effectiveFabricInfo?.name && <p className="text-gray-600">{t('albumCover')}: {effectiveFabricInfo.name}</p>}
+                  {selectedOptions.paper && <p className="text-gray-600">{t('paper')}: {selectedOptions.printMethod === 'inkjet' ? '잉크젯' : selectedOptions.colorMode === '6c' ? '인디고 6도' : '인디고 4도'} - {selectedOptions.paper.name}</p>}
+                  {selectedOptions.printSide && <p className="text-gray-600">{t('printSection')}: {selectedOptions.printSide === 'single' ? t('singleSided') : t('doubleSided')}</p>}
+                  <p className="text-gray-600">{t('copperPlate')}: {selectedOptions.copperPlateType === 'none' ? t('none') : selectedOptions.copperPlateType === 'public' ? `${t('publicCopperPlate')} - ${selectedOptions.publicCopperPlate?.plateName || ''}` : `${t('ownedCopperPlate')} - ${selectedOptions.ownedCopperPlate?.plateName || ''}`}</p>
+                  {selectedOptions.copperPlateType !== 'none' && (<>
+                    {selectedOptions.foilColor && <p className="text-gray-600">{t('foilColorColon')} {copperPlateLabels?.foilColors?.find(c => c.code === selectedOptions.foilColor)?.name || selectedOptions.foilColor}</p>}
+                    {selectedOptions.foilPosition && <p className="text-gray-600">{t('foilPositionColon')} {copperPlateLabels?.platePositions?.find(p => p.code === selectedOptions.foilPosition)?.name || selectedOptions.foilPosition}</p>}
+                  </>)}
+                  {selectedOptions.finishings.length > 0 && <p className="text-gray-600">{t('finishing')}: {selectedOptions.finishings.map(f => f.name).join(', ')}</p>}
+                  <p className="text-gray-600">{tc('quantity')}: {t('countUnit', { count: quantity })}</p>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowSaveMyProductModal(false)}>{tc('cancel')}</Button>
+                <Button onClick={handleSaveMyProduct} disabled={createMyProduct.isPending}>
+                  {createMyProduct.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}{tc('save')}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 
