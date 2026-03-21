@@ -882,7 +882,7 @@ export default function ProductPage() {
             {/* Options - simple text sections */}
             <div className="bg-white border py-2 px-4 space-y-0">
               {product.bindings && product.bindings.length > 0 && (
-                <OptionCard title={t('binding')} summary={selectedOptions.binding?.name?.split(' - ')[0].replace(/\s*\(.*?\)$/, '')}>
+                <OptionCard title={t('binding')}>
                   <OptionBinding bindings={product.bindings} selectedBindingId={selectedOptions.binding?.id}
                     onSelect={(binding) => setSelectedOptions(prev => ({
                       ...prev, binding,

@@ -58,6 +58,13 @@ import {
   ExternalLink,
 } from 'lucide-react';
 
+function generateProductCode(name: string): string {
+  const clean = name.replace(/[_\s\-()（）]/g, '');
+  const prefix = clean.slice(0, 4) || 'PROD';
+  const num = String(Math.floor(Math.random() * 900) + 100);
+  return `${prefix}-${num}`;
+}
+
 export default function ProductsPage() {
   const router = useRouter();
   const [search, setSearch] = useState('');
@@ -323,6 +330,7 @@ export default function ProductsPage() {
                               {product.productName}
                               <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100" />
                             </span>
+                            <span className="text-[12px] text-gray-400 font-mono">{product.productCode}</span>
                             <span className="md:hidden text-xs text-muted-foreground">{product.category?.name}</span>
                           </div>
                         </TableCell>
@@ -441,6 +449,11 @@ export default function ProductsPage() {
                 id="productName"
                 value={formData.productName}
                 onChange={(e) => setFormData({ ...formData, productName: e.target.value })}
+                onBlur={(e) => {
+                  if (!editingProduct && !formData.productCode.trim() && e.target.value) {
+                    setFormData((prev) => ({ ...prev, productCode: generateProductCode(e.target.value) }));
+                  }
+                }}
                 placeholder="프리미엄 포토북 A4"
               />
             </div>
