@@ -591,7 +591,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     return pp?.paperId || folder.selectedPaperId;
   }, [folder.selectedPaperId, availablePapers]);
 
-  // DB 기반 앨범 페이지 단가 조회 (용지 ID로 용지그룹별 단가 매칭)
+  // DB 기반 앨범 페이지 단가 조회 (용지 ID로 용지그룹별 단가 매칭, 로그인 거래처의 개별/그룹 단가 적용)
   const { data: albumPriceData, isFetching: isPriceFetching } = useAlbumPagePrice(
     productionSettingId,
     folder.specificationId,
@@ -599,6 +599,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     resolvedPrintSide,
     bindingProductionSettingId,
     actualPaperId,
+    user?.clientId,
   );
 
   // 제본단가 계산 (rangePrices 우선, 없으면 basePrice + pricePerPage * pageCount)

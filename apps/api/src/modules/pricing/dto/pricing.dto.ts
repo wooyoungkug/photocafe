@@ -31,6 +31,11 @@ export class GetAlbumPagePriceDto {
   @IsOptional()
   @IsString()
   paperId?: string;
+
+  @ApiPropertyOptional({ description: '거래처 ID (개별/그룹 단가 적용용)' })
+  @IsOptional()
+  @IsString()
+  clientId?: string;
 }
 
 // ==================== 그룹 가격 설정 DTO ====================
