@@ -26,19 +26,19 @@ export class StatisticsService {
       activeClients,
     ] = await Promise.all([
       // 오늘 주문 건수 및 매출
-      this.prisma.order.aggregate({
+      this.prisma.orders.aggregate({
         where: { orderedAt: { gte: today } },
         _count: { id: true },
         _sum: { finalAmount: true },
       }),
       // 이번 달 주문
-      this.prisma.order.aggregate({
+      this.prisma.orders.aggregate({
         where: { orderedAt: { gte: thisMonth } },
         _count: { id: true },
         _sum: { finalAmount: true },
       }),
       // 지난 달 주문
-      this.prisma.order.aggregate({
+      this.prisma.orders.aggregate({
         where: {
           orderedAt: { gte: lastMonth, lte: lastMonthEnd },
         },
@@ -46,17 +46,17 @@ export class StatisticsService {
         _sum: { finalAmount: true },
       }),
       // 접수대기 주문
-      this.prisma.order.count({
+      this.prisma.orders.count({
         where: { status: 'pending_receipt' },
       }),
       // 생산중 주문
-      this.prisma.order.count({
+      this.prisma.orders.count({
         where: { status: 'in_production' },
       }),
       // 전체 거래처
-      this.prisma.client.count(),
+      this.prisma.clients.count(),
       // 활성 거래처 (최근 30일 주문)
-      this.prisma.client.count({
+      this.prisma.clients.count({
         where: {
           orders: {
             some: {
@@ -170,7 +170,7 @@ export class StatisticsService {
   async getClientStatistics(query: ClientStatisticsQueryDto) {
     const { startDate, endDate, clientId, groupId } = query;
 
-    const where: Prisma.OrderWhereInput = {
+    const where: Prisma.ordersWhereInput = {
       status: { not: 'cancelled' },
       ...(clientId && { clientId }),
       ...(groupId && { client: { groupId } }),
@@ -184,7 +184,7 @@ export class StatisticsService {
         : {}),
     };
 
-    const clientStats = await this.prisma.order.groupBy({
+    const clientStats = await this.prisma.orders.groupBy({
       by: ['clientId'],
       where,
       _count: { id: true },
@@ -193,7 +193,7 @@ export class StatisticsService {
 
     // 거래처 정보 조회
     const clientIds = clientStats.map((s: { clientId: string }) => s.clientId);
-    const clients = await this.prisma.client.findMany({
+    const clients = await this.prisma.clients.findMany({
       where: { id: { in: clientIds } },
       include: {
         group: {
@@ -232,7 +232,7 @@ export class StatisticsService {
   async getBindingStatistics(query: StatisticsQueryDto) {
     const { startDate, endDate } = query;
 
-    const where: Prisma.OrderItemWhereInput = {
+    const where: Prisma.order_itemsWhereInput = {
       order: {
         status: { not: 'cancelled' },
         ...(startDate || endDate
@@ -246,7 +246,7 @@ export class StatisticsService {
       },
     };
 
-    const stats = await this.prisma.orderItem.groupBy({
+    const stats = await this.prisma.order_items.groupBy({
       by: ['bindingType'],
       where,
       _count: { id: true },
@@ -276,7 +276,7 @@ export class StatisticsService {
   async getProductStatistics(query: ProductStatisticsQueryDto) {
     const { startDate, endDate, categoryId } = query;
 
-    const where: Prisma.OrderItemWhereInput = {
+    const where: Prisma.order_itemsWhereInput = {
       order: {
         status: { not: 'cancelled' },
         ...(startDate || endDate
@@ -290,7 +290,7 @@ export class StatisticsService {
       },
     };
 
-    const stats = await this.prisma.orderItem.groupBy({
+    const stats = await this.prisma.order_items.groupBy({
       by: ['productId', 'productName'],
       where,
       _count: { id: true },
@@ -357,7 +357,7 @@ export class StatisticsService {
     const categoryIds = rows.map(r => r.categoryId);
 
     // Category 정보 조회
-    const categories = await this.prisma.category.findMany({
+    const categories = await this.prisma.categories.findMany({
       where: {
         id: { in: categoryIds },
         ...(level && { level }),
@@ -405,7 +405,7 @@ export class StatisticsService {
     const { startDate, endDate } = query;
 
     // 모든 카테고리 조회
-    const allCategories = await this.prisma.category.findMany({
+    const allCategories = await this.prisma.categories.findMany({
       where: { isActive: true },
       orderBy: [{ sortOrder: 'asc' }],
     });
