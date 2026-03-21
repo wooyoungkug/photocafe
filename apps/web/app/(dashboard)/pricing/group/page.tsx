@@ -1145,9 +1145,54 @@ export default function GroupPricingPage() {
                       )}
                     </div>
                     {linkedPapers.length > 0 && (
-                      <div className="text-[10px] text-gray-500 pl-4.5 truncate">
+                      <div className="text-[10px] text-gray-500 mb-1.5 truncate">
                         {linkedPapers.slice(0, 2).map((p: any) => `${p.name}${p.grammage ? ` ${p.grammage}g` : ''}`).join(', ')}
                         {linkedPapers.length > 2 && ` 외 ${linkedPapers.length - 2}개`}
+                      </div>
+                    )}
+                    {/* 규격별 단가 테이블 */}
+                    {(group.specPrices || []).length > 0 && (
+                      <div className="border rounded bg-white overflow-hidden">
+                        <table className="w-full text-[11px]">
+                          <thead>
+                            <tr className="bg-gray-50 border-b">
+                              <th className="text-left px-2 py-1 font-medium text-gray-500">규격</th>
+                              <th className="text-right px-2 py-1 font-medium text-gray-500 w-16">표준</th>
+                              <th className="text-right px-2 py-1 font-medium text-indigo-600 w-16">그룹</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(group.specPrices || []).map((specPrice: any) => {
+                              const specId = specPrice.specificationId;
+                              const specInfo = specifications.find((s: any) =>
+                                (s.specificationId || s.id) === specId
+                              )?.specification || {};
+                              const savedGroupPrice = groupPricesMap.get(`${setting.id}_${group.id}_${specId}`);
+                              const baseSpecId = group.inkjetBaseSpecId || (group.specPrices?.[0]?.specificationId || '');
+                              const isBase = specId === baseSpecId;
+                              const groupPriceVal = savedGroupPrice?.price ? Number(savedGroupPrice.price) : null;
+
+                              return (
+                                <tr key={specId} className={cn("border-b border-gray-100 last:border-0", isBase && "bg-indigo-50/50")}>
+                                  <td className="px-2 py-1 text-gray-700 truncate max-w-[80px]">
+                                    {specInfo.name || specId?.slice(-6)}
+                                    {isBase && <span className="text-indigo-400 ml-0.5 text-[9px]">기준</span>}
+                                  </td>
+                                  <td className="px-2 py-1 text-right text-gray-400 font-mono">
+                                    {specPrice.singleSidedPrice ? formatNumber(specPrice.singleSidedPrice) : '-'}
+                                  </td>
+                                  <td className="px-2 py-1 text-right font-mono font-semibold">
+                                    {groupPriceVal !== null ? (
+                                      <span className="text-indigo-700">{formatNumber(groupPriceVal)}</span>
+                                    ) : (
+                                      <span className="text-gray-300">-</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
                       </div>
                     )}
                   </div>
