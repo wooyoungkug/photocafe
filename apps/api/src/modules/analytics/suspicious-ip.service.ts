@@ -12,14 +12,14 @@ export class SuspiciousIpService {
     if (query.action) where.action = query.action;
     if (query.search) where.ip = { contains: query.search };
 
-    return this.prisma.suspicious_ips.findMany({
+    return this.prisma.suspiciousIp.findMany({
       where,
       orderBy: { createdAt: 'desc' },
     });
   }
 
   async create(dto: CreateSuspiciousIpDto) {
-    const existing = await this.prisma.suspicious_ips.findUnique({
+    const existing = await this.prisma.suspiciousIp.findUnique({
       where: { ip: dto.ip },
     });
     if (existing) {
@@ -28,7 +28,7 @@ export class SuspiciousIpService {
 
     const geo = geoip.lookup(dto.ip);
 
-    return this.prisma.suspicious_ips.create({
+    return this.prisma.suspiciousIp.create({
       data: {
         ip: dto.ip,
         reason: dto.reason,
@@ -44,7 +44,7 @@ export class SuspiciousIpService {
   }
 
   async update(id: string, dto: UpdateSuspiciousIpDto) {
-    const existing = await this.prisma.suspicious_ips.findUnique({ where: { id } });
+    const existing = await this.prisma.suspiciousIp.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException(`ID ${id}인 의심 IP를 찾을 수 없습니다.`);
     }
@@ -58,20 +58,20 @@ export class SuspiciousIpService {
       data.blockedAt = dto.action === 'block' ? new Date() : null;
     }
 
-    return this.prisma.suspicious_ips.update({ where: { id }, data });
+    return this.prisma.suspiciousIp.update({ where: { id }, data });
   }
 
   async remove(id: string) {
-    const existing = await this.prisma.suspicious_ips.findUnique({ where: { id } });
+    const existing = await this.prisma.suspiciousIp.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException(`ID ${id}인 의심 IP를 찾을 수 없습니다.`);
     }
-    return this.prisma.suspicious_ips.delete({ where: { id } });
+    return this.prisma.suspiciousIp.delete({ where: { id } });
   }
 
   /** IP 차단 목록 (미들웨어 캐싱용) */
   async getBlockedIps(): Promise<string[]> {
-    const blocked = await this.prisma.suspicious_ips.findMany({
+    const blocked = await this.prisma.suspiciousIp.findMany({
       where: { action: 'block', isActive: true },
       select: { ip: true },
     });

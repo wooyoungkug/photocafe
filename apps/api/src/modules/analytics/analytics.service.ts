@@ -291,7 +291,7 @@ export class AnalyticsService {
     const ips = result.map((r) => r.ip);
     const suspiciousIps =
       ips.length > 0
-        ? await this.prisma.suspicious_ips.findMany({
+        ? await this.prisma.suspiciousIp.findMany({
             where: { ip: { in: ips } },
             select: { ip: true, action: true, isActive: true, reason: true },
           })

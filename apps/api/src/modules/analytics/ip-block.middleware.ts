@@ -26,7 +26,7 @@ export class IpBlockMiddleware implements NestMiddleware {
     const now = Date.now();
     if (now - this.lastRefresh < this.CACHE_TTL_MS) return;
 
-    const blocked = await this.prisma.suspicious_ips.findMany({
+    const blocked = await this.prisma.suspiciousIp.findMany({
       where: { action: 'block', isActive: true },
       select: { ip: true },
     });

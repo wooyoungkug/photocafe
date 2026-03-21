@@ -82,7 +82,7 @@ export class SpecificationService {
         }
 
         // sortOrder 기준으로 정렬 (사용자 정의 순서)
-        return this.prisma.specifications.findMany({
+        return this.prisma.specification.findMany({
             where,
             orderBy: [
                 { sortOrder: 'asc' },
@@ -95,7 +95,7 @@ export class SpecificationService {
     }
 
     async findOne(id: string) {
-        const specification = await this.prisma.specifications.findUnique({
+        const specification = await this.prisma.specification.findUnique({
             where: { id },
             include: {
                 prices: true,
@@ -144,7 +144,7 @@ export class SpecificationService {
         const nup = (forAlbum || forIndigoAlbum) ? (dto.nup || this.calculateNup(widthInch, heightInch)) : null;
 
         // 3. 메인 규격 생성
-        const mainSpec = await this.prisma.specifications.create({
+        const mainSpec = await this.prisma.specification.create({
             data: {
                 code,
                 name,
@@ -174,7 +174,7 @@ export class SpecificationService {
             const pairCode = this.generateCode();
             const pairName = this.generateSpecName(heightInch, widthInch);
 
-            const pairSpec = await this.prisma.specifications.create({
+            const pairSpec = await this.prisma.specification.create({
                 data: {
                     code: pairCode,
                     name: pairName,
@@ -199,7 +199,7 @@ export class SpecificationService {
             });
 
             // 메인 규격에도 pairId 설정
-            await this.prisma.specifications.update({
+            await this.prisma.specification.update({
                 where: { id: mainSpec.id },
                 data: { pairId: pairSpec.id },
             });
@@ -313,7 +313,7 @@ export class SpecificationService {
                 // 이미 연결되어 있으면 스킵
                 if (existingSpecIds.has(spec.id)) continue;
 
-                await this.prisma.product_specifications.create({
+                await this.prisma.productSpecification.create({
                     data: {
                         productId: product.id,
                         specificationId: spec.id,
@@ -372,7 +372,7 @@ export class SpecificationService {
             return { linkedSettings: 0, details: [] };
         }
 
-        const productionSettings = await this.prisma.production_settings.findMany({
+        const productionSettings = await this.prisma.productionSetting.findMany({
             where: { isActive: true },
             select: {
                 id: true,
@@ -407,7 +407,7 @@ export class SpecificationService {
                 const { id: specId } = specs[i];
                 if (existingIds.has(specId)) continue;
 
-                await this.prisma.production_setting_specifications.create({
+                await this.prisma.productionSettingSpecification.create({
                     data: {
                         productionSettingId: ps.id,
                         specificationId: specId,
@@ -450,7 +450,7 @@ export class SpecificationService {
                         return { ...g, specPrices: newSpecPrices };
                     });
 
-                    await this.prisma.production_settings.update({
+                    await this.prisma.productionSetting.update({
                         where: { id: ps.id },
                         data: { priceGroups: updatedGroups },
                     });
@@ -493,7 +493,7 @@ export class SpecificationService {
             nupSqInch = undefined;
         }
 
-        const updatedSpec = await this.prisma.specifications.update({
+        const updatedSpec = await this.prisma.specification.update({
             where: { id },
             data: {
                 name: dto.name,
@@ -531,7 +531,7 @@ export class SpecificationService {
         }
 
         if (Object.keys(syncData).length > 0) {
-            await this.prisma.product_specifications.updateMany({
+            await this.prisma.productSpecification.updateMany({
                 where: { specificationId: id },
                 data: syncData,
             });
@@ -546,13 +546,13 @@ export class SpecificationService {
         const specIdsToDelete = spec.pairId ? [id, spec.pairId] : [id];
 
         // 연결된 ProductSpecification 먼저 삭제
-        const deletedLinks = await this.prisma.product_specifications.deleteMany({
+        const deletedLinks = await this.prisma.productSpecification.deleteMany({
             where: { specificationId: { in: specIdsToDelete } },
         });
 
         // 쌍이 있으면 함께 삭제
         if (spec.pairId) {
-            await this.prisma.specifications.deleteMany({
+            await this.prisma.specification.deleteMany({
                 where: { id: { in: specIdsToDelete } },
             });
             return {
@@ -562,7 +562,7 @@ export class SpecificationService {
             };
         }
 
-        await this.prisma.specifications.delete({
+        await this.prisma.specification.delete({
             where: { id },
         });
         return {
@@ -576,7 +576,7 @@ export class SpecificationService {
 
     async updateSortOrder(items: { id: string; sortOrder: number }[]) {
         // 쌍도 함께 업데이트하기 위해 pairId 조회
-        const specs = await this.prisma.specifications.findMany({
+        const specs = await this.prisma.specification.findMany({
             where: { id: { in: items.map(i => i.id) } },
             select: { id: true, pairId: true },
         });
@@ -588,7 +588,7 @@ export class SpecificationService {
             const spec = specs.find((s: { id: string }) => s.id === item.id);
 
             updates.push(
-                this.prisma.specifications.update({
+                this.prisma.specification.update({
                     where: { id: item.id },
                     data: { sortOrder: item.sortOrder },
                 })
@@ -598,7 +598,7 @@ export class SpecificationService {
             if (spec?.pairId && !processedPairs.has(spec.pairId)) {
                 processedPairs.add(spec.pairId);
                 updates.push(
-                    this.prisma.specifications.update({
+                    this.prisma.specification.update({
                         where: { id: spec.pairId },
                         data: { sortOrder: item.sortOrder + 1 }, // 쌍은 바로 다음 순서
                     })
@@ -637,7 +637,7 @@ export class SpecificationService {
                 break;
         }
 
-        return this.prisma.specifications.findMany({
+        return this.prisma.specification.findMany({
             where,
             orderBy: [{ squareMeters: 'asc' }, { widthInch: 'asc' }],
         });

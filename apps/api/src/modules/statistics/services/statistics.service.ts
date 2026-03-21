@@ -232,7 +232,7 @@ export class StatisticsService {
   async getBindingStatistics(query: StatisticsQueryDto) {
     const { startDate, endDate } = query;
 
-    const where: Prisma.order_itemsWhereInput = {
+    const where: Prisma.OrderItemWhereInput = {
       order: {
         status: { not: 'cancelled' },
         ...(startDate || endDate
@@ -246,7 +246,7 @@ export class StatisticsService {
       },
     };
 
-    const stats = await this.prisma.order_items.groupBy({
+    const stats = await this.prisma.orderItem.groupBy({
       by: ['bindingType'],
       where,
       _count: { id: true },
@@ -276,7 +276,7 @@ export class StatisticsService {
   async getProductStatistics(query: ProductStatisticsQueryDto) {
     const { startDate, endDate, categoryId } = query;
 
-    const where: Prisma.order_itemsWhereInput = {
+    const where: Prisma.OrderItemWhereInput = {
       order: {
         status: { not: 'cancelled' },
         ...(startDate || endDate
@@ -290,7 +290,7 @@ export class StatisticsService {
       },
     };
 
-    const stats = await this.prisma.order_items.groupBy({
+    const stats = await this.prisma.orderItem.groupBy({
       by: ['productId', 'productName'],
       where,
       _count: { id: true },
