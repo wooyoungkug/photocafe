@@ -14,6 +14,8 @@ export function OptionBinding({ bindings, selectedBindingId, onSelect }: OptionB
 
   const isSingle = bindings.length === 1;
 
+  if (isSingle) return null;
+
   return (
     <div className="flex flex-wrap gap-1.5">
       {bindings.map((binding) => {
