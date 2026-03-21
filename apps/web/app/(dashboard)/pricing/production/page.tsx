@@ -2944,7 +2944,7 @@ export default function ProductionSettingPage() {
                               용지그룹을 추가하여 용지별 가격을 설정하세요.
                             </div>
                           ) : (
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className={cn("grid gap-3", settingForm.printMethod === 'album' ? "grid-cols-3" : "grid-cols-2")}>
                               {settingForm.priceGroups.map((group) => {
                                 const style = PRICE_GROUP_STYLES[group.color] || PRICE_GROUP_STYLES.none;
                                 const assignedPapers = Object.entries(settingForm.paperPriceGroupMap)
