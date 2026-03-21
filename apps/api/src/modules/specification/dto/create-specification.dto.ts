@@ -83,7 +83,7 @@ export class CreateSpecificationDto {
     @IsNumber()
     squareMeters?: number;
 
-    @ApiPropertyOptional({ description: 'Nup 설정 (앨범 전용)', enum: ['1++up', '1+up', '1up', '2up', '4up'] })
+    @ApiPropertyOptional({ description: 'Nup 설정 (앨범 전용)', enum: ['1++up', '1+up', '1up', '2up', '4up', '6up', '8up'] })
     @IsOptional()
     @IsString()
     nup?: string;
