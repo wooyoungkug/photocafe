@@ -1253,7 +1253,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
               <div className="space-y-1 text-[11px]">
                 {/* 제본비 */}
                 <div className="space-y-0.5">
-                  <div className="text-gray-500 font-medium">■ 제본비</div>
+                  <div className="text-gray-500 font-medium">■ 표지+제본비</div>
                   <div className="text-gray-600 pl-2">
                     <span className="text-gray-400">방식:</span> {bName}
                   </div>

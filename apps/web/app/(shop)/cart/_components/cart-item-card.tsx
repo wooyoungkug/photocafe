@@ -825,7 +825,7 @@ export function CartItemCard({
                             {/* 제본비 (표지비 포함) */}
                             {bindingPrice > 0 && (
                               <div className="flex justify-between items-baseline text-xs">
-                                <span className="text-gray-600">제본비</span>
+                                <span className="text-gray-600">표지+제본비</span>
                                 <span className="text-gray-800 tabular-nums">+{bindingPrice.toLocaleString()}원</span>
                               </div>
                             )}
