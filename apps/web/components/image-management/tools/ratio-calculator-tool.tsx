@@ -236,8 +236,15 @@ export function RatioCalculatorTool() {
                 min="0"
                 step="any"
                 placeholder="입력하면 세로 계산"
-                value={newWidth}
+                value={
+                  lastChanged === 'height' && hasResult
+                    ? resultWidth % 1 === 0
+                      ? String(resultWidth)
+                      : resultWidth.toFixed(2)
+                    : newWidth
+                }
                 onChange={(e) => handleNewWidthChange(e.target.value)}
+                className={lastChanged === 'height' && hasResult ? 'bg-blue-50 border-blue-300' : ''}
               />
             </div>
             <div className="space-y-1.5">
@@ -250,8 +257,15 @@ export function RatioCalculatorTool() {
                 min="0"
                 step="any"
                 placeholder="입력하면 가로 계산"
-                value={newHeight}
+                value={
+                  lastChanged === 'width' && hasResult
+                    ? resultHeight % 1 === 0
+                      ? String(resultHeight)
+                      : resultHeight.toFixed(2)
+                    : newHeight
+                }
                 onChange={(e) => handleNewHeightChange(e.target.value)}
+                className={lastChanged === 'width' && hasResult ? 'bg-blue-50 border-blue-300' : ''}
               />
             </div>
           </div>
