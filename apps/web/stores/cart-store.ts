@@ -80,6 +80,7 @@ export interface AlbumOrderCartInfo {
   pricePerPage?: number;           // 1p당 출력단가 (DB 조회)
   printPrice?: number;             // 출력비 = pricePerPage × 청구페이지수 (업로드 시 계산값)
   postProcessingPrice?: number;    // 후가공비 (코팅 등)
+  printSide?: 'single' | 'double'; // 단면/양면
 }
 
 export interface CartItem {

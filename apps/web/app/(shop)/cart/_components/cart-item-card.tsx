@@ -85,6 +85,11 @@ export const getCartShippingSummary = (info: CartShippingInfo): string => {
   return `${methodLabel} · ${senderLabel}→${receiverLabel} · ${feeLabel}`;
 };
 
+const COLOR_MODE_OPTIONS = [
+  { value: '4c', label: '4도' },
+  { value: '6c', label: '6도' },
+] as const;
+
 const PAGE_LAYOUT_OPTIONS = [
   { value: 'spread', label: '펼친면' },
   { value: 'single', label: '낱장' },
@@ -365,6 +370,12 @@ export function CartItemCard({
                       </span>
                       <Separator orientation="vertical" className="h-3 bg-purple-200" />
                       <span>{item.albumOrderInfo.colorMode === '4c' ? '4도' : '6도'}</span>
+                      {item.albumOrderInfo.printSide && (
+                        <>
+                          <Separator orientation="vertical" className="h-3 bg-purple-200" />
+                          <span>{item.albumOrderInfo.printSide === 'single' ? '단면' : '양면'}</span>
+                        </>
+                      )}
                       <Separator orientation="vertical" className="h-3 bg-purple-200" />
                       <span>{item.albumOrderInfo.pageCount}p</span>
                       <Separator orientation="vertical" className="h-3 bg-purple-200" />
