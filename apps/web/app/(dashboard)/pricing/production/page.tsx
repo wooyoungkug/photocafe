@@ -177,8 +177,18 @@ const getNextAvailableColor = (usedColors: PriceGroupColor[]): PriceGroupColor |
 const generateGroupId = () => `pg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
 // Nup 값 목록 및 정렬 순서 (큰 면적 순: 1++up > 1+up > 1up > 2up > 4up > 8up)
-const NUP_ORDER = ['1++up', '1+up', '1up', '2up', '4up', '8up'] as const;
+const NUP_ORDER = ['1++up', '1+up', '1up', '2up', '4up', '6up', '8up'] as const;
 type NupValue = typeof NUP_ORDER[number];
+
+// 인디고앨범 NUP 키 → 실제 배수(분모) 매핑
+const NUP_TO_COUNT: Record<string, number> = {
+  '1++up': 1, '1+up': 1, '1up': 1, '2up': 2, '4up': 4, '6up': 6, '8up': 8,
+};
+
+// 인디고앨범 NUP 기본 가중치
+const DEFAULT_NUP_ALBUM_WEIGHTS: Record<string, number> = {
+  '1+up': 1.0, '1up': 1.0, '2up': 1.2, '4up': 1.3, '6up': 1.35, '8up': 1.4,
+};
 
 // 규격을 Nup 그룹으로 묶어서 반환하는 헬퍼 함수
 // 각 그룹의 대표 규격 1개만 UI에 표시하고, 선택 시 같은 Nup의 모든 규격이 함께 선택됨
@@ -1103,6 +1113,15 @@ export default function ProductionSettingPage() {
     8: 1.4,
   };
 
+  // 인디고앨범 spec에서 NUP 키 목록 추출 (forIndigoAlbum=true인 spec의 unique nup)
+  const getIndigoAlbumNupKeys = (): string[] => {
+    if (!specifications) return ['1+up', '1up', '2up', '4up', '6up', '8up'];
+    const albumSpecs = (specifications as any[]).filter(s => s.forIndigoAlbum && s.nup);
+    const nupSet = new Set(albumSpecs.map(s => s.nup as string));
+    const ordered = [...NUP_ORDER].filter(n => nupSet.has(n));
+    return ordered.length > 0 ? ordered : ['1+up', '1up', '2up', '4up', '6up', '8up'];
+  };
+
   const [settingForm, setSettingForm] = useState({
     codeName: "",
     vendorType: "in_house" as string,
@@ -1144,6 +1163,7 @@ export default function ProductionSettingPage() {
       // 인디고용: Up별 가격 (1up 기준가 입력 시 가중치로 자동 계산)
       upPrices: Array<{
         up: number;
+        nupKey?: string;  // "1+up", "1up", "2up" 등 NUP 문자열 (indigoAlbum용)
         weight: number;
         fourColorSinglePrice: number;
         fourColorDoublePrice: number;
@@ -2148,6 +2168,7 @@ export default function ProductionSettingPage() {
       // 용지별출력단가/규격별은 인쇄방식에 따라 필터링
       const method = settingForm.printMethod;
       if (method === "indigo") return specifications.filter((spec) => spec.forIndigo);
+      if (method === "indigoAlbum") return specifications.filter((spec) => (spec as any).forIndigoAlbum);
       if (method === "inkjet") return specifications.filter((spec) => spec.forInkjet);
       if (method === "album") return specifications.filter((spec) => spec.forAlbum);
       if (method === "frame") return specifications.filter((spec) => spec.forFrame);
@@ -2711,8 +2732,8 @@ export default function ProductionSettingPage() {
                     {/* 용지별출력단가/규격별: 인쇄방식에 따라 다른 UI */}
 
 
-                    {/* 인디고출력: 단가그룹 설정 + 용지별 그룹 할당 */}
-                    {settingForm.printMethod === "indigo" ? (
+                    {/* 인디고출력 / 인디고앨범: 단가그룹 설정 + 용지별 그룹 할당 */}
+                    {(settingForm.printMethod === "indigo" || settingForm.printMethod === "indigoAlbum") ? (
                       <>
                         {/* 용지별그룹 */}
                         <div className="space-y-2">
@@ -2720,7 +2741,7 @@ export default function ProductionSettingPage() {
                           <div className="border rounded-lg p-3 max-h-[200px] overflow-y-auto">
                             {!papersForPricing || papersForPricing.length === 0 ? (
                               <p className="text-center text-muted-foreground py-2 text-sm">
-                                인디고용 용지가 없습니다.
+                                {settingForm.printMethod === "indigoAlbum" ? "인디고앨범용" : "인디고용"} 용지가 없습니다.
                               </p>
                             ) : (
                               <div className="grid grid-cols-3 gap-1.5">
@@ -2860,14 +2881,24 @@ export default function ProductionSettingPage() {
                                       {
                                         id: generateGroupId(),
                                         color: nextColor,
-                                        upPrices: INDIGO_UP_UNITS.map((up) => ({
-                                          up,
-                                          weight: DEFAULT_INDIGO_WEIGHTS[up],
-                                          fourColorSinglePrice: 0,
-                                          fourColorDoublePrice: 0,
-                                          sixColorSinglePrice: 0,
-                                          sixColorDoublePrice: 0,
-                                        })),
+                                        upPrices: settingForm.printMethod === "indigoAlbum"
+                                          ? getIndigoAlbumNupKeys().map((nupKey) => ({
+                                              up: NUP_TO_COUNT[nupKey] || 1,
+                                              nupKey,
+                                              weight: DEFAULT_NUP_ALBUM_WEIGHTS[nupKey] || 1.0,
+                                              fourColorSinglePrice: 0,
+                                              fourColorDoublePrice: 0,
+                                              sixColorSinglePrice: 0,
+                                              sixColorDoublePrice: 0,
+                                            }))
+                                          : INDIGO_UP_UNITS.map((up) => ({
+                                              up,
+                                              weight: DEFAULT_INDIGO_WEIGHTS[up],
+                                              fourColorSinglePrice: 0,
+                                              fourColorDoublePrice: 0,
+                                              sixColorSinglePrice: 0,
+                                              sixColorDoublePrice: 0,
+                                            })),
                                       },
                                     ],
                                   }));
@@ -2891,23 +2922,37 @@ export default function ProductionSettingPage() {
                                   .filter(([, gid]) => gid === group.id)
                                   .map(([pid]) => papersForPricing?.find(p => p.id === pid))
                                   .filter(Boolean);
-                                const upPrices = group.upPrices || INDIGO_UP_UNITS.map((up) => ({
-                                  up,
-                                  weight: DEFAULT_INDIGO_WEIGHTS[up],
-                                  fourColorSinglePrice: 0,
-                                  fourColorDoublePrice: 0,
-                                  sixColorSinglePrice: 0,
-                                  sixColorDoublePrice: 0,
-                                }));
+                                const upPrices = group.upPrices || (
+                                  settingForm.printMethod === "indigoAlbum"
+                                    ? getIndigoAlbumNupKeys().map((nupKey) => ({
+                                        up: NUP_TO_COUNT[nupKey] || 1,
+                                        nupKey,
+                                        weight: DEFAULT_NUP_ALBUM_WEIGHTS[nupKey] || 1.0,
+                                        fourColorSinglePrice: 0,
+                                        fourColorDoublePrice: 0,
+                                        sixColorSinglePrice: 0,
+                                        sixColorDoublePrice: 0,
+                                      }))
+                                    : INDIGO_UP_UNITS.map((up) => ({
+                                        up,
+                                        weight: DEFAULT_INDIGO_WEIGHTS[up],
+                                        fourColorSinglePrice: 0,
+                                        fourColorDoublePrice: 0,
+                                        sixColorSinglePrice: 0,
+                                        sixColorDoublePrice: 0,
+                                      }))
+                                );
 
-                                // 1up 기준가로 다른 up 가격 자동 계산
+                                // 기준행(idx=0) 가격으로 다른 up 가격 자동 계산
                                 const calculate1upBasedPrices = (baseUp: typeof upPrices[0], priceField: keyof typeof baseUp, value: number) => {
                                   const basePrice = value;
-                                  return upPrices.map(up => {
-                                    if (up.up === 1) {
+                                  const baseNupCount = baseUp.nupKey ? (NUP_TO_COUNT[baseUp.nupKey] || 1) : baseUp.up;
+                                  return upPrices.map((up, i) => {
+                                    if (i === 0) {
                                       return { ...up, [priceField]: value };
                                     }
-                                    return { ...up, [priceField]: Math.round((basePrice / up.up) * up.weight) };
+                                    const nupCount = up.nupKey ? (NUP_TO_COUNT[up.nupKey] || 1) : up.up;
+                                    return { ...up, [priceField]: Math.round((basePrice / nupCount * baseNupCount) * up.weight) };
                                   });
                                 };
 
@@ -2931,7 +2976,7 @@ export default function ProductionSettingPage() {
                                 // 1up 원가 = (국전지가격/500/4/2) + 클릭차지
                                 // nup 원가 = 1up 원가 / n
                                 // 클릭차지 = 1도당 잉크비용 × 도수 (4도 또는 6도)
-                                const getCostDisplay = (priceField: string, up: number) => {
+                                const getCostDisplay = (priceField: string, up: number, nupKey?: string) => {
                                   if (avgPaperCostPerSide === null || !indigoInk1ColorCost) return null;
                                   const colorCount = priceField.includes('four') ? 4 : 6;
                                   const clickCharge = indigoInk1ColorCost * colorCount;
@@ -2939,8 +2984,9 @@ export default function ProductionSettingPage() {
                                   const costPerSide1up = avgPaperCostPerSide + clickCharge;
                                   // 단면: 1면, 양면: 2면
                                   const totalCost1up = priceField.includes('Double') ? costPerSide1up * 2 : costPerSide1up;
-                                  // Up별 원가 = 1up 원가 / up
-                                  const costPerUp = totalCost1up / up;
+                                  // Up별 원가 = 1up 원가 / nupCount
+                                  const nupCount = nupKey ? (NUP_TO_COUNT[nupKey] || 1) : up;
+                                  const costPerUp = totalCost1up / nupCount;
                                   return formatNumber(Math.round(costPerUp));
                                 };
 
@@ -3009,8 +3055,8 @@ export default function ProductionSettingPage() {
                                         <tbody>
                                           {upPrices.map((upPrice, idx) => {
                                             return (
-                                              <tr key={upPrice.up} className={cn("border-b border-gray-100 last:border-0", idx === 0 && "bg-amber-50/50")}>
-                                                <td className="text-center py-0.5 px-0.5 font-medium text-indigo-600">{upPrice.up}up</td>
+                                              <tr key={upPrice.nupKey || upPrice.up} className={cn("border-b border-gray-100 last:border-0", idx === 0 && "bg-amber-50/50")}>
+                                                <td className="text-center py-0.5 px-0.5 font-medium text-indigo-600">{upPrice.nupKey || `${upPrice.up}up`}</td>
                                                 <td className="text-center px-0.5 py-0.5">
                                                   <div className="relative">
                                                     <Input
@@ -3020,28 +3066,30 @@ export default function ProductionSettingPage() {
                                                       max="5"
                                                       className="h-8 w-12 text-center text-[11px] bg-gray-50 border-gray-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                                       value={upPrice.weight || ""}
-                                                      disabled={upPrice.up === 1}
+                                                      disabled={idx === 0}
                                                       onChange={(e) => {
                                                         const weight = Number(e.target.value) || 1;
                                                         setSettingForm((prev) => ({
                                                           ...prev,
                                                           priceGroups: prev.priceGroups.map(g => {
                                                             if (g.id !== group.id) return g;
-                                                            const newUpPrices = (g.upPrices || upPrices).map(up => {
-                                                              if (up.up !== upPrice.up) return up;
+                                                            const newUpPrices = (g.upPrices || upPrices).map((up, i) => {
+                                                              if (i !== idx) return up;
                                                               return { ...up, weight };
                                                             });
-                                                            // 가중치 변경 시 1up 기준으로 가격 재계산
-                                                            const oneUpPrice = newUpPrices.find(up => up.up === 1);
-                                                            if (oneUpPrice) {
-                                                              const recalculated = newUpPrices.map(up => {
-                                                                if (up.up === 1) return up;
+                                                            // 가중치 변경 시 기준행(idx=0) 기준으로 가격 재계산
+                                                            const baseUpPrice = newUpPrices[0];
+                                                            if (baseUpPrice) {
+                                                              const baseNupCount = baseUpPrice.nupKey ? (NUP_TO_COUNT[baseUpPrice.nupKey] || 1) : baseUpPrice.up;
+                                                              const recalculated = newUpPrices.map((up, i) => {
+                                                                if (i === 0) return up;
+                                                                const nupCount = up.nupKey ? (NUP_TO_COUNT[up.nupKey] || 1) : up.up;
                                                                 return {
                                                                   ...up,
-                                                                  fourColorSinglePrice: Math.round((oneUpPrice.fourColorSinglePrice / up.up) * up.weight),
-                                                                  fourColorDoublePrice: Math.round((oneUpPrice.fourColorDoublePrice / up.up) * up.weight),
-                                                                  sixColorSinglePrice: Math.round((oneUpPrice.sixColorSinglePrice / up.up) * up.weight),
-                                                                  sixColorDoublePrice: Math.round((oneUpPrice.sixColorDoublePrice / up.up) * up.weight),
+                                                                  fourColorSinglePrice: Math.round((baseUpPrice.fourColorSinglePrice / nupCount * baseNupCount) * up.weight),
+                                                                  fourColorDoublePrice: Math.round((baseUpPrice.fourColorDoublePrice / nupCount * baseNupCount) * up.weight),
+                                                                  sixColorSinglePrice: Math.round((baseUpPrice.sixColorSinglePrice / nupCount * baseNupCount) * up.weight),
+                                                                  sixColorDoublePrice: Math.round((baseUpPrice.sixColorDoublePrice / nupCount * baseNupCount) * up.weight),
                                                                 };
                                                               });
                                                               return { ...g, upPrices: recalculated };
@@ -3060,7 +3108,7 @@ export default function ProductionSettingPage() {
                                                   if (fps === 'double') return !f.includes('Single');
                                                   return true;
                                                 }).map((field) => {
-                                                  const costDisplay = getCostDisplay(field, upPrice.up);
+                                                  const costDisplay = getCostDisplay(field, upPrice.up, upPrice.nupKey);
                                                   return (
                                                     <td key={field} className="px-0.5 py-0.5">
                                                       <div className="flex flex-col items-center">
@@ -3079,18 +3127,20 @@ export default function ProductionSettingPage() {
                                                               ...prev,
                                                               priceGroups: prev.priceGroups.map(g => {
                                                                 if (g.id !== group.id) return g;
-                                                                if (upPrice.up === 1) {
-                                                                  // 1up 가격 변경 시: nup = 1up가격 / nup * 가중치
-                                                                  const newUpPrices = (g.upPrices || upPrices).map(up => {
-                                                                    if (up.up === 1) {
+                                                                if (idx === 0) {
+                                                                  // 기준행(idx=0) 가격 변경 시: nup = 기준가 / nupCount * baseNupCount * 가중치
+                                                                  const baseNupCount = upPrice.nupKey ? (NUP_TO_COUNT[upPrice.nupKey] || 1) : upPrice.up;
+                                                                  const newUpPrices = (g.upPrices || upPrices).map((up, i) => {
+                                                                    if (i === 0) {
                                                                       return { ...up, [field]: value };
                                                                     }
-                                                                    return { ...up, [field]: Math.round((value / up.up) * up.weight) };
+                                                                    const nupCount = up.nupKey ? (NUP_TO_COUNT[up.nupKey] || 1) : up.up;
+                                                                    return { ...up, [field]: Math.round((value / nupCount * baseNupCount) * up.weight) };
                                                                   });
                                                                   return { ...g, upPrices: newUpPrices };
                                                                 }
-                                                                const newUpPrices = (g.upPrices || upPrices).map(up =>
-                                                                  up.up === upPrice.up ? { ...up, [field]: value } : up
+                                                                const newUpPrices = (g.upPrices || upPrices).map((up, i) =>
+                                                                  i === idx ? { ...up, [field]: value } : up
                                                                 );
                                                                 return { ...g, upPrices: newUpPrices };
                                                               }),
