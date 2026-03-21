@@ -228,8 +228,8 @@ export class PricingService {
       missingReason = `[${settingName}] ${specName} ${colorLabel}/${layoutLabel}(${priceField}) 단가 미등록`;
     }
 
-    // 1+up 앨범은 파노라마 표지로 인해 2p 추가 청구
-    const billingExtraPages = specInfo?.nup === '1+up' ? 2 : 0;
+    // 추가 청구 페이지 없음 (1+up 표지 비용은 coverPrice로 별도 청구)
+    const billingExtraPages = 0;
     return { pricePerPage, bindingBasePrice, bindingPricePerPage, bindingRangePrices, coverPrice, missingReason, billingExtraPages };
   }
 
@@ -315,8 +315,8 @@ export class PricingService {
       );
     }
 
-    // 1+up 앨범은 파노라마 표지로 인해 2p 추가 청구
-    const billingExtraPages = specification.nup === '1+up' ? 2 : 0;
+    // 추가 청구 페이지 없음 (1+up 표지 비용은 coverPrice로 별도 청구)
+    const billingExtraPages = 0;
     const billingPageCount = dto.pageCount + billingExtraPages;
 
     // 3. productionSettingId 목록 수집: bindings 우선, 없으면 outputPriceSettings JSON

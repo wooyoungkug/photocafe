@@ -1330,37 +1330,18 @@ export default function GroupPricingPage() {
                         return (
                           <div key={range} className="flex flex-col items-center">
                             <span className="text-[9px] text-gray-400">{formatNumber(standardPrice)}</span>
-                            {isFirstRange ? (
-                              <Input
-                                type="number"
-                                className="h-7 w-16 text-xs text-center font-mono bg-blue-50 border-blue-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                placeholder="-"
-                                value={displayValue}
-                                onChange={(e) => {
-                                  const value = Number(e.target.value);
-                                  const firstRange = pageRanges[0] || 20;
-                                  const perPageKey = `${setting.id}_nup_${nupRange.specificationId}_perPage`;
-                                  const currentPerPage = editingPrices[perPageKey] ? Number(editingPrices[perPageKey]) : standardPricePerPage;
-
-                                  const updates: Record<string, string> = {
-                                    [key]: e.target.value
-                                  };
-
-                                  pageRanges.forEach((r: number, i: number) => {
-                                    if (i > 0) {
-                                      const calcPrice = Math.round((value + ((r - firstRange) * currentPerPage)) * 100) / 100;
-                                      updates[`${setting.id}_nup_${nupRange.specificationId}_range_${r}`] = String(calcPrice);
-                                    }
-                                  });
-
-                                  setEditingPrices(prev => ({ ...prev, ...updates }));
-                                }}
-                              />
-                            ) : (
-                              <span className="h-7 flex items-center justify-center w-16 font-mono text-xs text-gray-600 bg-gray-50 rounded border">
-                                {displayValue ? formatNumber(Number(displayValue)) : '-'}
-                              </span>
-                            )}
+                            <Input
+                              type="number"
+                              className={cn(
+                                "h-7 w-16 text-xs text-center font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+                                isFirstRange ? "bg-blue-50 border-blue-300" : ""
+                              )}
+                              placeholder="-"
+                              value={displayValue}
+                              onChange={(e) => {
+                                setEditingPrices(prev => ({ ...prev, [key]: e.target.value }));
+                              }}
+                            />
                           </div>
                         );
                       })}

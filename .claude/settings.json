@@ -15,7 +15,8 @@
       "Bash(EC=$?)",
       "Bash(PGPASSWORD=postgres \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\":*)",
       "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -c \"SELECT id, \"\"productName\"\", \"\"thumbnailUrl\"\" FROM \"\"Product\"\" LIMIT 5;\")",
-      "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -c \":*)"
+      "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -c \":*)",
+      "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -c \"\\\\d products\")"
     ]
   },
   "hooks": {

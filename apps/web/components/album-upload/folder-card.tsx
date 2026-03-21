@@ -404,6 +404,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     bindingProductionSettingId,
     bindingName,
     defaultBindingPrice,
+    printType,
   } = useMultiFolderUploadStore();
 
   // 현재 폴더의 출력방법/도수에 맞는 용지 필터링
@@ -429,12 +430,21 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
 
   const canSelect = hasValidStatus && folder.specFoundInDB !== false;
 
+  // 출력구분 결정: 상품의 printType 사용 (pageLayout은 파일 편집스타일이므로 출력구분과 다름)
+  // single(단면출력), double(양면출력), customer(고객선택) → customer일 때는 pageLayout 기반 추론
+  const resolvedPrintSide = useMemo(() => {
+    if (printType === 'single') return 'single' as const;
+    if (printType === 'double') return 'spread' as const;
+    // customer 또는 미설정: 펼친면 파일은 단면출력, 낱장 파일은 양면출력
+    return folder.pageLayout === 'spread' ? 'single' : 'spread';
+  }, [printType, folder.pageLayout]);
+
   // DB 기반 앨범 페이지 단가 조회
   const { data: albumPriceData } = useAlbumPagePrice(
     productionSettingId,
     folder.specificationId,
     folder.colorMode || '6c',
-    folder.pageLayout === 'spread' ? 'spread' : 'single',
+    resolvedPrintSide,
     bindingProductionSettingId,
   );
 
