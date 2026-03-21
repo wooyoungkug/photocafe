@@ -442,12 +442,25 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
   const dbBindingPrice = useMemo(() => {
     if (!albumPriceData) return defaultBindingPrice;
     const { bindingRangePrices, bindingBasePrice, bindingPricePerPage } = albumPriceData;
-    const pageKey = String(folder.pageCount);
+    const billingPc = folder.pageCount + (albumPriceData.billingExtraPages || 0);
+    const pageKey = String(billingPc);
     if (bindingRangePrices && pageKey in bindingRangePrices) {
       return bindingRangePrices[pageKey];
     }
+    // 보간: 가장 가까운 하위 구간에서 pricePerPage 적용
+    if (bindingRangePrices) {
+      const numericKeys = Object.keys(bindingRangePrices)
+        .filter((k) => !k.startsWith('__'))
+        .map(Number)
+        .filter((k) => !isNaN(k))
+        .sort((a, b) => a - b);
+      const lowerKey = numericKeys.filter((k) => k <= billingPc).pop();
+      if (lowerKey !== undefined) {
+        return (bindingRangePrices[String(lowerKey)] || 0) + bindingPricePerPage * (billingPc - lowerKey);
+      }
+    }
     if (bindingBasePrice || bindingPricePerPage) {
-      return bindingBasePrice + bindingPricePerPage * folder.pageCount;
+      return bindingBasePrice + bindingPricePerPage * billingPc;
     }
     return defaultBindingPrice;
   }, [albumPriceData, folder.pageCount, defaultBindingPrice]);
@@ -457,7 +470,8 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     pricePerPage: albumPriceData?.pricePerPage || 0,
     bindingPrice: dbBindingPrice || 0,
     coverPrice: albumPriceData?.coverPrice || 0,
-  }), [albumPriceData, dbBindingPrice]);
+    billingPageCount: folder.pageCount + (albumPriceData?.billingExtraPages || 0),
+  }), [albumPriceData, dbBindingPrice, folder.pageCount]);
 
   // DB 가격 미등록 여부
   const isPriceMissing = !albumPriceData || albumPriceData.pricePerPage === 0;

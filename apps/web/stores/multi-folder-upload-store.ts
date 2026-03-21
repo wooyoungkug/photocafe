@@ -1542,6 +1542,7 @@ export interface DbPriceInfo {
   bindingPrice: number;   // 제본비 (표지비 포함)
   coverPrice: number;     // 표지비 (제본비에 합산용)
   postProcessingPrice?: number; // 후가공비
+  billingPageCount?: number; // 1+up 앨범 등 추가 페이지 포함 청구 페이지 수
 }
 
 /**
@@ -1561,7 +1562,8 @@ export function calculateUploadedFolderPrice(folder: UploadedFolder, dbPrice: Db
   totalPrice: number;
 } {
   const pricePerPage = dbPrice.pricePerPage;
-  const printPrice = pricePerPage * folder.pageCount;
+  const billingPageCount = dbPrice.billingPageCount ?? folder.pageCount;
+  const printPrice = pricePerPage * billingPageCount;
 
   // 제본비 (표지비 포함, DB에서 조회)
   const bindingPrice = dbPrice.bindingPrice + dbPrice.coverPrice;
@@ -1607,7 +1609,8 @@ export function calculateAdditionalOrderPrice(
   totalPrice: number;
 } {
   const pricePerPage = dbPrice.pricePerPage;
-  const printPrice = pricePerPage * folder.pageCount;
+  const billingPageCount = dbPrice.billingPageCount ?? folder.pageCount;
+  const printPrice = pricePerPage * billingPageCount;
 
   // 제본비 (표지비 포함)
   const bindingPrice = dbPrice.bindingPrice + dbPrice.coverPrice;

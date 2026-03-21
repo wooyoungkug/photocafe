@@ -281,6 +281,7 @@ export interface AlbumPagePriceResult {
   bindingRangePrices: Record<string, number> | null;
   coverPrice: number;
   missingReason: string | null;
+  billingExtraPages: number;
 }
 
 export function useAlbumPagePrice(
