@@ -56,6 +56,11 @@ export class PriceGroupUpPriceDto {
   @IsInt()
   up: number;
 
+  @ApiPropertyOptional({ description: 'NUP 키 (잉크젯앨범용, 예: "1++up", "1+up")' })
+  @IsOptional()
+  @IsString()
+  nupKey?: string;
+
   @ApiPropertyOptional({ description: '가중치' })
   @IsOptional()
   @IsNumber()
