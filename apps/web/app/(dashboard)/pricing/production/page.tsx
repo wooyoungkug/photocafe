@@ -3069,14 +3069,21 @@ export default function ProductionSettingPage() {
                                         <thead>
                                           {(() => {
                                             const fps = getFixedPrintSide(selectedGroup?.name || '');
+                                            const isAlbum = settingForm.printMethod === 'album';
                                             return (
                                               <tr className="bg-gray-100 border-b border-gray-200">
                                                 <th className="text-center py-1 px-1 font-medium text-gray-600">Up</th>
                                                 <th className="text-center py-1 px-1 font-medium text-gray-400 text-[10px]">가중치</th>
-                                                {fps !== 'double' && <th className="text-center py-1 px-1 font-medium text-gray-600">4도단면</th>}
-                                                {fps !== 'single' && <th className="text-center py-1 px-1 font-medium text-gray-600">4도양면</th>}
-                                                {fps !== 'double' && <th className="text-center py-1 px-1 font-medium text-gray-600">6도단면</th>}
-                                                {fps !== 'single' && <th className="text-center py-1 px-1 font-medium text-gray-600">6도양면</th>}
+                                                {isAlbum ? (
+                                                  <th className="text-center py-1 px-1 font-medium text-gray-600">단면</th>
+                                                ) : (
+                                                  <>
+                                                    {fps !== 'double' && <th className="text-center py-1 px-1 font-medium text-gray-600">4도단면</th>}
+                                                    {fps !== 'single' && <th className="text-center py-1 px-1 font-medium text-gray-600">4도양면</th>}
+                                                    {fps !== 'double' && <th className="text-center py-1 px-1 font-medium text-gray-600">6도단면</th>}
+                                                    {fps !== 'single' && <th className="text-center py-1 px-1 font-medium text-gray-600">6도양면</th>}
+                                                  </>
+                                                )}
                                               </tr>
                                             );
                                           })()}
@@ -3131,12 +3138,15 @@ export default function ProductionSettingPage() {
                                                     />
                                                   </div>
                                                 </td>
-                                                {(['fourColorSinglePrice', 'fourColorDoublePrice', 'sixColorSinglePrice', 'sixColorDoublePrice'] as const).filter(f => {
-                                                  const fps = getFixedPrintSide(selectedGroup?.name || '');
-                                                  if (fps === 'single') return !f.includes('Double');
-                                                  if (fps === 'double') return !f.includes('Single');
-                                                  return true;
-                                                }).map((field) => {
+                                                {(settingForm.printMethod === 'album'
+                                                  ? (['fourColorSinglePrice'] as const)
+                                                  : (['fourColorSinglePrice', 'fourColorDoublePrice', 'sixColorSinglePrice', 'sixColorDoublePrice'] as const).filter(f => {
+                                                      const fps = getFixedPrintSide(selectedGroup?.name || '');
+                                                      if (fps === 'single') return !f.includes('Double');
+                                                      if (fps === 'double') return !f.includes('Single');
+                                                      return true;
+                                                    })
+                                                ).map((field) => {
                                                   const costDisplay = getCostDisplay(field, upPrice.up, upPrice.nupKey);
                                                   return (
                                                     <td key={field} className="px-0.5 py-0.5">
