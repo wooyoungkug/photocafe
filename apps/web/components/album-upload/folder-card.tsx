@@ -1208,62 +1208,133 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
         </div>
 
         {/* 가격 단계별 표시 */}
-        <div className="text-right flex-shrink-0 max-w-[280px]">
+        <div className="text-right flex-shrink-0 max-w-[320px]">
           {(() => {
             const pages = folder.pageCount;
             const colorLabel = folder.colorMode === '6c' ? '인디고6도' : '인디고4도';
             const paperLabel = folder.selectedPaperName || '';
             const perPage = albumPriceData?.pricePerPage ?? null;
-            const bindPrice = folderPrice.bindingPrice;
-            const postPrice = folderPrice.postProcessingPrice;
             const bName = bindingName || '제본';
-
-            // 제본단가: null이면 No, 0이면 0, 그 외 금액
-            const bindingDisplay = !albumPriceData
-              ? <span className="text-red-500">None</span>
-              : bindPrice === 0
-                ? <span>0</span>
-                : <span>{Math.round(bindPrice).toLocaleString()}원</span>;
-
-            // 출력단가: null이면 No, 0이면 0, 그 외 계산식
-            const printDisplay = perPage === null || perPage === undefined
-              ? <span className="text-red-500">None</span>
-              : perPage === 0
-                ? <span className="text-red-500">None</span>
-                : <span>{perPage.toLocaleString()}원×{pages}p = {(perPage * pages).toLocaleString()}원</span>;
-
-            // 코팅(후가공): 0이면 0, 그 외 계산식
-            const coatingDisplay = postPrice === 0
-              ? <span>0</span>
-              : <span>{Math.round(postPrice / pages).toLocaleString()}원×{pages}p = {Math.round(postPrice).toLocaleString()}원</span>;
-
-            // 합계
-            const totalPrice = folderPrice.totalPrice;
             const hasAllPrices = !!albumPriceData && !!perPage && perPage > 0;
 
+            // 청구 페이지 정보
+            const extraPages = albumPriceData?.billingExtraPages || 0;
+            const billingPages = pages + extraPages;
+
+            // 제본비 상세 산출
+            const coverPrice = albumPriceData?.coverPrice || 0;
+            const bindingOnlyPrice = dbBindingPrice || 0; // 표지비 제외 제본비
+            const totalBindingPrice = folderPrice.bindingPrice; // 제본비 + 표지비
+
+            // 제본 산출 방식 판별
+            const rangePrices = albumPriceData?.bindingRangePrices;
+            const basePrice = albumPriceData?.bindingBasePrice || 0;
+            const pricePerPageBinding = albumPriceData?.bindingPricePerPage || 0;
+            const billingPageKey = String(billingPages);
+            const isRangePricing = rangePrices && billingPageKey in rangePrices;
+            const isInterpolatedRange = rangePrices && !(billingPageKey in rangePrices) &&
+              Object.keys(rangePrices).filter(k => !k.startsWith('__')).some(k => Number(k) <= billingPages);
+
+            // 출력비
+            const printPrice = folderPrice.printPrice;
+            const postPrice = folderPrice.postProcessingPrice;
+            const totalPrice = folderPrice.totalPrice;
+            const unitPrice = folderPrice.unitPrice;
+
+            if (!hasAllPrices) {
+              return (
+                <div className="text-[11px] text-red-500">
+                  가격 미등록 <span className="text-[10px] font-normal">관리자 문의</span>
+                </div>
+              );
+            }
+
             return (
-              <div className="space-y-0.5">
-                <div className="text-[11px] text-gray-600">
-                  <span className="text-gray-400">제본:</span> {bName} {pages}p {bindingDisplay}
+              <div className="space-y-1 text-[11px]">
+                {/* 제본비 */}
+                <div className="space-y-0.5">
+                  <div className="text-gray-500 font-medium">■ 제본비</div>
+                  <div className="text-gray-600 pl-2">
+                    <span className="text-gray-400">방식:</span> {bName}
+                  </div>
+                  {extraPages > 0 && (
+                    <div className="text-gray-600 pl-2">
+                      <span className="text-gray-400">청구:</span> {pages}p + 추가{extraPages}p = <span className="font-medium">{billingPages}p</span>
+                    </div>
+                  )}
+                  <div className="text-gray-600 pl-2">
+                    {isRangePricing ? (
+                      <><span className="text-gray-400">산출:</span> 구간단가({billingPages}p) = {Math.round(bindingOnlyPrice).toLocaleString()}원</>
+                    ) : isInterpolatedRange ? (
+                      (() => {
+                        const numericKeys = Object.keys(rangePrices!).filter(k => !k.startsWith('__')).map(Number).filter(k => !isNaN(k)).sort((a, b) => a - b);
+                        const lowerKey = numericKeys.filter(k => k <= billingPages).pop();
+                        const lowerPrice = lowerKey !== undefined ? (rangePrices![String(lowerKey)] || 0) : 0;
+                        return <><span className="text-gray-400">산출:</span> {lowerKey}p구간 {lowerPrice.toLocaleString()} + {pricePerPageBinding.toLocaleString()}원×{billingPages - (lowerKey ?? 0)}p = {Math.round(bindingOnlyPrice).toLocaleString()}원</>;
+                      })()
+                    ) : basePrice > 0 || pricePerPageBinding > 0 ? (
+                      pricePerPageBinding > 0
+                        ? <><span className="text-gray-400">산출:</span> 기본 {basePrice.toLocaleString()} + {pricePerPageBinding.toLocaleString()}원×{billingPages}p = {Math.round(bindingOnlyPrice).toLocaleString()}원</>
+                        : <><span className="text-gray-400">산출:</span> 고정가 {Math.round(bindingOnlyPrice).toLocaleString()}원</>
+                    ) : (
+                      <><span className="text-gray-400">산출:</span> {Math.round(bindingOnlyPrice).toLocaleString()}원</>
+                    )}
+                  </div>
+                  {coverPrice > 0 && (
+                    <div className="text-gray-600 pl-2">
+                      <span className="text-gray-400">표지비:</span> {Math.round(coverPrice).toLocaleString()}원
+                    </div>
+                  )}
+                  <div className="text-gray-700 pl-2 font-medium">
+                    <span className="text-gray-400 font-normal">소계:</span> {Math.round(totalBindingPrice).toLocaleString()}원
+                    {coverPrice > 0 && <span className="text-gray-400 font-normal text-[10px]"> (제본+표지)</span>}
+                  </div>
                 </div>
-                <div className="text-[11px] text-gray-600">
-                  <span className="text-gray-400">출력:</span> {colorLabel} {paperLabel} {pages}p {printDisplay}
+
+                {/* 출력비 */}
+                <div className="space-y-0.5">
+                  <div className="text-gray-500 font-medium">■ 출력비</div>
+                  <div className="text-gray-600 pl-2">
+                    <span className="text-gray-400">방식:</span> {colorLabel} | {paperLabel}
+                  </div>
+                  <div className="text-gray-600 pl-2">
+                    <span className="text-gray-400">단가:</span> {perPage!.toLocaleString()}원/p
+                  </div>
+                  <div className="text-gray-700 pl-2 font-medium">
+                    <span className="text-gray-400 font-normal">소계:</span>{' '}
+                    {extraPages > 0
+                      ? <>{perPage!.toLocaleString()}원 × {billingPages}p({pages}+{extraPages}) = {Math.round(printPrice).toLocaleString()}원</>
+                      : <>{perPage!.toLocaleString()}원 × {pages}p = {Math.round(printPrice).toLocaleString()}원</>
+                    }
+                  </div>
                 </div>
-                <div className="text-[11px] text-gray-600">
-                  <span className="text-gray-400">코팅:</span> {postPrice > 0 ? `1up ` : ''}{coatingDisplay}
+
+                {/* 후가공비 */}
+                <div className="space-y-0.5">
+                  <div className="text-gray-500 font-medium">■ 후가공비</div>
+                  <div className="text-gray-600 pl-2">
+                    {postPrice === 0
+                      ? <span className="text-gray-400">없음 (0원)</span>
+                      : <><span className="text-gray-400">소계:</span> {Math.round(postPrice / billingPages).toLocaleString()}원 × {billingPages}p = {Math.round(postPrice).toLocaleString()}원</>
+                    }
+                  </div>
                 </div>
-                <div className={cn(
-                  "text-sm font-bold border-t border-gray-200 pt-0.5 mt-0.5",
-                  hasAllPrices ? "text-primary" : "text-red-500"
-                )}>
-                  <span className="text-gray-400 text-[11px] font-normal">합계:</span>{' '}
-                  {hasAllPrices
-                    ? <>{folder.quantity > 1
-                        ? <>{Math.round(folderPrice.unitPrice).toLocaleString()}원 ×{folder.quantity}부 = {Math.round(totalPrice).toLocaleString()}원</>
-                        : <>{Math.round(totalPrice).toLocaleString()}원</>
-                      }</>
-                    : <span className="text-red-500">가격 미등록 <span className="text-[10px] font-normal">관리자 문의</span></span>
-                  }
+
+                {/* 단가 소계 */}
+                <div className="border-t border-gray-200 pt-0.5 space-y-0.5">
+                  <div className="text-gray-600">
+                    <span className="text-gray-400">단가(1권):</span>{' '}
+                    {Math.round(totalBindingPrice).toLocaleString()} + {Math.round(printPrice).toLocaleString()}
+                    {postPrice > 0 && <> + {Math.round(postPrice).toLocaleString()}</>}
+                    {' '}= <span className="font-medium">{Math.round(unitPrice).toLocaleString()}원</span>
+                  </div>
+                  <div className={cn("font-bold", "text-primary")}>
+                    <span className="text-gray-400 font-normal">합계:</span>{' '}
+                    {folder.quantity > 1
+                      ? <>{Math.round(unitPrice).toLocaleString()}원 × {folder.quantity}부 = {Math.round(totalPrice).toLocaleString()}원</>
+                      : <>{Math.round(totalPrice).toLocaleString()}원</>
+                    }
+                  </div>
                 </div>
               </div>
             );
