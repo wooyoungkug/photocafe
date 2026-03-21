@@ -225,6 +225,7 @@ export default function ProductPage() {
         for (const folder of validFolders) {
           const options: CartItemOption[] = [
             { name: '규격', value: folder.specLabel, price: 0 },
+            { name: '인쇄면', value: selectedOptions.printSide === 'single' ? '단면' : '양면', price: 0 },
             { name: '페이지', value: `${folder.pageCount}p`, price: 0 },
           ];
           const allThumbnailUrls = folder.files.map(f => f.thumbnailUrl).filter((url): url is string => !!url);
@@ -351,6 +352,7 @@ export default function ProductPage() {
               quantity: additional.quantity,
               options: [
                 { name: '규격', value: additional.albumLabel, price: 0 },
+                { name: '인쇄면', value: selectedOptions.printSide === 'single' ? '단면' : '양면', price: 0 },
                 { name: '페이지', value: `${folder.pageCount}p`, price: 0 },
               ],
               totalPrice: additionalPrice.totalPrice,
