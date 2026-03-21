@@ -321,6 +321,12 @@ export interface AlbumOrderCalculateResult {
   unitPrice: number;
   specificationId?: string;
   nup?: string;
+  coverPrice?: number;
+  bindingOnlyPrice?: number;
+  bindingRangePrices?: Record<string, number> | null;
+  bindingBasePrice?: number;
+  bindingPricePerPage?: number;
+  billingExtraPages?: number;
 }
 
 export function useCalculateAlbumOrderPrice(params: {
