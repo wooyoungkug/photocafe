@@ -34,7 +34,7 @@ export class PricingService {
   async getAlbumPagePrice(
     clientId: string | null,
     dto: GetAlbumPagePriceDto,
-  ): Promise<{ pricePerPage: number; bindingBasePrice: number; bindingPricePerPage: number; bindingRangePrices: Record<string, number> | null; coverPrice: number; missingReason: string | null }> {
+  ): Promise<{ pricePerPage: number; bindingBasePrice: number; bindingPricePerPage: number; bindingRangePrices: Record<string, number> | null; coverPrice: number; missingReason: string | null; billingExtraPages: number }> {
     const { productionSettingId, specificationId, colorMode, pageLayout } = dto;
     // 출력 단가는 productionSettingId, 제본 단가는 bindingProductionSettingId 사용
     const bindingPsId = dto.bindingProductionSettingId || productionSettingId;
@@ -228,7 +228,9 @@ export class PricingService {
       missingReason = `[${settingName}] ${specName} ${colorLabel}/${layoutLabel}(${priceField}) 단가 미등록`;
     }
 
-    return { pricePerPage, bindingBasePrice, bindingPricePerPage, bindingRangePrices, coverPrice, missingReason };
+    // 1+up 앨범은 파노라마 표지로 인해 2p 추가 청구
+    const billingExtraPages = specInfo?.nup === '1+up' ? 2 : 0;
+    return { pricePerPage, bindingBasePrice, bindingPricePerPage, bindingRangePrices, coverPrice, missingReason, billingExtraPages };
   }
 
   /**
@@ -242,6 +244,32 @@ export class PricingService {
       return pageLayout === 'single' ? 'fourColorSinglePrice' : 'fourColorDoublePrice';
     }
     return pageLayout === 'single' ? 'sixColorSinglePrice' : 'sixColorDoublePrice';
+  }
+
+  /**
+   * rangePrices에서 pageCount에 해당하는 가격을 보간
+   * - 정확한 key가 있으면 그 값 사용
+   * - 없으면 가장 가까운 하위 key에서 보간: rangePrices[lowerKey] + pricePerPage * (pageCount - lowerKey)
+   */
+  private interpolateRangePrice(
+    rangePrices: Record<string, any>,
+    pageCount: number,
+    pricePerPage: number,
+  ): number {
+    const exactKey = String(pageCount);
+    if (exactKey in rangePrices && rangePrices[exactKey] != null) {
+      return Number(rangePrices[exactKey]);
+    }
+    const numericKeys = Object.keys(rangePrices)
+      .filter((k) => !k.startsWith('__'))
+      .map(Number)
+      .filter((k) => !isNaN(k))
+      .sort((a, b) => a - b);
+    const lowerKey = numericKeys.filter((k) => k <= pageCount).pop();
+    if (lowerKey !== undefined) {
+      return (Number(rangePrices[String(lowerKey)]) || 0) + pricePerPage * (pageCount - lowerKey);
+    }
+    return pricePerPage * pageCount;
   }
 
   // ==================== 앨범 주문 가격 계산 ====================
@@ -286,6 +314,10 @@ export class PricingService {
         `규격을 찾을 수 없습니다 (${dto.widthInch}" x ${dto.heightInch}", 인디고앨범).`,
       );
     }
+
+    // 1+up 앨범은 파노라마 표지로 인해 2p 추가 청구
+    const billingExtraPages = specification.nup === '1+up' ? 2 : 0;
+    const billingPageCount = dto.pageCount + billingExtraPages;
 
     // 3. productionSettingId 목록 수집: bindings 우선, 없으면 outputPriceSettings JSON
     const bindingSettingIds = (product.bindings || [])
@@ -464,7 +496,7 @@ export class PricingService {
     let unitPrice: number;
 
     // rangePrices에 pageCount 키가 있으면 해당 값 사용
-    const pageCountKey = String(dto.pageCount);
+    const pageCountKey = String(billingPageCount);
     if (rangePrices && pageCountKey in rangePrices && rangePrices[pageCountKey] != null) {
       // rangePrices 값은 표지 포함 총액
       unitPrice = Number(rangePrices[pageCountKey]);
@@ -478,8 +510,8 @@ export class PricingService {
         pricePerPage = printPrice / dto.pageCount;
       }
     } else {
-      // 기본 계산: coverPrice + pricePerPage * pageCount
-      printPrice = pricePerPage * dto.pageCount;
+      // 기본 계산: coverPrice + pricePerPage * billingPageCount
+      printPrice = pricePerPage * billingPageCount;
       unitPrice = coverPrice + printPrice;
     }
 
@@ -522,15 +554,10 @@ export class PricingService {
         },
       });
       if (bindingPriceRecord) {
-        const bindingRangePrices = bindingPriceRecord.rangePrices as Record<string, any> | null;
-        const pageKey = String(dto.pageCount);
-        if (bindingRangePrices && pageKey in bindingRangePrices) {
-          rawBindingPrice = Number(bindingRangePrices[pageKey]);
-        } else {
-          // rangePrices에 없으면 basePrice + pricePerPage * pageCount
-          rawBindingPrice = Number(bindingPriceRecord.basePrice || 0)
-            + Number(bindingPriceRecord.pricePerPage || 0) * dto.pageCount;
-        }
+        const bindingRangePricesNum = bindingPriceRecord.rangePrices as Record<string, any> | null;
+        rawBindingPrice = bindingRangePricesNum
+          ? this.interpolateRangePrice(bindingRangePricesNum, billingPageCount, Number(bindingPriceRecord.pricePerPage || 0))
+          : Number(bindingPriceRecord.basePrice || 0) + Number(bindingPriceRecord.pricePerPage || 0) * billingPageCount;
       }
     }
 

@@ -234,6 +234,7 @@ export default function GroupPricingPage() {
     router.push(`/pricing/group?groupId=${groupId}`, { scroll: false });
   };
   const [selectedProductionGroupId, setSelectedProductionGroupId] = useState<string | null>(null);
+  const [selectedSettingId, setSelectedSettingId] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   // 단가 편집 상태
@@ -1786,7 +1787,7 @@ export default function GroupPricingPage() {
                       expandedIds={expandedIds}
                       toggleExpand={toggleExpand}
                       selectedGroupId={selectedProductionGroupId}
-                      onSelectGroup={(g) => setSelectedProductionGroupId(g.id)}
+                      onSelectGroup={(g) => { setSelectedProductionGroupId(g.id); setSelectedSettingId(null); }}
                     />
                   ))}
                 </div>
@@ -1802,6 +1803,17 @@ export default function GroupPricingPage() {
                   {selectedProductionGroup ? (
                     <>
                       <div className="flex items-center gap-2">
+                        {selectedSettingId && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs text-gray-500 hover:text-gray-700"
+                            onClick={() => setSelectedSettingId(null)}
+                          >
+                            <ArrowLeft className="h-3.5 w-3.5 mr-1" />
+                            목록
+                          </Button>
+                        )}
                         <CardTitle className="text-base font-semibold">
                           {selectedProductionGroup.name}
                         </CardTitle>
@@ -1836,11 +1848,56 @@ export default function GroupPricingPage() {
                   <p>등록된 설정이 없습니다.</p>
                   <p className="text-sm mt-2">표준단가 페이지에서 먼저 설정을 추가해주세요.</p>
                 </div>
+              ) : !selectedSettingId ? (
+                /* 세팅 목록 (표준단가처럼 컴팩트하게) */
+                <div className="space-y-2">
+                  {selectedProductionGroup.settings?.map((setting: any) => {
+                    const pricingType = setting.pricingType || '';
+                    const printMethod = setting.printMethod;
+                    const savedGroupPriceCount = groupPrices?.filter((gp: any) => gp.productionSettingId === setting.id).length || 0;
+
+                    return (
+                      <div
+                        key={setting.id}
+                        className="group flex items-center justify-between gap-3 p-3 border rounded-lg cursor-pointer hover:bg-indigo-50 hover:border-indigo-200 transition-colors"
+                        onClick={() => setSelectedSettingId(setting.id)}
+                      >
+                        <div className="flex items-center gap-3 flex-wrap min-w-0">
+                          <span className="text-[14px] font-bold text-black">
+                            {setting.settingName || setting.codeName || "설정"}
+                          </span>
+                          <Badge variant="outline" className="text-xs font-normal text-gray-600 bg-gray-50 shrink-0">
+                            {PRICING_TYPE_LABELS[pricingType] || pricingType}
+                          </Badge>
+                          {printMethod && (
+                            <Badge variant="secondary" className="text-xs shrink-0">
+                              {PRINT_METHOD_LABELS[printMethod] || printMethod}
+                            </Badge>
+                          )}
+                          <span className="text-xs text-gray-500 shrink-0">
+                            작업시간: <span className="font-mono font-medium text-gray-900">{Number(setting.workDays) || 1}일</span>
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {savedGroupPriceCount > 0 && (
+                            <Badge className="text-[10px] h-5 bg-indigo-100 text-indigo-700 hover:bg-indigo-100">
+                              {savedGroupPriceCount}개 그룹단가
+                            </Badge>
+                          )}
+                          <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-indigo-500" />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               ) : (
+                /* 선택된 세팅의 단가 편집 */
                 <div>
-                  {selectedProductionGroup.settings?.map((setting) => (
-                    <GroupSettingCard key={setting.id} setting={setting} />
-                  ))}
+                  {selectedProductionGroup.settings
+                    ?.filter((setting: any) => setting.id === selectedSettingId)
+                    .map((setting: any) => (
+                      <GroupSettingCard key={setting.id} setting={setting} />
+                    ))}
                 </div>
               )}
             </CardContent>
