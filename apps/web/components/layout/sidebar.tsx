@@ -25,6 +25,8 @@ import {
   ShoppingBag,
   X,
   BarChart2,
+  TreePalm,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
@@ -187,6 +189,28 @@ const DEFAULT_NAVIGATION: NavItem[] = [
     children: [
       { name: "촬영일정", href: "/shooting" },
       { name: "작가관리", href: "/shooting/photographers" },
+    ],
+  },
+  {
+    id: "hr-committee",
+    name: "인사위원회",
+    icon: Users,
+    children: [
+      { name: "위원회 관리", href: "/hr-committee" },
+      { name: "안건 목록", href: "/hr-committee/agendas" },
+      { name: "포상/징계", href: "/hr-committee/discipline" },
+    ],
+  },
+  {
+    id: "leave",
+    name: "휴가관리",
+    icon: TreePalm,
+    children: [
+      { name: "내 휴가현황", href: "/leave" },
+      { name: "휴가신청 관리", href: "/leave/requests" },
+      { name: "휴가 캘린더", href: "/leave/calendar" },
+      { name: "잔여일수 관리", href: "/leave/balances" },
+      { name: "휴가 설정", href: "/leave/settings" },
     ],
   },
   {

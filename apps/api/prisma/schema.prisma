@@ -229,6 +229,15 @@ model Staff {
   shootingReviews         ShootingReview[]
   photographerStats       PhotographerStats?
 
+  // 인사위원회 + 휴가관리
+  committeeMembers        HrCommitteeMember[]
+  targetAgendas           HrAgenda[]           @relation("AgendaTarget")
+  agendaVotes             HrAgendaVote[]       @relation("AgendaVoter")
+  disciplineRecords       StaffDisciplineRecord[]
+  leaveBalances           LeaveBalance[]
+  leaveRequests           LeaveRequest[]
+  leaveApprovals          LeaveApproval[]      @relation("LeaveApprover")
+
   @@unique([oauthProvider, oauthId])
   @@index([branchId])
   @@index([departmentId])
@@ -3328,4 +3337,256 @@ model RecruitmentTemplate {
 
   @@index([clientId, category])
   @@map("recruitment_templates")
+}
+
+// ===== 인사위원회 (HR Committee) =====
+
+enum HrCommitteeStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum HrCommitteeMemberRole {
+  CHAIRMAN    // 위원장
+  MEMBER      // 위원
+}
+
+enum HrAgendaType {
+  REWARD      // 포상
+  PENALTY     // 징계
+  PROMOTION   // 승진
+  TRANSFER    // 인사이동
+  DISMISSAL   // 해고
+  OTHER       // 기타
+}
+
+enum HrAgendaStatus {
+  DRAFT       // 초안
+  SUBMITTED   // 제출
+  IN_REVIEW   // 심의중
+  VOTED       // 투표완료
+  CLOSED      // 종결
+}
+
+enum HrVoteType {
+  APPROVE     // 찬성
+  REJECT      // 반대
+  ABSTAIN     // 기권
+}
+
+enum HrDecisionResult {
+  APPROVED    // 가결
+  REJECTED    // 부결
+}
+
+enum DisciplineType {
+  REWARD      // 포상
+  PENALTY     // 징계
+}
+
+model HrCommittee {
+  id          String             @id @default(cuid())
+  name        String                                     // 위원회명
+  description String?                                    // 설명
+  status      HrCommitteeStatus  @default(ACTIVE)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  members     HrCommitteeMember[]
+  agendas     HrAgenda[]
+
+  @@map("hr_committees")
+}
+
+model HrCommitteeMember {
+  id           String                @id @default(cuid())
+  committeeId  String
+  staffId      String
+  role         HrCommitteeMemberRole @default(MEMBER)
+  appointedAt  DateTime              @default(now())
+  releasedAt   DateTime?                                  // 해임일
+
+  committee    HrCommittee @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+  staff        Staff       @relation(fields: [staffId], references: [id])
+
+  @@unique([committeeId, staffId])
+  @@index([committeeId])
+  @@index([staffId])
+  @@map("hr_committee_members")
+}
+
+model HrAgenda {
+  id            String         @id @default(cuid())
+  committeeId   String
+  type          HrAgendaType
+  title         String                                    // 안건 제목
+  description   String?                                   // 안건 내용
+  targetStaffId String?                                   // 대상 직원
+  status        HrAgendaStatus @default(DRAFT)
+  evidence      String?                                   // 증빙/첨부
+  createdBy     String                                    // 등록자 staffId
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  committee     HrCommittee    @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+  targetStaff   Staff?         @relation("AgendaTarget", fields: [targetStaffId], references: [id])
+  votes         HrAgendaVote[]
+  decision      HrAgendaDecision?
+
+  @@index([committeeId])
+  @@index([targetStaffId])
+  @@index([status])
+  @@map("hr_agendas")
+}
+
+model HrAgendaVote {
+  id       String     @id @default(cuid())
+  agendaId String
+  voterId  String                                         // 투표한 위원 staffId
+  vote     HrVoteType
+  comment  String?                                        // 투표 의견
+  votedAt  DateTime   @default(now())
+
+  agenda   HrAgenda   @relation(fields: [agendaId], references: [id], onDelete: Cascade)
+  voter    Staff      @relation("AgendaVoter", fields: [voterId], references: [id])
+
+  @@unique([agendaId, voterId])
+  @@index([agendaId])
+  @@map("hr_agenda_votes")
+}
+
+model HrAgendaDecision {
+  id            String           @id @default(cuid())
+  agendaId      String           @unique
+  decision      HrDecisionResult
+  summary       String?                                   // 결정 요약
+  effectiveDate DateTime?                                 // 효력 발생일
+  decidedAt     DateTime         @default(now())
+
+  agenda        HrAgenda @relation(fields: [agendaId], references: [id], onDelete: Cascade)
+
+  @@map("hr_agenda_decisions")
+}
+
+model StaffDisciplineRecord {
+  id            String         @id @default(cuid())
+  staffId       String
+  agendaId      String?                                   // 연관 안건 (선택)
+  type          DisciplineType                            // 포상/징계
+  category      String                                    // 세부분류 (표창, 경고, 감봉 등)
+  title         String                                    // 제목
+  description   String?                                   // 상세내용
+  effectiveDate DateTime                                  // 효력일
+  createdBy     String                                    // 등록자
+  createdAt     DateTime       @default(now())
+
+  staff         Staff          @relation(fields: [staffId], references: [id])
+
+  @@index([staffId])
+  @@index([type])
+  @@index([effectiveDate])
+  @@map("staff_discipline_records")
+}
+
+// ===== 휴가관리 (Leave Management) =====
+
+enum LeaveRequestStatus {
+  PENDING        // 승인대기
+  TEAM_APPROVED  // 팀장승인
+  APPROVED       // 최종승인
+  REJECTED       // 반려
+  CANCELLED      // 취소
+}
+
+enum LeaveApprovalStatus {
+  PENDING   // 대기
+  APPROVED  // 승인
+  REJECTED  // 반려
+}
+
+model LeaveType {
+  id          String   @id @default(cuid())
+  code        String   @unique                            // annual, monthly, half_am, half_pm, quarter
+  name        String                                      // 연차, 월차, 오전반차, 오후반차, 반반차
+  defaultDays Float    @default(0)                        // 기본 부여일수
+  deductDays  Float                                       // 차감일수 (1.0, 0.5, 0.25)
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("leave_types")
+}
+
+model LeaveBalance {
+  id            String   @id @default(cuid())
+  staffId       String
+  year          Int                                       // 연도
+  leaveTypeCode String                                    // leave_types.code 참조
+  totalDays     Float    @default(0)                      // 총 부여일수
+  usedDays      Float    @default(0)                      // 사용일수
+  adjustedDays  Float    @default(0)                      // 조정일수 (수동 가감)
+  memo          String?                                   // 조정 사유
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  staff         Staff    @relation(fields: [staffId], references: [id])
+
+  @@unique([staffId, year, leaveTypeCode])
+  @@index([staffId])
+  @@index([year])
+  @@map("leave_balances")
+}
+
+model LeaveRequest {
+  id            String             @id @default(cuid())
+  staffId       String
+  leaveTypeCode String                                    // annual, half_am 등
+  startDate     DateTime                                  // 시작일
+  endDate       DateTime                                  // 종료일
+  startTime     String?                                   // 반반차용 시작시간
+  endTime       String?                                   // 반반차용 종료시간
+  days          Float                                     // 차감일수
+  reason        String?                                   // 사유
+  status        LeaveRequestStatus @default(PENDING)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  staff         Staff              @relation(fields: [staffId], references: [id])
+  approvals     LeaveApproval[]
+
+  @@index([staffId])
+  @@index([status])
+  @@index([startDate, endDate])
+  @@map("leave_requests")
+}
+
+model LeaveApproval {
+  id              String              @id @default(cuid())
+  requestId       String
+  approverStaffId String
+  step            Int                                     // 1=팀장, 2=부서장
+  status          LeaveApprovalStatus @default(PENDING)
+  comment         String?                                 // 승인/반려 사유
+  decidedAt       DateTime?
+
+  request         LeaveRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  approver        Staff        @relation("LeaveApprover", fields: [approverStaffId], references: [id])
+
+  @@unique([requestId, step])
+  @@index([requestId])
+  @@index([approverStaffId])
+  @@map("leave_approvals")
+}
+
+model MinStaffingRule {
+  id           String  @id @default(cuid())
+  departmentId String?
+  teamId       String?
+  minCount     Int     @default(1)                        // 최소 근무인원
+  isActive     Boolean @default(true)
+
+  @@index([departmentId])
+  @@index([teamId])
+  @@map("min_staffing_rules")
 }

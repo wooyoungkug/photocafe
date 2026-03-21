@@ -32,6 +32,8 @@ import { EmploymentModule } from './modules/employment/employment.module';
 import { ShootingModule } from './modules/shooting/shooting.module';
 import { RecruitmentModule } from './modules/recruitment/recruitment.module';
 import { HolidayModule } from './modules/holiday/holiday.module';
+import { HrCommitteeModule } from './modules/hr-committee/hr-committee.module';
+import { LeaveModule } from './modules/leave/leave.module';
 import { IpBlockMiddleware } from './modules/analytics/ip-block.middleware';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { EmailModule } from './common/email/email.module';
@@ -99,6 +101,8 @@ import { AppController } from './app.controller';
     ShootingModule,
     RecruitmentModule,
     HolidayModule,
+    HrCommitteeModule,
+    LeaveModule,
   ],
 })
 export class AppModule implements NestModule {
