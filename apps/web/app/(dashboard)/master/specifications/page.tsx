@@ -507,7 +507,8 @@ export default function SpecificationsPage() {
       // 검색 필터
       const matchesSearch =
         !searchQuery ||
-        spec.name.toLowerCase().includes(searchQuery.toLowerCase());
+        spec.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        spec.code.toLowerCase().includes(searchQuery.toLowerCase());
 
       // 용도 필터 (멀티셀렉트: 선택한 용도 중 하나라도 매칭되면 표시)
       const matchesUsage =
@@ -595,7 +596,7 @@ export default function SpecificationsPage() {
               <Input
                 placeholder="규격명 검색... (예: 3x5)"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value.replace(/[^0-9x.]/gi, "").replace(/x+/gi, "x"))}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9 h-9"
               />
             </div>
