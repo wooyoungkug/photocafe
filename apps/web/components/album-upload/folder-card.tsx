@@ -501,6 +501,8 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
   );
 
   // 계산된 가격을 store에 저장 (장바구니 담을 때 동일한 값 사용)
+  // folderPrice 객체 전체를 dep으로 쓰면 updateFolder 호출 후 folder 참조가 바뀌어 무한루프 발생
+  // 개별 원시값으로 dep을 구성해야 함
   useEffect(() => {
     if (!isPriceMissing && folderPrice.pricePerPage > 0) {
       updateFolder(folder.id, {
@@ -513,7 +515,8 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
         },
       });
     }
-  }, [folder.id, folderPrice, isPriceMissing, updateFolder]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [folder.id, folderPrice.pricePerPage, folderPrice.printPrice, folderPrice.bindingPrice, folderPrice.postProcessingPrice, folderPrice.unitPrice, isPriceMissing]);
 
   const handleSaveTitle = () => {
     setFolderTitle(folder.id, editTitle);
