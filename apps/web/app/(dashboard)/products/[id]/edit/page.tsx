@@ -448,11 +448,14 @@ export default function EditProductPage() {
           const active4Map: Record<string, boolean> = {};
           const active6Map: Record<string, boolean> = {};
           let foundDefaultId = '';
-          product.papers.forEach((p: { id: string; isActive?: boolean; isActive4?: boolean; isActive6?: boolean; isDefault?: boolean }) => {
+          product.papers.forEach((p: { id: string; isActive?: boolean; isActive4?: boolean; isActive6?: boolean; isDefault?: boolean; printMethod?: string }) => {
             activeMap[p.id] = p.isActive !== false;
             active4Map[p.id] = p.isActive4 !== false;
             active6Map[p.id] = p.isActive6 !== false;
-            if (p.isDefault) foundDefaultId = p.id;
+            if (p.isDefault) {
+              // 인디고 용지는 4도 칩을 기본으로 표시 (1개만 ★)
+              foundDefaultId = p.printMethod === 'indigo' ? `${p.id}:4도` : p.id;
+            }
           });
           setPaperActiveMap(activeMap);
           setPaperActive4Map(active4Map);
@@ -1634,8 +1637,7 @@ export default function EditProductPage() {
                     toggleActive = (val) => setPaperActiveMap(prev => ({ ...prev, [paper.id]: val }));
                   }
                   const chipKey = colorType ? `${paper.id}:${colorType}` : paper.id;
-                  // DB 로드 시 defaultPaperKey에 colorType 접미사가 없으므로 paperId 직접 비교도 허용
-                  const isDefault = defaultPaperKey === chipKey || (!!colorType && defaultPaperKey === paper.id);
+                  const isDefault = defaultPaperKey === chipKey;
                   return (
                     <div
                       key={`${paper.id}-${colorType ?? 'common'}`}
