@@ -730,11 +730,21 @@ export default function SpecificationsPage() {
                 id="name"
                 value={form.name}
                 onChange={(e) => {
-                  // 에러 초기화
-                  setValidationError("");
                   // 숫자, x, 점 외의 문자를 제거하고, 연속된 x는 하나로 합침
                   const value = e.target.value.replace(/[^0-9x.]/gi, "").replace(/x+/gi, "x");
                   setForm({ ...form, name: value });
+
+                  // 실시간 중복 검사 (onChange validation)
+                  if (value.trim()) {
+                    const isDuplicate = specifications.some(
+                      (spec) =>
+                        spec.name.trim().toLowerCase() === value.trim().toLowerCase() &&
+                        spec.id !== editingSpec?.id
+                    );
+                    setValidationError(isDuplicate ? `"${value}" 규격명이 이미 존재합니다. 다른 이름을 입력해주세요.` : "");
+                  } else {
+                    setValidationError("");
+                  }
 
                   // "x"로 구분된 숫자 패턴 감지 (예: "3x5", "8x10")
                   const match = value.match(/^(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)$/);
