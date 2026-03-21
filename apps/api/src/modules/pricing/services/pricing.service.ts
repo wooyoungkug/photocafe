@@ -1409,7 +1409,7 @@ export class PricingService {
 
     const prices: any[] = [];
 
-    // priceGroups JSON의 upPrices (인디고)
+    // priceGroups JSON의 upPrices (인디고/앨범)
     const priceGroups = (setting.priceGroups as any[]) || [];
     for (const group of priceGroups) {
       const upPrices = group.upPrices || [];
@@ -1417,6 +1417,7 @@ export class PricingService {
         prices.push({
           priceGroupId: group.id,
           minQuantity: upPrice.up,
+          nupKey: upPrice.nupKey || undefined,
           fourColorSinglePrice: upPrice.fourColorSinglePrice ? Number(upPrice.fourColorSinglePrice) : undefined,
           fourColorDoublePrice: upPrice.fourColorDoublePrice ? Number(upPrice.fourColorDoublePrice) : undefined,
           sixColorSinglePrice: upPrice.sixColorSinglePrice ? Number(upPrice.sixColorSinglePrice) : undefined,
@@ -1469,6 +1470,7 @@ export class PricingService {
       priceGroupId: r.priceGroupId || undefined,
       minQuantity: r.minQuantity ?? undefined,
       maxQuantity: r.maxQuantity ?? undefined,
+      nupKey: r.nupKey || undefined,
       weight: r.weight ?? undefined,
       price: Number(r.price) || 0,
       singleSidedPrice: r.singleSidedPrice ? Number(r.singleSidedPrice) : undefined,

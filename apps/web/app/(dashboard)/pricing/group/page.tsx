@@ -358,9 +358,11 @@ export default function GroupPricingPage() {
           const priceGroups = setting.priceGroups || [];
           priceGroups.forEach((priceGroup: any) => {
             const upPrices = priceGroup.upPrices || [];
-            const oneUpPrice = upPrices.find((up: any) => up.up === 1);
+            // 기준행: 첫 번째 항목 (인디고: up=1, 앨범: idx=0)
+            const oneUpPrice = upPrices[0];
             if (!oneUpPrice) return;
-            const savedGroupPrice = groupPricesMap.get(`${setting.id}_${priceGroup.id}_1`);
+            const baseKey = oneUpPrice.nupKey || oneUpPrice.up || 1;
+            const savedGroupPrice = groupPricesMap.get(`${setting.id}_${priceGroup.id}_${baseKey}`);
             if (!savedGroupPrice) return;
             const standardPrice = oneUpPrice.fourColorSinglePrice;
             const groupPrice = savedGroupPrice.fourColorSinglePrice;
@@ -688,15 +690,20 @@ export default function GroupPricingPage() {
         });
       });
     } else {
-      // 인디고: upPrices 처리
+      // 인디고/앨범: upPrices 처리
       priceAdjustPriceGroups.forEach((group: any) => {
         const upPrices = group.upPrices || [];
 
         upPrices.forEach((upPrice: any) => {
-          ['fourColorSinglePrice', 'fourColorDoublePrice', 'sixColorSinglePrice', 'sixColorDoublePrice'].forEach(field => {
-            const key = `${priceAdjustSettingId}_${group.id}_${upPrice.up}_${field}`;
+          const upKey = upPrice.nupKey || upPrice.up;
+          // 앨범: fourColorSinglePrice만, 인디고: 4가지 색상+면 조합
+          const fields = (priceAdjustPrintMethod === 'album')
+            ? ['fourColorSinglePrice']
+            : ['fourColorSinglePrice', 'fourColorDoublePrice', 'sixColorSinglePrice', 'sixColorDoublePrice'];
+          fields.forEach(field => {
+            const key = `${priceAdjustSettingId}_${group.id}_${upKey}_${field}`;
             const editedValue = editingPrices[key];
-            const savedGroupPrice = groupPricesMap.get(`${priceAdjustSettingId}_${group.id}_${upPrice.up}`)?.[field];
+            const savedGroupPrice = groupPricesMap.get(`${priceAdjustSettingId}_${group.id}_${upKey}`)?.[field];
             const currentValue = editedValue ?? (savedGroupPrice ? String(savedGroupPrice) : null);
 
             if (currentValue) {
