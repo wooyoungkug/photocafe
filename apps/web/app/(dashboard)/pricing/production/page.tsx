@@ -1769,10 +1769,32 @@ export default function ProductionSettingPage() {
         inkjetBasePrice: Number((setting as any).basePricePerSqInch) || (setting as any).inkjetBasePrice || 0,
         inkjetWeightPerSqm: (setting as any).inkjetWeightPerSqm || 0,
         inkjetSpecPrices: inkjetSpecPricesFromDB.length > 0 ? inkjetSpecPricesFromDB : [],
-        priceGroups: ((setting as any).priceGroups || []).map((g: any) => ({
-          ...g,
-          pricingMode: g.pricingMode || 'spec',
-        })),
+        priceGroups: ((setting as any).priceGroups || []).map((g: any) => {
+          const method = (setting as any).printMethod;
+          // 잉크젯앨범/인디고앨범: upPrices에 nupKey가 없으면 Nup 키로 재생성
+          if ((method === 'album' || method === 'indigoAlbum') && g.upPrices && g.upPrices.length > 0 && !g.upPrices[0].nupKey) {
+            const nupKeys = getAlbumNupKeys(method);
+            return {
+              ...g,
+              pricingMode: g.pricingMode || 'spec',
+              upPrices: nupKeys.map((nupKey) => {
+                // 기존 up 값과 매칭되는 가격 데이터 찾기
+                const nupCount = NUP_TO_COUNT[nupKey] || 1;
+                const existing = g.upPrices.find((p: any) => p.up === nupCount);
+                return {
+                  up: nupCount,
+                  nupKey,
+                  weight: existing?.weight ?? (DEFAULT_NUP_ALBUM_WEIGHTS[nupKey] || 1.0),
+                  fourColorSinglePrice: existing?.fourColorSinglePrice || 0,
+                  fourColorDoublePrice: existing?.fourColorDoublePrice || 0,
+                  sixColorSinglePrice: existing?.sixColorSinglePrice || 0,
+                  sixColorDoublePrice: existing?.sixColorDoublePrice || 0,
+                };
+              }),
+            };
+          }
+          return { ...g, pricingMode: g.pricingMode || 'spec' };
+        }),
         paperPriceGroupMap: (setting as any).paperPriceGroupMap || {},
         nupPageRanges: normalizedNupPageRanges,
         pageRanges: pageRangesFromDB,
