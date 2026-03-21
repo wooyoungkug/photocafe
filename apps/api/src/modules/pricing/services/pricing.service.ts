@@ -333,8 +333,10 @@ export class PricingService {
       .filter(Boolean) as string[];
 
     const outputSettings = (product.outputPriceSettings as any[]) || [];
+    // calculateAlbumOrderPrice는 인디고 앨범 전용이므로 INDIGO outputMethod만 필터링
+    // INKJET 설정의 upPrices(0값)가 먼저 매칭되어 가격이 0으로 계산되는 버그 방지
     const outputSettingIds = outputSettings
-      .filter((s: any) => s?.productionSettingId)
+      .filter((s: any) => s?.productionSettingId && s?.outputMethod === 'INDIGO')
       .map((s: any) => s.productionSettingId as string);
 
     // 출력단가만 사용 (제본단가는 별도 조회)
