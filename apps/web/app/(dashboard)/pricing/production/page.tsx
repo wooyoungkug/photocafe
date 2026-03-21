@@ -2315,12 +2315,12 @@ export default function ProductionSettingPage() {
                   <DropdownMenuContent align="end" className="w-56">
                     <DropdownMenuLabel>거래처 그룹 선택</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    {clientGroupsData?.data?.length === 0 ? (
+                    {clientGroupsData?.data?.filter(g => g.groupName !== '표준단가그룹').length === 0 ? (
                       <DropdownMenuItem disabled>
                         등록된 그룹이 없습니다
                       </DropdownMenuItem>
                     ) : (
-                      clientGroupsData?.data?.map((group) => (
+                      clientGroupsData?.data?.filter(g => g.groupName !== '표준단가그룹').map((group) => (
                         <DropdownMenuItem
                           key={group.id}
                           onClick={() => router.push(`/pricing/group?groupId=${group.id}`)}
