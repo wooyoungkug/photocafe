@@ -1366,11 +1366,8 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                 {/* 출력비 */}
                 <div className="space-y-0.5">
                   <div className="text-gray-500 font-medium">■ 출력비</div>
-                  <div className="text-gray-600 pl-2">
-                    <span className="text-gray-400">방식:</span> {colorLabel} | {paperLabel} | {folder.pageLayout === 'spread' ? '양면' : '단면'}
-                  </div>
-                  <div className="text-gray-600 pl-2">
-                    <span className="text-gray-400">단가:</span> {perPage!.toLocaleString()}원/p
+                  <div className="text-gray-600 pl-2 truncate">
+                    {colorLabel} | {paperLabel} | {folder.pageLayout === 'spread' ? '양면' : '단면'} · <span className="text-gray-400">단가</span> {perPage!.toLocaleString()}원/p
                   </div>
                   <div className="text-gray-700 pl-2 font-medium">
                     <span className="text-gray-400 font-normal">소계:</span>{' '}
