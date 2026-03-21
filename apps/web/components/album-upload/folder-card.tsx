@@ -1242,18 +1242,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
               {/* 동판: DB 데이터 기반 드롭다운 */}
               {(folder.foilName || folder.foilColor || folder.foilPosition) && (
                 <>
-                  <span className="text-xs text-black ml-5">동판정보</span>
-                  <span className="text-[10px] text-gray-400">색상</span>
-                  <select
-                    value={folder.foilColor ?? ''}
-                    onChange={(e) => updateFolder(folder.id, { foilColor: e.target.value || null })}
-                    className="text-[12px] border rounded px-1.5 py-0.5 w-24 bg-yellow-50 text-black"
-                  >
-                    <option value="">색상 선택</option>
-                    {copperPlateLabels?.foilColors?.filter(c => c.isActive).map(color => (
-                      <option key={color.id} value={color.name}>{color.name}</option>
-                    ))}
-                  </select>
+                  <span className="text-xs text-black">동판정보</span>
                   <span className="text-[10px] text-gray-400">동판</span>
                   <select
                     value={folder.foilName ?? ''}
@@ -1263,6 +1252,17 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                     <option value="">동판 선택</option>
                     {availablePlateNames.map(name => (
                       <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
+                  <span className="text-[10px] text-gray-400">색상</span>
+                  <select
+                    value={folder.foilColor ?? ''}
+                    onChange={(e) => updateFolder(folder.id, { foilColor: e.target.value || null })}
+                    className="text-[12px] border rounded px-1.5 py-0.5 w-24 bg-yellow-50 text-black"
+                  >
+                    <option value="">색상 선택</option>
+                    {copperPlateLabels?.foilColors?.filter(c => c.isActive).map(color => (
+                      <option key={color.id} value={color.name}>{color.name}</option>
                     ))}
                   </select>
                   <span className="text-[10px] text-gray-400">위치</span>
@@ -1660,18 +1660,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                             {/* 동판: DB 데이터 기반 드롭다운 */}
                             {(order.foilColor ?? folder.foilColor ?? order.foilName ?? folder.foilName ?? order.foilPosition ?? folder.foilPosition) && (
                               <>
-                                <span className="text-xs text-black ml-5">동판정보</span>
-                                <span className="text-[10px] text-gray-400">색상</span>
-                                <select
-                                  value={order.foilColor ?? folder.foilColor ?? ''}
-                                  onChange={(e) => updateAdditionalOrderFoil(folder.id, order.id, order.foilName ?? folder.foilName ?? null, e.target.value || null, order.foilPosition ?? folder.foilPosition ?? null)}
-                                  className="text-[12px] border rounded px-1.5 py-0.5 w-24 bg-yellow-50 text-black"
-                                >
-                                  <option value="">색상 선택</option>
-                                  {copperPlateLabels?.foilColors?.filter(c => c.isActive).map(color => (
-                                    <option key={color.id} value={color.name}>{color.name}</option>
-                                  ))}
-                                </select>
+                                <span className="text-xs text-black">동판정보</span>
                                 <span className="text-[10px] text-gray-400">동판</span>
                                 <select
                                   value={order.foilName ?? folder.foilName ?? ''}
@@ -1681,6 +1670,17 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                                   <option value="">동판 선택</option>
                                   {availablePlateNames.map(name => (
                                     <option key={name} value={name}>{name}</option>
+                                  ))}
+                                </select>
+                                <span className="text-[10px] text-gray-400">색상</span>
+                                <select
+                                  value={order.foilColor ?? folder.foilColor ?? ''}
+                                  onChange={(e) => updateAdditionalOrderFoil(folder.id, order.id, order.foilName ?? folder.foilName ?? null, e.target.value || null, order.foilPosition ?? folder.foilPosition ?? null)}
+                                  className="text-[12px] border rounded px-1.5 py-0.5 w-24 bg-yellow-50 text-black"
+                                >
+                                  <option value="">색상 선택</option>
+                                  {copperPlateLabels?.foilColors?.filter(c => c.isActive).map(color => (
+                                    <option key={color.id} value={color.name}>{color.name}</option>
                                   ))}
                                 </select>
                                 <span className="text-[10px] text-gray-400">위치</span>
