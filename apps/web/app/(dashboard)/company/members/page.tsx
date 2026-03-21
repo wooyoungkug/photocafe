@@ -1211,6 +1211,7 @@ export default function MembersPage() {
                       onChange={(e) => setNewPassword(e.target.value)}
                       placeholder="새 비밀번호 입력"
                       className="bg-white"
+                      autoComplete="new-password"
                     />
                   </div>
                   <div className="space-y-2">
@@ -1220,6 +1221,7 @@ export default function MembersPage() {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="비밀번호 확인"
+                      autoComplete="new-password"
                       className={`bg-white ${newPassword && confirmPassword && newPassword !== confirmPassword ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                     />
                     {newPassword && confirmPassword && newPassword !== confirmPassword && (
