@@ -722,8 +722,12 @@ export default function ProductPage() {
 
   // --- handleSaveMyProduct ---
   const handleSaveMyProduct = async () => {
-    if (!isAuthenticated || !user?.clientId || !product) {
+    if (!isAuthenticated || !product) {
       toast({ title: t('loginRequired'), description: t('loginRequiredDesc'), variant: 'destructive' });
+      return;
+    }
+    if (!user?.clientId) {
+      toast({ title: '거래처 계정 필요', description: '마이상품 저장은 거래처 계정으로 로그인 후 이용 가능합니다.', variant: 'destructive' });
       return;
     }
     const opts: MyProductOptions = {
@@ -849,13 +853,13 @@ export default function ProductPage() {
 
             {/* Actions */}
             <div className="flex flex-wrap items-center gap-2 mt-2 mb-4">
-              {isAuthenticated && user?.clientId && (
+              {isAuthenticated && (
                 <>
                   <button type="button" onClick={() => { setMyProductName(product.productName); setShowSaveMyProductModal(true); }}
                     className="text-xs text-primary hover:underline flex items-center gap-1">
                     <Star className="h-3 w-3" />{t('saveMyProduct')}
                   </button>
-                  {myProducts && myProducts.length > 0 && (
+                  {user?.clientId && myProducts && myProducts.filter(mp => mp.productId === product.id).length > 0 && (
                     <button type="button" onClick={() => setShowLoadMyProductModal(true)}
                       className="text-xs text-orange-600 hover:underline flex items-center gap-1">
                       <FolderHeart className="h-3 w-3" />{t('loadMyProduct')} ({myProducts.filter(mp => mp.productId === product.id).length})
