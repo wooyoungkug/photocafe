@@ -26,8 +26,7 @@ interface OptionPaperProps {
 const getPaperLabel = (paper: ProductPaper) => {
   const grammageStr = paper.grammage ? `${paper.grammage}g` : '';
   const grammage = grammageStr && !paper.name.includes(grammageStr) ? ` ${grammageStr}` : '';
-  const price = paper.price > 0 ? ` (+${paper.price.toLocaleString()}원)` : '';
-  return `${paper.name}${grammage}${price}`;
+  return `${paper.name}${grammage}`;
 };
 
 type PrintMethodValue = 'indigo_4c' | 'indigo_6c' | 'inkjet';
