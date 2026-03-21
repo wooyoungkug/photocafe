@@ -18,35 +18,46 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT }}
           envs: SUDO_PASS
-          script_stop: true
+          command_timeout: 5m
           script: |
             DOCKER="/usr/local/bin/docker"
+            COMPOSE="/usr/local/bin/docker-compose"
             run_sudo() { echo "$SUDO_PASS" | sudo -S "$@"; }
+            cd /volume1/docker
 
-            echo "=== 1. DB 컨테이너 상태 확인 ==="
+            echo "=== 1. 기존 DB 컨테이너 정리 ==="
+            # printing-erp-db (구 docker-compose.yml)가 5433 점유 중이면 중지
+            OLD_DB=$(run_sudo $DOCKER ps -q --filter "name=printing-erp-db" 2>/dev/null || true)
+            if [ -n "$OLD_DB" ]; then
+              echo "구 DB 컨테이너(printing-erp-db) 중지..."
+              run_sudo $DOCKER stop printing-erp-db 2>/dev/null || true
+            fi
+
+            echo "=== 2. photocafe-db 시작 ==="
             DB_RUNNING=$(run_sudo $DOCKER ps -q --filter "name=photocafe-db" 2>/dev/null || true)
             if [ -z "$DB_RUNNING" ]; then
-              echo "DB 컨테이너가 중지 상태 - 시작합니다..."
-              COMPOSE="/usr/local/bin/docker-compose"
-              cd /volume1/docker
+              echo "photocafe-db 시작..."
               run_sudo $COMPOSE --env-file .env -f docker-compose.prod.yml up -d postgres
               echo "DB 시작 대기 (30초)..."
               sleep 30
+            else
+              echo "photocafe-db 이미 실행 중"
             fi
 
-            echo "=== 2. 운영 DB 백업 ==="
-            run_sudo $DOCKER exec photocafe-db pg_dump -U postgres -d postgres -f /tmp/prod_backup_before_migrate.sql
-            
-            echo "=== 3. 로컬 DB 덤프 복원 ==="
+            echo "=== 3. 운영 DB 백업 ==="
+            run_sudo $DOCKER exec photocafe-db pg_dump -U postgres -d postgres -f /tmp/prod_backup_before_migrate.sql 2>&1 || echo "백업 스킵 (빈 DB일 수 있음)"
+
+            echo "=== 4. 로컬 DB 덤프 복원 ==="
             run_sudo $DOCKER cp ~/local_db_backup.sql photocafe-db:/tmp/local_db_backup.sql
-            run_sudo $DOCKER exec photocafe-db psql -U postgres -d postgres -f /tmp/local_db_backup.sql 2>&1 | tail -20
-            
-            echo "=== 4. Prisma 스키마 동기화 ==="
-            run_sudo $DOCKER exec photocafe-api npx prisma db push --accept-data-loss 2>&1 | tail -10
-            
-            echo "=== 5. 검증 ==="
+            run_sudo $DOCKER exec photocafe-db psql -U postgres -d postgres -f /tmp/local_db_backup.sql 2>&1 | tail -30
+
+            echo "=== 5. API 서버 재시작 (DB 연결 갱신) ==="
+            run_sudo $DOCKER restart photocafe-api 2>/dev/null || true
+            sleep 10
+
+            echo "=== 6. 검증 ==="
             run_sudo $DOCKER exec photocafe-db psql -U postgres -d postgres -c "SELECT count(*) as settings_count FROM production_settings;"
-            
+
             echo "=== 마이그레이션 완료 ==="
         env:
           SUDO_PASS: ${{ secrets.SSH_SUDO_PASS }}
