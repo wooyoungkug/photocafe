@@ -282,6 +282,7 @@ export interface AlbumPagePriceResult {
   coverPrice: number;
   missingReason: string | null;
   billingExtraPages: number;
+  nup?: string | null;
 }
 
 export function useAlbumPagePrice(

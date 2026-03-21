@@ -202,10 +202,10 @@ function AdditionalOrderPriceBlock({
     <div className="text-right flex-shrink-0 max-w-[280px]">
       <div className="space-y-0.5">
         <div className="text-[11px] text-gray-600">
-          <span className="text-gray-400">제본:</span> {bName} {pages}p {bindingPrice === 0 ? '0' : `${Math.round(bindingPrice).toLocaleString()}원`}
+          <span className="text-gray-400">제본:</span> {bName} | {folder.albumLabel} {pages}p {bindingPrice === 0 ? '0' : `${Math.round(bindingPrice).toLocaleString()}원`}
         </div>
         <div className="text-[11px] text-gray-600">
-          <span className="text-gray-400">출력:</span> {colorLabel} {paperLabel} {pages}p {perPage > 0 ? `${perPage.toLocaleString()}원×${pages}p = ${(perPage * pages).toLocaleString()}원` : <span className="text-red-500">None</span>}
+          <span className="text-gray-400">출력:</span> {colorLabel} {paperLabel}{data?.nup ? ` Nup${data.nup.replace(/[^0-9]/g, '')}` : ''} {pages}p {perPage > 0 ? `${perPage.toLocaleString()}원×${pages}p = ${(perPage * pages).toLocaleString()}원` : <span className="text-red-500">None</span>}
         </div>
         <div className="text-[11px] text-gray-600">
           <span className="text-gray-400">코팅:</span> {postProcessingPrice === 0 ? '0' : `${Math.round(postProcessingPrice / pages).toLocaleString()}원×${pages}p = ${Math.round(postProcessingPrice).toLocaleString()}원`}
@@ -1324,7 +1324,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                 <div className="space-y-0.5">
                   <div className="text-gray-500 font-medium">■ 표지+제본비</div>
                   <div className="text-gray-600 pl-2">
-                    <span className="text-gray-400">방식:</span> {bName}
+                    <span className="text-gray-400">방식:</span> {bName} | {folder.albumLabel}
                   </div>
                   {extraPages > 0 && (
                     <div className="text-gray-600 pl-2">
@@ -1364,7 +1364,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                 <div className="space-y-0.5">
                   <div className="text-gray-500 font-medium">■ 출력비</div>
                   <div className="text-gray-600 pl-2">
-                    <span className="text-gray-400">방식:</span> {colorLabel} | {paperLabel}
+                    <span className="text-gray-400">방식:</span> {colorLabel} | {paperLabel}{albumPriceData?.nup ? ` | Nup${albumPriceData.nup.replace(/[^0-9]/g, '')}` : ''}
                   </div>
                   <div className="text-gray-600 pl-2">
                     <span className="text-gray-400">단가:</span> {perPage!.toLocaleString()}원/p

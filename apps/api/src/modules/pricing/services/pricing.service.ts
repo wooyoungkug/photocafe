@@ -34,7 +34,7 @@ export class PricingService {
   async getAlbumPagePrice(
     clientId: string | null,
     dto: GetAlbumPagePriceDto,
-  ): Promise<{ pricePerPage: number; bindingBasePrice: number; bindingPricePerPage: number; bindingRangePrices: Record<string, number> | null; coverPrice: number; missingReason: string | null; billingExtraPages: number }> {
+  ): Promise<{ pricePerPage: number; bindingBasePrice: number; bindingPricePerPage: number; bindingRangePrices: Record<string, number> | null; coverPrice: number; missingReason: string | null; billingExtraPages: number; nup: string | null }> {
     const { productionSettingId, specificationId, colorMode, pageLayout } = dto;
     // 출력 단가는 productionSettingId, 제본 단가는 bindingProductionSettingId 사용
     const bindingPsId = dto.bindingProductionSettingId || productionSettingId;
@@ -238,7 +238,7 @@ export class PricingService {
 
     // 추가 청구 페이지 없음 (1+up 표지 비용은 coverPrice로 별도 청구)
     const billingExtraPages = 0;
-    return { pricePerPage, bindingBasePrice, bindingPricePerPage, bindingRangePrices, coverPrice, missingReason, billingExtraPages };
+    return { pricePerPage, bindingBasePrice, bindingPricePerPage, bindingRangePrices, coverPrice, missingReason, billingExtraPages, nup: specInfo?.nup ?? null };
   }
 
   /**
