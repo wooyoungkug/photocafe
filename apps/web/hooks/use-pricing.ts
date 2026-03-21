@@ -198,6 +198,37 @@ export function useCloneStandardToGroupPrices() {
   });
 }
 
+export function useCloneAllToGroup() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ targetGroupId, sourceType, sourceId }: { targetGroupId: string; sourceType: 'standard' | 'group' | 'client'; sourceId?: string }) =>
+      api.post<{ copiedSettings: number; copiedPrices: number }>(`/pricing/groups/${targetGroupId}/clone-all`, { sourceType, sourceId }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: [PRICING_KEY, 'group-production-settings', variables.targetGroupId],
+      });
+    },
+  });
+}
+
+export function useApplyWeightAllToGroup() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ clientGroupId, weightPercent, categoryId }: { clientGroupId: string; weightPercent: number; categoryId?: string }) =>
+      api.post<{ appliedSettings: number; appliedPrices: number; weightPercent: number }>(
+        `/pricing/groups/${clientGroupId}/apply-weight-all`,
+        { weightPercent, categoryId }
+      ),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: [PRICING_KEY, 'group-production-settings', variables.clientGroupId],
+      });
+    },
+  });
+}
+
 export function useDeleteGroupProductionSettingPrices() {
   const queryClient = useQueryClient();
 

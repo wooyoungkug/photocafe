@@ -34,6 +34,8 @@ import {
   useGroupProductionSettingPrices,
   useSetGroupProductionSettingPrices,
   useCloneStandardToGroupPrices,
+  useCloneAllToGroup,
+  useApplyWeightAllToGroup,
 } from '@/hooks/use-pricing';
 import { usePapersByPrintMethod } from '@/hooks/use-paper';
 import {
@@ -44,7 +46,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Edit, Trash2, Copy } from 'lucide-react';
+import { Edit, Trash2, Copy, Percent } from 'lucide-react';
 import {
   Loader2,
   DollarSign,
@@ -263,6 +265,18 @@ export default function GroupPricingPage() {
   // 가중치 상태 (그룹별 weight 퍼센트, 100 = 동일가격, 85 = 15% 할인)
   const [weights, setWeights] = useState<Record<string, number>>({});
 
+  // 전체 가중치 적용 다이얼로그 상태
+  const [isBulkWeightDialogOpen, setIsBulkWeightDialogOpen] = useState(false);
+  const [bulkWeightPercent, setBulkWeightPercent] = useState<number>(85);
+
+  // 전체 단가맞춤 다이얼로그 상태
+  const [isBulkAdjustDialogOpen, setIsBulkAdjustDialogOpen] = useState(false);
+  const [bulkAdjustRanges, setBulkAdjustRanges] = useState([
+    { maxPrice: 500, adjustment: 10 },
+    { maxPrice: 1000, adjustment: 50 },
+    { maxPrice: Infinity, adjustment: 100 },
+  ]);
+
   // 잉크젯 그룹단가 입력 모달 상태
   const [isInkjetPriceDialogOpen, setIsInkjetPriceDialogOpen] = useState(false);
   const [inkjetDialogSetting, setInkjetDialogSetting] = useState<any>(null);
@@ -282,6 +296,8 @@ export default function GroupPricingPage() {
   const { data: groupPrices, isLoading: groupPricesLoading } = useGroupProductionSettingPrices(selectedClientGroupId);
   const setGroupPricesMutation = useSetGroupProductionSettingPrices();
   const cloneStandardMutation = useCloneStandardToGroupPrices();
+  const cloneAllMutation = useCloneAllToGroup();
+  const applyWeightAllMutation = useApplyWeightAllToGroup();
   const { data: indigoPapers } = usePapersByPrintMethod('indigo');
   const { data: inkjetPapers } = usePapersByPrintMethod('inkjet');
   const { data: albumPapers } = usePapersByPrintMethod('album');
@@ -628,6 +644,159 @@ export default function GroupPricingPage() {
       title: `단가맞춤 ${weightPercent}% 적용`,
       description: `표준단가의 ${weightPercent}%로 그룹단가가 계산되었습니다.`,
     });
+  };
+
+  // 전체 가중치 적용 (서버 API 호출)
+  const handleBulkWeightApply = async () => {
+    if (!selectedClientGroupId || !bulkWeightPercent) return;
+    try {
+      const result = await applyWeightAllMutation.mutateAsync({
+        clientGroupId: selectedClientGroupId,
+        weightPercent: bulkWeightPercent,
+      });
+      toast({
+        title: '전체 가중치 적용 완료',
+        description: `${result.appliedSettings}개 설정, ${result.appliedPrices}개 단가에 ${bulkWeightPercent}% 적용되었습니다.`,
+      });
+      setIsBulkWeightDialogOpen(false);
+      // 편집 상태 초기화
+      setEditingPrices({});
+      setWeights({});
+    } catch {
+      toast({ title: '전체 가중치 적용 실패', variant: 'destructive' });
+    }
+  };
+
+  // 전체 단가맞춤 적용 (표준단가 복사 후 단가맞춤)
+  const handleBulkAdjust = async () => {
+    if (!selectedClientGroupId) return;
+
+    // 먼저 그룹단가가 없으면 표준단가 복사
+    if (!groupPrices || groupPrices.length === 0) {
+      try {
+        await cloneAllMutation.mutateAsync({
+          targetGroupId: selectedClientGroupId,
+          sourceType: 'standard',
+        });
+      } catch {
+        toast({ title: '표준단가 복사 실패', variant: 'destructive' });
+        return;
+      }
+    }
+
+    // 서버에서 모든 그룹단가를 다시 불러온 후 단가맞춤 적용 필요
+    // 현재 로드된 groupPrices를 기반으로 단가맞춤 적용
+    const currentRanges = [...bulkAdjustRanges];
+
+    const getMinPrice = (index: number): number => {
+      if (index === 0) return 0;
+      return Number(currentRanges[index - 1].maxPrice) + 1;
+    };
+
+    const findRange = (price: number) => {
+      for (let i = 0; i < currentRanges.length; i++) {
+        const range = currentRanges[i];
+        const minPrice = getMinPrice(i);
+        const maxPrice = Number(range.maxPrice);
+        if (price >= minPrice && price <= maxPrice) {
+          return range;
+        }
+      }
+      return currentRanges[currentRanges.length - 1];
+    };
+
+    const roundToUnit = (price: number, unit: number): number => {
+      if (unit <= 0) return price;
+      return Math.round(price / unit) * unit;
+    };
+
+    const adjustPrice = (price: number) => {
+      const numPrice = Number(price);
+      if (!numPrice || numPrice <= 0) return 0;
+      const range = findRange(numPrice);
+      if (!range) return numPrice;
+      const roundingUnit = Number(range.adjustment) || 10;
+      return Math.max(0, roundToUnit(numPrice, roundingUnit));
+    };
+
+    // 모든 그룹단가에 단가맞춤 적용
+    if (!groupPrices || groupPrices.length === 0) {
+      toast({ title: '적용할 그룹단가가 없습니다.', variant: 'destructive' });
+      setIsBulkAdjustDialogOpen(false);
+      return;
+    }
+
+    // productionSettingId별로 그룹화하여 일괄 저장
+    const settingMap = new Map<string, any[]>();
+    groupPrices.forEach((gp: any) => {
+      if (!settingMap.has(gp.productionSettingId)) {
+        settingMap.set(gp.productionSettingId, []);
+      }
+      settingMap.get(gp.productionSettingId)!.push(gp);
+    });
+
+    let totalAdjusted = 0;
+    const priceFields = ['price', 'singleSidedPrice', 'doubleSidedPrice', 'fourColorSinglePrice', 'fourColorDoublePrice', 'sixColorSinglePrice', 'sixColorDoublePrice', 'basePrice', 'pricePerPage'];
+
+    for (const [settingId, prices] of settingMap.entries()) {
+      const adjustedPrices = prices.map((p: any) => {
+        const adjusted: any = {};
+        // 키 필드 복사
+        if (p.priceGroupId) adjusted.priceGroupId = p.priceGroupId;
+        if (p.specificationId) adjusted.specificationId = p.specificationId;
+        if (p.minQuantity != null) adjusted.minQuantity = p.minQuantity;
+        if (p.nupKey) adjusted.nupKey = p.nupKey;
+        if (p.weight != null) adjusted.weight = p.weight;
+        if (p.basePages != null) adjusted.basePages = p.basePages;
+
+        let changed = false;
+        priceFields.forEach(field => {
+          if (p[field] != null && Number(p[field]) > 0) {
+            const original = Number(p[field]);
+            const adjustedVal = adjustPrice(original);
+            adjusted[field] = adjustedVal;
+            if (adjustedVal !== original) changed = true;
+          } else if (p[field] != null) {
+            adjusted[field] = Number(p[field]);
+          }
+        });
+
+        // rangePrices 처리
+        if (p.rangePrices && typeof p.rangePrices === 'object') {
+          const adjustedRange: Record<string, number> = {};
+          for (const [key, value] of Object.entries(p.rangePrices)) {
+            if (key.startsWith('__')) {
+              adjustedRange[key] = Number(value);
+            } else if (typeof value === 'number' && value > 0) {
+              const adjustedVal = adjustPrice(value);
+              adjustedRange[key] = adjustedVal;
+              if (adjustedVal !== value) changed = true;
+            } else {
+              adjustedRange[key] = Number(value);
+            }
+          }
+          adjusted.rangePrices = adjustedRange;
+        }
+
+        if (changed) totalAdjusted++;
+        return adjusted;
+      });
+
+      try {
+        await setGroupPricesMutation.mutateAsync({
+          clientGroupId: selectedClientGroupId,
+          productionSettingId: settingId,
+          prices: adjustedPrices,
+        });
+      } catch {
+        // 개별 설정 실패는 무시
+      }
+    }
+
+    toast({
+      title: totalAdjusted > 0 ? `전체 단가맞춤 완료 (${totalAdjusted}건 조정)` : '조정된 단가가 없습니다.',
+    });
+    setIsBulkAdjustDialogOpen(false);
   };
 
   // 단가 맞춤 적용 함수
@@ -2165,7 +2334,7 @@ export default function GroupPricingPage() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 flex-wrap">
               {selectedClientGroup && (
                 <div className="text-sm text-blue-700">
                   소속 거래처: <span className="font-semibold">{selectedClientGroup._count?.clients || 0}개</span>
@@ -2191,6 +2360,28 @@ export default function GroupPricingPage() {
                     ))}
                   </SelectContent>
                 </Select>
+              )}
+              {selectedClientGroupId && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 px-3 text-xs bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                    onClick={() => setIsBulkWeightDialogOpen(true)}
+                  >
+                    <Percent className="h-3.5 w-3.5 mr-1.5" />
+                    전체 가중치 적용
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 px-3 text-xs bg-white text-amber-600 border-amber-200 hover:bg-amber-50"
+                    onClick={() => setIsBulkAdjustDialogOpen(true)}
+                  >
+                    <SlidersHorizontal className="h-3.5 w-3.5 mr-1.5" />
+                    전체 단가맞춤
+                  </Button>
+                </>
               )}
             </div>
           </div>
@@ -2521,6 +2712,258 @@ export default function GroupPricingPage() {
             </Button>
             <Button className="h-10 px-6 bg-indigo-600 hover:bg-indigo-700 shadow-sm" onClick={applyPriceAdjustment}>
               적용
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 전체 가중치 적용 다이얼로그 */}
+      <Dialog open={isBulkWeightDialogOpen} onOpenChange={setIsBulkWeightDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>전체 가중치 적용</DialogTitle>
+            <DialogDescription>
+              모든 생산설정의 표준단가에 가중치(%)를 적용하여 그룹단가를 일괄 설정합니다.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="flex items-center gap-4 justify-center">
+              <span className="text-sm text-gray-600">표준단가 ×</span>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  className="h-12 w-24 text-xl text-center font-mono font-bold"
+                  min={1}
+                  max={200}
+                  value={bulkWeightPercent}
+                  onChange={(e) => setBulkWeightPercent(Number(e.target.value) || 0)}
+                />
+                <span className="text-xl font-bold text-gray-600">%</span>
+              </div>
+              <span className="text-sm text-gray-600">= 그룹단가</span>
+            </div>
+
+            <div className="grid grid-cols-5 gap-2">
+              {[70, 80, 85, 90, 95].map(pct => (
+                <Button
+                  key={pct}
+                  variant={bulkWeightPercent === pct ? "default" : "outline"}
+                  size="sm"
+                  className={`h-8 text-xs ${bulkWeightPercent === pct ? 'bg-indigo-600 hover:bg-indigo-700' : ''}`}
+                  onClick={() => setBulkWeightPercent(pct)}
+                >
+                  {pct}%
+                </Button>
+              ))}
+            </div>
+
+            <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3">
+              <p className="text-sm text-indigo-700">
+                <span className="font-medium">적용 결과 예시:</span>
+                <br />
+                표준단가 10,000원 → 그룹단가 <span className="font-bold">{formatNumber(Math.round(10000 * bulkWeightPercent / 100))}원</span>
+                <span className="text-indigo-500 ml-2">
+                  ({bulkWeightPercent < 100 ? `${100 - bulkWeightPercent}% 할인` : bulkWeightPercent > 100 ? `${bulkWeightPercent - 100}% 인상` : '동일'})
+                </span>
+              </p>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-xs text-amber-700">
+              기존 그룹단가가 있으면 모두 덮어씁니다.
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setIsBulkWeightDialogOpen(false)}>
+              취소
+            </Button>
+            <Button
+              className="bg-indigo-600 hover:bg-indigo-700"
+              disabled={applyWeightAllMutation.isPending || bulkWeightPercent < 1 || bulkWeightPercent > 200}
+              onClick={handleBulkWeightApply}
+            >
+              {applyWeightAllMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Percent className="h-4 w-4 mr-2" />
+              )}
+              전체 적용
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 전체 단가맞춤 다이얼로그 */}
+      <Dialog open={isBulkAdjustDialogOpen} onOpenChange={setIsBulkAdjustDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>전체 단가맞춤</DialogTitle>
+            <DialogDescription>
+              모든 생산설정의 그룹단가를 구간별 반올림 단위로 일괄 조정합니다.
+              {(!groupPrices || groupPrices.length === 0) && (
+                <span className="block mt-1 text-amber-600">
+                  그룹단가가 없으므로 표준단가를 먼저 복사한 후 단가맞춤을 적용합니다.
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="flex items-center justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={() => {
+                  setBulkAdjustRanges([
+                    { maxPrice: 500, adjustment: 10 },
+                    { maxPrice: 1000, adjustment: 50 },
+                    { maxPrice: Infinity, adjustment: 100 },
+                  ]);
+                }}
+              >
+                초기화
+              </Button>
+              <Button
+                size="sm"
+                className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700"
+                onClick={() => {
+                  const lastMax = bulkAdjustRanges.length > 0
+                    ? (bulkAdjustRanges[bulkAdjustRanges.length - 1].maxPrice === Infinity
+                      ? (bulkAdjustRanges[bulkAdjustRanges.length - 2]?.maxPrice || 1000) + 1000
+                      : bulkAdjustRanges[bulkAdjustRanges.length - 1].maxPrice + 1000)
+                    : 1000;
+                  setBulkAdjustRanges(prev => {
+                    const hasInfinity = prev.some(r => r.maxPrice === Infinity);
+                    if (hasInfinity) {
+                      const withoutInfinity = prev.filter(r => r.maxPrice !== Infinity);
+                      const infinityItem = prev.find(r => r.maxPrice === Infinity)!;
+                      return [...withoutInfinity, { maxPrice: lastMax, adjustment: 100 }, infinityItem];
+                    }
+                    return [...prev, { maxPrice: lastMax, adjustment: 100 }];
+                  });
+                }}
+              >
+                + 구간 추가
+              </Button>
+            </div>
+
+            <div className="border rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="px-3 py-2.5 text-center text-xs font-medium text-gray-500 w-12">#</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500">기준 금액 (미만)</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500">반올림 단위</th>
+                    <th className="px-3 py-2.5 text-center text-xs font-medium text-gray-500 w-16">삭제</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {bulkAdjustRanges.map((range, index) => {
+                    const isLast = range.maxPrice === Infinity;
+                    return (
+                      <tr key={index} className="bg-white hover:bg-gray-50">
+                        <td className="px-3 py-3 text-center">
+                          <span className="text-gray-600 font-medium">{index + 1}</span>
+                        </td>
+                        <td className="px-3 py-3">
+                          {isLast ? (
+                            <div className="inline-flex items-center px-3 py-1.5 bg-gray-100 rounded-md">
+                              <span className="text-sm text-gray-700">그 이상 모두</span>
+                            </div>
+                          ) : (
+                            <Select
+                              value={String(range.maxPrice)}
+                              onValueChange={(val) => {
+                                setBulkAdjustRanges(prev => prev.map((r, i) => i === index ? { ...r, maxPrice: Number(val) } : r));
+                              }}
+                            >
+                              <SelectTrigger className="h-9 w-40 text-sm">
+                                <span>{formatNumber(range.maxPrice)}원</span>
+                              </SelectTrigger>
+                              <SelectContent>
+                                {[500, 1000, 2000, 3000, 5000, 10000, 20000, 50000, 100000].map((v) => (
+                                  <SelectItem key={v} value={String(v)}>
+                                    {formatNumber(v)}원
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </td>
+                        <td className="px-3 py-3">
+                          <Select
+                            value={String(range.adjustment)}
+                            onValueChange={(val) => {
+                              setBulkAdjustRanges(prev => prev.map((r, i) => i === index ? { ...r, adjustment: Number(val) } : r));
+                            }}
+                          >
+                            <SelectTrigger className="h-9 w-36 text-sm">
+                              <span>{formatNumber(range.adjustment)}원 단위</span>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {[10, 50, 100, 500, 1000, 10000].map((unit) => (
+                                <SelectItem key={unit} value={String(unit)}>
+                                  {formatNumber(unit)}원 단위
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </td>
+                        <td className="px-3 py-3 text-center">
+                          {!isLast && bulkAdjustRanges.length > 1 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-red-400 hover:text-red-600 hover:bg-red-50"
+                              onClick={() => {
+                                setBulkAdjustRanges(prev => prev.filter((_, i) => i !== index));
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-2.5">
+              <span className="text-sm text-indigo-700 font-medium">현재 설정: </span>
+              <span className="text-sm text-indigo-600">
+                {bulkAdjustRanges.map((range) => {
+                  if (range.maxPrice === Infinity) {
+                    return `그 이상: ${formatNumber(range.adjustment)}원`;
+                  }
+                  return `${formatNumber(range.maxPrice)}원 미만: ${formatNumber(range.adjustment)}원`;
+                }).join(' / ')}
+              </span>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-xs text-amber-700">
+              모든 생산설정의 그룹단가가 반올림 조정됩니다. 서버에 직접 저장됩니다.
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setIsBulkAdjustDialogOpen(false)}>
+              취소
+            </Button>
+            <Button
+              className="bg-amber-600 hover:bg-amber-700"
+              disabled={setGroupPricesMutation.isPending || cloneAllMutation.isPending}
+              onClick={handleBulkAdjust}
+            >
+              {(setGroupPricesMutation.isPending || cloneAllMutation.isPending) ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <SlidersHorizontal className="h-4 w-4 mr-2" />
+              )}
+              전체 적용
             </Button>
           </DialogFooter>
         </DialogContent>
