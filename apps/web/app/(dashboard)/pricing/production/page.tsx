@@ -1113,13 +1113,17 @@ export default function ProductionSettingPage() {
     8: 1.4,
   };
 
-  // 인디고앨범 spec에서 NUP 키 목록 추출 (forIndigoAlbum=true인 spec의 unique nup)
-  const getIndigoAlbumNupKeys = (): string[] => {
-    if (!specifications) return ['1+up', '1up', '2up', '4up', '6up', '8up'];
-    const albumSpecs = (specifications as any[]).filter(s => s.forIndigoAlbum && s.nup);
+  // 앨범 spec에서 NUP 키 목록 추출 (인디고앨범/잉크젯앨범 공용)
+  const getAlbumNupKeys = (method?: string): string[] => {
+    if (!specifications) return ['1++up', '1+up', '1up', '2up', '4up', '8up'];
+    const albumSpecs = (specifications as any[]).filter(s => {
+      if (!s.nup) return false;
+      if (method === 'album') return s.forAlbum;
+      return s.forIndigoAlbum; // indigoAlbum 기본
+    });
     const nupSet = new Set(albumSpecs.map(s => s.nup as string));
     const ordered = [...NUP_ORDER].filter(n => nupSet.has(n));
-    return ordered.length > 0 ? ordered : ['1+up', '1up', '2up', '4up', '6up', '8up'];
+    return ordered.length > 0 ? ordered : ['1++up', '1+up', '1up', '2up', '4up', '8up'];
   };
 
   const [settingForm, setSettingForm] = useState({
@@ -2732,8 +2736,8 @@ export default function ProductionSettingPage() {
                     {/* 용지별출력단가/규격별: 인쇄방식에 따라 다른 UI */}
 
 
-                    {/* 인디고출력 / 인디고앨범: 단가그룹 설정 + 용지별 그룹 할당 */}
-                    {(settingForm.printMethod === "indigo" || settingForm.printMethod === "indigoAlbum") ? (
+                    {/* 인디고출력 / 인디고앨범 / 잉크젯앨범: 단가그룹 설정 + 용지별 그룹 할당 */}
+                    {(settingForm.printMethod === "indigo" || settingForm.printMethod === "indigoAlbum" || settingForm.printMethod === "album") ? (
                       <>
                         {/* 용지별그룹 */}
                         <div className="space-y-2">
@@ -2741,7 +2745,7 @@ export default function ProductionSettingPage() {
                           <div className="border rounded-lg p-3 max-h-[200px] overflow-y-auto">
                             {!papersForPricing || papersForPricing.length === 0 ? (
                               <p className="text-center text-muted-foreground py-2 text-sm">
-                                {settingForm.printMethod === "indigoAlbum" ? "인디고앨범용" : "인디고용"} 용지가 없습니다.
+                                {settingForm.printMethod === "indigoAlbum" ? "인디고앨범용" : settingForm.printMethod === "album" ? "잉크젯앨범용" : "인디고용"} 용지가 없습니다.
                               </p>
                             ) : (
                               <div className="grid grid-cols-3 gap-1.5">
@@ -2881,8 +2885,8 @@ export default function ProductionSettingPage() {
                                       {
                                         id: generateGroupId(),
                                         color: nextColor,
-                                        upPrices: settingForm.printMethod === "indigoAlbum"
-                                          ? getIndigoAlbumNupKeys().map((nupKey) => ({
+                                        upPrices: (settingForm.printMethod === "indigoAlbum" || settingForm.printMethod === "album")
+                                          ? getAlbumNupKeys(settingForm.printMethod).map((nupKey) => ({
                                               up: NUP_TO_COUNT[nupKey] || 1,
                                               nupKey,
                                               weight: DEFAULT_NUP_ALBUM_WEIGHTS[nupKey] || 1.0,
@@ -2923,8 +2927,8 @@ export default function ProductionSettingPage() {
                                   .map(([pid]) => papersForPricing?.find(p => p.id === pid))
                                   .filter(Boolean);
                                 const upPrices = group.upPrices || (
-                                  settingForm.printMethod === "indigoAlbum"
-                                    ? getIndigoAlbumNupKeys().map((nupKey) => ({
+                                  (settingForm.printMethod === "indigoAlbum" || settingForm.printMethod === "album")
+                                    ? getAlbumNupKeys(settingForm.printMethod).map((nupKey) => ({
                                         up: NUP_TO_COUNT[nupKey] || 1,
                                         nupKey,
                                         weight: DEFAULT_NUP_ALBUM_WEIGHTS[nupKey] || 1.0,
