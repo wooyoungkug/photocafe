@@ -369,7 +369,16 @@ export function CartItemCard({
                         {item.albumOrderInfo.printMethod === 'indigo' ? '인디고앨범' : '잉크젯'}
                       </span>
                       <Separator orientation="vertical" className="h-3 bg-purple-200" />
-                      <span>{item.albumOrderInfo.colorMode === '4c' ? '4도' : '6도'}</span>
+                      <select
+                        title="도수"
+                        value={item.albumOrderInfo.colorMode}
+                        onChange={(e) => onAlbumInfoChange?.(item.id, { colorMode: e.target.value as '4c' | '6c' })}
+                        className="bg-transparent text-black/80 text-[11px] font-medium border border-purple-300 rounded px-1 py-0 cursor-pointer hover:bg-purple-100 focus:outline-none focus:ring-1 focus:ring-purple-400"
+                      >
+                        {COLOR_MODE_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
                       {item.albumOrderInfo.printSide && (
                         <>
                           <Separator orientation="vertical" className="h-3 bg-purple-200" />
