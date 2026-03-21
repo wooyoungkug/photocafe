@@ -307,3 +307,39 @@ export function useAlbumPagePrice(
     staleTime: 5 * 60 * 1000, // 5분 캐시
   });
 }
+
+// ==================== 추가주문 단가 계산 ====================
+
+export interface AlbumOrderCalculateResult {
+  pricePerPage: number;
+  printPrice: number;
+  paperPrice: number;
+  bindingPrice: number;
+  postProcessingPrice: number;
+  unitPrice: number;
+  specificationId?: string;
+  nup?: string;
+}
+
+export function useCalculateAlbumOrderPrice(params: {
+  productId: string | undefined;
+  widthInch: number | undefined;
+  heightInch: number | undefined;
+  pageCount: number | undefined;
+  colorMode: '4c' | '6c';
+  pageLayout: 'single' | 'spread';
+  paperId?: string;
+  clientId?: string;
+}) {
+  return useQuery({
+    queryKey: [
+      PRICING_KEY, 'calculate-album-order',
+      params.productId, params.widthInch, params.heightInch,
+      params.pageCount, params.colorMode, params.pageLayout,
+      params.paperId, params.clientId,
+    ],
+    queryFn: () => api.post<AlbumOrderCalculateResult>('/pricing/calculate/album-order', params),
+    enabled: !!params.productId && !!params.widthInch && !!params.heightInch && !!params.pageCount,
+    staleTime: 5 * 60 * 1000,
+  });
+}

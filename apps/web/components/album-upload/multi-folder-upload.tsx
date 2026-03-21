@@ -131,7 +131,7 @@ interface MultiFolderUploadProps {
   productId?: string;
 }
 
-export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingProductionSettingId }: MultiFolderUploadProps) {
+export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingProductionSettingId, productId }: MultiFolderUploadProps) {
   const {
     folders,
     isUploading,
@@ -147,6 +147,7 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
     setDefaultPageLayout,
     setDefaultBindingDirection,
     setIndigoSpecs,
+    setProductId,
     setProductionSettingId,
     setBindingProductionSettingId,
     getSelectedFolders,
@@ -155,6 +156,11 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
     applyGlobalCoverSource,
     setFolderCoverSource,
   } = useMultiFolderUploadStore();
+
+  // productId를 store에 저장
+  useEffect(() => {
+    if (productId) setProductId(productId);
+  }, [productId, setProductId]);
 
   // productionSettingId를 store에 저장
   useEffect(() => {

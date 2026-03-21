@@ -381,6 +381,9 @@ interface MultiFolderUploadState {
   // 상품의 출력구분 (단면/양면/고객선택)
   printType?: 'single' | 'double' | 'customer';
 
+  // 상품 ID (추가주문 단가 조회용)
+  productId?: string;
+
   // 상품의 출력 생산설정 ID (가격 조회용)
   productionSettingId?: string;
 
@@ -401,6 +404,9 @@ interface MultiFolderUploadState {
 
   // 출력구분 설정
   setPrintType: (type: 'single' | 'double' | 'customer') => void;
+
+  // 상품 ID 설정
+  setProductId: (id: string) => void;
 
   // 출력 생산설정 ID 설정
   setProductionSettingId: (id: string) => void;
@@ -504,6 +510,7 @@ const initialState = {
   targetSpecRatio: 1,
   indigoSpecs: [] as StandardSize[],
   printType: undefined as 'single' | 'double' | 'customer' | undefined,
+  productId: undefined as string | undefined,
   productionSettingId: undefined as string | undefined,
   bindingProductionSettingId: undefined as string | undefined,
   bindingName: undefined as string | undefined,
@@ -789,6 +796,7 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
 
   setIndigoSpecs: (specs) => set({ indigoSpecs: specs }),
   setPrintType: (type) => set({ printType: type }),
+  setProductId: (id) => set({ productId: id }),
   setProductionSettingId: (id) => set({ productionSettingId: id }),
   setBindingProductionSettingId: (id) => set({ bindingProductionSettingId: id }),
   setBindingName: (name) => set({ bindingName: name }),
