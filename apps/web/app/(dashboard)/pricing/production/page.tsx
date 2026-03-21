@@ -1238,12 +1238,15 @@ export default function ProductionSettingPage() {
   const settingsMap = useMemo(() => systemSettings ? settingsToMap(systemSettings) : {}, [systemSettings]);
   const indigoInk1ColorCost = useMemo(() => getNumericValue(settingsMap, "printing_indigo_1color_cost", 0), [settingsMap]);
 
-  // 용지별출력단가용 용지 목록
-  const { data: papersForPricing } = usePapersByPrintMethod(
-    settingForm.pricingType === "paper_output_spec"
-      ? settingForm.printMethod
-      : ""
-  );
+  // 용지별출력단가용 용지 목록 (앨범 타입은 실제 인쇄방식으로 매핑)
+  const paperPrintMethodKey = useMemo(() => {
+    if (settingForm.pricingType !== "paper_output_spec") return "";
+    if (settingForm.printMethod === "album") return "inkjet";
+    if (settingForm.printMethod === "indigoAlbum") return "indigo";
+    return settingForm.printMethod;
+  }, [settingForm.pricingType, settingForm.printMethod]);
+
+  const { data: papersForPricing } = usePapersByPrintMethod(paperPrintMethodKey);
 
   // API 호출
   const router = useRouter();
