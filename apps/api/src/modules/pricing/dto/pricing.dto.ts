@@ -340,6 +340,24 @@ export class AlbumOrderPriceResultDto {
 
   @ApiPropertyOptional({ description: '적용된 가격 정책' })
   appliedPolicy?: string;
+
+  @ApiPropertyOptional({ description: '표지비 (제본비에서 분리)' })
+  coverPrice?: number;
+
+  @ApiPropertyOptional({ description: '순수 제본비 (표지비 제외)' })
+  bindingOnlyPrice?: number;
+
+  @ApiPropertyOptional({ description: '제본 구간단가 맵' })
+  bindingRangePrices?: Record<string, number> | null;
+
+  @ApiPropertyOptional({ description: '제본 기본가 (보간 계산용)' })
+  bindingBasePrice?: number;
+
+  @ApiPropertyOptional({ description: '제본 페이지당 단가 (보간 계산용)' })
+  bindingPricePerPage?: number;
+
+  @ApiPropertyOptional({ description: '추가 청구 페이지 수' })
+  billingExtraPages?: number;
 }
 
 // ==================== 가격 계산 요청 DTO ====================

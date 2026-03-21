@@ -414,9 +414,17 @@ export class PricingService {
       });
 
       if (standardPrice) {
-        priceRecord = standardPrice;
-        matchedProductionSettingId = standardPrice.productionSettingId;
-        appliedPolicy = '표준 단가';
+        // 색상+레이아웃 단가가 모두 0이고 rangePrices도 없으면 priceGroups JSON 조회로 넘김
+        const colorField = this.getColorLayoutPriceField(dto.colorMode, dto.pageLayout);
+        const hasValidPrice =
+          Number(standardPrice[colorField]) > 0 ||
+          Number(standardPrice.pricePerPage) > 0 ||
+          (standardPrice.rangePrices != null);
+        if (hasValidPrice) {
+          priceRecord = standardPrice;
+          matchedProductionSettingId = standardPrice.productionSettingId;
+          appliedPolicy = '표준 단가';
+        }
       }
     }
 
@@ -540,6 +548,9 @@ export class PricingService {
 
     // 7. 제본비: 제본 생산설정의 ProductionSettingPrice에서 rangePrices 조회
     let rawBindingPrice = 0;
+    let bindingRangePricesForResult: Record<string, number> | null = null;
+    let bindingBasePriceForResult = 0;
+    let bindingPricePerPageForResult = 0;
     const defaultBinding = (product.bindings || []).find((b: any) => b.isDefault)
       || (product.bindings || [])[0];
     if (defaultBinding?.productionSettingId) {
@@ -563,9 +574,12 @@ export class PricingService {
       });
       if (bindingPriceRecord) {
         const bindingRangePricesNum = bindingPriceRecord.rangePrices as Record<string, any> | null;
+        bindingRangePricesForResult = bindingRangePricesNum as Record<string, number> | null;
+        bindingBasePriceForResult = Number(bindingPriceRecord.basePrice || 0);
+        bindingPricePerPageForResult = Number(bindingPriceRecord.pricePerPage || 0);
         rawBindingPrice = bindingRangePricesNum
           ? this.interpolateRangePrice(bindingRangePricesNum, billingPageCount, Number(bindingPriceRecord.pricePerPage || 0))
-          : Number(bindingPriceRecord.basePrice || 0) + Number(bindingPriceRecord.pricePerPage || 0) * billingPageCount;
+          : bindingBasePriceForResult + bindingPricePerPageForResult * billingPageCount;
       }
     }
 
@@ -595,6 +609,12 @@ export class PricingService {
       specificationId: specification.id,
       nup: specification.nup || '',
       appliedPolicy,
+      coverPrice,
+      bindingOnlyPrice: rawBindingPrice,
+      bindingRangePrices: bindingRangePricesForResult,
+      bindingBasePrice: bindingBasePriceForResult,
+      bindingPricePerPage: bindingPricePerPageForResult,
+      billingExtraPages,
     };
   }
 
