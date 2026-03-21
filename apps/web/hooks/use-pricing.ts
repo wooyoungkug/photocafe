@@ -283,6 +283,8 @@ export interface AlbumPagePriceResult {
   missingReason: string | null;
   billingExtraPages: number;
   nup?: string | null;
+  priceSource?: string | null; // 'client' | 'group' | 'standard'
+  groupName?: string | null;   // 그룹 단가인 경우 그룹명
 }
 
 export function useAlbumPagePrice(
@@ -327,6 +329,9 @@ export interface AlbumOrderCalculateResult {
   bindingBasePrice?: number;
   bindingPricePerPage?: number;
   billingExtraPages?: number;
+  appliedPolicy?: string;
+  priceSource?: string; // 'client' | 'group' | 'standard'
+  groupName?: string | null;
 }
 
 export function useCalculateAlbumOrderPrice(params: {

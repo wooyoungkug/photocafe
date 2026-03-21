@@ -34,7 +34,7 @@ export class PricingService {
   async getAlbumPagePrice(
     clientId: string | null,
     dto: GetAlbumPagePriceDto,
-  ): Promise<{ pricePerPage: number; bindingBasePrice: number; bindingPricePerPage: number; bindingRangePrices: Record<string, number> | null; coverPrice: number; missingReason: string | null; billingExtraPages: number; nup: string | null }> {
+  ): Promise<{ pricePerPage: number; bindingBasePrice: number; bindingPricePerPage: number; bindingRangePrices: Record<string, number> | null; coverPrice: number; missingReason: string | null; billingExtraPages: number; nup: string | null; priceSource: string | null; groupName: string | null }> {
     const { productionSettingId, specificationId, colorMode, pageLayout } = dto;
     // 출력 단가는 productionSettingId, 제본 단가는 bindingProductionSettingId 사용
     const bindingPsId = dto.bindingProductionSettingId || productionSettingId;
@@ -56,6 +56,7 @@ export class PricingService {
     let pricePerPage = 0;
     let coverPrice = 0;
     let priceSource: string | null = null;
+    let groupName: string | null = null;
 
     // 생산설정 이름 조회
     const prodSetting = await this.prisma.productionSetting.findUnique({
@@ -114,7 +115,14 @@ export class PricingService {
             if (rp && rp['__coverPrice'] != null) {
               coverPrice = Number(rp['__coverPrice']);
             }
-            if (pricePerPage) priceSource = 'group';
+            if (pricePerPage) {
+              priceSource = 'group';
+              const group = await this.prisma.clientGroup.findUnique({
+                where: { id: client.groupId },
+                select: { groupName: true },
+              });
+              groupName = group?.groupName || null;
+            }
           }
         }
       }
@@ -238,7 +246,7 @@ export class PricingService {
 
     // 추가 청구 페이지 없음 (1+up 표지 비용은 coverPrice로 별도 청구)
     const billingExtraPages = 0;
-    return { pricePerPage, bindingBasePrice, bindingPricePerPage, bindingRangePrices, coverPrice, missingReason, billingExtraPages, nup: specInfo?.nup ?? null };
+    return { pricePerPage, bindingBasePrice, bindingPricePerPage, bindingRangePrices, coverPrice, missingReason, billingExtraPages, nup: specInfo?.nup ?? null, priceSource, groupName };
   }
 
   /**
@@ -355,6 +363,8 @@ export class PricingService {
     let priceRecord: any = null;
     let matchedProductionSettingId: string | null = null;
     let appliedPolicy = '표준 단가';
+    let priceSource: 'client' | 'group' | 'standard' = 'standard';
+    let groupName: string | null = null;
 
     // 4-1. 거래처 개별 단가 조회 (specificationId 또는 minQuantity=nup으로 매칭)
     if (dto.clientId) {
@@ -373,6 +383,7 @@ export class PricingService {
         priceRecord = clientPrice;
         matchedProductionSettingId = clientPrice.productionSettingId;
         appliedPolicy = '거래처 개별 단가';
+        priceSource = 'client';
       }
 
       // 4-2. 거래처 그룹 단가 조회
@@ -398,6 +409,12 @@ export class PricingService {
             priceRecord = groupPrice;
             matchedProductionSettingId = groupPrice.productionSettingId;
             appliedPolicy = '그룹 단가';
+            priceSource = 'group';
+            const group = await this.prisma.clientGroup.findUnique({
+              where: { id: client.groupId },
+              select: { groupName: true },
+            });
+            groupName = group?.groupName || null;
           }
         }
       }
@@ -611,6 +628,8 @@ export class PricingService {
       specificationId: specification.id,
       nup: specification.nup || '',
       appliedPolicy,
+      priceSource,
+      groupName,
       coverPrice,
       bindingOnlyPrice: rawBindingPrice,
       bindingRangePrices: bindingRangePricesForResult,

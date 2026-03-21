@@ -341,6 +341,12 @@ export class AlbumOrderPriceResultDto {
   @ApiPropertyOptional({ description: '적용된 가격 정책' })
   appliedPolicy?: string;
 
+  @ApiPropertyOptional({ description: '단가 출처 (client/group/standard)' })
+  priceSource?: string;
+
+  @ApiPropertyOptional({ description: '그룹 단가인 경우 그룹명' })
+  groupName?: string | null;
+
   @ApiPropertyOptional({ description: '표지비 (제본비에서 분리)' })
   coverPrice?: number;
 

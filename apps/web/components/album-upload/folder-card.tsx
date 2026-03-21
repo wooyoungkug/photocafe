@@ -159,11 +159,13 @@ function AdditionalOrderPriceBlock({
   order,
   folder,
   bindingName,
+  clientId,
 }: {
   productId: string | undefined;
   order: import('@/stores/multi-folder-upload-store').AdditionalOrder;
   folder: import('@/stores/multi-folder-upload-store').UploadedFolder;
   bindingName: string | undefined;
+  clientId?: string;
 }) {
   const colorMode = (order.colorMode ?? folder.colorMode ?? '4c') as '4c' | '6c';
   const pageLayout = (folder.pageLayout ?? 'single') as 'single' | 'spread';
@@ -177,6 +179,7 @@ function AdditionalOrderPriceBlock({
     colorMode,
     pageLayout,
     paperId: paperId || undefined,
+    clientId,
   });
 
   const pages = folder.pageCount;
@@ -273,6 +276,22 @@ function AdditionalOrderPriceBlock({
             ? <>{Math.round(unitPrice).toLocaleString()}원 ×{order.quantity}부 = {Math.round(totalPrice).toLocaleString()}원</>
             : <>{Math.round(totalPrice).toLocaleString()}원</>
           }
+          {data?.priceSource && (
+            <span className={cn(
+              "ml-1.5 text-[10px] font-normal px-1 py-0 rounded border",
+              data.priceSource === 'client'
+                ? "text-blue-600 border-blue-200 bg-blue-50"
+                : data.priceSource === 'group'
+                ? "text-purple-600 border-purple-200 bg-purple-50"
+                : "text-gray-500 border-gray-200 bg-gray-50"
+            )}>
+              {data.priceSource === 'client'
+                ? '개별단가'
+                : data.priceSource === 'group'
+                ? `그룹단가${data.groupName ? ` (${data.groupName})` : ''}`
+                : '표준단가'}
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -1460,6 +1479,22 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                       ? <>{Math.round(unitPrice).toLocaleString()}원 × {folder.quantity}부 = {Math.round(totalPrice).toLocaleString()}원</>
                       : <>{Math.round(totalPrice).toLocaleString()}원</>
                     }
+                    {albumPriceData?.priceSource && (
+                      <span className={cn(
+                        "ml-1.5 text-[10px] font-normal px-1 py-0 rounded border",
+                        albumPriceData.priceSource === 'client'
+                          ? "text-blue-600 border-blue-200 bg-blue-50"
+                          : albumPriceData.priceSource === 'group'
+                          ? "text-purple-600 border-purple-200 bg-purple-50"
+                          : "text-gray-500 border-gray-200 bg-gray-50"
+                      )}>
+                        {albumPriceData.priceSource === 'client'
+                          ? '개별단가'
+                          : albumPriceData.priceSource === 'group'
+                          ? `그룹단가${albumPriceData.groupName ? ` (${albumPriceData.groupName})` : ''}`
+                          : '표준단가'}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1763,6 +1798,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                         order={order}
                         folder={folder}
                         bindingName={bindingName}
+                        clientId={user?.clientId}
                       />
                       {/* 삭제 버튼 */}
                       <Button
