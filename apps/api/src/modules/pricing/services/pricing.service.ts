@@ -66,11 +66,14 @@ export class PricingService {
       select: { settingName: true },
     });
 
-    // 출력 단가 조회용 OR 조건: specificationId 매칭 또는 minQuantity(nup) 매칭
+    // 출력 단가 조회용 OR 조건: specificationId 매칭 또는 nupKey 매칭 또는 minQuantity(nup) 매칭
+    const nupKeyValue = specInfo?.nup || null;
     const outputPriceWhere = {
       OR: [
         { specificationId },
-        { minQuantity: nupNum, specificationId: null as string | null },
+        // nupKey 기반 매칭 (앨범용: 1++up, 1+up 등 구분)
+        ...(nupKeyValue ? [{ nupKey: nupKeyValue, specificationId: null as string | null }] : []),
+        { minQuantity: nupNum, specificationId: null as string | null, nupKey: null as string | null },
       ],
     };
 
@@ -1025,7 +1028,7 @@ export class PricingService {
 
     const prices: any[] = [];
 
-    // 2a. priceGroups JSON의 upPrices (인디고) → priceGroupId + minQuantity 기반
+    // 2a. priceGroups JSON의 upPrices (인디고/앨범) → priceGroupId + minQuantity + nupKey 기반
     const priceGroups = (setting.priceGroups as any[]) || [];
     for (const group of priceGroups) {
       const upPrices = group.upPrices || [];
@@ -1033,6 +1036,7 @@ export class PricingService {
         prices.push({
           priceGroupId: group.id,
           minQuantity: upPrice.up,
+          nupKey: upPrice.nupKey || undefined,
           fourColorSinglePrice: upPrice.fourColorSinglePrice ? Number(upPrice.fourColorSinglePrice) : undefined,
           fourColorDoublePrice: upPrice.fourColorDoublePrice ? Number(upPrice.fourColorDoublePrice) : undefined,
           sixColorSinglePrice: upPrice.sixColorSinglePrice ? Number(upPrice.sixColorSinglePrice) : undefined,
@@ -1098,10 +1102,10 @@ export class PricingService {
         },
       });
 
-      // 기존 레코드를 복합키로 맵핑
+      // 기존 레코드를 복합키로 맵핑 (nupKey 포함)
       const existingMap = new Map(
         existingRecords.map(r => [
-          `${r.specificationId || ''}|${r.priceGroupId || ''}|${r.minQuantity ?? ''}`,
+          `${r.specificationId || ''}|${r.priceGroupId || ''}|${r.minQuantity ?? ''}|${r.nupKey || ''}`,
           r,
         ])
       );
@@ -1113,7 +1117,7 @@ export class PricingService {
       const updateOps: Promise<any>[] = [];
 
       for (const priceData of dto.prices) {
-        const key = `${priceData.specificationId || ''}|${priceData.priceGroupId || ''}|${priceData.minQuantity ?? ''}`;
+        const key = `${priceData.specificationId || ''}|${priceData.priceGroupId || ''}|${priceData.minQuantity ?? ''}|${priceData.nupKey || ''}`;
         const data = {
           clientGroupId: dto.clientGroupId,
           productionSettingId: dto.productionSettingId,
@@ -1121,6 +1125,7 @@ export class PricingService {
           priceGroupId: priceData.priceGroupId,
           minQuantity: priceData.minQuantity,
           maxQuantity: priceData.maxQuantity,
+          nupKey: priceData.nupKey,
           weight: priceData.weight,
           price: priceData.price || 0,
           singleSidedPrice: priceData.singleSidedPrice,

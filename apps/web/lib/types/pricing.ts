@@ -103,6 +103,7 @@ export interface GroupProductionSettingPrice {
   specificationId?: string;
   minQuantity?: number;
   maxQuantity?: number;
+  nupKey?: string;
   weight?: number;
   price: number;
   singleSidedPrice?: number;
@@ -128,6 +129,7 @@ export interface GroupProductionSettingPriceDto {
   specificationId?: string;
   minQuantity?: number;
   maxQuantity?: number;
+  nupKey?: string;
   weight?: number;
   price?: number;
   singleSidedPrice?: number;

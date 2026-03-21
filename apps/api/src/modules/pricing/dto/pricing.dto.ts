@@ -91,6 +91,11 @@ export class GroupProductionSettingPriceDto {
   @IsNumber()
   maxQuantity?: number;
 
+  @ApiPropertyOptional({ description: 'NUP 키 (앨범용, 예: "1++up", "1+up", "1up")' })
+  @IsOptional()
+  @IsString()
+  nupKey?: string;
+
   @ApiPropertyOptional({ description: '가중치' })
   @IsOptional()
   @IsNumber()

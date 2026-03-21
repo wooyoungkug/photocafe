@@ -1517,6 +1517,7 @@ model GroupProductionSettingPrice {
   priceGroupId    String?
   minQuantity     Int?
   maxQuantity     Int?
+  nupKey          String?  // 앨범 NUP 키 (1++up, 1+up, 1up, 2up, 4up 등)
 
   weight Decimal? @db.Decimal(5, 2)
 
@@ -1538,7 +1539,7 @@ model GroupProductionSettingPrice {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([clientGroupId, productionSettingId, specificationId, priceGroupId, minQuantity])
+  @@unique([clientGroupId, productionSettingId, specificationId, priceGroupId, minQuantity, nupKey])
   @@index([clientGroupId])
   @@index([productionSettingId])
   @@index([priceGroupId])
@@ -1557,6 +1558,7 @@ model ClientProductionSettingPrice {
   priceGroupId    String?
   minQuantity     Int?
   maxQuantity     Int?
+  nupKey          String?  // 앨범 NUP 키 (1++up, 1+up, 1up, 2up, 4up 등)
 
   weight Decimal? @db.Decimal(5, 2)
 
@@ -1578,7 +1580,7 @@ model ClientProductionSettingPrice {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([clientId, productionSettingId, specificationId, priceGroupId, minQuantity])
+  @@unique([clientId, productionSettingId, specificationId, priceGroupId, minQuantity, nupKey])
   @@index([clientId])
   @@index([productionSettingId])
   @@index([priceGroupId])
