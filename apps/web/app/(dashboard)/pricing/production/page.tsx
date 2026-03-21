@@ -1058,6 +1058,38 @@ const SettingCard = ({
   );
 }
 
+/** 페이지 구간별 단가 재계산 헬퍼 */
+function recalcRangePrices(
+  pageRanges: number[],
+  cp: number,
+  ppp: number,
+  pp: number,
+  existingRangePrices?: Record<number, number>,
+): Record<number, number> {
+  const result: Record<number, number> = {};
+  if (cp > 0) {
+    pageRanges.forEach(r => {
+      result[r] = Math.round(cp + (ppp + pp) * r);
+    });
+  } else {
+    const firstRange = pageRanges[0] || 20;
+    const firstPrice = existingRangePrices?.[firstRange] ?? 0;
+    pageRanges.forEach((r, i) => {
+      result[r] = i === 0 ? firstPrice : Math.round(firstPrice + (r - firstRange) * (ppp + pp));
+    });
+  }
+  return result;
+}
+
+type NupPageRange = { specificationId: string; pricePerPage: number; coverPrice?: number; paperPrice?: number; rangePrices: Record<number, number> };
+
+function recalcAllNupRangePrices(pageRanges: number[], nupPageRanges: NupPageRange[]): NupPageRange[] {
+  return nupPageRanges.map(rangeData => ({
+    ...rangeData,
+    rangePrices: recalcRangePrices(pageRanges, rangeData.coverPrice || 0, rangeData.pricePerPage || 0, rangeData.paperPrice || 0, rangeData.rangePrices),
+  }));
+}
+
 export default function ProductionSettingPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -4041,27 +4073,10 @@ export default function ProductionSettingPage() {
                               const newRange = Math.max(...settingForm.pageRanges) + 10;
                               setSettingForm(prev => {
                                 const sortedRanges = [...prev.pageRanges, newRange].sort((a, b) => a - b);
-                                const updatedNupPageRanges = prev.nupPageRanges.map(rangeData => {
-                                  const cp = rangeData.coverPrice || 0;
-                                  const ppp = rangeData.pricePerPage || 0;
-                                  const pp = rangeData.paperPrice || 0;
-                                  let newRangePrice = 0;
-                                  if (cp > 0) {
-                                    newRangePrice = Math.round(cp + (ppp + pp) * newRange);
-                                  } else {
-                                    const firstRange = prev.pageRanges[0] || 20;
-                                    const firstPrice = rangeData.rangePrices?.[firstRange] || 0;
-                                    newRangePrice = Math.round(firstPrice + ((newRange - firstRange) * (ppp + pp)));
-                                  }
-                                  return {
-                                    ...rangeData,
-                                    rangePrices: { ...rangeData.rangePrices, [newRange]: newRangePrice }
-                                  };
-                                });
                                 return {
                                   ...prev,
                                   pageRanges: sortedRanges,
-                                  nupPageRanges: updatedNupPageRanges,
+                                  nupPageRanges: recalcAllNupRangePrices(sortedRanges, prev.nupPageRanges),
                                 };
                               });
                             }}
@@ -4083,11 +4098,15 @@ export default function ProductionSettingPage() {
                                   }));
                                 }}
                                 onBlur={() => {
-                                  // 입력 완료 시 정렬
-                                  setSettingForm(prev => ({
-                                    ...prev,
-                                    pageRanges: [...prev.pageRanges].sort((a, b) => a - b),
-                                  }));
+                                  // 입력 완료 시 정렬 + 구간별 단가 자동 재계산
+                                  setSettingForm(prev => {
+                                    const sortedRanges = [...prev.pageRanges].sort((a, b) => a - b);
+                                    return {
+                                      ...prev,
+                                      pageRanges: sortedRanges,
+                                      nupPageRanges: recalcAllNupRangePrices(sortedRanges, prev.nupPageRanges),
+                                    };
+                                  });
                                 }}
                                 className="h-6 w-14 text-center text-sm font-mono border-0 p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                               />
@@ -4097,10 +4116,20 @@ export default function ProductionSettingPage() {
                                   type="button"
                                   className="text-red-400 hover:text-red-600 ml-1"
                                   onClick={() => {
-                                    setSettingForm(prev => ({
-                                      ...prev,
-                                      pageRanges: prev.pageRanges.filter((_, i) => i !== idx),
-                                    }));
+                                    setSettingForm(prev => {
+                                      const removedRange = prev.pageRanges[idx];
+                                      const newRanges = prev.pageRanges.filter((_, i) => i !== idx);
+                                      // 삭제된 구간의 rangePrices 키도 제거
+                                      const updatedNupPageRanges = prev.nupPageRanges.map(rangeData => {
+                                        const { [removedRange]: _, ...restPrices } = rangeData.rangePrices || {};
+                                        return { ...rangeData, rangePrices: restPrices };
+                                      });
+                                      return {
+                                        ...prev,
+                                        pageRanges: newRanges,
+                                        nupPageRanges: updatedNupPageRanges,
+                                      };
+                                    });
                                   }}
                                 >
                                   ×
@@ -4291,22 +4320,13 @@ export default function ProductionSettingPage() {
                                           const newCoverPrice = Number(e.target.value);
                                           setSettingForm(prev => {
                                             const currentData = prev.nupPageRanges.find(p => p.specificationId === representativeSpec.id);
-                                            const currentPricePerPage = currentData?.pricePerPage || 0;
-                                            const currentPaperPrice = currentData?.paperPrice || 0;
-                                            const newRangePrices: Record<number, number> = {};
-                                            prev.pageRanges.forEach(range => {
-                                              newRangePrices[range] = Math.round(newCoverPrice + (currentPricePerPage + currentPaperPrice) * range);
-                                            });
-                                            const exists = !!currentData;
+                                            const newRangePrices = recalcRangePrices(prev.pageRanges, newCoverPrice, currentData?.pricePerPage || 0, currentData?.paperPrice || 0, currentData?.rangePrices);
+                                            const updated = { ...currentData, specificationId: representativeSpec.id, pricePerPage: currentData?.pricePerPage || 0, coverPrice: newCoverPrice, rangePrices: newRangePrices };
                                             return {
                                               ...prev,
-                                              nupPageRanges: exists
-                                                ? prev.nupPageRanges.map(p =>
-                                                    p.specificationId === representativeSpec.id
-                                                      ? { ...p, coverPrice: newCoverPrice, rangePrices: newRangePrices }
-                                                      : p
-                                                  )
-                                                : [...prev.nupPageRanges, { specificationId: representativeSpec.id, pricePerPage: 0, coverPrice: newCoverPrice, rangePrices: newRangePrices }],
+                                              nupPageRanges: currentData
+                                                ? prev.nupPageRanges.map(p => p.specificationId === representativeSpec.id ? updated : p)
+                                                : [...prev.nupPageRanges, updated],
                                             };
                                           });
                                         }}
@@ -4322,30 +4342,13 @@ export default function ProductionSettingPage() {
                                           const newPaperPrice = Number(e.target.value);
                                           setSettingForm(prev => {
                                             const currentData = prev.nupPageRanges.find(p => p.specificationId === representativeSpec.id);
-                                            const cp = currentData?.coverPrice || 0;
-                                            const ppp = currentData?.pricePerPage || 0;
-                                            const newRangePrices: Record<number, number> = {};
-                                            if (cp > 0) {
-                                              prev.pageRanges.forEach(range => {
-                                                newRangePrices[range] = Math.round(cp + (ppp + newPaperPrice) * range);
-                                              });
-                                            } else {
-                                              const firstRange = prev.pageRanges[0] || 20;
-                                              const firstPrice = currentData?.rangePrices?.[firstRange] || 0;
-                                              prev.pageRanges.forEach((range, idx) => {
-                                                newRangePrices[range] = idx === 0 ? firstPrice : Math.round(firstPrice + ((range - firstRange) * (ppp + newPaperPrice)));
-                                              });
-                                            }
-                                            const exists = !!currentData;
+                                            const newRangePrices = recalcRangePrices(prev.pageRanges, currentData?.coverPrice || 0, currentData?.pricePerPage || 0, newPaperPrice, currentData?.rangePrices);
+                                            const updated = { ...currentData, specificationId: representativeSpec.id, pricePerPage: currentData?.pricePerPage || 0, paperPrice: newPaperPrice, rangePrices: newRangePrices };
                                             return {
                                               ...prev,
-                                              nupPageRanges: exists
-                                                ? prev.nupPageRanges.map(p =>
-                                                    p.specificationId === representativeSpec.id
-                                                      ? { ...p, paperPrice: newPaperPrice, rangePrices: newRangePrices }
-                                                      : p
-                                                  )
-                                                : [...prev.nupPageRanges, { specificationId: representativeSpec.id, pricePerPage: 0, paperPrice: newPaperPrice, rangePrices: newRangePrices }],
+                                              nupPageRanges: currentData
+                                                ? prev.nupPageRanges.map(p => p.specificationId === representativeSpec.id ? updated : p)
+                                                : [...prev.nupPageRanges, updated],
                                             };
                                           });
                                         }}
@@ -4359,36 +4362,15 @@ export default function ProductionSettingPage() {
                                         value={pricePerPage || ''}
                                         onChange={(e) => {
                                           const value = Number(e.target.value);
-                                          const firstRange = settingForm.pageRanges[0] || 20;
                                           setSettingForm(prev => {
                                             const currentData = prev.nupPageRanges.find(p => p.specificationId === representativeSpec.id);
-                                            const newRangePrices: Record<number, number> = {};
-                                            const cp = currentData?.coverPrice || 0;
-                                            const pp = currentData?.paperPrice || 0;
-                                            if (cp > 0) {
-                                              prev.pageRanges.forEach(range => {
-                                                newRangePrices[range] = Math.round(cp + (value + pp) * range);
-                                              });
-                                            } else {
-                                              const firstPrice = currentData?.rangePrices?.[firstRange] || 0;
-                                              prev.pageRanges.forEach((range, idx) => {
-                                                if (idx === 0) {
-                                                  newRangePrices[range] = firstPrice;
-                                                } else {
-                                                  newRangePrices[range] = Math.round(firstPrice + ((range - firstRange) * (value + pp)));
-                                                }
-                                              });
-                                            }
-                                            const exists = !!currentData;
+                                            const newRangePrices = recalcRangePrices(prev.pageRanges, currentData?.coverPrice || 0, value, currentData?.paperPrice || 0, currentData?.rangePrices);
+                                            const updated = { ...currentData, specificationId: representativeSpec.id, pricePerPage: value, rangePrices: newRangePrices };
                                             return {
                                               ...prev,
-                                              nupPageRanges: exists
-                                                ? prev.nupPageRanges.map(p =>
-                                                    p.specificationId === representativeSpec.id
-                                                      ? { ...p, pricePerPage: value, rangePrices: newRangePrices }
-                                                      : p
-                                                  )
-                                                : [...prev.nupPageRanges, { specificationId: representativeSpec.id, pricePerPage: value, rangePrices: newRangePrices }],
+                                              nupPageRanges: currentData
+                                                ? prev.nupPageRanges.map(p => p.specificationId === representativeSpec.id ? updated : p)
+                                                : [...prev.nupPageRanges, updated],
                                             };
                                           });
                                         }}
