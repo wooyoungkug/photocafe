@@ -303,6 +303,79 @@ export function useDeleteClientProductionSettingPrices() {
   });
 }
 
+// ==================== 거래처 개별단가 클론/가중치 ====================
+
+export function useCloneStandardToClientPrices() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ clientId, productionSettingId }: { clientId: string; productionSettingId: string }) =>
+      api.post<ClientProductionSettingPrice[]>(`/pricing/clients/${clientId}/clone-standard/${productionSettingId}`),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: [PRICING_KEY, 'client-production-settings', variables.clientId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [PRICING_KEY, 'client-production-settings-summary', variables.clientId],
+      });
+    },
+  });
+}
+
+export function useCloneGroupToClientPrices() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ clientId, clientGroupId, productionSettingId }: { clientId: string; clientGroupId: string; productionSettingId: string }) =>
+      api.post<ClientProductionSettingPrice[]>(`/pricing/clients/${clientId}/clone-group/${productionSettingId}?clientGroupId=${clientGroupId}`),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: [PRICING_KEY, 'client-production-settings', variables.clientId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [PRICING_KEY, 'client-production-settings-summary', variables.clientId],
+      });
+    },
+  });
+}
+
+export function useCloneAllToClient() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ clientId, sourceType, sourceId }: { clientId: string; sourceType: 'standard' | 'group' | 'client'; sourceId?: string }) =>
+      api.post<{ copiedSettings: number; copiedPrices: number }>(`/pricing/clients/${clientId}/clone-all`, { sourceType, sourceId }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: [PRICING_KEY, 'client-production-settings', variables.clientId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [PRICING_KEY, 'client-production-settings-summary', variables.clientId],
+      });
+    },
+  });
+}
+
+export function useApplyWeightAllToClient() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ clientId, weightPercent, categoryId }: { clientId: string; weightPercent: number; categoryId?: string }) =>
+      api.post<{ appliedSettings: number; appliedPrices: number; weightPercent: number }>(
+        `/pricing/clients/${clientId}/apply-weight-all`,
+        { weightPercent, categoryId }
+      ),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: [PRICING_KEY, 'client-production-settings', variables.clientId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [PRICING_KEY, 'client-production-settings-summary', variables.clientId],
+      });
+    },
+  });
+}
+
 // ==================== 앨범 페이지 단가 조회 ====================
 
 export interface AlbumPagePriceResult {

@@ -1512,6 +1512,8 @@ export default function MembersPage() {
                 <IndividualPricingTab
                   clientId={editingMember.id}
                   clientName={editingMember.clientName}
+                  groupId={editingMember.groupId}
+                  groupName={editingMember.group?.groupName}
                 />
               )}
             </TabsContent>
