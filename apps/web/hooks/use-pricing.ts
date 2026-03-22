@@ -389,3 +389,23 @@ export function useCalculateAlbumOrderPrice(params: {
     staleTime: 5 * 60 * 1000,
   });
 }
+
+// ==================== 표준단가 Flat 조회 ====================
+
+export function useStandardPricesFlat(productionSettingId: string | undefined) {
+  return useQuery({
+    queryKey: [PRICING_KEY, 'standard-flat', productionSettingId],
+    queryFn: () => api.get<any[]>(`/pricing/standard/${productionSettingId}/prices`),
+    enabled: !!productionSettingId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+// ==================== 단가 검증 ====================
+
+export function useValidatePrices() {
+  return useMutation({
+    mutationFn: (dto: { productionSettingId: string; prices: any[]; mode?: string }) =>
+      api.post<{ valid: boolean; warnings: string[]; errors: string[] }>('/pricing/validate', dto),
+  });
+}

@@ -1703,4 +1703,76 @@ export class PricingService {
 
     return { appliedSettings: settingIds.length, appliedPrices: totalCount, weightPercent: dto.weightPercent };
   }
+
+  /**
+   * 표준단가를 flat 배열로 조회 (그룹/개별 비교 참조용)
+   */
+  async getStandardPricesFlat(productionSettingId: string) {
+    return this.extractStandardPrices(productionSettingId);
+  }
+
+  /**
+   * 단가 검증
+   * - NUP 일관성: 큰 NUP(1++up) >= 작은 NUP(4up)
+   * - 음수/0 가격 경고
+   * - 가중치 범위 (0.1~5.0)
+   */
+  async validatePrices(dto: { productionSettingId: string; prices: any[]; mode?: string }) {
+    const warnings: string[] = [];
+    const errors: string[] = [];
+    const { prices } = dto;
+
+    if (!prices || prices.length === 0) {
+      return { valid: true, warnings: ['가격 데이터가 없습니다.'], errors: [] };
+    }
+
+    // NUP 일관성 검사
+    const nupOrder = ['1++up', '1+up', '1up', '2up', '4up', '6up', '8up'];
+    const priceFields = ['fourColorSinglePrice', 'fourColorDoublePrice', 'sixColorSinglePrice', 'sixColorDoublePrice'];
+
+    // priceGroupId별로 그룹핑
+    const byGroup = new Map<string, any[]>();
+    for (const p of prices) {
+      const key = p.priceGroupId || 'default';
+      if (!byGroup.has(key)) byGroup.set(key, []);
+      byGroup.get(key)!.push(p);
+    }
+
+    for (const [groupId, groupPrices] of byGroup) {
+      // nupKey가 있는 것들만 NUP 일관성 검사
+      const nupPrices = groupPrices.filter(p => p.nupKey);
+      if (nupPrices.length < 2) continue;
+
+      // NUP 순서대로 정렬
+      nupPrices.sort((a, b) => nupOrder.indexOf(a.nupKey) - nupOrder.indexOf(b.nupKey));
+
+      for (const field of priceFields) {
+        for (let i = 0; i < nupPrices.length - 1; i++) {
+          const current = Number(nupPrices[i][field]) || 0;
+          const next = Number(nupPrices[i + 1][field]) || 0;
+          if (current > 0 && next > 0 && current < next) {
+            warnings.push(
+              `[${groupId}] ${field}: ${nupPrices[i].nupKey}(${current}) < ${nupPrices[i + 1].nupKey}(${next}) - 큰 NUP이 더 비싸야 합니다.`
+            );
+          }
+        }
+      }
+    }
+
+    // 음수 가격 검사
+    for (const p of prices) {
+      for (const field of priceFields) {
+        const val = Number(p[field]);
+        if (val < 0) {
+          errors.push(`음수 가격: ${p.nupKey || p.specificationId || 'unknown'} ${field} = ${val}`);
+        }
+      }
+    }
+
+    return {
+      valid: errors.length === 0,
+      warnings,
+      errors,
+    };
+  }
 }

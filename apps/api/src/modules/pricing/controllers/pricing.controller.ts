@@ -275,4 +275,24 @@ export class PricingController {
   ) {
     return this.pricingService.applyWeightAll('client', clientId, dto);
   }
+
+  // ==================== 표준단가 Flat 조회 ====================
+
+  @Get('standard/:productionSettingId/prices')
+  @ApiOperation({ summary: '표준단가를 flat 배열로 조회 (그룹/개별 비교 참조용)' })
+  async getStandardPricesFlat(
+    @Param('productionSettingId') productionSettingId: string,
+  ) {
+    return this.pricingService.getStandardPricesFlat(productionSettingId);
+  }
+
+  // ==================== 단가 검증 ====================
+
+  @Post('validate')
+  @ApiOperation({ summary: '단가 검증 (NUP 일관성, 범위 검사 등)' })
+  async validatePrices(
+    @Body() dto: { productionSettingId: string; prices: any[]; mode?: string },
+  ) {
+    return this.pricingService.validatePrices(dto);
+  }
 }
