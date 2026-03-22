@@ -1945,7 +1945,7 @@ export default function GroupPricingPage() {
                     // 그룹단가: Nup 그룹 단위로 하나의 가격 (첫 번째 spec 기준)
                     const firstSpecId = items[0]?.specificationId;
                     const nupKey = `${setting.id}_nup_${firstSpecId}_perPage`;
-                    const savedGroupPrice = groupPricesMap.get(`${setting.id}_${firstSpecId}_perPage`);
+                    const savedGroupPrice = groupPricesMap.get(`${setting.id}__${firstSpecId}`);
                     const displayValue = editingPrices[nupKey] ?? (savedGroupPrice?.price ? String(Number(savedGroupPrice.price)) : '');
                     const specNames = items.map((item: any) => item.specInfo.name || '').filter(Boolean).join(', ');
 
