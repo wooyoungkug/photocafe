@@ -5,14 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+// Table 컴포넌트 사용 안 함 - 표준단가와 동일한 raw table 사용
 import {
   Accordion,
   AccordionContent,
@@ -526,131 +519,113 @@ export function IndividualPricingTab({ clientId, clientName }: IndividualPricing
                                       </span>
                                     </div>
 
-                                    {/* 인디고 UP별 가격 */}
+                                    {/* 인디고 UP별 가격 (표준단가와 동일 레이아웃) */}
                                     {upPrices.length > 0 && (
-                                      <Table className="text-xs">
-                                        <TableHeader>
-                                          <TableRow>
-                                            <TableHead className="w-16">UP</TableHead>
-                                            <TableHead>4도 단면</TableHead>
-                                            <TableHead>4도 양면</TableHead>
-                                            <TableHead>6도 단면</TableHead>
-                                            <TableHead>6도 양면</TableHead>
-                                          </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                          {upPrices.map((up: any) => {
-                                            const baseKey = `${setting.id}_${group.id}_${up.up}_`;
-                                            const savedPrice = clientPricesMap.get(`${setting.id}_${group.id}_${up.up}`);
+                                      <div className="border border-gray-200 overflow-hidden">
+                                        <table className="w-full text-xs">
+                                          <thead>
+                                            <tr className="bg-gray-100 border-b border-gray-200">
+                                              <th className="text-center py-1 px-1 font-medium text-gray-600">Up</th>
+                                              <th className="text-center py-1 px-1 font-medium text-gray-400 text-[10px]">가중치</th>
+                                              <th className="text-center py-1 px-1 font-medium text-gray-600">4도단면</th>
+                                              <th className="text-center py-1 px-1 font-medium text-gray-600">4도양면</th>
+                                              <th className="text-center py-1 px-1 font-medium text-gray-600">6도단면</th>
+                                              <th className="text-center py-1 px-1 font-medium text-gray-600">6도양면</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {upPrices.map((up: any, idx: number) => {
+                                              const isBase = idx === 0;
+                                              const baseKey = `${setting.id}_${group.id}_${up.up}_`;
+                                              const savedPrice = clientPricesMap.get(`${setting.id}_${group.id}_${up.up}`);
 
-                                            return (
-                                              <TableRow key={up.up}>
-                                                <TableCell className="font-medium">{up.up}up</TableCell>
-                                                <TableCell>
-                                                  <Input
-                                                    type="number"
-                                                    className="h-7 text-xs w-20"
-                                                    placeholder={formatNumber(up.fourColorSinglePrice)}
-                                                    value={editingPrices[`${baseKey}fourColorSinglePrice`] ?? (savedPrice?.fourColorSinglePrice || '')}
-                                                    onChange={(e) => setEditingPrices(prev => ({
-                                                      ...prev,
-                                                      [`${baseKey}fourColorSinglePrice`]: e.target.value
-                                                    }))}
-                                                  />
-                                                </TableCell>
-                                                <TableCell>
-                                                  <Input
-                                                    type="number"
-                                                    className="h-7 text-xs w-20"
-                                                    placeholder={formatNumber(up.fourColorDoublePrice)}
-                                                    value={editingPrices[`${baseKey}fourColorDoublePrice`] ?? (savedPrice?.fourColorDoublePrice || '')}
-                                                    onChange={(e) => setEditingPrices(prev => ({
-                                                      ...prev,
-                                                      [`${baseKey}fourColorDoublePrice`]: e.target.value
-                                                    }))}
-                                                  />
-                                                </TableCell>
-                                                <TableCell>
-                                                  <Input
-                                                    type="number"
-                                                    className="h-7 text-xs w-20"
-                                                    placeholder={formatNumber(up.sixColorSinglePrice)}
-                                                    value={editingPrices[`${baseKey}sixColorSinglePrice`] ?? (savedPrice?.sixColorSinglePrice || '')}
-                                                    onChange={(e) => setEditingPrices(prev => ({
-                                                      ...prev,
-                                                      [`${baseKey}sixColorSinglePrice`]: e.target.value
-                                                    }))}
-                                                  />
-                                                </TableCell>
-                                                <TableCell>
-                                                  <Input
-                                                    type="number"
-                                                    className="h-7 text-xs w-20"
-                                                    placeholder={formatNumber(up.sixColorDoublePrice)}
-                                                    value={editingPrices[`${baseKey}sixColorDoublePrice`] ?? (savedPrice?.sixColorDoublePrice || '')}
-                                                    onChange={(e) => setEditingPrices(prev => ({
-                                                      ...prev,
-                                                      [`${baseKey}sixColorDoublePrice`]: e.target.value
-                                                    }))}
-                                                  />
-                                                </TableCell>
-                                              </TableRow>
-                                            );
-                                          })}
-                                        </TableBody>
-                                      </Table>
+                                              return (
+                                                <tr key={up.up} className={cn("border-b border-gray-100 last:border-0", isBase && "bg-amber-50/50")}>
+                                                  <td className="text-center py-0.5 px-0.5 font-medium text-indigo-600">{up.nupKey || `${up.up}up`}</td>
+                                                  <td className="text-center px-0.5 py-0.5">
+                                                    <span className="text-[11px] text-gray-400">{up.weight || 1.0}</span>
+                                                  </td>
+                                                  {(['fourColorSinglePrice', 'fourColorDoublePrice', 'sixColorSinglePrice', 'sixColorDoublePrice'] as const).map((field) => {
+                                                    const standardPrice = up[field] || 0;
+                                                    const key = `${baseKey}${field}`;
+                                                    return (
+                                                      <td key={field} className="px-0.5 py-0.5">
+                                                        <div className="flex flex-col items-center">
+                                                          <Input
+                                                            type="number"
+                                                            className={cn(
+                                                              "h-8 w-16 text-sm text-center rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+                                                              isBase
+                                                                ? "bg-amber-100 border-amber-300 font-medium focus:border-amber-400 focus:ring-1 focus:ring-amber-200"
+                                                                : "bg-white border-slate-200 hover:border-indigo-300 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
+                                                            )}
+                                                            value={editingPrices[key] ?? (savedPrice?.[field] ? String(savedPrice[field]) : '')}
+                                                            onChange={(e) => setEditingPrices(prev => ({
+                                                              ...prev,
+                                                              [key]: e.target.value
+                                                            }))}
+                                                            placeholder={standardPrice > 0 ? String(standardPrice) : "0"}
+                                                          />
+                                                        </div>
+                                                      </td>
+                                                    );
+                                                  })}
+                                                </tr>
+                                              );
+                                            })}
+                                          </tbody>
+                                        </table>
+                                      </div>
                                     )}
 
-                                    {/* 잉크젯 규격별 가격 */}
+                                    {/* 잉크젯 규격별 가격 (표준단가와 동일 레이아웃) */}
                                     {specPrices.length > 0 && (
-                                      <Table className="text-xs">
-                                        <TableHeader>
-                                          <TableRow>
-                                            <TableHead className="w-32">용지/규격</TableHead>
-                                            <TableHead>단면</TableHead>
-                                            <TableHead>양면</TableHead>
-                                          </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                          {specPrices.map((spec: any) => {
-                                            const baseKey = `${setting.id}_${group.id}_${spec.specId}_`;
-                                            const savedPrice = clientPricesMap.get(`${setting.id}_${group.id}_${spec.specId}`);
-                                            const paper = papersMap.get(spec.paperId);
+                                      <div className="border overflow-hidden bg-white/50">
+                                        <table className="w-full text-[10px]">
+                                          <thead className="bg-gray-100">
+                                            <tr className="border-b">
+                                              <th className="px-1 py-1 text-center">규격</th>
+                                              <th className="px-1 py-1 text-center w-12">가중치</th>
+                                              <th className="px-1 py-1 text-center w-14">표준</th>
+                                              <th className="px-1 py-1 text-center w-16">개별단가</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {specPrices.map((spec: any) => {
+                                              const baseKey = `${setting.id}_${group.id}_${spec.specId}_`;
+                                              const savedPrice = clientPricesMap.get(`${setting.id}_${group.id}_${spec.specId}`);
+                                              const paper = papersMap.get(spec.paperId);
+                                              const standardPrice = spec.singleSidedPrice || 0;
 
-                                            return (
-                                              <TableRow key={spec.specId}>
-                                                <TableCell className="font-medium">
-                                                  {paper?.name || spec.specName || spec.specId}
-                                                </TableCell>
-                                                <TableCell>
-                                                  <Input
-                                                    type="number"
-                                                    className="h-7 text-xs w-20"
-                                                    placeholder={formatNumber(spec.singleSidedPrice)}
-                                                    value={editingPrices[`${baseKey}singleSidedPrice`] ?? (savedPrice?.singleSidedPrice || '')}
-                                                    onChange={(e) => setEditingPrices(prev => ({
-                                                      ...prev,
-                                                      [`${baseKey}singleSidedPrice`]: e.target.value
-                                                    }))}
-                                                  />
-                                                </TableCell>
-                                                <TableCell>
-                                                  <Input
-                                                    type="number"
-                                                    className="h-7 text-xs w-20"
-                                                    placeholder={formatNumber(spec.doubleSidedPrice)}
-                                                    value={editingPrices[`${baseKey}doubleSidedPrice`] ?? (savedPrice?.doubleSidedPrice || '')}
-                                                    onChange={(e) => setEditingPrices(prev => ({
-                                                      ...prev,
-                                                      [`${baseKey}doubleSidedPrice`]: e.target.value
-                                                    }))}
-                                                  />
-                                                </TableCell>
-                                              </TableRow>
-                                            );
-                                          })}
-                                        </TableBody>
-                                      </Table>
+                                              return (
+                                                <tr key={spec.specId} className="border-b">
+                                                  <td className="px-1 py-0.5 text-center font-mono">
+                                                    {paper?.name || spec.specName || spec.specId?.slice(-6)}
+                                                  </td>
+                                                  <td className="px-1 py-0.5 text-center text-gray-400">
+                                                    {spec.weight != null ? spec.weight : '1.0'}
+                                                  </td>
+                                                  <td className="px-1 py-0.5 text-center text-gray-400 font-mono">
+                                                    {standardPrice > 0 ? formatNumber(standardPrice) : '-'}
+                                                  </td>
+                                                  <td className="px-1 py-0.5 text-center">
+                                                    <Input
+                                                      type="number"
+                                                      className="h-5 w-14 text-[10px] text-center p-0 bg-gray-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                      value={editingPrices[`${baseKey}price`] ?? (savedPrice?.price ? String(Number(savedPrice.price)) : '')}
+                                                      onChange={(e) => setEditingPrices(prev => ({
+                                                        ...prev,
+                                                        [`${baseKey}price`]: e.target.value
+                                                      }))}
+                                                      placeholder={standardPrice > 0 ? String(standardPrice) : "0"}
+                                                    />
+                                                  </td>
+                                                </tr>
+                                              );
+                                            })}
+                                          </tbody>
+                                        </table>
+                                      </div>
                                     )}
                                   </div>
                                 );

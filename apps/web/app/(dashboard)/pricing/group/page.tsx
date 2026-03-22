@@ -1306,7 +1306,7 @@ export default function GroupPricingPage() {
                       </table>
                     </div>
                     <p className="text-xs text-gray-400 mt-1">
-                      * 기준행(1up) 가격 설정 시, 나머지 Up은 가중치 기반으로 자동 계산됩니다.
+                      * 1up 가격 설정 시, 선택된 Up 만큼 나눠진 가격이 자동 계산됩니다.
                     </p>
                   </div>
                 );
@@ -1414,13 +1414,13 @@ export default function GroupPricingPage() {
           </div>
         )}
 
-        {/* ====== 잉크젯 (가격그룹 있음): 그룹별 규격 요약 (상세는 다이얼로그) ====== */}
+        {/* ====== 잉크젯 (가격그룹 있음): 그룹별 규격 단가 편집 (표준단가와 동일 레이아웃) ====== */}
         {hasPriceGroups && printMethod === 'inkjet' && (
           <div className="mt-2">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-3">
               {priceGroups.map((group: any) => {
                 const style = PRICE_GROUP_STYLES[group.color] || PRICE_GROUP_STYLES.none;
-                const specCount = (group.specPrices || []).length;
+                const specPrices = group.specPrices || [];
                 const paperPriceGroupMap = setting.paperPriceGroupMap || {};
                 const linkedPaperIds = Object.entries(paperPriceGroupMap)
                   .filter(([_, gId]) => gId === group.id)
@@ -1429,83 +1429,168 @@ export default function GroupPricingPage() {
                   .map(id => papersMap.get(id))
                   .filter((p: any) => p && (!p.printMethods || p.printMethods.includes(printMethod)));
 
-                // 그룹단가 설정 개수
-                const groupPriceCount = (group.specPrices || []).filter((sp: any) => {
-                  const saved = groupPricesMap.get(`${setting.id}_${group.id}_${sp.specificationId}`);
-                  return saved?.price;
-                }).length;
+                // 기준규격 결정 (표준단가와 동일)
+                const baseSpecId = group.inkjetBaseSpecId || (specPrices[0]?.specificationId || '');
 
                 return (
-                  <div key={group.id} className={cn("border rounded-lg p-2.5", style.border, style.bg)}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className={cn("w-2.5 h-2.5 rounded-full", style.dot)} />
-                      <span className={cn("font-semibold text-xs", style.text)}>
-                        {style.label}
-                      </span>
-                      <Badge variant="outline" className="text-[10px] h-4">
-                        {specCount}개 규격
-                      </Badge>
-                      {groupPriceCount > 0 && (
-                        <Badge className="text-[10px] h-4 bg-indigo-100 text-indigo-600 hover:bg-indigo-100">
-                          {groupPriceCount}개 설정
-                        </Badge>
-                      )}
+                  <div key={group.id} className={cn("p-2 border-2", style.bg, style.border)}>
+                    {/* 그룹 헤더 (표준단가와 동일 구조) */}
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-1">
+                        <span className={cn("text-xs font-semibold", style.text)}>
+                          {style.dot} {style.label}
+                        </span>
+                        <span className="text-[10px] bg-gray-200 text-gray-700 px-1 py-0.5">
+                          {specPrices.length}개 규격
+                        </span>
+                      </div>
+                      {/* 전체 가중치 적용 */}
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] text-gray-500">가중치</span>
+                        <Input
+                          type="number"
+                          className="h-5 w-12 text-[10px] text-center font-mono"
+                          placeholder="100"
+                          value={weights[`${setting.id}_${group.id}_inkjet`] || ''}
+                          onChange={(e) => {
+                            setWeights(prev => ({ ...prev, [`${setting.id}_${group.id}_inkjet`]: e.target.value ? Number(e.target.value) : 0 }));
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              const weightVal = weights[`${setting.id}_${group.id}_inkjet`] || 100;
+                              if (weightVal > 0 && weightVal <= 200) {
+                                // 표준가 기준으로 가중치 적용
+                                const updates: Record<string, string> = {};
+                                specPrices.forEach((sp: any) => {
+                                  const stdPrice = sp.singleSidedPrice || 0;
+                                  if (stdPrice > 0) {
+                                    const key = `${setting.id}_${group.id}_spec_${sp.specificationId}`;
+                                    updates[key] = String(Math.round(stdPrice * weightVal / 100));
+                                  }
+                                });
+                                setEditingPrices(prev => ({ ...prev, ...updates }));
+                              }
+                            }
+                          }}
+                        />
+                        <span className="text-[10px] text-gray-500">%</span>
+                      </div>
                     </div>
+
+                    {/* 할당된 용지 미리보기 */}
                     {linkedPapers.length > 0 && (
-                      <div className="text-[10px] text-gray-500 mb-1.5 truncate">
-                        {linkedPapers.slice(0, 2).map((p: any) => `${p.name}${p.grammage ? ` ${p.grammage}g` : ''}`).join(', ')}
-                        {linkedPapers.length > 2 && ` 외 ${linkedPapers.length - 2}개`}
+                      <div className="text-[9px] text-gray-500 mb-1 truncate">
+                        {linkedPapers.map((p: any) => `${p?.name}${p?.grammage ? ` ${p.grammage}g` : ''}`).join(', ')}
                       </div>
                     )}
-                    {/* 규격별 단가 테이블 */}
-                    {(group.specPrices || []).length > 0 && (
-                      <div className="border rounded bg-white overflow-hidden">
-                        <table className="w-full text-[11px]">
-                          <thead>
-                            <tr className="bg-gray-50 border-b">
-                              <th className="text-left px-2 py-1 font-medium text-gray-500">규격</th>
-                              <th className="text-right px-2 py-1 font-medium text-gray-500 w-16">표준</th>
-                              <th className="text-right px-2 py-1 font-medium text-indigo-600 w-16">그룹</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {(group.specPrices || []).map((specPrice: any) => {
+
+                    {/* 규격별 단가 테이블 (표준단가와 동일 구조) */}
+                    <div className="border overflow-hidden bg-white/50">
+                      <table className="w-full text-[10px]">
+                        <thead className="bg-gray-100">
+                          <tr className="border-b">
+                            <th className="px-1 py-1 text-center">규격</th>
+                            <th className="px-1 py-1 text-center w-12">가중치</th>
+                            <th className="px-1 py-1 text-center w-14">표준</th>
+                            <th className="px-1 py-1 text-center w-16">그룹단가</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[...specPrices]
+                            .map((sp: any) => {
+                              const spec = specifications.find((s: any) => (s.specificationId || s.id) === sp.specificationId)?.specification;
+                              const area = spec ? Number(spec.widthInch) * Number(spec.heightInch) : 0;
+                              return { ...sp, spec, area };
+                            })
+                            .sort((a, b) => a.area - b.area)
+                            .map((specPrice: any) => {
                               const specId = specPrice.specificationId;
-                              const specInfo = specifications.find((s: any) =>
-                                (s.specificationId || s.id) === specId
-                              )?.specification || {};
-                              const savedGroupPrice = groupPricesMap.get(`${setting.id}_${group.id}_${specId}`);
-                              const baseSpecId = group.inkjetBaseSpecId || (group.specPrices?.[0]?.specificationId || '');
+                              const spec = specPrice.spec;
                               const isBase = specId === baseSpecId;
-                              const groupPriceVal = savedGroupPrice?.price ? Number(savedGroupPrice.price) : null;
+                              const standardPrice = specPrice.singleSidedPrice || 0;
+                              const savedGroupPrice = groupPricesMap.get(`${setting.id}_${group.id}_${specId}`);
+                              const key = `${setting.id}_${group.id}_spec_${specId}`;
 
                               return (
-                                <tr key={specId} className={cn("border-b border-gray-100 last:border-0", isBase && "bg-indigo-50/50")}>
-                                  <td className="px-2 py-1 text-gray-700 truncate max-w-[80px]">
-                                    {specInfo.name || specId?.slice(-6)}
-                                    {isBase && <span className="text-indigo-400 ml-0.5 text-[9px]">기준</span>}
+                                <tr key={specId} className={cn("border-b", isBase ? "bg-green-50" : "")}>
+                                  <td className={cn("px-1 py-0.5 text-center font-mono", isBase && "text-green-700 font-semibold")}>
+                                    {spec?.name || specId?.slice(-6)}
+                                    {isBase && <span className="text-green-600 ml-0.5 text-[8px]">(기준)</span>}
                                   </td>
-                                  <td className="px-2 py-1 text-right text-gray-400 font-mono">
-                                    {specPrice.singleSidedPrice ? formatNumber(specPrice.singleSidedPrice) : '-'}
+                                  <td className="px-1 py-0.5 text-center text-gray-400">
+                                    {specPrice.weight != null ? specPrice.weight : '1.0'}
                                   </td>
-                                  <td className="px-2 py-1 text-right font-mono font-semibold">
-                                    {groupPriceVal !== null ? (
-                                      <span className="text-indigo-700">{formatNumber(groupPriceVal)}</span>
-                                    ) : (
-                                      <span className="text-gray-300">-</span>
-                                    )}
+                                  <td className="px-1 py-0.5 text-center text-gray-400 font-mono">
+                                    {standardPrice > 0 ? formatNumber(standardPrice) : '-'}
+                                  </td>
+                                  <td className="px-1 py-0.5 text-center">
+                                    <Input
+                                      type="number"
+                                      className={cn(
+                                        "h-5 w-14 text-[10px] text-center p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+                                        isBase ? "bg-green-100" : "bg-gray-50"
+                                      )}
+                                      value={editingPrices[key] ?? (savedGroupPrice?.price ? String(Number(savedGroupPrice.price)) : '')}
+                                      onChange={(e) => {
+                                        setEditingPrices(prev => ({ ...prev, [key]: e.target.value }));
+                                      }}
+                                      placeholder={standardPrice > 0 ? String(standardPrice) : "0"}
+                                    />
                                   </td>
                                 </tr>
                               );
                             })}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="text-[9px] text-gray-400 mt-1">
+                      * 가중치(%) 입력 후 Enter → 표준단가 기준 일괄 적용
+                    </p>
                   </div>
                 );
               })}
             </div>
+
+            {/* 잉크젯 그룹 저장 버튼 */}
+            {Object.keys(editingPrices).some(key => key.startsWith(setting.id + '_') && key.includes('_spec_')) && (
+              <div className="flex justify-end mt-3">
+                <Button
+                  size="sm"
+                  className="h-8 bg-indigo-600 hover:bg-indigo-700"
+                  disabled={isSaving}
+                  onClick={() => {
+                    // 잉크젯 그룹별로 저장
+                    priceGroups.forEach((group: any) => {
+                      const prices: any[] = [];
+                      (group.specPrices || []).forEach((sp: any) => {
+                        const key = `${setting.id}_${group.id}_spec_${sp.specificationId}`;
+                        const editedValue = editingPrices[key];
+                        const savedGroupPrice = groupPricesMap.get(`${setting.id}_${group.id}_${sp.specificationId}`);
+                        const value = editedValue ?? (savedGroupPrice?.price ? String(Number(savedGroupPrice.price)) : null);
+                        if (value) {
+                          prices.push({
+                            specificationId: sp.specificationId,
+                            priceGroupId: group.id,
+                            price: parseFloat(value),
+                          });
+                        }
+                      });
+                      if (prices.length > 0) {
+                        setGroupPricesMutation.mutate({
+                          clientGroupId: selectedClientGroupId,
+                          productionSettingId: setting.id,
+                          prices,
+                        });
+                      }
+                    });
+                    toast({ title: '잉크젯 그룹단가가 저장되었습니다.' });
+                  }}
+                >
+                  {isSaving ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
+                  저장
+                </Button>
+              </div>
+            )}
           </div>
         )}
 
