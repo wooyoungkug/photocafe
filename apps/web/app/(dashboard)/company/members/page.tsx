@@ -726,7 +726,7 @@ export default function MembersPage() {
 
       {/* 회원 추가/수정 다이얼로그 - 확대된 3열 레이아웃 */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
           <DialogHeader className="border-b pb-4">
             <DialogTitle className="flex items-center gap-2 text-xl">
               <User className="h-5 w-5 text-blue-600" />
