@@ -532,6 +532,8 @@ export function IndividualPricingTab({ clientId, clientName }: IndividualPricing
                                     }
                                     return {
                                       specificationId: p.specificationId,
+                                      specificationNup: p.specification?.nup || null,
+                                      specificationName: p.specification?.name || null,
                                       pricePerPage: Number(p.pricePerPage) || 0,
                                       coverPrice,
                                       paperPrice,
@@ -706,8 +708,6 @@ export function IndividualPricingTab({ clientId, clientName }: IndividualPricing
 
                                 {/* ====== 규격별 Nup/1p단가 (finishing_spec_nup) ====== */}
                                 {pricingType === 'finishing_spec_nup' && (() => {
-                                  const settingSpecs = setting.specifications || [];
-
                                   if (nupPageRanges.length === 0) {
                                     return (
                                       <div className="text-center py-4 text-gray-400 text-sm bg-gray-50 rounded">
@@ -716,13 +716,11 @@ export function IndividualPricingTab({ clientId, clientName }: IndividualPricing
                                     );
                                   }
 
-                                  // Nup별로 그룹핑
+                                  // Nup별로 그룹핑 (prices에 포함된 specification.nup 사용)
                                   const nupGroups = new Map<string, any[]>();
                                   nupPageRanges.forEach((item: any) => {
-                                    const specInfo = settingSpecs.find((s: any) =>
-                                      (s.specificationId || s.id) === item.specificationId
-                                    )?.specification || {};
-                                    const nup = specInfo.nup || 'other';
+                                    const nup = item.specificationNup || 'other';
+                                    const specInfo = { name: item.specificationName || '', nup };
                                     if (!nupGroups.has(nup)) {
                                       nupGroups.set(nup, []);
                                     }
@@ -1060,8 +1058,6 @@ export function IndividualPricingTab({ clientId, clientName }: IndividualPricing
 
                                 {/* ====== Nup 페이지 구간별 단가 (nup_page_range - 제본단가) ====== */}
                                 {pricingType === 'nup_page_range' && (() => {
-                                  const settingSpecs = setting.specifications || [];
-
                                   if (nupPageRanges.length === 0) {
                                     return (
                                       <div className="text-center py-4 text-gray-400 text-sm bg-gray-50 rounded">
@@ -1070,13 +1066,11 @@ export function IndividualPricingTab({ clientId, clientName }: IndividualPricing
                                     );
                                   }
 
-                                  // Nup별로 그룹핑
+                                  // Nup별로 그룹핑 (prices에 포함된 specification.nup 사용)
                                   const nupGroups = new Map<string, any[]>();
                                   nupPageRanges.forEach((item: any) => {
-                                    const specInfo = settingSpecs.find((s: any) =>
-                                      (s.specificationId || s.id) === item.specificationId
-                                    )?.specification || {};
-                                    const nup = specInfo.nup || 'other';
+                                    const nup = item.specificationNup || 'other';
+                                    const specInfo = { name: item.specificationName || '', nup };
                                     if (!nupGroups.has(nup)) {
                                       nupGroups.set(nup, []);
                                     }

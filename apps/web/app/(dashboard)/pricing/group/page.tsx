@@ -935,6 +935,8 @@ export default function GroupPricingPage() {
           }
           return {
             specificationId: p.specificationId,
+            specificationNup: p.specification?.nup || null,
+            specificationName: p.specification?.name || null,
             pricePerPage: Number(p.pricePerPage) || 0,
             coverPrice,
             paperPrice,
@@ -1607,14 +1609,13 @@ export default function GroupPricingPage() {
             );
           }
 
-          // Nup별로 그룹화 (표준단가 페이지와 동일한 방식)
+          // Nup별로 그룹화 (prices에 포함된 specification.nup 사용)
           const nupOrder = ['1++up', '1+up', '1up', '2up', '4up', '6up', '8up'];
           const nupGroups = new Map<string, { specId: string; specInfo: any; rangeData: any }[]>();
           nupPageRanges.forEach((nupRange: any) => {
-            const specInfo = settingSpecs.find((s: any) =>
-              (s.specificationId || s.id) === nupRange.specificationId
-            )?.specification || {};
-            const nup = specInfo.nup || 'other';
+            // prices.specification에서 nup 가져오기 (settingSpecs가 없을 수 있음)
+            const nup = nupRange.specificationNup || 'other';
+            const specInfo = { name: nupRange.specificationName || '', nup };
             if (!nupGroups.has(nup)) {
               nupGroups.set(nup, []);
             }
@@ -1904,8 +1905,6 @@ export default function GroupPricingPage() {
 
         {/* ====== 규격별 Nup/1p단가 (finishing_spec_nup) ====== */}
         {pricingType === 'finishing_spec_nup' && (() => {
-          const settingSpecs = setting.specifications || [];
-
           if (nupPageRanges.length === 0) {
             return (
               <div className="mt-3 text-center py-4 text-gray-400 text-sm bg-gray-50 rounded">
@@ -1914,13 +1913,11 @@ export default function GroupPricingPage() {
             );
           }
 
-          // Nup별로 그룹핑
+          // Nup별로 그룹핑 (prices에 포함된 specification.nup 사용)
           const nupGroups = new Map<string, any[]>();
           nupPageRanges.forEach((item: any) => {
-            const specInfo = settingSpecs.find((s: any) =>
-              (s.specificationId || s.id) === item.specificationId
-            )?.specification || {};
-            const nup = specInfo.nup || 'other';
+            const nup = item.specificationNup || 'other';
+            const specInfo = { name: item.specificationName || '', nup };
             if (!nupGroups.has(nup)) {
               nupGroups.set(nup, []);
             }

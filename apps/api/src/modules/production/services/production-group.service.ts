@@ -77,6 +77,9 @@ export class ProductionGroupService {
               orderBy: { sortOrder: 'asc' },
             },
             prices: {
+              include: {
+                specification: { select: { id: true, name: true, nup: true } },
+              },
               orderBy: [{ specificationId: 'asc' }, { minQuantity: 'asc' }],
             },
             _count: {

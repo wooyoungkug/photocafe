@@ -541,9 +541,10 @@ model Specification {
   jdfSpreadType         String?                          @default("Single")
   jdfTrimHeight         Decimal?                         @db.Decimal(10, 2)
   jdfTrimWidth          Decimal?                         @db.Decimal(10, 2)
-  productSpecifications ProductSpecification[]
-  productionSettings    ProductionSettingSpecification[]
-  prices                SpecificationPrice[]
+  productSpecifications      ProductSpecification[]
+  productionSettings         ProductionSettingSpecification[]
+  prices                     SpecificationPrice[]
+  productionSettingPrices    ProductionSettingPrice[]
 
   @@index([isActive])
   @@index([forIndigo])
@@ -1509,8 +1510,10 @@ model ProductionSettingPrice {
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
   productionSetting    ProductionSetting @relation(fields: [productionSettingId], references: [id], onDelete: Cascade)
+  specification        Specification?    @relation(fields: [specificationId], references: [id])
 
   @@index([productionSettingId])
+  @@index([specificationId])
   @@map("production_setting_prices")
 }
 
