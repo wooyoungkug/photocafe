@@ -46,7 +46,7 @@ import {
   PRINT_METHOD_LABELS,
   PRICE_GROUP_STYLES,
 } from '@/components/pricing/pricing-constants';
-import { formatNumber } from '@/components/pricing/pricing-utils';
+import { formatNumber, getFixedPrintSide } from '@/components/pricing/pricing-utils';
 
 interface IndividualPricingTabProps {
   clientId: string;
@@ -547,21 +547,36 @@ export function IndividualPricingTab({ clientId, clientName }: IndividualPricing
                                 {/* ====== 인디고/잉크젯/앨범 단가 그룹 ====== */}
                                 {priceGroups.length > 0 && (
                                   <>
+                                    <div className={cn("grid gap-3", setting.printMethod === 'album' ? "grid-cols-3" : "grid-cols-2")}>
                                     {priceGroups.map((group: any) => {
-                                      const style = PRICE_GROUP_STYLES[group.colorCode] || PRICE_GROUP_STYLES.none;
+                                      const style = PRICE_GROUP_STYLES[group.colorCode] || PRICE_GROUP_STYLES[group.color] || PRICE_GROUP_STYLES.none;
                                       const upPrices = group.upPrices || [];
                                       const specPrices = group.specPrices || [];
+                                      const isAlbum = setting.printMethod === 'album';
+                                      const fps = getFixedPrintSide(selectedProductionGroup?.name || '');
+                                      const priceFields = isAlbum
+                                        ? (['fourColorSinglePrice'] as const)
+                                        : (['fourColorSinglePrice', 'fourColorDoublePrice', 'sixColorSinglePrice', 'sixColorDoublePrice'] as const).filter(f => {
+                                            if (fps === 'single') return !f.includes('Double');
+                                            if (fps === 'double') return !f.includes('Single');
+                                            return true;
+                                          });
+                                      const priceFieldLabels: Record<string, string> = {
+                                        fourColorSinglePrice: isAlbum ? '단면' : '4도단면',
+                                        fourColorDoublePrice: '4도양면',
+                                        sixColorSinglePrice: '6도단면',
+                                        sixColorDoublePrice: '6도양면',
+                                      };
 
                                       return (
                                         <div
                                           key={group.id}
-                                          className={cn("p-3 rounded-lg border", style.bg, style.border)}
+                                          className={cn("border-2 p-3 space-y-2 shadow-sm", style.bg, style.border)}
                                         >
-                                          <div className="flex items-center gap-2 mb-3">
-                                            <div className={cn("w-2 h-2 rounded-full", style.dot)} />
-                                            <span className={cn("font-medium text-sm", style.text)}>
-                                              {group.name}
-                                            </span>
+                                          {/* 그룹 헤더 (표준단가와 동일) */}
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-xl">{style.dot}</span>
+                                            <span className={cn("font-bold text-base", style.text)}>{style.label || group.name}</span>
                                           </div>
 
                                           {/* 인디고 UP별 가격 */}
@@ -572,10 +587,9 @@ export function IndividualPricingTab({ clientId, clientName }: IndividualPricing
                                                   <tr className="bg-gray-100 border-b border-gray-200">
                                                     <th className="text-center py-1 px-1 font-medium text-gray-600">Up</th>
                                                     <th className="text-center py-1 px-1 font-medium text-gray-400 text-[10px]">가중치</th>
-                                                    <th className="text-center py-1 px-1 font-medium text-gray-600">4도단면</th>
-                                                    <th className="text-center py-1 px-1 font-medium text-gray-600">4도양면</th>
-                                                    <th className="text-center py-1 px-1 font-medium text-gray-600">6도단면</th>
-                                                    <th className="text-center py-1 px-1 font-medium text-gray-600">6도양면</th>
+                                                    {priceFields.map((field) => (
+                                                      <th key={field} className="text-center py-1 px-1 font-medium text-gray-600">{priceFieldLabels[field]}</th>
+                                                    ))}
                                                   </tr>
                                                 </thead>
                                                 <tbody>
@@ -590,7 +604,7 @@ export function IndividualPricingTab({ clientId, clientName }: IndividualPricing
                                                         <td className="text-center px-0.5 py-0.5">
                                                           <span className="text-[11px] text-gray-400">{up.weight || 1.0}</span>
                                                         </td>
-                                                        {(['fourColorSinglePrice', 'fourColorDoublePrice', 'sixColorSinglePrice', 'sixColorDoublePrice'] as const).map((field) => {
+                                                        {priceFields.map((field) => {
                                                           const stdPrice = up[field] || 0;
                                                           const key = `${baseKey}${field}`;
                                                           return (
@@ -675,6 +689,7 @@ export function IndividualPricingTab({ clientId, clientName }: IndividualPricing
                                         </div>
                                       );
                                     })}
+                                    </div>
 
                                     {/* 저장/삭제 버튼 (단가 그룹용) */}
                                     <div className="flex justify-end gap-2 pt-2">
