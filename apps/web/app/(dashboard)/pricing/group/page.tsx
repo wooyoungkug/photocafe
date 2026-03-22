@@ -73,7 +73,7 @@ import {
   NUP_TO_COUNT,
   NUP_ORDER,
 } from '@/components/pricing/pricing-constants';
-import { formatNumber } from '@/components/pricing/pricing-utils';
+import { formatNumber, getFixedPrintSide } from '@/components/pricing/pricing-utils';
 
 // NUP_TO_COUNT, NUP_ORDER → pricing-constants에서 import 완료
 
@@ -1100,10 +1100,10 @@ export default function GroupPricingPage() {
 
         {/* DEBUG removed */}
 
-        {/* ====== 인디고/인디고앨범: 가격그룹별 Up×색상 매트릭스 (항상 표시) ====== */}
-        {hasPriceGroups && (printMethod === 'indigo' || printMethod === 'indigoAlbum') && (
+        {/* ====== 인디고/인디고앨범/앨범: 가격그룹별 Up×색상 매트릭스 (표준단가와 동일 레이아웃) ====== */}
+        {hasPriceGroups && (printMethod === 'indigo' || printMethod === 'indigoAlbum' || printMethod === 'album') && (
           <div className="space-y-3">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <div className={cn("grid gap-3", printMethod === 'album' ? "grid-cols-3" : "grid-cols-2")}>
               {priceGroups.map((group: any) => {
                 const style = PRICE_GROUP_STYLES[group.color] || PRICE_GROUP_STYLES.none;
                 const upPrices = (group.upPrices || []).sort((a: any, b: any) => {
@@ -1122,20 +1122,28 @@ export default function GroupPricingPage() {
                 const linkedPapers = linkedPaperIds
                   .map(id => papersMap.get(id))
                   .filter((p: any) => p && (!p.printMethods || p.printMethods.includes(printMethod)));
+
+                // 그룹명 기반 단면/양면 고정
+                const fps = getFixedPrintSide(selectedProductionGroup?.name || '');
+
                 return (
-                  <div key={group.id} className={cn("border rounded-lg p-3", style.border, style.bg)}>
+                  <div
+                    key={group.id}
+                    className={cn(
+                      "border-2 p-3 space-y-2 shadow-sm",
+                      style.bg, style.border
+                    )}
+                  >
                     {/* 그룹 헤더 */}
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <div className={cn("w-3 h-3 rounded-full", style.dot)} />
-                        <span className={cn("font-semibold text-sm", style.text)}>
-                          {style.label}
-                        </span>
-                        <Badge variant="outline" className="text-[10px] h-5">
+                        <span className="text-xl">{style.dot}</span>
+                        <span className={cn("font-bold text-base", style.text)}>{style.label}</span>
+                        <Badge variant="outline" className="text-xs">
                           {linkedPapers.length > 0 ? `${linkedPapers.length}개 용지` : `${upPrices.length}개 Up`}
                         </Badge>
                       </div>
-                      {/* 가중치 입력 */}
+                      {/* 전체 가중치 입력 */}
                       <div className="flex items-center gap-1.5">
                         <span className="text-[10px] text-gray-500">가중치</span>
                         <Input
@@ -1174,57 +1182,109 @@ export default function GroupPricingPage() {
                         </Button>
                       </div>
                     </div>
-                    {/* 연결된 용지명 */}
+
+                    {/* 할당된 용지 미리보기 */}
                     {linkedPapers.length > 0 && (
-                      <div className="text-[11px] text-gray-500 mb-2 pl-5">
-                        {linkedPapers.slice(0, 3).map((p: any) => `${p.name}${p.grammage ? ` ${p.grammage}g` : ''}`).join(', ')}
-                        {linkedPapers.length > 3 && ` 외 ${linkedPapers.length - 3}개`}
+                      <div className="text-xs text-gray-500 truncate">
+                        {linkedPapers.map((p: any) => `${p?.name}${p?.grammage ? ` ${p.grammage}g` : ''}`).join(", ")}
                       </div>
                     )}
 
-                    {/* Up별 가격 테이블 (표준 + 그룹 나란히) */}
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs border-collapse bg-white rounded">
+                    {/* Up별 가격 입력 테이블 (표준단가와 동일 구조) */}
+                    <div className="border border-gray-200 overflow-hidden">
+                      <table className="w-full text-xs">
                         <thead>
-                          <tr className="bg-gray-50">
-                            <th className="px-2 py-1.5 text-left font-medium text-gray-500 w-12">Up</th>
-                            <th className="px-2 py-1.5 text-center font-medium text-gray-500">4도단면</th>
-                            <th className="px-2 py-1.5 text-center font-medium text-gray-500">4도양면</th>
-                            <th className="px-2 py-1.5 text-center font-medium text-gray-500">6도단면</th>
-                            <th className="px-2 py-1.5 text-center font-medium text-gray-500">6도양면</th>
-                          </tr>
+                          {(() => {
+                            const isAlbum = printMethod === 'album';
+                            return (
+                              <tr className="bg-gray-100 border-b border-gray-200">
+                                <th className="text-center py-1 px-1 font-medium text-gray-600">Up</th>
+                                <th className="text-center py-1 px-1 font-medium text-gray-400 text-[10px]">가중치</th>
+                                {isAlbum ? (
+                                  <th className="text-center py-1 px-1 font-medium text-gray-600">단면</th>
+                                ) : (
+                                  <>
+                                    {fps !== 'double' && <th className="text-center py-1 px-1 font-medium text-gray-600">4도단면</th>}
+                                    {fps !== 'single' && <th className="text-center py-1 px-1 font-medium text-gray-600">4도양면</th>}
+                                    {fps !== 'double' && <th className="text-center py-1 px-1 font-medium text-gray-600">6도단면</th>}
+                                    {fps !== 'single' && <th className="text-center py-1 px-1 font-medium text-gray-600">6도양면</th>}
+                                  </>
+                                )}
+                              </tr>
+                            );
+                          })()}
                         </thead>
                         <tbody>
                           {upPrices.map((upPrice: any, idx: number) => {
                             const isBase = idx === 0;
                             const upKey = upPrice.nupKey || upPrice.up;
-                            const baseKey = `${setting.id}_${group.id}_${upKey}`;
                             const savedGroupPrice = groupPricesMap.get(`${setting.id}_${group.id}_${upKey}`);
+                            const isAlbum = printMethod === 'album';
 
                             return (
-                              <tr key={upKey} className="border-t">
-                                <td className="px-2 py-1.5 font-medium text-gray-600">
-                                  {upPrice.nupKey || `${upPrice.up}up`}
-                                  {isBase && <span className="text-indigo-500 text-[10px] ml-1">(기준)</span>}
+                              <tr key={upKey} className={cn("border-b border-gray-100 last:border-0", isBase && "bg-amber-50/50")}>
+                                <td className="text-center py-0.5 px-0.5 font-medium text-indigo-600">{upPrice.nupKey || `${upPrice.up}up`}</td>
+                                <td className="text-center px-0.5 py-0.5">
+                                  <div className="relative">
+                                    <Input
+                                      type="number"
+                                      step="0.1"
+                                      min="0.1"
+                                      max="5"
+                                      className="h-8 w-12 text-center text-[11px] bg-gray-50 border-gray-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                      value={upPrice.weight || ""}
+                                      disabled={isBase}
+                                      onChange={(e) => {
+                                        const weight = Number(e.target.value) || 1;
+                                        // 가중치 변경 시: editingPrices 내에서 기준행 기준으로 재계산
+                                        const baseUpPrice = upPrices[0];
+                                        if (!baseUpPrice) return;
+                                        const baseNupCount = baseUpPrice.nupKey ? (NUP_TO_COUNT[baseUpPrice.nupKey] || 1) : baseUpPrice.up;
+                                        const nupCount = upPrice.nupKey ? (NUP_TO_COUNT[upPrice.nupKey] || 1) : upPrice.up;
+                                        const fields = isAlbum
+                                          ? ['fourColorSinglePrice']
+                                          : (['fourColorSinglePrice', 'fourColorDoublePrice', 'sixColorSinglePrice', 'sixColorDoublePrice'] as const).filter(f => {
+                                              if (fps === 'single') return !f.includes('Double');
+                                              if (fps === 'double') return !f.includes('Single');
+                                              return true;
+                                            });
+                                        const updates: Record<string, string> = {};
+                                        fields.forEach((field) => {
+                                          const baseKey = `${setting.id}_${group.id}_${baseUpPrice.nupKey || baseUpPrice.up}_${field}`;
+                                          const savedBasePrice = groupPricesMap.get(`${setting.id}_${group.id}_${baseUpPrice.nupKey || baseUpPrice.up}`);
+                                          const baseVal = parseFloat(editingPrices[baseKey] ?? '') || savedBasePrice?.[field] || baseUpPrice[field] || 0;
+                                          const key = `${setting.id}_${group.id}_${upKey}_${field}`;
+                                          updates[key] = baseVal > 0 ? Math.round((baseVal / nupCount * baseNupCount) * weight).toString() : '';
+                                        });
+                                        setEditingPrices(prev => ({ ...prev, ...updates }));
+                                      }}
+                                      placeholder="1"
+                                    />
+                                  </div>
                                 </td>
-                                {['fourColorSinglePrice', 'fourColorDoublePrice', 'sixColorSinglePrice', 'sixColorDoublePrice'].map((field) => {
-                                  const key = `${baseKey}_${field}`;
+                                {(isAlbum
+                                  ? (['fourColorSinglePrice'] as const)
+                                  : (['fourColorSinglePrice', 'fourColorDoublePrice', 'sixColorSinglePrice', 'sixColorDoublePrice'] as const).filter(f => {
+                                      if (fps === 'single') return !f.includes('Double');
+                                      if (fps === 'double') return !f.includes('Single');
+                                      return true;
+                                    })
+                                ).map((field) => {
+                                  const key = `${setting.id}_${group.id}_${upKey}_${field}`;
                                   const standardPrice = upPrice[field] || 0;
                                   const savedPrice = savedGroupPrice?.[field];
 
                                   return (
-                                    <td key={field} className="px-1 py-1.5 text-center">
-                                      <div className="flex flex-col items-center gap-0.5">
-                                        <span className="text-gray-400 text-[9px]">
-                                          {standardPrice > 0 ? formatNumber(standardPrice) : "-"}
-                                        </span>
+                                    <td key={field} className="px-0.5 py-0.5">
+                                      <div className="flex flex-col items-center">
                                         <Input
                                           type="number"
                                           className={cn(
-                                            "h-6 w-16 text-xs text-center font-mono",
-                                            !isBase && "bg-gray-50"
+                                            "h-8 w-16 text-sm text-center rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+                                            isBase
+                                              ? "bg-amber-100 border-amber-300 font-medium focus:border-amber-400 focus:ring-1 focus:ring-amber-200"
+                                              : "bg-white border-slate-200 hover:border-indigo-300 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
                                           )}
-                                          placeholder="-"
                                           value={editingPrices[key] ?? (savedPrice ? String(savedPrice) : (standardPrice > 0 ? String(standardPrice) : ''))}
                                           onChange={(e) => {
                                             if (isBase) {
@@ -1233,6 +1293,7 @@ export default function GroupPricingPage() {
                                               setEditingPrices(prev => ({ ...prev, [key]: e.target.value }));
                                             }
                                           }}
+                                          placeholder="0"
                                         />
                                       </div>
                                     </td>
@@ -1244,181 +1305,15 @@ export default function GroupPricingPage() {
                         </tbody>
                       </table>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* 인디고 저장 버튼 */}
-            {hasChanges && (
-              <div className="flex justify-end">
-                <Button
-                  size="sm"
-                  className="h-8 bg-indigo-600 hover:bg-indigo-700"
-                  disabled={isSaving}
-                  onClick={() => handleSaveGroupPrices(setting.id, priceGroups)}
-                >
-                  {isSaving ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
-                  저장
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ====== 잉크젯앨범(album): 가격그룹별 Up×단면 매트릭스 ====== */}
-        {hasPriceGroups && printMethod === 'album' && (
-          <div className="space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {priceGroups.map((group: any) => {
-                const style = PRICE_GROUP_STYLES[group.color] || PRICE_GROUP_STYLES.none;
-                const upPrices = (group.upPrices || []).sort((a: any, b: any) => {
-                  const aKey = a.nupKey || `${a.up}up`;
-                  const bKey = b.nupKey || `${b.up}up`;
-                  const aIdx = NUP_ORDER.indexOf(aKey as any);
-                  const bIdx = NUP_ORDER.indexOf(bKey as any);
-                  return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx);
-                });
-
-                // 연결된 용지 정보
-                const paperPriceGroupMap = setting.paperPriceGroupMap || {};
-                const linkedPaperIds = Object.entries(paperPriceGroupMap)
-                  .filter(([_, gId]) => gId === group.id)
-                  .map(([paperId]) => paperId);
-                const linkedPapers = linkedPaperIds
-                  .map(id => papersMap.get(id))
-                  .filter((p: any) => p && (!p.printMethods || p.printMethods.includes(printMethod)));
-
-                return (
-                  <div key={group.id} className={cn("border rounded-lg p-3", style.border, style.bg)}>
-                    {/* 그룹 헤더 */}
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <div className={cn("w-3 h-3 rounded-full", style.dot)} />
-                        <span className={cn("font-semibold text-sm", style.text)}>
-                          {style.label}
-                        </span>
-                        <Badge variant="outline" className="text-[10px] h-5">
-                          {linkedPapers.length > 0 ? `${linkedPapers.length}개 용지` : `${upPrices.length}개 Up`}
-                        </Badge>
-                      </div>
-                      {/* 가중치 입력 */}
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] text-gray-500">가중치</span>
-                        <Input
-                          type="number"
-                          className="h-6 w-14 text-xs text-center font-mono"
-                          placeholder="100"
-                          value={weights[`${setting.id}_${group.id}`] || ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setWeights(prev => ({ ...prev, [`${setting.id}_${group.id}`]: val ? Number(val) : 0 }));
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              const weightVal = weights[`${setting.id}_${group.id}`] || 100;
-                              if (weightVal > 0 && weightVal <= 200) {
-                                applyWeight(setting.id, group.id, upPrices, weightVal);
-                              }
-                            }
-                          }}
-                        />
-                        <span className="text-[10px] text-gray-500">%</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 px-2 text-[10px] text-indigo-600 hover:bg-indigo-50"
-                          onClick={() => {
-                            const weightVal = weights[`${setting.id}_${group.id}`] || 100;
-                            if (weightVal > 0 && weightVal <= 200) {
-                              applyWeight(setting.id, group.id, upPrices, weightVal);
-                            } else {
-                              toast({ title: '가중치는 1~200 사이 값을 입력하세요.', variant: 'destructive' });
-                            }
-                          }}
-                        >
-                          적용
-                        </Button>
-                      </div>
-                    </div>
-                    {/* 연결된 용지명 */}
-                    {linkedPapers.length > 0 && (
-                      <div className="text-[11px] text-gray-500 mb-2 pl-5">
-                        {linkedPapers.slice(0, 3).map((p: any) => `${p.name}${p.grammage ? ` ${p.grammage}g` : ''}`).join(', ')}
-                        {linkedPapers.length > 3 && ` 외 ${linkedPapers.length - 3}개`}
-                      </div>
-                    )}
-
-                    {/* Up별 가격 테이블 (단면만) */}
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs border-collapse bg-white rounded">
-                        <thead>
-                          <tr className="bg-gray-50">
-                            <th className="px-2 py-1.5 text-left font-medium text-gray-500 w-16">Up</th>
-                            <th className="px-2 py-1.5 text-center font-medium text-gray-400 text-[10px] w-12">가중치</th>
-                            <th className="px-2 py-1.5 text-center font-medium text-gray-500">단면</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {upPrices.map((upPrice: any, idx: number) => {
-                            const isBase = idx === 0;
-                            const upKey = upPrice.nupKey || upPrice.up;
-                            const baseKey = `${setting.id}_${group.id}_${upKey}`;
-                            const savedGroupPrice = groupPricesMap.get(`${setting.id}_${group.id}_${upKey}`);
-                            const field = 'fourColorSinglePrice';
-                            const key = `${baseKey}_${field}`;
-                            const standardPrice = upPrice[field] || 0;
-                            const savedPrice = savedGroupPrice?.[field];
-
-                            return (
-                              <tr key={upKey} className={cn("border-t", isBase && "bg-amber-50/50")}>
-                                <td className="px-2 py-1.5 font-medium text-indigo-600">
-                                  {upPrice.nupKey || `${upPrice.up}up`}
-                                  {isBase && <span className="text-indigo-400 text-[10px] ml-1">(기준)</span>}
-                                </td>
-                                <td className="text-center px-1 py-1.5 text-[11px] text-gray-400 font-mono">
-                                  {isBase ? '-' : (upPrice.weight || 1)}
-                                </td>
-                                <td className="px-1 py-1.5 text-center">
-                                  <div className="flex flex-col items-center gap-0.5">
-                                    <span className="text-gray-400 text-[9px]">
-                                      {standardPrice > 0 ? formatNumber(standardPrice) : "-"}
-                                    </span>
-                                    <Input
-                                      type="number"
-                                      className={cn(
-                                        "h-6 w-16 text-xs text-center font-mono",
-                                        isBase
-                                          ? "bg-amber-100 border-amber-300 font-medium"
-                                          : "bg-gray-50"
-                                      )}
-                                      placeholder="-"
-                                      value={editingPrices[key] ?? (savedPrice ? String(savedPrice) : (standardPrice > 0 ? String(standardPrice) : ''))}
-                                      onChange={(e) => {
-                                        if (isBase) {
-                                          handleOneUpChange(group.id, field, e.target.value, upPrices);
-                                        } else {
-                                          setEditingPrices(prev => ({ ...prev, [key]: e.target.value }));
-                                        }
-                                      }}
-                                    />
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
                     <p className="text-xs text-gray-400 mt-1">
-                      * 1up 가격 설정 시, 선택된 Up 만큼 나눠진 가격이 자동 계산됩니다. (원가 = 용지+잉크, 잉크 21원×컬러수/up)
+                      * 기준행(1up) 가격 설정 시, 나머지 Up은 가중치 기반으로 자동 계산됩니다.
                     </p>
                   </div>
                 );
               })}
             </div>
 
-            {/* 앨범 저장 버튼 */}
+            {/* 저장 버튼 */}
             {hasChanges && (
               <div className="flex justify-end">
                 <Button
