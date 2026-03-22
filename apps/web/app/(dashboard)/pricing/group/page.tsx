@@ -1903,8 +1903,8 @@ export default function GroupPricingPage() {
                           basePages: pageRanges[0] || 20,
                           basePrice: rangePricesObj[String(pageRanges[0])] || 0,
                           pricePerPage: perPageVal,
-                          coverPrice: coverVal || undefined,
-                          paperPrice: paperVal || undefined,
+                          coverPrice: Number.isFinite(coverVal) ? coverVal : undefined,
+                          paperPrice: Number.isFinite(paperVal) ? paperVal : undefined,
                           rangePrices: rangePricesObj,
                         });
                       });
