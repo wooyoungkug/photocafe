@@ -568,6 +568,13 @@ export function IndividualPricingTab({ clientId, clientName }: IndividualPricing
                                         sixColorDoublePrice: '6도양면',
                                       };
 
+                                      // 할당된 용지 (표준단가와 동일)
+                                      const pMap = setting.paperPriceGroupMap || {};
+                                      const assignedPapers = Object.entries(pMap)
+                                        .filter(([, gid]) => gid === group.id)
+                                        .map(([pid]) => papersMap.get(pid))
+                                        .filter(Boolean);
+
                                       return (
                                         <div
                                           key={group.id}
@@ -577,7 +584,17 @@ export function IndividualPricingTab({ clientId, clientName }: IndividualPricing
                                           <div className="flex items-center gap-2">
                                             <span className="text-xl">{style.dot}</span>
                                             <span className={cn("font-bold text-base", style.text)}>{style.label || group.name}</span>
+                                            <Badge variant="outline" className="text-xs">
+                                              {assignedPapers.length}개 용지
+                                            </Badge>
                                           </div>
+
+                                          {/* 할당된 용지 미리보기 (표준단가와 동일) */}
+                                          {assignedPapers.length > 0 && (
+                                            <div className="text-xs text-gray-500 truncate">
+                                              {assignedPapers.map((p: any) => `${p?.name}${p?.grammage ? ` ${p.grammage}g` : ''}`).join(", ")}
+                                            </div>
+                                          )}
 
                                           {/* 인디고 UP별 가격 */}
                                           {upPrices.length > 0 && (
@@ -602,7 +619,15 @@ export function IndividualPricingTab({ clientId, clientName }: IndividualPricing
                                                       <tr key={up.up} className={cn("border-b border-gray-100 last:border-0", isBase && "bg-amber-50/50")}>
                                                         <td className="text-center py-0.5 px-0.5 font-medium text-indigo-600">{up.nupKey || `${up.up}up`}</td>
                                                         <td className="text-center px-0.5 py-0.5">
-                                                          <span className="text-[11px] text-gray-400">{up.weight || 1.0}</span>
+                                                          <div className="relative">
+                                                            <Input
+                                                              type="number"
+                                                              className="h-8 w-12 text-center text-[11px] bg-gray-50 border-gray-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                              value={up.weight || ""}
+                                                              disabled
+                                                              placeholder="1"
+                                                            />
+                                                          </div>
                                                         </td>
                                                         {priceFields.map((field) => {
                                                           const stdPrice = up[field] || 0;
