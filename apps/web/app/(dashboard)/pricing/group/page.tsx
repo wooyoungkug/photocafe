@@ -63,48 +63,19 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { SPEC_PURPOSE_LABELS } from '@/lib/types/specification';
+// SPEC_PURPOSE_LABELS → PRINT_METHOD_LABELS로 대체 (pricing-constants에서 import)
 
-// 숫자 포맷팅 (3자리 콤마)
-const formatNumber = (num: number | string | undefined | null): string => {
-  if (num === undefined || num === null || num === '') return '';
-  const n = typeof num === 'string' ? parseFloat(num) : num;
-  if (isNaN(n)) return '';
-  return n.toLocaleString('ko-KR');
-};
+// 공통 상수/유틸리티 (중복 제거 → 공유 모듈에서 import)
+import {
+  PRICING_TYPE_LABELS,
+  PRINT_METHOD_LABELS,
+  PRICE_GROUP_STYLES,
+  NUP_TO_COUNT,
+  NUP_ORDER,
+} from '@/components/pricing/pricing-constants';
+import { formatNumber } from '@/components/pricing/pricing-utils';
 
-// 가격 계산 방식 한글 라벨
-const PRICING_TYPE_LABELS: Record<string, string> = {
-  paper_output_spec: "[출력전용] 용지별출력단가/1p가격",
-  nup_page_range: "[제본전용] 구간별 Nup/1p가격",
-  finishing_spec_nup: "[후가공전용] 규격별 Nup/1p단가",
-  finishing_length: "[후가공전용] 길이별단가",
-  finishing_area: "[후가공전용] 면적별단가",
-  binding_page: "[제본전용] 제본 페이지당",
-  finishing_qty: "[후가공] 수량당",
-  finishing_page: "[후가공] 페이지당",
-};
-
-// 인쇄방식 라벨 - 공통 상수 사용
-const PRINT_METHOD_LABELS: Record<string, string> = SPEC_PURPOSE_LABELS;
-
-// 단가 그룹 색상 스타일
-const PRICE_GROUP_STYLES: Record<string, { bg: string; border: string; text: string; dot: string; label: string }> = {
-  green: { bg: 'bg-green-50', border: 'border-green-300', text: 'text-green-700', dot: 'bg-green-500', label: '광택지' },
-  blue: { bg: 'bg-blue-50', border: 'border-blue-300', text: 'text-blue-700', dot: 'bg-blue-500', label: '무광지' },
-  yellow: { bg: 'bg-yellow-50', border: 'border-yellow-300', text: 'text-yellow-700', dot: 'bg-yellow-500', label: '특수지' },
-  red: { bg: 'bg-red-50', border: 'border-red-300', text: 'text-red-700', dot: 'bg-red-500', label: '프리미엄' },
-  purple: { bg: 'bg-purple-50', border: 'border-purple-300', text: 'text-purple-700', dot: 'bg-purple-500', label: '캔버스' },
-  none: { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-500', dot: 'bg-gray-400', label: '기타' },
-};
-
-// 앨범 NUP 키 → 실제 배수(분모) 매핑
-const NUP_TO_COUNT: Record<string, number> = {
-  '1++up': 1, '1+up': 1, '1up': 1, '2up': 2, '4up': 4, '6up': 6, '8up': 8,
-};
-
-// NUP 정렬 순서 (1++up 맨위, 8up 맨아래)
-const NUP_ORDER = ['1++up', '1+up', '1up', '2up', '4up', '6up', '8up'] as const;
+// NUP_TO_COUNT, NUP_ORDER → pricing-constants에서 import 완료
 
 // 트리 노드 컴포넌트
 function TreeNode({

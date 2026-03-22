@@ -107,6 +107,8 @@ const PRICING_TYPE_LABELS: Partial<Record<PricingType, string>> = {
   finishing_qty: "[후가공] 수량당",
   finishing_page: "[후가공] 페이지당",
 };
+// NOTE: 공유 상수는 @/components/pricing/pricing-constants 에서 사용 가능
+// production/page.tsx는 원본 소스로, 향후 점진적으로 공유 모듈 import로 전환 예정
 
 // 할증조건 타입
 const SURCHARGE_TYPES = [

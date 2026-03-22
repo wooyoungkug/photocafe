@@ -45,28 +45,14 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { SPEC_PURPOSE_LABELS } from '@/lib/types/specification';
+// SPEC_PURPOSE_LABELS → PRINT_METHOD_LABELS로 대체 (pricing-constants에서 import)
 
-// 숫자 포맷팅 (3자리 콤마)
-const formatNumber = (num: number | string | undefined | null): string => {
-  if (num === undefined || num === null || num === '') return '';
-  const n = typeof num === 'string' ? parseFloat(num) : num;
-  if (isNaN(n)) return '';
-  return n.toLocaleString('ko-KR');
-};
-
-// 인쇄방식 라벨 - 공통 상수 사용
-const PRINT_METHOD_LABELS: Record<string, string> = SPEC_PURPOSE_LABELS;
-
-// 단가 그룹 색상 스타일
-const PRICE_GROUP_STYLES: Record<string, { bg: string; border: string; text: string; dot: string; label: string }> = {
-  green: { bg: 'bg-green-50', border: 'border-green-300', text: 'text-green-700', dot: 'bg-green-500', label: '그룹1' },
-  blue: { bg: 'bg-blue-50', border: 'border-blue-300', text: 'text-blue-700', dot: 'bg-blue-500', label: '그룹2' },
-  yellow: { bg: 'bg-yellow-50', border: 'border-yellow-300', text: 'text-yellow-700', dot: 'bg-yellow-500', label: '그룹3' },
-  red: { bg: 'bg-red-50', border: 'border-red-300', text: 'text-red-700', dot: 'bg-red-500', label: '그룹4' },
-  purple: { bg: 'bg-purple-50', border: 'border-purple-300', text: 'text-purple-700', dot: 'bg-purple-500', label: '그룹5' },
-  none: { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-500', dot: 'bg-gray-400', label: '기타' },
-};
+// 공통 상수/유틸리티 (중복 제거 → 공유 모듈에서 import)
+import {
+  PRINT_METHOD_LABELS,
+  PRICE_GROUP_STYLES,
+} from '@/components/pricing/pricing-constants';
+import { formatNumber } from '@/components/pricing/pricing-utils';
 
 interface IndividualPricingTabProps {
   clientId: string;
