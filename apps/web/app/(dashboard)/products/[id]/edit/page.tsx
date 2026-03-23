@@ -88,20 +88,7 @@ const BINDING_DIRECTION_OPTIONS = [
   { value: 'customer', label: '고객선택' },
 ];
 
-// 출력구분 옵션
-const PRINT_TYPE_OPTIONS = [
-  { value: 'single', label: '단면출력' },
-  { value: 'double', label: '양면출력' },
-  { value: 'customer', label: '고객선택' },
-];
-
-// 색상구분 옵션 (인디고 4도/6도)
-const COLOR_TYPE_OPTIONS = [
-  { value: '4c', label: '4도' },
-  { value: '6c', label: '6도' },
-  { value: 'both', label: '4도+6도' },
-  { value: 'customer', label: '고객선택' },
-];
+// (출력구분·색상구분은 체크박스 UI로 직접 처리)
 
 // 제본방법에 따른 출력구분 자동 결정
 // 압축제본류(압축, 맞장, 레이플릿) → 단면출력
