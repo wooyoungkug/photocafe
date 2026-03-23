@@ -1823,9 +1823,15 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                   const printMethod = setting.printMethod;
                   const savedCount = clientPrices?.filter((cp: any) => cp.productionSettingId === setting.id).length || 0;
                   return (
-                    <div key={setting.id} className="group flex items-center justify-between gap-3 p-3 border rounded-lg cursor-pointer hover:bg-indigo-50 hover:border-indigo-200 transition-colors"
+                    <div key={setting.id} className={cn(
+                        "group flex items-center justify-between gap-3 p-3 border rounded-lg cursor-pointer transition-colors",
+                        savedCount > 0
+                          ? "border-blue-400 bg-blue-50/50 hover:bg-blue-100/50"
+                          : "hover:bg-indigo-50 hover:border-indigo-200"
+                      )}
                       onClick={() => setSelectedSettingId(setting.id)}>
                       <div className="flex items-center gap-3 flex-wrap min-w-0">
+                        {savedCount > 0 && <div className="w-3 h-3 rounded-full bg-green-500 shrink-0" />}
                         <span className="text-[14px] font-bold text-black">{setting.settingName || setting.codeName || "설정"}</span>
                         <Badge variant="outline" className="text-xs font-normal text-gray-600 bg-gray-50 shrink-0">{PRICING_TYPE_LABELS[pricingType] || pricingType}</Badge>
                         {printMethod && <Badge variant="secondary" className="text-xs shrink-0">{PRINT_METHOD_LABELS[printMethod] || printMethod}</Badge>}
