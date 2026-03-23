@@ -1079,9 +1079,12 @@ export default function GroupPricingPage() {
 
               {/* 그룹단가 설정 상태 */}
               {savedGroupPriceCount > 0 && (
-                <Badge className="text-[10px] h-5 bg-indigo-100 text-indigo-700 hover:bg-indigo-100">
-                  {savedGroupPriceCount}개 그룹단가
-                </Badge>
+                <>
+                  <span className="w-2.5 h-2.5 rounded-full bg-orange-400 shrink-0" title="그룹단가 설정됨" />
+                  <Badge className="text-[10px] h-5 bg-indigo-100 text-indigo-700 hover:bg-indigo-100">
+                    {savedGroupPriceCount}개 그룹단가
+                  </Badge>
+                </>
               )}
             </div>
           </div>
@@ -2559,9 +2562,12 @@ export default function GroupPricingPage() {
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           {savedGroupPriceCount > 0 && (
-                            <Badge className="text-[10px] h-5 bg-indigo-100 text-indigo-700 hover:bg-indigo-100">
-                              {savedGroupPriceCount}개 그룹단가
-                            </Badge>
+                            <>
+                              <span className="w-2.5 h-2.5 rounded-full bg-orange-400 shrink-0" title="그룹단가 설정됨" />
+                              <Badge className="text-[10px] h-5 bg-indigo-100 text-indigo-700 hover:bg-indigo-100">
+                                {savedGroupPriceCount}개 그룹단가
+                              </Badge>
+                            </>
                           )}
                           <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-indigo-500" />
                         </div>
