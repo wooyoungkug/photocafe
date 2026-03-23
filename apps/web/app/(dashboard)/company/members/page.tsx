@@ -514,6 +514,8 @@ export default function MembersPage() {
 
   // 대리 로그인 (회원으로 로그인된 쇼핑몰 새 창 열기)
   const handleImpersonate = async (member: Client) => {
+    // 팝업 차단 방지: async/await 이전, 사용자 제스처 컨텍스트에서 새 탭 먼저 열기
+    const newTab = window.open('about:blank', '_blank');
     try {
       const result = await api.post<{
         accessToken: string;
@@ -527,9 +529,19 @@ export default function MembersPage() {
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
       }));
-      window.open('/', '_blank');
+
+      if (newTab) {
+        newTab.location.href = '/';
+      } else {
+        window.open('/', '_blank');
+      }
     } catch (err) {
-      toast({ title: '대리 로그인에 실패했습니다.', variant: 'destructive' });
+      newTab?.close();
+      toast({
+        title: '대리 로그인에 실패했습니다.',
+        description: err instanceof Error ? err.message : '오류가 발생했습니다.',
+        variant: 'destructive',
+      });
     }
   };
 
