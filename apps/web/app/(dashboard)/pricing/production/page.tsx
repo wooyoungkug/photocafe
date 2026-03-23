@@ -23,6 +23,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DebouncedInput } from "@/components/ui/debounced-input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -4314,12 +4315,12 @@ export default function ProductionSettingPage() {
                                   {isSelected ? (
                                     <>
                                       {/* 표지가격 입력 (모든 행) */}
-                                      <Input
+                                      <DebouncedInput
                                         type="number"
                                         step="1"
                                         value={coverPrice || ''}
-                                        onChange={(e) => {
-                                          const newCoverPrice = Number(e.target.value);
+                                        onChange={(val) => {
+                                          const newCoverPrice = Number(val);
                                           setSettingForm(prev => {
                                             const currentData = prev.nupPageRanges.find(p => p.specificationId === representativeSpec.id);
                                             const newRangePrices = recalcRangePrices(prev.pageRanges, newCoverPrice, currentData?.pricePerPage || 0, currentData?.paperPrice || 0, currentData?.rangePrices);

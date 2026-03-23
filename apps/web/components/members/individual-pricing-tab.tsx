@@ -1829,20 +1829,9 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                   {totalPriceCount}개 개별단가 설정됨
                 </Badge>
               )}
-              {groupId && (
-                <Button variant="outline" size="sm" className="h-9 px-3 text-xs bg-white text-purple-600 border-purple-200 hover:bg-purple-50"
-                  disabled={cloneAllMutation.isPending}
-                  onClick={handleCloneAllFromGroup}>
-                  {cloneAllMutation.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Copy className="h-3.5 w-3.5 mr-1.5" />}
-                  그룹단가 전체복사
-                </Button>
-              )}
-              <Button variant="outline" size="sm" className="h-9 px-3 text-xs bg-white text-blue-600 border-blue-200 hover:bg-blue-50"
-                disabled={cloneAllMutation.isPending}
-                onClick={handleCloneAllFromStandard}>
-                {cloneAllMutation.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Copy className="h-3.5 w-3.5 mr-1.5" />}
-                표준단가 전체복사
-              </Button>
+              {/* 그룹단가 전체복사 / 표준단가 전체복사 버튼 숨김
+                 - 개별단가 미설정 시 자동으로 그룹단가 적용되므로 복사 불필요
+                 - 표준단가 필요 시 회원 그룹을 표준단가 그룹으로 지정하면 됨 */}
               {/* 전체 가중치 버튼 숨김 - 설정값별/용지그룹별 가중치 사용 */}
               <Button variant="outline" size="sm" className="h-9 px-3 text-xs bg-white text-amber-600 border-amber-200 hover:bg-amber-50"
                 onClick={() => setIsBulkAdjustDialogOpen(true)}>
