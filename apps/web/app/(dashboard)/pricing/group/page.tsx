@@ -1387,7 +1387,6 @@ export default function GroupPricingPage() {
                                       </td>
                                     );
                                   })()}
-                                  );
                                 })}
                               </tr>
                             );
