@@ -45,14 +45,14 @@ export function InkjetSpecPriceTable({
   getCostForSpec,
 }: InkjetSpecPriceTableProps) {
   return (
-    <div className="border border-gray-200 overflow-hidden">
-      <table className="w-full text-xs">
+    <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <table className="w-full text-[14px]">
         <thead>
           <tr className="bg-gray-100 border-b border-gray-200">
-            <th className="text-left py-1 px-2 font-medium text-gray-600">규격</th>
-            <th className="text-center py-1 px-1 font-medium text-gray-600">단면가격</th>
+            <th className="text-left py-2 px-2 font-medium text-gray-600">규격</th>
+            <th className="text-center py-2 px-2 font-medium text-gray-600">단면가격</th>
             {mode === 'standard' && getCostForSpec && (
-              <th className="text-center py-1 px-1 font-medium text-gray-400 text-[10px]">원가</th>
+              <th className="text-center py-2 px-2 font-medium text-gray-500 text-[12px]">원가</th>
             )}
           </tr>
         </thead>
@@ -95,19 +95,19 @@ export function InkjetSpecPriceTable({
                 key={specId}
                 className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50"
               >
-                <td className="py-0.5 px-2 font-medium text-gray-700">{specPrice.specName}</td>
-                <td className="px-0.5 py-0.5">
-                  <div className="flex flex-col items-center">
+                <td className="py-1.5 px-2 font-medium text-gray-700">{specPrice.specName}</td>
+                <td className="px-2 py-1.5">
+                  <div className="flex flex-col items-center gap-0.5">
                     {/* 표준가 참조 (그룹/개별 모드) */}
                     {mode !== 'standard' && standardPrice > 0 && (
-                      <div className="flex items-center gap-0.5">
-                        <span className="text-[9px] text-gray-400">
-                          {formatNumber(standardPrice)}
+                      <div className="flex items-center gap-1">
+                        <span className="text-[11px] text-gray-500 font-medium">
+                          표준 {formatNumber(standardPrice)}
                         </span>
                         {diff && diff.direction !== 'same' && (
                           <span
                             className={cn(
-                              'text-[8px] font-medium',
+                              'text-[10px] font-medium',
                               diff.direction === 'down' ? 'text-green-600' : 'text-red-500'
                             )}
                           >
@@ -118,13 +118,13 @@ export function InkjetSpecPriceTable({
                       </div>
                     )}
                     {readOnly ? (
-                      <span className="h-7 w-16 flex items-center justify-center font-mono text-xs text-gray-600 bg-gray-50 rounded border">
+                      <span className="h-9 w-20 flex items-center justify-center font-mono text-[14px] text-gray-600 bg-gray-50 rounded border">
                         {formatNumber(numCurrentValue) || '-'}
                       </span>
                     ) : (
                       <Input
                         type="number"
-                        className="h-7 w-20 text-xs text-center font-mono bg-white border-slate-200 hover:border-indigo-300 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="h-9 w-20 text-[14px] text-center font-mono bg-white border-slate-200 hover:border-indigo-300 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         value={currentValue}
                         onChange={(e) => {
                           onEditingPricesChange({
@@ -138,7 +138,7 @@ export function InkjetSpecPriceTable({
                   </div>
                 </td>
                 {mode === 'standard' && costDisplay && (
-                  <td className="text-center text-[10px] text-orange-500">원가 {costDisplay}</td>
+                  <td className="text-center text-[11px] text-orange-600 font-medium">원가 {costDisplay}</td>
                 )}
               </tr>
             );

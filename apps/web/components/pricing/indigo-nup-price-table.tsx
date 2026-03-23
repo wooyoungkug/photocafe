@@ -93,25 +93,32 @@ export function IndigoNupPriceTable({
     onUpPricesChange(recalculated);
   };
 
-  // 참조 가격 찾기 (표준가 또는 그룹가)
-  const getRefPrice = (upPrice: UpPrice, field: string): number | undefined => {
-    if (mode === 'standard') return undefined;
+  // UpPrice 리스트에서 매칭 항목 찾기
+  const findInList = (list: UpPrice[] | undefined, upPrice: UpPrice) => {
+    if (!list) return undefined;
+    return list.find(
+      (p) => (p.nupKey && p.nupKey === upPrice.nupKey) || (!p.nupKey && p.up === upPrice.up)
+    );
+  };
 
-    const findInList = (list: UpPrice[] | undefined) => {
-      if (!list) return undefined;
-      return list.find(
-        (p) => (p.nupKey && p.nupKey === upPrice.nupKey) || (!p.nupKey && p.up === upPrice.up)
-      );
-    };
+  // 참조 가격 찾기: { groupPrice, standardPrice }
+  const getRefPrices = (upPrice: UpPrice, field: string): { groupPrice?: number; standardPrice?: number } => {
+    if (mode === 'standard') return {};
 
-    // 개별 모드: 그룹가 우선, 없으면 표준가
+    const stdRef = findInList(standardUpPrices, upPrice);
+    const standardPrice = stdRef ? ((stdRef as any)[field] || 0) : 0;
+
     if (mode === 'individual') {
-      const groupRef = findInList(groupUpPrices);
-      if (groupRef && (groupRef as any)[field] > 0) return (groupRef as any)[field];
+      const groupRef = findInList(groupUpPrices, upPrice);
+      const groupPrice = groupRef ? ((groupRef as any)[field] || 0) : 0;
+      return {
+        groupPrice: groupPrice > 0 ? groupPrice : undefined,
+        standardPrice: standardPrice > 0 ? standardPrice : undefined,
+      };
     }
 
-    const stdRef = findInList(standardUpPrices);
-    return stdRef ? (stdRef as any)[field] : undefined;
+    // group 모드: 표준가만
+    return { standardPrice: standardPrice > 0 ? standardPrice : undefined };
   };
 
   // 가격 필드 목록 결정
@@ -172,7 +179,7 @@ export function IndigoNupPriceTable({
               {/* 가격 필드들 */}
               {priceFields.map(({ field }) => {
                 const currentValue = (upPrice as any)[field] || 0;
-                const refPrice = getRefPrice(upPrice, field as string);
+                const { groupPrice, standardPrice } = getRefPrices(upPrice, field as string);
                 const costDisplay =
                   mode === 'standard'
                     ? getCostDisplay(
@@ -187,9 +194,26 @@ export function IndigoNupPriceTable({
                 return (
                   <td key={field} className="px-2 py-1.5">
                     <div className="flex flex-col items-center gap-0.5">
-                      {/* 표준가 참조 (그룹/개별 모드) */}
-                      {refPrice != null && refPrice > 0 && (
-                        <span className="text-[11px] text-gray-500 font-medium">{formatNumber(refPrice)}</span>
+                      {/* 개별 모드: 그룹단가 + 표준단가 둘 다 표시 */}
+                      {mode === 'individual' && (groupPrice || standardPrice) && (
+                        <div className="flex flex-col items-center leading-tight">
+                          {groupPrice != null && (
+                            <span className="text-[11px] text-blue-600 font-semibold">
+                              그룹 {formatNumber(groupPrice)}
+                            </span>
+                          )}
+                          {standardPrice != null && (
+                            <span className="text-[10px] text-gray-400">
+                              표준 {formatNumber(standardPrice)}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      {/* 그룹 모드: 표준단가만 표시 */}
+                      {mode === 'group' && standardPrice != null && (
+                        <span className="text-[11px] text-gray-500 font-medium">
+                          표준 {formatNumber(standardPrice)}
+                        </span>
                       )}
                       {/* 원가 표시 (표준 모드) */}
                       {costDisplay && (

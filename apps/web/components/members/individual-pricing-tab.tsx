@@ -1174,6 +1174,32 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
         {/* 잉크젯 (가격그룹 없음): 규격별 단가 */}
         {hasInkjetSpecs && (
           <div className="mt-2">
+            <div className="flex items-center justify-end gap-1 mb-1.5">
+              <span className="text-[10px] text-gray-500">가중치</span>
+              <Input type="number" className="h-5 w-14 text-[10px] text-center font-mono" placeholder="100"
+                value={weights[`${setting.id}_nogroup_inkjet`] || ''}
+                onChange={(e) => setWeights(prev => ({ ...prev, [`${setting.id}_nogroup_inkjet`]: e.target.value ? Number(e.target.value) : 0 }))}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const wv = weights[`${setting.id}_nogroup_inkjet`] || 100;
+                    if (wv > 0 && wv <= 200) {
+                      const updates: Record<string, string> = {};
+                      specifications.forEach((spec: any) => {
+                        const specId = spec.specificationId || spec.id;
+                        const stdP = standardPrices.find((p: any) => p.specificationId === specId);
+                        const stdPrice = stdP?.price ? Number(stdP.price) : 0;
+                        if (stdPrice > 0) updates[`${setting.id}_spec_${specId}`] = String(Math.round(stdPrice * wv / 100));
+                      });
+                      setEditingPrices(prev => ({ ...prev, ...updates }));
+                      toast({ title: `가중치 ${wv}% 적용`, description: `표준단가의 ${wv}%로 계산되었습니다.` });
+                    } else {
+                      toast({ title: '가중치는 1~200 사이 값을 입력하세요.', variant: 'destructive' });
+                    }
+                  }
+                }}
+              />
+              <span className="text-[10px] text-gray-500">%</span>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs border-collapse bg-white rounded border">
                 <thead>
@@ -1219,6 +1245,7 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                 </tbody>
               </table>
             </div>
+            <p className="text-[9px] text-gray-400 mt-1">* 가중치(%) 입력 후 Enter → 표준단가 기준 일괄 적용</p>
             {hasEditingPricesForSetting(setting.id) && (
               <div className="flex justify-end mt-3">
                 <Button size="sm" className="h-8 bg-indigo-600 hover:bg-indigo-700" disabled={isSaving}
