@@ -1781,10 +1781,7 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                 {cloneAllMutation.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Copy className="h-3.5 w-3.5 mr-1.5" />}
                 표준단가 전체복사
               </Button>
-              <Button variant="outline" size="sm" className="h-9 px-3 text-xs bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-50"
-                onClick={() => setIsBulkWeightDialogOpen(true)}>
-                <Percent className="h-3.5 w-3.5 mr-1.5" /> 전체 가중치
-              </Button>
+              {/* 전체 가중치 버튼 숨김 - 설정값별/용지그룹별 가중치 사용 */}
               <Button variant="outline" size="sm" className="h-9 px-3 text-xs bg-white text-amber-600 border-amber-200 hover:bg-amber-50"
                 onClick={() => setIsBulkAdjustDialogOpen(true)}>
                 <SlidersHorizontal className="h-3.5 w-3.5 mr-1.5" /> 전체 단가맞춤
