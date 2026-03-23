@@ -1493,8 +1493,10 @@ model ProductionSettingPrice {
   id                   String            @id @default(cuid())
   productionSettingId  String
   specificationId      String?
+  priceGroupId         String?
   minQuantity          Int?
   maxQuantity          Int?
+  nupKey               String?  // 앨범 NUP 키 (1++up, 1+up, 1up, 2up, 4up 등)
   weight               Decimal?          @db.Decimal(5, 2)
   price                Decimal           @default(0) @db.Decimal(12, 2)
   singleSidedPrice     Decimal?          @db.Decimal(12, 2)

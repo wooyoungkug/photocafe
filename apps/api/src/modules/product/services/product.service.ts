@@ -263,7 +263,12 @@ export class ProductService {
           ? { create: bindings }
           : undefined,
         papers: papers?.length
-          ? { create: papers }
+          ? {
+              create: papers.map(({ paperId, defaultColorType, ...rest }) => ({
+                ...rest,
+                ...(paperId ? { paper: { connect: { id: paperId } } } : {}),
+              })),
+            }
           : undefined,
         covers: covers?.length
           ? { create: covers }
@@ -333,7 +338,12 @@ export class ProductService {
           ? { create: bindings }
           : undefined,
         papers: papers !== undefined && papers.length > 0
-          ? { create: papers }
+          ? {
+              create: papers.map(({ paperId, defaultColorType, ...rest }) => ({
+                ...rest,
+                ...(paperId ? { paper: { connect: { id: paperId } } } : {}),
+              })),
+            }
           : undefined,
         covers: covers !== undefined && covers.length > 0
           ? { create: covers }
