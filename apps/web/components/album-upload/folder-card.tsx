@@ -840,14 +840,14 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                         <>
                           <img src={thumbUrl} alt={file.fileName} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
                           {file.isBlankPage && (
-                            <div className="absolute inset-0 w-full h-full bg-white/60 flex items-center justify-center pointer-events-none">
-                              <span className="text-xs font-medium text-gray-400">Blank Page</span>
+                            <div className="absolute bottom-1 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded bg-yellow-500 text-white text-[9px] font-medium pointer-events-none">
+                              빈
                             </div>
                           )}
                         </>
                       ) : file.isBlankPage ? (
                         <div className="absolute inset-0 w-full h-full bg-gray-100 flex items-center justify-center">
-                          <span className="text-sm font-medium text-gray-400">Blank Page</span>
+                          <div className="px-2 py-1 rounded bg-yellow-500 text-white text-xs font-medium">빈</div>
                         </div>
                       ) : (
                         <div className="absolute inset-0 w-full h-full bg-gray-100 flex items-center justify-center">
