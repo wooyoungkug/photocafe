@@ -184,7 +184,7 @@ jobs:
               --network photocafe-network \
               -e DATABASE_URL="postgresql://${DB_USER_VAL}:${DB_PASSWORD_VAL}@postgres:5432/${DB_NAME_VAL}" \
               ghcr.io/wooyoungkug/photocafe-api:latest \
-              sh -c "npx prisma db push --skip-generate" \
+              sh -c "npx prisma db push --skip-generate --accept-data-loss" \
               && echo "Prisma 스키마 동기화 완료" \
               || { echo "ERROR: Prisma 스키마 동기화 실패! 배포를 중단합니다."; exit 1; }
 
