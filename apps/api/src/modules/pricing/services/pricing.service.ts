@@ -66,14 +66,11 @@ export class PricingService {
       select: { settingName: true },
     });
 
-    // 출력 단가 조회용 OR 조건: specificationId 매칭 또는 nupKey 매칭 또는 minQuantity(nup) 매칭
-    const nupKeyValue = specInfo?.nup || null;
+    // 출력 단가 조회용 OR 조건: specificationId 매칭 또는 minQuantity(nup) 매칭
     const outputPriceWhere = {
       OR: [
         { specificationId },
-        // nupKey 기반 매칭 (앨범용: 1++up, 1+up 등 구분)
-        ...(nupKeyValue ? [{ nupKey: nupKeyValue, specificationId: null as string | null }] : []),
-        { minQuantity: nupNum, specificationId: null as string | null, nupKey: null as string | null },
+        { minQuantity: nupNum, specificationId: null as string | null },
       ],
     };
 

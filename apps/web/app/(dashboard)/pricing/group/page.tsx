@@ -1339,29 +1339,54 @@ export default function GroupPricingPage() {
                                   const standardPrice = upPrice[field] || 0;
                                   const savedPrice = savedGroupPrice?.[field];
 
-                                  return (
-                                    <td key={field} className="px-0.5 py-0.5">
-                                      <div className="flex flex-col items-center">
-                                        <DebouncedInput
-                                          type="number"
-                                          className={cn(
-                                            "h-8 w-16 text-sm text-center rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
-                                            isBase
-                                              ? "bg-amber-100 border-amber-300 font-medium focus:border-amber-400 focus:ring-1 focus:ring-amber-200"
-                                              : "bg-white border-slate-200 hover:border-indigo-300 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
+                                  {/* 현재 표시되는 그룹단가 값 계산 */}
+                                  {(() => {
+                                    const displayValue = editingPrices[key] ?? (savedPrice ? String(savedPrice) : (standardPrice > 0 ? String(standardPrice) : ''));
+                                    const displayNum = Number(displayValue) || 0;
+                                    const hasGroupPrice = savedPrice != null || editingPrices[key] != null;
+                                    const diffFromStandard = standardPrice > 0 && displayNum > 0 && hasGroupPrice
+                                      ? Math.round(((displayNum - standardPrice) / standardPrice) * 100)
+                                      : null;
+
+                                    return (
+                                      <td key={field} className="px-0.5 py-0.5">
+                                        <div className="flex flex-col items-center">
+                                          <DebouncedInput
+                                            type="number"
+                                            className={cn(
+                                              "h-8 w-16 text-sm text-center rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+                                              isBase
+                                                ? "bg-amber-100 border-amber-300 font-medium focus:border-amber-400 focus:ring-1 focus:ring-amber-200"
+                                                : "bg-white border-slate-200 hover:border-indigo-300 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
+                                            )}
+                                            value={displayValue}
+                                            onChange={(value) => {
+                                              if (isBase) {
+                                                handleOneUpChange(group.id, field, value, upPrices);
+                                              } else {
+                                                setEditingPrices(prev => ({ ...prev, [key]: value }));
+                                              }
+                                            }}
+                                            placeholder="0"
+                                          />
+                                          {/* 표준단가 참고 표시 */}
+                                          {standardPrice > 0 && (
+                                            <span className={cn(
+                                              "text-[9px] leading-tight mt-0.5",
+                                              diffFromStandard !== null && diffFromStandard !== 0
+                                                ? diffFromStandard > 0 ? "text-red-500" : "text-blue-500"
+                                                : "text-gray-400"
+                                            )}>
+                                              {standardPrice.toLocaleString()}
+                                              {diffFromStandard !== null && diffFromStandard !== 0 && (
+                                                <span className="ml-0.5">({diffFromStandard > 0 ? '+' : ''}{diffFromStandard}%)</span>
+                                              )}
+                                            </span>
                                           )}
-                                          value={editingPrices[key] ?? (savedPrice ? String(savedPrice) : (standardPrice > 0 ? String(standardPrice) : ''))}
-                                          onChange={(value) => {
-                                            if (isBase) {
-                                              handleOneUpChange(group.id, field, value, upPrices);
-                                            } else {
-                                              setEditingPrices(prev => ({ ...prev, [key]: value }));
-                                            }
-                                          }}
-                                          placeholder="0"
-                                        />
-                                      </div>
-                                    </td>
+                                        </div>
+                                      </td>
+                                    );
+                                  })()}
                                   );
                                 })}
                               </tr>
