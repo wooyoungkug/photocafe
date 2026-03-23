@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -1467,8 +1467,46 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                         return stdRP[range] || 0;
                       };
 
+                      // 그룹단가 데이터
+                      const grpRP = groupRec?.rangePrices || {};
+                      const grpCP = grpRP.__coverPrice != null ? Number(grpRP.__coverPrice) : undefined;
+                      const grpPP = grpRP.__paperPrice != null ? Number(grpRP.__paperPrice) : undefined;
+                      const grpPPP = groupRec?.pricePerPage != null ? Number(groupRec.pricePerPage) : undefined;
+
                       return (
-                        <tr key={nup} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
+                        <React.Fragment key={nup}>
+                          {/* 그룹단가 행 (읽기전용) */}
+                          {groupId && groupRec && (
+                            <tr className="bg-purple-50/70 border-b border-purple-100">
+                              <td className="text-center py-1 px-2">
+                                <span className="font-bold text-xs text-purple-600">{nup}</span>
+                              </td>
+                              <td className="py-1 px-2 text-[10px] text-purple-500">
+                                <Link href={`/pricing/group?groupId=${groupId}&settingId=${setting.id}`} target="_blank" className="hover:underline inline-flex items-center gap-0.5">
+                                  그룹단가 <ExternalLink className="h-2.5 w-2.5" />
+                                </Link>
+                              </td>
+                              <td className="py-1 px-1 text-center">
+                                <span className="text-xs font-mono text-purple-600">{grpCP != null && grpCP > 0 ? formatNumber(grpCP) : '-'}</span>
+                              </td>
+                              <td className="py-1 px-1 text-center">
+                                <span className="text-xs font-mono text-purple-600">{grpPP != null && grpPP > 0 ? formatNumber(grpPP) : '-'}</span>
+                              </td>
+                              <td className="py-1 px-1 text-center">
+                                <span className="text-xs font-mono text-purple-600">{grpPPP != null && grpPPP > 0 ? formatNumber(grpPPP) : '-'}</span>
+                              </td>
+                              {pageRanges.map((range: number) => {
+                                const grpRangeVal = grpRP[String(range)] != null ? Number(grpRP[String(range)]) : 0;
+                                return (
+                                  <td key={range} className="py-1 px-1 text-center">
+                                    <span className="text-xs font-mono text-purple-600">{grpRangeVal > 0 ? formatNumber(grpRangeVal) : '-'}</span>
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          )}
+                          {/* 개별단가 행 */}
+                          <tr className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
                           {/* Nup */}
                           <td className="text-center py-1.5 px-2">
                             <span className="font-bold text-sm text-violet-700">{nup}</span>
@@ -1557,6 +1595,7 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                             );
                           })}
                         </tr>
+                        </React.Fragment>
                       );
                     })}
                   </tbody>
