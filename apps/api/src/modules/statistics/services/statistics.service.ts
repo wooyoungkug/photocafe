@@ -170,7 +170,7 @@ export class StatisticsService {
   async getClientStatistics(query: ClientStatisticsQueryDto) {
     const { startDate, endDate, clientId, groupId } = query;
 
-    const where: Prisma.ordersWhereInput = {
+    const where: Prisma.OrderWhereInput = {
       status: { not: 'cancelled' },
       ...(clientId && { clientId }),
       ...(groupId && { client: { groupId } }),

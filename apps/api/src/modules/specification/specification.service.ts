@@ -51,7 +51,7 @@ export class SpecificationService {
     }
 
     async findAll(query: SpecificationQueryDto) {
-        const where: Prisma.specificationsWhereInput = {};
+        const where: Prisma.SpecificationWhereInput = {};
 
         if (query.forIndigo !== undefined) {
             where.forIndigo = query.forIndigo;
@@ -612,7 +612,7 @@ export class SpecificationService {
 
     // 용도별로 규격 목록 가져오기 (상품 등록 시 사용)
     async findByUsage(usage: 'indigoAlbum' | 'indigo' | 'inkjet' | 'album' | 'frame' | 'booklet') {
-        const where: Prisma.specificationsWhereInput = {
+        const where: Prisma.SpecificationWhereInput = {
             isActive: true,
         };
 
