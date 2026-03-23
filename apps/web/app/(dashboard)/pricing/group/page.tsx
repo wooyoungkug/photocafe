@@ -206,6 +206,7 @@ export default function GroupPricingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const groupIdFromUrl = searchParams.get('groupId');
+  const settingIdFromUrl = searchParams.get('settingId');
 
   const [selectedClientGroupId, setSelectedClientGroupId] = useState<string>('');
 
@@ -263,7 +264,38 @@ export default function GroupPricingPage() {
       }
     }
   }, [groupIdFromUrl, clientGroupsData, selectedClientGroupId]);
+
   const { data: productionTree, isLoading: treeLoading } = useProductionGroupTree();
+
+  // URL에서 settingId가 전달된 경우: 해당 세팅이 속한 그룹을 찾아 트리 확장 + 자동 선택
+  useEffect(() => {
+    if (!settingIdFromUrl || !productionTree) return;
+    // 트리에서 settingId를 가진 그룹과 경로(조상) 탐색
+    const findSettingPath = (groups: ProductionGroup[], ancestors: string[]): { group: ProductionGroup; path: string[] } | null => {
+      for (const g of groups) {
+        if (g.settings?.some((s: any) => s.id === settingIdFromUrl)) {
+          return { group: g, path: [...ancestors, g.id] };
+        }
+        if (g.children) {
+          const found = findSettingPath(g.children, [...ancestors, g.id]);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+    const result = findSettingPath(productionTree, []);
+    if (result) {
+      // 조상 노드 모두 확장
+      setExpandedIds(prev => {
+        const next = new Set(prev);
+        result.path.forEach(id => next.add(id));
+        return next;
+      });
+      setSelectedProductionGroupId(result.group.id);
+      setSelectedSettingId(settingIdFromUrl);
+    }
+  }, [settingIdFromUrl, productionTree]);
+
   const { data: groupPrices, isLoading: groupPricesLoading } = useGroupProductionSettingPrices(selectedClientGroupId);
   const setGroupPricesMutation = useSetGroupProductionSettingPrices();
   const cloneStandardMutation = useCloneStandardToGroupPrices();
