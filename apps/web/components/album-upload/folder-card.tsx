@@ -575,14 +575,14 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
 
   const canSelect = hasValidStatus && folder.specFoundInDB !== false;
 
-  // 출력구분 결정: 상품의 printType 사용 (pageLayout은 파일 편집스타일이므로 출력구분과 다름)
-  // single(단면출력), double(양면출력), customer(고객선택) → customer일 때는 사용자 선택 우선
-  const isCustomerSelectable = printType === 'customer' || !printType;
+  // 출력구분 결정: 사용자가 직접 선택한 값 우선, 없으면 상품 printType 또는 pageLayout 기반 추론
   const resolvedPrintSide = useMemo(() => {
+    // 사용자가 직접 선택한 값이 있으면 우선
+    if (folder.userPrintSide) return folder.userPrintSide;
+    // 상품 고정값
     if (printType === 'single') return 'single' as const;
     if (printType === 'double') return 'spread' as const;
-    // customer 또는 미설정: 사용자가 직접 선택한 값 우선, 없으면 pageLayout 기반 추론
-    if (folder.userPrintSide) return folder.userPrintSide;
+    // customer 또는 미설정: pageLayout 기반 추론
     return folder.pageLayout === 'spread' ? 'single' : 'spread';
   }, [printType, folder.pageLayout, folder.userPrintSide]);
 
@@ -1239,22 +1239,16 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
-              {isCustomerSelectable ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const next = resolvedPrintSide === 'single' ? 'spread' : 'single';
-                    updateFolder(folder.id, { userPrintSide: next });
-                  }}
-                  className="text-[12px] border rounded px-1.5 py-0.5 bg-blue-50 text-black ml-3 hover:bg-blue-100 transition-colors cursor-pointer"
-                >
-                  {resolvedPrintSide === 'single' ? '단면' : '양면'}
-                </button>
-              ) : (
-                <span className="text-xs text-black ml-3">
-                  {resolvedPrintSide === 'single' ? '단면' : '양면'}
-                </span>
-              )}
+              <button
+                type="button"
+                onClick={() => {
+                  const next = resolvedPrintSide === 'single' ? 'spread' : 'single';
+                  updateFolder(folder.id, { userPrintSide: next });
+                }}
+                className="text-[12px] border rounded px-1.5 py-0.5 bg-blue-50 text-black ml-3 hover:bg-blue-100 transition-colors cursor-pointer"
+              >
+                {resolvedPrintSide === 'single' ? '단면' : '양면'}
+              </button>
             </div>
           )}
           {/* 패브릭/포일 편집 */}
