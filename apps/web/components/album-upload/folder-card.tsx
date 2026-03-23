@@ -836,12 +836,19 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                         }
                       }}
                     >
-                      {file.isBlankPage ? (
+                      {thumbUrl ? (
+                        <>
+                          <img src={thumbUrl} alt={file.fileName} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+                          {file.isBlankPage && (
+                            <div className="absolute inset-0 w-full h-full bg-white/60 flex items-center justify-center pointer-events-none">
+                              <span className="text-xs font-medium text-gray-400">Blank Page</span>
+                            </div>
+                          )}
+                        </>
+                      ) : file.isBlankPage ? (
                         <div className="absolute inset-0 w-full h-full bg-gray-100 flex items-center justify-center">
                           <span className="text-sm font-medium text-gray-400">Blank Page</span>
                         </div>
-                      ) : thumbUrl ? (
-                        <img src={thumbUrl} alt={file.fileName} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
                       ) : (
                         <div className="absolute inset-0 w-full h-full bg-gray-100 flex items-center justify-center">
                           <span className="text-6xl font-black text-gray-300">X</span>
