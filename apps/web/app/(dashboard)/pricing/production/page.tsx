@@ -3643,14 +3643,14 @@ export default function ProductionSettingPage() {
                                                 })}
                                               </SelectContent>
                                             </Select>
-                                            <Input
+                                            <DebouncedInput
                                               type="number"
                                               className="h-6 w-16 text-[10px] bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                               placeholder="단가"
                                               disabled={!group.inkjetBaseSpecId}
                                               value={group.inkjetBaseSpecId ? (specPrices.find(p => p.specificationId === group.inkjetBaseSpecId)?.singleSidedPrice || "") : ""}
-                                              onChange={(e) => {
-                                                const basePrice = Number(e.target.value);
+                                              onChange={(val) => {
+                                                const basePrice = Number(val);
                                                 const baseSpec = specifications?.find((s) => s.id === group.inkjetBaseSpecId);
                                                 if (!baseSpec) return;
                                                 const baseArea = Number(baseSpec.widthInch) * Number(baseSpec.heightInch);
@@ -3763,14 +3763,14 @@ export default function ProductionSettingPage() {
 
                                         {group.pricingMode === 'sqinch' && (
                                           <>
-                                            <Input
+                                            <DebouncedInput
                                               type="number"
                                               step="0.01"
                                               className="h-6 w-20 text-[10px] bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                               placeholder={'sq" 단가'}
                                               value={group.inkjetBasePrice || ""}
-                                              onChange={(e) => {
-                                                const pricePerSqInch = Number(e.target.value);
+                                              onChange={(val) => {
+                                                const pricePerSqInch = Number(val);
                                                 setSettingForm((prev) => ({
                                                   ...prev,
                                                   priceGroups: prev.priceGroups.map(g => {
@@ -3947,14 +3947,14 @@ export default function ProductionSettingPage() {
                                                     {isBase && <span className="text-green-600 ml-0.5 text-[8px]">(기준)</span>}
                                                   </td>
                                                   <td className="px-1 py-0.5 text-center">
-                                                    <Input
+                                                    <DebouncedInput
                                                       type="number"
                                                       step="0.1"
                                                       className="h-5 w-10 text-[10px] text-center p-0 bg-gray-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                                       value={isIncluded ? (priceData?.weight ?? 1.0) : ""}
                                                       disabled={!isIncluded}
-                                                      onChange={(e) => {
-                                                        const newWeight = Number(e.target.value) || 1.0;
+                                                      onChange={(val) => {
+                                                        const newWeight = Number(val) || 1.0;
                                                         const sqInchPrice = group.inkjetBasePrice || 0;
                                                         setSettingForm((prev) => ({
                                                           ...prev,
@@ -3977,13 +3977,13 @@ export default function ProductionSettingPage() {
                                                     />
                                                   </td>
                                                   <td className="px-1 py-0.5 text-center">
-                                                    <Input
+                                                    <DebouncedInput
                                                       type="number"
                                                       className={cn("h-5 w-14 text-[10px] text-center p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none", isBase ? "bg-green-100" : "bg-gray-50")}
                                                       value={isIncluded ? (priceData?.singleSidedPrice || "") : ""}
                                                       disabled={!isIncluded}
-                                                      onChange={(e) => {
-                                                        const value = Number(e.target.value) || 0;
+                                                      onChange={(val) => {
+                                                        const value = Number(val) || 0;
                                                         setSettingForm((prev) => ({
                                                           ...prev,
                                                           priceGroups: prev.priceGroups.map(g => {
@@ -4090,11 +4090,11 @@ export default function ProductionSettingPage() {
                         <div className="flex flex-wrap gap-2 justify-center">
                           {settingForm.pageRanges.map((range, idx) => (
                             <div key={`range-${idx}`} className="flex items-center gap-1 bg-white rounded px-2 py-1 border border-blue-200">
-                              <Input
+                              <DebouncedInput
                                 type="number"
                                 value={range}
-                                onChange={(e) => {
-                                  const newValue = Number(e.target.value);
+                                onChange={(val) => {
+                                  const newValue = Number(val);
                                   setSettingForm(prev => ({
                                     ...prev,
                                     pageRanges: prev.pageRanges.map((r, i) => i === idx ? newValue : r),
@@ -4601,50 +4601,50 @@ export default function ProductionSettingPage() {
                           <div className="space-y-2">
                             {settingForm.lengthPriceRanges.map((range, idx) => (
                               <div key={idx} className="flex items-center gap-2 py-2 border-b last:border-0">
-                                <Input
+                                <DebouncedInput
                                   type="number"
                                   placeholder="시작"
                                   className="w-20 h-8 text-sm text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                   value={range.minLength || ""}
-                                  onChange={(e) => {
-                                    const val = Number(e.target.value) || 0;
+                                  onChange={(val) => {
+                                    const v = Number(val) || 0;
                                     setSettingForm(prev => ({
                                       ...prev,
                                       lengthPriceRanges: prev.lengthPriceRanges.map((r, i) =>
-                                        i === idx ? { ...r, minLength: val } : r
+                                        i === idx ? { ...r, minLength: v } : r
                                       )
                                     }));
                                   }}
                                 />
                                 <span className="text-sm text-gray-500">~</span>
-                                <Input
+                                <DebouncedInput
                                   type="number"
                                   placeholder="끝"
                                   className="w-20 h-8 text-sm text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                   value={range.maxLength || ""}
-                                  onChange={(e) => {
-                                    const val = Number(e.target.value) || 0;
+                                  onChange={(val) => {
+                                    const v = Number(val) || 0;
                                     setSettingForm(prev => ({
                                       ...prev,
                                       lengthPriceRanges: prev.lengthPriceRanges.map((r, i) =>
-                                        i === idx ? { ...r, maxLength: val } : r
+                                        i === idx ? { ...r, maxLength: v } : r
                                       )
                                     }));
                                   }}
                                 />
                                 <span className="text-sm text-gray-500 w-8">{settingForm.lengthUnit}</span>
                                 <span className="text-sm text-gray-500">:</span>
-                                <Input
+                                <DebouncedInput
                                   type="number"
                                   placeholder="단가"
                                   className="w-24 h-8 text-sm text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                   value={range.price || ""}
-                                  onChange={(e) => {
-                                    const val = Number(e.target.value) || 0;
+                                  onChange={(val) => {
+                                    const v = Number(val) || 0;
                                     setSettingForm(prev => ({
                                       ...prev,
                                       lengthPriceRanges: prev.lengthPriceRanges.map((r, i) =>
-                                        i === idx ? { ...r, price: val } : r
+                                        i === idx ? { ...r, price: v } : r
                                       )
                                     }));
                                   }}
@@ -4740,33 +4740,33 @@ export default function ProductionSettingPage() {
                             </div>
                             {settingForm.areaPriceRanges.map((range, idx) => (
                               <div key={idx} className="flex items-center gap-2 py-2 border-b last:border-0">
-                                <Input
+                                <DebouncedInput
                                   type="number"
                                   placeholder="가로"
                                   className="w-20 h-8 text-sm text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                   value={range.maxWidth || ""}
-                                  onChange={(e) => {
-                                    const val = Number(e.target.value) || 0;
+                                  onChange={(val) => {
+                                    const v = Number(val) || 0;
                                     setSettingForm(prev => ({
                                       ...prev,
                                       areaPriceRanges: prev.areaPriceRanges.map((r, i) =>
-                                        i === idx ? { ...r, maxWidth: val, area: val * r.maxHeight } : r
+                                        i === idx ? { ...r, maxWidth: v, area: v * r.maxHeight } : r
                                       )
                                     }));
                                   }}
                                 />
                                 <span className="text-sm text-gray-500">×</span>
-                                <Input
+                                <DebouncedInput
                                   type="number"
                                   placeholder="세로"
                                   className="w-20 h-8 text-sm text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                   value={range.maxHeight || ""}
-                                  onChange={(e) => {
-                                    const val = Number(e.target.value) || 0;
+                                  onChange={(val) => {
+                                    const v = Number(val) || 0;
                                     setSettingForm(prev => ({
                                       ...prev,
                                       areaPriceRanges: prev.areaPriceRanges.map((r, i) =>
-                                        i === idx ? { ...r, maxHeight: val, area: r.maxWidth * val } : r
+                                        i === idx ? { ...r, maxHeight: v, area: r.maxWidth * v } : r
                                       )
                                     }));
                                   }}
@@ -4777,17 +4777,17 @@ export default function ProductionSettingPage() {
                                   {((range.maxWidth || 0) * (range.maxHeight || 0)).toLocaleString()}{settingForm.areaUnit}²
                                 </span>
                                 <span className="text-sm text-gray-500">:</span>
-                                <Input
+                                <DebouncedInput
                                   type="number"
                                   placeholder="단가"
                                   className="w-24 h-8 text-sm text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                   value={range.price || ""}
-                                  onChange={(e) => {
-                                    const val = Number(e.target.value) || 0;
+                                  onChange={(val) => {
+                                    const v = Number(val) || 0;
                                     setSettingForm(prev => ({
                                       ...prev,
                                       areaPriceRanges: prev.areaPriceRanges.map((r, i) =>
-                                        i === idx ? { ...r, price: val } : r
+                                        i === idx ? { ...r, price: v } : r
                                       )
                                     }));
                                   }}
