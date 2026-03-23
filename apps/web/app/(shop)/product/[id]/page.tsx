@@ -435,13 +435,18 @@ export default function ProductPage() {
       const defaultBinding = product.bindings?.find(b => b.isDefault) || product.bindings?.[0];
       // 인디고는 4도 기준(isActive4), 그 외는 isActive로 활성 여부 판단
       const allPapers = product.papers || [];
-      const has4doPapers = allPapers.some(p => p.printMethod === 'indigo' && p.isActive4 !== false);
-      const defaultColorMode: '4c' | '6c' = '4c';
-      const hasIndigo = has4doPapers || allPapers.some(p => p.printMethod === 'indigo' && p.isActive6 !== false);
+      const prodColorType = (product as any).colorType || 'both';
+      const has4doPapers = allPapers.some(p => p.printMethod === 'indigo' && p.isActive4 !== false)
+        && (prodColorType === '4c' || prodColorType === 'both' || prodColorType === 'customer');
+      const has6doPapers = allPapers.some(p => p.printMethod === 'indigo' && p.isActive6 !== false)
+        && (prodColorType === '6c' || prodColorType === 'both' || prodColorType === 'customer');
+      // 색상구분에 따른 기본 colorMode 결정
+      const defaultColorMode: '4c' | '6c' = has4doPapers ? '4c' : has6doPapers ? '6c' : '4c';
+      const hasIndigo = has4doPapers || has6doPapers;
       const defaultPrintMethod: 'indigo' | 'inkjet' = hasIndigo ? 'indigo' : 'inkjet';
       const filteredPapers = allPapers.filter(p => {
         if (p.printMethod !== defaultPrintMethod) return false;
-        if (p.printMethod === 'indigo') return p.isActive4 !== false;
+        if (p.printMethod === 'indigo') return defaultColorMode === '6c' ? p.isActive6 !== false : p.isActive4 !== false;
         return p.isActive !== false;
       });
       const defaultPaper = filteredPapers.find(p => p.isDefault) || filteredPapers[0];
@@ -958,6 +963,7 @@ export default function ProductPage() {
                   <OptionPaper papers={product.papers} selectedPaperId={selectedOptions.paper?.id}
                     printMethod={selectedOptions.printMethod || 'indigo'}
                     colorMode={selectedOptions.colorMode || '4c'}
+                    productColorType={(product as any).colorType || 'both'}
                     onSelectPaper={(paper) => setSelectedOptions(prev => ({ ...prev, paper }))}
                     onChangePrintMethod={(method, colorMode, defaultPaper) => setSelectedOptions(prev => ({ ...prev, printMethod: method, colorMode, paper: defaultPaper }))} />
                   <OptionPrintSide

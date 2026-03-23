@@ -15,6 +15,8 @@ interface OptionPaperProps {
   selectedPaperId?: string;
   printMethod: 'indigo' | 'inkjet';
   colorMode: '4c' | '6c';
+  /** 상품 색상구분 설정: '4c'=4도만, '6c'=6도만, 'both'=둘다, 'customer'=고객선택 */
+  productColorType?: '4c' | '6c' | 'both' | 'customer';
   onSelectPaper: (paper: ProductPaper) => void;
   onChangePrintMethod: (
     method: 'indigo' | 'inkjet',
@@ -32,14 +34,17 @@ const getPaperLabel = (paper: ProductPaper) => {
 type PrintMethodValue = 'indigo_4c' | 'indigo_6c' | 'inkjet';
 
 export function OptionPaper({
-  papers, selectedPaperId, printMethod, colorMode, onSelectPaper, onChangePrintMethod,
+  papers, selectedPaperId, printMethod, colorMode, productColorType = 'both', onSelectPaper, onChangePrintMethod,
 }: OptionPaperProps) {
   // 인디고는 도수별 isActive4/isActive6로, 그 외는 isActive로 활성 여부 판단
   const isIndigoPaperActive = (p: ProductPaper, mode: '4c' | '6c') =>
     mode === '6c' ? p.isActive6 !== false : p.isActive4 !== false;
 
-  const has4doPapers = papers.some(p => p.printMethod === 'indigo' && isIndigoPaperActive(p, '4c'));
-  const has6doPapers = papers.some(p => p.printMethod === 'indigo' && isIndigoPaperActive(p, '6c'));
+  const rawHas4do = papers.some(p => p.printMethod === 'indigo' && isIndigoPaperActive(p, '4c'));
+  const rawHas6do = papers.some(p => p.printMethod === 'indigo' && isIndigoPaperActive(p, '6c'));
+  // 상품 색상구분 설정에 따라 표시할 옵션 제한
+  const has4doPapers = rawHas4do && (productColorType === '4c' || productColorType === 'both' || productColorType === 'customer');
+  const has6doPapers = rawHas6do && (productColorType === '6c' || productColorType === 'both' || productColorType === 'customer');
   const hasIndigoPapers = has4doPapers || has6doPapers;
   const hasInkjetPapers = papers.some(p => p.printMethod === 'inkjet' && p.isActive !== false);
   const showMethodSelector = hasIndigoPapers || hasInkjetPapers;

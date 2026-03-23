@@ -1037,6 +1037,27 @@ export default function NewProductPage() {
                     <span className="text-xs text-slate-400">(카테고리/상품명 자동결정)</span>
                   )}
                 </div>
+                {/* 색상구분 (인디고 4도/6도) */}
+                {outputMethod === 'indigo' && (
+                  <div className="flex gap-4 items-center">
+                    <Label className="text-xs text-slate-500">색상구분</Label>
+                    <div className="flex gap-3">
+                      {COLOR_TYPE_OPTIONS.map(opt => (
+                        <label key={opt.value} className="flex items-center gap-1.5 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="colorType"
+                            value={opt.value}
+                            checked={colorType === opt.value}
+                            onChange={(e) => setColorType(e.target.value as '4c' | '6c' | 'both' | 'customer')}
+                            className="w-3.5 h-3.5 text-purple-600"
+                          />
+                          <span className="text-xs">{opt.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             )}
