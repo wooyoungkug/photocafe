@@ -434,7 +434,7 @@ export function UnifiedPricingEditor({
       <div
         className={cn(
           'grid gap-3',
-          printMethod === 'album' ? 'grid-cols-3' : 'grid-cols-2'
+          printMethod === 'album' ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1 lg:grid-cols-2'
         )}
       >
         {priceGroups.map((group) => {

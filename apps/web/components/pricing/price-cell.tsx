@@ -44,13 +44,13 @@ export function PriceCell({
       ? getDiffPercent(referenceValue, numericValue)
       : null;
 
-  const sizeClasses = size === 'sm' ? 'h-7 w-16 text-xs' : 'h-8 w-20 text-sm';
+  const sizeClasses = size === 'sm' ? 'h-9 w-20 text-[14px]' : 'h-9 w-24 text-[14px]';
 
   if (readOnly) {
     return (
       <div className="flex flex-col items-center">
         {referenceValue != null && referenceValue > 0 && (
-          <span className="text-[9px] text-gray-400">{formatNumber(referenceValue)}</span>
+          <span className="text-[11px] text-gray-500 font-medium">{formatNumber(referenceValue)}</span>
         )}
         <span
           className={cn(
@@ -70,11 +70,11 @@ export function PriceCell({
       {/* 표준가 참조 표시 */}
       {referenceValue != null && referenceValue > 0 && (
         <div className="flex items-center gap-0.5">
-          <span className="text-[9px] text-gray-400">{formatNumber(referenceValue)}</span>
+          <span className="text-[11px] text-gray-500 font-medium">{formatNumber(referenceValue)}</span>
           {diff && diff.direction !== 'same' && (
             <span
               className={cn(
-                'text-[8px] font-medium',
+                'text-[10px] font-medium',
                 diff.direction === 'down' ? 'text-green-600' : 'text-red-500'
               )}
             >

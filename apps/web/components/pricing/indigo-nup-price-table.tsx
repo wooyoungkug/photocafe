@@ -130,14 +130,14 @@ export function IndigoNupPriceTable({
   const priceFields = getPriceFields();
 
   return (
-    <div className="border border-gray-200 overflow-hidden">
-      <table className="w-full text-xs">
+    <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <table className="w-full text-[14px]">
         <thead>
           <tr className="bg-gray-100 border-b border-gray-200">
-            <th className="text-center py-1 px-1 font-medium text-gray-600">Up</th>
-            <th className="text-center py-1 px-1 font-medium text-gray-400 text-[10px]">가중치</th>
+            <th className="text-center py-2 px-2 font-medium text-gray-600">Up</th>
+            <th className="text-center py-2 px-2 font-medium text-gray-500 text-[12px]">가중치</th>
             {priceFields.map(({ label }) => (
-              <th key={label} className="text-center py-1 px-1 font-medium text-gray-600">
+              <th key={label} className="text-center py-2 px-2 font-medium text-gray-600">
                 {label}
               </th>
             ))}
@@ -147,21 +147,21 @@ export function IndigoNupPriceTable({
           {upPrices.map((upPrice, idx) => (
             <tr
               key={upPrice.nupKey || upPrice.up}
-              className={cn('border-b border-gray-100 last:border-0', idx === 0 && 'bg-amber-50/50')}
+              className={cn('border-b border-gray-100 last:border-0', idx === 0 && 'bg-amber-50/80 border-amber-200')}
             >
               {/* Up 표시 */}
-              <td className="text-center py-0.5 px-0.5 font-medium text-indigo-600">
+              <td className="text-center py-1.5 px-2 font-medium text-indigo-600">
                 {upPrice.nupKey || `${upPrice.up}up`}
               </td>
 
               {/* 가중치 */}
-              <td className="text-center px-0.5 py-0.5">
+              <td className="text-center px-2 py-1.5">
                 <Input
                   type="number"
                   step="0.1"
                   min="0.1"
                   max="5"
-                  className="h-8 w-12 text-center text-[11px] bg-gray-50 border-gray-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  className="h-9 w-14 text-center text-[13px] bg-gray-50 border-gray-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   value={upPrice.weight || ''}
                   disabled={idx === 0 || readOnly}
                   onChange={(e) => handleWeightChange(idx, Number(e.target.value) || 1)}
@@ -185,25 +185,25 @@ export function IndigoNupPriceTable({
                     : null;
 
                 return (
-                  <td key={field} className="px-0.5 py-0.5">
-                    <div className="flex flex-col items-center">
+                  <td key={field} className="px-2 py-1.5">
+                    <div className="flex flex-col items-center gap-0.5">
                       {/* 표준가 참조 (그룹/개별 모드) */}
                       {refPrice != null && refPrice > 0 && (
-                        <span className="text-[9px] text-gray-400">{formatNumber(refPrice)}</span>
+                        <span className="text-[11px] text-gray-500 font-medium">{formatNumber(refPrice)}</span>
                       )}
                       {/* 원가 표시 (표준 모드) */}
                       {costDisplay && (
-                        <span className="text-[9px] text-orange-500">원가 {costDisplay}</span>
+                        <span className="text-[11px] text-orange-600 font-medium">원가 {costDisplay}</span>
                       )}
                       {readOnly ? (
-                        <span className="h-8 w-16 flex items-center justify-center font-mono text-xs text-gray-600 bg-gray-50 rounded border">
+                        <span className="h-9 w-20 flex items-center justify-center font-mono text-[14px] text-gray-600 bg-gray-50 rounded border">
                           {formatNumber(currentValue) || '-'}
                         </span>
                       ) : (
                         <Input
                           type="number"
                           className={cn(
-                            'h-8 w-16 text-sm text-center rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none',
+                            'h-9 w-20 text-[14px] text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none',
                             idx === 0
                               ? 'bg-amber-100 border-amber-300 font-medium focus:border-amber-400 focus:ring-1 focus:ring-amber-200'
                               : 'bg-white border-slate-200 hover:border-indigo-300 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200'

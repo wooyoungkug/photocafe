@@ -38,7 +38,7 @@ export function PriceGroupCard({
   return (
     <div
       className={cn(
-        'border-2 p-3 space-y-2 shadow-sm',
+        'border-2 rounded-lg p-4 space-y-3 shadow-sm',
         style.bg,
         style.border,
         className
@@ -50,7 +50,7 @@ export function PriceGroupCard({
           <span className="text-xl">{style.dot}</span>
           <span className={cn('font-bold text-base', style.text)}>{style.label}</span>
           {assignedPaperNames.length > 0 && (
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="outline" className="text-[13px]">
               {assignedPaperNames.length}개 용지
             </Badge>
           )}
@@ -72,7 +72,7 @@ export function PriceGroupCard({
 
       {/* 할당된 용지 미리보기 */}
       {assignedPaperNames.length > 0 && (
-        <div className="text-xs text-gray-500 truncate">
+        <div className="text-[14px] text-gray-500 truncate">
           {assignedPaperNames.join(', ')}
         </div>
       )}

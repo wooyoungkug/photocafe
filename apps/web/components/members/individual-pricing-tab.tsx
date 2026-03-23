@@ -37,7 +37,8 @@ import {
   useGroupProductionSettingPrices,
 } from '@/hooks/use-pricing';
 import { usePapersByPrintMethod } from '@/hooks/use-paper';
-import { Edit, Trash2, Copy, Percent } from 'lucide-react';
+import Link from 'next/link';
+import { Edit, Trash2, Copy, Percent, ExternalLink } from 'lucide-react';
 import {
   Loader2,
   DollarSign,
@@ -1029,13 +1030,15 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                             <th className="text-center py-1 px-1 font-medium text-gray-400 text-[10px]">가중치</th>
                             {groupId && (
                               printMethod === 'album' ? (
-                                <th className="text-center py-1 px-1 font-medium text-purple-600 text-[10px]">그룹단가</th>
+                                <th className="text-center py-1 px-1 font-medium text-purple-600 text-[10px]">
+                                  <Link href={`/pricing/group?groupId=${groupId}`} target="_blank" className="hover:underline hover:text-purple-800 inline-flex items-center gap-0.5">그룹단가 <ExternalLink className="h-2.5 w-2.5" /></Link>
+                                </th>
                               ) : (
                                 <>
-                                  {fps !== 'double' && <th className="text-center py-1 px-1 font-medium text-purple-600 text-[10px]">그룹4단</th>}
-                                  {fps !== 'single' && <th className="text-center py-1 px-1 font-medium text-purple-600 text-[10px]">그룹4양</th>}
-                                  {fps !== 'double' && <th className="text-center py-1 px-1 font-medium text-purple-600 text-[10px]">그룹6단</th>}
-                                  {fps !== 'single' && <th className="text-center py-1 px-1 font-medium text-purple-600 text-[10px]">그룹6양</th>}
+                                  {fps !== 'double' && <th className="text-center py-1 px-1 font-medium text-purple-600 text-[10px]"><Link href={`/pricing/group?groupId=${groupId}`} target="_blank" className="hover:underline hover:text-purple-800">그룹4단</Link></th>}
+                                  {fps !== 'single' && <th className="text-center py-1 px-1 font-medium text-purple-600 text-[10px]"><Link href={`/pricing/group?groupId=${groupId}`} target="_blank" className="hover:underline hover:text-purple-800">그룹4양</Link></th>}
+                                  {fps !== 'double' && <th className="text-center py-1 px-1 font-medium text-purple-600 text-[10px]"><Link href={`/pricing/group?groupId=${groupId}`} target="_blank" className="hover:underline hover:text-purple-800">그룹6단</Link></th>}
+                                  {fps !== 'single' && <th className="text-center py-1 px-1 font-medium text-purple-600 text-[10px]"><Link href={`/pricing/group?groupId=${groupId}`} target="_blank" className="hover:underline hover:text-purple-800">그룹6양</Link></th>}
                                 </>
                               )
                             )}
@@ -1103,9 +1106,9 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                                   const gp = groupPricesMap.get(`${setting.id}_${group.id}_${upKey}`)?.[field];
                                   return (
                                     <td key={`g_${field}`} className="px-0.5 py-0.5 bg-purple-50/50">
-                                      <span className="text-xs text-purple-600 font-mono flex items-center justify-center h-8">
+                                      <Link href={`/pricing/group?groupId=${groupId}`} target="_blank" className="text-xs text-purple-600 font-mono flex items-center justify-center h-8 hover:underline hover:text-purple-800 cursor-pointer" title="그룹단가 설정으로 이동">
                                         {gp != null && gp > 0 ? formatNumber(gp) : '-'}
-                                      </span>
+                                      </Link>
                                     </td>
                                   );
                                 })}
@@ -1177,7 +1180,7 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                   <tr className="bg-gray-50">
                     <th className="px-3 py-2 text-left font-medium text-gray-500 border-b">규격</th>
                     <th className="px-3 py-2 text-center font-medium text-gray-500 border-b w-24">표준단가</th>
-                    {groupId && <th className="px-3 py-2 text-center font-medium text-purple-600 border-b w-24">그룹단가</th>}
+                    {groupId && <th className="px-3 py-2 text-center font-medium text-purple-600 border-b w-24"><Link href={`/pricing/group?groupId=${groupId}`} target="_blank" className="hover:underline hover:text-purple-800 inline-flex items-center gap-1">그룹단가 <ExternalLink className="h-3 w-3" /></Link></th>}
                     <th className="px-3 py-2 text-center font-medium text-gray-500 border-b w-32">개별단가</th>
                   </tr>
                 </thead>
@@ -1199,7 +1202,11 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                         </td>
                         <td className="px-3 py-2 text-center text-gray-500">{standardPrice?.price ? formatNumber(Number(standardPrice.price)) : '-'}</td>
                         {groupId && (
-                          <td className="px-3 py-2 text-center text-purple-500 font-mono">{groupSpecPrice?.price ? formatNumber(Number(groupSpecPrice.price)) : '-'}</td>
+                          <td className="px-3 py-2 text-center text-purple-500 font-mono">
+                            <Link href={`/pricing/group?groupId=${groupId}`} target="_blank" className="hover:underline hover:text-purple-800" title="그룹단가 설정으로 이동">
+                              {groupSpecPrice?.price ? formatNumber(Number(groupSpecPrice.price)) : '-'}
+                            </Link>
+                          </td>
                         )}
                         <td className="px-3 py-2 text-center">
                           <Input type="number" className="h-7 w-24 text-xs text-center font-mono mx-auto" placeholder="-"
@@ -1286,7 +1293,7 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                             <th className="px-1 py-1 text-center">규격</th>
                             <th className="px-1 py-1 text-center w-12">가중치</th>
                             <th className="px-1 py-1 text-center w-14">표준</th>
-                            {groupId && <th className="px-1 py-1 text-center w-14 text-purple-600">그룹</th>}
+                            {groupId && <th className="px-1 py-1 text-center w-14 text-purple-600"><Link href={`/pricing/group?groupId=${groupId}`} target="_blank" className="hover:underline hover:text-purple-800">그룹</Link></th>}
                             <th className="px-1 py-1 text-center w-16">개별단가</th>
                           </tr>
                         </thead>
@@ -1315,7 +1322,9 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                                   <td className="px-1 py-0.5 text-center text-gray-400 font-mono">{standardPrice > 0 ? formatNumber(standardPrice) : '-'}</td>
                                   {groupId && (
                                     <td className="px-1 py-0.5 text-center text-purple-500 font-mono">
-                                      {groupSpecPrice?.price ? formatNumber(Number(groupSpecPrice.price)) : '-'}
+                                      <Link href={`/pricing/group?groupId=${groupId}`} target="_blank" className="hover:underline hover:text-purple-800" title="그룹단가 설정으로 이동">
+                                        {groupSpecPrice?.price ? formatNumber(Number(groupSpecPrice.price)) : '-'}
+                                      </Link>
                                     </td>
                                   )}
                                   <td className="px-1 py-0.5 text-center">
@@ -1675,7 +1684,9 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-400">표준: {formatNumber(stdPrice)}원</span>
                   {groupId && groupBasePrice?.price != null && Number(groupBasePrice.price) > 0 && (
-                    <span className="text-xs text-purple-500">그룹: {formatNumber(Number(groupBasePrice.price))}원</span>
+                    <Link href={`/pricing/group?groupId=${groupId}`} target="_blank" className="text-xs text-purple-500 hover:underline hover:text-purple-800" title="그룹단가 설정으로 이동">
+                      그룹: {formatNumber(Number(groupBasePrice.price))}원
+                    </Link>
                   )}
                   <Input type="number" className="h-8 w-28 text-sm text-center font-mono" placeholder="개별단가"
                     value={editingPrices[key] ?? (saved?.price ? String(Number(saved.price)) : (groupBasePrice?.price ? String(Number(groupBasePrice.price)) : ''))}
